@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVE Tools - Chartes Graphiques</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600;700&family=Michroma&family=Electrolize&family=Audiowide&family=Oxanium:wght@300;400;500;600;700&family=Saira:wght@300;400;500;600;700&family=Jura:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            color: #06b6d4;
+            letter-spacing: 4px;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .proposals {
+            display: flex;
+            flex-direction: column;
+            gap: 4rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .proposal {
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .proposal-header {
+            padding: 1.5rem 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .proposal-num {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+        }
+
+        .proposal-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .proposal-desc {
+            padding: 0 2rem 1.5rem;
+            font-size: 0.95rem;
+            opacity: 0.7;
+        }
+
+        .mockup {
+            padding: 2rem;
+        }
+
+        .color-palette {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .color-swatch {
+            width: 60px;
+            height: 60px;
+            border-radius: 10px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 0.3rem;
+            font-size: 0.6rem;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .sample-ui {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .sample-card {
+            padding: 1.5rem;
+            border-radius: 12px;
+        }
+
+        .sample-card h3 {
+            margin-bottom: 0.75rem;
+            font-size: 1.1rem;
+        }
+
+        .sample-stat {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .sample-label {
+            font-size: 0.8rem;
+            opacity: 0.6;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .sample-btn {
+            display: inline-block;
+            padding: 0.6rem 1.5rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-top: 1rem;
+            border: none;
+            cursor: pointer;
+        }
+
+        .sample-nav {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .sample-nav-item {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+
+        /* =====================================================
+           CHARTE 1: Neon Cyberpunk
+           ===================================================== */
+        .charte-1 {
+            background: linear-gradient(135deg, #0d0221 0%, #150734 50%, #0d0221 100%);
+            border: 1px solid #ff00ff33;
+        }
+
+        .charte-1 .proposal-header {
+            background: linear-gradient(90deg, #ff00ff15, transparent);
+            border-bottom: 1px solid #ff00ff33;
+        }
+
+        .charte-1 .proposal-num {
+            background: linear-gradient(135deg, #ff00ff, #00ffff);
+            color: #000;
+        }
+
+        .charte-1 .proposal-title {
+            font-family: 'Audiowide', sans-serif;
+            color: #ff00ff;
+            text-shadow: 0 0 20px #ff00ff66;
+        }
+
+        .charte-1 .mockup {
+            font-family: 'Exo 2', sans-serif;
+        }
+
+        .charte-1 .sample-card {
+            background: linear-gradient(135deg, #1a0a2e, #0d0221);
+            border: 1px solid #ff00ff44;
+            box-shadow: 0 0 30px #ff00ff11, inset 0 0 30px #ff00ff05;
+        }
+
+        .charte-1 .sample-card h3 {
+            font-family: 'Audiowide', sans-serif;
+            color: #00ffff;
+            text-shadow: 0 0 10px #00ffff66;
+        }
+
+        .charte-1 .sample-stat {
+            font-family: 'Orbitron', sans-serif;
+            color: #ff00ff;
+            text-shadow: 0 0 15px #ff00ff66;
+        }
+
+        .charte-1 .sample-btn {
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            color: #000;
+            font-family: 'Exo 2', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 0 20px #ff00ff66;
+        }
+
+        .charte-1 .sample-nav-item {
+            background: #ff00ff11;
+            border: 1px solid #ff00ff33;
+            color: #ff00ff;
+        }
+
+        .charte-1 .sample-nav-item.active {
+            background: #ff00ff;
+            color: #000;
+            box-shadow: 0 0 15px #ff00ff66;
+        }
+
+        /* =====================================================
+           CHARTE 2: Military Industrial
+           ===================================================== */
+        .charte-2 {
+            background: linear-gradient(135deg, #1a1a18 0%, #252520 50%, #1a1a18 100%);
+            border: 1px solid #4a4a3a;
+        }
+
+        .charte-2 .proposal-header {
+            background: repeating-linear-gradient(
+                -45deg,
+                transparent,
+                transparent 10px,
+                #2a2a2511 10px,
+                #2a2a2511 20px
+            );
+            border-bottom: 2px solid #5a5a4a;
+        }
+
+        .charte-2 .proposal-num {
+            background: #c4a000;
+            color: #1a1a18;
+            font-family: 'Michroma', sans-serif;
+        }
+
+        .charte-2 .proposal-title {
+            font-family: 'Michroma', sans-serif;
+            color: #c4a000;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+
+        .charte-2 .mockup {
+            font-family: 'Saira', sans-serif;
+        }
+
+        .charte-2 .sample-card {
+            background: #1f1f1c;
+            border: 2px solid #3a3a2a;
+            border-left: 4px solid #c4a000;
+            border-radius: 0;
+        }
+
+        .charte-2 .sample-card h3 {
+            font-family: 'Michroma', sans-serif;
+            color: #c4a000;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 2px;
+        }
+
+        .charte-2 .sample-stat {
+            font-family: 'Share Tech Mono', monospace;
+            color: #8bc34a;
+        }
+
+        .charte-2 .sample-btn {
+            background: #c4a000;
+            color: #1a1a18;
+            font-family: 'Michroma', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-radius: 0;
+        }
+
+        .charte-2 .sample-nav-item {
+            background: #2a2a25;
+            border: 1px solid #4a4a3a;
+            color: #8a8a7a;
+            border-radius: 0;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+        }
+
+        .charte-2 .sample-nav-item.active {
+            background: #c4a000;
+            border-color: #c4a000;
+            color: #1a1a18;
+        }
+
+        /* =====================================================
+           CHARTE 3: Holographic Minimal
+           ===================================================== */
+        .charte-3 {
+            background: linear-gradient(180deg, #0a0a0f 0%, #12121a 100%);
+            border: 1px solid #ffffff15;
+        }
+
+        .charte-3 .proposal-header {
+            background: linear-gradient(90deg, #ffffff05, transparent);
+            border-bottom: 1px solid #ffffff10;
+        }
+
+        .charte-3 .proposal-num {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+        }
+
+        .charte-3 .proposal-title {
+            font-family: 'Jura', sans-serif;
+            font-weight: 500;
+            color: #fff;
+            letter-spacing: 2px;
+        }
+
+        .charte-3 .mockup {
+            font-family: 'Jura', sans-serif;
+        }
+
+        .charte-3 .sample-card {
+            background: linear-gradient(135deg, #ffffff08, #ffffff03);
+            border: 1px solid #ffffff15;
+            backdrop-filter: blur(10px);
+        }
+
+        .charte-3 .sample-card h3 {
+            font-family: 'Jura', sans-serif;
+            font-weight: 600;
+            color: #a78bfa;
+            letter-spacing: 1px;
+        }
+
+        .charte-3 .sample-stat {
+            font-family: 'Jura', sans-serif;
+            font-weight: 300;
+            color: #fff;
+            background: linear-gradient(90deg, #667eea, #764ba2, #f472b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .charte-3 .sample-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            font-family: 'Jura', sans-serif;
+            font-weight: 500;
+            letter-spacing: 1px;
+        }
+
+        .charte-3 .sample-nav-item {
+            background: transparent;
+            border: 1px solid #ffffff20;
+            color: #888;
+        }
+
+        .charte-3 .sample-nav-item.active {
+            background: linear-gradient(135deg, #667eea33, #764ba233);
+            border-color: #667eea;
+            color: #fff;
+        }
+
+        /* =====================================================
+           CHARTE 4: EVE Classic Dark
+           ===================================================== */
+        .charte-4 {
+            background: linear-gradient(135deg, #0c1015 0%, #141a22 50%, #0c1015 100%);
+            border: 1px solid #1e3a5f;
+        }
+
+        .charte-4 .proposal-header {
+            background: linear-gradient(90deg, #0f2940, transparent);
+            border-bottom: 1px solid #1e3a5f;
+        }
+
+        .charte-4 .proposal-num {
+            background: #e6842a;
+            color: #0c1015;
+            font-family: 'Electrolize', sans-serif;
+        }
+
+        .charte-4 .proposal-title {
+            font-family: 'Electrolize', sans-serif;
+            color: #4a9eff;
+        }
+
+        .charte-4 .mockup {
+            font-family: 'Electrolize', sans-serif;
+        }
+
+        .charte-4 .sample-card {
+            background: linear-gradient(180deg, #0f1922, #0a1018);
+            border: 1px solid #1e3a5f;
+            box-shadow: inset 0 1px 0 #ffffff08;
+        }
+
+        .charte-4 .sample-card h3 {
+            font-family: 'Electrolize', sans-serif;
+            color: #4a9eff;
+        }
+
+        .charte-4 .sample-stat {
+            font-family: 'Share Tech Mono', monospace;
+            color: #e6842a;
+        }
+
+        .charte-4 .sample-label {
+            color: #4a6a8a;
+        }
+
+        .charte-4 .sample-btn {
+            background: linear-gradient(180deg, #e6842a, #c46a1a);
+            color: #0c1015;
+            font-family: 'Electrolize', sans-serif;
+            box-shadow: 0 2px 10px #e6842a44;
+        }
+
+        .charte-4 .sample-nav-item {
+            background: #0a1018;
+            border: 1px solid #1e3a5f;
+            color: #4a6a8a;
+        }
+
+        .charte-4 .sample-nav-item.active {
+            background: linear-gradient(180deg, #1e3a5f, #0f2940);
+            border-color: #4a9eff;
+            color: #4a9eff;
+        }
+
+        /* =====================================================
+           CHARTE 5: Terminal Hacker
+           ===================================================== */
+        .charte-5 {
+            background: #0a0a0a;
+            border: 1px solid #00ff0033;
+        }
+
+        .charte-5 .proposal-header {
+            background: #00ff0008;
+            border-bottom: 1px solid #00ff0033;
+        }
+
+        .charte-5 .proposal-num {
+            background: #00ff00;
+            color: #0a0a0a;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .charte-5 .proposal-title {
+            font-family: 'Share Tech Mono', monospace;
+            color: #00ff00;
+        }
+
+        .charte-5 .mockup {
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .charte-5 .sample-card {
+            background: #0f0f0f;
+            border: 1px solid #00ff0033;
+            border-radius: 0;
+        }
+
+        .charte-5 .sample-card h3 {
+            font-family: 'Share Tech Mono', monospace;
+            color: #00ff00;
+            font-size: 0.9rem;
+        }
+
+        .charte-5 .sample-card h3::before {
+            content: "> ";
+            opacity: 0.5;
+        }
+
+        .charte-5 .sample-stat {
+            font-family: 'Share Tech Mono', monospace;
+            color: #00ff00;
+            text-shadow: 0 0 10px #00ff0066;
+        }
+
+        .charte-5 .sample-label {
+            color: #00aa00;
+        }
+
+        .charte-5 .sample-label::before {
+            content: "// ";
+        }
+
+        .charte-5 .sample-btn {
+            background: transparent;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            font-family: 'Share Tech Mono', monospace;
+            border-radius: 0;
+        }
+
+        .charte-5 .sample-btn:hover {
+            background: #00ff00;
+            color: #0a0a0a;
+        }
+
+        .charte-5 .sample-nav-item {
+            background: transparent;
+            border: 1px solid #00ff0033;
+            color: #00aa00;
+            border-radius: 0;
+        }
+
+        .charte-5 .sample-nav-item.active {
+            background: #00ff0011;
+            border-color: #00ff00;
+            color: #00ff00;
+        }
+
+        /* Scanline effect for terminal */
+        .charte-5 .mockup::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                #00ff0005 2px,
+                #00ff0005 4px
+            );
+            pointer-events: none;
+        }
+
+        .charte-5 .mockup {
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>EVE TOOLS</h1>
+        <p>5 Propositions de Charte Graphique</p>
+    </header>
+
+    <div class="proposals">
+
+        <!-- CHARTE 1: Neon Cyberpunk -->
+        <article class="proposal charte-1">
+            <div class="proposal-header">
+                <span class="proposal-num">01</span>
+                <span class="proposal-title">Neon Cyberpunk</span>
+            </div>
+            <p class="proposal-desc">
+                Esthetique cyberpunk avec neons magenta/cyan, effets de glow intenses, typographie futuriste Audiowide.
+                Ambiance Night City, contrastes forts, elements lumineux sur fond sombre profond.
+            </p>
+            <div class="mockup">
+                <div class="color-palette">
+                    <div class="color-swatch" style="background: #0d0221; color: #fff;">#0d0221</div>
+                    <div class="color-swatch" style="background: #ff00ff; color: #000;">#ff00ff</div>
+                    <div class="color-swatch" style="background: #00ffff; color: #000;">#00ffff</div>
+                    <div class="color-swatch" style="background: #1a0a2e; color: #fff;">#1a0a2e</div>
+                    <div class="color-swatch" style="background: #ff6b6b; color: #000;">#ff6b6b</div>
+                </div>
+                <div class="sample-nav">
+                    <span class="sample-nav-item active">Dashboard</span>
+                    <span class="sample-nav-item">PVE Income</span>
+                    <span class="sample-nav-item">Assets</span>
+                    <span class="sample-nav-item">Characters</span>
+                </div>
+                <div class="sample-ui">
+                    <div class="sample-card">
+                        <h3>Bounties</h3>
+                        <div class="sample-stat">847.2M</div>
+                        <div class="sample-label">ISK Total</div>
+                        <button class="sample-btn">View Details</button>
+                    </div>
+                    <div class="sample-card">
+                        <h3>Net Profit</h3>
+                        <div class="sample-stat">1.2B</div>
+                        <div class="sample-label">30 Days</div>
+                        <button class="sample-btn">Analytics</button>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- CHARTE 2: Military Industrial -->
+        <article class="proposal charte-2">
+            <div class="proposal-header">
+                <span class="proposal-num">02</span>
+                <span class="proposal-title">Military Industrial</span>
+            </div>
+            <p class="proposal-desc">
+                Design industriel militaire avec tons kaki/olive, accents jaune armee, bordures strictes sans radius.
+                Typographie Michroma austere, feeling de centre de commandement tactique.
+            </p>
+            <div class="mockup">
+                <div class="color-palette">
+                    <div class="color-swatch" style="background: #1a1a18; color: #fff;">#1a1a18</div>
+                    <div class="color-swatch" style="background: #c4a000; color: #000;">#c4a000</div>
+                    <div class="color-swatch" style="background: #8bc34a; color: #000;">#8bc34a</div>
+                    <div class="color-swatch" style="background: #3a3a2a; color: #fff;">#3a3a2a</div>
+                    <div class="color-swatch" style="background: #ff5722; color: #000;">#ff5722</div>
+                </div>
+                <div class="sample-nav">
+                    <span class="sample-nav-item active">Dashboard</span>
+                    <span class="sample-nav-item">PVE Income</span>
+                    <span class="sample-nav-item">Assets</span>
+                    <span class="sample-nav-item">Characters</span>
+                </div>
+                <div class="sample-ui">
+                    <div class="sample-card">
+                        <h3>Bounties</h3>
+                        <div class="sample-stat">847.2M</div>
+                        <div class="sample-label">ISK Total</div>
+                        <button class="sample-btn">View Details</button>
+                    </div>
+                    <div class="sample-card">
+                        <h3>Net Profit</h3>
+                        <div class="sample-stat">1.2B</div>
+                        <div class="sample-label">30 Days</div>
+                        <button class="sample-btn">Analytics</button>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- CHARTE 3: Holographic Minimal -->
+        <article class="proposal charte-3">
+            <div class="proposal-header">
+                <span class="proposal-num">03</span>
+                <span class="proposal-title">Holographic Minimal</span>
+            </div>
+            <p class="proposal-desc">
+                Design epure et elegant avec gradients holographiques violet/rose, glassmorphism subtil.
+                Typographie fine Jura, espaces genereux, feeling premium et raffine.
+            </p>
+            <div class="mockup">
+                <div class="color-palette">
+                    <div class="color-swatch" style="background: #0a0a0f; color: #fff;">#0a0a0f</div>
+                    <div class="color-swatch" style="background: #667eea; color: #fff;">#667eea</div>
+                    <div class="color-swatch" style="background: #764ba2; color: #fff;">#764ba2</div>
+                    <div class="color-swatch" style="background: #f472b6; color: #000;">#f472b6</div>
+                    <div class="color-swatch" style="background: #a78bfa; color: #000;">#a78bfa</div>
+                </div>
+                <div class="sample-nav">
+                    <span class="sample-nav-item active">Dashboard</span>
+                    <span class="sample-nav-item">PVE Income</span>
+                    <span class="sample-nav-item">Assets</span>
+                    <span class="sample-nav-item">Characters</span>
+                </div>
+                <div class="sample-ui">
+                    <div class="sample-card">
+                        <h3>Bounties</h3>
+                        <div class="sample-stat">847.2M</div>
+                        <div class="sample-label">ISK Total</div>
+                        <button class="sample-btn">View Details</button>
+                    </div>
+                    <div class="sample-card">
+                        <h3>Net Profit</h3>
+                        <div class="sample-stat">1.2B</div>
+                        <div class="sample-label">30 Days</div>
+                        <button class="sample-btn">Analytics</button>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- CHARTE 4: EVE Classic Dark -->
+        <article class="proposal charte-4">
+            <div class="proposal-header">
+                <span class="proposal-num">04</span>
+                <span class="proposal-title">EVE Classic Dark</span>
+            </div>
+            <p class="proposal-desc">
+                Inspiree de l'UI EVE Online officielle: bleu profond, accents orange caracteristiques.
+                Typographie Electrolize, feeling authentique EVE, familier pour les joueurs.
+            </p>
+            <div class="mockup">
+                <div class="color-palette">
+                    <div class="color-swatch" style="background: #0c1015; color: #fff;">#0c1015</div>
+                    <div class="color-swatch" style="background: #4a9eff; color: #000;">#4a9eff</div>
+                    <div class="color-swatch" style="background: #e6842a; color: #000;">#e6842a</div>
+                    <div class="color-swatch" style="background: #1e3a5f; color: #fff;">#1e3a5f</div>
+                    <div class="color-swatch" style="background: #2ecc71; color: #000;">#2ecc71</div>
+                </div>
+                <div class="sample-nav">
+                    <span class="sample-nav-item active">Dashboard</span>
+                    <span class="sample-nav-item">PVE Income</span>
+                    <span class="sample-nav-item">Assets</span>
+                    <span class="sample-nav-item">Characters</span>
+                </div>
+                <div class="sample-ui">
+                    <div class="sample-card">
+                        <h3>Bounties</h3>
+                        <div class="sample-stat">847.2M</div>
+                        <div class="sample-label">ISK Total</div>
+                        <button class="sample-btn">View Details</button>
+                    </div>
+                    <div class="sample-card">
+                        <h3>Net Profit</h3>
+                        <div class="sample-stat">1.2B</div>
+                        <div class="sample-label">30 Days</div>
+                        <button class="sample-btn">Analytics</button>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- CHARTE 5: Terminal Hacker -->
+        <article class="proposal charte-5">
+            <div class="proposal-header">
+                <span class="proposal-num">05</span>
+                <span class="proposal-title">Terminal Hacker</span>
+            </div>
+            <p class="proposal-desc">
+                Esthetique terminal/console avec vert phosphore monochrome, police monospace exclusive.
+                Effet scanlines, bordures carrees, feeling hacker/matrix retro-futuriste.
+            </p>
+            <div class="mockup">
+                <div class="color-palette">
+                    <div class="color-swatch" style="background: #0a0a0a; color: #0f0;">#0a0a0a</div>
+                    <div class="color-swatch" style="background: #00ff00; color: #000;">#00ff00</div>
+                    <div class="color-swatch" style="background: #00aa00; color: #000;">#00aa00</div>
+                    <div class="color-swatch" style="background: #0f0f0f; color: #0f0;">#0f0f0f</div>
+                    <div class="color-swatch" style="background: #ff0000; color: #000;">#ff0000</div>
+                </div>
+                <div class="sample-nav">
+                    <span class="sample-nav-item active">Dashboard</span>
+                    <span class="sample-nav-item">PVE Income</span>
+                    <span class="sample-nav-item">Assets</span>
+                    <span class="sample-nav-item">Characters</span>
+                </div>
+                <div class="sample-ui">
+                    <div class="sample-card">
+                        <h3>Bounties</h3>
+                        <div class="sample-stat">847.2M</div>
+                        <div class="sample-label">ISK Total</div>
+                        <button class="sample-btn">[ VIEW ]</button>
+                    </div>
+                    <div class="sample-card">
+                        <h3>Net Profit</h3>
+                        <div class="sample-stat">1.2B</div>
+                        <div class="sample-label">30 Days</div>
+                        <button class="sample-btn">[ ANALYZE ]</button>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+    </div>
+</body>
+</html>

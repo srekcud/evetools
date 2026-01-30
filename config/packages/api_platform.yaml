@@ -1,0 +1,26 @@
+# config/packages/api_platform.yaml
+api_platform:
+    title: 'EVE Tools API'
+    description: 'API for EVE Online utilities application'
+    version: '1.0.0'
+
+    formats:
+        jsonld: ['application/ld+json']
+        json: ['application/json']
+
+    defaults:
+        stateless: true
+        cache_headers:
+            vary: ['Content-Type', 'Authorization', 'Origin']
+        extra_properties:
+            standard_put: true
+            rfc_7807_compliant_errors: true
+
+    event_listeners_backward_compatibility_layer: false
+    enable_swagger_ui: true
+    enable_docs: true
+
+    docs_formats:
+        jsonld: ['application/ld+json']
+        json: ['application/json']
+        html: ['text/html']

@@ -1,0 +1,333 @@
+# EVE Tools - Contexte Projet
+
+## Description
+
+Application web d'utilitaires pour EVE Online :
+- Gestion de flottes de minage
+- Projets industriels
+- Calcul de gains PVE
+- Alertes intel
+
+## Stack Technique
+
+- **Backend**: Symfony 7.4 + API Platform 3.4
+- **Frontend**: Vue.js 3.5 + Vite + Tailwind CSS
+- **Runtime**: FrankenPHP 8.4 Alpine
+- **Database**: PostgreSQL 16
+- **Queue**: RabbitMQ (Symfony Messenger)
+- **Cache**: Redis
+- **Auth**: JWT + OAuth2 EVE SSO
+
+---
+
+## API EVE Online (ESI)
+
+### Base URL
+```
+https://esi.evetech.net/latest
+```
+
+### Authentification
+- OAuth 2.0 via EVE SSO
+- Token en header : `Authorization: Bearer <token>`
+- Scopes requis selon endpoints (ex: `esi-assets.read_assets.v1`)
+
+### Endpoints principaux utilisés
+
+| Catégorie | Endpoint | Usage |
+|-----------|----------|-------|
+| **Character** | `GET /characters/{id}/` | Info personnage |
+| **Assets** | `GET /characters/{id}/assets/` | Assets personnels |
+| **Assets** | `GET /corporations/{id}/assets/` | Assets corporation |
+| **Universe** | `POST /universe/names/` | Résoudre type_id → name |
+| **Industry** | `GET /characters/{id}/industry/jobs/` | Jobs industrie |
+| **Mining** | `GET /characters/{id}/mining/` | Historique minage |
+| **Skills** | `GET /characters/{id}/skills/` | Compétences |
+| **Wallet** | `GET /characters/{id}/wallet/` | Portefeuille |
+| **Market** | `GET /markets/{region_id}/orders/` | Ordres de marché |
+| **Blueprints** | `GET /characters/{id}/blueprints/` | Blueprints |
+| **Contracts** | `GET /characters/{id}/contracts/` | Contrats |
+| **Killmails** | `GET /characters/{id}/killmails/recent/` | Killmails |
+| **Fleet** | `GET /fleets/{id}/` | Info flotte |
+
+### Rate Limiting
+- Code **420** = rate limit dépassé
+- Support ETag / Cache-Control
+- Pagination via `page` param (max ~1000 items/page)
+
+### Format
+- JSON uniquement
+- Multi-langue via `Accept-Language` (en, fr, de, ja, ru, zh, ko, es)
+
+---
+
+## Static Data Export (SDE)
+
+### URLs de téléchargement
+```bash
+# JSON Lines (recommandé - streaming)
+https://developers.eveonline.com/static-data/eve-online-static-data-latest-jsonl.zip
+
+# YAML
+https://developers.eveonline.com/static-data/eve-online-static-data-latest-yaml.zip
+```
+
+### Tables requises pour le projet
+
+#### Priorité 1 - Core (Assets & Inventaire)
+
+| Fichier | Description | Champs clés |
+|---------|-------------|-------------|
+| `types.yaml` | Tous les objets du jeu | `typeID`, `typeName`, `groupID`, `mass`, `volume`, `basePrice`, `marketGroupID`, `published` |
+| `groups.yaml` | Groupes d'objets | `groupID`, `categoryID`, `groupName` |
+| `categories.yaml` | Catégories | `categoryID`, `categoryName`, `published` |
+| `marketGroups.yaml` | Hiérarchie marché | `marketGroupID`, `parentGroupID`, `marketGroupName` |
+
+#### Priorité 2 - Localisation
+
+| Fichier | Champs clés |
+|---------|-------------|
+| `mapRegions` | `regionID`, `regionName`, `x`, `y`, `z`, `factionID` |
+| `mapConstellations` | `constellationID`, `constellationName`, `regionID` |
+| `mapSolarSystems` | `solarSystemID`, `solarSystemName`, `security`, `factionID` |
+| `mapSolarSystemJumps` | `fromSolarSystemID`, `toSolarSystemID` (stargates NPC pour pathfinding) |
+| `ansiblex_jump_gates` | Jump bridges joueurs (données dynamiques, import manuel/ESI) |
+| `staStations` | `stationID`, `stationName`, `solarSystemID`, `operationID` |
+
+#### Priorité 3 - Industrie
+
+| Fichier | Description |
+|---------|-------------|
+| `blueprints` | Données blueprints (manufacturing, invention) |
+| `industryActivity` | Types d'activités (Manufacturing, Research, etc.) |
+| `industryActivityMaterials` | Matériaux requis par blueprint |
+| `industryActivityProducts` | Produits résultants |
+| `industryActivitySkills` | Compétences requises |
+
+#### Priorité 4 - Dogma (Attributs & Effets)
+
+| Fichier | Description |
+|---------|-------------|
+| `dgmAttributeTypes` | Types d'attributs (DPS, HP, résistances) |
+| `dgmTypeAttributes` | Attributs par item |
+| `dgmEffects` | Effets des modules |
+| `dgmTypeEffects` | Effets par type |
+
+#### Priorité 5 - Référentiel
+
+| Fichier | Description |
+|---------|-------------|
+| `chrRaces` | Races (Caldari, Gallente, etc.) |
+| `chrFactions` | Factions NPC |
+| `invFlags` | Flags de location (Cargo, CorpSAG1, etc.) |
+| `eveIcons` | Icônes des items |
+
+### Relations hiérarchiques
+```
+categories (Ships, Modules, Skills...)
+    └── groups (Frigates, Battleships...)
+            └── types (Rifter, Raven...)
+```
+
+### Changelog
+Les modifications du SDE sont documentées dans `schema-changelog.yaml` disponible à :
+```
+https://developers.eveonline.com/static-data/tranquility/changes/<build-number>.jsonl
+```
+
+---
+
+## Scopes OAuth2 EVE (24 scopes - lecture seule)
+
+### Assets & Corporation
+- `esi-assets.read_assets.v1` - Inventaire personnel
+- `esi-assets.read_corporation_assets.v1` - Inventaire corporation
+- `esi-characters.read_corporation_roles.v1` - Vérifier rôles (Director)
+- `esi-corporations.read_divisions.v1` - Noms des hangars
+- `esi-corporations.read_structures.v1` - Structures corp (Ansiblex)
+
+### Wallet & Contrats (PVE)
+- `esi-wallet.read_character_wallet.v1` - Journal + transactions
+- `esi-contracts.read_character_contracts.v1` - Contrats (dépenses)
+
+### Industrie & Minage
+- `esi-industry.read_character_jobs.v1` - Jobs industrie perso
+- `esi-industry.read_corporation_jobs.v1` - Jobs industrie corp
+- `esi-industry.read_character_mining.v1` - Ledger minage perso
+- `esi-industry.read_corporation_mining.v1` - Ledger minage corp
+- `esi-characters.read_blueprints.v1` - Blueprints perso
+- `esi-corporations.read_blueprints.v1` - Blueprints corp
+
+### Skills
+- `esi-skills.read_skills.v1` - Compétences (calculs ME/TE)
+
+### Location & Fleet
+- `esi-location.read_location.v1` - Position du joueur
+- `esi-location.read_ship_type.v1` - Vaisseau actuel
+- `esi-location.read_online.v1` - Status en ligne
+- `esi-fleets.read_fleet.v1` - Info flotte
+
+### Universe & Search
+- `esi-universe.read_structures.v1` - Info structures (citadelles)
+- `esi-search.search_structures.v1` - Recherche structures
+
+### Intel
+- `esi-characters.read_notifications.v1` - Notifications (alertes)
+- `esi-killmails.read_killmails.v1` - Kills récents
+
+### Market & UI
+- `esi-markets.structure_markets.v1` - Prix en citadelle
+- `esi-ui.open_window.v1` - Ouvrir fenêtre in-game
+
+---
+
+## Structure du projet
+
+```
+src/
+├── ApiResource/        # Resources API Platform (DTOs)
+├── Controller/
+│   ├── Auth/           # OAuth EVE
+│   └── Api/            # Endpoints API
+├── Command/            # Console commands
+│   └── SdeImportCommand.php
+├── Entity/             # Doctrine entities
+│   ├── User.php
+│   ├── Character.php
+│   ├── EveToken.php
+│   ├── CachedAsset.php
+│   ├── AnsiblexJumpGate.php
+│   └── Sde/            # SDE entities
+│       ├── InvCategory.php
+│       ├── InvGroup.php
+│       ├── InvType.php
+│       ├── InvMarketGroup.php
+│       ├── MapRegion.php
+│       ├── MapConstellation.php
+│       ├── MapSolarSystem.php
+│       ├── MapSolarSystemJump.php
+│       └── StaStation.php
+├── Service/
+│   ├── ESI/            # Clients API EVE
+│   │   ├── EsiClient.php
+│   │   ├── TokenManager.php
+│   │   ├── AuthenticationService.php
+│   │   ├── CharacterService.php
+│   │   ├── AssetsService.php
+│   │   └── CorporationService.php
+│   ├── Sde/            # SDE import
+│   │   └── SdeImportService.php
+│   └── Sync/           # Synchronisation async
+├── Message/            # Messages Messenger
+├── MessageHandler/     # Handlers async
+└── Scheduler/          # Tâches planifiées
+
+frontend/
+├── src/
+│   ├── components/
+│   ├── views/
+│   ├── stores/         # Pinia stores
+│   └── router/
+└── vite.config.ts
+```
+
+---
+
+## Commandes utiles
+
+```bash
+# Docker
+make up              # Démarrer
+make down            # Arrêter
+make logs            # Logs
+make shell           # Shell container
+
+# Database
+make db-migrate      # Migrations
+make db-create       # Créer DB
+
+# SDE (Static Data Export)
+make sde-import      # Importer données statiques EVE
+
+# Ansiblex Sync
+php bin/console app:ansiblex:sync "character name"  # Sync manuel
+
+# Tests
+make test            # Tous les tests
+
+# Messenger (async)
+make messenger       # Consumer
+```
+
+---
+
+## API Endpoints
+
+### Ansiblex Jump Gates
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/me/ansiblex` | Liste les Ansiblex de l'alliance |
+| `POST` | `/api/me/ansiblex/refresh` | Lance un sync (async par défaut) |
+| `POST` | `/api/me/ansiblex/refresh?async=false` | Sync synchrone |
+| `GET` | `/api/me/ansiblex/graph` | Graphe pour pathfinding |
+
+### Scheduler
+
+| Tâche | Intervalle |
+|-------|------------|
+| Assets sync | 30 minutes |
+| Ansiblex sync | 12 heures |
+
+---
+
+## TODO / Points en suspens
+
+### Ansiblex Jump Gates - Crowdsourcing
+**Problème**: L'endpoint ESI `/corporations/{id}/structures/` nécessite un rôle Director/Station_Manager in-game. Un utilisateur ne peut voir que les structures de SA corporation, pas celles de son alliance.
+
+**Solutions à explorer**:
+1. **Crowdsourcing alliance** - Les utilisateurs avec le rôle Director contribuent leurs Ansiblex, tous les membres de l'alliance en bénéficient
+2. **Import manuel** - Interface pour importer une liste d'Ansiblex (depuis wiki alliance, Dotlan, etc.)
+3. **Détection automatique** - Détecter les Ansiblex quand un utilisateur les traverse (via location tracking)
+
+**Statut**: En attente de décision
+
+### Comptabilité Corporation
+**Idée**: Module de gestion comptable pour la corporation (suivi revenus/dépenses, bilans).
+
+**Scopes ESI requis** (à ajouter si implémenté):
+- `esi-wallet.read_corporation_wallets.v1` - Soldes et journal des 7 divisions
+- `esi-contracts.read_corporation_contracts.v1` - Contrats corp
+- `esi-markets.read_corporation_orders.v1` - Ordres de marché corp
+
+**Rôles in-game requis**: Accountant, Junior Accountant ou Director
+
+**Statut**: Idée future
+
+### Synchronisation temps réel avec Mercure
+**Idée**: Utiliser [Mercure](https://mercure.rocks/) (ou SSE/WebSocket) pour synchroniser les assets et autres données depuis le backend vers le frontend en temps réel, au fur et à mesure de leur récupération depuis l'API ESI.
+
+**Avantages**:
+- Feedback instantané pendant les longues opérations de sync
+- Plus besoin de polling côté frontend
+- Possibilité d'afficher une barre de progression
+- Meilleure UX pour les utilisateurs avec beaucoup d'assets
+
+**Implémentation suggérée**:
+1. Ajouter le bundle Mercure à Symfony
+2. Publier des updates pendant `AssetsSyncService::syncCharacterAssets()`
+3. Le frontend s'abonne au topic et met à jour l'UI en temps réel
+
+**Statut**: Idée future
+
+---
+
+## Ressources externes
+
+- [EVE Developers Portal](https://developers.eveonline.com/)
+- [ESI API Explorer](https://developers.eveonline.com/api-explorer)
+- [Static Data](https://developers.eveonline.com/static-data)
+- [ESI Documentation](https://docs.esi.evetech.net/)
+- [EVE University Wiki - SDE](https://wiki.eveuniversity.org/Static_Data_Export)
+- [Fuzzwork SDE Conversions](https://www.fuzzwork.co.uk/dump/)

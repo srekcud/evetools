@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVE Tools - Design Proposals</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e14;
+            --bg-secondary: #0f1419;
+            --bg-card: rgba(15, 23, 35, 0.85);
+            --cyan-500: #06b6d4;
+            --cyan-400: #22d3ee;
+            --cyan-300: #67e8f9;
+            --cyan-glow: rgba(6, 182, 212, 0.4);
+            --amber-500: #f59e0b;
+            --amber-400: #fbbf24;
+            --red-500: #ef4444;
+            --green-500: #22c55e;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --border-subtle: rgba(6, 182, 212, 0.15);
+            --border-accent: rgba(6, 182, 212, 0.4);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated background grid */
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                linear-gradient(rgba(6, 182, 212, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(6, 182, 212, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-glow {
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(ellipse at 30% 20%, rgba(6, 182, 212, 0.08) 0%, transparent 50%),
+                        radial-gradient(ellipse at 70% 80%, rgba(6, 182, 212, 0.05) 0%, transparent 40%);
+            pointer-events: none;
+            z-index: 0;
+            animation: bgPulse 15s ease-in-out infinite;
+        }
+
+        @keyframes bgPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+        }
+
+        /* Header */
+        .header {
+            position: relative;
+            z-index: 10;
+            padding: 2rem 3rem;
+            border-bottom: 1px solid var(--border-subtle);
+            background: rgba(10, 14, 20, 0.9);
+            backdrop-filter: blur(20px);
+        }
+
+        .header h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, var(--cyan-300), var(--cyan-500));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            margin-top: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            letter-spacing: 2px;
+        }
+
+        /* Main content */
+        .main {
+            position: relative;
+            z-index: 10;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 3rem;
+        }
+
+        /* Proposal cards */
+        .proposals {
+            display: flex;
+            flex-direction: column;
+            gap: 4rem;
+        }
+
+        .proposal {
+            position: relative;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .proposal:hover {
+            border-color: var(--border-accent);
+            box-shadow: 0 0 40px rgba(6, 182, 212, 0.15),
+                        inset 0 0 60px rgba(6, 182, 212, 0.03);
+            transform: translateY(-4px);
+        }
+
+        .proposal-number {
+            position: absolute;
+            top: -20px;
+            left: 30px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 6rem;
+            font-weight: 900;
+            color: rgba(6, 182, 212, 0.08);
+            line-height: 1;
+            pointer-events: none;
+        }
+
+        .proposal-header {
+            padding: 2rem 2.5rem;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .proposal-icon {
+            width: 56px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(6, 182, 212, 0.05));
+            border: 1px solid var(--border-accent);
+            border-radius: 12px;
+            font-size: 1.5rem;
+        }
+
+        .proposal-title {
+            flex: 1;
+        }
+
+        .proposal-title h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--cyan-400);
+        }
+
+        .proposal-title p {
+            margin-top: 0.3rem;
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        .proposal-content {
+            padding: 2rem 2.5rem;
+        }
+
+        .proposal-description {
+            font-size: 1.1rem;
+            line-height: 1.7;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        .proposal-mockup {
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            overflow: hidden;
+            background: var(--bg-secondary);
+        }
+
+        /* =====================================================
+           PROPOSAL 1: Animated Stats Cards with Holographic Effect
+           ===================================================== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            padding: 2rem;
+        }
+
+        .stat-card {
+            position: relative;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(6, 182, 212, 0.02));
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(6, 182, 212, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .stat-card:hover::before {
+            left: 100%;
+        }
+
+        .stat-card:hover {
+            border-color: var(--cyan-500);
+            box-shadow: 0 0 30px rgba(6, 182, 212, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--cyan-400);
+            text-shadow: 0 0 20px var(--cyan-glow);
+        }
+
+        .stat-sub {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.3rem;
+        }
+
+        /* =====================================================
+           PROPOSAL 2: Timeline Activity Feed with Pulse Animation
+           ===================================================== */
+        .activity-feed {
+            padding: 2rem;
+        }
+
+        .activity-item {
+            display: flex;
+            gap: 1.5rem;
+            padding: 1.25rem 0;
+            border-bottom: 1px solid var(--border-subtle);
+            transition: all 0.3s ease;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-item:hover {
+            background: rgba(6, 182, 212, 0.03);
+            margin: 0 -1rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
+            border-radius: 8px;
+        }
+
+        .activity-timeline {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 40px;
+        }
+
+        .activity-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--cyan-500);
+            box-shadow: 0 0 10px var(--cyan-glow);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 10px var(--cyan-glow); }
+            50% { box-shadow: 0 0 20px var(--cyan-500), 0 0 30px var(--cyan-glow); }
+        }
+
+        .activity-line {
+            flex: 1;
+            width: 2px;
+            background: linear-gradient(to bottom, var(--cyan-500), transparent);
+            margin-top: 0.5rem;
+        }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-type {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid var(--border-subtle);
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: var(--cyan-400);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+
+        .activity-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.3rem;
+        }
+
+        .activity-details {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .activity-amount {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--green-500);
+            text-align: right;
+        }
+
+        .activity-amount.expense {
+            color: var(--red-500);
+        }
+
+        /* =====================================================
+           PROPOSAL 3: Glassmorphic Navigation Tabs with Glow
+           ===================================================== */
+        .nav-tabs-container {
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: rgba(6, 182, 212, 0.05);
+            border-radius: 16px;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .nav-tab {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            background: transparent;
+            border: none;
+            border-radius: 12px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-tab::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(6, 182, 212, 0.05));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .nav-tab:hover::before {
+            opacity: 1;
+        }
+
+        .nav-tab:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-tab.active {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(6, 182, 212, 0.1));
+            color: var(--cyan-400);
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.2),
+                        inset 0 0 20px rgba(6, 182, 212, 0.1);
+            border: 1px solid var(--border-accent);
+        }
+
+        .nav-tab-icon {
+            margin-right: 0.5rem;
+        }
+
+        /* Vertical variant */
+        .nav-tabs-vertical {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            width: 280px;
+            padding: 1rem;
+            background: rgba(6, 182, 212, 0.03);
+            border-radius: 16px;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .nav-tab-v {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.25rem;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+        }
+
+        .nav-tab-v:hover {
+            background: rgba(6, 182, 212, 0.05);
+            color: var(--text-primary);
+            border-color: var(--border-subtle);
+        }
+
+        .nav-tab-v.active {
+            background: linear-gradient(90deg, rgba(6, 182, 212, 0.15), transparent);
+            color: var(--cyan-400);
+            border-color: var(--cyan-500);
+            border-left-width: 3px;
+        }
+
+        .nav-tab-v-icon {
+            width: 24px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        /* =====================================================
+           PROPOSAL 4: Character Cards with Holographic Badge
+           ===================================================== */
+        .character-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            padding: 2rem;
+        }
+
+        .character-card {
+            position: relative;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            transition: all 0.4s ease;
+            overflow: hidden;
+        }
+
+        .character-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--cyan-500), var(--cyan-300), var(--cyan-500));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .character-card:hover::before {
+            opacity: 1;
+        }
+
+        .character-card:hover {
+            border-color: var(--border-accent);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3),
+                        0 0 30px rgba(6, 182, 212, 0.1);
+        }
+
+        .character-card.main {
+            border-color: var(--amber-500);
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.02));
+        }
+
+        .character-card.main::before {
+            background: linear-gradient(90deg, var(--amber-500), var(--amber-400), var(--amber-500));
+            opacity: 1;
+        }
+
+        .character-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .character-avatar {
+            position: relative;
+            width: 64px;
+            height: 64px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid var(--border-subtle);
+        }
+
+        .character-card.main .character-avatar {
+            border-color: var(--amber-500);
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+        }
+
+        .character-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .main-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--amber-400), var(--amber-500));
+            border-radius: 50%;
+            font-size: 0.9rem;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+            animation: badgeGlow 2s ease-in-out infinite;
+        }
+
+        @keyframes badgeGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.5); }
+            50% { box-shadow: 0 0 25px rgba(245, 158, 11, 0.8); }
+        }
+
+        .character-info h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.3rem;
+        }
+
+        .character-info p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .character-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .character-stat {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+
+        .character-stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .character-stat-value {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1rem;
+            color: var(--cyan-400);
+        }
+
+        .token-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding: 0.5rem 0.75rem;
+            background: rgba(34, 197, 94, 0.1);
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .token-status.valid {
+            color: var(--green-500);
+            background: rgba(34, 197, 94, 0.1);
+        }
+
+        .token-status.invalid {
+            color: var(--red-500);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .token-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: tokenPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes tokenPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* =====================================================
+           PROPOSAL 5: Data Table with Scanning Animation
+           ===================================================== */
+        .table-container {
+            padding: 2rem;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            padding: 1rem 1.25rem;
+            text-align: left;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--cyan-400);
+            background: rgba(6, 182, 212, 0.08);
+            border-bottom: 1px solid var(--border-accent);
+        }
+
+        .data-table th:first-child {
+            border-radius: 8px 0 0 0;
+        }
+
+        .data-table th:last-child {
+            border-radius: 0 8px 0 0;
+        }
+
+        .data-table td {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border-subtle);
+            font-size: 0.95rem;
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+
+        .data-table tr {
+            transition: all 0.3s ease;
+        }
+
+        .data-table tbody tr:hover {
+            background: rgba(6, 182, 212, 0.05);
+        }
+
+        .data-table tbody tr:hover td {
+            border-color: var(--border-accent);
+        }
+
+        .table-item-name {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .table-item-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+
+        .table-amount {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1rem;
+        }
+
+        .table-amount.positive { color: var(--green-500); }
+        .table-amount.negative { color: var(--red-500); }
+
+        .table-location {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+
+        .table-location-system {
+            color: var(--cyan-400);
+            font-weight: 500;
+        }
+
+        .table-location-structure {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .table-tag {
+            display: inline-flex;
+            padding: 0.25rem 0.6rem;
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid var(--border-subtle);
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: var(--cyan-400);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .table-tag.contract {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.3);
+            color: var(--amber-400);
+        }
+
+        /* Scanning animation */
+        .scanning-overlay {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .scanning-overlay::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--cyan-400), transparent);
+            animation: scan 2s linear infinite;
+            box-shadow: 0 0 10px var(--cyan-glow);
+        }
+
+        @keyframes scan {
+            0% { top: 0; opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        /* Loading skeleton */
+        .skeleton {
+            background: linear-gradient(90deg,
+                rgba(6, 182, 212, 0.05) 25%,
+                rgba(6, 182, 212, 0.1) 50%,
+                rgba(6, 182, 212, 0.05) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Floating action button */
+        .fab {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--cyan-500), var(--cyan-400));
+            border: none;
+            border-radius: 16px;
+            font-size: 1.5rem;
+            color: var(--bg-primary);
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(6, 182, 212, 0.4);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .fab:hover {
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: 0 8px 30px rgba(6, 182, 212, 0.5);
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .character-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            .main { padding: 1.5rem; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .character-grid { grid-template-columns: 1fr; }
+            .nav-tabs { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+    <div class="bg-glow"></div>
+
+    <header class="header">
+        <h1>EVE Tools</h1>
+        <p>5 Propositions d'Amelioration du Design</p>
+    </header>
+
+    <main class="main">
+        <div class="proposals">
+
+            <!-- PROPOSAL 1 -->
+            <article class="proposal">
+                <span class="proposal-number">01</span>
+                <div class="proposal-header">
+                    <div class="proposal-icon">📊</div>
+                    <div class="proposal-title">
+                        <h2>Cartes de Stats Animees</h2>
+                        <p>Effet holographique avec tendances et sparklines</p>
+                    </div>
+                </div>
+                <div class="proposal-content">
+                    <p class="proposal-description">
+                        Remplacer les stats simples par des cartes interactives avec effet de survol holographique,
+                        indicateurs de tendance animes et mini-graphiques sparkline en arriere-plan.
+                        L'animation de scan au survol renforce l'esthetique sci-fi.
+                    </p>
+                    <div class="proposal-mockup">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-label">Bounties (24h)</div>
+                                <div class="stat-value">847.2M</div>
+                                <div class="stat-sub">ISK</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Loot Sales</div>
+                                <div class="stat-value">125.8M</div>
+                                <div class="stat-sub">5 transactions</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Expenses</div>
+                                <div class="stat-value">42.1M</div>
+                                <div class="stat-sub">Ammo + consumables</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Net Income</div>
+                                <div class="stat-value">930.9M</div>
+                                <div class="stat-sub">ISK</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+            <!-- PROPOSAL 2 -->
+            <article class="proposal">
+                <span class="proposal-number">02</span>
+                <div class="proposal-header">
+                    <div class="proposal-icon">📜</div>
+                    <div class="proposal-title">
+                        <h2>Timeline d'Activite</h2>
+                        <p>Fil chronologique avec animations de pulsation</p>
+                    </div>
+                </div>
+                <div class="proposal-content">
+                    <p class="proposal-description">
+                        Une timeline verticale animee pour visualiser l'historique des transactions et evenements.
+                        Chaque entree pulse doucement avec une ligne de connexion gradient.
+                        Les badges categorisent le type d'activite.
+                    </p>
+                    <div class="proposal-mockup">
+                        <div class="activity-feed">
+                            <div class="activity-item">
+                                <div class="activity-timeline">
+                                    <div class="activity-dot"></div>
+                                    <div class="activity-line"></div>
+                                </div>
+                                <div class="activity-content">
+                                    <span class="activity-type">💰 Bounty</span>
+                                    <div class="activity-title">Rat Bounty Payment</div>
+                                    <div class="activity-details">G-0Q86 - Serpentis Haven</div>
+                                </div>
+                                <div class="activity-amount">+12,847,500 ISK</div>
+                            </div>
+                            <div class="activity-item">
+                                <div class="activity-timeline">
+                                    <div class="activity-dot"></div>
+                                    <div class="activity-line"></div>
+                                </div>
+                                <div class="activity-content">
+                                    <span class="activity-type">📦 Loot Sale</span>
+                                    <div class="activity-title">Rogue Drone Infestation Data x5</div>
+                                    <div class="activity-details">Jita IV - Market</div>
+                                </div>
+                                <div class="activity-amount">+8,250,000 ISK</div>
+                            </div>
+                            <div class="activity-item">
+                                <div class="activity-timeline">
+                                    <div class="activity-dot"></div>
+                                    <div class="activity-line"></div>
+                                </div>
+                                <div class="activity-content">
+                                    <span class="activity-type">🔧 Expense</span>
+                                    <div class="activity-title">Scorch M x1000</div>
+                                    <div class="activity-details">Amarr - Ammunition</div>
+                                </div>
+                                <div class="activity-amount expense">-2,150,000 ISK</div>
+                            </div>
+                            <div class="activity-item">
+                                <div class="activity-timeline">
+                                    <div class="activity-dot"></div>
+                                </div>
+                                <div class="activity-content">
+                                    <span class="activity-type">📝 Contract</span>
+                                    <div class="activity-title">Loot Sale Contract Completed</div>
+                                    <div class="activity-details">C-J6MT - 1st Taj Mahgoon</div>
+                                </div>
+                                <div class="activity-amount">+45,000,000 ISK</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+            <!-- PROPOSAL 3 -->
+            <article class="proposal">
+                <span class="proposal-number">03</span>
+                <div class="proposal-header">
+                    <div class="proposal-icon">🎛️</div>
+                    <div class="proposal-title">
+                        <h2>Navigation Glassmorphique</h2>
+                        <p>Onglets avec effet verre depoli et lueur</p>
+                    </div>
+                </div>
+                <div class="proposal-content">
+                    <p class="proposal-description">
+                        Des onglets de navigation avec effet glassmorphism,
+                        lueur cyan sur l'onglet actif et transitions fluides.
+                        Deux variantes: horizontale pour les sections principales,
+                        verticale pour les sous-menus.
+                    </p>
+                    <div class="proposal-mockup">
+                        <div class="nav-tabs-container">
+                            <!-- Horizontal tabs -->
+                            <nav class="nav-tabs">
+                                <button class="nav-tab active">
+                                    <span class="nav-tab-icon">📊</span>Dashboard
+                                </button>
+                                <button class="nav-tab">
+                                    <span class="nav-tab-icon">💰</span>PVE Income
+                                </button>
+                                <button class="nav-tab">
+                                    <span class="nav-tab-icon">📦</span>Assets
+                                </button>
+                                <button class="nav-tab">
+                                    <span class="nav-tab-icon">👤</span>Characters
+                                </button>
+                            </nav>
+
+                            <!-- Vertical tabs -->
+                            <div style="display: flex; gap: 2rem;">
+                                <nav class="nav-tabs-vertical">
+                                    <button class="nav-tab-v active">
+                                        <span class="nav-tab-v-icon">📈</span>Overview
+                                    </button>
+                                    <button class="nav-tab-v">
+                                        <span class="nav-tab-v-icon">💵</span>Bounties
+                                    </button>
+                                    <button class="nav-tab-v">
+                                        <span class="nav-tab-v-icon">📦</span>Loot Sales
+                                    </button>
+                                    <button class="nav-tab-v">
+                                        <span class="nav-tab-v-icon">⚙️</span>Expenses
+                                    </button>
+                                    <button class="nav-tab-v">
+                                        <span class="nav-tab-v-icon">📝</span>Contracts
+                                    </button>
+                                </nav>
+                                <div style="flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); font-style: italic;">
+                                    Zone de contenu...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+            <!-- PROPOSAL 4 -->
+            <article class="proposal">
+                <span class="proposal-number">04</span>
+                <div class="proposal-header">
+                    <div class="proposal-icon">👤</div>
+                    <div class="proposal-title">
+                        <h2>Cartes Personnages Premium</h2>
+                        <p>Badge holographique et indicateurs de statut</p>
+                    </div>
+                </div>
+                <div class="proposal-content">
+                    <p class="proposal-description">
+                        Des cartes de personnages avec avatar style portrait EVE,
+                        badge dore anime pour le main character,
+                        indicateur de validite du token avec pulsation,
+                        et stats rapides (ISK, SP, etc.).
+                    </p>
+                    <div class="proposal-mockup">
+                        <div class="character-grid">
+                            <div class="character-card main">
+                                <div class="character-header">
+                                    <div class="character-avatar">
+                                        <img src="https://images.evetech.net/characters/2119418082/portrait?size=128" alt="Character">
+                                        <div class="main-badge">👑</div>
+                                    </div>
+                                    <div class="character-info">
+                                        <h3>Sdu Alter</h3>
+                                        <p>Goonswarm Federation</p>
+                                    </div>
+                                </div>
+                                <div class="character-stats">
+                                    <div class="character-stat">
+                                        <span class="character-stat-label">Wallet</span>
+                                        <span class="character-stat-value">2.4B ISK</span>
+                                    </div>
+                                    <div class="character-stat">
+                                        <span class="character-stat-label">Skill Points</span>
+                                        <span class="character-stat-value">145M SP</span>
+                                    </div>
+                                </div>
+                                <div class="token-status valid">
+                                    <span class="token-dot"></span>
+                                    Token Valid
+                                </div>
+                            </div>
+                            <div class="character-card">
+                                <div class="character-header">
+                                    <div class="character-avatar">
+                                        <img src="https://images.evetech.net/characters/95465499/portrait?size=128" alt="Character">
+                                    </div>
+                                    <div class="character-info">
+                                        <h3>Alt Hauler</h3>
+                                        <p>Goonswarm Federation</p>
+                                    </div>
+                                </div>
+                                <div class="character-stats">
+                                    <div class="character-stat">
+                                        <span class="character-stat-label">Wallet</span>
+                                        <span class="character-stat-value">156M ISK</span>
+                                    </div>
+                                    <div class="character-stat">
+                                        <span class="character-stat-label">Skill Points</span>
+                                        <span class="character-stat-value">42M SP</span>
+                                    </div>
+                                </div>
+                                <div class="token-status valid">
+                                    <span class="token-dot"></span>
+                                    Token Valid
+                                </div>
+                            </div>
+                            <div class="character-card">
+                                <div class="character-header">
+                                    <div class="character-avatar">
+                                        <img src="https://images.evetech.net/characters/93330670/portrait?size=128" alt="Character">
+                                    </div>
+                                    <div class="character-info">
+                                        <h3>Market Alt</h3>
+                                        <p>NPC Corporation</p>
+                                    </div>
+                                </div>
+                                <div class="character-stats">
+                                    <div class="character-stat">
+                                        <span class="character-stat-label">Wallet</span>
+                                        <span class="character-stat-value">890M ISK</span>
+                                    </div>
+                                    <div class="character-stat">
+                                        <span class="character-stat-label">Skill Points</span>
+                                        <span class="character-stat-value">18M SP</span>
+                                    </div>
+                                </div>
+                                <div class="token-status invalid">
+                                    <span class="token-dot"></span>
+                                    Token Expired
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+            <!-- PROPOSAL 5 -->
+            <article class="proposal">
+                <span class="proposal-number">05</span>
+                <div class="proposal-header">
+                    <div class="proposal-icon">📋</div>
+                    <div class="proposal-title">
+                        <h2>Tables de Donnees Stylisees</h2>
+                        <p>Animation de scan et badges de source</p>
+                    </div>
+                </div>
+                <div class="proposal-content">
+                    <p class="proposal-description">
+                        Des tables de donnees avec en-tetes stylises Orbitron,
+                        animation de ligne de scan au chargement,
+                        icones d'items EVE, montants colores selon positif/negatif,
+                        et badges pour distinguer les sources (Market vs Contract).
+                    </p>
+                    <div class="proposal-mockup scanning-overlay">
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th>Quantity</th>
+                                        <th>Amount</th>
+                                        <th>Location</th>
+                                        <th>Source</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <div class="table-item-name">
+                                                <div class="table-item-icon">📦</div>
+                                                <span>Rogue Drone Infestation Data</span>
+                                            </div>
+                                        </td>
+                                        <td>5</td>
+                                        <td class="table-amount positive">+8,250,000 ISK</td>
+                                        <td>
+                                            <div class="table-location">
+                                                <span class="table-location-system">Jita</span>
+                                                <span class="table-location-structure">Jita IV - Moon 4 - Caldari Navy Assembly Plant</span>
+                                            </div>
+                                        </td>
+                                        <td><span class="table-tag">Market</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <div class="table-item-name">
+                                                <div class="table-item-icon">📦</div>
+                                                <span>Drone Capillary Fluid</span>
+                                            </div>
+                                        </td>
+                                        <td>12</td>
+                                        <td class="table-amount positive">+45,000,000 ISK</td>
+                                        <td>
+                                            <div class="table-location">
+                                                <span class="table-location-system">C-J6MT</span>
+                                                <span class="table-location-structure">1st Taj Mahgoon</span>
+                                            </div>
+                                        </td>
+                                        <td><span class="table-tag contract">Contract</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <div class="table-item-name">
+                                                <div class="table-item-icon">📦</div>
+                                                <span>Rogue Drone Infestation Data</span>
+                                            </div>
+                                        </td>
+                                        <td>3</td>
+                                        <td class="table-amount positive">+4,950,000 ISK</td>
+                                        <td>
+                                            <div class="table-location">
+                                                <span class="table-location-system">Amarr</span>
+                                                <span class="table-location-structure">Amarr VIII - Emperor Family Academy</span>
+                                            </div>
+                                        </td>
+                                        <td><span class="table-tag">Market</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+        </div>
+    </main>
+
+    <button class="fab" title="Retour en haut" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">↑</button>
+
+    <script>
+        // Add subtle parallax effect to background
+        document.addEventListener('mousemove', (e) => {
+            const glow = document.querySelector('.bg-glow');
+            const x = (e.clientX / window.innerWidth - 0.5) * 20;
+            const y = (e.clientY / window.innerHeight - 0.5) * 20;
+            glow.style.transform = `translate(${x}px, ${y}px)`;
+        });
+
+        // Intersection Observer for reveal animations
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.proposal').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(30px)';
+            el.style.transition = 'all 0.6s ease-out';
+            observer.observe(el);
+        });
+
+        // Tab interaction demo
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+            });
+        });
+
+        document.querySelectorAll('.nav-tab-v').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.nav-tab-v').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

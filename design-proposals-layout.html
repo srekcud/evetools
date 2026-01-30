@@ -1,0 +1,1327 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVE Tools - Layout Design Proposals</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e14;
+            --bg-secondary: #0f1419;
+            --bg-card: rgba(15, 23, 35, 0.85);
+            --cyan-500: #06b6d4;
+            --cyan-400: #22d3ee;
+            --cyan-300: #67e8f9;
+            --cyan-glow: rgba(6, 182, 212, 0.4);
+            --amber-500: #f59e0b;
+            --amber-400: #fbbf24;
+            --red-500: #ef4444;
+            --green-500: #22c55e;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --border-subtle: rgba(6, 182, 212, 0.15);
+            --border-accent: rgba(6, 182, 212, 0.4);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .bg-grid {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(6, 182, 212, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(6, 182, 212, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+        }
+
+        .header {
+            position: relative;
+            z-index: 10;
+            padding: 2rem 3rem;
+            border-bottom: 1px solid var(--border-subtle);
+            background: rgba(10, 14, 20, 0.95);
+            backdrop-filter: blur(20px);
+        }
+
+        .header h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: 3px;
+            background: linear-gradient(135deg, var(--cyan-300), var(--cyan-500));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p { margin-top: 0.5rem; color: var(--text-secondary); letter-spacing: 2px; }
+
+        .main {
+            position: relative;
+            z-index: 10;
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 3rem;
+        }
+
+        .proposals { display: flex; flex-direction: column; gap: 5rem; }
+
+        .proposal {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+        }
+
+        .proposal-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(6, 182, 212, 0.03);
+        }
+
+        .proposal-num {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 700;
+            padding: 0.4rem 0.8rem;
+            background: linear-gradient(135deg, var(--cyan-500), var(--cyan-400));
+            color: var(--bg-primary);
+            border-radius: 6px;
+        }
+
+        .proposal-header h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 600;
+            letter-spacing: 2px;
+            color: var(--text-primary);
+        }
+
+        .proposal-desc {
+            padding: 1.5rem 2rem;
+            color: var(--text-secondary);
+            font-size: 1.05rem;
+            border-bottom: 1px solid var(--border-subtle);
+            background: rgba(0,0,0,0.2);
+        }
+
+        .mockup {
+            background: var(--bg-secondary);
+            min-height: 500px;
+        }
+
+        /* =====================================================
+           PROPOSAL 1: Dashboard avec sidebar fixe
+           ===================================================== */
+        .layout-1 {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            min-height: 600px;
+        }
+
+        .sidebar-1 {
+            background: rgba(6, 182, 212, 0.03);
+            border-right: 1px solid var(--border-subtle);
+            padding: 1.5rem 0;
+        }
+
+        .sidebar-logo {
+            padding: 0 1.5rem 1.5rem;
+            border-bottom: 1px solid var(--border-subtle);
+            margin-bottom: 1rem;
+        }
+
+        .sidebar-logo span {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--cyan-400);
+            letter-spacing: 2px;
+        }
+
+        .sidebar-nav { padding: 0.5rem 0; }
+
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.85rem 1.5rem;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar-item:hover {
+            background: rgba(6, 182, 212, 0.05);
+            color: var(--text-primary);
+        }
+
+        .sidebar-item.active {
+            background: rgba(6, 182, 212, 0.1);
+            color: var(--cyan-400);
+            border-left-color: var(--cyan-500);
+        }
+
+        .sidebar-section {
+            padding: 1rem 1.5rem 0.5rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            opacity: 0.6;
+        }
+
+        .content-1 { padding: 2rem; }
+
+        .content-header-1 {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .content-header-1 h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .header-actions { display: flex; gap: 0.75rem; }
+
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            border-color: var(--cyan-500);
+            color: var(--cyan-400);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--cyan-500), var(--cyan-400));
+            border: none;
+            color: var(--bg-primary);
+        }
+
+        .stats-row-1 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-box {
+            padding: 1.25rem;
+            background: rgba(6, 182, 212, 0.05);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+        }
+
+        .stat-box-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-box-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: var(--cyan-400);
+            margin-top: 0.3rem;
+        }
+
+        .columns-1 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .column-card {
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .column-card-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border-subtle);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            color: var(--cyan-400);
+        }
+
+        .column-card-body { padding: 1rem; }
+
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0.5rem;
+            border-bottom: 1px solid var(--border-subtle);
+            font-size: 0.9rem;
+        }
+
+        .list-item:last-child { border-bottom: none; }
+
+        .list-item-label { color: var(--text-secondary); }
+        .list-item-value { font-family: 'Share Tech Mono', monospace; color: var(--green-500); }
+        .list-item-value.expense { color: var(--red-500); }
+
+        /* =====================================================
+           PROPOSAL 2: Layout en blocs modulaires
+           ===================================================== */
+        .layout-2 {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 1rem;
+            padding: 1.5rem;
+        }
+
+        .block {
+            background: rgba(6, 182, 212, 0.03);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .block-header {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .block-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            color: var(--cyan-400);
+            text-transform: uppercase;
+        }
+
+        .block-action {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        .block-body { padding: 1rem; }
+
+        .block-total { grid-column: span 3; }
+        .block-chart { grid-column: span 6; min-height: 200px; }
+        .block-list { grid-column: span 6; }
+        .block-full { grid-column: span 12; }
+
+        .big-number {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--cyan-400);
+            line-height: 1;
+        }
+
+        .big-number-sub {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
+
+        .mini-chart {
+            height: 120px;
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+            padding: 1rem 0;
+        }
+
+        .mini-bar {
+            flex: 1;
+            background: linear-gradient(to top, var(--cyan-500), rgba(6, 182, 212, 0.2));
+            border-radius: 3px 3px 0 0;
+            min-height: 10px;
+        }
+
+        .compact-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid var(--border-subtle);
+            font-size: 0.85rem;
+        }
+
+        .compact-list-item:last-child { border-bottom: none; }
+
+        /* =====================================================
+           PROPOSAL 3: Layout tabs avec contenu pleine largeur
+           ===================================================== */
+        .layout-3 { min-height: 600px; }
+
+        .tabs-header-3 {
+            display: flex;
+            border-bottom: 1px solid var(--border-subtle);
+            background: rgba(6, 182, 212, 0.02);
+        }
+
+        .tab-3 {
+            padding: 1rem 2rem;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab-3:hover { color: var(--text-primary); background: rgba(6, 182, 212, 0.03); }
+
+        .tab-3.active {
+            color: var(--cyan-400);
+            border-bottom-color: var(--cyan-500);
+            background: rgba(6, 182, 212, 0.05);
+        }
+
+        .tab-content-3 { padding: 2rem; }
+
+        .filter-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+        }
+
+        .filter-group { display: flex; flex-direction: column; gap: 0.3rem; }
+
+        .filter-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+        }
+
+        .filter-select {
+            padding: 0.5rem 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.9rem;
+        }
+
+        .data-grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+
+        .data-card-3 {
+            padding: 1.25rem;
+            background: rgba(6, 182, 212, 0.03);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+        }
+
+        .data-card-3-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .data-card-3-title {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .data-card-3-badge {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            background: rgba(6, 182, 212, 0.1);
+            border-radius: 4px;
+            color: var(--cyan-400);
+        }
+
+        .data-card-3-amount {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--green-500);
+        }
+
+        .data-card-3-meta {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
+
+        /* =====================================================
+           PROPOSAL 4: Layout split vertical (gauche infos, droite details)
+           ===================================================== */
+        .layout-4 {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            min-height: 600px;
+        }
+
+        .panel-left-4 {
+            background: rgba(6, 182, 212, 0.02);
+            border-right: 1px solid var(--border-subtle);
+            padding: 1.5rem;
+        }
+
+        .summary-card-4 {
+            padding: 1.5rem;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(6, 182, 212, 0.02));
+            border: 1px solid var(--border-accent);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+        }
+
+        .summary-title-4 {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+
+        .summary-value-4 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--cyan-400);
+        }
+
+        .summary-breakdown {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .breakdown-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            font-size: 0.9rem;
+        }
+
+        .breakdown-label { color: var(--text-secondary); }
+        .breakdown-value { font-family: 'Share Tech Mono', monospace; }
+        .breakdown-value.positive { color: var(--green-500); }
+        .breakdown-value.negative { color: var(--red-500); }
+
+        .quick-actions-4 {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .quick-action-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.85rem 1rem;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quick-action-btn:hover {
+            background: rgba(6, 182, 212, 0.05);
+            border-color: var(--cyan-500);
+            color: var(--cyan-400);
+        }
+
+        .panel-right-4 { padding: 1.5rem; }
+
+        .panel-right-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .panel-right-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .detail-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .detail-table th {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: var(--cyan-400);
+            background: rgba(6, 182, 212, 0.05);
+            border-bottom: 1px solid var(--border-accent);
+        }
+
+        .detail-table td {
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid var(--border-subtle);
+            font-size: 0.9rem;
+        }
+
+        .detail-table tr:hover { background: rgba(6, 182, 212, 0.03); }
+
+        /* =====================================================
+           PROPOSAL 5: Layout cards en grille responsive
+           ===================================================== */
+        .layout-5 { padding: 1.5rem; }
+
+        .page-header-5 {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .page-title-5 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: 0.25rem;
+            padding: 0.25rem;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+        }
+
+        .view-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        .view-btn.active {
+            background: rgba(6, 182, 212, 0.2);
+            color: var(--cyan-400);
+        }
+
+        .summary-strip-5 {
+            display: flex;
+            gap: 2rem;
+            padding: 1.25rem 1.5rem;
+            background: linear-gradient(90deg, rgba(6, 182, 212, 0.1), rgba(6, 182, 212, 0.02));
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            margin-bottom: 2rem;
+        }
+
+        .summary-item-5 {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .summary-icon-5 {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(6, 182, 212, 0.1);
+            border-radius: 8px;
+            font-size: 1.2rem;
+        }
+
+        .summary-text-5 {}
+
+        .summary-label-5 {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .summary-value-5 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--cyan-400);
+        }
+
+        .cards-grid-5 {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .income-card-5 {
+            padding: 1.25rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            transition: all 0.2s;
+        }
+
+        .income-card-5:hover {
+            border-color: var(--border-accent);
+            transform: translateY(-2px);
+        }
+
+        .income-card-header-5 {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+
+        .income-type-5 {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .income-type-icon {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(6, 182, 212, 0.1);
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        .income-type-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .income-source-badge {
+            font-size: 0.65rem;
+            padding: 0.2rem 0.5rem;
+            background: rgba(6, 182, 212, 0.1);
+            border-radius: 4px;
+            color: var(--cyan-400);
+            text-transform: uppercase;
+        }
+
+        .income-source-badge.contract {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--amber-400);
+        }
+
+        .income-name-5 {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .income-location-5 {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+        }
+
+        .income-amount-5 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--green-500);
+        }
+
+        .income-date-5 {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+
+    <header class="header">
+        <h1>EVE Tools</h1>
+        <p>Propositions de Layout - Structure de Page</p>
+    </header>
+
+    <main class="main">
+        <div class="proposals">
+
+            <!-- PROPOSAL 1: Sidebar Navigation -->
+            <article class="proposal">
+                <div class="proposal-header">
+                    <span class="proposal-num">01</span>
+                    <h2>Dashboard avec Sidebar Fixe</h2>
+                </div>
+                <div class="proposal-desc">
+                    Navigation principale dans une sidebar a gauche, toujours visible.
+                    Contenu principal a droite avec stats en haut et colonnes en dessous.
+                    Ideal pour une app avec plusieurs sections distinctes.
+                </div>
+                <div class="mockup">
+                    <div class="layout-1">
+                        <aside class="sidebar-1">
+                            <div class="sidebar-logo">
+                                <span>EVE TOOLS</span>
+                            </div>
+                            <div class="sidebar-section">Principal</div>
+                            <nav class="sidebar-nav">
+                                <div class="sidebar-item active">📊 Dashboard</div>
+                                <div class="sidebar-item">💰 PVE Income</div>
+                                <div class="sidebar-item">📦 Assets</div>
+                                <div class="sidebar-item">📜 Contracts</div>
+                            </nav>
+                            <div class="sidebar-section">Gestion</div>
+                            <nav class="sidebar-nav">
+                                <div class="sidebar-item">👤 Characters</div>
+                                <div class="sidebar-item">⚙️ Settings</div>
+                            </nav>
+                        </aside>
+                        <div class="content-1">
+                            <div class="content-header-1">
+                                <h1>PVE Income Tracker</h1>
+                                <div class="header-actions">
+                                    <button class="btn">Export</button>
+                                    <button class="btn btn-primary">+ Add Entry</button>
+                                </div>
+                            </div>
+                            <div class="stats-row-1">
+                                <div class="stat-box">
+                                    <div class="stat-box-label">Bounties (24h)</div>
+                                    <div class="stat-box-value">847.2M</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-box-label">Loot Sales</div>
+                                    <div class="stat-box-value">125.8M</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-box-label">Expenses</div>
+                                    <div class="stat-box-value">42.1M</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-box-label">Net Total</div>
+                                    <div class="stat-box-value">930.9M</div>
+                                </div>
+                            </div>
+                            <div class="columns-1">
+                                <div class="column-card">
+                                    <div class="column-card-header">Recent Bounties</div>
+                                    <div class="column-card-body">
+                                        <div class="list-item"><span class="list-item-label">Serpentis Haven</span><span class="list-item-value">+12.8M</span></div>
+                                        <div class="list-item"><span class="list-item-label">Guristas Rally Point</span><span class="list-item-value">+8.4M</span></div>
+                                        <div class="list-item"><span class="list-item-label">Angel Sanctum</span><span class="list-item-value">+15.2M</span></div>
+                                    </div>
+                                </div>
+                                <div class="column-card">
+                                    <div class="column-card-header">Recent Expenses</div>
+                                    <div class="column-card-body">
+                                        <div class="list-item"><span class="list-item-label">Scorch M x1000</span><span class="list-item-value expense">-2.1M</span></div>
+                                        <div class="list-item"><span class="list-item-label">Nanite Paste x50</span><span class="list-item-value expense">-1.5M</span></div>
+                                        <div class="list-item"><span class="list-item-label">Cap Booster 800</span><span class="list-item-value expense">-0.8M</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+            <!-- PROPOSAL 2: Modular Blocks -->
+            <article class="proposal">
+                <div class="proposal-header">
+                    <span class="proposal-num">02</span>
+                    <h2>Blocs Modulaires en Grille</h2>
+                </div>
+                <div class="proposal-desc">
+                    Layout flexible avec des blocs de tailles variees sur une grille 12 colonnes.
+                    Permet de reorganiser facilement les elements selon l'importance.
+                    Style "dashboard analytics" moderne.
+                </div>
+                <div class="mockup">
+                    <div class="layout-2">
+                        <div class="block block-total">
+                            <div class="block-header">
+                                <span class="block-title">Net Income</span>
+                            </div>
+                            <div class="block-body">
+                                <div class="big-number">930.9M</div>
+                                <div class="big-number-sub">ISK (24h)</div>
+                            </div>
+                        </div>
+                        <div class="block block-total">
+                            <div class="block-header">
+                                <span class="block-title">Bounties</span>
+                            </div>
+                            <div class="block-body">
+                                <div class="big-number" style="color: var(--green-500)">847.2M</div>
+                                <div class="big-number-sub">+12.3% vs hier</div>
+                            </div>
+                        </div>
+                        <div class="block block-total">
+                            <div class="block-header">
+                                <span class="block-title">Loot Sales</span>
+                            </div>
+                            <div class="block-body">
+                                <div class="big-number" style="color: var(--green-500)">125.8M</div>
+                                <div class="big-number-sub">5 transactions</div>
+                            </div>
+                        </div>
+                        <div class="block block-total">
+                            <div class="block-header">
+                                <span class="block-title">Expenses</span>
+                            </div>
+                            <div class="block-body">
+                                <div class="big-number" style="color: var(--red-500)">42.1M</div>
+                                <div class="big-number-sub">Ammo + consumables</div>
+                            </div>
+                        </div>
+                        <div class="block block-chart">
+                            <div class="block-header">
+                                <span class="block-title">Income (7 days)</span>
+                                <span class="block-action">View details</span>
+                            </div>
+                            <div class="block-body">
+                                <div class="mini-chart">
+                                    <div class="mini-bar" style="height: 60%"></div>
+                                    <div class="mini-bar" style="height: 75%"></div>
+                                    <div class="mini-bar" style="height: 45%"></div>
+                                    <div class="mini-bar" style="height: 90%"></div>
+                                    <div class="mini-bar" style="height: 65%"></div>
+                                    <div class="mini-bar" style="height: 80%"></div>
+                                    <div class="mini-bar" style="height: 100%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="block block-list">
+                            <div class="block-header">
+                                <span class="block-title">Recent Activity</span>
+                                <span class="block-action">See all</span>
+                            </div>
+                            <div class="block-body">
+                                <div class="compact-list-item"><span>Bounty Payment</span><span style="color: var(--green-500)">+12.8M</span></div>
+                                <div class="compact-list-item"><span>Loot Sale (Market)</span><span style="color: var(--green-500)">+8.2M</span></div>
+                                <div class="compact-list-item"><span>Ammo Purchase</span><span style="color: var(--red-500)">-2.1M</span></div>
+                                <div class="compact-list-item"><span>Bounty Payment</span><span style="color: var(--green-500)">+15.2M</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+            <!-- PROPOSAL 3: Tabs Layout -->
+            <article class="proposal">
+                <div class="proposal-header">
+                    <span class="proposal-num">03</span>
+                    <h2>Onglets avec Filtres</h2>
+                </div>
+                <div class="proposal-desc">
+                    Navigation par onglets en haut, barre de filtres sous les onglets,
+                    contenu en grille de cartes. Ideal pour separer bounties, loot sales, expenses
+                    avec des filtres contextuels pour chaque section.
+                </div>
+                <div class="mockup">
+                    <div class="layout-3">
+                        <div class="tabs-header-3">
+                            <div class="tab-3 active">Overview</div>
+                            <div class="tab-3">Bounties</div>
+                            <div class="tab-3">Loot Sales</div>
+                            <div class="tab-3">Expenses</div>
+                            <div class="tab-3">Contracts</div>
+                        </div>
+                        <div class="tab-content-3">
+                            <div class="filter-bar">
+                                <div class="filter-group">
+                                    <span class="filter-label">Period</span>
+                                    <select class="filter-select">
+                                        <option>Last 24 hours</option>
+                                        <option>Last 7 days</option>
+                                        <option>Last 30 days</option>
+                                    </select>
+                                </div>
+                                <div class="filter-group">
+                                    <span class="filter-label">Character</span>
+                                    <select class="filter-select">
+                                        <option>All Characters</option>
+                                        <option>Sdu Alter</option>
+                                        <option>Alt Hauler</option>
+                                    </select>
+                                </div>
+                                <div class="filter-group">
+                                    <span class="filter-label">Type</span>
+                                    <select class="filter-select">
+                                        <option>All Types</option>
+                                        <option>Bounty</option>
+                                        <option>Loot</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="data-grid-3">
+                                <div class="data-card-3">
+                                    <div class="data-card-3-header">
+                                        <span class="data-card-3-title">Serpentis Haven</span>
+                                        <span class="data-card-3-badge">Bounty</span>
+                                    </div>
+                                    <div class="data-card-3-amount">+12,847,500 ISK</div>
+                                    <div class="data-card-3-meta">G-0Q86 - il y a 2h</div>
+                                </div>
+                                <div class="data-card-3">
+                                    <div class="data-card-3-header">
+                                        <span class="data-card-3-title">Rogue Drone Data x5</span>
+                                        <span class="data-card-3-badge">Loot</span>
+                                    </div>
+                                    <div class="data-card-3-amount">+8,250,000 ISK</div>
+                                    <div class="data-card-3-meta">Jita - il y a 4h</div>
+                                </div>
+                                <div class="data-card-3">
+                                    <div class="data-card-3-header">
+                                        <span class="data-card-3-title">Angel Sanctum</span>
+                                        <span class="data-card-3-badge">Bounty</span>
+                                    </div>
+                                    <div class="data-card-3-amount">+15,234,000 ISK</div>
+                                    <div class="data-card-3-meta">C-J6MT - il y a 5h</div>
+                                </div>
+                                <div class="data-card-3">
+                                    <div class="data-card-3-header">
+                                        <span class="data-card-3-title">Drone Capillary x12</span>
+                                        <span class="data-card-3-badge" style="background: rgba(245, 158, 11, 0.1); color: var(--amber-400)">Contract</span>
+                                    </div>
+                                    <div class="data-card-3-amount">+45,000,000 ISK</div>
+                                    <div class="data-card-3-meta">C-J6MT - il y a 6h</div>
+                                </div>
+                                <div class="data-card-3">
+                                    <div class="data-card-3-header">
+                                        <span class="data-card-3-title">Guristas Rally Point</span>
+                                        <span class="data-card-3-badge">Bounty</span>
+                                    </div>
+                                    <div class="data-card-3-amount">+8,456,000 ISK</div>
+                                    <div class="data-card-3-meta">G-0Q86 - il y a 8h</div>
+                                </div>
+                                <div class="data-card-3">
+                                    <div class="data-card-3-header">
+                                        <span class="data-card-3-title">Rogue Drone Data x3</span>
+                                        <span class="data-card-3-badge">Loot</span>
+                                    </div>
+                                    <div class="data-card-3-amount">+4,950,000 ISK</div>
+                                    <div class="data-card-3-meta">Amarr - il y a 12h</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+            <!-- PROPOSAL 4: Split Panel -->
+            <article class="proposal">
+                <div class="proposal-header">
+                    <span class="proposal-num">04</span>
+                    <h2>Panel Split (Resume + Details)</h2>
+                </div>
+                <div class="proposal-desc">
+                    Panel fixe a gauche avec resume et actions rapides.
+                    Zone principale a droite avec tableau de details scrollable.
+                    Permet de garder le contexte (totaux) visible en permanence.
+                </div>
+                <div class="mockup">
+                    <div class="layout-4">
+                        <aside class="panel-left-4">
+                            <div class="summary-card-4">
+                                <div class="summary-title-4">Net Income (24h)</div>
+                                <div class="summary-value-4">930.9M ISK</div>
+                                <div class="summary-breakdown">
+                                    <div class="breakdown-item">
+                                        <span class="breakdown-label">Bounties</span>
+                                        <span class="breakdown-value positive">+847.2M</span>
+                                    </div>
+                                    <div class="breakdown-item">
+                                        <span class="breakdown-label">Loot Sales</span>
+                                        <span class="breakdown-value positive">+125.8M</span>
+                                    </div>
+                                    <div class="breakdown-item">
+                                        <span class="breakdown-label">Expenses</span>
+                                        <span class="breakdown-value negative">-42.1M</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="quick-actions-4">
+                                <div class="quick-action-btn">🔍 Scanner Loot Sales</div>
+                                <div class="quick-action-btn">➕ Entree Manuelle</div>
+                                <div class="quick-action-btn">⚙️ Config. Types Loot</div>
+                                <div class="quick-action-btn">📊 Export CSV</div>
+                            </div>
+                        </aside>
+                        <div class="panel-right-4">
+                            <div class="panel-right-header">
+                                <span class="panel-right-title">Transactions Recentes</span>
+                                <select class="filter-select" style="width: auto">
+                                    <option>Toutes</option>
+                                    <option>Bounties</option>
+                                    <option>Loot</option>
+                                </select>
+                            </div>
+                            <table class="detail-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Type</th>
+                                        <th>Description</th>
+                                        <th>Location</th>
+                                        <th>Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>14:32</td>
+                                        <td><span style="color: var(--cyan-400)">Bounty</span></td>
+                                        <td>Serpentis Haven</td>
+                                        <td>G-0Q86</td>
+                                        <td style="color: var(--green-500)">+12.8M</td>
+                                    </tr>
+                                    <tr>
+                                        <td>12:15</td>
+                                        <td><span style="color: var(--amber-400)">Loot</span></td>
+                                        <td>Rogue Drone Infestation Data x5</td>
+                                        <td>Jita</td>
+                                        <td style="color: var(--green-500)">+8.2M</td>
+                                    </tr>
+                                    <tr>
+                                        <td>11:48</td>
+                                        <td><span style="color: var(--red-500)">Expense</span></td>
+                                        <td>Scorch M x1000</td>
+                                        <td>Amarr</td>
+                                        <td style="color: var(--red-500)">-2.1M</td>
+                                    </tr>
+                                    <tr>
+                                        <td>10:22</td>
+                                        <td><span style="color: var(--cyan-400)">Bounty</span></td>
+                                        <td>Angel Sanctum</td>
+                                        <td>C-J6MT</td>
+                                        <td style="color: var(--green-500)">+15.2M</td>
+                                    </tr>
+                                    <tr>
+                                        <td>09:45</td>
+                                        <td><span style="color: var(--amber-400)">Contract</span></td>
+                                        <td>Drone Capillary Fluid x12</td>
+                                        <td>C-J6MT</td>
+                                        <td style="color: var(--green-500)">+45.0M</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+            <!-- PROPOSAL 5: Card Grid -->
+            <article class="proposal">
+                <div class="proposal-header">
+                    <span class="proposal-num">05</span>
+                    <h2>Grille de Cartes Responsive</h2>
+                </div>
+                <div class="proposal-desc">
+                    Bandeau de resume en haut, puis grille de cartes auto-adaptative.
+                    Chaque transaction est une carte avec toutes ses infos.
+                    Toggle pour basculer entre vue cartes et vue tableau.
+                </div>
+                <div class="mockup">
+                    <div class="layout-5">
+                        <div class="page-header-5">
+                            <h1 class="page-title-5">PVE Income</h1>
+                            <div class="view-toggle">
+                                <button class="view-btn active">Cards</button>
+                                <button class="view-btn">Table</button>
+                            </div>
+                        </div>
+                        <div class="summary-strip-5">
+                            <div class="summary-item-5">
+                                <div class="summary-icon-5">💰</div>
+                                <div class="summary-text-5">
+                                    <div class="summary-label-5">Net (24h)</div>
+                                    <div class="summary-value-5">930.9M</div>
+                                </div>
+                            </div>
+                            <div class="summary-item-5">
+                                <div class="summary-icon-5">⚔️</div>
+                                <div class="summary-text-5">
+                                    <div class="summary-label-5">Bounties</div>
+                                    <div class="summary-value-5" style="color: var(--green-500)">+847.2M</div>
+                                </div>
+                            </div>
+                            <div class="summary-item-5">
+                                <div class="summary-icon-5">📦</div>
+                                <div class="summary-text-5">
+                                    <div class="summary-label-5">Loot</div>
+                                    <div class="summary-value-5" style="color: var(--green-500)">+125.8M</div>
+                                </div>
+                            </div>
+                            <div class="summary-item-5">
+                                <div class="summary-icon-5">🔧</div>
+                                <div class="summary-text-5">
+                                    <div class="summary-label-5">Expenses</div>
+                                    <div class="summary-value-5" style="color: var(--red-500)">-42.1M</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="cards-grid-5">
+                            <div class="income-card-5">
+                                <div class="income-card-header-5">
+                                    <div class="income-type-5">
+                                        <div class="income-type-icon">⚔️</div>
+                                        <span class="income-type-label">Bounty</span>
+                                    </div>
+                                </div>
+                                <div class="income-name-5">Serpentis Haven</div>
+                                <div class="income-location-5">G-0Q86 - Delve</div>
+                                <div class="income-amount-5">+12,847,500 ISK</div>
+                                <div class="income-date-5">Il y a 2 heures</div>
+                            </div>
+                            <div class="income-card-5">
+                                <div class="income-card-header-5">
+                                    <div class="income-type-5">
+                                        <div class="income-type-icon">📦</div>
+                                        <span class="income-type-label">Loot Sale</span>
+                                    </div>
+                                    <span class="income-source-badge">Market</span>
+                                </div>
+                                <div class="income-name-5">Rogue Drone Infestation Data x5</div>
+                                <div class="income-location-5">Jita IV - Caldari Navy</div>
+                                <div class="income-amount-5">+8,250,000 ISK</div>
+                                <div class="income-date-5">Il y a 4 heures</div>
+                            </div>
+                            <div class="income-card-5">
+                                <div class="income-card-header-5">
+                                    <div class="income-type-5">
+                                        <div class="income-type-icon">📦</div>
+                                        <span class="income-type-label">Loot Sale</span>
+                                    </div>
+                                    <span class="income-source-badge contract">Contract</span>
+                                </div>
+                                <div class="income-name-5">Drone Capillary Fluid x12</div>
+                                <div class="income-location-5">C-J6MT - 1st Taj Mahgoon</div>
+                                <div class="income-amount-5">+45,000,000 ISK</div>
+                                <div class="income-date-5">Il y a 6 heures</div>
+                            </div>
+                            <div class="income-card-5">
+                                <div class="income-card-header-5">
+                                    <div class="income-type-5">
+                                        <div class="income-type-icon">⚔️</div>
+                                        <span class="income-type-label">Bounty</span>
+                                    </div>
+                                </div>
+                                <div class="income-name-5">Angel Sanctum</div>
+                                <div class="income-location-5">C-J6MT - Delve</div>
+                                <div class="income-amount-5">+15,234,000 ISK</div>
+                                <div class="income-date-5">Il y a 5 heures</div>
+                            </div>
+                            <div class="income-card-5">
+                                <div class="income-card-header-5">
+                                    <div class="income-type-5">
+                                        <div class="income-type-icon">⚔️</div>
+                                        <span class="income-type-label">Bounty</span>
+                                    </div>
+                                </div>
+                                <div class="income-name-5">Guristas Rally Point</div>
+                                <div class="income-location-5">G-0Q86 - Delve</div>
+                                <div class="income-amount-5">+8,456,000 ISK</div>
+                                <div class="income-date-5">Il y a 8 heures</div>
+                            </div>
+                            <div class="income-card-5">
+                                <div class="income-card-header-5">
+                                    <div class="income-type-5">
+                                        <div class="income-type-icon">📦</div>
+                                        <span class="income-type-label">Loot Sale</span>
+                                    </div>
+                                    <span class="income-source-badge">Market</span>
+                                </div>
+                                <div class="income-name-5">Rogue Drone Infestation Data x3</div>
+                                <div class="income-location-5">Amarr VIII - Emperor Academy</div>
+                                <div class="income-amount-5">+4,950,000 ISK</div>
+                                <div class="income-date-5">Il y a 12 heures</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+        </div>
+    </main>
+
+    <script>
+        // Tab interaction
+        document.querySelectorAll('.tab-3').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab-3').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+            });
+        });
+
+        // View toggle
+        document.querySelectorAll('.view-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+
+        // Sidebar nav
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

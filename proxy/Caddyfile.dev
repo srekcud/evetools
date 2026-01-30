@@ -1,0 +1,35 @@
+{$DOMAIN:evetools.local} {
+    tls internal
+
+    # Backend API - handle first
+    handle /api/* {
+        reverse_proxy app:80
+    }
+
+    # Auth routes - except callback which needs frontend
+    handle /auth/eve/redirect {
+        reverse_proxy app:80
+    }
+
+    handle /auth/eve/callback {
+        # Let frontend handle the OAuth callback
+        reverse_proxy frontend:80
+    }
+
+    handle /auth/* {
+        reverse_proxy app:80
+    }
+
+    handle /_profiler/* {
+        reverse_proxy app:80
+    }
+
+    handle /_wdt/* {
+        reverse_proxy app:80
+    }
+
+    # Frontend dev server (fallback)
+    handle {
+        reverse_proxy frontend:80
+    }
+}

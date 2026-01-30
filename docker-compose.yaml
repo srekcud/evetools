@@ -1,0 +1,127 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      evetools_net:
+        ipv4_address: 10.169.0.5
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      - APP_SECRET=${APP_SECRET:-!ChangeMe!}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-eve_user}:${POSTGRES_PASSWORD:-eve_pass}@postgres:5432/${POSTGRES_DB:-eve_app}?serverVersion=16&charset=utf8
+      - MESSENGER_TRANSPORT_DSN=amqp://${RABBITMQ_USER:-eve_user}:${RABBITMQ_PASSWORD:-eve_pass}@rabbitmq:5672/%2f/messages
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET_KEY=%kernel.project_dir%/config/jwt/private.pem
+      - JWT_PUBLIC_KEY=%kernel.project_dir%/config/jwt/public.pem
+      - JWT_PASSPHRASE=${JWT_PASSPHRASE:-!ChangeMe!}
+      - EVE_CLIENT_ID=${EVE_CLIENT_ID:-}
+      - EVE_CLIENT_SECRET=${EVE_CLIENT_SECRET:-}
+      - EVE_CALLBACK_URL=${EVE_CALLBACK_URL:-https://evetools.local/auth/eve/callback}
+      - ESI_BASE_URL=https://esi.evetech.net/latest
+      - ESI_TOKEN_ENCRYPTION_KEY=${ESI_TOKEN_ENCRYPTION_KEY:-}
+      - CORS_ALLOW_ORIGIN=${CORS_ALLOW_ORIGIN:-https://evetools.local}
+      - DEFAULT_URI=${DEFAULT_URI:-https://evetools.local}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: php-cli bin/console messenger:consume async scheduler_default --time-limit=3600 --memory-limit=256M
+    restart: unless-stopped
+    networks:
+      evetools_net:
+        ipv4_address: 10.169.0.6
+    environment:
+      - APP_SECRET=${APP_SECRET:-!ChangeMe!}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-eve_user}:${POSTGRES_PASSWORD:-eve_pass}@postgres:5432/${POSTGRES_DB:-eve_app}?serverVersion=16&charset=utf8
+      - MESSENGER_TRANSPORT_DSN=amqp://${RABBITMQ_USER:-eve_user}:${RABBITMQ_PASSWORD:-eve_pass}@rabbitmq:5672/%2f/messages
+      - REDIS_URL=redis://redis:6379
+      - EVE_CLIENT_ID=${EVE_CLIENT_ID:-}
+      - EVE_CLIENT_SECRET=${EVE_CLIENT_SECRET:-}
+      - ESI_BASE_URL=https://esi.evetech.net/latest
+      - ESI_TOKEN_ENCRYPTION_KEY=${ESI_TOKEN_ENCRYPTION_KEY:-}
+      - CORS_ALLOW_ORIGIN=${CORS_ALLOW_ORIGIN:-https://evetools.local}
+      - DEFAULT_URI=${DEFAULT_URI:-https://evetools.local}
+    depends_on:
+      - app
+      - rabbitmq
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-eve_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eve_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-eve_app}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      evetools_net:
+        ipv4_address: 10.169.0.10
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eve_user -d eve_app"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-eve_user}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-eve_pass}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      evetools_net:
+        ipv4_address: 10.169.0.11
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      evetools_net:
+        ipv4_address: 10.169.0.12
+    command: redis-server --appendonly yes
+
+networks:
+  evetools_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.169.0.0/24
+          gateway: 10.169.0.1
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  redis_data:
+  caddy_data:
+  caddy_config:
+  proxy_data:
+  proxy_config:
+  frontend_node_modules:

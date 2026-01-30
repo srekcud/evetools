@@ -1,0 +1,36 @@
+###> symfony/framework-bundle ###
+/.env
+/.env.*
+!/.env.local.example
+/.env.local.php
+/config/secrets/prod/prod.decrypt.private.php
+/public/bundles/
+/var/
+/vendor/
+###< symfony/framework-bundle ###
+
+###> lexik/jwt-authentication-bundle ###
+/config/jwt/*.pem
+###< lexik/jwt-authentication-bundle ###
+
+###> phpunit/phpunit ###
+/phpunit.xml
+.phpunit.cache/
+###< phpunit/phpunit ###
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+/frontend/node_modules/
+/frontend/public/build/

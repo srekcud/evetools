@@ -1,0 +1,47 @@
+{$DOMAIN:evetools.local} {
+    encode zstd gzip
+
+    # TLS configuration
+    tls {$TLS_EMAIL:internal}
+
+    log {
+        output stdout
+        format console
+    }
+
+    # Backend API - handle first
+    handle /api/* {
+        reverse_proxy app:80
+    }
+
+    # Auth routes - except callback which needs frontend
+    handle /auth/eve/redirect {
+        reverse_proxy app:80
+    }
+
+    handle /auth/eve/callback {
+        # Let frontend handle the OAuth callback
+        root * /srv/frontend
+        rewrite * /index.html
+        file_server
+    }
+
+    handle /auth/* {
+        reverse_proxy app:80
+    }
+
+    handle /_profiler/* {
+        reverse_proxy app:80
+    }
+
+    handle /_wdt/* {
+        reverse_proxy app:80
+    }
+
+    # Frontend - serve static files (fallback)
+    handle {
+        root * /srv/frontend
+        try_files {path} /index.html
+        file_server
+    }
+}

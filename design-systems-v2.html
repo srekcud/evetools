@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVE Tools - Design System Proposals V2</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Cormorant+Garamond:wght@300;400;500;600&family=Space+Mono:wght@400;700&family=Bebas+Neue&family=Archivo+Black&family=DM+Serif+Display&family=Instrument+Serif&family=Syne:wght@400;500;600;700;800&family=Climate+Crisis&family=Darker+Grotesque:wght@300;400;500;600;700;800;900&family=IBM+Plex+Mono:wght@300;400;500;600&family=Anybody:wght@100;400;700;900&family=Unbounded:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            color: #fff;
+            font-family: 'Darker Grotesque', sans-serif;
+            line-height: 1.5;
+        }
+
+        .page-header {
+            padding: 4rem 2rem;
+            text-align: center;
+            border-bottom: 1px solid #222;
+        }
+
+        .page-header h1 {
+            font-family: 'Unbounded', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 300;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-header p {
+            color: #666;
+            font-size: 1.2rem;
+        }
+
+        .proposals {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .proposal {
+            min-height: 100vh;
+            padding: 4rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .proposal-label {
+            position: absolute;
+            top: 2rem;
+            left: 2rem;
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            opacity: 0.5;
+        }
+
+        .proposal-number {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 8rem;
+            font-weight: 900;
+            line-height: 1;
+            opacity: 0.03;
+        }
+
+        /* =====================================================
+           PROPOSAL 1: BRUTALIST CONCRETE
+           Raw, honest, architecturally aggressive
+           ===================================================== */
+        .brutalist {
+            background: #e8e4de;
+            color: #1a1a1a;
+            font-family: 'Archivo Black', sans-serif;
+        }
+
+        .brutalist .proposal-label {
+            font-family: 'Space Mono', monospace;
+            color: #1a1a1a;
+        }
+
+        .brutalist .proposal-number {
+            font-family: 'Bebas Neue', sans-serif;
+            color: #1a1a1a;
+            opacity: 0.08;
+        }
+
+        .brutalist-content {
+            margin-top: 6rem;
+        }
+
+        .brutalist-title {
+            font-size: 5rem;
+            line-height: 0.9;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+            letter-spacing: -0.03em;
+        }
+
+        .brutalist-subtitle {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 4rem;
+            max-width: 500px;
+        }
+
+        .brutalist-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0;
+        }
+
+        .brutalist-card {
+            background: #1a1a1a;
+            color: #e8e4de;
+            padding: 2.5rem;
+            position: relative;
+            transition: transform 0.2s ease;
+        }
+
+        .brutalist-card:hover {
+            transform: translate(-4px, -4px);
+            box-shadow: 8px 8px 0 #ff3b00;
+        }
+
+        .brutalist-card-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #ff3b00;
+            margin-bottom: 1rem;
+        }
+
+        .brutalist-card-value {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 4rem;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+
+        .brutalist-card-unit {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            color: #888;
+        }
+
+        .brutalist-btn {
+            display: inline-block;
+            background: #ff3b00;
+            color: #fff;
+            padding: 1rem 2rem;
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border: none;
+            cursor: pointer;
+            margin-top: 2rem;
+            transition: all 0.15s ease;
+        }
+
+        .brutalist-btn:hover {
+            background: #1a1a1a;
+            box-shadow: 4px 4px 0 #ff3b00;
+            transform: translate(-2px, -2px);
+        }
+
+        .brutalist-nav {
+            display: flex;
+            gap: 0;
+            margin-bottom: 3rem;
+            border: 3px solid #1a1a1a;
+            width: fit-content;
+        }
+
+        .brutalist-nav-item {
+            padding: 1rem 2rem;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border-right: 3px solid #1a1a1a;
+            cursor: pointer;
+            transition: all 0.1s ease;
+        }
+
+        .brutalist-nav-item:last-child {
+            border-right: none;
+        }
+
+        .brutalist-nav-item:hover,
+        .brutalist-nav-item.active {
+            background: #1a1a1a;
+            color: #e8e4de;
+        }
+
+        .brutalist-palette {
+            display: flex;
+            gap: 0;
+            margin-top: 3rem;
+        }
+
+        .brutalist-swatch {
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: flex-end;
+            padding: 0.5rem;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.55rem;
+        }
+
+        /* =====================================================
+           PROPOSAL 2: ART DECO LUXE
+           Gatsby-era opulence, gold, geometric symmetry
+           ===================================================== */
+        .artdeco {
+            background: linear-gradient(180deg, #0d0d0d 0%, #1a1510 100%);
+            color: #f4e9d9;
+            font-family: 'Cormorant Garamond', serif;
+        }
+
+        .artdeco::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 100px,
+                    #c9a85c08 100px,
+                    #c9a85c08 101px
+                ),
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 100px,
+                    #c9a85c08 100px,
+                    #c9a85c08 101px
+                );
+            pointer-events: none;
+        }
+
+        .artdeco .proposal-label {
+            font-family: 'Cormorant Garamond', serif;
+            color: #c9a85c;
+            letter-spacing: 0.3em;
+        }
+
+        .artdeco .proposal-number {
+            font-family: 'Playfair Display', serif;
+            color: #c9a85c;
+            opacity: 0.05;
+        }
+
+        .artdeco-content {
+            position: relative;
+            margin-top: 4rem;
+            text-align: center;
+        }
+
+        .artdeco-ornament {
+            width: 200px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #c9a85c, transparent);
+            margin: 0 auto 2rem;
+            position: relative;
+        }
+
+        .artdeco-ornament::before {
+            content: '◆';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            color: #c9a85c;
+            font-size: 0.8rem;
+            background: #0d0d0d;
+            padding: 0 1rem;
+        }
+
+        .artdeco-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 4rem;
+            font-weight: 400;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+
+        .artdeco-subtitle {
+            font-size: 1.2rem;
+            font-style: italic;
+            color: #c9a85c;
+            margin-bottom: 4rem;
+            letter-spacing: 0.1em;
+        }
+
+        .artdeco-grid {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .artdeco-card {
+            width: 280px;
+            background: linear-gradient(180deg, #1a1510 0%, #0d0d0d 100%);
+            border: 1px solid #c9a85c44;
+            padding: 2rem;
+            position: relative;
+            text-align: center;
+        }
+
+        .artdeco-card::before,
+        .artdeco-card::after {
+            content: '';
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 1px solid #c9a85c;
+        }
+
+        .artdeco-card::before {
+            top: 10px;
+            left: 10px;
+            border-right: none;
+            border-bottom: none;
+        }
+
+        .artdeco-card::after {
+            bottom: 10px;
+            right: 10px;
+            border-left: none;
+            border-top: none;
+        }
+
+        .artdeco-card-icon {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 1.5rem;
+            border: 1px solid #c9a85c;
+            transform: rotate(45deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .artdeco-card-icon span {
+            transform: rotate(-45deg);
+            font-size: 1.5rem;
+            color: #c9a85c;
+        }
+
+        .artdeco-card-label {
+            font-size: 0.85rem;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            color: #c9a85c;
+            margin-bottom: 1rem;
+        }
+
+        .artdeco-card-value {
+            font-family: 'Playfair Display', serif;
+            font-size: 3rem;
+            color: #f4e9d9;
+            margin-bottom: 0.25rem;
+        }
+
+        .artdeco-card-unit {
+            font-size: 0.9rem;
+            color: #888;
+            font-style: italic;
+        }
+
+        .artdeco-btn {
+            display: inline-block;
+            background: transparent;
+            color: #c9a85c;
+            padding: 1rem 3rem;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            border: 1px solid #c9a85c;
+            cursor: pointer;
+            margin-top: 3rem;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .artdeco-btn::before {
+            content: '';
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            right: 4px;
+            bottom: 4px;
+            border: 1px solid #c9a85c44;
+            transition: all 0.3s ease;
+        }
+
+        .artdeco-btn:hover {
+            background: #c9a85c;
+            color: #0d0d0d;
+        }
+
+        .artdeco-nav {
+            display: flex;
+            justify-content: center;
+            gap: 3rem;
+            margin-bottom: 3rem;
+        }
+
+        .artdeco-nav-item {
+            font-size: 0.9rem;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: #888;
+            cursor: pointer;
+            padding: 0.5rem 0;
+            position: relative;
+            transition: color 0.3s ease;
+        }
+
+        .artdeco-nav-item::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0;
+            height: 1px;
+            background: #c9a85c;
+            transition: all 0.3s ease;
+            transform: translateX(-50%);
+        }
+
+        .artdeco-nav-item:hover,
+        .artdeco-nav-item.active {
+            color: #c9a85c;
+        }
+
+        .artdeco-nav-item:hover::after,
+        .artdeco-nav-item.active::after {
+            width: 100%;
+        }
+
+        /* =====================================================
+           PROPOSAL 3: DATA VISUALIZATION / SWISS MODERNISM
+           Information-dense, grid-perfect, systematic
+           ===================================================== */
+        .swiss {
+            background: #fafafa;
+            color: #1a1a1a;
+            font-family: 'IBM Plex Mono', monospace;
+        }
+
+        .swiss .proposal-label {
+            color: #1a1a1a;
+        }
+
+        .swiss .proposal-number {
+            font-family: 'Anybody', sans-serif;
+            font-weight: 900;
+            color: #e63946;
+            opacity: 0.08;
+        }
+
+        .swiss-content {
+            margin-top: 4rem;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 4rem;
+        }
+
+        .swiss-sidebar {
+            border-right: 1px solid #ddd;
+            padding-right: 2rem;
+        }
+
+        .swiss-title {
+            font-family: 'Anybody', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 3px solid #e63946;
+        }
+
+        .swiss-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .swiss-nav-item {
+            padding: 1rem 0;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .swiss-nav-item:hover {
+            padding-left: 1rem;
+            background: #f5f5f5;
+        }
+
+        .swiss-nav-item.active {
+            color: #e63946;
+            border-bottom-color: #e63946;
+        }
+
+        .swiss-nav-item span {
+            font-weight: 300;
+            color: #999;
+        }
+
+        .swiss-main {
+            padding-top: 1rem;
+        }
+
+        .swiss-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 3rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .swiss-header h2 {
+            font-family: 'Anybody', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .swiss-header-meta {
+            text-align: right;
+            font-size: 0.75rem;
+            color: #999;
+        }
+
+        .swiss-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1px;
+            background: #ddd;
+            border: 1px solid #ddd;
+        }
+
+        .swiss-card {
+            background: #fff;
+            padding: 1.5rem;
+            position: relative;
+        }
+
+        .swiss-card-index {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            font-size: 0.6rem;
+            color: #ccc;
+        }
+
+        .swiss-card-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: #999;
+            margin-bottom: 0.75rem;
+        }
+
+        .swiss-card-value {
+            font-family: 'Anybody', sans-serif;
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 0.25rem;
+        }
+
+        .swiss-card-value.positive { color: #2d6a4f; }
+        .swiss-card-value.negative { color: #e63946; }
+
+        .swiss-card-change {
+            font-size: 0.7rem;
+            color: #999;
+        }
+
+        .swiss-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: #e63946;
+            color: #fff;
+            padding: 0.75rem 1.5rem;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border: none;
+            cursor: pointer;
+            margin-top: 2rem;
+        }
+
+        .swiss-btn:hover {
+            background: #1a1a1a;
+        }
+
+        /* =====================================================
+           PROPOSAL 4: LIQUID / ORGANIC FLOW
+           Soft shapes, gradients, flowing movement
+           ===================================================== */
+        .organic {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: #fff;
+            font-family: 'Syne', sans-serif;
+            overflow: hidden;
+        }
+
+        .organic::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, #e94560 0%, transparent 70%);
+            opacity: 0.15;
+            filter: blur(80px);
+            animation: float 20s ease-in-out infinite;
+        }
+
+        .organic::after {
+            content: '';
+            position: absolute;
+            bottom: -30%;
+            left: -10%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, #0f3460 0%, transparent 70%);
+            opacity: 0.3;
+            filter: blur(60px);
+            animation: float 15s ease-in-out infinite reverse;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(30px, -30px) scale(1.1); }
+        }
+
+        .organic .proposal-label {
+            color: #e94560;
+            font-weight: 600;
+        }
+
+        .organic .proposal-number {
+            font-family: 'Syne', sans-serif;
+            color: #e94560;
+            opacity: 0.05;
+        }
+
+        .organic-content {
+            position: relative;
+            z-index: 1;
+            margin-top: 4rem;
+        }
+
+        .organic-title {
+            font-size: 4rem;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #fff 0%, #e94560 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .organic-subtitle {
+            font-size: 1.1rem;
+            color: #888;
+            max-width: 500px;
+            margin-bottom: 3rem;
+        }
+
+        .organic-nav {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .organic-nav-item {
+            padding: 0.75rem 1.5rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border-radius: 50px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .organic-nav-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .organic-nav-item.active {
+            background: linear-gradient(135deg, #e94560, #ff6b6b);
+            border-color: transparent;
+        }
+
+        .organic-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+
+        .organic-card {
+            background: rgba(255,255,255,0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 24px;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s ease;
+        }
+
+        .organic-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #e94560, #ff6b6b, #e94560);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .organic-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(233, 69, 96, 0.3);
+            box-shadow: 0 20px 60px rgba(233, 69, 96, 0.15);
+        }
+
+        .organic-card:hover::before {
+            opacity: 1;
+        }
+
+        .organic-card-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #e94560;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .organic-card-value {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+        }
+
+        .organic-card-unit {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .organic-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: linear-gradient(135deg, #e94560, #ff6b6b);
+            color: #fff;
+            padding: 1rem 2rem;
+            font-family: 'Syne', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 2rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(233, 69, 96, 0.3);
+        }
+
+        .organic-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(233, 69, 96, 0.4);
+        }
+
+        /* =====================================================
+           PROPOSAL 5: RETROFUTURISM / 70s SCI-FI
+           Analog future, amber CRTs, space age optimism
+           ===================================================== */
+        .retro {
+            background: #0a0a08;
+            color: #ffb347;
+            font-family: 'Darker Grotesque', sans-serif;
+            position: relative;
+        }
+
+        .retro::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(255, 179, 71, 0.02) 2px,
+                    rgba(255, 179, 71, 0.02) 4px
+                );
+            pointer-events: none;
+        }
+
+        .retro::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(ellipse at center, transparent 0%, #0a0a08 100%);
+            pointer-events: none;
+        }
+
+        .retro .proposal-label {
+            font-family: 'IBM Plex Mono', monospace;
+            color: #ff6b35;
+        }
+
+        .retro .proposal-number {
+            font-family: 'Climate Crisis', cursive;
+            color: #ffb347;
+            opacity: 0.03;
+        }
+
+        .retro-content {
+            position: relative;
+            z-index: 1;
+            margin-top: 4rem;
+        }
+
+        .retro-header {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            margin-bottom: 3rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #ffb34733;
+        }
+
+        .retro-title {
+            font-family: 'Climate Crisis', cursive;
+            font-size: 3.5rem;
+            line-height: 1;
+            color: #ffb347;
+            text-shadow: 0 0 30px rgba(255, 179, 71, 0.3);
+        }
+
+        .retro-time {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.8rem;
+            color: #ff6b35;
+        }
+
+        .retro-nav {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .retro-nav-item {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #666;
+            cursor: pointer;
+            padding: 0.5rem 0;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .retro-nav-item:hover,
+        .retro-nav-item.active {
+            color: #ffb347;
+            border-bottom-color: #ff6b35;
+        }
+
+        .retro-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+        }
+
+        .retro-card {
+            background: linear-gradient(180deg, #1a1a14 0%, #0a0a08 100%);
+            border: 1px solid #ffb34744;
+            border-radius: 4px;
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .retro-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #ff6b35, #ffb347);
+        }
+
+        .retro-card-label {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.65rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #ff6b35;
+            margin-bottom: 1rem;
+        }
+
+        .retro-card-value {
+            font-family: 'Darker Grotesque', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #ffb347;
+            text-shadow: 0 0 20px rgba(255, 179, 71, 0.4);
+            margin-bottom: 0.25rem;
+        }
+
+        .retro-card-unit {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.7rem;
+            color: #666;
+        }
+
+        .retro-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: linear-gradient(180deg, #ff6b35, #e55a2b);
+            color: #0a0a08;
+            padding: 0.875rem 2rem;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 2rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
+        }
+
+        .retro-btn:hover {
+            background: #ffb347;
+            box-shadow: 0 0 30px rgba(255, 179, 71, 0.5);
+        }
+
+        .retro-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.7rem;
+            color: #4ade80;
+            margin-top: 1rem;
+        }
+
+        .retro-indicator::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #4ade80;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #4ade80;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Palette displays */
+        .palette-row {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid currentColor;
+            opacity: 0.3;
+        }
+
+        .palette-swatch {
+            width: 60px;
+            height: 40px;
+            border-radius: 4px;
+            display: flex;
+            align-items: flex-end;
+            padding: 0.25rem;
+            font-size: 0.5rem;
+            font-family: 'IBM Plex Mono', monospace;
+        }
+    </style>
+</head>
+<body>
+    <header class="page-header">
+        <h1>Design Systems V2</h1>
+        <p>5 Bold Directions for EVE Tools</p>
+    </header>
+
+    <div class="proposals">
+
+        <!-- PROPOSAL 1: BRUTALIST -->
+        <section class="proposal brutalist">
+            <span class="proposal-label">Proposal 01</span>
+            <span class="proposal-number">01</span>
+
+            <div class="brutalist-content">
+                <h2 class="brutalist-title">Brutalist<br/>Concrete</h2>
+                <p class="brutalist-subtitle">Raw architectural honesty. No decoration, only function. Heavy typography, hard shadows, stark contrasts. Industrial and uncompromising.</p>
+
+                <nav class="brutalist-nav">
+                    <span class="brutalist-nav-item active">Dashboard</span>
+                    <span class="brutalist-nav-item">Income</span>
+                    <span class="brutalist-nav-item">Assets</span>
+                    <span class="brutalist-nav-item">Characters</span>
+                </nav>
+
+                <div class="brutalist-grid">
+                    <div class="brutalist-card">
+                        <div class="brutalist-card-label">Bounties</div>
+                        <div class="brutalist-card-value">847.2M</div>
+                        <div class="brutalist-card-unit">ISK TOTAL</div>
+                    </div>
+                    <div class="brutalist-card">
+                        <div class="brutalist-card-label">Loot Sales</div>
+                        <div class="brutalist-card-value">125.8M</div>
+                        <div class="brutalist-card-unit">ISK TOTAL</div>
+                    </div>
+                    <div class="brutalist-card">
+                        <div class="brutalist-card-label">Net Profit</div>
+                        <div class="brutalist-card-value">1.2B</div>
+                        <div class="brutalist-card-unit">30 DAY PERIOD</div>
+                    </div>
+                </div>
+
+                <button class="brutalist-btn">View Full Report →</button>
+
+                <div class="palette-row" style="border-color: #1a1a1a;">
+                    <div class="palette-swatch" style="background: #e8e4de; color: #1a1a1a;">#e8e4de</div>
+                    <div class="palette-swatch" style="background: #1a1a1a; color: #fff;">#1a1a1a</div>
+                    <div class="palette-swatch" style="background: #ff3b00; color: #fff;">#ff3b00</div>
+                    <div class="palette-swatch" style="background: #666; color: #fff;">#666666</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- PROPOSAL 2: ART DECO -->
+        <section class="proposal artdeco">
+            <span class="proposal-label">Proposal 02</span>
+            <span class="proposal-number">02</span>
+
+            <div class="artdeco-content">
+                <div class="artdeco-ornament"></div>
+                <h2 class="artdeco-title">Art Deco</h2>
+                <p class="artdeco-subtitle">The Elegance of a Golden Era</p>
+
+                <nav class="artdeco-nav">
+                    <span class="artdeco-nav-item active">Dashboard</span>
+                    <span class="artdeco-nav-item">Income</span>
+                    <span class="artdeco-nav-item">Assets</span>
+                    <span class="artdeco-nav-item">Characters</span>
+                </nav>
+
+                <div class="artdeco-grid">
+                    <div class="artdeco-card">
+                        <div class="artdeco-card-icon"><span>◈</span></div>
+                        <div class="artdeco-card-label">Bounties</div>
+                        <div class="artdeco-card-value">847.2M</div>
+                        <div class="artdeco-card-unit">Interstellar Credits</div>
+                    </div>
+                    <div class="artdeco-card">
+                        <div class="artdeco-card-icon"><span>◆</span></div>
+                        <div class="artdeco-card-label">Loot Sales</div>
+                        <div class="artdeco-card-value">125.8M</div>
+                        <div class="artdeco-card-unit">Interstellar Credits</div>
+                    </div>
+                    <div class="artdeco-card">
+                        <div class="artdeco-card-icon"><span>✦</span></div>
+                        <div class="artdeco-card-label">Net Profit</div>
+                        <div class="artdeco-card-value">1.2B</div>
+                        <div class="artdeco-card-unit">Quarterly Returns</div>
+                    </div>
+                </div>
+
+                <button class="artdeco-btn">View Complete Ledger</button>
+
+                <div class="palette-row" style="border-color: #c9a85c33;">
+                    <div class="palette-swatch" style="background: #0d0d0d; color: #c9a85c;">#0d0d0d</div>
+                    <div class="palette-swatch" style="background: #c9a85c; color: #0d0d0d;">#c9a85c</div>
+                    <div class="palette-swatch" style="background: #f4e9d9; color: #0d0d0d;">#f4e9d9</div>
+                    <div class="palette-swatch" style="background: #1a1510; color: #c9a85c;">#1a1510</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- PROPOSAL 3: SWISS -->
+        <section class="proposal swiss">
+            <span class="proposal-label">Proposal 03</span>
+            <span class="proposal-number">03</span>
+
+            <div class="swiss-content">
+                <aside class="swiss-sidebar">
+                    <h2 class="swiss-title">Swiss Data</h2>
+                    <nav class="swiss-nav">
+                        <div class="swiss-nav-item active">Dashboard <span>→</span></div>
+                        <div class="swiss-nav-item">PVE Income <span>12</span></div>
+                        <div class="swiss-nav-item">Assets <span>847</span></div>
+                        <div class="swiss-nav-item">Characters <span>3</span></div>
+                        <div class="swiss-nav-item">Settings <span>→</span></div>
+                    </nav>
+
+                    <button class="swiss-btn">+ Add Entry</button>
+                </aside>
+
+                <main class="swiss-main">
+                    <header class="swiss-header">
+                        <h2>Overview</h2>
+                        <div class="swiss-header-meta">
+                            Last 30 Days<br/>
+                            Updated 14:32 UTC
+                        </div>
+                    </header>
+
+                    <div class="swiss-grid">
+                        <div class="swiss-card">
+                            <span class="swiss-card-index">01</span>
+                            <div class="swiss-card-label">Bounties</div>
+                            <div class="swiss-card-value positive">847.2M</div>
+                            <div class="swiss-card-change">+12.4% vs prev</div>
+                        </div>
+                        <div class="swiss-card">
+                            <span class="swiss-card-index">02</span>
+                            <div class="swiss-card-label">Loot Sales</div>
+                            <div class="swiss-card-value positive">125.8M</div>
+                            <div class="swiss-card-change">+8.2% vs prev</div>
+                        </div>
+                        <div class="swiss-card">
+                            <span class="swiss-card-index">03</span>
+                            <div class="swiss-card-label">Expenses</div>
+                            <div class="swiss-card-value negative">42.1M</div>
+                            <div class="swiss-card-change">-3.1% vs prev</div>
+                        </div>
+                        <div class="swiss-card">
+                            <span class="swiss-card-index">04</span>
+                            <div class="swiss-card-label">Net Profit</div>
+                            <div class="swiss-card-value positive">930.9M</div>
+                            <div class="swiss-card-change">+15.7% vs prev</div>
+                        </div>
+                    </div>
+                </main>
+            </div>
+
+            <div class="palette-row" style="border-color: #ddd; margin-left: 340px;">
+                <div class="palette-swatch" style="background: #fafafa; color: #1a1a1a; border: 1px solid #ddd;">#fafafa</div>
+                <div class="palette-swatch" style="background: #1a1a1a; color: #fff;">#1a1a1a</div>
+                <div class="palette-swatch" style="background: #e63946; color: #fff;">#e63946</div>
+                <div class="palette-swatch" style="background: #2d6a4f; color: #fff;">#2d6a4f</div>
+            </div>
+        </section>
+
+        <!-- PROPOSAL 4: ORGANIC -->
+        <section class="proposal organic">
+            <span class="proposal-label">Proposal 04</span>
+            <span class="proposal-number">04</span>
+
+            <div class="organic-content">
+                <h2 class="organic-title">Liquid<br/>Organic</h2>
+                <p class="organic-subtitle">Flowing gradients, soft shapes, depth through blur and layering. A living, breathing interface.</p>
+
+                <nav class="organic-nav">
+                    <span class="organic-nav-item active">Dashboard</span>
+                    <span class="organic-nav-item">Income</span>
+                    <span class="organic-nav-item">Assets</span>
+                    <span class="organic-nav-item">Characters</span>
+                </nav>
+
+                <div class="organic-grid">
+                    <div class="organic-card">
+                        <div class="organic-card-label">Bounties</div>
+                        <div class="organic-card-value">847.2M</div>
+                        <div class="organic-card-unit">ISK earned this period</div>
+                    </div>
+                    <div class="organic-card">
+                        <div class="organic-card-label">Loot Sales</div>
+                        <div class="organic-card-value">125.8M</div>
+                        <div class="organic-card-unit">From market transactions</div>
+                    </div>
+                    <div class="organic-card">
+                        <div class="organic-card-label">Net Profit</div>
+                        <div class="organic-card-value">1.2B</div>
+                        <div class="organic-card-unit">Total after expenses</div>
+                    </div>
+                </div>
+
+                <button class="organic-btn">
+                    <span>Explore Analytics</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="palette-row" style="border-color: rgba(255,255,255,0.1);">
+                <div class="palette-swatch" style="background: #1a1a2e; color: #fff;">#1a1a2e</div>
+                <div class="palette-swatch" style="background: #e94560; color: #fff;">#e94560</div>
+                <div class="palette-swatch" style="background: #ff6b6b; color: #fff;">#ff6b6b</div>
+                <div class="palette-swatch" style="background: #0f3460; color: #fff;">#0f3460</div>
+            </div>
+        </section>
+
+        <!-- PROPOSAL 5: RETROFUTURISM -->
+        <section class="proposal retro">
+            <span class="proposal-label">Proposal 05</span>
+            <span class="proposal-number">05</span>
+
+            <div class="retro-content">
+                <header class="retro-header">
+                    <h2 class="retro-title">Retrofuture</h2>
+                    <div class="retro-time">SYS.TIME: 2350.127.14:32</div>
+                </header>
+
+                <nav class="retro-nav">
+                    <span class="retro-nav-item active">Main Terminal</span>
+                    <span class="retro-nav-item">Income Log</span>
+                    <span class="retro-nav-item">Asset Registry</span>
+                    <span class="retro-nav-item">Crew Manifest</span>
+                </nav>
+
+                <div class="retro-grid">
+                    <div class="retro-card">
+                        <div class="retro-card-label">Bounty Credits</div>
+                        <div class="retro-card-value">847.2M</div>
+                        <div class="retro-card-unit">ISK.STANDARD</div>
+                    </div>
+                    <div class="retro-card">
+                        <div class="retro-card-label">Salvage Sales</div>
+                        <div class="retro-card-value">125.8M</div>
+                        <div class="retro-card-unit">ISK.STANDARD</div>
+                    </div>
+                    <div class="retro-card">
+                        <div class="retro-card-label">Expenditures</div>
+                        <div class="retro-card-value">42.1M</div>
+                        <div class="retro-card-unit">ISK.DEBIT</div>
+                    </div>
+                    <div class="retro-card">
+                        <div class="retro-card-label">Net Balance</div>
+                        <div class="retro-card-value">930.9M</div>
+                        <div class="retro-card-unit">ISK.CREDIT</div>
+                    </div>
+                </div>
+
+                <button class="retro-btn">
+                    <span>◈</span>
+                    <span>Access Full Databank</span>
+                </button>
+
+                <div class="retro-indicator">SYSTEM NOMINAL</div>
+            </div>
+
+            <div class="palette-row" style="border-color: #ffb34733;">
+                <div class="palette-swatch" style="background: #0a0a08; color: #ffb347;">#0a0a08</div>
+                <div class="palette-swatch" style="background: #ffb347; color: #0a0a08;">#ffb347</div>
+                <div class="palette-swatch" style="background: #ff6b35; color: #fff;">#ff6b35</div>
+                <div class="palette-swatch" style="background: #4ade80; color: #0a0a08;">#4ade80</div>
+            </div>
+        </section>
+
+    </div>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+    frankenphp
+    auto_https off
+}
+
+:80 {
+    # Health check
+    respond /health 200 {
+        body `{"status":"ok"}`
+        close
+    }
+
+    root * /app/public
+    php_server
+
+    encode zstd gzip
+
+    log {
+        output stdout
+        format console
+    }
+}

@@ -1,0 +1,26 @@
+framework:
+    messenger:
+        failure_transport: failed
+
+        transports:
+            async:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                retry_strategy:
+                    max_retries: 3
+                    delay: 1000
+                    multiplier: 2
+                    max_delay: 0
+            failed:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%?queues[failed]/exchange[failed]'
+            scheduler_default: 'sync://'
+
+        routing:
+            App\Message\SyncCharacterAssets: async
+            App\Message\SyncCorporationAssets: async
+            App\Message\TriggerAssetsSync: async
+
+when@test:
+    framework:
+        messenger:
+            transports:
+                async: 'in-memory://'

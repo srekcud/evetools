@@ -1,0 +1,26 @@
+# config/packages/framework.yaml
+framework:
+    secret: '%env(APP_SECRET)%'
+    csrf_protection: true
+    annotations: false
+    http_method_override: false
+    handle_all_throwables: true
+
+    session:
+        handler_id: '%env(REDIS_URL)%'
+        cookie_secure: auto
+        cookie_samesite: lax
+        storage_factory_id: session.storage.factory.native
+
+    php_errors:
+        log: true
+
+    uid:
+        default_uuid_version: 7
+        time_based_uuid_version: 7
+
+when@test:
+    framework:
+        test: true
+        session:
+            storage_factory_id: session.storage.factory.mock_file

@@ -1,0 +1,51 @@
+# config/services.yaml
+parameters:
+    esi_base_url: '%env(ESI_BASE_URL)%'
+    esi_token_encryption_key: '%env(ESI_TOKEN_ENCRYPTION_KEY)%'
+    eve_client_id: '%env(EVE_CLIENT_ID)%'
+    eve_client_secret: '%env(EVE_CLIENT_SECRET)%'
+    eve_callback_url: '%env(EVE_CALLBACK_URL)%'
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/DependencyInjection/'
+            - '../src/Entity/'
+            - '../src/Kernel.php'
+
+    # ESI Services
+    App\Service\ESI\TokenManager:
+        arguments:
+            $encryptionKey: '%esi_token_encryption_key%'
+            $clientId: '%eve_client_id%'
+            $clientSecret: '%eve_client_secret%'
+
+    App\Service\ESI\AuthenticationService:
+        arguments:
+            $clientId: '%eve_client_id%'
+            $clientSecret: '%eve_client_secret%'
+            $callbackUrl: '%eve_callback_url%'
+
+    App\Service\ESI\EsiClient:
+        arguments:
+            $esiCache: '@esi.cache'
+            $baseUrl: '%esi_base_url%'
+
+    # Security
+    App\Security\JwtBlacklistListener:
+        arguments:
+            $jwtBlacklist: '@jwt.blacklist'
+
+    App\Controller\Auth\EveOAuthController:
+        arguments:
+            $jwtBlacklist: '@jwt.blacklist'
+
+    # SDE Import Service
+    App\Service\Sde\SdeImportService:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
