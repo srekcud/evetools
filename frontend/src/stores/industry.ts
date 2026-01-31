@@ -26,6 +26,13 @@ export interface IndustryProject {
   tree?: ProductionTreeNode | null
 }
 
+export interface SimilarJob {
+  characterName: string
+  runs: number
+  jobId: number
+  status: string
+}
+
 export interface IndustryProjectStep {
   id: string
   blueprintTypeId: number
@@ -57,6 +64,7 @@ export interface IndustryProjectStep {
   splitIndex: number
   totalGroupRuns: number | null
   isSplit: boolean
+  similarJobs?: SimilarJob[]
 }
 
 export interface ShoppingListItem {
@@ -148,18 +156,31 @@ export interface BlacklistConfig {
 export interface StructureConfig {
   id: string
   name: string
+  locationId: number | null
   securityType: 'highsec' | 'lowsec' | 'nullsec'
   structureType: 'station' | 'raitaru' | 'azbel' | 'sotiyo' | 'athanor' | 'tatara' | 'engineering_complex' | 'refinery'
   rigs: string[]
   isDefault: boolean
+  isCorporationStructure: boolean
   manufacturingMaterialBonus: number
   reactionMaterialBonus: number
   createdAt: string
 }
 
+export interface StructureSearchResult {
+  locationId: number
+  locationName: string
+  solarSystemId: number | null
+  solarSystemName: string | null
+  structureType: string | null
+  typeId: number | null
+  isCorporationOwned?: boolean
+}
+
 export interface RigOption {
   name: string
   bonus: number
+  timeBonus?: number
   category: string
   size: 'M' | 'L' | 'XL'
   targetCategories: string[]
@@ -170,6 +191,24 @@ export interface RigOptions {
   reaction: RigOption[]
 }
 
+export interface CorporationStructureSharedConfig {
+  securityType: 'highsec' | 'lowsec' | 'nullsec'
+  structureType: string
+  rigs: string[]
+  manufacturingMaterialBonus: number
+  reactionMaterialBonus: number
+}
+
+export interface CorporationStructure {
+  locationId: number
+  locationName: string
+  solarSystemId: number | null
+  solarSystemName: string | null
+  sharedConfig: CorporationStructureSharedConfig | null
+  isCorporationOwned: boolean | null
+  structureType: string | null
+}
+
 export const useIndustryStore = defineStore('industry', () => {
   const projects = ref<IndustryProject[]>([])
   const currentProject = ref<IndustryProject | null>(null)
@@ -177,6 +216,7 @@ export const useIndustryStore = defineStore('industry', () => {
   const blacklist = ref<BlacklistConfig | null>(null)
   const structures = ref<StructureConfig[]>([])
   const rigOptions = ref<RigOptions | null>(null)
+  const corporationStructures = ref<CorporationStructure[]>([])
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const totalProfit = ref(0)
@@ -548,8 +588,21 @@ export const useIndustryStore = defineStore('industry', () => {
     }
   }
 
+  async function fetchCorporationStructures() {
+    try {
+      const data = await apiRequest<{ structures: CorporationStructure[] }>(
+        '/industry/corporation-structures',
+      )
+      corporationStructures.value = data.structures
+    } catch (e) {
+      console.error('Failed to fetch corporation structures:', e)
+      // Silent failure - not critical
+    }
+  }
+
   async function createStructure(data: {
     name: string
+    locationId?: number | null
     securityType: string
     structureType: string
     rigs: string[]
@@ -594,6 +647,22 @@ export const useIndustryStore = defineStore('industry', () => {
     }
   }
 
+  async function searchStructures(query: string): Promise<{ structures: StructureSearchResult[], error?: string }> {
+    if (query.length < 3) {
+      return { structures: [] }
+    }
+    try {
+      const data = await apiRequest<{ structures: StructureSearchResult[] }>(
+        `/industry/search-structure?q=${encodeURIComponent(query)}`,
+      )
+      return { structures: data.structures }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Erreur de recherche'
+      console.error('Failed to search structures:', e)
+      return { structures: [], error: message }
+    }
+  }
+
   function clearError() {
     error.value = null
   }
@@ -605,6 +674,7 @@ export const useIndustryStore = defineStore('industry', () => {
     blacklist,
     structures,
     rigOptions,
+    corporationStructures,
     isLoading,
     error,
     totalProfit,
@@ -623,9 +693,11 @@ export const useIndustryStore = defineStore('industry', () => {
     updateBlacklist,
     searchBlacklistItems,
     fetchStructures,
+    fetchCorporationStructures,
     createStructure,
     updateStructure,
     deleteStructure,
+    searchStructures,
     createStep,
     addChildJob,
     deleteStep,

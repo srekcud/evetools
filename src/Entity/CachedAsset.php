@@ -69,6 +69,10 @@ class CachedAsset
     #[ORM\Column(type: 'boolean')]
     private bool $isCorporationAsset = false;
 
+    /** Corporation ID that owns the structure where this asset is located */
+    #[ORM\Column(type: 'bigint', nullable: true)]
+    private ?int $locationOwnerCorporationId = null;
+
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $cachedAt;
 
@@ -270,6 +274,18 @@ class CachedAsset
     public function setCachedAt(\DateTimeImmutable $cachedAt): static
     {
         $this->cachedAt = $cachedAt;
+
+        return $this;
+    }
+
+    public function getLocationOwnerCorporationId(): ?int
+    {
+        return $this->locationOwnerCorporationId;
+    }
+
+    public function setLocationOwnerCorporationId(?int $locationOwnerCorporationId): static
+    {
+        $this->locationOwnerCorporationId = $locationOwnerCorporationId;
 
         return $this;
     }

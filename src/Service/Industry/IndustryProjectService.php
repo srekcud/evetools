@@ -325,8 +325,16 @@ class IndustryProjectService
                             $meMultiplier = 1 - 10 / 100; // ME 10 for intermediates
                         }
 
-                        // Apply structure bonus from consumer
-                        $structureBonus = $consumer['structureBonus'] ?? 0;
+                        // Apply structure bonus for the MATERIAL's category, not consumer's category
+                        // E.g., when Rorqual (capital_ship) consumes RCF (composite_reaction),
+                        // we need the structure bonus for composite_reaction category
+                        $materialCategory = $this->bonusService->getCategoryForProduct($productTypeId, false);
+                        $structureBonus = 0;
+                        if ($materialCategory !== null) {
+                            $isReaction = str_contains($materialCategory, 'reaction');
+                            $bonusData = $this->bonusService->findBestStructureForCategory($user, $materialCategory, $isReaction);
+                            $structureBonus = $bonusData['bonus'];
+                        }
                         $structureMultiplier = $structureBonus > 0 ? (1 - $structureBonus / 100) : 1.0;
 
                         // Calculate adjusted quantity
@@ -392,6 +400,7 @@ class IndustryProjectService
             $step->setEsiJobsTotalRuns(null);
             $step->setEsiJobsActiveRuns(null);
             $step->setEsiJobsDeliveredRuns(null);
+            $step->setSimilarJobs([]);
 
             $jobs = $this->jobRepository->findManufacturingJobsByBlueprint(
                 $step->getBlueprintTypeId(),
@@ -401,6 +410,26 @@ class IndustryProjectService
             );
 
             if (empty($jobs)) {
+                // Even if no exact matches, look for similar jobs with different runs
+                $similarJobs = $this->jobRepository->findSimilarJobsWithDifferentRuns(
+                    $step->getBlueprintTypeId(),
+                    $characterIds,
+                    $step->getRuns(),
+                    $projectStartDate,
+                );
+
+                if (!empty($similarJobs)) {
+                    $similarJobsData = [];
+                    foreach ($similarJobs as $similarJob) {
+                        $similarJobsData[] = [
+                            'characterName' => $similarJob->getCharacter()->getName(),
+                            'runs' => $similarJob->getRuns(),
+                            'jobId' => $similarJob->getJobId(),
+                            'status' => $similarJob->getStatus(),
+                        ];
+                    }
+                    $step->setSimilarJobs($similarJobsData);
+                }
                 continue;
             }
 
@@ -453,6 +482,27 @@ class IndustryProjectService
             $step->setEsiJobsTotalRuns($totalRuns);
             $step->setEsiJobsActiveRuns($activeRuns);
             $step->setEsiJobsDeliveredRuns($deliveredRuns);
+
+            // Find similar jobs with different run count (for warning)
+            $similarJobs = $this->jobRepository->findSimilarJobsWithDifferentRuns(
+                $step->getBlueprintTypeId(),
+                $characterIds,
+                $step->getRuns(),
+                $projectStartDate,
+            );
+
+            if (!empty($similarJobs)) {
+                $similarJobsData = [];
+                foreach ($similarJobs as $similarJob) {
+                    $similarJobsData[] = [
+                        'characterName' => $similarJob->getCharacter()->getName(),
+                        'runs' => $similarJob->getRuns(),
+                        'jobId' => $similarJob->getJobId(),
+                        'status' => $similarJob->getStatus(),
+                    ];
+                }
+                $step->setSimilarJobs($similarJobsData);
+            }
         }
 
         $this->entityManager->flush();
@@ -596,6 +646,7 @@ class IndustryProjectService
             'splitIndex' => $step->getSplitIndex(),
             'totalGroupRuns' => $step->getTotalGroupRuns(),
             'isSplit' => $step->isSplit(),
+            'similarJobs' => $step->getSimilarJobs(),
         ];
     }
 

@@ -1,0 +1,61 @@
+================================================================================
+                         EVE Tools - Release Notes
+================================================================================
+
+--------------------------------------------------------------------------------
+Version 0.1.2 (2026-01-31)
+--------------------------------------------------------------------------------
+
+### Structures Industry - Partage Corporation
+- Recherche de structures par nom via l'API ESI
+- Auto-detection des structures appartenant a la corporation
+- Soft-delete : les structures corpo supprimees restent disponibles pour reimport
+- Partage des configurations de rigs avec les membres de la corporation
+- Resolution des noms de systemes solaires dans les resultats de recherche
+- Filtrage des rigs par taille selon la structure (M/L/XL)
+- Limite de 3 rigs maximum par structure
+
+### Gestion Rate Limit ESI
+- Banniere d'alerte quand le rate limit ESI est atteint
+- Blocage des actions ESI pendant le cooldown (60 secondes)
+- Indicateur ESI orange (au lieu de rouge) sur erreur 420
+- Rotation des tokens entre personnages pour distribuer les appels ESI
+
+### Ameliorations
+- Cache des informations de structure (owner, type, systeme solaire)
+- Pre-chargement des infos de structure en arriere-plan (warmup)
+- Exclusion des structures deja configurees dans les resultats de recherche
+
+--------------------------------------------------------------------------------
+Version 0.1.1 (2026-01-30)
+--------------------------------------------------------------------------------
+
+### Industry
+- Configuration des structures de production avec rigs
+- Calcul des bonus de materiaux (ME) et temps (TE)
+- Support des Engineering Complexes (Raitaru, Azbel, Sotiyo)
+- Support des Refineries (Athanor, Tatara)
+- Liste de courses avec comparaison prix Jita vs structure locale
+
+### Shopping List
+- Calcul automatique des materiaux necessaires
+- Comparaison des prix entre Jita et structure locale
+- Calcul des couts de transport
+
+### Corrections
+- Divers correctifs de stabilite
+
+--------------------------------------------------------------------------------
+Version 0.1 (2026-01-29)
+--------------------------------------------------------------------------------
+
+### Premiere version
+- Authentification EVE SSO (OAuth2)
+- Gestion multi-personnages
+- Synchronisation des assets
+- Tableau de bord avec vue d'ensemble
+- Module PVE pour le suivi des gains
+- Module Contrats
+- Interface moderne avec theme EVE Online
+
+================================================================================

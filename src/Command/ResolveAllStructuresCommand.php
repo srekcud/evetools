@@ -86,7 +86,13 @@ class ResolveAllStructuresCommand extends Command
             }
 
             if (!$dryRun) {
-                $this->saveStructure($structureId, $result['name'], $result['solar_system_id'] ?? null);
+                $this->saveStructure(
+                    $structureId,
+                    $result['name'],
+                    $result['solar_system_id'] ?? null,
+                    $result['owner_id'] ?? null,
+                    $result['type_id'] ?? null
+                );
             }
             $resolved++;
             $io->progressAdvance();
@@ -110,7 +116,7 @@ class ResolveAllStructuresCommand extends Command
 
                 if ($result === null) {
                     if (!$dryRun) {
-                        $this->saveStructure($structureId, 'Structure hostile', null);
+                        $this->saveStructure($structureId, 'Structure hostile', null, null, null);
                     }
                     $hostile++;
                     $io->progressAdvance();
@@ -118,7 +124,13 @@ class ResolveAllStructuresCommand extends Command
                 }
 
                 if (!$dryRun) {
-                    $this->saveStructure($structureId, $result['name'], $result['solar_system_id'] ?? null);
+                    $this->saveStructure(
+                        $structureId,
+                        $result['name'],
+                        $result['solar_system_id'] ?? null,
+                        $result['owner_id'] ?? null,
+                        $result['type_id'] ?? null
+                    );
                 }
                 $resolved++;
                 $io->progressAdvance();
@@ -187,11 +199,7 @@ class ResolveAllStructuresCommand extends Command
 
     /**
      * @param array<\App\Entity\EveToken> $tokens
-     * @return array{name: string, solar_system_id: ?int}|null
-     */
-    /**
-     * Try to resolve a structure. On first pass, only use the first token.
-     * On second pass (retry), try all tokens.
+     * @return array{name: string, solar_system_id: ?int, owner_id: ?int, type_id: ?int}|null
      */
     private function tryResolveStructure(int $structureId, array $tokens, bool $singleTokenOnly = false): ?array
     {
@@ -203,6 +211,8 @@ class ResolveAllStructuresCommand extends Command
                 return [
                     'name' => $data['name'],
                     'solar_system_id' => $data['solar_system_id'] ?? null,
+                    'owner_id' => $data['owner_id'] ?? null,
+                    'type_id' => $data['type_id'] ?? null,
                 ];
             } catch (\Throwable) {
                 usleep(500_000);
@@ -213,13 +223,15 @@ class ResolveAllStructuresCommand extends Command
         return null;
     }
 
-    private function saveStructure(int $structureId, string $name, ?int $solarSystemId): void
+    private function saveStructure(int $structureId, string $name, ?int $solarSystemId, ?int $ownerId = null, ?int $typeId = null): void
     {
         $existing = $this->cachedStructureRepository->findByStructureId($structureId);
 
         if ($existing !== null) {
             $existing->setName($name);
             $existing->setSolarSystemId($solarSystemId);
+            $existing->setOwnerCorporationId($ownerId);
+            $existing->setTypeId($typeId);
             $existing->setResolvedAt(new \DateTimeImmutable());
             return;
         }
@@ -228,6 +240,8 @@ class ResolveAllStructuresCommand extends Command
         $structure->setStructureId($structureId);
         $structure->setName($name);
         $structure->setSolarSystemId($solarSystemId);
+        $structure->setOwnerCorporationId($ownerId);
+        $structure->setTypeId($typeId);
 
         $this->entityManager->persist($structure);
     }

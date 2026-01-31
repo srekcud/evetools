@@ -91,8 +91,20 @@ class IndustryTreeService
 
             // Calculate material reduction
             // Formula: base * runs * (1 - ME/100) * (1 - structureBonus/100)
+            // IMPORTANT: The structure bonus must be looked up for EACH material's category,
+            // not the parent product's category. E.g., when building a Rorqual (capital_ship),
+            // the CCP materials are basic_capital_component and need their own bonus.
+            $materialStructureBonus = $structureBonus;
+            if ($user !== null) {
+                $materialCategory = $this->bonusService->getCategoryForProduct($matTypeId, false);
+                if ($materialCategory !== null && $materialCategory !== $productCategory) {
+                    $materialBonusData = $this->bonusService->findBestStructureForCategory($user, $materialCategory, false);
+                    $materialStructureBonus = $materialBonusData['bonus'];
+                }
+            }
+
             $meMultiplier = $applyMe && $effectiveMe > 0 ? (1 - $effectiveMe / 100) : 1.0;
-            $structureMultiplier = $structureBonus > 0 ? (1 - $structureBonus / 100) : 1.0;
+            $structureMultiplier = $materialStructureBonus > 0 ? (1 - $materialStructureBonus / 100) : 1.0;
 
             $adjustedQuantity = max(
                 $runs,

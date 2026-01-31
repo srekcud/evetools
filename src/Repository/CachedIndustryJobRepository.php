@@ -35,12 +35,12 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
     }
 
     /**
-     * Find manufacturing/reaction jobs matching a blueprint type ID across all user's characters.
+     * Find manufacturing/reaction jobs matching a blueprint type ID with EXACT run count.
      * Activity IDs: 1 = Manufacturing, 9 = Reactions, 11 = Reverse Engineering
      *
      * @param int                     $blueprintTypeId Blueprint to match
      * @param array                   $characterIds    Characters to search
-     * @param int|null                $targetRuns      If provided, prioritize jobs with matching runs
+     * @param int|null                $targetRuns      If provided, only return jobs with exact run match
      * @param \DateTimeImmutable|null $startedAfter    Only match jobs started after this date
      *
      * @return CachedIndustryJob[]
@@ -63,19 +63,48 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
                 ->setParameter('startedAfter', $startedAfter);
         }
 
+        // STRICT: only return exact matches
         if ($targetRuns !== null) {
-            // Sort by: exact match first, then runs >= target, then by start date
-            $qb->addSelect('CASE
-                WHEN j.runs = :targetRuns THEN 0
-                WHEN j.runs >= :targetRuns THEN 1
-                ELSE 2
-            END AS HIDDEN priority')
-                ->setParameter('targetRuns', $targetRuns)
-                ->orderBy('priority', 'ASC')
-                ->addOrderBy('j.startDate', 'DESC');
-        } else {
-            $qb->orderBy('j.startDate', 'DESC');
+            $qb->andWhere('j.runs = :targetRuns')
+                ->setParameter('targetRuns', $targetRuns);
         }
+
+        $qb->orderBy('j.startDate', 'DESC');
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Find jobs with same blueprint but DIFFERENT run count (for warning).
+     *
+     * @param int                     $blueprintTypeId Blueprint to match
+     * @param array                   $characterIds    Characters to search
+     * @param int                     $targetRuns      Run count to exclude (we want different runs)
+     * @param \DateTimeImmutable|null $startedAfter    Only match jobs started after this date
+     *
+     * @return CachedIndustryJob[]
+     */
+    public function findSimilarJobsWithDifferentRuns(
+        int $blueprintTypeId,
+        array $characterIds,
+        int $targetRuns,
+        ?\DateTimeImmutable $startedAfter = null,
+    ): array {
+        $qb = $this->createQueryBuilder('j')
+            ->where('j.blueprintTypeId = :bpId')
+            ->andWhere('j.activityId IN (1, 9, 11)')
+            ->andWhere('j.character IN (:chars)')
+            ->andWhere('j.runs != :targetRuns')
+            ->setParameter('bpId', $blueprintTypeId)
+            ->setParameter('chars', $characterIds)
+            ->setParameter('targetRuns', $targetRuns);
+
+        if ($startedAfter !== null) {
+            $qb->andWhere('j.startDate >= :startedAfter')
+                ->setParameter('startedAfter', $startedAfter);
+        }
+
+        $qb->orderBy('j.startDate', 'DESC');
 
         return $qb->getQuery()->getResult();
     }

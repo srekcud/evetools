@@ -6,12 +6,15 @@ namespace App\Controller\Api;
 
 use App\Entity\User;
 use App\Entity\IndustryStructureConfig;
+use App\Repository\CachedAssetRepository;
+use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Exception\EsiApiException;
+use App\Service\ESI\EsiClient;
 use App\Service\ESI\MarketService;
 use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\IndustryProjectService;
@@ -35,13 +38,17 @@ class IndustryController extends AbstractController
         private readonly IndustryProjectRepository $projectRepository,
         private readonly IndustryProjectStepRepository $stepRepository,
         private readonly IndustryStructureConfigRepository $structureConfigRepository,
+        private readonly CachedAssetRepository $cachedAssetRepository,
+        private readonly CachedStructureRepository $cachedStructureRepository,
         private readonly InvTypeRepository $invTypeRepository,
+        private readonly \App\Repository\Sde\MapSolarSystemRepository $solarSystemRepository,
         private readonly IndustryActivityProductRepository $activityProductRepository,
         private readonly IndustryProjectService $projectService,
         private readonly IndustryTreeService $treeService,
         private readonly IndustryBlacklistService $blacklistService,
         private readonly IndustryJobSyncService $jobSyncService,
         private readonly MarketService $marketService,
+        private readonly EsiClient $esiClient,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
     ) {
@@ -841,6 +848,204 @@ class IndustryController extends AbstractController
         ]);
     }
 
+    // ==================== Corporation Structures ====================
+
+    #[Route('/corporation-structures', name: 'api_industry_corporation_structures', methods: ['GET'])]
+    public function getCorporationStructures(): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->security->getUser();
+
+        $corporationId = $user->getCorporationId();
+
+        if ($corporationId === null) {
+            return new JsonResponse(['structures' => []]);
+        }
+
+        // Get structures shared by corporation members (isCorporationStructure = true)
+        $sharedConfigs = $this->structureConfigRepository->findCorporationSharedStructures($corporationId, $user);
+
+        if (empty($sharedConfigs)) {
+            return new JsonResponse(['structures' => []]);
+        }
+
+        // Get user's existing structure configs to filter out already configured structures
+        $existingConfigs = $this->structureConfigRepository->findByUser($user);
+        $existingLocationIds = [];
+        foreach ($existingConfigs as $config) {
+            $locId = $config->getLocationId();
+            if ($locId !== null) {
+                $existingLocationIds[$locId] = true;
+            }
+        }
+
+        // Build the response from shared configs
+        $structures = [];
+        foreach ($sharedConfigs as $locationId => $config) {
+            // Skip structures already configured by this user
+            if (isset($existingLocationIds[$locationId])) {
+                continue;
+            }
+
+            $structures[$locationId] = [
+                'locationId' => $locationId,
+                'locationName' => $config->getName(),
+                'solarSystemId' => null,
+                'solarSystemName' => null,
+                'isCorporationOwned' => true, // By definition, these are corp structures
+                'structureType' => $config->getStructureType(),
+                'sharedConfig' => [
+                    'securityType' => $config->getSecurityType(),
+                    'structureType' => $config->getStructureType(),
+                    'rigs' => $config->getRigs(),
+                    'manufacturingMaterialBonus' => $config->getManufacturingMaterialBonus(),
+                    'reactionMaterialBonus' => $config->getReactionMaterialBonus(),
+                ],
+            ];
+        }
+
+        // Get cached structure info for solar system names
+        if (!empty($structures)) {
+            $cachedStructures = $this->cachedStructureRepository->findByStructureIds(array_keys($structures));
+            foreach ($cachedStructures as $structureId => $cached) {
+                if (isset($structures[$structureId])) {
+                    $solarSystemId = $cached->getSolarSystemId();
+                    $structures[$structureId]['solarSystemId'] = $solarSystemId;
+
+                    // Resolve solar system name from SDE
+                    if ($solarSystemId !== null) {
+                        $solarSystem = $this->solarSystemRepository->findBySolarSystemId($solarSystemId);
+                        $structures[$structureId]['solarSystemName'] = $solarSystem?->getSolarSystemName();
+                    }
+                }
+            }
+        }
+
+        // Sort by name
+        usort($structures, fn($a, $b) => strcasecmp($a['locationName'] ?? '', $b['locationName'] ?? ''));
+
+        return new JsonResponse([
+            'structures' => array_values($structures),
+        ]);
+    }
+
+    #[Route('/search-structure', name: 'api_industry_search_structure', methods: ['GET'])]
+    public function searchStructure(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->security->getUser();
+
+        $query = trim($request->query->get('q', ''));
+        if (strlen($query) < 3) {
+            return new JsonResponse(['error' => 'Query must be at least 3 characters'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $mainCharacter = $user->getMainCharacter();
+        if ($mainCharacter === null) {
+            return new JsonResponse(['error' => 'No main character set'], Response::HTTP_FORBIDDEN);
+        }
+
+        $token = $mainCharacter->getEveToken();
+        if ($token === null) {
+            return new JsonResponse(['error' => 'No token available'], Response::HTTP_FORBIDDEN);
+        }
+
+        try {
+            // Search for structures by name via ESI
+            $characterId = $mainCharacter->getEveCharacterId();
+            $endpoint = sprintf(
+                '/characters/%d/search/?categories=structure&search=%s&strict=false',
+                $characterId,
+                urlencode($query)
+            );
+
+            $searchResults = $this->esiClient->get($endpoint, $token);
+            $structureIds = $searchResults['structure'] ?? [];
+
+            if (empty($structureIds)) {
+                return new JsonResponse(['structures' => []]);
+            }
+
+            // Get user's existing structure locationIds to filter them out
+            $existingConfigs = $this->structureConfigRepository->findByUser($user);
+            $existingLocationIds = [];
+            foreach ($existingConfigs as $config) {
+                $locId = $config->getLocationId();
+                if ($locId !== null) {
+                    $existingLocationIds[$locId] = true;
+                }
+            }
+
+            // Filter out already configured structures
+            $structureIds = array_filter($structureIds, fn($id) => !isset($existingLocationIds[$id]));
+
+            if (empty($structureIds)) {
+                return new JsonResponse(['structures' => []]);
+            }
+
+            // Limit to first 10 results
+            $structureIds = array_slice($structureIds, 0, 10);
+
+            // Fetch structure info for each result
+            $structures = [];
+            $userCorporationId = $user->getCorporationId();
+
+            foreach ($structureIds as $structureId) {
+                try {
+                    $structureEndpoint = sprintf('/universe/structures/%d/', $structureId);
+                    $structureInfo = $this->esiClient->get($structureEndpoint, $token);
+
+                    $ownerId = $structureInfo['owner_id'] ?? null;
+                    $typeId = $structureInfo['type_id'] ?? null;
+                    $solarSystemId = $structureInfo['solar_system_id'] ?? null;
+                    $name = $structureInfo['name'] ?? 'Unknown';
+
+                    // Cache the structure info for future use
+                    $this->cacheStructureInfo($structureId, $name, $solarSystemId, $ownerId, $typeId);
+
+                    // Resolve solar system name from SDE
+                    $solarSystemName = null;
+                    if ($solarSystemId !== null) {
+                        $solarSystem = $this->solarSystemRepository->findBySolarSystemId($solarSystemId);
+                        $solarSystemName = $solarSystem?->getSolarSystemName();
+                    }
+
+                    $structures[] = [
+                        'locationId' => $structureId,
+                        'locationName' => $name,
+                        'solarSystemId' => $solarSystemId,
+                        'solarSystemName' => $solarSystemName,
+                        'structureType' => $this->mapTypeIdToStructureType($typeId),
+                        'typeId' => $typeId,
+                        'isCorporationOwned' => $ownerId !== null && $ownerId === $userCorporationId,
+                    ];
+                } catch (EsiApiException $e) {
+                    // Skip structures we can't access (403 Forbidden)
+                    $this->logger->debug('Cannot access structure', [
+                        'structureId' => $structureId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            return new JsonResponse(['structures' => $structures]);
+        } catch (EsiApiException $e) {
+            $statusCode = Response::HTTP_BAD_GATEWAY;
+            $message = $e->getMessage();
+
+            // Handle rate limiting specifically
+            if (str_contains($message, 'Error limited') || str_contains($message, '420')) {
+                $statusCode = Response::HTTP_TOO_MANY_REQUESTS;
+                $message = 'ESI rate limit atteint. Réessayez dans quelques secondes.';
+            }
+
+            return new JsonResponse(
+                ['error' => $message],
+                $statusCode
+            );
+        }
+    }
+
     // ==================== Structure Configs ====================
 
     #[Route('/structures', name: 'api_industry_structures_list', methods: ['GET'])]
@@ -901,6 +1106,23 @@ class IndustryController extends AbstractController
         $structure->setRigs($rigs);
         $structure->setIsDefault($isDefault);
 
+        // If locationId is provided, store it for corporation sharing
+        $locationId = isset($data['locationId']) ? (int) $data['locationId'] : null;
+        if ($locationId !== null && $locationId > 0) {
+            $structure->setLocationId($locationId);
+            // Store corporation ID for sharing with corp members
+            $corporationId = $user->getCorporationId();
+            if ($corporationId !== null) {
+                $structure->setCorporationId($corporationId);
+
+                // Auto-detect if this is a corporation structure based on owner
+                $cachedStructure = $this->cachedStructureRepository->findByStructureId($locationId);
+                if ($cachedStructure !== null && $cachedStructure->getOwnerCorporationId() === $corporationId) {
+                    $structure->setIsCorporationStructure(true);
+                }
+            }
+        }
+
         $this->entityManager->persist($structure);
         $this->entityManager->flush();
 
@@ -956,6 +1178,10 @@ class IndustryController extends AbstractController
             $structure->setIsDefault($isDefault);
         }
 
+        if (isset($data['isCorporationStructure'])) {
+            $structure->setIsCorporationStructure((bool) $data['isCorporationStructure']);
+        }
+
         $this->entityManager->flush();
 
         return new JsonResponse($this->serializeStructureConfig($structure));
@@ -971,6 +1197,14 @@ class IndustryController extends AbstractController
 
         if ($structure === null || $structure->getUser() !== $user) {
             return new JsonResponse(['error' => 'Structure not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        // If this is a corporation structure, soft-delete to preserve config for corp
+        if ($structure->isCorporationStructure() && $structure->getLocationId() !== null) {
+            $structure->setIsDeleted(true);
+            $this->entityManager->flush();
+
+            return new JsonResponse(null, Response::HTTP_NO_CONTENT);
         }
 
         $this->entityManager->remove($structure);
@@ -990,10 +1224,12 @@ class IndustryController extends AbstractController
         return [
             'id' => $structure->getId()->toRfc4122(),
             'name' => $structure->getName(),
+            'locationId' => $structure->getLocationId(),
             'securityType' => $structure->getSecurityType(),
             'structureType' => $structure->getStructureType(),
             'rigs' => $structure->getRigs(),
             'isDefault' => $structure->isDefault(),
+            'isCorporationStructure' => $structure->isCorporationStructure(),
             'manufacturingMaterialBonus' => $structure->getManufacturingMaterialBonus(),
             'reactionMaterialBonus' => $structure->getReactionMaterialBonus(),
             'createdAt' => $structure->getCreatedAt()->format('c'),
@@ -1030,6 +1266,8 @@ class IndustryController extends AbstractController
                 ['name' => 'Standup M-Set Equipment Manufacturing Material Efficiency II', 'bonus' => 2.4, 'category' => 'M-Set Equipment', 'size' => 'M', 'targetCategories' => ['equipment']],
                 ['name' => 'Standup M-Set Ammunition Manufacturing Material Efficiency I', 'bonus' => 2.0, 'category' => 'M-Set Equipment', 'size' => 'M', 'targetCategories' => ['ammunition']],
                 ['name' => 'Standup M-Set Ammunition Manufacturing Material Efficiency II', 'bonus' => 2.4, 'category' => 'M-Set Equipment', 'size' => 'M', 'targetCategories' => ['ammunition']],
+                ['name' => 'Standup M-Set Ammunition Manufacturing Time Efficiency I', 'bonus' => 0, 'timeBonus' => 20.0, 'category' => 'M-Set Equipment TE', 'size' => 'M', 'targetCategories' => ['ammunition']],
+                ['name' => 'Standup M-Set Ammunition Manufacturing Time Efficiency II', 'bonus' => 0, 'timeBonus' => 24.0, 'category' => 'M-Set Equipment TE', 'size' => 'M', 'targetCategories' => ['ammunition']],
                 ['name' => 'Standup M-Set Drone and Fighter Manufacturing Material Efficiency I', 'bonus' => 2.0, 'category' => 'M-Set Equipment', 'size' => 'M', 'targetCategories' => ['drone', 'fighter']],
                 ['name' => 'Standup M-Set Drone and Fighter Manufacturing Material Efficiency II', 'bonus' => 2.4, 'category' => 'M-Set Equipment', 'size' => 'M', 'targetCategories' => ['drone', 'fighter']],
                 // Structures
@@ -1064,6 +1302,8 @@ class IndustryController extends AbstractController
                 ['name' => 'Standup L-Set Equipment Manufacturing Efficiency II', 'bonus' => 2.4, 'category' => 'L-Set Equipment', 'size' => 'L', 'targetCategories' => ['equipment']],
                 ['name' => 'Standup L-Set Ammunition Manufacturing Efficiency I', 'bonus' => 2.0, 'category' => 'L-Set Equipment', 'size' => 'L', 'targetCategories' => ['ammunition']],
                 ['name' => 'Standup L-Set Ammunition Manufacturing Efficiency II', 'bonus' => 2.4, 'category' => 'L-Set Equipment', 'size' => 'L', 'targetCategories' => ['ammunition']],
+                ['name' => 'Standup L-Set Ammunition Manufacturing Time Efficiency I', 'bonus' => 0, 'timeBonus' => 20.0, 'category' => 'L-Set Equipment TE', 'size' => 'L', 'targetCategories' => ['ammunition']],
+                ['name' => 'Standup L-Set Ammunition Manufacturing Time Efficiency II', 'bonus' => 0, 'timeBonus' => 24.0, 'category' => 'L-Set Equipment TE', 'size' => 'L', 'targetCategories' => ['ammunition']],
                 ['name' => 'Standup L-Set Drone and Fighter Manufacturing Efficiency I', 'bonus' => 2.0, 'category' => 'L-Set Equipment', 'size' => 'L', 'targetCategories' => ['drone', 'fighter']],
                 ['name' => 'Standup L-Set Drone and Fighter Manufacturing Efficiency II', 'bonus' => 2.4, 'category' => 'L-Set Equipment', 'size' => 'L', 'targetCategories' => ['drone', 'fighter']],
                 // Structures
@@ -1078,6 +1318,17 @@ class IndustryController extends AbstractController
                 ['name' => 'Standup XL-Set Structure and Component Manufacturing Efficiency I', 'bonus' => 2.0, 'category' => 'XL-Set', 'size' => 'XL', 'targetCategories' => ['structure', 'structure_component', 'basic_capital_component', 'advanced_component']],
                 ['name' => 'Standup XL-Set Structure and Component Manufacturing Efficiency II', 'bonus' => 2.4, 'category' => 'XL-Set', 'size' => 'XL', 'targetCategories' => ['structure', 'structure_component', 'basic_capital_component', 'advanced_component']],
                 ['name' => 'Standup XL-Set Thukker Structure and Component Manufacturing Efficiency', 'bonus' => 2.4, 'category' => 'XL-Set', 'size' => 'XL', 'targetCategories' => ['structure', 'structure_component', 'basic_capital_component', 'advanced_component']],
+
+                // ===== Laboratory Optimization (Research/Invention/Copy TE bonus) =====
+                // M-Set (Raitaru)
+                ['name' => 'Standup M-Set Laboratory Optimization I', 'bonus' => 2.0, 'category' => 'M-Set Laboratory', 'size' => 'M', 'targetCategories' => ['research']],
+                ['name' => 'Standup M-Set Laboratory Optimization II', 'bonus' => 2.4, 'category' => 'M-Set Laboratory', 'size' => 'M', 'targetCategories' => ['research']],
+                // L-Set (Azbel)
+                ['name' => 'Standup L-Set Laboratory Optimization I', 'bonus' => 2.0, 'category' => 'L-Set Laboratory', 'size' => 'L', 'targetCategories' => ['research']],
+                ['name' => 'Standup L-Set Laboratory Optimization II', 'bonus' => 2.4, 'category' => 'L-Set Laboratory', 'size' => 'L', 'targetCategories' => ['research']],
+                // XL-Set (Sotiyo)
+                ['name' => 'Standup XL-Set Laboratory Optimization I', 'bonus' => 2.0, 'category' => 'XL-Set Laboratory', 'size' => 'XL', 'targetCategories' => ['research']],
+                ['name' => 'Standup XL-Set Laboratory Optimization II', 'bonus' => 2.4, 'category' => 'XL-Set Laboratory', 'size' => 'XL', 'targetCategories' => ['research']],
             ],
             'reaction' => [
                 // M-Set (Athanor)
@@ -1111,5 +1362,42 @@ class IndustryController extends AbstractController
         ]);
 
         return $product?->getQuantity() ?? 1;
+    }
+
+    /**
+     * Map EVE structure type ID to structure type name.
+     */
+    private function mapTypeIdToStructureType(?int $typeId): ?string
+    {
+        return match ($typeId) {
+            35825 => 'raitaru',   // Engineering Complex M
+            35826 => 'azbel',     // Engineering Complex L
+            35827 => 'sotiyo',    // Engineering Complex XL
+            35835 => 'athanor',   // Refinery M
+            35836 => 'tatara',    // Refinery L
+            default => null,
+        };
+    }
+
+    /**
+     * Cache structure info from ESI for future use.
+     */
+    private function cacheStructureInfo(int $structureId, string $name, ?int $solarSystemId, ?int $ownerId, ?int $typeId): void
+    {
+        $cached = $this->cachedStructureRepository->findByStructureId($structureId);
+
+        if ($cached === null) {
+            $cached = new \App\Entity\CachedStructure();
+            $cached->setStructureId($structureId);
+            $this->entityManager->persist($cached);
+        }
+
+        $cached->setName($name);
+        $cached->setSolarSystemId($solarSystemId);
+        $cached->setOwnerCorporationId($ownerId);
+        $cached->setTypeId($typeId);
+        $cached->setResolvedAt(new \DateTimeImmutable());
+
+        $this->entityManager->flush();
     }
 }

@@ -12,6 +12,7 @@ use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity(repositoryClass: IndustryStructureConfigRepository::class)]
 #[ORM\Table(name: 'industry_structure_configs')]
+#[ORM\Index(columns: ['corporation_id', 'location_id'])]
 class IndustryStructureConfig
 {
     #[ORM\Id]
@@ -24,6 +25,14 @@ class IndustryStructureConfig
 
     #[ORM\Column(length: 255)]
     private string $name;
+
+    /** ESI location ID for structure sharing (null for custom structures) */
+    #[ORM\Column(type: 'bigint', nullable: true)]
+    private ?int $locationId = null;
+
+    /** Corporation ID for sharing configs within corporation */
+    #[ORM\Column(type: 'bigint', nullable: true)]
+    private ?int $corporationId = null;
 
     #[ORM\Column(length: 20)]
     private string $securityType; // 'highsec', 'lowsec', 'nullsec'
@@ -39,6 +48,14 @@ class IndustryStructureConfig
 
     #[ORM\Column]
     private bool $isDefault = false;
+
+    /** Manually marked as a corporation structure (for sharing even without ESI data) */
+    #[ORM\Column]
+    private bool $isCorporationStructure = false;
+
+    /** Soft-deleted (hidden from user but preserved for corp sharing) */
+    #[ORM\Column]
+    private bool $isDeleted = false;
 
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
@@ -129,6 +146,50 @@ class IndustryStructureConfig
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
+    }
+
+    public function getLocationId(): ?int
+    {
+        return $this->locationId;
+    }
+
+    public function setLocationId(?int $locationId): self
+    {
+        $this->locationId = $locationId;
+        return $this;
+    }
+
+    public function getCorporationId(): ?int
+    {
+        return $this->corporationId;
+    }
+
+    public function setCorporationId(?int $corporationId): self
+    {
+        $this->corporationId = $corporationId;
+        return $this;
+    }
+
+    public function isCorporationStructure(): bool
+    {
+        return $this->isCorporationStructure;
+    }
+
+    public function setIsCorporationStructure(bool $isCorporationStructure): self
+    {
+        $this->isCorporationStructure = $isCorporationStructure;
+        return $this;
+    }
+
+    public function isDeleted(): bool
+    {
+        return $this->isDeleted;
+    }
+
+    public function setIsDeleted(bool $isDeleted): self
+    {
+        $this->isDeleted = $isDeleted;
+        return $this;
     }
 
     /**

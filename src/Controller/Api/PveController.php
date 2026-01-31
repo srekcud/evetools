@@ -852,6 +852,16 @@ class PveController extends AbstractController
             return new JsonResponse(['error' => 'forbidden'], Response::HTTP_FORBIDDEN);
         }
 
+        // Add to declined list so it doesn't reappear on next scan
+        $settings = $this->settingsRepository->getOrCreate($user);
+        if ($lootSale->getContractId() !== null) {
+            $settings->addDeclinedContractId($lootSale->getContractId());
+        }
+        if ($lootSale->getTransactionId() !== null) {
+            $settings->addDeclinedLootSaleTransactionId($lootSale->getTransactionId());
+        }
+        $this->entityManager->persist($settings);
+
         $this->entityManager->remove($lootSale);
         $this->entityManager->flush();
 

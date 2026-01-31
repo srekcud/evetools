@@ -46,4 +46,19 @@ class CachedStructureRepository extends ServiceEntityRepository
 
         return $indexed;
     }
+
+    /**
+     * Find all structures owned by a specific corporation.
+     *
+     * @return CachedStructure[]
+     */
+    public function findByOwnerCorporationId(int $corporationId): array
+    {
+        return $this->createQueryBuilder('s')
+            ->where('s.ownerCorporationId = :corporationId')
+            ->setParameter('corporationId', $corporationId)
+            ->orderBy('s.name', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }

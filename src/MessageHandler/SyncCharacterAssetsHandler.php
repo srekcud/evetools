@@ -6,10 +6,12 @@ namespace App\MessageHandler;
 
 use App\Exception\EveAuthRequiredException;
 use App\Message\SyncCharacterAssets;
+use App\Message\WarmupStructureOwnersMessage;
 use App\Repository\CharacterRepository;
 use App\Service\Sync\AssetsSyncService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Uid\Uuid;
 
 #[AsMessageHandler]
@@ -18,6 +20,7 @@ final readonly class SyncCharacterAssetsHandler
     public function __construct(
         private CharacterRepository $characterRepository,
         private AssetsSyncService $assetsSyncService,
+        private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
     ) {
     }
@@ -43,6 +46,14 @@ final readonly class SyncCharacterAssetsHandler
                 'characterId' => $message->characterId,
                 'characterName' => $character->getName(),
             ]);
+
+            // Trigger structure owner warmup for the user
+            $user = $character->getUser();
+            if ($user !== null) {
+                $this->messageBus->dispatch(
+                    new WarmupStructureOwnersMessage($user->getId()->toRfc4122())
+                );
+            }
         } catch (EveAuthRequiredException $e) {
             $this->logger->error('EVE auth required for character', [
                 'characterId' => $message->characterId,

@@ -2,11 +2,33 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useRateLimitStore } from '@/stores/rateLimit'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const rateLimitStore = useRateLimitStore()
 
-const APP_VERSION = '0.1.1'
+const APP_VERSION = '0.1.2'
+
+// Release notes modal
+const showReleaseNotes = ref(false)
+const releaseNotes = ref('')
+const loadingReleaseNotes = ref(false)
+
+async function openReleaseNotes() {
+  showReleaseNotes.value = true
+  if (!releaseNotes.value) {
+    loadingReleaseNotes.value = true
+    try {
+      const response = await fetch('/RELEASE_NOTES.txt')
+      releaseNotes.value = await response.text()
+    } catch (e) {
+      releaseNotes.value = 'Impossible de charger les notes de version.'
+    } finally {
+      loadingReleaseNotes.value = false
+    }
+  }
+}
 
 // ESI Status
 interface EsiStatus {
@@ -17,6 +39,7 @@ interface EsiStatus {
 }
 const esiStatus = ref<EsiStatus | null>(null)
 const esiError = ref(false)
+const esiRateLimited = ref(false)
 let esiStatusInterval: ReturnType<typeof setInterval> | null = null
 
 async function fetchEsiStatus() {
@@ -25,18 +48,25 @@ async function fetchEsiStatus() {
     if (response.ok) {
       esiStatus.value = await response.json()
       esiError.value = false
+      esiRateLimited.value = false
+    } else if (response.status === 420) {
+      // Rate limited - ESI is not down, just rate limited
+      esiError.value = false
+      esiRateLimited.value = true
     } else {
       esiError.value = true
+      esiRateLimited.value = false
     }
   } catch {
     esiError.value = true
+    esiRateLimited.value = false
   }
 }
 
-// Fetch ESI status on mount and every 60 seconds
+// Fetch ESI status on mount and every 5 minutes
 onMounted(() => {
   fetchEsiStatus()
-  esiStatusInterval = setInterval(fetchEsiStatus, 60000)
+  esiStatusInterval = setInterval(fetchEsiStatus, 300000)
 })
 
 onUnmounted(() => {
@@ -142,7 +172,22 @@ const currentPageTitle = computed(() => {
       <div class="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.03)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
     </div>
 
-    <div class="relative flex h-screen">
+    <!-- Rate Limit Banner -->
+    <Transition name="slide-down">
+      <div
+        v-if="rateLimitStore.isRateLimited"
+        class="fixed top-0 left-0 right-0 z-50 bg-amber-600 text-white px-4 py-2 text-center text-sm font-medium shadow-lg"
+      >
+        <div class="flex items-center justify-center gap-2">
+          <svg class="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span>Rate limit ESI atteint - Actions ESI bloquées pendant {{ rateLimitStore.remainingSeconds }}s</span>
+        </div>
+      </div>
+    </Transition>
+
+    <div class="relative flex h-screen" :class="{ 'pt-10': rateLimitStore.isRateLimited }">
       <!-- Sidebar -->
       <aside class="w-64 bg-slate-900/80 backdrop-blur-xl border-r border-cyan-500/20 flex flex-col">
         <!-- Logo -->
@@ -226,7 +271,13 @@ const currentPageTitle = computed(() => {
             </button>
           </div>
         </div>
-        <p class="mt-3 pb-4 text-center text-xs text-slate-600">v{{ APP_VERSION }}</p>
+        <button
+          @click="openReleaseNotes"
+          class="mt-3 pb-4 w-full text-center text-xs text-slate-600 hover:text-cyan-400 transition-colors"
+          title="Voir les notes de version"
+        >
+          v{{ APP_VERSION }}
+        </button>
       </aside>
 
       <!-- Settings Modal -->
@@ -296,6 +347,57 @@ const currentPageTitle = computed(() => {
         </div>
       </Teleport>
 
+      <!-- Release Notes Modal -->
+      <Teleport to="body">
+        <div
+          v-if="showReleaseNotes"
+          class="fixed inset-0 z-50 flex items-center justify-center"
+        >
+          <!-- Backdrop -->
+          <div
+            class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+            @click="showReleaseNotes = false"
+          ></div>
+
+          <!-- Modal -->
+          <div class="relative bg-slate-900 rounded-2xl border border-cyan-500/30 shadow-2xl shadow-cyan-500/10 w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col">
+            <!-- Header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-700/50">
+              <h3 class="text-lg font-semibold text-slate-100">Notes de version</h3>
+              <button
+                @click="showReleaseNotes = false"
+                class="p-1 hover:bg-slate-800 rounded-lg transition-colors"
+              >
+                <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Content -->
+            <div class="flex-1 overflow-y-auto p-6">
+              <div v-if="loadingReleaseNotes" class="flex items-center justify-center py-8">
+                <svg class="animate-spin h-8 w-8 text-cyan-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </div>
+              <pre v-else class="text-sm text-slate-300 whitespace-pre-wrap font-mono leading-relaxed">{{ releaseNotes }}</pre>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 py-4 border-t border-slate-700/50 flex justify-end">
+              <button
+                @click="showReleaseNotes = false"
+                class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-colors"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
+
       <!-- Main content -->
       <main class="flex-1 overflow-auto">
         <!-- Header -->
@@ -312,20 +414,22 @@ const currentPageTitle = computed(() => {
                   'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs',
                   esiError
                     ? 'bg-red-500/10 border-red-500/30'
-                    : 'bg-emerald-500/10 border-emerald-500/30'
+                    : esiRateLimited
+                      ? 'bg-amber-500/10 border-amber-500/30'
+                      : 'bg-emerald-500/10 border-emerald-500/30'
                 ]"
-                :title="esiError ? 'ESI indisponible' : `ESI OK - ${esiStatus?.players?.toLocaleString() || 0} joueurs en ligne`"
+                :title="esiError ? 'ESI indisponible' : esiRateLimited ? 'ESI rate limité' : `ESI OK - ${esiStatus?.players?.toLocaleString() || 0} joueurs en ligne`"
               >
                 <div
                   :class="[
                     'w-2 h-2 rounded-full',
-                    esiError ? 'bg-red-500' : 'bg-emerald-500 animate-pulse'
+                    esiError ? 'bg-red-500' : esiRateLimited ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500 animate-pulse'
                   ]"
                 ></div>
-                <span :class="esiError ? 'text-red-400' : 'text-emerald-400'">
-                  ESI {{ esiError ? 'DOWN' : 'OK' }}
+                <span :class="esiError ? 'text-red-400' : esiRateLimited ? 'text-amber-400' : 'text-emerald-400'">
+                  ESI {{ esiError ? 'DOWN' : esiRateLimited ? 'RATE LIMITED' : 'OK' }}
                 </span>
-                <span v-if="esiStatus?.players && !esiError" class="text-slate-500">
+                <span v-if="esiStatus?.players && !esiError && !esiRateLimited" class="text-slate-500">
                   {{ (esiStatus.players / 1000).toFixed(1) }}k
                 </span>
               </div>
@@ -409,5 +513,17 @@ const currentPageTitle = computed(() => {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(6, 182, 212, 0.5);
+}
+
+/* Rate limit banner transition */
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.slide-down-enter-from,
+.slide-down-leave-to {
+  transform: translateY(-100%);
+  opacity: 0;
 }
 </style>

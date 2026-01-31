@@ -132,16 +132,16 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
     <!-- Structure not accessible warning -->
     <div
       v-if="structureAccessible === false && !priceError"
-      class="bg-slate-700/50 border border-slate-600 rounded-lg p-3"
+      class="bg-amber-900/30 border border-amber-500/50 rounded-lg p-3"
     >
       <div class="flex items-center justify-between gap-3">
         <div class="flex items-center gap-3">
-          <svg class="w-5 h-5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg class="w-5 h-5 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           <div class="text-sm">
-            <p class="text-slate-300">Prix de la structure non disponibles</p>
-            <p class="text-slate-500 text-xs mt-0.5">
+            <p class="text-amber-300">Prix de la structure non disponibles</p>
+            <p class="text-amber-400/70 text-xs mt-0.5">
               Les donnees de marche pour {{ structureName }} n'ont pas ete synchronisees.
             </p>
           </div>

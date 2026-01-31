@@ -259,6 +259,31 @@ make test            # Tous les tests
 make messenger       # Consumer
 ```
 
+### Mise en production (MTP)
+
+```bash
+git pull origin main
+
+docker compose -f docker-compose.yaml -f docker-compose.prod.yml build
+
+docker compose -f docker-compose.yaml -f docker-compose.prod.yml up -d --force-recreate --remove-orphans
+
+docker compose -f docker-compose.yaml -f docker-compose.prod.yml exec app composer install --no-dev --optimize-autoloader
+
+docker compose -f docker-compose.yaml -f docker-compose.prod.yml exec app php bin/console doctrine:migrations:migrate --no-interaction
+
+docker compose -f docker-compose.yaml -f docker-compose.prod.yml exec app php bin/console cache:clear
+
+docker compose -f docker-compose.yaml -f docker-compose.prod.yml exec app php bin/console cache:warmup
+```
+
+---
+
+## Préférences Git
+
+- **NE PAS ajouter de "Co-Authored-By: Claude"** dans les commits
+- Format de version : `V0.1.x` (ex: V0.1, V0.1.1, V0.1.2)
+
 ---
 
 ## API Endpoints
@@ -277,7 +302,28 @@ make messenger       # Consumer
 | Tâche | Intervalle |
 |-------|------------|
 | Assets sync | 30 minutes |
+| Structure owner warmup | Après chaque sync d'assets |
 | Ansiblex sync | 12 heures |
+| Industry jobs sync | 15 minutes |
+| PVE data sync | 20 minutes |
+| Market sync (Jita + Structure) | 2 heures |
+
+---
+
+## Migrations en attente (Production)
+
+| Migration | Description |
+|-----------|-------------|
+| `Version20260131130430` | Ajoute `location_id` et `corporation_id` à `industry_structure_configs` pour le partage de configurations de structures au sein d'une corporation |
+| `Version20260131133840` | Ajoute `location_owner_corporation_id` à `cached_assets` |
+| `Version20260131133934` | Ajoute `owner_corporation_id` à `cached_structure` pour identifier le propriétaire d'une structure |
+
+```bash
+# Exécuter en production
+php bin/console doctrine:migrations:migrate
+```
+
+**Note**: Après migration, relancer une synchronisation des assets pour peupler `owner_corporation_id` dans les structures.
 
 ---
 
