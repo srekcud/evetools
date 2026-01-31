@@ -60,7 +60,7 @@ class ContractController extends AbstractController
 
             // Filter by status if specified
             if ($statusFilter !== 'all') {
-                $userContracts = array_filter($userContracts, fn($c) => $c['status'] === $statusFilter);
+                $userContracts = array_filter($userContracts, fn($c) => ($c['status'] ?? '') === $statusFilter);
             }
 
             // Only keep item_exchange contracts for price comparison
@@ -116,7 +116,7 @@ class ContractController extends AbstractController
                 if ($contract['type'] !== 'item_exchange') {
                     continue;
                 }
-                if ($contract['status'] !== 'outstanding') {
+                if (($contract['status'] ?? '') !== 'outstanding') {
                     continue;
                 }
 
@@ -303,7 +303,7 @@ class ContractController extends AbstractController
             return [
                 'contractId' => $contract['contract_id'],
                 'type' => $contract['type'],
-                'status' => $contract['status'],
+                'status' => $contract['status'] ?? 'unknown',
                 'title' => $contract['title'] ?? '',
                 'price' => $contractPrice,
                 'reward' => $contract['reward'] ?? 0,

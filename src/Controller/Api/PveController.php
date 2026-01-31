@@ -505,7 +505,7 @@ class PveController extends AbstractController
                     if ($contract['type'] !== 'item_exchange') {
                         continue;
                     }
-                    if (!in_array($contract['status'], ['finished', 'completed'], true)) {
+                    if (!in_array($contract['status'] ?? '', ['finished', 'completed'], true)) {
                         continue;
                     }
                     // Only contracts where we paid (either as acceptor or issuer)
@@ -1001,7 +1001,7 @@ class PveController extends AbstractController
                     if ($contract['type'] !== 'item_exchange') {
                         continue;
                     }
-                    if (!in_array($contract['status'], ['finished', 'completed'], true)) {
+                    if (!in_array($contract['status'] ?? '', ['finished', 'completed'], true)) {
                         continue;
                     }
 
