@@ -7,6 +7,7 @@ namespace App\Controller\Api;
 use App\Entity\User;
 use App\Message\SyncCharacterAssets;
 use App\Message\SyncCorporationAssets;
+use App\Message\WarmupStructureOwnersMessage;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CharacterRepository;
 use App\Service\Sync\AssetsSyncService;
@@ -92,6 +93,11 @@ class AssetsController extends AbstractController
         // Synchronous processing (fallback)
         try {
             $this->assetsSyncService->syncCharacterAssets($character);
+
+            // Trigger structure owner warmup
+            $this->messageBus->dispatch(
+                new WarmupStructureOwnersMessage($user->getId()->toRfc4122())
+            );
 
             return new JsonResponse([
                 'status' => 'completed',

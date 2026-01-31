@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
-import type { IndustryProjectStep } from '@/stores/industry'
+import type { IndustryProjectStep, SimilarJob } from '@/stores/industry'
 
 const props = defineProps<{
   steps: IndustryProjectStep[]
@@ -233,6 +233,13 @@ function activityLabel(type: string): string {
 // Check if step is linked to ESI (not editable/deletable)
 function isLinkedToEsi(step: IndustryProjectStep): boolean {
   return step.esiJobId !== null
+}
+
+// Format similar jobs warning tooltip
+function formatSimilarJobsWarning(similarJobs: SimilarJob[]): string {
+  return similarJobs.map(j =>
+    `${j.characterName}: ${j.runs} runs (${j.status === 'active' ? 'en cours' : 'termine'})`
+  ).join('\n')
 }
 
 function stepStatusLabel(step: IndustryProjectStep): string {
@@ -480,8 +487,16 @@ function cancelAddChild() {
                   </span>
                   <span v-if="step.isSplit" class="text-xs text-slate-500">#{{ step.splitIndex + 1 }}</span>
                   <!-- ESI linked indicator -->
-                  <span v-if="isLinkedToEsi(step)" class="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400" title="Lié à un job ESI">
+                  <span v-if="isLinkedToEsi(step)" class="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400" title="Lie a un job ESI">
                     ESI
+                  </span>
+                  <!-- Similar jobs warning -->
+                  <span
+                    v-if="step.similarJobs && step.similarJobs.length > 0"
+                    class="text-xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 cursor-help"
+                    :title="formatSimilarJobsWarning(step.similarJobs)"
+                  >
+                    {{ step.similarJobs.length }} job{{ step.similarJobs.length > 1 ? 's' : '' }} similaire{{ step.similarJobs.length > 1 ? 's' : '' }}
                   </span>
                 </div>
                 <!-- Job info -->

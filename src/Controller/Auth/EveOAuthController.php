@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Controller\Auth;
 
 use App\Entity\User;
+use App\Message\SyncCharacterAssets;
 use App\Service\ESI\AuthenticationService;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Bundle\SecurityBundle\Security;
 use Psr\Cache\CacheItemPoolInterface;
@@ -22,6 +24,7 @@ class EveOAuthController extends AbstractController
         private readonly AuthenticationService $authService,
         private readonly JWTTokenManagerInterface $jwtManager,
         private readonly CacheItemPoolInterface $jwtBlacklist,
+        private readonly MessageBusInterface $messageBus,
         private readonly Security $security,
     ) {
     }
@@ -68,6 +71,11 @@ class EveOAuthController extends AbstractController
                 $token = $character->getEveToken();
                 $scopes = $token ? $token->getScopes() : [];
 
+                // Trigger background asset sync for the new character
+                $this->messageBus->dispatch(
+                    new SyncCharacterAssets($character->getId()->toRfc4122())
+                );
+
                 return new JsonResponse([
                     'message' => 'Character added successfully',
                     'character' => [
@@ -81,6 +89,13 @@ class EveOAuthController extends AbstractController
             // New login
             $user = $this->authService->authenticateWithCode($code);
             $jwt = $this->jwtManager->create($user);
+
+            // Trigger background asset sync for all characters
+            foreach ($user->getCharacters() as $character) {
+                $this->messageBus->dispatch(
+                    new SyncCharacterAssets($character->getId()->toRfc4122())
+                );
+            }
 
             return new JsonResponse([
                 'token' => $jwt,

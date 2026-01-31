@@ -104,6 +104,15 @@ class IndustryProjectStep
     #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $timePerRun = null;
 
+    /**
+     * Jobs with same blueprint but different runs (for warning).
+     * Format: [{ "characterName": "Foo", "runs": 5, "jobId": 123, "status": "active" }, ...]
+     *
+     * @var array<array{characterName: string, runs: int, jobId: int, status: string}>
+     */
+    #[ORM\Column(type: 'json')]
+    private array $similarJobs = [];
+
     /** @var string|null UUID to group related splits together */
     #[ORM\Column(type: 'string', length: 36, nullable: true)]
     private ?string $splitGroupId = null;
@@ -415,6 +424,24 @@ class IndustryProjectStep
         $this->esiJobsActiveRuns = null;
         $this->esiJobsDeliveredRuns = null;
         $this->manualJobData = false;
+        $this->similarJobs = [];
+    }
+
+    /**
+     * @return array<array{characterName: string, runs: int, jobId: int, status: string}>
+     */
+    public function getSimilarJobs(): array
+    {
+        return $this->similarJobs;
+    }
+
+    /**
+     * @param array<array{characterName: string, runs: int, jobId: int, status: string}> $similarJobs
+     */
+    public function setSimilarJobs(array $similarJobs): static
+    {
+        $this->similarJobs = $similarJobs;
+        return $this;
     }
 
     public function getTimePerRun(): ?int

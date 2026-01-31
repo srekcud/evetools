@@ -29,6 +29,12 @@ class CachedStructure
     #[ORM\Column(nullable: true)]
     private ?int $solarSystemId = null;
 
+    #[ORM\Column(type: 'bigint', nullable: true)]
+    private ?int $ownerCorporationId = null;
+
+    #[ORM\Column(type: 'integer', nullable: true)]
+    private ?int $typeId = null;
+
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $resolvedAt;
 
@@ -84,5 +90,51 @@ class CachedStructure
     {
         $this->resolvedAt = $resolvedAt;
         return $this;
+    }
+
+    public function getOwnerCorporationId(): ?int
+    {
+        return $this->ownerCorporationId;
+    }
+
+    public function setOwnerCorporationId(?int $ownerCorporationId): static
+    {
+        $this->ownerCorporationId = $ownerCorporationId;
+        return $this;
+    }
+
+    public function getTypeId(): ?int
+    {
+        return $this->typeId;
+    }
+
+    public function setTypeId(?int $typeId): static
+    {
+        $this->typeId = $typeId;
+        return $this;
+    }
+
+    /**
+     * Check if this structure is an Engineering Complex (Raitaru, Azbel, Sotiyo).
+     */
+    public function isEngineeringComplex(): bool
+    {
+        return in_array($this->typeId, [35825, 35826, 35827], true);
+    }
+
+    /**
+     * Check if this structure is a Refinery (Athanor, Tatara).
+     */
+    public function isRefinery(): bool
+    {
+        return in_array($this->typeId, [35835, 35836], true);
+    }
+
+    /**
+     * Check if this structure is suitable for industry (EC or Refinery).
+     */
+    public function isIndustryStructure(): bool
+    {
+        return $this->isEngineeringComplex() || $this->isRefinery();
     }
 }

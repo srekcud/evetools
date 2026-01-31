@@ -31,7 +31,8 @@ final readonly class TriggerAssetsSyncHandler
         $syncCount = 0;
 
         foreach ($characters as $character) {
-            if ($this->assetsSyncService->shouldSync($character)) {
+            // Check if sync is needed AND if the character can sync (valid token/auth)
+            if ($this->assetsSyncService->shouldSync($character) && $this->assetsSyncService->canSync($character)) {
                 $this->messageBus->dispatch(
                     new SyncCharacterAssets($character->getId()->toRfc4122())
                 );

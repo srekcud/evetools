@@ -1,5 +1,24 @@
 import type { User, Character, AssetsResponse } from '@/types'
 import router from '@/router'
+import { useRateLimitStore } from '@/stores/rateLimit'
+
+/**
+ * Endpoints that make ESI API calls and should be blocked when rate limited
+ */
+const ESI_ENDPOINTS = [
+  '/characters/',
+  '/assets',
+  '/contracts',
+  '/industry/search-structure',
+  '/industry/corporation-structures',
+  '/shopping-list',
+  '/ansiblex',
+  '/pve/',
+]
+
+function isEsiEndpoint(endpoint: string): boolean {
+  return ESI_ENDPOINTS.some(e => endpoint.includes(e))
+}
 
 /**
  * Flag to prevent multiple 401 redirects when several API calls fail simultaneously.
@@ -72,6 +91,12 @@ export async function apiRequest<T>(
     headers['Authorization'] = `Bearer ${token}`
   }
 
+  // Check if we're rate limited before making ESI-related requests
+  const rateLimitStore = useRateLimitStore()
+  if (rateLimitStore.isRateLimited && isEsiEndpoint(endpoint)) {
+    throw new Error(`Rate limit actif (${rateLimitStore.remainingSeconds}s). Action bloquée.`)
+  }
+
   const response = await fetch(`/api${endpoint}`, { ...options, headers })
 
   if (!response.ok) {
@@ -79,7 +104,22 @@ export async function apiRequest<T>(
       handleUnauthorized()
       throw new Error('Session expirée. Veuillez vous reconnecter.')
     }
+
+    // Handle rate limiting (420 from ESI or 429)
+    if (response.status === 429 || response.status === 420) {
+      const rateLimitStore = useRateLimitStore()
+      rateLimitStore.setRateLimited()
+      throw new Error('Rate limit ESI atteint. Veuillez patienter.')
+    }
+
     const errorData = await safeJsonParse<{ error?: string }>(response).catch(() => ({ error: undefined }))
+
+    // Also check for rate limit in error message
+    if (errorData.error && (errorData.error.includes('rate limit') || errorData.error.includes('Rate limit') || errorData.error.includes('Error limited'))) {
+      const rateLimitStore = useRateLimitStore()
+      rateLimitStore.setRateLimited()
+    }
+
     throw new Error(errorData.error || `API error: ${response.status}`)
   }
 

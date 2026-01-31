@@ -285,7 +285,7 @@ class AssetsService
     /**
      * Try to resolve a structure using the given token, then fallback to other tokens.
      *
-     * @return array{name: string, solar_system_id: ?int, solar_system_name: ?string}
+     * @return array{name: string, solar_system_id: ?int, solar_system_name: ?string, owner_id: ?int, type_id: ?int}
      */
     private function resolveStructure(int $structureId, mixed $primaryToken): array
     {
@@ -296,6 +296,8 @@ class AssetsService
                 'name' => $cached['name'],
                 'solar_system_id' => $cached['solar_system_id'],
                 'solar_system_name' => null,
+                'owner_id' => $cached['owner_id'] ?? null,
+                'type_id' => $cached['type_id'] ?? null,
             ];
         }
 
@@ -305,11 +307,15 @@ class AssetsService
             $this->structureCache[$structureId] = [
                 'name' => $dbCached->getName(),
                 'solar_system_id' => $dbCached->getSolarSystemId(),
+                'owner_id' => $dbCached->getOwnerCorporationId(),
+                'type_id' => $dbCached->getTypeId(),
             ];
             return [
                 'name' => $dbCached->getName(),
                 'solar_system_id' => $dbCached->getSolarSystemId(),
                 'solar_system_name' => null,
+                'owner_id' => $dbCached->getOwnerCorporationId(),
+                'type_id' => $dbCached->getTypeId(),
             ];
         }
 
@@ -333,23 +339,33 @@ class AssetsService
             }
         }
 
-        // Could not resolve - log for debugging
+        // Could not resolve - cache as "unresolved" to avoid retrying on every sync
         $this->logger->warning('Could not resolve structure with any token', [
             'structureId' => $structureId,
             'tokensAttempted' => count($tokens) + 1,
         ]);
 
+        $unresolvedData = [
+            'name' => "Structure #{$structureId}",
+            'solar_system_id' => null,
+            'owner_id' => null,
+            'type_id' => null,
+        ];
+        $this->cacheStructure($structureId, $unresolvedData);
+
         return [
             'name' => "Structure #{$structureId}",
             'solar_system_id' => null,
             'solar_system_name' => null,
+            'owner_id' => null,
+            'type_id' => null,
         ];
     }
 
     /**
      * Cache a resolved structure in memory and database.
      *
-     * @param array{name: string, solar_system_id: ?int} $data
+     * @param array{name: string, solar_system_id: ?int, owner_id: ?int, type_id: ?int} $data
      */
     private function cacheStructure(int $structureId, array $data): void
     {
@@ -359,10 +375,15 @@ class AssetsService
         // Check if already in database (might have been loaded in batch earlier)
         $existing = $this->cachedStructureRepository->findByStructureId($structureId);
         if ($existing !== null) {
-            // Update if name changed
-            if ($existing->getName() !== $data['name']) {
+            // Update if name, owner or type changed
+            $needsUpdate = $existing->getName() !== $data['name']
+                || $existing->getOwnerCorporationId() !== ($data['owner_id'] ?? null)
+                || $existing->getTypeId() !== ($data['type_id'] ?? null);
+            if ($needsUpdate) {
                 $existing->setName($data['name']);
                 $existing->setSolarSystemId($data['solar_system_id']);
+                $existing->setOwnerCorporationId($data['owner_id'] ?? null);
+                $existing->setTypeId($data['type_id'] ?? null);
                 $existing->setResolvedAt(new \DateTimeImmutable());
             }
             return;
@@ -373,13 +394,15 @@ class AssetsService
         $cached->setStructureId($structureId);
         $cached->setName($data['name']);
         $cached->setSolarSystemId($data['solar_system_id']);
+        $cached->setOwnerCorporationId($data['owner_id'] ?? null);
+        $cached->setTypeId($data['type_id'] ?? null);
 
         $this->entityManager->persist($cached);
         // Note: flush will be called at the end of the sync process
     }
 
     /**
-     * @return array{name: string, solar_system_id: ?int}|null
+     * @return array{name: string, solar_system_id: ?int, owner_id: ?int, type_id: ?int}|null
      */
     private function tryResolveStructureWithToken(int $structureId, mixed $token): ?array
     {
@@ -399,6 +422,8 @@ class AssetsService
             return [
                 'name' => $data['name'],
                 'solar_system_id' => $data['solar_system_id'] ?? null,
+                'owner_id' => $data['owner_id'] ?? null,
+                'type_id' => $data['type_id'] ?? null,
             ];
         } catch (\Throwable $e) {
             $this->logger->debug('Failed to resolve structure with token', [

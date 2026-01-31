@@ -276,13 +276,21 @@ async function refreshAssets() {
   }
 }
 
-// Initialize
+// Initialize - also watch for characters loading after mount
 onMounted(() => {
   if (characters.value.length > 0) {
     const main = characters.value.find(c => c.isMain)
     selectedCharacterId.value = main?.id || characters.value[0].id
   }
 })
+
+// Watch for characters becoming available (handles race condition on login)
+watch(characters, (newChars) => {
+  if (newChars.length > 0 && !selectedCharacterId.value) {
+    const main = newChars.find(c => c.isMain)
+    selectedCharacterId.value = main?.id || newChars[0].id
+  }
+}, { immediate: true })
 
 // Watch for character/mode changes
 watch([selectedCharacterId, viewMode], () => {

@@ -43,7 +43,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: php-cli bin/console messenger:consume async scheduler_default --time-limit=3600 --memory-limit=256M
+    entrypoint: ["php"]
+    command: ["bin/console", "messenger:consume", "async", "scheduler_default", "--time-limit=3600", "--memory-limit=256M", "-vv"]
     restart: unless-stopped
     networks:
       evetools_net:
