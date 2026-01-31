@@ -1,6 +1,8 @@
 # config/services.yaml
 parameters:
     esi_base_url: '%env(ESI_BASE_URL)%'
+    admin_character_names:
+        - 'srekcud alpha'
     esi_token_encryption_key: '%env(ESI_TOKEN_ENCRYPTION_KEY)%'
     eve_client_id: '%env(EVE_CLIENT_ID)%'
     eve_client_secret: '%env(EVE_CLIENT_SECRET)%'
@@ -49,3 +51,8 @@ services:
     App\Service\Sde\SdeImportService:
         arguments:
             $projectDir: '%kernel.project_dir%'
+
+    # Admin
+    App\Controller\Api\AdminController:
+        arguments:
+            $adminCharacterNames: '%admin_character_names%'
