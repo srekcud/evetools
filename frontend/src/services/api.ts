@@ -2,11 +2,24 @@ import type { User, Character, AssetsResponse } from '@/types'
 import router from '@/router'
 
 /**
+ * Flag to prevent multiple 401 redirects when several API calls fail simultaneously.
+ */
+let isRedirectingToLogin = false
+
+/**
  * Handle 401 Unauthorized errors by clearing token and redirecting to login.
+ * Uses a flag to prevent multiple concurrent redirects.
  */
 export function handleUnauthorized(): void {
+  if (isRedirectingToLogin) {
+    return
+  }
+  isRedirectingToLogin = true
   localStorage.removeItem('jwt_token')
-  router.push('/login')
+  router.push('/login').finally(() => {
+    // Reset flag after navigation completes (or fails)
+    isRedirectingToLogin = false
+  })
 }
 
 /**
@@ -17,6 +30,11 @@ export async function authFetch(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
+  // Skip API calls if we're already redirecting to login
+  if (isRedirectingToLogin) {
+    throw new Error('Session expirée. Redirection en cours...')
+  }
+
   const token = localStorage.getItem('jwt_token')
   const headers = new Headers(init?.headers)
 
@@ -139,6 +157,11 @@ class ApiService {
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    // Skip API calls if we're already redirecting to login
+    if (isRedirectingToLogin) {
+      throw new Error('Session expirée. Redirection en cours...')
+    }
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'X-Requested-With': 'XMLHttpRequest',
@@ -156,6 +179,7 @@ class ApiService {
 
     if (!response.ok) {
       if (response.status === 401) {
+        this.authToken = null
         handleUnauthorized()
         throw new Error('Session expirée. Veuillez vous reconnecter.')
       }

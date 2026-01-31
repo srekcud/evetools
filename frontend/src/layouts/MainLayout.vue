@@ -6,7 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 const router = useRouter()
 const authStore = useAuthStore()
 
-const APP_VERSION = '0.1.0'
+const APP_VERSION = '0.1.1'
 
 // ESI Status
 interface EsiStatus {
@@ -21,7 +21,7 @@ let esiStatusInterval: ReturnType<typeof setInterval> | null = null
 
 async function fetchEsiStatus() {
   try {
-    const response = await fetch('https://esi.evetech.net/status.json?datasource=tranquility')
+    const response = await fetch('https://esi.evetech.net/latest/status/?datasource=tranquility')
     if (response.ok) {
       esiStatus.value = await response.json()
       esiError.value = false

@@ -36,7 +36,7 @@ const chartData = computed(() => {
   Object.entries(props.data).forEach(([type, amount]) => {
     if (amount > 0) {
       labels.push(typeLabels[type] || type)
-      values.push(amount / 1_000_000)
+      values.push(amount / 1_000_000_000)
       colors.push(typeColors[type] || '#6b7280')
     }
   })
@@ -70,7 +70,7 @@ const chartOptions = {
         label: (context: any) => {
           const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0)
           const percentage = ((context.raw / total) * 100).toFixed(1)
-          return `${context.label}: ${context.raw.toFixed(1)}M ISK (${percentage}%)`
+          return `${context.label}: ${context.raw.toFixed(2)}B ISK (${percentage}%)`
         },
       },
     },

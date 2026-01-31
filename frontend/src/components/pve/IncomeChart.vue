@@ -37,7 +37,7 @@ const chartData = computed(() => ({
   datasets: [
     {
       label: 'Total Income',
-      data: props.data.map((d) => d.income / 1_000_000),
+      data: props.data.map((d) => d.income / 1_000_000_000),
       borderColor: '#06b6d4', // cyan-500
       backgroundColor: 'rgba(6, 182, 212, 0.1)',
       fill: true,
@@ -45,14 +45,14 @@ const chartData = computed(() => ({
     },
     {
       label: 'Bounties',
-      data: props.data.map((d) => d.bounties / 1_000_000),
+      data: props.data.map((d) => d.bounties / 1_000_000_000),
       borderColor: '#10b981', // emerald-500
       backgroundColor: 'transparent',
       tension: 0.3,
     },
     {
       label: 'Loot Sales',
-      data: props.data.map((d) => d.lootSales / 1_000_000),
+      data: props.data.map((d) => d.lootSales / 1_000_000_000),
       borderColor: '#f59e0b', // amber-500
       backgroundColor: 'transparent',
       tension: 0.3,
@@ -73,7 +73,7 @@ const chartOptions = {
     tooltip: {
       callbacks: {
         label: (context: any) => {
-          return `${context.dataset.label}: ${context.raw.toFixed(1)}M ISK`
+          return `${context.dataset.label}: ${context.raw.toFixed(2)}B ISK`
         },
       },
     },
@@ -90,7 +90,7 @@ const chartOptions = {
     y: {
       ticks: {
         color: '#9ca3af',
-        callback: (value: any) => `${value}M`,
+        callback: (value: any) => `${value}B`,
       },
       grid: {
         color: 'rgba(75, 85, 99, 0.3)',

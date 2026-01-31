@@ -33,7 +33,7 @@ const chartData = computed(() => ({
   datasets: [
     {
       label: 'Profit',
-      data: props.data.map((d) => d.profit / 1_000_000),
+      data: props.data.map((d) => d.profit / 1_000_000_000),
       backgroundColor: props.data.map((d) =>
         d.profit >= 0 ? 'rgba(16, 185, 129, 0.7)' : 'rgba(239, 68, 68, 0.7)'
       ),
@@ -57,7 +57,7 @@ const chartOptions = {
         label: (context: any) => {
           const value = context.raw
           const sign = value >= 0 ? '+' : ''
-          return `Profit: ${sign}${value.toFixed(1)}M ISK`
+          return `Profit: ${sign}${value.toFixed(2)}B ISK`
         },
       },
     },
@@ -74,7 +74,7 @@ const chartOptions = {
     y: {
       ticks: {
         color: '#9ca3af',
-        callback: (value: any) => `${value}M`,
+        callback: (value: any) => `${value}B`,
       },
       grid: {
         color: 'rgba(75, 85, 99, 0.3)',

@@ -37,6 +37,8 @@ class PveController extends AbstractController
         60244, // CONCORD Rogue Analysis Beacon
     ];
 
+    private const MAX_LOOT_CONTRACTS_PER_SCAN = 50;
+
     public function __construct(
         private readonly Security $security,
         private readonly EsiClient $esiClient,
@@ -157,10 +159,10 @@ class PveController extends AbstractController
         return new JsonResponse([
             'status' => 'success',
             'message' => sprintf(
-                'Synced %d bounties, %d loot sales, %d red loot, %d expenses',
+                'Synced %d bounties, %d loot sales, %d loot contracts, %d expenses',
                 $results['bounties'],
                 $results['lootSales'],
-                $results['redLoot'],
+                $results['lootContracts'],
                 $results['expenses']
             ),
             'imported' => $results,
@@ -1176,7 +1178,7 @@ class PveController extends AbstractController
     }
 
     #[Route('/scan-loot-contracts', name: 'api_pve_scan_loot_contracts', methods: ['POST'])]
-    public function scanRedLoot(Request $request): JsonResponse
+    public function scanLootContracts(Request $request): JsonResponse
     {
         $user = $this->security->getUser();
 
@@ -1215,6 +1217,8 @@ class PveController extends AbstractController
                 }
 
                 $characterId = $character->getEveCharacterId();
+
+                // Scan personal contracts
                 $contracts = $this->esiClient->get(
                     "/characters/{$characterId}/contracts/",
                     $token
@@ -1222,6 +1226,12 @@ class PveController extends AbstractController
 
                 foreach ($contracts as $contract) {
                     $scannedContracts++;
+
+                    // Stop if we've found enough contracts
+                    if (count($detectedContracts) >= self::MAX_LOOT_CONTRACTS_PER_SCAN) {
+                        break;
+                    }
+
                     $contractId = (int) $contract['contract_id'];
 
                     // Skip already imported or declined
@@ -1260,8 +1270,8 @@ class PveController extends AbstractController
                         continue;
                     }
 
-                    // Count RED loot items
-                    $redLootItems = [];
+                    // Count loot items
+                    $lootItems = [];
                     $totalQuantity = 0;
 
                     foreach ($items as $item) {
@@ -1271,7 +1281,7 @@ class PveController extends AbstractController
 
                         if ($isIncluded && in_array($typeId, $pveLootTypeIds, true)) {
                             $typeName = $this->invTypeRepository->find($typeId)?->getTypeName() ?? "Type #{$typeId}";
-                            $redLootItems[] = [
+                            $lootItems[] = [
                                 'typeId' => $typeId,
                                 'typeName' => $typeName,
                                 'quantity' => $quantity,
@@ -1280,20 +1290,20 @@ class PveController extends AbstractController
                         }
                     }
 
-                    if (empty($redLootItems)) {
+                    if (empty($lootItems)) {
                         continue;
                     }
 
                     // Build description
                     $description = implode(', ', array_map(
                         fn($i) => "{$i['quantity']}x {$i['typeName']}",
-                        $redLootItems
+                        $lootItems
                     ));
 
                     $detectedContracts[] = [
                         'contractId' => $contractId,
                         'description' => $description,
-                        'items' => $redLootItems,
+                        'items' => $lootItems,
                         'totalQuantity' => $totalQuantity,
                         'contractPrice' => $contractPrice,
                         'suggestedPrice' => $contractPrice > 0 ? $contractPrice : $totalQuantity * $defaultPricePerItem,
@@ -1310,6 +1320,8 @@ class PveController extends AbstractController
             'scannedContracts' => $scannedContracts,
             'detectedContracts' => $detectedContracts,
             'defaultPricePerItem' => $defaultPricePerItem,
+            'hasMore' => count($detectedContracts) >= self::MAX_LOOT_CONTRACTS_PER_SCAN,
+            'maxPerScan' => self::MAX_LOOT_CONTRACTS_PER_SCAN,
         ]);
     }
 
@@ -1370,7 +1382,7 @@ class PveController extends AbstractController
 
             $income = new PveIncome();
             $income->setUser($user);
-            $income->setType(PveIncome::TYPE_RED_LOOT);
+            $income->setType(PveIncome::TYPE_LOOT_CONTRACT);
             $income->setDescription($description);
             $income->setAmount($price);
             $income->setDate(new \DateTimeImmutable($contractData['date']));
@@ -1407,7 +1419,7 @@ class PveController extends AbstractController
         $bountyTotal = $incomeByType[PveIncome::TYPE_BOUNTY] ?? 0.0;
         $essTotal = $incomeByType[PveIncome::TYPE_ESS] ?? 0.0;
         $missionTotal = $incomeByType[PveIncome::TYPE_MISSION] ?? 0.0;
-        $lootSalesTotal = ($incomeByType[PveIncome::TYPE_LOOT_SALE] ?? 0.0) + ($incomeByType[PveIncome::TYPE_RED_LOOT] ?? 0.0);
+        $lootSalesTotal = ($incomeByType[PveIncome::TYPE_LOOT_SALE] ?? 0.0) + ($incomeByType[PveIncome::TYPE_LOOT_CONTRACT] ?? 0.0);
 
         // Get expenses total
         $expensesTotal = $this->expenseRepository->getTotalByUserAndDateRange($user, $from, $to);
@@ -1471,7 +1483,7 @@ class PveController extends AbstractController
         }
 
         // Get income daily totals by type from database
-        // Note: lootSales includes both regular loot and red loot
+        // Note: lootSales includes both market sales and contract sales
         $incomeDailyTotals = $this->incomeRepository->getDailyTotalsByType($user, $from, $to);
         foreach ($incomeDailyTotals as $dateKey => $data) {
             if (isset($dailyData[$dateKey])) {

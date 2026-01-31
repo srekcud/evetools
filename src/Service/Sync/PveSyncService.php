@@ -86,7 +86,7 @@ class PveSyncService
         $results = [
             'bounties' => 0,
             'lootSales' => 0,
-            'redLoot' => 0,
+            'lootContracts' => 0,
             'expenses' => 0,
             'errors' => [],
         ];
@@ -106,10 +106,10 @@ class PveSyncService
         }
 
         try {
-            $results['redLoot'] = $this->syncRedLootFromContracts($user);
+            $results['lootContracts'] = $this->syncLootFromContracts($user);
         } catch (\Throwable $e) {
-            $results['errors'][] = 'redLoot: ' . $e->getMessage();
-            $this->logger->error('Failed to sync red loot contracts', ['error' => $e->getMessage()]);
+            $results['errors'][] = 'lootContracts: ' . $e->getMessage();
+            $this->logger->error('Failed to sync loot contracts', ['error' => $e->getMessage()]);
         }
 
         try {
@@ -292,7 +292,7 @@ class PveSyncService
         return $imported;
     }
 
-    public function syncRedLootFromContracts(User $user): int
+    public function syncLootFromContracts(User $user): int
     {
         $importedIds = $this->incomeRepository->getImportedContractIds($user);
         $importedIdsSet = array_flip($importedIds);
@@ -353,9 +353,9 @@ class PveSyncService
                         $token
                     );
 
-                    // Count RED loot items (included items that we gave away)
-                    $redLootCount = 0;
-                    $redLootNames = [];
+                    // Count loot items (included items that we gave away)
+                    $lootCount = 0;
+                    $lootNames = [];
 
                     foreach ($items as $item) {
                         $typeId = $item['type_id'] ?? 0;
@@ -363,16 +363,16 @@ class PveSyncService
                         $quantity = (int) ($item['quantity'] ?? 1);
 
                         if ($isIncluded && in_array($typeId, $pveLootTypeIds, true)) {
-                            $redLootCount += $quantity;
+                            $lootCount += $quantity;
                             $typeName = $this->getTypeName($typeId);
-                            if (!isset($redLootNames[$typeName])) {
-                                $redLootNames[$typeName] = 0;
+                            if (!isset($lootNames[$typeName])) {
+                                $lootNames[$typeName] = 0;
                             }
-                            $redLootNames[$typeName] += $quantity;
+                            $lootNames[$typeName] += $quantity;
                         }
                     }
 
-                    if ($redLootCount === 0) {
+                    if ($lootCount === 0) {
                         continue;
                     }
 
@@ -387,7 +387,7 @@ class PveSyncService
 
                     // Build description
                     $descParts = [];
-                    foreach ($redLootNames as $name => $qty) {
+                    foreach ($lootNames as $name => $qty) {
                         $descParts[] = "{$qty}x {$name}";
                     }
                     $description = implode(', ', $descParts);
@@ -397,7 +397,7 @@ class PveSyncService
 
                     $income = new PveIncome();
                     $income->setUser($user);
-                    $income->setType(PveIncome::TYPE_RED_LOOT);
+                    $income->setType(PveIncome::TYPE_LOOT_CONTRACT);
                     $income->setDescription($description);
                     $income->setAmount($totalAmount);
                     $income->setDate($completedDate);
@@ -408,7 +408,7 @@ class PveSyncService
                     $imported++;
                 }
             } catch (\Throwable $e) {
-                $this->logger->warning('Failed to sync red loot contracts for character', [
+                $this->logger->warning('Failed to sync loot contracts for character', [
                     'character' => $character->getName(),
                     'error' => $e->getMessage(),
                 ]);
@@ -419,7 +419,7 @@ class PveSyncService
             $this->entityManager->flush();
         }
 
-        $this->logger->info('Synced red loot contracts', ['user' => $user->getId(), 'imported' => $imported]);
+        $this->logger->info('Synced loot contracts', ['user' => $user->getId(), 'imported' => $imported]);
         return $imported;
     }
 

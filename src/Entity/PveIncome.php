@@ -21,7 +21,7 @@ class PveIncome
     public const TYPE_BOUNTY = 'bounty';
     public const TYPE_ESS = 'ess';
     public const TYPE_MISSION = 'mission';
-    public const TYPE_RED_LOOT = 'red_loot';
+    public const TYPE_LOOT_CONTRACT = 'loot_contract';
     public const TYPE_OTHER = 'other';
 
     #[ORM\Id]

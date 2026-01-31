@@ -83,4 +83,12 @@ class CharacterService
     {
         return $this->hasRole($character, 'Director') || $this->hasRole($character, 'Hangar_Take_1');
     }
+
+    public function canReadCorporationContracts(Character $character): bool
+    {
+        $roles = $this->getCharacterRoles($character);
+        return in_array('Director', $roles, true)
+            || in_array('Accountant', $roles, true)
+            || in_array('Junior_Accountant', $roles, true);
+    }
 }

@@ -87,7 +87,7 @@ interface DetectedLootSale {
   characterName: string
   source?: 'market' | 'contract'
   selected: boolean
-  isRedLoot?: boolean  // True for 0 ISK contracts that need price input
+  needsPriceInput?: boolean  // True for 0 ISK contracts that need price input
 }
 
 interface LootSaleScanResult {
@@ -655,7 +655,7 @@ async function scanLootSales() {
 
   try {
     // Call both endpoints in parallel
-    const [lootSalesResponse, redLootResponse] = await Promise.all([
+    const [lootSalesResponse, lootContractsResponse] = await Promise.all([
       authFetch(`/api/pve/scan-loot-sales?days=${selectedDays.value}`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${authStore.token}` }
@@ -667,7 +667,7 @@ async function scanLootSales() {
     ])
 
     const lootSalesData = lootSalesResponse.ok ? await lootSalesResponse.json() : { detectedSales: [] }
-    const redLootData = redLootResponse.ok ? await redLootResponse.json() : { detectedContracts: [] }
+    const lootContractsData = lootContractsResponse.ok ? await lootContractsResponse.json() : { detectedContracts: [] }
 
     // Transform loot sales - only market transactions (contracts are handled separately)
     const lootSales: DetectedLootSale[] = (lootSalesData.detectedSales || [])
@@ -676,11 +676,11 @@ async function scanLootSales() {
       .map((s: DetectedLootSale) => ({
         ...s,
         selected: true,
-        isRedLoot: false
+        needsPriceInput: false
       }))
 
     // Transform loot contracts to DetectedLootSale format (filter out already seen)
-    const lootContracts: DetectedLootSale[] = (redLootData.detectedContracts || [])
+    const lootContracts: DetectedLootSale[] = (lootContractsData.detectedContracts || [])
       .filter((c: { contractId: number }) => !seenContractIds.value.has(c.contractId))
       .map((c: {
         contractId: number
@@ -703,7 +703,7 @@ async function scanLootSales() {
         characterName: c.characterName,
         source: 'contract' as const,
         selected: true,
-        isRedLoot: c.contractPrice === 0 // Only editable if contract was at 0 ISK
+        needsPriceInput: c.contractPrice === 0 // Only editable if contract was at 0 ISK
       }))
 
     // Merge results
@@ -717,7 +717,7 @@ async function scanLootSales() {
 
     lootScanResults.value = {
       scannedTransactions: lootSalesData.scannedTransactions || 0,
-      scannedContracts: (lootSalesData.scannedContracts || 0) + (redLootData.scannedContracts || 0),
+      scannedContracts: (lootSalesData.scannedContracts || 0) + (lootContractsData.scannedContracts || 0),
       detectedSales: allSales
     }
     showLootScanResults.value = true
@@ -1374,7 +1374,7 @@ async function resetSeenContracts() {
           </div>
 
           <p class="text-sm text-slate-400 mb-4">
-            Ajoutez les types de loot que vous vendez (red loot, blue loot, etc.). Seuls ces items seront detectes lors du scan des ventes.
+            Ajoutez les types de loot que vous vendez (OPE, blue loot, etc.). Seuls ces items seront detectes lors du scan des ventes.
           </p>
 
           <!-- Search input -->

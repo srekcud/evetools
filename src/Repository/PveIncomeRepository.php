@@ -200,7 +200,7 @@ class PveIncomeRepository extends ServiceEntityRepository
     }
 
     /**
-     * Find loot sales (including red loot) for a user in date range
+     * Find loot sales (including loot contracts) for a user in date range
      * @return PveIncome[]
      */
     public function findLootSalesByUserAndDateRange(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to, int $limit = 100): array
@@ -213,7 +213,7 @@ class PveIncomeRepository extends ServiceEntityRepository
             ->setParameter('user', $user)
             ->setParameter('from', $from)
             ->setParameter('to', $to)
-            ->setParameter('types', [PveIncome::TYPE_LOOT_SALE, PveIncome::TYPE_RED_LOOT])
+            ->setParameter('types', [PveIncome::TYPE_LOOT_SALE, PveIncome::TYPE_LOOT_CONTRACT])
             ->orderBy('i.date', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
@@ -221,7 +221,7 @@ class PveIncomeRepository extends ServiceEntityRepository
     }
 
     /**
-     * Get total loot sales (including red loot) for a user in date range
+     * Get total loot sales (including loot contracts) for a user in date range
      */
     public function getTotalLootSalesByUserAndDateRange(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to): float
     {
@@ -234,7 +234,7 @@ class PveIncomeRepository extends ServiceEntityRepository
             ->setParameter('user', $user)
             ->setParameter('from', $from)
             ->setParameter('to', $to)
-            ->setParameter('types', [PveIncome::TYPE_LOOT_SALE, PveIncome::TYPE_RED_LOOT])
+            ->setParameter('types', [PveIncome::TYPE_LOOT_SALE, PveIncome::TYPE_LOOT_CONTRACT])
             ->getQuery()
             ->getSingleScalarResult();
 
@@ -272,7 +272,7 @@ class PveIncomeRepository extends ServiceEntityRepository
 
             if (in_array($type, [PveIncome::TYPE_BOUNTY, PveIncome::TYPE_ESS, PveIncome::TYPE_MISSION], true)) {
                 $dailyTotals[$date]['bounties'] += $amount;
-            } elseif (in_array($type, [PveIncome::TYPE_LOOT_SALE, PveIncome::TYPE_RED_LOOT], true)) {
+            } elseif (in_array($type, [PveIncome::TYPE_LOOT_SALE, PveIncome::TYPE_LOOT_CONTRACT], true)) {
                 $dailyTotals[$date]['lootSales'] += $amount;
             }
         }
@@ -281,9 +281,9 @@ class PveIncomeRepository extends ServiceEntityRepository
     }
 
     /**
-     * Get total RED loot for a user in date range
+     * Get total loot contracts for a user in date range
      */
-    public function getTotalRedLootByUserAndDateRange(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to): float
+    public function getTotalLootContractsByUserAndDateRange(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to): float
     {
         $result = $this->createQueryBuilder('i')
             ->select('SUM(i.amount)')
@@ -294,7 +294,7 @@ class PveIncomeRepository extends ServiceEntityRepository
             ->setParameter('user', $user)
             ->setParameter('from', $from)
             ->setParameter('to', $to)
-            ->setParameter('type', PveIncome::TYPE_RED_LOOT)
+            ->setParameter('type', PveIncome::TYPE_LOOT_CONTRACT)
             ->getQuery()
             ->getSingleScalarResult();
 
