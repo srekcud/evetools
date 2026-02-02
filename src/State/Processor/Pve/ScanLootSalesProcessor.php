@@ -304,8 +304,19 @@ class ScanLootSalesProcessor implements ProcessorInterface
 
                 $this->logger->info('Corp projects: Found ' . count($projects) . ' projects for corp ' . $corporationId);
 
-                // Only check active projects
-                $activeProjects = array_filter($projects, fn($p) => ($p['state'] ?? '') === 'Active');
+                // Check active projects AND recently completed projects (last 7 days)
+                $oneWeekAgo = new \DateTimeImmutable('-7 days');
+                $relevantProjects = array_filter($projects, function($p) use ($oneWeekAgo) {
+                    $state = $p['state'] ?? '';
+                    if ($state === 'Active') {
+                        return true;
+                    }
+                    if ($state === 'Completed') {
+                        $completedAt = isset($p['completed_at']) ? new \DateTimeImmutable($p['completed_at']) : null;
+                        return $completedAt !== null && $completedAt >= $oneWeekAgo;
+                    }
+                    return false;
+                });
 
                 // Build list of user's character IDs in this corporation
                 $userCharacterIds = [];
@@ -317,7 +328,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
                     }
                 }
 
-                foreach ($activeProjects as $project) {
+                foreach ($relevantProjects as $project) {
                     $scannedProjects++;
                     $projectId = $project['id'] ?? null;
                     if ($projectId === null) {
