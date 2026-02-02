@@ -34,3 +34,9 @@ Thumbs.db
 # Build
 /frontend/node_modules/
 /frontend/public/build/
+/frontend/dist/
+
+# TypeScript build artifacts in frontend
+/frontend/*.tsbuildinfo
+/frontend/vite.config.js
+/frontend/vite.config.d.ts

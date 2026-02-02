@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { authFetch } from '@/services/api'
+import { authFetch, safeJsonParse } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useFormatters } from '@/composables/useFormatters'
 import MainLayout from '@/layouts/MainLayout.vue'
 
-const router = useRouter()
 const authStore = useAuthStore()
 const { formatIsk } = useFormatters()
 
@@ -14,6 +12,7 @@ const user = computed(() => authStore.user)
 
 const totalBalance = ref<number | null>(null)
 const isLoadingWallet = ref(false)
+const isAddingCharacter = ref(false)
 
 async function fetchWallets() {
   isLoadingWallet.value = true
@@ -22,13 +21,33 @@ async function fetchWallets() {
       headers: { 'Authorization': `Bearer ${authStore.token}` }
     })
     if (response.ok) {
-      const data = await response.json()
-      totalBalance.value = data.totalBalance
+      const data = await safeJsonParse<{ totalBalance?: number }>(response)
+      totalBalance.value = data.totalBalance ?? null
     }
   } catch (e) {
     console.error('Failed to fetch wallets:', e)
   } finally {
     isLoadingWallet.value = false
+  }
+}
+
+async function addCharacter() {
+  isAddingCharacter.value = true
+  try {
+    const response = await authFetch('/auth/eve/redirect', {
+      headers: { 'Authorization': `Bearer ${authStore.token}` }
+    })
+    const data = await safeJsonParse<{ redirect_url?: string; state?: string }>(response)
+
+    if (data.redirect_url) {
+      sessionStorage.setItem('eve_oauth_state', data.state || '')
+      sessionStorage.setItem('eve_oauth_action', 'add-character')
+      window.location.href = data.redirect_url
+    }
+  } catch (e) {
+    console.error('Failed to add character:', e)
+  } finally {
+    isAddingCharacter.value = false
   }
 }
 
@@ -79,8 +98,16 @@ onMounted(() => {
     <div>
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-lg font-semibold text-slate-200">Vos personnages</h3>
-        <button @click="router.push('/characters')" class="px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button
+          @click="addCharacter"
+          :disabled="isAddingCharacter"
+          class="px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <svg v-if="isAddingCharacter" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
           </svg>
           Ajouter un personnage

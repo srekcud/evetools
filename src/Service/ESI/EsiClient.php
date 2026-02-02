@@ -26,10 +26,10 @@ class EsiClient
     /**
      * @return array<mixed>
      */
-    public function get(string $endpoint, ?EveToken $token = null): array
+    public function get(string $endpoint, ?EveToken $token = null, array $extraHeaders = []): array
     {
         try {
-            $response = $this->rawGet($endpoint, $token);
+            $response = $this->rawGet($endpoint, $token, self::REQUEST_TIMEOUT, $extraHeaders);
             return $this->handleResponse($response, $endpoint);
         } catch (TransportExceptionInterface $e) {
             throw EsiApiException::fromResponse(0, 'Network error: ' . $e->getMessage(), $endpoint);
@@ -39,10 +39,10 @@ class EsiClient
     /**
      * Get a scalar value (number, string) from ESI endpoint.
      */
-    public function getScalar(string $endpoint, ?EveToken $token = null): mixed
+    public function getScalar(string $endpoint, ?EveToken $token = null, int $timeout = self::REQUEST_TIMEOUT): mixed
     {
         try {
-            $response = $this->rawGet($endpoint, $token);
+            $response = $this->rawGet($endpoint, $token, $timeout);
             $statusCode = $response->getStatusCode();
 
             if ($statusCode >= 200 && $statusCode < 300) {
@@ -53,6 +53,53 @@ class EsiClient
         } catch (TransportExceptionInterface $e) {
             throw EsiApiException::fromResponse(0, 'Network error: ' . $e->getMessage(), $endpoint);
         }
+    }
+
+    /**
+     * Get multiple scalar values concurrently.
+     * Returns an array keyed by the request key, with null for failed requests.
+     *
+     * @param array<string, array{endpoint: string, token: ?EveToken}> $requests
+     * @return array<string, mixed>
+     */
+    public function getScalarBatch(array $requests, int $timeout = 10): array
+    {
+        $responses = [];
+
+        // Start all requests (non-blocking)
+        foreach ($requests as $key => $request) {
+            try {
+                $responses[$key] = $this->httpClient->request('GET', $this->baseUrl . $request['endpoint'], [
+                    'headers' => $this->buildHeaders($request['token']),
+                    'timeout' => $timeout,
+                    'user_data' => $key,
+                ]);
+            } catch (\Throwable) {
+                $responses[$key] = null;
+            }
+        }
+
+        // Collect all responses (concurrent processing)
+        $results = [];
+        foreach ($responses as $key => $response) {
+            if ($response === null) {
+                $results[$key] = null;
+                continue;
+            }
+
+            try {
+                $statusCode = $response->getStatusCode();
+                if ($statusCode >= 200 && $statusCode < 300) {
+                    $results[$key] = json_decode($response->getContent(), false);
+                } else {
+                    $results[$key] = null;
+                }
+            } catch (\Throwable) {
+                $results[$key] = null;
+            }
+        }
+
+        return $results;
     }
 
     /**
@@ -155,11 +202,11 @@ class EsiClient
         }
     }
 
-    private function rawGet(string $endpoint, ?EveToken $token): ResponseInterface
+    private function rawGet(string $endpoint, ?EveToken $token, int $timeout = self::REQUEST_TIMEOUT, array $extraHeaders = []): ResponseInterface
     {
         return $this->httpClient->request('GET', $this->baseUrl . $endpoint, [
-            'headers' => $this->buildHeaders($token),
-            'timeout' => self::REQUEST_TIMEOUT,
+            'headers' => $this->buildHeaders($token, $extraHeaders),
+            'timeout' => $timeout,
         ]);
     }
 

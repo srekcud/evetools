@@ -17,6 +17,22 @@ Application web d'utilitaires pour EVE Online :
 - **Queue**: RabbitMQ (Symfony Messenger)
 - **Cache**: Redis
 - **Auth**: JWT + OAuth2 EVE SSO
+- **Real-time**: Mercure (SSE via FrankenPHP)
+
+---
+
+## Environnement de développement
+
+**IMPORTANT**: PHP n'est PAS installé sur la machine locale. Toutes les commandes PHP/Symfony doivent être exécutées via Docker :
+
+```bash
+# Exécuter une commande Symfony
+docker compose exec app php bin/console <commande>
+
+# Ou via make shell puis exécuter les commandes
+make shell
+php bin/console <commande>
+```
 
 ---
 
@@ -179,6 +195,9 @@ https://developers.eveonline.com/static-data/tranquility/changes/<build-number>.
 - `esi-markets.structure_markets.v1` - Prix en citadelle
 - `esi-ui.open_window.v1` - Ouvrir fenêtre in-game
 
+### Corporation Projects
+- `esi-corporations.read_projects.v1` - Opportunités/projets corporation (contributions)
+
 ---
 
 ## Structure du projet
@@ -293,6 +312,15 @@ docker compose -f docker-compose.yaml -f docker-compose.prod.yml restart worker
 
 ---
 
+## Préférences de développement
+
+- **Toujours utiliser API Platform** pour les endpoints API, jamais de contrôleurs Symfony classiques
+- Pour les opérations POST sans body, utiliser un DTO vide (`input: EmptyInput::class`) plutôt que `input: false`
+- Pour les opérations DELETE, toujours fournir un `provider` qui renvoie la resource (même minimal) - le processor doit retourner `void`
+- Les ApiResources sans identifiant ne doivent pas avoir de propriété `$id` avec `#[ApiProperty(identifier: true)]` pour éviter les routes GET parasites
+
+---
+
 ## API Endpoints
 
 ### Ansiblex Jump Gates
@@ -324,6 +352,8 @@ docker compose -f docker-compose.yaml -f docker-compose.prod.yml restart worker
 | `Version20260131130430` | Ajoute `location_id` et `corporation_id` à `industry_structure_configs` pour le partage de configurations de structures au sein d'une corporation |
 | `Version20260131133840` | Ajoute `location_owner_corporation_id` à `cached_assets` |
 | `Version20260131133934` | Ajoute `owner_corporation_id` à `cached_structure` pour identifier le propriétaire d'une structure |
+| `Version20260131223001` | Ajoute `te_level` à `industry_projects` pour le Time Efficiency des blueprints intermédiaires |
+| `Version20260202100000` | Ajoute `in_stock_quantity` à `industry_project_steps` pour le suivi des quantités en stock partielles |
 
 ```bash
 # Exécuter en production
@@ -358,21 +388,48 @@ php bin/console doctrine:migrations:migrate
 
 **Statut**: Idée future
 
+### Sessions PVE
+**Feature supprimée** : Les sessions PVE (start/stop/tracking) ne font pas partie du périmètre de l'application. Ne pas implémenter les endpoints `/api/pve/sessions/*`.
+
 ### Synchronisation temps réel avec Mercure
-**Idée**: Utiliser [Mercure](https://mercure.rocks/) (ou SSE/WebSocket) pour synchroniser les assets et autres données depuis le backend vers le frontend en temps réel, au fur et à mesure de leur récupération depuis l'API ESI.
+**Implémenté**: Mercure est intégré via FrankenPHP pour les mises à jour en temps réel.
 
-**Avantages**:
-- Feedback instantané pendant les longues opérations de sync
-- Plus besoin de polling côté frontend
-- Possibilité d'afficher une barre de progression
-- Meilleure UX pour les utilisateurs avec beaucoup d'assets
+**Architecture**:
+- Hub Mercure: `/.well-known/mercure` (intégré dans FrankenPHP/Caddy)
+- Backend publie via `MercurePublisherService`
+- Frontend s'abonne via `useSyncStore` (Pinia store)
+- Topics: `/user/{userId}/sync/{syncType}`
 
-**Implémentation suggérée**:
-1. Ajouter le bundle Mercure à Symfony
-2. Publier des updates pendant `AssetsSyncService::syncCharacterAssets()`
-3. Le frontend s'abonne au topic et met à jour l'UI en temps réel
+**Types de sync supportés**:
+- `character-assets` - Assets personnage
+- `corporation-assets` - Assets corporation
+- `ansiblex` - Ansiblex jump gates
+- `industry-jobs` - Jobs industrie
+- `pve` - Données PVE
+- `market-jita` / `market-structure` - Données marché
 
-**Statut**: Idée future
+**Fichiers clés**:
+- `src/Service/Mercure/MercurePublisherService.php` - Service de publication
+- `src/Controller/Api/MercureController.php` - Endpoint JWT token
+- `frontend/src/stores/sync.ts` - Store Pinia pour l'état sync
+- `frontend/src/composables/useMercure.ts` - Composable EventSource
+
+**Statut**: Implémenté (Assets character/corporation)
+
+### Rigs de structure (Industrie)
+
+**Rigs intégrés** (Manufacturing & Reactions) :
+- M-Set Material Efficiency (Raitaru)
+- M-Set Time Efficiency (Raitaru)
+- L-Set Efficiency (Azbel) - ME + TE combinés
+- XL-Set Efficiency (Sotiyo) - ME + TE combinés
+- M-Set Reactor Material Efficiency (Athanor)
+- L-Set Reactor Efficiency (Tatara) - ME + TE combinés
+- Laboratory Optimization (Research/Invention/Copy)
+
+**Rigs NON intégrés** :
+- Reprocessing rigs (L-Set Reprocessing Monitor I/II) - Affectent le rendement de retraitement de minerai, pas la production
+- Moon Ore Reprocessing rigs
 
 ---
 

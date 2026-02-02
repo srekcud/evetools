@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useSyncStore } from '@/stores/sync'
 import { useEveImages } from '@/composables/useEveImages'
+import { safeJsonParse } from '@/services/api'
 import MainLayout from '@/layouts/MainLayout.vue'
 import type { Asset } from '@/types'
 
 const authStore = useAuthStore()
+const syncStore = useSyncStore()
 const { getTypeIconUrl, onImageError } = useEveImages()
 
 const user = computed(() => authStore.user)
@@ -213,7 +216,7 @@ async function fetchAssets() {
 
     if (!response.ok) throw new Error('Failed to fetch assets')
 
-    const data = await response.json()
+    const data = await safeJsonParse<{ items?: Asset[] }>(response)
     assets.value = data.items || []
   } catch (e) {
     error.value = 'Failed to load assets'
@@ -222,6 +225,39 @@ async function fetchAssets() {
     isLoading.value = false
   }
 }
+
+// Get current sync type based on view mode
+const currentSyncType = computed(() =>
+  viewMode.value === 'character' ? 'character-assets' : 'corporation-assets'
+)
+
+// Get current sync progress from Mercure
+const currentSyncProgress = computed(() =>
+  syncStore.getSyncProgress(currentSyncType.value)
+)
+
+// Watch for sync completion via Mercure
+watch(
+  () => currentSyncProgress.value,
+  (progress) => {
+    if (!progress) return
+
+    if (progress.status === 'completed') {
+      // Sync completed - fetch fresh data
+      fetchAssets()
+      isRefreshing.value = false
+      syncStore.clearSyncStatus(currentSyncType.value)
+    } else if (progress.status === 'error') {
+      // Sync failed
+      error.value = progress.message || 'Sync failed'
+      isRefreshing.value = false
+      syncStore.clearSyncStatus(currentSyncType.value)
+    } else if (progress.status === 'started' || progress.status === 'in_progress') {
+      // Sync in progress
+      isRefreshing.value = true
+    }
+  }
+)
 
 // Refresh assets
 async function refreshAssets() {
@@ -237,34 +273,42 @@ async function refreshAssets() {
 
     const response = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${authStore.token}` }
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({})
     })
 
     if (!response.ok) {
-      const data = await response.json()
+      const data = await safeJsonParse<{ error?: string }>(response)
       throw new Error(data.error || 'Failed to refresh')
     }
 
-    const data = await response.json()
+    const data = await safeJsonParse<{ status?: string }>(response)
 
     if (data.status === 'pending') {
-      // Async sync started - poll for completion
-      let attempts = 0
-      const maxAttempts = 12 // Max 60 seconds (12 * 5s)
-      const poll = async () => {
-        attempts++
-        await fetchAssets()
+      // Async sync started - Mercure will notify us of progress
+      // If Mercure is not connected, fall back to polling
+      if (!syncStore.isConnected) {
+        let attempts = 0
+        const maxAttempts = 12 // Max 60 seconds (12 * 5s)
+        const poll = async () => {
+          attempts++
+          await fetchAssets()
 
-        // Check if we have fresh data (within last 2 minutes)
-        const hasRecentData = assets.value.length > 0
+          // Check if we have fresh data (within last 2 minutes)
+          const hasRecentData = assets.value.length > 0
 
-        if (hasRecentData || attempts >= maxAttempts) {
-          isRefreshing.value = false
-        } else {
-          setTimeout(poll, 5000) // Poll every 5 seconds
+          if (hasRecentData || attempts >= maxAttempts) {
+            isRefreshing.value = false
+          } else {
+            setTimeout(poll, 5000) // Poll every 5 seconds
+          }
         }
+        setTimeout(poll, 3000) // First check after 3 seconds
       }
-      setTimeout(poll, 3000) // First check after 3 seconds
+      // Otherwise, the Mercure watcher will handle completion
     } else {
       // Sync completed immediately, reload assets
       await fetchAssets()
@@ -333,6 +377,22 @@ function getDisplayName(asset: Asset): string {
           </svg>
           {{ isRefreshing ? 'Sync...' : 'Rafraîchir' }}
         </button>
+      </div>
+
+      <!-- Sync progress bar (Mercure real-time) -->
+      <div v-if="currentSyncProgress && (currentSyncProgress.status === 'started' || currentSyncProgress.status === 'in_progress')" class="mb-6">
+        <div class="bg-slate-900 rounded-lg p-4 border border-slate-800">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-sm text-slate-300">{{ currentSyncProgress.message || 'Synchronisation...' }}</span>
+            <span v-if="currentSyncProgress.progress !== null" class="text-sm text-cyan-400 font-mono">{{ currentSyncProgress.progress }}%</span>
+          </div>
+          <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
+            <div
+              class="h-full bg-gradient-to-r from-cyan-500 to-cyan-400 transition-all duration-300"
+              :style="{ width: (currentSyncProgress.progress ?? 0) + '%' }"
+            ></div>
+          </div>
+        </div>
       </div>
 
       <div>

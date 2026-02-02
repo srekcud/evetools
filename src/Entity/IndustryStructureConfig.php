@@ -228,12 +228,92 @@ class IndustryStructureConfig
         return round($bonus, 2);
     }
 
+    /**
+     * Calculate the time efficiency bonus for manufacturing.
+     * Includes base structure bonus + rig bonuses (multiplicative stacking).
+     * Returns a percentage (e.g., 25.0 for 25% time reduction).
+     */
+    public function getManufacturingTimeBonus(): float
+    {
+        // Base structure time bonus (only for engineering complexes)
+        $baseBonus = match ($this->structureType) {
+            'raitaru' => 15.0,
+            'azbel' => 20.0,
+            'sotiyo' => 30.0,
+            'engineering_complex' => 20.0, // Legacy
+            default => 0.0,
+        };
+
+        // Rig time bonus (only L-Set and XL-Set "Efficiency" rigs, not "Material Efficiency")
+        $rigBonus = 0.0;
+        foreach ($this->rigs as $rig) {
+            $rigBonus += $this->getRigBonus($rig, 'manufacturing_time');
+        }
+
+        // Apply security multiplier to rig bonus only
+        $rigBonus *= $this->getSecurityMultiplier();
+
+        // Time bonuses stack multiplicatively: 1 - (1 - base) × (1 - rig)
+        if ($baseBonus > 0 || $rigBonus > 0) {
+            $totalBonus = 1 - (1 - $baseBonus / 100) * (1 - $rigBonus / 100);
+            return round($totalBonus * 100, 2);
+        }
+
+        return 0.0;
+    }
+
+    /**
+     * Calculate the time efficiency bonus for reactions.
+     * Includes base structure bonus + rig bonuses (multiplicative stacking).
+     * Returns a percentage (e.g., 25.0 for 25% time reduction).
+     */
+    public function getReactionTimeBonus(): float
+    {
+        // Base structure time bonus (only for refineries)
+        $baseBonus = match ($this->structureType) {
+            'athanor' => 25.0,
+            'tatara' => 25.0,
+            'refinery' => 25.0, // Legacy
+            default => 0.0,
+        };
+
+        // Rig time bonus (L-Set Reactor Efficiency rigs)
+        $rigBonus = 0.0;
+        foreach ($this->rigs as $rig) {
+            $rigBonus += $this->getRigBonus($rig, 'reaction_time');
+        }
+
+        // Apply security multiplier to rig bonus only (reactions use lower multipliers)
+        $rigBonus *= $this->getReactionSecurityMultiplier();
+
+        // Time bonuses stack multiplicatively: 1 - (1 - base) × (1 - rig)
+        if ($baseBonus > 0 || $rigBonus > 0) {
+            $totalBonus = 1 - (1 - $baseBonus / 100) * (1 - $rigBonus / 100);
+            return round($totalBonus * 100, 2);
+        }
+
+        return 0.0;
+    }
+
     private function getSecurityMultiplier(): float
     {
         return match ($this->securityType) {
             'highsec' => 1.0,
             'lowsec' => 1.9,
             'nullsec' => 2.1,
+            default => 1.0,
+        };
+    }
+
+    /**
+     * Get security multiplier for reaction rigs (lower than manufacturing).
+     */
+    private function getReactionSecurityMultiplier(): float
+    {
+        return match ($this->securityType) {
+            'highsec' => 1.0,
+            'lowsec' => 1.0,
+            'nullsec' => 1.1,
             default => 1.0,
         };
     }
@@ -248,11 +328,31 @@ class IndustryStructureConfig
         $isManufacturing = str_contains($rigName, 'Manufacturing');
         $isReaction = str_contains($rigName, 'Reactor');
 
+        // Check if this is an "Efficiency" rig (provides time bonus) vs "Material Efficiency" rig (ME only)
+        // L-Set and XL-Set "Efficiency" rigs have time bonuses
+        // M-Set "Material Efficiency" rigs do NOT have time bonuses
+        $isEfficiencyRig = str_contains($rigName, 'Efficiency') && !str_contains($rigName, 'Material Efficiency');
+        $isLargeOrXL = str_contains($rigName, 'L-Set') || str_contains($rigName, 'XL-Set');
+
+        // Material bonuses
         if ($bonusType === 'manufacturing_material' && !$isManufacturing) {
             return 0.0;
         }
         if ($bonusType === 'reaction_material' && !$isReaction) {
             return 0.0;
+        }
+
+        // Time bonuses - only for L-Set/XL-Set "Efficiency" rigs (not "Material Efficiency")
+        if ($bonusType === 'manufacturing_time') {
+            if (!$isManufacturing || !$isLargeOrXL || !$isEfficiencyRig) {
+                return 0.0;
+            }
+        }
+        if ($bonusType === 'reaction_time') {
+            // Reactor Efficiency rigs provide time bonuses
+            if (!$isReaction || !str_contains($rigName, 'Reactor Efficiency')) {
+                return 0.0;
+            }
         }
 
         // Thukker rigs (faction) are equivalent to T2

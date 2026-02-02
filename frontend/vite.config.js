@@ -8,17 +8,32 @@ export default defineConfig({
             '@': resolve(__dirname, 'src'),
         },
     },
+    appType: 'spa',
     server: {
         port: 5173,
-        allowedHosts: ['localhost', 'evetools.local'],
+        allowedHosts: ['localhost', 'evetools.local', 'frontend'],
         proxy: {
             '/api': {
                 target: 'http://app:80',
                 changeOrigin: true,
             },
+            // Mercure real-time hub
+            '/.well-known/mercure': {
+                target: 'http://app:80',
+                changeOrigin: true,
+            },
+            // Proxy auth routes to backend, but NOT /auth/eve/callback (handled by Vue router)
             '/auth': {
                 target: 'http://app:80',
                 changeOrigin: true,
+                bypass: function (req) {
+                    var _a;
+                    // Don't proxy the OAuth callback - let Vue router handle it
+                    if ((_a = req.url) === null || _a === void 0 ? void 0 : _a.startsWith('/auth/eve/callback')) {
+                        return '/index.html';
+                    }
+                    return undefined;
+                },
             },
         },
     },

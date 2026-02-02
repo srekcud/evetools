@@ -10,6 +10,7 @@ use App\Repository\AnsiblexJumpGateRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
+use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -25,6 +26,7 @@ class AnsiblexSyncService
         private readonly AnsiblexJumpGateRepository $ansiblexRepository,
         private readonly MapSolarSystemRepository $solarSystemRepository,
         private readonly LoggerInterface $logger,
+        private readonly MercurePublisherService $mercurePublisher,
     ) {
     }
 
@@ -40,8 +42,14 @@ class AnsiblexSyncService
             throw new \RuntimeException('Character has no EVE token');
         }
 
+        $userId = $character->getUser()?->getId()?->toRfc4122();
         $corporationId = $character->getCorporationId();
         $allianceId = $character->getAllianceId();
+
+        // Notify sync started
+        if ($userId !== null) {
+            $this->mercurePublisher->syncStarted($userId, 'ansiblex', 'Scanning corporation structures...');
+        }
 
         $this->logger->info('Starting Ansiblex sync', [
             'character' => $character->getName(),
@@ -60,8 +68,20 @@ class AnsiblexSyncService
             'ansiblex_count' => count($ansiblexStructures),
         ]);
 
+        // Notify progress
+        if ($userId !== null) {
+            $this->mercurePublisher->syncProgress(
+                $userId,
+                'ansiblex',
+                30,
+                sprintf('%d Ansiblex trouvés, traitement...', count($ansiblexStructures))
+            );
+        }
+
         $stats = ['added' => 0, 'updated' => 0, 'deactivated' => 0];
         $seenIds = [];
+        $total = count($ansiblexStructures);
+        $processed = 0;
 
         foreach ($ansiblexStructures as $structure) {
             $result = $this->processAnsiblexStructure($structure, $token, $allianceId);
@@ -71,6 +91,18 @@ class AnsiblexSyncService
                 $stats['updated']++;
             }
             $seenIds[] = $structure['structure_id'];
+
+            $processed++;
+            // Update progress every 5 gates or at the end
+            if ($userId !== null && ($processed % 5 === 0 || $processed === $total)) {
+                $progress = 30 + (int) (($processed / max($total, 1)) * 60);
+                $this->mercurePublisher->syncProgress(
+                    $userId,
+                    'ansiblex',
+                    $progress,
+                    sprintf('Traitement %d/%d gates...', $processed, $total)
+                );
+            }
         }
 
         // Deactivate gates from this alliance that were not seen
@@ -81,6 +113,15 @@ class AnsiblexSyncService
         $this->entityManager->flush();
 
         $this->logger->info('Ansiblex sync completed', $stats);
+
+        // Notify sync completed
+        if ($userId !== null) {
+            $message = sprintf('Terminé: %d ajoutés, %d mis à jour', $stats['added'], $stats['updated']);
+            if ($stats['deactivated'] > 0) {
+                $message .= sprintf(', %d désactivés', $stats['deactivated']);
+            }
+            $this->mercurePublisher->syncCompleted($userId, 'ansiblex', $message, $stats);
+        }
 
         return $stats;
     }
@@ -297,8 +338,14 @@ class AnsiblexSyncService
             throw new \RuntimeException('Character has no EVE token');
         }
 
+        $userId = $character->getUser()?->getId()?->toRfc4122();
         $characterId = $character->getEveCharacterId();
         $allianceId = $character->getAllianceId();
+
+        // Notify sync started
+        if ($userId !== null) {
+            $this->mercurePublisher->syncStarted($userId, 'ansiblex', 'Recherche des Ansiblex accessibles...');
+        }
 
         $this->logger->info('Starting Ansiblex discovery via search', [
             'character' => $character->getName(),
@@ -312,7 +359,19 @@ class AnsiblexSyncService
             'count' => count($structureIds),
         ]);
 
+        // Notify progress
+        if ($userId !== null) {
+            $this->mercurePublisher->syncProgress(
+                $userId,
+                'ansiblex',
+                20,
+                sprintf('%d structures découvertes, résolution...', count($structureIds))
+            );
+        }
+
         $stats = ['added' => 0, 'updated' => 0, 'discovered' => count($structureIds)];
+        $total = count($structureIds);
+        $processed = 0;
 
         foreach ($structureIds as $structureId) {
             $result = $this->processDiscoveredStructure($structureId, $token, $allianceId);
@@ -321,11 +380,33 @@ class AnsiblexSyncService
             } elseif ($result === 'updated') {
                 $stats['updated']++;
             }
+
+            $processed++;
+            // Update progress every 3 structures or at the end
+            if ($userId !== null && ($processed % 3 === 0 || $processed === $total)) {
+                $progress = 20 + (int) (($processed / max($total, 1)) * 70);
+                $this->mercurePublisher->syncProgress(
+                    $userId,
+                    'ansiblex',
+                    $progress,
+                    sprintf('Traitement %d/%d structures...', $processed, $total)
+                );
+            }
         }
 
         $this->entityManager->flush();
 
         $this->logger->info('Ansiblex discovery completed', $stats);
+
+        // Notify sync completed
+        if ($userId !== null) {
+            $this->mercurePublisher->syncCompleted(
+                $userId,
+                'ansiblex',
+                sprintf('Terminé: %d ajoutés, %d mis à jour (sur %d découverts)', $stats['added'], $stats['updated'], $stats['discovered']),
+                $stats
+            );
+        }
 
         return $stats;
     }

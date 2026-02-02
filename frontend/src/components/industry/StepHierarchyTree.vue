@@ -33,8 +33,20 @@ function activityLabel(type: string): string {
   return 'Fab'
 }
 
+// Calculate runs covered by stock
+function getRunsCoveredByStock(step: IndustryProjectStep | undefined): number {
+  if (!step || step.inStockQuantity <= 0 || step.runs <= 0) return 0
+  const unitsPerRun = step.quantity / step.runs
+  return Math.floor(step.inStockQuantity / unitsPerRun)
+}
+
 function stepStatusLabel(step: IndustryProjectStep | undefined): string {
   if (!step) return '-'
+  if (step.inStock) return 'En stock'
+  if (step.inStockQuantity > 0) {
+    const runsCovered = getRunsCoveredByStock(step)
+    return runsCovered >= step.runs ? 'En stock' : `${runsCovered}/${step.runs} runs`
+  }
   if (step.purchased) return 'Acheté'
   if (step.esiJobStatus === 'active') return 'En cours'
   if (step.esiJobStatus === 'delivered' || step.esiJobStatus === 'ready') return 'Terminé'
@@ -43,6 +55,8 @@ function stepStatusLabel(step: IndustryProjectStep | undefined): string {
 
 function stepStatusClass(step: IndustryProjectStep | undefined): string {
   if (!step) return 'bg-slate-500/20 text-slate-400'
+  if (step.inStock) return 'bg-green-500/20 text-green-400'
+  if (step.inStockQuantity > 0) return 'bg-amber-500/20 text-amber-400'
   if (step.purchased) return 'bg-amber-500/20 text-amber-400'
   if (step.esiJobStatus === 'active') return 'bg-cyan-500/20 text-cyan-400'
   if (step.esiJobStatus === 'delivered' || step.esiJobStatus === 'ready') return 'bg-emerald-500/20 text-emerald-400'
@@ -86,7 +100,11 @@ function onToggle(step: IndustryProjectStep) {
           <span :class="['text-xs px-2 py-1 rounded', stepStatusClass(findStep(tree))]">
             {{ stepStatusLabel(findStep(tree)) }}
           </span>
-          <label :class="['flex items-center gap-1.5', readonly ? 'cursor-not-allowed opacity-50' : 'cursor-pointer']">
+          <!-- Purchased checkbox (hidden for depth 0 - root products, hidden if inStock) -->
+          <label
+            v-if="(findStep(tree)?.depth ?? 0) > 0 && !findStep(tree)?.inStock"
+            :class="['flex items-center gap-1.5', readonly ? 'cursor-not-allowed opacity-50' : 'cursor-pointer']"
+          >
             <input
               type="checkbox"
               :checked="findStep(tree)?.purchased"

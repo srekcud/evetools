@@ -10,6 +10,7 @@ use App\Repository\CachedAssetRepository;
 use App\Repository\CharacterRepository;
 use App\Service\ESI\AssetsService;
 use App\Service\ESI\CorporationService;
+use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -24,16 +25,34 @@ class AssetsSyncService
         private readonly CharacterRepository $characterRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
+        private readonly MercurePublisherService $mercurePublisher,
     ) {
     }
 
     public function syncCharacterAssets(Character $character): void
     {
+        $userId = $character->getUser()?->getId()?->toRfc4122();
+
+        // Notify sync started
+        if ($userId !== null) {
+            $this->mercurePublisher->syncStarted($userId, 'character-assets', 'Récupération des assets...');
+        }
+
         // Delete existing cached assets for this character
         $this->cachedAssetRepository->deleteByCharacter($character);
 
         // Fetch fresh assets from ESI
         $assets = $this->assetsService->getCharacterAssets($character);
+
+        // Notify progress
+        if ($userId !== null) {
+            $this->mercurePublisher->syncProgress(
+                $userId,
+                'character-assets',
+                50,
+                sprintf('Traitement de %d assets...', count($assets))
+            );
+        }
 
         // Cache the assets
         foreach ($assets as $assetDto) {
@@ -59,6 +78,16 @@ class AssetsSyncService
         $character->updateLastSync();
 
         $this->entityManager->flush();
+
+        // Notify sync completed
+        if ($userId !== null) {
+            $this->mercurePublisher->syncCompleted(
+                $userId,
+                'character-assets',
+                'Synchronisation terminée',
+                ['count' => count($assets)]
+            );
+        }
     }
 
     /**
@@ -68,6 +97,12 @@ class AssetsSyncService
     public function syncCorporationAssets(Character $character): void
     {
         $corporationId = $character->getCorporationId();
+        $userId = $character->getUser()?->getId()?->toRfc4122();
+
+        // Notify sync started
+        if ($userId !== null) {
+            $this->mercurePublisher->syncStarted($userId, 'corporation-assets', 'Récupération des assets corporation...');
+        }
 
         // Get division names for this corporation (uses character with divisions scope)
         $divisionsCharacter = $this->characterRepository->findWithCorpDivisionsAccess($corporationId);
@@ -88,6 +123,16 @@ class AssetsSyncService
 
         // Fetch fresh assets from ESI
         $assets = $this->assetsService->getCorporationAssets($character);
+
+        // Notify progress
+        if ($userId !== null) {
+            $this->mercurePublisher->syncProgress(
+                $userId,
+                'corporation-assets',
+                50,
+                sprintf('Traitement de %d assets...', count($assets))
+            );
+        }
 
         // Cache the assets with division names
         foreach ($assets as $assetDto) {
@@ -119,6 +164,16 @@ class AssetsSyncService
         }
 
         $this->entityManager->flush();
+
+        // Notify sync completed
+        if ($userId !== null) {
+            $this->mercurePublisher->syncCompleted(
+                $userId,
+                'corporation-assets',
+                'Synchronisation terminée',
+                ['count' => count($assets)]
+            );
+        }
     }
 
     /**

@@ -1,0 +1,165 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\ApiResource\Industry;
+
+use ApiPlatform\Metadata\ApiProperty;
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Post;
+use App\ApiResource\Input\EmptyInput;
+use App\ApiResource\Input\Industry\CreateProjectInput;
+use App\ApiResource\Input\Industry\UpdateProjectInput;
+use App\State\Processor\Industry\CreateProjectProcessor;
+use App\State\Processor\Industry\DeleteProjectProcessor;
+use App\State\Processor\Industry\MatchJobsProcessor;
+use App\State\Processor\Industry\RegenerateStepsProcessor;
+use App\State\Processor\Industry\UpdateProjectProcessor;
+use App\State\Provider\Industry\ProjectCollectionProvider;
+use App\State\Provider\Industry\ProjectDeleteProvider;
+use App\State\Provider\Industry\ProjectProvider;
+use App\State\Provider\Industry\ShoppingListProvider;
+
+#[ApiResource(
+    shortName: 'IndustryProject',
+    description: 'Industry manufacturing projects',
+    operations: [
+        new Get(
+            uriTemplate: '/industry/projects',
+            provider: ProjectCollectionProvider::class,
+            output: ProjectListResource::class,
+            openapiContext: [
+                'summary' => 'List projects',
+                'description' => 'Returns all industry projects for the user',
+            ],
+        ),
+        new Get(
+            uriTemplate: '/industry/projects/{id}',
+            provider: ProjectProvider::class,
+            openapiContext: [
+                'summary' => 'Get project details',
+                'description' => 'Returns detailed project information with steps and tree',
+            ],
+        ),
+        new Post(
+            uriTemplate: '/industry/projects',
+            processor: CreateProjectProcessor::class,
+            input: CreateProjectInput::class,
+            openapiContext: [
+                'summary' => 'Create project',
+                'description' => 'Creates a new industry project',
+            ],
+        ),
+        new Patch(
+            uriTemplate: '/industry/projects/{id}',
+            provider: ProjectProvider::class,
+            processor: UpdateProjectProcessor::class,
+            input: UpdateProjectInput::class,
+            openapiContext: [
+                'summary' => 'Update project',
+                'description' => 'Updates project properties',
+            ],
+        ),
+        new Delete(
+            uriTemplate: '/industry/projects/{id}',
+            provider: ProjectDeleteProvider::class,
+            processor: DeleteProjectProcessor::class,
+            openapiContext: [
+                'summary' => 'Delete project',
+                'description' => 'Deletes an industry project',
+            ],
+        ),
+        new Get(
+            uriTemplate: '/industry/projects/{id}/shopping-list',
+            provider: ShoppingListProvider::class,
+            output: ShoppingListResource::class,
+            openapiContext: [
+                'summary' => 'Get shopping list',
+                'description' => 'Returns materials needed with price comparison',
+            ],
+        ),
+        new Post(
+            uriTemplate: '/industry/projects/{id}/regenerate-steps',
+            processor: RegenerateStepsProcessor::class,
+            input: EmptyInput::class,
+            openapiContext: [
+                'summary' => 'Regenerate steps',
+                'description' => 'Regenerates all project steps from scratch',
+            ],
+        ),
+        new Post(
+            uriTemplate: '/industry/projects/{id}/match-jobs',
+            processor: MatchJobsProcessor::class,
+            input: EmptyInput::class,
+            output: MatchJobsResultResource::class,
+            openapiContext: [
+                'summary' => 'Match ESI jobs',
+                'description' => 'Matches project steps with ESI industry jobs',
+            ],
+        ),
+    ],
+    security: "is_granted('ROLE_USER')",
+)]
+class ProjectResource
+{
+    #[ApiProperty(identifier: true)]
+    public string $id;
+
+    public int $productTypeId;
+
+    public string $productTypeName;
+
+    public ?string $name = null;
+
+    public string $displayName = '';
+
+    public int $runs;
+
+    public int $meLevel;
+
+    public int $teLevel;
+
+    public float $maxJobDurationDays;
+
+    public string $status;
+
+    public ?float $profit = null;
+
+    public ?float $profitPercent = null;
+
+    public ?float $bpoCost = null;
+
+    public ?float $materialCost = null;
+
+    public ?float $transportCost = null;
+
+    public ?float $taxAmount = null;
+
+    public ?float $sellPrice = null;
+
+    public ?float $jobsCost = null;
+
+    public ?float $totalCost = null;
+
+    public ?string $notes = null;
+
+    public bool $personalUse = false;
+
+    public ?string $jobsStartDate = null;
+
+    public ?string $completedAt = null;
+
+    public string $createdAt;
+
+    /** @var array<array{typeId: int, typeName: string, runs: int, meLevel: int|null, teLevel: int|null}> */
+    public array $rootProducts = [];
+
+    /** @var ProjectStepResource[] */
+    public array $steps = [];
+
+    public ?array $tree = null;
+}

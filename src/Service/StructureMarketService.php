@@ -6,6 +6,7 @@ namespace App\Service;
 
 use App\Entity\EveToken;
 use App\Service\ESI\EsiClient;
+use App\Service\Mercure\MercurePublisherService;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -20,6 +21,7 @@ class StructureMarketService
         #[Autowire(service: 'structure_market.cache')]
         private readonly CacheItemPoolInterface $cache,
         private readonly LoggerInterface $logger,
+        private readonly MercurePublisherService $mercurePublisher,
     ) {
     }
 
@@ -148,13 +150,23 @@ class StructureMarketService
      * This is meant to be called from a background job.
      *
      * Only stores the minimum sell price per type to reduce memory usage.
+     *
+     * @param int         $structureId   The structure ID to sync
+     * @param string      $structureName The structure name for logging
+     * @param EveToken    $token         The ESI token for API access
+     * @param string|null $userId        Optional user ID for Mercure notifications
      */
-    public function syncStructureMarket(int $structureId, string $structureName, EveToken $token): array
+    public function syncStructureMarket(int $structureId, string $structureName, EveToken $token, ?string $userId = null): array
     {
         $this->logger->info('Starting structure market sync', [
             'structureId' => $structureId,
             'structureName' => $structureName,
         ]);
+
+        // Notify sync started
+        if ($userId !== null) {
+            $this->mercurePublisher->syncStarted($userId, 'market-structure', sprintf('Synchronisation du marché de %s...', $structureName));
+        }
 
         $startTime = microtime(true);
 
@@ -164,6 +176,11 @@ class StructureMarketService
                 "/markets/structures/{$structureId}/",
                 $token
             );
+
+            // Update progress
+            if ($userId !== null) {
+                $this->mercurePublisher->syncProgress($userId, 'market-structure', 50, 'Traitement des ordres de marché...');
+            }
 
             // Track minimum sell price per type (memory efficient)
             $minPriceByType = [];
@@ -183,6 +200,11 @@ class StructureMarketService
                 if (!isset($minPriceByType[$typeId]) || $price < $minPriceByType[$typeId]) {
                     $minPriceByType[$typeId] = $price;
                 }
+            }
+
+            // Update progress
+            if ($userId !== null) {
+                $this->mercurePublisher->syncProgress($userId, 'market-structure', 80, sprintf('Mise en cache de %d prix...', count($minPriceByType)));
             }
 
             // Cache the data (now much smaller - only min prices)
@@ -215,6 +237,18 @@ class StructureMarketService
                 'duration' => $duration,
             ]);
 
+            // Notify sync completed
+            if ($userId !== null) {
+                $message = sprintf('%d ordres, %d types uniques', $sellOrders, count($minPriceByType));
+                $this->mercurePublisher->syncCompleted($userId, 'market-structure', $message, [
+                    'structureId' => $structureId,
+                    'structureName' => $structureName,
+                    'totalOrders' => $totalOrders,
+                    'sellOrders' => $sellOrders,
+                    'typeCount' => count($minPriceByType),
+                ]);
+            }
+
             return [
                 'success' => true,
                 'totalOrders' => $totalOrders,
@@ -228,6 +262,11 @@ class StructureMarketService
                 'structureName' => $structureName,
                 'error' => $e->getMessage(),
             ]);
+
+            // Notify sync error
+            if ($userId !== null) {
+                $this->mercurePublisher->syncError($userId, 'market-structure', $e->getMessage());
+            }
 
             return [
                 'success' => false,

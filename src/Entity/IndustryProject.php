@@ -33,11 +33,18 @@ class IndustryProject
     #[ORM\Column(type: 'string', length: 255)]
     private string $productTypeName;
 
+    /** @var string|null Custom project name (null = use product name) */
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    private ?string $name = null;
+
     #[ORM\Column(type: 'integer')]
     private int $runs;
 
     #[ORM\Column(type: 'integer')]
     private int $meLevel = 0;
+
+    #[ORM\Column(type: 'integer')]
+    private int $teLevel = 0;
 
     /** @var float Maximum job duration in days before splitting (default 2.0 days) */
     #[ORM\Column(type: 'float')]
@@ -129,6 +136,25 @@ class IndustryProject
         return $this;
     }
 
+    public function getName(): ?string
+    {
+        return $this->name;
+    }
+
+    public function setName(?string $name): static
+    {
+        $this->name = $name;
+        return $this;
+    }
+
+    /**
+     * Get display name: custom name if set, otherwise product name.
+     */
+    public function getDisplayName(): string
+    {
+        return $this->name ?? $this->productTypeName;
+    }
+
     public function getRuns(): int
     {
         return $this->runs;
@@ -148,6 +174,17 @@ class IndustryProject
     public function setMeLevel(int $meLevel): static
     {
         $this->meLevel = $meLevel;
+        return $this;
+    }
+
+    public function getTeLevel(): int
+    {
+        return $this->teLevel;
+    }
+
+    public function setTeLevel(int $teLevel): static
+    {
+        $this->teLevel = $teLevel;
         return $this;
     }
 

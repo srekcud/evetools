@@ -1,6 +1,11 @@
 {$DOMAIN:evetools.local} {
     tls internal
 
+    # Mercure real-time hub
+    handle /.well-known/mercure* {
+        reverse_proxy app:80
+    }
+
     # Backend API - handle first
     handle /api/* {
         reverse_proxy app:80

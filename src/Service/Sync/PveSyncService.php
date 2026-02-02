@@ -14,6 +14,7 @@ use App\Repository\UserPveSettingsRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
+use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -41,6 +42,7 @@ class PveSyncService
         private readonly InvTypeRepository $invTypeRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
+        private readonly MercurePublisherService $mercurePublisher,
     ) {
     }
 
@@ -74,7 +76,8 @@ class PveSyncService
     {
         foreach ($user->getCharacters() as $character) {
             $token = $character->getEveToken();
-            if ($token !== null && !$token->isExpired()) {
+            // Check if token exists and has a refresh token (can be refreshed)
+            if ($token !== null && $token->getRefreshTokenEncrypted() !== null) {
                 return true;
             }
         }
@@ -83,6 +86,7 @@ class PveSyncService
 
     public function syncAll(User $user): array
     {
+        $userId = $user->getId()?->toRfc4122();
         $results = [
             'bounties' => 0,
             'lootSales' => 0,
@@ -91,7 +95,15 @@ class PveSyncService
             'errors' => [],
         ];
 
+        // Notify sync started
+        if ($userId !== null) {
+            $this->mercurePublisher->syncStarted($userId, 'pve', 'Synchronisation des données PVE...');
+        }
+
         try {
+            if ($userId !== null) {
+                $this->mercurePublisher->syncProgress($userId, 'pve', 10, 'Récupération des bounties...');
+            }
             $results['bounties'] = $this->syncWalletJournal($user);
         } catch (\Throwable $e) {
             $results['errors'][] = 'bounties: ' . $e->getMessage();
@@ -99,6 +111,9 @@ class PveSyncService
         }
 
         try {
+            if ($userId !== null) {
+                $this->mercurePublisher->syncProgress($userId, 'pve', 35, 'Récupération des ventes de loot...');
+            }
             $results['lootSales'] = $this->syncLootSalesFromTransactions($user);
         } catch (\Throwable $e) {
             $results['errors'][] = 'lootSales: ' . $e->getMessage();
@@ -106,6 +121,9 @@ class PveSyncService
         }
 
         try {
+            if ($userId !== null) {
+                $this->mercurePublisher->syncProgress($userId, 'pve', 60, 'Analyse des contrats de loot...');
+            }
             $results['lootContracts'] = $this->syncLootFromContracts($user);
         } catch (\Throwable $e) {
             $results['errors'][] = 'lootContracts: ' . $e->getMessage();
@@ -113,6 +131,9 @@ class PveSyncService
         }
 
         try {
+            if ($userId !== null) {
+                $this->mercurePublisher->syncProgress($userId, 'pve', 85, 'Récupération des dépenses...');
+            }
             $results['expenses'] = $this->syncExpensesFromTransactions($user);
         } catch (\Throwable $e) {
             $results['errors'][] = 'expenses: ' . $e->getMessage();
@@ -123,6 +144,26 @@ class PveSyncService
         $settings = $this->settingsRepository->getOrCreate($user);
         $settings->setLastSyncAt(new \DateTimeImmutable());
         $this->entityManager->flush();
+
+        // Notify sync completed
+        if ($userId !== null) {
+            $totalImported = $results['bounties'] + $results['lootSales'] + $results['lootContracts'] + $results['expenses'];
+            $message = sprintf(
+                '%d bounties, %d ventes, %d contrats, %d dépenses',
+                $results['bounties'],
+                $results['lootSales'],
+                $results['lootContracts'],
+                $results['expenses']
+            );
+            $this->mercurePublisher->syncCompleted($userId, 'pve', $message, [
+                'bounties' => $results['bounties'],
+                'lootSales' => $results['lootSales'],
+                'lootContracts' => $results['lootContracts'],
+                'expenses' => $results['expenses'],
+                'totalImported' => $totalImported,
+                'errors' => count($results['errors']),
+            ]);
+        }
 
         return $results;
     }

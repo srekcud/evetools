@@ -444,10 +444,15 @@ class IndustryBonusService
 
     /**
      * Initialize the rig -> category TIME bonus mapping.
-     * L-Set and XL-Set "Efficiency" rigs provide BOTH material AND time bonuses.
-     * M-Set "Material Efficiency" rigs only provide material bonus (no time).
+     * - L-Set and XL-Set "Efficiency" rigs provide BOTH material AND time bonuses.
+     * - M-Set "Material Efficiency" rigs only provide material bonus (no time).
+     * - M-Set "Time Efficiency" rigs only provide time bonus (no material).
      *
-     * Time bonuses are the same percentages as material bonuses for these rigs.
+     * IMPORTANT: For L-Set/XL-Set "Efficiency" rigs, time bonuses are 10× the material bonuses in EVE Online!
+     * - L-Set Reactor Efficiency II: 2.4% ME, but 24% TE
+     * - XL-Set Ship Manufacturing Efficiency I: 2.0% ME, but 20% TE
+     *
+     * M-Set "Time Efficiency" rigs have their timeBonus specified directly in the rig definition.
      */
     private function initializeRigTimeBonusMap(): void
     {
@@ -460,8 +465,20 @@ class IndustryBonusService
 
             foreach ($rigOptions[$type] as $rig) {
                 $rigName = $rig['name'];
-                $baseBonus = $rig['bonus'];
+                $materialBonus = $rig['bonus'];
                 $targetCategories = $rig['targetCategories'] ?? [];
+                $explicitTimeBonus = $rig['timeBonus'] ?? null;
+
+                // M-Set "Time Efficiency" rigs have explicit timeBonus
+                if ($explicitTimeBonus !== null) {
+                    if (!isset($this->rigTimeBonusMap[$rigName])) {
+                        $this->rigTimeBonusMap[$rigName] = [];
+                    }
+                    foreach ($targetCategories as $category) {
+                        $this->rigTimeBonusMap[$rigName][$category] = $explicitTimeBonus;
+                    }
+                    continue;
+                }
 
                 // Only L-Set, XL-Set, and Reactor "Efficiency" rigs have time bonuses
                 // M-Set "Material Efficiency" rigs do NOT have time bonuses
@@ -473,6 +490,7 @@ class IndustryBonusService
                     (str_contains($rigName, 'L-Set') || str_contains($rigName, 'XL-Set'))
                     && str_contains($rigName, 'Efficiency')
                     && !str_contains($rigName, 'Material Efficiency')
+                    && !str_contains($rigName, 'Time Efficiency')
                 ) {
                     $hasTimeBonus = true;
                 }
@@ -495,8 +513,12 @@ class IndustryBonusService
                     $this->rigTimeBonusMap[$rigName] = [];
                 }
 
+                // Time bonus is 10× the material bonus in EVE Online
+                // E.g., 2.4% ME → 24% TE for L-Set Reactor Efficiency II
+                $timeBonus = $materialBonus * 10.0;
+
                 foreach ($targetCategories as $category) {
-                    $this->rigTimeBonusMap[$rigName][$category] = $baseBonus;
+                    $this->rigTimeBonusMap[$rigName][$category] = $timeBonus;
                 }
             }
         }
@@ -510,7 +532,7 @@ class IndustryBonusService
     {
         return [
             'manufacturing' => [
-                // M-Set Ships
+                // M-Set Ships - Material Efficiency
                 ['name' => 'Standup M-Set Basic Small Ship Manufacturing Material Efficiency I', 'bonus' => 2.0, 'targetCategories' => ['basic_small_ship']],
                 ['name' => 'Standup M-Set Basic Small Ship Manufacturing Material Efficiency II', 'bonus' => 2.4, 'targetCategories' => ['basic_small_ship']],
                 ['name' => 'Standup M-Set Basic Medium Ship Manufacturing Material Efficiency I', 'bonus' => 2.0, 'targetCategories' => ['basic_medium_ship']],
@@ -523,23 +545,51 @@ class IndustryBonusService
                 ['name' => 'Standup M-Set Advanced Medium Ship Manufacturing Material Efficiency II', 'bonus' => 2.4, 'targetCategories' => ['advanced_medium_ship']],
                 ['name' => 'Standup M-Set Advanced Large Ship Manufacturing Material Efficiency I', 'bonus' => 2.0, 'targetCategories' => ['advanced_large_ship']],
                 ['name' => 'Standup M-Set Advanced Large Ship Manufacturing Material Efficiency II', 'bonus' => 2.4, 'targetCategories' => ['advanced_large_ship']],
-                // M-Set Components
+                // M-Set Ships - Time Efficiency
+                ['name' => 'Standup M-Set Basic Small Ship Manufacturing Time Efficiency I', 'bonus' => 0, 'timeBonus' => 20.0, 'targetCategories' => ['basic_small_ship']],
+                ['name' => 'Standup M-Set Basic Small Ship Manufacturing Time Efficiency II', 'bonus' => 0, 'timeBonus' => 24.0, 'targetCategories' => ['basic_small_ship']],
+                ['name' => 'Standup M-Set Basic Medium Ship Manufacturing Time Efficiency I', 'bonus' => 0, 'timeBonus' => 20.0, 'targetCategories' => ['basic_medium_ship']],
+                ['name' => 'Standup M-Set Basic Medium Ship Manufacturing Time Efficiency II', 'bonus' => 0, 'timeBonus' => 24.0, 'targetCategories' => ['basic_medium_ship']],
+                ['name' => 'Standup M-Set Basic Large Ship Manufacturing Time Efficiency I', 'bonus' => 0, 'timeBonus' => 20.0, 'targetCategories' => ['basic_large_ship']],
+                ['name' => 'Standup M-Set Basic Large Ship Manufacturing Time Efficiency II', 'bonus' => 0, 'timeBonus' => 24.0, 'targetCategories' => ['basic_large_ship']],
+                ['name' => 'Standup M-Set Advanced Small Ship Manufacturing Time Efficiency I', 'bonus' => 0, 'timeBonus' => 20.0, 'targetCategories' => ['advanced_small_ship']],
+                ['name' => 'Standup M-Set Advanced Small Ship Manufacturing Time Efficiency II', 'bonus' => 0, 'timeBonus' => 24.0, 'targetCategories' => ['advanced_small_ship']],
+                ['name' => 'Standup M-Set Advanced Medium Ship Manufacturing Time Efficiency I', 'bonus' => 0, 'timeBonus' => 20.0, 'targetCategories' => ['advanced_medium_ship']],
+                ['name' => 'Standup M-Set Advanced Medium Ship Manufacturing Time Efficiency II', 'bonus' => 0, 'timeBonus' => 24.0, 'targetCategories' => ['advanced_medium_ship']],
+                ['name' => 'Standup M-Set Advanced Large Ship Manufacturing Time Efficiency I', 'bonus' => 0, 'timeBonus' => 20.0, 'targetCategories' => ['advanced_large_ship']],
+                ['name' => 'Standup M-Set Advanced Large Ship Manufacturing Time Efficiency II', 'bonus' => 0, 'timeBonus' => 24.0, 'targetCategories' => ['advanced_large_ship']],
+                // M-Set Components - Material Efficiency
                 ['name' => 'Standup M-Set Basic Capital Component Manufacturing Material Efficiency I', 'bonus' => 2.0, 'targetCategories' => ['basic_capital_component']],
                 ['name' => 'Standup M-Set Basic Capital Component Manufacturing Material Efficiency II', 'bonus' => 2.4, 'targetCategories' => ['basic_capital_component']],
                 ['name' => 'Standup M-Set Advanced Component Manufacturing Material Efficiency I', 'bonus' => 2.0, 'targetCategories' => ['advanced_component']],
                 ['name' => 'Standup M-Set Advanced Component Manufacturing Material Efficiency II', 'bonus' => 2.4, 'targetCategories' => ['advanced_component']],
                 ['name' => 'Standup M-Set Thukker Basic Capital Component Manufacturing Material Efficiency', 'bonus' => 2.4, 'targetCategories' => ['basic_capital_component']],
                 ['name' => 'Standup M-Set Thukker Advanced Component Manufacturing Material Efficiency', 'bonus' => 2.4, 'targetCategories' => ['advanced_component']],
-                // M-Set Equipment
+                // M-Set Components - Time Efficiency
+                ['name' => 'Standup M-Set Basic Capital Component Manufacturing Time Efficiency I', 'bonus' => 0, 'timeBonus' => 20.0, 'targetCategories' => ['basic_capital_component']],
+                ['name' => 'Standup M-Set Basic Capital Component Manufacturing Time Efficiency II', 'bonus' => 0, 'timeBonus' => 24.0, 'targetCategories' => ['basic_capital_component']],
+                ['name' => 'Standup M-Set Advanced Component Manufacturing Time Efficiency I', 'bonus' => 0, 'timeBonus' => 20.0, 'targetCategories' => ['advanced_component']],
+                ['name' => 'Standup M-Set Advanced Component Manufacturing Time Efficiency II', 'bonus' => 0, 'timeBonus' => 24.0, 'targetCategories' => ['advanced_component']],
+                // M-Set Equipment - Material Efficiency
                 ['name' => 'Standup M-Set Equipment Manufacturing Material Efficiency I', 'bonus' => 2.0, 'targetCategories' => ['equipment']],
                 ['name' => 'Standup M-Set Equipment Manufacturing Material Efficiency II', 'bonus' => 2.4, 'targetCategories' => ['equipment']],
                 ['name' => 'Standup M-Set Ammunition Manufacturing Material Efficiency I', 'bonus' => 2.0, 'targetCategories' => ['ammunition']],
                 ['name' => 'Standup M-Set Ammunition Manufacturing Material Efficiency II', 'bonus' => 2.4, 'targetCategories' => ['ammunition']],
                 ['name' => 'Standup M-Set Drone and Fighter Manufacturing Material Efficiency I', 'bonus' => 2.0, 'targetCategories' => ['drone', 'fighter']],
                 ['name' => 'Standup M-Set Drone and Fighter Manufacturing Material Efficiency II', 'bonus' => 2.4, 'targetCategories' => ['drone', 'fighter']],
-                // M-Set Structures
+                // M-Set Equipment - Time Efficiency
+                ['name' => 'Standup M-Set Equipment Manufacturing Time Efficiency I', 'bonus' => 0, 'timeBonus' => 20.0, 'targetCategories' => ['equipment']],
+                ['name' => 'Standup M-Set Equipment Manufacturing Time Efficiency II', 'bonus' => 0, 'timeBonus' => 24.0, 'targetCategories' => ['equipment']],
+                ['name' => 'Standup M-Set Ammunition Manufacturing Time Efficiency I', 'bonus' => 0, 'timeBonus' => 20.0, 'targetCategories' => ['ammunition']],
+                ['name' => 'Standup M-Set Ammunition Manufacturing Time Efficiency II', 'bonus' => 0, 'timeBonus' => 24.0, 'targetCategories' => ['ammunition']],
+                ['name' => 'Standup M-Set Drone and Fighter Manufacturing Time Efficiency I', 'bonus' => 0, 'timeBonus' => 20.0, 'targetCategories' => ['drone', 'fighter']],
+                ['name' => 'Standup M-Set Drone and Fighter Manufacturing Time Efficiency II', 'bonus' => 0, 'timeBonus' => 24.0, 'targetCategories' => ['drone', 'fighter']],
+                // M-Set Structures - Material Efficiency
                 ['name' => 'Standup M-Set Structure Manufacturing Material Efficiency I', 'bonus' => 2.0, 'targetCategories' => ['structure', 'structure_component']],
                 ['name' => 'Standup M-Set Structure Manufacturing Material Efficiency II', 'bonus' => 2.4, 'targetCategories' => ['structure', 'structure_component']],
+                // M-Set Structures - Time Efficiency
+                ['name' => 'Standup M-Set Structure Manufacturing Time Efficiency I', 'bonus' => 0, 'timeBonus' => 20.0, 'targetCategories' => ['structure', 'structure_component']],
+                ['name' => 'Standup M-Set Structure Manufacturing Time Efficiency II', 'bonus' => 0, 'timeBonus' => 24.0, 'targetCategories' => ['structure', 'structure_component']],
 
                 // L-Set Ships
                 ['name' => 'Standup L-Set Basic Small Ship Manufacturing Efficiency I', 'bonus' => 2.0, 'targetCategories' => ['basic_small_ship']],

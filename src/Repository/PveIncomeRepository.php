@@ -213,7 +213,7 @@ class PveIncomeRepository extends ServiceEntityRepository
             ->setParameter('user', $user)
             ->setParameter('from', $from)
             ->setParameter('to', $to)
-            ->setParameter('types', [PveIncome::TYPE_LOOT_SALE, PveIncome::TYPE_LOOT_CONTRACT])
+            ->setParameter('types', [PveIncome::TYPE_LOOT_SALE, PveIncome::TYPE_LOOT_CONTRACT, PveIncome::TYPE_CORP_PROJECT])
             ->orderBy('i.date', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
@@ -221,7 +221,7 @@ class PveIncomeRepository extends ServiceEntityRepository
     }
 
     /**
-     * Get total loot sales (including loot contracts) for a user in date range
+     * Get total loot sales (including loot contracts and corp projects) for a user in date range
      */
     public function getTotalLootSalesByUserAndDateRange(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to): float
     {
@@ -234,7 +234,7 @@ class PveIncomeRepository extends ServiceEntityRepository
             ->setParameter('user', $user)
             ->setParameter('from', $from)
             ->setParameter('to', $to)
-            ->setParameter('types', [PveIncome::TYPE_LOOT_SALE, PveIncome::TYPE_LOOT_CONTRACT])
+            ->setParameter('types', [PveIncome::TYPE_LOOT_SALE, PveIncome::TYPE_LOOT_CONTRACT, PveIncome::TYPE_CORP_PROJECT])
             ->getQuery()
             ->getSingleScalarResult();
 
@@ -272,7 +272,7 @@ class PveIncomeRepository extends ServiceEntityRepository
 
             if (in_array($type, [PveIncome::TYPE_BOUNTY, PveIncome::TYPE_ESS, PveIncome::TYPE_MISSION], true)) {
                 $dailyTotals[$date]['bounties'] += $amount;
-            } elseif (in_array($type, [PveIncome::TYPE_LOOT_SALE, PveIncome::TYPE_LOOT_CONTRACT], true)) {
+            } elseif (in_array($type, [PveIncome::TYPE_LOOT_SALE, PveIncome::TYPE_LOOT_CONTRACT, PveIncome::TYPE_CORP_PROJECT], true)) {
                 $dailyTotals[$date]['lootSales'] += $amount;
             }
         }

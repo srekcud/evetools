@@ -10,10 +10,23 @@
         close
     }
 
+    # Mercure real-time hub - must be before php_server
+    @mercure path /.well-known/mercure*
+    handle @mercure {
+        mercure {
+            publisher_jwt {env.MERCURE_PUBLISHER_JWT_KEY} HS256
+            subscriber_jwt {env.MERCURE_SUBSCRIBER_JWT_KEY} HS256
+            anonymous
+            cors_origins *
+        }
+    }
+
     root * /app/public
-    php_server
 
     encode zstd gzip
+
+    # PHP server handles everything else
+    php_server
 
     log {
         output stdout

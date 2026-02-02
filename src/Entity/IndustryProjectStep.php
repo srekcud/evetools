@@ -43,6 +43,14 @@ class IndustryProjectStep
     #[ORM\Column(type: 'integer')]
     private int $depth;
 
+    /** @var int|null ME level for this step (only used for depth 0 root products) */
+    #[ORM\Column(type: 'integer', nullable: true)]
+    private ?int $meLevel = null;
+
+    /** @var int|null TE level for this step (only used for depth 0 root products) */
+    #[ORM\Column(type: 'integer', nullable: true)]
+    private ?int $teLevel = null;
+
     #[ORM\Column(type: 'string', length: 30)]
     private string $activityType = 'manufacturing';
 
@@ -51,6 +59,14 @@ class IndustryProjectStep
 
     #[ORM\Column(type: 'boolean')]
     private bool $purchased = false;
+
+    /** @var bool If true, product is already in stock (no purchase cost, not in shopping list) */
+    #[ORM\Column(type: 'boolean')]
+    private bool $inStock = false;
+
+    /** @var int Quantity already in stock (0 = none, partial = some, >= quantity = all) */
+    #[ORM\Column(type: 'integer')]
+    private int $inStockQuantity = 0;
 
     #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $esiJobId = null;
@@ -207,6 +223,28 @@ class IndustryProjectStep
         return $this;
     }
 
+    public function getMeLevel(): ?int
+    {
+        return $this->meLevel;
+    }
+
+    public function setMeLevel(?int $meLevel): static
+    {
+        $this->meLevel = $meLevel;
+        return $this;
+    }
+
+    public function getTeLevel(): ?int
+    {
+        return $this->teLevel;
+    }
+
+    public function setTeLevel(?int $teLevel): static
+    {
+        $this->teLevel = $teLevel;
+        return $this;
+    }
+
     public function getActivityType(): string
     {
         return $this->activityType;
@@ -238,6 +276,38 @@ class IndustryProjectStep
     {
         $this->purchased = $purchased;
         return $this;
+    }
+
+    public function isInStock(): bool
+    {
+        return $this->inStock;
+    }
+
+    public function setInStock(bool $inStock): static
+    {
+        $this->inStock = $inStock;
+        return $this;
+    }
+
+    public function getInStockQuantity(): int
+    {
+        return $this->inStockQuantity;
+    }
+
+    public function setInStockQuantity(int $inStockQuantity): static
+    {
+        $this->inStockQuantity = max(0, $inStockQuantity);
+        // Keep boolean in sync for backward compatibility
+        $this->inStock = $inStockQuantity >= $this->quantity;
+        return $this;
+    }
+
+    /**
+     * Get the quantity still needed (not covered by stock).
+     */
+    public function getMissingQuantity(): int
+    {
+        return max(0, $this->quantity - $this->inStockQuantity);
     }
 
     public function getEsiJobId(): ?int

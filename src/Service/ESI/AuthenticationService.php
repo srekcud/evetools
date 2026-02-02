@@ -66,6 +66,9 @@ class AuthenticationService
 
         // UI (quality of life)
         'esi-ui.open_window.v1',
+
+        // Corporation Projects (opportunités)
+        'esi-corporations.read_projects.v1',
     ];
 
     /**

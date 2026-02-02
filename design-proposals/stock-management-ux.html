@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EVE Tools - Stock Management UX Proposals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            slate: {
+              850: '#1a1f2e',
+              950: '#0d1117'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #0f172a; }
+    .proposal-section {
+      border: 2px dashed #334155;
+      margin-bottom: 4rem;
+    }
+  </style>
+</head>
+<body class="text-slate-200 p-8">
+
+  <div class="max-w-7xl mx-auto">
+    <div class="text-center mb-12">
+      <h1 class="text-3xl font-bold text-white mb-2">Propositions UX - Gestion du Stock</h1>
+      <p class="text-slate-400">Même charte graphique, différentes dispositions et flux</p>
+    </div>
+
+    <!-- ============================================
+         PROPOSAL 1: MERGED SINGLE LIST
+         Shopping + Stock fusionnés en une seule liste
+         ============================================ -->
+    <div class="proposal-section rounded-xl p-6 mb-12">
+      <div class="mb-6">
+        <span class="text-cyan-400 text-sm font-mono">PROPOSITION 1</span>
+        <h2 class="text-xl font-semibold text-white">Liste Unifiée</h2>
+        <p class="text-slate-400 text-sm mt-1">
+          Plus de tabs séparés. Une seule liste qui montre : requis, en stock, manquant.
+          Édition inline du stock. Zone de paste en haut.
+        </p>
+      </div>
+
+      <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+        <!-- Header avec zone de paste compacte -->
+        <div class="px-6 py-4 border-b border-slate-800">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold">Matériaux & Stock</h3>
+            <div class="flex items-center gap-3">
+              <!-- Stats rapides -->
+              <div class="flex items-center gap-4 text-sm">
+                <span class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  <span class="text-emerald-400">4</span>
+                </span>
+                <span class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                  <span class="text-amber-400">3</span>
+                </span>
+                <span class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                  <span class="text-red-400">5</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Zone paste inline -->
+          <div class="flex gap-3">
+            <input
+              type="text"
+              placeholder="Collez votre inventaire EVE ici (Ctrl+V)..."
+              class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+            />
+            <button class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium">
+              Mettre à jour
+            </button>
+            <button class="px-4 py-2 text-red-400 hover:bg-red-500/10 border border-red-500/30 rounded-lg text-sm">
+              Effacer
+            </button>
+          </div>
+        </div>
+
+        <!-- Liste unifiée -->
+        <div class="p-6">
+          <table class="w-full">
+            <thead>
+              <tr class="text-xs text-slate-500 uppercase tracking-wider">
+                <th class="text-left pb-3 pl-2">Matériau</th>
+                <th class="text-right pb-3 w-28">Requis</th>
+                <th class="text-right pb-3 w-32">En stock</th>
+                <th class="text-right pb-3 w-28">Manquant</th>
+                <th class="text-right pb-3 w-24">Action</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800">
+              <!-- Item complet -->
+              <tr class="hover:bg-slate-800/50">
+                <td class="py-3 pl-2">
+                  <div class="flex items-center gap-3">
+                    <div class="w-1 h-8 rounded bg-emerald-400"></div>
+                    <div class="w-8 h-8 bg-slate-700 rounded"></div>
+                    <span class="font-medium">Tritanium</span>
+                  </div>
+                </td>
+                <td class="text-right font-mono text-slate-400">1,000,000</td>
+                <td class="text-right">
+                  <input type="text" value="1,250,000" class="w-28 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-right font-mono text-emerald-400 focus:outline-none focus:border-cyan-500" />
+                </td>
+                <td class="text-right font-mono text-slate-500">—</td>
+                <td class="text-right">
+                  <span class="text-emerald-400 text-sm">✓ OK</span>
+                </td>
+              </tr>
+              <!-- Item partiel -->
+              <tr class="hover:bg-slate-800/50">
+                <td class="py-3 pl-2">
+                  <div class="flex items-center gap-3">
+                    <div class="w-1 h-8 rounded bg-amber-400"></div>
+                    <div class="w-8 h-8 bg-slate-700 rounded"></div>
+                    <span class="font-medium">Pyerite</span>
+                  </div>
+                </td>
+                <td class="text-right font-mono text-slate-400">500,000</td>
+                <td class="text-right">
+                  <input type="text" value="325,000" class="w-28 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-right font-mono text-amber-400 focus:outline-none focus:border-cyan-500" />
+                </td>
+                <td class="text-right font-mono text-red-400">-175,000</td>
+                <td class="text-right">
+                  <button class="px-2 py-1 text-xs bg-cyan-600/20 text-cyan-400 rounded hover:bg-cyan-600/30">Acheter</button>
+                </td>
+              </tr>
+              <!-- Item manquant -->
+              <tr class="hover:bg-slate-800/50">
+                <td class="py-3 pl-2">
+                  <div class="flex items-center gap-3">
+                    <div class="w-1 h-8 rounded bg-red-400"></div>
+                    <div class="w-8 h-8 bg-slate-700 rounded"></div>
+                    <span class="font-medium">Megacyte</span>
+                  </div>
+                </td>
+                <td class="text-right font-mono text-slate-400">500</td>
+                <td class="text-right">
+                  <input type="text" value="0" class="w-28 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-right font-mono text-slate-500 focus:outline-none focus:border-cyan-500" />
+                </td>
+                <td class="text-right font-mono text-red-400">-500</td>
+                <td class="text-right">
+                  <button class="px-2 py-1 text-xs bg-cyan-600/20 text-cyan-400 rounded hover:bg-cyan-600/30">Acheter</button>
+                </td>
+              </tr>
+              <!-- Item complet -->
+              <tr class="hover:bg-slate-800/50">
+                <td class="py-3 pl-2">
+                  <div class="flex items-center gap-3">
+                    <div class="w-1 h-8 rounded bg-emerald-400"></div>
+                    <div class="w-8 h-8 bg-slate-700 rounded"></div>
+                    <span class="font-medium">Isogen</span>
+                  </div>
+                </td>
+                <td class="text-right font-mono text-slate-400">75,000</td>
+                <td class="text-right">
+                  <input type="text" value="85,000" class="w-28 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-right font-mono text-emerald-400 focus:outline-none focus:border-cyan-500" />
+                </td>
+                <td class="text-right font-mono text-slate-500">—</td>
+                <td class="text-right">
+                  <span class="text-emerald-400 text-sm">✓ OK</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Footer avec résumé -->
+        <div class="px-6 py-4 border-t border-slate-800 bg-slate-800/30 flex items-center justify-between">
+          <div class="flex items-center gap-6 text-sm">
+            <span class="text-slate-400">Coût manquant: <span class="font-mono text-amber-400">245.8M ISK</span></span>
+            <span class="text-slate-400">Complétion: <span class="font-mono text-cyan-400">58%</span></span>
+          </div>
+          <button class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm font-medium">
+            Appliquer comme coût matériaux
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================
+         PROPOSAL 2: SIDE BY SIDE WITH SYNC
+         Deux colonnes synchronisées
+         ============================================ -->
+    <div class="proposal-section rounded-xl p-6 mb-12">
+      <div class="mb-6">
+        <span class="text-cyan-400 text-sm font-mono">PROPOSITION 2</span>
+        <h2 class="text-xl font-semibold text-white">Côte à Côte Synchronisé</h2>
+        <p class="text-slate-400 text-sm mt-1">
+          Deux panneaux côte à côte : Shopping List (lecture) | Mon Stock (édition).
+          Les lignes sont alignées pour comparaison visuelle directe.
+        </p>
+      </div>
+
+      <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+        <!-- Header commun -->
+        <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <div class="flex items-center gap-4 text-sm">
+              <div class="flex items-center gap-2 px-3 py-1.5 bg-emerald-900/30 border border-emerald-500/30 rounded-full">
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span class="text-emerald-400">4 complets</span>
+              </div>
+              <div class="flex items-center gap-2 px-3 py-1.5 bg-amber-900/30 border border-amber-500/30 rounded-full">
+                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                <span class="text-amber-400">3 partiels</span>
+              </div>
+              <div class="flex items-center gap-2 px-3 py-1.5 bg-red-900/30 border border-red-500/30 rounded-full">
+                <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                <span class="text-red-400">5 manquants</span>
+              </div>
+            </div>
+          </div>
+          <div class="text-sm text-slate-400">
+            Complétion: <span class="font-mono text-cyan-400">58%</span>
+          </div>
+        </div>
+
+        <!-- Deux colonnes -->
+        <div class="grid grid-cols-2 divide-x divide-slate-800">
+          <!-- Colonne gauche: Liste des courses (read-only) -->
+          <div class="p-4">
+            <div class="flex items-center justify-between mb-4">
+              <h4 class="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                Liste des courses
+              </h4>
+              <span class="text-xs text-slate-500">Jita 4-4</span>
+            </div>
+
+            <div class="space-y-2">
+              <div class="flex items-center justify-between px-3 py-2 rounded bg-emerald-900/10 border-l-2 border-emerald-400">
+                <div class="flex items-center gap-3">
+                  <div class="w-6 h-6 bg-slate-700 rounded"></div>
+                  <span class="text-sm">Tritanium</span>
+                </div>
+                <span class="font-mono text-sm text-slate-400">1,000,000</span>
+              </div>
+              <div class="flex items-center justify-between px-3 py-2 rounded bg-amber-900/10 border-l-2 border-amber-400">
+                <div class="flex items-center gap-3">
+                  <div class="w-6 h-6 bg-slate-700 rounded"></div>
+                  <span class="text-sm">Pyerite</span>
+                </div>
+                <span class="font-mono text-sm text-slate-400">500,000</span>
+              </div>
+              <div class="flex items-center justify-between px-3 py-2 rounded bg-red-900/10 border-l-2 border-red-400">
+                <div class="flex items-center gap-3">
+                  <div class="w-6 h-6 bg-slate-700 rounded"></div>
+                  <span class="text-sm">Megacyte</span>
+                </div>
+                <span class="font-mono text-sm text-slate-400">500</span>
+              </div>
+              <div class="flex items-center justify-between px-3 py-2 rounded bg-emerald-900/10 border-l-2 border-emerald-400">
+                <div class="flex items-center gap-3">
+                  <div class="w-6 h-6 bg-slate-700 rounded"></div>
+                  <span class="text-sm">Isogen</span>
+                </div>
+                <span class="font-mono text-sm text-slate-400">75,000</span>
+              </div>
+              <div class="flex items-center justify-between px-3 py-2 rounded bg-red-900/10 border-l-2 border-red-400">
+                <div class="flex items-center gap-3">
+                  <div class="w-6 h-6 bg-slate-700 rounded"></div>
+                  <span class="text-sm">Zydrine</span>
+                </div>
+                <span class="font-mono text-sm text-slate-400">1,200</span>
+              </div>
+            </div>
+
+            <div class="mt-4 pt-4 border-t border-slate-800">
+              <div class="flex items-center justify-between text-sm">
+                <span class="text-slate-400">Total à acheter:</span>
+                <span class="font-mono text-amber-400">245.8M ISK</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Colonne droite: Mon stock (éditable) -->
+          <div class="p-4">
+            <div class="flex items-center justify-between mb-4">
+              <h4 class="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+                Mon stock
+              </h4>
+              <button class="text-xs text-red-400 hover:text-red-300">Effacer</button>
+            </div>
+
+            <div class="space-y-2">
+              <div class="flex items-center justify-between px-3 py-2 rounded bg-slate-800/50">
+                <span class="text-sm text-slate-300">Tritanium</span>
+                <div class="flex items-center gap-2">
+                  <input type="text" value="1,250,000" class="w-24 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-right text-sm font-mono text-emerald-400 focus:outline-none focus:border-cyan-500" />
+                  <span class="text-emerald-400">✓</span>
+                </div>
+              </div>
+              <div class="flex items-center justify-between px-3 py-2 rounded bg-slate-800/50">
+                <span class="text-sm text-slate-300">Pyerite</span>
+                <div class="flex items-center gap-2">
+                  <input type="text" value="325,000" class="w-24 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-right text-sm font-mono text-amber-400 focus:outline-none focus:border-cyan-500" />
+                  <span class="text-amber-400">◐</span>
+                </div>
+              </div>
+              <div class="flex items-center justify-between px-3 py-2 rounded bg-slate-800/50">
+                <span class="text-sm text-slate-300">Megacyte</span>
+                <div class="flex items-center gap-2">
+                  <input type="text" value="0" class="w-24 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-right text-sm font-mono text-slate-500 focus:outline-none focus:border-cyan-500" />
+                  <span class="text-red-400">✗</span>
+                </div>
+              </div>
+              <div class="flex items-center justify-between px-3 py-2 rounded bg-slate-800/50">
+                <span class="text-sm text-slate-300">Isogen</span>
+                <div class="flex items-center gap-2">
+                  <input type="text" value="85,000" class="w-24 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-right text-sm font-mono text-emerald-400 focus:outline-none focus:border-cyan-500" />
+                  <span class="text-emerald-400">✓</span>
+                </div>
+              </div>
+              <div class="flex items-center justify-between px-3 py-2 rounded bg-slate-800/50">
+                <span class="text-sm text-slate-300">Zydrine</span>
+                <div class="flex items-center gap-2">
+                  <input type="text" value="0" class="w-24 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-right text-sm font-mono text-slate-500 focus:outline-none focus:border-cyan-500" />
+                  <span class="text-red-400">✗</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Zone de paste -->
+            <div class="mt-4 pt-4 border-t border-slate-800">
+              <textarea
+                placeholder="Collez votre inventaire EVE ici..."
+                class="w-full h-20 bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm font-mono text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+              ></textarea>
+              <button class="mt-2 w-full px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium">
+                Mettre à jour le stock
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================
+         PROPOSAL 3: WORKFLOW STEPS
+         Flux guidé en étapes
+         ============================================ -->
+    <div class="proposal-section rounded-xl p-6 mb-12">
+      <div class="mb-6">
+        <span class="text-cyan-400 text-sm font-mono">PROPOSITION 3</span>
+        <h2 class="text-xl font-semibold text-white">Flux par Étapes</h2>
+        <p class="text-slate-400 text-sm mt-1">
+          Workflow guidé : 1. Coller le stock → 2. Voir ce qui manque → 3. Acheter.
+          Focus sur une seule action à la fois.
+        </p>
+      </div>
+
+      <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+        <!-- Steps indicator -->
+        <div class="px-6 py-4 border-b border-slate-800 bg-slate-800/30">
+          <div class="flex items-center justify-center gap-4">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-full bg-cyan-600 flex items-center justify-center text-sm font-bold">1</div>
+              <span class="text-sm text-cyan-400 font-medium">Importer stock</span>
+            </div>
+            <div class="w-16 h-0.5 bg-slate-700"></div>
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold text-slate-400">2</div>
+              <span class="text-sm text-slate-400">Analyser</span>
+            </div>
+            <div class="w-16 h-0.5 bg-slate-700"></div>
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold text-slate-400">3</div>
+              <span class="text-sm text-slate-400">Acheter</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 1 Content: Import -->
+        <div class="p-6">
+          <div class="max-w-2xl mx-auto">
+            <div class="text-center mb-6">
+              <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-cyan-600/20 mb-4">
+                <svg class="w-8 h-8 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h3 class="text-lg font-semibold mb-2">Importez votre inventaire</h3>
+              <p class="text-slate-400 text-sm">
+                Dans EVE: ouvrez votre hangar → Ctrl+A → Ctrl+C → Collez ci-dessous
+              </p>
+            </div>
+
+            <textarea
+              placeholder="Tritanium    1,250,000
+Pyerite      325,000
+Isogen       85,000
+..."
+              class="w-full h-40 bg-slate-800 border-2 border-dashed border-slate-600 rounded-xl p-4 text-sm font-mono text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-500 resize-none"
+            ></textarea>
+
+            <div class="flex items-center justify-between mt-4">
+              <div class="text-sm text-slate-500">
+                <span class="text-cyan-400">Astuce:</span> Vous pouvez aussi coller depuis une liste copiée d'un contrat
+              </div>
+              <button class="px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white font-medium flex items-center gap-2">
+                Analyser
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Aperçu Step 2: Résultats (collapsed preview) -->
+        <div class="border-t border-slate-800 bg-slate-800/20">
+          <div class="px-6 py-3 flex items-center justify-between text-sm text-slate-400">
+            <span>Étape suivante: Analyse des matériaux manquants</span>
+            <span class="text-slate-500">→</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Version Step 2 déployée (pour montrer) -->
+      <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden mt-4">
+        <div class="px-6 py-4 border-b border-slate-800 bg-slate-800/30">
+          <div class="flex items-center justify-center gap-4">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-bold">✓</div>
+              <span class="text-sm text-emerald-400 font-medium">Stock importé</span>
+            </div>
+            <div class="w-16 h-0.5 bg-cyan-600"></div>
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-full bg-cyan-600 flex items-center justify-center text-sm font-bold">2</div>
+              <span class="text-sm text-cyan-400 font-medium">Analyser</span>
+            </div>
+            <div class="w-16 h-0.5 bg-slate-700"></div>
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold text-slate-400">3</div>
+              <span class="text-sm text-slate-400">Acheter</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-6">
+          <!-- Résumé visuel -->
+          <div class="grid grid-cols-3 gap-4 mb-6">
+            <div class="bg-emerald-900/20 border border-emerald-500/30 rounded-xl p-4 text-center">
+              <p class="text-3xl font-bold text-emerald-400">4</p>
+              <p class="text-sm text-emerald-300/70">Prêts</p>
+            </div>
+            <div class="bg-amber-900/20 border border-amber-500/30 rounded-xl p-4 text-center">
+              <p class="text-3xl font-bold text-amber-400">3</p>
+              <p class="text-sm text-amber-300/70">Partiels</p>
+            </div>
+            <div class="bg-red-900/20 border border-red-500/30 rounded-xl p-4 text-center">
+              <p class="text-3xl font-bold text-red-400">5</p>
+              <p class="text-sm text-red-300/70">Manquants</p>
+            </div>
+          </div>
+
+          <!-- Liste filtrée: seulement les manquants -->
+          <div class="mb-4 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <button class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-sm">Tous</button>
+              <button class="px-3 py-1.5 bg-red-600/20 text-red-400 border border-red-500/30 rounded-lg text-sm font-medium">Manquants (8)</button>
+              <button class="px-3 py-1.5 bg-slate-800 text-slate-400 rounded-lg text-sm">Complets (4)</button>
+            </div>
+            <span class="text-sm text-slate-400">Coût total: <span class="font-mono text-amber-400">245.8M ISK</span></span>
+          </div>
+
+          <div class="space-y-2 max-h-64 overflow-y-auto">
+            <div class="flex items-center justify-between px-4 py-3 rounded-lg bg-red-900/10 border border-red-500/20">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-slate-700 rounded"></div>
+                <div>
+                  <div class="font-medium">Megacyte</div>
+                  <div class="text-xs text-slate-400">Besoin: 500 · En stock: 0</div>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="font-mono text-red-400">-500</div>
+                <div class="text-xs text-slate-500">≈ 2.5M ISK</div>
+              </div>
+            </div>
+            <div class="flex items-center justify-between px-4 py-3 rounded-lg bg-amber-900/10 border border-amber-500/20">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-slate-700 rounded"></div>
+                <div>
+                  <div class="font-medium">Pyerite</div>
+                  <div class="text-xs text-slate-400">Besoin: 500,000 · En stock: 325,000</div>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="font-mono text-amber-400">-175,000</div>
+                <div class="text-xs text-slate-500">≈ 1.2M ISK</div>
+              </div>
+            </div>
+            <div class="flex items-center justify-between px-4 py-3 rounded-lg bg-red-900/10 border border-red-500/20">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-slate-700 rounded"></div>
+                <div>
+                  <div class="font-medium">Zydrine</div>
+                  <div class="text-xs text-slate-400">Besoin: 1,200 · En stock: 0</div>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="font-mono text-red-400">-1,200</div>
+                <div class="text-xs text-slate-500">≈ 1.8M ISK</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between mt-6 pt-4 border-t border-slate-800">
+            <button class="px-4 py-2 text-slate-400 hover:text-slate-200">
+              ← Modifier le stock
+            </button>
+            <button class="px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white font-medium flex items-center gap-2">
+              Voir où acheter
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================
+         PROPOSAL 4: COMPACT ACCORDION
+         Sections repliables pour économiser l'espace
+         ============================================ -->
+    <div class="proposal-section rounded-xl p-6 mb-12">
+      <div class="mb-6">
+        <span class="text-cyan-400 text-sm font-mono">PROPOSITION 4</span>
+        <h2 class="text-xl font-semibold text-white">Accordion Compact</h2>
+        <p class="text-slate-400 text-sm mt-1">
+          Sections repliables par statut. Affiche d'abord les manquants (ouverts),
+          les complets sont repliés. Parfait pour les longues listes.
+        </p>
+      </div>
+
+      <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+        <!-- Header avec paste compact -->
+        <div class="px-6 py-4 border-b border-slate-800 flex items-center gap-4">
+          <input
+            type="text"
+            placeholder="Collez votre inventaire EVE..."
+            class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+          />
+          <button class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium whitespace-nowrap">
+            Mettre à jour
+          </button>
+        </div>
+
+        <div class="p-4 space-y-3">
+          <!-- Section: Manquants (ouverte) -->
+          <details open class="group">
+            <summary class="flex items-center justify-between px-4 py-3 bg-red-900/20 border border-red-500/30 rounded-lg cursor-pointer hover:bg-red-900/30 list-none">
+              <div class="flex items-center gap-3">
+                <svg class="w-4 h-4 text-red-400 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+                <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                <span class="font-medium text-red-300">Manquants</span>
+                <span class="text-red-400/70 text-sm">(5 items)</span>
+              </div>
+              <span class="font-mono text-sm text-red-400">-245.8M ISK</span>
+            </summary>
+            <div class="mt-2 ml-4 space-y-1">
+              <div class="flex items-center justify-between px-4 py-2 rounded bg-slate-800/50">
+                <div class="flex items-center gap-3">
+                  <div class="w-6 h-6 bg-slate-700 rounded"></div>
+                  <span class="text-sm">Megacyte</span>
+                </div>
+                <div class="flex items-center gap-4">
+                  <span class="text-xs text-slate-500">0 / 500</span>
+                  <span class="font-mono text-sm text-red-400 w-20 text-right">-500</span>
+                  <input type="number" value="0" class="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm font-mono text-right focus:outline-none focus:border-cyan-500" />
+                </div>
+              </div>
+              <div class="flex items-center justify-between px-4 py-2 rounded bg-slate-800/50">
+                <div class="flex items-center gap-3">
+                  <div class="w-6 h-6 bg-slate-700 rounded"></div>
+                  <span class="text-sm">Zydrine</span>
+                </div>
+                <div class="flex items-center gap-4">
+                  <span class="text-xs text-slate-500">0 / 1,200</span>
+                  <span class="font-mono text-sm text-red-400 w-20 text-right">-1,200</span>
+                  <input type="number" value="0" class="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm font-mono text-right focus:outline-none focus:border-cyan-500" />
+                </div>
+              </div>
+              <div class="flex items-center justify-between px-4 py-2 rounded bg-slate-800/50">
+                <div class="flex items-center gap-3">
+                  <div class="w-6 h-6 bg-slate-700 rounded"></div>
+                  <span class="text-sm">Nocxium</span>
+                </div>
+                <div class="flex items-center gap-4">
+                  <span class="text-xs text-slate-500">0 / 2,500</span>
+                  <span class="font-mono text-sm text-red-400 w-20 text-right">-2,500</span>
+                  <input type="number" value="0" class="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm font-mono text-right focus:outline-none focus:border-cyan-500" />
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <!-- Section: Partiels (ouverte) -->
+          <details open class="group">
+            <summary class="flex items-center justify-between px-4 py-3 bg-amber-900/20 border border-amber-500/30 rounded-lg cursor-pointer hover:bg-amber-900/30 list-none">
+              <div class="flex items-center gap-3">
+                <svg class="w-4 h-4 text-amber-400 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                <span class="font-medium text-amber-300">Partiels</span>
+                <span class="text-amber-400/70 text-sm">(3 items)</span>
+              </div>
+              <span class="font-mono text-sm text-amber-400">65% complété</span>
+            </summary>
+            <div class="mt-2 ml-4 space-y-1">
+              <div class="flex items-center justify-between px-4 py-2 rounded bg-slate-800/50">
+                <div class="flex items-center gap-3">
+                  <div class="w-6 h-6 bg-slate-700 rounded"></div>
+                  <span class="text-sm">Pyerite</span>
+                </div>
+                <div class="flex items-center gap-4">
+                  <span class="text-xs text-slate-500">325k / 500k</span>
+                  <span class="font-mono text-sm text-amber-400 w-20 text-right">-175,000</span>
+                  <input type="number" value="325000" class="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm font-mono text-right focus:outline-none focus:border-cyan-500" />
+                </div>
+              </div>
+              <div class="flex items-center justify-between px-4 py-2 rounded bg-slate-800/50">
+                <div class="flex items-center gap-3">
+                  <div class="w-6 h-6 bg-slate-700 rounded"></div>
+                  <span class="text-sm">Morphite</span>
+                </div>
+                <div class="flex items-center gap-4">
+                  <span class="text-xs text-slate-500">80 / 200</span>
+                  <span class="font-mono text-sm text-amber-400 w-20 text-right">-120</span>
+                  <input type="number" value="80" class="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm font-mono text-right focus:outline-none focus:border-cyan-500" />
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <!-- Section: Complets (fermée) -->
+          <details class="group">
+            <summary class="flex items-center justify-between px-4 py-3 bg-emerald-900/20 border border-emerald-500/30 rounded-lg cursor-pointer hover:bg-emerald-900/30 list-none">
+              <div class="flex items-center gap-3">
+                <svg class="w-4 h-4 text-emerald-400 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span class="font-medium text-emerald-300">Complets</span>
+                <span class="text-emerald-400/70 text-sm">(4 items)</span>
+              </div>
+              <span class="font-mono text-sm text-emerald-400">✓ Prêt</span>
+            </summary>
+            <div class="mt-2 ml-4 space-y-1">
+              <div class="flex items-center justify-between px-4 py-2 rounded bg-slate-800/50">
+                <div class="flex items-center gap-3">
+                  <div class="w-6 h-6 bg-slate-700 rounded"></div>
+                  <span class="text-sm">Tritanium</span>
+                </div>
+                <div class="flex items-center gap-4">
+                  <span class="text-xs text-slate-500">1.25M / 1M</span>
+                  <span class="font-mono text-sm text-emerald-400 w-20 text-right">+250,000</span>
+                  <input type="number" value="1250000" class="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm font-mono text-right focus:outline-none focus:border-cyan-500" />
+                </div>
+              </div>
+              <div class="flex items-center justify-between px-4 py-2 rounded bg-slate-800/50">
+                <div class="flex items-center gap-3">
+                  <div class="w-6 h-6 bg-slate-700 rounded"></div>
+                  <span class="text-sm">Isogen</span>
+                </div>
+                <div class="flex items-center gap-4">
+                  <span class="text-xs text-slate-500">85k / 75k</span>
+                  <span class="font-mono text-sm text-emerald-400 w-20 text-right">+10,000</span>
+                  <input type="number" value="85000" class="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm font-mono text-right focus:outline-none focus:border-cyan-500" />
+                </div>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-6 py-4 border-t border-slate-800 bg-slate-800/30 flex items-center justify-between">
+          <span class="text-sm text-slate-400">
+            12 matériaux · Complétion <span class="font-mono text-cyan-400">58%</span>
+          </span>
+          <button class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm font-medium">
+            Appliquer coût matériaux
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Note de fin -->
+    <div class="text-center text-slate-500 text-sm pb-8">
+      <p>Ces 4 propositions utilisent la même charte graphique mais avec des UX différentes.</p>
+      <p class="mt-1">Proposition préférée ? On peut aussi mixer des éléments de plusieurs.</p>
+    </div>
+
+  </div>
+</body>
+</html>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { authFetch } from '@/services/api'
+import { authFetch, safeJsonParse } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useFormatters } from '@/composables/useFormatters'
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -91,8 +91,8 @@ async function fetchCharacters() {
       throw new Error('Failed to fetch characters')
     }
 
-    const data = await response.json()
-    characters.value = data.member || data['hydra:member'] || data || []
+    const data = await safeJsonParse<Character[] | { member?: Character[]; 'hydra:member'?: Character[] }>(response)
+    characters.value = Array.isArray(data) ? data : (data.member || data['hydra:member'] || [])
   } catch (e) {
     error.value = 'Failed to load characters'
     console.error(e)
@@ -111,7 +111,7 @@ async function fetchWallets() {
 
     if (!response.ok) return
 
-    const data = await response.json()
+    const data = await safeJsonParse<{ wallets?: { characterId: string; balance: number }[] }>(response)
     const map = new Map<string, number>()
     for (const w of data.wallets || []) {
       map.set(w.characterId, w.balance)
@@ -132,7 +132,7 @@ async function fetchSkillQueues() {
 
     if (!response.ok) return
 
-    const data = await response.json()
+    const data = await safeJsonParse<{ skillQueues?: SkillQueue[] }>(response)
     const map = new Map<string, SkillQueue>()
     for (const sq of data.skillQueues || []) {
       map.set(sq.characterId, sq)
@@ -153,10 +153,10 @@ async function addCharacter() {
         'Authorization': `Bearer ${authStore.token}`,
       },
     })
-    const data = await response.json()
+    const data = await safeJsonParse<{ redirect_url?: string; state?: string }>(response)
 
     if (data.redirect_url) {
-      sessionStorage.setItem('eve_oauth_state', data.state)
+      sessionStorage.setItem('eve_oauth_state', data.state || '')
       sessionStorage.setItem('eve_oauth_action', 'add-character')
       window.location.href = data.redirect_url
     } else {
@@ -186,11 +186,13 @@ async function deleteCharacter() {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${authStore.token}`,
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({})
     })
 
     if (!response.ok) {
-      const data = await response.json()
+      const data = await safeJsonParse<{ message?: string }>(response)
       throw new Error(data.message || 'Failed to delete character')
     }
 
@@ -223,10 +225,11 @@ async function setAsMain() {
         'Authorization': `Bearer ${authStore.token}`,
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({})
     })
 
     if (!response.ok) {
-      const data = await response.json()
+      const data = await safeJsonParse<{ message?: string }>(response)
       throw new Error(data.message || 'Failed to set main character')
     }
 
@@ -257,10 +260,10 @@ async function reauthorize(character: Character) {
         'Authorization': `Bearer ${authStore.token}`,
       },
     })
-    const data = await response.json()
+    const data = await safeJsonParse<{ redirect_url?: string; state?: string }>(response)
 
     if (data.redirect_url) {
-      sessionStorage.setItem('eve_oauth_state', data.state)
+      sessionStorage.setItem('eve_oauth_state', data.state || '')
       sessionStorage.setItem('eve_oauth_action', 'reauthorize')
       sessionStorage.setItem('eve_oauth_character_id', character.id)
       window.location.href = data.redirect_url
@@ -687,7 +690,7 @@ async function reauthorize(character: Character) {
         leave-from-class="opacity-100"
         leave-to-class="opacity-0"
       >
-        <div v-if="showDeleteModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" @click.self="showDeleteModal = false">
+        <div v-if="showDeleteModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" @click.self="showDeleteModal = false" @keydown.enter="deleteCharacter" @keydown.escape="showDeleteModal = false">
           <Transition
             enter-active-class="transition-all duration-200"
             enter-from-class="opacity-0 scale-95"
@@ -746,7 +749,7 @@ async function reauthorize(character: Character) {
         leave-from-class="opacity-100"
         leave-to-class="opacity-0"
       >
-        <div v-if="showSetMainModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" @click.self="showSetMainModal = false">
+        <div v-if="showSetMainModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" @click.self="showSetMainModal = false" @keydown.enter="setAsMain" @keydown.escape="showSetMainModal = false">
           <Transition
             enter-active-class="transition-all duration-200"
             enter-from-class="opacity-0 scale-95"

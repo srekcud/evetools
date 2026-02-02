@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, nextTick } from 'vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import type { IndustryProjectStep, SimilarJob } from '@/stores/industry'
@@ -30,6 +30,7 @@ const lastAddedToStepId = ref<string | null>(null)
 const showDeleteModal = ref(false)
 const deleteStepId = ref<string | null>(null)
 const deleteStepName = ref('')
+const deleteModalRef = ref<HTMLElement | null>(null)
 
 // Watch for steps changes to expand newly created split groups
 watch(() => props.steps, (newSteps) => {
@@ -45,6 +46,48 @@ watch(() => props.steps, (newSteps) => {
 
 const { formatIsk } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
+
+// Format duration in seconds to human readable
+function formatDuration(seconds: number | null): string {
+  if (seconds === null || seconds <= 0) return '-'
+
+  const days = Math.floor(seconds / 86400)
+  const hours = Math.floor((seconds % 86400) / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+
+  if (days > 0) {
+    return `${days}j ${hours}h`
+  } else if (hours > 0) {
+    return `${hours}h ${minutes}m`
+  } else {
+    return `${minutes}m`
+  }
+}
+
+// Calculate total duration for a step (timePerRun * runs)
+function stepTotalDuration(step: IndustryProjectStep): number | null {
+  if (step.timePerRun === null) return null
+  return step.timePerRun * step.runs
+}
+
+// Calculate total duration for a split group
+function groupTotalDuration(children: IndustryProjectStep[]): number | null {
+  // For a split group, the total time is the MAX of individual step durations
+  // (they run in parallel on different characters)
+  let maxDuration = 0
+  let hasTime = false
+
+  for (const step of children) {
+    if (step.purchased || step.inStock) continue
+    const duration = stepTotalDuration(step)
+    if (duration !== null) {
+      hasTime = true
+      maxDuration = Math.max(maxDuration, duration)
+    }
+  }
+
+  return hasTime ? maxDuration : null
+}
 
 interface SplitGroup {
   splitGroupId: string
@@ -82,8 +125,9 @@ function toggleSplitGroup(splitGroupId: string) {
   }
 }
 
-// Priority for sorting: À lancer (0) > En cours (1) > Terminé (2) > Acheté (3)
+// Priority for sorting: À lancer (0) > En cours (1) > Terminé (2) > Acheté (3) > En stock (4)
 function stepStatusPriority(step: IndustryProjectStep): number {
+  if (step.inStock) return 4
   if (step.purchased) return 3
   if (step.esiJobStatus === 'delivered' || step.esiJobStatus === 'ready') return 2
   if (step.esiJobStatus === 'active') return 1
@@ -103,8 +147,8 @@ function calculateRunsBreakdown(children: IndustryProjectStep[]): { toLaunch: nu
   let completed = 0
 
   for (const step of children) {
-    if (step.purchased) {
-      // Purchased steps don't count in runs breakdown
+    if (step.purchased || step.inStock) {
+      // Purchased or in-stock steps don't count in runs breakdown
       continue
     }
     if (!step.esiJobId) {
@@ -123,22 +167,31 @@ function calculateRunsBreakdown(children: IndustryProjectStep[]): { toLaunch: nu
 }
 
 const groupedSteps = computed<StepGroup[]>(() => {
-  // Group all steps into SplitGroups (even single steps)
+  // Group all steps by product (blueprintTypeId + activityType)
+  // This ensures all steps for the same product are grouped together,
+  // regardless of whether they share a splitGroupId or not
   const splitGroupsMap = new Map<string, SplitGroup>()
 
   for (const step of props.steps) {
-    // Use splitGroupId if available, otherwise use step id as group id
-    const groupId = (step.isSplit && step.splitGroupId) ? step.splitGroupId : `single_${step.id}`
+    // Group by blueprintTypeId + activityType to merge all steps for the same product
+    const groupId = `${step.blueprintTypeId}_${step.activityType}`
 
     let splitGroup = splitGroupsMap.get(groupId)
     if (!splitGroup) {
+      // Find the totalGroupRuns from any step that has it (split steps have this info)
+      const stepsForProduct = props.steps.filter(
+        s => s.blueprintTypeId === step.blueprintTypeId && s.activityType === step.activityType
+      )
+      const totalExpected = stepsForProduct.find(s => s.totalGroupRuns)?.totalGroupRuns
+        ?? stepsForProduct.reduce((sum, s) => sum + s.runs, 0)
+
       splitGroup = {
         splitGroupId: groupId,
         productTypeName: step.productTypeName,
         productTypeId: step.productTypeId,
         activityType: step.activityType,
         depth: step.depth,
-        totalExpectedRuns: step.isSplit ? (step.totalGroupRuns ?? step.runs) : step.runs,
+        totalExpectedRuns: totalExpected,
         children: [],
         actualTotalRuns: 0,
         isValid: false,
@@ -242,7 +295,19 @@ function formatSimilarJobsWarning(similarJobs: SimilarJob[]): string {
   ).join('\n')
 }
 
+// Calculate runs covered by stock
+function getRunsCoveredByStock(step: IndustryProjectStep): number {
+  if (step.inStockQuantity <= 0 || step.runs <= 0) return 0
+  const unitsPerRun = step.quantity / step.runs
+  return Math.floor(step.inStockQuantity / unitsPerRun)
+}
+
 function stepStatusLabel(step: IndustryProjectStep): string {
+  if (step.inStock) return 'En stock'
+  if (step.inStockQuantity > 0) {
+    const runsCovered = getRunsCoveredByStock(step)
+    return runsCovered >= step.runs ? 'En stock' : `${runsCovered}/${step.runs} runs`
+  }
   if (step.purchased) return 'Acheté'
   if (step.esiJobStatus === 'active') return 'En cours'
   if (step.esiJobStatus === 'delivered' || step.esiJobStatus === 'ready') return 'Terminé'
@@ -250,6 +315,8 @@ function stepStatusLabel(step: IndustryProjectStep): string {
 }
 
 function stepStatusClass(step: IndustryProjectStep): string {
+  if (step.inStock) return 'bg-green-500/20 text-green-400'
+  if (step.inStockQuantity > 0) return 'bg-amber-500/20 text-amber-400'
   if (step.purchased) return 'bg-amber-500/20 text-amber-400'
   if (step.esiJobStatus === 'active') return 'bg-cyan-500/20 text-cyan-400'
   if (step.esiJobStatus === 'delivered' || step.esiJobStatus === 'ready') return 'bg-emerald-500/20 text-emerald-400'
@@ -282,6 +349,7 @@ function deleteStep(stepId: string, stepName: string) {
   deleteStepId.value = stepId
   deleteStepName.value = stepName
   showDeleteModal.value = true
+  nextTick(() => deleteModalRef.value?.focus())
 }
 
 function confirmDelete() {
@@ -324,19 +392,13 @@ function startAddChild(splitGroupId: string) {
   addChildRunsValue.value = 1
 }
 
-function confirmAddChild(splitGroupId: string, firstChildStepId: string) {
+function confirmAddChild(groupId: string, firstChildStepId: string) {
   if (addChildRunsValue.value >= 1) {
-    // For single steps (splitGroupId starts with 'single_'), pass the step ID
-    // For real split groups, pass the splitGroupId
-    if (splitGroupId.startsWith('single_')) {
-      // Track which step we're adding to so we can expand it after
-      lastAddedToStepId.value = firstChildStepId
-      emit('add-child-job', null, firstChildStepId, addChildRunsValue.value)
-    } else {
-      // Keep the existing split group expanded
-      expandedSplitGroups.value.add(splitGroupId)
-      emit('add-child-job', splitGroupId, null, addChildRunsValue.value)
-    }
+    // Always use the first step's ID to add a child job
+    // The backend will handle linking it to the same product group
+    lastAddedToStepId.value = firstChildStepId
+    expandedSplitGroups.value.add(groupId)
+    emit('add-child-job', null, firstChildStepId, addChildRunsValue.value)
   }
   addingChildToGroup.value = null
 }
@@ -420,11 +482,19 @@ function cancelAddChild() {
                 <span v-if="splitGroup.runsCompleted > 0" class="text-emerald-400">
                   {{ splitGroup.runsCompleted }} terminés
                 </span>
+                <!-- Duration -->
+                <span v-if="groupTotalDuration(splitGroup.children)" class="text-slate-500 flex items-center gap-1">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {{ formatDuration(groupTotalDuration(splitGroup.children)) }}
+                </span>
               </div>
             </div>
 
-            <!-- Purchased all button -->
+            <!-- Purchased all button (hidden for depth 0 - root products) -->
             <label
+              v-if="splitGroup.depth > 0"
               :class="['flex items-center gap-1.5', readonly ? 'cursor-not-allowed opacity-50' : 'cursor-pointer']"
               @click.stop
             >
@@ -524,13 +594,23 @@ function cancelAddChild() {
                   </span>
                   <span v-if="step.manualJobData" class="text-amber-400">(manuel)</span>
                 </div>
+                <!-- Duration for step -->
+                <div v-if="stepTotalDuration(step) && !step.purchased && !step.inStock" class="flex items-center gap-1 mt-1 text-xs text-slate-500">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {{ formatDuration(stepTotalDuration(step)) }}
+                  <span v-if="step.runs > 1" class="text-slate-600">({{ formatDuration(step.timePerRun) }}/run)</span>
+                </div>
               </div>
 
               <span :class="['text-xs px-2 py-1 rounded', stepStatusClass(step)]">
                 {{ stepStatusLabel(step) }}
               </span>
 
+              <!-- Purchased checkbox (hidden for depth 0 - root products, hidden if inStock) -->
               <label
+                v-if="step.depth > 0 && !step.inStock"
                 :class="['flex items-center gap-1.5', readonly ? 'cursor-not-allowed opacity-50' : 'cursor-pointer']"
                 @click.stop
               >
@@ -617,6 +697,8 @@ function cancelAddChild() {
       <div
         v-if="showDeleteModal"
         class="fixed inset-0 z-50 flex items-center justify-center"
+        @keydown.enter="confirmDelete"
+        @keydown.escape="cancelDelete"
       >
         <!-- Backdrop -->
         <div
@@ -624,7 +706,7 @@ function cancelAddChild() {
           @click="cancelDelete"
         ></div>
         <!-- Modal -->
-        <div class="relative bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+        <div class="relative bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6" tabindex="-1" ref="deleteModalRef">
           <h3 class="text-lg font-semibold text-slate-100 mb-2">Supprimer l'étape</h3>
           <p class="text-slate-400 mb-6">
             Voulez-vous vraiment supprimer l'étape <span class="text-slate-200 font-medium">"{{ deleteStepName }}"</span> ?

@@ -40,10 +40,14 @@ final readonly class SyncStructureMarketHandler
             return;
         }
 
+        // Get userId for Mercure notifications
+        $userId = $character->getUser()?->getId()?->toRfc4122();
+
         $this->structureMarketService->syncStructureMarket(
             $message->structureId,
             $message->structureName,
-            $token
+            $token,
+            $userId
         );
     }
 }

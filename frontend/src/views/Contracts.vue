@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { authFetch } from '@/services/api'
+import { authFetch, safeJsonParse } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
@@ -79,11 +79,11 @@ async function fetchContracts() {
     })
 
     if (!response.ok) {
-      const data = await response.json()
+      const data = await safeJsonParse<{ error?: string }>(response)
       throw new Error(data.error || 'Failed to fetch contracts')
     }
 
-    const data = await response.json()
+    const data = await safeJsonParse<{ contracts: Contract[] }>(response)
     contracts.value = data.contracts
   } catch (e: any) {
     error.value = e.message || 'Erreur lors du chargement des contrats'

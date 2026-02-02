@@ -38,6 +38,8 @@ const isSearchingStructures = ref(false)
 const showStructureDropdown = ref(false)
 const isLoading = ref(false)
 const isSyncing = ref(false)
+const isSharing = ref(false)
+const shareUrl = ref<string | null>(null)
 const error = ref('')
 const result = ref<ShoppingListResponse | null>(null)
 
@@ -106,6 +108,7 @@ async function parseItems() {
   isLoading.value = true
   error.value = ''
   result.value = null
+  shareUrl.value = null
 
   try {
     const response = await authFetch('/api/shopping-list/parse', {
@@ -139,6 +142,7 @@ function clear() {
   inputText.value = ''
   result.value = null
   error.value = ''
+  shareUrl.value = null
 }
 
 async function syncStructureMarket() {
@@ -169,6 +173,49 @@ async function syncStructureMarket() {
     error.value = e instanceof Error ? e.message : 'Sync failed'
   } finally {
     isSyncing.value = false
+  }
+}
+
+async function shareList() {
+  if (!result.value) return
+
+  isSharing.value = true
+  shareUrl.value = null
+
+  try {
+    const response = await authFetch('/api/shopping-list/share', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authStore.token}`,
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body: JSON.stringify({
+        items: result.value.items,
+        notFound: result.value.notFound,
+        totals: result.value.totals,
+        transportCostPerM3: result.value.transportCostPerM3,
+        structureId: result.value.structureId,
+        structureName: result.value.structureName,
+      }),
+    })
+
+    if (!response.ok) {
+      const data = await safeJsonParse<{ error?: string }>(response)
+      throw new Error(data.error || 'Failed to create share link')
+    }
+
+    const data = await safeJsonParse<{ shareUrl: string }>(response)
+    shareUrl.value = data.shareUrl
+
+    // Auto-copy to clipboard
+    if (data.shareUrl) {
+      navigator.clipboard.writeText(data.shareUrl)
+    }
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to share'
+  } finally {
+    isSharing.value = false
   }
 }
 </script>
@@ -329,7 +376,10 @@ Megacyte 100
         :structure-from-cache="result.structureFromCache"
         :structure-last-sync="result.structureLastSync"
         :is-syncing="isSyncing"
+        :is-sharing="isSharing"
+        :share-url="shareUrl"
         @sync-structure="syncStructureMarket"
+        @share="shareList"
       />
     </div>
   </MainLayout>

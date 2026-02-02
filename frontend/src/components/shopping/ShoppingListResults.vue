@@ -45,11 +45,14 @@ const props = defineProps<{
   structureFromCache?: boolean
   structureLastSync?: string | null
   isSyncing?: boolean
+  isSharing?: boolean
   readonly?: boolean
+  shareUrl?: string | null
 }>()
 
 const emit = defineEmits<{
   syncStructure: []
+  share: []
 }>()
 
 const { formatIsk, formatNumber, formatDateTime } = useFormatters()
@@ -57,6 +60,14 @@ const { getTypeIconUrl, onImageError } = useEveImages()
 
 const copiedJita = ref(false)
 const copiedStructure = ref(false)
+const copiedShareUrl = ref(false)
+
+function copyShareUrl() {
+  if (!props.shareUrl) return
+  navigator.clipboard.writeText(props.shareUrl)
+  copiedShareUrl.value = true
+  setTimeout(() => copiedShareUrl.value = false, 2000)
+}
 
 // Items to buy at Jita (where jita is best or no data for structure)
 const jitaItems = computed(() => {
@@ -116,6 +127,16 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
 
 <template>
   <div class="space-y-4">
+    <!-- Price info banner -->
+    <div class="bg-cyan-900/30 border border-cyan-500/30 rounded-lg p-3 flex items-center gap-3">
+      <svg class="w-5 h-5 text-cyan-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <p class="text-cyan-300 text-sm">
+        Les prix affiches sont les <span class="font-medium">ordres de vente les plus bas</span> (Jita Sell et {{ shortStructureName }} Sell).
+      </p>
+    </div>
+
     <!-- Not Found Items -->
     <div v-if="notFound && notFound.length > 0" class="bg-yellow-900/30 border border-yellow-500/30 rounded-xl p-4">
       <h3 class="text-yellow-400 font-medium mb-2">Items non trouves ({{ notFound.length }})</h3>
@@ -129,9 +150,9 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
       {{ priceError }}
     </div>
 
-    <!-- Structure not accessible warning -->
+    <!-- Structure not accessible warning (only show when not readonly) -->
     <div
-      v-if="structureAccessible === false && !priceError"
+      v-if="structureAccessible === false && !priceError && !readonly"
       class="bg-amber-900/30 border border-amber-500/50 rounded-lg p-3"
     >
       <div class="flex items-center justify-between gap-3">
@@ -224,6 +245,40 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
           </svg>
           {{ copiedStructure ? 'Copie !' : `Copier ${shortStructureName} (${structureItems.length})` }}
+        </button>
+
+        <div class="flex-1"></div>
+
+        <!-- Share button -->
+        <button
+          v-if="!readonly && !shareUrl"
+          @click="emit('share')"
+          :disabled="isSharing"
+          class="flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white text-sm font-medium transition-colors"
+        >
+          <svg v-if="isSharing" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+          </svg>
+          {{ isSharing ? 'Creation...' : 'Partager' }}
+        </button>
+
+        <!-- Copy share URL button (shown after sharing) -->
+        <button
+          v-if="shareUrl"
+          @click="copyShareUrl"
+          class="flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-600 rounded-lg text-white text-sm font-medium transition-colors"
+        >
+          <svg v-if="!copiedShareUrl" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+          <svg v-else class="w-4 h-4 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          {{ copiedShareUrl ? 'Lien copie !' : 'Copier le lien' }}
         </button>
       </div>
     </div>

@@ -3,6 +3,38 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.2 (2026-02-02)
+--------------------------------------------------------------------------------
+
+### Architecture
+- Migration complete vers API Platform (State Providers/Processors)
+- Suppression des anciens controleurs API Symfony
+
+### Temps reel (Mercure)
+- Notifications en temps reel des synchronisations via Server-Sent Events
+- Barre de progression pour les syncs longues (market, assets)
+- Indicateur de statut de synchronisation dans l'interface
+
+### Industrie
+- Suivi du Time Efficiency (TE) pour les blueprints intermediaires
+- Tracking partiel du stock (in_stock_quantity) pour les composants
+- Arbre de production hierarchique (vue alternative)
+- Cascade automatique du stock vers les sous-composants
+- Seed des definitions de rigs depuis le SDE
+
+### Listes de courses
+- Partage de listes de courses via lien public (expire apres 1 semaine)
+- Vue publique accessible sans authentification
+
+### PVE
+- Integration des projets corporation dans la detection du loot
+- Verification automatique des contributions aux projets corpo
+
+### Corrections
+- Fix: erreur "Cannot access parentChildrenMap before initialization"
+- Suppression des logs de debug OAuth
+
+--------------------------------------------------------------------------------
 Version 0.1.2 (2026-01-31)
 --------------------------------------------------------------------------------
 

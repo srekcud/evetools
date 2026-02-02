@@ -11,6 +11,11 @@ const emit = defineEmits<{
 const store = useIndustryStore()
 const { formatIsk } = useFormatters()
 
+// Helper to clean type names (remove BPC suffix if present)
+function cleanTypeName(name: string): string {
+  return name.replace(/\s*\(BPC\)\s*$/i, '').trim()
+}
+
 // Inline editing state
 const editingCell = ref<{ id: string; field: string } | null>(null)
 const editValue = ref<string>('')
@@ -90,6 +95,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
           <th class="text-left py-3 px-3">Produit</th>
           <th class="text-left py-3 px-2">Runs</th>
           <th class="text-left py-3 px-2">ME</th>
+          <th class="text-left py-3 px-2">TE</th>
           <th class="text-center py-3 px-2">Perso</th>
           <th class="text-right py-3 px-2">BPC Kit</th>
           <th class="text-right py-3 px-2">Matériaux</th>
@@ -113,40 +119,66 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
           <td class="py-3 px-3">
             <button
               @click="emit('view-project', project.id)"
-              class="text-cyan-400 hover:text-cyan-300 font-medium"
+              class="text-cyan-400 hover:text-cyan-300 font-medium text-left flex items-center gap-2"
             >
-              {{ project.productTypeName }}
+              <!-- Multi-product indicator -->
+              <template v-if="project.rootProducts && project.rootProducts.length > 1">
+                <span class="inline-flex items-center justify-center w-5 h-5 text-xs bg-cyan-500/20 text-cyan-400 rounded-full">
+                  {{ project.rootProducts.length }}
+                </span>
+                <span>{{ project.displayName }}</span>
+              </template>
+              <!-- Single product -->
+              <template v-else>
+                <span>{{ project.displayName }}</span>
+                <span v-if="project.name" class="text-slate-500 text-xs">({{ project.productTypeName }})</span>
+              </template>
             </button>
+            <!-- Product list tooltip for multi-product -->
+            <div v-if="project.rootProducts && project.rootProducts.length > 1" class="text-xs text-slate-500 mt-0.5 pl-7">
+              {{ project.rootProducts.map(p => {
+                const me = p.meLevel ?? project.meLevel
+                return `${cleanTypeName(p.typeName)} ×${p.runs} (ME${me})`
+              }).join(', ') }}
+            </div>
           </td>
 
-          <!-- Runs (editable if not completed) -->
+          <!-- Runs (editable if not completed, or show 'Multi' for multi-product) -->
           <td class="py-3 px-2">
-            <input
-              v-if="isEditing(project.id, 'runs')"
-              v-model="editValue"
-              type="number"
-              min="1"
-              class="w-16 bg-slate-700 border border-cyan-500 rounded px-2 py-1 text-sm focus:outline-none"
-              @keydown.enter="saveEdit(project)"
-              @keydown.escape="cancelEdit"
-              @blur="saveEdit(project)"
-              autofocus
-            />
-            <span
-              v-else
-              @dblclick="startEdit(project, 'runs')"
-              :class="[
-                'text-slate-300',
-                project.status !== 'completed' ? 'cursor-pointer hover:text-cyan-400' : ''
-              ]"
-              :title="project.status !== 'completed' ? 'Double-cliquer pour modifier' : 'Projet terminé'"
-            >
-              {{ project.runs }}
-            </span>
+            <template v-if="project.rootProducts && project.rootProducts.length > 1">
+              <span class="text-slate-500 text-xs" title="Plusieurs produits">Multi</span>
+            </template>
+            <template v-else>
+              <input
+                v-if="isEditing(project.id, 'runs')"
+                v-model="editValue"
+                type="number"
+                min="1"
+                class="w-16 bg-slate-700 border border-cyan-500 rounded px-2 py-1 text-sm focus:outline-none"
+                @keydown.enter="saveEdit(project)"
+                @keydown.escape="cancelEdit"
+                @blur="saveEdit(project)"
+                autofocus
+              />
+              <span
+                v-else
+                @dblclick="startEdit(project, 'runs')"
+                :class="[
+                  'text-slate-300',
+                  project.status !== 'completed' ? 'cursor-pointer hover:text-cyan-400' : ''
+                ]"
+                :title="project.status !== 'completed' ? 'Double-cliquer pour modifier' : 'Projet terminé'"
+              >
+                {{ project.runs }}
+              </span>
+            </template>
           </td>
 
           <!-- ME -->
           <td class="py-3 px-2 text-slate-300">{{ project.meLevel }}</td>
+
+          <!-- TE -->
+          <td class="py-3 px-2 text-slate-300">{{ project.teLevel }}</td>
 
           <!-- Personal Use toggle -->
           <td class="py-3 px-2 text-center">
@@ -243,7 +275,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
 
             <!-- Profit % -->
             <td class="py-3 px-2 text-right font-mono" :class="profitClass(project.profitPercent)">
-              {{ project.profitPercent !== null ? `${project.profitPercent}%` : '-' }}
+              {{ project.profitPercent != null ? `${project.profitPercent}%` : '-' }}
             </td>
           </template>
 
@@ -299,7 +331,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
       <!-- Total row -->
       <tfoot v-if="store.projects.length > 0">
         <tr class="border-t border-slate-600 font-semibold text-slate-200">
-          <td colspan="10" class="py-3 px-3 text-right">Total Profit</td>
+          <td colspan="11" class="py-3 px-3 text-right">Total Profit</td>
           <td class="py-3 px-2 text-right font-mono" :class="profitClass(store.totalProfit)">
             {{ formatValue(store.totalProfit) }}
           </td>

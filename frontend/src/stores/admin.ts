@@ -173,6 +173,7 @@ export const useAdminStore = defineStore('admin', () => {
     try {
       const response = await apiRequest<{ success: boolean; message: string }>(`/admin/actions/${action}`, {
         method: 'POST',
+        body: JSON.stringify({}),
       })
       return response
     } catch (e) {

@@ -1,6 +1,66 @@
 import type { User, Character, AssetsResponse } from '@/types'
 import router from '@/router'
 import { useRateLimitStore } from '@/stores/rateLimit'
+import { parseApiResponse } from '@/utils/jsonld'
+
+/**
+ * API Platform validation error structure
+ */
+export interface ApiValidationViolation {
+  propertyPath: string
+  message: string
+  code?: string
+}
+
+export interface ApiValidationError {
+  '@type': 'ConstraintViolationList'
+  status: number
+  violations: ApiValidationViolation[]
+  description: string
+  detail: string
+}
+
+/**
+ * Custom error class for API validation errors (422)
+ */
+export class ValidationError extends Error {
+  public readonly violations: ApiValidationViolation[]
+  public readonly status: number = 422
+
+  constructor(data: ApiValidationError) {
+    // Use description or build from violations
+    const message = data.description || data.violations.map(v => v.message).join(', ')
+    super(message)
+    this.name = 'ValidationError'
+    this.violations = data.violations || []
+  }
+
+  /**
+   * Get error message for a specific field
+   */
+  getFieldError(field: string): string | null {
+    const violation = this.violations.find(v => v.propertyPath === field)
+    return violation?.message || null
+  }
+
+  /**
+   * Get all field errors as a map
+   */
+  getFieldErrors(): Record<string, string> {
+    const errors: Record<string, string> = {}
+    for (const v of this.violations) {
+      errors[v.propertyPath] = v.message
+    }
+    return errors
+  }
+}
+
+/**
+ * Check if an error is a ValidationError
+ */
+export function isValidationError(error: unknown): error is ValidationError {
+  return error instanceof ValidationError
+}
 
 /**
  * Endpoints that make ESI API calls and should be blocked when rate limited
@@ -26,6 +86,12 @@ function isEsiEndpoint(endpoint: string): boolean {
 let isRedirectingToLogin = false
 
 /**
+ * Custom event dispatched when a 401 error requires logout.
+ * The auth store listens for this to clear its state.
+ */
+export const AUTH_LOGOUT_EVENT = 'auth:logout'
+
+/**
  * Handle 401 Unauthorized errors by clearing token and redirecting to login.
  * Uses a flag to prevent multiple concurrent redirects.
  */
@@ -35,6 +101,10 @@ export function handleUnauthorized(): void {
   }
   isRedirectingToLogin = true
   localStorage.removeItem('jwt_token')
+
+  // Dispatch event for auth store to clear its state
+  window.dispatchEvent(new CustomEvent(AUTH_LOGOUT_EVENT))
+
   router.push('/login').finally(() => {
     // Reset flag after navigation completes (or fails)
     isRedirectingToLogin = false
@@ -81,8 +151,11 @@ export async function apiRequest<T>(
   options: RequestInit = {},
 ): Promise<T> {
   const token = localStorage.getItem('jwt_token')
+  const method = options.method?.toUpperCase() || 'GET'
+  // API Platform requires application/merge-patch+json for PATCH requests
+  const contentType = method === 'PATCH' ? 'application/merge-patch+json' : 'application/json'
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    'Content-Type': contentType,
     'X-Requested-With': 'XMLHttpRequest',
     ...(options.headers as Record<string, string>),
   }
@@ -112,15 +185,27 @@ export async function apiRequest<T>(
       throw new Error('Rate limit ESI atteint. Veuillez patienter.')
     }
 
-    const errorData = await safeJsonParse<{ error?: string }>(response).catch(() => ({ error: undefined }))
+    // Handle validation errors (422) from API Platform
+    if (response.status === 422) {
+      const errorData = await safeJsonParse<ApiValidationError>(response).catch(() => null)
+      if (errorData && errorData['@type'] === 'ConstraintViolationList') {
+        throw new ValidationError(errorData)
+      }
+      // Fallback if not a proper validation error format
+      throw new Error(errorData?.description || 'Erreur de validation')
+    }
+
+    type ErrorResponse = { error?: string; description?: string; detail?: string; 'hydra:description'?: string }
+    const errorData = await safeJsonParse<ErrorResponse>(response).catch((): ErrorResponse => ({}))
 
     // Also check for rate limit in error message
-    if (errorData.error && (errorData.error.includes('rate limit') || errorData.error.includes('Rate limit') || errorData.error.includes('Error limited'))) {
+    const errorMsg = errorData?.error
+    if (errorMsg && (errorMsg.includes('rate limit') || errorMsg.includes('Rate limit') || errorMsg.includes('Error limited'))) {
       const rateLimitStore = useRateLimitStore()
       rateLimitStore.setRateLimited()
     }
 
-    throw new Error(errorData.error || `API error: ${response.status}`)
+    throw new Error(errorData?.error || errorData?.description || errorData?.detail || errorData?.['hydra:description'] || `API error: ${response.status}`)
   }
 
   if (response.status === 204) return null as T
@@ -130,13 +215,15 @@ export async function apiRequest<T>(
 /**
  * Safely parse JSON from a response that might have extra content appended
  * (e.g., Symfony debug toolbar HTML injected after JSON).
+ * Automatically handles JSON-LD responses by stripping metadata.
  */
 export async function safeJsonParse<T>(response: Response): Promise<T> {
   const text = await response.text()
+  let data: unknown
 
   // Try normal JSON parse first
   try {
-    return JSON.parse(text) as T
+    data = JSON.parse(text)
   } catch {
     // If that fails, try to extract JSON from the beginning
     // JSON objects start with { and arrays start with [
@@ -179,13 +266,19 @@ export async function safeJsonParse<T>(response: Response): Promise<T> {
         if (depth === 0) {
           // Found the end of the JSON
           const jsonStr = text.substring(0, i + 1)
-          return JSON.parse(jsonStr) as T
+          data = JSON.parse(jsonStr)
+          break
         }
       }
     }
 
-    throw new Error('Could not extract valid JSON from response')
+    if (data === undefined) {
+      throw new Error('Could not extract valid JSON from response')
+    }
   }
+
+  // Parse JSON-LD response (strip metadata, extract hydra:member for collections)
+  return parseApiResponse<T>(data)
 }
 
 class ApiService {
@@ -226,7 +319,8 @@ class ApiService {
       throw new Error(`API error: ${response.status}`)
     }
 
-    return response.json()
+    const data = await response.json()
+    return parseApiResponse<T>(data)
   }
 
   async getMe(): Promise<User> {
@@ -243,7 +337,7 @@ class ApiService {
   }
 
   async refreshCharacterAssets(characterId: string): Promise<{ status: string; message: string }> {
-    return this.request(`/me/characters/${characterId}/assets/refresh`, { method: 'POST' })
+    return this.request(`/me/characters/${characterId}/assets/refresh`, { method: 'POST', body: JSON.stringify({}) })
   }
 
   async getCorporationAssets(divisionName?: string): Promise<AssetsResponse> {
@@ -252,11 +346,11 @@ class ApiService {
   }
 
   async refreshCorporationAssets(): Promise<{ status: string; message: string }> {
-    return this.request('/me/corporation/assets/refresh', { method: 'POST' })
+    return this.request('/me/corporation/assets/refresh', { method: 'POST', body: JSON.stringify({}) })
   }
 
   async setMainCharacter(characterId: string): Promise<void> {
-    return this.request(`/me/characters/${characterId}/main`, { method: 'POST' })
+    return this.request(`/me/characters/${characterId}/set-main`, { method: 'POST', body: JSON.stringify({}) })
   }
 
   getEveLoginUrl(): string {

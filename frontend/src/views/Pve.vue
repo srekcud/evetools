@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { authFetch } from '@/services/api'
+import { authFetch, safeJsonParse } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { usePveStore } from '@/stores/pve'
 import { useFormatters } from '@/composables/useFormatters'
@@ -78,6 +78,8 @@ interface ContractScanResult {
 interface DetectedLootSale {
   transactionId: number
   contractId?: number
+  projectId?: string | null
+  projectName?: string
   type: string
   typeId: number
   typeName: string
@@ -85,7 +87,7 @@ interface DetectedLootSale {
   price: number
   dateIssued: string
   characterName: string
-  source?: 'market' | 'contract'
+  source?: 'market' | 'contract' | 'corp_project'
   selected: boolean
   needsPriceInput?: boolean  // True for 0 ISK contracts that need price input
 }
@@ -93,6 +95,7 @@ interface DetectedLootSale {
 interface LootSaleScanResult {
   scannedTransactions: number
   scannedContracts?: number
+  scannedProjects?: number
   detectedSales: DetectedLootSale[]
 }
 
@@ -166,6 +169,10 @@ const isImportingLoot = ref(false)
 const seenContractIds = ref<Set<number>>(new Set())
 const seenTransactionIds = ref<Set<number>>(new Set())
 
+// Declined counts from backend (persisted)
+const declinedContractsCount = ref(0)
+const declinedTransactionsCount = ref(0)
+
 const expenseTypes = [
   { value: 'fuel', label: 'Fuel' },
   { value: 'ammo', label: 'Consommables' },
@@ -184,7 +191,7 @@ async function fetchPveData() {
 
     if (!response.ok) throw new Error('Failed to fetch PVE data')
 
-    pveData.value = await response.json()
+    pveData.value = await safeJsonParse(response)
   } catch (e) {
     error.value = 'Erreur lors du chargement des données PVE'
     console.error(e)
@@ -202,8 +209,8 @@ async function fetchExpenses() {
     })
 
     if (response.ok) {
-      const data = await response.json()
-      expenses.value = data.expenses
+      // GetCollection returns hydra:member which parseApiResponse extracts to an array
+      expenses.value = await safeJsonParse(response)
     }
   } catch (e) {
     console.error('Failed to fetch expenses:', e)
@@ -219,11 +226,15 @@ async function syncPveData() {
   try {
     const response = await authFetch('/api/pve/sync', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${authStore.token}` }
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({})
     })
 
     if (!response.ok) {
-      const data = await response.json()
+      const data = await safeJsonParse<{ error?: string }>(response)
       throw new Error(data.error || 'Failed to sync')
     }
 
@@ -291,7 +302,11 @@ async function deleteExpense(id: string) {
   try {
     const response = await authFetch(`/api/pve/expenses/${id}`, {
       method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${authStore.token}` }
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({})
     })
 
     if (!response.ok) throw new Error('Failed to delete expense')
@@ -339,9 +354,16 @@ async function fetchAmmoSettings() {
       headers: { 'Authorization': `Bearer ${authStore.token}` }
     })
     if (response.ok) {
-      const data = await response.json()
+      const data = await safeJsonParse<{
+        ammoTypes: AmmoType[];
+        lootTypes?: AmmoType[];
+        declinedContractsCount?: number;
+        declinedTransactionsCount?: number;
+      }>(response)
       ammoTypes.value = data.ammoTypes
       lootTypes.value = data.lootTypes || []
+      declinedContractsCount.value = data.declinedContractsCount || 0
+      declinedTransactionsCount.value = data.declinedTransactionsCount || 0
     }
   } catch (e) {
     console.error('Failed to fetch ammo settings:', e)
@@ -367,10 +389,11 @@ async function searchAmmoTypes() {
       headers: { 'Authorization': `Bearer ${authStore.token}` }
     })
     if (response.ok) {
-      const data = await response.json()
+      // GetCollection returns hydra:member which parseApiResponse extracts to an array
+      const types = await safeJsonParse<AmmoType[]>(response)
       // Filter out already added ammo types
       const existingIds = ammoTypes.value.map(a => a.typeId)
-      ammoSearchResults.value = data.types.filter((t: AmmoType) => !existingIds.includes(t.typeId))
+      ammoSearchResults.value = types.filter((t: AmmoType) => !existingIds.includes(t.typeId))
     }
   } catch (e) {
     console.error('Failed to search ammo types:', e)
@@ -406,7 +429,11 @@ async function removeAmmoType(typeId: number) {
   try {
     const response = await authFetch(`/api/pve/settings/ammo/${typeId}`, {
       method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${authStore.token}` }
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({})
     })
     if (response.ok) {
       await fetchAmmoSettings()
@@ -436,10 +463,11 @@ async function searchLootTypes() {
       headers: { 'Authorization': `Bearer ${authStore.token}` }
     })
     if (response.ok) {
-      const data = await response.json()
+      // GetCollection returns hydra:member which parseApiResponse extracts to an array
+      const types = await safeJsonParse<AmmoType[]>(response)
       // Filter out already added loot types
       const existingIds = lootTypes.value.map(l => l.typeId)
-      lootSearchResults.value = data.types.filter((t: AmmoType) => !existingIds.includes(t.typeId))
+      lootSearchResults.value = types.filter((t: AmmoType) => !existingIds.includes(t.typeId))
     }
   } catch (e) {
     console.error('Failed to search loot types:', e)
@@ -475,7 +503,11 @@ async function removeLootType(typeId: number) {
   try {
     const response = await authFetch(`/api/pve/settings/loot/${typeId}`, {
       method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${authStore.token}` }
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({})
     })
     if (response.ok) {
       await fetchAmmoSettings()
@@ -493,15 +525,19 @@ async function scanContracts() {
   try {
     const response = await authFetch(`/api/pve/scan-contracts?days=${selectedDays.value}`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${authStore.token}` }
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({})
     })
 
     if (!response.ok) {
-      const data = await response.json()
+      const data = await safeJsonParse<{ error?: string }>(response)
       throw new Error(data.error || 'Failed to scan contracts')
     }
 
-    const data = await response.json()
+    const data = await safeJsonParse<ContractScanResult>(response)
     // Add selected property to each expense
     data.detectedExpenses = data.detectedExpenses.map((e: DetectedExpense) => ({ ...e, selected: true }))
     scanResults.value = data
@@ -637,7 +673,11 @@ async function deleteLootSale(id: string) {
   try {
     const response = await authFetch(`/api/pve/loot-sales/${id}`, {
       method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${authStore.token}` }
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({})
     })
 
     if (!response.ok) throw new Error('Failed to delete loot sale')
@@ -658,25 +698,33 @@ async function scanLootSales() {
     const [lootSalesResponse, lootContractsResponse] = await Promise.all([
       authFetch(`/api/pve/scan-loot-sales?days=${selectedDays.value}`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${authStore.token}` }
+        headers: {
+          'Authorization': `Bearer ${authStore.token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
       }),
       authFetch(`/api/pve/scan-loot-contracts?days=${selectedDays.value}`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${authStore.token}` }
+        headers: {
+          'Authorization': `Bearer ${authStore.token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
       })
     ])
 
     const lootSalesData = lootSalesResponse.ok ? await lootSalesResponse.json() : { detectedSales: [] }
     const lootContractsData = lootContractsResponse.ok ? await lootContractsResponse.json() : { detectedContracts: [] }
 
-    // Transform loot sales - only market transactions (contracts are handled separately)
+    // Transform loot sales - market transactions and corp projects
     const lootSales: DetectedLootSale[] = (lootSalesData.detectedSales || [])
       .filter((s: DetectedLootSale) => s.source !== 'contract') // Exclude contracts, they come from scan-loot-contracts
       .filter((s: DetectedLootSale) => !seenTransactionIds.value.has(s.transactionId))
       .map((s: DetectedLootSale) => ({
         ...s,
         selected: true,
-        needsPriceInput: false
+        needsPriceInput: s.source === 'corp_project' && s.price === 0 // Corp projects need price input
       }))
 
     // Transform loot contracts to DetectedLootSale format (filter out already seen)
@@ -718,6 +766,7 @@ async function scanLootSales() {
     lootScanResults.value = {
       scannedTransactions: lootSalesData.scannedTransactions || 0,
       scannedContracts: (lootSalesData.scannedContracts || 0) + (lootContractsData.scannedContracts || 0),
+      scannedProjects: lootSalesData.scannedProjects || 0,
       detectedSales: allSales
     }
     showLootScanResults.value = true
@@ -757,8 +806,8 @@ async function importSingleLootSale(sale: DetectedLootSale) {
 
       if (!response.ok) throw new Error('Failed to import contract')
 
-      const data = await response.json()
-      if (data.rejectedZeroPrice > 0) {
+      const data = await safeJsonParse<{ rejectedZeroPrice?: number }>(response)
+      if (data.rejectedZeroPrice && data.rejectedZeroPrice > 0) {
         error.value = 'Contrat rejeté : le prix doit être supérieur à 0 ISK'
         return
       }
@@ -766,6 +815,34 @@ async function importSingleLootSale(sale: DetectedLootSale) {
       // Add to seen and remove from list
       if (sale.contractId) {
         seenContractIds.value.add(sale.contractId)
+      }
+    } else if (sale.source === 'corp_project') {
+      // Import corp project contribution as loot sale
+      const response = await authFetch('/api/pve/import-loot-sales', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authStore.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sales: [{
+            type: 'corp_project',
+            typeId: sale.typeId,
+            typeName: `${sale.projectName || 'Projet corp'}: ${sale.typeName}`,
+            quantity: sale.quantity,
+            price: sale.price,
+            dateIssued: sale.dateIssued,
+            transactionId: sale.transactionId,
+          }],
+          declined: []
+        }),
+      })
+
+      if (!response.ok) throw new Error('Failed to import contribution')
+
+      // Add to seen
+      if (sale.transactionId) {
+        seenTransactionIds.value.add(sale.transactionId)
       }
     } else {
       // Import market sale
@@ -832,7 +909,7 @@ async function ignoreLootSale(sale: DetectedLootSale) {
         seenContractIds.value.add(sale.contractId)
       }
     } else {
-      // Add to declined transactions
+      // Add to declined transactions (market sales and corp project contributions)
       await authFetch('/api/pve/import-loot-sales', {
         method: 'POST',
         headers: {
@@ -886,6 +963,9 @@ async function resetSeenContracts() {
         keepTransactionIds,
       })
     })
+    // Reset backend counts (keeping the visible items count)
+    declinedContractsCount.value = keepContractIds.length
+    declinedTransactionsCount.value = keepTransactionIds.length
   } catch (e) {
     console.error('Failed to reset declined:', e)
   }
@@ -1064,10 +1144,10 @@ async function resetSeenContracts() {
                   </svg>
                 </button>
                 <button
-                  v-if="seenContractIds.size > 0 || seenTransactionIds.size > 0"
+                  v-if="declinedContractsCount > 0 || declinedTransactionsCount > 0"
                   @click="resetSeenContracts"
                   class="p-1.5 bg-slate-700 hover:bg-red-600 rounded text-slate-400 hover:text-white"
-                  title="Réinitialiser le filtre (réafficher les contrats déjà vus)"
+                  :title="`Réinitialiser le filtre (${declinedContractsCount + declinedTransactionsCount} éléments masqués)`"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -1092,7 +1172,12 @@ async function resetSeenContracts() {
                 class="px-5 py-3 flex items-center justify-between group"
               >
                 <div class="flex items-center gap-3">
-                  <span class="text-xs px-2 py-1 rounded bg-amber-500/20 text-amber-400">Loot</span>
+                  <span
+                    class="text-xs px-2 py-1 rounded"
+                    :class="sale.type === 'corp_project' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-amber-500/20 text-amber-400'"
+                  >
+                    {{ sale.type === 'corp_project' ? 'Projet' : 'Loot' }}
+                  </span>
                   <div>
                     <p class="text-sm text-slate-200">{{ sale.description }}</p>
                     <p class="text-xs text-slate-500">{{ formatDate(sale.date) }}</p>
@@ -1656,7 +1741,7 @@ async function resetSeenContracts() {
               <div>
                 <h3 class="text-lg font-semibold">Ventes de loot détectées</h3>
                 <p class="text-sm text-slate-400 mt-1">
-                  {{ lootScanResults.scannedTransactions }} transactions, {{ lootScanResults.scannedContracts || 0 }} contrats - {{ lootScanResults.detectedSales.length }} ventes détectées
+                  {{ lootScanResults.scannedTransactions }} transactions, {{ lootScanResults.scannedContracts || 0 }} contrats, {{ lootScanResults.scannedProjects || 0 }} projets corp - {{ lootScanResults.detectedSales.length }} ventes détectées
                 </p>
               </div>
               <button @click="showLootScanResults = false" class="text-slate-400 hover:text-slate-300">
@@ -1687,6 +1772,9 @@ async function resetSeenContracts() {
                       <span v-if="sale.source === 'contract'" class="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-400">
                         Contrat #{{ sale.contractId }}
                       </span>
+                      <span v-else-if="sale.source === 'corp_project'" class="text-xs px-2 py-0.5 rounded bg-violet-500/20 text-violet-400">
+                        {{ sale.projectName || 'Projet corp' }}
+                      </span>
                       <span v-else class="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-400">
                         Marché
                       </span>
@@ -1696,15 +1784,15 @@ async function resetSeenContracts() {
                     <p class="text-xs text-slate-500">{{ formatDate(sale.dateIssued) }}</p>
                   </div>
                   <div class="flex flex-col items-end gap-2">
-                    <!-- Editable price for 0 ISK contracts -->
-                    <div v-if="sale.source === 'contract' && sale.price === 0" class="flex items-center gap-1">
+                    <!-- Editable price for 0 ISK contracts or corp project contributions -->
+                    <div v-if="(sale.source === 'contract' || sale.source === 'corp_project') && sale.price === 0" class="flex items-center gap-1">
                       <input
                         type="number"
                         v-model.number="sale.price"
                         class="w-28 px-2 py-1 text-right bg-slate-700 border border-slate-600 rounded text-amber-400 font-mono text-sm focus:outline-none focus:border-amber-500"
                         min="0"
                         step="100000"
-                        placeholder="Prix"
+                        :placeholder="sale.source === 'corp_project' ? 'Valeur' : 'Prix'"
                       />
                       <span class="text-xs text-slate-500">ISK</span>
                     </div>
@@ -1714,7 +1802,7 @@ async function resetSeenContracts() {
                     <div class="flex gap-2">
                       <button
                         @click="importSingleLootSale(sale)"
-                        :disabled="isImportingLoot || (sale.source === 'contract' && sale.price <= 0)"
+                        :disabled="isImportingLoot || ((sale.source === 'contract' || sale.source === 'corp_project') && sale.price <= 0)"
                         class="px-3 py-1 text-xs bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded text-white font-medium"
                       >
                         Ajouter

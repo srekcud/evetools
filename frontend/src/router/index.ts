@@ -64,6 +64,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/shopping-list/shared/:token',
+      name: 'shared-shopping-list',
+      component: () => import('@/views/SharedShoppingList.vue'),
+      meta: { requiresAuth: false },
+    },
+    {
       path: '/admin',
       name: 'admin',
       component: () => import('@/views/Admin.vue'),

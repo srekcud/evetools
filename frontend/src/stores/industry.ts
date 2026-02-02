@@ -1,13 +1,38 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { apiRequest } from '@/services/api'
+import { apiRequest, isValidationError } from '@/services/api'
+
+/**
+ * Format an error message, handling ValidationError specially
+ */
+function formatErrorMessage(e: unknown, defaultMessage: string): string {
+  if (isValidationError(e)) {
+    return e.violations.map(v => v.message).join(' | ')
+  }
+  if (e instanceof Error) {
+    return e.message
+  }
+  return defaultMessage
+}
+
+export interface RootProduct {
+  typeId: number
+  typeName: string
+  runs: number
+  meLevel: number | null
+  teLevel: number | null
+}
 
 export interface IndustryProject {
   id: string
   productTypeName: string
   productTypeId: number
+  name?: string | null
+  displayName: string
   runs: number
   meLevel: number
+  teLevel: number
+  maxJobDurationDays: number
   status: string
   personalUse: boolean
   bpoCost: number | null
@@ -22,6 +47,7 @@ export interface IndustryProject {
   notes: string | null
   createdAt: string
   completedAt: string | null
+  rootProducts?: RootProduct[]
   steps?: IndustryProjectStep[]
   tree?: ProductionTreeNode | null
 }
@@ -44,6 +70,10 @@ export interface IndustryProjectStep {
   activityType: string
   sortOrder: number
   purchased: boolean
+  inStock: boolean
+  inStockQuantity: number
+  meLevel: number | null
+  teLevel: number | null
   esiJobId: number | null
   esiJobCost: number | null
   esiJobStatus: string | null
@@ -164,6 +194,8 @@ export interface StructureConfig {
   isCorporationStructure: boolean
   manufacturingMaterialBonus: number
   reactionMaterialBonus: number
+  manufacturingTimeBonus: number
+  reactionTimeBonus: number
   createdAt: string
 }
 
@@ -220,6 +252,11 @@ export const useIndustryStore = defineStore('industry', () => {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const totalProfit = ref(0)
+  const defaultMaxJobDurationDays = ref(2.0)
+
+  function setDefaultMaxJobDurationDays(days: number) {
+    defaultMaxJobDurationDays.value = days
+  }
 
   async function searchProducts(query: string) {
     if (query.length < 2) {
@@ -236,17 +273,24 @@ export const useIndustryStore = defineStore('industry', () => {
     }
   }
 
-  async function createProject(typeId: number, runs: number, meLevel: number) {
+  async function createProject(
+    typeId: number,
+    runs: number,
+    meLevel: number,
+    teLevel: number = 0,
+    maxJobDurationDays: number = 2.0,
+    name?: string | null,
+  ) {
     error.value = null
     try {
       const project = await apiRequest<IndustryProject>('/industry/projects', {
         method: 'POST',
-        body: JSON.stringify({ typeId, runs, meLevel }),
+        body: JSON.stringify({ typeId, runs, meLevel, teLevel, maxJobDurationDays, name }),
       })
       projects.value.unshift(project)
       return project
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to create project'
+      error.value = formatErrorMessage(e, 'Échec de création du projet')
       throw e
     }
   }
@@ -335,7 +379,33 @@ export const useIndustryStore = defineStore('industry', () => {
         }
       }
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to update step'
+      error.value = formatErrorMessage(e, 'Échec de mise à jour de l\'étape')
+      throw e // Re-throw to let callers know it failed
+    }
+  }
+
+  async function toggleStepInStock(
+    projectId: string,
+    stepId: string,
+    inStockQuantity: number,
+  ) {
+    try {
+      const updated = await apiRequest<IndustryProjectStep>(
+        `/industry/projects/${projectId}/steps/${stepId}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ inStockQuantity }),
+        },
+      )
+      if (currentProject.value?.steps) {
+        const idx = currentProject.value.steps.findIndex((s) => s.id === stepId)
+        if (idx !== -1) {
+          currentProject.value.steps[idx] = updated
+        }
+      }
+    } catch (e) {
+      error.value = formatErrorMessage(e, 'Échec de mise à jour de l\'étape')
+      throw e
     }
   }
 
@@ -394,11 +464,20 @@ export const useIndustryStore = defineStore('industry', () => {
     }
   }
 
-  async function createStep(projectId: string, typeId: number, runs: number, splitGroupId?: string) {
+  async function createStep(
+    projectId: string,
+    typeId: number,
+    runs: number,
+    meLevel?: number,
+    teLevel?: number,
+  ) {
     try {
       const body: Record<string, unknown> = { typeId, runs }
-      if (splitGroupId) {
-        body.splitGroupId = splitGroupId
+      if (meLevel !== undefined) {
+        body.meLevel = meLevel
+      }
+      if (teLevel !== undefined) {
+        body.teLevel = teLevel
       }
       const step = await apiRequest<IndustryProjectStep>(
         `/industry/projects/${projectId}/steps`,
@@ -678,6 +757,7 @@ export const useIndustryStore = defineStore('industry', () => {
     isLoading,
     error,
     totalProfit,
+    defaultMaxJobDurationDays,
     searchProducts,
     createProject,
     fetchProjects,
@@ -685,6 +765,7 @@ export const useIndustryStore = defineStore('industry', () => {
     updateProject,
     deleteProject,
     toggleStepPurchased,
+    toggleStepInStock,
     updateStepJobData,
     clearStepJobData,
     matchJobs,
@@ -702,6 +783,7 @@ export const useIndustryStore = defineStore('industry', () => {
     addChildJob,
     deleteStep,
     updateStepRuns,
+    setDefaultMaxJobDurationDays,
     clearError,
   }
 })

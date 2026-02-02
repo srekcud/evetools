@@ -37,6 +37,15 @@ function onBlur() {
     showDropdown.value = false
   }, 200)
 }
+
+// Exposed method to clear the search
+function clear() {
+  query.value = ''
+  store.searchResults = []
+  showDropdown.value = false
+}
+
+defineExpose({ clear })
 </script>
 
 <template>

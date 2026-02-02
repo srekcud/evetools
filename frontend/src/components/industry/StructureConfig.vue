@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch, nextTick } from 'vue'
 import { useIndustryStore } from '@/stores/industry'
 import type { StructureConfig, RigOption, CorporationStructure, StructureSearchResult } from '@/stores/industry'
 
@@ -31,7 +31,6 @@ onMounted(async () => {
   store.fetchStructures()
   await store.fetchCorporationStructures()
   corporationStructuresLoaded.value = true
-  console.log('Corporation structures loaded:', store.corporationStructures.length, store.corporationStructures)
 })
 
 // Corporation structure selection
@@ -266,6 +265,7 @@ async function saveStructure() {
   // If editing a corp structure with changes, ask for confirmation
   if (editingStructure.value && hasCorpStructureChanges() && !pendingSave.value) {
     showCorpEditModal.value = true
+    nextTick(() => corpEditModalRef.value?.focus())
     return
   }
 
@@ -310,11 +310,14 @@ function cancelCorpEdit() {
 const showDeleteModal = ref(false)
 const deleteStructureId = ref<string | null>(null)
 const deleteStructureName = ref('')
+const deleteModalRef = ref<HTMLElement | null>(null)
+const corpEditModalRef = ref<HTMLElement | null>(null)
 
 function openDeleteModal(structure: StructureConfig) {
   deleteStructureId.value = structure.id
   deleteStructureName.value = structure.name
   showDeleteModal.value = true
+  nextTick(() => deleteModalRef.value?.focus())
 }
 
 async function confirmDelete() {
@@ -393,6 +396,14 @@ function formatTargetCategories(categories: string[]): string {
   return categories.map(c => categoryLabels[c] || c).join(', ')
 }
 
+// Check if a rig provides time bonus (L-Set/XL-Set "Efficiency" or "Reactor Efficiency")
+function hasTimeBonus(rigName: string): boolean {
+  const isEfficiencyRig = rigName.includes('Efficiency') && !rigName.includes('Material Efficiency')
+  const isLargeOrXL = rigName.includes('L-Set') || rigName.includes('XL-Set')
+  const isReactorEfficiency = rigName.includes('Reactor Efficiency')
+  return (isEfficiencyRig && isLargeOrXL) || isReactorEfficiency
+}
+
 function calculateBonus(rigs: string[], type: 'manufacturing' | 'reaction', security: string): number {
   if (!store.rigOptions) return 0
   const options = type === 'reaction' ? store.rigOptions.reaction : store.rigOptions.manufacturing
@@ -405,12 +416,69 @@ function calculateBonus(rigs: string[], type: 'manufacturing' | 'reaction', secu
   return Math.round(bonus * multiplier * 100) / 100
 }
 
+// Reaction security multipliers are different
+const reactionSecurityMultipliers = {
+  highsec: 1.0,
+  lowsec: 1.0,
+  nullsec: 1.1,
+}
+
+// Calculate time bonus (base structure + rig, multiplicative)
+function calculateTimeBonus(structureType: string, rigs: string[], type: 'manufacturing' | 'reaction', security: string): number {
+  // Base structure time bonus
+  let baseBonus = 0
+  if (type === 'manufacturing') {
+    baseBonus = { raitaru: 15, azbel: 20, sotiyo: 30 }[structureType] ?? 0
+  } else {
+    baseBonus = { athanor: 25, tatara: 25 }[structureType] ?? 0
+  }
+
+  // Rig time bonus (only L-Set/XL-Set "Efficiency" rigs, not "Material Efficiency")
+  if (!store.rigOptions) return baseBonus
+  const options = type === 'reaction' ? store.rigOptions.reaction : store.rigOptions.manufacturing
+  let rigBonus = 0
+  for (const rigName of rigs) {
+    const rig = options.find((r) => r.name === rigName)
+    if (!rig) continue
+    // Only "Efficiency" rigs provide time bonus, not "Material Efficiency"
+    const isEfficiencyRig = rigName.includes('Efficiency') && !rigName.includes('Material Efficiency')
+    const isLargeOrXL = rigName.includes('L-Set') || rigName.includes('XL-Set')
+    const isReactorEfficiency = rigName.includes('Reactor Efficiency')
+    if (type === 'manufacturing' && isEfficiencyRig && isLargeOrXL) {
+      rigBonus += rig.bonus
+    } else if (type === 'reaction' && isReactorEfficiency) {
+      rigBonus += rig.bonus
+    }
+  }
+
+  // Apply security multiplier to rig bonus
+  const multiplier = type === 'reaction'
+    ? reactionSecurityMultipliers[security as keyof typeof reactionSecurityMultipliers] ?? 1
+    : securityMultipliers[security as keyof typeof securityMultipliers] ?? 1
+  rigBonus *= multiplier
+
+  // Multiplicative stacking: 1 - (1 - base) × (1 - rig)
+  if (baseBonus > 0 || rigBonus > 0) {
+    const totalBonus = 1 - (1 - baseBonus / 100) * (1 - rigBonus / 100)
+    return Math.round(totalBonus * 10000) / 100
+  }
+  return 0
+}
+
 const previewManufacturingBonus = computed(() => {
   return calculateBonus(formRigs.value, 'manufacturing', formSecurityType.value)
 })
 
 const previewReactionBonus = computed(() => {
   return calculateBonus(formRigs.value, 'reaction', formSecurityType.value)
+})
+
+const previewManufacturingTimeBonus = computed(() => {
+  return calculateTimeBonus(formStructureType.value, formRigs.value, 'manufacturing', formSecurityType.value)
+})
+
+const previewReactionTimeBonus = computed(() => {
+  return calculateTimeBonus(formStructureType.value, formRigs.value, 'reaction', formSecurityType.value)
 })
 </script>
 
@@ -432,6 +500,10 @@ const previewReactionBonus = computed(() => {
 
     <p class="text-sm text-slate-400">
       Configurez vos structures de production pour calculer les bonus de matériaux appliqués aux projets.
+    </p>
+
+    <p class="text-xs text-cyan-400/80 bg-cyan-500/10 border border-cyan-500/20 rounded px-3 py-2">
+      Le calcul des temps de réaction suppose que tous les personnages ont le skill Reactions V (-20%).
     </p>
 
     <!-- Add/Edit Form -->
@@ -626,8 +698,13 @@ const previewReactionBonus = computed(() => {
               >
                 <div class="flex items-center justify-between">
                   <span class="text-sm text-slate-200">{{ formatRigName(rig.name) }}</span>
-                  <span class="text-xs ml-2" :class="rig.timeBonus ? 'text-amber-400' : 'text-cyan-400'">
-                    {{ rig.timeBonus ? `TE: -${rig.timeBonus}%` : `ME: -${rig.bonus}%` }} ({{ rig.size }})
+                  <span class="text-xs ml-2">
+                    <template v-if="hasTimeBonus(rig.name)">
+                      <span class="text-emerald-400">ME: -{{ rig.bonus }}%</span>
+                      <span class="text-amber-400 ml-1">TE: -{{ rig.bonus }}%</span>
+                    </template>
+                    <span v-else class="text-emerald-400">ME: -{{ rig.bonus }}%</span>
+                    <span class="text-slate-500 ml-1">({{ rig.size }})</span>
                   </span>
                 </div>
                 <div class="text-xs text-slate-500 mt-0.5">{{ formatTargetCategories(rig.targetCategories) }}</div>
@@ -653,8 +730,13 @@ const previewReactionBonus = computed(() => {
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2 flex-1 min-w-0">
                   <span class="text-sm text-slate-300 truncate">{{ formatRigName(rigInfo.name) }}</span>
-                  <span class="text-xs shrink-0" :class="rigInfo.timeBonus ? 'text-amber-400' : 'text-cyan-400'">
-                    {{ rigInfo.timeBonus ? `TE: -${rigInfo.timeBonus}%` : `ME: -${rigInfo.bonus}%` }} ({{ rigInfo.size }})
+                  <span class="text-xs shrink-0">
+                    <template v-if="hasTimeBonus(rigInfo.name)">
+                      <span class="text-emerald-400">ME: -{{ rigInfo.bonus }}%</span>
+                      <span class="text-amber-400 ml-1">TE: -{{ rigInfo.bonus }}%</span>
+                    </template>
+                    <span v-else class="text-emerald-400">ME: -{{ rigInfo.bonus }}%</span>
+                    <span class="text-slate-500 ml-1">({{ rigInfo.size }})</span>
                   </span>
                 </div>
                 <button
@@ -679,14 +761,26 @@ const previewReactionBonus = computed(() => {
         <!-- Preview Bonus -->
         <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
           <p class="text-xs text-slate-400 mb-2">Bonus calculé (base structure + rigs × sécurité)</p>
-          <div class="flex gap-4">
-            <div v-if="isEngineeringComplex">
-              <span class="text-xs text-slate-500">Manufacturing:</span>
-              <span class="text-sm text-emerald-400 ml-1">-{{ previewManufacturingBonus }}%</span>
+          <div class="space-y-2">
+            <div v-if="isEngineeringComplex" class="flex flex-wrap gap-4">
+              <div>
+                <span class="text-xs text-slate-500">ME Manufacturing:</span>
+                <span class="text-sm text-emerald-400 ml-1">-{{ previewManufacturingBonus }}%</span>
+              </div>
+              <div>
+                <span class="text-xs text-slate-500">TE Manufacturing:</span>
+                <span class="text-sm text-amber-400 ml-1">-{{ previewManufacturingTimeBonus }}%</span>
+              </div>
             </div>
-            <div v-if="isRefinery">
-              <span class="text-xs text-slate-500">Reactions:</span>
-              <span class="text-sm text-emerald-400 ml-1">-{{ previewReactionBonus }}%</span>
+            <div v-if="isRefinery" class="flex flex-wrap gap-4">
+              <div>
+                <span class="text-xs text-slate-500">ME Reactions:</span>
+                <span class="text-sm text-emerald-400 ml-1">-{{ previewReactionBonus }}%</span>
+              </div>
+              <div>
+                <span class="text-xs text-slate-500">TE Reactions:</span>
+                <span class="text-sm text-amber-400 ml-1">-{{ previewReactionTimeBonus }}%</span>
+              </div>
             </div>
             <div v-if="formStructureType === 'station'" class="text-slate-500 text-sm">
               Les stations NPC n'ont pas de bonus
@@ -735,15 +829,27 @@ const previewReactionBonus = computed(() => {
               {{ structureTypeLabels[structure.structureType] }} -
               {{ securityLabels[structure.securityType] }}
             </p>
-            <div class="flex gap-4 mt-2">
-              <div v-if="structure.manufacturingMaterialBonus > 0">
-                <span class="text-xs text-slate-500">Manufacturing:</span>
-                <span class="text-sm text-emerald-400 ml-1">-{{ structure.manufacturingMaterialBonus }}%</span>
-              </div>
-              <div v-if="structure.reactionMaterialBonus > 0">
-                <span class="text-xs text-slate-500">Reactions:</span>
-                <span class="text-sm text-emerald-400 ml-1">-{{ structure.reactionMaterialBonus }}%</span>
-              </div>
+            <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+              <template v-if="structure.manufacturingMaterialBonus > 0 || structure.manufacturingTimeBonus > 0">
+                <div>
+                  <span class="text-xs text-slate-500">ME Manuf:</span>
+                  <span class="text-sm text-emerald-400 ml-1">-{{ structure.manufacturingMaterialBonus }}%</span>
+                </div>
+                <div>
+                  <span class="text-xs text-slate-500">TE Manuf:</span>
+                  <span class="text-sm text-amber-400 ml-1">-{{ structure.manufacturingTimeBonus }}%</span>
+                </div>
+              </template>
+              <template v-if="structure.reactionMaterialBonus > 0 || structure.reactionTimeBonus > 0">
+                <div>
+                  <span class="text-xs text-slate-500">ME Reactions:</span>
+                  <span class="text-sm text-emerald-400 ml-1">-{{ structure.reactionMaterialBonus }}%</span>
+                </div>
+                <div>
+                  <span class="text-xs text-slate-500">TE Reactions:</span>
+                  <span class="text-sm text-amber-400 ml-1">-{{ structure.reactionTimeBonus }}%</span>
+                </div>
+              </template>
             </div>
             <div v-if="structure.rigs.length > 0" class="mt-2 flex flex-wrap gap-1">
               <span
@@ -794,8 +900,10 @@ const previewReactionBonus = computed(() => {
         v-if="showDeleteModal"
         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
         @click.self="cancelDelete"
+        @keydown.enter="confirmDelete"
+        @keydown.escape="cancelDelete"
       >
-        <div class="bg-slate-900 rounded-xl border border-slate-700 max-w-md w-full p-6">
+        <div class="bg-slate-900 rounded-xl border border-slate-700 max-w-md w-full p-6" tabindex="-1" ref="deleteModalRef">
           <h3 class="text-lg font-semibold text-slate-200 mb-2">Supprimer la structure</h3>
           <p class="text-slate-400 mb-6">
             Voulez-vous vraiment supprimer <span class="text-slate-200 font-medium">{{ deleteStructureName }}</span> ?
@@ -824,8 +932,10 @@ const previewReactionBonus = computed(() => {
         v-if="showCorpEditModal"
         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
         @click.self="cancelCorpEdit"
+        @keydown.enter="confirmCorpEdit"
+        @keydown.escape="cancelCorpEdit"
       >
-        <div class="bg-slate-900 rounded-xl border border-amber-700/50 max-w-md w-full p-6">
+        <div class="bg-slate-900 rounded-xl border border-amber-700/50 max-w-md w-full p-6" tabindex="-1" ref="corpEditModalRef">
           <div class="flex items-center gap-3 mb-4">
             <div class="p-2 bg-amber-500/20 rounded-lg">
               <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -7,7 +7,9 @@ namespace App\Service\Sync;
 use App\Entity\CachedIndustryJob;
 use App\Entity\Character;
 use App\Repository\CachedIndustryJobRepository;
+use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\EsiClient;
+use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -19,8 +21,10 @@ class IndustryJobSyncService
     public function __construct(
         private readonly EsiClient $esiClient,
         private readonly CachedIndustryJobRepository $jobRepository,
+        private readonly InvTypeRepository $invTypeRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
+        private readonly MercurePublisherService $mercurePublisher,
     ) {
     }
 
@@ -29,6 +33,13 @@ class IndustryJobSyncService
         $token = $character->getEveToken();
         if ($token === null) {
             return;
+        }
+
+        $userId = $character->getUser()?->getId()?->toRfc4122();
+
+        // Notify sync started
+        if ($userId !== null) {
+            $this->mercurePublisher->syncStarted($userId, 'industry-jobs', 'Récupération des jobs industrie...');
         }
 
         $allJobs = [];
@@ -41,7 +52,11 @@ class IndustryJobSyncService
                 $token,
             );
             $allJobs = array_merge($allJobs, $personalJobs);
+        }
 
+        // Update progress
+        if ($userId !== null) {
+            $this->mercurePublisher->syncProgress($userId, 'industry-jobs', 30, 'Jobs personnels récupérés...');
         }
 
         // Sync corporation jobs (only once per corporation per sync run)
@@ -67,22 +82,39 @@ class IndustryJobSyncService
             }
         }
 
+        // Update progress
+        if ($userId !== null) {
+            $this->mercurePublisher->syncProgress($userId, 'industry-jobs', 60, sprintf('Traitement de %d jobs...', count($allJobs)));
+        }
+
         // Deduplicate by job_id (in case a personal job is also in corp jobs)
         $jobsByJobId = [];
         foreach ($allJobs as $jobData) {
             $jobsByJobId[$jobData['job_id']] = $jobData;
         }
 
+        // Track newly completed jobs for notifications
+        $newlyCompletedJobs = [];
+
         foreach ($jobsByJobId as $jobData) {
             $existing = $this->jobRepository->findByJobId($jobData['job_id']);
 
             if ($existing !== null) {
+                // Check if job just completed (was active, now ready)
+                $wasActive = $existing->getStatus() === 'active';
+                $isNowReady = $jobData['status'] === 'ready';
+
                 // Update existing job
                 $existing->setStatus($jobData['status']);
                 if (isset($jobData['completed_date'])) {
                     $existing->setCompletedDate(new \DateTimeImmutable($jobData['completed_date']));
                 }
                 $existing->setCachedAt(new \DateTimeImmutable());
+
+                // Track newly ready jobs
+                if ($wasActive && $isNowReady) {
+                    $newlyCompletedJobs[] = $jobData;
+                }
                 continue;
             }
 
@@ -110,6 +142,61 @@ class IndustryJobSyncService
             'characterName' => $character->getName(),
             'jobCount' => count($jobsByJobId),
         ]);
+
+        // Count active jobs
+        $activeJobs = array_filter($jobsByJobId, fn($j) => $j['status'] === 'active');
+        $readyJobs = array_filter($jobsByJobId, fn($j) => $j['status'] === 'ready');
+
+        // Notify sync completed
+        if ($userId !== null) {
+            $message = sprintf('%d jobs actifs, %d prêts à livrer', count($activeJobs), count($readyJobs));
+            $this->mercurePublisher->syncCompleted($userId, 'industry-jobs', $message, [
+                'total' => count($jobsByJobId),
+                'active' => count($activeJobs),
+                'ready' => count($readyJobs),
+            ]);
+
+            // Send individual notifications for newly completed jobs
+            foreach ($newlyCompletedJobs as $jobData) {
+                $productName = $this->getTypeName($jobData['product_type_id'] ?? $jobData['blueprint_type_id']);
+                $activityName = $this->getActivityName($jobData['activity_id']);
+                $this->mercurePublisher->publishSyncProgress(
+                    $userId,
+                    'industry-job-completed',
+                    'notification',
+                    null,
+                    sprintf('%s - %s terminé !', $productName, $activityName),
+                    [
+                        'jobId' => $jobData['job_id'],
+                        'productTypeId' => $jobData['product_type_id'] ?? $jobData['blueprint_type_id'],
+                        'productName' => $productName,
+                        'runs' => $jobData['runs'],
+                        'activityId' => $jobData['activity_id'],
+                    ]
+                );
+            }
+        }
+    }
+
+    private function getTypeName(int $typeId): string
+    {
+        $type = $this->invTypeRepository->find($typeId);
+        return $type?->getTypeName() ?? "Type #{$typeId}";
+    }
+
+    private function getActivityName(int $activityId): string
+    {
+        return match ($activityId) {
+            1 => 'Manufacturing',
+            3 => 'TE Research',
+            4 => 'ME Research',
+            5 => 'Copying',
+            7 => 'Reverse Engineering',
+            8 => 'Invention',
+            9 => 'Reactions',
+            11 => 'Reactions',
+            default => "Activity #{$activityId}",
+        };
     }
 
     /**

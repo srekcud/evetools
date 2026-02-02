@@ -12,6 +12,8 @@ services:
     _defaults:
         autowire: true
         autoconfigure: true
+        bind:
+            $adminCharacterNames: '%admin_character_names%'
 
     App\:
         resource: '../src/'
@@ -51,8 +53,3 @@ services:
     App\Service\Sde\SdeImportService:
         arguments:
             $projectDir: '%kernel.project_dir%'
-
-    # Admin
-    App\Controller\Api\AdminController:
-        arguments:
-            $adminCharacterNames: '%admin_character_names%'

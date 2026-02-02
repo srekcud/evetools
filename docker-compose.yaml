@@ -32,6 +32,11 @@ services:
       - ESI_TOKEN_ENCRYPTION_KEY=${ESI_TOKEN_ENCRYPTION_KEY:-}
       - CORS_ALLOW_ORIGIN=${CORS_ALLOW_ORIGIN:-https://evetools.local}
       - DEFAULT_URI=${DEFAULT_URI:-https://evetools.local}
+      - MERCURE_URL=${MERCURE_URL:-http://localhost/.well-known/mercure}
+      - MERCURE_PUBLIC_URL=${MERCURE_PUBLIC_URL:-/.well-known/mercure}
+      - MERCURE_JWT_SECRET=${MERCURE_JWT_SECRET:-!ChangeThisMercureSecretKey!}
+      - MERCURE_PUBLISHER_JWT_KEY=${MERCURE_JWT_SECRET:-!ChangeThisMercureSecretKey!}
+      - MERCURE_SUBSCRIBER_JWT_KEY=${MERCURE_JWT_SECRET:-!ChangeThisMercureSecretKey!}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/health"]
       interval: 10s
@@ -60,6 +65,10 @@ services:
       - ESI_TOKEN_ENCRYPTION_KEY=${ESI_TOKEN_ENCRYPTION_KEY:-}
       - CORS_ALLOW_ORIGIN=${CORS_ALLOW_ORIGIN:-https://evetools.local}
       - DEFAULT_URI=${DEFAULT_URI:-https://evetools.local}
+      - MERCURE_URL=${MERCURE_URL:-http://app/.well-known/mercure}
+      - MERCURE_PUBLIC_URL=${MERCURE_PUBLIC_URL:-/.well-known/mercure}
+      - MERCURE_PUBLISHER_JWT_KEY=${MERCURE_JWT_SECRET:-!ChangeThisMercureSecretKey!}
+      - MERCURE_SUBSCRIBER_JWT_KEY=${MERCURE_JWT_SECRET:-!ChangeThisMercureSecretKey!}
     depends_on:
       - app
       - rabbitmq

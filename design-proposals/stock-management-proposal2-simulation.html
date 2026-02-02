@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EVE Tools - Proposition 2 : Côte à Côte Synchronisé</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: #0f172a; }
+    /* Custom scrollbar */
+    .custom-scroll::-webkit-scrollbar { width: 6px; }
+    .custom-scroll::-webkit-scrollbar-track { background: #1e293b; border-radius: 3px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+    .custom-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
+  </style>
+</head>
+<body class="text-slate-200 p-6">
+
+  <div class="max-w-6xl mx-auto">
+    <!-- Simulation du header du projet -->
+    <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden mb-6">
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <button class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-200">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+          </button>
+          <div class="w-10 h-10 bg-slate-700 rounded"></div>
+          <div>
+            <h1 class="text-lg font-semibold">Naglfar</h1>
+            <p class="text-sm text-slate-400">10 runs · ME 10 · TE 20</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="px-3 py-1 bg-emerald-900/30 text-emerald-400 text-sm rounded-full">Actif</span>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="px-6 border-b border-slate-800">
+        <div class="flex gap-1">
+          <button class="px-4 py-3 text-sm text-slate-400 hover:text-slate-200">Étapes</button>
+          <button class="px-4 py-3 text-sm text-cyan-400 border-b-2 border-cyan-400 font-medium">Matériaux & Stock</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROPOSITION 2: Côte à Côte Synchronisé -->
+    <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+      <!-- Header avec stats globales -->
+      <div class="px-6 py-4 border-b border-slate-800">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <!-- Stats badges -->
+            <div class="flex items-center gap-2 px-3 py-1.5 bg-emerald-900/30 border border-emerald-500/30 rounded-full">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span class="text-emerald-400 text-sm font-medium">8 complets</span>
+            </div>
+            <div class="flex items-center gap-2 px-3 py-1.5 bg-amber-900/30 border border-amber-500/30 rounded-full">
+              <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+              <span class="text-amber-400 text-sm font-medium">4 partiels</span>
+            </div>
+            <div class="flex items-center gap-2 px-3 py-1.5 bg-red-900/30 border border-red-500/30 rounded-full">
+              <span class="w-2 h-2 rounded-full bg-red-400"></span>
+              <span class="text-red-400 text-sm font-medium">6 manquants</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-6 text-sm">
+            <span class="text-slate-400">Complétion: <span class="font-mono text-cyan-400">44%</span></span>
+            <span class="text-slate-400">Volume manquant: <span class="font-mono text-slate-300">1,245,000 m³</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Deux colonnes synchronisées -->
+      <div class="grid grid-cols-2 divide-x divide-slate-800">
+
+        <!-- COLONNE GAUCHE: Liste des courses (read-only) -->
+        <div class="p-4">
+          <div class="flex items-center justify-between mb-4">
+            <h4 class="text-sm font-semibold text-slate-300 flex items-center gap-2">
+              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              Liste des courses
+            </h4>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-slate-500">Structure:</span>
+              <span class="text-xs text-cyan-400">Basgerin - music</span>
+            </div>
+          </div>
+
+          <div class="space-y-1.5 max-h-[500px] overflow-y-auto custom-scroll pr-2">
+            <!-- Capital Components -->
+            <div class="text-xs text-slate-500 uppercase tracking-wider px-2 pt-3 pb-1">Capital Components</div>
+
+            <div class="flex items-center justify-between px-3 py-2.5 rounded-lg bg-emerald-900/10 border-l-2 border-emerald-400 hover:bg-emerald-900/20 transition-colors">
+              <div class="flex items-center gap-3">
+                <div class="w-7 h-7 bg-slate-700 rounded"></div>
+                <span class="text-sm font-medium">Capital Armor Plates</span>
+              </div>
+              <div class="text-right">
+                <span class="font-mono text-sm text-slate-300">450</span>
+                <span class="block text-xs text-slate-500">1.35B ISK</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2.5 rounded-lg bg-amber-900/10 border-l-2 border-amber-400 hover:bg-amber-900/20 transition-colors">
+              <div class="flex items-center gap-3">
+                <div class="w-7 h-7 bg-slate-700 rounded"></div>
+                <span class="text-sm font-medium">Capital Propulsion Engine</span>
+              </div>
+              <div class="text-right">
+                <span class="font-mono text-sm text-slate-300">200</span>
+                <span class="block text-xs text-slate-500">980M ISK</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2.5 rounded-lg bg-red-900/10 border-l-2 border-red-400 hover:bg-red-900/20 transition-colors">
+              <div class="flex items-center gap-3">
+                <div class="w-7 h-7 bg-slate-700 rounded"></div>
+                <span class="text-sm font-medium">Capital Siege Array</span>
+              </div>
+              <div class="text-right">
+                <span class="font-mono text-sm text-slate-300">150</span>
+                <span class="block text-xs text-slate-500">720M ISK</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2.5 rounded-lg bg-emerald-900/10 border-l-2 border-emerald-400 hover:bg-emerald-900/20 transition-colors">
+              <div class="flex items-center gap-3">
+                <div class="w-7 h-7 bg-slate-700 rounded"></div>
+                <span class="text-sm font-medium">Capital Jump Drive</span>
+              </div>
+              <div class="text-right">
+                <span class="font-mono text-sm text-slate-300">100</span>
+                <span class="block text-xs text-slate-500">850M ISK</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2.5 rounded-lg bg-amber-900/10 border-l-2 border-amber-400 hover:bg-amber-900/20 transition-colors">
+              <div class="flex items-center gap-3">
+                <div class="w-7 h-7 bg-slate-700 rounded"></div>
+                <span class="text-sm font-medium">Capital Cargo Bay</span>
+              </div>
+              <div class="text-right">
+                <span class="font-mono text-sm text-slate-300">200</span>
+                <span class="block text-xs text-slate-500">640M ISK</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2.5 rounded-lg bg-red-900/10 border-l-2 border-red-400 hover:bg-red-900/20 transition-colors">
+              <div class="flex items-center gap-3">
+                <div class="w-7 h-7 bg-slate-700 rounded"></div>
+                <span class="text-sm font-medium">Capital Computer System</span>
+              </div>
+              <div class="text-right">
+                <span class="font-mono text-sm text-slate-300">100</span>
+                <span class="block text-xs text-slate-500">420M ISK</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2.5 rounded-lg bg-emerald-900/10 border-l-2 border-emerald-400 hover:bg-emerald-900/20 transition-colors">
+              <div class="flex items-center gap-3">
+                <div class="w-7 h-7 bg-slate-700 rounded"></div>
+                <span class="text-sm font-medium">Capital Sensor Cluster</span>
+              </div>
+              <div class="text-right">
+                <span class="font-mono text-sm text-slate-300">100</span>
+                <span class="block text-xs text-slate-500">380M ISK</span>
+              </div>
+            </div>
+
+            <!-- Minerals -->
+            <div class="text-xs text-slate-500 uppercase tracking-wider px-2 pt-4 pb-1">Minerals</div>
+
+            <div class="flex items-center justify-between px-3 py-2.5 rounded-lg bg-emerald-900/10 border-l-2 border-emerald-400 hover:bg-emerald-900/20 transition-colors">
+              <div class="flex items-center gap-3">
+                <div class="w-7 h-7 bg-slate-700 rounded"></div>
+                <span class="text-sm font-medium">Tritanium</span>
+              </div>
+              <div class="text-right">
+                <span class="font-mono text-sm text-slate-300">425,000,000</span>
+                <span class="block text-xs text-slate-500">2.55B ISK</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2.5 rounded-lg bg-emerald-900/10 border-l-2 border-emerald-400 hover:bg-emerald-900/20 transition-colors">
+              <div class="flex items-center gap-3">
+                <div class="w-7 h-7 bg-slate-700 rounded"></div>
+                <span class="text-sm font-medium">Pyerite</span>
+              </div>
+              <div class="text-right">
+                <span class="font-mono text-sm text-slate-300">106,250,000</span>
+                <span class="block text-xs text-slate-500">1.06B ISK</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2.5 rounded-lg bg-amber-900/10 border-l-2 border-amber-400 hover:bg-amber-900/20 transition-colors">
+              <div class="flex items-center gap-3">
+                <div class="w-7 h-7 bg-slate-700 rounded"></div>
+                <span class="text-sm font-medium">Mexallon</span>
+              </div>
+              <div class="text-right">
+                <span class="font-mono text-sm text-slate-300">26,562,500</span>
+                <span class="block text-xs text-slate-500">1.86B ISK</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2.5 rounded-lg bg-red-900/10 border-l-2 border-red-400 hover:bg-red-900/20 transition-colors">
+              <div class="flex items-center gap-3">
+                <div class="w-7 h-7 bg-slate-700 rounded"></div>
+                <span class="text-sm font-medium">Isogen</span>
+              </div>
+              <div class="text-right">
+                <span class="font-mono text-sm text-slate-300">6,640,625</span>
+                <span class="block text-xs text-slate-500">996M ISK</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2.5 rounded-lg bg-red-900/10 border-l-2 border-red-400 hover:bg-red-900/20 transition-colors">
+              <div class="flex items-center gap-3">
+                <div class="w-7 h-7 bg-slate-700 rounded"></div>
+                <span class="text-sm font-medium">Nocxium</span>
+              </div>
+              <div class="text-right">
+                <span class="font-mono text-sm text-slate-300">1,660,156</span>
+                <span class="block text-xs text-slate-500">1.16B ISK</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2.5 rounded-lg bg-amber-900/10 border-l-2 border-amber-400 hover:bg-amber-900/20 transition-colors">
+              <div class="flex items-center gap-3">
+                <div class="w-7 h-7 bg-slate-700 rounded"></div>
+                <span class="text-sm font-medium">Zydrine</span>
+              </div>
+              <div class="text-right">
+                <span class="font-mono text-sm text-slate-300">415,039</span>
+                <span class="block text-xs text-slate-500">581M ISK</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2.5 rounded-lg bg-red-900/10 border-l-2 border-red-400 hover:bg-red-900/20 transition-colors">
+              <div class="flex items-center gap-3">
+                <div class="w-7 h-7 bg-slate-700 rounded"></div>
+                <span class="text-sm font-medium">Megacyte</span>
+              </div>
+              <div class="text-right">
+                <span class="font-mono text-sm text-slate-300">103,760</span>
+                <span class="block text-xs text-slate-500">518M ISK</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2.5 rounded-lg bg-emerald-900/10 border-l-2 border-emerald-400 hover:bg-emerald-900/20 transition-colors">
+              <div class="flex items-center gap-3">
+                <div class="w-7 h-7 bg-slate-700 rounded"></div>
+                <span class="text-sm font-medium">Morphite</span>
+              </div>
+              <div class="text-right">
+                <span class="font-mono text-sm text-slate-300">10,376</span>
+                <span class="block text-xs text-slate-500">415M ISK</span>
+              </div>
+            </div>
+
+            <!-- Fuel -->
+            <div class="text-xs text-slate-500 uppercase tracking-wider px-2 pt-4 pb-1">Fuel & Ice Products</div>
+
+            <div class="flex items-center justify-between px-3 py-2.5 rounded-lg bg-red-900/10 border-l-2 border-red-400 hover:bg-red-900/20 transition-colors">
+              <div class="flex items-center gap-3">
+                <div class="w-7 h-7 bg-slate-700 rounded"></div>
+                <span class="text-sm font-medium">Liquid Ozone</span>
+              </div>
+              <div class="text-right">
+                <span class="font-mono text-sm text-slate-300">150,000</span>
+                <span class="block text-xs text-slate-500">13.5M ISK</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2.5 rounded-lg bg-emerald-900/10 border-l-2 border-emerald-400 hover:bg-emerald-900/20 transition-colors">
+              <div class="flex items-center gap-3">
+                <div class="w-7 h-7 bg-slate-700 rounded"></div>
+                <span class="text-sm font-medium">Strontium Clathrates</span>
+              </div>
+              <div class="text-right">
+                <span class="font-mono text-sm text-slate-300">50,000</span>
+                <span class="block text-xs text-slate-500">85M ISK</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Total liste des courses -->
+          <div class="mt-4 pt-4 border-t border-slate-800">
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-slate-400">Total à acheter:</span>
+              <div class="text-right">
+                <span class="font-mono text-lg text-amber-400">12.54B ISK</span>
+                <span class="block text-xs text-slate-500">Meilleur prix (structure)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- COLONNE DROITE: Mon stock (éditable) -->
+        <div class="p-4">
+          <div class="flex items-center justify-between mb-4">
+            <h4 class="text-sm font-semibold text-slate-300 flex items-center gap-2">
+              <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+              Mon stock
+            </h4>
+            <div class="flex items-center gap-2">
+              <span class="text-xs px-2 py-0.5 bg-cyan-900/30 text-cyan-400 rounded">18 items parsés</span>
+              <button class="text-xs text-red-400 hover:text-red-300 px-2 py-1 hover:bg-red-900/20 rounded">Effacer</button>
+            </div>
+          </div>
+
+          <div class="space-y-1.5 max-h-[500px] overflow-y-auto custom-scroll pr-2">
+            <!-- Capital Components -->
+            <div class="text-xs text-slate-500 uppercase tracking-wider px-2 pt-3 pb-1">Capital Components</div>
+
+            <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
+              <span class="text-sm text-slate-300 flex-1">Capital Armor Plates</span>
+              <div class="flex items-center gap-3">
+                <input type="text" value="520" class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-right text-sm font-mono text-emerald-400 focus:outline-none focus:border-cyan-500" />
+                <span class="w-5 text-emerald-400 text-center">✓</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
+              <span class="text-sm text-slate-300 flex-1">Capital Propulsion Engine</span>
+              <div class="flex items-center gap-3">
+                <input type="text" value="145" class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-right text-sm font-mono text-amber-400 focus:outline-none focus:border-cyan-500" />
+                <span class="w-5 text-amber-400 text-center">◐</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
+              <span class="text-sm text-slate-300 flex-1">Capital Siege Array</span>
+              <div class="flex items-center gap-3">
+                <input type="text" value="0" class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-right text-sm font-mono text-slate-500 focus:outline-none focus:border-cyan-500" />
+                <span class="w-5 text-red-400 text-center">✗</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
+              <span class="text-sm text-slate-300 flex-1">Capital Jump Drive</span>
+              <div class="flex items-center gap-3">
+                <input type="text" value="100" class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-right text-sm font-mono text-emerald-400 focus:outline-none focus:border-cyan-500" />
+                <span class="w-5 text-emerald-400 text-center">✓</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
+              <span class="text-sm text-slate-300 flex-1">Capital Cargo Bay</span>
+              <div class="flex items-center gap-3">
+                <input type="text" value="180" class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-right text-sm font-mono text-amber-400 focus:outline-none focus:border-cyan-500" />
+                <span class="w-5 text-amber-400 text-center">◐</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
+              <span class="text-sm text-slate-300 flex-1">Capital Computer System</span>
+              <div class="flex items-center gap-3">
+                <input type="text" value="0" class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-right text-sm font-mono text-slate-500 focus:outline-none focus:border-cyan-500" />
+                <span class="w-5 text-red-400 text-center">✗</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
+              <span class="text-sm text-slate-300 flex-1">Capital Sensor Cluster</span>
+              <div class="flex items-center gap-3">
+                <input type="text" value="115" class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-right text-sm font-mono text-emerald-400 focus:outline-none focus:border-cyan-500" />
+                <span class="w-5 text-emerald-400 text-center">✓</span>
+              </div>
+            </div>
+
+            <!-- Minerals -->
+            <div class="text-xs text-slate-500 uppercase tracking-wider px-2 pt-4 pb-1">Minerals</div>
+
+            <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
+              <span class="text-sm text-slate-300 flex-1">Tritanium</span>
+              <div class="flex items-center gap-3">
+                <input type="text" value="500,000,000" class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-right text-sm font-mono text-emerald-400 focus:outline-none focus:border-cyan-500" />
+                <span class="w-5 text-emerald-400 text-center">✓</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
+              <span class="text-sm text-slate-300 flex-1">Pyerite</span>
+              <div class="flex items-center gap-3">
+                <input type="text" value="120,000,000" class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-right text-sm font-mono text-emerald-400 focus:outline-none focus:border-cyan-500" />
+                <span class="w-5 text-emerald-400 text-center">✓</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
+              <span class="text-sm text-slate-300 flex-1">Mexallon</span>
+              <div class="flex items-center gap-3">
+                <input type="text" value="18,500,000" class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-right text-sm font-mono text-amber-400 focus:outline-none focus:border-cyan-500" />
+                <span class="w-5 text-amber-400 text-center">◐</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
+              <span class="text-sm text-slate-300 flex-1">Isogen</span>
+              <div class="flex items-center gap-3">
+                <input type="text" value="0" class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-right text-sm font-mono text-slate-500 focus:outline-none focus:border-cyan-500" />
+                <span class="w-5 text-red-400 text-center">✗</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
+              <span class="text-sm text-slate-300 flex-1">Nocxium</span>
+              <div class="flex items-center gap-3">
+                <input type="text" value="0" class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-right text-sm font-mono text-slate-500 focus:outline-none focus:border-cyan-500" />
+                <span class="w-5 text-red-400 text-center">✗</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
+              <span class="text-sm text-slate-300 flex-1">Zydrine</span>
+              <div class="flex items-center gap-3">
+                <input type="text" value="280,000" class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-right text-sm font-mono text-amber-400 focus:outline-none focus:border-cyan-500" />
+                <span class="w-5 text-amber-400 text-center">◐</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
+              <span class="text-sm text-slate-300 flex-1">Megacyte</span>
+              <div class="flex items-center gap-3">
+                <input type="text" value="0" class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-right text-sm font-mono text-slate-500 focus:outline-none focus:border-cyan-500" />
+                <span class="w-5 text-red-400 text-center">✗</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
+              <span class="text-sm text-slate-300 flex-1">Morphite</span>
+              <div class="flex items-center gap-3">
+                <input type="text" value="12,000" class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-right text-sm font-mono text-emerald-400 focus:outline-none focus:border-cyan-500" />
+                <span class="w-5 text-emerald-400 text-center">✓</span>
+              </div>
+            </div>
+
+            <!-- Fuel -->
+            <div class="text-xs text-slate-500 uppercase tracking-wider px-2 pt-4 pb-1">Fuel & Ice Products</div>
+
+            <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
+              <span class="text-sm text-slate-300 flex-1">Liquid Ozone</span>
+              <div class="flex items-center gap-3">
+                <input type="text" value="0" class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-right text-sm font-mono text-slate-500 focus:outline-none focus:border-cyan-500" />
+                <span class="w-5 text-red-400 text-center">✗</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
+              <span class="text-sm text-slate-300 flex-1">Strontium Clathrates</span>
+              <div class="flex items-center gap-3">
+                <input type="text" value="65,000" class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-right text-sm font-mono text-emerald-400 focus:outline-none focus:border-cyan-500" />
+                <span class="w-5 text-emerald-400 text-center">✓</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Zone de paste -->
+          <div class="mt-4 pt-4 border-t border-slate-800">
+            <textarea
+              placeholder="Collez votre inventaire EVE ici (Ctrl+A, Ctrl+C depuis le jeu)..."
+              class="w-full h-20 bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm font-mono text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+            ></textarea>
+            <button class="mt-2 w-full px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-colors">
+              Mettre à jour le stock
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer avec résumé et actions -->
+      <div class="px-6 py-4 border-t border-slate-800 bg-slate-800/30">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-8">
+            <div>
+              <span class="text-xs text-slate-500 uppercase tracking-wider">Coût manquant</span>
+              <p class="font-mono text-lg text-red-400">7.02B ISK</p>
+            </div>
+            <div>
+              <span class="text-xs text-slate-500 uppercase tracking-wider">En stock</span>
+              <p class="font-mono text-lg text-emerald-400">5.52B ISK</p>
+            </div>
+            <div>
+              <span class="text-xs text-slate-500 uppercase tracking-wider">Complétion</span>
+              <p class="font-mono text-lg text-cyan-400">44%</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <button class="px-4 py-2 text-slate-400 hover:text-slate-200 border border-slate-700 hover:border-slate-600 rounded-lg text-sm transition-colors">
+              Copier manquants
+            </button>
+            <button class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm font-medium transition-colors">
+              Appliquer comme coût matériaux
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Note -->
+    <p class="text-center text-slate-500 text-sm mt-6">
+      Simulation de la Proposition 2 avec données de projet industrie
+    </p>
+  </div>
+
+</body>
+</html>

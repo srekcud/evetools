@@ -3,37 +3,36 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
-Version 0.1.3 (2026-01-31)
+Version 0.2 (2026-02-02)
 --------------------------------------------------------------------------------
 
-### Page Administration
-- Nouvelle page d'administration accessible aux utilisateurs autorises
-- KPIs utilisateurs : total, auth valide/invalide, actifs 7j/30j
-- KPIs personnages : total, tokens (sains/expirant/expires), a synchroniser
-- KPIs assets : total, personnels vs corporation
-- KPIs industrie : projets actifs, jobs ESI actifs
-- KPIs infrastructure : structures en cache, Ansiblex
-- Etat des queues Messenger (async et failed)
-- Revenus PVE par corporation (top 10, 30 derniers jours)
-- Graphique des inscriptions par semaine
-- Graphique des connexions sur 7 jours
-- Graphique de repartition des assets
-- Affichage des dernieres synchronisations
+### Architecture
+- Migration complete vers API Platform (State Providers/Processors)
+- Suppression des anciens controleurs API Symfony
 
-### Actions Admin
-- Forcer sync Assets
-- Forcer sync Market (Jita + Structure)
-- Forcer sync Industry jobs
-- Forcer sync PVE
-- Retry messages failed
-- Purger queue failed
-- Clear cache Symfony
+### Temps reel (Mercure)
+- Notifications en temps reel des synchronisations via Server-Sent Events
+- Barre de progression pour les syncs longues (market, assets)
+- Indicateur de statut de synchronisation dans l'interface
 
-### Controle d'acces
-- Liste d'administrateurs configurable dans services.yaml
-- Verification basee sur le nom du personnage principal
-- Lien navigation visible uniquement pour les admins
-- Redirection automatique si acces non autorise
+### Industrie
+- Suivi du Time Efficiency (TE) pour les blueprints intermediaires
+- Tracking partiel du stock (in_stock_quantity) pour les composants
+- Arbre de production hierarchique (vue alternative)
+- Cascade automatique du stock vers les sous-composants
+- Seed des definitions de rigs depuis le SDE
+
+### Listes de courses
+- Partage de listes de courses via lien public (expire apres 1 semaine)
+- Vue publique accessible sans authentification
+
+### PVE
+- Integration des projets corporation dans la detection du loot
+- Verification automatique des contributions aux projets corpo
+
+### Corrections
+- Fix: erreur "Cannot access parentChildrenMap before initialization"
+- Suppression des logs de debug OAuth
 
 --------------------------------------------------------------------------------
 Version 0.1.2 (2026-01-31)

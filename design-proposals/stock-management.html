@@ -1,0 +1,1653 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EVE Tools - Stock Management Design Proposals</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600;700&family=Audiowide&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-deep: #0a0e14;
+      --bg-dark: #0d1117;
+      --bg-card: #161b22;
+      --bg-elevated: #1c2128;
+      --border: #30363d;
+      --border-light: #484f58;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted: #6e7681;
+      --accent-cyan: #00d4ff;
+      --accent-cyan-dim: #0099cc;
+      --accent-green: #3fb950;
+      --accent-amber: #d29922;
+      --accent-red: #f85149;
+      --accent-purple: #a371f7;
+    }
+
+    body {
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      font-family: 'Rajdhani', sans-serif;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    /* Page Header */
+    .page-header {
+      text-align: center;
+      margin-bottom: 4rem;
+      position: relative;
+    }
+
+    .page-header h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+    }
+
+    .page-header p {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+    }
+
+    /* Proposal Container */
+    .proposal {
+      margin-bottom: 6rem;
+      position: relative;
+    }
+
+    .proposal-header {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .proposal-number {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 3rem;
+      font-weight: 900;
+      color: var(--accent-cyan);
+      opacity: 0.3;
+      line-height: 1;
+    }
+
+    .proposal-info h2 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 0.25rem;
+    }
+
+    .proposal-info p {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+    }
+
+    /* =====================================================
+       PROPOSAL 1: HOLOGRAPHIC MATRIX
+       Sci-fi hologram style with glowing grid lines
+       ===================================================== */
+    .holo-matrix {
+      background: linear-gradient(180deg, #050810 0%, #0a1020 100%);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      border-radius: 12px;
+      padding: 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .holo-matrix::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background:
+        repeating-linear-gradient(0deg, transparent, transparent 50px, rgba(0, 212, 255, 0.03) 50px, rgba(0, 212, 255, 0.03) 51px),
+        repeating-linear-gradient(90deg, transparent, transparent 50px, rgba(0, 212, 255, 0.03) 50px, rgba(0, 212, 255, 0.03) 51px);
+      pointer-events: none;
+    }
+
+    .holo-matrix::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+      animation: scanline 4s linear infinite;
+    }
+
+    @keyframes scanline {
+      0% { top: 0; opacity: 1; }
+      100% { top: 100%; opacity: 0.3; }
+    }
+
+    .holo-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .holo-title {
+      font-family: 'Audiowide', sans-serif;
+      font-size: 1.3rem;
+      color: var(--accent-cyan);
+      text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+      letter-spacing: 2px;
+    }
+
+    .holo-stats {
+      display: flex;
+      gap: 2rem;
+    }
+
+    .holo-stat {
+      text-align: center;
+    }
+
+    .holo-stat-value {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 1.8rem;
+      font-weight: bold;
+    }
+
+    .holo-stat-value.complete { color: var(--accent-green); text-shadow: 0 0 15px rgba(63, 185, 80, 0.5); }
+    .holo-stat-value.partial { color: var(--accent-amber); text-shadow: 0 0 15px rgba(210, 153, 34, 0.5); }
+    .holo-stat-value.missing { color: var(--accent-red); text-shadow: 0 0 15px rgba(248, 81, 73, 0.5); }
+
+    .holo-stat-label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .holo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .holo-item {
+      background: rgba(0, 20, 40, 0.6);
+      border: 1px solid rgba(0, 212, 255, 0.15);
+      border-radius: 8px;
+      padding: 1rem;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    .holo-item:hover {
+      border-color: rgba(0, 212, 255, 0.4);
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .holo-item.complete { border-left: 3px solid var(--accent-green); }
+    .holo-item.partial { border-left: 3px solid var(--accent-amber); }
+    .holo-item.missing { border-left: 3px solid var(--accent-red); }
+
+    .holo-item-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .holo-item-icon {
+      width: 40px;
+      height: 40px;
+      background: rgba(0, 212, 255, 0.1);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .holo-item-name {
+      flex: 1;
+      font-family: 'Exo 2', sans-serif;
+      font-weight: 500;
+      font-size: 0.95rem;
+      color: var(--text-primary);
+    }
+
+    .holo-progress-container {
+      margin-bottom: 0.75rem;
+    }
+
+    .holo-progress-bar {
+      height: 6px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 3px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .holo-progress-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.5s ease;
+      position: relative;
+    }
+
+    .holo-progress-fill.complete {
+      background: linear-gradient(90deg, var(--accent-green), #5fd068);
+      box-shadow: 0 0 10px rgba(63, 185, 80, 0.5);
+    }
+
+    .holo-progress-fill.partial {
+      background: linear-gradient(90deg, var(--accent-amber), #e6ac00);
+      box-shadow: 0 0 10px rgba(210, 153, 34, 0.5);
+    }
+
+    .holo-progress-fill.missing {
+      background: linear-gradient(90deg, var(--accent-red), #ff6b6b);
+      box-shadow: 0 0 10px rgba(248, 81, 73, 0.5);
+      width: 0 !important;
+    }
+
+    .holo-quantities {
+      display: flex;
+      justify-content: space-between;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.85rem;
+    }
+
+    .holo-qty-owned {
+      color: var(--accent-cyan);
+    }
+
+    .holo-qty-needed {
+      color: var(--text-secondary);
+    }
+
+    .holo-qty-missing {
+      color: var(--accent-red);
+      font-weight: bold;
+    }
+
+    .holo-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid rgba(0, 212, 255, 0.1);
+    }
+
+    .holo-btn {
+      flex: 1;
+      padding: 0.5rem;
+      border: 1px solid rgba(0, 212, 255, 0.3);
+      background: rgba(0, 212, 255, 0.05);
+      color: var(--accent-cyan);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .holo-btn:hover {
+      background: rgba(0, 212, 255, 0.15);
+      border-color: var(--accent-cyan);
+    }
+
+    .holo-btn.buy {
+      border-color: rgba(63, 185, 80, 0.3);
+      color: var(--accent-green);
+      background: rgba(63, 185, 80, 0.05);
+    }
+
+    .holo-btn.buy:hover {
+      background: rgba(63, 185, 80, 0.15);
+      border-color: var(--accent-green);
+    }
+
+    /* Paste Area */
+    .holo-paste-area {
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 1px solid rgba(0, 212, 255, 0.15);
+      position: relative;
+      z-index: 1;
+    }
+
+    .holo-paste-label {
+      font-family: 'Audiowide', sans-serif;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      letter-spacing: 2px;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .holo-paste-input {
+      width: 100%;
+      height: 80px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px dashed rgba(0, 212, 255, 0.3);
+      border-radius: 8px;
+      padding: 1rem;
+      color: var(--text-primary);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.85rem;
+      resize: none;
+      transition: all 0.3s ease;
+    }
+
+    .holo-paste-input:focus {
+      outline: none;
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.1);
+    }
+
+    .holo-paste-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    /* =====================================================
+       PROPOSAL 2: UNIFIED FLOW
+       Single column with inline editing and smart grouping
+       ===================================================== */
+    .unified-flow {
+      background: #12161c;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .uf-header {
+      background: linear-gradient(135deg, #1a1f26 0%, #0f1318 100%);
+      padding: 1.5rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .uf-title-section {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .uf-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(163, 113, 247, 0.2));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+
+    .uf-title {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .uf-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .uf-summary-pills {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .uf-pill {
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-family: 'Exo 2', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .uf-pill.ready {
+      background: rgba(63, 185, 80, 0.15);
+      color: var(--accent-green);
+      border: 1px solid rgba(63, 185, 80, 0.3);
+    }
+
+    .uf-pill.partial {
+      background: rgba(210, 153, 34, 0.15);
+      color: var(--accent-amber);
+      border: 1px solid rgba(210, 153, 34, 0.3);
+    }
+
+    .uf-pill.needed {
+      background: rgba(248, 81, 73, 0.15);
+      color: var(--accent-red);
+      border: 1px solid rgba(248, 81, 73, 0.3);
+    }
+
+    .uf-content {
+      padding: 1.5rem;
+    }
+
+    /* Group Headers */
+    .uf-group {
+      margin-bottom: 2rem;
+    }
+
+    .uf-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .uf-group-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .uf-group-header:hover {
+      background: rgba(0, 0, 0, 0.5);
+    }
+
+    .uf-group-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+    }
+
+    .uf-group-icon.minerals { background: rgba(0, 212, 255, 0.15); color: var(--accent-cyan); }
+    .uf-group-icon.components { background: rgba(163, 113, 247, 0.15); color: var(--accent-purple); }
+    .uf-group-icon.fuel { background: rgba(210, 153, 34, 0.15); color: var(--accent-amber); }
+
+    .uf-group-title {
+      flex: 1;
+      font-family: 'Exo 2', sans-serif;
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text-primary);
+    }
+
+    .uf-group-count {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .uf-group-chevron {
+      color: var(--text-muted);
+      transition: transform 0.2s ease;
+    }
+
+    .uf-group.expanded .uf-group-chevron {
+      transform: rotate(180deg);
+    }
+
+    /* Items List */
+    .uf-items {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .uf-item {
+      display: grid;
+      grid-template-columns: auto 1fr auto auto auto;
+      gap: 1rem;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 8px;
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    .uf-item:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.06);
+    }
+
+    .uf-item-status {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .uf-item-status.complete { background: var(--accent-green); box-shadow: 0 0 8px rgba(63, 185, 80, 0.5); }
+    .uf-item-status.partial { background: var(--accent-amber); box-shadow: 0 0 8px rgba(210, 153, 34, 0.5); }
+    .uf-item-status.missing { background: var(--accent-red); box-shadow: 0 0 8px rgba(248, 81, 73, 0.5); }
+
+    .uf-item-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .uf-item-img {
+      width: 36px;
+      height: 36px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+    }
+
+    .uf-item-name {
+      font-family: 'Exo 2', sans-serif;
+      font-weight: 500;
+      font-size: 0.9rem;
+      color: var(--text-primary);
+    }
+
+    .uf-item-input-group {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 6px;
+      padding: 0.25rem;
+    }
+
+    .uf-item-input {
+      width: 80px;
+      padding: 0.4rem 0.5rem;
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.9rem;
+      text-align: right;
+    }
+
+    .uf-item-input:focus {
+      outline: none;
+    }
+
+    .uf-item-input.owned { color: var(--accent-cyan); }
+
+    .uf-item-separator {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    .uf-item-needed {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      min-width: 70px;
+      text-align: right;
+    }
+
+    .uf-item-missing {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.9rem;
+      font-weight: 600;
+      min-width: 80px;
+      text-align: right;
+    }
+
+    .uf-item-missing.has-missing { color: var(--accent-red); }
+    .uf-item-missing.none { color: var(--text-muted); }
+
+    .uf-item-action {
+      padding: 0.4rem 0.75rem;
+      border-radius: 4px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .uf-item-action.buy {
+      background: rgba(63, 185, 80, 0.1);
+      border: 1px solid rgba(63, 185, 80, 0.3);
+      color: var(--accent-green);
+    }
+
+    .uf-item-action.buy:hover {
+      background: rgba(63, 185, 80, 0.2);
+    }
+
+    .uf-item-action.complete {
+      background: rgba(0, 212, 255, 0.1);
+      border: 1px solid rgba(0, 212, 255, 0.3);
+      color: var(--accent-cyan);
+    }
+
+    /* Paste Section */
+    .uf-paste-section {
+      margin-top: 1.5rem;
+      padding: 1.5rem;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 12px;
+      border: 2px dashed rgba(255, 255, 255, 0.1);
+      transition: all 0.3s ease;
+    }
+
+    .uf-paste-section:hover {
+      border-color: rgba(0, 212, 255, 0.3);
+    }
+
+    .uf-paste-section.dragging {
+      border-color: var(--accent-cyan);
+      background: rgba(0, 212, 255, 0.05);
+    }
+
+    .uf-paste-inner {
+      text-align: center;
+    }
+
+    .uf-paste-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+      opacity: 0.5;
+    }
+
+    .uf-paste-text {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .uf-paste-hint {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    .uf-paste-kbd {
+      display: inline-block;
+      padding: 0.15rem 0.4rem;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.75rem;
+    }
+
+    /* =====================================================
+       PROPOSAL 3: COMMAND CENTER
+       Military/tactical style with dual-panel layout
+       ===================================================== */
+    .command-center {
+      background: #0c0f14;
+      border: 2px solid #1a2030;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .command-center::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background:
+        radial-gradient(ellipse at 20% 20%, rgba(0, 212, 255, 0.03) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(163, 113, 247, 0.03) 0%, transparent 50%);
+      pointer-events: none;
+    }
+
+    /* Top Bar */
+    .cc-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 1.5rem;
+      background: linear-gradient(180deg, #151a24 0%, #0c0f14 100%);
+      border-bottom: 1px solid #1a2030;
+      position: relative;
+    }
+
+    .cc-topbar::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 200px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+    }
+
+    .cc-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .cc-logo-icon {
+      width: 32px;
+      height: 32px;
+      border: 2px solid var(--accent-cyan);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      color: var(--accent-cyan);
+    }
+
+    .cc-logo-text {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .cc-status-bar {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+    }
+
+    .cc-status-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.8rem;
+    }
+
+    .cc-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .cc-status-dot.green { background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green); }
+    .cc-status-dot.amber { background: var(--accent-amber); box-shadow: 0 0 6px var(--accent-amber); }
+    .cc-status-dot.red { background: var(--accent-red); box-shadow: 0 0 6px var(--accent-red); }
+
+    .cc-status-label { color: var(--text-muted); }
+    .cc-status-value { color: var(--text-primary); }
+
+    /* Main Grid */
+    .cc-main {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: #1a2030;
+      position: relative;
+    }
+
+    /* Panels */
+    .cc-panel {
+      background: #0c0f14;
+      padding: 1.5rem;
+      position: relative;
+    }
+
+    .cc-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid #1a2030;
+    }
+
+    .cc-panel-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .cc-panel-title::before {
+      content: '';
+      width: 3px;
+      height: 12px;
+      background: var(--accent-cyan);
+    }
+
+    .cc-panel-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .cc-panel-btn {
+      padding: 0.4rem 0.75rem;
+      background: transparent;
+      border: 1px solid #1a2030;
+      color: var(--text-secondary);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .cc-panel-btn:hover {
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+    }
+
+    .cc-panel-btn.primary {
+      background: rgba(0, 212, 255, 0.1);
+      border-color: rgba(0, 212, 255, 0.3);
+      color: var(--accent-cyan);
+    }
+
+    /* Table Style */
+    .cc-table {
+      width: 100%;
+    }
+
+    .cc-table-header {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 1rem;
+      padding: 0.5rem 0.75rem;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 4px 4px 0 0;
+      margin-bottom: 0.5rem;
+    }
+
+    .cc-table-th {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .cc-table-body {
+      max-height: 350px;
+      overflow-y: auto;
+    }
+
+    .cc-table-body::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .cc-table-body::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    .cc-table-body::-webkit-scrollbar-thumb {
+      background: #1a2030;
+      border-radius: 2px;
+    }
+
+    .cc-table-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 1rem;
+      align-items: center;
+      padding: 0.6rem 0.75rem;
+      border-bottom: 1px solid rgba(26, 32, 48, 0.5);
+      transition: background 0.2s ease;
+    }
+
+    .cc-table-row:hover {
+      background: rgba(0, 212, 255, 0.03);
+    }
+
+    .cc-table-row:last-child {
+      border-bottom: none;
+    }
+
+    .cc-item-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .cc-item-indicator {
+      width: 4px;
+      height: 24px;
+      border-radius: 2px;
+    }
+
+    .cc-item-indicator.complete { background: var(--accent-green); }
+    .cc-item-indicator.partial { background: var(--accent-amber); }
+    .cc-item-indicator.missing { background: var(--accent-red); }
+
+    .cc-item-icon {
+      width: 32px;
+      height: 32px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+    }
+
+    .cc-item-name {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 0.9rem;
+      color: var(--text-primary);
+    }
+
+    .cc-qty-cell {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.9rem;
+      text-align: right;
+      min-width: 80px;
+    }
+
+    .cc-qty-cell.owned { color: var(--accent-cyan); }
+    .cc-qty-cell.needed { color: var(--text-secondary); }
+    .cc-qty-cell.missing { color: var(--accent-red); font-weight: bold; }
+    .cc-qty-cell.surplus { color: var(--accent-green); }
+
+    /* Input Panel */
+    .cc-input-panel {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 4px;
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+
+    .cc-input-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .cc-input-label::before {
+      content: '>';
+      color: var(--accent-cyan);
+    }
+
+    .cc-input {
+      width: 100%;
+      padding: 0.75rem;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid #1a2030;
+      border-radius: 4px;
+      color: var(--text-primary);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.85rem;
+      resize: none;
+      transition: all 0.2s ease;
+    }
+
+    .cc-input:focus {
+      outline: none;
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.2);
+    }
+
+    .cc-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    /* Bottom Bar */
+    .cc-bottombar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      background: linear-gradient(180deg, #0c0f14 0%, #151a24 100%);
+      border-top: 1px solid #1a2030;
+    }
+
+    .cc-summary {
+      display: flex;
+      gap: 2rem;
+    }
+
+    .cc-summary-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .cc-summary-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .cc-summary-value {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 1.1rem;
+      font-weight: bold;
+    }
+
+    .cc-summary-value.isk { color: var(--accent-amber); }
+    .cc-summary-value.count { color: var(--accent-cyan); }
+
+    .cc-action-buttons {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .cc-action-btn {
+      padding: 0.6rem 1.25rem;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .cc-action-btn.secondary {
+      background: transparent;
+      border: 1px solid #1a2030;
+      color: var(--text-secondary);
+    }
+
+    .cc-action-btn.secondary:hover {
+      border-color: var(--text-primary);
+      color: var(--text-primary);
+    }
+
+    .cc-action-btn.primary {
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-cyan-dim));
+      border: none;
+      color: #000;
+    }
+
+    .cc-action-btn.primary:hover {
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .cc-main {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-header">
+    <h1>Stock Management Proposals</h1>
+    <p>3 design concepts mixing shopping list with inventory management</p>
+  </div>
+
+  <!-- PROPOSAL 1: HOLOGRAPHIC MATRIX -->
+  <div class="proposal">
+    <div class="proposal-header">
+      <span class="proposal-number">01</span>
+      <div class="proposal-info">
+        <h2>Holographic Matrix</h2>
+        <p>Sci-fi grid avec barres de progression et actions rapides par item</p>
+      </div>
+    </div>
+
+    <div class="holo-matrix">
+      <div class="holo-header">
+        <div class="holo-title">// INVENTORY ANALYSIS</div>
+        <div class="holo-stats">
+          <div class="holo-stat">
+            <div class="holo-stat-value complete">4</div>
+            <div class="holo-stat-label">Complete</div>
+          </div>
+          <div class="holo-stat">
+            <div class="holo-stat-value partial">3</div>
+            <div class="holo-stat-label">Partial</div>
+          </div>
+          <div class="holo-stat">
+            <div class="holo-stat-value missing">5</div>
+            <div class="holo-stat-label">Missing</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="holo-grid">
+        <div class="holo-item complete">
+          <div class="holo-item-header">
+            <div class="holo-item-icon">⬡</div>
+            <div class="holo-item-name">Tritanium</div>
+          </div>
+          <div class="holo-progress-container">
+            <div class="holo-progress-bar">
+              <div class="holo-progress-fill complete" style="width: 100%"></div>
+            </div>
+          </div>
+          <div class="holo-quantities">
+            <span class="holo-qty-owned">1,250,000</span>
+            <span class="holo-qty-needed">/ 1,000,000</span>
+          </div>
+          <div class="holo-actions">
+            <button class="holo-btn">Edit Stock</button>
+          </div>
+        </div>
+
+        <div class="holo-item partial">
+          <div class="holo-item-header">
+            <div class="holo-item-icon">◈</div>
+            <div class="holo-item-name">Pyerite</div>
+          </div>
+          <div class="holo-progress-container">
+            <div class="holo-progress-bar">
+              <div class="holo-progress-fill partial" style="width: 65%"></div>
+            </div>
+          </div>
+          <div class="holo-quantities">
+            <span class="holo-qty-owned">325,000</span>
+            <span class="holo-qty-needed">/ 500,000</span>
+            <span class="holo-qty-missing">-175,000</span>
+          </div>
+          <div class="holo-actions">
+            <button class="holo-btn">Edit</button>
+            <button class="holo-btn buy">Buy</button>
+          </div>
+        </div>
+
+        <div class="holo-item missing">
+          <div class="holo-item-header">
+            <div class="holo-item-icon">◇</div>
+            <div class="holo-item-name">Megacyte</div>
+          </div>
+          <div class="holo-progress-container">
+            <div class="holo-progress-bar">
+              <div class="holo-progress-fill missing" style="width: 0%"></div>
+            </div>
+          </div>
+          <div class="holo-quantities">
+            <span class="holo-qty-owned">0</span>
+            <span class="holo-qty-needed">/ 500</span>
+            <span class="holo-qty-missing">-500</span>
+          </div>
+          <div class="holo-actions">
+            <button class="holo-btn">Edit</button>
+            <button class="holo-btn buy">Buy</button>
+          </div>
+        </div>
+
+        <div class="holo-item complete">
+          <div class="holo-item-header">
+            <div class="holo-item-icon">◆</div>
+            <div class="holo-item-name">Isogen</div>
+          </div>
+          <div class="holo-progress-container">
+            <div class="holo-progress-bar">
+              <div class="holo-progress-fill complete" style="width: 100%"></div>
+            </div>
+          </div>
+          <div class="holo-quantities">
+            <span class="holo-qty-owned">85,000</span>
+            <span class="holo-qty-needed">/ 75,000</span>
+          </div>
+          <div class="holo-actions">
+            <button class="holo-btn">Edit Stock</button>
+          </div>
+        </div>
+
+        <div class="holo-item partial">
+          <div class="holo-item-header">
+            <div class="holo-item-icon">⬢</div>
+            <div class="holo-item-name">Morphite</div>
+          </div>
+          <div class="holo-progress-container">
+            <div class="holo-progress-bar">
+              <div class="holo-progress-fill partial" style="width: 40%"></div>
+            </div>
+          </div>
+          <div class="holo-quantities">
+            <span class="holo-qty-owned">80</span>
+            <span class="holo-qty-needed">/ 200</span>
+            <span class="holo-qty-missing">-120</span>
+          </div>
+          <div class="holo-actions">
+            <button class="holo-btn">Edit</button>
+            <button class="holo-btn buy">Buy</button>
+          </div>
+        </div>
+
+        <div class="holo-item missing">
+          <div class="holo-item-header">
+            <div class="holo-item-icon">⬡</div>
+            <div class="holo-item-name">Zydrine</div>
+          </div>
+          <div class="holo-progress-container">
+            <div class="holo-progress-bar">
+              <div class="holo-progress-fill missing" style="width: 0%"></div>
+            </div>
+          </div>
+          <div class="holo-quantities">
+            <span class="holo-qty-owned">0</span>
+            <span class="holo-qty-needed">/ 1,200</span>
+            <span class="holo-qty-missing">-1,200</span>
+          </div>
+          <div class="holo-actions">
+            <button class="holo-btn">Edit</button>
+            <button class="holo-btn buy">Buy</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="holo-paste-area">
+        <div class="holo-paste-label">
+          <span>📋</span> IMPORT INVENTORY
+        </div>
+        <textarea class="holo-paste-input" placeholder="Paste your EVE inventory here (Ctrl+A, Ctrl+C from game)..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROPOSAL 2: UNIFIED FLOW -->
+  <div class="proposal">
+    <div class="proposal-header">
+      <span class="proposal-number">02</span>
+      <div class="proposal-info">
+        <h2>Unified Flow</h2>
+        <p>Liste unique avec édition inline, groupement intelligent et drag & drop</p>
+      </div>
+    </div>
+
+    <div class="unified-flow">
+      <div class="uf-header">
+        <div class="uf-title-section">
+          <div class="uf-icon">🔧</div>
+          <div>
+            <div class="uf-title">Naglfar Blueprint</div>
+            <div class="uf-subtitle">12 materials · Last updated 5 min ago</div>
+          </div>
+        </div>
+        <div class="uf-summary-pills">
+          <div class="uf-pill ready">
+            <span>✓</span> 4 Ready
+          </div>
+          <div class="uf-pill partial">
+            <span>◐</span> 3 Partial
+          </div>
+          <div class="uf-pill needed">
+            <span>✗</span> 5 Missing
+          </div>
+        </div>
+      </div>
+
+      <div class="uf-content">
+        <!-- Minerals Group -->
+        <div class="uf-group expanded">
+          <div class="uf-group-header">
+            <div class="uf-group-icon minerals">⬡</div>
+            <div class="uf-group-title">Minerals</div>
+            <div class="uf-group-count">6 items</div>
+            <div class="uf-group-chevron">▼</div>
+          </div>
+          <div class="uf-items">
+            <div class="uf-item">
+              <div class="uf-item-status complete"></div>
+              <div class="uf-item-info">
+                <div class="uf-item-img"></div>
+                <div class="uf-item-name">Tritanium</div>
+              </div>
+              <div class="uf-item-input-group">
+                <input type="text" class="uf-item-input owned" value="1,250,000">
+                <span class="uf-item-separator">/</span>
+                <span class="uf-item-needed">1,000,000</span>
+              </div>
+              <div class="uf-item-missing none">—</div>
+              <button class="uf-item-action complete">✓</button>
+            </div>
+            <div class="uf-item">
+              <div class="uf-item-status partial"></div>
+              <div class="uf-item-info">
+                <div class="uf-item-img"></div>
+                <div class="uf-item-name">Pyerite</div>
+              </div>
+              <div class="uf-item-input-group">
+                <input type="text" class="uf-item-input owned" value="325,000">
+                <span class="uf-item-separator">/</span>
+                <span class="uf-item-needed">500,000</span>
+              </div>
+              <div class="uf-item-missing has-missing">-175,000</div>
+              <button class="uf-item-action buy">Buy</button>
+            </div>
+            <div class="uf-item">
+              <div class="uf-item-status missing"></div>
+              <div class="uf-item-info">
+                <div class="uf-item-img"></div>
+                <div class="uf-item-name">Megacyte</div>
+              </div>
+              <div class="uf-item-input-group">
+                <input type="text" class="uf-item-input" value="0">
+                <span class="uf-item-separator">/</span>
+                <span class="uf-item-needed">500</span>
+              </div>
+              <div class="uf-item-missing has-missing">-500</div>
+              <button class="uf-item-action buy">Buy</button>
+            </div>
+            <div class="uf-item">
+              <div class="uf-item-status complete"></div>
+              <div class="uf-item-info">
+                <div class="uf-item-img"></div>
+                <div class="uf-item-name">Isogen</div>
+              </div>
+              <div class="uf-item-input-group">
+                <input type="text" class="uf-item-input owned" value="85,000">
+                <span class="uf-item-separator">/</span>
+                <span class="uf-item-needed">75,000</span>
+              </div>
+              <div class="uf-item-missing none">—</div>
+              <button class="uf-item-action complete">✓</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Components Group -->
+        <div class="uf-group expanded">
+          <div class="uf-group-header">
+            <div class="uf-group-icon components">◈</div>
+            <div class="uf-group-title">Capital Components</div>
+            <div class="uf-group-count">4 items</div>
+            <div class="uf-group-chevron">▼</div>
+          </div>
+          <div class="uf-items">
+            <div class="uf-item">
+              <div class="uf-item-status partial"></div>
+              <div class="uf-item-info">
+                <div class="uf-item-img"></div>
+                <div class="uf-item-name">Capital Armor Plates</div>
+              </div>
+              <div class="uf-item-input-group">
+                <input type="text" class="uf-item-input owned" value="8">
+                <span class="uf-item-separator">/</span>
+                <span class="uf-item-needed">12</span>
+              </div>
+              <div class="uf-item-missing has-missing">-4</div>
+              <button class="uf-item-action buy">Buy</button>
+            </div>
+            <div class="uf-item">
+              <div class="uf-item-status missing"></div>
+              <div class="uf-item-info">
+                <div class="uf-item-img"></div>
+                <div class="uf-item-name">Capital Propulsion Engine</div>
+              </div>
+              <div class="uf-item-input-group">
+                <input type="text" class="uf-item-input" value="0">
+                <span class="uf-item-separator">/</span>
+                <span class="uf-item-needed">6</span>
+              </div>
+              <div class="uf-item-missing has-missing">-6</div>
+              <button class="uf-item-action buy">Buy</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Paste Section -->
+        <div class="uf-paste-section">
+          <div class="uf-paste-inner">
+            <div class="uf-paste-icon">📋</div>
+            <div class="uf-paste-text">Drop or paste your inventory here</div>
+            <div class="uf-paste-hint">
+              <span class="uf-paste-kbd">Ctrl</span> + <span class="uf-paste-kbd">V</span> to paste from EVE
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROPOSAL 3: COMMAND CENTER -->
+  <div class="proposal">
+    <div class="proposal-header">
+      <span class="proposal-number">03</span>
+      <div class="proposal-info">
+        <h2>Command Center</h2>
+        <p>Style militaire/tactique avec double panneau et résumé des coûts</p>
+      </div>
+    </div>
+
+    <div class="command-center">
+      <div class="cc-topbar">
+        <div class="cc-logo">
+          <div class="cc-logo-icon">⬡</div>
+          <div class="cc-logo-text">Material Ops</div>
+        </div>
+        <div class="cc-status-bar">
+          <div class="cc-status-item">
+            <span class="cc-status-dot green"></span>
+            <span class="cc-status-label">Ready:</span>
+            <span class="cc-status-value">4</span>
+          </div>
+          <div class="cc-status-item">
+            <span class="cc-status-dot amber"></span>
+            <span class="cc-status-label">Partial:</span>
+            <span class="cc-status-value">3</span>
+          </div>
+          <div class="cc-status-item">
+            <span class="cc-status-dot red"></span>
+            <span class="cc-status-label">Missing:</span>
+            <span class="cc-status-value">5</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="cc-main">
+        <!-- Left Panel: Required Materials -->
+        <div class="cc-panel">
+          <div class="cc-panel-header">
+            <div class="cc-panel-title">Required Materials</div>
+            <div class="cc-panel-actions">
+              <button class="cc-panel-btn">Export</button>
+            </div>
+          </div>
+
+          <div class="cc-table">
+            <div class="cc-table-header">
+              <span class="cc-table-th">Material</span>
+              <span class="cc-table-th">Required</span>
+              <span class="cc-table-th">Missing</span>
+            </div>
+            <div class="cc-table-body">
+              <div class="cc-table-row">
+                <div class="cc-item-cell">
+                  <div class="cc-item-indicator complete"></div>
+                  <div class="cc-item-icon"></div>
+                  <span class="cc-item-name">Tritanium</span>
+                </div>
+                <span class="cc-qty-cell needed">1,000,000</span>
+                <span class="cc-qty-cell surplus">+250,000</span>
+              </div>
+              <div class="cc-table-row">
+                <div class="cc-item-cell">
+                  <div class="cc-item-indicator partial"></div>
+                  <div class="cc-item-icon"></div>
+                  <span class="cc-item-name">Pyerite</span>
+                </div>
+                <span class="cc-qty-cell needed">500,000</span>
+                <span class="cc-qty-cell missing">-175,000</span>
+              </div>
+              <div class="cc-table-row">
+                <div class="cc-item-cell">
+                  <div class="cc-item-indicator missing"></div>
+                  <div class="cc-item-icon"></div>
+                  <span class="cc-item-name">Megacyte</span>
+                </div>
+                <span class="cc-qty-cell needed">500</span>
+                <span class="cc-qty-cell missing">-500</span>
+              </div>
+              <div class="cc-table-row">
+                <div class="cc-item-cell">
+                  <div class="cc-item-indicator complete"></div>
+                  <div class="cc-item-icon"></div>
+                  <span class="cc-item-name">Isogen</span>
+                </div>
+                <span class="cc-qty-cell needed">75,000</span>
+                <span class="cc-qty-cell surplus">+10,000</span>
+              </div>
+              <div class="cc-table-row">
+                <div class="cc-item-cell">
+                  <div class="cc-item-indicator partial"></div>
+                  <div class="cc-item-icon"></div>
+                  <span class="cc-item-name">Morphite</span>
+                </div>
+                <span class="cc-qty-cell needed">200</span>
+                <span class="cc-qty-cell missing">-120</span>
+              </div>
+              <div class="cc-table-row">
+                <div class="cc-item-cell">
+                  <div class="cc-item-indicator missing"></div>
+                  <div class="cc-item-icon"></div>
+                  <span class="cc-item-name">Zydrine</span>
+                </div>
+                <span class="cc-qty-cell needed">1,200</span>
+                <span class="cc-qty-cell missing">-1,200</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Panel: My Inventory -->
+        <div class="cc-panel">
+          <div class="cc-panel-header">
+            <div class="cc-panel-title">My Inventory</div>
+            <div class="cc-panel-actions">
+              <button class="cc-panel-btn">Clear</button>
+              <button class="cc-panel-btn primary">Sync</button>
+            </div>
+          </div>
+
+          <div class="cc-table">
+            <div class="cc-table-header">
+              <span class="cc-table-th">Material</span>
+              <span class="cc-table-th">In Stock</span>
+              <span class="cc-table-th">Status</span>
+            </div>
+            <div class="cc-table-body">
+              <div class="cc-table-row">
+                <div class="cc-item-cell">
+                  <div class="cc-item-indicator complete"></div>
+                  <div class="cc-item-icon"></div>
+                  <span class="cc-item-name">Tritanium</span>
+                </div>
+                <span class="cc-qty-cell owned">1,250,000</span>
+                <span class="cc-qty-cell surplus">✓</span>
+              </div>
+              <div class="cc-table-row">
+                <div class="cc-item-cell">
+                  <div class="cc-item-indicator partial"></div>
+                  <div class="cc-item-icon"></div>
+                  <span class="cc-item-name">Pyerite</span>
+                </div>
+                <span class="cc-qty-cell owned">325,000</span>
+                <span class="cc-qty-cell" style="color: var(--accent-amber);">65%</span>
+              </div>
+              <div class="cc-table-row">
+                <div class="cc-item-cell">
+                  <div class="cc-item-indicator missing"></div>
+                  <div class="cc-item-icon"></div>
+                  <span class="cc-item-name">Megacyte</span>
+                </div>
+                <span class="cc-qty-cell" style="color: var(--text-muted);">0</span>
+                <span class="cc-qty-cell missing">0%</span>
+              </div>
+              <div class="cc-table-row">
+                <div class="cc-item-cell">
+                  <div class="cc-item-indicator complete"></div>
+                  <div class="cc-item-icon"></div>
+                  <span class="cc-item-name">Isogen</span>
+                </div>
+                <span class="cc-qty-cell owned">85,000</span>
+                <span class="cc-qty-cell surplus">✓</span>
+              </div>
+              <div class="cc-table-row">
+                <div class="cc-item-cell">
+                  <div class="cc-item-indicator partial"></div>
+                  <div class="cc-item-icon"></div>
+                  <span class="cc-item-name">Morphite</span>
+                </div>
+                <span class="cc-qty-cell owned">80</span>
+                <span class="cc-qty-cell" style="color: var(--accent-amber);">40%</span>
+              </div>
+              <div class="cc-table-row">
+                <div class="cc-item-cell">
+                  <div class="cc-item-indicator missing"></div>
+                  <div class="cc-item-icon"></div>
+                  <span class="cc-item-name">Zydrine</span>
+                </div>
+                <span class="cc-qty-cell" style="color: var(--text-muted);">0</span>
+                <span class="cc-qty-cell missing">0%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cc-input-panel">
+            <div class="cc-input-label">Paste Inventory</div>
+            <textarea class="cc-input" rows="3" placeholder="Ctrl+A, Ctrl+C from EVE inventory..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="cc-bottombar">
+        <div class="cc-summary">
+          <div class="cc-summary-item">
+            <span class="cc-summary-label">Missing Cost</span>
+            <span class="cc-summary-value isk">245.8M ISK</span>
+          </div>
+          <div class="cc-summary-item">
+            <span class="cc-summary-label">Items to Buy</span>
+            <span class="cc-summary-value count">5 types</span>
+          </div>
+          <div class="cc-summary-item">
+            <span class="cc-summary-label">Completion</span>
+            <span class="cc-summary-value count">58%</span>
+          </div>
+        </div>
+        <div class="cc-action-buttons">
+          <button class="cc-action-btn secondary">Copy Missing</button>
+          <button class="cc-action-btn primary">Buy All Missing</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

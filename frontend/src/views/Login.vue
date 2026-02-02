@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { safeJsonParse } from '@/services/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -24,7 +25,7 @@ async function checkEsiStatus() {
       }
       return
     }
-    const data = await response.json()
+    const data = await safeJsonParse(response)
     // ESI status.json returns an array of endpoint statuses
     // If all endpoints have issues, we're in maintenance
     if (Array.isArray(data) && data.every((s: { status: string }) => s.status !== 'green')) {
@@ -51,21 +52,16 @@ onMounted(async () => {
       const oauthAction = sessionStorage.getItem('eve_oauth_action')
       const existingToken = authStore.token || localStorage.getItem('jwt_token')
 
-      console.log('[OAuth Callback] Action:', oauthAction)
-      console.log('[OAuth Callback] Has existing token:', !!existingToken)
-
       // Build request headers
       const headers: Record<string, string> = {}
       if (oauthAction && existingToken) {
         headers['Authorization'] = `Bearer ${existingToken}`
       }
 
-      console.log('[OAuth Callback] Calling /auth/eve/exchange...')
       const response = await fetch(`/auth/eve/exchange?code=${encodeURIComponent(code)}`, {
         headers,
       })
-      const data = await response.json()
-      console.log('[OAuth Callback] Response:', data)
+      const data = await safeJsonParse<{ error?: boolean; message?: string; token?: string }>(response)
 
       // Clean up sessionStorage
       sessionStorage.removeItem('eve_oauth_action')
@@ -128,11 +124,11 @@ async function loginWithEve() {
 
   try {
     const response = await fetch('/auth/eve/redirect')
-    const data = await response.json()
+    const data = await safeJsonParse<{ redirect_url?: string; state?: string }>(response)
 
     if (data.redirect_url) {
       // Store state in sessionStorage for CSRF verification
-      sessionStorage.setItem('eve_oauth_state', data.state)
+      sessionStorage.setItem('eve_oauth_state', data.state || '')
       window.location.href = data.redirect_url
     } else {
       error.value = 'Failed to get redirect URL'

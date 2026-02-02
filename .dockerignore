@@ -1,7 +1,6 @@
 var/
 node_modules/
 frontend/node_modules/
-frontend/dist/
 .git/
 .env.local
 docker-compose.override.yml
