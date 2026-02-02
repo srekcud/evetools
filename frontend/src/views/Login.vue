@@ -231,7 +231,7 @@ async function loginWithEve() {
 
     <!-- Version -->
     <div class="absolute bottom-4 left-1/2 -translate-x-1/2 text-eve-text/40 font-mono text-xs">
-      v0.1.0-alpha
+      v0.2.1
     </div>
   </div>
 </template>
