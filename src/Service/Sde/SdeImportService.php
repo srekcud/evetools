@@ -7,14 +7,24 @@ namespace App\Service\Sde;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\Yaml\Yaml;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class SdeImportService
 {
-    private const SDE_URL = 'https://eve-static-data-export.s3-eu-west-1.amazonaws.com/tranquility/sde.zip';
-    private const FUZZWORK_URL = 'https://www.fuzzwork.co.uk/dump/latest/';
-    private const DOWNLOAD_TIMEOUT = 300;
+    private const SDE_URL = 'https://developers.eveonline.com/static-data/eve-online-static-data-latest-yaml.zip';
+    private const DOWNLOAD_TIMEOUT = 600;
+
+    // Activity ID mapping (name in YAML -> ID in database)
+    private const ACTIVITY_IDS = [
+        'manufacturing' => 1,
+        'research_time' => 2,
+        'research_material' => 3,
+        'copying' => 4,
+        'invention' => 5,
+        'reaction' => 6,
+    ];
 
     private string $tempDir;
     private Filesystem $filesystem;
@@ -29,12 +39,12 @@ class SdeImportService
         $this->filesystem = new Filesystem();
     }
 
-    public function downloadAndImport(callable $progressCallback = null): void
+    public function downloadAndImport(?callable $progressCallback = null): void
     {
         $this->ensureTempDir();
 
-        $this->notify($progressCallback, 'Downloading SDE files from Fuzzwork...');
-        $this->downloadFuzzworkFiles();
+        $this->notify($progressCallback, 'Downloading SDE from CCP...');
+        $this->downloadSde();
 
         $this->notify($progressCallback, 'Importing categories...');
         $this->importCategories($progressCallback);
@@ -60,24 +70,12 @@ class SdeImportService
         $this->notify($progressCallback, 'Importing stations...');
         $this->importStations($progressCallback);
 
-        $this->notify($progressCallback, 'Importing solar system jumps...');
-        $this->importSolarSystemJumps($progressCallback);
+        $this->notify($progressCallback, 'Importing stargates (solar system jumps)...');
+        $this->importStargates($progressCallback);
 
         // Industry
-        $this->notify($progressCallback, 'Importing blueprints...');
+        $this->notify($progressCallback, 'Importing blueprints and industry activities...');
         $this->importBlueprints($progressCallback);
-
-        $this->notify($progressCallback, 'Importing industry activities...');
-        $this->importIndustryActivities($progressCallback);
-
-        $this->notify($progressCallback, 'Importing industry activity materials...');
-        $this->importIndustryActivityMaterials($progressCallback);
-
-        $this->notify($progressCallback, 'Importing industry activity products...');
-        $this->importIndustryActivityProducts($progressCallback);
-
-        $this->notify($progressCallback, 'Importing industry activity skills...');
-        $this->importIndustryActivitySkills($progressCallback);
 
         // Dogma
         $this->notify($progressCallback, 'Importing attribute types...');
@@ -118,88 +116,130 @@ class SdeImportService
         }
     }
 
-    private function downloadFuzzworkFiles(): void
+    private function downloadSde(): void
     {
-        $files = [
-            // Core inventory
-            'invCategories.csv',
-            'invGroups.csv',
-            'invTypes.csv',
-            'invMarketGroups.csv',
-            'invFlags.csv',
-            // Map data
-            'mapRegions.csv',
-            'mapConstellations.csv',
-            'mapSolarSystems.csv',
-            'mapSolarSystemJumps.csv',
-            'staStations.csv',
-            // Industry
-            'industryBlueprints.csv',
-            'industryActivity.csv',
-            'industryActivityMaterials.csv',
-            'industryActivityProducts.csv',
-            'industryActivitySkills.csv',
-            // Dogma
-            'dgmAttributeTypes.csv',
-            'dgmTypeAttributes.csv',
-            'dgmEffects.csv',
-            'dgmTypeEffects.csv',
-            // Reference
-            'chrRaces.csv',
-            'chrFactions.csv',
-            'eveIcons.csv',
-        ];
+        $zipPath = $this->tempDir . '/sde.zip';
 
-        foreach ($files as $file) {
-            $url = self::FUZZWORK_URL . $file . '.bz2';
-            $localPath = $this->tempDir . '/' . $file . '.bz2';
-            $decompressedPath = $this->tempDir . '/' . $file;
+        // Check if already extracted (flat structure - files directly in tempDir)
+        if ($this->filesystem->exists($this->tempDir . '/types.yaml')) {
+            $this->logger->info('SDE already extracted, skipping download');
 
-            if (!$this->filesystem->exists($decompressedPath)) {
-                $this->logger->info("Downloading {$file}...");
+            return;
+        }
 
-                try {
-                    $response = $this->httpClient->request('GET', $url, [
-                        'timeout' => self::DOWNLOAD_TIMEOUT,
-                    ]);
-                    $this->filesystem->dumpFile($localPath, $response->getContent());
-                } catch (TransportExceptionInterface $e) {
-                    throw new \RuntimeException("Failed to download {$file}: " . $e->getMessage());
-                }
+        if (!$this->filesystem->exists($zipPath)) {
+            $this->logger->info('Downloading SDE from CCP...');
 
-                // Decompress bz2 using shell command
-                $result = null;
-                $output = [];
-                exec("bunzip2 -k {$localPath} 2>&1", $output, $result);
-
-                if ($result !== 0) {
-                    throw new \RuntimeException("Failed to decompress {$file}: " . implode("\n", $output));
-                }
-
-                $this->filesystem->remove($localPath);
+            try {
+                $response = $this->httpClient->request('GET', self::SDE_URL, [
+                    'timeout' => self::DOWNLOAD_TIMEOUT,
+                ]);
+                $this->filesystem->dumpFile($zipPath, $response->getContent());
+            } catch (TransportExceptionInterface $e) {
+                throw new \RuntimeException('Failed to download SDE: ' . $e->getMessage());
             }
         }
+
+        // Extract ZIP
+        $this->logger->info('Extracting SDE...');
+        $zip = new \ZipArchive();
+        if ($zip->open($zipPath) === true) {
+            $zip->extractTo($this->tempDir);
+            $zip->close();
+        } else {
+            throw new \RuntimeException('Failed to extract SDE zip file');
+        }
+
+        // Remove ZIP after extraction
+        $this->filesystem->remove($zipPath);
     }
 
-    private function importCategories(callable $progressCallback = null): void
+    private function parseYamlFile(string $filename, bool $optional = false): array|\stdClass
+    {
+        // New SDE structure: flat directory with all YAML files
+        $path = $this->tempDir . '/' . $filename;
+
+        if (!$this->filesystem->exists($path)) {
+            if ($optional) {
+                return [];
+            }
+            throw new \RuntimeException("SDE file not found: {$filename}");
+        }
+
+        // For large files, use object for map to reduce memory usage
+        $fileSize = filesize($path);
+        if ($fileSize > 50 * 1024 * 1024) { // > 50MB
+            $this->logger->info("Parsing large YAML file: {$filename} ({$fileSize} bytes)");
+
+            return Yaml::parseFile($path, Yaml::PARSE_OBJECT_FOR_MAP);
+        }
+
+        return Yaml::parseFile($path);
+    }
+
+    private function getName(array|object $data): string
+    {
+        if (is_object($data)) {
+            $data = (array) $data;
+        }
+
+        if (isset($data['name'])) {
+            if (is_string($data['name'])) {
+                return $data['name'];
+            }
+            if (is_int($data['name']) || is_float($data['name'])) {
+                return (string) $data['name'];
+            }
+            if (is_array($data['name']) || is_object($data['name'])) {
+                $names = (array) $data['name'];
+                $value = $names['en'] ?? reset($names) ?? '';
+
+                return is_string($value) ? $value : (string) $value;
+            }
+        }
+
+        return '';
+    }
+
+    private function getDescription(array|object $data): ?string
+    {
+        if (is_object($data)) {
+            $data = (array) $data;
+        }
+
+        if (isset($data['description'])) {
+            if (is_string($data['description'])) {
+                return $data['description'] ?: null;
+            }
+            if (is_array($data['description']) || is_object($data['description'])) {
+                $descriptions = (array) $data['description'];
+
+                return $descriptions['en'] ?? reset($descriptions) ?? null;
+            }
+        }
+
+        return null;
+    }
+
+    // ==================== INVENTORY ====================
+
+    private function importCategories(?callable $progressCallback = null): void
     {
         $this->truncateTable('sde_inv_categories');
 
-        $file = $this->tempDir . '/invCategories.csv';
-        $handle = fopen($file, 'r');
-        $headers = fgetcsv($handle);
+        $data = $this->parseYamlFile('categories.yaml');
 
         $count = 0;
         $connection = $this->entityManager->getConnection();
 
-        while (($row = fgetcsv($handle)) !== false) {
-            $data = array_combine($headers, $row);
+        foreach ($data as $categoryId => $category) {
+            $category = (array) $category;
 
             $connection->insert('sde_inv_categories', [
-                'category_id' => (int) $data['categoryID'],
-                'category_name' => $data['categoryName'],
-                'published' => $this->toBool($data['published']),
-                'icon_id' => $this->intOrNull($data['iconID']),
+                'category_id' => (int) $categoryId,
+                'category_name' => $this->getName($category),
+                'published' => $category['published'] ?? false,
+                'icon_id' => $category['iconID'] ?? null,
             ], [
                 'published' => \Doctrine\DBAL\ParameterType::BOOLEAN,
             ]);
@@ -207,107 +247,97 @@ class SdeImportService
             $count++;
         }
 
-        fclose($handle);
         $this->notify($progressCallback, "  Total: {$count} categories imported");
     }
 
-    private function importGroups(callable $progressCallback = null): void
+    private function importGroups(?callable $progressCallback = null): void
     {
         $this->truncateTable('sde_inv_groups');
 
-        $file = $this->tempDir . '/invGroups.csv';
-        $handle = fopen($file, 'r');
-        $headers = fgetcsv($handle);
-
-        $count = 0;
-        $batchSize = 500;
-
-        // Pre-load category IDs only
+        // Pre-load category IDs
         $validCategoryIds = [];
         $result = $this->entityManager->getConnection()->executeQuery('SELECT category_id FROM sde_inv_categories');
         while ($row = $result->fetchAssociative()) {
             $validCategoryIds[(int) $row['category_id']] = true;
         }
 
+        $data = $this->parseYamlFile('groups.yaml');
+
+        $count = 0;
+        $batchSize = 500;
         $connection = $this->entityManager->getConnection();
         $batch = [];
 
-        while (($row = fgetcsv($handle)) !== false) {
-            $data = array_combine($headers, $row);
+        foreach ($data as $groupId => $group) {
+            $group = (array) $group;
 
-            $categoryId = (int) $data['categoryID'];
+            $categoryId = (int) ($group['categoryID'] ?? 0);
             if (!isset($validCategoryIds[$categoryId])) {
                 continue;
             }
 
             $batch[] = [
-                'group_id' => (int) $data['groupID'],
-                'group_name' => $data['groupName'],
+                'group_id' => (int) $groupId,
+                'group_name' => $this->getName($group),
                 'category_id' => $categoryId,
-                'published' => in_array($data['published'], ['1', 'True', 'true'], true),
-                'icon_id' => $data['iconID'] && is_numeric($data['iconID']) ? (int) $data['iconID'] : null,
-                'use_base_price' => in_array($data['useBasePrice'], ['1', 'True', 'true'], true),
-                'anchored' => in_array($data['anchored'], ['1', 'True', 'true'], true),
-                'anchorable' => in_array($data['anchorable'], ['1', 'True', 'true'], true),
-                'fittable_non_singleton' => in_array($data['fittableNonSingleton'], ['1', 'True', 'true'], true),
+                'published' => $group['published'] ?? false,
+                'icon_id' => $group['iconID'] ?? null,
+                'use_base_price' => $group['useBasePrice'] ?? false,
+                'anchored' => $group['anchored'] ?? false,
+                'anchorable' => $group['anchorable'] ?? false,
+                'fittable_non_singleton' => $group['fittableNonSingleton'] ?? false,
             ];
 
             $count++;
 
             if (count($batch) >= $batchSize) {
-                foreach ($batch as $r) {
-                    $connection->insert('sde_inv_groups', $r, [
-                        'published' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                        'use_base_price' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                        'anchored' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                        'anchorable' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                        'fittable_non_singleton' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                    ]);
-                }
+                $this->insertGroupsBatch($connection, $batch);
                 $batch = [];
                 $this->notify($progressCallback, "  Imported {$count} groups...");
             }
         }
 
         if (!empty($batch)) {
-            foreach ($batch as $r) {
-                $connection->insert('sde_inv_groups', $r, [
-                    'published' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                    'use_base_price' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                    'anchored' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                    'anchorable' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                    'fittable_non_singleton' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                ]);
-            }
+            $this->insertGroupsBatch($connection, $batch);
         }
 
-        fclose($handle);
         $this->notify($progressCallback, "  Total: {$count} groups imported");
     }
 
-    private function importMarketGroups(callable $progressCallback = null): void
+    private function insertGroupsBatch($connection, array $batch): void
+    {
+        foreach ($batch as $row) {
+            $connection->insert('sde_inv_groups', $row, [
+                'published' => \Doctrine\DBAL\ParameterType::BOOLEAN,
+                'use_base_price' => \Doctrine\DBAL\ParameterType::BOOLEAN,
+                'anchored' => \Doctrine\DBAL\ParameterType::BOOLEAN,
+                'anchorable' => \Doctrine\DBAL\ParameterType::BOOLEAN,
+                'fittable_non_singleton' => \Doctrine\DBAL\ParameterType::BOOLEAN,
+            ]);
+        }
+    }
+
+    private function importMarketGroups(?callable $progressCallback = null): void
     {
         $this->truncateTable('sde_inv_market_groups');
 
-        $file = $this->tempDir . '/invMarketGroups.csv';
-        $handle = fopen($file, 'r');
-        $headers = fgetcsv($handle);
+        $data = $this->parseYamlFile('marketGroups.yaml');
 
-        // First pass: read all rows and insert without parent references
-        $rows = [];
         $connection = $this->entityManager->getConnection();
         $count = 0;
+        $rows = [];
 
-        while (($row = fgetcsv($handle)) !== false) {
-            $data = array_combine($headers, $row);
-            $rows[] = $data;
+        // First pass: insert all without parent references
+        foreach ($data as $marketGroupId => $marketGroup) {
+            $marketGroup = (array) $marketGroup;
+            $rows[$marketGroupId] = $marketGroup;
 
             $connection->insert('sde_inv_market_groups', [
-                'market_group_id' => (int) $data['marketGroupID'],
-                'market_group_name' => $data['marketGroupName'] ?? '',
-                'description' => $data['description'] ?: null,
-                'icon_id' => $data['iconID'] && is_numeric($data['iconID']) ? (int) $data['iconID'] : null,
-                'has_types' => in_array($data['hasTypes'], ['1', 'True', 'true'], true),
+                'market_group_id' => (int) $marketGroupId,
+                'market_group_name' => $this->getName($marketGroup),
+                'description' => $this->getDescription($marketGroup),
+                'icon_id' => $marketGroup['iconID'] ?? null,
+                'has_types' => $marketGroup['hasTypes'] ?? false,
                 'parent_group_id' => null,
             ], [
                 'has_types' => \Doctrine\DBAL\ParameterType::BOOLEAN,
@@ -315,20 +345,18 @@ class SdeImportService
 
             $count++;
         }
-        fclose($handle);
 
         $this->notify($progressCallback, "  Created {$count} market groups...");
 
         // Second pass: update parent references
         $updated = 0;
-        foreach ($rows as $data) {
-            $parentId = $data['parentGroupID'] && is_numeric($data['parentGroupID']) ? (int) $data['parentGroupID'] : null;
-            if ($parentId) {
-                $marketGroupId = (int) $data['marketGroupID'];
+        foreach ($rows as $marketGroupId => $marketGroup) {
+            $parentId = $marketGroup['parentGroupID'] ?? null;
+            if ($parentId !== null) {
                 $connection->update('sde_inv_market_groups', [
-                    'parent_group_id' => $parentId,
+                    'parent_group_id' => (int) $parentId,
                 ], [
-                    'market_group_id' => $marketGroupId,
+                    'market_group_id' => (int) $marketGroupId,
                 ]);
                 $updated++;
             }
@@ -337,16 +365,9 @@ class SdeImportService
         $this->notify($progressCallback, "  Total: {$count} market groups imported ({$updated} with parents)");
     }
 
-    private function importTypes(callable $progressCallback = null): void
+    private function importTypes(?callable $progressCallback = null): void
     {
         $this->truncateTable('sde_inv_types');
-
-        $file = $this->tempDir . '/invTypes.csv';
-        $handle = fopen($file, 'r');
-        $headers = fgetcsv($handle);
-
-        $count = 0;
-        $batchSize = 500;
 
         // Pre-load valid group and market group IDs
         $validGroupIds = [];
@@ -361,39 +382,43 @@ class SdeImportService
             $validMarketGroupIds[(int) $row['market_group_id']] = true;
         }
 
+        $data = $this->parseYamlFile('types.yaml');
+
+        $count = 0;
+        $batchSize = 500;
         $connection = $this->entityManager->getConnection();
         $batch = [];
 
-        while (($row = fgetcsv($handle)) !== false) {
-            $data = array_combine($headers, $row);
+        foreach ($data as $typeId => $type) {
+            $type = (array) $type;
 
-            $groupId = (int) $data['groupID'];
+            $groupId = (int) ($type['groupID'] ?? 0);
             if (!isset($validGroupIds[$groupId])) {
                 continue;
             }
 
-            $marketGroupId = $data['marketGroupID'] && is_numeric($data['marketGroupID']) ? (int) $data['marketGroupID'] : null;
-            if ($marketGroupId && !isset($validMarketGroupIds[$marketGroupId])) {
+            $marketGroupId = $type['marketGroupID'] ?? null;
+            if ($marketGroupId !== null && !isset($validMarketGroupIds[$marketGroupId])) {
                 $marketGroupId = null;
             }
 
             $batch[] = [
-                'type_id' => (int) $data['typeID'],
-                'type_name' => $data['typeName'],
-                'description' => $data['description'] ?: null,
+                'type_id' => (int) $typeId,
+                'type_name' => $this->getName($type),
+                'description' => $this->getDescription($type),
                 'group_id' => $groupId,
-                'mass' => $data['mass'] && is_numeric($data['mass']) ? (float) $data['mass'] : null,
-                'volume' => $data['volume'] && is_numeric($data['volume']) ? (float) $data['volume'] : null,
-                'capacity' => $data['capacity'] && is_numeric($data['capacity']) ? (float) $data['capacity'] : null,
-                'portion_size' => $data['portionSize'] && is_numeric($data['portionSize']) ? (int) $data['portionSize'] : null,
-                'base_price' => $data['basePrice'] && is_numeric($data['basePrice']) ? $data['basePrice'] : null,
-                'published' => in_array($data['published'], ['1', 'True', 'true'], true),
+                'mass' => $type['mass'] ?? null,
+                'volume' => $type['volume'] ?? null,
+                'capacity' => $type['capacity'] ?? null,
+                'portion_size' => $type['portionSize'] ?? null,
+                'base_price' => $type['basePrice'] ?? null,
+                'published' => $type['published'] ?? false,
                 'market_group_id' => $marketGroupId,
-                'icon_id' => $data['iconID'] && is_numeric($data['iconID']) ? (int) $data['iconID'] : null,
-                'graphic_id' => $data['graphicID'] && is_numeric($data['graphicID']) ? (int) $data['graphicID'] : null,
-                'race_id' => $data['raceID'] && is_numeric($data['raceID']) ? (int) $data['raceID'] : null,
-                'sof_faction_name' => null,
-                'sound_id' => $data['soundID'] && is_numeric($data['soundID']) ? (int) $data['soundID'] : null,
+                'icon_id' => $type['iconID'] ?? null,
+                'graphic_id' => $type['graphicID'] ?? null,
+                'race_id' => $type['raceID'] ?? null,
+                'sof_faction_name' => $type['sofFactionName'] ?? null,
+                'sound_id' => $type['soundID'] ?? null,
             ];
 
             $count++;
@@ -409,8 +434,6 @@ class SdeImportService
             $this->insertTypesBatch($connection, $batch);
         }
 
-        fclose($handle);
-
         $this->notify($progressCallback, "  Total: {$count} types imported");
     }
 
@@ -423,87 +446,101 @@ class SdeImportService
         }
     }
 
-    private function importRegions(callable $progressCallback = null): void
+    // ==================== MAP ====================
+
+    private function importRegions(?callable $progressCallback = null): void
     {
         $this->truncateTable('sde_map_regions');
 
-        $file = $this->tempDir . '/mapRegions.csv';
-        $handle = fopen($file, 'r');
-        $headers = fgetcsv($handle);
+        $data = $this->parseYamlFile('mapRegions.yaml');
 
         $count = 0;
         $connection = $this->entityManager->getConnection();
 
-        while (($row = fgetcsv($handle)) !== false) {
-            $data = array_combine($headers, $row);
+        foreach ($data as $regionId => $region) {
+            $region = (array) $region;
+
+            // Position can be array [x,y,z] or object {x,y,z}
+            $position = $region['position'] ?? [];
+            if (is_object($position)) {
+                $position = (array) $position;
+            }
+            $x = $position['x'] ?? ($position[0] ?? null);
+            $y = $position['y'] ?? ($position[1] ?? null);
+            $z = $position['z'] ?? ($position[2] ?? null);
 
             $connection->insert('sde_map_regions', [
-                'region_id' => (int) $data['regionID'],
-                'region_name' => $data['regionName'],
-                'x' => $data['x'] && is_numeric($data['x']) ? (float) $data['x'] : null,
-                'y' => $data['y'] && is_numeric($data['y']) ? (float) $data['y'] : null,
-                'z' => $data['z'] && is_numeric($data['z']) ? (float) $data['z'] : null,
-                'x_min' => $data['xMin'] && is_numeric($data['xMin']) ? (float) $data['xMin'] : null,
-                'x_max' => $data['xMax'] && is_numeric($data['xMax']) ? (float) $data['xMax'] : null,
-                'y_min' => $data['yMin'] && is_numeric($data['yMin']) ? (float) $data['yMin'] : null,
-                'y_max' => $data['yMax'] && is_numeric($data['yMax']) ? (float) $data['yMax'] : null,
-                'z_min' => $data['zMin'] && is_numeric($data['zMin']) ? (float) $data['zMin'] : null,
-                'z_max' => $data['zMax'] && is_numeric($data['zMax']) ? (float) $data['zMax'] : null,
-                'faction_id' => $data['factionID'] && is_numeric($data['factionID']) ? (int) $data['factionID'] : null,
-                'radius' => $data['radius'] && is_numeric($data['radius']) ? (float) $data['radius'] : null,
+                'region_id' => (int) $regionId,
+                'region_name' => $this->getName($region),
+                'x' => $x,
+                'y' => $y,
+                'z' => $z,
+                'x_min' => null, // Not in new SDE format
+                'x_max' => null,
+                'y_min' => null,
+                'y_max' => null,
+                'z_min' => null,
+                'z_max' => null,
+                'faction_id' => $region['factionID'] ?? null,
+                'radius' => $region['radius'] ?? null,
             ]);
 
             $count++;
         }
 
-        fclose($handle);
         $this->notify($progressCallback, "  Total: {$count} regions imported");
     }
 
-    private function importConstellations(callable $progressCallback = null): void
+    private function importConstellations(?callable $progressCallback = null): void
     {
         $this->truncateTable('sde_map_constellations');
 
-        $file = $this->tempDir . '/mapConstellations.csv';
-        $handle = fopen($file, 'r');
-        $headers = fgetcsv($handle);
-
-        $count = 0;
-        $batchSize = 500;
-
-        // Pre-load region IDs only
+        // Pre-load region IDs
         $validRegionIds = [];
         $result = $this->entityManager->getConnection()->executeQuery('SELECT region_id FROM sde_map_regions');
         while ($row = $result->fetchAssociative()) {
             $validRegionIds[(int) $row['region_id']] = true;
         }
 
+        $data = $this->parseYamlFile('mapConstellations.yaml');
+
+        $count = 0;
+        $batchSize = 500;
         $connection = $this->entityManager->getConnection();
         $batch = [];
 
-        while (($row = fgetcsv($handle)) !== false) {
-            $data = array_combine($headers, $row);
+        foreach ($data as $constellationId => $constellation) {
+            $constellation = (array) $constellation;
 
-            $regionId = (int) $data['regionID'];
+            $regionId = (int) ($constellation['regionID'] ?? 0);
             if (!isset($validRegionIds[$regionId])) {
                 continue;
             }
 
+            // Position can be array or object
+            $position = $constellation['position'] ?? [];
+            if (is_object($position)) {
+                $position = (array) $position;
+            }
+            $x = $position['x'] ?? ($position[0] ?? null);
+            $y = $position['y'] ?? ($position[1] ?? null);
+            $z = $position['z'] ?? ($position[2] ?? null);
+
             $batch[] = [
-                'constellation_id' => (int) $data['constellationID'],
-                'constellation_name' => $data['constellationName'],
+                'constellation_id' => (int) $constellationId,
+                'constellation_name' => $this->getName($constellation),
                 'region_id' => $regionId,
-                'x' => $data['x'] && is_numeric($data['x']) ? (float) $data['x'] : null,
-                'y' => $data['y'] && is_numeric($data['y']) ? (float) $data['y'] : null,
-                'z' => $data['z'] && is_numeric($data['z']) ? (float) $data['z'] : null,
-                'x_min' => $data['xMin'] && is_numeric($data['xMin']) ? (float) $data['xMin'] : null,
-                'x_max' => $data['xMax'] && is_numeric($data['xMax']) ? (float) $data['xMax'] : null,
-                'y_min' => $data['yMin'] && is_numeric($data['yMin']) ? (float) $data['yMin'] : null,
-                'y_max' => $data['yMax'] && is_numeric($data['yMax']) ? (float) $data['yMax'] : null,
-                'z_min' => $data['zMin'] && is_numeric($data['zMin']) ? (float) $data['zMin'] : null,
-                'z_max' => $data['zMax'] && is_numeric($data['zMax']) ? (float) $data['zMax'] : null,
-                'faction_id' => $data['factionID'] && is_numeric($data['factionID']) ? (int) $data['factionID'] : null,
-                'radius' => $data['radius'] && is_numeric($data['radius']) ? (float) $data['radius'] : null,
+                'x' => $x,
+                'y' => $y,
+                'z' => $z,
+                'x_min' => null,
+                'x_max' => null,
+                'y_min' => null,
+                'y_max' => null,
+                'z_min' => null,
+                'z_max' => null,
+                'faction_id' => $constellation['factionID'] ?? null,
+                'radius' => $constellation['radius'] ?? null,
             ];
 
             $count++;
@@ -522,149 +559,162 @@ class SdeImportService
             }
         }
 
-        fclose($handle);
         $this->notify($progressCallback, "  Total: {$count} constellations imported");
     }
 
-    private function importSolarSystems(callable $progressCallback = null): void
+    private function importSolarSystems(?callable $progressCallback = null): void
     {
         $this->truncateTable('sde_map_solar_systems');
 
-        $file = $this->tempDir . '/mapSolarSystems.csv';
-        $handle = fopen($file, 'r');
-        $headers = fgetcsv($handle);
+        // Pre-load constellation IDs and their region IDs
+        $constellationToRegion = [];
+        $result = $this->entityManager->getConnection()->executeQuery('SELECT constellation_id, region_id FROM sde_map_constellations');
+        while ($row = $result->fetchAssociative()) {
+            $constellationToRegion[(int) $row['constellation_id']] = (int) $row['region_id'];
+        }
+
+        $data = $this->parseYamlFile('mapSolarSystems.yaml');
 
         $count = 0;
         $batchSize = 500;
-
-        // Pre-load constellation IDs only (not entities to save memory)
-        $validConstellationIds = [];
-        $result = $this->entityManager->getConnection()->executeQuery('SELECT constellation_id FROM sde_map_constellations');
-        while ($row = $result->fetchAssociative()) {
-            $validConstellationIds[(int) $row['constellation_id']] = true;
-        }
-
         $connection = $this->entityManager->getConnection();
         $batch = [];
 
-        while (($row = fgetcsv($handle)) !== false) {
-            $data = array_combine($headers, $row);
+        foreach ($data as $solarSystemId => $system) {
+            $system = (array) $system;
 
-            $constellationId = (int) $data['constellationID'];
-            if (!isset($validConstellationIds[$constellationId])) {
+            $constellationId = (int) ($system['constellationID'] ?? 0);
+            if (!isset($constellationToRegion[$constellationId])) {
                 continue;
             }
 
+            $regionId = $system['regionID'] ?? $constellationToRegion[$constellationId];
+
+            // Position can be array or object
+            $position = $system['position'] ?? [];
+            if (is_object($position)) {
+                $position = (array) $position;
+            }
+            $x = $position['x'] ?? ($position[0] ?? null);
+            $y = $position['y'] ?? ($position[1] ?? null);
+            $z = $position['z'] ?? ($position[2] ?? null);
+
             $batch[] = [
-                'solar_system_id' => (int) $data['solarSystemID'],
-                'solar_system_name' => $data['solarSystemName'],
+                'solar_system_id' => (int) $solarSystemId,
+                'solar_system_name' => $this->getName($system),
                 'constellation_id' => $constellationId,
-                'region_id' => (int) $data['regionID'],
-                'x' => $data['x'] && is_numeric($data['x']) ? (float) $data['x'] : null,
-                'y' => $data['y'] && is_numeric($data['y']) ? (float) $data['y'] : null,
-                'z' => $data['z'] && is_numeric($data['z']) ? (float) $data['z'] : null,
-                'x_min' => $data['xMin'] && is_numeric($data['xMin']) ? (float) $data['xMin'] : null,
-                'x_max' => $data['xMax'] && is_numeric($data['xMax']) ? (float) $data['xMax'] : null,
-                'y_min' => $data['yMin'] && is_numeric($data['yMin']) ? (float) $data['yMin'] : null,
-                'y_max' => $data['yMax'] && is_numeric($data['yMax']) ? (float) $data['yMax'] : null,
-                'z_min' => $data['zMin'] && is_numeric($data['zMin']) ? (float) $data['zMin'] : null,
-                'z_max' => $data['zMax'] && is_numeric($data['zMax']) ? (float) $data['zMax'] : null,
-                'security' => (float) ($data['security'] ?? 0),
-                'true_security_status' => isset($data['trueSecurityStatus']) && is_numeric($data['trueSecurityStatus']) ? (float) $data['trueSecurityStatus'] : null,
-                'faction_id' => $data['factionID'] && is_numeric($data['factionID']) ? (int) $data['factionID'] : null,
-                'radius' => $data['radius'] && is_numeric($data['radius']) ? (float) $data['radius'] : null,
-                'sun_type_id' => $data['sunTypeID'] && is_numeric($data['sunTypeID']) ? (int) $data['sunTypeID'] : null,
-                'security_class' => $data['securityClass'] ?: null,
-                'border' => in_array($data['border'], ['1', 'True', 'true'], true),
-                'fringe' => in_array($data['fringe'], ['1', 'True', 'true'], true),
-                'corridor' => in_array($data['corridor'], ['1', 'True', 'true'], true),
-                'hub' => in_array($data['hub'], ['1', 'True', 'true'], true),
-                'international' => in_array($data['international'], ['1', 'True', 'true'], true),
-                'regional' => in_array($data['regional'], ['1', 'True', 'true'], true),
+                'region_id' => (int) $regionId,
+                'x' => $x,
+                'y' => $y,
+                'z' => $z,
+                'x_min' => null,
+                'x_max' => null,
+                'y_min' => null,
+                'y_max' => null,
+                'z_min' => null,
+                'z_max' => null,
+                'security' => $system['securityStatus'] ?? ($system['security'] ?? 0),
+                'true_security_status' => $system['securityStatus'] ?? null,
+                'faction_id' => $system['factionID'] ?? null,
+                'radius' => $system['radius'] ?? null,
+                'sun_type_id' => $system['sunTypeID'] ?? null,
+                'security_class' => $system['securityClass'] ?? null,
+                'border' => $system['border'] ?? false,
+                'fringe' => $system['fringe'] ?? false,
+                'corridor' => $system['corridor'] ?? false,
+                'hub' => $system['hub'] ?? false,
+                'international' => $system['international'] ?? false,
+                'regional' => $system['regional'] ?? false,
             ];
 
             $count++;
 
             if (count($batch) >= $batchSize) {
-                foreach ($batch as $r) {
-                    $connection->insert('sde_map_solar_systems', $r, [
-                        'border' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                        'fringe' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                        'corridor' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                        'hub' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                        'international' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                        'regional' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                    ]);
-                }
+                $this->insertSolarSystemsBatch($connection, $batch);
                 $batch = [];
                 $this->notify($progressCallback, "  Imported {$count} solar systems...");
             }
         }
 
         if (!empty($batch)) {
-            foreach ($batch as $r) {
-                $connection->insert('sde_map_solar_systems', $r, [
-                    'border' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                    'fringe' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                    'corridor' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                    'hub' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                    'international' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                    'regional' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                ]);
-            }
+            $this->insertSolarSystemsBatch($connection, $batch);
         }
 
-        fclose($handle);
         $this->notify($progressCallback, "  Total: {$count} solar systems imported");
     }
 
-    private function importStations(callable $progressCallback = null): void
+    private function insertSolarSystemsBatch($connection, array $batch): void
+    {
+        foreach ($batch as $row) {
+            $connection->insert('sde_map_solar_systems', $row, [
+                'border' => \Doctrine\DBAL\ParameterType::BOOLEAN,
+                'fringe' => \Doctrine\DBAL\ParameterType::BOOLEAN,
+                'corridor' => \Doctrine\DBAL\ParameterType::BOOLEAN,
+                'hub' => \Doctrine\DBAL\ParameterType::BOOLEAN,
+                'international' => \Doctrine\DBAL\ParameterType::BOOLEAN,
+                'regional' => \Doctrine\DBAL\ParameterType::BOOLEAN,
+            ]);
+        }
+    }
+
+    private function importStations(?callable $progressCallback = null): void
     {
         $this->truncateTable('sde_sta_stations');
 
-        $file = $this->tempDir . '/staStations.csv';
-        $handle = fopen($file, 'r');
-        $headers = fgetcsv($handle);
+        // Pre-load valid solar system IDs
+        $validSolarSystemIds = [];
+        $result = $this->entityManager->getConnection()->executeQuery('SELECT solar_system_id, constellation_id, region_id FROM sde_map_solar_systems');
+        while ($row = $result->fetchAssociative()) {
+            $validSolarSystemIds[(int) $row['solar_system_id']] = [
+                'constellation_id' => (int) $row['constellation_id'],
+                'region_id' => (int) $row['region_id'],
+            ];
+        }
+
+        $data = $this->parseYamlFile('npcStations.yaml');
 
         $count = 0;
         $batchSize = 500;
-
-        // Pre-load valid solar system IDs
-        $validSolarSystemIds = [];
-        $result = $this->entityManager->getConnection()->executeQuery('SELECT solar_system_id FROM sde_map_solar_systems');
-        while ($row = $result->fetchAssociative()) {
-            $validSolarSystemIds[(int) $row['solar_system_id']] = true;
-        }
-
         $connection = $this->entityManager->getConnection();
         $batch = [];
 
-        while (($row = fgetcsv($handle)) !== false) {
-            $data = array_combine($headers, $row);
+        foreach ($data as $stationId => $station) {
+            $station = (array) $station;
 
-            $solarSystemId = (int) $data['solarSystemID'];
+            $solarSystemId = (int) ($station['solarSystemID'] ?? 0);
             if (!isset($validSolarSystemIds[$solarSystemId])) {
                 continue;
             }
 
+            $systemInfo = $validSolarSystemIds[$solarSystemId];
+
+            // Position can be array or object
+            $position = $station['position'] ?? [];
+            if (is_object($position)) {
+                $position = (array) $position;
+            }
+            $x = $position['x'] ?? ($position[0] ?? null);
+            $y = $position['y'] ?? ($position[1] ?? null);
+            $z = $position['z'] ?? ($position[2] ?? null);
+
             $batch[] = [
-                'station_id' => (int) $data['stationID'],
-                'station_name' => $data['stationName'],
+                'station_id' => (int) $stationId,
+                'station_name' => $this->getName($station),
                 'solar_system_id' => $solarSystemId,
-                'constellation_id' => (int) $data['constellationID'],
-                'region_id' => (int) $data['regionID'],
-                'station_type_id' => $data['stationTypeID'] && is_numeric($data['stationTypeID']) ? (int) $data['stationTypeID'] : null,
-                'corporation_id' => $data['corporationID'] && is_numeric($data['corporationID']) ? (int) $data['corporationID'] : null,
-                'x' => $data['x'] && is_numeric($data['x']) ? (float) $data['x'] : null,
-                'y' => $data['y'] && is_numeric($data['y']) ? (float) $data['y'] : null,
-                'z' => $data['z'] && is_numeric($data['z']) ? (float) $data['z'] : null,
-                'security' => $data['security'] && is_numeric($data['security']) ? (float) $data['security'] : null,
-                'docking_cost_per_volume' => $data['dockingCostPerVolume'] && is_numeric($data['dockingCostPerVolume']) ? (float) $data['dockingCostPerVolume'] : null,
-                'max_ship_volume_dockable' => $data['maxShipVolumeDockable'] && is_numeric($data['maxShipVolumeDockable']) ? (float) $data['maxShipVolumeDockable'] : null,
-                'office_rental_cost' => $data['officeRentalCost'] && is_numeric($data['officeRentalCost']) ? (int) $data['officeRentalCost'] : null,
-                'reprocessing_efficiency' => $data['reprocessingEfficiency'] && is_numeric($data['reprocessingEfficiency']) ? (float) $data['reprocessingEfficiency'] : null,
-                'reprocessing_stations_take' => $data['reprocessingStationsTake'] && is_numeric($data['reprocessingStationsTake']) ? (float) $data['reprocessingStationsTake'] : null,
-                'operation_id' => $data['operationID'] && is_numeric($data['operationID']) ? (int) $data['operationID'] : null,
+                'constellation_id' => $systemInfo['constellation_id'],
+                'region_id' => $systemInfo['region_id'],
+                'station_type_id' => $station['stationTypeID'] ?? null,
+                'corporation_id' => $station['corporationID'] ?? null,
+                'x' => $x,
+                'y' => $y,
+                'z' => $z,
+                'security' => $station['security'] ?? null,
+                'docking_cost_per_volume' => $station['dockingCostPerVolume'] ?? null,
+                'max_ship_volume_dockable' => $station['maxShipVolumeDockable'] ?? null,
+                'office_rental_cost' => $station['officeRentalCost'] ?? null,
+                'reprocessing_efficiency' => $station['reprocessingEfficiency'] ?? null,
+                'reprocessing_stations_take' => $station['reprocessingStationsTake'] ?? null,
+                'operation_id' => $station['operationID'] ?? null,
             ];
 
             $count++;
@@ -680,8 +730,6 @@ class SdeImportService
             $this->insertStationsBatch($connection, $batch);
         }
 
-        fclose($handle);
-
         $this->notify($progressCallback, "  Total: {$count} stations imported");
     }
 
@@ -692,30 +740,67 @@ class SdeImportService
         }
     }
 
-    private function importSolarSystemJumps(callable $progressCallback = null): void
+    private function importStargates(?callable $progressCallback = null): void
     {
         $this->truncateTable('sde_map_solar_system_jumps');
 
-        $file = $this->tempDir . '/mapSolarSystemJumps.csv';
-        $handle = fopen($file, 'r');
-        $headers = fgetcsv($handle);
+        // Pre-load solar system info
+        $solarSystemInfo = [];
+        $result = $this->entityManager->getConnection()->executeQuery(
+            'SELECT solar_system_id, constellation_id, region_id FROM sde_map_solar_systems'
+        );
+        while ($row = $result->fetchAssociative()) {
+            $solarSystemInfo[(int) $row['solar_system_id']] = [
+                'constellation_id' => (int) $row['constellation_id'],
+                'region_id' => (int) $row['region_id'],
+            ];
+        }
+
+        $data = $this->parseYamlFile('mapStargates.yaml');
+
+        // Build unique jumps (avoid duplicates A->B and B->A)
+        $jumps = [];
+        foreach ($data as $stargateId => $stargate) {
+            $stargate = (array) $stargate;
+
+            $fromSystemId = (int) ($stargate['solarSystemID'] ?? 0);
+            $destination = $stargate['destination'] ?? [];
+            if (is_object($destination)) {
+                $destination = (array) $destination;
+            }
+            $toSystemId = (int) ($destination['solarSystemID'] ?? 0);
+
+            if ($fromSystemId && $toSystemId && isset($solarSystemInfo[$fromSystemId]) && isset($solarSystemInfo[$toSystemId])) {
+                // Create unique key to avoid duplicates
+                $key = min($fromSystemId, $toSystemId) . '-' . max($fromSystemId, $toSystemId);
+                if (!isset($jumps[$key])) {
+                    $jumps[$key] = [
+                        'from' => $fromSystemId,
+                        'to' => $toSystemId,
+                    ];
+                }
+            }
+        }
 
         $count = 0;
         $batchSize = 1000;
-
         $connection = $this->entityManager->getConnection();
         $batch = [];
 
-        while (($row = fgetcsv($handle)) !== false) {
-            $data = array_combine($headers, $row);
+        foreach ($jumps as $jump) {
+            $fromSystemId = $jump['from'];
+            $toSystemId = $jump['to'];
+
+            $fromInfo = $solarSystemInfo[$fromSystemId];
+            $toInfo = $solarSystemInfo[$toSystemId];
 
             $batch[] = [
-                'from_solar_system_id' => (int) $data['fromSolarSystemID'],
-                'to_solar_system_id' => (int) $data['toSolarSystemID'],
-                'from_region_id' => (int) $data['fromRegionID'],
-                'from_constellation_id' => (int) $data['fromConstellationID'],
-                'to_region_id' => (int) $data['toRegionID'],
-                'to_constellation_id' => (int) $data['toConstellationID'],
+                'from_solar_system_id' => $fromSystemId,
+                'to_solar_system_id' => $toSystemId,
+                'from_region_id' => $fromInfo['region_id'],
+                'from_constellation_id' => $fromInfo['constellation_id'],
+                'to_region_id' => $toInfo['region_id'],
+                'to_constellation_id' => $toInfo['constellation_id'],
             ];
 
             $count++;
@@ -731,8 +816,6 @@ class SdeImportService
             $this->insertJumpsBatch($connection, $batch);
         }
 
-        fclose($handle);
-
         $this->notify($progressCallback, "  Total: {$count} jumps imported");
     }
 
@@ -745,369 +828,282 @@ class SdeImportService
 
     // ==================== INDUSTRY ====================
 
-    private function importBlueprints(callable $progressCallback = null): void
+    private function importBlueprints(?callable $progressCallback = null): void
     {
+        // Truncate all industry tables
+        $this->truncateTable('sde_industry_activity_skills');
+        $this->truncateTable('sde_industry_activity_products');
+        $this->truncateTable('sde_industry_activity_materials');
+        $this->truncateTable('sde_industry_activities');
         $this->truncateTable('sde_industry_blueprints');
 
-        $file = $this->tempDir . '/industryBlueprints.csv';
-        $handle = fopen($file, 'r');
-        $headers = fgetcsv($handle);
+        $data = $this->parseYamlFile('blueprints.yaml');
 
-        $count = 0;
-        $batchSize = 1000;
+        $blueprintCount = 0;
+        $activityCount = 0;
+        $materialCount = 0;
+        $productCount = 0;
+        $skillCount = 0;
+
         $connection = $this->entityManager->getConnection();
-        $batch = [];
+        $seenSkills = [];
 
-        while (($row = fgetcsv($handle)) !== false) {
-            $data = array_combine($headers, $row);
+        foreach ($data as $blueprintTypeId => $blueprint) {
+            $blueprint = (array) $blueprint;
 
-            $batch[] = [
-                'type_id' => (int) $data['typeID'],
-                'max_production_limit' => (int) $data['maxProductionLimit'],
-            ];
-
-            $count++;
-
-            if (count($batch) >= $batchSize) {
-                foreach ($batch as $r) {
-                    $connection->insert('sde_industry_blueprints', $r);
-                }
-                $batch = [];
-                $this->notify($progressCallback, "  Imported {$count} blueprints...");
-            }
-        }
-
-        if (!empty($batch)) {
-            foreach ($batch as $r) {
-                $connection->insert('sde_industry_blueprints', $r);
-            }
-        }
-
-        fclose($handle);
-        $this->notify($progressCallback, "  Total: {$count} blueprints imported");
-    }
-
-    private function importIndustryActivities(callable $progressCallback = null): void
-    {
-        $this->truncateTable('sde_industry_activities');
-
-        $file = $this->tempDir . '/industryActivity.csv';
-        $handle = fopen($file, 'r');
-        $headers = fgetcsv($handle);
-
-        $count = 0;
-        $batchSize = 1000;
-        $connection = $this->entityManager->getConnection();
-        $batch = [];
-
-        while (($row = fgetcsv($handle)) !== false) {
-            $data = array_combine($headers, $row);
-
-            $batch[] = [
-                'type_id' => (int) $data['typeID'],
-                'activity_id' => (int) $data['activityID'],
-                'time' => (int) $data['time'],
-            ];
-
-            $count++;
-
-            if (count($batch) >= $batchSize) {
-                foreach ($batch as $r) {
-                    $connection->insert('sde_industry_activities', $r);
-                }
-                $batch = [];
-                $this->notify($progressCallback, "  Imported {$count} activities...");
-            }
-        }
-
-        if (!empty($batch)) {
-            foreach ($batch as $r) {
-                $connection->insert('sde_industry_activities', $r);
-            }
-        }
-
-        fclose($handle);
-        $this->notify($progressCallback, "  Total: {$count} industry activities imported");
-    }
-
-    private function importIndustryActivityMaterials(callable $progressCallback = null): void
-    {
-        $this->truncateTable('sde_industry_activity_materials');
-
-        $file = $this->tempDir . '/industryActivityMaterials.csv';
-        $handle = fopen($file, 'r');
-        $headers = fgetcsv($handle);
-
-        $count = 0;
-        $batchSize = 1000;
-        $connection = $this->entityManager->getConnection();
-        $batch = [];
-
-        while (($row = fgetcsv($handle)) !== false) {
-            $data = array_combine($headers, $row);
-
-            $batch[] = [
-                'type_id' => (int) $data['typeID'],
-                'activity_id' => (int) $data['activityID'],
-                'material_type_id' => (int) $data['materialTypeID'],
-                'quantity' => (int) $data['quantity'],
-            ];
-
-            $count++;
-
-            if (count($batch) >= $batchSize) {
-                foreach ($batch as $r) {
-                    $connection->insert('sde_industry_activity_materials', $r);
-                }
-                $batch = [];
-                $this->notify($progressCallback, "  Imported {$count} materials...");
-            }
-        }
-
-        if (!empty($batch)) {
-            foreach ($batch as $r) {
-                $connection->insert('sde_industry_activity_materials', $r);
-            }
-        }
-
-        fclose($handle);
-        $this->notify($progressCallback, "  Total: {$count} industry activity materials imported");
-    }
-
-    private function importIndustryActivityProducts(callable $progressCallback = null): void
-    {
-        $this->truncateTable('sde_industry_activity_products');
-
-        $file = $this->tempDir . '/industryActivityProducts.csv';
-        $handle = fopen($file, 'r');
-        $headers = fgetcsv($handle);
-
-        $count = 0;
-        $batchSize = 1000;
-        $connection = $this->entityManager->getConnection();
-        $batch = [];
-
-        while (($row = fgetcsv($handle)) !== false) {
-            $data = array_combine($headers, $row);
-
-            $batch[] = [
-                'type_id' => (int) $data['typeID'],
-                'activity_id' => (int) $data['activityID'],
-                'product_type_id' => (int) $data['productTypeID'],
-                'quantity' => (int) $data['quantity'],
-            ];
-
-            $count++;
-
-            if (count($batch) >= $batchSize) {
-                foreach ($batch as $r) {
-                    $connection->insert('sde_industry_activity_products', $r);
-                }
-                $batch = [];
-                $this->notify($progressCallback, "  Imported {$count} products...");
-            }
-        }
-
-        if (!empty($batch)) {
-            foreach ($batch as $r) {
-                $connection->insert('sde_industry_activity_products', $r);
-            }
-        }
-
-        fclose($handle);
-        $this->notify($progressCallback, "  Total: {$count} industry activity products imported");
-    }
-
-    private function importIndustryActivitySkills(callable $progressCallback = null): void
-    {
-        $this->truncateTable('sde_industry_activity_skills');
-
-        $file = $this->tempDir . '/industryActivitySkills.csv';
-        $handle = fopen($file, 'r');
-        $headers = fgetcsv($handle);
-
-        $count = 0;
-        $skipped = 0;
-        $batchSize = 1000;
-        $connection = $this->entityManager->getConnection();
-        $seen = [];
-
-        while (($row = fgetcsv($handle)) !== false) {
-            $data = array_combine($headers, $row);
-
-            $key = $data['typeID'] . '-' . $data['activityID'] . '-' . $data['skillID'];
-            if (isset($seen[$key])) {
-                $skipped++;
-                continue;
-            }
-            $seen[$key] = true;
-
-            $connection->insert('sde_industry_activity_skills', [
-                'type_id' => (int) $data['typeID'],
-                'activity_id' => (int) $data['activityID'],
-                'skill_id' => (int) $data['skillID'],
-                'level' => (int) $data['level'],
+            // Insert blueprint
+            $connection->insert('sde_industry_blueprints', [
+                'type_id' => (int) $blueprintTypeId,
+                'max_production_limit' => $blueprint['maxProductionLimit'] ?? 0,
             ]);
+            $blueprintCount++;
 
-            $count++;
+            // Process activities
+            $activities = $blueprint['activities'] ?? [];
+            foreach ($activities as $activityName => $activity) {
+                $activity = (array) $activity;
 
-            if ($count % $batchSize === 0) {
-                $this->notify($progressCallback, "  Imported {$count} skills...");
+                $activityId = self::ACTIVITY_IDS[$activityName] ?? null;
+                if ($activityId === null) {
+                    continue;
+                }
+
+                // Insert activity
+                $connection->insert('sde_industry_activities', [
+                    'type_id' => (int) $blueprintTypeId,
+                    'activity_id' => $activityId,
+                    'time' => $activity['time'] ?? 0,
+                ]);
+                $activityCount++;
+
+                // Materials
+                $materials = $activity['materials'] ?? [];
+                foreach ($materials as $material) {
+                    $material = (array) $material;
+                    $connection->insert('sde_industry_activity_materials', [
+                        'type_id' => (int) $blueprintTypeId,
+                        'activity_id' => $activityId,
+                        'material_type_id' => (int) $material['typeID'],
+                        'quantity' => (int) $material['quantity'],
+                    ]);
+                    $materialCount++;
+                }
+
+                // Products
+                $products = $activity['products'] ?? [];
+                foreach ($products as $product) {
+                    $product = (array) $product;
+                    $connection->insert('sde_industry_activity_products', [
+                        'type_id' => (int) $blueprintTypeId,
+                        'activity_id' => $activityId,
+                        'product_type_id' => (int) $product['typeID'],
+                        'quantity' => (int) $product['quantity'],
+                    ]);
+                    $productCount++;
+                }
+
+                // Skills
+                $skills = $activity['skills'] ?? [];
+                foreach ($skills as $skill) {
+                    $skill = (array) $skill;
+                    $skillId = (int) $skill['typeID'];
+                    $level = (int) $skill['level'];
+
+                    // Deduplicate skills
+                    $key = $blueprintTypeId . '-' . $activityId . '-' . $skillId;
+                    if (isset($seenSkills[$key])) {
+                        continue;
+                    }
+                    $seenSkills[$key] = true;
+
+                    $connection->insert('sde_industry_activity_skills', [
+                        'type_id' => (int) $blueprintTypeId,
+                        'activity_id' => $activityId,
+                        'skill_id' => $skillId,
+                        'level' => $level,
+                    ]);
+                    $skillCount++;
+                }
+            }
+
+            if ($blueprintCount % 1000 === 0) {
+                $this->notify($progressCallback, "  Imported {$blueprintCount} blueprints...");
             }
         }
 
-        fclose($handle);
-        $this->notify($progressCallback, "  Total: {$count} industry activity skills imported ({$skipped} duplicates skipped)");
+        $this->notify($progressCallback, "  Total: {$blueprintCount} blueprints, {$activityCount} activities, {$materialCount} materials, {$productCount} products, {$skillCount} skills");
     }
 
     // ==================== DOGMA ====================
 
-    private function importAttributeTypes(callable $progressCallback = null): void
+    private function importAttributeTypes(?callable $progressCallback = null): void
     {
         $this->truncateTable('sde_dgm_attribute_types');
 
-        $file = $this->tempDir . '/dgmAttributeTypes.csv';
-        $handle = fopen($file, 'r');
-        $headers = fgetcsv($handle);
+        $data = $this->parseYamlFile('dogmaAttributes.yaml');
 
         $count = 0;
         $batchSize = 500;
         $connection = $this->entityManager->getConnection();
         $batch = [];
 
-        while (($row = fgetcsv($handle)) !== false) {
-            $data = array_combine($headers, $row);
+        foreach ($data as $attributeId => $attribute) {
+            $attribute = (array) $attribute;
+
+            // displayName can be multilingual (array) or simple string
+            $displayName = $attribute['displayName'] ?? null;
+            if (is_array($displayName) || is_object($displayName)) {
+                $displayName = (array) $displayName;
+                $displayName = $displayName['en'] ?? reset($displayName) ?? null;
+            }
 
             $batch[] = [
-                'attribute_id' => (int) $data['attributeID'],
-                'attribute_name' => $this->nullIfNone($data['attributeName']),
-                'description' => $this->nullIfNone($data['description']),
-                'icon_id' => $this->intOrNull($data['iconID']),
-                'default_value' => $this->floatOrNull($data['defaultValue']),
-                'published' => in_array($data['published'], ['1', 'True', 'true'], true),
-                'display_name' => $this->nullIfNone($data['displayName']),
-                'unit_id' => $this->intOrNull($data['unitID']),
-                'stackable' => in_array($data['stackable'], ['1', 'True', 'true'], true),
-                'high_is_good' => in_array($data['highIsGood'], ['1', 'True', 'true'], true),
-                'category_id' => $this->intOrNull($data['categoryID']),
+                'attribute_id' => (int) $attributeId,
+                'attribute_name' => $attribute['name'] ?? null,
+                'description' => $this->getDescription($attribute),
+                'icon_id' => $attribute['iconID'] ?? null,
+                'default_value' => $attribute['defaultValue'] ?? null,
+                'published' => $attribute['published'] ?? false,
+                'display_name' => $displayName,
+                'unit_id' => $attribute['unitID'] ?? null,
+                'stackable' => $attribute['stackable'] ?? false,
+                'high_is_good' => $attribute['highIsGood'] ?? false,
+                'category_id' => $attribute['attributeCategoryID'] ?? ($attribute['categoryID'] ?? null),
             ];
 
             $count++;
 
             if (count($batch) >= $batchSize) {
-                foreach ($batch as $r) {
-                    $connection->insert('sde_dgm_attribute_types', $r, [
-                        'published' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                        'stackable' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                        'high_is_good' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                    ]);
-                }
+                $this->insertAttributeTypesBatch($connection, $batch);
                 $batch = [];
                 $this->notify($progressCallback, "  Imported {$count} attribute types...");
             }
         }
 
         if (!empty($batch)) {
-            foreach ($batch as $r) {
-                $connection->insert('sde_dgm_attribute_types', $r, [
-                    'published' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                    'stackable' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                    'high_is_good' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                ]);
-            }
+            $this->insertAttributeTypesBatch($connection, $batch);
         }
 
-        fclose($handle);
         $this->notify($progressCallback, "  Total: {$count} attribute types imported");
     }
 
-    private function importTypeAttributes(callable $progressCallback = null): void
+    private function insertAttributeTypesBatch($connection, array $batch): void
+    {
+        foreach ($batch as $row) {
+            $connection->insert('sde_dgm_attribute_types', $row, [
+                'published' => \Doctrine\DBAL\ParameterType::BOOLEAN,
+                'stackable' => \Doctrine\DBAL\ParameterType::BOOLEAN,
+                'high_is_good' => \Doctrine\DBAL\ParameterType::BOOLEAN,
+            ]);
+        }
+    }
+
+    private function importTypeAttributes(?callable $progressCallback = null): void
     {
         $this->truncateTable('sde_dgm_type_attributes');
 
-        $file = $this->tempDir . '/dgmTypeAttributes.csv';
-        $handle = fopen($file, 'r');
-        $headers = fgetcsv($handle);
+        $data = $this->parseYamlFile('typeDogma.yaml');
 
         $count = 0;
         $batchSize = 5000;
         $connection = $this->entityManager->getConnection();
         $batch = [];
 
-        while (($row = fgetcsv($handle)) !== false) {
-            $data = array_combine($headers, $row);
+        foreach ($data as $typeId => $typeData) {
+            $typeData = (array) $typeData;
+            $attributes = $typeData['dogmaAttributes'] ?? [];
 
-            $batch[] = [
-                'type_id' => (int) $data['typeID'],
-                'attribute_id' => (int) $data['attributeID'],
-                'value_int' => $this->intOrNull($data['valueInt']),
-                'value_float' => $this->floatOrNull($data['valueFloat']),
-            ];
+            foreach ($attributes as $attribute) {
+                $attribute = (array) $attribute;
 
-            $count++;
+                $value = $attribute['value'] ?? null;
+                $valueInt = null;
+                $valueFloat = null;
 
-            if (count($batch) >= $batchSize) {
-                foreach ($batch as $r) {
-                    $connection->insert('sde_dgm_type_attributes', $r);
+                if ($value !== null) {
+                    // Check if it's a whole number and fits in PostgreSQL integer range
+                    $isWholeNumber = is_int($value) || (is_float($value) && floor($value) == $value);
+                    $fitsInInteger = $value >= -2147483648 && $value <= 2147483647;
+
+                    if ($isWholeNumber && $fitsInInteger) {
+                        $valueInt = (int) $value;
+                    } else {
+                        $valueFloat = (float) $value;
+                    }
                 }
-                $batch = [];
-                $this->notify($progressCallback, "  Imported {$count} type attributes...");
+
+                $batch[] = [
+                    'type_id' => (int) $typeId,
+                    'attribute_id' => (int) $attribute['attributeID'],
+                    'value_int' => $valueInt,
+                    'value_float' => $valueFloat,
+                ];
+
+                $count++;
+
+                if (count($batch) >= $batchSize) {
+                    $this->insertTypeAttributesBatch($connection, $batch);
+                    $batch = [];
+                    $this->notify($progressCallback, "  Imported {$count} type attributes...");
+                }
             }
         }
 
         if (!empty($batch)) {
-            foreach ($batch as $r) {
-                $connection->insert('sde_dgm_type_attributes', $r);
-            }
+            $this->insertTypeAttributesBatch($connection, $batch);
         }
 
-        fclose($handle);
         $this->notify($progressCallback, "  Total: {$count} type attributes imported");
     }
 
-    private function importEffects(callable $progressCallback = null): void
+    private function insertTypeAttributesBatch($connection, array $batch): void
+    {
+        foreach ($batch as $row) {
+            $connection->insert('sde_dgm_type_attributes', $row);
+        }
+    }
+
+    private function importEffects(?callable $progressCallback = null): void
     {
         $this->truncateTable('sde_dgm_effects');
 
-        $file = $this->tempDir . '/dgmEffects.csv';
-        $handle = fopen($file, 'r');
-        $headers = fgetcsv($handle);
+        $data = $this->parseYamlFile('dogmaEffects.yaml');
 
         $count = 0;
         $connection = $this->entityManager->getConnection();
 
-        while (($row = fgetcsv($handle)) !== false) {
-            $data = array_combine($headers, $row);
+        foreach ($data as $effectId => $effect) {
+            $effect = (array) $effect;
 
             $connection->insert('sde_dgm_effects', [
-                'effect_id' => (int) $data['effectID'],
-                'effect_name' => $this->nullIfNone($data['effectName']),
-                'effect_category' => $this->intOrNull($data['effectCategory']),
-                'pre_expression' => $this->intOrNull($data['preExpression']),
-                'post_expression' => $this->intOrNull($data['postExpression']),
-                'description' => $this->nullIfNone($data['description']),
-                'guid' => $this->nullIfNone($data['guid']),
-                'icon_id' => $this->intOrNull($data['iconID']),
-                'is_offensive' => in_array($data['isOffensive'], ['1', 'True', 'true'], true),
-                'is_assistance' => in_array($data['isAssistance'], ['1', 'True', 'true'], true),
-                'duration_attribute_id' => $this->intOrNull($data['durationAttributeID']),
-                'tracking_speed_attribute_id' => $this->intOrNull($data['trackingSpeedAttributeID']),
-                'discharge_attribute_id' => $this->intOrNull($data['dischargeAttributeID']),
-                'range_attribute_id' => $this->intOrNull($data['rangeAttributeID']),
-                'falloff_attribute_id' => $this->intOrNull($data['falloffAttributeID']),
-                'disallow_auto_repeat' => in_array($data['disallowAutoRepeat'], ['1', 'True', 'true'], true),
-                'published' => in_array($data['published'], ['1', 'True', 'true'], true),
-                'display_name' => $this->nullIfNone($data['displayName']),
-                'is_warp_safe' => in_array($data['isWarpSafe'], ['1', 'True', 'true'], true),
-                'range_chance' => in_array($data['rangeChance'], ['1', 'True', 'true'], true),
-                'electronic_chance' => in_array($data['electronicChance'], ['1', 'True', 'true'], true),
-                'propulsion_chance' => in_array($data['propulsionChance'], ['1', 'True', 'true'], true),
-                'distribution' => $this->intOrNull($data['distribution']),
-                'sfx_name' => $this->nullIfNone($data['sfxName']),
-                'npc_usage_chance_attribute_id' => $this->intOrNull($data['npcUsageChanceAttributeID']),
-                'npc_activation_chance_attribute_id' => $this->intOrNull($data['npcActivationChanceAttributeID']),
-                'fitting_usage_chance_attribute_id' => $this->intOrNull($data['fittingUsageChanceAttributeID']),
-                'modifier_info' => $this->nullIfNone($data['modifierInfo']),
+                'effect_id' => (int) $effectId,
+                'effect_name' => $effect['effectName'] ?? null,
+                'effect_category' => $effect['effectCategory'] ?? null,
+                'pre_expression' => $effect['preExpression'] ?? null,
+                'post_expression' => $effect['postExpression'] ?? null,
+                'description' => $this->getDescription($effect),
+                'guid' => $effect['guid'] ?? null,
+                'icon_id' => $effect['iconID'] ?? null,
+                'is_offensive' => $effect['isOffensive'] ?? false,
+                'is_assistance' => $effect['isAssistance'] ?? false,
+                'duration_attribute_id' => $effect['durationAttributeID'] ?? null,
+                'tracking_speed_attribute_id' => $effect['trackingSpeedAttributeID'] ?? null,
+                'discharge_attribute_id' => $effect['dischargeAttributeID'] ?? null,
+                'range_attribute_id' => $effect['rangeAttributeID'] ?? null,
+                'falloff_attribute_id' => $effect['falloffAttributeID'] ?? null,
+                'disallow_auto_repeat' => $effect['disallowAutoRepeat'] ?? false,
+                'published' => $effect['published'] ?? false,
+                'display_name' => $effect['displayName'] ?? null,
+                'is_warp_safe' => $effect['isWarpSafe'] ?? false,
+                'range_chance' => $effect['rangeChance'] ?? false,
+                'electronic_chance' => $effect['electronicChance'] ?? false,
+                'propulsion_chance' => $effect['propulsionChance'] ?? false,
+                'distribution' => $effect['distribution'] ?? null,
+                'sfx_name' => $effect['sfxName'] ?? null,
+                'npc_usage_chance_attribute_id' => $effect['npcUsageChanceAttributeID'] ?? null,
+                'npc_activation_chance_attribute_id' => $effect['npcActivationChanceAttributeID'] ?? null,
+                'fitting_usage_chance_attribute_id' => $effect['fittingUsageChanceAttributeID'] ?? null,
+                'modifier_info' => isset($effect['modifierInfo']) ? json_encode($effect['modifierInfo']) : null,
             ], [
                 'is_offensive' => \Doctrine\DBAL\ParameterType::BOOLEAN,
                 'is_assistance' => \Doctrine\DBAL\ParameterType::BOOLEAN,
@@ -1122,171 +1118,244 @@ class SdeImportService
             $count++;
         }
 
-        fclose($handle);
         $this->notify($progressCallback, "  Total: {$count} effects imported");
     }
 
-    private function importTypeEffects(callable $progressCallback = null): void
+    private function importTypeEffects(?callable $progressCallback = null): void
     {
         $this->truncateTable('sde_dgm_type_effects');
 
-        $file = $this->tempDir . '/dgmTypeEffects.csv';
-        $handle = fopen($file, 'r');
-        $headers = fgetcsv($handle);
+        $data = $this->parseYamlFile('typeDogma.yaml');
 
         $count = 0;
         $batchSize = 5000;
         $connection = $this->entityManager->getConnection();
         $batch = [];
 
-        while (($row = fgetcsv($handle)) !== false) {
-            $data = array_combine($headers, $row);
+        foreach ($data as $typeId => $typeData) {
+            $typeData = (array) $typeData;
+            $effects = $typeData['dogmaEffects'] ?? [];
 
-            $batch[] = [
-                'type_id' => (int) $data['typeID'],
-                'effect_id' => (int) $data['effectID'],
-                'is_default' => in_array($data['isDefault'], ['1', 'True', 'true'], true),
-            ];
+            foreach ($effects as $effect) {
+                $effect = (array) $effect;
 
-            $count++;
+                $batch[] = [
+                    'type_id' => (int) $typeId,
+                    'effect_id' => (int) $effect['effectID'],
+                    'is_default' => $effect['isDefault'] ?? false,
+                ];
 
-            if (count($batch) >= $batchSize) {
-                foreach ($batch as $r) {
-                    $connection->insert('sde_dgm_type_effects', $r, [
-                        'is_default' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                    ]);
+                $count++;
+
+                if (count($batch) >= $batchSize) {
+                    $this->insertTypeEffectsBatch($connection, $batch);
+                    $batch = [];
+                    $this->notify($progressCallback, "  Imported {$count} type effects...");
                 }
-                $batch = [];
-                $this->notify($progressCallback, "  Imported {$count} type effects...");
             }
         }
 
         if (!empty($batch)) {
-            foreach ($batch as $r) {
-                $connection->insert('sde_dgm_type_effects', $r, [
-                    'is_default' => \Doctrine\DBAL\ParameterType::BOOLEAN,
-                ]);
-            }
+            $this->insertTypeEffectsBatch($connection, $batch);
         }
 
-        fclose($handle);
         $this->notify($progressCallback, "  Total: {$count} type effects imported");
+    }
+
+    private function insertTypeEffectsBatch($connection, array $batch): void
+    {
+        foreach ($batch as $row) {
+            $connection->insert('sde_dgm_type_effects', $row, [
+                'is_default' => \Doctrine\DBAL\ParameterType::BOOLEAN,
+            ]);
+        }
     }
 
     // ==================== REFERENCE ====================
 
-    private function importRaces(callable $progressCallback = null): void
+    private function importRaces(?callable $progressCallback = null): void
     {
         $this->truncateTable('sde_chr_races');
 
-        $file = $this->tempDir . '/chrRaces.csv';
-        $handle = fopen($file, 'r');
-        $headers = fgetcsv($handle);
+        $data = $this->parseYamlFile('races.yaml');
 
         $count = 0;
         $connection = $this->entityManager->getConnection();
 
-        while (($row = fgetcsv($handle)) !== false) {
-            $data = array_combine($headers, $row);
+        foreach ($data as $raceId => $race) {
+            $race = (array) $race;
 
             $connection->insert('sde_chr_races', [
-                'race_id' => (int) $data['raceID'],
-                'race_name' => $data['raceName'],
-                'description' => $this->nullIfNone($data['description']),
-                'icon_id' => $this->intOrNull($data['iconID']),
-                'short_description' => $this->nullIfNone($data['shortDescription']),
+                'race_id' => (int) $raceId,
+                'race_name' => $this->getName($race),
+                'description' => $this->getDescription($race),
+                'icon_id' => $race['iconID'] ?? null,
+                'short_description' => null, // Not in new SDE
             ]);
 
             $count++;
         }
 
-        fclose($handle);
         $this->notify($progressCallback, "  Total: {$count} races imported");
     }
 
-    private function importFactions(callable $progressCallback = null): void
+    private function importFactions(?callable $progressCallback = null): void
     {
         $this->truncateTable('sde_chr_factions');
 
-        $file = $this->tempDir . '/chrFactions.csv';
-        $handle = fopen($file, 'r');
-        $headers = fgetcsv($handle);
+        $data = $this->parseYamlFile('factions.yaml');
 
         $count = 0;
         $connection = $this->entityManager->getConnection();
 
-        while (($row = fgetcsv($handle)) !== false) {
-            $data = array_combine($headers, $row);
+        foreach ($data as $factionId => $faction) {
+            $faction = (array) $faction;
 
             $connection->insert('sde_chr_factions', [
-                'faction_id' => (int) $data['factionID'],
-                'faction_name' => $data['factionName'],
-                'description' => $this->nullIfNone($data['description']),
-                'race_ids' => $this->intOrNull($data['raceIDs']),
-                'solar_system_id' => $this->intOrNull($data['solarSystemID']),
-                'corporation_id' => $this->intOrNull($data['corporationID']),
-                'size_factor' => $this->floatOrNull($data['sizeFactor']),
-                'station_count' => $this->intOrNull($data['stationCount']),
-                'station_system_count' => $this->intOrNull($data['stationSystemCount']),
-                'militia_corporation_id' => $this->intOrNull($data['militiaCorporationID']),
-                'icon_id' => $this->intOrNull($data['iconID']),
+                'faction_id' => (int) $factionId,
+                'faction_name' => $this->getName($faction),
+                'description' => $this->getDescription($faction),
+                'race_ids' => $faction['raceID'] ?? null,
+                'solar_system_id' => $faction['solarSystemID'] ?? null,
+                'corporation_id' => $faction['corporationID'] ?? null,
+                'size_factor' => $faction['sizeFactor'] ?? null,
+                'station_count' => $faction['stationCount'] ?? null,
+                'station_system_count' => $faction['stationSystemCount'] ?? null,
+                'militia_corporation_id' => $faction['militiaCorporationID'] ?? null,
+                'icon_id' => $faction['iconID'] ?? null,
             ]);
 
             $count++;
         }
 
-        fclose($handle);
         $this->notify($progressCallback, "  Total: {$count} factions imported");
     }
 
-    private function importFlags(callable $progressCallback = null): void
+    private function importFlags(?callable $progressCallback = null): void
     {
         $this->truncateTable('sde_inv_flags');
 
-        $file = $this->tempDir . '/invFlags.csv';
-        $handle = fopen($file, 'r');
-        $headers = fgetcsv($handle);
+        // invFlags.yaml doesn't exist in new SDE, but we have hardcoded data based on EVE's location flags
+        // These are the standard inventory flags used by ESI
+        $flags = [
+            ['flag_id' => 0, 'flag_name' => 'None', 'flag_text' => 'None', 'order_id' => 0],
+            ['flag_id' => 4, 'flag_name' => 'Hangar', 'flag_text' => 'Hangar', 'order_id' => 4],
+            ['flag_id' => 5, 'flag_name' => 'Cargo', 'flag_text' => 'Cargo', 'order_id' => 5],
+            ['flag_id' => 11, 'flag_name' => 'LoSlot0', 'flag_text' => 'Low power slot 1', 'order_id' => 11],
+            ['flag_id' => 12, 'flag_name' => 'LoSlot1', 'flag_text' => 'Low power slot 2', 'order_id' => 12],
+            ['flag_id' => 13, 'flag_name' => 'LoSlot2', 'flag_text' => 'Low power slot 3', 'order_id' => 13],
+            ['flag_id' => 14, 'flag_name' => 'LoSlot3', 'flag_text' => 'Low power slot 4', 'order_id' => 14],
+            ['flag_id' => 15, 'flag_name' => 'LoSlot4', 'flag_text' => 'Low power slot 5', 'order_id' => 15],
+            ['flag_id' => 16, 'flag_name' => 'LoSlot5', 'flag_text' => 'Low power slot 6', 'order_id' => 16],
+            ['flag_id' => 17, 'flag_name' => 'LoSlot6', 'flag_text' => 'Low power slot 7', 'order_id' => 17],
+            ['flag_id' => 18, 'flag_name' => 'LoSlot7', 'flag_text' => 'Low power slot 8', 'order_id' => 18],
+            ['flag_id' => 19, 'flag_name' => 'MedSlot0', 'flag_text' => 'Medium power slot 1', 'order_id' => 19],
+            ['flag_id' => 20, 'flag_name' => 'MedSlot1', 'flag_text' => 'Medium power slot 2', 'order_id' => 20],
+            ['flag_id' => 21, 'flag_name' => 'MedSlot2', 'flag_text' => 'Medium power slot 3', 'order_id' => 21],
+            ['flag_id' => 22, 'flag_name' => 'MedSlot3', 'flag_text' => 'Medium power slot 4', 'order_id' => 22],
+            ['flag_id' => 23, 'flag_name' => 'MedSlot4', 'flag_text' => 'Medium power slot 5', 'order_id' => 23],
+            ['flag_id' => 24, 'flag_name' => 'MedSlot5', 'flag_text' => 'Medium power slot 6', 'order_id' => 24],
+            ['flag_id' => 25, 'flag_name' => 'MedSlot6', 'flag_text' => 'Medium power slot 7', 'order_id' => 25],
+            ['flag_id' => 26, 'flag_name' => 'MedSlot7', 'flag_text' => 'Medium power slot 8', 'order_id' => 26],
+            ['flag_id' => 27, 'flag_name' => 'HiSlot0', 'flag_text' => 'High power slot 1', 'order_id' => 27],
+            ['flag_id' => 28, 'flag_name' => 'HiSlot1', 'flag_text' => 'High power slot 2', 'order_id' => 28],
+            ['flag_id' => 29, 'flag_name' => 'HiSlot2', 'flag_text' => 'High power slot 3', 'order_id' => 29],
+            ['flag_id' => 30, 'flag_name' => 'HiSlot3', 'flag_text' => 'High power slot 4', 'order_id' => 30],
+            ['flag_id' => 31, 'flag_name' => 'HiSlot4', 'flag_text' => 'High power slot 5', 'order_id' => 31],
+            ['flag_id' => 32, 'flag_name' => 'HiSlot5', 'flag_text' => 'High power slot 6', 'order_id' => 32],
+            ['flag_id' => 33, 'flag_name' => 'HiSlot6', 'flag_text' => 'High power slot 7', 'order_id' => 33],
+            ['flag_id' => 34, 'flag_name' => 'HiSlot7', 'flag_text' => 'High power slot 8', 'order_id' => 34],
+            ['flag_id' => 87, 'flag_name' => 'DroneBay', 'flag_text' => 'Drone Bay', 'order_id' => 87],
+            ['flag_id' => 88, 'flag_name' => 'Booster', 'flag_text' => 'Booster', 'order_id' => 88],
+            ['flag_id' => 89, 'flag_name' => 'Implant', 'flag_text' => 'Implant', 'order_id' => 89],
+            ['flag_id' => 90, 'flag_name' => 'ShipHangar', 'flag_text' => 'Ship Hangar', 'order_id' => 90],
+            ['flag_id' => 92, 'flag_name' => 'RigSlot0', 'flag_text' => 'Rig slot 1', 'order_id' => 92],
+            ['flag_id' => 93, 'flag_name' => 'RigSlot1', 'flag_text' => 'Rig slot 2', 'order_id' => 93],
+            ['flag_id' => 94, 'flag_name' => 'RigSlot2', 'flag_text' => 'Rig slot 3', 'order_id' => 94],
+            ['flag_id' => 116, 'flag_name' => 'CorpSAG1', 'flag_text' => 'Corporation Hangar 1', 'order_id' => 116],
+            ['flag_id' => 117, 'flag_name' => 'CorpSAG2', 'flag_text' => 'Corporation Hangar 2', 'order_id' => 117],
+            ['flag_id' => 118, 'flag_name' => 'CorpSAG3', 'flag_text' => 'Corporation Hangar 3', 'order_id' => 118],
+            ['flag_id' => 119, 'flag_name' => 'CorpSAG4', 'flag_text' => 'Corporation Hangar 4', 'order_id' => 119],
+            ['flag_id' => 120, 'flag_name' => 'CorpSAG5', 'flag_text' => 'Corporation Hangar 5', 'order_id' => 120],
+            ['flag_id' => 121, 'flag_name' => 'CorpSAG6', 'flag_text' => 'Corporation Hangar 6', 'order_id' => 121],
+            ['flag_id' => 122, 'flag_name' => 'CorpSAG7', 'flag_text' => 'Corporation Hangar 7', 'order_id' => 122],
+            ['flag_id' => 125, 'flag_name' => 'SubSystem0', 'flag_text' => 'Subsystem slot 1', 'order_id' => 125],
+            ['flag_id' => 126, 'flag_name' => 'SubSystem1', 'flag_text' => 'Subsystem slot 2', 'order_id' => 126],
+            ['flag_id' => 127, 'flag_name' => 'SubSystem2', 'flag_text' => 'Subsystem slot 3', 'order_id' => 127],
+            ['flag_id' => 128, 'flag_name' => 'SubSystem3', 'flag_text' => 'Subsystem slot 4', 'order_id' => 128],
+            ['flag_id' => 129, 'flag_name' => 'SubSystem4', 'flag_text' => 'Subsystem slot 5', 'order_id' => 129],
+            ['flag_id' => 130, 'flag_name' => 'SubSystem5', 'flag_text' => 'Subsystem slot 6', 'order_id' => 130],
+            ['flag_id' => 131, 'flag_name' => 'SubSystem6', 'flag_text' => 'Subsystem slot 7', 'order_id' => 131],
+            ['flag_id' => 132, 'flag_name' => 'SubSystem7', 'flag_text' => 'Subsystem slot 8', 'order_id' => 132],
+            ['flag_id' => 133, 'flag_name' => 'SpecializedFuelBay', 'flag_text' => 'Fuel Bay', 'order_id' => 133],
+            ['flag_id' => 134, 'flag_name' => 'SpecializedOreHold', 'flag_text' => 'Ore Hold', 'order_id' => 134],
+            ['flag_id' => 135, 'flag_name' => 'SpecializedGasHold', 'flag_text' => 'Gas Hold', 'order_id' => 135],
+            ['flag_id' => 136, 'flag_name' => 'SpecializedMineralHold', 'flag_text' => 'Mineral Hold', 'order_id' => 136],
+            ['flag_id' => 137, 'flag_name' => 'SpecializedSalvageHold', 'flag_text' => 'Salvage Hold', 'order_id' => 137],
+            ['flag_id' => 138, 'flag_name' => 'SpecializedShipHold', 'flag_text' => 'Ship Hold', 'order_id' => 138],
+            ['flag_id' => 139, 'flag_name' => 'SpecializedSmallShipHold', 'flag_text' => 'Small Ship Hold', 'order_id' => 139],
+            ['flag_id' => 140, 'flag_name' => 'SpecializedMediumShipHold', 'flag_text' => 'Medium Ship Hold', 'order_id' => 140],
+            ['flag_id' => 141, 'flag_name' => 'SpecializedLargeShipHold', 'flag_text' => 'Large Ship Hold', 'order_id' => 141],
+            ['flag_id' => 142, 'flag_name' => 'SpecializedIndustrialShipHold', 'flag_text' => 'Industrial Ship Hold', 'order_id' => 142],
+            ['flag_id' => 143, 'flag_name' => 'SpecializedAmmoHold', 'flag_text' => 'Ammo Hold', 'order_id' => 143],
+            ['flag_id' => 144, 'flag_name' => 'SpecializedCommandCenterHold', 'flag_text' => 'Command Center Hold', 'order_id' => 144],
+            ['flag_id' => 145, 'flag_name' => 'SpecializedPlanetaryCommoditiesHold', 'flag_text' => 'Planetary Commodities Hold', 'order_id' => 145],
+            ['flag_id' => 146, 'flag_name' => 'SpecializedMaterialBay', 'flag_text' => 'Material Bay', 'order_id' => 146],
+            ['flag_id' => 148, 'flag_name' => 'FighterBay', 'flag_text' => 'Fighter Bay', 'order_id' => 148],
+            ['flag_id' => 149, 'flag_name' => 'FighterTube0', 'flag_text' => 'Fighter Tube 1', 'order_id' => 149],
+            ['flag_id' => 150, 'flag_name' => 'FighterTube1', 'flag_text' => 'Fighter Tube 2', 'order_id' => 150],
+            ['flag_id' => 151, 'flag_name' => 'FighterTube2', 'flag_text' => 'Fighter Tube 3', 'order_id' => 151],
+            ['flag_id' => 152, 'flag_name' => 'FighterTube3', 'flag_text' => 'Fighter Tube 4', 'order_id' => 152],
+            ['flag_id' => 153, 'flag_name' => 'FighterTube4', 'flag_text' => 'Fighter Tube 5', 'order_id' => 153],
+            ['flag_id' => 154, 'flag_name' => 'Module', 'flag_text' => 'Module', 'order_id' => 154],
+            ['flag_id' => 155, 'flag_name' => 'Wardrobe', 'flag_text' => 'Wardrobe', 'order_id' => 155],
+            ['flag_id' => 156, 'flag_name' => 'FleetHangar', 'flag_text' => 'Fleet Hangar', 'order_id' => 156],
+            ['flag_id' => 157, 'flag_name' => 'HiddenModifers', 'flag_text' => 'Hidden Modifiers', 'order_id' => 157],
+            ['flag_id' => 158, 'flag_name' => 'StructureFuel', 'flag_text' => 'Structure Fuel', 'order_id' => 158],
+            ['flag_id' => 159, 'flag_name' => 'StructureServiceSlot0', 'flag_text' => 'Structure Service Slot 1', 'order_id' => 159],
+            ['flag_id' => 160, 'flag_name' => 'StructureServiceSlot1', 'flag_text' => 'Structure Service Slot 2', 'order_id' => 160],
+            ['flag_id' => 161, 'flag_name' => 'StructureServiceSlot2', 'flag_text' => 'Structure Service Slot 3', 'order_id' => 161],
+            ['flag_id' => 162, 'flag_name' => 'StructureServiceSlot3', 'flag_text' => 'Structure Service Slot 4', 'order_id' => 162],
+            ['flag_id' => 163, 'flag_name' => 'StructureServiceSlot4', 'flag_text' => 'Structure Service Slot 5', 'order_id' => 163],
+            ['flag_id' => 164, 'flag_name' => 'StructureServiceSlot5', 'flag_text' => 'Structure Service Slot 6', 'order_id' => 164],
+            ['flag_id' => 165, 'flag_name' => 'StructureServiceSlot6', 'flag_text' => 'Structure Service Slot 7', 'order_id' => 165],
+            ['flag_id' => 166, 'flag_name' => 'StructureServiceSlot7', 'flag_text' => 'Structure Service Slot 8', 'order_id' => 166],
+            ['flag_id' => 175, 'flag_name' => 'SubSystemBay', 'flag_text' => 'Subsystem Bay', 'order_id' => 175],
+            ['flag_id' => 176, 'flag_name' => 'SpecializedIceHold', 'flag_text' => 'Ice Hold', 'order_id' => 176],
+            ['flag_id' => 177, 'flag_name' => 'CorpFleetMemberHangar', 'flag_text' => 'Corp Fleet Member Hangar', 'order_id' => 177],
+            ['flag_id' => 178, 'flag_name' => 'CorpDeliveriesHangar', 'flag_text' => 'Corp Deliveries Hangar', 'order_id' => 178],
+            ['flag_id' => 179, 'flag_name' => 'SpecializedMobileDepotHold', 'flag_text' => 'Mobile Depot Hold', 'order_id' => 179],
+        ];
 
         $count = 0;
         $connection = $this->entityManager->getConnection();
 
-        while (($row = fgetcsv($handle)) !== false) {
-            $data = array_combine($headers, $row);
-
-            $connection->insert('sde_inv_flags', [
-                'flag_id' => (int) $data['flagID'],
-                'flag_name' => $this->nullIfNone($data['flagName']),
-                'flag_text' => $this->nullIfNone($data['flagText']),
-                'order_id' => (int) $data['orderID'],
-            ]);
-
+        foreach ($flags as $flag) {
+            $connection->insert('sde_inv_flags', $flag);
             $count++;
         }
 
-        fclose($handle);
-        $this->notify($progressCallback, "  Total: {$count} flags imported");
+        $this->notify($progressCallback, "  Total: {$count} flags imported (hardcoded values)");
     }
 
-    private function importIcons(callable $progressCallback = null): void
+    private function importIcons(?callable $progressCallback = null): void
     {
         $this->truncateTable('sde_eve_icons');
 
-        $file = $this->tempDir . '/eveIcons.csv';
-        $handle = fopen($file, 'r');
-        $headers = fgetcsv($handle);
+        $data = $this->parseYamlFile('icons.yaml');
 
         $count = 0;
         $batchSize = 1000;
         $connection = $this->entityManager->getConnection();
         $batch = [];
 
-        while (($row = fgetcsv($handle)) !== false) {
-            $data = array_combine($headers, $row);
+        foreach ($data as $iconId => $icon) {
+            $icon = (array) $icon;
 
             $batch[] = [
-                'icon_id' => (int) $data['iconID'],
-                'icon_file' => $data['iconFile'],
-                'description' => $this->nullIfNone($data['description']),
+                'icon_id' => (int) $iconId,
+                'icon_file' => $icon['iconFile'] ?? '',
+                'description' => $this->getDescription($icon),
             ];
 
             $count++;
@@ -1306,35 +1375,10 @@ class SdeImportService
             }
         }
 
-        fclose($handle);
         $this->notify($progressCallback, "  Total: {$count} icons imported");
     }
 
     // ==================== HELPERS ====================
-
-    private function toBool(mixed $value): bool
-    {
-        return in_array($value, ['1', 'True', 'true'], true);
-    }
-
-    private function nullIfNone(?string $value): ?string
-    {
-        return ($value === null || $value === 'None' || $value === '') ? null : $value;
-    }
-
-    private function intOrNull(?string $value): ?int
-    {
-        return ($value === null || $value === 'None' || $value === '' || !is_numeric($value))
-            ? null
-            : (int) $value;
-    }
-
-    private function floatOrNull(?string $value): ?float
-    {
-        return ($value === null || $value === 'None' || $value === '' || !is_numeric($value))
-            ? null
-            : (float) $value;
-    }
 
     private function truncateTable(string $tableName): void
     {

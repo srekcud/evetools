@@ -362,6 +362,13 @@ php bin/console doctrine:migrations:migrate
 
 **Note**: Après migration, relancer une synchronisation des assets pour peupler `owner_corporation_id` dans les structures.
 
+### Actions post-déploiement (prochaine version)
+
+- [ ] **Réimporter le SDE** : La source a changé de Fuzzwork (CSV) vers CCP officiel (YAML)
+  ```bash
+  php bin/console app:sde:import
+  ```
+
 ---
 
 ## TODO / Points en suspens

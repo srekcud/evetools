@@ -275,7 +275,8 @@ class ParseProcessor implements ProcessorInterface
         $notFound = [];
 
         foreach ($items as $item) {
-            $name = $item['name'];
+            // Normalize multiple spaces to single space
+            $name = preg_replace('/\s+/', ' ', trim($item['name']));
             $quantity = $item['quantity'];
 
             $type = $this->invTypeRepository->findOneBy(['typeName' => $name]);
