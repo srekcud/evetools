@@ -33,6 +33,11 @@
         reverse_proxy app:80
     }
 
+    # API Platform documentation assets
+    handle /bundles/* {
+        reverse_proxy app:80
+    }
+
     # Frontend dev server (fallback)
     handle {
         reverse_proxy frontend:80
