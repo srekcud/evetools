@@ -7,16 +7,15 @@ namespace App\Service\Sde;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Filesystem\Filesystem;
-use Symfony\Component\Yaml\Yaml;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class SdeImportService
 {
-    private const SDE_URL = 'https://developers.eveonline.com/static-data/eve-online-static-data-latest-yaml.zip';
+    private const SDE_URL = 'https://developers.eveonline.com/static-data/eve-online-static-data-latest-jsonl.zip';
     private const DOWNLOAD_TIMEOUT = 600;
 
-    // Activity ID mapping (name in YAML -> ID in database)
+    // Activity ID mapping (name in JSONL -> ID in database)
     private const ACTIVITY_IDS = [
         'manufacturing' => 1,
         'research_time' => 2,
@@ -124,7 +123,7 @@ class SdeImportService
         $zipPath = $this->tempDir . '/sde.zip';
 
         // Check if already extracted (flat structure - files directly in tempDir)
-        if ($this->filesystem->exists($this->tempDir . '/types.yaml')) {
+        if ($this->filesystem->exists($this->tempDir . '/types.jsonl')) {
             $this->logger->info('SDE already extracted, skipping download');
 
             return;
@@ -157,35 +156,32 @@ class SdeImportService
         $this->filesystem->remove($zipPath);
     }
 
-    private function parseYamlFile(string $filename, bool $optional = false): array|\stdClass
+    /**
+     * @return \Generator<int|string, array>
+     */
+    private function readJsonlFile(string $filename): \Generator
     {
-        // New SDE structure: flat directory with all YAML files
         $path = $this->tempDir . '/' . $filename;
-
         if (!$this->filesystem->exists($path)) {
-            if ($optional) {
-                return [];
-            }
             throw new \RuntimeException("SDE file not found: {$filename}");
         }
 
-        // For large files, use object for map to reduce memory usage
-        $fileSize = filesize($path);
-        if ($fileSize > 50 * 1024 * 1024) { // > 50MB
-            $this->logger->info("Parsing large YAML file: {$filename} ({$fileSize} bytes)");
-
-            return Yaml::parseFile($path, Yaml::PARSE_OBJECT_FOR_MAP);
+        $handle = fopen($path, 'r');
+        while (($line = fgets($handle)) !== false) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+            $data = json_decode($line, true);
+            $key = $data['_key'];
+            unset($data['_key']);
+            yield $key => $data;
         }
-
-        return Yaml::parseFile($path);
+        fclose($handle);
     }
 
-    private function getName(array|object $data): string
+    private function getName(array $data): string
     {
-        if (is_object($data)) {
-            $data = (array) $data;
-        }
-
         if (isset($data['name'])) {
             if (is_string($data['name'])) {
                 return $data['name'];
@@ -193,9 +189,8 @@ class SdeImportService
             if (is_int($data['name']) || is_float($data['name'])) {
                 return (string) $data['name'];
             }
-            if (is_array($data['name']) || is_object($data['name'])) {
-                $names = (array) $data['name'];
-                $value = $names['en'] ?? reset($names) ?? '';
+            if (is_array($data['name'])) {
+                $value = $data['name']['en'] ?? reset($data['name']) ?? '';
 
                 return is_string($value) ? $value : (string) $value;
             }
@@ -204,20 +199,14 @@ class SdeImportService
         return '';
     }
 
-    private function getDescription(array|object $data): ?string
+    private function getDescription(array $data): ?string
     {
-        if (is_object($data)) {
-            $data = (array) $data;
-        }
-
         if (isset($data['description'])) {
             if (is_string($data['description'])) {
                 return $data['description'] ?: null;
             }
-            if (is_array($data['description']) || is_object($data['description'])) {
-                $descriptions = (array) $data['description'];
-
-                return $descriptions['en'] ?? reset($descriptions) ?? null;
+            if (is_array($data['description'])) {
+                return $data['description']['en'] ?? reset($data['description']) ?? null;
             }
         }
 
@@ -230,14 +219,10 @@ class SdeImportService
     {
         $this->truncateTable('sde_inv_categories');
 
-        $data = $this->parseYamlFile('categories.yaml');
-
         $count = 0;
         $connection = $this->entityManager->getConnection();
 
-        foreach ($data as $categoryId => $category) {
-            $category = (array) $category;
-
+        foreach ($this->readJsonlFile('categories.jsonl') as $categoryId => $category) {
             $connection->insert('sde_inv_categories', [
                 'category_id' => (int) $categoryId,
                 'category_name' => $this->getName($category),
@@ -264,16 +249,12 @@ class SdeImportService
             $validCategoryIds[(int) $row['category_id']] = true;
         }
 
-        $data = $this->parseYamlFile('groups.yaml');
-
         $count = 0;
         $batchSize = 500;
         $connection = $this->entityManager->getConnection();
         $batch = [];
 
-        foreach ($data as $groupId => $group) {
-            $group = (array) $group;
-
+        foreach ($this->readJsonlFile('groups.jsonl') as $groupId => $group) {
             $categoryId = (int) ($group['categoryID'] ?? 0);
             if (!isset($validCategoryIds[$categoryId])) {
                 continue;
@@ -324,15 +305,12 @@ class SdeImportService
     {
         $this->truncateTable('sde_inv_market_groups');
 
-        $data = $this->parseYamlFile('marketGroups.yaml');
-
         $connection = $this->entityManager->getConnection();
         $count = 0;
         $rows = [];
 
         // First pass: insert all without parent references
-        foreach ($data as $marketGroupId => $marketGroup) {
-            $marketGroup = (array) $marketGroup;
+        foreach ($this->readJsonlFile('marketGroups.jsonl') as $marketGroupId => $marketGroup) {
             $rows[$marketGroupId] = $marketGroup;
 
             $connection->insert('sde_inv_market_groups', [
@@ -385,16 +363,12 @@ class SdeImportService
             $validMarketGroupIds[(int) $row['market_group_id']] = true;
         }
 
-        $data = $this->parseYamlFile('types.yaml');
-
         $count = 0;
         $batchSize = 500;
         $connection = $this->entityManager->getConnection();
         $batch = [];
 
-        foreach ($data as $typeId => $type) {
-            $type = (array) $type;
-
+        foreach ($this->readJsonlFile('types.jsonl') as $typeId => $type) {
             $groupId = (int) ($type['groupID'] ?? 0);
             if (!isset($validGroupIds[$groupId])) {
                 continue;
@@ -453,20 +427,15 @@ class SdeImportService
     {
         $this->truncateTable('sde_inv_type_materials');
 
-        $data = $this->parseYamlFile('typeMaterials.yaml');
-
         $count = 0;
         $batchSize = 5000;
         $connection = $this->entityManager->getConnection();
         $batch = [];
 
-        foreach ($data as $typeId => $typeData) {
-            $typeData = (array) $typeData;
+        foreach ($this->readJsonlFile('typeMaterials.jsonl') as $typeId => $typeData) {
             $materials = $typeData['materials'] ?? [];
 
             foreach ($materials as $material) {
-                $material = (array) $material;
-
                 $batch[] = [
                     'type_id' => (int) $typeId,
                     'material_type_id' => (int) $material['materialTypeID'],
@@ -503,19 +472,11 @@ class SdeImportService
     {
         $this->truncateTable('sde_map_regions');
 
-        $data = $this->parseYamlFile('mapRegions.yaml');
-
         $count = 0;
         $connection = $this->entityManager->getConnection();
 
-        foreach ($data as $regionId => $region) {
-            $region = (array) $region;
-
-            // Position can be array [x,y,z] or object {x,y,z}
+        foreach ($this->readJsonlFile('mapRegions.jsonl') as $regionId => $region) {
             $position = $region['position'] ?? [];
-            if (is_object($position)) {
-                $position = (array) $position;
-            }
             $x = $position['x'] ?? ($position[0] ?? null);
             $y = $position['y'] ?? ($position[1] ?? null);
             $z = $position['z'] ?? ($position[2] ?? null);
@@ -553,26 +514,18 @@ class SdeImportService
             $validRegionIds[(int) $row['region_id']] = true;
         }
 
-        $data = $this->parseYamlFile('mapConstellations.yaml');
-
         $count = 0;
         $batchSize = 500;
         $connection = $this->entityManager->getConnection();
         $batch = [];
 
-        foreach ($data as $constellationId => $constellation) {
-            $constellation = (array) $constellation;
-
+        foreach ($this->readJsonlFile('mapConstellations.jsonl') as $constellationId => $constellation) {
             $regionId = (int) ($constellation['regionID'] ?? 0);
             if (!isset($validRegionIds[$regionId])) {
                 continue;
             }
 
-            // Position can be array or object
             $position = $constellation['position'] ?? [];
-            if (is_object($position)) {
-                $position = (array) $position;
-            }
             $x = $position['x'] ?? ($position[0] ?? null);
             $y = $position['y'] ?? ($position[1] ?? null);
             $z = $position['z'] ?? ($position[2] ?? null);
@@ -624,16 +577,12 @@ class SdeImportService
             $constellationToRegion[(int) $row['constellation_id']] = (int) $row['region_id'];
         }
 
-        $data = $this->parseYamlFile('mapSolarSystems.yaml');
-
         $count = 0;
         $batchSize = 500;
         $connection = $this->entityManager->getConnection();
         $batch = [];
 
-        foreach ($data as $solarSystemId => $system) {
-            $system = (array) $system;
-
+        foreach ($this->readJsonlFile('mapSolarSystems.jsonl') as $solarSystemId => $system) {
             $constellationId = (int) ($system['constellationID'] ?? 0);
             if (!isset($constellationToRegion[$constellationId])) {
                 continue;
@@ -641,11 +590,7 @@ class SdeImportService
 
             $regionId = $system['regionID'] ?? $constellationToRegion[$constellationId];
 
-            // Position can be array or object
             $position = $system['position'] ?? [];
-            if (is_object($position)) {
-                $position = (array) $position;
-            }
             $x = $position['x'] ?? ($position[0] ?? null);
             $y = $position['y'] ?? ($position[1] ?? null);
             $z = $position['z'] ?? ($position[2] ?? null);
@@ -722,16 +667,12 @@ class SdeImportService
             ];
         }
 
-        $data = $this->parseYamlFile('npcStations.yaml');
-
         $count = 0;
         $batchSize = 500;
         $connection = $this->entityManager->getConnection();
         $batch = [];
 
-        foreach ($data as $stationId => $station) {
-            $station = (array) $station;
-
+        foreach ($this->readJsonlFile('npcStations.jsonl') as $stationId => $station) {
             $solarSystemId = (int) ($station['solarSystemID'] ?? 0);
             if (!isset($validSolarSystemIds[$solarSystemId])) {
                 continue;
@@ -739,11 +680,7 @@ class SdeImportService
 
             $systemInfo = $validSolarSystemIds[$solarSystemId];
 
-            // Position can be array or object
             $position = $station['position'] ?? [];
-            if (is_object($position)) {
-                $position = (array) $position;
-            }
             $x = $position['x'] ?? ($position[0] ?? null);
             $y = $position['y'] ?? ($position[1] ?? null);
             $z = $position['z'] ?? ($position[2] ?? null);
@@ -807,18 +744,11 @@ class SdeImportService
             ];
         }
 
-        $data = $this->parseYamlFile('mapStargates.yaml');
-
         // Build unique jumps (avoid duplicates A->B and B->A)
         $jumps = [];
-        foreach ($data as $stargateId => $stargate) {
-            $stargate = (array) $stargate;
-
+        foreach ($this->readJsonlFile('mapStargates.jsonl') as $stargateId => $stargate) {
             $fromSystemId = (int) ($stargate['solarSystemID'] ?? 0);
             $destination = $stargate['destination'] ?? [];
-            if (is_object($destination)) {
-                $destination = (array) $destination;
-            }
             $toSystemId = (int) ($destination['solarSystemID'] ?? 0);
 
             if ($fromSystemId && $toSystemId && isset($solarSystemInfo[$fromSystemId]) && isset($solarSystemInfo[$toSystemId])) {
@@ -888,8 +818,6 @@ class SdeImportService
         $this->truncateTable('sde_industry_activities');
         $this->truncateTable('sde_industry_blueprints');
 
-        $data = $this->parseYamlFile('blueprints.yaml');
-
         $blueprintCount = 0;
         $activityCount = 0;
         $materialCount = 0;
@@ -899,9 +827,7 @@ class SdeImportService
         $connection = $this->entityManager->getConnection();
         $seenSkills = [];
 
-        foreach ($data as $blueprintTypeId => $blueprint) {
-            $blueprint = (array) $blueprint;
-
+        foreach ($this->readJsonlFile('blueprints.jsonl') as $blueprintTypeId => $blueprint) {
             // Insert blueprint
             $connection->insert('sde_industry_blueprints', [
                 'type_id' => (int) $blueprintTypeId,
@@ -912,8 +838,6 @@ class SdeImportService
             // Process activities
             $activities = $blueprint['activities'] ?? [];
             foreach ($activities as $activityName => $activity) {
-                $activity = (array) $activity;
-
                 $activityId = self::ACTIVITY_IDS[$activityName] ?? null;
                 if ($activityId === null) {
                     continue;
@@ -930,7 +854,6 @@ class SdeImportService
                 // Materials
                 $materials = $activity['materials'] ?? [];
                 foreach ($materials as $material) {
-                    $material = (array) $material;
                     $connection->insert('sde_industry_activity_materials', [
                         'type_id' => (int) $blueprintTypeId,
                         'activity_id' => $activityId,
@@ -943,7 +866,6 @@ class SdeImportService
                 // Products
                 $products = $activity['products'] ?? [];
                 foreach ($products as $product) {
-                    $product = (array) $product;
                     $connection->insert('sde_industry_activity_products', [
                         'type_id' => (int) $blueprintTypeId,
                         'activity_id' => $activityId,
@@ -956,7 +878,6 @@ class SdeImportService
                 // Skills
                 $skills = $activity['skills'] ?? [];
                 foreach ($skills as $skill) {
-                    $skill = (array) $skill;
                     $skillId = (int) $skill['typeID'];
                     $level = (int) $skill['level'];
 
@@ -991,20 +912,14 @@ class SdeImportService
     {
         $this->truncateTable('sde_dgm_attribute_types');
 
-        $data = $this->parseYamlFile('dogmaAttributes.yaml');
-
         $count = 0;
         $batchSize = 500;
         $connection = $this->entityManager->getConnection();
         $batch = [];
 
-        foreach ($data as $attributeId => $attribute) {
-            $attribute = (array) $attribute;
-
-            // displayName can be multilingual (array) or simple string
+        foreach ($this->readJsonlFile('dogmaAttributes.jsonl') as $attributeId => $attribute) {
             $displayName = $attribute['displayName'] ?? null;
-            if (is_array($displayName) || is_object($displayName)) {
-                $displayName = (array) $displayName;
+            if (is_array($displayName)) {
                 $displayName = $displayName['en'] ?? reset($displayName) ?? null;
             }
 
@@ -1053,20 +968,15 @@ class SdeImportService
     {
         $this->truncateTable('sde_dgm_type_attributes');
 
-        $data = $this->parseYamlFile('typeDogma.yaml');
-
         $count = 0;
         $batchSize = 5000;
         $connection = $this->entityManager->getConnection();
         $batch = [];
 
-        foreach ($data as $typeId => $typeData) {
-            $typeData = (array) $typeData;
+        foreach ($this->readJsonlFile('typeDogma.jsonl') as $typeId => $typeData) {
             $attributes = $typeData['dogmaAttributes'] ?? [];
 
             foreach ($attributes as $attribute) {
-                $attribute = (array) $attribute;
-
                 $value = $attribute['value'] ?? null;
                 $valueInt = null;
                 $valueFloat = null;
@@ -1118,14 +1028,10 @@ class SdeImportService
     {
         $this->truncateTable('sde_dgm_effects');
 
-        $data = $this->parseYamlFile('dogmaEffects.yaml');
-
         $count = 0;
         $connection = $this->entityManager->getConnection();
 
-        foreach ($data as $effectId => $effect) {
-            $effect = (array) $effect;
-
+        foreach ($this->readJsonlFile('dogmaEffects.jsonl') as $effectId => $effect) {
             $connection->insert('sde_dgm_effects', [
                 'effect_id' => (int) $effectId,
                 'effect_name' => $effect['effectName'] ?? null,
@@ -1176,20 +1082,15 @@ class SdeImportService
     {
         $this->truncateTable('sde_dgm_type_effects');
 
-        $data = $this->parseYamlFile('typeDogma.yaml');
-
         $count = 0;
         $batchSize = 5000;
         $connection = $this->entityManager->getConnection();
         $batch = [];
 
-        foreach ($data as $typeId => $typeData) {
-            $typeData = (array) $typeData;
+        foreach ($this->readJsonlFile('typeDogma.jsonl') as $typeId => $typeData) {
             $effects = $typeData['dogmaEffects'] ?? [];
 
             foreach ($effects as $effect) {
-                $effect = (array) $effect;
-
                 $batch[] = [
                     'type_id' => (int) $typeId,
                     'effect_id' => (int) $effect['effectID'],
@@ -1228,14 +1129,10 @@ class SdeImportService
     {
         $this->truncateTable('sde_chr_races');
 
-        $data = $this->parseYamlFile('races.yaml');
-
         $count = 0;
         $connection = $this->entityManager->getConnection();
 
-        foreach ($data as $raceId => $race) {
-            $race = (array) $race;
-
+        foreach ($this->readJsonlFile('races.jsonl') as $raceId => $race) {
             $connection->insert('sde_chr_races', [
                 'race_id' => (int) $raceId,
                 'race_name' => $this->getName($race),
@@ -1254,14 +1151,10 @@ class SdeImportService
     {
         $this->truncateTable('sde_chr_factions');
 
-        $data = $this->parseYamlFile('factions.yaml');
-
         $count = 0;
         $connection = $this->entityManager->getConnection();
 
-        foreach ($data as $factionId => $faction) {
-            $faction = (array) $faction;
-
+        foreach ($this->readJsonlFile('factions.jsonl') as $factionId => $faction) {
             $connection->insert('sde_chr_factions', [
                 'faction_id' => (int) $factionId,
                 'faction_name' => $this->getName($faction),
@@ -1393,16 +1286,12 @@ class SdeImportService
     {
         $this->truncateTable('sde_eve_icons');
 
-        $data = $this->parseYamlFile('icons.yaml');
-
         $count = 0;
         $batchSize = 1000;
         $connection = $this->entityManager->getConnection();
         $batch = [];
 
-        foreach ($data as $iconId => $icon) {
-            $icon = (array) $icon;
-
+        foreach ($this->readJsonlFile('icons.jsonl') as $iconId => $icon) {
             $batch[] = [
                 'icon_id' => (int) $iconId,
                 'icon_file' => $icon['iconFile'] ?? '',

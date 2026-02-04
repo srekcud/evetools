@@ -365,9 +365,11 @@ php bin/console doctrine:migrations:migrate
 
 ### Actions post-déploiement (prochaine version)
 
-- [ ] **Réimporter le SDE** : La source a changé de Fuzzwork (CSV) vers CCP officiel (YAML)
+- [ ] **Réimporter le SDE** : La source a changé de YAML vers JSONL (streaming, pas d'OOM)
   ```bash
-  php bin/console app:sde:import
+  # Supprimer les anciens fichiers YAML s'ils existent
+  rm -rf var/sde/
+  php bin/console app:sde:import --force
   ```
 
 ---
