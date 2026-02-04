@@ -7,9 +7,12 @@ namespace App\State\Provider\Pve;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Pve\StatsByTypeResource;
+use App\Entity\PveIncome;
 use App\Entity\User;
+use App\Entity\UserLedgerSettings;
 use App\Repository\PveExpenseRepository;
 use App\Repository\PveIncomeRepository;
+use App\Repository\UserLedgerSettingsRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -32,6 +35,7 @@ class StatsByTypeProvider implements ProviderInterface
         private readonly Security $security,
         private readonly PveIncomeRepository $incomeRepository,
         private readonly PveExpenseRepository $expenseRepository,
+        private readonly UserLedgerSettingsRepository $ledgerSettingsRepository,
         private readonly EsiClient $esiClient,
         private readonly TokenManager $tokenManager,
         private readonly RequestStack $requestStack,
@@ -51,7 +55,17 @@ class StatsByTypeProvider implements ProviderInterface
         $to = new \DateTimeImmutable();
         $from = $to->modify("-{$days} days");
 
+        // Check ledger settings for corp project accounting
+        $ledgerSettings = $this->ledgerSettingsRepository->findByUser($user);
+        $excludeCorpProject = $ledgerSettings?->getCorpProjectAccounting() === UserLedgerSettings::CORP_PROJECT_ACCOUNTING_MINING;
+
         $incomeByType = $this->incomeRepository->getTotalsByType($user, $from, $to);
+
+        // Remove corp_project from the results if it should be excluded
+        if ($excludeCorpProject && isset($incomeByType[PveIncome::TYPE_CORP_PROJECT])) {
+            unset($incomeByType[PveIncome::TYPE_CORP_PROJECT]);
+        }
+
         $expensesByType = $this->expenseRepository->getTotalsByTypeAndDateRange($user, $from, $to);
 
         $bountyTotal = 0.0;

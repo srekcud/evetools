@@ -9,8 +9,10 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Pve\StatsResource;
 use App\Entity\PveIncome;
 use App\Entity\User;
+use App\Entity\UserLedgerSettings;
 use App\Repository\PveExpenseRepository;
 use App\Repository\PveIncomeRepository;
+use App\Repository\UserLedgerSettingsRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -24,6 +26,7 @@ class StatsProvider implements ProviderInterface
         private readonly Security $security,
         private readonly PveIncomeRepository $incomeRepository,
         private readonly PveExpenseRepository $expenseRepository,
+        private readonly UserLedgerSettingsRepository $ledgerSettingsRepository,
         private readonly RequestStack $requestStack,
     ) {
     }
@@ -41,13 +44,22 @@ class StatsProvider implements ProviderInterface
         $to = new \DateTimeImmutable();
         $from = $to->modify("-{$days} days");
 
+        // Check ledger settings for corp project accounting
+        $ledgerSettings = $this->ledgerSettingsRepository->findByUser($user);
+        $excludeCorpProject = $ledgerSettings?->getCorpProjectAccounting() === UserLedgerSettings::CORP_PROJECT_ACCOUNTING_MINING;
+
         $incomeByType = $this->incomeRepository->getTotalsByType($user, $from, $to);
         $bountyTotal = $incomeByType[PveIncome::TYPE_BOUNTY] ?? 0.0;
         $essTotal = $incomeByType[PveIncome::TYPE_ESS] ?? 0.0;
         $missionTotal = $incomeByType[PveIncome::TYPE_MISSION] ?? 0.0;
+
+        // Calculate loot sales total, optionally excluding corp_project
         $lootSalesTotal = ($incomeByType[PveIncome::TYPE_LOOT_SALE] ?? 0.0)
-            + ($incomeByType[PveIncome::TYPE_LOOT_CONTRACT] ?? 0.0)
-            + ($incomeByType[PveIncome::TYPE_CORP_PROJECT] ?? 0.0);
+            + ($incomeByType[PveIncome::TYPE_LOOT_CONTRACT] ?? 0.0);
+
+        if (!$excludeCorpProject) {
+            $lootSalesTotal += $incomeByType[PveIncome::TYPE_CORP_PROJECT] ?? 0.0;
+        }
 
         $expensesTotal = $this->expenseRepository->getTotalByUserAndDateRange($user, $from, $to);
         $expensesByType = $this->expenseRepository->getTotalsByTypeAndDateRange($user, $from, $to);

@@ -9,8 +9,10 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Pve\DailyStatsResource;
 use App\ApiResource\Pve\StatsDailyResource;
 use App\Entity\User;
+use App\Entity\UserLedgerSettings;
 use App\Repository\PveExpenseRepository;
 use App\Repository\PveIncomeRepository;
+use App\Repository\UserLedgerSettingsRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -24,6 +26,7 @@ class StatsDailyProvider implements ProviderInterface
         private readonly Security $security,
         private readonly PveIncomeRepository $incomeRepository,
         private readonly PveExpenseRepository $expenseRepository,
+        private readonly UserLedgerSettingsRepository $ledgerSettingsRepository,
         private readonly RequestStack $requestStack,
     ) {
     }
@@ -41,6 +44,10 @@ class StatsDailyProvider implements ProviderInterface
         $to = new \DateTimeImmutable();
         $from = $to->modify("-{$days} days");
 
+        // Check ledger settings for corp project accounting
+        $ledgerSettings = $this->ledgerSettingsRepository->findByUser($user);
+        $excludeCorpProject = $ledgerSettings?->getCorpProjectAccounting() === UserLedgerSettings::CORP_PROJECT_ACCOUNTING_MINING;
+
         $dailyData = [];
         $current = $from;
         while ($current <= $to) {
@@ -56,7 +63,7 @@ class StatsDailyProvider implements ProviderInterface
             $current = $current->modify('+1 day');
         }
 
-        $incomeDailyTotals = $this->incomeRepository->getDailyTotalsByType($user, $from, $to);
+        $incomeDailyTotals = $this->incomeRepository->getDailyTotalsByType($user, $from, $to, $excludeCorpProject);
         foreach ($incomeDailyTotals as $dateKey => $data) {
             if (isset($dailyData[$dateKey])) {
                 $dailyData[$dateKey]['bounties'] = $data['bounties'];

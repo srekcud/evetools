@@ -41,8 +41,12 @@ const router = createRouter({
     },
     {
       path: '/pve',
-      name: 'pve',
-      component: () => import('@/views/Pve.vue'),
+      redirect: '/ledger',
+    },
+    {
+      path: '/ledger',
+      name: 'ledger',
+      component: () => import('@/views/Ledger.vue'),
       meta: { requiresAuth: true },
     },
     {

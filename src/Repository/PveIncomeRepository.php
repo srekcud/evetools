@@ -243,9 +243,10 @@ class PveIncomeRepository extends ServiceEntityRepository
 
     /**
      * Get daily totals grouped by type
-     * @return array<string, array{bounties: float, lootSales: float}>
+     * @param bool $excludeCorpProject If true, corp_project income is excluded from lootSales
+     * @return array<string, array{bounties: float, lootSales: float, corpProject: float}>
      */
-    public function getDailyTotalsByType(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to): array
+    public function getDailyTotalsByType(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to, bool $excludeCorpProject = false): array
     {
         $results = $this->createQueryBuilder('i')
             ->select('i.date as day, i.type, SUM(i.amount) as total')
@@ -264,7 +265,7 @@ class PveIncomeRepository extends ServiceEntityRepository
         foreach ($results as $row) {
             $date = $row['day'] instanceof \DateTimeImmutable ? $row['day']->format('Y-m-d') : $row['day'];
             if (!isset($dailyTotals[$date])) {
-                $dailyTotals[$date] = ['bounties' => 0.0, 'lootSales' => 0.0];
+                $dailyTotals[$date] = ['bounties' => 0.0, 'lootSales' => 0.0, 'corpProject' => 0.0];
             }
 
             $type = $row['type'];
@@ -272,7 +273,12 @@ class PveIncomeRepository extends ServiceEntityRepository
 
             if (in_array($type, [PveIncome::TYPE_BOUNTY, PveIncome::TYPE_ESS, PveIncome::TYPE_MISSION], true)) {
                 $dailyTotals[$date]['bounties'] += $amount;
-            } elseif (in_array($type, [PveIncome::TYPE_LOOT_SALE, PveIncome::TYPE_LOOT_CONTRACT, PveIncome::TYPE_CORP_PROJECT], true)) {
+            } elseif ($type === PveIncome::TYPE_CORP_PROJECT) {
+                if (!$excludeCorpProject) {
+                    $dailyTotals[$date]['lootSales'] += $amount;
+                }
+                $dailyTotals[$date]['corpProject'] += $amount;
+            } elseif (in_array($type, [PveIncome::TYPE_LOOT_SALE, PveIncome::TYPE_LOOT_CONTRACT], true)) {
                 $dailyTotals[$date]['lootSales'] += $amount;
             }
         }

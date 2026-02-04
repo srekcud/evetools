@@ -74,6 +74,7 @@ const ESI_ENDPOINTS = [
   '/shopping-list',
   '/ansiblex',
   '/pve/',
+  '/ledger/',
 ]
 
 function isEsiEndpoint(endpoint: string): boolean {

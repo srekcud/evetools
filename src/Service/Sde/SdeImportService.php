@@ -58,6 +58,9 @@ class SdeImportService
         $this->notify($progressCallback, 'Importing types...');
         $this->importTypes($progressCallback);
 
+        $this->notify($progressCallback, 'Importing type materials (reprocessing)...');
+        $this->importTypeMaterials($progressCallback);
+
         $this->notify($progressCallback, 'Importing regions...');
         $this->importRegions($progressCallback);
 
@@ -443,6 +446,54 @@ class SdeImportService
             $connection->insert('sde_inv_types', $row, [
                 'published' => \Doctrine\DBAL\ParameterType::BOOLEAN,
             ]);
+        }
+    }
+
+    private function importTypeMaterials(?callable $progressCallback = null): void
+    {
+        $this->truncateTable('sde_inv_type_materials');
+
+        $data = $this->parseYamlFile('typeMaterials.yaml');
+
+        $count = 0;
+        $batchSize = 5000;
+        $connection = $this->entityManager->getConnection();
+        $batch = [];
+
+        foreach ($data as $typeId => $typeData) {
+            $typeData = (array) $typeData;
+            $materials = $typeData['materials'] ?? [];
+
+            foreach ($materials as $material) {
+                $material = (array) $material;
+
+                $batch[] = [
+                    'type_id' => (int) $typeId,
+                    'material_type_id' => (int) $material['materialTypeID'],
+                    'quantity' => (int) $material['quantity'],
+                ];
+
+                $count++;
+
+                if (count($batch) >= $batchSize) {
+                    $this->insertTypeMaterialsBatch($connection, $batch);
+                    $batch = [];
+                    $this->notify($progressCallback, "  Imported {$count} type materials...");
+                }
+            }
+        }
+
+        if (!empty($batch)) {
+            $this->insertTypeMaterialsBatch($connection, $batch);
+        }
+
+        $this->notify($progressCallback, "  Total: {$count} type materials imported");
+    }
+
+    private function insertTypeMaterialsBatch($connection, array $batch): void
+    {
+        foreach ($batch as $row) {
+            $connection->insert('sde_inv_type_materials', $row);
         }
     }
 

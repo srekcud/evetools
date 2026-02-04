@@ -341,6 +341,7 @@ docker compose -f docker-compose.yaml -f docker-compose.prod.yml restart worker
 | Ansiblex sync | 12 heures |
 | Industry jobs sync | 15 minutes |
 | PVE data sync | 20 minutes |
+| Mining ledger sync | 30 minutes |
 | Market sync (Jita + Structure) | 2 heures |
 
 ---
@@ -371,17 +372,89 @@ php bin/console doctrine:migrations:migrate
 
 ---
 
+## Roadmap V0.3 - Module LEDGER (fusion PVE + Mining)
+
+### Objectif
+Créer un module unifié "Ledger" fusionnant le module PVE existant avec un nouveau mining ledger :
+- **Route** : `/ledger` (remplace `/pve`)
+- **Menu** : "Ledger" dans la navigation
+- KPIs combinés (total PVE + Mining)
+- Valorisation des minerais (prix Jita)
+
+### Anti-double comptage
+**Problème** : Si un joueur contribue du minerai miné à un projet corpo, il reçoit de l'ISK (comptabilisé en PVE). Le même minerai apparaît dans le Mining Ledger ESI → risque de double comptage.
+
+**Solution** : Setting utilisateur `corpProjectAccounting: 'pve' | 'mining'`
+- `'pve'` (défaut) : revenus corpo comptés dans PVE, exclus du mining
+- `'mining'` : minerai valorisé dans mining, revenus corpo exclus du PVE
+
+**Note** : Les minerais issus du reprocessing de salvage ne sont pas dans le Mining Ledger ESI, donc toujours comptés en PVE.
+
+### UX/UI
+- Dashboard avec 3 KPI cards : Total, PVE, Mining
+- Graphique stacked bar (PVE + Mining par jour)
+- Breakdown par source (bounties, ESS, missions, ventes minerai...)
+- Onglets : Dashboard / PVE / Mining / Settings
+
+### Fichiers clés à créer
+```
+Backend:
+- src/Entity/MiningEntry.php
+- src/Entity/UserLedgerSettings.php
+- src/Service/Sync/MiningSyncService.php
+- src/ApiResource/Ledger/*.php
+- src/State/Provider/Ledger/*.php
+
+Frontend:
+- frontend/src/views/Ledger.vue (+ LedgerPve, LedgerMining, LedgerSettings)
+- frontend/src/components/ledger/*.vue
+- frontend/src/stores/ledger.ts
+```
+
+### Données ESI
+- Endpoint : `GET /characters/{id}/mining/`
+- Scope : `esi-industry.read_character_mining.v1` (déjà configuré)
+- Données des 30 derniers jours, agrégées par jour + type + système
+
+**Plan détaillé** : `.claude/plans/precious-chasing-emerson.md`
+
+---
+
+## Roadmap V0.4 - Intel Map & Space Travel
+
+### Phase 1 : Fondations Map (V0.4.0)
+- [ ] Scheduler Ansiblex Discovery quotidien (4h)
+- [ ] Endpoints cartographiques (`/api/map/regions`, `/api/map/graph`, etc.)
+- [ ] Frontend : Map Canvas 2D avec zoom/pan, couleurs sécurité
+
+### Phase 2 : Pathfinding (V0.4.1)
+- [ ] Service Dijkstra (stargates + Ansiblex)
+- [ ] Endpoint `POST /api/map/route` avec options (avoid lowsec, etc.)
+- [ ] Frontend : sélection A→B, route overlay
+
+### Phase 3 : Intel System (V0.4.2)
+- [ ] Plugin Windows Python (lit `Documents/EVE/logs/Chatlogs/`)
+- [ ] Entité `IntelReport` + endpoints
+- [ ] Mercure : push intel temps réel
+- [ ] Frontend : markers pulsants, alertes sonores
+
+### Phase 4 : Threat Assessment (V0.4.3)
+- [ ] Service zKillboard (stats, kills récents)
+- [ ] ThreatAssessmentService (score de menace)
+- [ ] Frontend : popup pilote avec stats
+
+---
+
 ## TODO / Points en suspens
 
-### Ansiblex Jump Gates - Crowdsourcing
-**Problème**: L'endpoint ESI `/corporations/{id}/structures/` nécessite un rôle Director/Station_Manager in-game. Un utilisateur ne peut voir que les structures de SA corporation, pas celles de son alliance.
+### Ansiblex Jump Gates
+**Solution implémentée** : `syncViaSearch()` permet de découvrir les Ansiblex via l'API search ESI (scope `esi-search.search_structures.v1`). Fonctionne sans rôle Director.
 
-**Solutions à explorer**:
-1. **Crowdsourcing alliance** - Les utilisateurs avec le rôle Director contribuent leurs Ansiblex, tous les membres de l'alliance en bénéficient
-2. **Import manuel** - Interface pour importer une liste d'Ansiblex (depuis wiki alliance, Dotlan, etc.)
-3. **Détection automatique** - Détecter les Ansiblex quand un utilisateur les traverse (via location tracking)
+**Commandes** :
+- CLI : `php bin/console app:test-ansiblex-discover "character name"`
+- API : `POST /api/me/ansiblex/discover`
 
-**Statut**: En attente de décision
+**À faire** : Ajouter un scheduler quotidien (Phase 1 du roadmap)
 
 ### Comptabilité Corporation
 **Idée**: Module de gestion comptable pour la corporation (suivi revenus/dépenses, bilans).

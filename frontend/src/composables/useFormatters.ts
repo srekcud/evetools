@@ -68,8 +68,12 @@ export function useFormatters() {
     return value.toLocaleString('fr-FR', { maximumFractionDigits: decimals })
   }
 
+  // Alias for backward compatibility
+  const formatIskShort = formatIsk
+
   return {
     formatIsk,
+    formatIskShort,
     formatIskFull,
     formatDate,
     formatDateTime,

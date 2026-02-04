@@ -8,6 +8,7 @@ use App\Message\TriggerAnsiblexSync;
 use App\Message\TriggerAssetsSync;
 use App\Message\SyncIndustryJobs;
 use App\Message\TriggerJitaMarketSync;
+use App\Message\TriggerMiningSync;
 use App\Message\TriggerPveSync;
 use App\Message\TriggerStructureMarketSync;
 use Symfony\Component\Scheduler\Attribute\AsSchedule;
@@ -52,6 +53,10 @@ class SyncScheduler implements ScheduleProviderInterface
             // Industry jobs sync every 15 minutes
             ->add(
                 RecurringMessage::every('15 minutes', new SyncIndustryJobs())
+            )
+            // Mining ledger sync every 30 minutes
+            ->add(
+                RecurringMessage::every('30 minutes', new TriggerMiningSync())
             );
     }
 }

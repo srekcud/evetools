@@ -172,6 +172,65 @@ class JitaMarketService
         SQL;
 
         $result = $this->connection->fetchFirstColumn($sql);
+        $typeIds = array_map('intval', $result);
+
+        // Also add ores and their compressed variants
+        $oreTypeIds = $this->getOreTypeIds();
+        $typeIds = array_unique(array_merge($typeIds, $oreTypeIds));
+
+        // Also add all reprocess outputs (materials from type_materials table)
+        $reprocessOutputIds = $this->getReprocessOutputTypeIds();
+        $typeIds = array_unique(array_merge($typeIds, $reprocessOutputIds));
+
+        return $typeIds;
+    }
+
+    /**
+     * Get all type IDs that are outputs of reprocessing (minerals, moon materials, etc.)
+     *
+     * @return int[]
+     */
+    private function getReprocessOutputTypeIds(): array
+    {
+        $sql = <<<SQL
+            SELECT DISTINCT material_type_id
+            FROM sde_inv_type_materials
+        SQL;
+
+        $result = $this->connection->fetchFirstColumn($sql);
+
+        return array_map('intval', $result);
+    }
+
+    /**
+     * Get all ore type IDs (raw and compressed) for mining ledger valuation.
+     *
+     * @return int[]
+     */
+    private function getOreTypeIds(): array
+    {
+        // Get all ore categories: Asteroid (25), Ice (465), Gas (711), Moon Ores (1855)
+        // And their compressed variants
+        $sql = <<<SQL
+            SELECT t.type_id
+            FROM sde_inv_types t
+            JOIN sde_inv_groups g ON t.group_id = g.group_id
+            JOIN sde_inv_categories c ON g.category_id = c.category_id
+            WHERE c.category_id = 25
+            AND t.published = true
+            AND (
+                -- Regular ores and variants
+                t.type_name NOT LIKE '%Blueprint%'
+            )
+            UNION
+            SELECT t.type_id
+            FROM sde_inv_types t
+            WHERE t.type_name LIKE 'Compressed %'
+            AND t.type_name NOT LIKE '%Blueprint%'
+            AND t.published = true
+        SQL;
+
+        $result = $this->connection->fetchFirstColumn($sql);
 
         return array_map('intval', $result);
     }
