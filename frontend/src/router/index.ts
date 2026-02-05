@@ -56,6 +56,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/escalations',
+      name: 'escalations',
+      component: () => import('@/views/Escalations.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/contracts',
       name: 'contracts',
       component: () => import('@/views/Contracts.vue'),

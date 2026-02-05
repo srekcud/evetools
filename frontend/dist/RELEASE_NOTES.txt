@@ -3,6 +3,46 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.4 (2026-02-05)
+--------------------------------------------------------------------------------
+
+### Module Escalations (nouveau)
+- Suivi des escalations DED (3/10 a 10/10) pour toutes les factions
+- Timer 72h avec compte a rebours temps reel et code couleur
+- 3 niveaux de visibilite : Perso, Corporation, Public
+- Boutons de partage : copie WTS (format in-game) et Discord
+- Page publique accessible sans authentification pour les escalations publiques
+- Escalations corporation visibles en lecture seule par les membres
+- Alerte lors du partage d'une escalation non bookmark
+- KPI : total, nouveau/BM, en vente, vendues avec valeur ISK
+- Filtres : statut, visibilite, personnage
+
+### Session utilisateur
+- Duree de session augmentee a 1 semaine (etait 1 heure)
+
+### Interface
+- Version et bouton de deconnexion regroupes dans le bloc utilisateur
+
+--------------------------------------------------------------------------------
+Version 0.3.1 (2026-02-04)
+--------------------------------------------------------------------------------
+
+### Corrections
+- Fix import SDE : migration de YAML vers JSONL (streaming) pour eviter les OOM
+
+--------------------------------------------------------------------------------
+Version 0.3 (2026-02-03)
+--------------------------------------------------------------------------------
+
+### Module Ledger (PVE + Mining unifie)
+- Nouveau module fusionnant PVE et Mining
+- Dashboard avec KPI combines (Total, PVE, Mining)
+- Graphique stacked bar (PVE + Mining par jour)
+- Mining ledger avec valorisation des minerais (prix Jita)
+- Anti-double comptage (setting corpProjectAccounting)
+- Onglets Dashboard / PVE / Mining / Settings
+
+--------------------------------------------------------------------------------
 Version 0.2 (2026-02-02)
 --------------------------------------------------------------------------------
 

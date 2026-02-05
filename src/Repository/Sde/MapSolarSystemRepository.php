@@ -49,6 +49,42 @@ class MapSolarSystemRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * @return MapSolarSystem[]
+     */
+    public function searchByName(string $query, int $limit = 10): array
+    {
+        $lowerQuery = mb_strtolower($query);
+
+        $conn = $this->getEntityManager()->getConnection();
+
+        $sql = <<<'SQL'
+            SELECT s.solar_system_id, s.solar_system_name, s.security, s.region_id,
+                   r.region_name
+            FROM sde_map_solar_systems s
+            JOIN sde_map_constellations c ON s.constellation_id = c.constellation_id
+            JOIN sde_map_regions r ON c.region_id = r.region_id
+            WHERE LOWER(s.solar_system_name) LIKE :contains
+            ORDER BY
+                CASE
+                    WHEN LOWER(s.solar_system_name) = :exact THEN 0
+                    WHEN LOWER(s.solar_system_name) LIKE :starts THEN 1
+                    ELSE 2
+                END,
+                s.solar_system_name ASC
+            LIMIT :lim
+        SQL;
+
+        return $conn->fetchAllAssociative($sql, [
+            'exact' => $lowerQuery,
+            'starts' => $lowerQuery . '%',
+            'contains' => '%' . $lowerQuery . '%',
+            'lim' => $limit,
+        ], [
+            'lim' => \Doctrine\DBAL\ParameterType::INTEGER,
+        ]);
+    }
+
     public function truncate(): void
     {
         $this->createQueryBuilder('s')

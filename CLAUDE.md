@@ -348,99 +348,108 @@ docker compose -f docker-compose.yaml -f docker-compose.prod.yml restart worker
 
 ## Migrations en attente (Production)
 
-| Migration | Description |
-|-----------|-------------|
-| `Version20260131130430` | Ajoute `location_id` et `corporation_id` à `industry_structure_configs` pour le partage de configurations de structures au sein d'une corporation |
-| `Version20260131133840` | Ajoute `location_owner_corporation_id` à `cached_assets` |
-| `Version20260131133934` | Ajoute `owner_corporation_id` à `cached_structure` pour identifier le propriétaire d'une structure |
-| `Version20260131223001` | Ajoute `te_level` à `industry_projects` pour le Time Efficiency des blueprints intermédiaires |
-| `Version20260202100000` | Ajoute `in_stock_quantity` à `industry_project_steps` pour le suivi des quantités en stock partielles |
+**Note** : V0.3.1 n'a pas encore été déployée. Toutes les migrations ci-dessous doivent être exécutées lors du déploiement V0.4.
+
+| Migration | Version | Description |
+|-----------|---------|-------------|
+| `Version20260131130430` | V0.2 | Ajoute `location_id` et `corporation_id` à `industry_structure_configs` |
+| `Version20260131133840` | V0.2 | Ajoute `location_owner_corporation_id` à `cached_assets` |
+| `Version20260131133934` | V0.2 | Ajoute `owner_corporation_id` à `cached_structure` |
+| `Version20260131223001` | V0.2 | Ajoute `te_level` à `industry_projects` |
+| `Version20260202100000` | V0.3 | Ajoute `in_stock_quantity` à `industry_project_steps` |
+| `Version20260205080822` | V0.4 | Crée la table `escalations` |
 
 ```bash
 # Exécuter en production
 php bin/console doctrine:migrations:migrate
 ```
 
-**Note**: Après migration, relancer une synchronisation des assets pour peupler `owner_corporation_id` dans les structures.
+### Actions post-déploiement V0.4
 
-### Actions post-déploiement (prochaine version)
-
-- [ ] **Réimporter le SDE** : La source a changé de YAML vers JSONL (streaming, pas d'OOM)
+- [ ] **Réimporter le SDE** (depuis V0.3.1 : source YAML → JSONL)
   ```bash
-  # Supprimer les anciens fichiers YAML s'ils existent
   rm -rf var/sde/
   php bin/console app:sde:import --force
   ```
+- [ ] **Relancer sync assets** pour peupler `owner_corporation_id` dans les structures
+- [ ] **Redémarrer le worker** pour le nouveau cache Doctrine
 
 ---
 
-## Roadmap V0.3 - Module LEDGER (fusion PVE + Mining)
+## V0.3 - Module LEDGER (fusion PVE + Mining) ✅
 
-### Objectif
-Créer un module unifié "Ledger" fusionnant le module PVE existant avec un nouveau mining ledger :
-- **Route** : `/ledger` (remplace `/pve`)
-- **Menu** : "Ledger" dans la navigation
-- KPIs combinés (total PVE + Mining)
-- Valorisation des minerais (prix Jita)
+**Statut** : Implémenté
 
-### Anti-double comptage
-**Problème** : Si un joueur contribue du minerai miné à un projet corpo, il reçoit de l'ISK (comptabilisé en PVE). Le même minerai apparaît dans le Mining Ledger ESI → risque de double comptage.
+Module unifié "Ledger" fusionnant PVE et Mining :
+- Route `/ledger` (remplace `/pve`)
+- Dashboard avec KPI combinés, graphique stacked bar
+- Mining ledger avec valorisation des minerais (prix Jita)
+- Anti-double comptage via setting `corpProjectAccounting`
 
-**Solution** : Setting utilisateur `corpProjectAccounting: 'pve' | 'mining'`
-- `'pve'` (défaut) : revenus corpo comptés dans PVE, exclus du mining
-- `'mining'` : minerai valorisé dans mining, revenus corpo exclus du PVE
+---
 
-**Note** : Les minerais issus du reprocessing de salvage ne sont pas dans le Mining Ledger ESI, donc toujours comptés en PVE.
+## V0.4 - Module Escalations ✅
 
-### UX/UI
-- Dashboard avec 3 KPI cards : Total, PVE, Mining
-- Graphique stacked bar (PVE + Mining par jour)
-- Breakdown par source (bounties, ESS, missions, ventes minerai...)
-- Onglets : Dashboard / PVE / Mining / Settings
+**Statut** : Implémenté
 
-### Fichiers clés à créer
+### Fonctionnalités
+- Suivi des escalations DED (3/10 à 10/10) pour 6 factions
+- Timer 72h avec compte à rebours temps réel
+- 3 niveaux de visibilité : Perso, Corporation, Public
+- Partage WTS (format in-game) et Discord
+- Page publique accessible sans authentification
+- Escalations corporation visibles en lecture seule
+- KPI : total, nouveau/BM, en vente, vendues
+- Filtres : statut, visibilité, personnage
+- Session JWT augmentée à 1 semaine
+
+### Fichiers clés
 ```
 Backend:
-- src/Entity/MiningEntry.php
-- src/Entity/UserLedgerSettings.php
-- src/Service/Sync/MiningSyncService.php
-- src/ApiResource/Ledger/*.php
-- src/State/Provider/Ledger/*.php
+- src/Entity/Escalation.php
+- src/Repository/EscalationRepository.php
+- src/ApiResource/Escalation/EscalationResource.php
+- src/ApiResource/Input/Escalation/CreateEscalationInput.php
+- src/State/Provider/Escalation/*.php (5 providers + mapper)
+- src/State/Processor/Escalation/*.php (3 processors)
 
 Frontend:
-- frontend/src/views/Ledger.vue (+ LedgerPve, LedgerMining, LedgerSettings)
-- frontend/src/components/ledger/*.vue
-- frontend/src/stores/ledger.ts
+- frontend/src/views/Escalations.vue
+- frontend/src/stores/escalation.ts
 ```
 
-### Données ESI
-- Endpoint : `GET /characters/{id}/mining/`
-- Scope : `esi-industry.read_character_mining.v1` (déjà configuré)
-- Données des 30 derniers jours, agrégées par jour + type + système
-
-**Plan détaillé** : `.claude/plans/precious-chasing-emerson.md`
+### API Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/escalations` | Mes escalations (filtres: visibility, saleStatus, active) |
+| `GET` | `/api/escalations/corp` | Escalations corporation |
+| `GET` | `/api/escalations/public` | Escalations publiques (pas d'auth) |
+| `GET` | `/api/escalations/{id}` | Détail d'une escalation |
+| `POST` | `/api/escalations` | Créer une escalation |
+| `PATCH` | `/api/escalations/{id}` | Modifier (visibilité, BM, vente, prix, notes) |
+| `DELETE` | `/api/escalations/{id}` | Supprimer |
 
 ---
 
-## Roadmap V0.4 - Intel Map & Space Travel
+## Roadmap V0.5 - Intel Map & Space Travel
 
-### Phase 1 : Fondations Map (V0.4.0)
+### Phase 1 : Fondations Map (V0.5.0)
 - [ ] Scheduler Ansiblex Discovery quotidien (4h)
 - [ ] Endpoints cartographiques (`/api/map/regions`, `/api/map/graph`, etc.)
 - [ ] Frontend : Map Canvas 2D avec zoom/pan, couleurs sécurité
 
-### Phase 2 : Pathfinding (V0.4.1)
+### Phase 2 : Pathfinding (V0.5.1)
 - [ ] Service Dijkstra (stargates + Ansiblex)
 - [ ] Endpoint `POST /api/map/route` avec options (avoid lowsec, etc.)
 - [ ] Frontend : sélection A→B, route overlay
 
-### Phase 3 : Intel System (V0.4.2)
+### Phase 3 : Intel System (V0.5.2)
 - [ ] Plugin Windows Python (lit `Documents/EVE/logs/Chatlogs/`)
 - [ ] Entité `IntelReport` + endpoints
 - [ ] Mercure : push intel temps réel
 - [ ] Frontend : markers pulsants, alertes sonores
 
-### Phase 4 : Threat Assessment (V0.4.3)
+### Phase 4 : Threat Assessment (V0.5.3)
 - [ ] Service zKillboard (stats, kills récents)
 - [ ] ThreatAssessmentService (score de menace)
 - [ ] Frontend : popup pilote avec stats

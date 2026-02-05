@@ -17,7 +17,7 @@ framework:
                 default_lifetime: 300
             jwt.blacklist:
                 adapter: cache.adapter.redis
-                default_lifetime: 3700
+                default_lifetime: 604900  # 1 week + 100 seconds buffer
             structure_market.cache:
                 adapter: cache.adapter.redis
                 default_lifetime: 7200  # 2 hours
