@@ -22,4 +22,7 @@ class CreateEscalationInput
 
     /** Timer in hours (max 72) */
     public float $timerHours = 72.0;
+
+    /** Visibility: perso, corp, alliance, public */
+    public string $visibility = 'perso';
 }

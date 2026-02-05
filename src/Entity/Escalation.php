@@ -14,10 +14,12 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(columns: ['user_id', 'expires_at'])]
 #[ORM\Index(columns: ['corporation_id', 'visibility'])]
 #[ORM\Index(columns: ['visibility', 'sale_status', 'expires_at'])]
+#[ORM\Index(columns: ['alliance_id', 'visibility'])]
 class Escalation
 {
     public const VISIBILITY_PERSO = 'perso';
     public const VISIBILITY_CORP = 'corp';
+    public const VISIBILITY_ALLIANCE = 'alliance';
     public const VISIBILITY_PUBLIC = 'public';
 
     public const BM_NOUVEAU = 'nouveau';
@@ -71,6 +73,9 @@ class Escalation
 
     #[ORM\Column(type: 'bigint')]
     private int $corporationId;
+
+    #[ORM\Column(type: 'bigint', nullable: true)]
+    private ?int $allianceId = null;
 
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $expiresAt;
@@ -235,6 +240,17 @@ class Escalation
     public function setCorporationId(int $corporationId): static
     {
         $this->corporationId = $corporationId;
+        return $this;
+    }
+
+    public function getAllianceId(): ?int
+    {
+        return $this->allianceId;
+    }
+
+    public function setAllianceId(?int $allianceId): static
+    {
+        $this->allianceId = $allianceId;
         return $this;
     }
 

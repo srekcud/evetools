@@ -11,7 +11,7 @@ export interface Escalation {
   solarSystemName: string
   securityStatus: number
   price: number
-  visibility: 'perso' | 'corp' | 'public'
+  visibility: 'perso' | 'corp' | 'alliance' | 'public'
   bmStatus: 'nouveau' | 'bm'
   saleStatus: 'envente' | 'vendu'
   notes: string | null
@@ -31,6 +31,7 @@ export interface CreateEscalationInput {
   price: number
   notes?: string | null
   timerHours?: number
+  visibility?: 'perso' | 'corp' | 'alliance' | 'public'
 }
 
 export const useEscalationStore = defineStore('escalation', () => {
@@ -121,7 +122,7 @@ export const useEscalationStore = defineStore('escalation', () => {
     }
   }
 
-  async function updateEscalation(id: string, updates: Partial<Pick<Escalation, 'visibility' | 'bmStatus' | 'saleStatus' | 'price' | 'notes'>>) {
+  async function updateEscalation(id: string, updates: Partial<Pick<Escalation, 'visibility' | 'bmStatus' | 'saleStatus' | 'price' | 'notes' | 'type'>>) {
     error.value = null
 
     try {

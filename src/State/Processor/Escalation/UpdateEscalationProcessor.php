@@ -54,7 +54,7 @@ class UpdateEscalationProcessor implements ProcessorInterface
         $request = $this->requestStack->getCurrentRequest();
         $payload = json_decode($request?->getContent() ?? '{}', true);
 
-        $validVisibilities = [Escalation::VISIBILITY_PERSO, Escalation::VISIBILITY_CORP, Escalation::VISIBILITY_PUBLIC];
+        $validVisibilities = [Escalation::VISIBILITY_PERSO, Escalation::VISIBILITY_CORP, Escalation::VISIBILITY_ALLIANCE, Escalation::VISIBILITY_PUBLIC];
         $validBmStatuses = [Escalation::BM_NOUVEAU, Escalation::BM_BM];
         $validSaleStatuses = [Escalation::SALE_ENVENTE, Escalation::SALE_VENDU];
 
@@ -72,6 +72,10 @@ class UpdateEscalationProcessor implements ProcessorInterface
 
         if (isset($payload['price']) && is_int($payload['price'])) {
             $escalation->setPrice($payload['price']);
+        }
+
+        if (isset($payload['type']) && is_string($payload['type']) && strlen($payload['type']) <= 100) {
+            $escalation->setType($payload['type']);
         }
 
         if (array_key_exists('notes', $payload)) {

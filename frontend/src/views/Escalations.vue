@@ -9,8 +9,6 @@ const authStore = useAuthStore()
 
 // ========== Constants ==========
 
-const TOTAL_HOURS = 72
-
 const ESCALATION_SITES: Record<string, { level: string; name: string }[]> = {
   'Angel Cartel': [
     { level: '3', name: 'Angel Repurposed Outpost' },
@@ -77,9 +75,10 @@ const SUGGESTED_PRICES: Record<string, number[]> = {
 // ========== Filter State ==========
 
 const statusFilter = ref<'active' | 'all'>('active')
-const visibilityFilter = ref<'all' | 'perso' | 'corp' | 'public'>('all')
+const visibilityFilter = ref<'all' | 'perso' | 'corp' | 'alliance' | 'public'>('all')
 const characterFilter = ref<number | null>(null)
-// (no tabs - filter bar only)
+const currentPage = ref(1)
+const perPage = 20
 
 // ========== Timer State ==========
 
@@ -93,9 +92,13 @@ const isSubmitting = ref(false)
 const showCharDropdown = ref(false)
 const showTypeDropdown = ref(false)
 const showSystemDropdown = ref(false)
+const editingEscalation = ref<Escalation | null>(null)
 const showDeleteModal = ref(false)
 const deleteTarget = ref<Escalation | null>(null)
 const isDeleting = ref(false)
+const showSellModal = ref(false)
+const sellTarget = ref<Escalation | null>(null)
+const isSelling = ref(false)
 
 // Form fields
 const formCharacterId = ref<number | null>(null)
@@ -106,11 +109,12 @@ const formSystemId = ref<number | null>(null)
 const formSystemName = ref('')
 const formSystemSec = ref(0)
 const formSystemRegion = ref('')
-const formTimerDays = ref(2)
-const formTimerHours = ref(23)
+const formTimerDays = ref(1)
+const formTimerHours = ref(0)
 const formTimerMinutes = ref(0)
 const formPrice = ref(150)
 const formNotes = ref('')
+const formVisibility = ref<'perso' | 'corp' | 'alliance' | 'public'>('perso')
 
 // ========== Toast State ==========
 
@@ -130,12 +134,19 @@ const activeVisPopoverId = ref<string | null>(null)
 
 // ========== Characters ==========
 
+const isEditMode = computed(() => editingEscalation.value !== null)
 const characters = computed(() => authStore.user?.characters ?? [])
 
 // ========== Filtered Escalations ==========
 
+// Combine personal escalations with corp/alliance escalations (from other users)
+const allEscalations = computed(() => {
+  // Corp escalations already exclude current user, so no duplicates
+  return [...escalationStore.escalations, ...escalationStore.corpEscalations]
+})
+
 const filteredEscalations = computed(() => {
-  let list = [...escalationStore.escalations]
+  let list = [...allEscalations.value]
 
   // Status filter
   if (statusFilter.value === 'active') {
@@ -146,11 +157,20 @@ const filteredEscalations = computed(() => {
   }
 
   // Visibility filter
+  // Note: "corp" filter also shows "alliance" escalations from corpmates only
+  const userCorpId = authStore.user?.corporationId
   if (visibilityFilter.value !== 'all') {
-    list = list.filter(e => e.visibility === visibilityFilter.value)
+    if (visibilityFilter.value === 'corp') {
+      list = list.filter(e =>
+        e.visibility === 'corp' ||
+        (e.visibility === 'alliance' && e.corporationId === userCorpId)
+      )
+    } else {
+      list = list.filter(e => e.visibility === visibilityFilter.value)
+    }
   }
 
-  // Character filter
+  // Character filter (only applies to own escalations)
   if (characterFilter.value !== null) {
     list = list.filter(e => e.characterId === characterFilter.value)
   }
@@ -164,6 +184,20 @@ const filteredEscalations = computed(() => {
   })
 
   return list
+})
+
+// ========== Pagination ==========
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredEscalations.value.length / perPage)))
+
+const paginatedEscalations = computed(() => {
+  const start = (currentPage.value - 1) * perPage
+  return filteredEscalations.value.slice(start, start + perPage)
+})
+
+// Reset page when filters change
+watch([statusFilter, visibilityFilter, characterFilter], () => {
+  currentPage.value = 1
 })
 
 // ========== KPI Computed ==========
@@ -211,7 +245,9 @@ function getTimerInfo(expiresAt: string) {
     ? `${days}j ${pad(hours)}h ${pad(minutes)}m`
     : `${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`
 
-  const percent = Math.max(0, Math.min(100, (remaining / (TOTAL_HOURS * 3600000)) * 100))
+  // Progress bar based on 24h max (not 72h)
+  const PROGRESS_BAR_HOURS = 24
+  const percent = Math.max(0, Math.min(100, (remaining / (PROGRESS_BAR_HOURS * 3600000)) * 100))
   const zone = percent > 50 ? 'safe' : percent > 20 ? 'warning' : 'danger'
 
   return { text, percent, zone: zone as 'safe' | 'warning' | 'danger' }
@@ -250,11 +286,13 @@ function secBadgeClasses(sec: number) {
 function visibilityBadgeClasses(vis: string) {
   if (vis === 'perso') return 'bg-slate-500/20 text-slate-400 hover:ring-slate-400/30'
   if (vis === 'corp') return 'bg-indigo-500/20 text-indigo-400 hover:ring-indigo-400/30'
+  if (vis === 'alliance') return 'bg-blue-500/20 text-blue-400 hover:ring-blue-400/30'
   return 'bg-purple-500/20 text-purple-400 hover:ring-purple-400/30'
 }
 
 function visibilityLabel(vis: string) {
   if (vis === 'corp') return 'Corp'
+  if (vis === 'alliance') return 'Alliance'
   if (vis === 'public') return 'Public'
   return ''
 }
@@ -262,12 +300,14 @@ function visibilityLabel(vis: string) {
 function visibilityTitle(vis: string) {
   if (vis === 'perso') return 'Perso'
   if (vis === 'corp') return 'Corp'
+  if (vis === 'alliance') return 'Alliance'
   return 'Public'
 }
 
 function visibilityDescription(vis: string) {
   if (vis === 'perso') return 'Visible que par moi'
   if (vis === 'corp') return 'Membres de la corp'
+  if (vis === 'alliance') return "Membres de l'alliance"
   return 'Visible par tous'
 }
 
@@ -291,11 +331,71 @@ function priceSubColor(escalation: Escalation) {
 
 // ========== Share System ==========
 
+const showShareDropdown = ref(false)
+
+const shareableEscalations = computed(() =>
+  filteredEscalations.value.filter(e =>
+    e.isOwner &&
+    e.visibility !== 'perso' &&
+    e.saleStatus === 'envente' &&
+    e.bmStatus === 'bm' &&
+    new Date(e.expiresAt).getTime() > now.value
+  )
+)
+
 function shouldShowShareButtons(escalation: Escalation) {
   return (
+    escalation.isOwner &&
     escalation.visibility !== 'perso' &&
     escalation.saleStatus === 'envente'
   )
+}
+
+function shareAllWts() {
+  const list = shareableEscalations.value
+  if (list.length === 0) {
+    showToast('Aucune escalation partageable (BM + en vente)', 'warning')
+    return
+  }
+
+  const lines = list.map(e => {
+    const remaining = new Date(e.expiresAt).getTime() - now.value
+    const hours = Math.max(0, Math.round(remaining / 3600000))
+    return `WTS ${e.type} @ ${e.solarSystemName} ${hours}h ${e.price}m`
+  })
+
+  navigator.clipboard.writeText(lines.join('\n')).then(() => {
+    showToast(`${list.length} escalation(s) copiee(s) pour WTS`, 'success')
+  }).catch(() => {
+    showToast('Erreur lors de la copie', 'error')
+  })
+  showShareDropdown.value = false
+}
+
+function shareAllDiscord() {
+  const list = shareableEscalations.value
+  if (list.length === 0) {
+    showToast('Aucune escalation partageable (BM + en vente)', 'warning')
+    return
+  }
+
+  const blocks = list.map(e => {
+    const expiresUnix = Math.floor(new Date(e.expiresAt).getTime() / 1000)
+    return [
+      `**WTS ${e.type}**`,
+      `> Systeme : **${e.solarSystemName}** (${e.securityStatus.toFixed(1)}) | Expire <t:${expiresUnix}:R> | Prix : **${e.price}M ISK**`,
+      `> Contact : ${e.characterName}`,
+    ].join('\n')
+  })
+
+  const text = blocks.join('\n\n') + `\n\nPartagé avec [Evetools](<https://evetools.srekcud.be/escalations>)`
+
+  navigator.clipboard.writeText(text).then(() => {
+    showToast(`${list.length} escalation(s) copiee(s) pour Discord`, 'success')
+  }).catch(() => {
+    showToast('Erreur lors de la copie', 'error')
+  })
+  showShareDropdown.value = false
 }
 
 function shareWts(escalation: Escalation) {
@@ -307,7 +407,7 @@ function shareWts(escalation: Escalation) {
   const remaining = new Date(escalation.expiresAt).getTime() - now.value
   const hours = Math.max(0, Math.round(remaining / 3600000))
 
-  const text = `WTS ${escalation.type} <url=showinfo:5//${escalation.solarSystemId}>${escalation.solarSystemName}</url> ${hours}h ${escalation.price}m`
+  const text = `WTS ${escalation.type} @ ${escalation.solarSystemName} ${hours}h ${escalation.price}m`
   navigator.clipboard.writeText(text).then(() => {
     showToast('Message WTS copie dans le presse-papier', 'success')
   }).catch(() => {
@@ -372,15 +472,39 @@ async function toggleBmStatus(escalation: Escalation) {
 }
 
 async function toggleSaleStatus(escalation: Escalation) {
-  const newStatus = escalation.saleStatus === 'envente' ? 'vendu' : 'envente'
+  if (escalation.saleStatus === 'envente') {
+    sellTarget.value = escalation
+    showSellModal.value = true
+    return
+  }
   try {
-    await escalationStore.updateEscalation(escalation.id, { saleStatus: newStatus })
+    await escalationStore.updateEscalation(escalation.id, { saleStatus: 'envente' })
   } catch {
     showToast('Erreur lors de la mise a jour du statut de vente', 'error')
   }
 }
 
-async function changeVisibility(escalation: Escalation, newVis: 'perso' | 'corp' | 'public') {
+async function confirmSell() {
+  if (!sellTarget.value || isSelling.value) return
+  isSelling.value = true
+  try {
+    await escalationStore.updateEscalation(sellTarget.value.id, { saleStatus: 'vendu' })
+    showToast('Escalation marquee comme vendue', 'success')
+  } catch {
+    showToast('Erreur lors de la mise a jour du statut de vente', 'error')
+  } finally {
+    isSelling.value = false
+    showSellModal.value = false
+    sellTarget.value = null
+  }
+}
+
+function cancelSell() {
+  showSellModal.value = false
+  sellTarget.value = null
+}
+
+async function changeVisibility(escalation: Escalation, newVis: 'perso' | 'corp' | 'alliance' | 'public') {
   activeVisPopoverId.value = null
   try {
     await escalationStore.updateEscalation(escalation.id, { visibility: newVis })
@@ -414,6 +538,23 @@ function cancelDelete() {
   deleteTarget.value = null
 }
 
+function openEditModal(escalation: Escalation) {
+  editingEscalation.value = escalation
+  formType.value = escalation.type
+  formPrice.value = escalation.price
+  formNotes.value = escalation.notes ?? ''
+  formVisibility.value = escalation.visibility
+  // Pre-fill character
+  formCharacterId.value = escalation.characterId
+  formCharacterName.value = escalation.characterName
+  // Pre-fill system (read-only in edit mode)
+  formSystemId.value = escalation.solarSystemId
+  formSystemName.value = escalation.solarSystemName
+  formSystemSec.value = escalation.securityStatus
+  formSystemRegion.value = ''
+  showModal.value = true
+}
+
 function toggleVisPopover(id: string, event: Event) {
   event.stopPropagation()
   activeVisPopoverId.value = activeVisPopoverId.value === id ? null : id
@@ -424,11 +565,14 @@ function handleDocumentClick() {
   activeVisPopoverId.value = null
   showTypeDropdown.value = false
   showCharDropdown.value = false
+  showShareDropdown.value = false
 }
 
 // ========== Modal Helpers ==========
 
 function openModal() {
+  editingEscalation.value = null
+  resetForm()
   // Initialize with first character
   if (characters.value.length > 0 && !formCharacterId.value) {
     formCharacterId.value = characters.value[0].eveCharacterId
@@ -439,6 +583,7 @@ function openModal() {
 
 function closeModal() {
   showModal.value = false
+  editingEscalation.value = null
   showCharDropdown.value = false
   showTypeDropdown.value = false
   showSystemDropdown.value = false
@@ -517,9 +662,9 @@ function setFormPrice(val: number) {
   formPrice.value = val
 }
 
-// Update suggestions when type changes
+// Update suggestions when type changes (only in add mode)
 watch(() => formType.value, () => {
-  if (selectedLevel.value && SUGGESTED_PRICES[selectedLevel.value]) {
+  if (!isEditMode.value && selectedLevel.value && SUGGESTED_PRICES[selectedLevel.value]) {
     formPrice.value = SUGGESTED_PRICES[selectedLevel.value][1] ?? 100
   }
 })
@@ -540,29 +685,46 @@ const previewSystem = computed(() => formSystemName.value || '--')
 const previewChar = computed(() => formCharacterName.value || '--')
 const previewType = computed(() => formType.value || '--')
 
-// Submit form
+// Submit form (add or edit)
 async function submitEscalation() {
-  if (!isFormValid.value || isSubmitting.value) return
+  if (isSubmitting.value) return
 
+  const editing = editingEscalation.value
   isSubmitting.value = true
   try {
-    const input: CreateEscalationInput = {
-      characterId: formCharacterId.value!,
-      type: formType.value,
-      solarSystemId: formSystemId.value!,
-      solarSystemName: formSystemName.value,
-      securityStatus: formSystemSec.value,
-      price: formPrice.value,
-      notes: formNotes.value || null,
-      timerHours: formTotalHours.value,
+    if (editing) {
+      // Edit mode - only send changed fields
+      const updates: Partial<Pick<Escalation, 'type' | 'price' | 'notes' | 'visibility'>> = {}
+      if (formType.value !== editing.type) updates.type = formType.value
+      if (formPrice.value !== editing.price) updates.price = formPrice.value
+      if (formVisibility.value !== editing.visibility) updates.visibility = formVisibility.value
+      const newNotes = formNotes.value || null
+      if (newNotes !== editing.notes) updates.notes = newNotes
+      if (Object.keys(updates).length > 0) {
+        await escalationStore.updateEscalation(editing.id, updates)
+        showToast('Escalation mise a jour', 'success')
+      }
+    } else {
+      // Add mode
+      if (!isFormValid.value) return
+      const input: CreateEscalationInput = {
+        characterId: formCharacterId.value!,
+        type: formType.value,
+        solarSystemId: formSystemId.value!,
+        solarSystemName: formSystemName.value,
+        securityStatus: formSystemSec.value,
+        price: formPrice.value,
+        notes: formNotes.value || null,
+        timerHours: formTotalHours.value,
+        visibility: formVisibility.value,
+      }
+      await escalationStore.createEscalation(input)
+      showToast('Escalation ajoutee avec succes', 'success')
     }
-
-    await escalationStore.createEscalation(input)
-    showToast('Escalation ajoutee avec succes', 'success')
     closeModal()
     resetForm()
   } catch {
-    showToast('Erreur lors de la creation de l\'escalation', 'error')
+    showToast(editing ? 'Erreur lors de la mise a jour' : 'Erreur lors de la creation de l\'escalation', 'error')
   } finally {
     isSubmitting.value = false
   }
@@ -575,11 +737,12 @@ function resetForm() {
   formSystemName.value = ''
   formSystemSec.value = 0
   formSystemRegion.value = ''
-  formTimerDays.value = 2
-  formTimerHours.value = 23
+  formTimerDays.value = 1
+  formTimerHours.value = 0
   formTimerMinutes.value = 0
   formPrice.value = 150
   formNotes.value = ''
+  formVisibility.value = 'perso'
 }
 
 // System search - for now just a simple input (will be connected to SDE later)
@@ -637,7 +800,10 @@ function selectSystem(system: { name: string; sec: number; region: string; id: n
 // ========== Data Loading ==========
 
 async function loadData() {
-  await escalationStore.fetchEscalations()
+  await Promise.all([
+    escalationStore.fetchEscalations(),
+    escalationStore.fetchCorpEscalations(),
+  ])
 }
 
 // ========== Keyboard ==========
@@ -645,6 +811,8 @@ async function loadData() {
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') {
     if (showModal.value) closeModal()
+    if (showDeleteModal.value) cancelDelete()
+    if (showSellModal.value) cancelSell()
     activeVisPopoverId.value = null
   }
 }
@@ -724,6 +892,15 @@ onUnmounted(() => {
             </button>
             <button
               class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5"
+              :class="visibilityFilter === 'alliance' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'"
+              @click="visibilityFilter = 'alliance'"
+              title="Partagees avec l'alliance"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg>
+              Alliance
+            </button>
+            <button
+              class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5"
               :class="visibilityFilter === 'public' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'"
               @click="visibilityFilter = 'public'"
               title="Visibles par tous"
@@ -746,16 +923,42 @@ onUnmounted(() => {
           </select>
         </div>
 
-        <!-- Add button -->
-        <button
-          @click="openModal"
-          class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-colors"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
-          </svg>
-          Ajouter
-        </button>
+        <div class="flex items-center gap-2">
+          <!-- Share all button -->
+          <div class="relative" @click.stop>
+            <button
+              @click="showShareDropdown = !showShareDropdown"
+              :disabled="shareableEscalations.length === 0"
+              class="px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+              :class="shareableEscalations.length > 0 ? 'bg-slate-700 hover:bg-slate-600 text-slate-200' : 'bg-slate-800 text-slate-600 cursor-not-allowed'"
+              title="Partager toutes les escalations"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z"/></svg>
+              <span v-if="shareableEscalations.length > 0" class="bg-cyan-500/20 text-cyan-400 text-xs px-1.5 py-0.5 rounded-full">{{ shareableEscalations.length }}</span>
+            </button>
+            <div v-if="showShareDropdown" class="absolute right-0 mt-2 w-48 bg-slate-800 rounded-lg border border-slate-700 shadow-xl z-20 overflow-hidden">
+              <button @click="shareAllWts" class="w-full px-4 py-2.5 text-left text-sm text-slate-300 hover:bg-slate-700 flex items-center gap-2 transition-colors">
+                <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184"/></svg>
+                WTS (in-game)
+              </button>
+              <button @click="shareAllDiscord" class="w-full px-4 py-2.5 text-left text-sm text-slate-300 hover:bg-slate-700 flex items-center gap-2 transition-colors">
+                <svg class="w-4 h-4 text-indigo-400" fill="currentColor" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+                Discord
+              </button>
+            </div>
+          </div>
+
+          <!-- Add button -->
+          <button
+            @click="openModal"
+            class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+            </svg>
+            Ajouter
+          </button>
+        </div>
       </div>
 
       <!-- KPI Cards -->
@@ -769,11 +972,11 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Nouveau / BM -->
+        <!-- Sans BM / BM -->
         <div class="group relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-2xl p-5 border border-slate-700/50 backdrop-blur-sm overflow-hidden transition-all duration-300 hover:border-cyan-500/40 hover:shadow-lg hover:shadow-cyan-500/10 hover:-translate-y-1">
           <div class="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
           <div class="relative">
-            <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">Nouveau / BM</p>
+            <p class="text-slate-500 text-sm uppercase tracking-wider mb-1"><span class="line-through">BM</span> / BM</p>
             <p class="text-3xl font-bold text-cyan-400">{{ kpiNewBm }}</p>
           </div>
         </div>
@@ -843,7 +1046,7 @@ onUnmounted(() => {
 
         <div class="divide-y divide-slate-800">
           <div
-            v-for="escalation in filteredEscalations"
+            v-for="escalation in paginatedEscalations"
             :key="escalation.id"
             class="px-5 py-4 hover:bg-slate-800/30 transition-colors"
             :class="{
@@ -868,6 +1071,8 @@ onUnmounted(() => {
                       <svg v-if="escalation.visibility === 'perso'" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
                       <!-- Corp icon -->
                       <svg v-else-if="escalation.visibility === 'corp'" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
+                      <!-- Alliance icon -->
+                      <svg v-else-if="escalation.visibility === 'alliance'" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg>
                       <!-- Public icon -->
                       <svg v-else class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418"/></svg>
                       {{ visibilityLabel(escalation.visibility) }}
@@ -880,7 +1085,7 @@ onUnmounted(() => {
                       @click.stop
                     >
                       <button
-                        v-for="vis in (['perso', 'corp', 'public'] as const)"
+                        v-for="vis in (['perso', 'corp', 'alliance', 'public'] as const)"
                         :key="vis"
                         class="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
                         :class="escalation.visibility === vis
@@ -892,6 +1097,7 @@ onUnmounted(() => {
                         <span class="flex-shrink-0">
                           <svg v-if="vis === 'perso'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
                           <svg v-else-if="vis === 'corp'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
+                          <svg v-else-if="vis === 'alliance'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg>
                           <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418"/></svg>
                         </span>
                         <div class="flex-1 min-w-0">
@@ -911,6 +1117,7 @@ onUnmounted(() => {
                     :class="visibilityBadgeClasses(escalation.visibility).replace('hover:ring-', '').split(' ').slice(0, 2).join(' ')"
                   >
                     <svg v-if="escalation.visibility === 'corp'" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
+                    <svg v-else-if="escalation.visibility === 'alliance'" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg>
                     <svg v-else class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418"/></svg>
                     {{ visibilityLabel(escalation.visibility) }}
                   </span>
@@ -918,8 +1125,8 @@ onUnmounted(() => {
                   <!-- BM badge -->
                   <span
                     class="text-xs px-2 py-0.5 rounded"
-                    :class="escalation.bmStatus === 'nouveau' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-emerald-500/20 text-emerald-400'"
-                  >{{ escalation.bmStatus === 'nouveau' ? 'Nouveau' : 'BM' }}</span>
+                    :class="escalation.bmStatus === 'nouveau' ? 'bg-slate-500/20 text-slate-400' : 'bg-emerald-500/20 text-emerald-400'"
+                  ><span v-if="escalation.bmStatus === 'nouveau'" class="line-through">BM</span><span v-else>BM</span></span>
 
                   <!-- Sale badge -->
                   <span
@@ -981,10 +1188,10 @@ onUnmounted(() => {
                   <button
                     class="px-2.5 py-1 rounded text-xs font-medium border transition-colors"
                     :class="escalation.bmStatus === 'nouveau'
-                      ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/30'
+                      ? 'bg-slate-500/20 text-slate-400 border-slate-500/30 hover:bg-slate-500/30'
                       : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30'"
                     @click="toggleBmStatus(escalation)"
-                  >{{ escalation.bmStatus === 'nouveau' ? 'Nouveau' : 'BM' }}</button>
+                  ><span v-if="escalation.bmStatus === 'nouveau'" class="line-through">BM</span><span v-else>BM</span></button>
                   <button
                     class="px-2.5 py-1 rounded text-xs font-medium border transition-colors"
                     :class="escalation.saleStatus === 'envente'
@@ -1021,6 +1228,16 @@ onUnmounted(() => {
                   </button>
                 </div>
 
+                <!-- Edit button (owner only) -->
+                <button
+                  v-if="escalation.isOwner"
+                  class="p-2 rounded-lg text-slate-600 hover:text-cyan-400 hover:bg-cyan-500/10 transition-colors"
+                  title="Modifier"
+                  @click="openEditModal(escalation)"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
+                </button>
+
                 <!-- Delete button (owner only) -->
                 <button
                   v-if="escalation.isOwner"
@@ -1034,11 +1251,66 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
+
+        <!-- Pagination -->
+        <div v-if="totalPages > 1" class="px-5 py-3 border-t border-slate-800 flex items-center justify-between">
+          <p class="text-sm text-slate-500">
+            {{ (currentPage - 1) * perPage + 1 }}-{{ Math.min(currentPage * perPage, filteredEscalations.length) }} sur {{ filteredEscalations.length }}
+          </p>
+          <div class="flex items-center gap-1">
+            <button
+              @click="currentPage = 1"
+              :disabled="currentPage === 1"
+              class="px-2 py-1 rounded text-sm transition-colors"
+              :class="currentPage === 1 ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5"/></svg>
+            </button>
+            <button
+              @click="currentPage--"
+              :disabled="currentPage === 1"
+              class="px-2 py-1 rounded text-sm transition-colors"
+              :class="currentPage === 1 ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+            </button>
+            <template v-for="page in totalPages" :key="page">
+              <button
+                v-if="page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1)"
+                @click="currentPage = page"
+                class="w-8 h-8 rounded text-sm font-medium transition-colors"
+                :class="page === currentPage ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
+              >
+                {{ page }}
+              </button>
+              <span
+                v-else-if="page === currentPage - 2 || page === currentPage + 2"
+                class="text-slate-600 px-1"
+              >...</span>
+            </template>
+            <button
+              @click="currentPage++"
+              :disabled="currentPage === totalPages"
+              class="px-2 py-1 rounded text-sm transition-colors"
+              :class="currentPage === totalPages ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+            </button>
+            <button
+              @click="currentPage = totalPages"
+              :disabled="currentPage === totalPages"
+              class="px-2 py-1 rounded text-sm transition-colors"
+              :class="currentPage === totalPages ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 4.5l7.5 7.5-7.5 7.5m6-15l7.5 7.5-7.5 7.5"/></svg>
+            </button>
+          </div>
+        </div>
       </div>
 
     </div>
 
-    <!-- Add Modal -->
+    <!-- Add/Edit Modal -->
     <Teleport to="body">
       <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center">
         <!-- Backdrop -->
@@ -1050,13 +1322,14 @@ onUnmounted(() => {
           <div class="flex items-center justify-between px-6 py-4 border-b border-slate-700/50">
             <div class="flex items-center gap-3">
               <div class="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center">
-                <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <svg v-if="isEditMode" class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
+                <svg v-else class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
                 </svg>
               </div>
               <div>
-                <h3 class="text-lg font-semibold text-slate-100">Nouvelle escalation</h3>
-                <p class="text-xs text-slate-500">Enregistrer un DED site pour suivi et vente</p>
+                <h3 class="text-lg font-semibold text-slate-100">{{ isEditMode ? 'Modifier l\'escalation' : 'Nouvelle escalation' }}</h3>
+                <p class="text-xs text-slate-500">{{ isEditMode ? `${editingEscalation!.solarSystemName} \u00B7 ${editingEscalation!.characterName}` : 'Enregistrer un DED site pour suivi et vente' }}</p>
               </div>
             </div>
             <button @click="closeModal" class="p-1.5 hover:bg-slate-800 rounded-lg transition-colors">
@@ -1070,9 +1343,9 @@ onUnmounted(() => {
           <div class="p-6 space-y-5">
 
             <!-- Row 1: Character + Type -->
-            <div class="grid grid-cols-5 gap-4">
-              <!-- Character (2 cols) -->
-              <div class="col-span-2">
+            <div :class="isEditMode ? '' : 'grid grid-cols-5 gap-4'">
+              <!-- Character (2 cols) - only in add mode -->
+              <div v-if="!isEditMode" class="col-span-2">
                 <label class="block text-sm font-medium text-slate-400 mb-1.5">Personnage</label>
                 <div class="relative">
                   <div
@@ -1106,8 +1379,8 @@ onUnmounted(() => {
                 </div>
               </div>
 
-              <!-- Escalation type (3 cols) -->
-              <div class="col-span-3">
+              <!-- Escalation type (3 cols in add mode, full width in edit mode) -->
+              <div :class="isEditMode ? '' : 'col-span-3'">
                 <label class="block text-sm font-medium text-slate-400 mb-1.5">Type d'escalation</label>
                 <div class="relative">
                   <div
@@ -1134,8 +1407,8 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <!-- Solar system search -->
-            <div>
+            <!-- Solar system search - only in add mode -->
+            <div v-if="!isEditMode">
               <label class="block text-sm font-medium text-slate-400 mb-1.5">Systeme solaire</label>
               <div class="relative">
                 <!-- Search input (hidden when system selected) -->
@@ -1188,9 +1461,9 @@ onUnmounted(() => {
             </div>
 
             <!-- Row 2: Timer + Price -->
-            <div class="grid grid-cols-2 gap-4">
-              <!-- Timer -->
-              <div>
+            <div :class="isEditMode ? '' : 'grid grid-cols-2 gap-4'">
+              <!-- Timer - only in add mode -->
+              <div v-if="!isEditMode">
                 <label class="block text-sm font-medium text-slate-400 mb-1.5">Temps restant</label>
                 <div class="flex items-center gap-2">
                   <div class="flex items-center gap-1.5">
@@ -1278,8 +1551,32 @@ onUnmounted(() => {
               >
             </div>
 
-            <!-- Preview card -->
-            <div class="bg-slate-800/30 rounded-xl border border-slate-700/30 p-4">
+            <!-- Visibility -->
+            <div>
+              <label class="block text-sm font-medium text-slate-400 mb-1.5">Partage</label>
+              <div class="grid grid-cols-4 gap-2">
+                <button
+                  v-for="vis in ['perso', 'corp', 'alliance', 'public'] as const"
+                  :key="vis"
+                  type="button"
+                  @click="formVisibility = vis"
+                  class="px-3 py-2 rounded-lg border text-sm font-medium transition-all flex items-center justify-center gap-1.5"
+                  :class="formVisibility === vis
+                    ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400'
+                    : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:border-cyan-500/30 hover:text-slate-300'"
+                >
+                  <svg v-if="vis === 'perso'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+                  <svg v-else-if="vis === 'corp'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
+                  <svg v-else-if="vis === 'alliance'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg>
+                  <svg v-else class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418"/></svg>
+                  {{ visibilityTitle(vis) }}
+                </button>
+              </div>
+              <p class="text-xs text-slate-500 mt-1.5">{{ visibilityDescription(formVisibility) }}</p>
+            </div>
+
+            <!-- Preview card - only in add mode -->
+            <div v-if="!isEditMode" class="bg-slate-800/30 rounded-xl border border-slate-700/30 p-4">
               <div class="flex items-center gap-2 mb-3">
                 <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                 <span class="text-xs text-slate-500 uppercase tracking-wider">Apercu</span>
@@ -1287,7 +1584,7 @@ onUnmounted(() => {
               <div class="flex items-center justify-between">
                 <div>
                   <div class="flex items-center gap-2 mb-1">
-                    <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400">Nouveau</span>
+                    <span class="text-xs px-2 py-0.5 rounded bg-slate-500/20 text-slate-400 line-through">BM</span>
                     <span class="text-sm text-slate-300">{{ previewType }}</span>
                   </div>
                   <p class="text-xs text-slate-500 flex items-center gap-3">
@@ -1312,7 +1609,8 @@ onUnmounted(() => {
 
           <!-- Footer -->
           <div class="px-6 py-4 border-t border-slate-700/50 flex items-center justify-between">
-            <p class="text-xs text-slate-600">Expire dans 72h maximum</p>
+            <p v-if="!isEditMode" class="text-xs text-slate-600">Expire dans 72h maximum</p>
+            <span v-else></span>
             <div class="flex items-center gap-3">
               <button
                 @click="closeModal"
@@ -1320,15 +1618,14 @@ onUnmounted(() => {
               >Annuler</button>
               <button
                 @click="submitEscalation"
-                :disabled="!isFormValid || isSubmitting"
+                :disabled="(!isEditMode && !isFormValid) || isSubmitting"
                 class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed rounded-lg text-white text-sm font-medium transition-colors flex items-center gap-2 shadow-lg shadow-cyan-500/20 disabled:shadow-none"
               >
                 <svg v-if="isSubmitting" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                {{ isSubmitting ? 'Ajout...' : 'Ajouter' }}
+                {{ isSubmitting ? (isEditMode ? 'Enregistrement...' : 'Ajout...') : (isEditMode ? 'Enregistrer' : 'Ajouter') }}
               </button>
             </div>
           </div>
@@ -1366,6 +1663,42 @@ onUnmounted(() => {
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
               {{ isDeleting ? 'Suppression...' : 'Supprimer' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Sell Confirmation Modal -->
+    <Teleport to="body">
+      <div v-if="showSellModal && sellTarget" class="fixed inset-0 z-50 flex items-center justify-center">
+        <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" @click="cancelSell"></div>
+        <div class="relative bg-slate-900 rounded-2xl border border-emerald-500/30 shadow-2xl shadow-emerald-500/10 w-full max-w-sm mx-4">
+          <div class="p-6 text-center">
+            <div class="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4">
+              <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-slate-100 mb-2">Marquer comme vendue ?</h3>
+            <p class="text-sm text-slate-400 mb-1">{{ sellTarget.type }}</p>
+            <p class="text-xs text-slate-500">{{ sellTarget.solarSystemName }} &middot; {{ sellTarget.price }}m ISK</p>
+          </div>
+          <div class="px-6 pb-6 flex items-center gap-3">
+            <button
+              @click="cancelSell"
+              class="flex-1 px-4 py-2.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-700 transition-colors"
+            >Annuler</button>
+            <button
+              @click="confirmSell"
+              :disabled="isSelling"
+              class="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-lg text-white text-sm font-medium transition-colors flex items-center justify-center gap-2"
+            >
+              <svg v-if="isSelling" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              {{ isSelling ? 'Mise a jour...' : 'Confirmer' }}
             </button>
           </div>
         </div>

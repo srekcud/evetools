@@ -31,7 +31,7 @@ use App\State\Provider\Escalation\EscalationPublicProvider;
             openapiContext: [
                 'summary' => 'List own escalations',
                 'parameters' => [
-                    ['name' => 'visibility', 'in' => 'query', 'type' => 'string', 'description' => 'Filter by visibility (perso, corp, public)'],
+                    ['name' => 'visibility', 'in' => 'query', 'type' => 'string', 'description' => 'Filter by visibility (perso, corp, alliance, public)'],
                     ['name' => 'saleStatus', 'in' => 'query', 'type' => 'string', 'description' => 'Filter by sale status (envente, vendu)'],
                     ['name' => 'active', 'in' => 'query', 'type' => 'boolean', 'description' => 'Only active escalations'],
                 ],
@@ -68,7 +68,7 @@ use App\State\Provider\Escalation\EscalationPublicProvider;
                             'schema' => [
                                 'type' => 'object',
                                 'properties' => [
-                                    'visibility' => ['type' => 'string', 'enum' => ['perso', 'corp', 'public']],
+                                    'visibility' => ['type' => 'string', 'enum' => ['perso', 'corp', 'alliance', 'public']],
                                     'bmStatus' => ['type' => 'string', 'enum' => ['nouveau', 'bm']],
                                     'saleStatus' => ['type' => 'string', 'enum' => ['envente', 'vendu']],
                                     'price' => ['type' => 'integer'],

@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EVE Tools - Escalations Mockup</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Rajdhani', 'sans-serif'],
+            mono: ['Share Tech Mono', 'monospace'],
+          },
+          animation: {
+            'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'pulse-slower': 'pulse 6s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    /* Exact same background grid as MainLayout.vue */
+    .bg-grid {
+      background-image: linear-gradient(rgba(6,182,212,0.03) 1px, transparent 1px),
+                         linear-gradient(90deg, rgba(6,182,212,0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+    }
+    /* Custom select arrow */
+    select {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.5rem center;
+      background-size: 1.25rem;
+    }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+    .timer-bar { transition: width 1s linear; }
+  </style>
+</head>
+<body class="font-sans">
+
+  <!-- Full page layout like MainLayout.vue -->
+  <div class="min-h-screen bg-slate-950 text-slate-100">
+    <!-- Animated background (exact copy from MainLayout.vue) -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+      <div class="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-radial from-cyan-900/20 via-transparent to-transparent animate-pulse-slow"></div>
+      <div class="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-radial from-indigo-900/15 via-transparent to-transparent animate-pulse-slower"></div>
+      <div class="bg-grid absolute inset-0"></div>
+    </div>
+
+    <div class="relative flex h-screen">
+
+      <!-- Sidebar (exact copy from MainLayout.vue) -->
+      <aside class="w-64 bg-slate-900/80 backdrop-blur-xl border-r border-cyan-500/20 flex flex-col flex-shrink-0">
+        <!-- Logo -->
+        <div class="p-6 border-b border-cyan-500/20">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/30">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+            </div>
+            <div>
+              <h1 class="text-lg font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">EVE Tools</h1>
+              <p class="text-xs text-slate-500 tracking-widest uppercase">Utilities</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="flex-1 p-4 space-y-1">
+          <button class="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group relative overflow-hidden border text-slate-400 border-transparent hover:bg-slate-800/50 hover:text-slate-200 hover:border-cyan-500/30">
+            <svg class="w-5 h-5 relative" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            <span class="font-medium relative">Tableau de bord</span>
+          </button>
+          <button class="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group relative overflow-hidden border text-slate-400 border-transparent hover:bg-slate-800/50 hover:text-slate-200 hover:border-cyan-500/30">
+            <svg class="w-5 h-5 relative" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <span class="font-medium relative">Personnages</span>
+          </button>
+          <button class="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group relative overflow-hidden border text-slate-400 border-transparent hover:bg-slate-800/50 hover:text-slate-200 hover:border-cyan-500/30">
+            <svg class="w-5 h-5 relative" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+            <span class="font-medium relative">Ledger</span>
+          </button>
+          <!-- Active: Escalations -->
+          <button class="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group relative overflow-hidden border bg-gradient-to-r from-cyan-500/20 to-blue-500/10 text-cyan-400 shadow-lg shadow-cyan-500/10 border-cyan-500/30">
+            <div class="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
+            <svg class="w-5 h-5 relative" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg>
+            <span class="font-medium relative">Escalations</span>
+            <div class="ml-auto w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse relative"></div>
+          </button>
+          <button class="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group relative overflow-hidden border text-slate-400 border-transparent hover:bg-slate-800/50 hover:text-slate-200 hover:border-cyan-500/30">
+            <svg class="w-5 h-5 relative" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+            <span class="font-medium relative">Industrie</span>
+          </button>
+          <button class="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group relative overflow-hidden border text-slate-400 border-transparent hover:bg-slate-800/50 hover:text-slate-200 hover:border-cyan-500/30">
+            <svg class="w-5 h-5 relative" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+            <span class="font-medium relative">Inventaire</span>
+          </button>
+          <button class="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group relative overflow-hidden border text-slate-400 border-transparent hover:bg-slate-800/50 hover:text-slate-200 hover:border-cyan-500/30">
+            <svg class="w-5 h-5 relative" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <span class="font-medium relative">Contrats</span>
+          </button>
+        </nav>
+
+        <!-- User card -->
+        <div class="p-4 border-t border-cyan-500/20">
+          <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+            <div class="flex items-center gap-3">
+              <div class="relative">
+                <div class="w-12 h-12 rounded-lg ring-2 ring-cyan-500/50 bg-slate-700 flex items-center justify-center text-cyan-400 text-lg font-bold">AV</div>
+                <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-slate-800"></div>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="font-semibold text-slate-100 truncate">Arcturus Vex</p>
+                <p class="text-xs text-cyan-400 truncate">Deep Core Mining</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main content -->
+      <main class="flex-1 overflow-y-auto">
+        <!-- Top bar with page title (like MainLayout sticky header) -->
+        <div class="sticky top-0 z-10 backdrop-blur-md bg-slate-950/70 border-b border-slate-800/50 px-8 py-4">
+          <div class="flex items-center justify-between max-w-7xl">
+            <h2 class="text-lg font-semibold text-white">Escalations</h2>
+            <div class="flex items-center gap-3">
+              <!-- ESI Status (exact copy) -->
+              <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-emerald-500/10 border-emerald-500/30">
+                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                <span class="text-emerald-400 text-xs">ESI OK</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="max-w-7xl px-8 py-6 space-y-6">
+
+          <!-- Header with filters + add button (like Contracts.vue / Ledger.vue) -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <!-- Status filter (like Ledger period selector) -->
+              <div class="flex items-center gap-2 bg-slate-800/50 rounded-lg p-1">
+                <button class="px-3 py-1.5 rounded-md text-sm font-medium bg-cyan-600 text-white transition-colors" onclick="setFilter(this, 'active')">Actives</button>
+                <button class="px-3 py-1.5 rounded-md text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-700/50 transition-colors" onclick="setFilter(this, 'all')">Toutes</button>
+              </div>
+              <!-- Visibility filter -->
+              <div class="flex items-center gap-2 bg-slate-800/50 rounded-lg p-1">
+                <button class="px-3 py-1.5 rounded-md text-sm font-medium bg-cyan-600 text-white transition-colors flex items-center gap-1.5" onclick="setFilter(this, 'vis-all')">
+                  Toutes
+                </button>
+                <button class="px-3 py-1.5 rounded-md text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-700/50 transition-colors flex items-center gap-1.5" onclick="setFilter(this, 'vis-perso')" title="Mes escalations">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+                  Perso
+                </button>
+                <button class="px-3 py-1.5 rounded-md text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-700/50 transition-colors flex items-center gap-1.5" onclick="setFilter(this, 'vis-corp')" title="Partagees avec la corporation">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
+                  Corp
+                </button>
+                <button class="px-3 py-1.5 rounded-md text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-700/50 transition-colors flex items-center gap-1.5" onclick="setFilter(this, 'vis-public')" title="Visibles par tous">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418"/></svg>
+                  Public
+                </button>
+              </div>
+              <!-- Character filter (like Contracts.vue select) -->
+              <select class="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-cyan-500 pr-8">
+                <option>Tous les personnages</option>
+                <option>Arcturus Vex</option>
+                <option>Nova Stellaris</option>
+              </select>
+            </div>
+            <!-- Add button (like Contracts refresh) -->
+            <button onclick="openModal()" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+              </svg>
+              Ajouter
+            </button>
+          </div>
+
+          <!-- Summary KPI cards (exact pattern from Contracts.vue) -->
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <!-- Total -->
+            <div class="group relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-2xl p-5 border border-slate-700/50 backdrop-blur-sm overflow-hidden transition-all duration-300 hover:border-cyan-500/40 hover:shadow-lg hover:shadow-cyan-500/10 hover:-translate-y-1">
+              <div class="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
+              <div class="relative">
+                <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">Total</p>
+                <p class="text-3xl font-bold text-cyan-400">5</p>
+              </div>
+            </div>
+            <!-- Nouvelles -->
+            <div class="group relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-2xl p-5 border border-slate-700/50 backdrop-blur-sm overflow-hidden transition-all duration-300 hover:border-cyan-500/40 hover:shadow-lg hover:shadow-cyan-500/10 hover:-translate-y-1">
+              <div class="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
+              <div class="relative">
+                <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">Nouveau / BM</p>
+                <p class="text-3xl font-bold text-cyan-400">2</p>
+              </div>
+            </div>
+            <!-- En vente -->
+            <div class="group relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-2xl p-5 border border-slate-700/50 backdrop-blur-sm overflow-hidden transition-all duration-300 hover:border-amber-500/40 hover:shadow-lg hover:shadow-amber-500/10 hover:-translate-y-1">
+              <div class="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
+              <div class="relative">
+                <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">En vente</p>
+                <p class="text-3xl font-bold text-amber-400">2</p>
+                <p class="text-xs text-slate-500 mt-1">280m ISK</p>
+              </div>
+            </div>
+            <!-- Vendues -->
+            <div class="group relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-2xl p-5 border border-slate-700/50 backdrop-blur-sm overflow-hidden transition-all duration-300 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/10 hover:-translate-y-1">
+              <div class="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
+              <div class="relative">
+                <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">Vendues</p>
+                <p class="text-3xl font-bold text-emerald-400">1</p>
+                <p class="text-xs text-slate-500 mt-1">200m ISK</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Escalations list (like Contracts.vue list pattern) -->
+          <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-800">
+              <h3 class="font-semibold">Escalations DED</h3>
+              <p class="text-sm text-slate-500">Gerez vos escalations et exportez-les pour la vente</p>
+            </div>
+
+            <div class="divide-y divide-slate-800" id="escalation-list">
+
+              <!-- Row 1: Angel Cartel 10/10 - Nouveau - Perso -->
+              <div class="px-5 py-4 hover:bg-slate-800/30 transition-colors" data-escalation="Angel Cartel 10/10" data-system="0UBC-R" data-system-id="30000781" data-price="150" data-hours-remaining="42.25" data-bm="nouveau" data-sale="envente" data-visibility="perso">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-4"><div>
+                    <div class="flex items-center gap-2 mb-1">
+                      <button class="badge-visibility text-xs px-1.5 py-0.5 rounded bg-slate-500/20 text-slate-400 flex items-center gap-1 hover:ring-1 hover:ring-slate-400/30 transition-all cursor-pointer" title="Perso — Cliquer pour changer" onclick="toggleVisibility(this, event)"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg></button>
+                      <span class="badge-bm text-xs px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400">Nouveau</span>
+                      <span class="badge-sale text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-400">En vente</span>
+                      <span class="text-xs text-slate-500">Angel Cartel 10/10</span>
+                    </div>
+                    <p class="text-sm text-slate-300 flex items-center gap-3">
+                      <span class="flex items-center gap-1"><svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg> 0UBC-R</span>
+                      <span class="flex items-center gap-1"><svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0"/></svg> Arcturus Vex</span>
+                    </p>
+                    <div class="flex items-center gap-3 mt-2"><div class="w-32 h-1.5 bg-slate-700 rounded-full overflow-hidden"><div class="timer-bar h-full bg-cyan-500 rounded-full" style="width: 58%"></div></div><span class="timer-text text-xs font-mono text-cyan-400">42h 15m 00s</span></div>
+                  </div></div>
+                  <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                      <button class="toggle-bm px-2.5 py-1 rounded text-xs font-medium bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 transition-colors" onclick="toggleBm(this)">Nouveau</button>
+                      <button class="toggle-sale px-2.5 py-1 rounded text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30 transition-colors" onclick="toggleSale(this)">En vente</button>
+                    </div>
+                    <div class="text-right min-w-[80px]"><p class="text-lg font-bold text-slate-200 font-mono">150<span class="text-xs text-slate-500 ml-0.5">m</span></p></div>
+                    <!-- Share buttons: hidden for perso -->
+                    <div class="share-buttons flex items-center gap-1 hidden"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Row 2: Guristas 8/10 - BM + En vente - Corp -->
+              <div class="px-5 py-4 hover:bg-slate-800/30 transition-colors" data-escalation="Guristas 8/10" data-system="BWF-ZZ" data-system-id="30001198" data-price="80" data-hours-remaining="18.5" data-bm="bm" data-sale="envente" data-visibility="corp">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-4"><div>
+                    <div class="flex items-center gap-2 mb-1">
+                      <button class="badge-visibility text-xs px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-400 flex items-center gap-1 hover:ring-1 hover:ring-indigo-400/30 transition-all cursor-pointer" title="Corp — Cliquer pour changer" onclick="toggleVisibility(this, event)"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg> Corp</button>
+                      <span class="badge-bm text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">BM</span>
+                      <span class="badge-sale text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-400">En vente</span>
+                      <span class="text-xs text-slate-500">Guristas 8/10</span>
+                    </div>
+                    <p class="text-sm text-slate-300 flex items-center gap-3">
+                      <span class="flex items-center gap-1"><svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg> BWF-ZZ</span>
+                      <span class="flex items-center gap-1"><svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0"/></svg> Nova Stellaris</span>
+                    </p>
+                    <div class="flex items-center gap-3 mt-2"><div class="w-32 h-1.5 bg-slate-700 rounded-full overflow-hidden"><div class="timer-bar h-full bg-amber-500 rounded-full" style="width: 25%"></div></div><span class="timer-text text-xs font-mono text-amber-400">18h 30m 00s</span></div>
+                  </div></div>
+                  <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                      <button class="toggle-bm px-2.5 py-1 rounded text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition-colors" onclick="toggleBm(this)">BM</button>
+                      <button class="toggle-sale px-2.5 py-1 rounded text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30 transition-colors" onclick="toggleSale(this)">En vente</button>
+                    </div>
+                    <div class="text-right min-w-[80px]"><p class="text-lg font-bold text-amber-400 font-mono">80<span class="text-xs text-amber-500/60 ml-0.5">m</span></p></div>
+                    <!-- Share buttons: corp + bm + envente = visible -->
+                    <div class="share-buttons flex items-center gap-1">
+                      <button class="export-btn p-2 rounded-lg text-slate-500 hover:text-cyan-400 hover:bg-slate-800 transition-colors relative" onclick="shareAction(this, 'wts')" title="Copier pour WTS"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184"/></svg></button>
+                      <button class="discord-btn p-2 rounded-lg text-slate-500 hover:text-indigo-400 hover:bg-slate-800 transition-colors relative" onclick="shareAction(this, 'discord')" title="Copier pour Discord"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Row 3: Blood Raiders 10/10 - BM + En vente, URGENT - Public -->
+              <div class="px-5 py-4 hover:bg-slate-800/30 transition-colors bg-red-500/5" data-escalation="Blood Raiders 10/10" data-system="1DH-SX" data-system-id="30004712" data-price="200" data-hours-remaining="4.1" data-bm="bm" data-sale="envente" data-visibility="public">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-4"><div>
+                    <div class="flex items-center gap-2 mb-1">
+                      <button class="badge-visibility text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 flex items-center gap-1 hover:ring-1 hover:ring-purple-400/30 transition-all cursor-pointer" title="Public — Cliquer pour changer" onclick="toggleVisibility(this, event)"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418"/></svg> Public</button>
+                      <span class="badge-bm text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">BM</span>
+                      <span class="badge-sale text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-400">En vente</span>
+                      <span class="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400 animate-pulse urgent-badge">Urgent</span>
+                      <span class="text-xs text-slate-500">Blood Raiders 10/10</span>
+                    </div>
+                    <p class="text-sm text-slate-300 flex items-center gap-3">
+                      <span class="flex items-center gap-1"><svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg> 1DH-SX</span>
+                      <span class="flex items-center gap-1"><svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0"/></svg> Arcturus Vex</span>
+                    </p>
+                    <div class="flex items-center gap-3 mt-2"><div class="w-32 h-1.5 bg-slate-700 rounded-full overflow-hidden"><div class="timer-bar h-full bg-red-500 rounded-full" style="width: 5.7%"></div></div><span class="timer-text text-xs font-mono text-red-400">4h 06m 00s</span></div>
+                  </div></div>
+                  <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                      <button class="toggle-bm px-2.5 py-1 rounded text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition-colors" onclick="toggleBm(this)">BM</button>
+                      <button class="toggle-sale px-2.5 py-1 rounded text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30 transition-colors" onclick="toggleSale(this)">En vente</button>
+                    </div>
+                    <div class="text-right min-w-[80px]"><p class="text-lg font-bold text-red-400 font-mono">200<span class="text-xs text-red-500/60 ml-0.5">m</span></p></div>
+                    <!-- Share buttons: public + bm + envente = visible -->
+                    <div class="share-buttons flex items-center gap-1">
+                      <button class="export-btn p-2 rounded-lg text-slate-500 hover:text-cyan-400 hover:bg-slate-800 transition-colors relative" onclick="shareAction(this, 'wts')" title="Copier pour WTS"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184"/></svg></button>
+                      <button class="discord-btn p-2 rounded-lg text-slate-500 hover:text-indigo-400 hover:bg-slate-800 transition-colors relative" onclick="shareAction(this, 'discord')" title="Copier pour Discord"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Row 4: Sansha 10/10 - BM + Vendu - Corp -->
+              <div class="px-5 py-4 hover:bg-slate-800/30 transition-colors opacity-50" data-escalation="Sansha 10/10" data-system="HED-GP" data-system-id="30001161" data-price="200" data-hours-remaining="0" data-bm="bm" data-sale="vendu" data-visibility="corp">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-4"><div>
+                    <div class="flex items-center gap-2 mb-1">
+                      <button class="badge-visibility text-xs px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-400 flex items-center gap-1 hover:ring-1 hover:ring-indigo-400/30 transition-all cursor-pointer" title="Corp — Cliquer pour changer" onclick="toggleVisibility(this, event)"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg> Corp</button>
+                      <span class="badge-bm text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">BM</span>
+                      <span class="badge-sale text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">Vendu</span>
+                      <span class="text-xs text-slate-500">Sansha 10/10</span>
+                    </div>
+                    <p class="text-sm text-slate-300 flex items-center gap-3">
+                      <span class="flex items-center gap-1"><svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg> HED-GP</span>
+                      <span class="flex items-center gap-1"><svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0"/></svg> Nova Stellaris</span>
+                    </p>
+                    <div class="flex items-center gap-3 mt-2"><span class="text-xs font-mono text-slate-600">Termine</span></div>
+                  </div></div>
+                  <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                      <button class="toggle-bm px-2.5 py-1 rounded text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition-colors" onclick="toggleBm(this)">BM</button>
+                      <button class="toggle-sale px-2.5 py-1 rounded text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition-colors" onclick="toggleSale(this)">Vendu</button>
+                    </div>
+                    <div class="text-right min-w-[80px]"><p class="text-lg font-bold text-emerald-400 font-mono">200<span class="text-xs text-emerald-500/60 ml-0.5">m</span></p></div>
+                    <!-- Share buttons: hidden for vendu -->
+                    <div class="share-buttons flex items-center gap-1 hidden"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Row 5: Serpentis 5/10 - Nouveau + En vente - Perso -->
+              <div class="px-5 py-4 hover:bg-slate-800/30 transition-colors" data-escalation="Serpentis 5/10" data-system="Old Man Star" data-system-id="30002813" data-price="30" data-hours-remaining="68" data-bm="nouveau" data-sale="envente" data-visibility="perso">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-4"><div>
+                    <div class="flex items-center gap-2 mb-1">
+                      <button class="badge-visibility text-xs px-1.5 py-0.5 rounded bg-slate-500/20 text-slate-400 flex items-center gap-1 hover:ring-1 hover:ring-slate-400/30 transition-all cursor-pointer" title="Perso — Cliquer pour changer" onclick="toggleVisibility(this, event)"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg></button>
+                      <span class="badge-bm text-xs px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400">Nouveau</span>
+                      <span class="badge-sale text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-400">En vente</span>
+                      <span class="text-xs text-slate-500">Serpentis 5/10</span>
+                    </div>
+                    <p class="text-sm text-slate-300 flex items-center gap-3">
+                      <span class="flex items-center gap-1"><svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg> Old Man Star</span>
+                      <span class="flex items-center gap-1"><svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0"/></svg> Arcturus Vex</span>
+                    </p>
+                    <div class="flex items-center gap-3 mt-2"><div class="w-32 h-1.5 bg-slate-700 rounded-full overflow-hidden"><div class="timer-bar h-full bg-cyan-500 rounded-full" style="width: 94%"></div></div><span class="timer-text text-xs font-mono text-cyan-400">2j 20h 00m</span></div>
+                  </div></div>
+                  <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                      <button class="toggle-bm px-2.5 py-1 rounded text-xs font-medium bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 transition-colors" onclick="toggleBm(this)">Nouveau</button>
+                      <button class="toggle-sale px-2.5 py-1 rounded text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30 transition-colors" onclick="toggleSale(this)">En vente</button>
+                    </div>
+                    <div class="text-right min-w-[80px]"><p class="text-lg font-bold text-slate-200 font-mono">30<span class="text-xs text-slate-500 ml-0.5">m</span></p></div>
+                    <!-- Share buttons: hidden for perso -->
+                    <div class="share-buttons flex items-center gap-1 hidden"></div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div><!-- /max-w-7xl -->
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal: Ajouter une escalation -->
+  <div id="add-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center">
+    <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onclick="closeModal()"></div>
+    <div class="relative bg-slate-900 rounded-2xl border border-cyan-500/30 shadow-2xl shadow-cyan-500/10 w-full max-w-lg mx-4">
+      <!-- Header -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-slate-700/50">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center">
+            <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold text-slate-100">Nouvelle escalation</h3>
+            <p class="text-xs text-slate-500">Enregistrer un DED site pour suivi et vente</p>
+          </div>
+        </div>
+        <button onclick="closeModal()" class="p-1.5 hover:bg-slate-800 rounded-lg transition-colors">
+          <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div class="p-6 space-y-5">
+
+        <!-- Row 1: Personnage + Type side by side -->
+        <div class="grid grid-cols-5 gap-4">
+          <!-- Personnage (2 cols) -->
+          <div class="col-span-2">
+            <label class="block text-sm font-medium text-slate-400 mb-1.5">Personnage</label>
+            <div class="relative">
+              <div class="flex items-center gap-2 w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 cursor-pointer hover:border-cyan-500/50 transition-colors" onclick="toggleCharDropdown()">
+                <div class="w-6 h-6 rounded bg-slate-700 flex items-center justify-center text-cyan-400 text-xs font-bold flex-shrink-0">AV</div>
+                <span class="text-sm truncate" id="selected-char-name">Arcturus Vex</span>
+                <svg class="w-4 h-4 text-slate-500 ml-auto flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+              </div>
+              <!-- Character dropdown -->
+              <div id="char-dropdown" class="hidden absolute z-10 mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden">
+                <button class="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-cyan-500/10 transition-colors text-left" onclick="selectChar('AV', 'Arcturus Vex')">
+                  <div class="w-6 h-6 rounded bg-slate-700 flex items-center justify-center text-cyan-400 text-xs font-bold">AV</div>
+                  <div>
+                    <p class="text-sm text-slate-200">Arcturus Vex</p>
+                    <p class="text-xs text-slate-500">Deep Core Mining</p>
+                  </div>
+                </button>
+                <button class="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-cyan-500/10 transition-colors text-left" onclick="selectChar('NS', 'Nova Stellaris')">
+                  <div class="w-6 h-6 rounded bg-slate-700 flex items-center justify-center text-cyan-400 text-xs font-bold">NS</div>
+                  <div>
+                    <p class="text-sm text-slate-200">Nova Stellaris</p>
+                    <p class="text-xs text-slate-500">Deep Core Mining</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Type d'escalation (3 cols) -->
+          <div class="col-span-3">
+            <label class="block text-sm font-medium text-slate-400 mb-1.5">Type d'escalation</label>
+            <select id="esc-type-select" class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 pr-8 hover:border-cyan-500/50 transition-colors" onchange="onTypeChange()">
+              <option value="" disabled>Choisir un type...</option>
+              <optgroup label="Angel Cartel">
+                <option value="angel-3">Angel Cartel 3/10</option><option value="angel-4">Angel Cartel 4/10</option>
+                <option value="angel-5">Angel Cartel 5/10</option><option value="angel-6">Angel Cartel 6/10</option>
+                <option value="angel-8">Angel Cartel 8/10</option><option value="angel-10" selected>Angel Cartel 10/10</option>
+              </optgroup>
+              <optgroup label="Blood Raiders">
+                <option value="blood-3">Blood Raiders 3/10</option><option value="blood-4">Blood Raiders 4/10</option>
+                <option value="blood-5">Blood Raiders 5/10</option><option value="blood-6">Blood Raiders 6/10</option>
+                <option value="blood-8">Blood Raiders 8/10</option><option value="blood-10">Blood Raiders 10/10</option>
+              </optgroup>
+              <optgroup label="Guristas">
+                <option value="guristas-3">Guristas 3/10</option><option value="guristas-4">Guristas 4/10</option>
+                <option value="guristas-5">Guristas 5/10</option><option value="guristas-6">Guristas 6/10</option>
+                <option value="guristas-8">Guristas 8/10</option><option value="guristas-10">Guristas 10/10</option>
+              </optgroup>
+              <optgroup label="Sansha's Nation">
+                <option value="sansha-3">Sansha 3/10</option><option value="sansha-4">Sansha 4/10</option>
+                <option value="sansha-5">Sansha 5/10</option><option value="sansha-6">Sansha 6/10</option>
+                <option value="sansha-8">Sansha 8/10</option><option value="sansha-10">Sansha 10/10</option>
+              </optgroup>
+              <optgroup label="Serpentis">
+                <option value="serpentis-3">Serpentis 3/10</option><option value="serpentis-4">Serpentis 4/10</option>
+                <option value="serpentis-5">Serpentis 5/10</option><option value="serpentis-6">Serpentis 6/10</option>
+                <option value="serpentis-8">Serpentis 8/10</option><option value="serpentis-10">Serpentis 10/10</option>
+              </optgroup>
+              <optgroup label="Rogue Drones">
+                <option value="drones-3">Rogue Drones 3/10</option><option value="drones-4">Rogue Drones 4/10</option>
+                <option value="drones-5">Rogue Drones 5/10</option><option value="drones-6">Rogue Drones 6/10</option>
+                <option value="drones-8">Rogue Drones 8/10</option><option value="drones-10">Rogue Drones 10/10</option>
+              </optgroup>
+            </select>
+          </div>
+        </div>
+
+        <!-- Systeme solaire (autocomplete) -->
+        <div>
+          <label class="block text-sm font-medium text-slate-400 mb-1.5">Systeme solaire</label>
+          <div class="relative" id="system-search-container">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
+            </svg>
+            <input type="text" id="system-input" placeholder="Rechercher un systeme..." autocomplete="off"
+              class="w-full bg-slate-800/50 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-500 hover:border-cyan-500/50 transition-colors"
+              oninput="onSystemSearch(this.value)" onfocus="onSystemSearch(this.value)">
+
+            <!-- Autocomplete dropdown -->
+            <div id="system-dropdown" class="hidden absolute z-10 mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+              <!-- Mock results populated by JS -->
+            </div>
+
+            <!-- Selected system badge (shown after selection) -->
+            <div id="system-selected" class="hidden mt-2 inline-flex items-center gap-2 px-3 py-1.5 bg-slate-800/80 rounded-lg border border-slate-700/50">
+              <span id="system-sec-badge" class="text-xs font-mono font-bold px-1.5 py-0.5 rounded">0.0</span>
+              <span id="system-selected-name" class="text-sm text-slate-200">System</span>
+              <span id="system-selected-region" class="text-xs text-slate-500">Region</span>
+              <button class="ml-1 text-slate-500 hover:text-red-400 transition-colors" onclick="clearSystem()">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 2: Temps restant + Prix -->
+        <div class="grid grid-cols-2 gap-4">
+          <!-- Temps restant -->
+          <div>
+            <label class="block text-sm font-medium text-slate-400 mb-1.5">Temps restant</label>
+            <div class="flex items-center gap-2">
+              <div class="flex items-center gap-1.5">
+                <input type="number" id="timer-days" value="2" min="0" max="3" class="w-14 bg-slate-800/50 border border-slate-700 rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:border-cyan-500 font-mono hover:border-cyan-500/50 transition-colors" oninput="updateTimerPreview()">
+                <span class="text-xs text-slate-500">j</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <input type="number" id="timer-hours" value="23" min="0" max="23" class="w-14 bg-slate-800/50 border border-slate-700 rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:border-cyan-500 font-mono hover:border-cyan-500/50 transition-colors" oninput="updateTimerPreview()">
+                <span class="text-xs text-slate-500">h</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <input type="number" id="timer-minutes" value="0" min="0" max="59" class="w-14 bg-slate-800/50 border border-slate-700 rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:border-cyan-500 font-mono hover:border-cyan-500/50 transition-colors" oninput="updateTimerPreview()">
+                <span class="text-xs text-slate-500">m</span>
+              </div>
+            </div>
+            <!-- Timer preview bar -->
+            <div class="flex items-center gap-2 mt-2">
+              <div class="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                <div id="timer-preview-bar" class="h-full bg-cyan-500 rounded-full transition-all duration-300" style="width: 95%"></div>
+              </div>
+              <span id="timer-preview-text" class="text-xs font-mono text-cyan-400">~71h</span>
+            </div>
+          </div>
+
+          <!-- Prix -->
+          <div>
+            <label class="block text-sm font-medium text-slate-400 mb-1.5">Prix demande</label>
+            <div class="relative">
+              <input type="number" id="price-input" value="150" min="0" class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 font-mono pr-8 hover:border-cyan-500/50 transition-colors">
+              <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500">m</span>
+            </div>
+            <!-- Suggested prices -->
+            <div class="flex items-center gap-1.5 mt-2">
+              <span class="text-xs text-slate-600">Suggestions :</span>
+              <button class="px-2 py-0.5 text-xs rounded bg-slate-800 text-slate-400 hover:text-cyan-400 hover:bg-slate-700 border border-slate-700/50 transition-colors font-mono" onclick="setPrice(100)">100m</button>
+              <button class="px-2 py-0.5 text-xs rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 transition-colors font-mono" onclick="setPrice(150)">150m</button>
+              <button class="px-2 py-0.5 text-xs rounded bg-slate-800 text-slate-400 hover:text-cyan-400 hover:bg-slate-700 border border-slate-700/50 transition-colors font-mono" onclick="setPrice(200)">200m</button>
+              <button class="px-2 py-0.5 text-xs rounded bg-slate-800 text-slate-400 hover:text-cyan-400 hover:bg-slate-700 border border-slate-700/50 transition-colors font-mono" onclick="setPrice(300)">300m</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notes (optionnel) -->
+        <div>
+          <label class="block text-sm font-medium text-slate-400 mb-1.5">
+            Notes
+            <span class="text-slate-600 font-normal ml-1">(optionnel)</span>
+          </label>
+          <input type="text" placeholder="Ex: proche de Jita, acheteur trouve..." class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-500 hover:border-cyan-500/50 transition-colors">
+        </div>
+
+        <!-- Summary card (preview of what will be created) -->
+        <div id="form-preview" class="bg-slate-800/30 rounded-xl border border-slate-700/30 p-4">
+          <div class="flex items-center gap-2 mb-3">
+            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <span class="text-xs text-slate-500 uppercase tracking-wider">Apercu</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400">Nouveau</span>
+                <span id="preview-type" class="text-sm text-slate-300">Angel Cartel 10/10</span>
+              </div>
+              <p class="text-xs text-slate-500 flex items-center gap-3">
+                <span class="flex items-center gap-1">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg>
+                  <span id="preview-system">--</span>
+                </span>
+                <span class="flex items-center gap-1">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0"/></svg>
+                  <span id="preview-char">Arcturus Vex</span>
+                </span>
+              </p>
+            </div>
+            <div class="text-right">
+              <p id="preview-price" class="text-lg font-bold text-cyan-400 font-mono">150<span class="text-xs text-slate-500 ml-0.5">m</span></p>
+              <p id="preview-timer" class="text-xs font-mono text-slate-500">~71h restantes</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Footer -->
+      <div class="px-6 py-4 border-t border-slate-700/50 flex items-center justify-between">
+        <p class="text-xs text-slate-600">Expire dans 72h maximum</p>
+        <div class="flex items-center gap-3">
+          <button onclick="closeModal()" class="px-4 py-2 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
+            Annuler
+          </button>
+          <button onclick="closeModal()" class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-colors flex items-center gap-2 shadow-lg shadow-cyan-500/20">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            Ajouter
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toast-container" class="fixed top-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
+
+  <script>
+    // Timer system
+    const TOTAL_HOURS = 72;
+    const startTime = Date.now();
+    const rows = document.querySelectorAll('[data-escalation]');
+    const rowTimers = [];
+
+    rows.forEach(row => {
+      const h = parseFloat(row.dataset.hoursRemaining);
+      rowTimers.push({ row, expiresAt: startTime + h * 3600000 });
+    });
+
+    function formatTimer(ms) {
+      if (ms <= 0) return { text: 'Expire', percent: 0, zone: 'expired' };
+      const s = Math.floor(ms / 1000);
+      const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+      const pad = n => String(n).padStart(2, '0');
+      const text = d > 0 ? `${d}j ${pad(h)}h ${pad(m)}m` : `${pad(h)}h ${pad(m)}m ${pad(sec)}s`;
+      const pct = Math.max(0, Math.min(100, (ms / (TOTAL_HOURS * 3600000)) * 100));
+      const zone = pct > 50 ? 'safe' : pct > 20 ? 'warning' : 'danger';
+      return { text, percent: pct, zone };
+    }
+
+    function updateTimers() {
+      const now = Date.now();
+      rowTimers.forEach(({ row, expiresAt }) => {
+        if (row.dataset.sale === 'vendu') return;
+        const rem = expiresAt - now;
+        const { text, percent, zone } = formatTimer(rem);
+        const timerText = row.querySelector('.timer-text');
+        const timerBar = row.querySelector('.timer-bar');
+        if (timerText) timerText.textContent = text;
+        if (timerBar) timerBar.style.width = percent + '%';
+
+        const colors = { safe: ['text-cyan-400', 'bg-cyan-500'], warning: ['text-amber-400', 'bg-amber-500'], danger: ['text-red-400', 'bg-red-500'] };
+        if (timerText) { timerText.className = `timer-text text-xs font-mono ${colors[zone]?.[0] || 'text-red-400'}`; }
+        if (timerBar) { timerBar.className = `timer-bar h-full ${colors[zone]?.[1] || 'bg-red-500'} rounded-full`; }
+
+        // Urgent badge
+        const urgentBadge = row.querySelector('.urgent-badge');
+        if (zone === 'danger' && !urgentBadge) {
+          const badge = document.createElement('span');
+          badge.className = 'text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400 animate-pulse urgent-badge';
+          badge.textContent = 'Urgent';
+          const saleBadge = row.querySelector('.badge-sale');
+          if (saleBadge) saleBadge.after(badge);
+        } else if (zone !== 'danger' && urgentBadge) {
+          urgentBadge.remove();
+        }
+
+        // Row bg for urgent
+        if (zone === 'danger') { row.classList.add('bg-red-500/5'); }
+        else { row.classList.remove('bg-red-500/5'); }
+      });
+    }
+
+    setInterval(updateTimers, 1000);
+    updateTimers();
+
+    // Toggle Nouveau <-> BM
+    function toggleBm(btn) {
+      const row = btn.closest('[data-escalation]');
+      const badge = row.querySelector('.badge-bm');
+      if (row.dataset.bm === 'nouveau') {
+        row.dataset.bm = 'bm';
+        btn.textContent = 'BM';
+        btn.className = 'toggle-bm px-2.5 py-1 rounded text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition-colors';
+        if (badge) { badge.textContent = 'BM'; badge.className = 'badge-bm text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400'; }
+      } else {
+        row.dataset.bm = 'nouveau';
+        btn.textContent = 'Nouveau';
+        btn.className = 'toggle-bm px-2.5 py-1 rounded text-xs font-medium bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 transition-colors';
+        if (badge) { badge.textContent = 'Nouveau'; badge.className = 'badge-bm text-xs px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400'; }
+      }
+      updateShareButtons(row);
+    }
+
+    // Toggle En vente <-> Vendu
+    function toggleSale(btn) {
+      const row = btn.closest('[data-escalation]');
+      const badge = row.querySelector('.badge-sale');
+      if (row.dataset.sale === 'envente') {
+        row.dataset.sale = 'vendu';
+        btn.textContent = 'Vendu';
+        btn.className = 'toggle-sale px-2.5 py-1 rounded text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition-colors';
+        if (badge) { badge.textContent = 'Vendu'; badge.className = 'badge-sale text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400'; }
+        row.classList.add('opacity-50');
+      } else {
+        row.dataset.sale = 'envente';
+        btn.textContent = 'En vente';
+        btn.className = 'toggle-sale px-2.5 py-1 rounded text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30 transition-colors';
+        if (badge) { badge.textContent = 'En vente'; badge.className = 'badge-sale text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-400'; }
+        row.classList.remove('opacity-50');
+      }
+      updateShareButtons(row);
+    }
+
+    // Filter toggle
+    function setFilter(btn, filter) {
+      const parent = btn.parentElement;
+      const hasIcon = 'flex items-center gap-1.5';
+      parent.querySelectorAll('button').forEach(b => {
+        const extra = b.querySelector('svg') ? ' ' + hasIcon : '';
+        b.className = 'px-3 py-1.5 rounded-md text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-700/50 transition-colors' + extra;
+      });
+      const extraActive = btn.querySelector('svg') ? ' ' + hasIcon : '';
+      btn.className = 'px-3 py-1.5 rounded-md text-sm font-medium bg-cyan-600 text-white transition-colors' + extraActive;
+    }
+
+    // Export
+    function exportEscalation(btn) {
+      const row = btn.closest('[data-escalation]');
+      const name = row.dataset.escalation;
+      const system = row.dataset.system;
+      const systemId = row.dataset.systemId;
+      const price = row.dataset.price;
+      const timer = rowTimers.find(t => t.row === row);
+      const hours = timer ? Math.max(0, Math.round((timer.expiresAt - Date.now()) / 3600000)) : 0;
+
+      const text = `WTS ${name} <url=showinfo:5//${systemId}>${system}</url> ${hours}h ${price}m`;
+      navigator.clipboard.writeText(text).then(() => {
+        const old = btn.querySelector('.tooltip');
+        if (old) old.remove();
+        const tip = document.createElement('span');
+        tip.className = 'tooltip absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs rounded border border-emerald-500/30 whitespace-nowrap z-50';
+        tip.textContent = 'Copie !';
+        btn.style.position = 'relative';
+        btn.appendChild(tip);
+        setTimeout(() => tip.remove(), 2000);
+      });
+    }
+
+    // Modal
+    function openModal() { document.getElementById('add-modal').classList.remove('hidden'); }
+    function closeModal() {
+      document.getElementById('add-modal').classList.add('hidden');
+      document.getElementById('system-dropdown').classList.add('hidden');
+      document.getElementById('char-dropdown').classList.add('hidden');
+    }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+    // Character dropdown
+    function toggleCharDropdown() {
+      document.getElementById('char-dropdown').classList.toggle('hidden');
+    }
+    function selectChar(initials, name) {
+      document.getElementById('selected-char-name').textContent = name;
+      document.getElementById('char-dropdown').classList.add('hidden');
+      document.getElementById('preview-char').textContent = name;
+    }
+
+    // System autocomplete mock data
+    const mockSystems = [
+      { name: '0UBC-R', sec: -0.3, region: 'Curse', id: 30000781 },
+      { name: '0-W778', sec: -0.1, region: 'Pure Blind', id: 30001432 },
+      { name: '0SHT-A', sec: -0.4, region: 'Esoteria', id: 30004588 },
+      { name: 'BWF-ZZ', sec: -0.2, region: 'Lonetrek', id: 30001198 },
+      { name: '1DH-SX', sec: -0.5, region: 'Catch', id: 30004712 },
+      { name: 'HED-GP', sec: -0.7, region: 'Catch', id: 30001161 },
+      { name: 'Old Man Star', sec: 0.3, region: 'Essence', id: 30002813 },
+      { name: 'Amamake', sec: 0.4, region: 'Heimatar', id: 30002537 },
+      { name: 'Jita', sec: 0.9, region: 'The Forge', id: 30000142 },
+      { name: 'Amarr', sec: 1.0, region: 'Domain', id: 30002187 },
+      { name: 'PR-8CA', sec: -0.3, region: 'Catch', id: 30004713 },
+      { name: 'PNQY-Y', sec: -0.1, region: 'Querious', id: 30004710 },
+    ];
+
+    function getSecColor(sec) {
+      if (sec >= 0.9) return { bg: 'bg-emerald-500/20', text: 'text-emerald-400', border: 'border-emerald-500/30' };
+      if (sec >= 0.5) return { bg: 'bg-green-500/20', text: 'text-green-400', border: 'border-green-500/30' };
+      if (sec > 0.0) return { bg: 'bg-amber-500/20', text: 'text-amber-400', border: 'border-amber-500/30' };
+      return { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/30' };
+    }
+
+    function onSystemSearch(query) {
+      const dropdown = document.getElementById('system-dropdown');
+      if (!query || query.length < 1) { dropdown.classList.add('hidden'); return; }
+      const q = query.toLowerCase();
+      const matches = mockSystems.filter(s => s.name.toLowerCase().includes(q)).slice(0, 6);
+      if (matches.length === 0) {
+        dropdown.innerHTML = '<div class="px-3 py-3 text-sm text-slate-500 text-center">Aucun resultat</div>';
+        dropdown.classList.remove('hidden');
+        return;
+      }
+      dropdown.innerHTML = matches.map(s => {
+        const c = getSecColor(s.sec);
+        return `<button class="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-cyan-500/10 transition-colors text-left" onclick="selectSystem('${s.name}', ${s.sec}, '${s.region}', ${s.id})">
+          <span class="text-xs font-mono font-bold px-1.5 py-0.5 rounded ${c.bg} ${c.text}">${s.sec.toFixed(1)}</span>
+          <span class="text-sm text-slate-200">${s.name}</span>
+          <span class="text-xs text-slate-500 ml-auto">${s.region}</span>
+        </button>`;
+      }).join('');
+      dropdown.classList.remove('hidden');
+    }
+
+    function selectSystem(name, sec, region, id) {
+      const c = getSecColor(sec);
+      document.getElementById('system-input').value = '';
+      document.getElementById('system-dropdown').classList.add('hidden');
+      const badge = document.getElementById('system-sec-badge');
+      badge.textContent = sec.toFixed(1);
+      badge.className = `text-xs font-mono font-bold px-1.5 py-0.5 rounded ${c.bg} ${c.text}`;
+      document.getElementById('system-selected-name').textContent = name;
+      document.getElementById('system-selected-region').textContent = region;
+      document.getElementById('system-selected').classList.remove('hidden');
+      document.getElementById('system-input').classList.add('hidden');
+      document.getElementById('preview-system').textContent = name;
+    }
+
+    function clearSystem() {
+      document.getElementById('system-selected').classList.add('hidden');
+      document.getElementById('system-input').classList.remove('hidden');
+      document.getElementById('system-input').value = '';
+      document.getElementById('system-input').focus();
+      document.getElementById('preview-system').textContent = '--';
+    }
+
+    // Close dropdowns on outside click
+    document.addEventListener('click', e => {
+      if (!e.target.closest('#system-search-container')) {
+        document.getElementById('system-dropdown').classList.add('hidden');
+      }
+      if (!e.target.closest('#char-dropdown') && !e.target.closest('[onclick*="toggleCharDropdown"]')) {
+        document.getElementById('char-dropdown').classList.add('hidden');
+      }
+    });
+
+    // Timer preview
+    function updateTimerPreview() {
+      const d = parseInt(document.getElementById('timer-days').value) || 0;
+      const h = parseInt(document.getElementById('timer-hours').value) || 0;
+      const m = parseInt(document.getElementById('timer-minutes').value) || 0;
+      const totalHours = d * 24 + h + m / 60;
+      const pct = Math.min(100, (totalHours / 72) * 100);
+
+      const bar = document.getElementById('timer-preview-bar');
+      const text = document.getElementById('timer-preview-text');
+      bar.style.width = pct + '%';
+
+      const displayH = Math.round(totalHours);
+      text.textContent = displayH >= 24 ? `~${Math.floor(displayH/24)}j ${displayH%24}h` : `~${displayH}h`;
+
+      if (pct > 50) {
+        bar.className = 'h-full bg-cyan-500 rounded-full transition-all duration-300';
+        text.className = 'text-xs font-mono text-cyan-400';
+      } else if (pct > 20) {
+        bar.className = 'h-full bg-amber-500 rounded-full transition-all duration-300';
+        text.className = 'text-xs font-mono text-amber-400';
+      } else {
+        bar.className = 'h-full bg-red-500 rounded-full transition-all duration-300';
+        text.className = 'text-xs font-mono text-red-400';
+      }
+
+      document.getElementById('preview-timer').textContent = `~${displayH}h restantes`;
+    }
+
+    // Price buttons
+    function setPrice(val) {
+      document.getElementById('price-input').value = val;
+      document.getElementById('preview-price').innerHTML = val + '<span class="text-xs text-slate-500 ml-0.5">m</span>';
+    }
+
+    // Update preview when price changes
+    document.getElementById('price-input')?.addEventListener('input', function() {
+      document.getElementById('preview-price').innerHTML = this.value + '<span class="text-xs text-slate-500 ml-0.5">m</span>';
+    });
+
+    // Visibility popover
+    const visIcons = {
+      perso: '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>',
+      corp: '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>',
+      public: '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418"/></svg>',
+    };
+    const visIconsLg = {
+      perso: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>',
+      corp: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>',
+      public: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418"/></svg>',
+    };
+    const visStyles = {
+      perso:  { bg: 'bg-slate-500/20',  text: 'text-slate-400',  ring: 'hover:ring-slate-400/30',  label: '',       title: 'Perso' },
+      corp:   { bg: 'bg-indigo-500/20', text: 'text-indigo-400', ring: 'hover:ring-indigo-400/30', label: 'Corp',   title: 'Corp' },
+      public: { bg: 'bg-purple-500/20', text: 'text-purple-400', ring: 'hover:ring-purple-400/30', label: 'Public', title: 'Public' },
+    };
+    const visDescriptions = {
+      perso: 'Visible que par moi',
+      corp: 'Membres de la corp',
+      public: 'Visible par tous',
+    };
+
+    let activeVisPopover = null;
+
+    function toggleVisibility(btn, e) {
+      e.stopPropagation();
+
+      // If popover already open on this btn, just close it
+      if (activeVisPopover && activeVisPopover.btn === btn) {
+        closeVisPopover();
+        return;
+      }
+
+      closeVisPopover();
+
+      const row = btn.closest('[data-escalation]');
+      const current = row.dataset.visibility;
+
+      const popover = document.createElement('div');
+      popover.className = 'vis-popover absolute z-50 mt-1 left-0 bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden w-48';
+      // Stop clicks inside popover from bubbling to the badge btn
+      popover.addEventListener('click', ev => ev.stopPropagation());
+
+      popover.innerHTML = ['perso', 'corp', 'public'].map(type => {
+        const s = visStyles[type];
+        const active = type === current;
+        return `<button class="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${active ? s.bg + ' ' + s.text : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'}" data-vis-type="${type}">
+          <span class="flex-shrink-0">${visIconsLg[type]}</span>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium">${s.title}</p>
+            <p class="text-[10px] ${active ? 'opacity-70' : 'text-slate-500'}">${visDescriptions[type]}</p>
+          </div>
+          ${active ? '<svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>' : ''}
+        </button>`;
+      }).join('');
+
+      // Attach click handlers via event delegation
+      popover.querySelectorAll('[data-vis-type]').forEach(optBtn => {
+        optBtn.addEventListener('click', () => {
+          const type = optBtn.dataset.visType;
+          row.dataset.visibility = type;
+          const s = visStyles[type];
+          closeVisPopover();
+          btn.className = `badge-visibility text-xs px-1.5 py-0.5 rounded ${s.bg} ${s.text} flex items-center gap-1 hover:ring-1 ${s.ring} transition-all cursor-pointer`;
+          btn.title = `${s.title} — Cliquer pour changer`;
+          btn.innerHTML = visIcons[type] + (s.label ? ` ${s.label}` : '');
+          updateShareButtons(row);
+        });
+      });
+
+      btn.style.position = 'relative';
+      btn.appendChild(popover);
+      activeVisPopover = { popover, btn, row };
+    }
+
+    function closeVisPopover() {
+      if (activeVisPopover) {
+        activeVisPopover.popover.remove();
+        activeVisPopover = null;
+      }
+    }
+
+    // Close popover on any click outside
+    document.addEventListener('click', () => closeVisPopover());
+
+    // Type change -> update preview + suggested prices
+    const suggestedPrices = {
+      '3': [10, 15, 20, 30], '4': [15, 25, 35, 50], '5': [20, 30, 50, 80],
+      '6': [40, 60, 80, 100], '8': [60, 80, 100, 130], '10': [100, 150, 200, 300],
+    };
+    function onTypeChange() {
+      const sel = document.getElementById('esc-type-select');
+      const text = sel.options[sel.selectedIndex].text;
+      document.getElementById('preview-type').textContent = text;
+      // Update suggested prices
+      const level = sel.value.split('-').pop();
+      const prices = suggestedPrices[level] || [50, 100, 150, 200];
+      const btns = document.querySelectorAll('[onclick^="setPrice"]');
+      btns.forEach((btn, i) => {
+        if (prices[i] !== undefined) {
+          btn.textContent = prices[i] + 'm';
+          btn.setAttribute('onclick', `setPrice(${prices[i]})`);
+          btn.className = 'px-2 py-0.5 text-xs rounded bg-slate-800 text-slate-400 hover:text-cyan-400 hover:bg-slate-700 border border-slate-700/50 transition-colors font-mono';
+        }
+      });
+      // Auto set price to second suggestion
+      if (prices[1]) setPrice(prices[1]);
+    }
+
+    // ===== Share system =====
+
+    const shareBtnsTemplate = `<button class="export-btn p-2 rounded-lg text-slate-500 hover:text-cyan-400 hover:bg-slate-800 transition-colors relative" onclick="shareAction(this, 'wts')" title="Copier pour WTS"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184"/></svg></button><button class="discord-btn p-2 rounded-lg text-slate-500 hover:text-indigo-400 hover:bg-slate-800 transition-colors relative" onclick="shareAction(this, 'discord')" title="Copier pour Discord"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg></button>`;
+
+    // Show toast alert
+    function showAlert(message, type = 'warning') {
+      const container = document.getElementById('toast-container');
+      const colors = {
+        warning: { bg: 'bg-amber-500/20', border: 'border-amber-500/40', text: 'text-amber-400', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>' },
+        success: { bg: 'bg-emerald-500/20', border: 'border-emerald-500/40', text: 'text-emerald-400', icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' },
+      };
+      const c = colors[type] || colors.warning;
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl ${c.bg} border ${c.border} ${c.text} backdrop-blur-xl shadow-xl max-w-sm transform translate-x-full transition-transform duration-300`;
+      toast.innerHTML = `<span class="flex-shrink-0">${c.icon}</span><p class="text-sm font-medium">${message}</p>`;
+      container.appendChild(toast);
+      // Animate in
+      requestAnimationFrame(() => { toast.style.transform = 'translateX(0)'; });
+      // Auto dismiss
+      setTimeout(() => {
+        toast.style.transform = 'translateX(120%)';
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    // Share action handler
+    function shareAction(btn, type) {
+      const row = btn.closest('[data-escalation]');
+      // Block sharing if not bookmarked
+      if (row.dataset.bm === 'nouveau') {
+        showAlert('Impossible de partager : cette escalation n\'est pas encore bookmarkee.', 'warning');
+        return;
+      }
+      if (type === 'wts') {
+        exportWts(btn);
+      } else if (type === 'discord') {
+        exportDiscord(btn);
+      }
+    }
+
+    // WTS export (in-game chat format)
+    function exportWts(btn) {
+      const row = btn.closest('[data-escalation]');
+      const name = row.dataset.escalation;
+      const system = row.dataset.system;
+      const systemId = row.dataset.systemId;
+      const price = row.dataset.price;
+      const timer = rowTimers.find(t => t.row === row);
+      const hours = timer ? Math.max(0, Math.round((timer.expiresAt - Date.now()) / 3600000)) : 0;
+
+      const text = `WTS ${name} <url=showinfo:5//${systemId}>${system}</url> ${hours}h ${price}m`;
+      navigator.clipboard.writeText(text).then(() => {
+        showCopyTooltip(btn);
+      });
+    }
+
+    // Discord export
+    function exportDiscord(btn) {
+      const row = btn.closest('[data-escalation]');
+      const name = row.dataset.escalation;
+      const system = row.dataset.system;
+      const price = row.dataset.price;
+      const timer = rowTimers.find(t => t.row === row);
+      const hours = timer ? Math.max(0, Math.round((timer.expiresAt - Date.now()) / 3600000)) : 0;
+      const timeStr = hours >= 24 ? `~${Math.floor(hours/24)}j ${hours%24}h` : `~${hours}h`;
+
+      const text = [
+        `**WTS ${name}**`,
+        `> System : **${system}** | Timer : ${timeStr} | Prix : **${price}m ISK**`,
+        `Dispo sur EVE Tools : https://evetools.music-all.com/escalations`,
+      ].join('\n');
+
+      navigator.clipboard.writeText(text).then(() => {
+        showCopyTooltip(btn);
+      });
+    }
+
+    // Tooltip "Copie !" on a button
+    function showCopyTooltip(btn) {
+      const old = btn.querySelector('.tooltip');
+      if (old) old.remove();
+      const tip = document.createElement('span');
+      tip.className = 'tooltip absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs rounded border border-emerald-500/30 whitespace-nowrap z-50';
+      tip.textContent = 'Copie !';
+      btn.style.position = 'relative';
+      btn.appendChild(tip);
+      setTimeout(() => tip.remove(), 2000);
+    }
+
+    // Update share buttons visibility based on row state
+    function updateShareButtons(row) {
+      const wrapper = row.querySelector('.share-buttons');
+      if (!wrapper) return;
+      const vis = row.dataset.visibility;
+      const sale = row.dataset.sale;
+      const shouldShow = (vis === 'corp' || vis === 'public') && sale === 'envente';
+
+      if (shouldShow) {
+        // Populate buttons if empty
+        if (!wrapper.querySelector('.export-btn')) {
+          wrapper.innerHTML = shareBtnsTemplate;
+        }
+        wrapper.classList.remove('hidden');
+      } else {
+        wrapper.classList.add('hidden');
+      }
+    }
+  </script>
+</body>
+</html>

@@ -3,6 +3,22 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.4.1 (2026-02-05)
+--------------------------------------------------------------------------------
+
+### Escalations
+- Partage Discord : timer dynamique, lien Evetools, contact
+- Modale de confirmation avant suppression
+- Notes visibles sur les escalations perso et corp
+- Noms complets des DED sites (ex: Cartel Prisoner Retention 8/10)
+- Dropdown custom pour le type (fix dark mode Linux)
+
+### Corrections
+- Fix import SDE : Array to string conversion sur les effets dogma
+- Fix popover visibilite tronquee quand peu d'escalations
+- Fix scroll horizontal sur la page escalations
+
+--------------------------------------------------------------------------------
 Version 0.4 (2026-02-05)
 --------------------------------------------------------------------------------
 

@@ -58,10 +58,35 @@ class EscalationRepository extends ServiceEntityRepository
             ->where('e.corporationId = :corpId')
             ->andWhere('e.visibility IN (:visibilities)')
             ->andWhere('e.user != :excludeUser')
+            ->andWhere('e.saleStatus != :vendu')
             ->andWhere('e.expiresAt > :now')
             ->setParameter('corpId', $corporationId)
-            ->setParameter('visibilities', [Escalation::VISIBILITY_CORP, Escalation::VISIBILITY_PUBLIC])
+            ->setParameter('visibilities', [Escalation::VISIBILITY_CORP, Escalation::VISIBILITY_ALLIANCE, Escalation::VISIBILITY_PUBLIC])
             ->setParameter('excludeUser', $excludeUser)
+            ->setParameter('vendu', Escalation::SALE_VENDU)
+            ->setParameter('now', new \DateTimeImmutable())
+            ->orderBy('e.expiresAt', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * @return Escalation[]
+     */
+    public function findByAlliance(int $allianceId, int $excludeCorporationId, User $excludeUser): array
+    {
+        return $this->createQueryBuilder('e')
+            ->where('e.allianceId = :allianceId')
+            ->andWhere('e.corporationId != :excludeCorpId')
+            ->andWhere('e.visibility IN (:visibilities)')
+            ->andWhere('e.user != :excludeUser')
+            ->andWhere('e.saleStatus != :vendu')
+            ->andWhere('e.expiresAt > :now')
+            ->setParameter('allianceId', $allianceId)
+            ->setParameter('excludeCorpId', $excludeCorporationId)
+            ->setParameter('visibilities', [Escalation::VISIBILITY_ALLIANCE, Escalation::VISIBILITY_PUBLIC])
+            ->setParameter('excludeUser', $excludeUser)
+            ->setParameter('vendu', Escalation::SALE_VENDU)
             ->setParameter('now', new \DateTimeImmutable())
             ->orderBy('e.expiresAt', 'ASC')
             ->getQuery()

@@ -41,6 +41,14 @@ class EscalationCorpProvider implements ProviderInterface
 
         $entries = $this->escalationRepository->findByCorporation($corporationId, $user);
 
+        // Also fetch alliance escalations from other corps
+        $allianceId = $user->getAllianceId();
+        if ($allianceId !== null) {
+            $allianceEntries = $this->escalationRepository->findByAlliance($allianceId, $corporationId, $user);
+            $entries = array_merge($entries, $allianceEntries);
+            usort($entries, fn($a, $b) => $a->getExpiresAt() <=> $b->getExpiresAt());
+        }
+
         return array_map(fn($e) => EscalationResourceMapper::toResource($e, false), $entries);
     }
 }

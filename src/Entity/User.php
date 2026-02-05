@@ -171,6 +171,11 @@ class User implements UserInterface
         return $this->mainCharacter?->getCorporationName();
     }
 
+    public function getAllianceId(): ?int
+    {
+        return $this->mainCharacter?->getAllianceId();
+    }
+
     /** @return int[] */
     public function getIndustryBlacklistGroupIds(): array
     {
