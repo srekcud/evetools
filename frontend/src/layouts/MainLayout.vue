@@ -16,7 +16,7 @@ onMounted(async () => {
   isAdmin.value = await adminStore.checkAccess()
 })
 
-const APP_VERSION = '0.4'
+const APP_VERSION = '0.4.1'
 
 // Release notes modal
 const showReleaseNotes = ref(false)

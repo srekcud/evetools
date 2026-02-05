@@ -199,6 +199,31 @@ class SdeImportService
         return '';
     }
 
+    private function getString(array $data, string $key): ?string
+    {
+        if (!isset($data[$key])) {
+            return null;
+        }
+
+        $value = $data[$key];
+
+        if (is_string($value)) {
+            return $value ?: null;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+
+        if (is_array($value)) {
+            $resolved = $value['en'] ?? reset($value) ?? null;
+
+            return is_string($resolved) ? $resolved : ($resolved !== null ? (string) $resolved : null);
+        }
+
+        return null;
+    }
+
     private function getDescription(array $data): ?string
     {
         if (isset($data['description'])) {
@@ -1034,12 +1059,12 @@ class SdeImportService
         foreach ($this->readJsonlFile('dogmaEffects.jsonl') as $effectId => $effect) {
             $connection->insert('sde_dgm_effects', [
                 'effect_id' => (int) $effectId,
-                'effect_name' => $effect['effectName'] ?? null,
+                'effect_name' => $this->getString($effect, 'effectName'),
                 'effect_category' => $effect['effectCategory'] ?? null,
                 'pre_expression' => $effect['preExpression'] ?? null,
                 'post_expression' => $effect['postExpression'] ?? null,
                 'description' => $this->getDescription($effect),
-                'guid' => $effect['guid'] ?? null,
+                'guid' => $this->getString($effect, 'guid'),
                 'icon_id' => $effect['iconID'] ?? null,
                 'is_offensive' => $effect['isOffensive'] ?? false,
                 'is_assistance' => $effect['isAssistance'] ?? false,
@@ -1050,13 +1075,13 @@ class SdeImportService
                 'falloff_attribute_id' => $effect['falloffAttributeID'] ?? null,
                 'disallow_auto_repeat' => $effect['disallowAutoRepeat'] ?? false,
                 'published' => $effect['published'] ?? false,
-                'display_name' => $effect['displayName'] ?? null,
+                'display_name' => $this->getString($effect, 'displayName'),
                 'is_warp_safe' => $effect['isWarpSafe'] ?? false,
                 'range_chance' => $effect['rangeChance'] ?? false,
                 'electronic_chance' => $effect['electronicChance'] ?? false,
                 'propulsion_chance' => $effect['propulsionChance'] ?? false,
                 'distribution' => $effect['distribution'] ?? null,
-                'sfx_name' => $effect['sfxName'] ?? null,
+                'sfx_name' => $this->getString($effect, 'sfxName'),
                 'npc_usage_chance_attribute_id' => $effect['npcUsageChanceAttributeID'] ?? null,
                 'npc_activation_chance_attribute_id' => $effect['npcActivationChanceAttributeID'] ?? null,
                 'fitting_usage_chance_attribute_id' => $effect['fittingUsageChanceAttributeID'] ?? null,
