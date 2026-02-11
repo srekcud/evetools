@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: evetools-app
     restart: unless-stopped
     volumes:
       - caddy_data:/data
@@ -45,9 +46,7 @@ services:
       start_period: 30s
 
   worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: evetools-app
     entrypoint: ["php"]
     command: ["bin/console", "messenger:consume", "async", "scheduler_default", "--time-limit=3600", "--memory-limit=256M", "-vv"]
     restart: unless-stopped

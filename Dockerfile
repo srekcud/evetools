@@ -1,68 +1,29 @@
-# Dockerfile for Symfony 7 with FrankenPHP
-FROM dunglas/frankenphp:php8.4-alpine
+# Application image — requires evetools-base:latest (see: make base-build)
+FROM evetools-base:latest
 
-# Install system dependencies
-RUN apk add --no-cache \
-    acl \
-    fcgi \
-    file \
-    gettext \
-    git \
-    icu-dev \
-    libpq-dev \
-    libsodium-dev \
-    rabbitmq-c-dev \
-    linux-headers
-
-# Install PHP extensions
-RUN install-php-extensions \
-    amqp \
-    apcu \
-    intl \
-    opcache \
-    pdo_pgsql \
-    redis \
-    sodium \
-    uuid \
-    zip
-
-# Configure PHP
-RUN echo "memory_limit=512M" > /usr/local/etc/php/conf.d/memory.ini
-
-# Install Composer
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
-# Set working directory
-WORKDIR /app
-
-# Set production environment
 ENV APP_ENV=prod
 
-# Copy composer files first for better caching
-COPY composer.json composer.lock* ./
-
-# Install dependencies (no scripts yet, no autoloader)
+# Composer install (cache layer: only invalidated if composer.json/lock change)
+COPY composer.json composer.lock ./
 RUN composer install --prefer-dist --no-dev --no-autoloader --no-scripts --no-progress
 
-# Copy the rest of the application
+# Application code
 COPY . .
 
-# Generate optimized autoloader and run post-install scripts
+# Autoloader + post-install scripts
 RUN composer dump-autoload --optimize && \
     composer run-script post-install-cmd --no-interaction || true
 
-# Set permissions
-RUN mkdir -p var/cache var/log && \
-    chmod -R 777 var
+# Permissions
+RUN mkdir -p var/cache var/log && chmod -R 777 var
 
-# Configure FrankenPHP/Caddy
+# Caddy config
 COPY frankenphp/Caddyfile /etc/caddy/Caddyfile
 
-# Create health check endpoint
+# Health check
 RUN mkdir -p public && echo '{"status":"ok"}' > public/health.json
 
 EXPOSE 80 443
 
-# Use FrankenPHP as the entrypoint
 ENTRYPOINT ["frankenphp"]
 CMD ["run", "--config", "/etc/caddy/Caddyfile"]

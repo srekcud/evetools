@@ -1,4 +1,4 @@
-.PHONY: help build up down logs shell db-create db-migrate db-diff jwt-keys test install sde-import
+.PHONY: help build up down logs shell db-create db-migrate db-diff jwt-keys test install sde-import base-build deploy deploy-full
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -67,3 +67,21 @@ sde-import: ## Import EVE Online Static Data Export (SDE)
 
 ansiblex-sync: ## Sync Ansiblex gates (usage: make ansiblex-sync CHARACTER="name")
 	docker compose exec app php bin/console app:ansiblex:sync "$(CHARACTER)"
+
+# ─── Base image ───
+base-build: ## Build base image (run when PHP version or extensions change)
+	docker build -f Dockerfile.base -t evetools-base:latest .
+
+# ─── Production deployment ───
+PROD=docker compose -f docker-compose.yaml -f docker-compose.prod.yml
+
+deploy: ## Deploy to production (build + migrate + restart)
+	git pull origin main
+	$(PROD) build
+	$(PROD) up -d --force-recreate --remove-orphans
+	$(PROD) exec app php bin/console doctrine:migrations:migrate --no-interaction
+	$(PROD) exec app php bin/console cache:clear
+	$(PROD) exec app php bin/console cache:warmup
+	$(PROD) restart worker
+
+deploy-full: base-build deploy ## Full deploy (rebuild base image + deploy)

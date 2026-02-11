@@ -1,0 +1,22 @@
+# Base image for EVE Tools — rebuild only when changing PHP version or extensions
+# Usage: docker build -f Dockerfile.base -t evetools-base:latest .
+FROM dunglas/frankenphp:php8.4-alpine
+
+# System dependencies
+RUN apk add --no-cache \
+    acl fcgi file gettext git \
+    icu-dev libpq-dev libsodium-dev \
+    rabbitmq-c-dev linux-headers
+
+# PHP extensions
+RUN install-php-extensions \
+    amqp apcu intl opcache \
+    pdo_pgsql redis sodium uuid zip
+
+# PHP config
+RUN echo "memory_limit=512M" > /usr/local/etc/php/conf.d/memory.ini
+
+# Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+WORKDIR /app

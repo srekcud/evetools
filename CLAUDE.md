@@ -281,25 +281,22 @@ make messenger       # Consumer
 ### Mise en production (MTP)
 
 ```bash
-git pull origin main
+# Déploiement standard (une seule commande)
+make deploy
 
-docker compose -f docker-compose.yaml -f docker-compose.prod.yml build
+# Déploiement complet (rebuild image de base + deploy)
+# À utiliser si changement de version PHP ou d'extensions
+make deploy-full
 
-docker compose -f docker-compose.yaml -f docker-compose.prod.yml up -d --force-recreate --remove-orphans
-
-docker compose -f docker-compose.yaml -f docker-compose.prod.yml exec app composer install --no-dev --optimize-autoloader
-
-docker compose -f docker-compose.yaml -f docker-compose.prod.yml exec app php bin/console doctrine:migrations:migrate --no-interaction
-
-docker compose -f docker-compose.yaml -f docker-compose.prod.yml exec app php bin/console cache:clear
-
-docker compose -f docker-compose.yaml -f docker-compose.prod.yml exec app php bin/console cache:warmup
-
-# Redémarrer le worker pour qu'il utilise le nouveau cache (proxies Doctrine)
-docker compose -f docker-compose.yaml -f docker-compose.prod.yml restart worker
+# Rebuild image de base uniquement
+make base-build
 ```
 
-**Note**: Le service `worker` (messenger consumer) démarre automatiquement avec `docker compose up`. Vérifiez qu'il tourne avec `docker compose ps`.
+**Architecture Docker** :
+- `evetools-base:latest` — Image de base (PHP, extensions, Composer). Rebuild rare via `make base-build`.
+- `evetools-app` — Image applicative (code + vendor). `app` et `worker` partagent la même image.
+
+**Note**: Le service `worker` réutilise l'image `evetools-app` (pas de build séparé). `make deploy` redémarre automatiquement le worker après le déploiement.
 
 **IMPORTANT pour Claude**: Lors de changements impliquant des seeds, fixtures ou commandes console (ex: `app:seed-rig-categories`), toujours rappeler à l'utilisateur d'exécuter ces commandes en production après le déploiement.
 
