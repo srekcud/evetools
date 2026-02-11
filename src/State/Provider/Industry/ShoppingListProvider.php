@@ -52,6 +52,7 @@ class ShoppingListProvider implements ProviderInterface
         }
 
         $materials = $this->projectService->getShoppingList($project);
+        $purchasedQuantities = $this->projectService->getPurchasedQuantities($project);
 
         $request = $this->requestStack->getCurrentRequest();
         $structureId = $request?->query->get('structureId');
@@ -153,6 +154,8 @@ class ShoppingListProvider implements ProviderInterface
             $material->bestLocation = $bestLocation;
             $material->bestPrice = $bestPrice;
             $material->savings = $savings;
+            $material->purchasedQuantity = $purchasedQuantities[$typeId] ?? 0;
+            $material->extraQuantity = $mat['extraQuantity'] ?? 0;
 
             $enrichedMaterials[] = $material;
         }

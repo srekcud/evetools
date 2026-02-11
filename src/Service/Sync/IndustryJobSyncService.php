@@ -7,6 +7,7 @@ namespace App\Service\Sync;
 use App\Entity\CachedIndustryJob;
 use App\Entity\Character;
 use App\Repository\CachedIndustryJobRepository;
+use App\Repository\CharacterRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\Mercure\MercurePublisherService;
@@ -21,6 +22,7 @@ class IndustryJobSyncService
     public function __construct(
         private readonly EsiClient $esiClient,
         private readonly CachedIndustryJobRepository $jobRepository,
+        private readonly CharacterRepository $characterRepository,
         private readonly InvTypeRepository $invTypeRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
@@ -96,7 +98,24 @@ class IndustryJobSyncService
         // Track newly completed jobs for notifications
         $newlyCompletedJobs = [];
 
+        // Build a lookup of EVE character ID → Character entity for installer attribution
+        $installerLookup = [];
+        $user = $character->getUser();
+        if ($user !== null) {
+            foreach ($user->getCharacters() as $userChar) {
+                $installerLookup[$userChar->getEveCharacterId()] = $userChar;
+            }
+        }
+
         foreach ($jobsByJobId as $jobData) {
+            // Resolve the actual installer character — skip jobs from corpmates
+            $installerId = $jobData['installer_id'] ?? null;
+            if ($installerId === null || !isset($installerLookup[$installerId])) {
+                // Job belongs to a corpmate, not one of the user's characters — skip
+                continue;
+            }
+            $installerCharacter = $installerLookup[$installerId];
+
             $existing = $this->jobRepository->findByJobId($jobData['job_id']);
 
             if ($existing !== null) {
@@ -104,8 +123,10 @@ class IndustryJobSyncService
                 $wasActive = $existing->getStatus() === 'active';
                 $isNowReady = $jobData['status'] === 'ready';
 
-                // Update existing job
+                // Update existing job - fix character attribution
+                $existing->setCharacter($installerCharacter);
                 $existing->setStatus($jobData['status']);
+                $existing->setStationId($jobData['facility_id'] ?? $jobData['station_id'] ?? null);
                 if (isset($jobData['completed_date'])) {
                     $existing->setCompletedDate(new \DateTimeImmutable($jobData['completed_date']));
                 }
@@ -119,7 +140,7 @@ class IndustryJobSyncService
             }
 
             $job = new CachedIndustryJob();
-            $job->setCharacter($character);
+            $job->setCharacter($installerCharacter);
             $job->setJobId($jobData['job_id']);
             $job->setActivityId($jobData['activity_id']);
             $job->setBlueprintTypeId($jobData['blueprint_type_id']);
@@ -127,6 +148,7 @@ class IndustryJobSyncService
             $job->setRuns($jobData['runs']);
             $job->setCost((float) ($jobData['cost'] ?? 0));
             $job->setStatus($jobData['status']);
+            $job->setStationId($jobData['facility_id'] ?? $jobData['station_id'] ?? null);
             $job->setStartDate(new \DateTimeImmutable($jobData['start_date']));
             $job->setEndDate(new \DateTimeImmutable($jobData['end_date']));
             if (isset($jobData['completed_date'])) {

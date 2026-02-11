@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Repository\IndustryProjectStepRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -31,9 +33,6 @@ class IndustryProjectStep
     #[ORM\Column(type: 'integer')]
     private int $productTypeId;
 
-    #[ORM\Column(type: 'string', length: 255)]
-    private string $productTypeName;
-
     #[ORM\Column(type: 'integer')]
     private int $quantity;
 
@@ -43,13 +42,11 @@ class IndustryProjectStep
     #[ORM\Column(type: 'integer')]
     private int $depth;
 
-    /** @var int|null ME level for this step (only used for depth 0 root products) */
-    #[ORM\Column(type: 'integer', nullable: true)]
-    private ?int $meLevel = null;
+    #[ORM\Column(type: 'integer')]
+    private int $meLevel = 10;
 
-    /** @var int|null TE level for this step (only used for depth 0 root products) */
-    #[ORM\Column(type: 'integer', nullable: true)]
-    private ?int $teLevel = null;
+    #[ORM\Column(type: 'integer')]
+    private int $teLevel = 20;
 
     #[ORM\Column(type: 'string', length: 30)]
     private string $activityType = 'manufacturing';
@@ -60,74 +57,16 @@ class IndustryProjectStep
     #[ORM\Column(type: 'boolean')]
     private bool $purchased = false;
 
-    /** @var bool If true, product is already in stock (no purchase cost, not in shopping list) */
-    #[ORM\Column(type: 'boolean')]
-    private bool $inStock = false;
-
-    /** @var int Quantity already in stock (0 = none, partial = some, >= quantity = all) */
     #[ORM\Column(type: 'integer')]
     private int $inStockQuantity = 0;
 
-    #[ORM\Column(type: 'integer', nullable: true)]
-    private ?int $esiJobId = null;
+    /** 'auto' | 'manual' | 'none' */
+    #[ORM\Column(type: 'string', length: 20)]
+    private string $jobMatchMode = 'auto';
 
-    #[ORM\Column(type: 'float', nullable: true)]
-    private ?float $esiJobCost = null;
-
-    #[ORM\Column(type: 'string', length: 50, nullable: true)]
-    private ?string $esiJobStatus = null;
-
-    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
-    private ?\DateTimeImmutable $esiJobEndDate = null;
-
-    #[ORM\Column(type: 'integer', nullable: true)]
-    private ?int $esiJobRuns = null;
-
-    #[ORM\Column(type: 'string', length: 100, nullable: true)]
-    private ?string $esiJobCharacterName = null;
-
-    /** @var int[] List of all matched ESI job IDs */
-    #[ORM\Column(type: 'json')]
-    private array $esiJobIds = [];
-
-    #[ORM\Column(type: 'integer', nullable: true)]
-    private ?int $esiJobsCount = null;
-
-    #[ORM\Column(type: 'integer', nullable: true)]
-    private ?int $esiJobsTotalRuns = null;
-
-    #[ORM\Column(type: 'integer', nullable: true)]
-    private ?int $esiJobsActiveRuns = null;
-
-    #[ORM\Column(type: 'integer', nullable: true)]
-    private ?int $esiJobsDeliveredRuns = null;
-
-    /** @var bool If true, auto-matching won't overwrite job data */
-    #[ORM\Column(type: 'boolean')]
-    private bool $manualJobData = false;
-
-    #[ORM\Column(type: 'string', length: 255, nullable: true)]
-    private ?string $recommendedStructureName = null;
-
-    #[ORM\Column(type: 'float', nullable: true)]
-    private ?float $structureBonus = null;
-
-    /** @var float|null Structure time bonus percentage (e.g., 24.03 for 24.03% reduction) */
-    #[ORM\Column(type: 'float', nullable: true)]
-    private ?float $structureTimeBonus = null;
-
-    /** @var int|null Adjusted time per run in seconds (with TE 20 and structure bonus applied) */
-    #[ORM\Column(type: 'integer', nullable: true)]
-    private ?int $timePerRun = null;
-
-    /**
-     * Jobs with same blueprint but different runs (for warning).
-     * Format: [{ "characterName": "Foo", "runs": 5, "jobId": 123, "status": "active" }, ...]
-     *
-     * @var array<array{characterName: string, runs: int, jobId: int, status: string}>
-     */
-    #[ORM\Column(type: 'json')]
-    private array $similarJobs = [];
+    #[ORM\ManyToOne(targetEntity: IndustryStructureConfig::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?IndustryStructureConfig $structureConfig = null;
 
     /** @var string|null UUID to group related splits together */
     #[ORM\Column(type: 'string', length: 36, nullable: true)]
@@ -140,6 +79,20 @@ class IndustryProjectStep
     /** @var int|null Total runs for the entire split group (set on all splits) */
     #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $totalGroupRuns = null;
+
+    /** @var Collection<int, IndustryStepJobMatch> */
+    #[ORM\OneToMany(targetEntity: IndustryStepJobMatch::class, mappedBy: 'step', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $jobMatches;
+
+    /** @var Collection<int, IndustryStepPurchase> */
+    #[ORM\OneToMany(targetEntity: IndustryStepPurchase::class, mappedBy: 'step', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $purchases;
+
+    public function __construct()
+    {
+        $this->jobMatches = new ArrayCollection();
+        $this->purchases = new ArrayCollection();
+    }
 
     public function getId(): ?Uuid
     {
@@ -179,17 +132,6 @@ class IndustryProjectStep
         return $this;
     }
 
-    public function getProductTypeName(): string
-    {
-        return $this->productTypeName;
-    }
-
-    public function setProductTypeName(string $productTypeName): static
-    {
-        $this->productTypeName = $productTypeName;
-        return $this;
-    }
-
     public function getQuantity(): int
     {
         return $this->quantity;
@@ -223,23 +165,23 @@ class IndustryProjectStep
         return $this;
     }
 
-    public function getMeLevel(): ?int
+    public function getMeLevel(): int
     {
         return $this->meLevel;
     }
 
-    public function setMeLevel(?int $meLevel): static
+    public function setMeLevel(int $meLevel): static
     {
         $this->meLevel = $meLevel;
         return $this;
     }
 
-    public function getTeLevel(): ?int
+    public function getTeLevel(): int
     {
         return $this->teLevel;
     }
 
-    public function setTeLevel(?int $teLevel): static
+    public function setTeLevel(int $teLevel): static
     {
         $this->teLevel = $teLevel;
         return $this;
@@ -278,17 +220,6 @@ class IndustryProjectStep
         return $this;
     }
 
-    public function isInStock(): bool
-    {
-        return $this->inStock;
-    }
-
-    public function setInStock(bool $inStock): static
-    {
-        $this->inStock = $inStock;
-        return $this;
-    }
-
     public function getInStockQuantity(): int
     {
         return $this->inStockQuantity;
@@ -297,244 +228,39 @@ class IndustryProjectStep
     public function setInStockQuantity(int $inStockQuantity): static
     {
         $this->inStockQuantity = max(0, $inStockQuantity);
-        // Keep boolean in sync for backward compatibility
-        $this->inStock = $inStockQuantity >= $this->quantity;
         return $this;
     }
 
-    /**
-     * Get the quantity still needed (not covered by stock).
-     */
+    public function isInStock(): bool
+    {
+        return $this->inStockQuantity >= $this->quantity;
+    }
+
     public function getMissingQuantity(): int
     {
         return max(0, $this->quantity - $this->inStockQuantity);
     }
 
-    public function getEsiJobId(): ?int
+    public function getJobMatchMode(): string
     {
-        return $this->esiJobId;
+        return $this->jobMatchMode;
     }
 
-    public function setEsiJobId(?int $esiJobId): static
+    public function setJobMatchMode(string $jobMatchMode): static
     {
-        $this->esiJobId = $esiJobId;
+        $this->jobMatchMode = $jobMatchMode;
         return $this;
     }
 
-    public function getEsiJobCost(): ?float
+    public function getStructureConfig(): ?IndustryStructureConfig
     {
-        return $this->esiJobCost;
+        return $this->structureConfig;
     }
 
-    public function setEsiJobCost(?float $esiJobCost): static
+    public function setStructureConfig(?IndustryStructureConfig $structureConfig): static
     {
-        $this->esiJobCost = $esiJobCost;
+        $this->structureConfig = $structureConfig;
         return $this;
-    }
-
-    public function getEsiJobStatus(): ?string
-    {
-        return $this->esiJobStatus;
-    }
-
-    public function setEsiJobStatus(?string $esiJobStatus): static
-    {
-        $this->esiJobStatus = $esiJobStatus;
-        return $this;
-    }
-
-    public function getEsiJobEndDate(): ?\DateTimeImmutable
-    {
-        return $this->esiJobEndDate;
-    }
-
-    public function setEsiJobEndDate(?\DateTimeImmutable $esiJobEndDate): static
-    {
-        $this->esiJobEndDate = $esiJobEndDate;
-        return $this;
-    }
-
-    public function getEsiJobRuns(): ?int
-    {
-        return $this->esiJobRuns;
-    }
-
-    public function setEsiJobRuns(?int $esiJobRuns): static
-    {
-        $this->esiJobRuns = $esiJobRuns;
-        return $this;
-    }
-
-    public function getEsiJobCharacterName(): ?string
-    {
-        return $this->esiJobCharacterName;
-    }
-
-    public function setEsiJobCharacterName(?string $esiJobCharacterName): static
-    {
-        $this->esiJobCharacterName = $esiJobCharacterName;
-        return $this;
-    }
-
-    /** @return int[] */
-    public function getEsiJobIds(): array
-    {
-        return $this->esiJobIds;
-    }
-
-    /** @param int[] $esiJobIds */
-    public function setEsiJobIds(array $esiJobIds): static
-    {
-        $this->esiJobIds = $esiJobIds;
-        return $this;
-    }
-
-    public function getEsiJobsCount(): ?int
-    {
-        return $this->esiJobsCount;
-    }
-
-    public function setEsiJobsCount(?int $esiJobsCount): static
-    {
-        $this->esiJobsCount = $esiJobsCount;
-        return $this;
-    }
-
-    public function getEsiJobsTotalRuns(): ?int
-    {
-        return $this->esiJobsTotalRuns;
-    }
-
-    public function setEsiJobsTotalRuns(?int $esiJobsTotalRuns): static
-    {
-        $this->esiJobsTotalRuns = $esiJobsTotalRuns;
-        return $this;
-    }
-
-    public function getEsiJobsActiveRuns(): ?int
-    {
-        return $this->esiJobsActiveRuns;
-    }
-
-    public function setEsiJobsActiveRuns(?int $esiJobsActiveRuns): static
-    {
-        $this->esiJobsActiveRuns = $esiJobsActiveRuns;
-        return $this;
-    }
-
-    public function getEsiJobsDeliveredRuns(): ?int
-    {
-        return $this->esiJobsDeliveredRuns;
-    }
-
-    public function setEsiJobsDeliveredRuns(?int $esiJobsDeliveredRuns): static
-    {
-        $this->esiJobsDeliveredRuns = $esiJobsDeliveredRuns;
-        return $this;
-    }
-
-    public function isManualJobData(): bool
-    {
-        return $this->manualJobData;
-    }
-
-    public function setManualJobData(bool $manualJobData): static
-    {
-        $this->manualJobData = $manualJobData;
-        return $this;
-    }
-
-    public function getRecommendedStructureName(): ?string
-    {
-        return $this->recommendedStructureName;
-    }
-
-    public function setRecommendedStructureName(?string $recommendedStructureName): static
-    {
-        $this->recommendedStructureName = $recommendedStructureName;
-        return $this;
-    }
-
-    public function getStructureBonus(): ?float
-    {
-        return $this->structureBonus;
-    }
-
-    public function setStructureBonus(?float $structureBonus): static
-    {
-        $this->structureBonus = $structureBonus;
-        return $this;
-    }
-
-    public function getStructureTimeBonus(): ?float
-    {
-        return $this->structureTimeBonus;
-    }
-
-    public function setStructureTimeBonus(?float $structureTimeBonus): static
-    {
-        $this->structureTimeBonus = $structureTimeBonus;
-        return $this;
-    }
-
-    /**
-     * Clear all job matching data.
-     */
-    public function clearJobData(): void
-    {
-        $this->esiJobId = null;
-        $this->esiJobCost = null;
-        $this->esiJobStatus = null;
-        $this->esiJobEndDate = null;
-        $this->esiJobRuns = null;
-        $this->esiJobCharacterName = null;
-        $this->esiJobIds = [];
-        $this->esiJobsCount = null;
-        $this->esiJobsTotalRuns = null;
-        $this->esiJobsActiveRuns = null;
-        $this->esiJobsDeliveredRuns = null;
-        $this->manualJobData = false;
-        $this->similarJobs = [];
-    }
-
-    /**
-     * @return array<array{characterName: string, runs: int, jobId: int, status: string}>
-     */
-    public function getSimilarJobs(): array
-    {
-        return $this->similarJobs;
-    }
-
-    /**
-     * @param array<array{characterName: string, runs: int, jobId: int, status: string}> $similarJobs
-     */
-    public function setSimilarJobs(array $similarJobs): static
-    {
-        $this->similarJobs = $similarJobs;
-        return $this;
-    }
-
-    public function getTimePerRun(): ?int
-    {
-        return $this->timePerRun;
-    }
-
-    public function setTimePerRun(?int $timePerRun): static
-    {
-        $this->timePerRun = $timePerRun;
-        return $this;
-    }
-
-    /**
-     * Get estimated duration in days for this step.
-     */
-    public function getEstimatedDurationDays(): ?float
-    {
-        if ($this->timePerRun === null) {
-            return null;
-        }
-        // time is in seconds, convert to days
-        return ($this->timePerRun * $this->runs) / 86400;
     }
 
     public function getSplitGroupId(): ?string
@@ -570,11 +296,68 @@ class IndustryProjectStep
         return $this;
     }
 
-    /**
-     * Check if this step is part of a split group.
-     */
     public function isSplit(): bool
     {
         return $this->splitGroupId !== null;
+    }
+
+    /**
+     * @return Collection<int, IndustryStepJobMatch>
+     */
+    public function getJobMatches(): Collection
+    {
+        return $this->jobMatches;
+    }
+
+    public function addJobMatch(IndustryStepJobMatch $match): static
+    {
+        if (!$this->jobMatches->contains($match)) {
+            $this->jobMatches->add($match);
+            $match->setStep($this);
+        }
+        return $this;
+    }
+
+    /**
+     * Get total job cost from all matched jobs.
+     */
+    public function getJobsCost(): float
+    {
+        $total = 0.0;
+        foreach ($this->jobMatches as $match) {
+            if ($match->getCost() !== null) {
+                $total += $match->getCost();
+            }
+        }
+        return $total;
+    }
+
+    /**
+     * @return Collection<int, IndustryStepPurchase>
+     */
+    public function getPurchases(): Collection
+    {
+        return $this->purchases;
+    }
+
+    public function addPurchase(IndustryStepPurchase $purchase): static
+    {
+        if (!$this->purchases->contains($purchase)) {
+            $this->purchases->add($purchase);
+            $purchase->setStep($this);
+        }
+        return $this;
+    }
+
+    /**
+     * Get total purchase cost for this step.
+     */
+    public function getPurchasesCost(): float
+    {
+        $total = 0.0;
+        foreach ($this->purchases as $purchase) {
+            $total += $purchase->getTotalPrice();
+        }
+        return $total;
     }
 }

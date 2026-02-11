@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryProjectService;
 use App\Service\Sync\IndustryJobSyncService;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -24,6 +25,7 @@ class MatchProjectJobsCommand extends Command
         private readonly IndustryProjectRepository $projectRepository,
         private readonly IndustryProjectService $projectService,
         private readonly IndustryJobSyncService $jobSyncService,
+        private readonly IndustryCalculationService $calculationService,
     ) {
         parent::__construct();
     }
@@ -44,7 +46,8 @@ class MatchProjectJobsCommand extends Command
             return Command::FAILURE;
         }
 
-        $io->info("Syncing ESI jobs for: {$project->getProductTypeName()}");
+        $productName = $this->calculationService->getProjectDisplayName($project);
+        $io->info("Syncing ESI jobs for: {$productName}");
 
         // Sync jobs from ESI first
         $this->jobSyncService->resetCorporationTracking();
@@ -66,9 +69,9 @@ class MatchProjectJobsCommand extends Command
         $matchedCount = 0;
         $totalCost = 0.0;
         foreach ($project->getSteps() as $step) {
-            if ($step->getEsiJobId() !== null) {
+            if ($step->getJobMatches()->count() > 0) {
                 $matchedCount++;
-                $totalCost += $step->getEsiJobCost() ?? 0;
+                $totalCost += $step->getJobsCost();
             }
         }
 

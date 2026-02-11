@@ -40,14 +40,19 @@ class DeleteStructureProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Structure not found');
         }
 
-        // If this is a corporation structure, soft-delete
+        // Corporation structure: hide for this user instead of deleting
         if ($structure->isCorporationStructure() && $structure->getLocationId() !== null) {
+            $userId = $user->getId()?->toRfc4122();
+            if ($userId !== null) {
+                $structure->hideForUser($userId);
+            }
             $structure->setIsDeleted(true);
             $this->entityManager->flush();
 
             return;
         }
 
+        // Personal structure: hard delete
         $this->entityManager->remove($structure);
         $this->entityManager->flush();
     }

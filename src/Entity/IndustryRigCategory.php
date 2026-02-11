@@ -96,7 +96,7 @@ class IndustryRigCategory
             'basic_capital_component' => 'Capital Construction Components',
             'advanced_component' => 'T2 Components, T3 Components',
             'structure_component' => 'Structure Components',
-            'equipment' => 'Modules',
+            'equipment' => 'Modules, Deployables, Cargo Containers',
             'ammunition' => 'Charges, Scripts, Bombs, Probes',
             'drone' => 'Combat, Mining, Utility Drones',
             'fighter' => 'Fighters (Light, Heavy, Support)',

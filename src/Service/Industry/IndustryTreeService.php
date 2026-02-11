@@ -31,13 +31,14 @@ class IndustryTreeService
      *
      * @param int[] $excludedTypeIds Type IDs to treat as raw materials (not expanded)
      * @param User|null $user User for structure bonus calculation (optional)
+     * @param array<int, float> $structureBonusOverrides Map of productTypeId => materialBonus to override best-structure lookup
      */
-    public function buildProductionTree(int $productTypeId, int $runs = 1, int $finalMe = 0, array $excludedTypeIds = [], ?User $user = null): array
+    public function buildProductionTree(int $productTypeId, int $runs = 1, int $finalMe = 0, array $excludedTypeIds = [], ?User $user = null, array $structureBonusOverrides = []): array
     {
-        return $this->buildNode($productTypeId, $runs, $finalMe, 0, $excludedTypeIds, $user, true);
+        return $this->buildNode($productTypeId, $runs, $finalMe, 0, $excludedTypeIds, $user, true, $structureBonusOverrides);
     }
 
-    private function buildNode(int $productTypeId, int $quantity, int $meLevel, int $depth, array $excludedTypeIds, ?User $user, bool $isRoot = false): array
+    private function buildNode(int $productTypeId, int $quantity, int $meLevel, int $depth, array $excludedTypeIds, ?User $user, bool $isRoot = false, array $structureBonusOverrides = []): array
     {
         // Find the blueprint/formula that produces this type (manufacturing or reaction)
         $product = $this->findProducerFor($productTypeId);
@@ -64,8 +65,15 @@ class IndustryTreeService
         $structureBonus = 0.0;
         $structureName = null;
         $productCategory = null;
+        $hasOverride = isset($structureBonusOverrides[$productTypeId]);
 
-        if ($user !== null) {
+        if ($hasOverride) {
+            $structureBonus = $structureBonusOverrides[$productTypeId];
+            if ($user !== null) {
+                $isReaction = ($activityId === self::ACTIVITY_REACTION);
+                $productCategory = $this->bonusService->getCategoryForProduct($productTypeId, $isReaction);
+            }
+        } elseif ($user !== null) {
             $isReaction = ($activityId === self::ACTIVITY_REACTION);
             $bestStructure = $this->bonusService->findBestStructureForProduct($user, $productTypeId, $isReaction);
             $structureBonus = $bestStructure['bonus'];
@@ -94,8 +102,9 @@ class IndustryTreeService
             // IMPORTANT: The structure bonus must be looked up for EACH material's category,
             // not the parent product's category. E.g., when building a Rorqual (capital_ship),
             // the CCP materials are basic_capital_component and need their own bonus.
+            // When an override is active for this node, use a single bonus (matching recalculateStepQuantities behavior).
             $materialStructureBonus = $structureBonus;
-            if ($user !== null) {
+            if (!$hasOverride && $user !== null) {
                 $materialCategory = $this->bonusService->getCategoryForProduct($matTypeId, false);
                 if ($materialCategory !== null && $materialCategory !== $productCategory) {
                     $materialBonusData = $this->bonusService->findBestStructureForCategory($user, $materialCategory, false);
@@ -138,7 +147,7 @@ class IndustryTreeService
             if ($isBuildable) {
                 // Intermediate manufacturing uses ME 10, reactions have no ME
                 $childMe = ($matProducer->getActivityId() === self::ACTIVITY_MANUFACTURING) ? 10 : 0;
-                $node['blueprint'] = $this->buildNode($matTypeId, $adjustedQuantity, $childMe, $depth + 1, $excludedTypeIds, $user);
+                $node['blueprint'] = $this->buildNode($matTypeId, $adjustedQuantity, $childMe, $depth + 1, $excludedTypeIds, $user, false, $structureBonusOverrides);
             }
 
             $materialNodes[] = $node;

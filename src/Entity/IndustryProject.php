@@ -30,9 +30,6 @@ class IndustryProject
     #[ORM\Column(type: 'integer')]
     private int $productTypeId;
 
-    #[ORM\Column(type: 'string', length: 255)]
-    private string $productTypeName;
-
     /** @var string|null Custom project name (null = use product name) */
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $name = null;
@@ -125,17 +122,6 @@ class IndustryProject
         return $this;
     }
 
-    public function getProductTypeName(): string
-    {
-        return $this->productTypeName;
-    }
-
-    public function setProductTypeName(string $productTypeName): static
-    {
-        $this->productTypeName = $productTypeName;
-        return $this;
-    }
-
     public function getName(): ?string
     {
         return $this->name;
@@ -145,14 +131,6 @@ class IndustryProject
     {
         $this->name = $name;
         return $this;
-    }
-
-    /**
-     * Get display name: custom name if set, otherwise product name.
-     */
-    public function getDisplayName(): string
-    {
-        return $this->name ?? $this->productTypeName;
     }
 
     public function getRuns(): int
@@ -357,9 +335,7 @@ class IndustryProject
     {
         $total = 0.0;
         foreach ($this->steps as $step) {
-            if ($step->getEsiJobCost() !== null) {
-                $total += $step->getEsiJobCost();
-            }
+            $total += $step->getJobsCost();
         }
         return $total;
     }

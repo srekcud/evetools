@@ -7,8 +7,6 @@ namespace App\State\Provider\Industry;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\StructureConfigListResource;
-use App\ApiResource\Industry\StructureConfigResource;
-use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
 use App\Repository\IndustryStructureConfigRepository;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -22,6 +20,7 @@ class StructureConfigCollectionProvider implements ProviderInterface
     public function __construct(
         private readonly Security $security,
         private readonly IndustryStructureConfigRepository $structureConfigRepository,
+        private readonly IndustryResourceMapper $mapper,
         private readonly RigOptionsProvider $rigOptionsProvider,
     ) {
     }
@@ -38,30 +37,10 @@ class StructureConfigCollectionProvider implements ProviderInterface
 
         $resource = new StructureConfigListResource();
         $resource->structures = array_map(
-            fn (IndustryStructureConfig $s) => $this->toResource($s),
+            fn ($s) => $this->mapper->structureToResource($s),
             $structures
         );
         $resource->rigOptions = $this->rigOptionsProvider->getRigOptionsArray();
-
-        return $resource;
-    }
-
-    private function toResource(IndustryStructureConfig $structure): StructureConfigResource
-    {
-        $resource = new StructureConfigResource();
-        $resource->id = $structure->getId()->toRfc4122();
-        $resource->name = $structure->getName();
-        $resource->locationId = $structure->getLocationId();
-        $resource->securityType = $structure->getSecurityType();
-        $resource->structureType = $structure->getStructureType();
-        $resource->rigs = $structure->getRigs();
-        $resource->isDefault = $structure->isDefault();
-        $resource->isCorporationStructure = $structure->isCorporationStructure();
-        $resource->manufacturingMaterialBonus = $structure->getManufacturingMaterialBonus();
-        $resource->reactionMaterialBonus = $structure->getReactionMaterialBonus();
-        $resource->manufacturingTimeBonus = $structure->getManufacturingTimeBonus();
-        $resource->reactionTimeBonus = $structure->getReactionTimeBonus();
-        $resource->createdAt = $structure->getCreatedAt()->format('c');
 
         return $resource;
     }

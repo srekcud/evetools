@@ -25,4 +25,7 @@ class CreateStructureInput
 
     #[Assert\Positive]
     public ?int $locationId = null;
+
+    #[Assert\Positive]
+    public ?int $solarSystemId = null;
 }

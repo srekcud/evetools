@@ -185,10 +185,34 @@ class SeedIndustryRigCategoriesCommand extends Command
             ],
 
             // =====================
-            // EQUIPMENT (Modules)
+            // EQUIPMENT & CONSUMABLE (Modules, Deployables, Containers)
             // =====================
             'equipment' => [
-                // All module groups - there are many, including key ones:
+                // --- Deployables (category 22) ---
+                1273, // Encounter Surveillance System
+                4810, // Mercenary Den
+                4137, // Mobile Analysis Beacon
+                1249, // Mobile Cyno Inhibitor
+                4093, // Mobile Cynosural Beacon
+                1274, // Mobile Decoy Unit
+                1246, // Mobile Depot
+                1149, // Mobile Jump Disruptor
+                1276, // Mobile Micro Jump Unit
+                4107, // Mobile Observatory
+                4913, // Mobile Phase Anchor
+                1275, // Mobile Scan Inhibitor
+                1247, // Mobile Siphon Unit
+                1250, // Mobile Tractor Unit
+                1297, // Mobile Vault
+                361,  // Mobile Warp Disruptor
+
+                // --- Cargo Containers (Celestial category) ---
+                12,   // Cargo Container
+                340,  // Secure Cargo Container
+                448,  // Audit Log Secure Container
+                649,  // Freight Container
+
+                // --- Modules ---
                 62,   // Armor Repair Unit
                 63,   // Hull Repair Unit
                 328,  // Armor Hardener

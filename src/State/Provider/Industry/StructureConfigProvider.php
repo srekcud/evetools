@@ -22,6 +22,7 @@ class StructureConfigProvider implements ProviderInterface
     public function __construct(
         private readonly Security $security,
         private readonly IndustryStructureConfigRepository $structureRepository,
+        private readonly IndustryResourceMapper $mapper,
     ) {
     }
 
@@ -39,21 +40,6 @@ class StructureConfigProvider implements ProviderInterface
             throw new NotFoundHttpException('Structure not found');
         }
 
-        $resource = new StructureConfigResource();
-        $resource->id = $structure->getId()->toRfc4122();
-        $resource->name = $structure->getName();
-        $resource->locationId = $structure->getLocationId();
-        $resource->securityType = $structure->getSecurityType();
-        $resource->structureType = $structure->getStructureType();
-        $resource->rigs = $structure->getRigs();
-        $resource->isDefault = $structure->isDefault();
-        $resource->isCorporationStructure = $structure->isCorporationStructure();
-        $resource->manufacturingMaterialBonus = $structure->getManufacturingMaterialBonus();
-        $resource->reactionMaterialBonus = $structure->getReactionMaterialBonus();
-        $resource->manufacturingTimeBonus = $structure->getManufacturingTimeBonus();
-        $resource->reactionTimeBonus = $structure->getReactionTimeBonus();
-        $resource->createdAt = $structure->getCreatedAt()->format(\DateTimeInterface::ATOM);
-
-        return $resource;
+        return $this->mapper->structureToResource($structure);
     }
 }

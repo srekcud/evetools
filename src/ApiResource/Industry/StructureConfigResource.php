@@ -72,6 +72,8 @@ class StructureConfigResource
 
     public ?int $locationId = null;
 
+    public ?int $solarSystemId = null;
+
     public string $securityType;
 
     public string $structureType;

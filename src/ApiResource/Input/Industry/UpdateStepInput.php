@@ -10,25 +10,21 @@ class UpdateStepInput
 {
     public ?bool $purchased = null;
 
-    public ?bool $inStock = null;
-
     #[Assert\PositiveOrZero]
     public ?int $inStockQuantity = null;
-
-    public ?bool $clearJobData = null;
 
     #[Assert\Positive]
     public ?int $runs = null;
 
-    public ?int $esiJobsTotalRuns = null;
+    #[Assert\Range(min: 0, max: 10)]
+    public ?int $meLevel = null;
 
-    public ?float $esiJobCost = null;
+    #[Assert\Range(min: 0, max: 20)]
+    public ?int $teLevel = null;
 
-    public ?string $esiJobStatus = null;
+    /** UUID of IndustryStructureConfig */
+    public ?string $structureConfigId = null;
 
-    public ?string $esiJobCharacterName = null;
-
-    public ?int $esiJobsCount = null;
-
-    public ?bool $manualJobData = null;
+    #[Assert\Choice(choices: ['auto', 'manual', 'none'])]
+    public ?string $jobMatchMode = null;
 }

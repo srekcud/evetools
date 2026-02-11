@@ -24,6 +24,7 @@ class ProjectStepProvider implements ProviderInterface
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
         private readonly IndustryProjectStepRepository $stepRepository,
+        private readonly IndustryResourceMapper $mapper,
     ) {
     }
 
@@ -47,35 +48,6 @@ class ProjectStepProvider implements ProviderInterface
             throw new NotFoundHttpException('Step not found');
         }
 
-        $resource = new ProjectStepResource();
-        $resource->id = $step->getId()->toRfc4122();
-        $resource->blueprintTypeId = $step->getBlueprintTypeId();
-        $resource->productTypeId = $step->getProductTypeId();
-        $resource->productTypeName = $step->getProductTypeName();
-        $resource->quantity = $step->getQuantity();
-        $resource->runs = $step->getRuns();
-        $resource->depth = $step->getDepth();
-        $resource->activityType = $step->getActivityType();
-        $resource->sortOrder = $step->getSortOrder();
-        $resource->splitGroupId = $step->getSplitGroupId();
-        $resource->splitIndex = $step->getSplitIndex();
-        $resource->totalGroupRuns = $step->getTotalGroupRuns();
-        $resource->purchased = $step->isPurchased();
-        $resource->inStock = $step->isInStock();
-        $resource->inStockQuantity = $step->getInStockQuantity();
-        $resource->meLevel = $step->getMeLevel();
-        $resource->teLevel = $step->getTeLevel();
-        $resource->recommendedStructureName = $step->getRecommendedStructureName();
-        $resource->structureBonus = $step->getStructureBonus();
-        $resource->structureTimeBonus = $step->getStructureTimeBonus();
-        $resource->timePerRun = $step->getTimePerRun();
-        $resource->esiJobsTotalRuns = $step->getEsiJobsTotalRuns();
-        $resource->esiJobCost = $step->getEsiJobCost();
-        $resource->esiJobStatus = $step->getEsiJobStatus();
-        $resource->esiJobCharacterName = $step->getEsiJobCharacterName();
-        $resource->esiJobsCount = $step->getEsiJobsCount();
-        $resource->manualJobData = $step->isManualJobData();
-
-        return $resource;
+        return $this->mapper->stepToResource($step);
     }
 }

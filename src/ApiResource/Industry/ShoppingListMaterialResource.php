@@ -33,4 +33,8 @@ class ShoppingListMaterialResource
     public ?float $bestPrice = null;
 
     public ?float $savings = null;
+
+    public int $purchasedQuantity = 0;
+
+    public int $extraQuantity = 0;
 }

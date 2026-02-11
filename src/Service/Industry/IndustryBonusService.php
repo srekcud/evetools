@@ -133,10 +133,94 @@ class IndustryBonusService
         $category = $this->getCategoryForProduct($typeId, $isReaction);
 
         if (!$category) {
-            return ['structure' => null, 'bonus' => 0.0, 'category' => null];
+            // No rig category for this product, but base structure bonuses still apply.
+            // Find the best structure based on base bonus only.
+            return $this->findBestStructureBaseOnly($user, $isReaction);
         }
 
         return $this->findBestStructureForCategory($user, $category, $isReaction);
+    }
+
+    /**
+     * Find the best structure when no rig category matches (e.g. Deployables).
+     * Only base structure bonuses are considered.
+     *
+     * @return array{structure: IndustryStructureConfig|null, bonus: float, category: string|null}
+     */
+    private function findBestStructureBaseOnly(User $user, bool $isReaction): array
+    {
+        $structures = $this->structureRepository->findByUser($user);
+
+        if (empty($structures)) {
+            return ['structure' => null, 'bonus' => 0.0, 'category' => null];
+        }
+
+        $bestStructure = null;
+        $bestBaseTime = 0.0;
+
+        foreach ($structures as $structure) {
+            $structureType = $structure->getStructureType();
+            $structureCategory = self::STRUCTURE_CATEGORIES[$structureType] ?? $structureType;
+
+            if ($isReaction && $structureCategory !== 'refinery') {
+                continue;
+            }
+            if (!$isReaction && $structureCategory === 'refinery') {
+                continue;
+            }
+
+            $baseTime = self::STRUCTURE_TIME_BONUSES[$structureType] ?? 0.0;
+            if ($baseTime > $bestBaseTime) {
+                $bestBaseTime = $baseTime;
+                $bestStructure = $structure;
+            }
+        }
+
+        $materialBonus = 0.0;
+        if ($bestStructure !== null && !$isReaction) {
+            $materialBonus = self::STRUCTURE_MATERIAL_BONUSES[$bestStructure->getStructureType()] ?? 0.0;
+        }
+
+        return ['structure' => $bestStructure, 'bonus' => $materialBonus, 'category' => null];
+    }
+
+    /**
+     * Get the base material bonus for a structure (without rigs).
+     * Engineering Complexes: 1% ME for manufacturing. Refineries: 0%.
+     */
+    public function getBaseMaterialBonus(IndustryStructureConfig $structure, bool $isReaction): float
+    {
+        if ($isReaction) {
+            return 0.0;
+        }
+
+        $structureType = $structure->getStructureType();
+        $structureCategory = self::STRUCTURE_CATEGORIES[$structureType] ?? $structureType;
+
+        if ($structureCategory === 'engineering_complex') {
+            return self::STRUCTURE_MATERIAL_BONUSES[$structureType] ?? 0.0;
+        }
+
+        return 0.0;
+    }
+
+    /**
+     * Get the base time bonus for a structure (without rigs).
+     * This applies to ALL manufacturing/reactions in the structure, regardless of product category.
+     */
+    public function getBaseTimeBonus(IndustryStructureConfig $structure, bool $isReaction): float
+    {
+        $structureType = $structure->getStructureType();
+        $structureCategory = self::STRUCTURE_CATEGORIES[$structureType] ?? $structureType;
+
+        if (!$isReaction && $structureCategory === 'engineering_complex') {
+            return self::STRUCTURE_TIME_BONUSES[$structureType] ?? 0.0;
+        }
+        if ($isReaction && $structureCategory === 'refinery') {
+            return self::STRUCTURE_TIME_BONUSES[$structureType] ?? 0.0;
+        }
+
+        return 0.0;
     }
 
     /**

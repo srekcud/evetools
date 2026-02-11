@@ -23,4 +23,7 @@ class UpdateStructureInput
     public ?bool $isDefault = null;
 
     public ?bool $isCorporationStructure = null;
+
+    #[Assert\Positive]
+    public ?int $solarSystemId = null;
 }

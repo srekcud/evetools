@@ -12,6 +12,7 @@ use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
 use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryStructureConfigRepository;
+use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -26,6 +27,7 @@ class CreateStructureProcessor implements ProcessorInterface
         private readonly Security $security,
         private readonly IndustryStructureConfigRepository $structureConfigRepository,
         private readonly CachedStructureRepository $cachedStructureRepository,
+        private readonly IndustryResourceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }
@@ -54,6 +56,10 @@ class CreateStructureProcessor implements ProcessorInterface
         $structure->setRigs($data->rigs);
         $structure->setIsDefault($data->isDefault);
 
+        if ($data->solarSystemId !== null && $data->solarSystemId > 0) {
+            $structure->setSolarSystemId($data->solarSystemId);
+        }
+
         if ($data->locationId !== null && $data->locationId > 0) {
             $structure->setLocationId($data->locationId);
             $corporationId = $user->getCorporationId();
@@ -70,26 +76,6 @@ class CreateStructureProcessor implements ProcessorInterface
         $this->entityManager->persist($structure);
         $this->entityManager->flush();
 
-        return $this->toResource($structure);
-    }
-
-    private function toResource(IndustryStructureConfig $structure): StructureConfigResource
-    {
-        $resource = new StructureConfigResource();
-        $resource->id = $structure->getId()->toRfc4122();
-        $resource->name = $structure->getName();
-        $resource->locationId = $structure->getLocationId();
-        $resource->securityType = $structure->getSecurityType();
-        $resource->structureType = $structure->getStructureType();
-        $resource->rigs = $structure->getRigs();
-        $resource->isDefault = $structure->isDefault();
-        $resource->isCorporationStructure = $structure->isCorporationStructure();
-        $resource->manufacturingMaterialBonus = $structure->getManufacturingMaterialBonus();
-        $resource->reactionMaterialBonus = $structure->getReactionMaterialBonus();
-        $resource->manufacturingTimeBonus = $structure->getManufacturingTimeBonus();
-        $resource->reactionTimeBonus = $structure->getReactionTimeBonus();
-        $resource->createdAt = $structure->getCreatedAt()->format('c');
-
-        return $resource;
+        return $this->mapper->structureToResource($structure);
     }
 }

@@ -14,7 +14,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
-use App\Service\Industry\IndustryProjectService;
+use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -33,7 +33,7 @@ class CreateStepProcessor implements ProcessorInterface
         private readonly IndustryProjectStepRepository $stepRepository,
         private readonly InvTypeRepository $invTypeRepository,
         private readonly IndustryActivityProductRepository $activityProductRepository,
-        private readonly IndustryProjectService $projectService,
+        private readonly IndustryResourceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }
@@ -67,7 +67,7 @@ class CreateStepProcessor implements ProcessorInterface
             throw new BadRequestHttpException('typeId, splitGroupId or stepId is required');
         }
 
-        // If stepId is provided, add a child to a single step
+        // If stepId is provided, add a child to a single step (create split group)
         if ($stepId !== null) {
             $existingStep = $this->stepRepository->find(Uuid::fromString($stepId));
 
@@ -85,7 +85,6 @@ class CreateStepProcessor implements ProcessorInterface
             $step = new IndustryProjectStep();
             $step->setBlueprintTypeId($existingStep->getBlueprintTypeId());
             $step->setProductTypeId($existingStep->getProductTypeId());
-            $step->setProductTypeName($existingStep->getProductTypeName());
             $step->setQuantity($runs);
             $step->setRuns($runs);
             $step->setDepth($existingStep->getDepth());
@@ -94,17 +93,16 @@ class CreateStepProcessor implements ProcessorInterface
             $step->setSplitGroupId($newSplitGroupId);
             $step->setSplitIndex(1);
             $step->setTotalGroupRuns($totalRuns);
-            $step->setRecommendedStructureName($existingStep->getRecommendedStructureName());
-            $step->setStructureBonus($existingStep->getStructureBonus());
-            $step->setStructureTimeBonus($existingStep->getStructureTimeBonus());
-            $step->setTimePerRun($existingStep->getTimePerRun());
+            $step->setMeLevel($existingStep->getMeLevel());
+            $step->setTeLevel($existingStep->getTeLevel());
+            $step->setStructureConfig($existingStep->getStructureConfig());
 
             $project->addStep($step);
             $this->entityManager->flush();
 
             return [
-                'newStep' => $this->toResource($this->projectService->serializeStep($step)),
-                'updatedStep' => $this->toResource($this->projectService->serializeStep($existingStep)),
+                'newStep' => $this->mapper->stepToResource($step),
+                'updatedStep' => $this->mapper->stepToResource($existingStep),
             ];
         }
 
@@ -130,7 +128,6 @@ class CreateStepProcessor implements ProcessorInterface
             $step = new IndustryProjectStep();
             $step->setBlueprintTypeId($existingStep->getBlueprintTypeId());
             $step->setProductTypeId($existingStep->getProductTypeId());
-            $step->setProductTypeName($existingStep->getProductTypeName());
             $step->setQuantity($runs);
             $step->setRuns($runs);
             $step->setDepth($existingStep->getDepth());
@@ -139,15 +136,14 @@ class CreateStepProcessor implements ProcessorInterface
             $step->setSplitGroupId($splitGroupId);
             $step->setSplitIndex($maxSplitIndex + 1);
             $step->setTotalGroupRuns($existingStep->getTotalGroupRuns());
-            $step->setRecommendedStructureName($existingStep->getRecommendedStructureName());
-            $step->setStructureBonus($existingStep->getStructureBonus());
-            $step->setStructureTimeBonus($existingStep->getStructureTimeBonus());
-            $step->setTimePerRun($existingStep->getTimePerRun());
+            $step->setMeLevel($existingStep->getMeLevel());
+            $step->setTeLevel($existingStep->getTeLevel());
+            $step->setStructureConfig($existingStep->getStructureConfig());
 
             $project->addStep($step);
             $this->entityManager->flush();
 
-            return $this->toResource($this->projectService->serializeStep($step));
+            return $this->mapper->stepToResource($step);
         }
 
         // Create new step from typeId
@@ -184,42 +180,17 @@ class CreateStepProcessor implements ProcessorInterface
         $step = new IndustryProjectStep();
         $step->setBlueprintTypeId($blueprintTypeId);
         $step->setProductTypeId($typeId);
-        $step->setProductTypeName($type->getTypeName());
         $step->setQuantity($runs);
         $step->setRuns($runs);
         $step->setDepth(0);
         $step->setActivityType($activityType);
         $step->setSortOrder($maxSortOrder + 1);
-        $step->setManualJobData(true);
         $step->setMeLevel($meLevel);
         $step->setTeLevel($teLevel);
 
         $project->addStep($step);
         $this->entityManager->flush();
 
-        return $this->toResource($this->projectService->serializeStep($step));
-    }
-
-    private function toResource(array $step): ProjectStepResource
-    {
-        $resource = new ProjectStepResource();
-        $resource->id = $step['id'];
-        $resource->blueprintTypeId = $step['blueprintTypeId'];
-        $resource->productTypeId = $step['productTypeId'];
-        $resource->productTypeName = $step['productTypeName'];
-        $resource->quantity = $step['quantity'];
-        $resource->runs = $step['runs'];
-        $resource->depth = $step['depth'];
-        $resource->activityType = $step['activityType'];
-        $resource->sortOrder = $step['sortOrder'];
-        $resource->splitGroupId = $step['splitGroupId'] ?? null;
-        $resource->splitIndex = $step['splitIndex'] ?? null;
-        $resource->totalGroupRuns = $step['totalGroupRuns'] ?? null;
-        $resource->purchased = $step['purchased'] ?? false;
-        $resource->inStock = $step['inStock'] ?? false;
-        $resource->meLevel = $step['meLevel'] ?? null;
-        $resource->teLevel = $step['teLevel'] ?? null;
-
-        return $resource;
+        return $this->mapper->stepToResource($step);
     }
 }

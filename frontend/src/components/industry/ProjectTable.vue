@@ -2,14 +2,17 @@
 import { ref } from 'vue'
 import { useIndustryStore, type IndustryProject } from '@/stores/industry'
 import { useFormatters } from '@/composables/useFormatters'
+import { useEveImages } from '@/composables/useEveImages'
 import { parseIskValue } from '@/composables/useIskParser'
 
 const emit = defineEmits<{
   'view-project': [id: string]
+  'duplicate-project': [project: IndustryProject]
 }>()
 
 const store = useIndustryStore()
 const { formatIsk } = useFormatters()
+const { getTypeIconUrl, onImageError } = useEveImages()
 
 // Helper to clean type names (remove BPC suffix if present)
 function cleanTypeName(name: string): string {
@@ -82,6 +85,28 @@ async function togglePersonalUse(project: IndustryProject) {
   await store.fetchProjects()
 }
 
+function isMultiRoot(project: IndustryProject): boolean {
+  if (!project.rootProducts) return false
+  if (project.rootProducts.length > 1) return true
+  return project.rootProducts.length === 1 && (project.rootProducts[0].count ?? 1) > 1
+}
+
+function rootStepCount(project: IndustryProject): number {
+  if (!project.rootProducts) return 0
+  return project.rootProducts.reduce((s, p) => s + (p.count ?? 1), 0)
+}
+
+function formatRootProducts(project: IndustryProject): string {
+  if (!project.rootProducts) return ''
+  return project.rootProducts.map(p => {
+    const me = p.meLevel ?? project.meLevel
+    const count = p.count ?? 1
+    return count > 1
+      ? `${cleanTypeName(p.typeName)} ${count}×${p.runs / count} runs (ME${me})`
+      : `${cleanTypeName(p.typeName)} ×${p.runs} (ME${me})`
+  }).join(', ')
+}
+
 // Split editable fields to insert jobsCost (readonly) in the middle
 const costFields = ['bpoCost', 'materialCost', 'transportCost']
 const afterJobsFields = ['taxAmount', 'sellPrice']
@@ -122,24 +147,26 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
               class="text-cyan-400 hover:text-cyan-300 font-medium text-left flex items-center gap-2"
             >
               <!-- Multi-product indicator -->
-              <template v-if="project.rootProducts && project.rootProducts.length > 1">
+              <template v-if="project.rootProducts && isMultiRoot(project)">
                 <span class="inline-flex items-center justify-center w-5 h-5 text-xs bg-cyan-500/20 text-cyan-400 rounded-full">
-                  {{ project.rootProducts.length }}
+                  {{ rootStepCount(project) }}
                 </span>
                 <span>{{ project.displayName }}</span>
               </template>
               <!-- Single product -->
               <template v-else>
+                <img
+                  :src="getTypeIconUrl(project.productTypeId, 32)"
+                  class="w-6 h-6 rounded"
+                  @error="onImageError"
+                />
                 <span>{{ project.displayName }}</span>
                 <span v-if="project.name" class="text-slate-500 text-xs">({{ project.productTypeName }})</span>
               </template>
             </button>
             <!-- Product list tooltip for multi-product -->
-            <div v-if="project.rootProducts && project.rootProducts.length > 1" class="text-xs text-slate-500 mt-0.5 pl-7">
-              {{ project.rootProducts.map(p => {
-                const me = p.meLevel ?? project.meLevel
-                return `${cleanTypeName(p.typeName)} ×${p.runs} (ME${me})`
-              }).join(', ') }}
+            <div v-if="project.rootProducts && isMultiRoot(project)" class="text-xs text-slate-500 mt-0.5 pl-7">
+              {{ formatRootProducts(project) }}
             </div>
           </td>
 
@@ -222,7 +249,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
               @dblclick="startEdit(project, field)"
               :class="[
                 'font-mono text-slate-300',
-                project.status !== 'completed' ? 'cursor-pointer hover:text-cyan-400' : ''
+                project.status !== 'completed' ? 'editable' : ''
               ]"
               :title="project.status !== 'completed' ? 'Double-cliquer pour modifier' : 'Projet terminé'"
             >
@@ -260,7 +287,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
                 @dblclick="startEdit(project, field)"
                 :class="[
                   'font-mono text-slate-300',
-                  project.status !== 'completed' ? 'cursor-pointer hover:text-cyan-400' : ''
+                  project.status !== 'completed' ? 'editable' : ''
                 ]"
                 :title="project.status !== 'completed' ? 'Double-cliquer pour modifier' : 'Projet terminé'"
               >
@@ -313,6 +340,15 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </button>
+              <button
+                @click="emit('duplicate-project', project)"
+                class="p-1 hover:bg-slate-700 rounded text-slate-400 hover:text-cyan-400"
+                title="Dupliquer"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                 </svg>
               </button>
               <button

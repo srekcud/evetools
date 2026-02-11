@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace App\Service\Industry;
 
+use App\Entity\CachedCharacterSkill;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
+use App\Entity\IndustryStepJobMatch;
 use App\Entity\User;
+use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
@@ -27,12 +31,15 @@ class IndustryProjectService
         private readonly IndustryTreeService $treeService,
         private readonly IndustryBlacklistService $blacklistService,
         private readonly IndustryBonusService $bonusService,
+        private readonly IndustryCalculationService $calculationService,
         private readonly IndustryProjectRepository $projectRepository,
         private readonly CachedIndustryJobRepository $jobRepository,
+        private readonly CachedCharacterSkillRepository $skillRepository,
         private readonly InvTypeRepository $invTypeRepository,
         private readonly IndustryActivityMaterialRepository $materialRepository,
         private readonly IndustryActivityProductRepository $productRepository,
         private readonly IndustryActivityRepository $activityRepository,
+        private readonly IndustryStructureConfigRepository $structureConfigRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly MercurePublisherService $mercurePublisher,
     ) {
@@ -51,82 +58,19 @@ class IndustryProjectService
         $project = new IndustryProject();
         $project->setUser($user);
         $project->setProductTypeId($productTypeId);
-        $project->setProductTypeName($type->getTypeName());
         $project->setName($name !== '' ? $name : null);
         $project->setRuns($runs);
         $project->setMeLevel($meLevel);
         $project->setTeLevel($teLevel);
         $project->setMaxJobDurationDays($maxJobDurationDays);
 
-        // Collect all steps from tree, then sort and assign order
         $rawSteps = [];
         $this->collectStepsFromTree($rawSteps, $tree);
-
-        // Recalculate reaction quantities based on consolidated consumer needs
-        // This fixes the issue where individual paths calculate material quantities
-        // before consolidation, leading to incorrect totals
         $this->recalculateReactionQuantities($rawSteps, $user);
-
-        // Add time data to steps (with TE and structure time bonuses)
         $this->addTimeDataToSteps($rawSteps, $user, $project->getTeLevel());
-
-        // Split steps that exceed max job duration
         $rawSteps = $this->splitLongJobs($rawSteps, $project->getMaxJobDurationDays());
 
-        // Sort: deepest first, then by activity type (reactions before manufacturing), then by name
-        $activityOrder = ['reaction' => 0, 'copy' => 1, 'manufacturing' => 2];
-        usort($rawSteps, function (array $a, array $b) use ($activityOrder) {
-            // Deepest first
-            if ($a['depth'] !== $b['depth']) {
-                return $b['depth'] <=> $a['depth'];
-            }
-            // Group by activity type
-            $aOrder = $activityOrder[$a['activityType']] ?? 99;
-            $bOrder = $activityOrder[$b['activityType']] ?? 99;
-            if ($aOrder !== $bOrder) {
-                return $aOrder <=> $bOrder;
-            }
-            // Within same activity type, group by splitGroupId (keep splits together)
-            $aGroup = $a['splitGroupId'] ?? '';
-            $bGroup = $b['splitGroupId'] ?? '';
-            if ($aGroup !== $bGroup) {
-                return strcmp($aGroup, $bGroup);
-            }
-            // Within same split group, order by splitIndex
-            if (($a['splitIndex'] ?? 0) !== ($b['splitIndex'] ?? 0)) {
-                return ($a['splitIndex'] ?? 0) <=> ($b['splitIndex'] ?? 0);
-            }
-            // Alphabetical within group
-            return strcasecmp($a['productTypeName'], $b['productTypeName']);
-        });
-
-        // Create step entities with sort order
-        foreach ($rawSteps as $index => $data) {
-            $step = new IndustryProjectStep();
-            $step->setBlueprintTypeId($data['blueprintTypeId']);
-            $step->setProductTypeId($data['productTypeId']);
-            $step->setProductTypeName($data['productTypeName']);
-            $step->setQuantity($data['quantity']);
-            $step->setRuns($data['runs']);
-            $step->setDepth($data['depth']);
-            $step->setActivityType($data['activityType']);
-            $step->setSortOrder($index);
-            $step->setRecommendedStructureName($data['structureName'] ?? null);
-            $step->setStructureBonus($data['structureBonus'] ?? null);
-            $step->setStructureTimeBonus($data['structureTimeBonus'] ?? null);
-            $step->setTimePerRun($data['timePerRun'] ?? null);
-            $step->setSplitGroupId($data['splitGroupId'] ?? null);
-            $step->setSplitIndex($data['splitIndex'] ?? 0);
-            $step->setTotalGroupRuns($data['totalGroupRuns'] ?? null);
-
-            // Set ME/TE for root products (depth 0) so they can be displayed and used
-            if ($data['depth'] === 0) {
-                $step->setMeLevel($project->getMeLevel());
-                $step->setTeLevel($project->getTeLevel());
-            }
-
-            $project->addStep($step);
-        }
+        $this->sortAndCreateSteps($project, $rawSteps);
 
         $this->entityManager->persist($project);
         $this->entityManager->flush();
@@ -139,19 +83,13 @@ class IndustryProjectService
         $user = $project->getUser();
         $userId = $user->getId()?->toRfc4122();
 
-        // Notify regeneration started
         if ($userId !== null) {
-            $this->mercurePublisher->syncStarted($userId, 'industry-project', sprintf('Régénération de %s...', $project->getDisplayName()));
+            $this->mercurePublisher->syncStarted($userId, 'industry-project', 'Régénération...');
         }
 
-        // Remove existing steps
         foreach ($project->getSteps()->toArray() as $step) {
             $project->getSteps()->removeElement($step);
             $this->entityManager->remove($step);
-        }
-
-        if ($userId !== null) {
-            $this->mercurePublisher->syncProgress($userId, 'industry-project', 20, 'Construction de l\'arbre de production...');
         }
 
         $excludedTypeIds = $this->blacklistService->resolveBlacklistedTypeIds($user);
@@ -165,28 +103,27 @@ class IndustryProjectService
 
         $rawSteps = [];
         $this->collectStepsFromTree($rawSteps, $tree);
-
-        if ($userId !== null) {
-            $this->mercurePublisher->syncProgress($userId, 'industry-project', 40, 'Calcul des quantités de réactions...');
-        }
-
-        // Recalculate reaction quantities based on consolidated consumer needs
         $this->recalculateReactionQuantities($rawSteps, $user);
-
-        if ($userId !== null) {
-            $this->mercurePublisher->syncProgress($userId, 'industry-project', 60, 'Application des bonus de structures...');
-        }
-
-        // Add time data to steps (with TE and structure time bonuses)
         $this->addTimeDataToSteps($rawSteps, $user, $project->getTeLevel());
-
-        // Split steps that exceed max job duration
         $rawSteps = $this->splitLongJobs($rawSteps, $project->getMaxJobDurationDays());
 
-        if ($userId !== null) {
-            $this->mercurePublisher->syncProgress($userId, 'industry-project', 80, sprintf('Création de %d étapes...', count($rawSteps)));
-        }
+        $this->sortAndCreateSteps($project, $rawSteps);
 
+        $this->entityManager->flush();
+
+        if ($userId !== null) {
+            $this->mercurePublisher->syncCompleted($userId, 'industry-project', 'Étapes régénérées', [
+                'projectId' => $project->getId()->toRfc4122(),
+                'stepsCount' => count($rawSteps),
+            ]);
+        }
+    }
+
+    /**
+     * Sort raw steps and create entities on the project.
+     */
+    private function sortAndCreateSteps(IndustryProject $project, array &$rawSteps): void
+    {
         $activityOrder = ['reaction' => 0, 'copy' => 1, 'manufacturing' => 2];
         usort($rawSteps, function (array $a, array $b) use ($activityOrder) {
             if ($a['depth'] !== $b['depth']) {
@@ -197,13 +134,11 @@ class IndustryProjectService
             if ($aOrder !== $bOrder) {
                 return $aOrder <=> $bOrder;
             }
-            // Within same activity type, group by splitGroupId (keep splits together)
             $aGroup = $a['splitGroupId'] ?? '';
             $bGroup = $b['splitGroupId'] ?? '';
             if ($aGroup !== $bGroup) {
                 return strcmp($aGroup, $bGroup);
             }
-            // Within same split group, order by splitIndex
             if (($a['splitIndex'] ?? 0) !== ($b['splitIndex'] ?? 0)) {
                 return ($a['splitIndex'] ?? 0) <=> ($b['splitIndex'] ?? 0);
             }
@@ -214,55 +149,33 @@ class IndustryProjectService
             $step = new IndustryProjectStep();
             $step->setBlueprintTypeId($data['blueprintTypeId']);
             $step->setProductTypeId($data['productTypeId']);
-            $step->setProductTypeName($data['productTypeName']);
             $step->setQuantity($data['quantity']);
             $step->setRuns($data['runs']);
             $step->setDepth($data['depth']);
             $step->setActivityType($data['activityType']);
             $step->setSortOrder($index);
-            $step->setRecommendedStructureName($data['structureName'] ?? null);
-            $step->setStructureBonus($data['structureBonus'] ?? null);
-            $step->setStructureTimeBonus($data['structureTimeBonus'] ?? null);
-            $step->setTimePerRun($data['timePerRun'] ?? null);
             $step->setSplitGroupId($data['splitGroupId'] ?? null);
             $step->setSplitIndex($data['splitIndex'] ?? 0);
             $step->setTotalGroupRuns($data['totalGroupRuns'] ?? null);
 
-            // Set ME/TE for root products (depth 0)
-            if ($data['depth'] === 0) {
-                $step->setMeLevel($project->getMeLevel());
-                $step->setTeLevel($project->getTeLevel());
-            }
+            $step->setMeLevel($project->getMeLevel());
+            $step->setTeLevel($project->getTeLevel());
 
             $project->addStep($step);
-        }
-
-        $this->entityManager->flush();
-
-        // Notify regeneration completed
-        if ($userId !== null) {
-            $this->mercurePublisher->syncCompleted($userId, 'industry-project', sprintf('%d étapes générées', count($rawSteps)), [
-                'projectId' => $project->getId()->toRfc4122(),
-                'productTypeName' => $project->getProductTypeName(),
-                'stepsCount' => count($rawSteps),
-            ]);
         }
     }
 
     /**
-     * Flatten the tree into an array of step data, including BPC (copy) steps.
-     * Steps are consolidated by (blueprintTypeId, activityType) to avoid duplicates.
-     * Quantities are summed, then runs are recalculated optimally based on total quantity.
+     * Flatten the tree into an array of step data.
+     * Steps are consolidated by (blueprintTypeId, activityType).
      */
     private function collectStepsFromTree(array &$steps, array $node): void
     {
-        // Add a BPC (copy) step if this blueprint supports copying
         if (!empty($node['hasCopy'])) {
             $copyKey = $node['blueprintTypeId'] . '_copy';
             if (isset($steps[$copyKey])) {
-                // Consolidate: sum quantities, recalculate runs
                 $steps[$copyKey]['quantity'] += $node['runs'];
-                $steps[$copyKey]['runs'] = $steps[$copyKey]['quantity']; // For copies, runs = quantity
+                $steps[$copyKey]['runs'] = $steps[$copyKey]['quantity'];
             } else {
                 $steps[$copyKey] = [
                     'blueprintTypeId' => $node['blueprintTypeId'],
@@ -277,13 +190,11 @@ class IndustryProjectService
             }
         }
 
-        // Add the production step itself (manufacturing or reaction)
         $activityType = $node['activityType'];
         $key = $node['blueprintTypeId'] . '_' . $activityType;
         $outputPerRun = $node['outputPerRun'] ?? 1;
 
         if (isset($steps[$key])) {
-            // Consolidate: sum quantities, then recalculate runs optimally
             $steps[$key]['quantity'] += $node['quantity'];
             $steps[$key]['runs'] = (int) ceil($steps[$key]['quantity'] / $steps[$key]['outputPerRun']);
         } else {
@@ -296,12 +207,9 @@ class IndustryProjectService
                 'outputPerRun' => $outputPerRun,
                 'depth' => $node['depth'],
                 'activityType' => $activityType,
-                'structureName' => $node['structureName'] ?? null,
-                'structureBonus' => $node['structureBonus'] ?? null,
             ];
         }
 
-        // Recurse into buildable materials
         foreach ($node['materials'] as $material) {
             if (($material['isBuildable'] ?? false) && isset($material['blueprint'])) {
                 $this->collectStepsFromTree($steps, $material['blueprint']);
@@ -311,18 +219,9 @@ class IndustryProjectService
 
     /**
      * Recalculate reaction step quantities based on consolidated consumer needs.
-     *
-     * The tree builds material quantities before consolidation, which leads to
-     * incorrect totals when multiple paths consume the same reaction product.
-     * This method recalculates reaction quantities by:
-     * 1. Finding all manufacturing steps that consume each reaction product
-     * 2. Calculating how much they actually need based on their consolidated runs
-     * 3. Setting the reaction quantity and runs from this total
-     * 4. Repeating for deeper reactions (e.g., CF needed by RCF)
      */
     private function recalculateReactionQuantities(array &$steps, User $user): void
     {
-        // Group steps by activity type - store references to original array elements
         $reactionSteps = [];
 
         foreach ($steps as $key => &$step) {
@@ -332,27 +231,20 @@ class IndustryProjectService
         }
         unset($step);
 
-        // Sort reactions by depth (ascending = process shallower reactions first)
-        // This ensures parent reactions are recalculated before their child inputs
-        uasort($reactionSteps, fn($a, $b) => $a['depth'] <=> $b['depth']);
+        uasort($reactionSteps, fn ($a, $b) => $a['depth'] <=> $b['depth']);
 
-        // For each reaction, recalculate based on what consumers need
         foreach ($reactionSteps as $reactionKey => &$reaction) {
             $productTypeId = $reaction['productTypeId'];
             $totalNeeded = 0;
 
-            // Find all steps (manufacturing AND reactions) that consume this product
             foreach ($steps as $consumerKey => &$consumer) {
                 if ($consumerKey === $reactionKey) {
                     continue;
                 }
-
-                // Skip copy steps
                 if ($consumer['activityType'] === 'copy') {
                     continue;
                 }
 
-                // Get material requirements for this consumer's blueprint
                 $activityId = match ($consumer['activityType']) {
                     'reaction' => self::ACTIVITY_REACTION,
                     default => self::ACTIVITY_MANUFACTURING,
@@ -368,25 +260,19 @@ class IndustryProjectService
                         $baseQty = $material->getQuantity();
                         $runs = $consumer['runs'];
 
-                        // Apply ME for manufacturing (intermediate = ME 10)
                         $meMultiplier = 1.0;
                         if ($activityId === self::ACTIVITY_MANUFACTURING) {
-                            $meMultiplier = 1 - 10 / 100; // ME 10 for intermediates
+                            $meMultiplier = 1 - 10 / 100;
                         }
 
-                        // Apply structure bonus from the CONSUMER's structure, not the material's category
-                        // The structure bonus reduces input materials for the job running in that structure
-                        // E.g., RCF reaction in Tatara with composite_reaction rigs → reduces Carbon Fiber input
                         $structureBonus = 0;
                         if ($activityId === self::ACTIVITY_REACTION) {
-                            // For reactions: use the consumer reaction's category (formula group)
                             $consumerCategory = $this->bonusService->getCategoryForProduct($consumer['productTypeId'], true);
                             if ($consumerCategory !== null) {
                                 $bonusData = $this->bonusService->findBestStructureForCategory($user, $consumerCategory, true);
                                 $structureBonus = $bonusData['bonus'];
                             }
                         } else {
-                            // For manufacturing: use the consumer product's category
                             $consumerCategory = $this->bonusService->getCategoryForProduct($consumer['productTypeId'], false);
                             if ($consumerCategory !== null) {
                                 $bonusData = $this->bonusService->findBestStructureForCategory($user, $consumerCategory, false);
@@ -395,7 +281,6 @@ class IndustryProjectService
                         }
                         $structureMultiplier = $structureBonus > 0 ? (1 - $structureBonus / 100) : 1.0;
 
-                        // Calculate adjusted quantity
                         $adjustedQty = max(
                             $runs,
                             (int) ceil(round($baseQty * $runs * $meMultiplier * $structureMultiplier, 2))
@@ -408,7 +293,6 @@ class IndustryProjectService
             }
             unset($consumer);
 
-            // Update reaction quantity and runs directly in $steps via reference
             if ($totalNeeded > 0) {
                 $outputPerRun = $reaction['outputPerRun'] ?? 200;
                 $steps[$reactionKey]['quantity'] = $totalNeeded;
@@ -418,6 +302,13 @@ class IndustryProjectService
         unset($reaction);
     }
 
+    /**
+     * Match ESI jobs to project steps using IndustryStepJobMatch entities.
+     *
+     * Uses a greedy approach: for each step, finds all jobs for that blueprint
+     * and assigns them until the step's runs are covered. Jobs already assigned
+     * to another step are skipped to avoid double-matching.
+     */
     public function matchEsiJobs(IndustryProject $project): void
     {
         $user = $project->getUser();
@@ -430,156 +321,337 @@ class IndustryProjectService
             return;
         }
 
-        // Only match jobs started after project start date (with 1 day buffer for prep)
-        $projectStartDate = $project->getEffectiveJobsStartDate()->modify('-1 day');
+        $projectStartDate = $project->getEffectiveJobsStartDate();
+
+        // Clear all previous matches first
+        foreach ($project->getSteps() as $step) {
+            foreach ($step->getJobMatches()->toArray() as $match) {
+                $step->getJobMatches()->removeElement($match);
+                $this->entityManager->remove($match);
+            }
+        }
+        $this->entityManager->flush();
+
+        // Collect ESI job IDs already matched to OTHER projects (avoid double-matching)
+        $assignedJobIds = [];
+        $otherMatches = $this->entityManager->createQuery(
+            'SELECT m.esiJobId FROM App\Entity\IndustryStepJobMatch m
+             JOIN m.step s
+             WHERE s.project != :project'
+        )->setParameter('project', $project)->getScalarResult();
+
+        foreach ($otherMatches as $row) {
+            $assignedJobIds[$row['esiJobId']] = true;
+        }
+
+        $stepsToRecalculate = false;
 
         foreach ($project->getSteps() as $step) {
             if ($step->isPurchased()) {
                 continue;
             }
-            // Skip copy steps for ESI matching (copies don't appear as industry jobs the same way)
             if ($step->getActivityType() === 'copy') {
                 continue;
             }
-            // Skip steps with manual job data (user override)
-            if ($step->isManualJobData()) {
+            if ($step->getJobMatchMode() === 'none') {
                 continue;
             }
 
-            // Clear previous matching data
-            $step->setEsiJobId(null);
-            $step->setEsiJobCost(null);
-            $step->setEsiJobStatus(null);
-            $step->setEsiJobEndDate(null);
-            $step->setEsiJobRuns(null);
-            $step->setEsiJobCharacterName(null);
-            $step->setEsiJobIds([]);
-            $step->setEsiJobsCount(null);
-            $step->setEsiJobsTotalRuns(null);
-            $step->setEsiJobsActiveRuns(null);
-            $step->setEsiJobsDeliveredRuns(null);
-            $step->setSimilarJobs([]);
-
+            // Find all jobs for this blueprint (no run count filter)
             $jobs = $this->jobRepository->findManufacturingJobsByBlueprint(
                 $step->getBlueprintTypeId(),
                 $characterIds,
-                $step->getRuns(),
+                null,
                 $projectStartDate,
             );
 
             if (empty($jobs)) {
-                // Even if no exact matches, look for similar jobs with different runs
-                $similarJobs = $this->jobRepository->findSimilarJobsWithDifferentRuns(
-                    $step->getBlueprintTypeId(),
-                    $characterIds,
-                    $step->getRuns(),
-                    $projectStartDate,
-                );
-
-                if (!empty($similarJobs)) {
-                    $similarJobsData = [];
-                    foreach ($similarJobs as $similarJob) {
-                        $similarJobsData[] = [
-                            'characterName' => $similarJob->getCharacter()->getName(),
-                            'runs' => $similarJob->getRuns(),
-                            'jobId' => $similarJob->getJobId(),
-                            'status' => $similarJob->getStatus(),
-                        ];
-                    }
-                    $step->setSimilarJobs($similarJobsData);
-                }
                 continue;
             }
 
-            // Aggregate all matching jobs
-            $jobIds = [];
-            $totalCost = 0.0;
-            $totalRuns = 0;
-            $activeRuns = 0;
-            $deliveredRuns = 0;
-            $characters = [];
-            $latestEndDate = null;
-            $hasActive = false;
+            $remainingRuns = $step->getRuns();
 
             foreach ($jobs as $job) {
-                $jobIds[] = $job->getJobId();
-                $totalCost += $job->getCost() ?? 0;
-                $totalRuns += $job->getRuns();
-                $characters[$job->getCharacter()->getName()] = true;
+                if ($remainingRuns <= 0) {
+                    break;
+                }
 
-                if ($job->getStatus() === 'active') {
-                    $activeRuns += $job->getRuns();
-                    $hasActive = true;
-                    // Track latest end date for active jobs
-                    if ($latestEndDate === null || $job->getEndDate() > $latestEndDate) {
-                        $latestEndDate = $job->getEndDate();
+                $jobId = $job->getJobId();
+                if (isset($assignedJobIds[$jobId])) {
+                    continue;
+                }
+
+                // Only match jobs whose runs fit within what this step needs
+                if ($job->getRuns() > $remainingRuns) {
+                    continue;
+                }
+
+                $assignedJobIds[$jobId] = true;
+                $remainingRuns -= $job->getRuns();
+
+                $match = $this->createJobMatch($job, $step, $project, $assignedJobIds, $stepsToRecalculate);
+                $step->addJobMatch($match);
+            }
+
+            // Fallback: try matching one oversized job if no exact matches covered all runs
+            if ($remainingRuns > 0) {
+                foreach ($jobs as $job) {
+                    $jobId = $job->getJobId();
+                    if (isset($assignedJobIds[$jobId])) {
+                        continue;
                     }
-                } else {
-                    $deliveredRuns += $job->getRuns();
+                    if ($job->getRuns() <= $remainingRuns) {
+                        continue; // Would have been handled above
+                    }
+
+                    $assignedJobIds[$jobId] = true;
+
+                    $match = $this->createJobMatch($job, $step, $project, $assignedJobIds, $stepsToRecalculate);
+                    $step->addJobMatch($match);
+                    break; // Only one fallback job
                 }
             }
 
-            // Set primary job info (first job for backward compatibility)
-            $firstJob = $jobs[0];
-            $step->setEsiJobId($firstJob->getJobId());
-            $step->setEsiJobCost($totalCost);
-            $step->setEsiJobRuns($firstJob->getRuns());
-            $step->setEsiJobCharacterName(implode(', ', array_keys($characters)));
-            $step->setEsiJobEndDate($latestEndDate ?? $firstJob->getEndDate());
-
-            // Determine overall status
-            if ($hasActive) {
-                $step->setEsiJobStatus('active');
-            } else {
-                $step->setEsiJobStatus('delivered');
+            // Adapt step runs if total matched runs differ from expected
+            $totalMatchedRuns = 0;
+            foreach ($step->getJobMatches() as $m) {
+                $totalMatchedRuns += $m->getRuns();
             }
-
-            // Set aggregated data
-            $step->setEsiJobIds($jobIds);
-            $step->setEsiJobsCount(count($jobs));
-            $step->setEsiJobsTotalRuns($totalRuns);
-            $step->setEsiJobsActiveRuns($activeRuns);
-            $step->setEsiJobsDeliveredRuns($deliveredRuns);
-
-            // Find similar jobs with different run count (for warning)
-            $similarJobs = $this->jobRepository->findSimilarJobsWithDifferentRuns(
-                $step->getBlueprintTypeId(),
-                $characterIds,
-                $step->getRuns(),
-                $projectStartDate,
-            );
-
-            if (!empty($similarJobs)) {
-                $similarJobsData = [];
-                foreach ($similarJobs as $similarJob) {
-                    $similarJobsData[] = [
-                        'characterName' => $similarJob->getCharacter()->getName(),
-                        'runs' => $similarJob->getRuns(),
-                        'jobId' => $similarJob->getJobId(),
-                        'status' => $similarJob->getStatus(),
-                    ];
-                }
-                $step->setSimilarJobs($similarJobsData);
+            if ($totalMatchedRuns > 0 && $totalMatchedRuns !== $step->getRuns()) {
+                $this->adaptStepRuns($step, $totalMatchedRuns);
+                $stepsToRecalculate = true;
             }
         }
 
         $this->entityManager->flush();
+
+        if ($stepsToRecalculate) {
+            $this->recalculateStepQuantities($project);
+        }
     }
 
     /**
-     * Get a shopping list of raw materials (non-buildable) from the production tree.
+     * Adapt a step's runs and quantity to match the total runs from linked jobs.
+     */
+    private function adaptStepRuns(IndustryProjectStep $step, int $newRuns): void
+    {
+        $activityId = $step->getActivityType() === 'reaction'
+            ? self::ACTIVITY_REACTION
+            : self::ACTIVITY_MANUFACTURING;
+
+        $product = $this->productRepository->findOneBy([
+            'typeId' => $step->getBlueprintTypeId(),
+            'activityId' => $activityId,
+        ]);
+        $outputPerRun = $product?->getQuantity() ?? 1;
+
+        $step->setRuns($newRuns);
+        $step->setQuantity($newRuns * $outputPerRun);
+    }
+
+    /**
+     * Create a job match entity from a cached ESI job, with facility auto-correction.
+     */
+    private function createJobMatch(
+        \App\Entity\CachedIndustryJob $job,
+        IndustryProjectStep $step,
+        IndustryProject $project,
+        array &$assignedJobIds,
+        bool &$stepsToRecalculate,
+    ): IndustryStepJobMatch {
+        $match = new IndustryStepJobMatch();
+        $match->setEsiJobId($job->getJobId());
+        $match->setCost($job->getCost());
+        $match->setStatus($job->getStatus());
+        $match->setEndDate($job->getEndDate());
+        $match->setRuns($job->getRuns());
+        $match->setCharacterName($job->getCharacter()->getName());
+
+        // Capture facility info from ESI job
+        $stationId = $job->getStationId();
+        if ($stationId !== null) {
+            $match->setFacilityId($stationId);
+            $match->setFacilityName($this->calculationService->resolveFacilityName($stationId));
+
+            // Try to auto-correct step's structure config
+            $currentConfig = $step->getStructureConfig();
+            $currentLocationId = $currentConfig?->getLocationId();
+
+            if ($currentLocationId !== $stationId) {
+                $facilityConfig = $this->structureConfigRepository
+                    ->findByUserAndLocationId($project->getUser(), $stationId);
+
+                if ($facilityConfig !== null && $facilityConfig->getId() !== $currentConfig?->getId()) {
+                    // Record what was planned before correction
+                    $match->setPlannedStructureName($currentConfig?->getName() ?? 'Aucune structure');
+                    $currentBonus = $this->calculationService->getStructureBonusForStep($step);
+                    $match->setPlannedMaterialBonus($currentBonus['materialBonus']);
+
+                    // Auto-correct
+                    $step->setStructureConfig($facilityConfig);
+                    $stepsToRecalculate = true;
+                }
+            }
+        }
+
+        return $match;
+    }
+
+    /**
+     * Recalculate step quantities based on current ME/structure values.
+     *
+     * Iterates depth by depth (0 → max): for each step, looks up SDE materials
+     * and accumulates how much each child step needs to produce. Then updates
+     * child step quantity/runs. Handles split groups by redistributing proportionally.
+     *
+     * @return IndustryProjectStep[] Steps whose quantity/runs changed
+     */
+    public function recalculateStepQuantities(IndustryProject $project): array
+    {
+        $steps = $project->getSteps()->toArray();
+        if (empty($steps)) {
+            return [];
+        }
+
+        // Build lookup: productTypeId → steps (handles split groups)
+        $stepsByProduct = [];
+        foreach ($steps as $step) {
+            if ($step->getActivityType() === 'copy') {
+                continue;
+            }
+            $stepsByProduct[$step->getProductTypeId()][] = $step;
+        }
+
+        // Find max depth
+        $maxDepth = 0;
+        foreach ($steps as $step) {
+            $maxDepth = max($maxDepth, $step->getDepth());
+        }
+
+        $updatedSteps = [];
+
+        // Process depth by depth: accumulate material needs, update child steps
+        for ($depth = 0; $depth < $maxDepth; $depth++) {
+            // Collect material needs from all steps at this depth
+            $neededByTypeId = [];
+
+            foreach ($steps as $step) {
+                if ($step->getDepth() !== $depth || $step->getActivityType() === 'copy') {
+                    continue;
+                }
+
+                $activityId = $step->getActivityType() === 'reaction'
+                    ? self::ACTIVITY_REACTION
+                    : self::ACTIVITY_MANUFACTURING;
+
+                $materials = $this->materialRepository->findBy([
+                    'typeId' => $step->getBlueprintTypeId(),
+                    'activityId' => $activityId,
+                ]);
+
+                $structureData = $this->calculationService->getStructureBonusForStep($step);
+                $structureBonus = $structureData['materialBonus'];
+
+                foreach ($materials as $material) {
+                    $materialTypeId = $material->getMaterialTypeId();
+
+                    // Only process materials that have corresponding steps
+                    if (!isset($stepsByProduct[$materialTypeId])) {
+                        continue;
+                    }
+
+                    $needed = $this->calculationService->calculateMaterialQuantity(
+                        $material->getQuantity(),
+                        $step->getRuns(),
+                        $step->getMeLevel(),
+                        $structureBonus,
+                    );
+
+                    $neededByTypeId[$materialTypeId] = ($neededByTypeId[$materialTypeId] ?? 0) + $needed;
+                }
+            }
+
+            // Update child steps at depth+1
+            foreach ($neededByTypeId as $typeId => $newTotalQuantity) {
+                $childSteps = $stepsByProduct[$typeId] ?? [];
+                if (empty($childSteps)) {
+                    continue;
+                }
+
+                // Get output per run from SDE
+                $firstChild = $childSteps[0];
+                $childActivityId = $firstChild->getActivityType() === 'reaction'
+                    ? self::ACTIVITY_REACTION
+                    : self::ACTIVITY_MANUFACTURING;
+                $product = $this->productRepository->findOneBy([
+                    'typeId' => $firstChild->getBlueprintTypeId(),
+                    'activityId' => $childActivityId,
+                ]);
+                $outputPerRun = $product?->getQuantity() ?? 1;
+
+                $newTotalRuns = (int) ceil($newTotalQuantity / $outputPerRun);
+
+                // Single step (no split)
+                if (count($childSteps) === 1) {
+                    $child = $childSteps[0];
+                    if ($child->getQuantity() !== $newTotalQuantity || $child->getRuns() !== $newTotalRuns) {
+                        $child->setQuantity($newTotalQuantity);
+                        $child->setRuns($newTotalRuns);
+                        $updatedSteps[] = $child;
+                    }
+                    continue;
+                }
+
+                // Split group: redistribute runs proportionally
+                $oldTotalRuns = 0;
+                foreach ($childSteps as $child) {
+                    $oldTotalRuns += $child->getRuns();
+                }
+
+                if ($oldTotalRuns === 0) {
+                    $oldTotalRuns = 1;
+                }
+
+                $assignedRuns = 0;
+                foreach ($childSteps as $i => $child) {
+                    $isLast = ($i === count($childSteps) - 1);
+
+                    if ($isLast) {
+                        $childRuns = $newTotalRuns - $assignedRuns;
+                    } else {
+                        $childRuns = (int) round($newTotalRuns * $child->getRuns() / $oldTotalRuns);
+                    }
+                    $childRuns = max(1, $childRuns);
+                    $childQuantity = $childRuns * $outputPerRun;
+                    $assignedRuns += $childRuns;
+
+                    if ($child->getQuantity() !== $childQuantity || $child->getRuns() !== $childRuns) {
+                        $child->setQuantity($childQuantity);
+                        $child->setRuns($childRuns);
+                        $child->setTotalGroupRuns($newTotalRuns);
+                        $updatedSteps[] = $child;
+                    }
+                }
+            }
+        }
+
+        if (!empty($updatedSteps)) {
+            $this->entityManager->flush();
+        }
+
+        return $updatedSteps;
+    }
+
+    /**
+     * Get a shopping list of raw materials from the production tree.
+     * Includes extraQuantity per material when steps use suboptimal structures.
      */
     public function getShoppingList(IndustryProject $project): array
     {
         $user = $project->getUser();
         $excludedTypeIds = $this->blacklistService->resolveBlacklistedTypeIds($user);
 
-        // Collect purchased and in-stock manufacturing/reaction step product type IDs
-        // BPC (copy) steps being purchased just means the copy was bought, not the product itself
-        // - purchased: add to shopping list (need to buy it)
-        // - inStock: subtract from needed quantity (partial or full)
         $purchasedTypeIds = [];
-        // Map of typeId => total inStockQuantity (accumulated from all steps for that product)
         $inStockQuantities = [];
         foreach ($project->getSteps() as $step) {
             if ($step->getActivityType() === 'copy') {
@@ -593,8 +665,6 @@ class IndustryProjectService
             }
         }
 
-        // Build trees for all root products (depth 0) to support multi-product projects
-        // Each root product can have its own ME level
         $rootProducts = [];
         foreach ($project->getSteps() as $step) {
             if ($step->getDepth() === 0 && $step->getActivityType() !== 'copy') {
@@ -603,14 +673,15 @@ class IndustryProjectService
                     $rootProducts[$key] = [
                         'typeId' => $step->getProductTypeId(),
                         'runs' => $step->getRuns(),
-                        // Use step's ME if set, otherwise fall back to project ME
-                        'meLevel' => $step->getMeLevel() ?? $project->getMeLevel(),
+                        'meLevel' => $step->getMeLevel(),
                     ];
+                } else {
+                    // Accumulate runs across multiple steps of the same product
+                    $rootProducts[$key]['runs'] += $step->getRuns();
                 }
             }
         }
 
-        // If no root products found, fall back to project's main product
         if (empty($rootProducts)) {
             $rootProducts[$project->getProductTypeId()] = [
                 'typeId' => $project->getProductTypeId(),
@@ -619,9 +690,32 @@ class IndustryProjectService
             ];
         }
 
-        $rawMaterials = [];
+        // Build structure bonus overrides from actual step configs
+        $structureBonusOverrides = [];
+        $hasSuboptimal = false;
+        foreach ($project->getSteps() as $step) {
+            if ($step->getActivityType() === 'copy') {
+                continue;
+            }
+            $productTypeId = $step->getProductTypeId();
+            if (isset($structureBonusOverrides[$productTypeId])) {
+                continue; // Already computed for this product
+            }
+            $structureData = $this->calculationService->getStructureBonusForStep($step);
+            $actualBonus = $structureData['materialBonus'];
+            $structureBonusOverrides[$productTypeId] = $actualBonus;
 
-        // Build tree and collect materials for each root product (using per-product ME)
+            // Check if this differs from the best available
+            $isReaction = $step->getActivityType() === 'reaction';
+            $bestData = $this->bonusService->findBestStructureForProduct($user, $productTypeId, $isReaction);
+            if (abs($actualBonus - $bestData['bonus']) > 0.001) {
+                $hasSuboptimal = true;
+            }
+        }
+
+        $rawMaterials = [];
+        $optimalStockQty = $inStockQuantities;
+
         foreach ($rootProducts as $product) {
             try {
                 $tree = $this->treeService->buildProductionTree(
@@ -631,56 +725,92 @@ class IndustryProjectService
                     $excludedTypeIds,
                     $user,
                 );
-                $this->collectRawMaterials($rawMaterials, $tree, $purchasedTypeIds, $inStockQuantities);
+                $this->collectRawMaterials($rawMaterials, $tree, $purchasedTypeIds, $optimalStockQty);
             } catch (\RuntimeException) {
-                // Skip products that can't be built
                 continue;
             }
         }
 
-        // Sort by name
+        // If any step uses a suboptimal structure, compute actual quantities and delta
+        if ($hasSuboptimal) {
+            $actualRawMaterials = [];
+            $actualStockQty = $inStockQuantities;
+
+            foreach ($rootProducts as $product) {
+                try {
+                    $actualTree = $this->treeService->buildProductionTree(
+                        $product['typeId'],
+                        $product['runs'],
+                        $product['meLevel'],
+                        $excludedTypeIds,
+                        $user,
+                        $structureBonusOverrides,
+                    );
+                    $this->collectRawMaterials($actualRawMaterials, $actualTree, $purchasedTypeIds, $actualStockQty);
+                } catch (\RuntimeException) {
+                    continue;
+                }
+            }
+
+            // Build lookup: typeId => actual quantity
+            $actualByType = [];
+            foreach ($actualRawMaterials as $mat) {
+                $actualByType[$mat['typeId']] = ($actualByType[$mat['typeId']] ?? 0) + $mat['quantity'];
+            }
+
+            // Compute extraQuantity as delta
+            foreach ($rawMaterials as &$mat) {
+                $actualQty = $actualByType[$mat['typeId']] ?? $mat['quantity'];
+                $mat['extraQuantity'] = max(0, $actualQty - $mat['quantity']);
+            }
+            unset($mat);
+        }
+
         usort($rawMaterials, fn (array $a, array $b) => strcasecmp($a['typeName'], $b['typeName']));
 
         return $rawMaterials;
     }
 
     /**
-     * Collect raw materials, respecting in-stock quantities.
-     *
-     * @param array<int, int> &$inStockQuantities Map of typeId => remaining available stock (mutated as stock is "consumed")
+     * @return array<int, int> typeId => quantity
      */
+    public function getPurchasedQuantities(IndustryProject $project): array
+    {
+        $quantities = [];
+        foreach ($project->getSteps() as $step) {
+            foreach ($step->getPurchases() as $purchase) {
+                $typeId = $purchase->getTypeId();
+                $quantities[$typeId] = ($quantities[$typeId] ?? 0) + $purchase->getQuantity();
+            }
+        }
+
+        return $quantities;
+    }
+
     private function collectRawMaterials(array &$materials, array $node, array $purchasedTypeIds, array &$inStockQuantities): void
     {
         foreach ($node['materials'] as $material) {
             $typeId = (int) $material['typeId'];
             $neededQuantity = (int) $material['quantity'];
 
-            // Check if we have stock available for this material
             $availableStock = $inStockQuantities[$typeId] ?? 0;
             if ($availableStock > 0) {
                 if ($availableStock >= $neededQuantity) {
-                    // Fully covered by stock - consume stock and skip entirely (no sub-materials)
                     $inStockQuantities[$typeId] -= $neededQuantity;
                     continue;
                 }
-                // Partially covered - reduce needed quantity and consume all remaining stock
                 $neededQuantity -= $availableStock;
                 $inStockQuantities[$typeId] = 0;
             }
 
-            // If this material's production step is marked as purchased, treat it as a raw purchase
             if (in_array($typeId, $purchasedTypeIds, true)) {
                 $this->addToMaterialList($materials, $typeId, $material['typeName'], $neededQuantity);
                 continue;
             }
 
             if (($material['isBuildable'] ?? false) && isset($material['blueprint'])) {
-                // Recurse into the sub-tree for the remaining quantity needed
-                // Note: The blueprint tree already has quantities pre-calculated, so partial quantities
-                // would require re-calculating the tree. For now, we recurse fully if any quantity is needed.
                 $this->collectRawMaterials($materials, $material['blueprint'], $purchasedTypeIds, $inStockQuantities);
             } else {
-                // Raw material
                 $this->addToMaterialList($materials, $typeId, $material['typeName'], $neededQuantity);
             }
         }
@@ -701,115 +831,15 @@ class IndustryProjectService
         ];
     }
 
-    public function getProjectSummary(IndustryProject $project): array
-    {
-        $jobsCost = $project->getJobsCost();
-        $totalCost = $project->getTotalCost();
-        $profit = $project->getProfit();
-        $profitPercent = $project->getProfitPercent();
-
-        // Get root products (depth 0) - for multi-product projects
-        $rootProducts = [];
-        $seenProducts = [];
-        foreach ($project->getSteps() as $step) {
-            if ($step->getDepth() === 0) {
-                $key = $step->getProductTypeId();
-                if (!isset($seenProducts[$key])) {
-                    $seenProducts[$key] = true;
-                    $rootProducts[] = [
-                        'typeId' => $step->getProductTypeId(),
-                        'typeName' => $step->getProductTypeName(),
-                        'runs' => $step->getRuns(),
-                        'meLevel' => $step->getMeLevel(),
-                        'teLevel' => $step->getTeLevel(),
-                    ];
-                }
-            }
-        }
-
-        return [
-            'id' => $project->getId()->toRfc4122(),
-            'name' => $project->getName(),
-            'displayName' => $project->getDisplayName(),
-            'productTypeName' => $project->getProductTypeName(),
-            'productTypeId' => $project->getProductTypeId(),
-            'runs' => $project->getRuns(),
-            'meLevel' => $project->getMeLevel(),
-            'teLevel' => $project->getTeLevel(),
-            'maxJobDurationDays' => $project->getMaxJobDurationDays(),
-            'status' => $project->getStatus(),
-            'personalUse' => $project->isPersonalUse(),
-            'bpoCost' => $project->getBpoCost(),
-            'materialCost' => $project->getMaterialCost(),
-            'transportCost' => $project->getTransportCost(),
-            'jobsCost' => $jobsCost,
-            'taxAmount' => $project->getTaxAmount(),
-            'sellPrice' => $project->getSellPrice(),
-            'totalCost' => $totalCost,
-            'profit' => $profit,
-            'profitPercent' => $profitPercent !== null ? round($profitPercent, 2) : null,
-            'notes' => $project->getNotes(),
-            'createdAt' => $project->getCreatedAt()->format('c'),
-            'jobsStartDate' => $project->getJobsStartDate()?->format('c'),
-            'completedAt' => $project->getCompletedAt()?->format('c'),
-            'rootProducts' => $rootProducts,
-        ];
-    }
-
-    public function serializeStep(IndustryProjectStep $step): array
-    {
-        return [
-            'id' => $step->getId()->toRfc4122(),
-            'blueprintTypeId' => $step->getBlueprintTypeId(),
-            'productTypeId' => $step->getProductTypeId(),
-            'productTypeName' => $step->getProductTypeName(),
-            'quantity' => $step->getQuantity(),
-            'runs' => $step->getRuns(),
-            'depth' => $step->getDepth(),
-            'meLevel' => $step->getMeLevel(),
-            'teLevel' => $step->getTeLevel(),
-            'activityType' => $step->getActivityType(),
-            'sortOrder' => $step->getSortOrder(),
-            'purchased' => $step->isPurchased(),
-            'inStock' => $step->isInStock(),
-            'inStockQuantity' => $step->getInStockQuantity(),
-            'esiJobId' => $step->getEsiJobId(),
-            'esiJobCost' => $step->getEsiJobCost(),
-            'esiJobStatus' => $step->getEsiJobStatus(),
-            'esiJobEndDate' => $step->getEsiJobEndDate()?->format('c'),
-            'esiJobRuns' => $step->getEsiJobRuns(),
-            'esiJobCharacterName' => $step->getEsiJobCharacterName(),
-            'esiJobsCount' => $step->getEsiJobsCount(),
-            'esiJobsTotalRuns' => $step->getEsiJobsTotalRuns(),
-            'esiJobsActiveRuns' => $step->getEsiJobsActiveRuns(),
-            'esiJobsDeliveredRuns' => $step->getEsiJobsDeliveredRuns(),
-            'manualJobData' => $step->isManualJobData(),
-            'recommendedStructureName' => $step->getRecommendedStructureName(),
-            'structureBonus' => $step->getStructureBonus(),
-            'structureTimeBonus' => $step->getStructureTimeBonus(),
-            'timePerRun' => $step->getTimePerRun(),
-            'estimatedDurationDays' => $step->getEstimatedDurationDays(),
-            'splitGroupId' => $step->getSplitGroupId(),
-            'splitIndex' => $step->getSplitIndex(),
-            'totalGroupRuns' => $step->getTotalGroupRuns(),
-            'isSplit' => $step->isSplit(),
-            'similarJobs' => $step->getSimilarJobs(),
-        ];
-    }
-
-    /**
-     * Add time data from SDE to each step.
-     * Calculates adjusted time per run including TE bonus and structure time bonus.
-     *
-     * @param int $projectTeLevel The project's TE level (used for intermediate blueprints)
-     * Structure time bonuses are calculated based on the structure's type and rigs.
-     */
     private function addTimeDataToSteps(array &$steps, User $user, int $projectTeLevel = 20): void
     {
+        // Preload all skills for all characters (one query per character)
+        $characterSkillLevels = $this->loadAllCharacterSkills($user);
+
         foreach ($steps as &$step) {
             $activityId = match ($step['activityType']) {
                 'reaction' => self::ACTIVITY_REACTION,
-                'copy' => 5, // Copying activity
+                'copy' => 5,
                 default => self::ACTIVITY_MANUFACTURING,
             };
 
@@ -823,11 +853,9 @@ class IndustryProjectService
 
             if ($baseTimePerRun === null) {
                 $step['timePerRun'] = null;
-                $step['structureTimeBonus'] = null;
                 continue;
             }
 
-            // Get structure time bonus for this step
             $isReaction = $step['activityType'] === 'reaction';
             $timeBonusData = $this->bonusService->findBestStructureForProductTimeBonus(
                 $user,
@@ -835,11 +863,8 @@ class IndustryProjectService
                 $isReaction
             );
             $structureTimeBonus = $timeBonusData['bonus'];
-            $step['structureTimeBonus'] = $structureTimeBonus;
 
-            // Reactions don't have TE - only manufacturing blueprints do
-            // For manufacturing: depth 0 uses project TE, intermediates use TE=20 (assumed researched BPC)
-            if ($step['activityType'] === 'reaction') {
+            if ($isReaction) {
                 $teLevel = 0;
             } else {
                 $teLevel = ($step['depth'] ?? 0) === 0 ? $projectTeLevel : 20;
@@ -851,12 +876,13 @@ class IndustryProjectService
                 $structureTimeBonus
             );
 
-            // Apply Reactions skill bonus for reactions (assumes level 5 = 20% reduction)
-            // The Reactions skill provides 4% time reduction per level
-            if ($step['activityType'] === 'reaction') {
-                $reactionsSkillBonus = 20.0; // Level 5: 4% × 5 = 20%
-                $adjustedTimePerRun = (int) ceil($adjustedTimePerRun * (1 - $reactionsSkillBonus / 100));
-            }
+            // Find the best character's skill multiplier for this specific blueprint
+            $skillMultiplier = $this->findBestSkillMultiplierForBlueprint(
+                $characterSkillLevels,
+                $step['blueprintTypeId'],
+                $step['activityType'],
+            );
+            $adjustedTimePerRun = (int) ceil($adjustedTimePerRun * $skillMultiplier);
 
             $step['timePerRun'] = $adjustedTimePerRun;
         }
@@ -864,9 +890,68 @@ class IndustryProjectService
     }
 
     /**
-     * Split steps that exceed the max job duration.
-     * Returns a new array with split steps.
+     * Load all cached skills for all user's characters.
+     *
+     * @return array<string, array<int, int>> characterName => [skillId => level]
      */
+    private function loadAllCharacterSkills(User $user): array
+    {
+        $result = [];
+        foreach ($user->getCharacters() as $character) {
+            $charSkills = $this->skillRepository->findAllSkillsForCharacter($character);
+            $levels = [];
+            foreach ($charSkills as $skill) {
+                $levels[$skill->getSkillId()] = $skill->getLevel();
+            }
+            $result[$character->getName()] = $levels;
+        }
+        return $result;
+    }
+
+    /**
+     * Find the best (lowest) skill time multiplier for a specific blueprint
+     * across all characters, including blueprint-specific science skills.
+     *
+     * @param array<string, array<int, int>> $characterSkillLevels
+     */
+    private function findBestSkillMultiplierForBlueprint(
+        array $characterSkillLevels,
+        int $blueprintTypeId,
+        string $activityType,
+    ): float {
+        $scienceSkillIds = $this->calculationService->getBlueprintScienceSkillIds($blueprintTypeId, $activityType);
+
+        $bestMultiplier = 1.0;
+
+        foreach ($characterSkillLevels as $skillLevels) {
+            $multiplier = 1.0;
+
+            if ($activityType === 'reaction') {
+                $reactionLevel = $skillLevels[CachedCharacterSkill::SKILL_REACTIONS] ?? 0;
+                $multiplier *= (1 - 0.04 * $reactionLevel);
+            } else {
+                $industryLevel = $skillLevels[CachedCharacterSkill::SKILL_INDUSTRY] ?? 0;
+                $advancedLevel = $skillLevels[CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY] ?? 0;
+                $multiplier *= (1 - 0.04 * $industryLevel);
+                $multiplier *= (1 - 0.03 * $advancedLevel);
+            }
+
+            // Blueprint-specific science skills (1% per level)
+            foreach ($scienceSkillIds as $skillId) {
+                $level = $skillLevels[$skillId] ?? 0;
+                if ($level > 0) {
+                    $multiplier *= (1 - 0.01 * $level);
+                }
+            }
+
+            if ($multiplier < $bestMultiplier) {
+                $bestMultiplier = $multiplier;
+            }
+        }
+
+        return $bestMultiplier;
+    }
+
     private function splitLongJobs(array $steps, float $maxDurationDays): array
     {
         $result = [];
@@ -875,7 +960,6 @@ class IndustryProjectService
         foreach ($steps as $step) {
             $timePerRun = $step['timePerRun'] ?? null;
 
-            // Skip if no time data or if step is a copy (copies are usually fast)
             if ($timePerRun === null || $step['activityType'] === 'copy') {
                 $result[] = $step;
                 continue;
@@ -884,28 +968,20 @@ class IndustryProjectService
             $totalRuns = $step['runs'];
             $totalDuration = $timePerRun * $totalRuns;
 
-            // Check if splitting is needed
             if ($totalDuration <= $maxDurationSeconds) {
                 $result[] = $step;
                 continue;
             }
 
-            // Calculate max runs per job based on max duration
             $maxRunsPerJob = max(1, (int) floor($maxDurationSeconds / $timePerRun));
-
-            // Calculate number of jobs needed and distribute runs evenly
             $numJobs = (int) ceil($totalRuns / $maxRunsPerJob);
             $baseRunsPerJob = (int) floor($totalRuns / $numJobs);
             $remainder = $totalRuns - ($baseRunsPerJob * $numJobs);
 
-            // Split into multiple steps with balanced distribution
-            // First $remainder jobs get (baseRunsPerJob + 1), rest get baseRunsPerJob
-            // This ensures max difference of 1 run between any two jobs
             $splitGroupId = Uuid::v4()->toRfc4122();
             $outputPerRun = $step['outputPerRun'] ?? 1;
 
             for ($splitIndex = 0; $splitIndex < $numJobs; $splitIndex++) {
-                // First $remainder jobs get an extra run
                 $runsForThisJob = $baseRunsPerJob + ($splitIndex < $remainder ? 1 : 0);
                 $quantityForThisJob = $runsForThisJob * $outputPerRun;
 

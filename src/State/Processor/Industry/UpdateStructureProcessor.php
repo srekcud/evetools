@@ -8,9 +8,9 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\StructureConfigResource;
 use App\ApiResource\Input\Industry\UpdateStructureInput;
-use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
 use App\Repository\IndustryStructureConfigRepository;
+use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -26,6 +26,7 @@ class UpdateStructureProcessor implements ProcessorInterface
     public function __construct(
         private readonly Security $security,
         private readonly IndustryStructureConfigRepository $structureConfigRepository,
+        private readonly IndustryResourceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }
@@ -79,28 +80,12 @@ class UpdateStructureProcessor implements ProcessorInterface
             $structure->setIsCorporationStructure($data->isCorporationStructure);
         }
 
+        if ($data->solarSystemId !== null) {
+            $structure->setSolarSystemId($data->solarSystemId > 0 ? $data->solarSystemId : null);
+        }
+
         $this->entityManager->flush();
 
-        return $this->toResource($structure);
-    }
-
-    private function toResource(IndustryStructureConfig $structure): StructureConfigResource
-    {
-        $resource = new StructureConfigResource();
-        $resource->id = $structure->getId()->toRfc4122();
-        $resource->name = $structure->getName();
-        $resource->locationId = $structure->getLocationId();
-        $resource->securityType = $structure->getSecurityType();
-        $resource->structureType = $structure->getStructureType();
-        $resource->rigs = $structure->getRigs();
-        $resource->isDefault = $structure->isDefault();
-        $resource->isCorporationStructure = $structure->isCorporationStructure();
-        $resource->manufacturingMaterialBonus = $structure->getManufacturingMaterialBonus();
-        $resource->reactionMaterialBonus = $structure->getReactionMaterialBonus();
-        $resource->manufacturingTimeBonus = $structure->getManufacturingTimeBonus();
-        $resource->reactionTimeBonus = $structure->getReactionTimeBonus();
-        $resource->createdAt = $structure->getCreatedAt()->format('c');
-
-        return $resource;
+        return $this->mapper->structureToResource($structure);
     }
 }

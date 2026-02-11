@@ -69,7 +69,7 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
                 ->setParameter('targetRuns', $targetRuns);
         }
 
-        $qb->orderBy('j.startDate', 'DESC');
+        $qb->orderBy('j.startDate', 'ASC');
 
         return $qb->getQuery()->getResult();
     }
@@ -98,6 +98,37 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
             ->setParameter('bpId', $blueprintTypeId)
             ->setParameter('chars', $characterIds)
             ->setParameter('targetRuns', $targetRuns);
+
+        if ($startedAfter !== null) {
+            $qb->andWhere('j.startDate >= :startedAfter')
+                ->setParameter('startedAfter', $startedAfter);
+        }
+
+        $qb->orderBy('j.startDate', 'DESC');
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Find all jobs matching any of the given blueprint type IDs for the given characters.
+     *
+     * @param int[]                    $blueprintTypeIds
+     * @param array                    $characterIds
+     * @param \DateTimeImmutable|null  $startedAfter
+     *
+     * @return CachedIndustryJob[]
+     */
+    public function findByBlueprintsAndCharacters(
+        array $blueprintTypeIds,
+        array $characterIds,
+        ?\DateTimeImmutable $startedAfter = null,
+    ): array {
+        $qb = $this->createQueryBuilder('j')
+            ->where('j.blueprintTypeId IN (:bpIds)')
+            ->andWhere('j.activityId IN (1, 9, 11)')
+            ->andWhere('j.character IN (:chars)')
+            ->setParameter('bpIds', $blueprintTypeIds)
+            ->setParameter('chars', $characterIds);
 
         if ($startedAfter !== null) {
             $qb->andWhere('j.startDate >= :startedAfter')

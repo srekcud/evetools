@@ -30,6 +30,10 @@ class IndustryStructureConfig
     #[ORM\Column(type: 'bigint', nullable: true)]
     private ?int $locationId = null;
 
+    /** Solar system ID (from SDE) for favorite system filtering */
+    #[ORM\Column(type: 'integer', nullable: true)]
+    private ?int $solarSystemId = null;
+
     /** Corporation ID for sharing configs within corporation */
     #[ORM\Column(type: 'bigint', nullable: true)]
     private ?int $corporationId = null;
@@ -56,6 +60,10 @@ class IndustryStructureConfig
     /** Soft-deleted (hidden from user but preserved for corp sharing) */
     #[ORM\Column]
     private bool $isDeleted = false;
+
+    /** @var string[] User IDs who have hidden this structure from their view */
+    #[ORM\Column(type: Types::JSON)]
+    private array $hiddenByUsers = [];
 
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
@@ -159,6 +167,17 @@ class IndustryStructureConfig
         return $this;
     }
 
+    public function getSolarSystemId(): ?int
+    {
+        return $this->solarSystemId;
+    }
+
+    public function setSolarSystemId(?int $solarSystemId): self
+    {
+        $this->solarSystemId = $solarSystemId;
+        return $this;
+    }
+
     public function getCorporationId(): ?int
     {
         return $this->corporationId;
@@ -189,6 +208,34 @@ class IndustryStructureConfig
     public function setIsDeleted(bool $isDeleted): self
     {
         $this->isDeleted = $isDeleted;
+        return $this;
+    }
+
+    /** @return string[] */
+    public function getHiddenByUsers(): array
+    {
+        return $this->hiddenByUsers;
+    }
+
+    public function isHiddenForUser(string $userId): bool
+    {
+        return in_array($userId, $this->hiddenByUsers, true);
+    }
+
+    public function hideForUser(string $userId): self
+    {
+        if (!in_array($userId, $this->hiddenByUsers, true)) {
+            $this->hiddenByUsers[] = $userId;
+        }
+        return $this;
+    }
+
+    public function unhideForUser(string $userId): self
+    {
+        $this->hiddenByUsers = array_values(array_filter(
+            $this->hiddenByUsers,
+            fn (string $id) => $id !== $userId,
+        ));
         return $this;
     }
 

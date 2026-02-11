@@ -2,6 +2,7 @@
 import { computed, ref, watch, nextTick } from 'vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import { formatDuration } from '@/composables/useProjectTime'
 import type { IndustryProjectStep, SimilarJob } from '@/stores/industry'
 
 const props = defineProps<{
@@ -12,10 +13,14 @@ const props = defineProps<{
 const emit = defineEmits<{
   'toggle-purchased': [stepId: string, purchased: boolean]
   'update-step-runs': [stepId: string, runs: number]
+  'update-step-me': [stepId: string, meLevel: number]
+  'update-step-te': [stepId: string, teLevel: number]
   'delete-step': [stepId: string]
   'add-child-job': [splitGroupId: string | null, stepId: string | null, runs: number]
+  'split-step': [stepId: string, numberOfJobs: number]
+  'merge-steps': [stepId: string]
+  'unlink-job': [matchId: string]
 }>()
-
 
 // Track inline runs editing
 const editingRunsStepId = ref<string | null>(null)
@@ -25,6 +30,12 @@ const editRunsValue = ref(0)
 const addingChildToGroup = ref<string | null>(null)
 const addChildRunsValue = ref(1)
 const lastAddedToStepId = ref<string | null>(null)
+
+// ME/TE (always-visible inputs, no editing state needed)
+
+// Split dropdown
+const splittingStepId = ref<string | null>(null)
+const splitCount = ref(2)
 
 // Delete confirmation modal
 const showDeleteModal = ref(false)
@@ -46,23 +57,6 @@ watch(() => props.steps, (newSteps) => {
 
 const { formatIsk } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
-
-// Format duration in seconds to human readable
-function formatDuration(seconds: number | null): string {
-  if (seconds === null || seconds <= 0) return '-'
-
-  const days = Math.floor(seconds / 86400)
-  const hours = Math.floor((seconds % 86400) / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-
-  if (days > 0) {
-    return `${days}j ${hours}h`
-  } else if (hours > 0) {
-    return `${hours}h ${minutes}m`
-  } else {
-    return `${minutes}m`
-  }
-}
 
 // Calculate total duration for a step (timePerRun * runs)
 function stepTotalDuration(step: IndustryProjectStep): number | null {
@@ -107,6 +101,11 @@ interface SplitGroup {
   // Structure info
   recommendedStructureName: string | null
   structureBonus: number | null
+  // Facility delta info (propagated from children)
+  facilityInfoType: 'suboptimal' | 'unconfigured' | null
+  bestStructureName: string | null
+  bestMaterialBonus: number | null
+  actualFacilityName: string | null
 }
 
 interface StepGroup {
@@ -200,6 +199,10 @@ const groupedSteps = computed<StepGroup[]>(() => {
         runsCompleted: 0,
         recommendedStructureName: step.recommendedStructureName,
         structureBonus: step.structureBonus,
+        facilityInfoType: null,
+        bestStructureName: null,
+        bestMaterialBonus: null,
+        actualFacilityName: null,
       }
       splitGroupsMap.set(groupId, splitGroup)
     }
@@ -217,6 +220,15 @@ const groupedSteps = computed<StepGroup[]>(() => {
     splitGroup.runsToLaunch = breakdown.toLaunch
     splitGroup.runsInProgress = breakdown.inProgress
     splitGroup.runsCompleted = breakdown.completed
+
+    // Propagate facility info from first child with facility delta
+    const deltaChild = splitGroup.children.find(c => c.facilityInfoType !== null)
+    if (deltaChild) {
+      splitGroup.facilityInfoType = deltaChild.facilityInfoType
+      splitGroup.bestStructureName = deltaChild.bestStructureName
+      splitGroup.bestMaterialBonus = deltaChild.bestMaterialBonus
+      splitGroup.actualFacilityName = deltaChild.actualFacilityName
+    }
   }
 
   // Now group by depth + activityType
@@ -268,7 +280,7 @@ const groupedSteps = computed<StepGroup[]>(() => {
 
 function groupLabel(step: IndustryProjectStep): string {
   const type = step.activityType === 'reaction' ? 'Réactions' : step.activityType === 'copy' ? 'Copies (BPC)' : 'Manufacturing'
-  return `${type} — Niveau ${step.depth}`
+  return `Profondeur ${step.depth} — ${type}`
 }
 
 function activityBadgeClass(type: string): string {
@@ -293,6 +305,16 @@ function formatSimilarJobsWarning(similarJobs: SimilarJob[]): string {
   return similarJobs.map(j =>
     `${j.characterName}: ${j.runs} runs (${j.status === 'active' ? 'en cours' : 'termine'})`
   ).join('\n')
+}
+
+// Calculate material impact text: how much extra materials vs best structure
+function materialImpactText(item: { structureBonus: number | null; bestMaterialBonus: number | null }): string {
+  if (item.structureBonus == null || item.bestMaterialBonus == null) return ''
+  if (item.structureBonus >= item.bestMaterialBonus) return ''
+  const actualFactor = 1 - item.structureBonus / 100
+  const bestFactor = 1 - item.bestMaterialBonus / 100
+  const extraPercent = ((actualFactor / bestFactor) - 1) * 100
+  return `+${extraPercent.toFixed(1)}% matériaux`
 }
 
 // Calculate runs covered by stock
@@ -406,6 +428,38 @@ function confirmAddChild(groupId: string, firstChildStepId: string) {
 function cancelAddChild() {
   addingChildToGroup.value = null
 }
+
+// ME/TE direct change handlers
+function onMeChange(stepId: string, value: string) {
+  const clamped = Math.max(0, Math.min(10, parseInt(value) || 0))
+  emit('update-step-me', stepId, clamped)
+}
+
+function onTeChange(stepId: string, value: string) {
+  const clamped = Math.max(0, Math.min(20, parseInt(value) || 0))
+  emit('update-step-te', stepId, clamped)
+}
+
+// Split / Merge
+function startSplit(stepId: string) {
+  splittingStepId.value = stepId
+  splitCount.value = 2
+}
+
+function confirmSplit(stepId: string) {
+  if (splitCount.value >= 2) {
+    emit('split-step', stepId, splitCount.value)
+  }
+  splittingStepId.value = null
+}
+
+function cancelSplit() {
+  splittingStepId.value = null
+}
+
+function mergeGroup(stepId: string) {
+  emit('merge-steps', stepId)
+}
 </script>
 
 <template>
@@ -418,9 +472,9 @@ function cancelAddChild() {
         <template v-for="splitGroup in group.items" :key="splitGroup.splitGroupId">
           <!-- Parent row (all items are now SplitGroups) -->
           <div
-            class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer"
+            class="step-row flex items-center gap-3 px-4 py-3 rounded-lg border cursor-pointer"
             :class="[
-              splitGroup.isValid ? 'bg-slate-800/70 border-slate-600' : 'bg-red-900/20 border-red-500/50',
+              splitGroup.isValid ? 'border-slate-700' : 'bg-red-900/20 border-red-500/50',
             ]"
             @click="toggleSplitGroup(splitGroup.splitGroupId)"
           >
@@ -458,6 +512,22 @@ function cancelAddChild() {
                   {{ splitGroup.recommendedStructureName }}
                   <span class="text-emerald-400">({{ splitGroup.structureBonus }}%)</span>
                 </span>
+                <!-- Facility delta: suboptimal structure -->
+                <span
+                  v-if="splitGroup.facilityInfoType === 'suboptimal'"
+                  class="text-xs text-amber-400 flex items-center gap-1"
+                >
+                  ← Meilleure : {{ splitGroup.bestStructureName }}
+                  ({{ splitGroup.bestMaterialBonus?.toFixed(1) }}%)
+                  <template v-if="materialImpactText(splitGroup)">· {{ materialImpactText(splitGroup) }}</template>
+                </span>
+                <!-- Facility delta: unconfigured -->
+                <span
+                  v-if="splitGroup.facilityInfoType === 'unconfigured'"
+                  class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                >
+                  {{ splitGroup.actualFacilityName }} (non configurée)
+                </span>
               </div>
               <!-- Runs info with breakdown -->
               <div class="flex items-center gap-3 mt-1 text-xs">
@@ -492,6 +562,16 @@ function cancelAddChild() {
               </div>
             </div>
 
+            <!-- Merge button (when multiple children) -->
+            <button
+              v-if="splitGroup.children.length > 1 && splitGroup.depth > 0 && !readonly"
+              @click.stop="mergeGroup(splitGroup.children[0].id)"
+              class="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded text-slate-300"
+              title="Fusionner les jobs"
+            >
+              Fusionner
+            </button>
+
             <!-- Purchased all button (hidden for depth 0 - root products) -->
             <label
               v-if="splitGroup.depth > 0"
@@ -512,10 +592,13 @@ function cancelAddChild() {
           <!-- Children rows (when expanded) -->
           <template v-if="expandedSplitGroups.has(splitGroup.splitGroupId)">
             <div
-              v-for="step in splitGroup.children"
+              v-for="(step, stepIdx) in splitGroup.children"
               :key="step.id"
-              class="flex items-center gap-3 p-3 ml-6 rounded-lg bg-slate-800/50 border border-slate-700"
+              class="step-row flex items-center gap-3 px-4 py-3 ml-6 rounded-lg border border-slate-700"
             >
+              <!-- Split children vertical bar -->
+              <div v-if="splitGroup.children.length > 1" class="w-1 h-6 bg-cyan-500/30 rounded-full"></div>
+
               <img
                 :src="getTypeIconUrl(step.productTypeId, 32)"
                 class="w-8 h-8 rounded"
@@ -555,10 +638,88 @@ function cancelAddChild() {
                   <span v-else class="text-xs text-slate-600" :title="isLinkedToEsi(step) ? 'Lié à ESI - non modifiable' : 'Projet terminé'">
                     ({{ step.runs }} runs)
                   </span>
-                  <span v-if="step.isSplit" class="text-xs text-slate-500">#{{ step.splitIndex + 1 }}</span>
-                  <!-- ESI linked indicator -->
-                  <span v-if="isLinkedToEsi(step)" class="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400" title="Lie a un job ESI">
-                    ESI
+                  <!-- Split index -->
+                  <span v-if="splitGroup.children.length > 1" class="text-xs text-slate-500">Split {{ stepIdx + 1 }}/{{ splitGroup.children.length }}</span>
+                  <!-- ME/TE always-visible inputs -->
+                  <template v-if="!readonly && !isLinkedToEsi(step)">
+                    <span class="inline-flex items-center gap-0.5" @click.stop>
+                      <span class="text-slate-500 text-xs">ME</span>
+                      <input
+                        type="number"
+                        :value="step.meLevel"
+                        min="0"
+                        max="10"
+                        class="w-10 bg-slate-800 border border-slate-700 rounded px-1 py-0.5 text-xs text-center focus:border-cyan-500 focus:outline-none"
+                        @change="(e) => onMeChange(step.id, (e.target as HTMLInputElement).value)"
+                        @click.stop
+                      />
+                    </span>
+                    <span class="inline-flex items-center gap-0.5" @click.stop>
+                      <span class="text-slate-500 text-xs">TE</span>
+                      <input
+                        type="number"
+                        :value="step.teLevel"
+                        min="0"
+                        max="20"
+                        class="w-10 bg-slate-800 border border-slate-700 rounded px-1 py-0.5 text-xs text-center focus:border-cyan-500 focus:outline-none"
+                        @change="(e) => onTeChange(step.id, (e.target as HTMLInputElement).value)"
+                        @click.stop
+                      />
+                    </span>
+                  </template>
+                  <template v-else>
+                    <span class="text-xs text-slate-600">ME{{ step.meLevel }}</span>
+                    <span class="text-xs text-slate-600">TE{{ step.teLevel }}</span>
+                  </template>
+                  <!-- Structure display -->
+                  <span
+                    v-if="step.recommendedStructureName"
+                    class="bg-slate-800/50 border border-slate-700/50 rounded px-2 py-1 text-xs text-slate-400"
+                    :title="step.recommendedStructureName"
+                  >{{ step.recommendedStructureName }} — {{ step.structureBonus }}%</span>
+                  <!-- ESI linked indicator with unlink button -->
+                  <span v-if="isLinkedToEsi(step)" class="inline-flex items-center gap-1">
+                    <span class="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400" title="Lié à un job ESI">
+                      ESI
+                    </span>
+                    <button
+                      v-if="!readonly && step.jobMatches && step.jobMatches.length > 0"
+                      @click.stop="emit('unlink-job', step.jobMatches[0].id)"
+                      class="text-xs px-1 py-0.5 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20"
+                      title="Délier le job ESI"
+                    >
+                      &times;
+                    </button>
+                  </span>
+                  <!-- Character badge: ESI character or recommended -->
+                  <span
+                    v-if="step.esiJobCharacterName"
+                    class="px-2 py-1 rounded text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                  >
+                    {{ step.esiJobCharacterName }}
+                  </span>
+                  <span
+                    v-else-if="step.recommendedCharacterName && !step.purchased && !step.inStock"
+                    class="px-2 py-1 rounded text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+                    title="Personnage recommandé (meilleurs skills)"
+                  >
+                    {{ step.recommendedCharacterName }}
+                  </span>
+                  <!-- Facility info: suboptimal structure -->
+                  <span
+                    v-if="step.facilityInfoType === 'suboptimal'"
+                    class="text-xs text-amber-400"
+                  >
+                    Sous-optimal — Meilleure : {{ step.bestStructureName }}
+                    ({{ step.bestMaterialBonus?.toFixed(2) }}%)
+                    <template v-if="materialImpactText(step)">· {{ materialImpactText(step) }}</template>
+                  </span>
+                  <!-- Facility info: unconfigured (visible badge) -->
+                  <span
+                    v-if="step.facilityInfoType === 'unconfigured'"
+                    class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  >
+                    {{ step.actualFacilityName }} (non configurée)
                   </span>
                   <!-- Similar jobs warning -->
                   <span
@@ -571,7 +732,6 @@ function cancelAddChild() {
                 </div>
                 <!-- Job info -->
                 <div v-if="step.esiJobId || step.manualJobData" class="flex items-center gap-2 mt-1 text-xs flex-wrap">
-                  <span v-if="step.esiJobCharacterName" class="text-slate-500">{{ step.esiJobCharacterName }}</span>
                   <span
                     v-if="step.esiJobsCount && step.esiJobsCount > 1"
                     class="text-slate-600"
@@ -592,7 +752,7 @@ function cancelAddChild() {
                   >
                     ({{ step.esiJobsDeliveredRuns || 0 }} livrés, {{ step.esiJobsActiveRuns || 0 }} en cours)
                   </span>
-                  <span v-if="step.manualJobData" class="text-amber-400">(manuel)</span>
+                  <span v-if="step.manualJobData && !step.esiJobCharacterName" class="text-amber-400">(manuel)</span>
                 </div>
                 <!-- Duration for step -->
                 <div v-if="stepTotalDuration(step) && !step.purchased && !step.inStock" class="flex items-center gap-1 mt-1 text-xs text-slate-500">
@@ -623,6 +783,42 @@ function cancelAddChild() {
                 />
                 <span class="text-xs text-slate-400">Acheté</span>
               </label>
+
+              <!-- Split button with text "Splitter" -->
+              <template v-if="!isLinkedToEsi(step) && !readonly && step.depth > 0">
+                <div v-if="splittingStepId === step.id" class="flex items-center gap-1" @click.stop>
+                  <input
+                    v-model.number="splitCount"
+                    type="number"
+                    min="2"
+                    max="20"
+                    class="w-12 px-1 py-0.5 bg-slate-700 border border-cyan-500 rounded text-xs text-center"
+                    @keydown.enter="confirmSplit(step.id)"
+                    @keydown.escape="cancelSplit"
+                    autofocus
+                  />
+                  <button
+                    @click.stop="confirmSplit(step.id)"
+                    class="px-1.5 py-0.5 bg-cyan-600 hover:bg-cyan-500 rounded text-xs text-white"
+                  >
+                    OK
+                  </button>
+                  <button
+                    @click.stop="cancelSplit"
+                    class="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-xs text-slate-300"
+                  >
+                    ✗
+                  </button>
+                </div>
+                <button
+                  v-else
+                  @click.stop="startSplit(step.id)"
+                  class="px-2 py-1 rounded text-xs bg-slate-800 text-slate-400 hover:text-cyan-400 border border-slate-700"
+                  title="Splitter ce step"
+                >
+                  Splitter ▾
+                </button>
+              </template>
 
               <!-- Job cost (ESI cost if linked, otherwise nothing) -->
               <span v-if="step.esiJobCost" class="text-xs font-mono text-slate-400">

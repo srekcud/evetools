@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch, nextTick } from 'vue'
 import { useIndustryStore } from '@/stores/industry'
 import type { StructureConfig, RigOption, CorporationStructure, StructureSearchResult } from '@/stores/industry'
+import FavoriteSystemsConfig from './FavoriteSystemsConfig.vue'
 
 const store = useIndustryStore()
 
@@ -483,7 +484,10 @@ const previewReactionTimeBonus = computed(() => {
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="bg-slate-900 rounded-xl border border-slate-800 p-6 space-y-4">
+    <!-- Favorite systems -->
+    <FavoriteSystemsConfig />
+
     <div class="flex items-center justify-between">
       <h3 class="text-lg font-semibold text-slate-200">Structures de production</h3>
       <button
@@ -500,10 +504,6 @@ const previewReactionTimeBonus = computed(() => {
 
     <p class="text-sm text-slate-400">
       Configurez vos structures de production pour calculer les bonus de matériaux appliqués aux projets.
-    </p>
-
-    <p class="text-xs text-cyan-400/80 bg-cyan-500/10 border border-cyan-500/20 rounded px-3 py-2">
-      Le calcul des temps de réaction suppose que tous les personnages ont le skill Reactions V (-20%).
     </p>
 
     <!-- Add/Edit Form -->

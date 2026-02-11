@@ -7,6 +7,7 @@ import ProjectTable from '@/components/industry/ProjectTable.vue'
 import ProjectDetail from '@/components/industry/ProjectDetail.vue'
 import BlacklistConfig from '@/components/industry/BlacklistConfig.vue'
 import StructureConfig from '@/components/industry/StructureConfig.vue'
+import SkillsConfig from '@/components/industry/SkillsConfig.vue'
 
 const store = useIndustryStore()
 
@@ -39,6 +40,9 @@ const viewingProjectId = ref<string | null>(null)
 // Main tabs
 const mainTab = ref<'projects' | 'config'>('projects')
 
+// Config sub-tabs
+const configTab = ref<'skills' | 'structures' | 'blacklist'>('skills')
+
 onMounted(() => {
   store.fetchProjects()
 })
@@ -57,13 +61,6 @@ function addProductToList() {
     meLevel: meLevel.value,
     teLevel: teLevel.value,
   })
-  // Reset form for next product
-  selectedProduct.value = null
-  runs.value = 1
-  meLevel.value = 0
-  teLevel.value = 0
-  // Clear the search input
-  productSearchRef.value?.clear()
 }
 
 // Remove product from the list
@@ -121,6 +118,22 @@ function closeDetail() {
   viewingProjectId.value = null
   store.fetchProjects()
 }
+
+async function duplicateProject(project: { productTypeId: number; runs: number; meLevel: number; teLevel: number }) {
+  isCreating.value = true
+  try {
+    await store.createProject(
+      project.productTypeId,
+      project.runs,
+      project.meLevel,
+      project.teLevel,
+      store.defaultMaxJobDurationDays,
+    )
+    await store.fetchProjects()
+  } finally {
+    isCreating.value = false
+  }
+}
 </script>
 
 <template>
@@ -174,37 +187,70 @@ function closeDetail() {
 
       <!-- Config view -->
       <template v-else-if="mainTab === 'config'">
-        <div class="space-y-6">
-          <!-- General settings -->
-          <div class="bg-slate-900 rounded-xl border border-slate-800 p-6">
-            <h3 class="text-lg font-semibold text-slate-100 mb-4">Paramètres généraux</h3>
-            <div class="flex items-center gap-4">
-              <div class="w-48">
-                <label class="block text-sm text-slate-400 mb-1">Durée max job (jours)</label>
-                <input
-                  :value="store.defaultMaxJobDurationDays.toFixed(1)"
-                  @change="(e) => store.setDefaultMaxJobDurationDays(parseFloat((e.target as HTMLInputElement).value) || 2.0)"
-                  type="number"
-                  min="0.5"
-                  step="0.1"
-                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-cyan-500"
-                />
-              </div>
-              <p class="text-xs text-slate-500 self-end pb-2">
-                Les jobs dépassant cette durée seront découpés en plusieurs étapes.
-              </p>
-            </div>
+        <!-- General settings -->
+        <div class="flex items-center gap-4 mb-6 bg-slate-900 rounded-xl border border-slate-800 px-6 py-4">
+          <div class="w-48">
+            <label class="block text-xs text-slate-500 mb-1">Durée max job (jours)</label>
+            <input
+              :value="store.defaultMaxJobDurationDays.toFixed(1)"
+              @change="(e) => store.setDefaultMaxJobDurationDays(parseFloat((e.target as HTMLInputElement).value) || 2.0)"
+              type="number"
+              min="0.5"
+              step="0.1"
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+            />
           </div>
+          <p class="text-xs text-slate-500 self-end pb-1">
+            Les jobs dépassant cette durée seront découpés en plusieurs étapes.
+          </p>
+        </div>
 
-          <!-- Blacklist -->
-          <div class="bg-slate-900 rounded-xl border border-slate-800 p-6">
-            <BlacklistConfig />
-          </div>
+        <!-- Sub-tabs -->
+        <div class="flex gap-2 mb-6">
+          <button
+            @click="configTab = 'skills'"
+            :class="[
+              'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+              configTab === 'skills'
+                ? 'bg-cyan-600 text-white'
+                : 'bg-slate-800 text-slate-400 hover:text-slate-200',
+            ]"
+          >
+            Skills
+          </button>
+          <button
+            @click="configTab = 'structures'"
+            :class="[
+              'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+              configTab === 'structures'
+                ? 'bg-cyan-600 text-white'
+                : 'bg-slate-800 text-slate-400 hover:text-slate-200',
+            ]"
+          >
+            Structures
+          </button>
+          <button
+            @click="configTab = 'blacklist'"
+            :class="[
+              'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+              configTab === 'blacklist'
+                ? 'bg-cyan-600 text-white'
+                : 'bg-slate-800 text-slate-400 hover:text-slate-200',
+            ]"
+          >
+            Blacklist
+          </button>
+        </div>
 
-          <!-- Structures -->
-          <div class="bg-slate-900 rounded-xl border border-slate-800 p-6">
-            <StructureConfig />
-          </div>
+        <!-- Tab content -->
+        <div v-if="configTab === 'skills'">
+          <SkillsConfig />
+        </div>
+        <div v-else-if="configTab === 'structures'">
+          <StructureConfig />
+        </div>
+        <div v-else>
+          <BlacklistConfig />
         </div>
       </template>
 
@@ -373,7 +419,7 @@ function closeDetail() {
             </svg>
             Chargement...
           </div>
-          <ProjectTable v-else @view-project="viewProject" />
+          <ProjectTable v-else @view-project="viewProject" @duplicate-project="duplicateProject" />
         </div>
       </template>
   </MainLayout>

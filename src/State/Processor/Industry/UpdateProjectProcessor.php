@@ -11,6 +11,7 @@ use App\ApiResource\Input\Industry\UpdateProjectInput;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryProjectService;
+use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -27,6 +28,7 @@ class UpdateProjectProcessor implements ProcessorInterface
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
         private readonly IndustryProjectService $projectService,
+        private readonly IndustryResourceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }
@@ -105,40 +107,6 @@ class UpdateProjectProcessor implements ProcessorInterface
             $this->projectService->regenerateSteps($project);
         }
 
-        $summary = $this->projectService->getProjectSummary($project);
-
-        return $this->toResource($summary);
-    }
-
-    private function toResource(array $summary): ProjectResource
-    {
-        $resource = new ProjectResource();
-        $resource->id = $summary['id'];
-        $resource->productTypeId = $summary['productTypeId'];
-        $resource->productTypeName = $summary['productTypeName'];
-        $resource->name = $summary['name'] ?? null;
-        $resource->displayName = $summary['displayName'] ?? $summary['productTypeName'];
-        $resource->runs = $summary['runs'];
-        $resource->meLevel = $summary['meLevel'];
-        $resource->teLevel = $summary['teLevel'] ?? 0;
-        $resource->maxJobDurationDays = $summary['maxJobDurationDays'];
-        $resource->status = $summary['status'];
-        $resource->profit = $summary['profit'] ?? null;
-        $resource->profitPercent = $summary['profitPercent'] ?? null;
-        $resource->bpoCost = $summary['bpoCost'] ?? null;
-        $resource->materialCost = $summary['materialCost'] ?? null;
-        $resource->transportCost = $summary['transportCost'] ?? null;
-        $resource->taxAmount = $summary['taxAmount'] ?? null;
-        $resource->sellPrice = $summary['sellPrice'] ?? null;
-        $resource->jobsCost = $summary['jobsCost'] ?? null;
-        $resource->totalCost = $summary['totalCost'] ?? null;
-        $resource->notes = $summary['notes'] ?? null;
-        $resource->personalUse = $summary['personalUse'] ?? false;
-        $resource->jobsStartDate = $summary['jobsStartDate'] ?? null;
-        $resource->completedAt = $summary['completedAt'] ?? null;
-        $resource->createdAt = $summary['createdAt'];
-        $resource->rootProducts = $summary['rootProducts'] ?? [];
-
-        return $resource;
+        return $this->mapper->projectToResource($project);
     }
 }

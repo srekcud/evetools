@@ -10,6 +10,7 @@ use App\ApiResource\Industry\ProjectResource;
 use App\ApiResource\Input\Industry\CreateProjectInput;
 use App\Entity\User;
 use App\Service\Industry\IndustryProjectService;
+use App\State\Provider\Industry\IndustryResourceMapper;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -22,6 +23,7 @@ class CreateProjectProcessor implements ProcessorInterface
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectService $projectService,
+        private readonly IndustryResourceMapper $mapper,
     ) {
     }
 
@@ -51,26 +53,6 @@ class CreateProjectProcessor implements ProcessorInterface
             throw new BadRequestHttpException($e->getMessage());
         }
 
-        $summary = $this->projectService->getProjectSummary($project);
-
-        return $this->toResource($summary);
-    }
-
-    private function toResource(array $summary): ProjectResource
-    {
-        $resource = new ProjectResource();
-        $resource->id = $summary['id'];
-        $resource->productTypeId = $summary['productTypeId'];
-        $resource->productTypeName = $summary['productTypeName'];
-        $resource->name = $summary['name'] ?? null;
-        $resource->runs = $summary['runs'];
-        $resource->meLevel = $summary['meLevel'];
-        $resource->teLevel = $summary['teLevel'] ?? 0;
-        $resource->maxJobDurationDays = $summary['maxJobDurationDays'];
-        $resource->status = $summary['status'];
-        $resource->profit = $summary['profit'] ?? null;
-        $resource->createdAt = $summary['createdAt'];
-
-        return $resource;
+        return $this->mapper->projectToResource($project);
     }
 }

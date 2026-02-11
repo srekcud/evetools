@@ -10,6 +10,7 @@ use App\Message\SyncIndustryJobs;
 use App\Message\TriggerJitaMarketSync;
 use App\Message\TriggerMiningSync;
 use App\Message\TriggerPveSync;
+use App\Message\SyncWalletTransactions;
 use App\Message\TriggerStructureMarketSync;
 use Symfony\Component\Scheduler\Attribute\AsSchedule;
 use Symfony\Component\Scheduler\RecurringMessage;
@@ -57,6 +58,10 @@ class SyncScheduler implements ScheduleProviderInterface
             // Mining ledger sync every 30 minutes
             ->add(
                 RecurringMessage::every('30 minutes', new TriggerMiningSync())
+            )
+            // Wallet transactions sync every 20 minutes
+            ->add(
+                RecurringMessage::every('20 minutes', new SyncWalletTransactions())
             );
     }
 }
