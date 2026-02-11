@@ -3,6 +3,37 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.5.1 (2026-02-11)
+--------------------------------------------------------------------------------
+
+### Industrie
+- Avertissement doublons lors du collage de stock avec achats lies
+- Date de debut de projet visible sur les projets multi-product
+
+--------------------------------------------------------------------------------
+Version 0.5 (2026-02-11)
+--------------------------------------------------------------------------------
+
+### Industrie avancee
+- Job matching separe : suivi des jobs ESI lies aux steps
+- Achats lies aux steps depuis le wallet ESI (sync toutes les 20min)
+- Skills personnages : sync ESI + override manuel, calcul temps par run
+- Systemes favoris pour la selection automatique de structure
+- Split/merge de steps de production
+- Adaptation du stock en cascade
+- Suggestions d'achats depuis les transactions wallet
+- Shopping list : delta materiaux pour structures sous-optimales (+X)
+- Multibuy Jita/Structure, stock inline editable
+- Detection de structures sous-optimales
+- Blacklist de structures masquees
+
+### Frontend
+- Stores modulaires (projects, steps, structures, purchases)
+- Composables (useProjectTime, useShoppingList, useStockAnalysis)
+- Onglets dedies (Steps, Approvisionnement)
+- Configuration Skills et Systemes favoris
+
+--------------------------------------------------------------------------------
 Version 0.4.1 (2026-02-05)
 --------------------------------------------------------------------------------
 

@@ -285,9 +285,21 @@ onMounted(async () => {
                   </span>
                 </span>
               </div>
-              <p class="mt-1">
-                {{ totalRootStepCount }} steps - Créé le {{ formatDateTime(store.currentProject.createdAt) }}
-              </p>
+              <div class="flex items-center gap-2 mt-1">
+                <p>{{ totalRootStepCount }} steps - Créé le {{ formatDateTime(store.currentProject.createdAt) }}</p>
+                <span class="text-slate-600">·</span>
+                <label class="flex items-center gap-1 text-xs text-slate-500">
+                  <span>Début:</span>
+                  <input
+                    type="date"
+                    :value="store.currentProject.jobsStartDate ? store.currentProject.jobsStartDate.slice(0, 10) : ''"
+                    :disabled="store.currentProject.status === 'completed'"
+                    class="bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-xs text-slate-300 focus:border-cyan-500 focus:outline-none disabled:opacity-50"
+                    @change="onJobsStartDateChange"
+                  />
+                </label>
+                <span v-if="estimatedProjectTime" class="text-cyan-400 font-mono text-xs">{{ formatDuration(estimatedProjectTime) }}</span>
+              </div>
             </div>
           </div>
         </div>

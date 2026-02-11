@@ -74,6 +74,9 @@ const stockAnalysisLoading = ref(false)
 const showClearStockModal = ref(false)
 const parentChildrenMap = ref<Map<string, ChildInfo[]>>(new Map())
 
+// Stock/purchase duplicate warnings
+const stockPurchaseWarnings = ref<Array<{ name: string; stockQty: number; purchasedQty: number }>>([])
+
 // Inline stock editing
 const editingStockTypeId = ref<number | null>(null)
 const editingStockValue = ref('')
@@ -542,6 +545,22 @@ async function analyzeStock() {
     intermediatesInStock.value = []
     return
   }
+
+  // Detect potential duplicates between pasted stock and linked purchases
+  const warnings: typeof stockPurchaseWarnings.value = []
+  for (const newItem of newItems) {
+    const material = shoppingList.value.find(
+      m => m.typeName.toLowerCase() === newItem.name.toLowerCase(),
+    )
+    if (material && (material.purchasedQuantity ?? 0) > 0) {
+      warnings.push({
+        name: material.typeName,
+        stockQty: newItem.quantity,
+        purchasedQty: material.purchasedQuantity!,
+      })
+    }
+  }
+  stockPurchaseWarnings.value = warnings
 
   for (const newItem of newItems) {
     const existingIndex = parsedStock.value.findIndex(
@@ -1028,6 +1047,26 @@ defineExpose({
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <span class="text-red-400 text-sm">{{ stockAnalysisError }}</span>
+      </div>
+
+      <!-- Stock/purchase duplicate warning -->
+      <div v-if="stockPurchaseWarnings.length > 0" class="bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-lg p-3">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <p class="text-sm font-medium">Attention doublons potentiels : certains materiaux colles ont aussi des achats lies.</p>
+            <ul class="mt-1 text-xs text-amber-400/80 space-y-0.5">
+              <li v-for="w in stockPurchaseWarnings" :key="w.name">
+                {{ w.name }} : {{ w.stockQty.toLocaleString() }} en stock + {{ w.purchasedQty.toLocaleString() }} achetes
+              </li>
+            </ul>
+            <p class="mt-1 text-xs text-amber-400/60">Les achats lies sont peut-etre deja dans votre inventaire.</p>
+          </div>
+          <button @click="stockPurchaseWarnings = []" class="text-amber-400 hover:text-amber-300 flex-shrink-0 p-0.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <!-- Totals summary -->

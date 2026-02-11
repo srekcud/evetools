@@ -343,12 +343,13 @@ docker compose -f docker-compose.yaml -f docker-compose.prod.yml restart worker
 | PVE data sync | 20 minutes |
 | Mining ledger sync | 30 minutes |
 | Market sync (Jita + Structure) | 2 heures |
+| Wallet transactions sync | 20 minutes |
 
 ---
 
 ## Migrations en attente (Production)
 
-**Note** : V0.3.1 n'a pas encore été déployée. Toutes les migrations ci-dessous doivent être exécutées lors du déploiement V0.4.
+**Note** : V0.3.1 n'a pas encore été déployée. Toutes les migrations ci-dessous doivent être exécutées lors du déploiement V0.5.
 
 | Migration | Version | Description |
 |-----------|---------|-------------|
@@ -358,13 +359,18 @@ docker compose -f docker-compose.yaml -f docker-compose.prod.yml restart worker
 | `Version20260131223001` | V0.2 | Ajoute `te_level` à `industry_projects` |
 | `Version20260202100000` | V0.3 | Ajoute `in_stock_quantity` à `industry_project_steps` |
 | `Version20260205080822` | V0.4 | Crée la table `escalations` |
+| `Version20260209200000` | V0.5 | Migre jobs ESI → `industry_step_job_matches`, supprime anciennes colonnes |
+| `Version20260210121432` | V0.5 | Renommage index + ajustements types |
+| `Version20260210123656` | V0.5 | Ajoute `solar_system_id` aux structure configs |
+| `Version20260211135848` | V0.5 | Ajoute `station_id` aux cached_industry_jobs + facility tracking |
+| `Version20260211143214` | V0.5 | Ajoute `planned_structure_name` + `planned_material_bonus` aux job matches |
 
 ```bash
 # Exécuter en production
 php bin/console doctrine:migrations:migrate
 ```
 
-### Actions post-déploiement V0.4
+### Actions post-déploiement V0.5
 
 - [ ] **Réimporter le SDE** (depuis V0.3.1 : source YAML → JSONL)
   ```bash
@@ -372,7 +378,11 @@ php bin/console doctrine:migrations:migrate
   php bin/console app:sde:import --force
   ```
 - [ ] **Relancer sync assets** pour peupler `owner_corporation_id` dans les structures
-- [ ] **Redémarrer le worker** pour le nouveau cache Doctrine
+- [ ] **Seed rig categories** (catégories étendues par type de structure)
+  ```bash
+  php bin/console app:seed-rig-categories
+  ```
+- [ ] **Redémarrer le worker** pour les nouveaux handlers (SyncWalletTransactions) + proxies Doctrine
 
 ---
 
