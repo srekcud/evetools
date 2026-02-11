@@ -48,7 +48,7 @@ RUN composer install --prefer-dist --no-dev --no-autoloader --no-scripts --no-pr
 COPY . .
 
 # Generate optimized autoloader and run post-install scripts
-RUN composer dump-autoload --optimize --classmap-authoritative && \
+RUN composer dump-autoload --optimize && \
     composer run-script post-install-cmd --no-interaction || true
 
 # Set permissions
