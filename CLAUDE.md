@@ -195,6 +195,9 @@ https://developers.eveonline.com/static-data/tranquility/changes/<build-number>.
 - `esi-markets.structure_markets.v1` - Prix en citadelle
 - `esi-ui.open_window.v1` - Ouvrir fenêtre in-game
 
+### Planetary Interaction
+- `esi-planets.manage_planets.v1` - Colonies et pins PI
+
 ### Corporation Projects
 - `esi-corporations.read_projects.v1` - Opportunités/projets corporation (contributions)
 
@@ -341,6 +344,7 @@ make base-build
 | Mining ledger sync | 30 minutes |
 | Market sync (Jita + Structure) | 2 heures |
 | Wallet transactions sync | 20 minutes |
+| Planetary colonies sync | 30 minutes |
 
 ---
 
@@ -361,6 +365,7 @@ make base-build
 | `Version20260210123656` | V0.5 | Ajoute `solar_system_id` aux structure configs |
 | `Version20260211135848` | V0.5 | Ajoute `station_id` aux cached_industry_jobs + facility tracking |
 | `Version20260211143214` | V0.5 | Ajoute `planned_structure_name` + `planned_material_bonus` aux job matches |
+| `Version20260212142627` | V0.6 | Planetary Interaction : colonies, pins, routes, SDE schematics |
 
 ```bash
 # Exécuter en production
@@ -380,6 +385,59 @@ php bin/console doctrine:migrations:migrate
   php bin/console app:seed-rig-categories
   ```
 - [ ] **Redémarrer le worker** pour les nouveaux handlers (SyncWalletTransactions) + proxies Doctrine
+
+### Actions post-déploiement V0.6
+
+- [ ] **Réimporter le SDE** (pour les planet schematics)
+  ```bash
+  php bin/console app:sde:import --force
+  ```
+- [ ] **Re-authentifier les utilisateurs** (nouveau scope `esi-planets.manage_planets.v1`)
+- [ ] **Redémarrer le worker** pour les nouveaux handlers (SyncPlanetaryColonies, TriggerPlanetarySync)
+
+---
+
+## V0.6 - Module Planetary Interaction ✅
+
+**Statut** : Implémenté
+
+### Fonctionnalités
+- Dashboard PI : vue d'ensemble de toutes les colonies par personnage
+- KPI : colonies actives, extracteurs actifs/expirants/expirés, revenu estimé/jour
+- Timers extracteurs temps réel avec code couleur (vert >24h, ambre <24h, rouge expiré)
+- Détail colonie : extracteurs, factories (schematic SDE), stockage avec snapshot
+- Tableau de production par tier (P0→P4) avec volumes et valorisation ISK Jita
+- Badges planètes par type (temperate, barren, lava, ice, gas, oceanic, plasma, storm)
+- Synchronisation ESI automatique (30 min) + sync manuelle
+- Import SDE planet schematics (cycles, inputs/outputs)
+- Notifications temps réel via Mercure
+
+### Fichiers clés
+```
+Backend:
+- src/Entity/PlanetaryColony.php, PlanetaryPin.php, PlanetaryRoute.php
+- src/Entity/Sde/PlanetSchematic.php, PlanetSchematicType.php
+- src/Repository/Planetary*Repository.php
+- src/ApiResource/Planetary/ (ColonyResource, StatsResource, ProductionResource)
+- src/State/Provider/Planetary/ (5 providers + mapper)
+- src/State/Processor/Planetary/SyncPlanetaryProcessor.php
+- src/Service/ESI/PlanetaryService.php
+- src/Service/Sync/PlanetarySyncService.php
+- src/Service/Planetary/PlanetaryProductionCalculator.php
+
+Frontend:
+- frontend/src/views/PlanetaryInteraction.vue
+- frontend/src/stores/planetary.ts
+```
+
+### API Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/planetary` | Liste des colonies |
+| `GET` | `/api/planetary/{id}` | Détail colonie (pins, routes) |
+| `GET` | `/api/planetary/stats` | KPIs globaux |
+| `GET` | `/api/planetary/production` | Production par tier |
+| `POST` | `/api/planetary/sync` | Synchroniser depuis ESI |
 
 ---
 

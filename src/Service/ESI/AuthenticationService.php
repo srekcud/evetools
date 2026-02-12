@@ -69,6 +69,9 @@ class AuthenticationService
 
         // Corporation Projects (opportunités)
         'esi-corporations.read_projects.v1',
+
+        // Planetary Interaction
+        'esi-planets.manage_planets.v1',
     ];
 
     /**

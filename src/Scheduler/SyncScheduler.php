@@ -9,6 +9,7 @@ use App\Message\TriggerAssetsSync;
 use App\Message\SyncIndustryJobs;
 use App\Message\TriggerJitaMarketSync;
 use App\Message\TriggerMiningSync;
+use App\Message\TriggerPlanetarySync;
 use App\Message\TriggerPveSync;
 use App\Message\SyncWalletTransactions;
 use App\Message\TriggerStructureMarketSync;
@@ -58,6 +59,10 @@ class SyncScheduler implements ScheduleProviderInterface
             // Wallet transactions sync every hour
             ->add(
                 RecurringMessage::every('1 hour', new SyncWalletTransactions())
+            )
+            // Planetary colonies sync every 30 minutes
+            ->add(
+                RecurringMessage::every('30 minutes', new TriggerPlanetarySync())
             );
     }
 }

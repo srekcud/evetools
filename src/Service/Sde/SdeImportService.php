@@ -105,6 +105,9 @@ class SdeImportService
         $this->notify($progressCallback, 'Importing icons...');
         $this->importIcons($progressCallback);
 
+        $this->notify($progressCallback, 'Importing planet schematics...');
+        $this->importPlanetSchematics($progressCallback);
+
         $this->notify($progressCallback, 'Cleaning up...');
         $this->cleanup();
 
@@ -1341,6 +1344,40 @@ class SdeImportService
         }
 
         $this->notify($progressCallback, "  Total: {$count} icons imported");
+    }
+
+    // ==================== PLANETARY ====================
+
+    private function importPlanetSchematics(?callable $progressCallback = null): void
+    {
+        $this->truncateTable('sde_planet_schematic_types');
+        $this->truncateTable('sde_planet_schematics');
+
+        $count = 0;
+        $connection = $this->entityManager->getConnection();
+
+        foreach ($this->readJsonlFile('planetSchematics.jsonl') as $schematicId => $schematic) {
+            $connection->insert('sde_planet_schematics', [
+                'schematic_id' => (int) $schematicId,
+                'schematic_name' => $this->getName($schematic),
+                'cycle_time' => (int) ($schematic['cycleTime'] ?? 0),
+            ]);
+
+            foreach ($schematic['types'] ?? [] as $type) {
+                $connection->insert('sde_planet_schematic_types', [
+                    'schematic_id' => (int) $schematicId,
+                    'type_id' => (int) $type['_key'],
+                    'is_input' => $type['isInput'] ?? false,
+                    'quantity' => (int) ($type['quantity'] ?? 0),
+                ], [
+                    'is_input' => \Doctrine\DBAL\ParameterType::BOOLEAN,
+                ]);
+            }
+
+            $count++;
+        }
+
+        $this->notify($progressCallback, "  Total: {$count} planet schematics imported");
     }
 
     // ==================== HELPERS ====================

@@ -3,6 +3,34 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.6 (2026-02-12)
+--------------------------------------------------------------------------------
+
+### Module Planetary Interaction (nouveau)
+- Dashboard PI : vue d'ensemble de toutes les colonies par personnage
+- KPI : colonies, extracteurs actifs, expirant bientot, revenu estime/jour
+- Timers extracteurs en temps reel avec code couleur (vert >24h, orange <24h, rouge expire)
+- Detail colonie : extracteurs, factories, stockage avec snapshot
+- Tableau de production par tier (P0 a P4) avec volumes et valorisation ISK Jita
+- Supply chain delta : surplus/deficit des inputs par produit (bleu surplus, rouge deficit)
+- Badges planetes par type (temperate, barren, lava, ice, gas, oceanic, plasma, storm)
+- Synchronisation ESI automatique (30 min) + sync manuelle
+- Import SDE planet schematics (cycles, inputs/outputs)
+- Notifications temps reel via Mercure
+
+### Scope OAuth
+- Nouveau scope requis : esi-planets.manage_planets.v1 (re-authentification necessaire)
+
+--------------------------------------------------------------------------------
+Version 0.5.3 (2026-02-12)
+--------------------------------------------------------------------------------
+
+### Interface
+- Harmonisation du style sombre sur toutes les vues (pattern Industry)
+- Panels : bg-slate-900 border-slate-800 (opaque, uniforme)
+- Corrections visuelles Dashboard, Ledger, Escalations, Contracts, Admin, Characters
+
+--------------------------------------------------------------------------------
 Version 0.5.1 (2026-02-11)
 --------------------------------------------------------------------------------
 

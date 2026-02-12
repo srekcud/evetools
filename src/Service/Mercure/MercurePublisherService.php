@@ -115,6 +115,7 @@ final readonly class MercurePublisherService
             sprintf('/user/%s/sync/pve', $userId),
             sprintf('/user/%s/sync/market-jita', $userId),
             sprintf('/user/%s/sync/market-structure', $userId),
+            sprintf('/user/%s/sync/planetary', $userId),
         ];
     }
 }

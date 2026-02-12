@@ -62,6 +62,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/planetary',
+      name: 'planetary',
+      component: () => import('@/views/PlanetaryInteraction.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/contracts',
       name: 'contracts',
       component: () => import('@/views/Contracts.vue'),
