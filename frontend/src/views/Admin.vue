@@ -246,7 +246,7 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
       <!-- KPI Cards - Row 1: Users -->
       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <!-- Total Users -->
-        <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-4 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
           <div class="flex items-center gap-2 mb-2">
             <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
               <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -259,7 +259,7 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
         </div>
 
         <!-- Valid Auth -->
-        <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-4 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
           <div class="flex items-center gap-2 mb-2">
             <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
               <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -272,7 +272,7 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
         </div>
 
         <!-- Invalid Auth -->
-        <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-4 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
           <div class="flex items-center gap-2 mb-2">
             <div class="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
               <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -285,7 +285,7 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
         </div>
 
         <!-- Active 7d -->
-        <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-4 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
           <div class="flex items-center gap-2 mb-2">
             <div class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
               <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -298,7 +298,7 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
         </div>
 
         <!-- Active 30d -->
-        <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-4 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
           <div class="flex items-center gap-2 mb-2">
             <div class="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
               <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -314,7 +314,7 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
       <!-- KPI Cards - Row 2: Characters & Tokens -->
       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <!-- Total Characters -->
-        <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-4 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
           <div class="flex items-center gap-2 mb-2">
             <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
               <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -327,7 +327,7 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
         </div>
 
         <!-- Tokens Total -->
-        <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-4 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
           <div class="flex items-center gap-2 mb-2">
             <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
               <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -340,7 +340,7 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
         </div>
 
         <!-- Tokens Healthy -->
-        <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-4 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
           <div class="flex items-center gap-2 mb-2">
             <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
               <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -353,7 +353,7 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
         </div>
 
         <!-- Tokens Expiring -->
-        <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-4 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
           <div class="flex items-center gap-2 mb-2">
             <div class="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
               <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -366,7 +366,7 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
         </div>
 
         <!-- Tokens Expired -->
-        <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-4 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
           <div class="flex items-center gap-2 mb-2">
             <div class="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
               <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -378,24 +378,25 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
           <p class="text-2xl font-bold text-red-400">{{ formatNumber(stats?.tokens?.expired) }}</p>
         </div>
 
-        <!-- Needing Sync -->
-        <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-4 border border-slate-700/50">
+        <!-- Sync Scope (active chars with tokens) -->
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
           <div class="flex items-center gap-2 mb-2">
             <div class="w-8 h-8 rounded-lg bg-yellow-500/20 flex items-center justify-center">
               <svg class="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
               </svg>
             </div>
-            <span class="text-xs text-slate-500 uppercase">A sync</span>
+            <span class="text-xs text-slate-500 uppercase">Scope sync</span>
           </div>
-          <p class="text-2xl font-bold text-yellow-400">{{ formatNumber(stats?.characters?.needingSync) }}</p>
+          <p class="text-2xl font-bold text-yellow-400">{{ formatNumber(stats?.characters?.activeSyncScope) }}</p>
+          <p class="text-xs text-slate-500 mt-1">/ {{ formatNumber(stats?.characters?.total) }} chars</p>
         </div>
       </div>
 
       <!-- KPI Cards - Row 3: Assets, Industry, Queues -->
       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <!-- Total Assets -->
-        <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-4 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
           <div class="flex items-center gap-2 mb-2">
             <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
               <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -408,7 +409,7 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
         </div>
 
         <!-- Industry Projects -->
-        <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-4 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
           <div class="flex items-center gap-2 mb-2">
             <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
               <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -421,7 +422,7 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
         </div>
 
         <!-- Industry Jobs -->
-        <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-4 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
           <div class="flex items-center gap-2 mb-2">
             <div class="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
               <svg class="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -434,7 +435,7 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
         </div>
 
         <!-- Structures -->
-        <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-4 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
           <div class="flex items-center gap-2 mb-2">
             <div class="w-8 h-8 rounded-lg bg-teal-500/20 flex items-center justify-center">
               <svg class="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -447,7 +448,7 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
         </div>
 
         <!-- Queue Async -->
-        <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-4 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
           <div class="flex items-center gap-2 mb-2">
             <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
               <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -460,7 +461,7 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
         </div>
 
         <!-- Queue Failed -->
-        <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-4 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
           <div class="flex items-center gap-2 mb-2">
             <div class="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
               <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -476,9 +477,9 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
       <!-- Sync Status & Actions -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Last Syncs -->
-        <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-6 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
           <h3 class="text-lg font-semibold text-slate-200 mb-4">Dernieres synchronisations</h3>
-          <div class="space-y-3">
+          <div class="space-y-2">
             <div class="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
               <span class="text-slate-400">Assets</span>
               <span class="text-slate-200 font-mono text-sm">{{ stats?.syncs?.lastAssetSync ? formatTimeSince(stats.syncs.lastAssetSync) : '—' }}</span>
@@ -488,6 +489,17 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
               <span class="text-slate-200 font-mono text-sm">{{ stats?.syncs?.lastIndustrySync ? formatTimeSince(stats.syncs.lastIndustrySync) : '—' }}</span>
             </div>
             <div class="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
+              <span class="text-slate-400">Wallet</span>
+              <div class="text-right">
+                <span class="text-slate-200 font-mono text-sm">{{ stats?.syncs?.lastWalletSync ? formatTimeSince(stats.syncs.lastWalletSync) : '—' }}</span>
+                <span class="text-slate-500 text-xs ml-2">({{ formatNumber(stats?.syncs?.walletTransactionCount) }} tx)</span>
+              </div>
+            </div>
+            <div class="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
+              <span class="text-slate-400">Mining</span>
+              <span class="text-slate-200 font-mono text-sm">{{ stats?.syncs?.lastMiningSync ? formatTimeSince(stats.syncs.lastMiningSync) : '—' }}</span>
+            </div>
+            <div class="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
               <span class="text-slate-400">Ansiblex</span>
               <span class="text-slate-200 font-mono text-sm">{{ formatNumber(stats?.syncs?.ansiblexCount) }} gates</span>
             </div>
@@ -495,9 +507,9 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
         </div>
 
         <!-- Admin Actions -->
-        <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-6 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
           <h3 class="text-lg font-semibold text-slate-200 mb-4">Actions</h3>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-3 gap-3">
             <button
               @click="executeAction('sync-assets', adminStore.syncAssets)"
               :disabled="actionLoading !== null"
@@ -555,6 +567,48 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
             </button>
 
             <button
+              @click="executeAction('sync-wallet', adminStore.syncWallet)"
+              :disabled="actionLoading !== null"
+              class="flex items-center justify-center gap-2 px-4 py-3 bg-teal-500/20 hover:bg-teal-500/30 text-teal-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg v-if="actionLoading === 'sync-wallet'" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+              </svg>
+              Sync Wallet
+            </button>
+
+            <button
+              @click="executeAction('sync-mining', adminStore.syncMining)"
+              :disabled="actionLoading !== null"
+              class="flex items-center justify-center gap-2 px-4 py-3 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg v-if="actionLoading === 'sync-mining'" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+              </svg>
+              Sync Mining
+            </button>
+
+            <button
+              @click="executeAction('sync-ansiblex', adminStore.syncAnsiblex)"
+              :disabled="actionLoading !== null"
+              class="flex items-center justify-center gap-2 px-4 py-3 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg v-if="actionLoading === 'sync-ansiblex'" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+              </svg>
+              Sync Ansiblex
+            </button>
+
+            <button
               @click="executeAction('retry-failed', adminStore.retryFailed)"
               :disabled="actionLoading !== null"
               class="flex items-center justify-center gap-2 px-4 py-3 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -585,7 +639,7 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
             <button
               @click="executeAction('clear-cache', adminStore.clearCache)"
               :disabled="actionLoading !== null"
-              class="col-span-2 flex items-center justify-center gap-2 px-4 py-3 bg-slate-500/20 hover:bg-slate-500/30 text-slate-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              class="flex items-center justify-center gap-2 px-4 py-3 bg-slate-500/20 hover:bg-slate-500/30 text-slate-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg v-if="actionLoading === 'clear-cache'" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -593,8 +647,41 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
               <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
               </svg>
-              Clear Cache Symfony
+              Clear Cache
             </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scheduler Config -->
+      <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
+        <h3 class="text-lg font-semibold text-slate-200 mb-4">Scheduler & Rate Limiting</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          <div class="p-3 bg-slate-900/50 rounded-lg text-center">
+            <p class="text-xs text-slate-500 uppercase mb-1">Industry</p>
+            <p class="text-lg font-bold text-violet-400">30 min</p>
+          </div>
+          <div class="p-3 bg-slate-900/50 rounded-lg text-center">
+            <p class="text-xs text-slate-500 uppercase mb-1">PVE</p>
+            <p class="text-lg font-bold text-green-400">1h</p>
+          </div>
+          <div class="p-3 bg-slate-900/50 rounded-lg text-center">
+            <p class="text-xs text-slate-500 uppercase mb-1">Mining</p>
+            <p class="text-lg font-bold text-amber-400">1h</p>
+          </div>
+          <div class="p-3 bg-slate-900/50 rounded-lg text-center">
+            <p class="text-xs text-slate-500 uppercase mb-1">Wallet</p>
+            <p class="text-lg font-bold text-cyan-400">1h</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-4 text-sm text-slate-400">
+          <div class="flex items-center gap-2">
+            <div class="w-2 h-2 rounded-full bg-yellow-400"></div>
+            <span>Sync scope : <strong class="text-yellow-300">{{ formatNumber(stats?.characters?.activeSyncScope) }}</strong> chars actifs (login &lt; 7j) / {{ formatNumber(stats?.characters?.total) }} total</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="w-2 h-2 rounded-full bg-cyan-400"></div>
+            <span>Throttle ESI : progressif sous 20 errors remain, pause sous 5</span>
           </div>
         </div>
       </div>
@@ -602,7 +689,7 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
       <!-- Charts -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Registrations Chart -->
-        <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-6 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
           <h3 class="text-lg font-semibold text-slate-200 mb-4">Inscriptions par semaine</h3>
           <div class="h-48">
             <Bar
@@ -614,7 +701,7 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
         </div>
 
         <!-- Activity Chart -->
-        <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-6 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
           <h3 class="text-lg font-semibold text-slate-200 mb-4">Connexions (7 derniers jours)</h3>
           <div class="h-48">
             <Line
@@ -626,7 +713,7 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
         </div>
 
         <!-- Asset Distribution Chart -->
-        <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-6 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
           <h3 class="text-lg font-semibold text-slate-200 mb-4">Repartition des assets</h3>
           <div class="h-48">
             <Doughnut
@@ -639,7 +726,7 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
       </div>
 
       <!-- PVE Stats by Corporation -->
-      <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-6 border border-slate-700/50">
+      <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold text-slate-200">Revenus PVE par Corporation (30j)</h3>
           <div class="flex items-center gap-2">

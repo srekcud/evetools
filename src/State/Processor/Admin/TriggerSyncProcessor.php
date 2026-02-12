@@ -12,8 +12,10 @@ use App\Message\SyncIndustryJobs;
 use App\Message\TriggerAnsiblexSync;
 use App\Message\TriggerAssetsSync;
 use App\Message\TriggerJitaMarketSync;
+use App\Message\TriggerMiningSync;
 use App\Message\TriggerPveSync;
 use App\Message\TriggerStructureMarketSync;
+use App\Message\SyncWalletTransactions;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -69,6 +71,18 @@ class TriggerSyncProcessor implements ProcessorInterface
             case 'sync_industry':
                 $this->messageBus->dispatch(new SyncIndustryJobs());
                 $resource->message = 'Industry jobs sync triggered';
+                break;
+
+            case '_api_/admin/actions/sync-wallet_post':
+            case 'sync_wallet':
+                $this->messageBus->dispatch(new SyncWalletTransactions());
+                $resource->message = 'Wallet transactions sync triggered';
+                break;
+
+            case '_api_/admin/actions/sync-mining_post':
+            case 'sync_mining':
+                $this->messageBus->dispatch(new TriggerMiningSync());
+                $resource->message = 'Mining ledger sync triggered';
                 break;
 
             case '_api_/admin/actions/sync-ansiblex_post':

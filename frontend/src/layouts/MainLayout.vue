@@ -205,7 +205,7 @@ const currentPageTitle = computed(() => {
 
     <div class="relative flex h-screen" :class="{ 'pt-10': rateLimitStore.isRateLimited }">
       <!-- Sidebar -->
-      <aside class="w-64 bg-slate-900/80 backdrop-blur-xl border-r border-cyan-500/20 flex flex-col">
+      <aside class="w-64 bg-slate-900 border-r border-cyan-500/20 flex flex-col">
         <!-- Logo -->
         <div class="p-6 border-b border-cyan-500/20">
           <div class="flex items-center gap-3">
@@ -246,7 +246,7 @@ const currentPageTitle = computed(() => {
 
         <!-- User card -->
         <div class="p-4 border-t border-cyan-500/20">
-          <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+          <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
             <!-- Clickable user info -->
             <div
               @click="showSettings = true"
@@ -306,14 +306,14 @@ const currentPageTitle = computed(() => {
         >
           <!-- Backdrop -->
           <div
-            class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+            class="absolute inset-0 bg-slate-950/80"
             @click="showSettings = false"
           ></div>
 
           <!-- Modal -->
           <div class="relative bg-slate-900 rounded-2xl border border-cyan-500/30 shadow-2xl shadow-cyan-500/10 w-full max-w-md mx-4">
             <!-- Header -->
-            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-700/50">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800">
               <h3 class="text-lg font-semibold text-slate-100">Parametres</h3>
               <button
                 @click="showSettings = false"
@@ -353,7 +353,7 @@ const currentPageTitle = computed(() => {
             </div>
 
             <!-- Footer -->
-            <div class="px-6 py-4 border-t border-slate-700/50 flex justify-end">
+            <div class="px-6 py-4 border-t border-slate-800 flex justify-end">
               <button
                 @click="showSettings = false"
                 class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-colors"
@@ -373,14 +373,14 @@ const currentPageTitle = computed(() => {
         >
           <!-- Backdrop -->
           <div
-            class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+            class="absolute inset-0 bg-slate-950/80"
             @click="showReleaseNotes = false"
           ></div>
 
           <!-- Modal -->
           <div class="relative bg-slate-900 rounded-2xl border border-cyan-500/30 shadow-2xl shadow-cyan-500/10 w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col">
             <!-- Header -->
-            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-700/50">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800">
               <h3 class="text-lg font-semibold text-slate-100">Notes de version</h3>
               <button
                 @click="showReleaseNotes = false"
@@ -404,7 +404,7 @@ const currentPageTitle = computed(() => {
             </div>
 
             <!-- Footer -->
-            <div class="px-6 py-4 border-t border-slate-700/50 flex justify-end">
+            <div class="px-6 py-4 border-t border-slate-800 flex justify-end">
               <button
                 @click="showReleaseNotes = false"
                 class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-colors"
@@ -419,7 +419,7 @@ const currentPageTitle = computed(() => {
       <!-- Main content -->
       <main class="flex-1 overflow-auto">
         <!-- Header -->
-        <header class="sticky top-0 z-10 bg-slate-900/60 backdrop-blur-xl border-b border-cyan-500/10 px-8 py-4">
+        <header class="sticky top-0 z-10 bg-slate-900 border-b border-cyan-500/10 px-8 py-4">
           <div class="flex items-center justify-between">
             <div>
               <h2 class="text-2xl font-bold text-slate-100">{{ currentPageTitle }}</h2>

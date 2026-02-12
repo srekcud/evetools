@@ -14,6 +14,9 @@ COPY . .
 RUN composer dump-autoload --optimize && \
     composer run-script post-install-cmd --no-interaction || true
 
+# Warmup cache + Doctrine proxies (baked into image)
+RUN php bin/console cache:warmup --env=prod || true
+
 # Permissions
 RUN mkdir -p var/cache var/log && chmod -R 777 var
 

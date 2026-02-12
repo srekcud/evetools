@@ -45,6 +45,7 @@ class ProjectProvider implements ProviderInterface
         }
 
         $resource = $this->mapper->projectToResource($project);
+        $this->mapper->preloadSimilarJobs($project);
         $resource->steps = array_map(
             fn ($step) => $this->mapper->stepToResource($step),
             $project->getSteps()->toArray()

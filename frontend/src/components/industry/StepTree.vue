@@ -302,9 +302,11 @@ function isLinkedToEsi(step: IndustryProjectStep): boolean {
 
 // Format similar jobs warning tooltip
 function formatSimilarJobsWarning(similarJobs: SimilarJob[]): string {
-  return similarJobs.map(j =>
-    `${j.characterName}: ${j.runs} runs (${j.status === 'active' ? 'en cours' : 'termine'})`
-  ).join('\n')
+  return similarJobs.map(j => {
+    const status = j.status === 'active' ? 'en cours' : 'terminé'
+    const facility = j.facilityName ? ` @ ${j.facilityName}` : ''
+    return `${j.characterName}: ${j.runs} runs (${status})${facility}`
+  }).join('\n')
 }
 
 // Calculate material impact text: how much extra materials vs best structure

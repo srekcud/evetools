@@ -852,7 +852,7 @@ onUnmounted(() => {
       <div class="flex items-center justify-between flex-wrap gap-3">
         <div class="flex items-center gap-3 flex-wrap">
           <!-- Status filter -->
-          <div class="flex items-center gap-2 bg-slate-800/50 rounded-lg p-1">
+          <div class="flex items-center gap-2 bg-slate-900 rounded-lg p-1">
             <button
               class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
               :class="statusFilter === 'active' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'"
@@ -866,7 +866,7 @@ onUnmounted(() => {
           </div>
 
           <!-- Visibility filter -->
-          <div class="flex items-center gap-2 bg-slate-800/50 rounded-lg p-1">
+          <div class="flex items-center gap-2 bg-slate-900 rounded-lg p-1">
             <button
               class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
               :class="visibilityFilter === 'all' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'"
@@ -964,7 +964,7 @@ onUnmounted(() => {
       <!-- KPI Cards -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <!-- Total -->
-        <div class="group relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-2xl p-5 border border-slate-700/50 backdrop-blur-sm overflow-hidden transition-all duration-300 hover:border-cyan-500/40 hover:shadow-lg hover:shadow-cyan-500/10 hover:-translate-y-1">
+        <div class="group relative bg-slate-900 rounded-2xl p-5 border border-slate-800 overflow-hidden transition-all duration-300 hover:border-cyan-500/40 hover:shadow-lg hover:shadow-cyan-500/10 hover:-translate-y-1">
           <div class="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
           <div class="relative">
             <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">Total</p>
@@ -973,7 +973,7 @@ onUnmounted(() => {
         </div>
 
         <!-- Sans BM / BM -->
-        <div class="group relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-2xl p-5 border border-slate-700/50 backdrop-blur-sm overflow-hidden transition-all duration-300 hover:border-cyan-500/40 hover:shadow-lg hover:shadow-cyan-500/10 hover:-translate-y-1">
+        <div class="group relative bg-slate-900 rounded-2xl p-5 border border-slate-800 overflow-hidden transition-all duration-300 hover:border-cyan-500/40 hover:shadow-lg hover:shadow-cyan-500/10 hover:-translate-y-1">
           <div class="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
           <div class="relative">
             <p class="text-slate-500 text-sm uppercase tracking-wider mb-1"><span class="line-through">BM</span> / BM</p>
@@ -982,7 +982,7 @@ onUnmounted(() => {
         </div>
 
         <!-- En vente -->
-        <div class="group relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-2xl p-5 border border-slate-700/50 backdrop-blur-sm overflow-hidden transition-all duration-300 hover:border-amber-500/40 hover:shadow-lg hover:shadow-amber-500/10 hover:-translate-y-1">
+        <div class="group relative bg-slate-900 rounded-2xl p-5 border border-slate-800 overflow-hidden transition-all duration-300 hover:border-amber-500/40 hover:shadow-lg hover:shadow-amber-500/10 hover:-translate-y-1">
           <div class="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
           <div class="relative">
             <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">En vente</p>
@@ -992,7 +992,7 @@ onUnmounted(() => {
         </div>
 
         <!-- Vendues -->
-        <div class="group relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-2xl p-5 border border-slate-700/50 backdrop-blur-sm overflow-hidden transition-all duration-300 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/10 hover:-translate-y-1">
+        <div class="group relative bg-slate-900 rounded-2xl p-5 border border-slate-800 overflow-hidden transition-all duration-300 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/10 hover:-translate-y-1">
           <div class="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
           <div class="relative">
             <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">Vendues</p>
@@ -1314,12 +1314,12 @@ onUnmounted(() => {
     <Teleport to="body">
       <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center">
         <!-- Backdrop -->
-        <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" @click="closeModal"></div>
+        <div class="absolute inset-0 bg-slate-950/80" @click="closeModal"></div>
 
         <!-- Modal content -->
         <div class="relative bg-slate-900 rounded-2xl border border-cyan-500/30 shadow-2xl shadow-cyan-500/10 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
           <!-- Header -->
-          <div class="flex items-center justify-between px-6 py-4 border-b border-slate-700/50">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800">
             <div class="flex items-center gap-3">
               <div class="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center">
                 <svg v-if="isEditMode" class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
@@ -1349,7 +1349,7 @@ onUnmounted(() => {
                 <label class="block text-sm font-medium text-slate-400 mb-1.5">Personnage</label>
                 <div class="relative">
                   <div
-                    class="flex items-center gap-2 w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 cursor-pointer hover:border-cyan-500/50 transition-colors"
+                    class="flex items-center gap-2 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 cursor-pointer hover:border-cyan-500/50 transition-colors"
                     @click.stop="showCharDropdown = !showCharDropdown"
                   >
                     <div class="w-6 h-6 rounded bg-slate-700 flex items-center justify-center text-cyan-400 text-xs font-bold flex-shrink-0">
@@ -1384,7 +1384,7 @@ onUnmounted(() => {
                 <label class="block text-sm font-medium text-slate-400 mb-1.5">Type d'escalation</label>
                 <div class="relative">
                   <div
-                    class="flex items-center justify-between w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 cursor-pointer hover:border-cyan-500/50 transition-colors"
+                    class="flex items-center justify-between w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 cursor-pointer hover:border-cyan-500/50 transition-colors"
                     @click.stop="showTypeDropdown = !showTypeDropdown; showCharDropdown = false"
                   >
                     <span class="text-sm" :class="formType ? 'text-slate-200' : 'text-slate-500'">{{ formType || 'Choisir un type...' }}</span>
@@ -1423,7 +1423,7 @@ onUnmounted(() => {
                     @focus="onSystemSearch(formSystemSearch)"
                     placeholder="Rechercher un systeme..."
                     autocomplete="off"
-                    class="w-full bg-slate-800/50 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-500 hover:border-cyan-500/50 transition-colors"
+                    class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-500 hover:border-cyan-500/50 transition-colors"
                   >
 
                   <!-- Autocomplete dropdown -->
@@ -1472,7 +1472,7 @@ onUnmounted(() => {
                       v-model.number="formTimerDays"
                       min="0"
                       max="3"
-                      class="w-14 bg-slate-800/50 border border-slate-700 rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:border-cyan-500 font-mono hover:border-cyan-500/50 transition-colors"
+                      class="w-14 bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:border-cyan-500 font-mono hover:border-cyan-500/50 transition-colors"
                     >
                     <span class="text-xs text-slate-500">j</span>
                   </div>
@@ -1482,7 +1482,7 @@ onUnmounted(() => {
                       v-model.number="formTimerHours"
                       min="0"
                       max="23"
-                      class="w-14 bg-slate-800/50 border border-slate-700 rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:border-cyan-500 font-mono hover:border-cyan-500/50 transition-colors"
+                      class="w-14 bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:border-cyan-500 font-mono hover:border-cyan-500/50 transition-colors"
                     >
                     <span class="text-xs text-slate-500">h</span>
                   </div>
@@ -1492,7 +1492,7 @@ onUnmounted(() => {
                       v-model.number="formTimerMinutes"
                       min="0"
                       max="59"
-                      class="w-14 bg-slate-800/50 border border-slate-700 rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:border-cyan-500 font-mono hover:border-cyan-500/50 transition-colors"
+                      class="w-14 bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:border-cyan-500 font-mono hover:border-cyan-500/50 transition-colors"
                     >
                     <span class="text-xs text-slate-500">m</span>
                   </div>
@@ -1518,7 +1518,7 @@ onUnmounted(() => {
                     type="number"
                     v-model.number="formPrice"
                     min="0"
-                    class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 font-mono pr-8 hover:border-cyan-500/50 transition-colors"
+                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 font-mono pr-8 hover:border-cyan-500/50 transition-colors"
                   >
                   <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500">m</span>
                 </div>
@@ -1547,7 +1547,7 @@ onUnmounted(() => {
                 type="text"
                 v-model="formNotes"
                 placeholder="Ex: proche de Jita, acheteur trouve..."
-                class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-500 hover:border-cyan-500/50 transition-colors"
+                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-500 hover:border-cyan-500/50 transition-colors"
               >
             </div>
 
@@ -1608,7 +1608,7 @@ onUnmounted(() => {
           </div>
 
           <!-- Footer -->
-          <div class="px-6 py-4 border-t border-slate-700/50 flex items-center justify-between">
+          <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-between">
             <p v-if="!isEditMode" class="text-xs text-slate-600">Expire dans 72h maximum</p>
             <span v-else></span>
             <div class="flex items-center gap-3">
@@ -1636,7 +1636,7 @@ onUnmounted(() => {
     <!-- Delete Confirmation Modal -->
     <Teleport to="body">
       <div v-if="showDeleteModal && deleteTarget" class="fixed inset-0 z-50 flex items-center justify-center">
-        <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" @click="cancelDelete"></div>
+        <div class="absolute inset-0 bg-slate-950/80" @click="cancelDelete"></div>
         <div class="relative bg-slate-900 rounded-2xl border border-red-500/30 shadow-2xl shadow-red-500/10 w-full max-w-sm mx-4">
           <div class="p-6 text-center">
             <div class="w-12 h-12 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center mx-auto mb-4">
@@ -1672,7 +1672,7 @@ onUnmounted(() => {
     <!-- Sell Confirmation Modal -->
     <Teleport to="body">
       <div v-if="showSellModal && sellTarget" class="fixed inset-0 z-50 flex items-center justify-center">
-        <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" @click="cancelSell"></div>
+        <div class="absolute inset-0 bg-slate-950/80" @click="cancelSell"></div>
         <div class="relative bg-slate-900 rounded-2xl border border-emerald-500/30 shadow-2xl shadow-emerald-500/10 w-full max-w-sm mx-4">
           <div class="p-6 text-center">
             <div class="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4">

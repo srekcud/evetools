@@ -303,7 +303,7 @@ async function reauthorize(character: Character) {
       </div>
 
       <!-- Error message -->
-      <div v-if="error" class="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 flex items-center justify-between backdrop-blur-sm">
+      <div v-if="error" class="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 flex items-center justify-between">
         <span>{{ error }}</span>
         <button @click="error = ''" class="text-red-400 hover:text-red-300 transition-colors">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -365,7 +365,7 @@ async function reauthorize(character: Character) {
                   <p v-if="mainCharacter.allianceName" class="text-sm text-amber-400/80 mt-0.5">{{ mainCharacter.allianceName }}</p>
 
                   <!-- Stats -->
-                  <div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-700/50">
+                  <div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-800">
                     <div>
                       <p class="text-xs text-slate-500 uppercase tracking-wide">Wallet</p>
                       <p class="text-lg font-semibold text-cyan-400 font-mono">{{ formatIsk(wallets.get(mainCharacter.id), 1) }} ISK</p>
@@ -447,7 +447,7 @@ async function reauthorize(character: Character) {
             <div
               v-for="character in altsBySameCorp"
               :key="character.id"
-              class="group relative bg-slate-900/80 rounded-xl border border-slate-700/50 hover:border-cyan-500/40 p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/10 hover:-translate-y-1"
+              class="group relative bg-slate-900 rounded-xl border border-slate-800 hover:border-cyan-500/40 p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/10 hover:-translate-y-1"
             >
               <!-- Scan effect on hover -->
               <div class="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
@@ -478,7 +478,7 @@ async function reauthorize(character: Character) {
                   </div>
 
                   <!-- Wallet -->
-                  <div class="mt-3 pt-3 border-t border-slate-700/50">
+                  <div class="mt-3 pt-3 border-t border-slate-800">
                     <p class="text-xs text-slate-500">Wallet</p>
                     <p class="text-sm font-semibold text-cyan-400 font-mono group-hover:text-cyan-300 transition-colors">{{ formatIsk(wallets.get(character.id), 1) }} ISK</p>
                   </div>
@@ -505,7 +505,7 @@ async function reauthorize(character: Character) {
               </div>
 
               <!-- Actions -->
-              <div class="relative flex items-center justify-end gap-1 mt-4 pt-3 border-t border-slate-700/30">
+              <div class="relative flex items-center justify-end gap-1 mt-4 pt-3 border-t border-slate-800">
                 <button
                   v-if="!character.hasValidToken || character.hasMissingScopes"
                   @click="reauthorize(character)"
@@ -560,7 +560,7 @@ async function reauthorize(character: Character) {
             <div
               v-for="character in altsByDifferentCorp"
               :key="character.id"
-              class="group relative bg-slate-900/60 rounded-xl border border-slate-800/50 hover:border-slate-500/40 p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-slate-500/5 hover:-translate-y-1"
+              class="group relative bg-slate-900 rounded-xl border border-slate-800 hover:border-slate-500/40 p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-slate-500/5 hover:-translate-y-1"
             >
               <!-- Scan effect on hover -->
               <div class="absolute inset-0 bg-gradient-to-r from-transparent via-slate-400/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
@@ -592,7 +592,7 @@ async function reauthorize(character: Character) {
                   </div>
 
                   <!-- Wallet -->
-                  <div class="mt-3 pt-3 border-t border-slate-700/30">
+                  <div class="mt-3 pt-3 border-t border-slate-800">
                     <p class="text-xs text-slate-500">Wallet</p>
                     <p class="text-sm font-semibold text-cyan-400/80 font-mono group-hover:text-cyan-400 transition-colors">{{ formatIsk(wallets.get(character.id), 1) }} ISK</p>
                   </div>
@@ -619,7 +619,7 @@ async function reauthorize(character: Character) {
               </div>
 
               <!-- Actions -->
-              <div class="relative flex items-center justify-end gap-1 mt-4 pt-3 border-t border-slate-700/30">
+              <div class="relative flex items-center justify-end gap-1 mt-4 pt-3 border-t border-slate-800">
                 <button
                   v-if="!character.hasValidToken || character.hasMissingScopes"
                   @click="reauthorize(character)"
@@ -690,7 +690,7 @@ async function reauthorize(character: Character) {
         leave-from-class="opacity-100"
         leave-to-class="opacity-0"
       >
-        <div v-if="showDeleteModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" @click.self="showDeleteModal = false" @keydown.enter="deleteCharacter" @keydown.escape="showDeleteModal = false">
+        <div v-if="showDeleteModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="showDeleteModal = false" @keydown.enter="deleteCharacter" @keydown.escape="showDeleteModal = false">
           <Transition
             enter-active-class="transition-all duration-200"
             enter-from-class="opacity-0 scale-95"
@@ -699,7 +699,7 @@ async function reauthorize(character: Character) {
             leave-from-class="opacity-100 scale-100"
             leave-to-class="opacity-0 scale-95"
           >
-            <div v-if="showDeleteModal" class="bg-slate-900 rounded-2xl border border-slate-700/50 max-w-sm w-full p-6 shadow-2xl">
+            <div v-if="showDeleteModal" class="bg-slate-900 rounded-2xl border border-slate-800 max-w-sm w-full p-6 shadow-2xl">
               <div class="flex items-center gap-4 mb-4">
                 <div class="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center">
                   <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -749,7 +749,7 @@ async function reauthorize(character: Character) {
         leave-from-class="opacity-100"
         leave-to-class="opacity-0"
       >
-        <div v-if="showSetMainModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" @click.self="showSetMainModal = false" @keydown.enter="setAsMain" @keydown.escape="showSetMainModal = false">
+        <div v-if="showSetMainModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="showSetMainModal = false" @keydown.enter="setAsMain" @keydown.escape="showSetMainModal = false">
           <Transition
             enter-active-class="transition-all duration-200"
             enter-from-class="opacity-0 scale-95"
@@ -758,7 +758,7 @@ async function reauthorize(character: Character) {
             leave-from-class="opacity-100 scale-100"
             leave-to-class="opacity-0 scale-95"
           >
-            <div v-if="showSetMainModal" class="bg-slate-900 rounded-2xl border border-slate-700/50 max-w-sm w-full p-6 shadow-2xl">
+            <div v-if="showSetMainModal" class="bg-slate-900 rounded-2xl border border-slate-800 max-w-sm w-full p-6 shadow-2xl">
               <div class="flex items-center gap-4 mb-4">
                 <div class="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center">
                   <svg class="w-6 h-6 text-amber-400" fill="currentColor" viewBox="0 0 20 20">

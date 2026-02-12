@@ -22,7 +22,8 @@ final readonly class SyncWalletTransactionsHandler
 
     public function __invoke(SyncWalletTransactions $message): void
     {
-        $characters = $this->characterRepository->findAll();
+        $characters = $this->characterRepository->findActiveWithValidTokens();
+        $synced = 0;
 
         foreach ($characters as $character) {
             $token = $character->getEveToken();
@@ -30,19 +31,22 @@ final readonly class SyncWalletTransactionsHandler
                 continue;
             }
 
-            $user = $character->getUser();
-            if ($user === null || !$user->isAuthValid()) {
-                continue;
-            }
-
             try {
                 $this->walletTransactionSyncService->syncCharacterTransactions($character);
+                $synced++;
             } catch (\Throwable $e) {
                 $this->logger->error('Failed to sync wallet transactions', [
                     'characterName' => $character->getName(),
                     'error' => $e->getMessage(),
                 ]);
             }
+
+            usleep(500_000);
         }
+
+        $this->logger->info('Wallet transactions sync completed', [
+            'synced' => $synced,
+            'totalCharacters' => count($characters),
+        ]);
     }
 }

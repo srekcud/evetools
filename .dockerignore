@@ -4,3 +4,4 @@ frontend/node_modules/
 .git/
 .env.local
 docker-compose.override.yml
+vendor/

@@ -14,6 +14,7 @@ export interface AdminCharacterStats {
   total: number
   withValidTokens: number
   needingSync: number
+  activeSyncScope: number
 }
 
 export interface AdminTokenStats {
@@ -34,6 +35,9 @@ export interface AdminSyncStats {
   lastIndustrySync: string | null
   structuresCached: number
   ansiblexCount: number
+  walletTransactionCount: number
+  lastWalletSync: string | null
+  lastMiningSync: string | null
 }
 
 export interface AdminAssetStats {
@@ -200,6 +204,14 @@ export const useAdminStore = defineStore('admin', () => {
     return triggerAction('sync-industry')
   }
 
+  async function syncWallet(): Promise<{ success: boolean; message: string }> {
+    return triggerAction('sync-wallet')
+  }
+
+  async function syncMining(): Promise<{ success: boolean; message: string }> {
+    return triggerAction('sync-mining')
+  }
+
   async function syncAnsiblex(): Promise<{ success: boolean; message: string }> {
     return triggerAction('sync-ansiblex')
   }
@@ -233,6 +245,8 @@ export const useAdminStore = defineStore('admin', () => {
     syncMarket,
     syncPve,
     syncIndustry,
+    syncWallet,
+    syncMining,
     syncAnsiblex,
     retryFailed,
     purgeFailed,

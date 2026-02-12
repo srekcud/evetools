@@ -16,6 +16,7 @@ use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStepPurchase;
 use App\Entity\IndustryStructureConfig;
 use App\Repository\CachedCharacterSkillRepository;
+use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Service\Industry\IndustryCalculationService;
 
@@ -24,10 +25,14 @@ class IndustryResourceMapper
     /** @var array<string, array<string, array{skills: array<int, int>, name: string, time: int|null}>> */
     private array $bestCharacterCache = [];
 
+    /** @var array<int, array<array{esiJobId: int, runs: int, status: string, characterName: string}>>|null */
+    private ?array $similarJobsByBlueprint = null;
+
     public function __construct(
         private readonly IndustryCalculationService $calculationService,
         private readonly CachedCharacterSkillRepository $skillRepository,
         private readonly IndustryStructureConfigRepository $structureConfigRepository,
+        private readonly CachedIndustryJobRepository $industryJobRepository,
     ) {
     }
 
@@ -275,7 +280,62 @@ class IndustryResourceMapper
         }
         $resource->purchasedQuantity = $purchasedQty;
 
+        // Similar jobs (all ESI jobs with same blueprint, preloaded)
+        if ($this->similarJobsByBlueprint !== null) {
+            $resource->similarJobs = $this->similarJobsByBlueprint[$step->getBlueprintTypeId()] ?? [];
+        }
+
         return $resource;
+    }
+
+    /**
+     * Preload all ESI jobs for the blueprints in a project (1 query).
+     */
+    public function preloadSimilarJobs(IndustryProject $project): void
+    {
+        $blueprintTypeIds = [];
+        foreach ($project->getSteps() as $step) {
+            $blueprintTypeIds[$step->getBlueprintTypeId()] = true;
+        }
+
+        if (empty($blueprintTypeIds)) {
+            $this->similarJobsByBlueprint = [];
+            return;
+        }
+
+        $characterIds = [];
+        foreach ($project->getUser()->getCharacters() as $character) {
+            $characterIds[] = $character->getId();
+        }
+
+        $jobs = $this->industryJobRepository->findByBlueprintsAndCharacters(
+            array_keys($blueprintTypeIds),
+            $characterIds,
+        );
+
+        // Resolve facility names (deduplicated)
+        $facilityNames = [];
+        foreach ($jobs as $job) {
+            $sid = $job->getStationId();
+            if ($sid !== null && !isset($facilityNames[$sid])) {
+                $facilityNames[$sid] = $this->calculationService->resolveFacilityName($sid);
+            }
+        }
+
+        $indexed = [];
+        foreach ($jobs as $job) {
+            $sid = $job->getStationId();
+            $indexed[$job->getBlueprintTypeId()][] = [
+                'esiJobId' => $job->getJobId(),
+                'runs' => $job->getRuns(),
+                'status' => $job->getStatus(),
+                'characterName' => $job->getCharacter()->getName(),
+                'facilityId' => $sid,
+                'facilityName' => $sid !== null ? ($facilityNames[$sid] ?? null) : null,
+            ];
+        }
+
+        $this->similarJobsByBlueprint = $indexed;
     }
 
     /**

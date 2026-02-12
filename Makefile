@@ -82,6 +82,8 @@ deploy: ## Deploy to production (build + migrate + restart)
 	$(PROD) exec app php bin/console doctrine:migrations:migrate --no-interaction
 	$(PROD) exec app php bin/console cache:clear
 	$(PROD) exec app php bin/console cache:warmup
+	$(PROD) exec worker php bin/console cache:clear
+	$(PROD) exec worker php bin/console cache:warmup
 	$(PROD) restart worker
 
 deploy-full: base-build deploy ## Full deploy (rebuild base image + deploy)

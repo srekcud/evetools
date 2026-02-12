@@ -80,6 +80,7 @@ class CharacterStatsDto
     public int $total = 0;
     public int $withValidTokens = 0;
     public int $needingSync = 0;
+    public int $activeSyncScope = 0;
 }
 
 class TokenStatsDto
@@ -116,6 +117,9 @@ class SyncStatsDto
     public ?string $lastIndustrySync = null;
     public int $structuresCached = 0;
     public int $ansiblexCount = 0;
+    public int $walletTransactionCount = 0;
+    public ?string $lastWalletSync = null;
+    public ?string $lastMiningSync = null;
 }
 
 class PveStatsDto

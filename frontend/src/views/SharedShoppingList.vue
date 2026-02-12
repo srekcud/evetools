@@ -101,7 +101,7 @@ async function loadSharedList() {
       <!-- Content -->
       <div v-else-if="data" class="space-y-6">
         <!-- Info banner -->
-        <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-4 flex items-center justify-between">
+        <div class="bg-slate-900 border border-slate-800 rounded-lg p-4 flex items-center justify-between">
           <div class="text-sm text-slate-400">
             <span>Creee le {{ formatDateTime(data.createdAt) }}</span>
             <span class="mx-2">•</span>

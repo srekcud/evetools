@@ -102,6 +102,24 @@ class CharacterRepository extends ServiceEntityRepository
     }
 
     /**
+     * @return Character[]
+     */
+    public function findActiveWithValidTokens(int $activeDays = 7): array
+    {
+        $threshold = new \DateTimeImmutable("-{$activeDays} days");
+
+        return $this->createQueryBuilder('c')
+            ->join('c.eveToken', 't')
+            ->join('c.user', 'u')
+            ->where('u.authStatus = :validStatus')
+            ->andWhere('u.lastLoginAt >= :threshold')
+            ->setParameter('validStatus', User::AUTH_STATUS_VALID)
+            ->setParameter('threshold', $threshold)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Find a character that can access corporation assets for a given corporation.
      * The character must have a valid token with the esi-assets.read_corporation_assets.v1 scope.
      */

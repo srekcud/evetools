@@ -201,7 +201,7 @@ function onStatusChange() {
         <!-- Summary cards -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <!-- Total contracts -->
-          <div class="group relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-2xl p-5 border border-slate-700/50 backdrop-blur-sm overflow-hidden transition-all duration-300 hover:border-cyan-500/40 hover:shadow-lg hover:shadow-cyan-500/10 hover:-translate-y-1">
+          <div class="group relative bg-slate-900 rounded-2xl p-5 border border-slate-800 overflow-hidden transition-all duration-300 hover:border-cyan-500/40 hover:shadow-lg hover:shadow-cyan-500/10 hover:-translate-y-1">
             <div class="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
             <div class="relative">
               <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">Total contrats</p>
@@ -210,7 +210,7 @@ function onStatusChange() {
           </div>
 
           <!-- Sell contracts -->
-          <div class="group relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-2xl p-5 border border-slate-700/50 backdrop-blur-sm overflow-hidden transition-all duration-300 hover:border-amber-500/40 hover:shadow-lg hover:shadow-amber-500/10 hover:-translate-y-1">
+          <div class="group relative bg-slate-900 rounded-2xl p-5 border border-slate-800 overflow-hidden transition-all duration-300 hover:border-amber-500/40 hover:shadow-lg hover:shadow-amber-500/10 hover:-translate-y-1">
             <div class="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
             <div class="relative">
               <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">Ventes</p>
@@ -219,7 +219,7 @@ function onStatusChange() {
           </div>
 
           <!-- Competitive -->
-          <div class="group relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-2xl p-5 border border-slate-700/50 backdrop-blur-sm overflow-hidden transition-all duration-300 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/10 hover:-translate-y-1">
+          <div class="group relative bg-slate-900 rounded-2xl p-5 border border-slate-800 overflow-hidden transition-all duration-300 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/10 hover:-translate-y-1">
             <div class="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
             <div class="relative">
               <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">Competitifs</p>
@@ -228,7 +228,7 @@ function onStatusChange() {
           </div>
 
           <!-- Non competitive -->
-          <div class="group relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-2xl p-5 border border-slate-700/50 backdrop-blur-sm overflow-hidden transition-all duration-300 hover:border-red-500/40 hover:shadow-lg hover:shadow-red-500/10 hover:-translate-y-1">
+          <div class="group relative bg-slate-900 rounded-2xl p-5 border border-slate-800 overflow-hidden transition-all duration-300 hover:border-red-500/40 hover:shadow-lg hover:shadow-red-500/10 hover:-translate-y-1">
             <div class="absolute inset-0 bg-gradient-to-r from-transparent via-red-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
             <div class="relative">
               <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">Trop chers</p>
@@ -347,7 +347,7 @@ function onStatusChange() {
                 v-if="expandedContract === contract.contractId"
                 class="px-5 pb-4 bg-slate-800/30"
               >
-                <div class="border-t border-slate-700/50 pt-4">
+                <div class="border-t border-slate-800 pt-4">
                   <p class="text-xs text-slate-500 uppercase tracking-wider mb-3">Contenu du contrat</p>
                   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     <div

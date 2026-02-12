@@ -37,10 +37,11 @@ export type {
   UserSettings,
   PurchaseSuggestion,
   AvailableJob,
+  SimilarEsiJob,
 } from './industry/types'
 
 // Legacy type aliases for old field names (backward compat)
-export type SimilarJob = import('./industry/types').JobMatch
+export type SimilarJob = import('./industry/types').SimilarEsiJob
 
 /**
  * Composite store that combines all industry sub-stores.

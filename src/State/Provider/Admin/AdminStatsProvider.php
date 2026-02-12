@@ -51,6 +51,7 @@ class AdminStatsProvider implements ProviderInterface
         $resource->characters->total = $stats['characters']['total'] ?? 0;
         $resource->characters->withValidTokens = $stats['characters']['withValidTokens'] ?? 0;
         $resource->characters->needingSync = $stats['characters']['needingSync'] ?? 0;
+        $resource->characters->activeSyncScope = $stats['characters']['activeSyncScope'] ?? 0;
 
         // Tokens
         $resource->tokens->total = $stats['tokens']['total'] ?? 0;
@@ -77,6 +78,9 @@ class AdminStatsProvider implements ProviderInterface
         $resource->syncs->lastIndustrySync = $stats['syncs']['lastIndustrySync'] ?? null;
         $resource->syncs->structuresCached = $stats['syncs']['structuresCached'] ?? 0;
         $resource->syncs->ansiblexCount = $stats['syncs']['ansiblexCount'] ?? 0;
+        $resource->syncs->walletTransactionCount = $stats['syncs']['walletTransactionCount'] ?? 0;
+        $resource->syncs->lastWalletSync = $stats['syncs']['lastWalletSync'] ?? null;
+        $resource->syncs->lastMiningSync = $stats['syncs']['lastMiningSync'] ?? null;
 
         // PVE
         $resource->pve->totalIncome30d = $stats['pve']['totalIncome30d'] ?? 0.0;

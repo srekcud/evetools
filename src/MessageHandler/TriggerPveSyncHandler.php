@@ -27,7 +27,7 @@ final readonly class TriggerPveSyncHandler
     {
         $this->logger->info('Triggering scheduled PVE sync');
 
-        $users = $this->userRepository->findAll();
+        $users = $this->userRepository->findActiveWithCharacters();
         $syncCount = 0;
 
         foreach ($users as $user) {

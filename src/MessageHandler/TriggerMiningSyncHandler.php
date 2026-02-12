@@ -27,7 +27,7 @@ final readonly class TriggerMiningSyncHandler
     {
         $this->logger->info('Triggering scheduled mining sync');
 
-        $users = $this->userRepository->findAll();
+        $users = $this->userRepository->findActiveWithCharacters();
         $syncCount = 0;
 
         foreach ($users as $user) {

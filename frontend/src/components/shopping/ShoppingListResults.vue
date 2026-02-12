@@ -197,7 +197,7 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
     </div>
 
     <!-- Summary -->
-    <div class="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+    <div class="bg-slate-900 rounded-lg p-4 border border-slate-800">
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
         <div>
           <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Volume total</p>
@@ -287,8 +287,8 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
     <slot name="after-summary"></slot>
 
     <!-- Items Table -->
-    <div class="bg-slate-900/50 backdrop-blur border border-slate-700 rounded-xl overflow-hidden">
-      <div class="p-4 border-b border-slate-700/50 flex items-center justify-between">
+    <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+      <div class="p-4 border-b border-slate-800 flex items-center justify-between">
         <h3 class="text-lg font-semibold text-slate-200">
           Items ({{ items.length }})
         </h3>
@@ -316,7 +316,7 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
               <th class="px-4 py-3 text-center">Acheter a</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-700/30">
+          <tbody class="divide-y divide-slate-800">
             <tr
               v-for="item in items"
               :key="item.typeId"

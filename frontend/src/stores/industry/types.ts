@@ -24,6 +24,15 @@ export interface JobMatch {
   facilityName: string | null
 }
 
+export interface SimilarEsiJob {
+  esiJobId: number
+  runs: number
+  status: string
+  characterName: string
+  facilityId: number | null
+  facilityName: string | null
+}
+
 export interface StepPurchase {
   id: string
   typeId: number
@@ -87,7 +96,7 @@ export interface IndustryProjectStep {
   recommendedStructureName: string | null
   structureBonus: number | null
   estimatedDurationDays: number | null
-  similarJobs: JobMatch[]
+  similarJobs: SimilarEsiJob[]
 }
 
 export interface IndustryProject {

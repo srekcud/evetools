@@ -61,7 +61,7 @@ onMounted(() => {
     <!-- Stats cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
       <!-- Characters -->
-      <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-2xl p-6 border border-slate-700/50 backdrop-blur-sm hover:border-cyan-500/30 transition-colors group">
+      <div class="bg-slate-900 rounded-2xl p-6 border border-slate-800 hover:border-cyan-500/30 transition-colors group">
         <div class="flex items-center justify-between mb-4">
           <div class="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center">
             <svg class="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -75,7 +75,7 @@ onMounted(() => {
       </div>
 
       <!-- Wallet -->
-      <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-2xl p-6 border border-slate-700/50 backdrop-blur-sm hover:border-amber-500/30 transition-colors group">
+      <div class="bg-slate-900 rounded-2xl p-6 border border-slate-800 hover:border-amber-500/30 transition-colors group">
         <div class="flex items-center justify-between mb-4">
           <div class="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
             <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -117,7 +117,7 @@ onMounted(() => {
         <div
           v-for="character in (user?.characters || [])"
           :key="character.id"
-          class="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50 hover:border-cyan-500/40 transition-all duration-300 group cursor-pointer"
+          class="bg-slate-900 rounded-xl p-5 border border-slate-800 hover:border-cyan-500/40 transition-all duration-300 group cursor-pointer"
         >
           <div class="flex items-start gap-4">
             <div class="relative">

@@ -236,7 +236,7 @@ async function shareList() {
       </div>
 
       <!-- Input Section -->
-      <div class="bg-slate-900/50 backdrop-blur border border-cyan-500/20 rounded-xl p-6">
+      <div class="bg-slate-900 border border-cyan-500/20 rounded-xl p-6">
         <div class="space-y-4">
           <div>
             <label class="block text-sm font-medium text-slate-300 mb-2">
@@ -245,7 +245,7 @@ async function shareList() {
             <textarea
               v-model="inputText"
               rows="8"
-              class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-3 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 font-mono text-sm"
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 font-mono text-sm"
               placeholder="Tritanium&#9;10000
 Pyerite&#9;5000
 Megacyte 100
@@ -274,8 +274,8 @@ Megacyte 100
                   :class="[
                     'w-full rounded-lg pl-3 pr-10 py-2 focus:outline-none',
                     selectedStructure.id
-                      ? 'bg-slate-800/50 border-2 border-cyan-500/50 text-cyan-400 placeholder-cyan-400'
-                      : 'bg-slate-800/50 border border-slate-700 text-slate-200 placeholder-slate-400 focus:border-cyan-500/50'
+                      ? 'bg-slate-800 border-2 border-cyan-500/50 text-cyan-400 placeholder-cyan-400'
+                      : 'bg-slate-800 border border-slate-700 text-slate-200 placeholder-slate-400 focus:border-cyan-500/50'
                   ]"
                 />
 
@@ -305,7 +305,7 @@ Megacyte 100
                     v-for="struct in structureSearchResults"
                     :key="struct.id"
                     @mousedown.prevent="selectStructure(struct)"
-                    class="w-full px-3 py-2 text-left text-slate-200 hover:bg-slate-700/50 transition-colors border-b border-slate-700/50 last:border-0"
+                    class="w-full px-3 py-2 text-left text-slate-200 hover:bg-slate-700/50 transition-colors border-b border-slate-800 last:border-0"
                   >
                     <div class="font-medium truncate">{{ struct.name }}</div>
                   </button>
@@ -331,7 +331,7 @@ Megacyte 100
                 type="number"
                 min="0"
                 step="100"
-                class="w-28 bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500/50"
+                class="w-28 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500/50"
               />
             </div>
 

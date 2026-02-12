@@ -178,4 +178,7 @@ class ProjectStepResource
 
     /** Sum of purchased quantities for this step (computed from linked purchases) */
     public int $purchasedQuantity = 0;
+
+    /** @var array All ESI jobs with same blueprint (informational, independent of matching) */
+    public array $similarJobs = [];
 }

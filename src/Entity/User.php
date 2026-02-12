@@ -161,6 +161,17 @@ class User implements UserInterface
         return $this;
     }
 
+    public function isActive(int $days = 7): bool
+    {
+        if ($this->lastLoginAt === null) {
+            return false;
+        }
+
+        $threshold = new \DateTimeImmutable("-{$days} days");
+
+        return $this->lastLoginAt >= $threshold;
+    }
+
     public function getCorporationId(): ?int
     {
         return $this->mainCharacter?->getCorporationId();

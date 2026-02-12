@@ -31,10 +31,6 @@ class SyncScheduler implements ScheduleProviderInterface
         return (new Schedule())
             ->stateful($this->cache)
             ->processOnlyLastMissedRun(true)
-            // Assets sync every 30 minutes
-            ->add(
-                RecurringMessage::every('30 minutes', new TriggerAssetsSync())
-            )
             // Ansiblex sync every 12 hours
             ->add(
                 RecurringMessage::every('12 hours', new TriggerAnsiblexSync())
@@ -47,21 +43,21 @@ class SyncScheduler implements ScheduleProviderInterface
             ->add(
                 RecurringMessage::every('2 hours', new TriggerJitaMarketSync())
             )
-            // PVE data sync every 20 minutes
+            // PVE data sync every hour
             ->add(
-                RecurringMessage::every('20 minutes', new TriggerPveSync())
+                RecurringMessage::every('1 hour', new TriggerPveSync())
             )
-            // Industry jobs sync every 15 minutes
+            // Industry jobs sync every 30 minutes
             ->add(
-                RecurringMessage::every('15 minutes', new SyncIndustryJobs())
+                RecurringMessage::every('30 minutes', new SyncIndustryJobs())
             )
-            // Mining ledger sync every 30 minutes
+            // Mining ledger sync every hour
             ->add(
-                RecurringMessage::every('30 minutes', new TriggerMiningSync())
+                RecurringMessage::every('1 hour', new TriggerMiningSync())
             )
-            // Wallet transactions sync every 20 minutes
+            // Wallet transactions sync every hour
             ->add(
-                RecurringMessage::every('20 minutes', new SyncWalletTransactions())
+                RecurringMessage::every('1 hour', new SyncWalletTransactions())
             );
     }
 }

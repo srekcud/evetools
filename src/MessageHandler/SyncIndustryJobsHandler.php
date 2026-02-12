@@ -22,7 +22,8 @@ final readonly class SyncIndustryJobsHandler
 
     public function __invoke(SyncIndustryJobs $message): void
     {
-        $characters = $this->characterRepository->findAll();
+        $characters = $this->characterRepository->findActiveWithValidTokens();
+        $synced = 0;
 
         foreach ($characters as $character) {
             $token = $character->getEveToken();
@@ -30,19 +31,22 @@ final readonly class SyncIndustryJobsHandler
                 continue;
             }
 
-            $user = $character->getUser();
-            if ($user === null || !$user->isAuthValid()) {
-                continue;
-            }
-
             try {
                 $this->industryJobSyncService->syncCharacterJobs($character);
+                $synced++;
             } catch (\Throwable $e) {
                 $this->logger->error('Failed to sync industry jobs', [
                     'characterName' => $character->getName(),
                     'error' => $e->getMessage(),
                 ]);
             }
+
+            usleep(500_000);
         }
+
+        $this->logger->info('Industry jobs sync completed', [
+            'synced' => $synced,
+            'totalCharacters' => count($characters),
+        ]);
     }
 }

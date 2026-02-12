@@ -635,6 +635,7 @@ function clearStock() {
   pastedStock.value = ''
   parsedStock.value = []
   stockAnalysisError.value = null
+  stockPurchaseWarnings.value = []
   localStorage.removeItem(getStockStorageKey())
   showClearStockModal.value = false
   performStockAnalysis()

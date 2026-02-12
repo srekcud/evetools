@@ -332,7 +332,7 @@ onMounted(async () => {
     </div>
 
     <!-- Loading -->
-    <div v-if="store.isLoading" class="p-8 text-center text-slate-500">
+    <div v-if="store.isLoading && !store.currentProject" class="p-8 text-center text-slate-500">
       <svg class="w-8 h-8 animate-spin text-cyan-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
       </svg>
@@ -622,9 +622,16 @@ onMounted(async () => {
           <p class="text-sm text-slate-400">
             Cette action supprimera toutes les données de stock enregistrées pour ce projet.
           </p>
-          <p class="text-sm text-slate-500 mt-2">
-            {{ shoppingTabRef?.parsedStock?.length ?? 0 }} item(s) seront effacés.
-          </p>
+          <ul v-if="shoppingTabRef?.parsedStock?.length" class="mt-3 max-h-60 overflow-y-auto space-y-1 pr-1">
+            <li
+              v-for="item in shoppingTabRef.parsedStock"
+              :key="item.name"
+              class="flex justify-between text-sm px-2 py-1 rounded bg-slate-800/50"
+            >
+              <span class="text-slate-300 truncate mr-3">{{ item.name }}</span>
+              <span class="text-slate-500 tabular-nums shrink-0">× {{ item.quantity.toLocaleString() }}</span>
+            </li>
+          </ul>
         </div>
         <div class="px-6 py-4 border-t border-slate-700 flex justify-end gap-3">
           <button

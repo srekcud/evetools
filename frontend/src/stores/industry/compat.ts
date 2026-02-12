@@ -48,7 +48,9 @@ export function enrichStep(step: IndustryProjectStep): IndustryProjectStep {
     step.esiJobsDeliveredRuns = step.jobMatches
       .filter(m => m.status === 'delivered')
       .reduce((sum, m) => sum + m.runs, 0)
-    step.similarJobs = step.jobMatches
+    if (!step.similarJobs || step.similarJobs.length === 0) {
+      step.similarJobs = step.jobMatches
+    }
   } else {
     step.esiJobId = null
     step.esiJobCost = null
@@ -60,7 +62,9 @@ export function enrichStep(step: IndustryProjectStep): IndustryProjectStep {
     step.esiJobsTotalRuns = null
     step.esiJobsActiveRuns = null
     step.esiJobsDeliveredRuns = null
-    step.similarJobs = []
+    if (!step.similarJobs || step.similarJobs.length === 0) {
+      step.similarJobs = []
+    }
   }
 
   // manualJobData: derived from jobMatchMode

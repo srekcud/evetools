@@ -27,7 +27,7 @@ final readonly class TriggerAnsiblexSyncHandler
     {
         $this->logger->info('Triggering scheduled Ansiblex sync');
 
-        $users = $this->userRepository->findAllWithCharacters();
+        $users = $this->userRepository->findActiveWithCharacters();
         $dispatched = 0;
 
         foreach ($users as $user) {

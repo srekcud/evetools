@@ -590,7 +590,7 @@ const maxDailyValue = computed(() => {
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-4">
           <!-- Period selector -->
-          <div class="flex items-center gap-2 bg-slate-800/50 rounded-lg p-1">
+          <div class="flex items-center gap-2 bg-slate-900 rounded-lg p-1">
             <button
               v-for="option in periodOptions"
               :key="option.value"
@@ -620,7 +620,7 @@ const maxDailyValue = computed(() => {
       </div>
 
       <!-- Tabs -->
-      <div class="border-b border-slate-700/50">
+      <div class="border-b border-slate-800">
         <nav class="flex gap-6">
           <button
             v-for="tab in [
@@ -656,7 +656,7 @@ const maxDailyValue = computed(() => {
         <!-- KPI Cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <!-- Total -->
-          <div class="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
+          <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
             <div class="flex items-center justify-between">
               <span class="text-slate-400 text-sm">Total</span>
               <span class="text-xs text-slate-500">{{ selectedDays }}j</span>
@@ -679,7 +679,7 @@ const maxDailyValue = computed(() => {
           </div>
 
           <!-- PVE -->
-          <div class="bg-slate-800/50 rounded-xl p-6 border border-cyan-500/20">
+          <div class="bg-slate-900 rounded-xl p-6 border border-cyan-500/20">
             <div class="flex items-center justify-between">
               <span class="text-cyan-400 text-sm">PVE</span>
               <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -695,7 +695,7 @@ const maxDailyValue = computed(() => {
           </div>
 
           <!-- Mining -->
-          <div class="bg-slate-800/50 rounded-xl p-6 border border-amber-500/20">
+          <div class="bg-slate-900 rounded-xl p-6 border border-amber-500/20">
             <div class="flex items-center justify-between">
               <span class="text-amber-400 text-sm">Mining</span>
               <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -712,7 +712,7 @@ const maxDailyValue = computed(() => {
         </div>
 
         <!-- Stacked Bar Chart -->
-        <div class="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
           <h3 class="text-lg font-semibold text-white mb-4">Revenus journaliers</h3>
           <div v-if="dailyStats?.daily" class="h-64 flex items-end gap-1">
             <div
@@ -751,7 +751,7 @@ const maxDailyValue = computed(() => {
         <!-- Breakdown -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <!-- PVE Breakdown -->
-          <div class="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
+          <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
             <h3 class="text-lg font-semibold text-white mb-4">Repartition PVE</h3>
             <div class="space-y-3">
               <div class="flex items-center justify-between">
@@ -778,7 +778,7 @@ const maxDailyValue = computed(() => {
           </div>
 
           <!-- Mining Breakdown -->
-          <div class="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
+          <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
             <h3 class="text-lg font-semibold text-white mb-4">Repartition Mining</h3>
             <div class="space-y-3">
               <div class="flex items-center justify-between">
@@ -936,16 +936,16 @@ const maxDailyValue = computed(() => {
 
         <!-- Mining Stats - Row 1: Values -->
         <div class="grid grid-cols-3 gap-3">
-          <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+          <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
             <span class="text-slate-400 text-xs uppercase tracking-wider">Valeur totale</span>
             <div class="mt-1 text-xl font-bold text-amber-400">{{ formatIskShort(miningByUsage.total) }}</div>
           </div>
-          <div class="bg-slate-800/50 rounded-xl p-4 border border-emerald-500/20">
+          <div class="bg-slate-900 rounded-xl p-4 border border-emerald-500/20">
             <span class="text-emerald-400 text-xs uppercase tracking-wider">Personnel</span>
             <div class="mt-1 text-xl font-bold text-emerald-400">{{ formatIskShort(miningByUsage.sold) }}</div>
             <div class="text-xs text-slate-500">{{ miningByUsage.total > 0 ? ((miningByUsage.sold / miningByUsage.total) * 100).toFixed(0) : 0 }}%</div>
           </div>
-          <div class="bg-slate-800/50 rounded-xl p-4 border border-amber-500/20">
+          <div class="bg-slate-900 rounded-xl p-4 border border-amber-500/20">
             <span class="text-amber-400 text-xs uppercase tracking-wider">Corpo</span>
             <div class="mt-1 text-xl font-bold text-amber-400">{{ formatIskShort(miningByUsage.corp_project) }}</div>
             <div class="text-xs text-slate-500">{{ miningByUsage.total > 0 ? ((miningByUsage.corp_project / miningByUsage.total) * 100).toFixed(0) : 0 }}%</div>
@@ -954,22 +954,22 @@ const maxDailyValue = computed(() => {
 
         <!-- Mining Stats - Row 2: Activity -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+          <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
             <span class="text-slate-400 text-xs uppercase tracking-wider">ISK / jour actif</span>
             <div class="mt-1 text-xl font-bold text-cyan-400">{{ formatIskShort(iskPerActiveDay) }}</div>
             <div class="text-xs text-slate-500">{{ activeDays }} jours actifs</div>
           </div>
-          <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+          <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
             <span class="text-slate-400 text-xs uppercase tracking-wider">Volume mine</span>
             <div class="mt-1 text-xl font-bold text-white">{{ formatNumber(miningStats?.totals.totalQuantity || 0) }}</div>
             <div class="text-xs text-slate-500">unites</div>
           </div>
-          <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+          <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
             <span class="text-slate-400 text-xs uppercase tracking-wider">Systeme principal</span>
             <div class="mt-1 text-xl font-bold text-white truncate">{{ mainSystem.name }}</div>
             <div class="text-xs text-slate-500">{{ mainSystem.percent.toFixed(0) }}% du volume</div>
           </div>
-          <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+          <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
             <span class="text-slate-400 text-xs uppercase tracking-wider">Non assigne</span>
             <div class="mt-1 text-xl font-bold text-slate-400">{{ formatIskShort(miningByUsage.unknown) }}</div>
             <div v-if="miningByUsage.unknown > 0" class="text-xs text-amber-400">A categoriser</div>
@@ -978,7 +978,7 @@ const maxDailyValue = computed(() => {
         </div>
 
         <!-- Repartition bar -->
-        <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
           <div class="flex items-center justify-between mb-2">
             <span class="text-sm text-slate-400">Repartition du minerai</span>
             <span class="text-xs text-slate-500">{{ formatIskShort(miningByUsage.total) }} total</span>
@@ -1057,8 +1057,8 @@ const maxDailyValue = computed(() => {
         </div>
 
         <!-- Mining Entries Table -->
-        <div class="bg-slate-800/50 rounded-xl border border-slate-700/50 overflow-hidden relative">
-          <div class="px-6 py-4 border-b border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden relative">
+          <div class="px-6 py-4 border-b border-slate-800">
             <div class="flex items-center justify-between mb-2">
               <div class="flex items-center gap-3">
                 <h3 class="text-lg font-semibold text-white">Entrees mining</h3>
@@ -1111,7 +1111,7 @@ const maxDailyValue = computed(() => {
                   <th class="px-3 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Statut</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-slate-700/50">
+              <tbody class="divide-y divide-slate-800">
                 <tr
                   v-for="entry in paginatedMiningEntries"
                   :key="entry.id"
@@ -1189,7 +1189,7 @@ const maxDailyValue = computed(() => {
           </div>
 
           <!-- Pagination -->
-          <div v-if="totalPages > 1" class="px-6 py-4 border-t border-slate-700/50 flex items-center justify-between">
+          <div v-if="totalPages > 1" class="px-6 py-4 border-t border-slate-800 flex items-center justify-between">
             <div class="text-sm text-slate-400">
               {{ (currentPage - 1) * itemsPerPage + 1 }}-{{ Math.min(currentPage * itemsPerPage, miningEntries.length) }} sur {{ miningEntries.length }}
             </div>
@@ -1250,7 +1250,7 @@ const maxDailyValue = computed(() => {
               class="entry-menu fixed z-50 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden"
               :style="{ left: `${menuPosition.x}px`, top: `${menuPosition.y}px` }"
             >
-              <div class="p-2 border-b border-slate-700/50">
+              <div class="p-2 border-b border-slate-800">
                 <p class="text-xs text-slate-500 px-2">Changer le statut</p>
               </div>
               <div class="p-1">
@@ -1283,7 +1283,7 @@ const maxDailyValue = computed(() => {
 
       <!-- Settings Tab -->
       <div v-else-if="activeTab === 'settings'" class="space-y-6">
-        <div class="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
+        <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
           <h3 class="text-lg font-semibold text-white mb-4">Comptabilisation des projets corporation</h3>
           <p class="text-slate-400 text-sm mb-4">
             Choisissez comment comptabiliser les contributions aux projets corporation pour eviter le double comptage.

@@ -85,10 +85,21 @@ class AdminService
             [$threshold]
         );
 
+        // Characters of active users (login < 7 days) with valid tokens = actual sync scope
+        $activeThreshold = (new \DateTimeImmutable('-7 days'))->format('Y-m-d H:i:s');
+        $activeSyncScope = (int) $this->connection->fetchOne(
+            'SELECT COUNT(DISTINCT c.id) FROM characters c
+             JOIN eve_tokens t ON t.character_id = c.id
+             JOIN users u ON c.user_id = u.id
+             WHERE u.auth_status = ? AND u.last_login_at >= ?',
+            [User::AUTH_STATUS_VALID, $activeThreshold]
+        );
+
         return [
             'total' => $total,
             'withValidTokens' => $withValidTokens,
             'needingSync' => $needingSync,
+            'activeSyncScope' => $activeSyncScope,
         ];
     }
 
@@ -161,11 +172,27 @@ class AdminService
             'SELECT COUNT(*) FROM ansiblex_jump_gates'
         );
 
+        // Wallet transactions
+        $walletTransactionCount = (int) $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM cached_wallet_transactions'
+        );
+        $lastWalletSync = $this->connection->fetchOne(
+            'SELECT MAX(cached_at) FROM cached_wallet_transactions'
+        );
+
+        // Mining ledger
+        $lastMiningSync = $this->connection->fetchOne(
+            'SELECT MAX(synced_at) FROM mining_entries'
+        );
+
         return [
             'lastAssetSync' => $lastAssetSync,
             'lastIndustrySync' => $lastIndustrySync,
             'structuresCached' => $structuresCached,
             'ansiblexCount' => $ansiblexCount,
+            'walletTransactionCount' => $walletTransactionCount,
+            'lastWalletSync' => $lastWalletSync,
+            'lastMiningSync' => $lastMiningSync,
         ];
     }
 

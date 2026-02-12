@@ -72,4 +72,24 @@ class UserRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * @return User[]
+     */
+    public function findActiveWithCharacters(int $activeDays = 7): array
+    {
+        $threshold = new \DateTimeImmutable("-{$activeDays} days");
+
+        return $this->createQueryBuilder('u')
+            ->leftJoin('u.characters', 'c')
+            ->addSelect('c')
+            ->leftJoin('c.eveToken', 't')
+            ->addSelect('t')
+            ->where('u.authStatus = :status')
+            ->andWhere('u.lastLoginAt >= :threshold')
+            ->setParameter('status', User::AUTH_STATUS_VALID)
+            ->setParameter('threshold', $threshold)
+            ->getQuery()
+            ->getResult();
+    }
 }

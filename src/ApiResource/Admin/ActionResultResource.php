@@ -54,6 +54,24 @@ use App\State\Processor\Admin\TriggerSyncProcessor;
             ],
         ),
         new Post(
+            uriTemplate: '/admin/actions/sync-wallet',
+            processor: TriggerSyncProcessor::class,
+            input: EmptyInput::class,
+            name: 'sync_wallet',
+            openapiContext: [
+                'summary' => 'Trigger wallet transactions sync',
+            ],
+        ),
+        new Post(
+            uriTemplate: '/admin/actions/sync-mining',
+            processor: TriggerSyncProcessor::class,
+            input: EmptyInput::class,
+            name: 'sync_mining',
+            openapiContext: [
+                'summary' => 'Trigger mining ledger sync',
+            ],
+        ),
+        new Post(
             uriTemplate: '/admin/actions/sync-ansiblex',
             processor: TriggerSyncProcessor::class,
             input: EmptyInput::class,
