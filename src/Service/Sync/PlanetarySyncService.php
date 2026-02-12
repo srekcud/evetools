@@ -122,6 +122,20 @@ class PlanetarySyncService
             }
         }
 
+        // Cleanup: remove colonies no longer present in ESI
+        $esiPlanetIds = array_column($colonies, 'planet_id');
+        $existingColonies = $this->colonyRepository->findByCharacter($character);
+        foreach ($existingColonies as $existing) {
+            if (!in_array($existing->getPlanetId(), $esiPlanetIds, true)) {
+                $this->entityManager->remove($existing);
+                $this->logger->info('Removed orphaned colony', [
+                    'characterName' => $character->getName(),
+                    'planetId' => $existing->getPlanetId(),
+                    'solarSystem' => $existing->getSolarSystemName(),
+                ]);
+            }
+        }
+
         $this->entityManager->flush();
 
         $this->logger->info('Planetary colonies synced', [
