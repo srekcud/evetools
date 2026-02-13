@@ -49,6 +49,8 @@ class ColonyResource
 
     public int $planetId;
 
+    public ?string $planetName = null;
+
     public string $planetType;
 
     public int $solarSystemId;

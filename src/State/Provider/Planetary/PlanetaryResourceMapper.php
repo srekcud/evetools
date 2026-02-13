@@ -28,6 +28,7 @@ class PlanetaryResourceMapper
         $resource->characterId = $colony->getCharacter()->getEveCharacterId();
         $resource->characterName = $colony->getCharacter()->getName();
         $resource->planetId = $colony->getPlanetId();
+        $resource->planetName = $colony->getPlanetName();
         $resource->planetType = $colony->getPlanetType();
         $resource->solarSystemId = $colony->getSolarSystemId();
         $resource->solarSystemName = $colony->getSolarSystemName();
@@ -131,15 +132,20 @@ class PlanetaryResourceMapper
 
     private function mapPin(PlanetaryPin $pin): array
     {
+        $schematicDetail = $pin->getSchematicId()
+            ? $this->resolveSchematicDetail($pin->getSchematicId())
+            : null;
+
         return [
             'pinId' => $pin->getPinId(),
             'typeId' => $pin->getTypeId(),
             'typeName' => $pin->getTypeName() ?? $this->resolveTypeName($pin->getTypeId()),
             'pinCategory' => $this->derivePinCategory($pin),
             'schematicId' => $pin->getSchematicId(),
-            'schematicName' => $pin->getSchematicId()
-                ? $this->resolveSchematicName($pin->getSchematicId())
-                : null,
+            'schematicName' => $schematicDetail['name'] ?? null,
+            'schematicCycleTime' => $schematicDetail['cycleTime'] ?? null,
+            'schematicInputs' => $schematicDetail['inputs'] ?? [],
+            'schematicOutput' => $schematicDetail['output'] ?? null,
             'latitude' => $pin->getLatitude(),
             'longitude' => $pin->getLongitude(),
             'installTime' => $pin->getInstallTime()?->format('c'),
@@ -171,6 +177,9 @@ class PlanetaryResourceMapper
         }
 
         $typeName = strtolower($pin->getTypeName() ?? '');
+        if (str_contains($typeName, 'industry facility')) {
+            return 'factory';
+        }
         if (str_contains($typeName, 'launchpad')) {
             return 'launchpad';
         }
@@ -204,10 +213,41 @@ class PlanetaryResourceMapper
         return $type?->getTypeName() ?? "Type #{$typeId}";
     }
 
-    private function resolveSchematicName(int $schematicId): string
+    private function resolveSchematicDetail(int $schematicId): array
     {
         $schematic = $this->schematicRepository->find($schematicId);
 
-        return $schematic?->getSchematicName() ?? "Schematic #{$schematicId}";
+        if ($schematic === null) {
+            return [
+                'name' => "Schematic #{$schematicId}",
+                'cycleTime' => 0,
+                'inputs' => [],
+                'output' => null,
+            ];
+        }
+
+        $inputs = [];
+        $output = null;
+
+        foreach ($schematic->getSchematicTypes() as $schematicType) {
+            $entry = [
+                'typeId' => $schematicType->getTypeId(),
+                'typeName' => $this->resolveTypeName($schematicType->getTypeId()),
+                'quantity' => $schematicType->getQuantity(),
+            ];
+
+            if ($schematicType->isInput()) {
+                $inputs[] = $entry;
+            } else {
+                $output = $entry;
+            }
+        }
+
+        return [
+            'name' => $schematic->getSchematicName(),
+            'cycleTime' => $schematic->getCycleTime(),
+            'inputs' => $inputs,
+            'output' => $output,
+        ];
     }
 }

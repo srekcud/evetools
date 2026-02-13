@@ -45,6 +45,20 @@ class PlanetarySyncService
         $colonies = $this->planetaryService->fetchColonies($character);
 
         if (empty($colonies)) {
+            // Remove all colonies for this character (they were deleted in-game)
+            $existingColonies = $this->colonyRepository->findByCharacter($character);
+            foreach ($existingColonies as $orphan) {
+                $this->entityManager->remove($orphan);
+                $this->logger->info('Removed orphaned colony', [
+                    'characterName' => $character->getName(),
+                    'planetId' => $orphan->getPlanetId(),
+                    'solarSystem' => $orphan->getSolarSystemName(),
+                ]);
+            }
+            if (!empty($existingColonies)) {
+                $this->entityManager->flush();
+            }
+
             if ($userId !== null) {
                 $this->mercurePublisher->syncCompleted($userId, 'planetary', 'Aucune colonie planetaire', [
                     'total' => 0,
@@ -88,6 +102,19 @@ class PlanetarySyncService
             $solarSystem = $this->solarSystemRepository->findBySolarSystemId($colonyData['solar_system_id']);
             if ($solarSystem !== null) {
                 $colony->setSolarSystemName($solarSystem->getSolarSystemName());
+            }
+
+            // Resolve planet name from ESI (public endpoint, only if not already set)
+            if ($colony->getPlanetName() === null) {
+                try {
+                    $planetInfo = $this->planetaryService->fetchPlanetInfo($planetId);
+                    $colony->setPlanetName($planetInfo['name'] ?? null);
+                } catch (\Throwable $e) {
+                    $this->logger->warning('Failed to resolve planet name', [
+                        'planetId' => $planetId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
 
             // Clear existing pins and routes (orphanRemoval handles deletion)

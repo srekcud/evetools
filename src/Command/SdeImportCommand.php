@@ -32,6 +32,12 @@ class SdeImportCommand extends Command
                 'f',
                 InputOption::VALUE_NONE,
                 'Force import without confirmation'
+            )
+            ->addOption(
+                'only',
+                'o',
+                InputOption::VALUE_REQUIRED,
+                'Import only specific sections (comma-separated): inventory, map, industry, dogma, reference, planetary'
             );
     }
 
@@ -41,24 +47,41 @@ class SdeImportCommand extends Command
 
         $io->title('EVE Online SDE Import');
 
+        $onlyRaw = $input->getOption('only');
+        $onlySections = null;
+
+        if ($onlyRaw !== null) {
+            $validSections = SdeImportService::VALID_SECTIONS;
+            $onlySections = array_map('trim', explode(',', $onlyRaw));
+            $invalid = array_diff($onlySections, $validSections);
+
+            if (!empty($invalid)) {
+                $io->error(sprintf(
+                    'Invalid section(s): %s. Valid: %s',
+                    implode(', ', $invalid),
+                    implode(', ', $validSections),
+                ));
+
+                return Command::FAILURE;
+            }
+        }
+
         if (!$input->getOption('force')) {
-            $io->warning([
-                'This command will download the EVE Online Static Data Export',
-                'and replace all existing SDE data in the database.',
-                '',
-                'Tables affected:',
-                '  - sde_inv_categories',
-                '  - sde_inv_groups',
-                '  - sde_inv_types',
-                '  - sde_inv_market_groups',
-                '  - sde_map_regions',
-                '  - sde_map_constellations',
-                '  - sde_map_solar_systems',
-                '  - sde_sta_stations',
-            ]);
+            if ($onlySections !== null) {
+                $io->warning([
+                    'Partial SDE import: ' . implode(', ', $onlySections),
+                    'Only the selected sections will be re-imported.',
+                ]);
+            } else {
+                $io->warning([
+                    'This command will download the EVE Online Static Data Export',
+                    'and replace all existing SDE data in the database.',
+                ]);
+            }
 
             if (!$io->confirm('Do you want to continue?', false)) {
                 $io->info('Import cancelled.');
+
                 return Command::SUCCESS;
             }
         }
@@ -70,12 +93,13 @@ class SdeImportCommand extends Command
         try {
             $this->sdeImportService->downloadAndImport(function (string $message) use ($io) {
                 $io->text($message);
-            });
+            }, $onlySections);
 
             $duration = round(microtime(true) - $startTime, 2);
 
             $io->newLine();
-            $io->success("SDE import completed in {$duration} seconds!");
+            $label = $onlySections !== null ? implode(', ', $onlySections) : 'full';
+            $io->success("SDE import ({$label}) completed in {$duration} seconds!");
 
             return Command::SUCCESS;
         } catch (\Throwable $e) {

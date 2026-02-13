@@ -10,6 +10,12 @@ export interface PinContent {
   amount: number
 }
 
+export interface SchematicIO {
+  typeId: number
+  typeName: string
+  quantity: number
+}
+
 export interface Pin {
   pinId: number
   typeId: number
@@ -17,6 +23,9 @@ export interface Pin {
   pinCategory: string
   schematicId: number | null
   schematicName: string | null
+  schematicCycleTime: number | null
+  schematicInputs: SchematicIO[]
+  schematicOutput: SchematicIO | null
   installTime: string | null
   expiryTime: string | null
   extractorProductTypeId: number | null
@@ -33,6 +42,7 @@ export interface Colony {
   characterId: number
   characterName: string
   planetId: number
+  planetName: string | null
   planetType: string
   solarSystemId: number
   solarSystemName: string | null
@@ -134,7 +144,10 @@ export const usePlanetaryStore = defineStore('planetary', () => {
         const mostRecent = colonies.value.reduce((latest, c) =>
           c.cachedAt > latest ? c.cachedAt : latest, colonies.value[0].cachedAt
         )
-        lastSyncAt.value = mostRecent
+        // Only update if more recent (don't overwrite a manual sync timestamp)
+        if (!lastSyncAt.value || mostRecent > lastSyncAt.value) {
+          lastSyncAt.value = mostRecent
+        }
       }
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Erreur lors du chargement des colonies'
@@ -187,6 +200,7 @@ export const usePlanetaryStore = defineStore('planetary', () => {
 
     try {
       await apiRequest('/planetary/sync', { method: 'POST', body: JSON.stringify({}) })
+      lastSyncAt.value = new Date().toISOString()
       // Reload data after sync
       await Promise.all([fetchColonies(), fetchStats(), fetchProduction()])
     } catch (e) {

@@ -15,6 +15,8 @@ class SdeImportService
     private const SDE_URL = 'https://developers.eveonline.com/static-data/eve-online-static-data-latest-jsonl.zip';
     private const DOWNLOAD_TIMEOUT = 600;
 
+    public const VALID_SECTIONS = ['inventory', 'map', 'industry', 'dogma', 'reference', 'planetary'];
+
     // Activity ID mapping (name in JSONL -> ID in database)
     private const ACTIVITY_IDS = [
         'manufacturing' => 1,
@@ -38,78 +40,101 @@ class SdeImportService
         $this->filesystem = new Filesystem();
     }
 
-    public function downloadAndImport(?callable $progressCallback = null): void
+    /**
+     * @param string[]|null $onlySections If set, only import these sections. null = all.
+     */
+    public function downloadAndImport(?callable $progressCallback = null, ?array $onlySections = null): void
     {
         $this->ensureTempDir();
 
         $this->notify($progressCallback, 'Downloading SDE from CCP...');
         $this->downloadSde();
 
-        $this->notify($progressCallback, 'Importing categories...');
-        $this->importCategories($progressCallback);
+        $importAll = $onlySections === null;
 
-        $this->notify($progressCallback, 'Importing groups...');
-        $this->importGroups($progressCallback);
+        // Inventory: categories, groups, market_groups, types, type_materials
+        if ($importAll || in_array('inventory', $onlySections, true)) {
+            $this->notify($progressCallback, 'Importing categories...');
+            $this->importCategories($progressCallback);
 
-        $this->notify($progressCallback, 'Importing market groups...');
-        $this->importMarketGroups($progressCallback);
+            $this->notify($progressCallback, 'Importing groups...');
+            $this->importGroups($progressCallback);
 
-        $this->notify($progressCallback, 'Importing types...');
-        $this->importTypes($progressCallback);
+            $this->notify($progressCallback, 'Importing market groups...');
+            $this->importMarketGroups($progressCallback);
 
-        $this->notify($progressCallback, 'Importing type materials (reprocessing)...');
-        $this->importTypeMaterials($progressCallback);
+            $this->notify($progressCallback, 'Importing types...');
+            $this->importTypes($progressCallback);
 
-        $this->notify($progressCallback, 'Importing regions...');
-        $this->importRegions($progressCallback);
+            $this->notify($progressCallback, 'Importing type materials (reprocessing)...');
+            $this->importTypeMaterials($progressCallback);
+        }
 
-        $this->notify($progressCallback, 'Importing constellations...');
-        $this->importConstellations($progressCallback);
+        // Map: regions, constellations, solar_systems, stations, stargates
+        if ($importAll || in_array('map', $onlySections, true)) {
+            $this->notify($progressCallback, 'Importing regions...');
+            $this->importRegions($progressCallback);
 
-        $this->notify($progressCallback, 'Importing solar systems...');
-        $this->importSolarSystems($progressCallback);
+            $this->notify($progressCallback, 'Importing constellations...');
+            $this->importConstellations($progressCallback);
 
-        $this->notify($progressCallback, 'Importing stations...');
-        $this->importStations($progressCallback);
+            $this->notify($progressCallback, 'Importing solar systems...');
+            $this->importSolarSystems($progressCallback);
 
-        $this->notify($progressCallback, 'Importing stargates (solar system jumps)...');
-        $this->importStargates($progressCallback);
+            $this->notify($progressCallback, 'Importing stations...');
+            $this->importStations($progressCallback);
 
-        // Industry
-        $this->notify($progressCallback, 'Importing blueprints and industry activities...');
-        $this->importBlueprints($progressCallback);
+            $this->notify($progressCallback, 'Importing stargates (solar system jumps)...');
+            $this->importStargates($progressCallback);
+        }
 
-        // Dogma
-        $this->notify($progressCallback, 'Importing attribute types...');
-        $this->importAttributeTypes($progressCallback);
+        // Industry: blueprints + all sub-tables
+        if ($importAll || in_array('industry', $onlySections, true)) {
+            $this->notify($progressCallback, 'Importing blueprints and industry activities...');
+            $this->importBlueprints($progressCallback);
+        }
 
-        $this->notify($progressCallback, 'Importing type attributes...');
-        $this->importTypeAttributes($progressCallback);
+        // Dogma: attributes, effects
+        if ($importAll || in_array('dogma', $onlySections, true)) {
+            $this->notify($progressCallback, 'Importing attribute types...');
+            $this->importAttributeTypes($progressCallback);
 
-        $this->notify($progressCallback, 'Importing effects...');
-        $this->importEffects($progressCallback);
+            $this->notify($progressCallback, 'Importing type attributes...');
+            $this->importTypeAttributes($progressCallback);
 
-        $this->notify($progressCallback, 'Importing type effects...');
-        $this->importTypeEffects($progressCallback);
+            $this->notify($progressCallback, 'Importing effects...');
+            $this->importEffects($progressCallback);
 
-        // Reference
-        $this->notify($progressCallback, 'Importing races...');
-        $this->importRaces($progressCallback);
+            $this->notify($progressCallback, 'Importing type effects...');
+            $this->importTypeEffects($progressCallback);
+        }
 
-        $this->notify($progressCallback, 'Importing factions...');
-        $this->importFactions($progressCallback);
+        // Reference: races, factions, flags, icons
+        if ($importAll || in_array('reference', $onlySections, true)) {
+            $this->notify($progressCallback, 'Importing races...');
+            $this->importRaces($progressCallback);
 
-        $this->notify($progressCallback, 'Importing flags...');
-        $this->importFlags($progressCallback);
+            $this->notify($progressCallback, 'Importing factions...');
+            $this->importFactions($progressCallback);
 
-        $this->notify($progressCallback, 'Importing icons...');
-        $this->importIcons($progressCallback);
+            $this->notify($progressCallback, 'Importing flags...');
+            $this->importFlags($progressCallback);
 
-        $this->notify($progressCallback, 'Importing planet schematics...');
-        $this->importPlanetSchematics($progressCallback);
+            $this->notify($progressCallback, 'Importing icons...');
+            $this->importIcons($progressCallback);
+        }
 
-        $this->notify($progressCallback, 'Cleaning up...');
-        $this->cleanup();
+        // Planetary: planet schematics
+        if ($importAll || in_array('planetary', $onlySections, true)) {
+            $this->notify($progressCallback, 'Importing planet schematics...');
+            $this->importPlanetSchematics($progressCallback);
+        }
+
+        // Only cleanup extracted files on full import
+        if ($importAll) {
+            $this->notify($progressCallback, 'Cleaning up...');
+            $this->cleanup();
+        }
 
         $this->notify($progressCallback, 'Import completed successfully!');
     }

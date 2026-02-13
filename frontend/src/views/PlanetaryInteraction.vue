@@ -9,15 +9,15 @@ const { formatIsk, formatTimeSince, formatNumber } = useFormatters()
 
 // ========== Planet Type Config ==========
 
-const PLANET_TYPE_CONFIG: Record<string, { gradient: string; letter: string; textColor: string; badgeBg: string; badgeText: string; badgeBorder: string }> = {
-  temperate: { gradient: 'linear-gradient(135deg, #166534, #22c55e)', letter: 'T', textColor: 'text-green-100', badgeBg: 'bg-green-500/15', badgeText: 'text-green-400', badgeBorder: 'border-green-500/20' },
-  barren: { gradient: 'linear-gradient(135deg, #854d0e, #eab308)', letter: 'B', textColor: 'text-yellow-100', badgeBg: 'bg-yellow-500/15', badgeText: 'text-yellow-400', badgeBorder: 'border-yellow-500/20' },
-  lava: { gradient: 'linear-gradient(135deg, #991b1b, #ef4444)', letter: 'L', textColor: 'text-red-100', badgeBg: 'bg-red-500/15', badgeText: 'text-red-400', badgeBorder: 'border-red-500/20' },
-  ice: { gradient: 'linear-gradient(135deg, #164e63, #06b6d4)', letter: 'I', textColor: 'text-cyan-100', badgeBg: 'bg-cyan-500/15', badgeText: 'text-cyan-400', badgeBorder: 'border-cyan-500/20' },
-  gas: { gradient: 'linear-gradient(135deg, #581c87, #a855f7)', letter: 'G', textColor: 'text-purple-100', badgeBg: 'bg-purple-500/15', badgeText: 'text-purple-400', badgeBorder: 'border-purple-500/20' },
-  oceanic: { gradient: 'linear-gradient(135deg, #1e3a5f, #3b82f6)', letter: 'O', textColor: 'text-blue-100', badgeBg: 'bg-blue-500/15', badgeText: 'text-blue-400', badgeBorder: 'border-blue-500/20' },
-  plasma: { gradient: 'linear-gradient(135deg, #9a3412, #f97316)', letter: 'P', textColor: 'text-orange-100', badgeBg: 'bg-orange-500/15', badgeText: 'text-orange-400', badgeBorder: 'border-orange-500/20' },
-  storm: { gradient: 'linear-gradient(135deg, #374151, #9ca3af)', letter: 'S', textColor: 'text-gray-100', badgeBg: 'bg-gray-500/15', badgeText: 'text-gray-400', badgeBorder: 'border-gray-500/20' },
+const PLANET_TYPE_CONFIG: Record<string, { typeId: number; badgeBg: string; badgeText: string; badgeBorder: string }> = {
+  temperate: { typeId: 11, badgeBg: 'bg-green-500/15', badgeText: 'text-green-400', badgeBorder: 'border-green-500/20' },
+  barren: { typeId: 2016, badgeBg: 'bg-yellow-500/15', badgeText: 'text-yellow-400', badgeBorder: 'border-yellow-500/20' },
+  lava: { typeId: 2015, badgeBg: 'bg-red-500/15', badgeText: 'text-red-400', badgeBorder: 'border-red-500/20' },
+  ice: { typeId: 12, badgeBg: 'bg-cyan-500/15', badgeText: 'text-cyan-400', badgeBorder: 'border-cyan-500/20' },
+  gas: { typeId: 13, badgeBg: 'bg-purple-500/15', badgeText: 'text-purple-400', badgeBorder: 'border-purple-500/20' },
+  oceanic: { typeId: 2014, badgeBg: 'bg-blue-500/15', badgeText: 'text-blue-400', badgeBorder: 'border-blue-500/20' },
+  plasma: { typeId: 2063, badgeBg: 'bg-orange-500/15', badgeText: 'text-orange-400', badgeBorder: 'border-orange-500/20' },
+  storm: { typeId: 2017, badgeBg: 'bg-gray-500/15', badgeText: 'text-gray-400', badgeBorder: 'border-gray-500/20' },
 }
 
 const TIER_CONFIG: Record<string, { label: string; badgeBg: string; badgeText: string; badgeBorder: string }> = {
@@ -105,6 +105,11 @@ function getPlanetConfig(planetType: string) {
   return PLANET_TYPE_CONFIG[key] || PLANET_TYPE_CONFIG.barren
 }
 
+function getPlanetIconUrl(planetType: string, size: number = 64): string {
+  const config = getPlanetConfig(planetType)
+  return `https://images.evetech.net/types/${config.typeId}/icon?size=${size}`
+}
+
 function getExtractorPins(colony: Colony): Pin[] {
   return colony.pins.filter(p => p.pinCategory === 'extractor' || p.extractorProductTypeId !== null)
 }
@@ -115,14 +120,39 @@ function getFactoryPins(colony: Colony): Pin[] {
 
 function getStoragePins(colony: Colony): Pin[] {
   return colony.pins.filter(p =>
-    (p.pinCategory === 'storage' || p.pinCategory === 'launchpad' || p.pinCategory === 'command_center')
-    && p.contents && p.contents.length > 0
+    p.pinCategory === 'storage' || p.pinCategory === 'launchpad' || p.pinCategory === 'command_center'
   )
+}
+
+interface ColonyProductionItem {
+  typeName: string
+  dailyQuantity: number
+}
+
+function getColonyProduction(colony: Colony): ColonyProductionItem[] {
+  const factories = getFactoryPins(colony)
+  const items: ColonyProductionItem[] = []
+
+  for (const pin of factories) {
+    if (pin.schematicOutput && pin.schematicCycleTime && pin.schematicCycleTime > 0) {
+      const cyclesPerDay = (3600 / pin.schematicCycleTime) * 24
+      const dailyQty = Math.round(pin.schematicOutput.quantity * cyclesPerDay)
+      const existing = items.find(i => i.typeName === pin.schematicOutput!.typeName)
+      if (existing) {
+        existing.dailyQuantity += dailyQty
+      } else {
+        items.push({ typeName: pin.schematicOutput.typeName, dailyQuantity: dailyQty })
+      }
+    }
+  }
+
+  return items
 }
 
 function getColonyBorderClass(colony: Colony): string {
   if (colony.status === 'expired') return 'border-red-500/20'
-  return 'border-slate-800'
+  if (colony.status === 'expiring') return 'border-amber-500/15'
+  return 'border-slate-700/40'
 }
 
 function isStaleData(colony: Colony): boolean {
@@ -166,10 +196,6 @@ function formatDailyOutput(pin: Pin): string {
   const cyclesPerHour = 3600 / pin.extractorCycleTime
   const hourly = Math.round(pin.extractorQtyPerCycle * cyclesPerHour)
   return `~${formatNumber(hourly)} / heure`
-}
-
-function getCharacterInitials(name: string): string {
-  return name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase()
 }
 
 // ========== Production tier helpers ==========
@@ -512,14 +538,12 @@ function formatDelta(delta: number): string {
         >
           <!-- Character Header -->
           <div class="flex items-center gap-3 px-2">
-            <div class="w-8 h-8 rounded-full bg-slate-700 border border-slate-600 overflow-hidden flex items-center justify-center">
+            <div class="w-8 h-8 rounded-full bg-slate-700 border border-slate-600 overflow-hidden flex-shrink-0">
               <img
                 :src="`https://images.evetech.net/characters/${group.characterId}/portrait?size=64`"
                 :alt="group.characterName"
                 class="w-8 h-8 rounded-full"
-                @error="($event.target as HTMLImageElement).style.display = 'none'"
               />
-              <span class="text-xs text-slate-400 font-bold absolute">{{ getCharacterInitials(group.characterName) }}</span>
             </div>
             <h2 class="text-lg font-semibold text-white">{{ group.characterName }}</h2>
             <span class="text-xs px-2 py-0.5 bg-slate-800 rounded-full text-slate-400">
@@ -542,18 +566,15 @@ function formatDelta(delta: number): string {
                 <div class="flex items-center gap-4">
                   <!-- Planet info -->
                   <div class="flex items-center gap-3 min-w-[240px]">
-                    <div
-                      class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold"
-                      :style="{ background: getPlanetConfig(colony.planetType).gradient }"
-                    >
-                      <span :class="getPlanetConfig(colony.planetType).textColor">
-                        {{ getPlanetConfig(colony.planetType).letter }}
-                      </span>
-                    </div>
+                    <img
+                      :src="getPlanetIconUrl(colony.planetType)"
+                      :alt="colony.planetType"
+                      class="w-9 h-9 rounded-full"
+                    />
                     <div>
                       <div class="flex items-center gap-2">
                         <span class="text-white font-semibold text-[15px]">
-                          {{ colony.solarSystemName || 'Unknown' }} {{ colony.planetId }}
+                          {{ colony.planetName || `${colony.solarSystemName || 'Unknown'} ${colony.planetId}` }}
                         </span>
                         <span :class="['text-[10px] px-1.5 py-0.5 rounded-full font-medium uppercase tracking-wider border',
                           getPlanetConfig(colony.planetType).badgeBg,
@@ -581,10 +602,10 @@ function formatDelta(delta: number): string {
                     </div>
                   </div>
 
-                  <!-- Pins -->
+                  <!-- Installations -->
                   <div class="min-w-[60px] text-center">
                     <span class="text-white font-medium">{{ colony.numPins }}</span>
-                    <span class="text-slate-500 text-xs ml-1">pins</span>
+                    <span class="text-slate-500 text-xs ml-1">inst.</span>
                   </div>
 
                   <!-- Extractor timers -->
@@ -679,29 +700,39 @@ function formatDelta(delta: number): string {
 
                   <!-- Factories Detail -->
                   <div v-if="getFactoryPins(colony).length > 0">
-                    <h4 class="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-                      <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                       </svg>
-                      Factories <span class="text-xs text-slate-500 font-normal">({{ getFactoryPins(colony).length }})</span>
+                      Factories <span class="text-slate-500 font-normal">({{ getFactoryPins(colony).length }})</span>
                     </h4>
-                    <div class="overflow-x-auto">
+                    <div class="bg-slate-800/60 rounded-lg border border-slate-700/30 overflow-hidden">
                       <table class="w-full text-sm">
                         <thead>
-                          <tr class="text-xs text-slate-500 uppercase tracking-wider">
-                            <th class="text-left pb-2 font-medium">Schematic</th>
-                            <th class="text-left pb-2 font-medium">Output</th>
-                            <th class="text-right pb-2 font-medium">Cycle</th>
+                          <tr class="text-[10px] text-slate-500 uppercase tracking-wider border-b border-slate-700/30">
+                            <th class="text-left px-3 py-2 font-medium">Schematic</th>
+                            <th class="text-left px-3 py-2 font-medium">Inputs</th>
+                            <th class="text-left px-3 py-2 font-medium">Output</th>
+                            <th class="text-right px-3 py-2 font-medium">Cycle</th>
                           </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-800">
-                          <tr v-for="pin in getFactoryPins(colony)" :key="pin.pinId">
-                            <td class="py-2 text-white font-medium">{{ pin.schematicName || pin.typeName || 'Unknown' }}</td>
-                            <td class="py-2">
-                              <span class="text-cyan-300">{{ pin.schematicName || '-' }}</span>
+                        <tbody class="divide-y divide-slate-700/20">
+                          <tr v-for="pin in getFactoryPins(colony)" :key="pin.pinId" class="hover:bg-slate-700/20">
+                            <td class="px-3 py-2 text-white font-medium">{{ pin.schematicName || pin.typeName || 'Unknown' }}</td>
+                            <td class="px-3 py-2 text-slate-400 text-xs">
+                              <template v-if="pin.schematicInputs && pin.schematicInputs.length > 0">
+                                {{ pin.schematicInputs.map(i => `${formatNumber(i.quantity, 0)} ${i.typeName}`).join(' + ') }}
+                              </template>
+                              <span v-else class="text-slate-500">-</span>
                             </td>
-                            <td class="py-2 text-right text-slate-400 font-mono-tech">
-                              {{ pin.extractorCycleTime ? formatCycleTime(pin.extractorCycleTime) : '30 min' }}
+                            <td class="px-3 py-2">
+                              <template v-if="pin.schematicOutput">
+                                <span class="text-white text-xs">{{ formatNumber(pin.schematicOutput.quantity, 0) }} {{ pin.schematicOutput.typeName }}</span>
+                              </template>
+                              <span v-else class="text-slate-500 text-xs">-</span>
+                            </td>
+                            <td class="px-3 py-2 text-right text-slate-400 text-xs font-mono-tech">
+                              {{ formatCycleTime(pin.schematicCycleTime) }}
                             </td>
                           </tr>
                         </tbody>
@@ -709,50 +740,82 @@ function formatDelta(delta: number): string {
                     </div>
                   </div>
 
-                  <!-- Storage -->
-                  <div v-if="getStoragePins(colony).length > 0">
-                    <h4 class="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-                      <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                      </svg>
-                      Stockage
-                    </h4>
-                    <div
-                      v-for="storagePin in getStoragePins(colony)"
-                      :key="storagePin.pinId"
-                      class="bg-slate-800/50 rounded-lg border border-slate-700 divide-y divide-slate-800 mb-2"
-                    >
-                      <div class="px-3 py-2">
-                        <div class="flex items-center justify-between text-sm mb-1">
-                          <span class="text-slate-400">{{ storagePin.typeName || 'Launchpad' }}</span>
-                        </div>
-                      </div>
-                      <!-- Snapshot indicator -->
-                      <div class="px-3 py-1.5 bg-amber-500/5 flex items-center gap-2">
-                        <svg class="w-3.5 h-3.5 text-amber-400/70 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <!-- Production + Storage side by side -->
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                    <!-- Per-colony production summary -->
+                    <div v-if="getColonyProduction(colony).length > 0">
+                      <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                         </svg>
-                        <span class="text-[10px] text-amber-400/70">
-                          Snapshot du {{ new Date(colony.cachedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) }}
-                          a {{ new Date(colony.cachedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) }}
-                          -- Donnees mises a jour lors de la derniere interaction en jeu
-                        </span>
-                      </div>
-                      <div class="px-3 py-2 text-xs space-y-1">
-                        <div
-                          v-for="content in storagePin.contents"
-                          :key="content.typeId"
-                          class="flex justify-between text-slate-400"
-                        >
-                          <span>{{ content.typeName }} x {{ formatNumber(content.amount, 0) }}</span>
+                        Production theorique / jour
+                      </h4>
+                      <div class="bg-slate-800/60 rounded-lg border border-slate-700/30 overflow-hidden">
+                        <div class="divide-y divide-slate-700/20">
+                          <div
+                            v-for="prod in getColonyProduction(colony)"
+                            :key="prod.typeName"
+                            class="flex items-center justify-between px-3 py-2.5"
+                          >
+                            <span class="text-white text-sm">{{ prod.typeName }}</span>
+                            <div class="text-right">
+                              <span class="text-white text-sm font-medium font-mono-tech">{{ formatNumber(prod.dailyQuantity, 0) }}</span>
+                              <span class="text-slate-500 text-xs ml-1">/ jour</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
+
+                    <!-- Storage -->
+                    <div v-if="getStoragePins(colony).length > 0">
+                      <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        </svg>
+                        Stockage
+                      </h4>
+                      <div class="space-y-2">
+                        <div
+                          v-for="storagePin in getStoragePins(colony)"
+                          :key="storagePin.pinId"
+                          class="bg-slate-800/60 rounded-lg border border-slate-700/30 overflow-hidden"
+                        >
+                          <div class="px-3 py-2">
+                            <span class="text-slate-400 text-sm">{{ storagePin.typeName || 'Storage' }}</span>
+                          </div>
+                          <!-- Snapshot indicator -->
+                          <div class="border-t border-slate-700/20 px-3 py-1.5 bg-amber-500/5 flex items-center gap-2">
+                            <svg class="w-3.5 h-3.5 text-amber-400/70 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span class="text-[10px] text-amber-400/70">
+                              Snapshot du {{ new Date(colony.cachedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) }}
+                              a {{ new Date(colony.cachedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) }}
+                            </span>
+                          </div>
+                          <div v-if="storagePin.contents && storagePin.contents.length > 0" class="border-t border-slate-700/20 px-3 py-2 text-xs space-y-1">
+                            <div
+                              v-for="content in storagePin.contents"
+                              :key="content.typeId"
+                              class="flex justify-between text-slate-400"
+                            >
+                              <span>{{ content.typeName }} x {{ formatNumber(content.amount, 0) }}</span>
+                            </div>
+                          </div>
+                          <div v-else class="border-t border-slate-700/20 px-3 py-2">
+                            <span class="text-xs text-slate-500 italic">Vide</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                   </div>
 
                   <!-- No detail fallback -->
                   <div v-if="getExtractorPins(colony).length === 0 && getFactoryPins(colony).length === 0 && getStoragePins(colony).length === 0">
-                    <p class="text-sm text-slate-500 italic">Aucun detail disponible pour cette colonie. Synchronisez pour charger les donnees des pins.</p>
+                    <p class="text-sm text-slate-500 italic">Aucun detail disponible pour cette colonie. Synchronisez pour charger les donnees des installations.</p>
                   </div>
 
                 </div>

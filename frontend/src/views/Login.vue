@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { safeJsonParse } from '@/services/api'
+import { APP_VERSION } from '@/version'
 
 const route = useRoute()
 const router = useRouter()
@@ -231,7 +232,7 @@ async function loginWithEve() {
 
     <!-- Version -->
     <div class="absolute bottom-4 left-1/2 -translate-x-1/2 text-eve-text/40 font-mono text-xs">
-      v0.2.1
+      v{{ APP_VERSION }}
     </div>
   </div>
 </template>

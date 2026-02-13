@@ -48,4 +48,14 @@ class PlanetaryService
 
         return $this->esiClient->get("/characters/{$characterId}/planets/{$planetId}/", $token);
     }
+
+    /**
+     * Fetch planet info from ESI (public endpoint, no auth needed).
+     *
+     * @return array{name: string, planet_id: int, system_id: int, type_id: int}
+     */
+    public function fetchPlanetInfo(int $planetId): array
+    {
+        return $this->esiClient->get("/universe/planets/{$planetId}/");
+    }
 }

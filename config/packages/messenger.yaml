@@ -18,6 +18,8 @@ framework:
             App\Message\SyncCharacterAssets: async
             App\Message\SyncCorporationAssets: async
             App\Message\TriggerAssetsSync: async
+            App\Message\TriggerPlanetarySync: async
+            App\Message\SyncPlanetaryColonies: async
 
 when@test:
     framework:

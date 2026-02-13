@@ -39,6 +39,9 @@ class PlanetaryColony
     #[ORM\Column(type: 'string', length: 100, nullable: true)]
     private ?string $solarSystemName = null;
 
+    #[ORM\Column(type: 'string', length: 100, nullable: true)]
+    private ?string $planetName = null;
+
     #[ORM\Column(type: 'smallint')]
     private int $upgradeLevel;
 
@@ -123,6 +126,17 @@ class PlanetaryColony
     public function setSolarSystemName(?string $solarSystemName): static
     {
         $this->solarSystemName = $solarSystemName;
+        return $this;
+    }
+
+    public function getPlanetName(): ?string
+    {
+        return $this->planetName;
+    }
+
+    public function setPlanetName(?string $planetName): static
+    {
+        $this->planetName = $planetName;
         return $this;
     }
 
