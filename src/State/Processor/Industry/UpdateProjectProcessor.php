@@ -14,7 +14,6 @@ use App\Service\Industry\IndustryProjectService;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Uid\Uuid;
@@ -47,9 +46,7 @@ class UpdateProjectProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        if (!$data instanceof UpdateProjectInput) {
-            throw new BadRequestHttpException('Invalid input');
-        }
+        assert($data instanceof UpdateProjectInput);
 
         $regenerateSteps = false;
 

@@ -12,7 +12,6 @@ use App\Entity\PveIncome;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
@@ -34,9 +33,7 @@ class CreateLootSaleProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        if (!$data instanceof CreateLootSaleInput) {
-            throw new BadRequestHttpException('Invalid input');
-        }
+        assert($data instanceof CreateLootSaleInput);
 
         $income = new PveIncome();
         $income->setUser($user);

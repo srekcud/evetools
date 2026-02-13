@@ -13,7 +13,6 @@ use App\Entity\User;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
-use App\Repository\IndustryStepJobMatchRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryProjectService;
@@ -35,7 +34,6 @@ class LinkJobProcessor implements ProcessorInterface
         private readonly IndustryProjectRepository $projectRepository,
         private readonly IndustryProjectStepRepository $stepRepository,
         private readonly CachedIndustryJobRepository $jobRepository,
-        private readonly IndustryStepJobMatchRepository $matchRepository,
         private readonly IndustryStructureConfigRepository $structureConfigRepository,
         private readonly IndustryCalculationService $calculationService,
         private readonly IndustryProjectService $projectService,

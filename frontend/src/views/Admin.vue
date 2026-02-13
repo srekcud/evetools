@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAdminStore } from '@/stores/admin'
+import { useSyncStore } from '@/stores/sync'
 import { useFormatters } from '@/composables/useFormatters'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { Bar, Doughnut, Line } from 'vue-chartjs'
@@ -34,6 +35,7 @@ ChartJS.register(
 
 const router = useRouter()
 const adminStore = useAdminStore()
+const syncStore = useSyncStore()
 const { formatIsk, formatTimeSince } = useFormatters()
 
 const hasAccess = ref(false)
@@ -158,9 +160,29 @@ function formatNumber(n: number | null | undefined): string {
   return n.toLocaleString('fr-FR')
 }
 
+function formatInterval(seconds: number): string {
+  if (seconds >= 3600) return `${seconds / 3600}h`
+  return `${seconds / 60}min`
+}
+
+const syncActionMap: Record<string, { action: () => Promise<{ success: boolean; message: string }>; key: string }> = {
+  'assets': { action: adminStore.syncAssets, key: 'sync-assets' },
+  'industry': { action: adminStore.syncIndustry, key: 'sync-industry' },
+  'pve': { action: adminStore.syncPve, key: 'sync-pve' },
+  'wallet': { action: adminStore.syncWallet, key: 'sync-wallet' },
+  'mining': { action: adminStore.syncMining, key: 'sync-mining' },
+  'ansiblex': { action: adminStore.syncAnsiblex, key: 'sync-ansiblex' },
+  'planetary': { action: adminStore.syncPlanetary, key: 'sync-planetary' },
+  'market-jita': { action: adminStore.syncMarket, key: 'sync-market' },
+  'market-structure': { action: adminStore.syncMarket, key: 'sync-market' },
+}
+
 async function refreshData() {
   await adminStore.fetchAll()
 }
+
+// Sync action keys that should wait for Mercure completion
+const syncKeys = new Set(Object.values(syncActionMap).map(v => v.key))
 
 async function executeAction(actionName: string, actionFn: () => Promise<{ success: boolean; message: string }>) {
   actionLoading.value = actionName
@@ -168,11 +190,21 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
 
   try {
     const result = await actionFn()
+
+    // For sync actions, keep spinner alive until Mercure confirms completion
+    if (result.success && syncKeys.has(actionName)) {
+      actionMessage.value = {
+        type: 'success',
+        text: result.message + ' (en attente...)',
+      }
+      // Mercure watcher below will handle the rest
+      return
+    }
+
     actionMessage.value = {
       type: result.success ? 'success' : 'error',
       text: result.message,
     }
-    // Refresh data after action
     if (result.success) {
       setTimeout(() => adminStore.fetchAll(), 1000)
     }
@@ -182,13 +214,48 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
       text: e instanceof Error ? e.message : 'Action failed',
     }
   } finally {
-    actionLoading.value = null
-    // Clear message after 5 seconds
+    // Only clear loading for non-sync actions (sync waits for Mercure)
+    if (!syncKeys.has(actionName)) {
+      actionLoading.value = null
+    }
     setTimeout(() => {
       actionMessage.value = null
     }, 5000)
   }
 }
+
+// Watch for Mercure admin-sync events
+watch(
+  () => syncStore.adminSyncProgress,
+  (progress) => {
+    if (!progress) return
+
+    if (progress.status === 'started') {
+      // Sync just started in the worker — refresh only scheduler health table
+      adminStore.fetchStats()
+    } else if (progress.status === 'completed') {
+      const syncType = (progress.data as Record<string, unknown>)?.syncType as string
+      actionLoading.value = null
+      actionMessage.value = {
+        type: 'success',
+        text: `Sync ${syncType || ''} termine : ${progress.message || 'OK'}`,
+      }
+      adminStore.fetchStats()
+      syncStore.clearSyncStatus('admin-sync')
+      setTimeout(() => { actionMessage.value = null }, 5000)
+    } else if (progress.status === 'error') {
+      const syncType = (progress.data as Record<string, unknown>)?.syncType as string
+      actionLoading.value = null
+      actionMessage.value = {
+        type: 'error',
+        text: `Erreur sync ${syncType || ''} : ${progress.message || 'Erreur inconnue'}`,
+      }
+      adminStore.fetchStats()
+      syncStore.clearSyncStatus('admin-sync')
+      setTimeout(() => { actionMessage.value = null }, 8000)
+    }
+  }
+)
 </script>
 
 <template>
@@ -474,149 +541,102 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
         </div>
       </div>
 
-      <!-- Sync Status & Actions -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Last Syncs -->
-        <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
-          <h3 class="text-lg font-semibold text-slate-200 mb-4">Dernieres synchronisations</h3>
-          <div class="space-y-2">
-            <div class="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
-              <span class="text-slate-400">Assets</span>
-              <span class="text-slate-200 font-mono text-sm">{{ stats?.syncs?.lastAssetSync ? formatTimeSince(stats.syncs.lastAssetSync) : '—' }}</span>
-            </div>
-            <div class="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
-              <span class="text-slate-400">Jobs industrie</span>
-              <span class="text-slate-200 font-mono text-sm">{{ stats?.syncs?.lastIndustrySync ? formatTimeSince(stats.syncs.lastIndustrySync) : '—' }}</span>
-            </div>
-            <div class="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
-              <span class="text-slate-400">Wallet</span>
-              <div class="text-right">
-                <span class="text-slate-200 font-mono text-sm">{{ stats?.syncs?.lastWalletSync ? formatTimeSince(stats.syncs.lastWalletSync) : '—' }}</span>
-                <span class="text-slate-500 text-xs ml-2">({{ formatNumber(stats?.syncs?.walletTransactionCount) }} tx)</span>
-              </div>
-            </div>
-            <div class="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
-              <span class="text-slate-400">Mining</span>
-              <span class="text-slate-200 font-mono text-sm">{{ stats?.syncs?.lastMiningSync ? formatTimeSince(stats.syncs.lastMiningSync) : '—' }}</span>
-            </div>
-            <div class="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
-              <span class="text-slate-400">Ansiblex</span>
-              <span class="text-slate-200 font-mono text-sm">{{ formatNumber(stats?.syncs?.ansiblexCount) }} gates</span>
-            </div>
+      <!-- Scheduler Health + Actions -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Scheduler Health (2/3) -->
+        <div class="lg:col-span-2 bg-slate-900 rounded-xl p-6 border border-slate-800">
+          <h3 class="text-lg font-semibold text-slate-200 mb-4">Synchronisations</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-slate-500 text-xs uppercase">
+                  <th class="text-left pb-3 font-medium">Type</th>
+                  <th class="text-left pb-3 font-medium">Dernier run</th>
+                  <th class="text-center pb-3 font-medium">Status</th>
+                  <th class="text-center pb-3 font-medium">Sante</th>
+                  <th class="text-left pb-3 font-medium">Message</th>
+                  <th class="text-center pb-3 font-medium w-16"></th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800">
+                <tr v-for="entry in stats?.schedulerHealth" :key="entry.type" class="hover:bg-slate-800/30">
+                  <td class="py-2.5 pr-3">
+                    <span class="text-slate-200 font-medium">{{ entry.label }}</span>
+                    <span class="text-slate-600 text-xs ml-1">({{ formatInterval(entry.expectedInterval) }})</span>
+                  </td>
+                  <td class="py-2.5 pr-3">
+                    <span class="text-slate-300 font-mono text-xs">{{ entry.completedAt ? formatTimeSince(entry.completedAt) : '—' }}</span>
+                  </td>
+                  <td class="py-2.5 text-center">
+                    <span
+                      :class="[
+                        'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
+                        entry.status === 'ok' ? 'bg-emerald-500/20 text-emerald-400' :
+                        entry.status === 'running' ? 'bg-blue-500/20 text-blue-400' :
+                        entry.status === 'error' ? 'bg-red-500/20 text-red-400' :
+                        'bg-slate-500/20 text-slate-400'
+                      ]"
+                    >
+                      <svg v-if="entry.status === 'running'" class="w-3 h-3 mr-1 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                      </svg>
+                      {{ entry.status === 'ok' ? 'OK' : entry.status === 'running' ? 'En cours' : entry.status === 'error' ? 'Erreur' : '—' }}
+                    </span>
+                  </td>
+                  <td class="py-2.5 text-center">
+                    <span
+                      :class="[
+                        'inline-block w-2.5 h-2.5 rounded-full',
+                        entry.health === 'healthy' ? 'bg-emerald-400' :
+                        entry.health === 'late' ? 'bg-amber-400' :
+                        entry.health === 'stale' ? 'bg-red-400' :
+                        entry.health === 'running' ? 'bg-blue-400 animate-pulse' :
+                        'bg-slate-600'
+                      ]"
+                      :title="entry.health === 'healthy' ? 'Dans les temps' :
+                              entry.health === 'late' ? 'En retard (>1.5x intervalle)' :
+                              entry.health === 'stale' ? 'Inactif (>3x intervalle)' :
+                              entry.health === 'running' ? 'En cours' : 'Inconnu'"
+                    ></span>
+                  </td>
+                  <td class="py-2.5 pl-3">
+                    <span class="text-slate-500 text-xs truncate max-w-[200px] inline-block">{{ entry.message || '—' }}</span>
+                  </td>
+                  <td class="py-2.5 text-center">
+                    <button
+                      v-if="syncActionMap[entry.type]"
+                      @click="executeAction(syncActionMap[entry.type].key, syncActionMap[entry.type].action)"
+                      :disabled="actionLoading !== null"
+                      class="p-1.5 rounded hover:bg-cyan-500/20 text-slate-500 hover:text-cyan-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Lancer la synchronisation"
+                    >
+                      <svg :class="['w-3.5 h-3.5', actionLoading === syncActionMap[entry.type].key ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                      </svg>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="flex items-center gap-4 mt-4 pt-3 border-t border-slate-800 text-xs text-slate-500">
+            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Dans les temps</div>
+            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span> En retard</div>
+            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-400"></span> Inactif</div>
+            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-slate-600"></span> Jamais lance</div>
           </div>
         </div>
 
-        <!-- Admin Actions -->
+        <!-- Maintenance Actions (1/3) -->
         <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
-          <h3 class="text-lg font-semibold text-slate-200 mb-4">Actions</h3>
-          <div class="grid grid-cols-3 gap-3">
-            <button
-              @click="executeAction('sync-assets', adminStore.syncAssets)"
-              :disabled="actionLoading !== null"
-              class="flex items-center justify-center gap-2 px-4 py-3 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg v-if="actionLoading === 'sync-assets'" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
-              <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
-              Sync Assets
-            </button>
-
-            <button
-              @click="executeAction('sync-market', adminStore.syncMarket)"
-              :disabled="actionLoading !== null"
-              class="flex items-center justify-center gap-2 px-4 py-3 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg v-if="actionLoading === 'sync-market'" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
-              <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-              Sync Market
-            </button>
-
-            <button
-              @click="executeAction('sync-industry', adminStore.syncIndustry)"
-              :disabled="actionLoading !== null"
-              class="flex items-center justify-center gap-2 px-4 py-3 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg v-if="actionLoading === 'sync-industry'" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
-              <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
-              </svg>
-              Sync Industry
-            </button>
-
-            <button
-              @click="executeAction('sync-pve', adminStore.syncPve)"
-              :disabled="actionLoading !== null"
-              class="flex items-center justify-center gap-2 px-4 py-3 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg v-if="actionLoading === 'sync-pve'" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
-              <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-              </svg>
-              Sync PVE
-            </button>
-
-            <button
-              @click="executeAction('sync-wallet', adminStore.syncWallet)"
-              :disabled="actionLoading !== null"
-              class="flex items-center justify-center gap-2 px-4 py-3 bg-teal-500/20 hover:bg-teal-500/30 text-teal-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg v-if="actionLoading === 'sync-wallet'" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
-              <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
-              </svg>
-              Sync Wallet
-            </button>
-
-            <button
-              @click="executeAction('sync-mining', adminStore.syncMining)"
-              :disabled="actionLoading !== null"
-              class="flex items-center justify-center gap-2 px-4 py-3 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg v-if="actionLoading === 'sync-mining'" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
-              <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-              </svg>
-              Sync Mining
-            </button>
-
-            <button
-              @click="executeAction('sync-ansiblex', adminStore.syncAnsiblex)"
-              :disabled="actionLoading !== null"
-              class="flex items-center justify-center gap-2 px-4 py-3 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg v-if="actionLoading === 'sync-ansiblex'" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
-              <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
-              </svg>
-              Sync Ansiblex
-            </button>
-
+          <h3 class="text-lg font-semibold text-slate-200 mb-4">Maintenance</h3>
+          <div class="space-y-3">
             <button
               @click="executeAction('retry-failed', adminStore.retryFailed)"
               :disabled="actionLoading !== null"
-              class="flex items-center justify-center gap-2 px-4 py-3 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <svg v-if="actionLoading === 'retry-failed'" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
-              <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg :class="['w-4 h-4', actionLoading === 'retry-failed' ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
               </svg>
               Retry Failed
@@ -625,12 +645,9 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
             <button
               @click="executeAction('purge-failed', adminStore.purgeFailed)"
               :disabled="actionLoading !== null"
-              class="flex items-center justify-center gap-2 px-4 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <svg v-if="actionLoading === 'purge-failed'" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
-              <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg :class="['w-4 h-4', actionLoading === 'purge-failed' ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
               </svg>
               Purge Failed
@@ -639,12 +656,9 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
             <button
               @click="executeAction('clear-cache', adminStore.clearCache)"
               :disabled="actionLoading !== null"
-              class="flex items-center justify-center gap-2 px-4 py-3 bg-slate-500/20 hover:bg-slate-500/30 text-slate-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-500/20 hover:bg-slate-500/30 text-slate-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <svg v-if="actionLoading === 'clear-cache'" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
-              <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg :class="['w-4 h-4', actionLoading === 'clear-cache' ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
               </svg>
               Clear Cache
@@ -656,24 +670,6 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
       <!-- Scheduler Config -->
       <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
         <h3 class="text-lg font-semibold text-slate-200 mb-4">Scheduler & Rate Limiting</h3>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <div class="p-3 bg-slate-900/50 rounded-lg text-center">
-            <p class="text-xs text-slate-500 uppercase mb-1">Industry</p>
-            <p class="text-lg font-bold text-violet-400">30 min</p>
-          </div>
-          <div class="p-3 bg-slate-900/50 rounded-lg text-center">
-            <p class="text-xs text-slate-500 uppercase mb-1">PVE</p>
-            <p class="text-lg font-bold text-green-400">1h</p>
-          </div>
-          <div class="p-3 bg-slate-900/50 rounded-lg text-center">
-            <p class="text-xs text-slate-500 uppercase mb-1">Mining</p>
-            <p class="text-lg font-bold text-amber-400">1h</p>
-          </div>
-          <div class="p-3 bg-slate-900/50 rounded-lg text-center">
-            <p class="text-xs text-slate-500 uppercase mb-1">Wallet</p>
-            <p class="text-lg font-bold text-cyan-400">1h</p>
-          </div>
-        </div>
         <div class="flex items-center gap-4 text-sm text-slate-400">
           <div class="flex items-center gap-2">
             <div class="w-2 h-2 rounded-full bg-yellow-400"></div>

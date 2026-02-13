@@ -109,7 +109,7 @@ class PlanetarySyncService
                 if ($colony->getPlanetName() === null) {
                     try {
                         $planetInfo = $this->planetaryService->fetchPlanetInfo($planetId);
-                        $colony->setPlanetName($planetInfo['name'] ?? null);
+                        $colony->setPlanetName($planetInfo['name']);
                     } catch (\Throwable $e) {
                         $this->logger->warning('Failed to resolve planet name', [
                             'planetId' => $planetId,
@@ -212,8 +212,10 @@ class PlanetarySyncService
             $pin->setLatitude($pinData['latitude'] ?? null);
             $pin->setLongitude($pinData['longitude'] ?? null);
 
-            // Factory details
-            if (isset($pinData['factory_details']['schematic_id'])) {
+            // Factory details: schematic_id can be at top-level or nested in factory_details
+            if (isset($pinData['schematic_id'])) {
+                $pin->setSchematicId($pinData['schematic_id']);
+            } elseif (isset($pinData['factory_details']['schematic_id'])) {
                 $pin->setSchematicId($pinData['factory_details']['schematic_id']);
             }
 

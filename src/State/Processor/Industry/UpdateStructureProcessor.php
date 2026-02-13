@@ -45,9 +45,7 @@ class UpdateStructureProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Structure not found');
         }
 
-        if (!$data instanceof UpdateStructureInput) {
-            throw new BadRequestHttpException('Invalid input');
-        }
+        assert($data instanceof UpdateStructureInput);
 
         if ($data->name !== null) {
             $name = trim($data->name);

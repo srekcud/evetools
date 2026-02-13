@@ -7,7 +7,6 @@ namespace App\Command;
 use App\Repository\CachedAssetRepository;
 use App\Repository\EveTokenRepository;
 use App\Service\ESI\EsiClient;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -24,7 +23,6 @@ class ResolveStructureNamesCommand extends Command
         private readonly CachedAssetRepository $cachedAssetRepository,
         private readonly EveTokenRepository $eveTokenRepository,
         private readonly EsiClient $esiClient,
-        private readonly EntityManagerInterface $entityManager,
     ) {
         parent::__construct();
     }

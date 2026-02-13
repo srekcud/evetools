@@ -227,7 +227,7 @@ class MarketService
             $result = $this->getStructurePrices($typeIds, $structureId, $token);
             $structurePrices = $result['prices'];
             $structureAccessible = $result['accessible'];
-            $structureFromCache = $result['fromCache'] ?? false;
+            $structureFromCache = $result['fromCache'];
 
             if ($structureFromCache) {
                 $structureLastSync = $this->structureMarketService->getLastSyncTime($structureId);

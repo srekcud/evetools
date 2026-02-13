@@ -15,7 +15,6 @@ use App\Repository\IndustryStructureConfigRepository;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
@@ -40,9 +39,7 @@ class CreateStructureProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        if (!$data instanceof CreateStructureInput) {
-            throw new BadRequestHttpException('Invalid input');
-        }
+        assert($data instanceof CreateStructureInput);
 
         if ($data->isDefault) {
             $this->structureConfigRepository->clearDefaultForUser($user);

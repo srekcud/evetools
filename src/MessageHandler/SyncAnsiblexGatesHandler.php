@@ -62,7 +62,7 @@ final readonly class SyncAnsiblexGatesHandler
                 'character_id' => $characterId,
                 'character_name' => $character->getName(),
                 'error' => $e->getMessage(),
-                'status_code' => $e->getStatusCode(),
+                'status_code' => $e->statusCode,
             ]);
         } catch (\Exception $e) {
             $this->logger->error('Unexpected error during Ansiblex sync', [

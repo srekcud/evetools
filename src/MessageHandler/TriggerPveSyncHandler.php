@@ -7,6 +7,7 @@ namespace App\MessageHandler;
 use App\Message\SyncUserPveData;
 use App\Message\TriggerPveSync;
 use App\Repository\UserRepository;
+use App\Service\Admin\SyncTracker;
 use App\Service\Sync\PveSyncService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -20,28 +21,37 @@ final readonly class TriggerPveSyncHandler
         private PveSyncService $pveSyncService,
         private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
+        private SyncTracker $syncTracker,
     ) {
     }
 
     public function __invoke(TriggerPveSync $message): void
     {
+        $this->syncTracker->start('pve');
         $this->logger->info('Triggering scheduled PVE sync');
 
-        $users = $this->userRepository->findActiveWithCharacters();
-        $syncCount = 0;
+        try {
+            $users = $this->userRepository->findActiveWithCharacters();
+            $syncCount = 0;
 
-        foreach ($users as $user) {
-            if ($this->pveSyncService->canSync($user) && $this->pveSyncService->shouldSync($user)) {
-                $this->messageBus->dispatch(
-                    new SyncUserPveData($user->getId()->toRfc4122())
-                );
-                $syncCount++;
+            foreach ($users as $user) {
+                if ($this->pveSyncService->canSync($user) && $this->pveSyncService->shouldSync($user)) {
+                    $this->messageBus->dispatch(
+                        new SyncUserPveData($user->getId()->toRfc4122())
+                    );
+                    $syncCount++;
+                }
             }
-        }
 
-        $this->logger->info('Scheduled PVE sync triggered', [
-            'usersQueued' => $syncCount,
-            'totalUsers' => count($users),
-        ]);
+            $this->logger->info('Scheduled PVE sync triggered', [
+                'usersQueued' => $syncCount,
+                'totalUsers' => count($users),
+            ]);
+
+            $this->syncTracker->complete('pve', "{$syncCount}/" . count($users) . ' users queued');
+        } catch (\Throwable $e) {
+            $this->syncTracker->fail('pve', $e->getMessage());
+            throw $e;
+        }
     }
 }

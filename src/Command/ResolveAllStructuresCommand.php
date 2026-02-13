@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Entity\CachedStructure;
-use App\Repository\CachedAssetRepository;
 use App\Repository\CachedStructureRepository;
 use App\Repository\EveTokenRepository;
 use App\Service\ESI\EsiClient;
@@ -24,7 +23,6 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 class ResolveAllStructuresCommand extends Command
 {
     public function __construct(
-        private readonly CachedAssetRepository $cachedAssetRepository,
         private readonly CachedStructureRepository $cachedStructureRepository,
         private readonly EveTokenRepository $eveTokenRepository,
         private readonly EsiClient $esiClient,

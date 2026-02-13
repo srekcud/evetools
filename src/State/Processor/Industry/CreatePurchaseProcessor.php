@@ -56,9 +56,7 @@ class CreatePurchaseProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Step not found');
         }
 
-        if (!$data instanceof CreatePurchaseInput) {
-            throw new BadRequestHttpException('Invalid input');
-        }
+        assert($data instanceof CreatePurchaseInput);
 
         $purchase = new IndustryStepPurchase();
         $purchase->setStep($step);

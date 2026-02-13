@@ -37,36 +37,36 @@ class UpdateLedgerSettingsProcessor implements ProcessorInterface
 
         $settings = $this->settingsRepository->getOrCreate($user);
 
-        if ($data instanceof LedgerSettingsResource) {
-            // Update corpProjectAccounting if provided
-            if (isset($data->corpProjectAccounting)) {
-                if (!in_array($data->corpProjectAccounting, [
+        assert($data instanceof LedgerSettingsResource);
+
+        // Update corpProjectAccounting if provided
+        if (isset($data->corpProjectAccounting)) {
+            if (!in_array($data->corpProjectAccounting, [
+                UserLedgerSettings::CORP_PROJECT_ACCOUNTING_PVE,
+                UserLedgerSettings::CORP_PROJECT_ACCOUNTING_MINING,
+            ], true)) {
+                throw new BadRequestHttpException(sprintf(
+                    'Invalid corpProjectAccounting value. Must be "%s" or "%s".',
                     UserLedgerSettings::CORP_PROJECT_ACCOUNTING_PVE,
-                    UserLedgerSettings::CORP_PROJECT_ACCOUNTING_MINING,
-                ], true)) {
-                    throw new BadRequestHttpException(sprintf(
-                        'Invalid corpProjectAccounting value. Must be "%s" or "%s".',
-                        UserLedgerSettings::CORP_PROJECT_ACCOUNTING_PVE,
-                        UserLedgerSettings::CORP_PROJECT_ACCOUNTING_MINING
-                    ));
-                }
-                $settings->setCorpProjectAccounting($data->corpProjectAccounting);
+                    UserLedgerSettings::CORP_PROJECT_ACCOUNTING_MINING
+                ));
             }
+            $settings->setCorpProjectAccounting($data->corpProjectAccounting);
+        }
 
-            // Update autoSyncEnabled if provided
-            if (isset($data->autoSyncEnabled)) {
-                $settings->setAutoSyncEnabled($data->autoSyncEnabled);
-            }
+        // Update autoSyncEnabled if provided
+        if (isset($data->autoSyncEnabled)) {
+            $settings->setAutoSyncEnabled($data->autoSyncEnabled);
+        }
 
-            // Update excludedTypeIds if provided
-            if (isset($data->excludedTypeIds)) {
-                $settings->setExcludedTypeIds($data->excludedTypeIds);
-            }
+        // Update excludedTypeIds if provided
+        if (isset($data->excludedTypeIds)) {
+            $settings->setExcludedTypeIds($data->excludedTypeIds);
+        }
 
-            // Update defaultSoldTypeIds if provided
-            if (isset($data->defaultSoldTypeIds)) {
-                $settings->setDefaultSoldTypeIds($data->defaultSoldTypeIds);
-            }
+        // Update defaultSoldTypeIds if provided
+        if (isset($data->defaultSoldTypeIds)) {
+            $settings->setDefaultSoldTypeIds($data->defaultSoldTypeIds);
         }
 
         $this->entityManager->flush();

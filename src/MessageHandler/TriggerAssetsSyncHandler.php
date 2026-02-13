@@ -7,6 +7,7 @@ namespace App\MessageHandler;
 use App\Message\SyncCharacterAssets;
 use App\Message\TriggerAssetsSync;
 use App\Repository\CharacterRepository;
+use App\Service\Admin\SyncTracker;
 use App\Service\Sync\AssetsSyncService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -20,29 +21,37 @@ final readonly class TriggerAssetsSyncHandler
         private AssetsSyncService $assetsSyncService,
         private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
+        private SyncTracker $syncTracker,
     ) {
     }
 
     public function __invoke(TriggerAssetsSync $message): void
     {
+        $this->syncTracker->start('assets');
         $this->logger->info('Triggering scheduled assets sync');
 
-        $characters = $this->characterRepository->findWithValidTokens();
-        $syncCount = 0;
+        try {
+            $characters = $this->characterRepository->findWithValidTokens();
+            $syncCount = 0;
 
-        foreach ($characters as $character) {
-            // Check if sync is needed AND if the character can sync (valid token/auth)
-            if ($this->assetsSyncService->shouldSync($character) && $this->assetsSyncService->canSync($character)) {
-                $this->messageBus->dispatch(
-                    new SyncCharacterAssets($character->getId()->toRfc4122())
-                );
-                $syncCount++;
+            foreach ($characters as $character) {
+                if ($this->assetsSyncService->shouldSync($character) && $this->assetsSyncService->canSync($character)) {
+                    $this->messageBus->dispatch(
+                        new SyncCharacterAssets($character->getId()->toRfc4122())
+                    );
+                    $syncCount++;
+                }
             }
-        }
 
-        $this->logger->info('Scheduled sync triggered', [
-            'charactersQueued' => $syncCount,
-            'totalCharacters' => count($characters),
-        ]);
+            $this->logger->info('Scheduled sync triggered', [
+                'charactersQueued' => $syncCount,
+                'totalCharacters' => count($characters),
+            ]);
+
+            $this->syncTracker->complete('assets', "{$syncCount}/" . count($characters) . ' chars queued');
+        } catch (\Throwable $e) {
+            $this->syncTracker->fail('assets', $e->getMessage());
+            throw $e;
+        }
     }
 }

@@ -76,8 +76,7 @@ class PveSyncService
     {
         foreach ($user->getCharacters() as $character) {
             $token = $character->getEveToken();
-            // Check if token exists and has a refresh token (can be refreshed)
-            if ($token !== null && $token->getRefreshTokenEncrypted() !== null) {
+            if ($token !== null) {
                 return true;
             }
         }
@@ -569,10 +568,6 @@ class PveSyncService
         $ammoTypeIds = $settings?->getAmmoTypeIds() ?? [];
         $beaconTypeIds = UserPveSettings::BEACON_TYPE_IDS;
         $allTypeIds = array_merge($ammoTypeIds, $beaconTypeIds);
-
-        if ($allTypeIds === []) {
-            return 0;
-        }
 
         $importedIds = $this->expenseRepository->getImportedContractIds($user);
         $importedIdsSet = array_flip($importedIds);

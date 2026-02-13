@@ -521,6 +521,19 @@ Frontend:
 
 ---
 
+## Améliorations marché / pricing
+
+### Prix pondéré par volume (weighted price)
+**Idée** : Le prix sell Jita utilisé pour la valorisation (PI, shopping list industrie) prend actuellement le meilleur sell order, qui peut n'avoir que quelques unités. Si la quantité requise dépasse le volume disponible au meilleur prix, le coût réel est plus élevé.
+
+**Amélioration** : Calculer un prix moyen pondéré en empilant les sell orders jusqu'à couvrir la quantité demandée (= "fill or kill" simulé). Afficher un warning si la profondeur de marché est insuffisante.
+
+**Impact** : `JitaMarketService`, `PlanetaryProductionCalculator`, `ShoppingTab` (prix unitaire + coût total)
+
+**Statut** : Idée future
+
+---
+
 ## TODO / Points en suspens
 
 ### Ansiblex Jump Gates

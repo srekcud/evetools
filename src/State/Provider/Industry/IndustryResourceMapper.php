@@ -17,12 +17,12 @@ use App\Entity\IndustryStepPurchase;
 use App\Entity\IndustryStructureConfig;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedIndustryJobRepository;
-use App\Repository\IndustryStructureConfigRepository;
 use App\Service\Industry\IndustryCalculationService;
 
 class IndustryResourceMapper
 {
     /** @var array<string, array<string, array{skills: array<int, int>, name: string, time: int|null}>> */
+    /** @var array<string, array{skills: array<int, int>|null, name: string|null, time?: int|null}> */
     private array $bestCharacterCache = [];
 
     /** @var array<int, array<array{esiJobId: int, runs: int, status: string, characterName: string}>>|null */
@@ -31,7 +31,6 @@ class IndustryResourceMapper
     public function __construct(
         private readonly IndustryCalculationService $calculationService,
         private readonly CachedCharacterSkillRepository $skillRepository,
-        private readonly IndustryStructureConfigRepository $structureConfigRepository,
         private readonly CachedIndustryJobRepository $industryJobRepository,
     ) {
     }
@@ -342,7 +341,7 @@ class IndustryResourceMapper
      * Find the best character (lowest time) for a step based on all relevant skills.
      * Includes Industry/AdvInd/Reactions and blueprint-specific science skills.
      *
-     * @return array{skills: array<int, int>|null, name: string|null}
+     * @return array{skills: array<int, int>|null, name: string|null, time?: int|null}
      */
     private function findBestCharacterForStep(IndustryProjectStep $step): array
     {

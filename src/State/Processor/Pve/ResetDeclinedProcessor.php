@@ -12,7 +12,6 @@ use App\Entity\User;
 use App\Repository\UserPveSettingsRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
@@ -35,9 +34,7 @@ class ResetDeclinedProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        if (!$data instanceof ResetDeclinedInput) {
-            throw new BadRequestHttpException('Invalid input');
-        }
+        assert($data instanceof ResetDeclinedInput);
 
         $keepContractIds = array_map('intval', $data->keepContractIds);
         $keepTransactionIds = array_map('intval', $data->keepTransactionIds);

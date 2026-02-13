@@ -20,6 +20,17 @@ framework:
             App\Message\TriggerAssetsSync: async
             App\Message\TriggerPlanetarySync: async
             App\Message\SyncPlanetaryColonies: async
+            App\Message\SyncIndustryJobs: async
+            App\Message\TriggerPveSync: async
+            App\Message\SyncWalletTransactions: async
+            App\Message\TriggerMiningSync: async
+            App\Message\TriggerAnsiblexSync: async
+            App\Message\TriggerJitaMarketSync: async
+            App\Message\TriggerStructureMarketSync: async
+            App\Message\SyncUserPveData: async
+            App\Message\SyncUserMiningData: async
+            App\Message\SyncAnsiblexGates: async
+            App\Message\SyncStructureMarket: async
 
 when@test:
     framework:

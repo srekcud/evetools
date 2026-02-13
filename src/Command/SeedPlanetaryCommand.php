@@ -41,7 +41,6 @@ class SeedPlanetaryCommand extends Command
     private const P0_AQUEOUS_LIQUIDS = 2268;
     private const P0_NOBLE_METALS = 2270;
     private const P0_HEAVY_METALS = 2272;
-    private const P0_NON_CS_CRYSTALS = 2288;
     private const P0_MICRO_ORGANISMS = 2073;
     private const P0_CARBON_COMPOUNDS = 2287;
     private const P0_COMPLEX_ORGANISMS = 2286;
@@ -55,7 +54,6 @@ class SeedPlanetaryCommand extends Command
     private const SCHEMATIC_WATER = 121;
     private const SCHEMATIC_PRECIOUS_METALS = 127;
     private const SCHEMATIC_TOXIC_METALS = 128;
-    private const SCHEMATIC_CHIRAL_STRUCTURES = 129;
     private const SCHEMATIC_BACTERIA = 131;
     private const SCHEMATIC_BIOFUELS = 134;
     private const SCHEMATIC_INDUSTRIAL_FIBERS = 135;
@@ -307,14 +305,14 @@ class SeedPlanetaryCommand extends Command
                     case 'storage':
                         $pin->setTypeId(self::STORAGE);
                         $pin->setTypeName('Storage Facility');
-                        $pin->setContents($pinDef['contents'] ?? null);
+                        $pin->setContents($pinDef['contents']);
                         $storagePinIds[] = $pinIdCounter;
                         break;
 
                     case 'launchpad':
                         $pin->setTypeId(self::LAUNCHPAD);
                         $pin->setTypeName('Launchpad');
-                        $pin->setContents($pinDef['contents'] ?? null);
+                        $pin->setContents($pinDef['contents']);
                         $storagePinIds[] = $pinIdCounter;
                         break;
 

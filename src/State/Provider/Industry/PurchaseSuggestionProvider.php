@@ -11,7 +11,6 @@ use App\ApiResource\Industry\PurchaseSuggestionResource;
 use App\Entity\User;
 use App\Repository\CachedWalletTransactionRepository;
 use App\Repository\IndustryProjectRepository;
-use App\Repository\IndustryStepPurchaseRepository;
 use App\Service\Industry\IndustryCalculationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -28,7 +27,6 @@ class PurchaseSuggestionProvider implements ProviderInterface
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
         private readonly CachedWalletTransactionRepository $transactionRepository,
-        private readonly IndustryStepPurchaseRepository $purchaseRepository,
         private readonly IndustryCalculationService $calculationService,
         private readonly EntityManagerInterface $entityManager,
     ) {
@@ -113,7 +111,7 @@ class PurchaseSuggestionProvider implements ProviderInterface
                 $suggestion->unitPrice = $tx->getUnitPrice();
                 $suggestion->totalPrice = $tx->getTotalPrice();
                 $suggestion->date = $tx->getDate()->format('c');
-                $suggestion->characterName = $character->getName() ?? 'Unknown';
+                $suggestion->characterName = $character->getName();
                 $suggestion->locationId = $tx->getLocationId();
                 $suggestion->alreadyLinked = isset($linkedTransactionIds[(string) $tx->getId()]);
 

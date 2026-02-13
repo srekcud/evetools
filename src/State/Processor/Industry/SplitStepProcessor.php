@@ -57,9 +57,7 @@ class SplitStepProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Step not found');
         }
 
-        if (!$data instanceof SplitStepInput) {
-            throw new BadRequestHttpException('Invalid input');
-        }
+        assert($data instanceof SplitStepInput);
 
         $numberOfJobs = $data->numberOfJobs;
         $totalRuns = $step->getRuns();

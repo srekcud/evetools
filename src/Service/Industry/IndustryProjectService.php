@@ -11,7 +11,6 @@ use App\Entity\IndustryStepJobMatch;
 use App\Entity\User;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedIndustryJobRepository;
-use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -32,7 +31,6 @@ class IndustryProjectService
         private readonly IndustryBlacklistService $blacklistService,
         private readonly IndustryBonusService $bonusService,
         private readonly IndustryCalculationService $calculationService,
-        private readonly IndustryProjectRepository $projectRepository,
         private readonly CachedIndustryJobRepository $jobRepository,
         private readonly CachedCharacterSkillRepository $skillRepository,
         private readonly InvTypeRepository $invTypeRepository,

@@ -15,7 +15,7 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
- * @implements ProviderInterface<CharacterResource[]>
+ * @implements ProviderInterface<CharacterResource>
  */
 class CharacterCollectionProvider implements ProviderInterface
 {
@@ -57,7 +57,7 @@ class CharacterCollectionProvider implements ProviderInterface
         $token = $character->getEveToken();
         $hasValidToken = $token !== null && !empty($token->getScopes()) && $token->getScopes() !== [''];
 
-        if ($hasValidToken && $token !== null) {
+        if ($hasValidToken) {
             try {
                 $this->tokenManager->decryptRefreshToken($token->getRefreshTokenEncrypted());
             } catch (\RuntimeException) {
@@ -66,7 +66,7 @@ class CharacterCollectionProvider implements ProviderInterface
         }
 
         $hasMissingScopes = false;
-        if ($hasValidToken && $token !== null) {
+        if ($hasValidToken) {
             $tokenScopes = $token->getScopes();
             $requiredScopes = AuthenticationService::getRequiredScopes();
             $missingScopes = array_diff($requiredScopes, $tokenScopes);

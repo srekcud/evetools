@@ -41,7 +41,7 @@ class SharedShoppingListResource
     #[ApiProperty(identifier: true)]
     public string $token;
 
-    /** @var ShoppingListItemResource[] */
+    /** @var array<ShoppingListItemResource|array<string, mixed>> */
     public array $items = [];
 
     /** @var string[] */

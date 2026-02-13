@@ -11,7 +11,6 @@ use App\Entity\EveToken;
 use App\Entity\User;
 use App\Exception\EsiApiException;
 use App\Repository\CharacterRepository;
-use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -86,7 +85,6 @@ class AuthenticationService
         private readonly HttpClientInterface $httpClient,
         private readonly TokenManager $tokenManager,
         private readonly CharacterService $characterService,
-        private readonly UserRepository $userRepository,
         private readonly CharacterRepository $characterRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly string $clientId,

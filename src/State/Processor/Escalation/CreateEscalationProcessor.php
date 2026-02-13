@@ -37,9 +37,7 @@ class CreateEscalationProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        if (!$data instanceof CreateEscalationInput) {
-            throw new BadRequestHttpException('Invalid input');
-        }
+        assert($data instanceof CreateEscalationInput);
 
         // Find the character
         $character = null;

@@ -14,7 +14,6 @@ use App\Repository\PveExpenseRepository;
 use App\Repository\UserPveSettingsRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
@@ -38,9 +37,7 @@ class ImportExpensesProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        if (!$data instanceof ImportExpensesInput) {
-            throw new BadRequestHttpException('Invalid input');
-        }
+        assert($data instanceof ImportExpensesInput);
 
         $imported = 0;
 
@@ -62,10 +59,6 @@ class ImportExpensesProcessor implements ProcessorInterface
         $importedTransactionIds = $this->expenseRepository->getImportedTransactionIds($user);
 
         foreach ($data->expenses as $expenseData) {
-            if (!isset($expenseData['type'], $expenseData['typeName'], $expenseData['price'], $expenseData['dateIssued'])) {
-                continue;
-            }
-
             $contractId = isset($expenseData['contractId']) ? (int) $expenseData['contractId'] : null;
             $transactionId = isset($expenseData['transactionId']) ? (int) $expenseData['transactionId'] : null;
 

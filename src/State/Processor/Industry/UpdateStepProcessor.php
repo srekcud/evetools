@@ -59,9 +59,7 @@ class UpdateStepProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Step not found');
         }
 
-        if (!$data instanceof UpdateStepInput) {
-            throw new BadRequestHttpException('Invalid input');
-        }
+        assert($data instanceof UpdateStepInput);
 
         $needsCascade = false;
 

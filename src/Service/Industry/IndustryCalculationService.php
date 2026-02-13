@@ -9,7 +9,6 @@ use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
-use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\IndustryUserSettingsRepository;
@@ -30,7 +29,6 @@ class IndustryCalculationService
         private readonly IndustryBonusService $bonusService,
         private readonly IndustryStructureConfigRepository $structureConfigRepository,
         private readonly IndustryUserSettingsRepository $settingsRepository,
-        private readonly CachedCharacterSkillRepository $skillRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly StaStationRepository $staStationRepository,
         private readonly CachedStructureRepository $cachedStructureRepository,

@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Admin\AdminStatsResource;
 use App\ApiResource\Admin\PveCorporationStatsDto;
+use App\ApiResource\Admin\SchedulerHealthEntryDto;
 use App\Entity\User;
 use App\Service\Admin\AdminService;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -91,6 +92,21 @@ class AdminStatsProvider implements ProviderInterface
                 $corp['total'] ?? 0.0
             ),
             $stats['pve']['byCorporation'] ?? []
+        );
+
+        // Scheduler Health
+        $resource->schedulerHealth = array_map(
+            fn(array $entry) => new SchedulerHealthEntryDto(
+                $entry['type'] ?? '',
+                $entry['label'] ?? '',
+                $entry['status'] ?? 'unknown',
+                $entry['health'] ?? 'unknown',
+                $entry['started_at'] ?? null,
+                $entry['completed_at'] ?? null,
+                $entry['message'] ?? null,
+                $entry['expected_interval'] ?? 0,
+            ),
+            $stats['schedulerHealth'] ?? []
         );
 
         return $resource;

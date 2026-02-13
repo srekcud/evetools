@@ -53,6 +53,9 @@ class AdminStatsResource
 
     public PveStatsDto $pve;
 
+    /** @var SchedulerHealthEntryDto[] */
+    public array $schedulerHealth = [];
+
     public function __construct()
     {
         $this->users = new UserStatsDto();
@@ -141,5 +144,37 @@ class PveCorporationStatsDto
         $this->corporationId = $corporationId;
         $this->corporationName = $corporationName;
         $this->total = $total;
+    }
+}
+
+class SchedulerHealthEntryDto
+{
+    public string $type;
+    public string $label;
+    public string $status;
+    public string $health;
+    public ?string $startedAt = null;
+    public ?string $completedAt = null;
+    public ?string $message = null;
+    public int $expectedInterval;
+
+    public function __construct(
+        string $type = '',
+        string $label = '',
+        string $status = 'unknown',
+        string $health = 'unknown',
+        ?string $startedAt = null,
+        ?string $completedAt = null,
+        ?string $message = null,
+        int $expectedInterval = 0,
+    ) {
+        $this->type = $type;
+        $this->label = $label;
+        $this->status = $status;
+        $this->health = $health;
+        $this->startedAt = $startedAt;
+        $this->completedAt = $completedAt;
+        $this->message = $message;
+        $this->expectedInterval = $expectedInterval;
     }
 }

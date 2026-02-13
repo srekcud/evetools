@@ -40,10 +40,9 @@ class SyncMarketProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        $structureId = self::DEFAULT_STRUCTURE_ID;
-        if ($data instanceof SyncMarketInput && $data->structureId !== null) {
-            $structureId = $data->structureId;
-        }
+        assert($data instanceof SyncMarketInput);
+
+        $structureId = $data->structureId ?? self::DEFAULT_STRUCTURE_ID;
 
         $token = null;
         foreach ($user->getCharacters() as $character) {

@@ -14,7 +14,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
- * @implements ProviderInterface<SolarSystemSearchResource[]>
+ * @implements ProviderInterface<SolarSystemSearchResource>
  */
 class SolarSystemSearchProvider implements ProviderInterface
 {

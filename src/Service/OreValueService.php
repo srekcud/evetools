@@ -6,7 +6,6 @@ namespace App\Service;
 
 use App\Repository\Sde\InvTypeMaterialRepository;
 use App\Repository\Sde\InvTypeRepository;
-use Psr\Log\LoggerInterface;
 
 /**
  * Service to calculate ore values: raw, compressed, and reprocessed.
@@ -22,15 +21,11 @@ class OreValueService
     // Cache for compressed type mappings
     private array $compressedTypeCache = [];
 
-    // Cache for reprocess materials
-    private array $reprocessCache = [];
-
     public function __construct(
         private readonly InvTypeRepository $invTypeRepository,
         private readonly InvTypeMaterialRepository $invTypeMaterialRepository,
         private readonly JitaMarketService $jitaMarketService,
         private readonly ?StructureMarketService $structureMarketService,
-        private readonly LoggerInterface $logger,
     ) {
     }
 

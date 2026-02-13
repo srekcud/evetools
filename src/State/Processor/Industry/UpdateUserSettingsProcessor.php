@@ -14,7 +14,6 @@ use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
@@ -38,9 +37,7 @@ class UpdateUserSettingsProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        if (!$data instanceof UpdateUserSettingsInput) {
-            throw new BadRequestHttpException('Invalid input');
-        }
+        assert($data instanceof UpdateUserSettingsInput);
 
         $settings = $this->settingsRepository->findOneBy(['user' => $user]);
 

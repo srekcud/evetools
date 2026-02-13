@@ -16,7 +16,7 @@ use Psr\Log\LoggerInterface;
 
 class AssetsService
 {
-    /** @var array<int, array{name: string, solar_system_id: ?int}> */
+    /** @var array<int, array{name: string, solar_system_id: ?int, owner_id?: ?int, type_id?: ?int}> */
     private array $structureCache = [];
 
     public function __construct(
@@ -202,6 +202,8 @@ class AssetsService
                 $this->structureCache[$structureId] = [
                     'name' => $cached->getName(),
                     'solar_system_id' => $cached->getSolarSystemId(),
+                    'owner_id' => $cached->getOwnerCorporationId(),
+                    'type_id' => $cached->getTypeId(),
                 ];
             }
         }

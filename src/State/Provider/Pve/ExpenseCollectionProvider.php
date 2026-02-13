@@ -15,7 +15,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
- * @implements ProviderInterface<ExpenseResource[]>
+ * @implements ProviderInterface<ExpenseResource>
  */
 class ExpenseCollectionProvider implements ProviderInterface
 {

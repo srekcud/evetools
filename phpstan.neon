@@ -2,10 +2,23 @@ includes:
     - vendor/phpstan/phpstan-symfony/extension.neon
 
 parameters:
-    level: 1
+    level: 4
     paths:
         - src
     excludePaths:
         - src/Kernel.php
     symfony:
         containerXmlPath: var/cache/dev/App_KernelDevDebugContainer.xml
+    ignoreErrors:
+        -
+            identifier: property.unusedType
+            path: src/Entity/
+            message: '#is never assigned .+ so it can be removed from the property type#'
+        # Processors use assert($data instanceof X) as runtime guards;
+        # PHPStan already knows the type from @implements PHPDoc
+        -
+            identifiers:
+                - instanceof.alwaysTrue
+                - function.alreadyNarrowedType
+            path: src/State/Processor/
+            message: '#will always evaluate to true#'

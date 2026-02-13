@@ -81,6 +81,15 @@ use App\State\Processor\Admin\TriggerSyncProcessor;
             ],
         ),
         new Post(
+            uriTemplate: '/admin/actions/sync-planetary',
+            processor: TriggerSyncProcessor::class,
+            input: EmptyInput::class,
+            name: 'sync_planetary',
+            openapiContext: [
+                'summary' => 'Trigger Planetary Interaction sync',
+            ],
+        ),
+        new Post(
             uriTemplate: '/admin/actions/retry-failed',
             processor: RetryFailedProcessor::class,
             input: EmptyInput::class,

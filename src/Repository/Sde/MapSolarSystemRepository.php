@@ -52,6 +52,9 @@ class MapSolarSystemRepository extends ServiceEntityRepository
     /**
      * @return MapSolarSystem[]
      */
+    /**
+     * @return list<array<string, mixed>>
+     */
     public function searchByName(string $query, int $limit = 10): array
     {
         $lowerQuery = mb_strtolower($query);

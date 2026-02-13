@@ -9,7 +9,6 @@ use App\Entity\Character;
 use App\Repository\AnsiblexJumpGateRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\ESI\EsiClient;
-use App\Service\ESI\TokenManager;
 use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -21,7 +20,6 @@ class AnsiblexSyncService
 
     public function __construct(
         private readonly EsiClient $esiClient,
-        private readonly TokenManager $tokenManager,
         private readonly EntityManagerInterface $entityManager,
         private readonly AnsiblexJumpGateRepository $ansiblexRepository,
         private readonly MapSolarSystemRepository $solarSystemRepository,

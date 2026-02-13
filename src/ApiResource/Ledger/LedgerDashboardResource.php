@@ -49,19 +49,19 @@ class LedgerDashboardResource
      * Combined totals.
      * @var array{total: float, pve: float, mining: float, expenses: float, profit: float}
      */
-    public array $totals = [];
+    public array $totals = ['total' => 0.0, 'pve' => 0.0, 'mining' => 0.0, 'expenses' => 0.0, 'profit' => 0.0];
 
     /**
      * PVE breakdown.
      * @var array{bounties: float, ess: float, missions: float, lootSales: float, corpProjects: float}
      */
-    public array $pveBreakdown = [];
+    public array $pveBreakdown = ['bounties' => 0.0, 'ess' => 0.0, 'missions' => 0.0, 'lootSales' => 0.0, 'corpProjects' => 0.0];
 
     /**
      * Mining breakdown by usage.
      * @var array{sold: float, corpProject: float, industry: float, unknown: float}
      */
-    public array $miningBreakdown = [];
+    public array $miningBreakdown = ['sold' => 0.0, 'corpProject' => 0.0, 'industry' => 0.0, 'unknown' => 0.0];
 
     /**
      * Expenses breakdown by type.

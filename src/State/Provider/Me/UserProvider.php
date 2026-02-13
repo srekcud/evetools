@@ -83,7 +83,7 @@ class UserProvider implements ProviderInterface
         $hasValidToken = $token !== null && !empty($token->getScopes()) && $token->getScopes() !== [''];
 
         // Verify the token can actually be decrypted (encryption key may have changed)
-        if ($hasValidToken && $token !== null) {
+        if ($hasValidToken) {
             try {
                 $this->tokenManager->decryptRefreshToken($token->getRefreshTokenEncrypted());
             } catch (\RuntimeException) {
@@ -93,7 +93,7 @@ class UserProvider implements ProviderInterface
 
         // Check if token is missing required scopes
         $hasMissingScopes = false;
-        if ($hasValidToken && $token !== null) {
+        if ($hasValidToken) {
             $tokenScopes = $token->getScopes();
             $requiredScopes = AuthenticationService::getRequiredScopes();
             $missingScopes = array_diff($requiredScopes, $tokenScopes);

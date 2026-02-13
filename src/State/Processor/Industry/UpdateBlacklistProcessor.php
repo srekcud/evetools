@@ -12,7 +12,6 @@ use App\Entity\User;
 use App\Service\Industry\IndustryBlacklistService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
@@ -35,9 +34,7 @@ class UpdateBlacklistProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        if (!$data instanceof UpdateBlacklistInput) {
-            throw new BadRequestHttpException('Invalid input');
-        }
+        assert($data instanceof UpdateBlacklistInput);
 
         if ($data->groupIds !== null) {
             $user->setIndustryBlacklistGroupIds(array_map('intval', $data->groupIds));

@@ -164,17 +164,17 @@ class ShoppingListProvider implements ProviderInterface
         $totals->savingsVsStructure = $totals->structure > 0 ? $totals->structure - $totals->best : 0;
 
         $structureLastSync = null;
-        if ($priceData !== null && isset($priceData['structureLastSync']) && $priceData['structureLastSync'] instanceof \DateTimeImmutable) {
+        if ($priceData !== null && $priceData['structureLastSync'] !== null) {
             $structureLastSync = $priceData['structureLastSync']->format('c');
         }
 
         $resource = new ShoppingListResource();
         $resource->id = $uriVariables['id'];
         $resource->materials = $enrichedMaterials;
-        $resource->structureId = $priceData !== null ? ($priceData['structureId'] ?? $this->marketService->getDefaultStructureId()) : $this->marketService->getDefaultStructureId();
-        $resource->structureName = $priceData !== null ? ($priceData['structureName'] ?? $this->marketService->getDefaultStructureName()) : $this->marketService->getDefaultStructureName();
-        $resource->structureAccessible = $priceData !== null && ($priceData['structureAccessible'] ?? false);
-        $resource->structureFromCache = $priceData !== null && ($priceData['structureFromCache'] ?? false);
+        $resource->structureId = $priceData !== null ? $priceData['structureId'] : $this->marketService->getDefaultStructureId();
+        $resource->structureName = $priceData !== null ? $priceData['structureName'] : $this->marketService->getDefaultStructureName();
+        $resource->structureAccessible = $priceData !== null && $priceData['structureAccessible'];
+        $resource->structureFromCache = $priceData !== null && $priceData['structureFromCache'];
         $resource->structureLastSync = $structureLastSync;
         $resource->transportCostPerM3 = $transportCostPerM3;
         $resource->totals = $totals;

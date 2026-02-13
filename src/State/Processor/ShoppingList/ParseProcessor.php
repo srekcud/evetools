@@ -38,9 +38,7 @@ class ParseProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        if (!$data instanceof ParseListInput) {
-            throw new BadRequestHttpException('Invalid input');
-        }
+        assert($data instanceof ParseListInput);
 
         if (empty(trim($data->text))) {
             throw new BadRequestHttpException('No text provided');
@@ -170,7 +168,7 @@ class ParseProcessor implements ProcessorInterface
         }
 
         $structureLastSync = null;
-        if ($priceData !== null && isset($priceData['structureLastSync']) && $priceData['structureLastSync'] instanceof \DateTimeImmutable) {
+        if ($priceData !== null && $priceData['structureLastSync'] !== null) {
             $structureLastSync = $priceData['structureLastSync']->format('c');
         }
 
@@ -185,8 +183,8 @@ class ParseProcessor implements ProcessorInterface
             'volume' => round($totalVolume, 2),
         ];
         $resource->structureName = $priceData['structureName'] ?? null;
-        $resource->structureAccessible = $priceData !== null && ($priceData['structureAccessible'] ?? false);
-        $resource->structureFromCache = $priceData !== null && ($priceData['structureFromCache'] ?? false);
+        $resource->structureAccessible = $priceData !== null && $priceData['structureAccessible'];
+        $resource->structureFromCache = $priceData !== null && $priceData['structureFromCache'];
         $resource->structureLastSync = $structureLastSync;
         $resource->priceError = $priceError;
 

@@ -10,7 +10,6 @@ use App\Repository\IndustryRigCategoryRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
-use Psr\Log\LoggerInterface;
 
 /**
  * Service for calculating industry structure bonuses.
@@ -75,7 +74,6 @@ class IndustryBonusService
         private readonly IndustryStructureConfigRepository $structureRepository,
         private readonly InvTypeRepository $invTypeRepository,
         private readonly IndustryActivityProductRepository $activityProductRepository,
-        private readonly LoggerInterface $logger,
     ) {
         $this->initializeRigBonusMap();
         $this->initializeRigTimeBonusMap();

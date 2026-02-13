@@ -20,7 +20,6 @@ use Psr\Log\LoggerInterface;
 class MiningSyncService
 {
     private const SYNC_INTERVAL_MINUTES = 30;
-    private const DEFAULT_DAYS_TO_SYNC = 30;
 
     /** @var array<int, string> */
     private array $typeNameCache = [];
@@ -67,7 +66,7 @@ class MiningSyncService
     {
         foreach ($user->getCharacters() as $character) {
             $token = $character->getEveToken();
-            if ($token !== null && $token->getRefreshTokenEncrypted() !== null) {
+            if ($token !== null) {
                 return true;
             }
         }
@@ -213,9 +212,24 @@ class MiningSyncService
         );
 
         if ($existing !== null) {
+            $changed = false;
+
             // Update quantity if changed (ESI can update within the same day)
             if ($existing->getQuantity() !== $quantity) {
                 $existing->setQuantity($quantity);
+                $changed = true;
+            }
+
+            // Fix unresolved type names from previous SDE gaps
+            if (str_starts_with($existing->getTypeName(), 'Type #')) {
+                $resolved = $this->resolveTypeName($typeId);
+                if (!str_starts_with($resolved, 'Type #')) {
+                    $existing->setTypeName($resolved);
+                    $changed = true;
+                }
+            }
+
+            if ($changed) {
                 $existing->setSyncedAt(new \DateTimeImmutable());
                 return 'updated';
             }

@@ -5,20 +5,13 @@ declare(strict_types=1);
 namespace App\Service\Admin;
 
 use App\Entity\User;
-use App\Repository\UserRepository;
-use App\Repository\CharacterRepository;
-use App\Repository\CachedAssetRepository;
-use App\Repository\IndustryProjectRepository;
 use Doctrine\DBAL\Connection;
 
 class AdminService
 {
     public function __construct(
-        private readonly UserRepository $userRepository,
-        private readonly CharacterRepository $characterRepository,
-        private readonly CachedAssetRepository $assetRepository,
-        private readonly IndustryProjectRepository $projectRepository,
         private readonly Connection $connection,
+        private readonly SyncTracker $syncTracker,
     ) {
     }
 
@@ -33,6 +26,7 @@ class AdminService
             'industryJobs' => $this->getIndustryJobsStats(),
             'syncs' => $this->getSyncStats(),
             'pve' => $this->getPveStats(),
+            'schedulerHealth' => $this->syncTracker->getAll(),
         ];
     }
 

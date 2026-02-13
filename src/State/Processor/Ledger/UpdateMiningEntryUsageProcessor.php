@@ -54,8 +54,10 @@ class UpdateMiningEntryUsageProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Mining entry not found');
         }
 
+        assert($data instanceof MiningEntryResource);
+
         // Update usage if provided
-        if ($data instanceof MiningEntryResource && isset($data->usage)) {
+        if (isset($data->usage)) {
             if (!in_array($data->usage, self::VALID_USAGES, true)) {
                 throw new BadRequestHttpException(sprintf(
                     'Invalid usage value. Must be one of: %s',
@@ -66,12 +68,12 @@ class UpdateMiningEntryUsageProcessor implements ProcessorInterface
         }
 
         // Update linked project ID if provided
-        if ($data instanceof MiningEntryResource && property_exists($data, 'linkedProjectId')) {
+        if (isset($data->linkedProjectId)) {
             $entry->setLinkedProjectId($data->linkedProjectId);
         }
 
         // Update linked corp project ID if provided
-        if ($data instanceof MiningEntryResource && property_exists($data, 'linkedCorpProjectId')) {
+        if (isset($data->linkedCorpProjectId)) {
             $entry->setLinkedCorpProjectId($data->linkedCorpProjectId);
         }
 

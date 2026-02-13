@@ -9,6 +9,16 @@
         format console
     }
 
+    # Maintenance page when backend is down (502/503)
+    handle_errors {
+        @backend_down expression `{err.status_code} in [502, 503]`
+        handle @backend_down {
+            root * /srv
+            rewrite * /maintenance.html
+            file_server
+        }
+    }
+
     # Mercure real-time hub
     handle /.well-known/mercure* {
         reverse_proxy app:80

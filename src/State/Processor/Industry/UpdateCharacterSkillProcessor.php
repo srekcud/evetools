@@ -15,7 +15,6 @@ use App\Repository\CharacterRepository;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Uid\Uuid;
@@ -48,9 +47,7 @@ class UpdateCharacterSkillProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Character not found');
         }
 
-        if (!$data instanceof UpdateCharacterSkillInput) {
-            throw new BadRequestHttpException('Invalid input');
-        }
+        assert($data instanceof UpdateCharacterSkillInput);
 
         $skillUpdates = [
             CachedCharacterSkill::SKILL_INDUSTRY => $data->industry,

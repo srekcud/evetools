@@ -19,7 +19,7 @@ services:
         ipv4_address: 10.169.0.2
     depends_on:
       app:
-        condition: service_healthy
+        condition: service_started
     deploy:
       resources:
         limits:

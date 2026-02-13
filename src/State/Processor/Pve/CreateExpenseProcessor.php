@@ -34,9 +34,7 @@ class CreateExpenseProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        if (!$data instanceof CreateExpenseInput) {
-            throw new BadRequestHttpException('Invalid input');
-        }
+        assert($data instanceof CreateExpenseInput);
 
         $validTypes = [PveExpense::TYPE_FUEL, PveExpense::TYPE_AMMO, PveExpense::TYPE_CRAB_BEACON, PveExpense::TYPE_OTHER];
         if (!in_array($data->type, $validTypes, true)) {

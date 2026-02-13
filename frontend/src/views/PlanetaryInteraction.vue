@@ -17,17 +17,29 @@ const isSyncing = computed(() =>
   planetaryStore.isSyncing || syncStore.isLoading('planetary')
 )
 
+// Debounce finishSync to handle multi-character sync (one cycle per character)
+let syncDebounce: ReturnType<typeof setTimeout> | null = null
+
 watch(
   () => planetarySyncProgress.value,
   (progress) => {
     if (!progress) return
 
     if (progress.status === 'completed') {
-      planetaryStore.finishSync()
-      syncStore.clearSyncStatus('planetary')
+      // Wait before reloading — another character's sync may start shortly
+      if (syncDebounce) clearTimeout(syncDebounce)
+      syncDebounce = setTimeout(() => {
+        planetaryStore.finishSync()
+        syncStore.clearSyncStatus('planetary')
+        syncDebounce = null
+      }, 3000)
     } else if (progress.status === 'error') {
+      if (syncDebounce) { clearTimeout(syncDebounce); syncDebounce = null }
       planetaryStore.failSync(progress.message || undefined)
       syncStore.clearSyncStatus('planetary')
+    } else if (progress.status === 'started' || progress.status === 'in_progress') {
+      // New character sync started — cancel pending reload
+      if (syncDebounce) { clearTimeout(syncDebounce); syncDebounce = null }
     }
   }
 )
@@ -78,6 +90,9 @@ onMounted(async () => {
 onUnmounted(() => {
   if (timerInterval) {
     clearInterval(timerInterval)
+  }
+  if (syncDebounce) {
+    clearTimeout(syncDebounce)
   }
 })
 
@@ -395,7 +410,10 @@ function formatDelta(delta: number): string {
               </svg>
             </div>
             <div class="mt-2 text-3xl font-bold text-cyan-400 font-mono-tech">{{ formatIsk(statsData?.estimatedDailyIsk ?? planetaryStore.totalDailyIsk) }}</div>
-            <div class="mt-1 text-xs text-slate-500">ISK / jour (base sur le setup actuel)</div>
+            <div class="mt-1 text-xs text-slate-500 flex items-center gap-1">
+              ISK / jour
+              <span class="text-slate-600 cursor-help border-b border-dotted border-slate-600" title="Valorisation basee sur les ordres de vente (sell) a Jita 4-4, mises a jour toutes les 2h">prix sell Jita</span>
+            </div>
           </div>
         </div>
 
@@ -431,7 +449,9 @@ function formatDelta(delta: number): string {
                   <th class="text-left pb-3 font-medium">Tier</th>
                   <th class="text-right pb-3 font-medium">Produits</th>
                   <th class="text-right pb-3 font-medium">Volume / jour</th>
-                  <th class="text-right pb-3 font-medium">ISK / jour</th>
+                  <th class="text-right pb-3 font-medium">
+                    <span class="cursor-help border-b border-dotted border-slate-600" title="Prix sell Jita 4-4, rafraichis toutes les 2h">ISK / jour</span>
+                  </th>
                   <th class="text-right pb-3 font-medium">% total</th>
                 </tr>
               </thead>
@@ -550,7 +570,7 @@ function formatDelta(delta: number): string {
           </div>
           <div class="mt-3 pt-3 border-t border-slate-800">
             <p class="text-[11px] text-slate-500 italic">
-              Production theorique : qty_per_cycle x (3600 / cycle_time) x 24, chainee via schematics SDE, valorisee aux prix Jita
+              Production theorique : qty_per_cycle x (3600 / cycle_time) x 24, chainee via schematics SDE, valorisee aux prix sell Jita 4-4 (MAJ toutes les 2h)
             </p>
           </div>
         </div>

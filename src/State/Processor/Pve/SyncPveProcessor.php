@@ -6,7 +6,6 @@ namespace App\State\Processor\Pve;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
-use App\ApiResource\Input\Pve\SyncInput;
 use App\ApiResource\Pve\PveSyncResource;
 use App\Entity\User;
 use App\Repository\UserPveSettingsRepository;
@@ -16,7 +15,7 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
- * @implements ProcessorInterface<SyncInput, PveSyncResource>
+ * @implements ProcessorInterface<mixed, PveSyncResource>
  */
 class SyncPveProcessor implements ProcessorInterface
 {

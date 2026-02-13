@@ -7,6 +7,7 @@ namespace App\MessageHandler;
 use App\Message\SyncStructureMarket;
 use App\Message\TriggerStructureMarketSync;
 use App\Repository\CharacterRepository;
+use App\Service\Admin\SyncTracker;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -23,34 +24,41 @@ final readonly class TriggerStructureMarketSyncHandler
         private CharacterRepository $characterRepository,
         private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
+        private SyncTracker $syncTracker,
     ) {
     }
 
     public function __invoke(TriggerStructureMarketSync $message): void
     {
+        $this->syncTracker->start('market-structure');
         $this->logger->info('Triggering structure market sync');
 
-        // Find a character with valid token that can access the structures
-        // For now, use any character with a valid token
-        $characters = $this->characterRepository->findWithValidTokens();
+        try {
+            $characters = $this->characterRepository->findWithValidTokens();
 
-        if (empty($characters)) {
-            $this->logger->warning('No characters with valid tokens for structure market sync');
-            return;
-        }
+            if (empty($characters)) {
+                $this->logger->warning('No characters with valid tokens for structure market sync');
+                $this->syncTracker->complete('market-structure', 'No valid tokens');
+                return;
+            }
 
-        // Use the first available character
-        $character = $characters[0];
-        $characterId = $character->getId()->toRfc4122();
+            $character = $characters[0];
+            $characterId = $character->getId()->toRfc4122();
 
-        foreach (self::STRUCTURES as $structureId => $structureName) {
-            $this->messageBus->dispatch(
-                new SyncStructureMarket($structureId, $structureName, $characterId)
-            );
-            $this->logger->info('Queued structure market sync', [
-                'structureId' => $structureId,
-                'structureName' => $structureName,
-            ]);
+            foreach (self::STRUCTURES as $structureId => $structureName) {
+                $this->messageBus->dispatch(
+                    new SyncStructureMarket($structureId, $structureName, $characterId)
+                );
+                $this->logger->info('Queued structure market sync', [
+                    'structureId' => $structureId,
+                    'structureName' => $structureName,
+                ]);
+            }
+
+            $this->syncTracker->complete('market-structure', count(self::STRUCTURES) . ' structures queued');
+        } catch (\Throwable $e) {
+            $this->syncTracker->fail('market-structure', $e->getMessage());
+            throw $e;
         }
     }
 }

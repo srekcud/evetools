@@ -108,7 +108,6 @@ class StatsByTypeProvider implements ProviderInterface
                         'bounty_prizes' => $bountyTotal += $amount,
                         'ess_escrow_transfer' => $essTotal += $amount,
                         'agent_mission_reward', 'agent_mission_time_bonus_reward' => $missionTotal += $amount,
-                        default => null,
                     };
                 }
             } catch (\Throwable) {

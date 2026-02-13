@@ -14,7 +14,6 @@ use App\Repository\PveIncomeRepository;
 use App\Repository\UserPveSettingsRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
@@ -38,9 +37,7 @@ class ImportLootSalesProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        if (!$data instanceof ImportLootSalesInput) {
-            throw new BadRequestHttpException('Invalid input');
-        }
+        assert($data instanceof ImportLootSalesInput);
 
         $imported = 0;
 
@@ -57,10 +54,6 @@ class ImportLootSalesProcessor implements ProcessorInterface
         $importedTransactionIds = $this->incomeRepository->getImportedTransactionIds($user);
 
         foreach ($data->sales as $saleData) {
-            if (!isset($saleData['typeName'], $saleData['price'], $saleData['dateIssued'])) {
-                continue;
-            }
-
             $transactionId = isset($saleData['transactionId']) ? (int) $saleData['transactionId'] : null;
 
             if ($transactionId && in_array($transactionId, $importedTransactionIds, true)) {

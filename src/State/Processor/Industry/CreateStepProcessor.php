@@ -52,9 +52,7 @@ class CreateStepProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        if (!$data instanceof CreateStepInput) {
-            throw new BadRequestHttpException('Invalid input');
-        }
+        assert($data instanceof CreateStepInput);
 
         $typeId = $data->typeId;
         $runs = $data->runs;

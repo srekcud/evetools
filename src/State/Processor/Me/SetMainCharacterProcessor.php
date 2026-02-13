@@ -60,7 +60,7 @@ class SetMainCharacterProcessor implements ProcessorInterface
         $token = $character->getEveToken();
         $hasValidToken = $token !== null && !empty($token->getScopes()) && $token->getScopes() !== [''];
 
-        if ($hasValidToken && $token !== null) {
+        if ($hasValidToken) {
             try {
                 $this->tokenManager->decryptRefreshToken($token->getRefreshTokenEncrypted());
             } catch (\RuntimeException) {
@@ -69,7 +69,7 @@ class SetMainCharacterProcessor implements ProcessorInterface
         }
 
         $hasMissingScopes = false;
-        if ($hasValidToken && $token !== null) {
+        if ($hasValidToken) {
             $tokenScopes = $token->getScopes();
             $requiredScopes = AuthenticationService::getRequiredScopes();
             $missingScopes = array_diff($requiredScopes, $tokenScopes);

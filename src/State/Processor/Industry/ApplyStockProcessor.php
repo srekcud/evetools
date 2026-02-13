@@ -14,7 +14,6 @@ use App\Repository\Sde\InvTypeRepository;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Uid\Uuid;
@@ -50,15 +49,13 @@ class ApplyStockProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        if (!$data instanceof ApplyStockInput) {
-            throw new BadRequestHttpException('Invalid input');
-        }
+        assert($data instanceof ApplyStockInput);
 
         // Resolve type names to type IDs
         $stockByTypeId = [];
         foreach ($data->items as $item) {
-            $typeName = $item['typeName'] ?? '';
-            $quantity = $item['quantity'] ?? 0;
+            $typeName = $item['typeName'];
+            $quantity = $item['quantity'];
 
             if ($typeName === '' || $quantity <= 0) {
                 continue;

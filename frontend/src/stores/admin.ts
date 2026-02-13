@@ -62,6 +62,17 @@ export interface AdminPveStats {
   byCorporation: PveCorporationStats[]
 }
 
+export interface SchedulerHealthEntry {
+  type: string
+  label: string
+  status: 'running' | 'ok' | 'error' | 'unknown'
+  health: 'healthy' | 'late' | 'stale' | 'running' | 'unknown'
+  startedAt: string | null
+  completedAt: string | null
+  message: string | null
+  expectedInterval: number
+}
+
 export interface AdminStats {
   users: AdminUserStats
   characters: AdminCharacterStats
@@ -71,6 +82,7 @@ export interface AdminStats {
   industryJobs: AdminIndustryJobsStats
   syncs: AdminSyncStats
   pve: AdminPveStats
+  schedulerHealth: SchedulerHealthEntry[]
 }
 
 export interface AdminQueues {
@@ -216,6 +228,10 @@ export const useAdminStore = defineStore('admin', () => {
     return triggerAction('sync-ansiblex')
   }
 
+  async function syncPlanetary(): Promise<{ success: boolean; message: string }> {
+    return triggerAction('sync-planetary')
+  }
+
   async function retryFailed(): Promise<{ success: boolean; message: string }> {
     return triggerAction('retry-failed')
   }
@@ -248,6 +264,7 @@ export const useAdminStore = defineStore('admin', () => {
     syncWallet,
     syncMining,
     syncAnsiblex,
+    syncPlanetary,
     retryFailed,
     purgeFailed,
     clearCache,

@@ -7,7 +7,6 @@ namespace App\Service\Sync;
 use App\Entity\CachedIndustryJob;
 use App\Entity\Character;
 use App\Repository\CachedIndustryJobRepository;
-use App\Repository\CharacterRepository;
 use App\Repository\IndustryStepJobMatchRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\EsiClient;
@@ -23,7 +22,6 @@ class IndustryJobSyncService
     public function __construct(
         private readonly EsiClient $esiClient,
         private readonly CachedIndustryJobRepository $jobRepository,
-        private readonly CharacterRepository $characterRepository,
         private readonly InvTypeRepository $invTypeRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
@@ -67,8 +65,7 @@ class IndustryJobSyncService
             // Sync corporation jobs (only once per corporation per sync run)
             $corporationId = $character->getCorporationId();
             if (
-                $corporationId !== null
-                && $token->hasScope('esi-industry.read_corporation_jobs.v1')
+                $token->hasScope('esi-industry.read_corporation_jobs.v1')
                 && !isset($this->syncedCorporations[$corporationId])
             ) {
                 try {

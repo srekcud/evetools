@@ -890,7 +890,7 @@ defineExpose({
       <!-- Header: 3-column config + Stock status -->
       <div v-if="store.currentProject?.status !== 'completed'" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <!-- Col 1: Structure selector -->
-        <div class="eve-card p-4">
+        <div class="eve-card p-4 flex flex-col">
           <label class="block text-xs text-slate-500 uppercase tracking-wider mb-2">Structure marché</label>
           <div class="relative">
             <input
@@ -946,7 +946,7 @@ defineExpose({
           <button
             @click="syncStructureMarket"
             :disabled="shoppingSyncing || (marketStructureProgress?.status === 'started' || marketStructureProgress?.status === 'in_progress')"
-            class="mt-2 w-full px-3 py-1.5 bg-cyan-500/20 border border-cyan-500/50 text-cyan-400 rounded text-xs font-medium disabled:opacity-50 flex items-center justify-center gap-1.5 hover:bg-cyan-500/30 transition-colors"
+            class="mt-auto w-full px-3 py-1.5 bg-cyan-500/20 border border-cyan-500/50 text-cyan-400 rounded text-xs font-medium disabled:opacity-50 flex items-center justify-center gap-1.5 hover:bg-cyan-500/30 transition-colors"
           >
             <svg v-if="shoppingSyncing" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -957,7 +957,7 @@ defineExpose({
         </div>
 
         <!-- Col 2: Transport cost -->
-        <div class="eve-card p-4">
+        <div class="eve-card p-4 flex flex-col">
           <label class="block text-xs text-slate-500 uppercase tracking-wider mb-2">Coût transport / m³</label>
           <div class="flex items-center gap-1.5">
             <input
@@ -971,21 +971,21 @@ defineExpose({
           </div>
           <button
             @click="loadShoppingList"
-            class="mt-2 w-full px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 rounded text-white text-xs font-medium"
+            class="mt-auto w-full px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 rounded text-white text-xs font-medium"
           >
             Recalculer
           </button>
         </div>
 
         <!-- Col 3: Stock rapide -->
-        <div class="eve-card p-4">
+        <div class="eve-card p-4 flex flex-col">
           <label class="block text-xs text-slate-500 uppercase tracking-wider mb-2">Stock rapide</label>
           <textarea
             v-model="pastedStock"
             placeholder="Coller inventaire EVE..."
             class="w-full h-12 bg-slate-800 border border-slate-700 rounded p-2 text-xs font-mono text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
           />
-          <div class="flex gap-2 mt-2">
+          <div class="flex gap-2 mt-auto">
             <button
               @click="analyzeStock"
               :disabled="stockAnalysisLoading"

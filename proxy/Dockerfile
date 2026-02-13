@@ -9,4 +9,5 @@ RUN npm run build
 # Stage 2: Caddy serving static frontend + reverse proxy
 FROM caddy:2-alpine
 COPY proxy/Caddyfile /etc/caddy/Caddyfile
+COPY proxy/maintenance.html /srv/maintenance.html
 COPY --from=frontend-build /app/dist /srv/frontend

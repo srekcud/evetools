@@ -35,9 +35,7 @@ class CreateProjectProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        if (!$data instanceof CreateProjectInput) {
-            throw new BadRequestHttpException('Invalid input');
-        }
+        assert($data instanceof CreateProjectInput);
 
         try {
             $project = $this->projectService->createProject(

@@ -38,9 +38,7 @@ class AddLootTypeProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        if (!$data instanceof AddTypeInput) {
-            throw new BadRequestHttpException('Invalid input');
-        }
+        assert($data instanceof AddTypeInput);
 
         if ($data->typeId <= 0) {
             throw new BadRequestHttpException('Invalid type ID');

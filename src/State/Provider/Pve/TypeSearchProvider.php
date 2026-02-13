@@ -14,7 +14,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
- * @implements ProviderInterface<TypeSearchResource[]>
+ * @implements ProviderInterface<TypeSearchResource>
  */
 class TypeSearchProvider implements ProviderInterface
 {

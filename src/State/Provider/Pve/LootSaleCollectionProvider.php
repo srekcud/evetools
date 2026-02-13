@@ -15,7 +15,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
- * @implements ProviderInterface<LootSaleResource[]>
+ * @implements ProviderInterface<LootSaleResource>
  */
 class LootSaleCollectionProvider implements ProviderInterface
 {
