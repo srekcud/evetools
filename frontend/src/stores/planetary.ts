@@ -200,14 +200,23 @@ export const usePlanetaryStore = defineStore('planetary', () => {
 
     try {
       await apiRequest('/planetary/sync', { method: 'POST', body: JSON.stringify({}) })
-      lastSyncAt.value = new Date().toISOString()
-      // Reload data after sync
-      await Promise.all([fetchColonies(), fetchStats(), fetchProduction()])
+      // POST is async (204) - Mercure will notify when sync completes
+      // isSyncing stays true until finishSync() is called by the view
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Erreur lors de la synchronisation'
-    } finally {
       isSyncing.value = false
     }
+  }
+
+  async function finishSync(): Promise<void> {
+    isSyncing.value = false
+    lastSyncAt.value = new Date().toISOString()
+    await Promise.all([fetchColonies(), fetchStats(), fetchProduction()])
+  }
+
+  function failSync(message?: string): void {
+    isSyncing.value = false
+    error.value = message || 'Erreur lors de la synchronisation'
   }
 
   function clearError(): void {
@@ -236,6 +245,8 @@ export const usePlanetaryStore = defineStore('planetary', () => {
     fetchStats,
     fetchProduction,
     syncColonies,
+    finishSync,
+    failSync,
     clearError,
   }
 })

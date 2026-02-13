@@ -42,141 +42,151 @@ class PlanetarySyncService
             $this->mercurePublisher->syncStarted($userId, 'planetary', 'Recuperation des colonies planetaires...');
         }
 
-        $colonies = $this->planetaryService->fetchColonies($character);
+        try {
+            $colonies = $this->planetaryService->fetchColonies($character);
 
-        if (empty($colonies)) {
-            // Remove all colonies for this character (they were deleted in-game)
-            $existingColonies = $this->colonyRepository->findByCharacter($character);
-            foreach ($existingColonies as $orphan) {
-                $this->entityManager->remove($orphan);
-                $this->logger->info('Removed orphaned colony', [
-                    'characterName' => $character->getName(),
-                    'planetId' => $orphan->getPlanetId(),
-                    'solarSystem' => $orphan->getSolarSystemName(),
-                ]);
-            }
-            if (!empty($existingColonies)) {
-                $this->entityManager->flush();
+            if (empty($colonies)) {
+                // Remove all colonies for this character (they were deleted in-game)
+                $existingColonies = $this->colonyRepository->findByCharacter($character);
+                foreach ($existingColonies as $orphan) {
+                    $this->entityManager->remove($orphan);
+                    $this->logger->info('Removed orphaned colony', [
+                        'characterName' => $character->getName(),
+                        'planetId' => $orphan->getPlanetId(),
+                        'solarSystem' => $orphan->getSolarSystemName(),
+                    ]);
+                }
+                if (!empty($existingColonies)) {
+                    $this->entityManager->flush();
+                }
+
+                if ($userId !== null) {
+                    $this->mercurePublisher->syncCompleted($userId, 'planetary', 'Aucune colonie planetaire', [
+                        'total' => 0,
+                    ]);
+                }
+                return 0;
             }
 
             if ($userId !== null) {
-                $this->mercurePublisher->syncCompleted($userId, 'planetary', 'Aucune colonie planetaire', [
-                    'total' => 0,
-                ]);
-            }
-            return 0;
-        }
-
-        if ($userId !== null) {
-            $this->mercurePublisher->syncProgress($userId, 'planetary', 20, sprintf('%d colonies trouvees...', count($colonies)));
-        }
-
-        $syncedCount = 0;
-        $totalColonies = count($colonies);
-
-        foreach ($colonies as $index => $colonyData) {
-            $planetId = $colonyData['planet_id'];
-
-            // Fetch colony detail (pins + routes)
-            $detail = $this->planetaryService->fetchColonyDetail($character, $planetId);
-
-            // Find existing colony or create new
-            $colony = $this->colonyRepository->findByCharacterAndPlanet($character, $planetId);
-
-            if ($colony === null) {
-                $colony = new PlanetaryColony();
-                $colony->setCharacter($character);
-                $colony->setPlanetId($planetId);
-                $this->entityManager->persist($colony);
+                $this->mercurePublisher->syncProgress($userId, 'planetary', 20, sprintf('%d colonies trouvees...', count($colonies)));
             }
 
-            // Update colony fields from colonies list
-            $colony->setPlanetType($colonyData['planet_type'] ?? 'unknown');
-            $colony->setSolarSystemId($colonyData['solar_system_id']);
-            $colony->setUpgradeLevel($colonyData['upgrade_level'] ?? 0);
-            $colony->setNumPins($colonyData['num_pins'] ?? 0);
-            $colony->setLastUpdate(new \DateTimeImmutable($colonyData['last_update']));
-            $colony->setCachedAt(new \DateTimeImmutable());
+            $syncedCount = 0;
+            $totalColonies = count($colonies);
 
-            // Resolve solar system name from SDE
-            $solarSystem = $this->solarSystemRepository->findBySolarSystemId($colonyData['solar_system_id']);
-            if ($solarSystem !== null) {
-                $colony->setSolarSystemName($solarSystem->getSolarSystemName());
+            foreach ($colonies as $index => $colonyData) {
+                $planetId = $colonyData['planet_id'];
+
+                // Fetch colony detail (pins + routes)
+                $detail = $this->planetaryService->fetchColonyDetail($character, $planetId);
+
+                // Find existing colony or create new
+                $colony = $this->colonyRepository->findByCharacterAndPlanet($character, $planetId);
+
+                if ($colony === null) {
+                    $colony = new PlanetaryColony();
+                    $colony->setCharacter($character);
+                    $colony->setPlanetId($planetId);
+                    $this->entityManager->persist($colony);
+                }
+
+                // Update colony fields from colonies list
+                $colony->setPlanetType($colonyData['planet_type'] ?? 'unknown');
+                $colony->setSolarSystemId($colonyData['solar_system_id']);
+                $colony->setUpgradeLevel($colonyData['upgrade_level'] ?? 0);
+                $colony->setNumPins($colonyData['num_pins'] ?? 0);
+                $colony->setLastUpdate(new \DateTimeImmutable($colonyData['last_update']));
+                $colony->setCachedAt(new \DateTimeImmutable());
+
+                // Resolve solar system name from SDE
+                $solarSystem = $this->solarSystemRepository->findBySolarSystemId($colonyData['solar_system_id']);
+                if ($solarSystem !== null) {
+                    $colony->setSolarSystemName($solarSystem->getSolarSystemName());
+                }
+
+                // Resolve planet name from ESI (public endpoint, only if not already set)
+                if ($colony->getPlanetName() === null) {
+                    try {
+                        $planetInfo = $this->planetaryService->fetchPlanetInfo($planetId);
+                        $colony->setPlanetName($planetInfo['name'] ?? null);
+                    } catch (\Throwable $e) {
+                        $this->logger->warning('Failed to resolve planet name', [
+                            'planetId' => $planetId,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+
+                // Clear existing pins and routes (orphanRemoval handles deletion)
+                $colony->clearPins();
+                $colony->clearRoutes();
+
+                // Flush to trigger orphan removal before adding new pins/routes
+                $this->entityManager->flush();
+
+                // Process pins from detail
+                $this->processPins($colony, $detail['pins'] ?? []);
+
+                // Process routes from detail
+                $this->processRoutes($colony, $detail['routes'] ?? []);
+
+                $syncedCount++;
+
+                // Progress update
+                if ($userId !== null) {
+                    $progress = 20 + (int) (($index + 1) / $totalColonies * 70);
+                    $this->mercurePublisher->syncProgress(
+                        $userId,
+                        'planetary',
+                        $progress,
+                        sprintf('Colonie %d/%d traitee...', $index + 1, $totalColonies),
+                    );
+                }
+
+                // Throttle between colony detail calls to avoid ESI rate limits
+                if ($index < $totalColonies - 1) {
+                    usleep(500_000);
+                }
             }
 
-            // Resolve planet name from ESI (public endpoint, only if not already set)
-            if ($colony->getPlanetName() === null) {
-                try {
-                    $planetInfo = $this->planetaryService->fetchPlanetInfo($planetId);
-                    $colony->setPlanetName($planetInfo['name'] ?? null);
-                } catch (\Throwable $e) {
-                    $this->logger->warning('Failed to resolve planet name', [
-                        'planetId' => $planetId,
-                        'error' => $e->getMessage(),
+            // Cleanup: remove colonies no longer present in ESI
+            $esiPlanetIds = array_column($colonies, 'planet_id');
+            $existingColonies = $this->colonyRepository->findByCharacter($character);
+            foreach ($existingColonies as $existing) {
+                if (!in_array($existing->getPlanetId(), $esiPlanetIds, true)) {
+                    $this->entityManager->remove($existing);
+                    $this->logger->info('Removed orphaned colony', [
+                        'characterName' => $character->getName(),
+                        'planetId' => $existing->getPlanetId(),
+                        'solarSystem' => $existing->getSolarSystemName(),
                     ]);
                 }
             }
 
-            // Clear existing pins and routes (orphanRemoval handles deletion)
-            $colony->clearPins();
-            $colony->clearRoutes();
-
-            // Flush to trigger orphan removal before adding new pins/routes
             $this->entityManager->flush();
 
-            // Process pins from detail
-            $this->processPins($colony, $detail['pins'] ?? []);
+            // Check for expiring/expired extractors and send alerts
+            $this->checkExpiringExtractors($character, $userId);
 
-            // Process routes from detail
-            $this->processRoutes($colony, $detail['routes'] ?? []);
+            $this->logger->info('Planetary colonies synced', [
+                'characterName' => $character->getName(),
+                'colonyCount' => $syncedCount,
+            ]);
 
-            $syncedCount++;
-
-            // Progress update
             if ($userId !== null) {
-                $progress = 20 + (int) (($index + 1) / $totalColonies * 70);
-                $this->mercurePublisher->syncProgress(
-                    $userId,
-                    'planetary',
-                    $progress,
-                    sprintf('Colonie %d/%d traitee...', $index + 1, $totalColonies),
-                );
-            }
-
-            // Throttle between colony detail calls to avoid ESI rate limits
-            if ($index < $totalColonies - 1) {
-                usleep(500_000);
-            }
-        }
-
-        // Cleanup: remove colonies no longer present in ESI
-        $esiPlanetIds = array_column($colonies, 'planet_id');
-        $existingColonies = $this->colonyRepository->findByCharacter($character);
-        foreach ($existingColonies as $existing) {
-            if (!in_array($existing->getPlanetId(), $esiPlanetIds, true)) {
-                $this->entityManager->remove($existing);
-                $this->logger->info('Removed orphaned colony', [
-                    'characterName' => $character->getName(),
-                    'planetId' => $existing->getPlanetId(),
-                    'solarSystem' => $existing->getSolarSystemName(),
+                $this->mercurePublisher->syncCompleted($userId, 'planetary', sprintf('%d colonies synchronisees', $syncedCount), [
+                    'total' => $syncedCount,
                 ]);
             }
+
+            return $syncedCount;
+        } catch (\Throwable $e) {
+            if ($userId !== null) {
+                $this->mercurePublisher->syncError($userId, 'planetary', $e->getMessage());
+            }
+            throw $e;
         }
-
-        $this->entityManager->flush();
-
-        $this->logger->info('Planetary colonies synced', [
-            'characterName' => $character->getName(),
-            'colonyCount' => $syncedCount,
-        ]);
-
-        if ($userId !== null) {
-            $this->mercurePublisher->syncCompleted($userId, 'planetary', sprintf('%d colonies synchronisees', $syncedCount), [
-                'total' => $syncedCount,
-            ]);
-        }
-
-        return $syncedCount;
     }
 
     /**
@@ -256,5 +266,56 @@ class PlanetarySyncService
 
             $colony->addRoute($route);
         }
+    }
+
+    private function checkExpiringExtractors(Character $character, ?string $userId): void
+    {
+        if ($userId === null) {
+            return;
+        }
+
+        $now = new \DateTimeImmutable();
+        $threshold = $now->modify('+2 hours');
+
+        $colonies = $this->colonyRepository->findByCharacter($character);
+        foreach ($colonies as $colony) {
+            foreach ($colony->getPins() as $pin) {
+                if ($pin->getExtractorProductTypeId() === null) {
+                    continue;
+                }
+                $expiry = $pin->getExpiryTime();
+                if ($expiry === null) {
+                    continue;
+                }
+
+                if ($expiry < $now) {
+                    $this->mercurePublisher->publishAlert($userId, 'planetary-expiry', [
+                        'level' => 'expired',
+                        'planetName' => $colony->getPlanetName() ?? $colony->getSolarSystemName() ?? 'Unknown',
+                        'planetType' => $colony->getPlanetType(),
+                        'productName' => $this->resolveTypeName($pin->getExtractorProductTypeId()),
+                        'characterName' => $character->getName(),
+                        'colonyId' => $colony->getId()?->toRfc4122(),
+                    ]);
+                } elseif ($expiry < $threshold) {
+                    $minutesRemaining = (int)(($expiry->getTimestamp() - $now->getTimestamp()) / 60);
+                    $this->mercurePublisher->publishAlert($userId, 'planetary-expiry', [
+                        'level' => $minutesRemaining < 30 ? 'critical' : 'warning',
+                        'minutesRemaining' => $minutesRemaining,
+                        'planetName' => $colony->getPlanetName() ?? $colony->getSolarSystemName() ?? 'Unknown',
+                        'planetType' => $colony->getPlanetType(),
+                        'productName' => $this->resolveTypeName($pin->getExtractorProductTypeId()),
+                        'characterName' => $character->getName(),
+                        'colonyId' => $colony->getId()?->toRfc4122(),
+                    ]);
+                }
+            }
+        }
+    }
+
+    private function resolveTypeName(int $typeId): string
+    {
+        $type = $this->invTypeRepository->find($typeId);
+        return $type?->getTypeName() ?? "Type #{$typeId}";
     }
 }

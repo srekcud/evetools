@@ -149,7 +149,7 @@ class StructureSearchProvider implements ProviderInterface
                 );
             }
 
-            throw new \Symfony\Component\HttpKernel\Exception\BadGatewayException($message);
+            throw new \Symfony\Component\HttpFoundation\Exception\BadRequestException($message);
         }
     }
 

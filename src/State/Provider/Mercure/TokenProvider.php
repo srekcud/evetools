@@ -41,6 +41,11 @@ class TokenProvider implements ProviderInterface
         }
 
         $topics = MercurePublisherService::getTopicsForUser($userId);
+        $groupTopics = MercurePublisherService::getGroupTopics(
+            $user->getCorporationId(),
+            $user->getAllianceId(),
+        );
+        $topics = array_merge($topics, $groupTopics);
         $token = $this->createSubscriberJwt($topics);
 
         $resource = new TokenResource();

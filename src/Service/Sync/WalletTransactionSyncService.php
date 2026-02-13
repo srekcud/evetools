@@ -112,11 +112,11 @@ class WalletTransactionSyncService
             $this->logger->error('Failed to fetch wallet transactions from ESI', [
                 'characterName' => $character->getName(),
                 'error' => $e->getMessage(),
-                'page' => $page ?? 0,
+                'page' => $page,
             ]);
 
             if ($userId !== null) {
-                $this->mercurePublisher->syncCompleted($userId, 'wallet-transactions', 'Erreur lors de la récupération des transactions');
+                $this->mercurePublisher->syncError($userId, 'wallet-transactions', $e->getMessage());
             }
 
             return;

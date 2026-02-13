@@ -10,6 +10,7 @@ use App\ApiResource\Escalation\EscalationResource;
 use App\Entity\Escalation;
 use App\Entity\User;
 use App\Repository\EscalationRepository;
+use App\Service\Mercure\MercurePublisherService;
 use App\State\Provider\Escalation\EscalationResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -29,6 +30,7 @@ class UpdateEscalationProcessor implements ProcessorInterface
         private readonly EscalationRepository $escalationRepository,
         private readonly EntityManagerInterface $em,
         private readonly RequestStack $requestStack,
+        private readonly MercurePublisherService $mercurePublisher,
     ) {
     }
 
@@ -83,6 +85,26 @@ class UpdateEscalationProcessor implements ProcessorInterface
         }
 
         $this->em->flush();
+
+        // Publish Mercure event for non-personal escalations
+        $visibility = $escalation->getVisibility();
+        if ($visibility !== Escalation::VISIBILITY_PERSO) {
+            $this->mercurePublisher->publishEscalationEvent(
+                'updated',
+                [
+                    'id' => $escalation->getId()?->toRfc4122(),
+                    'type' => $escalation->getType(),
+                    'solarSystemName' => $escalation->getSolarSystemName(),
+                    'characterName' => $escalation->getCharacterName(),
+                    'visibility' => $visibility,
+                    'saleStatus' => $escalation->getSaleStatus(),
+                    'bmStatus' => $escalation->getBmStatus(),
+                ],
+                $escalation->getCorporationId(),
+                $escalation->getAllianceId(),
+                $visibility,
+            );
+        }
 
         return EscalationResourceMapper::toResource($escalation, true);
     }

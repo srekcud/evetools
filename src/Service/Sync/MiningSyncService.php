@@ -95,92 +95,99 @@ class MiningSyncService
         }
 
         try {
-            if ($userId !== null) {
-                $this->mercurePublisher->syncProgress($userId, 'mining', 10, 'Récupération des données de minage...');
-            }
-
-            // Sync mining entries from all characters
-            foreach ($user->getCharacters() as $character) {
-                $token = $character->getEveToken();
-                if ($token === null) {
-                    continue;
+            try {
+                if ($userId !== null) {
+                    $this->mercurePublisher->syncProgress($userId, 'mining', 10, 'Récupération des données de minage...');
                 }
 
-                try {
-                    if ($token->isExpiringSoon()) {
-                        $this->tokenManager->refreshAccessToken($token);
+                // Sync mining entries from all characters
+                foreach ($user->getCharacters() as $character) {
+                    $token = $character->getEveToken();
+                    if ($token === null) {
+                        continue;
                     }
 
-                    $characterId = $character->getEveCharacterId();
-                    $characterName = $character->getName();
-
-                    // Get mining ledger from ESI
-                    $entries = $this->esiClient->get(
-                        "/characters/{$characterId}/mining/",
-                        $token
-                    );
-
-                    foreach ($entries as $entry) {
-                        $result = $this->upsertMiningEntry($user, $characterId, $characterName, $entry);
-                        if ($result === 'created') {
-                            $results['imported']++;
-                        } elseif ($result === 'updated') {
-                            $results['updated']++;
+                    try {
+                        if ($token->isExpiringSoon()) {
+                            $this->tokenManager->refreshAccessToken($token);
                         }
+
+                        $characterId = $character->getEveCharacterId();
+                        $characterName = $character->getName();
+
+                        // Get mining ledger from ESI
+                        $entries = $this->esiClient->get(
+                            "/characters/{$characterId}/mining/",
+                            $token
+                        );
+
+                        foreach ($entries as $entry) {
+                            $result = $this->upsertMiningEntry($user, $characterId, $characterName, $entry);
+                            if ($result === 'created') {
+                                $results['imported']++;
+                            } elseif ($result === 'updated') {
+                                $results['updated']++;
+                            }
+                        }
+                    } catch (\Throwable $e) {
+                        $results['errors'][] = "Character {$character->getName()}: " . $e->getMessage();
+                        $this->logger->warning('Failed to sync mining for character', [
+                            'character' => $character->getName(),
+                            'error' => $e->getMessage(),
+                        ]);
                     }
-                } catch (\Throwable $e) {
-                    $results['errors'][] = "Character {$character->getName()}: " . $e->getMessage();
-                    $this->logger->warning('Failed to sync mining for character', [
-                        'character' => $character->getName(),
-                        'error' => $e->getMessage(),
-                    ]);
                 }
+
+                // Flush pending entries
+                $this->entityManager->flush();
+
+                // Update prices
+                if ($userId !== null) {
+                    $this->mercurePublisher->syncProgress($userId, 'mining', 70, 'Mise à jour des prix Jita...');
+                }
+                $results['pricesUpdated'] = $this->updatePrices($user);
+
+            } catch (\Throwable $e) {
+                $results['errors'][] = 'Global: ' . $e->getMessage();
+                $this->logger->error('Failed to sync mining', ['error' => $e->getMessage()]);
             }
 
-            // Flush pending entries
+            // Update last sync time
+            $settings = $this->settingsRepository->getOrCreate($user);
+            $settings->setLastMiningSyncAt(new \DateTimeImmutable());
             $this->entityManager->flush();
 
-            // Update prices
+            // Notify sync completed
             if ($userId !== null) {
-                $this->mercurePublisher->syncProgress($userId, 'mining', 70, 'Mise à jour des prix Jita...');
+                $message = sprintf(
+                    '%d importés, %d mis à jour, %d prix actualisés',
+                    $results['imported'],
+                    $results['updated'],
+                    $results['pricesUpdated']
+                );
+                $this->mercurePublisher->syncCompleted($userId, 'mining', $message, [
+                    'imported' => $results['imported'],
+                    'updated' => $results['updated'],
+                    'pricesUpdated' => $results['pricesUpdated'],
+                    'errors' => count($results['errors']),
+                ]);
             }
-            $results['pricesUpdated'] = $this->updatePrices($user);
 
-        } catch (\Throwable $e) {
-            $results['errors'][] = 'Global: ' . $e->getMessage();
-            $this->logger->error('Failed to sync mining', ['error' => $e->getMessage()]);
-        }
-
-        // Update last sync time
-        $settings = $this->settingsRepository->getOrCreate($user);
-        $settings->setLastMiningSyncAt(new \DateTimeImmutable());
-        $this->entityManager->flush();
-
-        // Notify sync completed
-        if ($userId !== null) {
-            $message = sprintf(
-                '%d importés, %d mis à jour, %d prix actualisés',
-                $results['imported'],
-                $results['updated'],
-                $results['pricesUpdated']
-            );
-            $this->mercurePublisher->syncCompleted($userId, 'mining', $message, [
+            $this->logger->info('Mining sync completed', [
+                'user' => $user->getId(),
                 'imported' => $results['imported'],
                 'updated' => $results['updated'],
                 'pricesUpdated' => $results['pricesUpdated'],
                 'errors' => count($results['errors']),
             ]);
+
+            return $results;
+        } catch (\Throwable $e) {
+            if ($userId !== null) {
+                $this->mercurePublisher->syncError($userId, 'mining', $e->getMessage());
+            }
+            throw $e;
         }
-
-        $this->logger->info('Mining sync completed', [
-            'user' => $user->getId(),
-            'imported' => $results['imported'],
-            'updated' => $results['updated'],
-            'pricesUpdated' => $results['pricesUpdated'],
-            'errors' => count($results['errors']),
-        ]);
-
-        return $results;
     }
 
     /**

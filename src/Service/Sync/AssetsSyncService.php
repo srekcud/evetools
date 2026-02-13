@@ -38,55 +38,62 @@ class AssetsSyncService
             $this->mercurePublisher->syncStarted($userId, 'character-assets', 'Récupération des assets...');
         }
 
-        // Delete existing cached assets for this character
-        $this->cachedAssetRepository->deleteByCharacter($character);
+        try {
+            // Delete existing cached assets for this character
+            $this->cachedAssetRepository->deleteByCharacter($character);
 
-        // Fetch fresh assets from ESI
-        $assets = $this->assetsService->getCharacterAssets($character);
+            // Fetch fresh assets from ESI
+            $assets = $this->assetsService->getCharacterAssets($character);
 
-        // Notify progress
-        if ($userId !== null) {
-            $this->mercurePublisher->syncProgress(
-                $userId,
-                'character-assets',
-                50,
-                sprintf('Traitement de %d assets...', count($assets))
-            );
-        }
+            // Notify progress
+            if ($userId !== null) {
+                $this->mercurePublisher->syncProgress(
+                    $userId,
+                    'character-assets',
+                    50,
+                    sprintf('Traitement de %d assets...', count($assets))
+                );
+            }
 
-        // Cache the assets
-        foreach ($assets as $assetDto) {
-            $cachedAsset = new CachedAsset();
-            $cachedAsset->setItemId($assetDto->itemId);
-            $cachedAsset->setTypeId($assetDto->typeId);
-            $cachedAsset->setTypeName($assetDto->typeName);
-            $cachedAsset->setQuantity($assetDto->quantity);
-            $cachedAsset->setLocationId($assetDto->locationId);
-            $cachedAsset->setLocationName($assetDto->locationName);
-            $cachedAsset->setLocationType($assetDto->locationType);
-            $cachedAsset->setLocationFlag($assetDto->locationFlag);
-            $cachedAsset->setSolarSystemId($assetDto->solarSystemId);
-            $cachedAsset->setSolarSystemName($assetDto->solarSystemName);
-            $cachedAsset->setItemName($assetDto->itemName);
-            $cachedAsset->setCharacter($character);
-            $cachedAsset->setIsCorporationAsset(false);
+            // Cache the assets
+            foreach ($assets as $assetDto) {
+                $cachedAsset = new CachedAsset();
+                $cachedAsset->setItemId($assetDto->itemId);
+                $cachedAsset->setTypeId($assetDto->typeId);
+                $cachedAsset->setTypeName($assetDto->typeName);
+                $cachedAsset->setQuantity($assetDto->quantity);
+                $cachedAsset->setLocationId($assetDto->locationId);
+                $cachedAsset->setLocationName($assetDto->locationName);
+                $cachedAsset->setLocationType($assetDto->locationType);
+                $cachedAsset->setLocationFlag($assetDto->locationFlag);
+                $cachedAsset->setSolarSystemId($assetDto->solarSystemId);
+                $cachedAsset->setSolarSystemName($assetDto->solarSystemName);
+                $cachedAsset->setItemName($assetDto->itemName);
+                $cachedAsset->setCharacter($character);
+                $cachedAsset->setIsCorporationAsset(false);
 
-            $this->entityManager->persist($cachedAsset);
-        }
+                $this->entityManager->persist($cachedAsset);
+            }
 
-        // Update character last sync time
-        $character->updateLastSync();
+            // Update character last sync time
+            $character->updateLastSync();
 
-        $this->entityManager->flush();
+            $this->entityManager->flush();
 
-        // Notify sync completed
-        if ($userId !== null) {
-            $this->mercurePublisher->syncCompleted(
-                $userId,
-                'character-assets',
-                'Synchronisation terminée',
-                ['count' => count($assets)]
-            );
+            // Notify sync completed
+            if ($userId !== null) {
+                $this->mercurePublisher->syncCompleted(
+                    $userId,
+                    'character-assets',
+                    'Synchronisation terminée',
+                    ['count' => count($assets)]
+                );
+            }
+        } catch (\Throwable $e) {
+            if ($userId !== null) {
+                $this->mercurePublisher->syncError($userId, 'character-assets', $e->getMessage());
+            }
+            throw $e;
         }
     }
 
@@ -104,75 +111,82 @@ class AssetsSyncService
             $this->mercurePublisher->syncStarted($userId, 'corporation-assets', 'Récupération des assets corporation...');
         }
 
-        // Get division names for this corporation (uses character with divisions scope)
-        $divisionsCharacter = $this->characterRepository->findWithCorpDivisionsAccess($corporationId);
-        $divisions = [];
-        if ($divisionsCharacter !== null) {
-            try {
-                $divisions = $this->corporationService->getDivisions($divisionsCharacter);
-            } catch (\Throwable $e) {
-                $this->logger->warning('Failed to get corporation divisions', [
-                    'corporationId' => $corporationId,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        // Delete existing cached corp assets
-        $this->cachedAssetRepository->deleteByCorporationId($corporationId);
-
-        // Fetch fresh assets from ESI
-        $assets = $this->assetsService->getCorporationAssets($character);
-
-        // Notify progress
-        if ($userId !== null) {
-            $this->mercurePublisher->syncProgress(
-                $userId,
-                'corporation-assets',
-                50,
-                sprintf('Traitement de %d assets...', count($assets))
-            );
-        }
-
-        // Cache the assets with division names
-        foreach ($assets as $assetDto) {
-            $cachedAsset = new CachedAsset();
-            $cachedAsset->setItemId($assetDto->itemId);
-            $cachedAsset->setTypeId($assetDto->typeId);
-            $cachedAsset->setTypeName($assetDto->typeName);
-            $cachedAsset->setQuantity($assetDto->quantity);
-            $cachedAsset->setLocationId($assetDto->locationId);
-            $cachedAsset->setLocationName($assetDto->locationName);
-            $cachedAsset->setLocationType($assetDto->locationType);
-            $cachedAsset->setLocationFlag($assetDto->locationFlag);
-            $cachedAsset->setSolarSystemId($assetDto->solarSystemId);
-            $cachedAsset->setSolarSystemName($assetDto->solarSystemName);
-            $cachedAsset->setItemName($assetDto->itemName);
-            $cachedAsset->setCorporationId($corporationId);
-            $cachedAsset->setIsCorporationAsset(true);
-
-            // Map location flag to division name
-            if ($assetDto->locationFlag !== null) {
-                $divisionNumber = $this->extractDivisionNumber($assetDto->locationFlag);
-
-                if ($divisionNumber !== null && isset($divisions[$divisionNumber])) {
-                    $cachedAsset->setDivisionName($divisions[$divisionNumber]);
+        try {
+            // Get division names for this corporation (uses character with divisions scope)
+            $divisionsCharacter = $this->characterRepository->findWithCorpDivisionsAccess($corporationId);
+            $divisions = [];
+            if ($divisionsCharacter !== null) {
+                try {
+                    $divisions = $this->corporationService->getDivisions($divisionsCharacter);
+                } catch (\Throwable $e) {
+                    $this->logger->warning('Failed to get corporation divisions', [
+                        'corporationId' => $corporationId,
+                        'error' => $e->getMessage(),
+                    ]);
                 }
             }
 
-            $this->entityManager->persist($cachedAsset);
-        }
+            // Delete existing cached corp assets
+            $this->cachedAssetRepository->deleteByCorporationId($corporationId);
 
-        $this->entityManager->flush();
+            // Fetch fresh assets from ESI
+            $assets = $this->assetsService->getCorporationAssets($character);
 
-        // Notify sync completed
-        if ($userId !== null) {
-            $this->mercurePublisher->syncCompleted(
-                $userId,
-                'corporation-assets',
-                'Synchronisation terminée',
-                ['count' => count($assets)]
-            );
+            // Notify progress
+            if ($userId !== null) {
+                $this->mercurePublisher->syncProgress(
+                    $userId,
+                    'corporation-assets',
+                    50,
+                    sprintf('Traitement de %d assets...', count($assets))
+                );
+            }
+
+            // Cache the assets with division names
+            foreach ($assets as $assetDto) {
+                $cachedAsset = new CachedAsset();
+                $cachedAsset->setItemId($assetDto->itemId);
+                $cachedAsset->setTypeId($assetDto->typeId);
+                $cachedAsset->setTypeName($assetDto->typeName);
+                $cachedAsset->setQuantity($assetDto->quantity);
+                $cachedAsset->setLocationId($assetDto->locationId);
+                $cachedAsset->setLocationName($assetDto->locationName);
+                $cachedAsset->setLocationType($assetDto->locationType);
+                $cachedAsset->setLocationFlag($assetDto->locationFlag);
+                $cachedAsset->setSolarSystemId($assetDto->solarSystemId);
+                $cachedAsset->setSolarSystemName($assetDto->solarSystemName);
+                $cachedAsset->setItemName($assetDto->itemName);
+                $cachedAsset->setCorporationId($corporationId);
+                $cachedAsset->setIsCorporationAsset(true);
+
+                // Map location flag to division name
+                if ($assetDto->locationFlag !== null) {
+                    $divisionNumber = $this->extractDivisionNumber($assetDto->locationFlag);
+
+                    if ($divisionNumber !== null && isset($divisions[$divisionNumber])) {
+                        $cachedAsset->setDivisionName($divisions[$divisionNumber]);
+                    }
+                }
+
+                $this->entityManager->persist($cachedAsset);
+            }
+
+            $this->entityManager->flush();
+
+            // Notify sync completed
+            if ($userId !== null) {
+                $this->mercurePublisher->syncCompleted(
+                    $userId,
+                    'corporation-assets',
+                    'Synchronisation terminée',
+                    ['count' => count($assets)]
+                );
+            }
+        } catch (\Throwable $e) {
+            if ($userId !== null) {
+                $this->mercurePublisher->syncError($userId, 'corporation-assets', $e->getMessage());
+            }
+            throw $e;
         }
     }
 

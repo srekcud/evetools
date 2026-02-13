@@ -100,6 +100,90 @@ final readonly class MercurePublisherService
     }
 
     /**
+     * Publish an alert for a specific user.
+     */
+    public function publishAlert(string $userId, string $alertType, array $data): void
+    {
+        $topic = sprintf('/user/%s/alerts/%s', $userId, $alertType);
+
+        $payload = [
+            'alertType' => $alertType,
+            'data' => $data,
+            'timestamp' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+        ];
+
+        try {
+            $update = new Update(
+                $topic,
+                json_encode($payload, JSON_THROW_ON_ERROR),
+                private: true,
+            );
+
+            $this->hub->publish($update);
+
+            $this->logger->debug('Alert published', [
+                'topic' => $topic,
+                'alertType' => $alertType,
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to publish alert', [
+                'topic' => $topic,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Publish an escalation event to group topics (corp/alliance).
+     */
+    public function publishEscalationEvent(
+        string $action,
+        array $escalationData,
+        ?int $corporationId,
+        ?int $allianceId,
+        string $visibility,
+    ): void {
+        $topics = [];
+        if ($visibility === 'corp' && $corporationId !== null) {
+            $topics[] = sprintf('/corp/%d/escalations', $corporationId);
+        } elseif ($visibility === 'alliance' && $allianceId !== null) {
+            $topics[] = sprintf('/alliance/%d/escalations', $allianceId);
+        } elseif ($visibility === 'public') {
+            $topics[] = '/public/escalations';
+        }
+
+        if (empty($topics)) {
+            return;
+        }
+
+        $payload = [
+            'action' => $action,
+            'escalation' => $escalationData,
+            'timestamp' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+        ];
+
+        try {
+            foreach ($topics as $topic) {
+                $update = new Update(
+                    $topic,
+                    json_encode($payload, JSON_THROW_ON_ERROR),
+                    private: false,
+                );
+                $this->hub->publish($update);
+            }
+
+            $this->logger->debug('Escalation event published', [
+                'action' => $action,
+                'topics' => $topics,
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to publish escalation event', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * Get the list of sync topics for a user.
      * Used for generating subscriber JWT tokens.
      */
@@ -113,9 +197,29 @@ final readonly class MercurePublisherService
             sprintf('/user/%s/sync/industry-job-completed', $userId),
             sprintf('/user/%s/sync/industry-project', $userId),
             sprintf('/user/%s/sync/pve', $userId),
-            sprintf('/user/%s/sync/market-jita', $userId),
+            sprintf('/user/%s/sync/mining', $userId),
+            sprintf('/user/%s/sync/wallet-transactions', $userId),
             sprintf('/user/%s/sync/market-structure', $userId),
             sprintf('/user/%s/sync/planetary', $userId),
+            sprintf('/user/%s/alerts/planetary-expiry', $userId),
         ];
+    }
+
+    /**
+     * Get group topics for a user (corp/alliance escalations).
+     * These are non-private topics for shared data.
+     */
+    public static function getGroupTopics(?int $corporationId, ?int $allianceId): array
+    {
+        $topics = ['/public/escalations'];
+
+        if ($corporationId !== null) {
+            $topics[] = sprintf('/corp/%d/escalations', $corporationId);
+        }
+        if ($allianceId !== null) {
+            $topics[] = sprintf('/alliance/%d/escalations', $allianceId);
+        }
+
+        return $topics;
     }
 }

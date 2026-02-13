@@ -51,79 +51,86 @@ class AnsiblexSyncService
             $this->mercurePublisher->syncStarted($userId, 'ansiblex', 'Scanning corporation structures...');
         }
 
-        $this->logger->info('Starting Ansiblex sync', [
-            'character' => $character->getName(),
-            'corporation_id' => $corporationId,
-            'alliance_id' => $allianceId,
-        ]);
+        try {
+            $this->logger->info('Starting Ansiblex sync', [
+                'character' => $character->getName(),
+                'corporation_id' => $corporationId,
+                'alliance_id' => $allianceId,
+            ]);
 
-        // Get corporation structures
-        $structures = $this->getCorporationStructures($corporationId, $token);
+            // Get corporation structures
+            $structures = $this->getCorporationStructures($corporationId, $token);
 
-        // Filter Ansiblex Jump Bridges
-        $ansiblexStructures = array_filter($structures, fn($s) => $s['type_id'] === self::ANSIBLEX_TYPE_ID);
+            // Filter Ansiblex Jump Bridges
+            $ansiblexStructures = array_filter($structures, fn($s) => $s['type_id'] === self::ANSIBLEX_TYPE_ID);
 
-        $this->logger->info('Found Ansiblex structures', [
-            'total_structures' => count($structures),
-            'ansiblex_count' => count($ansiblexStructures),
-        ]);
+            $this->logger->info('Found Ansiblex structures', [
+                'total_structures' => count($structures),
+                'ansiblex_count' => count($ansiblexStructures),
+            ]);
 
-        // Notify progress
-        if ($userId !== null) {
-            $this->mercurePublisher->syncProgress(
-                $userId,
-                'ansiblex',
-                30,
-                sprintf('%d Ansiblex trouvés, traitement...', count($ansiblexStructures))
-            );
-        }
-
-        $stats = ['added' => 0, 'updated' => 0, 'deactivated' => 0];
-        $seenIds = [];
-        $total = count($ansiblexStructures);
-        $processed = 0;
-
-        foreach ($ansiblexStructures as $structure) {
-            $result = $this->processAnsiblexStructure($structure, $token, $allianceId);
-            if ($result === 'added') {
-                $stats['added']++;
-            } elseif ($result === 'updated') {
-                $stats['updated']++;
-            }
-            $seenIds[] = $structure['structure_id'];
-
-            $processed++;
-            // Update progress every 5 gates or at the end
-            if ($userId !== null && ($processed % 5 === 0 || $processed === $total)) {
-                $progress = 30 + (int) (($processed / max($total, 1)) * 60);
+            // Notify progress
+            if ($userId !== null) {
                 $this->mercurePublisher->syncProgress(
                     $userId,
                     'ansiblex',
-                    $progress,
-                    sprintf('Traitement %d/%d gates...', $processed, $total)
+                    30,
+                    sprintf('%d Ansiblex trouvés, traitement...', count($ansiblexStructures))
                 );
             }
-        }
 
-        // Deactivate gates from this alliance that were not seen
-        if ($allianceId) {
-            $stats['deactivated'] = $this->deactivateNotSeenGates($allianceId, $seenIds);
-        }
+            $stats = ['added' => 0, 'updated' => 0, 'deactivated' => 0];
+            $seenIds = [];
+            $total = count($ansiblexStructures);
+            $processed = 0;
 
-        $this->entityManager->flush();
+            foreach ($ansiblexStructures as $structure) {
+                $result = $this->processAnsiblexStructure($structure, $token, $allianceId);
+                if ($result === 'added') {
+                    $stats['added']++;
+                } elseif ($result === 'updated') {
+                    $stats['updated']++;
+                }
+                $seenIds[] = $structure['structure_id'];
 
-        $this->logger->info('Ansiblex sync completed', $stats);
-
-        // Notify sync completed
-        if ($userId !== null) {
-            $message = sprintf('Terminé: %d ajoutés, %d mis à jour', $stats['added'], $stats['updated']);
-            if ($stats['deactivated'] > 0) {
-                $message .= sprintf(', %d désactivés', $stats['deactivated']);
+                $processed++;
+                // Update progress every 5 gates or at the end
+                if ($userId !== null && ($processed % 5 === 0 || $processed === $total)) {
+                    $progress = 30 + (int) (($processed / max($total, 1)) * 60);
+                    $this->mercurePublisher->syncProgress(
+                        $userId,
+                        'ansiblex',
+                        $progress,
+                        sprintf('Traitement %d/%d gates...', $processed, $total)
+                    );
+                }
             }
-            $this->mercurePublisher->syncCompleted($userId, 'ansiblex', $message, $stats);
-        }
 
-        return $stats;
+            // Deactivate gates from this alliance that were not seen
+            if ($allianceId) {
+                $stats['deactivated'] = $this->deactivateNotSeenGates($allianceId, $seenIds);
+            }
+
+            $this->entityManager->flush();
+
+            $this->logger->info('Ansiblex sync completed', $stats);
+
+            // Notify sync completed
+            if ($userId !== null) {
+                $message = sprintf('Terminé: %d ajoutés, %d mis à jour', $stats['added'], $stats['updated']);
+                if ($stats['deactivated'] > 0) {
+                    $message .= sprintf(', %d désactivés', $stats['deactivated']);
+                }
+                $this->mercurePublisher->syncCompleted($userId, 'ansiblex', $message, $stats);
+            }
+
+            return $stats;
+        } catch (\Throwable $e) {
+            if ($userId !== null) {
+                $this->mercurePublisher->syncError($userId, 'ansiblex', $e->getMessage());
+            }
+            throw $e;
+        }
     }
 
     private function getCorporationStructures(int $corporationId, $token): array
@@ -347,68 +354,75 @@ class AnsiblexSyncService
             $this->mercurePublisher->syncStarted($userId, 'ansiblex', 'Recherche des Ansiblex accessibles...');
         }
 
-        $this->logger->info('Starting Ansiblex discovery via search', [
-            'character' => $character->getName(),
-            'character_id' => $characterId,
-        ]);
+        try {
+            $this->logger->info('Starting Ansiblex discovery via search', [
+                'character' => $character->getName(),
+                'character_id' => $characterId,
+            ]);
 
-        // Search for structures containing "»" (the Ansiblex naming convention)
-        $structureIds = $this->searchAnsiblexStructures($characterId, $token);
+            // Search for structures containing "»" (the Ansiblex naming convention)
+            $structureIds = $this->searchAnsiblexStructures($characterId, $token);
 
-        $this->logger->info('Found structures via search', [
-            'count' => count($structureIds),
-        ]);
+            $this->logger->info('Found structures via search', [
+                'count' => count($structureIds),
+            ]);
 
-        // Notify progress
-        if ($userId !== null) {
-            $this->mercurePublisher->syncProgress(
-                $userId,
-                'ansiblex',
-                20,
-                sprintf('%d structures découvertes, résolution...', count($structureIds))
-            );
-        }
-
-        $stats = ['added' => 0, 'updated' => 0, 'discovered' => count($structureIds)];
-        $total = count($structureIds);
-        $processed = 0;
-
-        foreach ($structureIds as $structureId) {
-            $result = $this->processDiscoveredStructure($structureId, $token, $allianceId);
-            if ($result === 'added') {
-                $stats['added']++;
-            } elseif ($result === 'updated') {
-                $stats['updated']++;
-            }
-
-            $processed++;
-            // Update progress every 3 structures or at the end
-            if ($userId !== null && ($processed % 3 === 0 || $processed === $total)) {
-                $progress = 20 + (int) (($processed / max($total, 1)) * 70);
+            // Notify progress
+            if ($userId !== null) {
                 $this->mercurePublisher->syncProgress(
                     $userId,
                     'ansiblex',
-                    $progress,
-                    sprintf('Traitement %d/%d structures...', $processed, $total)
+                    20,
+                    sprintf('%d structures découvertes, résolution...', count($structureIds))
                 );
             }
+
+            $stats = ['added' => 0, 'updated' => 0, 'discovered' => count($structureIds)];
+            $total = count($structureIds);
+            $processed = 0;
+
+            foreach ($structureIds as $structureId) {
+                $result = $this->processDiscoveredStructure($structureId, $token, $allianceId);
+                if ($result === 'added') {
+                    $stats['added']++;
+                } elseif ($result === 'updated') {
+                    $stats['updated']++;
+                }
+
+                $processed++;
+                // Update progress every 3 structures or at the end
+                if ($userId !== null && ($processed % 3 === 0 || $processed === $total)) {
+                    $progress = 20 + (int) (($processed / max($total, 1)) * 70);
+                    $this->mercurePublisher->syncProgress(
+                        $userId,
+                        'ansiblex',
+                        $progress,
+                        sprintf('Traitement %d/%d structures...', $processed, $total)
+                    );
+                }
+            }
+
+            $this->entityManager->flush();
+
+            $this->logger->info('Ansiblex discovery completed', $stats);
+
+            // Notify sync completed
+            if ($userId !== null) {
+                $this->mercurePublisher->syncCompleted(
+                    $userId,
+                    'ansiblex',
+                    sprintf('Terminé: %d ajoutés, %d mis à jour (sur %d découverts)', $stats['added'], $stats['updated'], $stats['discovered']),
+                    $stats
+                );
+            }
+
+            return $stats;
+        } catch (\Throwable $e) {
+            if ($userId !== null) {
+                $this->mercurePublisher->syncError($userId, 'ansiblex', $e->getMessage());
+            }
+            throw $e;
         }
-
-        $this->entityManager->flush();
-
-        $this->logger->info('Ansiblex discovery completed', $stats);
-
-        // Notify sync completed
-        if ($userId !== null) {
-            $this->mercurePublisher->syncCompleted(
-                $userId,
-                'ansiblex',
-                sprintf('Terminé: %d ajoutés, %d mis à jour (sur %d découverts)', $stats['added'], $stats['updated'], $stats['discovered']),
-                $stats
-            );
-        }
-
-        return $stats;
     }
 
     /**

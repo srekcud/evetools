@@ -6,8 +6,10 @@ namespace App\State\Processor\Escalation;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
+use App\Entity\Escalation;
 use App\Entity\User;
 use App\Repository\EscalationRepository;
+use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -21,6 +23,7 @@ class DeleteEscalationProcessor implements ProcessorInterface
         private readonly Security $security,
         private readonly EscalationRepository $escalationRepository,
         private readonly EntityManagerInterface $em,
+        private readonly MercurePublisherService $mercurePublisher,
     ) {
     }
 
@@ -43,7 +46,29 @@ class DeleteEscalationProcessor implements ProcessorInterface
             throw new AccessDeniedHttpException('Access denied');
         }
 
+        $escalationData = [
+            'id' => $escalation->getId()?->toRfc4122(),
+            'type' => $escalation->getType(),
+            'solarSystemName' => $escalation->getSolarSystemName(),
+            'characterName' => $escalation->getCharacterName(),
+            'visibility' => $escalation->getVisibility(),
+        ];
+        $visibility = $escalation->getVisibility();
+        $corporationId = $escalation->getCorporationId();
+        $allianceId = $escalation->getAllianceId();
+
         $this->em->remove($escalation);
         $this->em->flush();
+
+        // Publish Mercure event for non-personal escalations
+        if ($visibility !== Escalation::VISIBILITY_PERSO) {
+            $this->mercurePublisher->publishEscalationEvent(
+                'deleted',
+                $escalationData,
+                $corporationId,
+                $allianceId,
+                $visibility,
+            );
+        }
     }
 }

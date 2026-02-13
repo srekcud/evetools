@@ -87,35 +87,42 @@ class IndustryProjectService
             $this->mercurePublisher->syncStarted($userId, 'industry-project', 'Régénération...');
         }
 
-        foreach ($project->getSteps()->toArray() as $step) {
-            $project->getSteps()->removeElement($step);
-            $this->entityManager->remove($step);
-        }
+        try {
+            foreach ($project->getSteps()->toArray() as $step) {
+                $project->getSteps()->removeElement($step);
+                $this->entityManager->remove($step);
+            }
 
-        $excludedTypeIds = $this->blacklistService->resolveBlacklistedTypeIds($user);
-        $tree = $this->treeService->buildProductionTree(
-            $project->getProductTypeId(),
-            $project->getRuns(),
-            $project->getMeLevel(),
-            $excludedTypeIds,
-            $user,
-        );
+            $excludedTypeIds = $this->blacklistService->resolveBlacklistedTypeIds($user);
+            $tree = $this->treeService->buildProductionTree(
+                $project->getProductTypeId(),
+                $project->getRuns(),
+                $project->getMeLevel(),
+                $excludedTypeIds,
+                $user,
+            );
 
-        $rawSteps = [];
-        $this->collectStepsFromTree($rawSteps, $tree);
-        $this->recalculateReactionQuantities($rawSteps, $user);
-        $this->addTimeDataToSteps($rawSteps, $user, $project->getTeLevel());
-        $rawSteps = $this->splitLongJobs($rawSteps, $project->getMaxJobDurationDays());
+            $rawSteps = [];
+            $this->collectStepsFromTree($rawSteps, $tree);
+            $this->recalculateReactionQuantities($rawSteps, $user);
+            $this->addTimeDataToSteps($rawSteps, $user, $project->getTeLevel());
+            $rawSteps = $this->splitLongJobs($rawSteps, $project->getMaxJobDurationDays());
 
-        $this->sortAndCreateSteps($project, $rawSteps);
+            $this->sortAndCreateSteps($project, $rawSteps);
 
-        $this->entityManager->flush();
+            $this->entityManager->flush();
 
-        if ($userId !== null) {
-            $this->mercurePublisher->syncCompleted($userId, 'industry-project', 'Étapes régénérées', [
-                'projectId' => $project->getId()->toRfc4122(),
-                'stepsCount' => count($rawSteps),
-            ]);
+            if ($userId !== null) {
+                $this->mercurePublisher->syncCompleted($userId, 'industry-project', 'Étapes régénérées', [
+                    'projectId' => $project->getId()->toRfc4122(),
+                    'stepsCount' => count($rawSteps),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            if ($userId !== null) {
+                $this->mercurePublisher->syncError($userId, 'industry-project', $e->getMessage());
+            }
+            throw $e;
         }
     }
 

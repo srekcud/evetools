@@ -101,71 +101,78 @@ class PveSyncService
         }
 
         try {
-            if ($userId !== null) {
-                $this->mercurePublisher->syncProgress($userId, 'pve', 10, 'Récupération des bounties...');
+            try {
+                if ($userId !== null) {
+                    $this->mercurePublisher->syncProgress($userId, 'pve', 10, 'Récupération des bounties...');
+                }
+                $results['bounties'] = $this->syncWalletJournal($user);
+            } catch (\Throwable $e) {
+                $results['errors'][] = 'bounties: ' . $e->getMessage();
+                $this->logger->error('Failed to sync bounties', ['error' => $e->getMessage()]);
             }
-            $results['bounties'] = $this->syncWalletJournal($user);
-        } catch (\Throwable $e) {
-            $results['errors'][] = 'bounties: ' . $e->getMessage();
-            $this->logger->error('Failed to sync bounties', ['error' => $e->getMessage()]);
-        }
 
-        try {
-            if ($userId !== null) {
-                $this->mercurePublisher->syncProgress($userId, 'pve', 35, 'Récupération des ventes de loot...');
+            try {
+                if ($userId !== null) {
+                    $this->mercurePublisher->syncProgress($userId, 'pve', 35, 'Récupération des ventes de loot...');
+                }
+                $results['lootSales'] = $this->syncLootSalesFromTransactions($user);
+            } catch (\Throwable $e) {
+                $results['errors'][] = 'lootSales: ' . $e->getMessage();
+                $this->logger->error('Failed to sync loot sales', ['error' => $e->getMessage()]);
             }
-            $results['lootSales'] = $this->syncLootSalesFromTransactions($user);
-        } catch (\Throwable $e) {
-            $results['errors'][] = 'lootSales: ' . $e->getMessage();
-            $this->logger->error('Failed to sync loot sales', ['error' => $e->getMessage()]);
-        }
 
-        try {
-            if ($userId !== null) {
-                $this->mercurePublisher->syncProgress($userId, 'pve', 60, 'Analyse des contrats de loot...');
+            try {
+                if ($userId !== null) {
+                    $this->mercurePublisher->syncProgress($userId, 'pve', 60, 'Analyse des contrats de loot...');
+                }
+                $results['lootContracts'] = $this->syncLootFromContracts($user);
+            } catch (\Throwable $e) {
+                $results['errors'][] = 'lootContracts: ' . $e->getMessage();
+                $this->logger->error('Failed to sync loot contracts', ['error' => $e->getMessage()]);
             }
-            $results['lootContracts'] = $this->syncLootFromContracts($user);
-        } catch (\Throwable $e) {
-            $results['errors'][] = 'lootContracts: ' . $e->getMessage();
-            $this->logger->error('Failed to sync loot contracts', ['error' => $e->getMessage()]);
-        }
 
-        try {
-            if ($userId !== null) {
-                $this->mercurePublisher->syncProgress($userId, 'pve', 85, 'Récupération des dépenses...');
+            try {
+                if ($userId !== null) {
+                    $this->mercurePublisher->syncProgress($userId, 'pve', 85, 'Récupération des dépenses...');
+                }
+                $results['expenses'] = $this->syncExpensesFromTransactions($user);
+            } catch (\Throwable $e) {
+                $results['errors'][] = 'expenses: ' . $e->getMessage();
+                $this->logger->error('Failed to sync expenses', ['error' => $e->getMessage()]);
             }
-            $results['expenses'] = $this->syncExpensesFromTransactions($user);
+
+            // Update last sync time
+            $settings = $this->settingsRepository->getOrCreate($user);
+            $settings->setLastSyncAt(new \DateTimeImmutable());
+            $this->entityManager->flush();
+
+            // Notify sync completed
+            if ($userId !== null) {
+                $totalImported = $results['bounties'] + $results['lootSales'] + $results['lootContracts'] + $results['expenses'];
+                $message = sprintf(
+                    '%d bounties, %d ventes, %d contrats, %d dépenses',
+                    $results['bounties'],
+                    $results['lootSales'],
+                    $results['lootContracts'],
+                    $results['expenses']
+                );
+                $this->mercurePublisher->syncCompleted($userId, 'pve', $message, [
+                    'bounties' => $results['bounties'],
+                    'lootSales' => $results['lootSales'],
+                    'lootContracts' => $results['lootContracts'],
+                    'expenses' => $results['expenses'],
+                    'totalImported' => $totalImported,
+                    'errors' => count($results['errors']),
+                ]);
+            }
+
+            return $results;
         } catch (\Throwable $e) {
-            $results['errors'][] = 'expenses: ' . $e->getMessage();
-            $this->logger->error('Failed to sync expenses', ['error' => $e->getMessage()]);
+            if ($userId !== null) {
+                $this->mercurePublisher->syncError($userId, 'pve', $e->getMessage());
+            }
+            throw $e;
         }
-
-        // Update last sync time
-        $settings = $this->settingsRepository->getOrCreate($user);
-        $settings->setLastSyncAt(new \DateTimeImmutable());
-        $this->entityManager->flush();
-
-        // Notify sync completed
-        if ($userId !== null) {
-            $totalImported = $results['bounties'] + $results['lootSales'] + $results['lootContracts'] + $results['expenses'];
-            $message = sprintf(
-                '%d bounties, %d ventes, %d contrats, %d dépenses',
-                $results['bounties'],
-                $results['lootSales'],
-                $results['lootContracts'],
-                $results['expenses']
-            );
-            $this->mercurePublisher->syncCompleted($userId, 'pve', $message, [
-                'bounties' => $results['bounties'],
-                'lootSales' => $results['lootSales'],
-                'lootContracts' => $results['lootContracts'],
-                'expenses' => $results['expenses'],
-                'totalImported' => $totalImported,
-                'errors' => count($results['errors']),
-            ]);
-        }
-
-        return $results;
     }
 
     public function syncWalletJournal(User $user): int
@@ -563,7 +570,7 @@ class PveSyncService
         $beaconTypeIds = UserPveSettings::BEACON_TYPE_IDS;
         $allTypeIds = array_merge($ammoTypeIds, $beaconTypeIds);
 
-        if (empty($allTypeIds)) {
+        if ($allTypeIds === []) {
             return 0;
         }
 

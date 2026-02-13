@@ -34,4 +34,23 @@ class IndustryStepJobMatchRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * Find job matches by their ESI job IDs.
+     *
+     * @param int[] $esiJobIds
+     * @return IndustryStepJobMatch[]
+     */
+    public function findByEsiJobIds(array $esiJobIds): array
+    {
+        if (empty($esiJobIds)) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('m')
+            ->where('m.esiJobId IN (:ids)')
+            ->setParameter('ids', $esiJobIds)
+            ->getQuery()
+            ->getResult();
+    }
 }

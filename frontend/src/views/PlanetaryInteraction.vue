@@ -1,11 +1,36 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { usePlanetaryStore, type Colony, type Pin } from '@/stores/planetary'
+import { useSyncStore } from '@/stores/sync'
 import { useFormatters } from '@/composables/useFormatters'
 import MainLayout from '@/layouts/MainLayout.vue'
 
 const planetaryStore = usePlanetaryStore()
+const syncStore = useSyncStore()
 const { formatIsk, formatTimeSince, formatNumber } = useFormatters()
+
+// ========== Mercure sync tracking ==========
+
+const planetarySyncProgress = computed(() => syncStore.getSyncProgress('planetary'))
+
+const isSyncing = computed(() =>
+  planetaryStore.isSyncing || syncStore.isLoading('planetary')
+)
+
+watch(
+  () => planetarySyncProgress.value,
+  (progress) => {
+    if (!progress) return
+
+    if (progress.status === 'completed') {
+      planetaryStore.finishSync()
+      syncStore.clearSyncStatus('planetary')
+    } else if (progress.status === 'error') {
+      planetaryStore.failSync(progress.message || undefined)
+      syncStore.clearSyncStatus('planetary')
+    }
+  }
+)
 
 // ========== Planet Type Config ==========
 
@@ -258,17 +283,17 @@ function formatDelta(delta: number): string {
           </span>
           <button
             @click="planetaryStore.syncColonies()"
-            :disabled="planetaryStore.isSyncing"
+            :disabled="isSyncing"
             class="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Met a jour le cache local depuis l'ESI. Les donnees refletent votre derniere interaction en jeu."
           >
             <svg
-              :class="['w-4 h-4', planetaryStore.isSyncing ? 'animate-spin' : '']"
+              :class="['w-4 h-4', isSyncing ? 'animate-spin' : '']"
               fill="none" stroke="currentColor" viewBox="0 0 24 24"
             >
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            {{ planetaryStore.isSyncing ? 'Sync...' : 'Synchroniser' }}
+            {{ isSyncing ? 'Sync...' : 'Synchroniser' }}
           </button>
         </div>
       </div>

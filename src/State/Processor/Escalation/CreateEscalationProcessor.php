@@ -10,6 +10,7 @@ use App\ApiResource\Escalation\EscalationResource;
 use App\ApiResource\Input\Escalation\CreateEscalationInput;
 use App\Entity\Escalation;
 use App\Entity\User;
+use App\Service\Mercure\MercurePublisherService;
 use App\State\Provider\Escalation\EscalationResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -24,6 +25,7 @@ class CreateEscalationProcessor implements ProcessorInterface
     public function __construct(
         private readonly Security $security,
         private readonly EntityManagerInterface $em,
+        private readonly MercurePublisherService $mercurePublisher,
     ) {
     }
 
@@ -82,6 +84,23 @@ class CreateEscalationProcessor implements ProcessorInterface
 
         $this->em->persist($escalation);
         $this->em->flush();
+
+        // Publish Mercure event for non-personal escalations
+        if ($visibility !== Escalation::VISIBILITY_PERSO) {
+            $this->mercurePublisher->publishEscalationEvent(
+                'created',
+                [
+                    'id' => $escalation->getId()?->toRfc4122(),
+                    'type' => $escalation->getType(),
+                    'solarSystemName' => $escalation->getSolarSystemName(),
+                    'characterName' => $escalation->getCharacterName(),
+                    'visibility' => $visibility,
+                ],
+                $escalation->getCorporationId(),
+                $escalation->getAllianceId(),
+                $visibility,
+            );
+        }
 
         return EscalationResourceMapper::toResource($escalation, true);
     }
