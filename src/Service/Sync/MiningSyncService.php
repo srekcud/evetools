@@ -90,13 +90,13 @@ class MiningSyncService
 
         // Notify sync started
         if ($userId !== null) {
-            $this->mercurePublisher->syncStarted($userId, 'mining', 'Synchronisation du mining ledger...');
+            $this->mercurePublisher->syncStarted($userId, 'mining', 'Syncing mining ledger...');
         }
 
         try {
             try {
                 if ($userId !== null) {
-                    $this->mercurePublisher->syncProgress($userId, 'mining', 10, 'Récupération des données de minage...');
+                    $this->mercurePublisher->syncProgress($userId, 'mining', 10, 'Fetching mining data...');
                 }
 
                 // Sync mining entries from all characters
@@ -142,7 +142,7 @@ class MiningSyncService
 
                 // Update prices
                 if ($userId !== null) {
-                    $this->mercurePublisher->syncProgress($userId, 'mining', 70, 'Mise à jour des prix Jita...');
+                    $this->mercurePublisher->syncProgress($userId, 'mining', 70, 'Updating Jita prices...');
                 }
                 $results['pricesUpdated'] = $this->updatePrices($user);
 
@@ -159,7 +159,7 @@ class MiningSyncService
             // Notify sync completed
             if ($userId !== null) {
                 $message = sprintf(
-                    '%d importés, %d mis à jour, %d prix actualisés',
+                    '%d imported, %d updated, %d prices refreshed',
                     $results['imported'],
                     $results['updated'],
                     $results['pricesUpdated']

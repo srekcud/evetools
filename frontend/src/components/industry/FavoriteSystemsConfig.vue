@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useStructuresStore } from '@/stores/industry/structures'
 import { apiRequest } from '@/services/api'
+
+const { t } = useI18n()
 
 const store = useStructuresStore()
 
@@ -106,15 +109,15 @@ function onBlur(target: 'mfg' | 'rxn') {
 
 <template>
   <div class="mb-6 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-    <h4 class="text-sm font-medium text-slate-300 mb-3">Systèmes favoris</h4>
+    <h4 class="text-sm font-medium text-slate-300 mb-3">{{ t('industry.favoriteSystems.title') }}</h4>
     <p class="text-xs text-slate-500 mb-4">
-      La meilleure structure dans le système favori sera automatiquement suggérée pour chaque step.
+      {{ t('industry.favoriteSystems.description') }}
     </p>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <!-- Manufacturing favorite -->
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Système favori manufacture</label>
+        <label class="block text-xs text-slate-400 mb-1">{{ t('industry.favoriteSystems.manufacturing') }}</label>
         <div class="relative">
           <div v-if="store.userSettings?.favoriteManufacturingSystemId" class="flex items-center gap-2 bg-slate-700 rounded-lg px-3 py-2">
             <span class="text-sm text-slate-200 flex-1">
@@ -130,7 +133,7 @@ function onBlur(target: 'mfg' | 'rxn') {
             <input
               v-model="mfgQuery"
               type="text"
-              placeholder="Rechercher un système..."
+              :placeholder="t('industry.favoriteSystems.searchSystem')"
               class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 placeholder-slate-500"
               @blur="onBlur('mfg')"
             />
@@ -154,7 +157,7 @@ function onBlur(target: 'mfg' | 'rxn') {
 
       <!-- Reaction favorite -->
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Système favori réactions</label>
+        <label class="block text-xs text-slate-400 mb-1">{{ t('industry.favoriteSystems.reactions') }}</label>
         <div class="relative">
           <div v-if="store.userSettings?.favoriteReactionSystemId" class="flex items-center gap-2 bg-slate-700 rounded-lg px-3 py-2">
             <span class="text-sm text-slate-200 flex-1">
@@ -170,7 +173,7 @@ function onBlur(target: 'mfg' | 'rxn') {
             <input
               v-model="rxnQuery"
               type="text"
-              placeholder="Rechercher un système..."
+              :placeholder="t('industry.favoriteSystems.searchSystem')"
               class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 placeholder-slate-500"
               @blur="onBlur('rxn')"
             />

@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useIndustryStore } from '@/stores/industry'
 import { useEveImages } from '@/composables/useEveImages'
 import type { SearchResult } from '@/stores/industry'
+
+const { t } = useI18n()
 
 const store = useIndustryStore()
 const { getTypeIconUrl, onImageError } = useEveImages()
@@ -88,21 +91,21 @@ function hideDropdownDelayed() {
 <template>
   <div class="bg-slate-900 rounded-xl border border-slate-800">
     <div class="px-6 py-4 border-b border-slate-800">
-      <h3 class="text-lg font-semibold text-slate-100 mb-1">Construction Blacklist</h3>
+      <h3 class="text-lg font-semibold text-slate-100 mb-1">{{ t('industry.blacklist.title') }}</h3>
       <p class="text-sm text-slate-400">
-        Sélectionnez les catégories et items que vous ne fabriquez pas. Ils seront traités comme des achats dans tous vos projets.
+        {{ t('industry.blacklist.description') }}
       </p>
     </div>
 
     <div class="p-6 space-y-6">
       <div v-if="!store.blacklist" class="text-center py-8 text-slate-500">
-        Chargement...
+        {{ t('common.status.loading') }}
       </div>
 
       <template v-else>
         <!-- Categories -->
         <div>
-          <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-3">Catégories</h4>
+          <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-3">{{ t('industry.blacklist.categories') }}</h4>
           <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
             <label
               v-for="cat in store.blacklist.categories"
@@ -122,14 +125,14 @@ function hideDropdownDelayed() {
 
         <!-- Individual items -->
         <div>
-          <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-3">Items individuels</h4>
+          <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-3">{{ t('industry.blacklist.individualItems') }}</h4>
 
           <!-- Search to add -->
           <div class="relative mb-3">
             <input
               v-model="itemSearchQuery"
               type="text"
-              placeholder="Rechercher un item à blacklister..."
+              :placeholder="t('industry.blacklist.searchPlaceholder')"
               class="w-full px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500"
               @focus="showDropdown = itemSearchResults.length > 0"
               @blur="hideDropdownDelayed"
@@ -152,7 +155,7 @@ function hideDropdownDelayed() {
                 />
                 <span class="text-sm text-slate-200">{{ result.typeName }}</span>
                 <span v-if="activeTypeIds.has(result.typeId)" class="text-xs text-slate-500 ml-auto">
-                  déjà ajouté
+                  {{ t('industry.blacklist.alreadyAdded') }}
                 </span>
               </button>
             </div>
@@ -182,7 +185,7 @@ function hideDropdownDelayed() {
             </div>
           </div>
           <p v-else class="text-sm text-slate-500">
-            Aucun item individuel blacklisté.
+            {{ t('industry.blacklist.noItems') }}
           </p>
         </div>
       </template>

@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useIndustryStore } from '@/stores/industry'
 import type { StructureConfig, RigOption, CorporationStructure, StructureSearchResult } from '@/stores/industry'
 import FavoriteSystemsConfig from './FavoriteSystemsConfig.vue'
 
+const { t } = useI18n()
 const store = useIndustryStore()
 
 const showAddForm = ref(false)
@@ -125,8 +127,8 @@ const securityLabels = {
   nullsec: 'Null-Sec (x2.1)',
 }
 
-const structureTypeLabels: Record<string, string> = {
-  station: 'Station NPC (aucun bonus)',
+const structureTypeLabels = computed<Record<string, string>>(() => ({
+  station: t('industry.structures.npcStationOption'),
   raitaru: 'Raitaru (EC Medium) - 1% ME',
   azbel: 'Azbel (EC Large) - 1% ME, 20% TE',
   sotiyo: 'Sotiyo (EC X-Large) - 1% ME, 30% TE',
@@ -135,7 +137,7 @@ const structureTypeLabels: Record<string, string> = {
   // Legacy support
   engineering_complex: 'Engineering Complex (legacy)',
   refinery: 'Refinery (legacy)',
-}
+}))
 
 // Map structure type to rig size
 const structureSizeMap: Record<string, string> = {
@@ -489,7 +491,7 @@ const previewReactionTimeBonus = computed(() => {
     <FavoriteSystemsConfig />
 
     <div class="flex items-center justify-between">
-      <h3 class="text-lg font-semibold text-slate-200">Structures de production</h3>
+      <h3 class="text-lg font-semibold text-slate-200">{{ t('industry.structures.title') }}</h3>
       <button
         v-if="!showAddForm"
         @click="openAddForm"
@@ -498,29 +500,29 @@ const previewReactionTimeBonus = computed(() => {
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
-        Ajouter
+        {{ t('common.actions.add') }}
       </button>
     </div>
 
     <p class="text-sm text-slate-400">
-      Configurez vos structures de production pour calculer les bonus de matériaux appliqués aux projets.
+      {{ t('industry.structures.description') }}
     </p>
 
     <!-- Add/Edit Form -->
     <div v-if="showAddForm" class="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
       <h4 class="text-sm font-medium text-slate-300 mb-4">
-        {{ editingStructure ? 'Modifier la structure' : 'Nouvelle structure' }}
+        {{ editingStructure ? t('industry.structures.editStructure') : t('industry.structures.newStructure') }}
       </h4>
 
       <div class="space-y-4">
         <!-- Corporation structures dropdown -->
         <div v-if="!editingStructure">
-          <label class="block text-xs text-slate-400 mb-1">Structures partagées par la corporation</label>
+          <label class="block text-xs text-slate-400 mb-1">{{ t('industry.structures.corpStructures') }}</label>
           <div v-if="!corporationStructuresLoaded" class="text-xs text-slate-500">
-            Chargement...
+            {{ t('common.status.loading') }}
           </div>
           <div v-else-if="store.corporationStructures.length === 0" class="text-xs text-slate-500 bg-slate-900/50 rounded-lg p-2 border border-slate-700">
-            Aucune structure trouvée. Vérifiez que les assets de corporation sont synchronisés.
+            {{ t('industry.structures.noCorpStructures') }}
           </div>
           <template v-else>
             <select
@@ -528,29 +530,29 @@ const previewReactionTimeBonus = computed(() => {
               @change="onCorpStructureSelected"
               class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 text-sm focus:outline-none focus:border-cyan-500"
             >
-              <option :value="null">-- Sélectionner une structure --</option>
+              <option :value="null">-- {{ t('industry.structures.selectStructure') }} --</option>
               <option
                 v-for="struct in store.corporationStructures"
                 :key="struct.locationId"
                 :value="struct"
               >
                 {{ struct.locationName }}
-                ({{ struct.solarSystemName || 'Système inconnu' }})
-                {{ struct.sharedConfig ? ' - Rigs configurés' : '' }}
+                ({{ struct.solarSystemName || t('industry.structures.unknownSystem') }})
+                {{ struct.sharedConfig ? ` - ${t('industry.structures.rigsConfigured')}` : '' }}
               </option>
             </select>
             <p class="text-xs text-slate-500 mt-1">
-              Sélectionnez une structure ou laissez vide pour une configuration personnalisée
+              {{ t('industry.structures.selectOrCustom') }}
             </p>
           </template>
 
           <!-- ESI Search -->
           <div class="mt-3 relative">
-            <label class="block text-xs text-slate-400 mb-1">Ou rechercher par nom (ESI)</label>
+            <label class="block text-xs text-slate-400 mb-1">{{ t('industry.structures.searchByNameEsi') }}</label>
             <input
               v-model="esiSearchQuery"
               type="text"
-              placeholder="Rechercher une structure..."
+              :placeholder="t('industry.structures.searchStructure')"
               @input="onEsiSearchInput"
               @focus="showEsiSearchDropdown = esiSearchResults.length > 0"
               @blur="hideEsiDropdownDelayed"
@@ -580,7 +582,7 @@ const previewReactionTimeBonus = computed(() => {
                 </div>
                 <div class="text-xs text-slate-500">
                   {{ result.structureType ? result.structureType.charAt(0).toUpperCase() + result.structureType.slice(1) : 'Structure' }}
-                  {{ result.isCorporationOwned ? ' - Structure corpo' : '' }}
+                  {{ result.isCorporationOwned ? ` - ${t('industry.structures.corpStructure')}` : '' }}
                 </div>
               </button>
             </div>
@@ -599,23 +601,23 @@ const previewReactionTimeBonus = computed(() => {
               <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
-              <span class="text-sm text-cyan-300">Structure de corporation</span>
+              <span class="text-sm text-cyan-300">{{ t('industry.structures.corpStructure') }}</span>
             </div>
             <button
               @click="clearCorpStructure"
               class="text-xs text-slate-400 hover:text-slate-200"
             >
-              Passer en mode personnalisé
+              {{ t('industry.structures.switchToCustom') }}
             </button>
           </div>
           <p class="text-xs text-slate-400 mt-1">
-            Les rigs configurés seront partagés avec les autres membres de votre corporation.
+            {{ t('industry.structures.rigsSharedWithCorp') }}
           </p>
         </div>
 
         <!-- Name -->
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Nom</label>
+          <label class="block text-xs text-slate-400 mb-1">{{ t('industry.structures.name') }}</label>
           <input
             v-model="formName"
             type="text"
@@ -626,13 +628,13 @@ const previewReactionTimeBonus = computed(() => {
 
         <!-- Structure Type -->
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Type de structure</label>
+          <label class="block text-xs text-slate-400 mb-1">{{ t('industry.structures.structureType') }}</label>
           <select
             v-model="formStructureType"
             class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 text-sm focus:outline-none focus:border-cyan-500"
           >
             <optgroup label="NPC">
-              <option value="station">Station NPC (aucun bonus)</option>
+              <option value="station">{{ t('industry.structures.npcStationOption') }}</option>
             </optgroup>
             <optgroup label="Engineering Complex">
               <option value="raitaru">Raitaru (Medium) - 1% ME, 15% TE</option>
@@ -648,7 +650,7 @@ const previewReactionTimeBonus = computed(() => {
 
         <!-- Security Type -->
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Sécurité</label>
+          <label class="block text-xs text-slate-400 mb-1">{{ t('industry.structures.security') }}</label>
           <div class="flex gap-3">
             <label
               v-for="(label, key) in securityLabels"
@@ -669,7 +671,7 @@ const previewReactionTimeBonus = computed(() => {
         <!-- Rigs Search -->
         <div>
           <label class="block text-xs text-slate-400 mb-2">
-            Rigs (bonus matériaux) - {{ formRigs.length }}/{{ MAX_RIGS }}
+            {{ t('industry.structures.rigsLabel') }} - {{ formRigs.length }}/{{ MAX_RIGS }}
           </label>
 
           <!-- Search Input -->
@@ -677,7 +679,7 @@ const previewReactionTimeBonus = computed(() => {
             <input
               v-model="rigSearchQuery"
               type="text"
-              :placeholder="canAddMoreRigs ? 'Rechercher un rig...' : 'Maximum de rigs atteint'"
+              :placeholder="canAddMoreRigs ? t('industry.structures.searchRig') : t('industry.structures.maxRigsReached')"
               :disabled="!canAddMoreRigs"
               class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 text-sm focus:outline-none focus:border-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed"
               @focus="showRigDropdown = filteredRigs.length > 0"
@@ -716,7 +718,7 @@ const previewReactionTimeBonus = computed(() => {
               v-if="showRigDropdown && rigSearchQuery.length >= 2 && filteredRigs.length === 0"
               class="absolute z-10 mt-1 w-full bg-slate-800 border border-slate-600 rounded-lg shadow-lg p-3 text-sm text-slate-400"
             >
-              Aucun rig trouvé
+              {{ t('industry.structures.noRigFound') }}
             </div>
           </div>
 
@@ -742,7 +744,7 @@ const previewReactionTimeBonus = computed(() => {
                 <button
                   @click="removeRig(rigInfo.name)"
                   class="ml-2 p-1 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded shrink-0"
-                  title="Retirer"
+                  :title="t('industry.structures.removeRig')"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -754,13 +756,13 @@ const previewReactionTimeBonus = computed(() => {
           </div>
 
           <p v-else class="mt-2 text-xs text-slate-500">
-            Aucun rig sélectionné. Recherchez et ajoutez des rigs pour appliquer des bonus.
+            {{ t('industry.structures.noRigsSelected') }}
           </p>
         </div>
 
         <!-- Preview Bonus -->
         <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
-          <p class="text-xs text-slate-400 mb-2">Bonus calculé (base structure + rigs × sécurité)</p>
+          <p class="text-xs text-slate-400 mb-2">{{ t('industry.structures.bonusPreview') }}</p>
           <div class="space-y-2">
             <div v-if="isEngineeringComplex" class="flex flex-wrap gap-4">
               <div>
@@ -783,7 +785,7 @@ const previewReactionTimeBonus = computed(() => {
               </div>
             </div>
             <div v-if="formStructureType === 'station'" class="text-slate-500 text-sm">
-              Les stations NPC n'ont pas de bonus
+              {{ t('industry.structures.npcNoBonus') }}
             </div>
           </div>
         </div>
@@ -795,13 +797,13 @@ const previewReactionTimeBonus = computed(() => {
             :disabled="!formName.trim()"
             class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg text-white text-sm font-medium"
           >
-            {{ editingStructure ? 'Enregistrer' : 'Ajouter' }}
+            {{ editingStructure ? t('common.actions.save') : t('common.actions.add') }}
           </button>
           <button
             @click="cancelForm"
             class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-300 text-sm"
           >
-            Annuler
+            {{ t('common.actions.cancel') }}
           </button>
         </div>
       </div>
@@ -865,7 +867,7 @@ const previewReactionTimeBonus = computed(() => {
             <button
               @click="openEditForm(structure)"
               class="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-700 rounded"
-              title="Modifier"
+              :title="t('common.actions.edit')"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -874,7 +876,7 @@ const previewReactionTimeBonus = computed(() => {
             <button
               @click="openDeleteModal(structure)"
               class="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded"
-              title="Supprimer"
+              :title="t('common.actions.delete')"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -890,8 +892,8 @@ const previewReactionTimeBonus = computed(() => {
       v-else-if="!showAddForm"
       class="text-center py-8 text-slate-500"
     >
-      <p>Aucune structure configurée</p>
-      <p class="text-sm mt-1">Ajoutez vos structures pour calculer les bonus de matériaux</p>
+      <p>{{ t('industry.structures.noStructures') }}</p>
+      <p class="text-sm mt-1">{{ t('industry.structures.noStructuresHint') }}</p>
     </div>
 
     <!-- Delete Confirmation Modal -->
@@ -904,22 +906,22 @@ const previewReactionTimeBonus = computed(() => {
         @keydown.escape="cancelDelete"
       >
         <div class="bg-slate-900 rounded-xl border border-slate-700 max-w-md w-full p-6" tabindex="-1" ref="deleteModalRef">
-          <h3 class="text-lg font-semibold text-slate-200 mb-2">Supprimer la structure</h3>
+          <h3 class="text-lg font-semibold text-slate-200 mb-2">{{ t('industry.structures.deleteTitle') }}</h3>
           <p class="text-slate-400 mb-6">
-            Voulez-vous vraiment supprimer <span class="text-slate-200 font-medium">{{ deleteStructureName }}</span> ?
+            {{ t('industry.structures.deleteConfirm', { name: deleteStructureName }) }}
           </p>
           <div class="flex gap-3">
             <button
               @click="cancelDelete"
               class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300"
             >
-              Annuler
+              {{ t('common.actions.cancel') }}
             </button>
             <button
               @click="confirmDelete"
               class="flex-1 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-white font-medium"
             >
-              Supprimer
+              {{ t('common.actions.delete') }}
             </button>
           </div>
         </div>
@@ -942,27 +944,26 @@ const previewReactionTimeBonus = computed(() => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
             </div>
-            <h3 class="text-lg font-semibold text-slate-200">Modifier une structure corpo</h3>
+            <h3 class="text-lg font-semibold text-slate-200">{{ t('industry.structures.editCorpTitle') }}</h3>
           </div>
           <p class="text-slate-400 mb-2">
-            Cette structure est partagée avec votre corporation.
+            {{ t('industry.structures.editCorpWarning1') }}
           </p>
           <p class="text-slate-400 mb-6">
-            Les modifications (rigs, type, sécurité) seront visibles par tous les membres de la corpo.
-            Voulez-vous continuer ?
+            {{ t('industry.structures.editCorpWarning2') }}
           </p>
           <div class="flex gap-3">
             <button
               @click="cancelCorpEdit"
               class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300"
             >
-              Annuler
+              {{ t('common.actions.cancel') }}
             </button>
             <button
               @click="confirmCorpEdit"
               class="flex-1 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg text-white font-medium"
             >
-              Confirmer
+              {{ t('common.actions.confirm') }}
             </button>
           </div>
         </div>

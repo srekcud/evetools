@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useRateLimitStore } from '@/stores/rateLimit'
 import { useAdminStore } from '@/stores/admin'
 
 const router = useRouter()
+const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const rateLimitStore = useRateLimitStore()
 const adminStore = useAdminStore()
@@ -31,7 +33,7 @@ async function openReleaseNotes() {
       const response = await fetch('/RELEASE_NOTES.txt')
       releaseNotes.value = await response.text()
     } catch (e) {
-      releaseNotes.value = 'Impossible de charger les notes de version.'
+      releaseNotes.value = t('header.releaseNotesLoadError')
     } finally {
       loadingReleaseNotes.value = false
     }
@@ -89,16 +91,16 @@ const mainCharacter = computed(() => user.value?.mainCharacter || user.value?.ch
 const DEFAULT_HIDDEN_MODULES = ['assets', 'contracts']
 
 const allNavItems = [
-  { id: 'dashboard', label: 'Tableau de bord', route: '/dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-  { id: 'characters', label: 'Personnages', route: '/characters', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
-  { id: 'ledger', label: 'Ledger', route: '/ledger', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' },
-  { id: 'industry', label: 'Industrie', route: '/industry', icon: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z' },
-  { id: 'escalations', label: 'Escalations', route: '/escalations', icon: 'M15 10.5a3 3 0 11-6 0 3 3 0 016 0z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z' },
-  { id: 'planetary', label: 'PI', route: '/planetary', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9' },
-  { id: 'shopping-list', label: 'Liste de courses', route: '/shopping-list', icon: 'M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z' },
-  { id: 'assets', label: 'Inventaire', route: '/assets', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
-  { id: 'contracts', label: 'Contrats', route: '/contracts', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-  { id: 'admin', label: 'Administration', route: '/admin', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z', adminOnly: true },
+  { id: 'dashboard', labelKey: 'nav.dashboard', route: '/dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
+  { id: 'characters', labelKey: 'nav.characters', route: '/characters', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
+  { id: 'ledger', labelKey: 'nav.ledger', route: '/ledger', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' },
+  { id: 'industry', labelKey: 'nav.industry', route: '/industry', icon: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z' },
+  { id: 'escalations', labelKey: 'nav.escalations', route: '/escalations', icon: 'M15 10.5a3 3 0 11-6 0 3 3 0 016 0z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z' },
+  { id: 'planetary', labelKey: 'nav.pi', route: '/planetary', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9' },
+  { id: 'shopping-list', labelKey: 'nav.shoppingList', route: '/shopping-list', icon: 'M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z' },
+  { id: 'assets', labelKey: 'nav.assets', route: '/assets', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
+  { id: 'contracts', labelKey: 'nav.contracts', route: '/contracts', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+  { id: 'admin', labelKey: 'nav.admin', route: '/admin', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z', adminOnly: true },
 ]
 
 // Settings
@@ -176,8 +178,14 @@ const logout = async () => {
 
 const currentPageTitle = computed(() => {
   const item = allNavItems.find(n => isActiveRoute(n))
-  return item?.label || 'Dashboard'
+  return item ? t(item.labelKey) : t('nav.dashboard')
 })
+
+// Language switcher
+function setLocale(lang: 'fr' | 'en') {
+  locale.value = lang
+  localStorage.setItem('locale', lang)
+}
 </script>
 
 <template>
@@ -199,7 +207,7 @@ const currentPageTitle = computed(() => {
           <svg class="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
-          <span>Rate limit ESI atteint - Actions ESI bloquées pendant {{ rateLimitStore.remainingSeconds }}s</span>
+          <span>{{ t('header.rateLimitBanner', { seconds: rateLimitStore.remainingSeconds }) }}</span>
         </div>
       </div>
     </Transition>
@@ -240,7 +248,7 @@ const currentPageTitle = computed(() => {
             <svg class="w-5 h-5 relative" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="item.icon"/>
             </svg>
-            <span class="font-medium relative">{{ item.label }}</span>
+            <span class="font-medium relative">{{ t(item.labelKey) }}</span>
             <div v-if="isActiveRoute(item)" class="ml-auto w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse relative"></div>
           </button>
         </nav>
@@ -252,7 +260,7 @@ const currentPageTitle = computed(() => {
             <div
               @click="showSettings = true"
               class="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
-              title="Ouvrir les parametres"
+              :title="t('auth.openSettings')"
             >
               <div class="relative">
                 <img
@@ -265,7 +273,7 @@ const currentPageTitle = computed(() => {
                 <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-slate-800"></div>
               </div>
               <div class="flex-1 min-w-0">
-                <p class="font-semibold text-slate-100 truncate">{{ mainCharacter?.name || 'Chargement...' }}</p>
+                <p class="font-semibold text-slate-100 truncate">{{ mainCharacter?.name || t('common.actions.loading') }}</p>
                 <p class="text-xs text-cyan-400 truncate">{{ mainCharacter?.corporationName || '' }}</p>
               </div>
               <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -285,12 +293,12 @@ const currentPageTitle = computed(() => {
                 <svg v-else class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                 </svg>
-                {{ isLoggingOut ? 'Déconnexion...' : 'Déconnexion' }}
+                {{ isLoggingOut ? t('auth.loggingOut') : t('auth.logout') }}
               </button>
               <button
                 @click="openReleaseNotes"
                 class="py-2 px-2.5 bg-slate-700/50 hover:bg-cyan-500/20 rounded-lg text-xs text-slate-500 hover:text-cyan-400 transition-colors font-mono"
-                title="Voir les notes de version"
+                :title="t('header.viewReleaseNotes')"
               >
                 v{{ APP_VERSION }}
               </button>
@@ -315,7 +323,7 @@ const currentPageTitle = computed(() => {
           <div class="relative bg-slate-900 rounded-2xl border border-cyan-500/30 shadow-2xl shadow-cyan-500/10 w-full max-w-md mx-4">
             <!-- Header -->
             <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-              <h3 class="text-lg font-semibold text-slate-100">Parametres</h3>
+              <h3 class="text-lg font-semibold text-slate-100">{{ t('settings.title') }}</h3>
               <button
                 @click="showSettings = false"
                 class="p-1 hover:bg-slate-800 rounded-lg transition-colors"
@@ -328,7 +336,7 @@ const currentPageTitle = computed(() => {
 
             <!-- Content -->
             <div class="p-6">
-              <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4">Modules visibles</h4>
+              <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4">{{ t('settings.visibleModules') }}</h4>
               <div class="space-y-2">
                 <label
                   v-for="item in allNavItems"
@@ -344,12 +352,42 @@ const currentPageTitle = computed(() => {
                   <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="item.icon"/>
                   </svg>
-                  <span class="text-slate-200">{{ item.label }}</span>
+                  <span class="text-slate-200">{{ t(item.labelKey) }}</span>
                 </label>
               </div>
 
               <p class="mt-4 text-xs text-slate-500">
-                Les modules masques n'apparaitront plus dans le menu de navigation.
+                {{ t('settings.hiddenModulesNote') }}
+              </p>
+
+              <!-- Language selector -->
+              <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4 mt-6">{{ t('settings.language') }}</h4>
+              <div class="flex gap-2">
+                <button
+                  @click="setLocale('fr')"
+                  :class="[
+                    'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors border',
+                    locale === 'fr'
+                      ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                      : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-cyan-500/30 hover:text-slate-200'
+                  ]"
+                >
+                  {{ t('settings.french') }}
+                </button>
+                <button
+                  @click="setLocale('en')"
+                  :class="[
+                    'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors border',
+                    locale === 'en'
+                      ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                      : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-cyan-500/30 hover:text-slate-200'
+                  ]"
+                >
+                  {{ t('settings.english') }}
+                </button>
+              </div>
+              <p class="mt-2 text-xs text-slate-500">
+                {{ t('settings.languageNote') }}
               </p>
             </div>
 
@@ -359,7 +397,7 @@ const currentPageTitle = computed(() => {
                 @click="showSettings = false"
                 class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-colors"
               >
-                Fermer
+                {{ t('common.actions.close') }}
               </button>
             </div>
           </div>
@@ -382,7 +420,7 @@ const currentPageTitle = computed(() => {
           <div class="relative bg-slate-900 rounded-2xl border border-cyan-500/30 shadow-2xl shadow-cyan-500/10 w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col">
             <!-- Header -->
             <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-              <h3 class="text-lg font-semibold text-slate-100">Notes de version</h3>
+              <h3 class="text-lg font-semibold text-slate-100">{{ t('header.releaseNotes') }}</h3>
               <button
                 @click="showReleaseNotes = false"
                 class="p-1 hover:bg-slate-800 rounded-lg transition-colors"
@@ -410,7 +448,7 @@ const currentPageTitle = computed(() => {
                 @click="showReleaseNotes = false"
                 class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-colors"
               >
-                Fermer
+                {{ t('common.actions.close') }}
               </button>
             </div>
           </div>
@@ -424,7 +462,7 @@ const currentPageTitle = computed(() => {
           <div class="flex items-center justify-between">
             <div>
               <h2 class="text-2xl font-bold text-slate-100">{{ currentPageTitle }}</h2>
-              <p class="text-sm text-slate-500 mt-1">Bon retour, capsulier</p>
+              <p class="text-sm text-slate-500 mt-1">{{ t('header.welcomeBack') }}</p>
             </div>
             <div class="flex items-center gap-4">
               <!-- ESI Status -->
@@ -437,7 +475,7 @@ const currentPageTitle = computed(() => {
                       ? 'bg-amber-500/10 border-amber-500/30'
                       : 'bg-emerald-500/10 border-emerald-500/30'
                 ]"
-                :title="esiError ? 'ESI indisponible' : esiRateLimited ? 'ESI rate limité' : `ESI OK - ${esiStatus?.players?.toLocaleString() || 0} joueurs en ligne`"
+                :title="esiError ? t('header.esiUnavailable') : esiRateLimited ? t('header.esiRateLimitedTitle') : t('header.esiOkTitle', { players: esiStatus?.players?.toLocaleString() || '0' })"
               >
                 <div
                   :class="[

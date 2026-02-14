@@ -1,0 +1,62 @@
+export const ESCALATION_SITES: Record<string, { level: string; name: string }[]> = {
+  'Angel Cartel': [
+    { level: '3', name: 'Angel Repurposed Outpost' },
+    { level: '4', name: 'Angel Cartel Occupied Mining Colony' },
+    { level: '5', name: "Angel's Red Light District" },
+    { level: '6', name: 'Angel Mineral Acquisition Outpost' },
+    { level: '7', name: 'Angel Military Operations Complex' },
+    { level: '8', name: 'Cartel Prisoner Retention' },
+    { level: '10', name: 'Angel Cartel Naval Shipyard' },
+  ],
+  'Blood Raiders': [
+    { level: '3', name: 'Blood Raider Intelligence Collection Point' },
+    { level: '4', name: 'Mul-Zatah Monastery' },
+    { level: '5', name: 'Blood Raider Psychotropics Depot' },
+    { level: '6', name: 'Crimson Hand Supply Depot' },
+    { level: '7', name: 'Blood Raider Coordination Center' },
+    { level: '8', name: 'Blood Raider Prison Camp' },
+    { level: '10', name: 'Blood Raider Naval Shipyard' },
+  ],
+  'Guristas': [
+    { level: '3', name: 'Guristas Guerilla Grounds' },
+    { level: '4', name: 'Guristas Scout Outpost' },
+    { level: '5', name: 'Guristas Hallucinogen Supply Waypoint' },
+    { level: '6', name: 'Guristas Troop Reinvigoration Camp' },
+    { level: '7', name: 'Gurista Military Operations Complex' },
+    { level: '8', name: "Pith's Penal Complex" },
+    { level: '10', name: 'The Maze' },
+  ],
+  "Sansha's Nation": [
+    { level: '3', name: "Sansha's Command Relay Outpost" },
+    { level: '4', name: "Sansha's Nation Occupied Mining Colony" },
+    { level: '5', name: "Sansha's Nation Neural Paralytic Facility" },
+    { level: '6', name: 'Sansha War Supply Complex' },
+    { level: '7', name: 'Sansha Military Operations Complex' },
+    { level: '8', name: 'Sansha Prison Camp' },
+    { level: '10', name: 'Centus Assembly T.P. Co.' },
+  ],
+  'Serpentis': [
+    { level: '3', name: 'Serpentis Narcotic Warehouses' },
+    { level: '4', name: 'Serpentis Phi-Outpost' },
+    { level: '5', name: 'Serpentis Corporation Hydroponics Site' },
+    { level: '6', name: 'Serpentis Logistical Outpost' },
+    { level: '7', name: 'Serpentis Paramilitary Complex' },
+    { level: '8', name: 'Serpentis Prison Camp' },
+    { level: '10', name: 'Serpentis Fleet Shipyard' },
+  ],
+  'Rogue Drones': [
+    { level: '3', name: 'Rogue Drone Asteroid Infestation' },
+    { level: '5', name: 'Outgrowth Rogue Drone Hive' },
+    { level: '10', name: 'Outgrowth Rogue Drone Hive' },
+  ],
+}
+
+export const SUGGESTED_PRICES: Record<string, number[]> = {
+  '3': [10, 15, 20, 30],
+  '4': [15, 25, 35, 50],
+  '5': [20, 30, 50, 80],
+  '6': [40, 60, 80, 100],
+  '7': [50, 70, 90, 120],
+  '8': [60, 80, 100, 130],
+  '10': [100, 150, 200, 300],
+}

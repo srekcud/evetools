@@ -1,4 +1,5 @@
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useSyncStore } from '@/stores/sync'
 
 export interface Notification {
@@ -32,23 +33,26 @@ function removeNotification(id: string): void {
   notifications.value = notifications.value.filter(n => n.id !== id)
 }
 
-function getSyncTitle(syncType: string): string {
-  const titles: Record<string, string> = {
-    'character-assets': 'Assets personnage',
-    'corporation-assets': 'Assets corporation',
-    'ansiblex': 'Ansiblex',
-    'industry-jobs': 'Jobs industrie',
-    'pve': 'Donnees PVE',
-    'mining': 'Ledger minage',
-    'wallet-transactions': 'Transactions wallet',
-    'market-structure': 'Prix marche',
-    'planetary': 'Colonies PI',
-  }
-  return titles[syncType] || syncType
+const SYNC_TITLE_KEYS: Record<string, string> = {
+  'character-assets': 'notifications.syncTitles.characterAssets',
+  'corporation-assets': 'notifications.syncTitles.corporationAssets',
+  'ansiblex': 'notifications.syncTitles.ansiblex',
+  'industry-jobs': 'notifications.syncTitles.industryJobs',
+  'pve': 'notifications.syncTitles.pve',
+  'mining': 'notifications.syncTitles.mining',
+  'wallet-transactions': 'notifications.syncTitles.walletTransactions',
+  'market-structure': 'notifications.syncTitles.marketStructure',
+  'planetary': 'notifications.syncTitles.planetary',
 }
 
 export function useNotificationFeed() {
   const syncStore = useSyncStore()
+  const { t } = useI18n()
+
+  function getSyncTitle(syncType: string): string {
+    const key = SYNC_TITLE_KEYS[syncType]
+    return key ? t(key) : syncType
+  }
 
   // Watch all sync status changes for activity feed
   watch(
@@ -62,7 +66,7 @@ export function useNotificationFeed() {
           addNotification({
             type: 'sync',
             title: getSyncTitle(syncType),
-            message: progress.message || 'Synchronisation terminee',
+            message: progress.message || t('notifications.syncCompleted'),
             level: 'success',
             data: progress.data ?? undefined,
           })
@@ -70,7 +74,7 @@ export function useNotificationFeed() {
           addNotification({
             type: 'sync',
             title: getSyncTitle(syncType),
-            message: progress.message || 'Erreur de synchronisation',
+            message: progress.message || t('notifications.syncError'),
             level: 'error',
           })
         }
@@ -81,8 +85,8 @@ export function useNotificationFeed() {
           if (statusStr === 'notification') {
             addNotification({
               type: 'job-completed',
-              title: 'Job industrie termine',
-              message: progress.message || 'Un job est termine',
+              title: t('notifications.jobCompleted'),
+              message: progress.message || t('notifications.jobCompletedMessage'),
               level: 'info',
               data: progress.data ?? undefined,
             })
@@ -95,8 +99,8 @@ export function useNotificationFeed() {
           if (statusStr === 'notification') {
             addNotification({
               type: 'project',
-              title: 'Projet industrie',
-              message: progress.message || 'Progression projet',
+              title: t('notifications.projectProgress'),
+              message: progress.message || t('notifications.projectProgressMessage'),
               level: 'info',
               data: progress.data ?? undefined,
             })

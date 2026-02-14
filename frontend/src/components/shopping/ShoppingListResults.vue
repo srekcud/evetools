@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 
@@ -55,6 +56,7 @@ const emit = defineEmits<{
   share: []
 }>()
 
+const { t } = useI18n()
 const { formatIsk, formatNumber, formatDateTime } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
 
@@ -106,9 +108,9 @@ function formatRelativeTime(isoDate: string | null): string {
   const diffMins = Math.floor(diffMs / 60000)
   const diffHours = Math.floor(diffMins / 60)
 
-  if (diffMins < 1) return "il y a moins d'une minute"
-  if (diffMins < 60) return `il y a ${diffMins} min`
-  if (diffHours < 24) return `il y a ${diffHours}h`
+  if (diffMins < 1) return t('common.time.justNow')
+  if (diffMins < 60) return t('common.time.minutesAgo', { minutes: diffMins })
+  if (diffHours < 24) return t('common.time.hoursAgo', { hours: diffHours })
   return formatDateTime(isoDate)
 }
 
@@ -139,7 +141,7 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
 
     <!-- Not Found Items -->
     <div v-if="notFound && notFound.length > 0" class="bg-yellow-900/30 border border-yellow-500/30 rounded-xl p-4">
-      <h3 class="text-yellow-400 font-medium mb-2">Items non trouves ({{ notFound.length }})</h3>
+      <h3 class="text-yellow-400 font-medium mb-2">{{ t('shopping.notFound', { count: notFound.length }) }}</h3>
       <p class="text-yellow-300/70 text-sm">
         {{ notFound.join(', ') }}
       </p>
@@ -161,9 +163,9 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           <div class="text-sm">
-            <p class="text-amber-300">Prix de la structure non disponibles</p>
+            <p class="text-amber-300">{{ t('shopping.structurePricesUnavailable') }}</p>
             <p class="text-amber-400/70 text-xs mt-0.5">
-              Les donnees de marche pour {{ structureName }} n'ont pas ete synchronisees.
+              {{ t('shopping.structureNotSynced', { name: structureName }) }}
             </p>
           </div>
         </div>
@@ -180,7 +182,7 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
           <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          {{ isSyncing ? 'Synchronisation...' : 'Synchroniser' }}
+          {{ isSyncing ? t('common.actions.syncing') : t('common.actions.sync') }}
         </button>
       </div>
     </div>
@@ -200,11 +202,11 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
     <div class="bg-slate-900 rounded-lg p-4 border border-slate-800">
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
         <div>
-          <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Volume total</p>
+          <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('shopping.totalVolume') }}</p>
           <p class="text-lg font-mono text-slate-200">{{ formatNumber(totals.volume) }} m³</p>
         </div>
         <div>
-          <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Jita + Transport</p>
+          <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('shopping.jitaPlusTransport') }}</p>
           <p class="text-lg font-mono text-cyan-400">{{ formatIsk(totals.jitaWithImport) }}</p>
         </div>
         <div>
@@ -212,7 +214,7 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
           <p class="text-lg font-mono text-purple-400">{{ formatIsk(totals.structure) }}</p>
         </div>
         <div>
-          <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Meilleur prix</p>
+          <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('shopping.bestPrice') }}</p>
           <p class="text-lg font-mono text-green-400 font-bold">{{ formatIsk(totals.best) }}</p>
         </div>
       </div>
@@ -230,7 +232,7 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
           <svg v-else class="w-4 h-4 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
           </svg>
-          {{ copiedJita ? 'Copie !' : `Copier Jita (${jitaItems.length})` }}
+          {{ copiedJita ? t('shopping.copied') : t('shopping.copyJita', { count: jitaItems.length }) }}
         </button>
 
         <button
@@ -244,7 +246,7 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
           <svg v-else class="w-4 h-4 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
           </svg>
-          {{ copiedStructure ? 'Copie !' : `Copier ${shortStructureName} (${structureItems.length})` }}
+          {{ copiedStructure ? t('shopping.copied') : t('shopping.copyStructure', { name: shortStructureName, count: structureItems.length }) }}
         </button>
 
         <div class="flex-1"></div>
@@ -263,7 +265,7 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
           <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
           </svg>
-          {{ isSharing ? 'Creation...' : 'Partager' }}
+          {{ isSharing ? t('shopping.sharing') : t('common.actions.share') }}
         </button>
 
         <!-- Copy share URL button (shown after sharing) -->
@@ -278,7 +280,7 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
           <svg v-else class="w-4 h-4 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
           </svg>
-          {{ copiedShareUrl ? 'Lien copie !' : 'Copier le lien' }}
+          {{ copiedShareUrl ? t('shopping.linkCopied') : t('shopping.copyLink') }}
         </button>
       </div>
     </div>
@@ -308,12 +310,12 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
         <table class="w-full text-sm">
           <thead class="bg-slate-800/50 text-slate-400 text-xs uppercase tracking-wider">
             <tr>
-              <th class="px-4 py-3 text-left">Item</th>
-              <th class="px-4 py-3 text-right">Quantite</th>
-              <th class="px-4 py-3 text-right">Volume</th>
-              <th class="px-4 py-3 text-right">Jita + Import</th>
+              <th class="px-4 py-3 text-left">{{ t('shopping.itemColumn') }}</th>
+              <th class="px-4 py-3 text-right">{{ t('shopping.quantityColumn') }}</th>
+              <th class="px-4 py-3 text-right">{{ t('shopping.volumeColumn') }}</th>
+              <th class="px-4 py-3 text-right">{{ t('shopping.jitaPlusImport') }}</th>
               <th class="px-4 py-3 text-right">{{ shortStructureName }}</th>
-              <th class="px-4 py-3 text-center">Acheter a</th>
+              <th class="px-4 py-3 text-center">{{ t('shopping.buyAt') }}</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-800">

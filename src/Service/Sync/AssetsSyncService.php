@@ -35,7 +35,7 @@ class AssetsSyncService
 
         // Notify sync started
         if ($userId !== null) {
-            $this->mercurePublisher->syncStarted($userId, 'character-assets', 'Récupération des assets...');
+            $this->mercurePublisher->syncStarted($userId, 'character-assets', 'Fetching character assets...');
         }
 
         try {
@@ -51,7 +51,7 @@ class AssetsSyncService
                     $userId,
                     'character-assets',
                     50,
-                    sprintf('Traitement de %d assets...', count($assets))
+                    sprintf('Processing %d assets...', count($assets))
                 );
             }
 
@@ -85,7 +85,7 @@ class AssetsSyncService
                 $this->mercurePublisher->syncCompleted(
                     $userId,
                     'character-assets',
-                    'Synchronisation terminée',
+                    'Sync completed',
                     ['count' => count($assets)]
                 );
             }
@@ -108,7 +108,7 @@ class AssetsSyncService
 
         // Notify sync started
         if ($userId !== null) {
-            $this->mercurePublisher->syncStarted($userId, 'corporation-assets', 'Récupération des assets corporation...');
+            $this->mercurePublisher->syncStarted($userId, 'corporation-assets', 'Fetching corporation assets...');
         }
 
         try {
@@ -138,7 +138,7 @@ class AssetsSyncService
                     $userId,
                     'corporation-assets',
                     50,
-                    sprintf('Traitement de %d assets...', count($assets))
+                    sprintf('Processing %d assets...', count($assets))
                 );
             }
 
@@ -178,7 +178,7 @@ class AssetsSyncService
                 $this->mercurePublisher->syncCompleted(
                     $userId,
                     'corporation-assets',
-                    'Synchronisation terminée',
+                    'Sync completed',
                     ['count' => count($assets)]
                 );
             }

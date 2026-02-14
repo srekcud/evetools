@@ -73,7 +73,7 @@ class AnsiblexSyncService
                     $userId,
                     'ansiblex',
                     30,
-                    sprintf('%d Ansiblex trouvés, traitement...', count($ansiblexStructures))
+                    sprintf('%d Ansiblex found, processing...', count($ansiblexStructures))
                 );
             }
 
@@ -99,7 +99,7 @@ class AnsiblexSyncService
                         $userId,
                         'ansiblex',
                         $progress,
-                        sprintf('Traitement %d/%d gates...', $processed, $total)
+                        sprintf('Processing %d/%d gates...', $processed, $total)
                     );
                 }
             }
@@ -115,9 +115,9 @@ class AnsiblexSyncService
 
             // Notify sync completed
             if ($userId !== null) {
-                $message = sprintf('Terminé: %d ajoutés, %d mis à jour', $stats['added'], $stats['updated']);
+                $message = sprintf('Done: %d added, %d updated', $stats['added'], $stats['updated']);
                 if ($stats['deactivated'] > 0) {
-                    $message .= sprintf(', %d désactivés', $stats['deactivated']);
+                    $message .= sprintf(', %d deactivated', $stats['deactivated']);
                 }
                 $this->mercurePublisher->syncCompleted($userId, 'ansiblex', $message, $stats);
             }
@@ -349,7 +349,7 @@ class AnsiblexSyncService
 
         // Notify sync started
         if ($userId !== null) {
-            $this->mercurePublisher->syncStarted($userId, 'ansiblex', 'Recherche des Ansiblex accessibles...');
+            $this->mercurePublisher->syncStarted($userId, 'ansiblex', 'Searching for accessible Ansiblex...');
         }
 
         try {
@@ -371,7 +371,7 @@ class AnsiblexSyncService
                     $userId,
                     'ansiblex',
                     20,
-                    sprintf('%d structures découvertes, résolution...', count($structureIds))
+                    sprintf('%d structures discovered, resolving...', count($structureIds))
                 );
             }
 
@@ -395,7 +395,7 @@ class AnsiblexSyncService
                         $userId,
                         'ansiblex',
                         $progress,
-                        sprintf('Traitement %d/%d structures...', $processed, $total)
+                        sprintf('Processing %d/%d structures...', $processed, $total)
                     );
                 }
             }
@@ -409,7 +409,7 @@ class AnsiblexSyncService
                 $this->mercurePublisher->syncCompleted(
                     $userId,
                     'ansiblex',
-                    sprintf('Terminé: %d ajoutés, %d mis à jour (sur %d découverts)', $stats['added'], $stats['updated'], $stats['discovered']),
+                    sprintf('Done: %d added, %d updated (out of %d discovered)', $stats['added'], $stats['updated'], $stats['discovered']),
                     $stats
                 );
             }

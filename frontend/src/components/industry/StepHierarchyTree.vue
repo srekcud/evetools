@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import type { ProductionTreeNode, IndustryProjectStep } from '@/stores/industry'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   tree: ProductionTreeNode
@@ -28,9 +31,9 @@ function activityBadgeClass(type: string): string {
 }
 
 function activityLabel(type: string): string {
-  if (type === 'reaction') return 'Réaction'
-  if (type === 'copy') return 'BPC'
-  return 'Fab'
+  if (type === 'reaction') return t('industry.activity.reaction')
+  if (type === 'copy') return t('industry.activity.copy')
+  return t('industry.activity.manufacturing')
 }
 
 // Calculate runs covered by stock
@@ -42,15 +45,15 @@ function getRunsCoveredByStock(step: IndustryProjectStep | undefined): number {
 
 function stepStatusLabel(step: IndustryProjectStep | undefined): string {
   if (!step) return '-'
-  if (step.inStock) return 'En stock'
+  if (step.inStock) return t('industry.step.inStock')
   if (step.inStockQuantity > 0) {
     const runsCovered = getRunsCoveredByStock(step)
-    return runsCovered >= step.runs ? 'En stock' : `${runsCovered}/${step.runs} runs`
+    return runsCovered >= step.runs ? t('industry.step.inStock') : `${runsCovered}/${step.runs} runs`
   }
-  if (step.purchased) return 'Acheté'
-  if (step.esiJobStatus === 'active') return 'En cours'
-  if (step.esiJobStatus === 'delivered' || step.esiJobStatus === 'ready') return 'Terminé'
-  return 'À lancer'
+  if (step.purchased) return t('industry.step.purchased')
+  if (step.esiJobStatus === 'active') return t('industry.stepStatus.active')
+  if (step.esiJobStatus === 'delivered' || step.esiJobStatus === 'ready') return t('industry.stepStatus.completed')
+  return t('industry.stepStatus.toLaunch')
 }
 
 function stepStatusClass(step: IndustryProjectStep | undefined): string {
@@ -112,7 +115,7 @@ function onToggle(step: IndustryProjectStep) {
               @change="onToggle(findStep(tree)!)"
               class="w-4 h-4 rounded border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500 focus:ring-offset-slate-900 disabled:cursor-not-allowed"
             />
-            <span class="text-xs text-slate-400">Acheté</span>
+            <span class="text-xs text-slate-400">{{ t('industry.step.purchased') }}</span>
           </label>
         </template>
       </div>

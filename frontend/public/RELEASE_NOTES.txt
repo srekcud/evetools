@@ -3,6 +3,29 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.7.0 (2026-02-14)
+--------------------------------------------------------------------------------
+
+### Internationalisation (i18n)
+- Support bilingue francais/anglais sur l'ensemble du site (vue-i18n v11)
+- Selecteur de langue FR/EN dans la modale de configuration
+- Detection automatique de la langue du navigateur
+- ~1050 cles de traduction couvrant toutes les vues et composants
+- Messages Mercure backend convertis en anglais neutre
+
+### Refactoring composants
+- Decomposition des 6 vues volumineuses en composants (pattern Container/Presentational)
+  - Escalations : 1751 -> 523 lignes (-70%)
+  - Ledger : 1358 -> 191 lignes (-86%)
+  - Planetary Interaction : 1266 -> 249 lignes (-80%)
+  - Characters : 811 -> 487 lignes (-40%)
+  - Admin : 775 -> 280 lignes (-64%)
+  - Assets : 660 -> 447 lignes (-32%)
+- 36 nouveaux fichiers : composants, composables, constantes
+- Composants generiques reutilisables : ConfirmModal, ToastContainer, useToast, useContextMenu
+- Composables extraits : usePlanetaryTimers, usePlanetaryHelpers, useEscalationTimers, useEscalationHelpers, useMiningPricing
+
+--------------------------------------------------------------------------------
 Version 0.6.5 (2026-02-14)
 --------------------------------------------------------------------------------
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Line } from 'vue-chartjs'
 import {
   Chart as ChartJS,
@@ -25,6 +26,8 @@ ChartJS.register(
   Filler
 )
 
+const { t } = useI18n()
+
 const props = defineProps<{
   data: DailyStats[]
 }>()
@@ -36,7 +39,7 @@ const chartData = computed(() => ({
   }),
   datasets: [
     {
-      label: 'Total Income',
+      label: t('pve.charts.totalIncome'),
       data: props.data.map((d) => d.income / 1_000_000_000),
       borderColor: '#06b6d4', // cyan-500
       backgroundColor: 'rgba(6, 182, 212, 0.1)',
@@ -51,7 +54,7 @@ const chartData = computed(() => ({
       tension: 0.3,
     },
     {
-      label: 'Loot Sales',
+      label: t('pve.charts.lootSales'),
       data: props.data.map((d) => d.lootSales / 1_000_000_000),
       borderColor: '#f59e0b', // amber-500
       backgroundColor: 'transparent',
@@ -102,7 +105,7 @@ const chartOptions = {
 
 <template>
   <div class="bg-gray-800 rounded-lg p-4">
-    <h3 class="text-lg font-medium text-white mb-4">Income Over Time</h3>
+    <h3 class="text-lg font-medium text-white mb-4">{{ t('pve.charts.incomeOverTime') }}</h3>
     <div class="h-64">
       <Line :data="chartData" :options="chartOptions" />
     </div>

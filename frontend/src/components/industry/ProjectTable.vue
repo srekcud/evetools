@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useIndustryStore, type IndustryProject } from '@/stores/industry'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { parseIskValue } from '@/composables/useIskParser'
+
+const { t } = useI18n()
 
 const emit = defineEmits<{
   'view-project': [id: string]
@@ -117,18 +120,18 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
     <table class="w-full text-sm">
       <thead>
         <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
-          <th class="text-left py-3 px-3">Produit</th>
+          <th class="text-left py-3 px-3">{{ t('industry.table.product') }}</th>
           <th class="text-left py-3 px-2">Runs</th>
           <th class="text-left py-3 px-2">ME</th>
           <th class="text-left py-3 px-2">TE</th>
-          <th class="text-center py-3 px-2">Perso</th>
+          <th class="text-center py-3 px-2">{{ t('industry.table.personal') }}</th>
           <th class="text-right py-3 px-2">BPC Kit</th>
-          <th class="text-right py-3 px-2">Matériaux</th>
-          <th class="text-right py-3 px-2">Transport</th>
+          <th class="text-right py-3 px-2">{{ t('industry.table.materials') }}</th>
+          <th class="text-right py-3 px-2">{{ t('industry.table.transport') }}</th>
           <th class="text-right py-3 px-2">Jobs</th>
-          <th class="text-right py-3 px-2">Taxes</th>
-          <th class="text-right py-3 px-2">Vente</th>
-          <th class="text-right py-3 px-2">Profit</th>
+          <th class="text-right py-3 px-2">{{ t('industry.table.taxes') }}</th>
+          <th class="text-right py-3 px-2">{{ t('industry.table.sell') }}</th>
+          <th class="text-right py-3 px-2">{{ t('industry.table.profit') }}</th>
           <th class="text-right py-3 px-2">%</th>
           <th class="text-center py-3 px-2">Status</th>
           <th class="text-center py-3 px-2"></th>
@@ -173,7 +176,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
           <!-- Runs (editable if not completed, or show 'Multi' for multi-product) -->
           <td class="py-3 px-2">
             <template v-if="project.rootProducts && project.rootProducts.length > 1">
-              <span class="text-slate-500 text-xs" title="Plusieurs produits">Multi</span>
+              <span class="text-slate-500 text-xs" :title="t('industry.table.multipleProducts')">Multi</span>
             </template>
             <template v-else>
               <input
@@ -194,7 +197,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
                   'text-slate-300',
                   project.status !== 'completed' ? 'cursor-pointer hover:text-cyan-400' : ''
                 ]"
-                :title="project.status !== 'completed' ? 'Double-cliquer pour modifier' : 'Projet terminé'"
+                :title="project.status !== 'completed' ? t('industry.table.doubleClickEdit') : t('industry.table.projectCompleted')"
               >
                 {{ project.runs }}
               </span>
@@ -219,9 +222,9 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
                   : 'bg-slate-600/20 text-slate-500',
                 project.status === 'completed' ? 'opacity-50 cursor-not-allowed' : ''
               ]"
-              :title="project.status === 'completed' ? 'Projet terminé' : (project.personalUse ? 'Usage personnel' : 'À vendre')"
+              :title="project.status === 'completed' ? t('industry.table.projectCompleted') : (project.personalUse ? t('industry.table.personalUse') : t('industry.table.forSale'))"
             >
-              {{ project.personalUse ? 'Perso' : 'Vente' }}
+              {{ project.personalUse ? t('industry.table.personalShort') : t('industry.table.saleShort') }}
             </button>
           </td>
 
@@ -289,7 +292,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
                   'font-mono text-slate-300',
                   project.status !== 'completed' ? 'editable' : ''
                 ]"
-                :title="project.status !== 'completed' ? 'Double-cliquer pour modifier' : 'Projet terminé'"
+                :title="project.status !== 'completed' ? t('industry.table.doubleClickEdit') : t('industry.table.projectCompleted')"
               >
                 {{ formatValue((project as Record<string, unknown>)[field] as number | null) }}
               </span>
@@ -325,7 +328,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
                   : 'bg-cyan-500/20 text-cyan-400',
               ]"
             >
-              {{ project.status === 'completed' ? 'Terminé' : 'Actif' }}
+              {{ project.status === 'completed' ? t('industry.stepStatus.completed') : t('common.status.active') }}
             </button>
           </td>
 
@@ -335,7 +338,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
               <button
                 @click="emit('view-project', project.id)"
                 class="p-1 hover:bg-slate-700 rounded text-slate-400 hover:text-cyan-400"
-                title="Détails"
+                :title="t('industry.table.details')"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -345,7 +348,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
               <button
                 @click="emit('duplicate-project', project)"
                 class="p-1 hover:bg-slate-700 rounded text-slate-400 hover:text-cyan-400"
-                title="Dupliquer"
+                :title="t('industry.table.duplicate')"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -354,7 +357,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
               <button
                 @click="deleteProject(project.id)"
                 class="p-1 hover:bg-red-500/20 rounded text-slate-400 hover:text-red-400"
-                title="Supprimer"
+                :title="t('common.actions.delete')"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -367,7 +370,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
       <!-- Total row -->
       <tfoot v-if="store.projects.length > 0">
         <tr class="border-t border-slate-600 font-semibold text-slate-200">
-          <td colspan="11" class="py-3 px-3 text-right">Total Profit</td>
+          <td colspan="11" class="py-3 px-3 text-right">{{ t('industry.table.totalProfit') }}</td>
           <td class="py-3 px-2 text-right font-mono" :class="profitClass(store.totalProfit)">
             {{ formatValue(store.totalProfit) }}
           </td>
@@ -377,7 +380,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
     </table>
 
     <div v-if="store.projects.length === 0" class="text-center py-12 text-slate-500">
-      Aucun projet. Créez votre premier projet de construction ci-dessus.
+      {{ t('industry.project.noProjectsDescription') }}
     </div>
   </div>
 </template>

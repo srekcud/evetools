@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useIndustryStore, type SearchResult } from '@/stores/industry'
+
+const { t } = useI18n()
 
 const emit = defineEmits<{
   select: [result: SearchResult]
@@ -56,7 +59,7 @@ defineExpose({ clear })
       @focus="showDropdown = store.searchResults.length > 0"
       @blur="onBlur"
       type="text"
-      placeholder="Rechercher un produit (ex: Nomad, Raven...)"
+      :placeholder="t('industry.createProject.searchPlaceholder')"
       class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-cyan-500 pr-10"
     />
     <svg

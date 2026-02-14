@@ -82,7 +82,7 @@ class IndustryProjectService
         $userId = $user->getId()?->toRfc4122();
 
         if ($userId !== null) {
-            $this->mercurePublisher->syncStarted($userId, 'industry-project', 'Régénération...');
+            $this->mercurePublisher->syncStarted($userId, 'industry-project', 'Regenerating steps...');
         }
 
         try {
@@ -111,7 +111,7 @@ class IndustryProjectService
             $this->entityManager->flush();
 
             if ($userId !== null) {
-                $this->mercurePublisher->syncCompleted($userId, 'industry-project', 'Étapes régénérées', [
+                $this->mercurePublisher->syncCompleted($userId, 'industry-project', 'Steps regenerated', [
                     'projectId' => $project->getId()->toRfc4122(),
                     'stepsCount' => count($rawSteps),
                 ]);

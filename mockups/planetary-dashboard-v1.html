@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EVE Tools - Planetary Interaction (V1)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
+
+  body {
+    font-family: 'Rajdhani', sans-serif;
+    background: #020617;
+    color: #e2e8f0;
+  }
+
+  .font-mono-tech { font-family: 'Share Tech Mono', monospace; }
+
+  /* Animated background grid */
+  .bg-grid {
+    background-image:
+      linear-gradient(rgba(6,182,212,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(6,182,212,0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+  }
+
+  /* Planet type glow effect */
+  .planet-glow {
+    box-shadow: 0 0 12px var(--glow-color, rgba(6,182,212,0.2));
+  }
+
+  /* Timer pulse for expiring soon */
+  @keyframes urgentPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .timer-urgent { animation: urgentPulse 1.5s ease-in-out infinite; }
+
+  /* Countdown tick animation */
+  @keyframes countTick {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+
+  /* Orbital ring animation */
+  @keyframes orbit {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  .orbit-ring { animation: orbit 20s linear infinite; }
+  .orbit-ring-reverse { animation: orbit 30s linear infinite reverse; }
+
+  /* Stale data shimmer */
+  @keyframes staleShimmer {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  .stale-badge {
+    background: linear-gradient(90deg, #f59e0b, #d97706, #f59e0b);
+    background-size: 200% 100%;
+    animation: staleShimmer 3s ease infinite;
+  }
+
+  /* Expand transition */
+  .expand-enter { max-height: 0; opacity: 0; overflow: hidden; }
+  .expand-active { max-height: 800px; opacity: 1; transition: max-height 0.4s ease, opacity 0.3s ease; }
+
+  /* Scan line effect on KPI */
+  .scan-line::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(6,182,212,0.4), transparent);
+    animation: scanDown 4s linear infinite;
+  }
+  @keyframes scanDown {
+    0% { top: 0; opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { top: 100%; opacity: 0; }
+  }
+
+  /* Subtle card hover */
+  .colony-card {
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+  }
+  .colony-card:hover {
+    background: rgba(30, 41, 59, 0.5);
+    border-left-color: rgba(6, 182, 212, 0.5);
+  }
+  .colony-card.expanded {
+    border-left-color: rgb(6, 182, 212);
+    background: rgba(30, 41, 59, 0.5);
+  }
+
+  /* Timer digits styling */
+  .timer-digit {
+    display: inline-block;
+    min-width: 1.5ch;
+    text-align: center;
+  }
+
+  /* Production chain connector lines */
+  .chain-connector {
+    position: relative;
+  }
+  .chain-connector::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: -12px;
+    width: 12px;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(6,182,212,0.5), rgba(6,182,212,0.1));
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #0a0c0f; }
+  ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #475569; }
+</style>
+</head>
+<body class="min-h-screen bg-grid">
+
+<!-- Ambient background -->
+<div class="fixed inset-0 overflow-hidden pointer-events-none">
+  <div class="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-radial from-cyan-900/20 via-transparent to-transparent" style="animation: pulse 8s ease-in-out infinite;"></div>
+  <div class="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-radial from-indigo-900/15 via-transparent to-transparent" style="animation: pulse 12s ease-in-out infinite;"></div>
+  <!-- Planet ambient glow -->
+  <div class="absolute top-20 right-20 w-64 h-64 rounded-full bg-teal-500/5 blur-3xl"></div>
+</div>
+
+<div class="relative max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+  <!-- ============ HEADER ============ -->
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-4">
+      <!-- Planet icon -->
+      <div class="relative w-10 h-10">
+        <svg class="w-10 h-10 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+        </svg>
+        <!-- Orbital ring decoration -->
+        <div class="absolute inset-[-4px] border border-cyan-500/20 rounded-full orbit-ring"></div>
+      </div>
+      <div>
+        <div class="flex items-center gap-3">
+          <h1 class="text-2xl font-bold text-white tracking-wide">Planetary Interaction</h1>
+          <span class="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30 font-medium uppercase tracking-wider">Version 1 -- Stylisee</span>
+        </div>
+        <p class="text-sm text-slate-500 -mt-0.5">Gestion des colonies PI</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-xs text-slate-500">Derniere sync : <span class="text-slate-400">il y a 12 min</span></span>
+      <button class="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-semibold transition-colors" title="Met &agrave; jour le cache local depuis l'ESI. Les donn&eacute;es refl&egrave;tent votre derni&egrave;re interaction en jeu.">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        Synchroniser
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ KPI CARDS ============ -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+
+    <!-- Colonies -->
+    <div class="relative bg-slate-900 rounded-xl p-5 border border-slate-800 overflow-hidden scan-line">
+      <div class="flex items-center justify-between">
+        <span class="text-slate-400 text-sm font-medium uppercase tracking-wider">Colonies</span>
+        <svg class="w-5 h-5 text-cyan-400/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9" />
+        </svg>
+      </div>
+      <div class="mt-2 text-3xl font-bold text-white font-mono-tech">6</div>
+      <div class="mt-1 text-xs text-slate-500">sur 2 personnages</div>
+    </div>
+
+    <!-- Extracteurs actifs -->
+    <div class="relative bg-slate-900 rounded-xl p-5 border border-emerald-500/20 overflow-hidden">
+      <div class="flex items-center justify-between">
+        <span class="text-emerald-400 text-sm font-medium uppercase tracking-wider">Extracteurs actifs</span>
+        <svg class="w-5 h-5 text-emerald-400/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      </div>
+      <div class="mt-2 flex items-baseline gap-3">
+        <span class="text-3xl font-bold text-emerald-400 font-mono-tech">8</span>
+        <span class="text-sm text-red-400 font-medium">2 expires</span>
+      </div>
+      <div class="mt-1 text-xs text-slate-500">10 extracteurs au total</div>
+    </div>
+
+    <!-- Expirent bientot -->
+    <div class="relative bg-slate-900 rounded-xl p-5 border border-amber-500/20 overflow-hidden">
+      <div class="flex items-center justify-between">
+        <span class="text-amber-400 text-sm font-medium uppercase tracking-wider">Expirent bientot</span>
+        <svg class="w-5 h-5 text-amber-400/60 timer-urgent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+      <div class="mt-2 text-3xl font-bold text-amber-400 font-mono-tech">3</div>
+      <div class="mt-1 text-xs text-slate-500">dans les prochaines 24h</div>
+    </div>
+
+    <!-- Production theorique -->
+    <div class="relative bg-slate-900 rounded-xl p-5 border border-cyan-500/20 overflow-hidden">
+      <div class="flex items-center justify-between">
+        <span class="text-cyan-400 text-sm font-medium uppercase tracking-wider">Production theorique/jour</span>
+        <svg class="w-5 h-5 text-cyan-400/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+        </svg>
+      </div>
+      <div class="mt-2 text-3xl font-bold text-cyan-400 font-mono-tech">45.2M</div>
+      <div class="mt-1 text-xs text-slate-500">ISK / jour (base sur le setup actuel)</div>
+    </div>
+  </div>
+
+  <!-- ============ ALERTS BANNER ============ -->
+  <div class="flex flex-wrap gap-2">
+    <div class="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 border border-red-500/30 rounded-lg text-sm">
+      <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+      <span class="text-red-400">2 extracteurs expires</span>
+      <span class="text-red-300/60">-</span>
+      <span class="text-red-300/80 text-xs">Ersjansen V (Barren), Ersjansen VI (Gas)</span>
+    </div>
+    <div class="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-lg text-sm">
+      <div class="w-2 h-2 rounded-full bg-amber-500 timer-urgent"></div>
+      <span class="text-amber-400">3 expirent dans moins de 24h</span>
+    </div>
+  </div>
+
+  <!-- ============ PRODUCTION SUMMARY BY TIER ============ -->
+  <div class="bg-slate-900 rounded-xl border border-slate-800 p-5">
+    <h3 class="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+      <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+      Production globale par tier
+    </h3>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm" id="tier-table">
+        <thead>
+          <tr class="text-xs text-slate-500 uppercase tracking-wider">
+            <th class="text-left pb-3 font-medium w-6"></th>
+            <th class="text-left pb-3 font-medium">Tier</th>
+            <th class="text-right pb-3 font-medium">Produits</th>
+            <th class="text-right pb-3 font-medium">Volume / jour</th>
+            <th class="text-right pb-3 font-medium">ISK / jour</th>
+            <th class="text-right pb-3 font-medium">% total</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800">
+
+          <!-- P0 Row -->
+          <tr class="tier-row cursor-pointer hover:bg-slate-800/30 transition-colors" onclick="toggleTier('p0')">
+            <td class="py-2.5 pr-1">
+              <svg class="w-4 h-4 text-slate-500 transition-transform duration-200" id="chevron-p0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+            </td>
+            <td class="py-2.5">
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-600/50 text-slate-300 border border-slate-600/50">P0</span>
+                <span class="text-slate-400">Raw</span>
+              </div>
+            </td>
+            <td class="py-2.5 text-right text-white font-medium">5</td>
+            <td class="py-2.5 text-right text-slate-300 font-mono-tech">155,520</td>
+            <td class="py-2.5 text-right text-slate-500">-</td>
+            <td class="py-2.5 text-right text-slate-500">-</td>
+          </tr>
+          <!-- P0 Detail -->
+          <tr class="hidden" id="detail-p0">
+            <td></td>
+            <td colspan="5" class="py-2 pl-2">
+              <div class="bg-slate-800/50 rounded-lg p-3 space-y-1.5">
+                <div class="flex items-center justify-between text-xs">
+                  <div class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span><span class="text-slate-300">Base Metals</span></div>
+                  <div class="flex items-center gap-4"><span class="text-slate-400">2 extracteurs</span><span class="text-slate-300 font-mono-tech">34,560/j</span></div>
+                </div>
+                <div class="flex items-center justify-between text-xs">
+                  <div class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span><span class="text-slate-300">Aqueous Liquids</span></div>
+                  <div class="flex items-center gap-4"><span class="text-slate-400">2 extracteurs</span><span class="text-slate-300 font-mono-tech">34,560/j</span></div>
+                </div>
+                <div class="flex items-center justify-between text-xs">
+                  <div class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span><span class="text-slate-300">Noble Metals</span></div>
+                  <div class="flex items-center gap-4"><span class="text-slate-400">2 extracteurs</span><span class="text-slate-300 font-mono-tech">34,560/j</span></div>
+                </div>
+                <div class="flex items-center justify-between text-xs">
+                  <div class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span><span class="text-slate-300">Non-CS Crystals</span></div>
+                  <div class="flex items-center gap-4"><span class="text-slate-400">2 extracteurs</span><span class="text-slate-300 font-mono-tech">25,920/j</span></div>
+                </div>
+                <div class="flex items-center justify-between text-xs">
+                  <div class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-red-400"></span><span class="text-slate-300">Felsic Magma</span></div>
+                  <div class="flex items-center gap-4"><span class="text-slate-400">2 extracteurs</span><span class="text-slate-300 font-mono-tech">25,920/j</span></div>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <!-- P1 Row -->
+          <tr class="tier-row cursor-pointer hover:bg-slate-800/30 transition-colors" onclick="toggleTier('p1')">
+            <td class="py-2.5 pr-1">
+              <svg class="w-4 h-4 text-slate-500 transition-transform duration-200" id="chevron-p1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+            </td>
+            <td class="py-2.5">
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">P1</span>
+                <span class="text-slate-400">Processed</span>
+              </div>
+            </td>
+            <td class="py-2.5 text-right text-white font-medium">6</td>
+            <td class="py-2.5 text-right text-slate-300 font-mono-tech">5,760</td>
+            <td class="py-2.5 text-right text-cyan-400 font-medium">32.4M</td>
+            <td class="py-2.5 text-right text-slate-300">71.7%</td>
+          </tr>
+          <!-- P1 Detail -->
+          <tr class="hidden" id="detail-p1">
+            <td></td>
+            <td colspan="5" class="py-2 pl-2">
+              <div class="bg-slate-800/50 rounded-lg p-3">
+                <div class="flex items-center gap-4 text-[10px] text-slate-500 uppercase tracking-wider mb-2 px-1">
+                  <span class="flex-1">Produit</span>
+                  <span class="w-16 text-right">Input P0</span>
+                  <span class="w-14 text-right">Sortie</span>
+                  <span class="w-20 text-right">ISK/j</span>
+                  <span class="w-24 text-right">Supply P0</span>
+                </div>
+                <div class="space-y-1.5">
+                  <!-- Reactive Metals: needs 28,800 Base Metals/j, P0 produces 34,560 → surplus +5,760 -->
+                  <div class="flex items-center gap-4 text-xs px-1">
+                    <div class="flex items-center gap-2 flex-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span><span class="text-slate-300">Reactive Metals</span><span class="text-slate-600 text-[10px]">&larr; Base Metals</span></div>
+                    <span class="w-16 text-right text-slate-500 font-mono-tech">28,800</span>
+                    <span class="w-14 text-right text-slate-400 font-mono-tech">960/j</span>
+                    <span class="w-20 text-right text-cyan-400 font-mono-tech">5.4M</span>
+                    <div class="w-24 flex items-center gap-1.5 justify-end"><span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span><span class="text-blue-400 font-mono-tech">+5,760</span></div>
+                  </div>
+                  <!-- Water: needs 28,800 Aqueous Liquids/j, P0 produces 34,560 → surplus +5,760 -->
+                  <div class="flex items-center gap-4 text-xs px-1">
+                    <div class="flex items-center gap-2 flex-1"><span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span><span class="text-slate-300">Water</span><span class="text-slate-600 text-[10px]">&larr; Aqueous Liquids</span></div>
+                    <span class="w-16 text-right text-slate-500 font-mono-tech">28,800</span>
+                    <span class="w-14 text-right text-slate-400 font-mono-tech">960/j</span>
+                    <span class="w-20 text-right text-cyan-400 font-mono-tech">5.4M</span>
+                    <div class="w-24 flex items-center gap-1.5 justify-end"><span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span><span class="text-blue-400 font-mono-tech">+5,760</span></div>
+                  </div>
+                  <!-- Precious Metals: needs 34,560, P0 produces 34,560 → exact match -->
+                  <div class="flex items-center gap-4 text-xs px-1">
+                    <div class="flex items-center gap-2 flex-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span><span class="text-slate-300">Precious Metals</span><span class="text-slate-600 text-[10px]">&larr; Noble Metals</span></div>
+                    <span class="w-16 text-right text-slate-500 font-mono-tech">34,560</span>
+                    <span class="w-14 text-right text-slate-400 font-mono-tech">960/j</span>
+                    <span class="w-20 text-right text-cyan-400 font-mono-tech">5.4M</span>
+                    <div class="w-24 flex items-center gap-1.5 justify-end"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span><span class="text-emerald-400 font-mono-tech">0</span></div>
+                  </div>
+                  <!-- Chiral Structures: needs 28,800, P0 produces 25,920 → deficit -2,880 -->
+                  <div class="flex items-center gap-4 text-xs px-1">
+                    <div class="flex items-center gap-2 flex-1"><span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span><span class="text-slate-300">Chiral Structures</span><span class="text-slate-600 text-[10px]">&larr; Non-CS Crystals</span></div>
+                    <span class="w-16 text-right text-slate-500 font-mono-tech">28,800</span>
+                    <span class="w-14 text-right text-slate-400 font-mono-tech">960/j</span>
+                    <span class="w-20 text-right text-cyan-400 font-mono-tech">5.4M</span>
+                    <div class="w-24 flex items-center gap-1.5 justify-end"><span class="w-1.5 h-1.5 rounded-full bg-red-400"></span><span class="text-red-400 font-mono-tech">-2,880</span></div>
+                  </div>
+                  <!-- Silicon: needs 28,800, P0 produces 25,920 → deficit -2,880 -->
+                  <div class="flex items-center gap-4 text-xs px-1">
+                    <div class="flex items-center gap-2 flex-1"><span class="w-1.5 h-1.5 rounded-full bg-red-400"></span><span class="text-slate-300">Silicon</span><span class="text-slate-600 text-[10px]">&larr; Felsic Magma</span></div>
+                    <span class="w-16 text-right text-slate-500 font-mono-tech">28,800</span>
+                    <span class="w-14 text-right text-slate-400 font-mono-tech">960/j</span>
+                    <span class="w-20 text-right text-cyan-400 font-mono-tech">5.4M</span>
+                    <div class="w-24 flex items-center gap-1.5 justify-end"><span class="w-1.5 h-1.5 rounded-full bg-red-400"></span><span class="text-red-400 font-mono-tech">-2,880</span></div>
+                  </div>
+                  <!-- Toxic Metals: needs 28,800, no P0 extractor → big deficit -->
+                  <div class="flex items-center gap-4 text-xs px-1">
+                    <div class="flex items-center gap-2 flex-1"><span class="w-1.5 h-1.5 rounded-full bg-teal-400"></span><span class="text-slate-300">Toxic Metals</span><span class="text-red-400/60 text-[10px]">&larr; aucun extracteur</span></div>
+                    <span class="w-16 text-right text-slate-500 font-mono-tech">28,800</span>
+                    <span class="w-14 text-right text-slate-400 font-mono-tech">960/j</span>
+                    <span class="w-20 text-right text-cyan-400 font-mono-tech">5.4M</span>
+                    <div class="w-24 flex items-center gap-1.5 justify-end"><span class="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"></span><span class="text-red-400 font-mono-tech font-bold">-28,800</span></div>
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <!-- P2 Row -->
+          <tr class="tier-row cursor-pointer hover:bg-slate-800/30 transition-colors" onclick="toggleTier('p2')">
+            <td class="py-2.5 pr-1">
+              <svg class="w-4 h-4 text-slate-500 transition-transform duration-200" id="chevron-p2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+            </td>
+            <td class="py-2.5">
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-400 border border-indigo-500/20">P2</span>
+                <span class="text-slate-400">Refined</span>
+              </div>
+            </td>
+            <td class="py-2.5 text-right text-white font-medium">2</td>
+            <td class="py-2.5 text-right text-slate-300 font-mono-tech">240</td>
+            <td class="py-2.5 text-right text-indigo-400 font-medium">12.8M</td>
+            <td class="py-2.5 text-right text-slate-300">28.3%</td>
+          </tr>
+          <!-- P2 Detail -->
+          <tr class="hidden" id="detail-p2">
+            <td></td>
+            <td colspan="5" class="py-2 pl-2">
+              <div class="bg-slate-800/50 rounded-lg p-3">
+                <div class="flex items-center gap-4 text-[10px] text-slate-500 uppercase tracking-wider mb-2 px-1">
+                  <span class="flex-1">Produit</span>
+                  <span class="w-28 text-right">Inputs P1</span>
+                  <span class="w-14 text-right">Sortie</span>
+                  <span class="w-20 text-right">ISK/j</span>
+                  <span class="w-24 text-right">Supply P1</span>
+                </div>
+                <div class="space-y-1.5">
+                  <!-- Mechanical Parts: needs 480 Reactive Metals + 480 Precious Metals, both at 960 → surplus +480 each -->
+                  <div class="flex items-center gap-4 text-xs px-1">
+                    <div class="flex items-center gap-2 flex-1"><span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span><span class="text-slate-300">Mechanical Parts</span></div>
+                    <div class="w-28 text-right"><span class="text-slate-600 text-[10px]">Reactive Met. + Precious Met.</span></div>
+                    <span class="w-14 text-right text-slate-400 font-mono-tech">120/j</span>
+                    <span class="w-20 text-right text-indigo-400 font-mono-tech">6.4M</span>
+                    <div class="w-24 flex items-center gap-1.5 justify-end"><span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span><span class="text-blue-400 font-mono-tech">+480</span></div>
+                  </div>
+                  <!-- Consumer Electronics: needs 480 Chiral + 480 Toxic Metals, Toxic in big deficit → deficit -->
+                  <div class="flex items-center gap-4 text-xs px-1">
+                    <div class="flex items-center gap-2 flex-1"><span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span><span class="text-slate-300">Consumer Electronics</span></div>
+                    <div class="w-28 text-right"><span class="text-slate-600 text-[10px]">Chiral Str. + Toxic Met.</span></div>
+                    <span class="w-14 text-right text-slate-400 font-mono-tech">120/j</span>
+                    <span class="w-20 text-right text-indigo-400 font-mono-tech">6.4M</span>
+                    <div class="w-24 flex items-center gap-1.5 justify-end"><span class="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"></span><span class="text-red-400 font-mono-tech font-bold">-480</span></div>
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <!-- P3 Row -->
+          <tr class="tier-row cursor-pointer hover:bg-slate-800/30 transition-colors opacity-40" onclick="toggleTier('p3')">
+            <td class="py-2.5 pr-1">
+              <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+            </td>
+            <td class="py-2.5">
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20">P3</span>
+                <span class="text-slate-400">Specialized</span>
+              </div>
+            </td>
+            <td class="py-2.5 text-right text-slate-500">0</td>
+            <td class="py-2.5 text-right text-slate-500">-</td>
+            <td class="py-2.5 text-right text-slate-500">-</td>
+            <td class="py-2.5 text-right text-slate-500">-</td>
+          </tr>
+
+          <!-- P4 Row -->
+          <tr class="tier-row cursor-pointer hover:bg-slate-800/30 transition-colors opacity-40" onclick="toggleTier('p4')">
+            <td class="py-2.5 pr-1">
+              <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+            </td>
+            <td class="py-2.5">
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-400 border border-rose-500/20">P4</span>
+                <span class="text-slate-400">Advanced</span>
+              </div>
+            </td>
+            <td class="py-2.5 text-right text-slate-500">0</td>
+            <td class="py-2.5 text-right text-slate-500">-</td>
+            <td class="py-2.5 text-right text-slate-500">-</td>
+            <td class="py-2.5 text-right text-slate-500">-</td>
+          </tr>
+
+        </tbody>
+        <tfoot>
+          <tr class="border-t border-slate-700">
+            <td></td>
+            <td class="py-3">
+              <span class="text-cyan-400 font-semibold">Total</span>
+            </td>
+            <td class="py-3 text-right text-cyan-400 font-bold">13</td>
+            <td class="py-3 text-right text-slate-500">-</td>
+            <td class="py-3 text-right text-cyan-400 font-bold font-mono-tech">45.2M</td>
+            <td class="py-3 text-right text-cyan-400 font-bold">100%</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="mt-3 pt-3 border-t border-slate-800">
+      <p class="text-[11px] text-slate-500 italic">Production th&eacute;orique : qty_per_cycle &times; (3600 / cycle_time) &times; 24, cha&icirc;n&eacute;e via schematics SDE, valoris&eacute;e aux prix Jita</p>
+    </div>
+  </div>
+
+  <!-- ============ CHARACTER: Sdu Ansen ============ -->
+  <div class="space-y-2">
+    <!-- Character Header -->
+    <div class="flex items-center gap-3 px-2">
+      <div class="w-8 h-8 rounded-full bg-slate-700 border border-slate-600 overflow-hidden flex items-center justify-center">
+        <span class="text-xs text-slate-400 font-bold">SA</span>
+      </div>
+      <h2 class="text-lg font-semibold text-white">Sdu Ansen</h2>
+      <span class="text-xs px-2 py-0.5 bg-slate-800 rounded-full text-slate-400">3 colonies</span>
+      <div class="flex-1 h-px bg-slate-800"></div>
+    </div>
+
+    <!-- Colony cards -->
+    <div class="space-y-1">
+
+      <!-- Colony 1: Temperate - Normal state -->
+      <div class="colony-card bg-slate-900 rounded-xl border border-slate-800 overflow-hidden cursor-pointer" onclick="this.classList.toggle('expanded'); document.getElementById('detail1').classList.toggle('hidden')">
+        <div class="px-5 py-4">
+          <div class="flex items-center gap-4">
+            <!-- Planet info -->
+            <div class="flex items-center gap-3 min-w-[240px]">
+              <div class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold" style="background: linear-gradient(135deg, #166534, #22c55e); --glow-color: rgba(34,197,94,0.3);" >
+                <span class="text-green-100">T</span>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-white font-semibold text-[15px]">Ersjansen II</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-400 font-medium uppercase tracking-wider border border-green-500/20">Temperate</span>
+                </div>
+                <div class="flex items-center gap-1.5 text-xs text-slate-500">
+                  <span>Ersjansen</span>
+                  <span class="text-slate-600">|</span>
+                  <span class="text-emerald-400 font-medium">0.7</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Upgrade level -->
+            <div class="flex items-center gap-1.5 min-w-[90px]">
+              <span class="text-xs text-slate-500 mr-1">CC Lv</span>
+              <div class="flex gap-0.5">
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-slate-700"></div>
+              </div>
+            </div>
+
+            <!-- Pins -->
+            <div class="min-w-[60px] text-center">
+              <span class="text-white font-medium">14</span>
+              <span class="text-slate-500 text-xs ml-1">pins</span>
+            </div>
+
+            <!-- Extractors -->
+            <div class="flex items-center gap-3 flex-1">
+              <div class="flex items-center gap-1.5">
+                <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
+                <span class="font-mono-tech text-emerald-400 text-sm">47:23:15</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
+                <span class="font-mono-tech text-emerald-400 text-sm">47:23:15</span>
+              </div>
+            </div>
+
+            <!-- Last update -->
+            <div class="text-right min-w-[100px]">
+              <div class="text-xs text-slate-500">MAJ il y a 8 min</div>
+            </div>
+
+            <!-- Expand -->
+            <svg class="w-5 h-5 text-slate-500 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+
+        <!-- Expanded detail -->
+        <div id="detail1" class="hidden border-t border-slate-800">
+          <div class="px-5 py-4 space-y-5">
+
+            <!-- Extractors Detail -->
+            <div>
+              <h4 class="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                Extracteurs
+              </h4>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <!-- Extractor 1 -->
+                <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                      <div class="w-7 h-7 rounded bg-slate-700 border border-slate-600 flex items-center justify-center">
+                        <span class="text-[9px] text-slate-400">P0</span>
+                      </div>
+                      <div>
+                        <span class="text-white text-sm font-medium">Aqueous Liquids</span>
+                        <div class="text-[10px] text-slate-500">Extractor Control Unit</div>
+                      </div>
+                    </div>
+                    <div class="text-right">
+                      <div class="font-mono-tech text-emerald-400 text-lg font-bold">47:23:15</div>
+                      <div class="text-[10px] text-slate-500">restant</div>
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-3 gap-2 text-xs">
+                    <div class="bg-slate-800/50 rounded px-2 py-1.5">
+                      <span class="text-slate-500 block">Cycle</span>
+                      <span class="text-white font-medium">30 min</span>
+                    </div>
+                    <div class="bg-slate-800/50 rounded px-2 py-1.5">
+                      <span class="text-slate-500 block">Qty/cycle</span>
+                      <span class="text-white font-medium">3,240</span>
+                    </div>
+                    <div class="bg-slate-800/50 rounded px-2 py-1.5">
+                      <span class="text-slate-500 block">Tetes</span>
+                      <span class="text-white font-medium">10</span>
+                    </div>
+                  </div>
+                  <div class="mt-2 flex items-center justify-between text-xs">
+                    <span class="text-slate-500">Output estime</span>
+                    <span class="text-cyan-400 font-medium">~6,480 / heure</span>
+                  </div>
+                </div>
+
+                <!-- Extractor 2 -->
+                <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                      <div class="w-7 h-7 rounded bg-slate-700 border border-slate-600 flex items-center justify-center">
+                        <span class="text-[9px] text-slate-400">P0</span>
+                      </div>
+                      <div>
+                        <span class="text-white text-sm font-medium">Carbon Compounds</span>
+                        <div class="text-[10px] text-slate-500">Extractor Control Unit</div>
+                      </div>
+                    </div>
+                    <div class="text-right">
+                      <div class="font-mono-tech text-emerald-400 text-lg font-bold">47:23:15</div>
+                      <div class="text-[10px] text-slate-500">restant</div>
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-3 gap-2 text-xs">
+                    <div class="bg-slate-800/50 rounded px-2 py-1.5">
+                      <span class="text-slate-500 block">Cycle</span>
+                      <span class="text-white font-medium">30 min</span>
+                    </div>
+                    <div class="bg-slate-800/50 rounded px-2 py-1.5">
+                      <span class="text-slate-500 block">Qty/cycle</span>
+                      <span class="text-white font-medium">2,880</span>
+                    </div>
+                    <div class="bg-slate-800/50 rounded px-2 py-1.5">
+                      <span class="text-slate-500 block">Tetes</span>
+                      <span class="text-white font-medium">10</span>
+                    </div>
+                  </div>
+                  <div class="mt-2 flex items-center justify-between text-xs">
+                    <span class="text-slate-500">Output estime</span>
+                    <span class="text-cyan-400 font-medium">~5,760 / heure</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Factories Detail -->
+            <div>
+              <h4 class="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                Factories <span class="text-xs text-slate-500 font-normal">(6)</span>
+              </h4>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="text-xs text-slate-500 uppercase tracking-wider">
+                      <th class="text-left pb-2 font-medium">Schematic</th>
+                      <th class="text-left pb-2 font-medium">Inputs</th>
+                      <th class="text-left pb-2 font-medium">Output</th>
+                      <th class="text-right pb-2 font-medium">Cycle</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-800">
+                    <tr>
+                      <td class="py-2 text-white font-medium">Bacteria</td>
+                      <td class="py-2 text-slate-400">40 Reactive Metals + 40 Biofuels</td>
+                      <td class="py-2"><span class="text-indigo-300">5 Bacteria</span> <span class="text-[10px] px-1 py-0.5 rounded bg-indigo-500/15 text-indigo-400 border border-indigo-500/20">P2</span></td>
+                      <td class="py-2 text-right text-slate-400 font-mono-tech">60 min</td>
+                    </tr>
+                    <tr>
+                      <td class="py-2 text-white font-medium">Biofuels</td>
+                      <td class="py-2 text-slate-400">3000 Carbon Compounds</td>
+                      <td class="py-2"><span class="text-cyan-300">20 Biofuels</span> <span class="text-[10px] px-1 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">P1</span></td>
+                      <td class="py-2 text-right text-slate-400 font-mono-tech">30 min</td>
+                    </tr>
+                    <tr>
+                      <td class="py-2 text-white font-medium">Reactive Metals</td>
+                      <td class="py-2 text-slate-400">3000 Base Metals</td>
+                      <td class="py-2"><span class="text-cyan-300">20 Reactive Metals</span> <span class="text-[10px] px-1 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">P1</span></td>
+                      <td class="py-2 text-right text-slate-400 font-mono-tech">30 min</td>
+                    </tr>
+                    <tr>
+                      <td class="py-2 text-white font-medium">Water</td>
+                      <td class="py-2 text-slate-400">3000 Aqueous Liquids</td>
+                      <td class="py-2"><span class="text-cyan-300">20 Water</span> <span class="text-[10px] px-1 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">P1</span></td>
+                      <td class="py-2 text-right text-slate-400 font-mono-tech">30 min</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Production Summary -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h4 class="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+                  Production theorique / jour
+                </h4>
+                <div class="bg-slate-800/50 rounded-lg border border-slate-700 divide-y divide-slate-800">
+                  <div class="flex items-center justify-between px-3 py-2">
+                    <div class="flex items-center gap-2">
+                      <span class="text-[10px] px-1 py-0.5 rounded bg-indigo-500/15 text-indigo-400 border border-indigo-500/20">P2</span>
+                      <span class="text-white text-sm">Bacteria</span>
+                    </div>
+                    <div class="text-right">
+                      <span class="text-white text-sm font-medium">120</span>
+                      <span class="text-slate-500 text-xs ml-2">~2.4M ISK</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center justify-between px-3 py-2">
+                    <div class="flex items-center gap-2">
+                      <span class="text-[10px] px-1 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">P1</span>
+                      <span class="text-white text-sm">Water</span>
+                    </div>
+                    <div class="text-right">
+                      <span class="text-white text-sm font-medium">960</span>
+                      <span class="text-slate-500 text-xs ml-2">~1.8M ISK</span>
+                    </div>
+                  </div>
+                  <div class="px-3 py-2 bg-cyan-500/5">
+                    <div class="flex items-center justify-between">
+                      <span class="text-cyan-400 text-sm font-semibold">Total / jour</span>
+                      <span class="text-cyan-400 font-bold font-mono-tech">~4.2M ISK</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Storage -->
+              <div>
+                <h4 class="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+                  Stockage
+                </h4>
+                <div class="bg-slate-800/50 rounded-lg border border-slate-700 divide-y divide-slate-800">
+                  <div class="px-3 py-2">
+                    <div class="flex items-center justify-between text-sm mb-1">
+                      <span class="text-slate-400">Launchpad</span>
+                      <span class="text-slate-300">7,240 / 10,000 m3</span>
+                    </div>
+                    <div class="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                      <div class="h-full bg-amber-500 rounded-full" style="width: 72%"></div>
+                    </div>
+                  </div>
+                  <!-- Snapshot indicator -->
+                  <div class="px-3 py-1.5 bg-amber-500/5 flex items-center gap-2">
+                    <svg class="w-3.5 h-3.5 text-amber-400/70 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <span class="text-[10px] text-amber-400/70">Snapshot du 11/02 a 14:32 -- Donnees mises a jour lors de la derniere interaction en jeu</span>
+                  </div>
+                  <div class="px-3 py-2 text-xs space-y-1">
+                    <div class="flex justify-between text-slate-400">
+                      <span>Bacteria x 480</span>
+                      <span>2,400 m3</span>
+                    </div>
+                    <div class="flex justify-between text-slate-400">
+                      <span>Water x 3,200</span>
+                      <span>3,200 m3</span>
+                    </div>
+                    <div class="flex justify-between text-slate-400">
+                      <span>Biofuels x 820</span>
+                      <span>1,640 m3</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Colony 2: Barren - Expired extractors -->
+      <div class="colony-card bg-slate-900 rounded-xl border border-red-500/20 overflow-hidden cursor-pointer" onclick="this.classList.toggle('expanded'); document.getElementById('detail2').classList.toggle('hidden')">
+        <div class="px-5 py-4">
+          <div class="flex items-center gap-4">
+            <div class="flex items-center gap-3 min-w-[240px]">
+              <div class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold" style="background: linear-gradient(135deg, #854d0e, #eab308);">
+                <span class="text-yellow-100">B</span>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-white font-semibold text-[15px]">Ersjansen V</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 font-medium uppercase tracking-wider border border-yellow-500/20">Barren</span>
+                </div>
+                <div class="flex items-center gap-1.5 text-xs text-slate-500">
+                  <span>Ersjansen</span>
+                  <span class="text-slate-600">|</span>
+                  <span class="text-emerald-400 font-medium">0.7</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1.5 min-w-[90px]">
+              <span class="text-xs text-slate-500 mr-1">CC Lv</span>
+              <div class="flex gap-0.5">
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+              </div>
+            </div>
+
+            <div class="min-w-[60px] text-center">
+              <span class="text-white font-medium">17</span>
+              <span class="text-slate-500 text-xs ml-1">pins</span>
+            </div>
+
+            <!-- Expired extractors -->
+            <div class="flex items-center gap-3 flex-1">
+              <div class="flex items-center gap-1.5">
+                <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                <span class="font-mono-tech text-red-400 text-sm font-bold">EXPIRE</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                <span class="font-mono-tech text-red-400 text-sm font-bold">EXPIRE</span>
+              </div>
+            </div>
+
+            <div class="text-right min-w-[100px]">
+              <div class="text-xs text-slate-500">MAJ il y a 2h</div>
+              <div class="text-[10px] stale-badge text-white px-1.5 py-0.5 rounded-full inline-block mt-0.5 bg-clip-text font-medium" style="background-clip: padding-box; -webkit-text-fill-color: initial;">
+                <span class="stale-badge text-[10px] text-slate-900 px-1.5 py-0.5 rounded-full font-medium">STALE</span>
+              </div>
+            </div>
+
+            <svg class="w-5 h-5 text-slate-500 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+        <div id="detail2" class="hidden border-t border-slate-800">
+          <div class="px-5 py-4 text-sm text-slate-500 italic">
+            Cliquez pour voir les details de cette colonie...
+          </div>
+        </div>
+      </div>
+
+      <!-- Colony 3: Gas - Expiring soon -->
+      <div class="colony-card bg-slate-900 rounded-xl border border-slate-800 overflow-hidden cursor-pointer">
+        <div class="px-5 py-4">
+          <div class="flex items-center gap-4">
+            <div class="flex items-center gap-3 min-w-[240px]">
+              <div class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold" style="background: linear-gradient(135deg, #581c87, #a855f7);">
+                <span class="text-purple-100">G</span>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-white font-semibold text-[15px]">Ersjansen VI</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400 font-medium uppercase tracking-wider border border-purple-500/20">Gas</span>
+                </div>
+                <div class="flex items-center gap-1.5 text-xs text-slate-500">
+                  <span>Ersjansen</span>
+                  <span class="text-slate-600">|</span>
+                  <span class="text-emerald-400 font-medium">0.7</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1.5 min-w-[90px]">
+              <span class="text-xs text-slate-500 mr-1">CC Lv</span>
+              <div class="flex gap-0.5">
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-slate-700"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-slate-700"></div>
+              </div>
+            </div>
+
+            <div class="min-w-[60px] text-center">
+              <span class="text-white font-medium">10</span>
+              <span class="text-slate-500 text-xs ml-1">pins</span>
+            </div>
+
+            <!-- Expiring soon -->
+            <div class="flex items-center gap-3 flex-1">
+              <div class="flex items-center gap-1.5">
+                <div class="w-2 h-2 rounded-full bg-amber-500 timer-urgent"></div>
+                <span class="font-mono-tech text-amber-400 text-sm">06:41:22</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <div class="w-2 h-2 rounded-full bg-amber-500 timer-urgent"></div>
+                <span class="font-mono-tech text-amber-400 text-sm">06:41:22</span>
+              </div>
+            </div>
+
+            <div class="text-right min-w-[100px]">
+              <div class="text-xs text-slate-500">MAJ il y a 15 min</div>
+            </div>
+
+            <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CHARACTER 2: Kor Aldent ============ -->
+  <div class="space-y-2">
+    <div class="flex items-center gap-3 px-2">
+      <div class="w-8 h-8 rounded-full bg-slate-700 border border-slate-600 overflow-hidden flex items-center justify-center">
+        <span class="text-xs text-slate-400 font-bold">KA</span>
+      </div>
+      <h2 class="text-lg font-semibold text-white">Kor Aldent</h2>
+      <span class="text-xs px-2 py-0.5 bg-slate-800 rounded-full text-slate-400">3 colonies</span>
+      <div class="flex-1 h-px bg-slate-800"></div>
+    </div>
+
+    <div class="space-y-1">
+
+      <!-- Lava planet -->
+      <div class="colony-card bg-slate-900 rounded-xl border border-slate-800 overflow-hidden cursor-pointer">
+        <div class="px-5 py-4">
+          <div class="flex items-center gap-4">
+            <div class="flex items-center gap-3 min-w-[240px]">
+              <div class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold" style="background: linear-gradient(135deg, #991b1b, #ef4444);">
+                <span class="text-red-100">L</span>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-white font-semibold text-[15px]">Ohide IV</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 font-medium uppercase tracking-wider border border-red-500/20">Lava</span>
+                </div>
+                <div class="flex items-center gap-1.5 text-xs text-slate-500">
+                  <span>Ohide</span>
+                  <span class="text-slate-600">|</span>
+                  <span class="text-emerald-400 font-medium">0.5</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1.5 min-w-[90px]">
+              <span class="text-xs text-slate-500 mr-1">CC Lv</span>
+              <div class="flex gap-0.5">
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+              </div>
+            </div>
+
+            <div class="min-w-[60px] text-center">
+              <span class="text-white font-medium">17</span>
+              <span class="text-slate-500 text-xs ml-1">pins</span>
+            </div>
+
+            <div class="flex items-center gap-3 flex-1">
+              <div class="flex items-center gap-1.5">
+                <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
+                <span class="font-mono-tech text-emerald-400 text-sm">71:14:08</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
+                <span class="font-mono-tech text-emerald-400 text-sm">71:14:08</span>
+              </div>
+            </div>
+
+            <div class="text-right min-w-[100px]">
+              <div class="text-xs text-slate-500">MAJ il y a 5 min</div>
+            </div>
+
+            <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Oceanic planet -->
+      <div class="colony-card bg-slate-900 rounded-xl border border-slate-800 overflow-hidden cursor-pointer">
+        <div class="px-5 py-4">
+          <div class="flex items-center gap-4">
+            <div class="flex items-center gap-3 min-w-[240px]">
+              <div class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold" style="background: linear-gradient(135deg, #1e3a5f, #3b82f6);">
+                <span class="text-blue-100">O</span>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-white font-semibold text-[15px]">Ohide VII</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 font-medium uppercase tracking-wider border border-blue-500/20">Oceanic</span>
+                </div>
+                <div class="flex items-center gap-1.5 text-xs text-slate-500">
+                  <span>Ohide</span>
+                  <span class="text-slate-600">|</span>
+                  <span class="text-emerald-400 font-medium">0.5</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1.5 min-w-[90px]">
+              <span class="text-xs text-slate-500 mr-1">CC Lv</span>
+              <div class="flex gap-0.5">
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-slate-700"></div>
+              </div>
+            </div>
+
+            <div class="min-w-[60px] text-center">
+              <span class="text-white font-medium">14</span>
+              <span class="text-slate-500 text-xs ml-1">pins</span>
+            </div>
+
+            <div class="flex items-center gap-3 flex-1">
+              <div class="flex items-center gap-1.5">
+                <div class="w-2 h-2 rounded-full bg-amber-500 timer-urgent"></div>
+                <span class="font-mono-tech text-amber-400 text-sm">18:02:44</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
+                <span class="font-mono-tech text-emerald-400 text-sm">42:02:44</span>
+              </div>
+            </div>
+
+            <div class="text-right min-w-[100px]">
+              <div class="text-xs text-slate-500">MAJ il y a 5 min</div>
+            </div>
+
+            <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ice planet -->
+      <div class="colony-card bg-slate-900 rounded-xl border border-slate-800 overflow-hidden cursor-pointer">
+        <div class="px-5 py-4">
+          <div class="flex items-center gap-4">
+            <div class="flex items-center gap-3 min-w-[240px]">
+              <div class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold" style="background: linear-gradient(135deg, #164e63, #06b6d4);">
+                <span class="text-cyan-100">I</span>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-white font-semibold text-[15px]">Ohide III</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 font-medium uppercase tracking-wider border border-cyan-500/20">Ice</span>
+                </div>
+                <div class="flex items-center gap-1.5 text-xs text-slate-500">
+                  <span>Ohide</span>
+                  <span class="text-slate-600">|</span>
+                  <span class="text-emerald-400 font-medium">0.5</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1.5 min-w-[90px]">
+              <span class="text-xs text-slate-500 mr-1">CC Lv</span>
+              <div class="flex gap-0.5">
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-cyan-400"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-slate-700"></div>
+                <div class="w-3.5 h-1.5 rounded-sm bg-slate-700"></div>
+              </div>
+            </div>
+
+            <div class="min-w-[60px] text-center">
+              <span class="text-white font-medium">10</span>
+              <span class="text-slate-500 text-xs ml-1">pins</span>
+            </div>
+
+            <div class="flex items-center gap-3 flex-1">
+              <div class="flex items-center gap-1.5">
+                <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
+                <span class="font-mono-tech text-emerald-400 text-sm">65:31:02</span>
+              </div>
+            </div>
+
+            <div class="text-right min-w-[100px]">
+              <div class="text-xs text-slate-500">MAJ il y a 5 min</div>
+            </div>
+
+            <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ============ PI TIER LEGEND ============ -->
+  <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-6 text-xs">
+        <span class="text-slate-500 uppercase tracking-wider font-medium">Tiers PI</span>
+        <div class="flex items-center gap-1.5">
+          <span class="px-1.5 py-0.5 rounded bg-slate-600/50 text-slate-300 border border-slate-600/50">P0</span>
+          <span class="text-slate-500">Raw</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">P1</span>
+          <span class="text-slate-500">Processed</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-400 border border-indigo-500/20">P2</span>
+          <span class="text-slate-500">Refined</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20">P3</span>
+          <span class="text-slate-500">Specialized</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-400 border border-rose-500/20">P4</span>
+          <span class="text-slate-500">Advanced</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 text-xs text-slate-500">
+        <div class="flex items-center gap-1.5">
+          <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
+          <span>> 24h</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <div class="w-2 h-2 rounded-full bg-amber-500"></div>
+          <span>< 24h</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <div class="w-2 h-2 rounded-full bg-red-500"></div>
+          <span>Expire</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Live timer script -->
+<script>
+  // Toggle tier detail rows
+  function toggleTier(tier) {
+    const detail = document.getElementById('detail-' + tier);
+    const chevron = document.getElementById('chevron-' + tier);
+    if (!detail) return;
+    const isHidden = detail.classList.contains('hidden');
+    detail.classList.toggle('hidden');
+    if (chevron) {
+      chevron.style.transform = isHidden ? 'rotate(90deg)' : '';
+    }
+  }
+
+  // Simulate countdown timers
+  function updateTimers() {
+    // This would be reactive in Vue.js
+    // Just demonstrating the visual concept
+  }
+  setInterval(updateTimers, 1000);
+</script>
+</body>
+</html>

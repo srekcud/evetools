@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Doughnut } from 'vue-chartjs'
 import {
   Chart as ChartJS,
@@ -10,16 +11,18 @@ import {
 
 ChartJS.register(ArcElement, Tooltip, Legend)
 
+const { t } = useI18n()
+
 const props = defineProps<{
   data: Record<string, number>
 }>()
 
-const typeLabels: Record<string, string> = {
+const typeLabels = computed<Record<string, string>>(() => ({
   fuel: 'Fuel',
-  ammo: 'Consommables',
+  ammo: t('pve.expenseTypes.ammo'),
   crab_beacon: 'CRAB Beacons',
-  other: 'Other',
-}
+  other: t('pve.expenseTypes.other'),
+}))
 
 const typeColors: Record<string, string> = {
   fuel: '#ef4444',
@@ -35,7 +38,7 @@ const chartData = computed(() => {
 
   Object.entries(props.data).forEach(([type, amount]) => {
     if (amount > 0) {
-      labels.push(typeLabels[type] || type)
+      labels.push(typeLabels.value[type] || type)
       values.push(amount / 1_000_000_000)
       colors.push(typeColors[type] || '#6b7280')
     }
@@ -82,12 +85,12 @@ const hasData = computed(() => Object.values(props.data).some((v) => v > 0))
 
 <template>
   <div class="bg-gray-800 rounded-lg p-4">
-    <h3 class="text-lg font-medium text-white mb-4">Expense Breakdown</h3>
+    <h3 class="text-lg font-medium text-white mb-4">{{ t('pve.charts.expenseBreakdown') }}</h3>
     <div v-if="hasData" class="h-64">
       <Doughnut :data="chartData" :options="chartOptions" />
     </div>
     <div v-else class="h-64 flex items-center justify-center text-gray-500">
-      No expenses recorded
+      {{ t('pve.noExpensesRecorded') }}
     </div>
   </div>
 </template>

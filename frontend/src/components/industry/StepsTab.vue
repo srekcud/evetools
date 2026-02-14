@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useIndustryStore } from '@/stores/industry'
 import { useStepsStore } from '@/stores/industry/steps'
 import { useSyncStore } from '@/stores/sync'
 import { useFormatters } from '@/composables/useFormatters'
 import StepTree from './StepTree.vue'
 import StepHierarchyTree from './StepHierarchyTree.vue'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   projectId: string
@@ -166,7 +169,7 @@ defineExpose({
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
           </svg>
-          Jobs ESI
+          {{ t('industry.stepsTab.esiJobs') }}
         </button>
       </div>
 
@@ -185,7 +188,7 @@ defineExpose({
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
             </svg>
-            Liste
+            {{ t('industry.stepsTab.list') }}
           </span>
         </button>
         <button
@@ -201,7 +204,7 @@ defineExpose({
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h4v4H3V4zm0 8h4v4H3v-4zm0 8h4v4H3v-4zm8-16h10M11 12h10M11 20h10" />
             </svg>
-            Arbre
+            {{ t('industry.stepsTab.tree') }}
           </span>
         </button>
       </div>
@@ -214,7 +217,7 @@ defineExpose({
           <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
           </svg>
-          Jobs ESI disponibles
+          {{ t('industry.stepsTab.availableEsiJobs') }}
           <span class="text-xs text-slate-500">({{ stepsStore.availableJobs.length }})</span>
         </h4>
         <button
@@ -228,28 +231,28 @@ defineExpose({
           <svg v-else class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          {{ matchJobsLoading ? 'Sync...' : 'Sync Jobs' }}
+          {{ matchJobsLoading ? t('common.actions.syncing') : t('industry.stepsTab.syncJobs') }}
         </button>
       </div>
 
       <div v-if="stepsStore.availableJobsLoading && stepsStore.availableJobs.length === 0" class="text-center py-4 text-slate-500 text-sm">
-        Chargement...
+        {{ t('common.status.loading') }}
       </div>
       <div v-else-if="stepsStore.availableJobs.length === 0" class="text-center py-4 text-slate-500 text-sm">
-        Aucun job ESI trouvé pour ce projet
+        {{ t('industry.stepsTab.noEsiJobs') }}
       </div>
       <div v-else class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
             <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-700">
-              <th class="text-left py-2 px-2">Personnage</th>
-              <th class="text-left py-2 px-2">Produit</th>
+              <th class="text-left py-2 px-2">{{ t('industry.stepsTab.character') }}</th>
+              <th class="text-left py-2 px-2">{{ t('industry.table.product') }}</th>
               <th class="text-right py-2 px-2">Runs</th>
-              <th class="text-left py-2 px-2">Statut</th>
-              <th class="text-left py-2 px-2">Début</th>
-              <th class="text-right py-2 px-2">Coût</th>
-              <th class="text-left py-2 px-2">Lié à</th>
-              <th class="text-center py-2 px-2">Action</th>
+              <th class="text-left py-2 px-2">{{ t('industry.stepsTab.status') }}</th>
+              <th class="text-left py-2 px-2">{{ t('industry.stepsTab.start') }}</th>
+              <th class="text-right py-2 px-2">{{ t('industry.stepsTab.cost') }}</th>
+              <th class="text-left py-2 px-2">{{ t('industry.stepsTab.linkedTo') }}</th>
+              <th class="text-center py-2 px-2">{{ t('industry.stepsTab.action') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -266,7 +269,7 @@ defineExpose({
                   'text-xs px-1.5 py-0.5 rounded',
                   job.status === 'active' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-emerald-500/20 text-emerald-400'
                 ]">
-                  {{ job.status === 'active' ? 'En cours' : 'Terminé' }}
+                  {{ job.status === 'active' ? t('industry.stepStatus.active') : t('industry.stepStatus.completed') }}
                 </span>
               </td>
               <td class="py-2 px-2 text-xs text-slate-500">{{ formatDateTime(job.startDate) }}</td>
@@ -283,9 +286,9 @@ defineExpose({
                   v-if="job.matchId"
                   @click="unlinkJobMatch(job.matchId!)"
                   class="px-2 py-1 text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded border border-red-500/30"
-                  title="Délier"
+                  :title="t('industry.stepsTab.unlink')"
                 >
-                  Délier
+                  {{ t('industry.stepsTab.unlink') }}
                 </button>
                 <!-- Not linked: show dropdown to link -->
                 <select
@@ -293,7 +296,7 @@ defineExpose({
                   @change="(e) => { const val = (e.target as HTMLSelectElement).value; if (val) linkJobToStep(val, job.esiJobId); (e.target as HTMLSelectElement).value = '' }"
                   class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-300 focus:outline-none focus:border-cyan-500"
                 >
-                  <option value="">Lier au step...</option>
+                  <option value="">{{ t('industry.stepsTab.linkToStep') }}</option>
                   <option
                     v-for="step in compatibleSteps(job.blueprintTypeId)"
                     :key="step.id"
@@ -328,7 +331,7 @@ defineExpose({
         />
       </div>
       <div v-else class="text-center py-8 text-slate-500">
-        Aucune étape de production
+        {{ t('industry.stepsTab.noSteps') }}
       </div>
     </div>
 
@@ -343,7 +346,7 @@ defineExpose({
         />
       </div>
       <div v-else class="text-center py-8 text-slate-500">
-        Arbre de production non disponible
+        {{ t('industry.stepsTab.treeUnavailable') }}
       </div>
     </div>
   </div>

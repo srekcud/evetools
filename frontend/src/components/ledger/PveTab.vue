@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { authFetch, safeJsonParse } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { usePveStore } from '@/stores/pve'
@@ -18,6 +19,7 @@ const emit = defineEmits<{
   sync: []
 }>()
 
+const { t } = useI18n()
 const authStore = useAuthStore()
 const pveStore = usePveStore()
 const { formatIskFull, formatDate, formatDateTime } = useFormatters()
@@ -171,12 +173,12 @@ const seenTransactionIds = ref<Set<number>>(new Set())
 const declinedContractsCount = ref(0)
 const declinedTransactionsCount = ref(0)
 
-const expenseTypes = [
+const expenseTypes = computed(() => [
   { value: 'fuel', label: 'Fuel' },
-  { value: 'ammo', label: 'Consommables' },
+  { value: 'ammo', label: t('pve.expenseTypes.ammo') },
   { value: 'crab_beacon', label: 'Crab Beacon' },
-  { value: 'other', label: 'Autre' },
-]
+  { value: 'other', label: t('pve.expenseTypes.other') },
+])
 
 async function fetchPveData() {
   isLoading.value = true
@@ -191,7 +193,7 @@ async function fetchPveData() {
 
     pveData.value = await safeJsonParse(response)
   } catch (e) {
-    error.value = 'Erreur lors du chargement des donnees PVE'
+    error.value = t('pve.errors.loadFailed')
     console.error(e)
   } finally {
     isLoading.value = false
@@ -238,7 +240,7 @@ async function syncPveData() {
     await Promise.all([fetchPveData(), fetchExpenses()])
     emit('sync')
   } catch (e: unknown) {
-    error.value = e instanceof Error ? e.message : 'Erreur lors de la synchronisation'
+    error.value = e instanceof Error ? e.message : t('common.errors.syncFailed')
     console.error(e)
   } finally {
     isSyncing.value = false
@@ -249,10 +251,10 @@ async function addExpense() {
   formErrors.value = {}
 
   if (!newExpense.value.description.trim()) {
-    formErrors.value.description = 'Description requise'
+    formErrors.value.description = t('pve.validation.descriptionRequired')
   }
   if (!newExpense.value.amount || parseFloat(newExpense.value.amount) <= 0) {
-    formErrors.value.amount = 'Montant requis'
+    formErrors.value.amount = t('pve.validation.amountRequired')
   }
 
   if (Object.keys(formErrors.value).length > 0) return
@@ -286,7 +288,7 @@ async function addExpense() {
 
     await Promise.all([fetchPveData(), fetchExpenses()])
   } catch (e) {
-    error.value = 'Erreur lors de l\'ajout de la depense'
+    error.value = t('pve.errors.addExpenseFailed')
     console.error(e)
   } finally {
     isSubmitting.value = false
@@ -308,13 +310,13 @@ async function deleteExpense(id: string) {
 
     await Promise.all([fetchPveData(), fetchExpenses()])
   } catch (e) {
-    error.value = 'Erreur lors de la suppression'
+    error.value = t('common.errors.deleteFailed')
     console.error(e)
   }
 }
 
 function getExpenseTypeLabel(type: string): string {
-  return expenseTypes.find(t => t.value === type)?.label || type
+  return expenseTypes.value.find(et => et.value === type)?.label || type
 }
 
 function getExpenseTypeColor(type: string): string {
@@ -517,7 +519,7 @@ async function scanContracts() {
     scanResults.value = data
     showScanResults.value = true
   } catch (e: unknown) {
-    error.value = e instanceof Error ? e.message : 'Erreur lors du scan des contrats'
+    error.value = e instanceof Error ? e.message : t('pve.errors.scanFailed')
     console.error(e)
   } finally {
     isScanning.value = false
@@ -581,7 +583,7 @@ async function importSelectedExpenses() {
 
     await Promise.all([fetchPveData(), fetchExpenses()])
   } catch (e) {
-    error.value = 'Erreur lors de l\'import des depenses'
+    error.value = t('pve.errors.importFailed')
     console.error(e)
   } finally {
     isImporting.value = false
@@ -598,10 +600,10 @@ async function addLootSale() {
   lootSaleFormErrors.value = {}
 
   if (!newLootSale.value.description.trim()) {
-    lootSaleFormErrors.value.description = 'Description requise'
+    lootSaleFormErrors.value.description = t('pve.validation.descriptionRequired')
   }
   if (!newLootSale.value.amount || parseFloat(newLootSale.value.amount) <= 0) {
-    lootSaleFormErrors.value.amount = 'Montant requis'
+    lootSaleFormErrors.value.amount = t('pve.validation.amountRequired')
   }
 
   if (Object.keys(lootSaleFormErrors.value).length > 0) return
@@ -633,7 +635,7 @@ async function addLootSale() {
 
     await fetchPveData()
   } catch (e) {
-    error.value = 'Erreur lors de l\'ajout de la vente'
+    error.value = t('pve.errors.addLootSaleFailed')
     console.error(e)
   } finally {
     isSubmittingLootSale.value = false
@@ -655,7 +657,7 @@ async function deleteLootSale(id: string) {
 
     await fetchPveData()
   } catch (e) {
-    error.value = 'Erreur lors de la suppression'
+    error.value = t('common.errors.deleteFailed')
     console.error(e)
   }
 }
@@ -737,7 +739,7 @@ async function scanLootSales() {
     }
     showLootScanResults.value = true
   } catch (e: unknown) {
-    error.value = e instanceof Error ? e.message : 'Erreur lors du scan des ventes'
+    error.value = e instanceof Error ? e.message : t('pve.errors.scanLootFailed')
     console.error(e)
   } finally {
     isScanningLoot.value = false
@@ -773,7 +775,7 @@ async function importSingleLootSale(sale: DetectedLootSale) {
 
       const data = await safeJsonParse<{ rejectedZeroPrice?: number }>(response)
       if (data.rejectedZeroPrice && data.rejectedZeroPrice > 0) {
-        error.value = 'Contrat rejete : le prix doit etre superieur a 0 ISK'
+        error.value = t('pve.errors.contractZeroPrice')
         return
       }
 
@@ -838,7 +840,7 @@ async function importSingleLootSale(sale: DetectedLootSale) {
 
     await fetchPveData()
   } catch (e) {
-    error.value = 'Erreur lors de l\'import'
+    error.value = t('pve.errors.importFailed')
     console.error(e)
   } finally {
     isImportingLoot.value = false
@@ -885,7 +887,7 @@ async function ignoreLootSale(sale: DetectedLootSale) {
 
     lootScanResults.value.detectedSales = lootScanResults.value.detectedSales.filter(s => s !== sale)
   } catch (e) {
-    error.value = 'Erreur lors de l\'ignorement'
+    error.value = t('pve.errors.ignoreFailed')
     console.error(e)
   }
 }
@@ -953,12 +955,12 @@ defineExpose({
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <p class="text-slate-400">Suivi des revenus et depenses PVE</p>
+        <p class="text-slate-400">{{ t('pve.subtitle') }}</p>
         <p v-if="pveData?.lastSyncAt" class="text-xs text-slate-500 mt-1">
-          Derniere sync : {{ formatDateTime(pveData.lastSyncAt) }}
+          {{ t('pve.lastSync') }} {{ formatDateTime(pveData.lastSyncAt) }}
         </p>
         <p v-else class="text-xs text-amber-500 mt-1">
-          Aucune synchronisation effectuee
+          {{ t('pve.noSync') }}
         </p>
       </div>
       <div class="flex items-center gap-3">
@@ -966,25 +968,25 @@ defineExpose({
         <button
           @click="showAmmoConfig = true"
           class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-300 text-sm font-medium flex items-center gap-2"
-          title="Configurer les consommables"
+          :title="t('pve.configAmmo')"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
           </svg>
-          Consommables
+          {{ t('pve.expenseTypes.ammo') }}
         </button>
         <!-- Sync button -->
         <button
           @click="syncPveData"
           :disabled="isSyncing"
           class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 disabled:opacity-50"
-          title="Synchroniser les donnees depuis EVE"
+          :title="t('pve.syncTooltip')"
         >
           <svg :class="['w-4 h-4', isSyncing ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
           </svg>
-          {{ isSyncing ? 'Sync...' : 'Rafraichir' }}
+          {{ isSyncing ? t('common.actions.syncing') : t('common.actions.refresh') }}
         </button>
         <!-- Scan contracts button -->
         <button
@@ -998,7 +1000,7 @@ defineExpose({
           <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
           </svg>
-          {{ isScanning ? 'Scan en cours...' : 'Scanner achats' }}
+          {{ isScanning ? t('pve.scanning') : t('pve.scanPurchases') }}
         </button>
         <!-- Add expense button -->
         <button
@@ -1009,7 +1011,7 @@ defineExpose({
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
           </svg>
-          Ajouter depense
+          {{ t('pve.addExpense') }}
         </button>
       </div>
     </div>
@@ -1029,7 +1031,7 @@ defineExpose({
       <svg class="w-10 h-10 animate-spin text-cyan-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
       </svg>
-      <p class="text-slate-400">Chargement des donnees...</p>
+      <p class="text-slate-400">{{ t('common.status.loading') }}</p>
     </div>
 
     <template v-else-if="pveData">
@@ -1043,8 +1045,8 @@ defineExpose({
         <!-- Bounties list -->
         <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
           <div class="px-5 py-4 border-b border-slate-800">
-            <h3 class="font-semibold">Bounties recentes</h3>
-            <p class="text-sm text-slate-500">Revenus NPC des {{ pveData.period.days }} derniers jours</p>
+            <h3 class="font-semibold">{{ t('pve.recentBounties') }}</h3>
+            <p class="text-sm text-slate-500">{{ t('pve.npcRevenueLastDays', { days: pveData.period.days }) }}</p>
           </div>
           <div v-if="pveData.bounties.entries.length > 0" class="divide-y divide-slate-800 max-h-96 overflow-y-auto">
             <div
@@ -1068,7 +1070,7 @@ defineExpose({
             </div>
           </div>
           <div v-else class="px-5 py-8 text-center text-slate-500">
-            Aucune bounty sur cette periode
+            {{ t('pve.noBounties') }}
           </div>
         </div>
 
@@ -1076,13 +1078,13 @@ defineExpose({
         <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
           <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
             <div>
-              <h3 class="font-semibold">Ventes de loot</h3>
+              <h3 class="font-semibold">{{ t('pve.lootSales') }}</h3>
             </div>
             <div class="flex gap-2">
               <button
                 @click="showLootConfig = true"
                 class="p-1.5 bg-slate-700 hover:bg-slate-600 rounded text-white"
-                title="Configurer les types de loot"
+                :title="t('pve.configLootTypes')"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
@@ -1093,7 +1095,7 @@ defineExpose({
                 @click="scanLootSales"
                 :disabled="isScanningLoot"
                 class="p-1.5 bg-amber-600 hover:bg-amber-500 rounded text-white disabled:opacity-50"
-                title="Scanner les ventes"
+                :title="t('pve.scanSales')"
               >
                 <svg v-if="isScanningLoot" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -1106,7 +1108,7 @@ defineExpose({
                 v-if="declinedContractsCount > 0 || declinedTransactionsCount > 0"
                 @click="resetSeenContracts"
                 class="p-1.5 bg-slate-700 hover:bg-red-600 rounded text-slate-400 hover:text-white"
-                :title="`Reinitialiser le filtre (${declinedContractsCount + declinedTransactionsCount} elements masques)`"
+                :title="t('pve.resetFilter', { count: declinedContractsCount + declinedTransactionsCount })"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -1116,7 +1118,7 @@ defineExpose({
                 type="button"
                 @click="openAddLootSaleForm"
                 class="p-1.5 bg-slate-700 hover:bg-slate-600 rounded text-white"
-                title="Ajouter manuellement"
+                :title="t('pve.addManually')"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -1135,7 +1137,7 @@ defineExpose({
                   class="text-xs px-2 py-1 rounded"
                   :class="sale.type === 'corp_project' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-amber-500/20 text-amber-400'"
                 >
-                  {{ sale.type === 'corp_project' ? 'Projet' : 'Loot' }}
+                  {{ sale.type === 'corp_project' ? t('pve.project') : 'Loot' }}
                 </span>
                 <div>
                   <p class="text-sm text-slate-200">{{ sale.description }}</p>
@@ -1157,15 +1159,15 @@ defineExpose({
             </div>
           </div>
           <div v-else class="px-5 py-8 text-center text-slate-500">
-            Aucune vente enregistree
+            {{ t('pve.noSales') }}
           </div>
         </div>
 
         <!-- Expenses list -->
         <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
           <div class="px-5 py-4 border-b border-slate-800">
-            <h3 class="font-semibold">Depenses</h3>
-            <p class="text-sm text-slate-500">Fuel, consommables, beacons...</p>
+            <h3 class="font-semibold">{{ t('pve.expenses') }}</h3>
+            <p class="text-sm text-slate-500">{{ t('pve.expensesDescription') }}</p>
           </div>
           <div v-if="expenses.length > 0" class="divide-y divide-slate-800 max-h-96 overflow-y-auto">
             <div
@@ -1197,7 +1199,7 @@ defineExpose({
             </div>
           </div>
           <div v-else class="px-5 py-8 text-center text-slate-500">
-            Aucune depense enregistree
+            {{ t('pve.noExpenses') }}
           </div>
         </div>
       </div>
@@ -1233,27 +1235,27 @@ defineExpose({
     <Teleport to="body">
       <div v-if="showAddForm" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" @click.self="showAddForm = false">
         <div class="bg-slate-900 rounded-xl border border-slate-700 max-w-md w-full p-6">
-          <h3 class="text-lg font-semibold mb-4">Ajouter une depense</h3>
+          <h3 class="text-lg font-semibold mb-4">{{ t('pve.addExpenseTitle') }}</h3>
 
           <div class="space-y-4">
             <!-- Type -->
             <div>
-              <label class="block text-sm text-slate-400 mb-1">Type</label>
+              <label class="block text-sm text-slate-400 mb-1">{{ t('pve.type') }}</label>
               <select
                 v-model="newExpense.type"
                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-cyan-500"
               >
-                <option v-for="t in expenseTypes" :key="t.value" :value="t.value">{{ t.label }}</option>
+                <option v-for="et in expenseTypes" :key="et.value" :value="et.value">{{ et.label }}</option>
               </select>
             </div>
 
             <!-- Description -->
             <div>
-              <label class="block text-sm text-slate-400 mb-1">Description <span class="text-red-400">*</span></label>
+              <label class="block text-sm text-slate-400 mb-1">{{ t('pve.description') }} <span class="text-red-400">*</span></label>
               <input
                 v-model="newExpense.description"
                 type="text"
-                placeholder="Ex: 500 Helium Isotopes"
+                :placeholder="t('pve.descriptionPlaceholder')"
                 :class="[
                   'w-full bg-slate-800 border rounded-lg px-4 py-2 text-sm focus:outline-none',
                   formErrors.description ? 'border-red-500 focus:border-red-500' : 'border-slate-700 focus:border-cyan-500'
@@ -1264,7 +1266,7 @@ defineExpose({
 
             <!-- Amount -->
             <div>
-              <label class="block text-sm text-slate-400 mb-1">Montant (ISK) <span class="text-red-400">*</span></label>
+              <label class="block text-sm text-slate-400 mb-1">{{ t('pve.amount') }} <span class="text-red-400">*</span></label>
               <input
                 v-model="newExpense.amount"
                 type="number"
@@ -1279,7 +1281,7 @@ defineExpose({
 
             <!-- Date -->
             <div>
-              <label class="block text-sm text-slate-400 mb-1">Date</label>
+              <label class="block text-sm text-slate-400 mb-1">{{ t('pve.date') }}</label>
               <input
                 v-model="newExpense.date"
                 type="date"
@@ -1294,7 +1296,7 @@ defineExpose({
               :disabled="isSubmitting"
               class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg disabled:opacity-50"
             >
-              Annuler
+              {{ t('common.actions.cancel') }}
             </button>
             <button
               type="button"
@@ -1305,7 +1307,7 @@ defineExpose({
               <svg v-if="isSubmitting" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
               </svg>
-              {{ isSubmitting ? 'Ajout...' : 'Ajouter' }}
+              {{ isSubmitting ? t('pve.adding') : t('common.actions.add') }}
             </button>
           </div>
         </div>
@@ -1317,7 +1319,7 @@ defineExpose({
       <div v-if="showAmmoConfig" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" @click.self="showAmmoConfig = false">
         <div class="bg-slate-900 rounded-xl border border-slate-700 max-w-lg w-full p-6">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold">Consommables PVE</h3>
+            <h3 class="text-lg font-semibold">{{ t('pve.ammoConfigTitle') }}</h3>
             <button @click="showAmmoConfig = false" class="text-slate-400 hover:text-slate-300">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -1326,7 +1328,7 @@ defineExpose({
           </div>
 
           <p class="text-sm text-slate-400 mb-4">
-            Ajoutez les consommables que vous utilisez pour le PVE : drogues, munitions, fuel (isotopes), etc. Ils seront detectes lors du scan des contrats et transactions.
+            {{ t('pve.ammoConfigDescription') }}
           </p>
 
           <!-- Search input -->
@@ -1335,7 +1337,7 @@ defineExpose({
               v-model="ammoSearchQuery"
               @input="onAmmoSearchInput"
               type="text"
-              placeholder="Rechercher un consommable (drogue, munition, isotope...)"
+              :placeholder="t('pve.searchAmmoPlaceholder')"
               class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-cyan-500 pr-10"
             />
             <div v-if="isSearchingAmmo" class="absolute right-3 top-2.5">
@@ -1362,7 +1364,7 @@ defineExpose({
           </div>
 
           <!-- Configured ammo types -->
-          <div class="mb-2 text-sm text-slate-400">Items configures :</div>
+          <div class="mb-2 text-sm text-slate-400">{{ t('pve.configuredItems') }}</div>
           <div v-if="ammoTypes.length > 0" class="space-y-2 max-h-48 overflow-y-auto">
             <div
               v-for="ammo in ammoTypes"
@@ -1389,7 +1391,7 @@ defineExpose({
             </div>
           </div>
           <div v-else class="text-center py-6 text-slate-500">
-            Aucun item configure
+            {{ t('pve.noItemConfigured') }}
           </div>
 
           <div class="mt-6 pt-4 border-t border-slate-800">
@@ -1397,7 +1399,7 @@ defineExpose({
               @click="showAmmoConfig = false"
               class="w-full py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-white font-medium"
             >
-              Fermer
+              {{ t('common.actions.close') }}
             </button>
           </div>
         </div>
@@ -1409,7 +1411,7 @@ defineExpose({
       <div v-if="showLootConfig" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" @click.self="showLootConfig = false">
         <div class="bg-slate-900 rounded-xl border border-slate-700 max-w-lg w-full p-6">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold">Types de loot</h3>
+            <h3 class="text-lg font-semibold">{{ t('pve.lootTypesTitle') }}</h3>
             <button @click="showLootConfig = false" class="text-slate-400 hover:text-slate-300">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -1418,7 +1420,7 @@ defineExpose({
           </div>
 
           <p class="text-sm text-slate-400 mb-4">
-            Ajoutez les types de loot que vous vendez (OPE, blue loot, etc.). Seuls ces items seront detectes lors du scan des ventes.
+            {{ t('pve.lootTypesDescription') }}
           </p>
 
           <!-- Search input -->
@@ -1427,7 +1429,7 @@ defineExpose({
               v-model="lootSearchQuery"
               @input="onLootSearchInput"
               type="text"
-              placeholder="Rechercher un item (ex: Rogue Drone Infestation Data)"
+              :placeholder="t('pve.searchLootPlaceholder')"
               class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-amber-500 pr-10"
             />
             <div v-if="isSearchingLoot" class="absolute right-3 top-2.5">
@@ -1454,7 +1456,7 @@ defineExpose({
           </div>
 
           <!-- Configured loot types -->
-          <div class="mb-2 text-sm text-slate-400">Items configures :</div>
+          <div class="mb-2 text-sm text-slate-400">{{ t('pve.configuredItems') }}</div>
           <div v-if="lootTypes.length > 0" class="space-y-2 max-h-48 overflow-y-auto">
             <div
               v-for="loot in lootTypes"
@@ -1481,7 +1483,7 @@ defineExpose({
             </div>
           </div>
           <div v-else class="text-center py-6 text-slate-500">
-            Aucun type de loot configure
+            {{ t('pve.noLootTypeConfigured') }}
           </div>
 
           <div class="mt-6 pt-4 border-t border-slate-800">
@@ -1489,7 +1491,7 @@ defineExpose({
               @click="showLootConfig = false"
               class="w-full py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-white font-medium"
             >
-              Fermer
+              {{ t('common.actions.close') }}
             </button>
           </div>
         </div>
@@ -1503,9 +1505,9 @@ defineExpose({
           <div class="p-6 border-b border-slate-800">
             <div class="flex items-center justify-between">
               <div>
-                <h3 class="text-lg font-semibold">Resultats du scan</h3>
+                <h3 class="text-lg font-semibold">{{ t('pve.scanResults') }}</h3>
                 <p class="text-sm text-slate-400 mt-1">
-                  {{ scanResults.scannedContracts }} contrats, {{ scanResults.scannedTransactions }} transactions marche - {{ scanResults.detectedExpenses.length }} depenses detectees
+                  {{ t('pve.scanResultsSummary', { contracts: scanResults.scannedContracts, transactions: scanResults.scannedTransactions, detected: scanResults.detectedExpenses.length }) }}
                 </p>
               </div>
               <button @click="showScanResults = false" class="text-slate-400 hover:text-slate-300">
@@ -1519,9 +1521,9 @@ defineExpose({
           <div v-if="scanResults.detectedExpenses.length > 0" class="flex-1 overflow-y-auto p-6">
             <!-- Selection controls -->
             <div class="flex items-center gap-3 mb-4">
-              <button @click="selectAllExpenses" class="text-sm text-cyan-400 hover:text-cyan-300">Tout selectionner</button>
+              <button @click="selectAllExpenses" class="text-sm text-cyan-400 hover:text-cyan-300">{{ t('pve.selectAll') }}</button>
               <span class="text-slate-600">|</span>
-              <button @click="deselectAllExpenses" class="text-sm text-slate-400 hover:text-slate-300">Tout deselectionner</button>
+              <button @click="deselectAllExpenses" class="text-sm text-slate-400 hover:text-slate-300">{{ t('pve.deselectAll') }}</button>
             </div>
 
             <!-- Expenses list -->
@@ -1560,10 +1562,10 @@ defineExpose({
                         {{ getExpenseTypeLabel(expense.type) }}
                       </span>
                       <span v-if="expense.source === 'contract'" class="text-xs text-slate-500">
-                        Contrat #{{ expense.contractId }}
+                        {{ t('pve.contractNumber', { id: expense.contractId }) }}
                       </span>
                       <span v-else class="text-xs text-blue-400">
-                        Marche
+                        {{ t('pve.market') }}
                       </span>
                     </div>
                     <p class="text-sm text-slate-300">{{ expense.typeName }}</p>
@@ -1582,15 +1584,15 @@ defineExpose({
               <svg class="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 12h.01M12 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
-              <p>Aucune depense detectee dans vos contrats</p>
-              <p class="text-sm mt-1">Verifiez la configuration des consommables ou la periode</p>
+              <p>{{ t('pve.noExpenseDetected') }}</p>
+              <p class="text-sm mt-1">{{ t('pve.checkAmmoConfig') }}</p>
             </div>
           </div>
 
           <div v-if="scanResults.detectedExpenses.length > 0" class="p-6 border-t border-slate-800">
             <div class="flex items-center justify-between mb-4">
               <span class="text-sm text-slate-400">
-                {{ scanResults.detectedExpenses.filter(e => e.selected).length }} depense(s) selectionnee(s)
+                {{ t('pve.selectedExpenses', { count: scanResults.detectedExpenses.filter(e => e.selected).length }) }}
               </span>
               <span class="text-red-400 font-mono">
                 Total: {{ formatIskFull(scanResults.detectedExpenses.filter(e => e.selected).reduce((sum, e) => sum + e.price, 0)) }}
@@ -1601,7 +1603,7 @@ defineExpose({
                 @click="showScanResults = false"
                 class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg"
               >
-                Annuler
+                {{ t('common.actions.cancel') }}
               </button>
               <button
                 @click="importSelectedExpenses"
@@ -1611,7 +1613,7 @@ defineExpose({
                 <svg v-if="isImporting" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                 </svg>
-                {{ isImporting ? 'Import...' : 'Importer' }}
+                {{ isImporting ? t('pve.importing') : t('pve.import') }}
               </button>
             </div>
           </div>
@@ -1623,16 +1625,16 @@ defineExpose({
     <Teleport to="body">
       <div v-if="showAddLootSaleForm" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" @click.self="showAddLootSaleForm = false">
         <div class="bg-slate-900 rounded-xl border border-slate-700 max-w-md w-full p-6">
-          <h3 class="text-lg font-semibold mb-4">Ajouter une vente de loot</h3>
+          <h3 class="text-lg font-semibold mb-4">{{ t('pve.addLootSaleTitle') }}</h3>
 
           <div class="space-y-4">
             <!-- Description -->
             <div>
-              <label class="block text-sm text-slate-400 mb-1">Description <span class="text-red-400">*</span></label>
+              <label class="block text-sm text-slate-400 mb-1">{{ t('pve.description') }} <span class="text-red-400">*</span></label>
               <input
                 v-model="newLootSale.description"
                 type="text"
-                placeholder="Ex: 100x Overseer's Personal Effects"
+                :placeholder="t('pve.lootSaleDescriptionPlaceholder')"
                 :class="[
                   'w-full bg-slate-800 border rounded-lg px-4 py-2 text-sm focus:outline-none',
                   lootSaleFormErrors.description ? 'border-red-500 focus:border-red-500' : 'border-slate-700 focus:border-amber-500'
@@ -1643,7 +1645,7 @@ defineExpose({
 
             <!-- Amount -->
             <div>
-              <label class="block text-sm text-slate-400 mb-1">Montant (ISK) <span class="text-red-400">*</span></label>
+              <label class="block text-sm text-slate-400 mb-1">{{ t('pve.amount') }} <span class="text-red-400">*</span></label>
               <input
                 v-model="newLootSale.amount"
                 type="number"
@@ -1658,7 +1660,7 @@ defineExpose({
 
             <!-- Date -->
             <div>
-              <label class="block text-sm text-slate-400 mb-1">Date</label>
+              <label class="block text-sm text-slate-400 mb-1">{{ t('pve.date') }}</label>
               <input
                 v-model="newLootSale.date"
                 type="date"
@@ -1673,7 +1675,7 @@ defineExpose({
               :disabled="isSubmittingLootSale"
               class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg disabled:opacity-50"
             >
-              Annuler
+              {{ t('common.actions.cancel') }}
             </button>
             <button
               type="button"
@@ -1684,7 +1686,7 @@ defineExpose({
               <svg v-if="isSubmittingLootSale" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
               </svg>
-              {{ isSubmittingLootSale ? 'Ajout...' : 'Ajouter' }}
+              {{ isSubmittingLootSale ? t('pve.adding') : t('common.actions.add') }}
             </button>
           </div>
         </div>
@@ -1698,9 +1700,9 @@ defineExpose({
           <div class="p-6 border-b border-slate-800">
             <div class="flex items-center justify-between">
               <div>
-                <h3 class="text-lg font-semibold">Ventes de loot detectees</h3>
+                <h3 class="text-lg font-semibold">{{ t('pve.detectedLootSales') }}</h3>
                 <p class="text-sm text-slate-400 mt-1">
-                  {{ lootScanResults.scannedTransactions }} transactions, {{ lootScanResults.scannedContracts || 0 }} contrats, {{ lootScanResults.scannedProjects || 0 }} projets corp - {{ lootScanResults.detectedSales.length }} ventes detectees
+                  {{ t('pve.lootScanSummary', { transactions: lootScanResults.scannedTransactions, contracts: lootScanResults.scannedContracts || 0, projects: lootScanResults.scannedProjects || 0, detected: lootScanResults.detectedSales.length }) }}
                 </p>
               </div>
               <button @click="showLootScanResults = false" class="text-slate-400 hover:text-slate-300">
@@ -1729,13 +1731,13 @@ defineExpose({
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 mb-1">
                       <span v-if="sale.source === 'contract'" class="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-400">
-                        Contrat #{{ sale.contractId }}
+                        {{ t('pve.contractNumber', { id: sale.contractId }) }}
                       </span>
                       <span v-else-if="sale.source === 'corp_project'" class="text-xs px-2 py-0.5 rounded bg-violet-500/20 text-violet-400">
-                        {{ sale.projectName || 'Projet corp' }}
+                        {{ sale.projectName || t('pve.corpProject') }}
                       </span>
                       <span v-else class="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-400">
-                        Marche
+                        {{ t('pve.market') }}
                       </span>
                       <span class="text-xs text-slate-500">{{ sale.characterName }}</span>
                     </div>
@@ -1764,14 +1766,14 @@ defineExpose({
                         :disabled="isImportingLoot || ((sale.source === 'contract' || sale.source === 'corp_project') && sale.price <= 0)"
                         class="px-3 py-1 text-xs bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded text-white font-medium"
                       >
-                        Ajouter
+                        {{ t('common.actions.add') }}
                       </button>
                       <button
                         @click="ignoreLootSale(sale)"
                         :disabled="isImportingLoot"
                         class="px-3 py-1 text-xs bg-slate-600 hover:bg-slate-500 disabled:opacity-50 rounded text-slate-300 font-medium"
                       >
-                        Ignorer
+                        {{ t('pve.ignore') }}
                       </button>
                     </div>
                   </div>
@@ -1785,21 +1787,21 @@ defineExpose({
               <svg class="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
               </svg>
-              <p>Aucune vente de loot detectee</p>
-              <p class="text-sm mt-1">Vendez du loot sur le marche pour le voir apparaitre ici</p>
+              <p>{{ t('pve.noLootSalesDetected') }}</p>
+              <p class="text-sm mt-1">{{ t('pve.sellLootHint') }}</p>
             </div>
           </div>
 
           <div v-if="lootScanResults.detectedSales.length > 0" class="p-4 border-t border-slate-800">
             <div class="flex items-center justify-between">
               <span class="text-sm text-slate-400">
-                {{ lootScanResults.detectedSales.length }} contrat(s) en attente
+                {{ t('pve.pendingItems', { count: lootScanResults.detectedSales.length }) }}
               </span>
               <button
                 @click="showLootScanResults = false"
                 class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm"
               >
-                Fermer
+                {{ t('common.actions.close') }}
               </button>
             </div>
           </div>

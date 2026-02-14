@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useIndustryStore, type SearchResult } from '@/stores/industry'
+
+const { t } = useI18n()
 import MainLayout from '@/layouts/MainLayout.vue'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
 import ProjectTable from '@/components/industry/ProjectTable.vue'
@@ -140,7 +143,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
   <MainLayout>
       <!-- Header -->
       <div class="mb-6 flex items-center justify-between">
-        <p class="text-slate-400">Suivi de projets de construction</p>
+        <p class="text-slate-400">{{ t('industry.subtitle') }}</p>
         <div v-if="!viewingProjectId" class="flex gap-2">
           <button
             @click="mainTab = 'projects'"
@@ -151,7 +154,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
                 : 'bg-slate-800 text-slate-400 hover:text-slate-200',
             ]"
           >
-            Projets
+            {{ t('industry.tabs.projects') }}
           </button>
           <button
             @click="mainTab = 'config'"
@@ -162,7 +165,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
                 : 'bg-slate-800 text-slate-400 hover:text-slate-200',
             ]"
           >
-            Configuration
+            {{ t('industry.tabs.config') }}
           </button>
         </div>
       </div>
@@ -190,7 +193,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
         <!-- General settings -->
         <div class="flex items-center gap-4 mb-6 bg-slate-900 rounded-xl border border-slate-800 px-6 py-4">
           <div class="w-48">
-            <label class="block text-xs text-slate-500 mb-1">Durée max job (jours)</label>
+            <label class="block text-xs text-slate-500 mb-1">{{ t('industry.config.maxJobDuration') }}</label>
             <input
               :value="store.defaultMaxJobDurationDays.toFixed(1)"
               @change="(e) => store.setDefaultMaxJobDurationDays(parseFloat((e.target as HTMLInputElement).value) || 2.0)"
@@ -201,7 +204,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
             />
           </div>
           <p class="text-xs text-slate-500 self-end pb-1">
-            Les jobs dépassant cette durée seront découpés en plusieurs étapes.
+            {{ t('industry.config.maxJobDurationHint') }}
           </p>
         </div>
 
@@ -216,7 +219,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
                 : 'bg-slate-800 text-slate-400 hover:text-slate-200',
             ]"
           >
-            Skills
+            {{ t('industry.configTabs.skills') }}
           </button>
           <button
             @click="configTab = 'structures'"
@@ -227,7 +230,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
                 : 'bg-slate-800 text-slate-400 hover:text-slate-200',
             ]"
           >
-            Structures
+            {{ t('industry.configTabs.structures') }}
           </button>
           <button
             @click="configTab = 'blacklist'"
@@ -238,7 +241,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
                 : 'bg-slate-800 text-slate-400 hover:text-slate-200',
             ]"
           >
-            Blacklist
+            {{ t('industry.configTabs.blacklist') }}
           </button>
         </div>
 
@@ -258,11 +261,11 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
       <template v-else>
         <!-- New project form -->
         <div class="bg-slate-900 rounded-xl border border-slate-800 p-6 mb-6">
-          <h3 class="text-lg font-semibold text-slate-100 mb-4">Nouveau projet</h3>
+          <h3 class="text-lg font-semibold text-slate-100 mb-4">{{ t('industry.createProject.title') }}</h3>
 
           <!-- Project name (shown when multiple products or when filled) -->
           <div v-if="productsToAdd.length > 0 || projectName" class="mb-4">
-            <label class="block text-sm text-slate-400 mb-1">Nom du projet</label>
+            <label class="block text-sm text-slate-400 mb-1">{{ t('industry.createProject.projectName') }}</label>
             <input
               v-model="projectName"
               type="text"
@@ -311,7 +314,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
               <button
                 @click="removeProductFromList(index)"
                 class="p-1 text-slate-500 hover:text-red-400"
-                title="Retirer"
+                :title="t('industry.createProject.remove')"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -324,7 +327,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
           <div class="flex items-end gap-4 flex-wrap">
             <div class="flex-1 relative min-w-[200px]">
               <label class="block text-sm text-slate-400 mb-1">
-                {{ productsToAdd.length > 0 ? 'Ajouter un produit' : 'Produit' }}
+                {{ productsToAdd.length > 0 ? t('industry.createProject.addProduct') : t('industry.createProject.product') }}
                 <span v-if="selectedProduct" class="text-cyan-400 ml-2">
                   — {{ selectedProduct.typeName }}
                 </span>
@@ -332,7 +335,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
               <ProductSearch ref="productSearchRef" @select="onProductSelect" />
             </div>
             <div class="w-24">
-              <label class="block text-sm text-slate-400 mb-1">Runs</label>
+              <label class="block text-sm text-slate-400 mb-1">{{ t('industry.createProject.runs') }}</label>
               <input
                 v-model.number="runs"
                 type="number"
@@ -341,7 +344,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
               />
             </div>
             <div class="w-24">
-              <label class="block text-sm text-slate-400 mb-1">ME</label>
+              <label class="block text-sm text-slate-400 mb-1">{{ t('industry.createProject.me') }}</label>
               <input
                 v-model.number="meLevel"
                 type="number"
@@ -351,7 +354,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
               />
             </div>
             <div class="w-24">
-              <label class="block text-sm text-slate-400 mb-1">TE</label>
+              <label class="block text-sm text-slate-400 mb-1">{{ t('industry.createProject.te') }}</label>
               <input
                 v-model.number="teLevel"
                 type="number"
@@ -367,12 +370,12 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
               @click="addProductToList"
               :disabled="!selectedProduct"
               class="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-white text-sm font-medium disabled:opacity-50 flex items-center gap-2"
-              title="Ajouter à la liste"
+              :title="t('industry.createProject.addToList')"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
               </svg>
-              Ajouter
+              {{ t('common.actions.add') }}
             </button>
 
             <!-- Create button -->
@@ -390,7 +393,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
               >
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              {{ isCreating ? 'Création...' : (productsToAdd.length > 0 ? 'Créer le projet' : 'Créer') }}
+              {{ isCreating ? t('industry.createProject.creating') : (productsToAdd.length > 0 ? t('industry.createProject.create') : t('common.actions.create')) }}
             </button>
 
             <!-- Add more button (shown when no products in list yet but one selected) -->
@@ -398,12 +401,12 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
               v-if="productsToAdd.length === 0 && selectedProduct"
               @click="addProductToList"
               class="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-300 text-sm font-medium flex items-center gap-2"
-              title="Ajouter un autre produit"
+              :title="t('industry.createProject.addAnother')"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
               </svg>
-              Multi-produit
+              {{ t('industry.createProject.multiProduct') }}
             </button>
           </div>
         </div>
@@ -411,13 +414,13 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
         <!-- Projects table -->
         <div class="bg-slate-900 rounded-xl border border-slate-800">
           <div class="px-6 py-4 border-b border-slate-800">
-            <h3 class="text-lg font-semibold text-slate-100">Historique des projets</h3>
+            <h3 class="text-lg font-semibold text-slate-100">{{ t('industry.projectHistory') }}</h3>
           </div>
           <div v-if="store.isLoading" class="p-8 text-center text-slate-500">
             <svg class="w-8 h-8 animate-spin text-cyan-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            Chargement...
+            {{ t('common.status.loading') }}
           </div>
           <ProjectTable v-else @view-project="viewProject" @duplicate-project="duplicateProject" />
         </div>

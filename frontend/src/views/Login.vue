@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { safeJsonParse } from '@/services/api'
 import { APP_VERSION } from '@/version'
+
+const { t } = useI18n()
 
 const route = useRoute()
 const router = useRouter()
@@ -22,7 +25,7 @@ async function checkEsiStatus() {
     if (!response.ok) {
       if (response.status === 503) {
         esiMaintenance.value = true
-        esiStatus.value = 'ESI is currently in maintenance mode'
+        esiStatus.value = t('auth.esiMaintenanceMode')
       }
       return
     }
@@ -31,12 +34,12 @@ async function checkEsiStatus() {
     // If all endpoints have issues, we're in maintenance
     if (Array.isArray(data) && data.every((s: { status: string }) => s.status !== 'green')) {
       esiMaintenance.value = true
-      esiStatus.value = 'ESI services are degraded'
+      esiStatus.value = t('auth.esiDegraded')
     }
   } catch {
     // Network error - ESI might be completely down
     esiMaintenance.value = true
-    esiStatus.value = 'Cannot reach ESI servers'
+    esiStatus.value = t('auth.cannotReachEsi')
   }
 }
 
@@ -79,7 +82,7 @@ onMounted(async () => {
       if (oauthAction === 'add-character' || oauthAction === 'reauthorize') {
         // Character was added/reauthorized, redirect to characters page
         if (data.error) {
-          error.value = data.message || 'Failed to add character'
+          error.value = data.message || t('auth.failedAddCharacter')
         } else {
           // Refresh user data to get updated characters list
           await authStore.fetchUser()
@@ -94,15 +97,15 @@ onMounted(async () => {
         router.push('/dashboard')
         return
       } else {
-        error.value = data.message || 'Authentication failed'
+        error.value = data.message || t('auth.authFailed')
       }
     } catch (e) {
       // Check if this might be an ESI maintenance issue
       await checkEsiStatus()
       if (esiMaintenance.value) {
-        error.value = 'Authentication failed - EVE servers may be under maintenance'
+        error.value = t('auth.authFailedMaintenance')
       } else {
-        error.value = 'Authentication error'
+        error.value = t('auth.authError')
       }
       console.error(e)
     } finally {
@@ -139,14 +142,14 @@ async function loginWithEve() {
       sessionStorage.setItem('eve_oauth_state', data.state || '')
       window.location.href = data.redirect_url
     } else {
-      error.value = 'Failed to get redirect URL'
+      error.value = t('auth.failedRedirect')
     }
   } catch (e) {
     await checkEsiStatus()
     if (esiMaintenance.value) {
-      error.value = 'Cannot connect - EVE servers may be under maintenance'
+      error.value = t('auth.cannotConnect')
     } else {
-      error.value = 'Connection error'
+      error.value = t('auth.authError')
     }
     console.error(e)
   } finally {
@@ -195,7 +198,7 @@ async function loginWithEve() {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           <div>
-            <p class="text-amber-200 text-sm font-medium">EVE Online servers are under maintenance</p>
+            <p class="text-amber-200 text-sm font-medium">{{ t('auth.eveMaintenanceTitle') }}</p>
             <p class="text-amber-200/70 text-xs mt-1">{{ esiStatus }}</p>
           </div>
         </div>
@@ -212,7 +215,7 @@ async function loginWithEve() {
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
-        <p class="text-eve-text">Connecting to EVE Online...</p>
+        <p class="text-eve-text">{{ t('auth.connectingToEve') }}</p>
       </div>
 
       <!-- EVE SSO Login button (official) -->
@@ -230,10 +233,10 @@ async function loginWithEve() {
 
       <!-- Info text -->
       <p class="text-center text-eve-text/60 text-sm mt-8">
-        Secure authentication via EVE Online SSO
+        {{ t('auth.secureAuth') }}
       </p>
       <p class="text-center text-eve-text/40 text-xs mt-2">
-        Your credentials are never shared with this application
+        {{ t('auth.noCredentialsShared') }}
       </p>
     </div>
 

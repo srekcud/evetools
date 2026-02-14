@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { authFetch, safeJsonParse } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
@@ -7,6 +8,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useNotificationFeed } from '@/composables/useNotificationFeed'
 import MainLayout from '@/layouts/MainLayout.vue'
 
+const { t } = useI18n()
 const authStore = useAuthStore()
 const syncStore = useSyncStore()
 const { formatIsk } = useFormatters()
@@ -57,11 +59,11 @@ async function addCharacter() {
 
 function formatTimeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
-  if (seconds < 60) return 'a l\'instant'
+  if (seconds < 60) return t('common.time.justNow')
   const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `il y a ${minutes}min`
+  if (minutes < 60) return t('common.time.minutesAgo', { minutes })
   const hours = Math.floor(minutes / 60)
-  return `il y a ${hours}h`
+  return t('common.time.hoursAgo', { hours })
 }
 
 function getLevelDot(level: string): string {
@@ -93,10 +95,10 @@ onMounted(() => {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                 </svg>
               </div>
-              <span class="text-xs text-slate-500 uppercase tracking-wider">Personnages</span>
+              <span class="text-xs text-slate-500 uppercase tracking-wider">{{ t('dashboard.kpi.characters') }}</span>
             </div>
             <p class="text-4xl font-bold text-slate-100 mb-1">{{ user?.characters?.length || 0 }}</p>
-            <p class="text-sm text-slate-500">comptes lies</p>
+            <p class="text-sm text-slate-500">{{ t('dashboard.kpi.linkedAccounts') }}</p>
           </div>
 
           <!-- Wallet -->
@@ -107,7 +109,7 @@ onMounted(() => {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
               </div>
-              <span class="text-xs text-slate-500 uppercase tracking-wider">Portefeuille</span>
+              <span class="text-xs text-slate-500 uppercase tracking-wider">{{ t('dashboard.kpi.wallet') }}</span>
             </div>
             <p v-if="isLoadingWallet" class="text-4xl font-bold text-slate-100 mb-1">
               <svg class="w-8 h-8 animate-spin text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -115,7 +117,7 @@ onMounted(() => {
               </svg>
             </p>
             <p v-else class="text-4xl font-bold text-amber-400 mb-1">{{ totalBalance !== null ? formatIsk(totalBalance) : '\u2014' }}</p>
-            <p class="text-sm text-slate-500">ISK total</p>
+            <p class="text-sm text-slate-500">{{ t('dashboard.kpi.iskTotal') }}</p>
           </div>
         </div>
 
@@ -128,7 +130,7 @@ onMounted(() => {
         <!-- Character Cards -->
         <div>
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-slate-200">Vos personnages</h3>
+            <h3 class="text-lg font-semibold text-slate-200">{{ t('dashboard.yourCharacters') }}</h3>
             <button
               @click="addCharacter"
               :disabled="isAddingCharacter"
@@ -141,7 +143,7 @@ onMounted(() => {
               <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
               </svg>
-              Ajouter un personnage
+              {{ t('dashboard.addCharacter') }}
             </button>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -178,7 +180,7 @@ onMounted(() => {
                           : 'bg-red-500/20 text-red-400'
                       ]"
                     >
-                      {{ character.hasValidToken ? 'Token valide' : 'Token invalide' }}
+                      {{ character.hasValidToken ? t('dashboard.tokenValid') : t('dashboard.tokenInvalid') }}
                     </span>
                   </div>
                 </div>
@@ -193,15 +195,15 @@ onMounted(() => {
         <div class="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden sticky top-4">
           <div class="flex items-center justify-between px-5 py-4 border-b border-slate-800">
             <div class="flex items-center gap-2">
-              <h3 class="text-sm font-semibold text-slate-200 uppercase tracking-wider">Activite</h3>
+              <h3 class="text-sm font-semibold text-slate-200 uppercase tracking-wider">{{ t('dashboard.activity') }}</h3>
               <span v-if="unreadCount > 0" class="text-[10px] px-1.5 py-0.5 bg-cyan-500/20 text-cyan-400 rounded-full font-medium">
                 {{ unreadCount }}
               </span>
             </div>
             <div class="flex items-center gap-2">
-              <div :class="['w-2 h-2 rounded-full', syncStore.isConnected ? 'bg-emerald-400' : 'bg-slate-600']" :title="syncStore.isConnected ? 'Mercure connecte' : 'Deconnecte'"></div>
+              <div :class="['w-2 h-2 rounded-full', syncStore.isConnected ? 'bg-emerald-400' : 'bg-slate-600']" :title="syncStore.isConnected ? t('dashboard.mercureConnected') : t('dashboard.disconnected')"></div>
               <button v-if="notifications.length > 0" @click="clearAll" class="text-xs text-slate-500 hover:text-slate-300 transition-colors">
-                Effacer
+                {{ t('common.actions.clear') }}
               </button>
             </div>
           </div>
@@ -210,8 +212,8 @@ onMounted(() => {
               <svg class="w-8 h-8 text-slate-700 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
-              <p class="text-sm text-slate-600">Aucune activite recente</p>
-              <p class="text-xs text-slate-700 mt-1">Les evenements temps reel apparaitront ici</p>
+              <p class="text-sm text-slate-600">{{ t('dashboard.noRecentActivity') }}</p>
+              <p class="text-xs text-slate-700 mt-1">{{ t('dashboard.realtimeEventsWillAppear') }}</p>
             </div>
             <div v-else class="divide-y divide-slate-800/50">
               <div

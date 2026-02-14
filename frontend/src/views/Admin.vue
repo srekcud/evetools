@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAdminStore } from '@/stores/admin'
 import { useSyncStore } from '@/stores/sync'
 import { useFormatters } from '@/composables/useFormatters'
 import MainLayout from '@/layouts/MainLayout.vue'
-import { Bar, Doughnut, Line } from 'vue-chartjs'
+import AdminKpiGrid from '@/components/admin/AdminKpiGrid.vue'
+import SchedulerHealthTable from '@/components/admin/SchedulerHealthTable.vue'
+import MaintenanceActions from '@/components/admin/MaintenanceActions.vue'
+import AdminChartsGrid from '@/components/admin/AdminChartsGrid.vue'
+import PveCorpRevenue from '@/components/admin/PveCorpRevenue.vue'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -33,10 +38,11 @@ ChartJS.register(
   Filler
 )
 
+const { t } = useI18n()
 const router = useRouter()
 const adminStore = useAdminStore()
 const syncStore = useSyncStore()
-const { formatIsk, formatTimeSince } = useFormatters()
+const { formatNumber } = useFormatters()
 
 const hasAccess = ref(false)
 const isCheckingAccess = ref(true)
@@ -60,111 +66,6 @@ const stats = computed(() => adminStore.stats)
 const queues = computed(() => adminStore.queues)
 const charts = computed(() => adminStore.charts)
 
-const registrationChartData = computed(() => {
-  if (!charts.value?.registrations) return null
-  return {
-    labels: charts.value.registrations.labels,
-    datasets: [
-      {
-        label: 'Inscriptions',
-        data: charts.value.registrations.data,
-        backgroundColor: 'rgba(6, 182, 212, 0.5)',
-        borderColor: 'rgb(6, 182, 212)',
-        borderWidth: 1,
-      },
-    ],
-  }
-})
-
-const activityChartData = computed(() => {
-  if (!charts.value?.activity) return null
-  return {
-    labels: charts.value.activity.labels,
-    datasets: [
-      {
-        label: 'Connexions',
-        data: charts.value.activity.logins,
-        borderColor: 'rgb(34, 197, 94)',
-        backgroundColor: 'rgba(34, 197, 94, 0.1)',
-        tension: 0.3,
-        fill: true,
-      },
-    ],
-  }
-})
-
-const assetDistributionData = computed(() => {
-  if (!charts.value?.assetDistribution) return null
-  return {
-    labels: charts.value.assetDistribution.labels,
-    datasets: [
-      {
-        data: charts.value.assetDistribution.data,
-        backgroundColor: [
-          'rgba(6, 182, 212, 0.7)',
-          'rgba(245, 158, 11, 0.7)',
-        ],
-        borderColor: [
-          'rgb(6, 182, 212)',
-          'rgb(245, 158, 11)',
-        ],
-        borderWidth: 1,
-      },
-    ],
-  }
-})
-
-const chartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      display: false,
-    },
-  },
-  scales: {
-    x: {
-      grid: {
-        color: 'rgba(148, 163, 184, 0.1)',
-      },
-      ticks: {
-        color: 'rgb(148, 163, 184)',
-      },
-    },
-    y: {
-      grid: {
-        color: 'rgba(148, 163, 184, 0.1)',
-      },
-      ticks: {
-        color: 'rgb(148, 163, 184)',
-      },
-    },
-  },
-}
-
-const doughnutOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      position: 'bottom' as const,
-      labels: {
-        color: 'rgb(148, 163, 184)',
-      },
-    },
-  },
-}
-
-function formatNumber(n: number | null | undefined): string {
-  if (n === null || n === undefined) return '—'
-  return n.toLocaleString('fr-FR')
-}
-
-function formatInterval(seconds: number): string {
-  if (seconds >= 3600) return `${seconds / 3600}h`
-  return `${seconds / 60}min`
-}
-
 const syncActionMap: Record<string, { action: () => Promise<{ success: boolean; message: string }>; key: string }> = {
   'assets': { action: adminStore.syncAssets, key: 'sync-assets' },
   'industry': { action: adminStore.syncIndustry, key: 'sync-industry' },
@@ -177,12 +78,12 @@ const syncActionMap: Record<string, { action: () => Promise<{ success: boolean; 
   'market-structure': { action: adminStore.syncMarket, key: 'sync-market' },
 }
 
+// Sync action keys that should wait for Mercure completion
+const syncKeys = new Set(Object.values(syncActionMap).map(v => v.key))
+
 async function refreshData() {
   await adminStore.fetchAll()
 }
-
-// Sync action keys that should wait for Mercure completion
-const syncKeys = new Set(Object.values(syncActionMap).map(v => v.key))
 
 async function executeAction(actionName: string, actionFn: () => Promise<{ success: boolean; message: string }>) {
   actionLoading.value = actionName
@@ -195,9 +96,8 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
     if (result.success && syncKeys.has(actionName)) {
       actionMessage.value = {
         type: 'success',
-        text: result.message + ' (en attente...)',
+        text: result.message + ` (${t('admin.sync.waiting')})`,
       }
-      // Mercure watcher below will handle the rest
       return
     }
 
@@ -211,16 +111,31 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
   } catch (e) {
     actionMessage.value = {
       type: 'error',
-      text: e instanceof Error ? e.message : 'Action failed',
+      text: e instanceof Error ? e.message : t('admin.sync.actionFailed'),
     }
   } finally {
-    // Only clear loading for non-sync actions (sync waits for Mercure)
     if (!syncKeys.has(actionName)) {
       actionLoading.value = null
     }
     setTimeout(() => {
       actionMessage.value = null
     }, 5000)
+  }
+}
+
+function handleSchedulerAction(key: string, action: () => Promise<{ success: boolean; message: string }>) {
+  executeAction(key, action)
+}
+
+function handleMaintenanceAction(name: string, actionKey: string) {
+  const actionMap: Record<string, () => Promise<{ success: boolean; message: string }>> = {
+    retryFailed: adminStore.retryFailed,
+    purgeFailed: adminStore.purgeFailed,
+    clearCache: adminStore.clearCache,
+  }
+  const fn = actionMap[actionKey]
+  if (fn) {
+    executeAction(name, fn)
   }
 }
 
@@ -231,14 +146,13 @@ watch(
     if (!progress) return
 
     if (progress.status === 'started') {
-      // Sync just started in the worker — refresh only scheduler health table
       adminStore.fetchStats()
     } else if (progress.status === 'completed') {
       const syncType = (progress.data as Record<string, unknown>)?.syncType as string
       actionLoading.value = null
       actionMessage.value = {
         type: 'success',
-        text: `Sync ${syncType || ''} termine : ${progress.message || 'OK'}`,
+        text: `${t('admin.sync.syncCompleted', { type: syncType || '' })} : ${progress.message || 'OK'}`,
       }
       adminStore.fetchStats()
       syncStore.clearSyncStatus('admin-sync')
@@ -248,7 +162,7 @@ watch(
       actionLoading.value = null
       actionMessage.value = {
         type: 'error',
-        text: `Erreur sync ${syncType || ''} : ${progress.message || 'Erreur inconnue'}`,
+        text: `${t('admin.sync.syncError', { type: syncType || '' })} : ${progress.message || t('admin.sync.unknownError')}`,
       }
       adminStore.fetchStats()
       syncStore.clearSyncStatus('admin-sync')
@@ -272,7 +186,7 @@ watch(
     <div v-else-if="adminStore.error" class="bg-red-500/20 border border-red-500 p-4 rounded-lg">
       <p class="text-red-400">{{ adminStore.error }}</p>
       <button @click="refreshData" class="mt-2 px-4 py-2 bg-red-500/30 hover:bg-red-500/50 rounded text-sm">
-        Reessayer
+        {{ t('common.actions.retry') }}
       </button>
     </div>
 
@@ -281,8 +195,8 @@ watch(
       <!-- Header -->
       <div class="flex items-center justify-between">
         <div>
-          <h2 class="text-xl font-semibold text-slate-100">Administration</h2>
-          <p class="text-sm text-slate-500">Statistiques et metriques de la plateforme</p>
+          <h2 class="text-xl font-semibold text-slate-100">{{ t('admin.title') }}</h2>
+          <p class="text-sm text-slate-500">{{ t('admin.subtitle') }}</p>
         </div>
         <button
           @click="refreshData"
@@ -291,7 +205,7 @@ watch(
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
           </svg>
-          Actualiser
+          {{ t('common.actions.refresh') }}
         </button>
       </div>
 
@@ -310,452 +224,45 @@ watch(
         </div>
       </Transition>
 
-      <!-- KPI Cards - Row 1: Users -->
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        <!-- Total Users -->
-        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-              <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
-              </svg>
-            </div>
-            <span class="text-xs text-slate-500 uppercase">Utilisateurs</span>
-          </div>
-          <p class="text-2xl font-bold text-slate-100">{{ formatNumber(stats?.users?.total) }}</p>
-        </div>
+      <!-- KPI Grid (3 rows) -->
+      <AdminKpiGrid :stats="stats" :queues="queues" />
 
-        <!-- Valid Auth -->
-        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-              <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-            </div>
-            <span class="text-xs text-slate-500 uppercase">Auth valide</span>
-          </div>
-          <p class="text-2xl font-bold text-emerald-400">{{ formatNumber(stats?.users?.valid) }}</p>
-        </div>
-
-        <!-- Invalid Auth -->
-        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
-              <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-            </div>
-            <span class="text-xs text-slate-500 uppercase">Auth invalide</span>
-          </div>
-          <p class="text-2xl font-bold text-red-400">{{ formatNumber(stats?.users?.invalid) }}</p>
-        </div>
-
-        <!-- Active 7d -->
-        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-              <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-              </svg>
-            </div>
-            <span class="text-xs text-slate-500 uppercase">Actifs 7j</span>
-          </div>
-          <p class="text-2xl font-bold text-blue-400">{{ formatNumber(stats?.users?.activeLastWeek) }}</p>
-        </div>
-
-        <!-- Active 30d -->
-        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
-              <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-              </svg>
-            </div>
-            <span class="text-xs text-slate-500 uppercase">Actifs 30j</span>
-          </div>
-          <p class="text-2xl font-bold text-purple-400">{{ formatNumber(stats?.users?.activeLastMonth) }}</p>
-        </div>
-      </div>
-
-      <!-- KPI Cards - Row 2: Characters & Tokens -->
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <!-- Total Characters -->
-        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-              <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-              </svg>
-            </div>
-            <span class="text-xs text-slate-500 uppercase">Personnages</span>
-          </div>
-          <p class="text-2xl font-bold text-slate-100">{{ formatNumber(stats?.characters?.total) }}</p>
-        </div>
-
-        <!-- Tokens Total -->
-        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-              <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
-              </svg>
-            </div>
-            <span class="text-xs text-slate-500 uppercase">Tokens</span>
-          </div>
-          <p class="text-2xl font-bold text-amber-400">{{ formatNumber(stats?.tokens?.total) }}</p>
-        </div>
-
-        <!-- Tokens Healthy -->
-        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-              <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-              </svg>
-            </div>
-            <span class="text-xs text-slate-500 uppercase">Tokens OK</span>
-          </div>
-          <p class="text-2xl font-bold text-emerald-400">{{ formatNumber(stats?.tokens?.healthy) }}</p>
-        </div>
-
-        <!-- Tokens Expiring -->
-        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
-              <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-            </div>
-            <span class="text-xs text-slate-500 uppercase">Expire 24h</span>
-          </div>
-          <p class="text-2xl font-bold text-orange-400">{{ formatNumber(stats?.tokens?.expiring24h) }}</p>
-        </div>
-
-        <!-- Tokens Expired -->
-        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
-              <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
-              </svg>
-            </div>
-            <span class="text-xs text-slate-500 uppercase">Expires</span>
-          </div>
-          <p class="text-2xl font-bold text-red-400">{{ formatNumber(stats?.tokens?.expired) }}</p>
-        </div>
-
-        <!-- Sync Scope (active chars with tokens) -->
-        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-8 h-8 rounded-lg bg-yellow-500/20 flex items-center justify-center">
-              <svg class="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
-            </div>
-            <span class="text-xs text-slate-500 uppercase">Scope sync</span>
-          </div>
-          <p class="text-2xl font-bold text-yellow-400">{{ formatNumber(stats?.characters?.activeSyncScope) }}</p>
-          <p class="text-xs text-slate-500 mt-1">/ {{ formatNumber(stats?.characters?.total) }} chars</p>
-        </div>
-      </div>
-
-      <!-- KPI Cards - Row 3: Assets, Industry, Queues -->
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <!-- Total Assets -->
-        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-              <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-              </svg>
-            </div>
-            <span class="text-xs text-slate-500 uppercase">Assets</span>
-          </div>
-          <p class="text-2xl font-bold text-amber-400">{{ formatNumber(stats?.assets?.totalItems) }}</p>
-        </div>
-
-        <!-- Industry Projects -->
-        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
-              <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
-              </svg>
-            </div>
-            <span class="text-xs text-slate-500 uppercase">Projets actifs</span>
-          </div>
-          <p class="text-2xl font-bold text-indigo-400">{{ formatNumber(stats?.industry?.activeProjects) }}</p>
-        </div>
-
-        <!-- Industry Jobs -->
-        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
-              <svg class="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-              </svg>
-            </div>
-            <span class="text-xs text-slate-500 uppercase">Jobs ESI</span>
-          </div>
-          <p class="text-2xl font-bold text-violet-400">{{ formatNumber(stats?.industryJobs?.activeJobs) }}</p>
-        </div>
-
-        <!-- Structures -->
-        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-8 h-8 rounded-lg bg-teal-500/20 flex items-center justify-center">
-              <svg class="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-              </svg>
-            </div>
-            <span class="text-xs text-slate-500 uppercase">Structures</span>
-          </div>
-          <p class="text-2xl font-bold text-teal-400">{{ formatNumber(stats?.syncs?.structuresCached) }}</p>
-        </div>
-
-        <!-- Queue Async -->
-        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-              <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
-              </svg>
-            </div>
-            <span class="text-xs text-slate-500 uppercase">Queue</span>
-          </div>
-          <p class="text-2xl font-bold text-cyan-400">{{ queues?.queues?.async ?? '—' }}</p>
-        </div>
-
-        <!-- Queue Failed -->
-        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
-              <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-              </svg>
-            </div>
-            <span class="text-xs text-slate-500 uppercase">Failed</span>
-          </div>
-          <p class="text-2xl font-bold text-red-400">{{ queues?.queues?.failed ?? '—' }}</p>
-        </div>
-      </div>
-
-      <!-- Scheduler Health + Actions -->
+      <!-- Scheduler Health + Maintenance Actions -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Scheduler Health (2/3) -->
-        <div class="lg:col-span-2 bg-slate-900 rounded-xl p-6 border border-slate-800">
-          <h3 class="text-lg font-semibold text-slate-200 mb-4">Synchronisations</h3>
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="text-slate-500 text-xs uppercase">
-                  <th class="text-left pb-3 font-medium">Type</th>
-                  <th class="text-left pb-3 font-medium">Dernier run</th>
-                  <th class="text-center pb-3 font-medium">Status</th>
-                  <th class="text-center pb-3 font-medium">Sante</th>
-                  <th class="text-left pb-3 font-medium">Message</th>
-                  <th class="text-center pb-3 font-medium w-16"></th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-800">
-                <tr v-for="entry in stats?.schedulerHealth" :key="entry.type" class="hover:bg-slate-800/30">
-                  <td class="py-2.5 pr-3">
-                    <span class="text-slate-200 font-medium">{{ entry.label }}</span>
-                    <span class="text-slate-600 text-xs ml-1">({{ formatInterval(entry.expectedInterval) }})</span>
-                  </td>
-                  <td class="py-2.5 pr-3">
-                    <span class="text-slate-300 font-mono text-xs">{{ entry.completedAt ? formatTimeSince(entry.completedAt) : '—' }}</span>
-                  </td>
-                  <td class="py-2.5 text-center">
-                    <span
-                      :class="[
-                        'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
-                        entry.status === 'ok' ? 'bg-emerald-500/20 text-emerald-400' :
-                        entry.status === 'running' ? 'bg-blue-500/20 text-blue-400' :
-                        entry.status === 'error' ? 'bg-red-500/20 text-red-400' :
-                        'bg-slate-500/20 text-slate-400'
-                      ]"
-                    >
-                      <svg v-if="entry.status === 'running'" class="w-3 h-3 mr-1 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                      </svg>
-                      {{ entry.status === 'ok' ? 'OK' : entry.status === 'running' ? 'En cours' : entry.status === 'error' ? 'Erreur' : '—' }}
-                    </span>
-                  </td>
-                  <td class="py-2.5 text-center">
-                    <span
-                      :class="[
-                        'inline-block w-2.5 h-2.5 rounded-full',
-                        entry.health === 'healthy' ? 'bg-emerald-400' :
-                        entry.health === 'late' ? 'bg-amber-400' :
-                        entry.health === 'stale' ? 'bg-red-400' :
-                        entry.health === 'running' ? 'bg-blue-400 animate-pulse' :
-                        'bg-slate-600'
-                      ]"
-                      :title="entry.health === 'healthy' ? 'Dans les temps' :
-                              entry.health === 'late' ? 'En retard (>1.5x intervalle)' :
-                              entry.health === 'stale' ? 'Inactif (>3x intervalle)' :
-                              entry.health === 'running' ? 'En cours' : 'Inconnu'"
-                    ></span>
-                  </td>
-                  <td class="py-2.5 pl-3">
-                    <span class="text-slate-500 text-xs truncate max-w-[200px] inline-block">{{ entry.message || '—' }}</span>
-                  </td>
-                  <td class="py-2.5 text-center">
-                    <button
-                      v-if="syncActionMap[entry.type]"
-                      @click="executeAction(syncActionMap[entry.type].key, syncActionMap[entry.type].action)"
-                      :disabled="actionLoading !== null"
-                      class="p-1.5 rounded hover:bg-cyan-500/20 text-slate-500 hover:text-cyan-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                      title="Lancer la synchronisation"
-                    >
-                      <svg :class="['w-3.5 h-3.5', actionLoading === syncActionMap[entry.type].key ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                      </svg>
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="flex items-center gap-4 mt-4 pt-3 border-t border-slate-800 text-xs text-slate-500">
-            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Dans les temps</div>
-            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span> En retard</div>
-            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-400"></span> Inactif</div>
-            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-slate-600"></span> Jamais lance</div>
-          </div>
+        <div class="lg:col-span-2">
+          <SchedulerHealthTable
+            :entries="stats?.schedulerHealth || []"
+            :sync-action-map="syncActionMap"
+            :action-loading="actionLoading"
+            @execute-action="handleSchedulerAction"
+          />
         </div>
-
-        <!-- Maintenance Actions (1/3) -->
-        <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
-          <h3 class="text-lg font-semibold text-slate-200 mb-4">Maintenance</h3>
-          <div class="space-y-3">
-            <button
-              @click="executeAction('retry-failed', adminStore.retryFailed)"
-              :disabled="actionLoading !== null"
-              class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg :class="['w-4 h-4', actionLoading === 'retry-failed' ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
-              Retry Failed
-            </button>
-
-            <button
-              @click="executeAction('purge-failed', adminStore.purgeFailed)"
-              :disabled="actionLoading !== null"
-              class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg :class="['w-4 h-4', actionLoading === 'purge-failed' ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-              </svg>
-              Purge Failed
-            </button>
-
-            <button
-              @click="executeAction('clear-cache', adminStore.clearCache)"
-              :disabled="actionLoading !== null"
-              class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-500/20 hover:bg-slate-500/30 text-slate-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg :class="['w-4 h-4', actionLoading === 'clear-cache' ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-              </svg>
-              Clear Cache
-            </button>
-          </div>
-        </div>
+        <MaintenanceActions
+          :action-loading="actionLoading"
+          @execute-action="handleMaintenanceAction"
+        />
       </div>
 
       <!-- Scheduler Config -->
       <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
-        <h3 class="text-lg font-semibold text-slate-200 mb-4">Scheduler & Rate Limiting</h3>
+        <h3 class="text-lg font-semibold text-slate-200 mb-4">{{ t('admin.scheduler.title') }}</h3>
         <div class="flex items-center gap-4 text-sm text-slate-400">
           <div class="flex items-center gap-2">
             <div class="w-2 h-2 rounded-full bg-yellow-400"></div>
-            <span>Sync scope : <strong class="text-yellow-300">{{ formatNumber(stats?.characters?.activeSyncScope) }}</strong> chars actifs (login &lt; 7j) / {{ formatNumber(stats?.characters?.total) }} total</span>
+            <span>{{ t('admin.scheduler.syncScope') }} : <strong class="text-yellow-300">{{ formatNumber(stats?.characters?.activeSyncScope) }}</strong> {{ t('admin.scheduler.activeChars') }} / {{ formatNumber(stats?.characters?.total) }} total</span>
           </div>
           <div class="flex items-center gap-2">
             <div class="w-2 h-2 rounded-full bg-cyan-400"></div>
-            <span>Throttle ESI : progressif sous 20 errors remain, pause sous 5</span>
+            <span>{{ t('admin.scheduler.throttleEsi') }}</span>
           </div>
         </div>
       </div>
 
       <!-- Charts -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Registrations Chart -->
-        <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
-          <h3 class="text-lg font-semibold text-slate-200 mb-4">Inscriptions par semaine</h3>
-          <div class="h-48">
-            <Bar
-              v-if="registrationChartData"
-              :data="registrationChartData"
-              :options="chartOptions"
-            />
-          </div>
-        </div>
-
-        <!-- Activity Chart -->
-        <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
-          <h3 class="text-lg font-semibold text-slate-200 mb-4">Connexions (7 derniers jours)</h3>
-          <div class="h-48">
-            <Line
-              v-if="activityChartData"
-              :data="activityChartData"
-              :options="chartOptions"
-            />
-          </div>
-        </div>
-
-        <!-- Asset Distribution Chart -->
-        <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
-          <h3 class="text-lg font-semibold text-slate-200 mb-4">Repartition des assets</h3>
-          <div class="h-48">
-            <Doughnut
-              v-if="assetDistributionData"
-              :data="assetDistributionData"
-              :options="doughnutOptions"
-            />
-          </div>
-        </div>
-      </div>
+      <AdminChartsGrid :charts="charts" />
 
       <!-- PVE Stats by Corporation -->
-      <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-slate-200">Revenus PVE par Corporation (30j)</h3>
-          <div class="flex items-center gap-2">
-            <div class="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-              <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-              </svg>
-            </div>
-            <div class="text-right">
-              <p class="text-xl font-bold text-green-400">{{ formatIsk(stats?.pve?.totalIncome30d || 0) }}</p>
-              <p class="text-xs text-slate-500">Total 30 jours</p>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="stats?.pve?.byCorporation?.length" class="space-y-2">
-          <div
-            v-for="(corp, index) in stats.pve.byCorporation"
-            :key="corp.corporationId"
-            class="flex items-center gap-3 p-3 bg-slate-900/50 rounded-lg"
-          >
-            <span class="text-slate-500 text-sm w-6">{{ index + 1 }}.</span>
-            <img
-              :src="`https://images.evetech.net/corporations/${corp.corporationId}/logo?size=32`"
-              class="w-8 h-8 rounded"
-              :alt="corp.corporationName"
-            />
-            <span class="flex-1 text-slate-200 truncate">{{ corp.corporationName }}</span>
-            <span class="text-green-400 font-mono">{{ formatIsk(corp.total) }}</span>
-          </div>
-        </div>
-        <p v-else class="text-slate-500 text-sm">Aucune donnee PVE</p>
-      </div>
+      <PveCorpRevenue :pve="stats?.pve" />
     </div>
   </MainLayout>
 </template>

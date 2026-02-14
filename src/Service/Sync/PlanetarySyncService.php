@@ -39,7 +39,7 @@ class PlanetarySyncService
         $userId = $character->getUser()?->getId()?->toRfc4122();
 
         if ($userId !== null) {
-            $this->mercurePublisher->syncStarted($userId, 'planetary', 'Recuperation des colonies planetaires...');
+            $this->mercurePublisher->syncStarted($userId, 'planetary', 'Fetching planetary colonies...');
         }
 
         try {
@@ -61,7 +61,7 @@ class PlanetarySyncService
                 }
 
                 if ($userId !== null) {
-                    $this->mercurePublisher->syncCompleted($userId, 'planetary', 'Aucune colonie planetaire', [
+                    $this->mercurePublisher->syncCompleted($userId, 'planetary', 'No planetary colonies', [
                         'total' => 0,
                     ]);
                 }
@@ -69,7 +69,7 @@ class PlanetarySyncService
             }
 
             if ($userId !== null) {
-                $this->mercurePublisher->syncProgress($userId, 'planetary', 20, sprintf('%d colonies trouvees...', count($colonies)));
+                $this->mercurePublisher->syncProgress($userId, 'planetary', 20, sprintf('%d colonies found...', count($colonies)));
             }
 
             $syncedCount = 0;
@@ -140,7 +140,7 @@ class PlanetarySyncService
                         $userId,
                         'planetary',
                         $progress,
-                        sprintf('Colonie %d/%d traitee...', $index + 1, $totalColonies),
+                        sprintf('Colony %d/%d processed...', $index + 1, $totalColonies),
                     );
                 }
 
@@ -175,7 +175,7 @@ class PlanetarySyncService
             ]);
 
             if ($userId !== null) {
-                $this->mercurePublisher->syncCompleted($userId, 'planetary', sprintf('%d colonies synchronisees', $syncedCount), [
+                $this->mercurePublisher->syncCompleted($userId, 'planetary', sprintf('%d colonies synced', $syncedCount), [
                     'total' => $syncedCount,
                 ]);
             }

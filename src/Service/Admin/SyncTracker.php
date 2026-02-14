@@ -54,7 +54,7 @@ class SyncTracker
             'message' => null,
         ]);
 
-        $this->notifyTriggeredBy($type, 'started', 'Sync en cours...');
+        $this->notifyTriggeredBy($type, 'started', 'Sync in progress...');
     }
 
     public function complete(string $type, ?string $message = null): void

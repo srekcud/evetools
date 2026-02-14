@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useIndustryStore } from '@/stores/industry'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
@@ -43,6 +44,7 @@ const props = defineProps<{
   projectId: string
 }>()
 
+const { t } = useI18n()
 const store = useIndustryStore()
 const authStore = useAuthStore()
 const syncStore = useSyncStore()
@@ -306,7 +308,7 @@ async function loadShoppingList() {
     shoppingList.value = []
     shoppingTotals.value = null
     shoppingStructureAccessible.value = false
-    shoppingPriceError.value = e instanceof Error ? e.message : 'Erreur lors du chargement'
+    shoppingPriceError.value = e instanceof Error ? e.message : t('common.errors.loadFailed')
   } finally {
     shoppingLoading.value = false
   }
@@ -356,9 +358,9 @@ function formatRelativeTime(isoDate: string | null): string {
   const diffMins = Math.floor(diffMs / 60000)
   const diffHours = Math.floor(diffMins / 60)
 
-  if (diffMins < 1) return "il y a moins d'une minute"
-  if (diffMins < 60) return `il y a ${diffMins} min`
-  if (diffHours < 24) return `il y a ${diffHours}h`
+  if (diffMins < 1) return t('common.time.justNow')
+  if (diffMins < 60) return t('common.time.minutesAgo', { minutes: diffMins })
+  if (diffHours < 24) return t('common.time.hoursAgo', { hours: diffHours })
   return formatDateTime(isoDate)
 }
 
@@ -534,13 +536,13 @@ async function analyzeStock() {
   stockAnalysisError.value = null
 
   if (!pastedStock.value.trim()) {
-    stockAnalysisError.value = 'Collez votre inventaire EVE dans la zone de texte'
+    stockAnalysisError.value = t('industry.shoppingTab.pasteStockError')
     return
   }
 
   const newItems = parseEveStock(pastedStock.value)
   if (newItems.length === 0) {
-    stockAnalysisError.value = 'Aucun item détecté. Vérifiez le format (copier depuis EVE avec Ctrl+A puis Ctrl+C)'
+    stockAnalysisError.value = t('industry.shoppingTab.noItemDetected')
     relevantStock.value = []
     intermediatesInStock.value = []
     return
@@ -586,7 +588,7 @@ async function analyzeStock() {
   }
 
   if (shoppingList.value.length === 0) {
-    stockAnalysisError.value = 'Impossible de charger la liste de courses. Réessayez.'
+    stockAnalysisError.value = t('industry.shoppingTab.loadShoppingError')
     relevantStock.value = []
     return
   }
@@ -854,7 +856,7 @@ defineExpose({
       <svg class="w-6 h-6 animate-spin mx-auto mb-2 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
       </svg>
-      Chargement...
+      {{ t('common.status.loading') }}
     </div>
 
     <!-- Error state with retry -->
@@ -863,7 +865,7 @@ defineExpose({
         <svg class="w-10 h-10 mx-auto mb-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
         </svg>
-        <p class="text-red-400 font-medium mb-2">Erreur de chargement</p>
+        <p class="text-red-400 font-medium mb-2">{{ t('common.errors.loadFailed') }}</p>
         <p class="text-slate-400 text-sm mb-4">{{ shoppingPriceError }}</p>
         <button
           @click="loadShoppingList"
@@ -872,7 +874,7 @@ defineExpose({
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          Réessayer
+          {{ t('common.actions.retry') }}
         </button>
       </div>
     </div>
@@ -882,7 +884,7 @@ defineExpose({
       <svg class="w-12 h-12 mx-auto mb-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
       </svg>
-      <p>Aucun matériau requis pour ce projet</p>
+      <p>{{ t('industry.shoppingTab.noMaterials') }}</p>
     </div>
 
     <!-- Main content -->
@@ -891,7 +893,7 @@ defineExpose({
       <div v-if="store.currentProject?.status !== 'completed'" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <!-- Col 1: Structure selector -->
         <div class="eve-card p-4 flex flex-col">
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-2">Structure marché</label>
+          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.shoppingTab.marketStructure') }}</label>
           <div class="relative">
             <input
               v-model="structureSearchQuery"
@@ -915,7 +917,7 @@ defineExpose({
                 v-else-if="selectedStructure.id || structureSearchQuery"
                 @mousedown.prevent="clearStructure"
                 class="text-slate-400 hover:text-slate-200"
-                title="Revenir au défaut"
+                :title="t('industry.shoppingTab.resetToDefault')"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -939,7 +941,7 @@ defineExpose({
                 v-if="structureSearchQuery.length >= 3 && structureSearchResults.length === 0 && !isSearchingStructures"
                 class="px-3 py-2 text-slate-400 text-sm"
               >
-                Aucune structure trouvée
+                {{ t('industry.shoppingTab.noStructureFound') }}
               </div>
             </div>
           </div>
@@ -952,13 +954,13 @@ defineExpose({
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            Synchroniser
+            {{ t('common.actions.sync') }}
           </button>
         </div>
 
         <!-- Col 2: Transport cost -->
         <div class="eve-card p-4 flex flex-col">
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-2">Coût transport / m³</label>
+          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.shoppingTab.transportCost') }}</label>
           <div class="flex items-center gap-1.5">
             <input
               v-model.number="transportCostPerM3"
@@ -973,16 +975,16 @@ defineExpose({
             @click="loadShoppingList"
             class="mt-auto w-full px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 rounded text-white text-xs font-medium"
           >
-            Recalculer
+            {{ t('industry.shoppingTab.recalculate') }}
           </button>
         </div>
 
         <!-- Col 3: Stock rapide -->
         <div class="eve-card p-4 flex flex-col">
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-2">Stock rapide</label>
+          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.shoppingTab.quickStock') }}</label>
           <textarea
             v-model="pastedStock"
-            placeholder="Coller inventaire EVE..."
+            :placeholder="t('industry.shoppingTab.pasteInventory')"
             class="w-full h-12 bg-slate-800 border border-slate-700 rounded p-2 text-xs font-mono text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
           />
           <div class="flex gap-2 mt-auto">
@@ -991,14 +993,14 @@ defineExpose({
               :disabled="stockAnalysisLoading"
               class="flex-1 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 rounded text-white text-xs font-medium"
             >
-              Appliquer
+              {{ t('industry.shoppingTab.apply') }}
             </button>
             <button
               v-if="parsedStock.length > 0"
               @click="confirmClearStock"
               class="px-3 py-1.5 text-red-400 hover:bg-red-500/10 border border-red-500/30 rounded text-xs"
             >
-              Effacer
+              {{ t('common.actions.clear') }}
             </button>
           </div>
         </div>
@@ -1034,9 +1036,9 @@ defineExpose({
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           <div class="text-sm">
-            <p class="text-amber-300">Prix de la structure non disponibles</p>
+            <p class="text-amber-300">{{ t('industry.shoppingTab.structurePricesUnavailable') }}</p>
             <p class="text-amber-400/70 text-xs mt-0.5">
-              Les données de marché pour {{ shoppingStructureName }} n'ont pas été synchronisées. Utilisez le bouton "Synchroniser" ci-dessus.
+              {{ t('industry.shoppingTab.structureNotSynced', { name: shoppingStructureName }) }}
             </p>
           </div>
         </div>
@@ -1054,13 +1056,13 @@ defineExpose({
       <div v-if="stockPurchaseWarnings.length > 0" class="bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-lg p-3">
         <div class="flex items-start justify-between gap-2">
           <div>
-            <p class="text-sm font-medium">Attention doublons potentiels : certains materiaux colles ont aussi des achats lies.</p>
+            <p class="text-sm font-medium">{{ t('industry.shoppingTab.duplicateWarning') }}</p>
             <ul class="mt-1 text-xs text-amber-400/80 space-y-0.5">
               <li v-for="w in stockPurchaseWarnings" :key="w.name">
                 {{ w.name }} : {{ w.stockQty.toLocaleString() }} en stock + {{ w.purchasedQty.toLocaleString() }} achetes
               </li>
             </ul>
-            <p class="mt-1 text-xs text-amber-400/60">Les achats lies sont peut-etre deja dans votre inventaire.</p>
+            <p class="mt-1 text-xs text-amber-400/60">{{ t('industry.shoppingTab.duplicateHint') }}</p>
           </div>
           <button @click="stockPurchaseWarnings = []" class="text-amber-400 hover:text-amber-300 flex-shrink-0 p-0.5">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1074,19 +1076,19 @@ defineExpose({
       <div v-if="shoppingTotals" class="eve-card p-4">
         <div class="grid grid-cols-5 gap-6 text-center">
           <div>
-            <div class="text-xs text-slate-500 uppercase mb-1">Volume à acheter</div>
+            <div class="text-xs text-slate-500 uppercase mb-1">{{ t('industry.shoppingTab.volumeToBuy') }}</div>
             <div class="font-mono text-slate-200">{{ missingTotals.volume.toLocaleString() }} m³</div>
           </div>
           <div>
-            <div class="text-xs text-slate-500 uppercase mb-1">Jita + Import</div>
+            <div class="text-xs text-slate-500 uppercase mb-1">{{ t('industry.shoppingTab.jitaImport') }}</div>
             <div class="font-mono text-slate-200">{{ formatIsk(hasAnyStock ? missingTotals.jita : shoppingTotals.jitaWithImport) }}</div>
           </div>
           <div>
-            <div class="text-xs text-slate-500 uppercase mb-1">Structure</div>
+            <div class="text-xs text-slate-500 uppercase mb-1">{{ t('industry.shoppingTab.structure') }}</div>
             <div class="font-mono text-slate-200">{{ formatIsk(hasAnyStock ? missingTotals.structure : shoppingTotals.structure) }}</div>
           </div>
           <div>
-            <div class="text-xs text-slate-500 uppercase mb-1">Meilleur total</div>
+            <div class="text-xs text-slate-500 uppercase mb-1">{{ t('industry.shoppingTab.bestTotal') }}</div>
             <div class="font-mono text-emerald-400 text-lg font-bold">{{ formatIsk(hasAnyStock ? missingTotals.price : shoppingTotals.best) }}</div>
           </div>
           <div class="flex items-center justify-center gap-2">
@@ -1113,15 +1115,15 @@ defineExpose({
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
-              <th class="text-left py-3 px-3">Matériau</th>
-              <th class="text-right py-3 px-2">Quantité</th>
-              <th class="text-center py-3 px-2">Stock</th>
-              <th class="text-right py-3 px-2">À acheter</th>
-              <th class="text-right py-3 px-2">Volume</th>
-              <th class="text-right py-3 px-2">Jita + Import</th>
-              <th class="text-right py-3 px-2">Structure</th>
-              <th class="text-right py-3 px-2">Meilleur</th>
-              <th class="text-right py-3 px-2">Économie</th>
+              <th class="text-left py-3 px-3">{{ t('industry.shoppingTab.material') }}</th>
+              <th class="text-right py-3 px-2">{{ t('industry.shoppingTab.quantity') }}</th>
+              <th class="text-center py-3 px-2">{{ t('industry.shoppingTab.stock') }}</th>
+              <th class="text-right py-3 px-2">{{ t('industry.shoppingTab.toBuy') }}</th>
+              <th class="text-right py-3 px-2">{{ t('industry.shoppingTab.volume') }}</th>
+              <th class="text-right py-3 px-2">{{ t('industry.shoppingTab.jitaImport') }}</th>
+              <th class="text-right py-3 px-2">{{ t('industry.shoppingTab.structure') }}</th>
+              <th class="text-right py-3 px-2">{{ t('industry.shoppingTab.best') }}</th>
+              <th class="text-right py-3 px-2">{{ t('industry.shoppingTab.savings') }}</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-800">
@@ -1142,7 +1144,7 @@ defineExpose({
               </td>
               <td class="py-3 px-2 text-right font-mono text-slate-300">
                 {{ item.quantity.toLocaleString() }}
-                <span v-if="item.extraQuantity > 0" class="text-amber-400 text-xs" :title="`+${item.extraQuantity.toLocaleString()} dû à des structures sous-optimales`">
+                <span v-if="item.extraQuantity > 0" class="text-amber-400 text-xs" :title="`+${item.extraQuantity.toLocaleString()} ${t('industry.shoppingTab.suboptimalExtra')}`">
                   (+{{ item.extraQuantity.toLocaleString() }})
                 </span>
               </td>
@@ -1172,7 +1174,7 @@ defineExpose({
                     @click="startEditStock(item)"
                     class="font-mono text-xs cursor-pointer hover:text-cyan-400 min-w-[2rem]"
                     :class="item.inStock > 0 ? 'text-slate-300' : 'text-slate-600'"
-                    title="Cliquer pour modifier"
+                    :title="t('industry.projectDetail.clickToEdit')"
                   >
                     {{ item.inStock > 0 ? item.inStock.toLocaleString() : '-' }}
                   </span>
@@ -1212,7 +1214,7 @@ defineExpose({
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <p class="text-cyan-300/80 text-xs">
-            Prix = ordres de vente les plus bas (Jita Sell + import vs {{ displayStructureName }} Sell)
+            {{ t('industry.shoppingTab.priceInfo', { structure: displayStructureName }) }}
           </p>
           <div v-if="shoppingStructureFromCache && shoppingStructureLastSync" class="ml-auto text-xs text-slate-500 flex items-center gap-1">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1229,7 +1231,7 @@ defineExpose({
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
           </svg>
-          Appliquer comme coût matériaux
+          {{ t('industry.shoppingTab.applyAsMaterialCost') }}
         </button>
       </div>
 
@@ -1240,7 +1242,7 @@ defineExpose({
         <svg class="w-5 h-5 animate-spin mx-auto mb-2 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
-        Chargement des suggestions d'achats...
+        {{ t('industry.shoppingTab.loadingSuggestions') }}
       </div>
 
       <template v-else>
@@ -1248,7 +1250,7 @@ defineExpose({
         <div class="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
           <div class="flex items-center justify-between mb-3">
             <h4 class="text-sm font-semibold text-slate-200">
-              Suggestions d'achats (wallet ESI)
+              {{ t('industry.shoppingTab.purchaseSuggestions') }}
               <span v-if="purchasesStore.suggestions.length > 0" class="text-slate-500 font-normal">({{ purchasesStore.suggestions.length }})</span>
             </h4>
             <button
@@ -1258,25 +1260,25 @@ defineExpose({
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              Actualiser
+              {{ t('common.actions.refresh') }}
             </button>
           </div>
 
           <div v-if="purchasesStore.suggestions.length === 0" class="text-center py-6 text-slate-500 text-sm">
-            Aucune transaction wallet correspondant aux matériaux du projet.
+            {{ t('industry.shoppingTab.noWalletMatch') }}
           </div>
 
           <div v-else class="overflow-x-auto">
             <table class="w-full text-sm">
               <thead>
                 <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase">
-                  <th class="text-left py-2 px-3">Date</th>
-                  <th class="text-left py-2 px-3">Item</th>
-                  <th class="text-right py-2 px-3">Qté</th>
-                  <th class="text-right py-2 px-3">Prix unit.</th>
-                  <th class="text-right py-2 px-3">Total</th>
-                  <th class="text-left py-2 px-3">Perso</th>
-                  <th class="text-center py-2 px-3">Action</th>
+                  <th class="text-left py-2 px-3">{{ t('industry.shoppingTab.date') }}</th>
+                  <th class="text-left py-2 px-3">{{ t('industry.shoppingTab.item') }}</th>
+                  <th class="text-right py-2 px-3">{{ t('industry.shoppingTab.qty') }}</th>
+                  <th class="text-right py-2 px-3">{{ t('industry.shoppingTab.unitPrice') }}</th>
+                  <th class="text-right py-2 px-3">{{ t('industry.shoppingTab.total') }}</th>
+                  <th class="text-left py-2 px-3">{{ t('industry.shoppingTab.character') }}</th>
+                  <th class="text-center py-2 px-3">{{ t('industry.shoppingTab.action') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1293,7 +1295,7 @@ defineExpose({
                   <td class="py-2 px-3 text-right font-mono text-slate-200">{{ formatIsk(suggestion.totalPrice) }}</td>
                   <td class="py-2 px-3 text-slate-400 text-xs">{{ suggestion.characterName }}</td>
                   <td class="py-2 px-3 text-center">
-                    <span v-if="suggestion.alreadyLinked" class="px-2 py-0.5 rounded text-xs bg-emerald-500/10 text-emerald-400">Lié</span>
+                    <span v-if="suggestion.alreadyLinked" class="px-2 py-0.5 rounded text-xs bg-emerald-500/10 text-emerald-400">{{ t('industry.shoppingTab.linked') }}</span>
                     <button
                       v-else-if="findStepForType(suggestion.typeId)"
                       @click="linkSuggestion(suggestion)"
@@ -1305,7 +1307,7 @@ defineExpose({
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
                       </template>
-                      <template v-else>Lier</template>
+                      <template v-else>{{ t('industry.shoppingTab.link') }}</template>
                     </button>
                     <span v-else class="text-xs text-slate-600">—</span>
                   </td>
@@ -1314,14 +1316,14 @@ defineExpose({
             </table>
             <!-- Suggestions pagination -->
             <div v-if="totalSuggestionsPages > 1" class="flex items-center justify-between px-3 py-2 border-t border-slate-700">
-              <span class="text-xs text-slate-500">{{ purchasesStore.suggestions.length }} résultat(s)</span>
+              <span class="text-xs text-slate-500">{{ purchasesStore.suggestions.length }} {{ t('industry.shoppingTab.results') }}</span>
               <div class="flex items-center gap-2">
                 <button
                   @click="suggestionsPage--"
                   :disabled="suggestionsPage <= 1"
                   class="px-2 py-1 rounded text-xs bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Précédent
+                  {{ t('industry.shoppingTab.previous') }}
                 </button>
                 <span class="text-xs text-slate-400">{{ suggestionsPage }} / {{ totalSuggestionsPages }}</span>
                 <button
@@ -1329,7 +1331,7 @@ defineExpose({
                   :disabled="suggestionsPage >= totalSuggestionsPages"
                   class="px-2 py-1 rounded text-xs bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Suivant
+                  {{ t('industry.shoppingTab.next') }}
                 </button>
               </div>
             </div>
@@ -1339,25 +1341,25 @@ defineExpose({
         <!-- Linked purchases for this project -->
         <div v-if="store.currentProject?.steps" class="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
           <h4 class="text-sm font-semibold text-slate-200 mb-3">
-            Achats liés au projet
+            {{ t('industry.shoppingTab.linkedPurchases') }}
             <span v-if="projectPurchases.length > 0" class="text-slate-500 font-normal">({{ projectPurchases.length }})</span>
           </h4>
 
           <div v-if="projectPurchases.length === 0" class="text-center py-4 text-slate-500 text-sm">
-            Aucun achat lié à ce projet.
+            {{ t('industry.shoppingTab.noLinkedPurchases') }}
           </div>
 
           <div v-else class="overflow-x-auto">
             <table class="w-full text-sm">
               <thead>
                 <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase">
-                  <th class="text-left py-2 px-3">Step</th>
-                  <th class="text-left py-2 px-3">Item</th>
-                  <th class="text-right py-2 px-3">Qté</th>
-                  <th class="text-right py-2 px-3">Prix unit.</th>
-                  <th class="text-right py-2 px-3">Total</th>
-                  <th class="text-center py-2 px-3">Source</th>
-                  <th class="text-center py-2 px-3">Action</th>
+                  <th class="text-left py-2 px-3">{{ t('industry.shoppingTab.step') }}</th>
+                  <th class="text-left py-2 px-3">{{ t('industry.shoppingTab.item') }}</th>
+                  <th class="text-right py-2 px-3">{{ t('industry.shoppingTab.qty') }}</th>
+                  <th class="text-right py-2 px-3">{{ t('industry.shoppingTab.unitPrice') }}</th>
+                  <th class="text-right py-2 px-3">{{ t('industry.shoppingTab.total') }}</th>
+                  <th class="text-center py-2 px-3">{{ t('industry.shoppingTab.source') }}</th>
+                  <th class="text-center py-2 px-3">{{ t('industry.shoppingTab.action') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1378,14 +1380,14 @@ defineExpose({
                         purchase.source === 'esi_wallet' ? 'bg-cyan-500/10 text-cyan-400' : 'bg-amber-500/10 text-amber-400'
                       ]"
                     >
-                      {{ purchase.source === 'esi_wallet' ? 'ESI' : 'Manuel' }}
+                      {{ purchase.source === 'esi_wallet' ? 'ESI' : t('industry.shoppingTab.manual') }}
                     </span>
                   </td>
                   <td class="py-2 px-3 text-center">
                     <button
                       @click="removePurchase(purchase.stepId, purchase.id)"
                       class="text-slate-500 hover:text-red-400"
-                      title="Délier"
+                      :title="t('industry.shoppingTab.unlink')"
                     >
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -1397,14 +1399,14 @@ defineExpose({
             </table>
             <!-- Purchases pagination -->
             <div v-if="totalPurchasesPages > 1" class="flex items-center justify-between px-3 py-2 border-t border-slate-700">
-              <span class="text-xs text-slate-500">{{ projectPurchases.length }} résultat(s)</span>
+              <span class="text-xs text-slate-500">{{ projectPurchases.length }} {{ t('industry.shoppingTab.results') }}</span>
               <div class="flex items-center gap-2">
                 <button
                   @click="purchasesPage--"
                   :disabled="purchasesPage <= 1"
                   class="px-2 py-1 rounded text-xs bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Précédent
+                  {{ t('industry.shoppingTab.previous') }}
                 </button>
                 <span class="text-xs text-slate-400">{{ purchasesPage }} / {{ totalPurchasesPages }}</span>
                 <button
@@ -1412,17 +1414,17 @@ defineExpose({
                   :disabled="purchasesPage >= totalPurchasesPages"
                   class="px-2 py-1 rounded text-xs bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Suivant
+                  {{ t('industry.shoppingTab.next') }}
                 </button>
               </div>
             </div>
 
             <!-- Cost comparison -->
             <div v-if="projectPurchasesTotalCost > 0" class="mt-4 pt-3 border-t border-slate-700 flex items-center gap-6 text-sm">
-              <span class="text-slate-400">Coût réel achats :</span>
+              <span class="text-slate-400">{{ t('industry.shoppingTab.actualPurchaseCost') }}:</span>
               <span class="font-mono text-slate-200">{{ formatIsk(projectPurchasesTotalCost) }}</span>
               <template v-if="store.currentProject?.materialCost">
-                <span class="text-slate-400">Estimé :</span>
+                <span class="text-slate-400">{{ t('industry.shoppingTab.estimated') }}:</span>
                 <span class="font-mono text-slate-400">{{ formatIsk(store.currentProject.materialCost) }}</span>
                 <span
                   :class="[

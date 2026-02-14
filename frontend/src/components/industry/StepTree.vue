@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { formatDuration } from '@/composables/useProjectTime'
 import type { IndustryProjectStep, SimilarJob } from '@/stores/industry'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   steps: IndustryProjectStep[]
@@ -279,8 +282,8 @@ const groupedSteps = computed<StepGroup[]>(() => {
 })
 
 function groupLabel(step: IndustryProjectStep): string {
-  const type = step.activityType === 'reaction' ? 'Réactions' : step.activityType === 'copy' ? 'Copies (BPC)' : 'Manufacturing'
-  return `Profondeur ${step.depth} — ${type}`
+  const type = step.activityType === 'reaction' ? t('industry.stepTree.reactions') : step.activityType === 'copy' ? t('industry.stepTree.copies') : 'Manufacturing'
+  return `${t('industry.stepTree.depth')} ${step.depth} — ${type}`
 }
 
 function activityBadgeClass(type: string): string {
@@ -290,9 +293,9 @@ function activityBadgeClass(type: string): string {
 }
 
 function activityLabel(type: string): string {
-  if (type === 'reaction') return 'Réaction'
-  if (type === 'copy') return 'BPC'
-  return 'Fab'
+  if (type === 'reaction') return t('industry.activity.reaction')
+  if (type === 'copy') return t('industry.activity.copy')
+  return t('industry.activity.manufacturing')
 }
 
 // Check if step is linked to ESI (not editable/deletable)
@@ -303,7 +306,7 @@ function isLinkedToEsi(step: IndustryProjectStep): boolean {
 // Format similar jobs warning tooltip
 function formatSimilarJobsWarning(similarJobs: SimilarJob[]): string {
   return similarJobs.map(j => {
-    const status = j.status === 'active' ? 'en cours' : 'terminé'
+    const status = j.status === 'active' ? t('industry.stepStatus.active') : t('industry.stepStatus.completed')
     const facility = j.facilityName ? ` @ ${j.facilityName}` : ''
     return `${j.characterName}: ${j.runs} runs (${status})${facility}`
   }).join('\n')
@@ -316,7 +319,7 @@ function materialImpactText(item: { structureBonus: number | null; bestMaterialB
   const actualFactor = 1 - item.structureBonus / 100
   const bestFactor = 1 - item.bestMaterialBonus / 100
   const extraPercent = ((actualFactor / bestFactor) - 1) * 100
-  return `+${extraPercent.toFixed(1)}% matériaux`
+  return `+${extraPercent.toFixed(1)}% ${t('industry.table.materials').toLowerCase()}`
 }
 
 // Calculate runs covered by stock
@@ -327,15 +330,15 @@ function getRunsCoveredByStock(step: IndustryProjectStep): number {
 }
 
 function stepStatusLabel(step: IndustryProjectStep): string {
-  if (step.inStock) return 'En stock'
+  if (step.inStock) return t('industry.step.inStock')
   if (step.inStockQuantity > 0) {
     const runsCovered = getRunsCoveredByStock(step)
-    return runsCovered >= step.runs ? 'En stock' : `${runsCovered}/${step.runs} runs`
+    return runsCovered >= step.runs ? t('industry.step.inStock') : `${runsCovered}/${step.runs} runs`
   }
-  if (step.purchased) return 'Acheté'
-  if (step.esiJobStatus === 'active') return 'En cours'
-  if (step.esiJobStatus === 'delivered' || step.esiJobStatus === 'ready') return 'Terminé'
-  return 'À lancer'
+  if (step.purchased) return t('industry.step.purchased')
+  if (step.esiJobStatus === 'active') return t('industry.stepStatus.active')
+  if (step.esiJobStatus === 'delivered' || step.esiJobStatus === 'ready') return t('industry.stepStatus.completed')
+  return t('industry.stepStatus.toLaunch')
 }
 
 function stepStatusClass(step: IndustryProjectStep): string {
@@ -528,7 +531,7 @@ function mergeGroup(stepId: string) {
                   v-if="splitGroup.facilityInfoType === 'unconfigured'"
                   class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20"
                 >
-                  {{ splitGroup.actualFacilityName }} (non configurée)
+                  {{ splitGroup.actualFacilityName }} ({{ t('industry.stepTree.unconfigured') }})
                 </span>
               </div>
               <!-- Runs info with breakdown -->
@@ -546,13 +549,13 @@ function mergeGroup(stepId: string) {
                 </span>
                 <!-- Runs breakdown -->
                 <span v-if="splitGroup.runsToLaunch > 0" class="text-slate-500">
-                  {{ splitGroup.runsToLaunch }} à lancer
+                  {{ splitGroup.runsToLaunch }} {{ t('industry.stepTree.toLaunch') }}
                 </span>
                 <span v-if="splitGroup.runsInProgress > 0" class="text-cyan-400">
-                  {{ splitGroup.runsInProgress }} en cours
+                  {{ splitGroup.runsInProgress }} {{ t('industry.stepTree.inProgress') }}
                 </span>
                 <span v-if="splitGroup.runsCompleted > 0" class="text-emerald-400">
-                  {{ splitGroup.runsCompleted }} terminés
+                  {{ splitGroup.runsCompleted }} {{ t('industry.stepTree.completed') }}
                 </span>
                 <!-- Duration -->
                 <span v-if="groupTotalDuration(splitGroup.children)" class="text-slate-500 flex items-center gap-1">
@@ -569,9 +572,9 @@ function mergeGroup(stepId: string) {
               v-if="splitGroup.children.length > 1 && splitGroup.depth > 0 && !readonly"
               @click.stop="mergeGroup(splitGroup.children[0].id)"
               class="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded text-slate-300"
-              title="Fusionner les jobs"
+              :title="t('industry.step.merge')"
             >
-              Fusionner
+              {{ t('industry.step.merge') }}
             </button>
 
             <!-- Purchased all button (hidden for depth 0 - root products) -->
@@ -587,7 +590,7 @@ function mergeGroup(stepId: string) {
                 @change="toggleAllPurchased(splitGroup.children)"
                 class="w-4 h-4 rounded border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500 focus:ring-offset-slate-900 disabled:cursor-not-allowed"
               />
-              <span class="text-xs text-slate-400">Acheté</span>
+              <span class="text-xs text-slate-400">{{ t('industry.step.purchased') }}</span>
             </label>
           </div>
 
@@ -632,12 +635,12 @@ function mergeGroup(stepId: string) {
                       v-else
                       @dblclick.stop="startEditRuns(step)"
                       class="text-xs text-slate-600 cursor-pointer hover:text-cyan-400"
-                      title="Double-cliquer pour modifier"
+                      :title="t('industry.table.doubleClickEdit')"
                     >
                       ({{ step.runs }} runs)
                     </span>
                   </template>
-                  <span v-else class="text-xs text-slate-600" :title="isLinkedToEsi(step) ? 'Lié à ESI - non modifiable' : 'Projet terminé'">
+                  <span v-else class="text-xs text-slate-600" :title="isLinkedToEsi(step) ? t('industry.stepTree.linkedToEsi') : t('industry.table.projectCompleted')">
                     ({{ step.runs }} runs)
                   </span>
                   <!-- Split index -->
@@ -681,14 +684,14 @@ function mergeGroup(stepId: string) {
                   >{{ step.recommendedStructureName }} — {{ step.structureBonus }}%</span>
                   <!-- ESI linked indicator with unlink button -->
                   <span v-if="isLinkedToEsi(step)" class="inline-flex items-center gap-1">
-                    <span class="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400" title="Lié à un job ESI">
+                    <span class="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400" :title="t('industry.step.jobMatched')">
                       ESI
                     </span>
                     <button
                       v-if="!readonly && step.jobMatches && step.jobMatches.length > 0"
                       @click.stop="emit('unlink-job', step.jobMatches[0].id)"
                       class="text-xs px-1 py-0.5 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20"
-                      title="Délier le job ESI"
+                      :title="t('industry.stepsTab.unlinkEsi')"
                     >
                       &times;
                     </button>
@@ -703,7 +706,7 @@ function mergeGroup(stepId: string) {
                   <span
                     v-else-if="step.recommendedCharacterName && !step.purchased && !step.inStock"
                     class="px-2 py-1 rounded text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
-                    title="Personnage recommandé (meilleurs skills)"
+                    :title="t('industry.stepTree.recommendedCharacter')"
                   >
                     {{ step.recommendedCharacterName }}
                   </span>
@@ -712,7 +715,7 @@ function mergeGroup(stepId: string) {
                     v-if="step.facilityInfoType === 'suboptimal'"
                     class="text-xs text-amber-400"
                   >
-                    Sous-optimal — Meilleure : {{ step.bestStructureName }}
+                    {{ t('industry.stepTree.suboptimal') }} — {{ t('industry.stepTree.better') }} : {{ step.bestStructureName }}
                     ({{ step.bestMaterialBonus?.toFixed(2) }}%)
                     <template v-if="materialImpactText(step)">· {{ materialImpactText(step) }}</template>
                   </span>
@@ -721,7 +724,7 @@ function mergeGroup(stepId: string) {
                     v-if="step.facilityInfoType === 'unconfigured'"
                     class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20"
                   >
-                    {{ step.actualFacilityName }} (non configurée)
+                    {{ step.actualFacilityName }} ({{ t('industry.stepTree.unconfigured') }})
                   </span>
                   <!-- Similar jobs warning -->
                   <span
@@ -729,7 +732,7 @@ function mergeGroup(stepId: string) {
                     class="text-xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 cursor-help"
                     :title="formatSimilarJobsWarning(step.similarJobs)"
                   >
-                    {{ step.similarJobs.length }} job{{ step.similarJobs.length > 1 ? 's' : '' }} similaire{{ step.similarJobs.length > 1 ? 's' : '' }}
+                    {{ t('industry.stepTree.similarJobs', { count: step.similarJobs.length }) }}
                   </span>
                 </div>
                 <!-- Job info -->
@@ -783,7 +786,7 @@ function mergeGroup(stepId: string) {
                   @change="onToggle(step)"
                   class="w-4 h-4 rounded border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500 focus:ring-offset-slate-900 disabled:cursor-not-allowed"
                 />
-                <span class="text-xs text-slate-400">Acheté</span>
+                <span class="text-xs text-slate-400">{{ t('industry.step.purchased') }}</span>
               </label>
 
               <!-- Split button with text "Splitter" -->
@@ -816,9 +819,9 @@ function mergeGroup(stepId: string) {
                   v-else
                   @click.stop="startSplit(step.id)"
                   class="px-2 py-1 rounded text-xs bg-slate-800 text-slate-400 hover:text-cyan-400 border border-slate-700"
-                  title="Splitter ce step"
+                  :title="t('industry.step.split')"
                 >
-                  Splitter ▾
+                  {{ t('industry.step.split') }} ▾
                 </button>
               </template>
 
@@ -832,7 +835,7 @@ function mergeGroup(stepId: string) {
                 v-if="!isLinkedToEsi(step) && !readonly"
                 @click.stop="deleteStep(step.id, step.productTypeName)"
                 class="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-700 rounded"
-                title="Supprimer cette étape"
+                :title="t('industry.stepTree.deleteStep')"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -849,7 +852,7 @@ function mergeGroup(stepId: string) {
             >
               <template v-if="addingChildToGroup === splitGroup.splitGroupId">
                 <div class="flex items-center gap-2 flex-1">
-                  <span class="text-sm text-slate-400">Runs:</span>
+                  <span class="text-sm text-slate-400">Runs :</span>
                   <input
                     v-model.number="addChildRunsValue"
                     type="number"
@@ -863,13 +866,13 @@ function mergeGroup(stepId: string) {
                     @click="confirmAddChild(splitGroup.splitGroupId, splitGroup.children[0]?.id)"
                     class="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 rounded text-sm text-white"
                   >
-                    Ajouter
+                    {{ t('common.actions.add') }}
                   </button>
                   <button
                     @click="cancelAddChild"
                     class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm text-slate-300"
                   >
-                    Annuler
+                    {{ t('common.actions.cancel') }}
                   </button>
                 </div>
               </template>
@@ -881,7 +884,7 @@ function mergeGroup(stepId: string) {
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                   </svg>
-                  <span class="text-sm">Ajouter un job</span>
+                  <span class="text-sm">{{ t('industry.stepTree.addJob') }}</span>
                 </button>
               </template>
             </div>
@@ -905,22 +908,22 @@ function mergeGroup(stepId: string) {
         ></div>
         <!-- Modal -->
         <div class="relative bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6" tabindex="-1" ref="deleteModalRef">
-          <h3 class="text-lg font-semibold text-slate-100 mb-2">Supprimer l'étape</h3>
+          <h3 class="text-lg font-semibold text-slate-100 mb-2">{{ t('industry.stepTree.deleteStepTitle') }}</h3>
           <p class="text-slate-400 mb-6">
-            Voulez-vous vraiment supprimer l'étape <span class="text-slate-200 font-medium">"{{ deleteStepName }}"</span> ?
+            {{ t('industry.stepTree.deleteStepConfirm', { name: deleteStepName }) }}
           </p>
           <div class="flex justify-end gap-3">
             <button
               @click="cancelDelete"
               class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-slate-300 text-sm font-medium transition-colors"
             >
-              Annuler
+              {{ t('common.actions.cancel') }}
             </button>
             <button
               @click="confirmDelete"
               class="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-white text-sm font-medium transition-colors"
             >
-              Supprimer
+              {{ t('common.actions.delete') }}
             </button>
           </div>
         </div>

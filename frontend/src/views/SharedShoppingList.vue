@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { safeJsonParse } from '@/services/api'
 import { useFormatters } from '@/composables/useFormatters'
@@ -18,6 +19,7 @@ interface SharedListResponse {
   expiresAt: string
 }
 
+const { t } = useI18n()
 const route = useRoute()
 const { formatDateTime } = useFormatters()
 
@@ -44,14 +46,14 @@ async function loadSharedList() {
 
     if (!response.ok) {
       if (response.status === 404) {
-        throw new Error('Cette liste de courses n\'existe pas ou a expire.')
+        throw new Error(t('shopping.listExpired'))
       }
-      throw new Error('Erreur lors du chargement de la liste')
+      throw new Error(t('shopping.loadError'))
     }
 
     data.value = await safeJsonParse<SharedListResponse>(response)
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Une erreur est survenue'
+    error.value = e instanceof Error ? e.message : t('common.errors.loadFailed')
   } finally {
     isLoading.value = false
   }
@@ -68,7 +70,7 @@ async function loadSharedList() {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
           </svg>
           <h1 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">
-            Liste de courses partagee
+            {{ t('shopping.sharedList') }}
           </h1>
         </div>
         <p class="text-slate-400 text-sm">
@@ -94,7 +96,7 @@ async function loadSharedList() {
           href="/shopping-list"
           class="inline-block mt-4 px-6 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-colors"
         >
-          Creer une nouvelle liste
+          {{ t('shopping.createNewList') }}
         </a>
       </div>
 
@@ -103,15 +105,15 @@ async function loadSharedList() {
         <!-- Info banner -->
         <div class="bg-slate-900 border border-slate-800 rounded-lg p-4 flex items-center justify-between">
           <div class="text-sm text-slate-400">
-            <span>Creee le {{ formatDateTime(data.createdAt) }}</span>
+            <span>{{ t('shopping.createdAt') }} {{ formatDateTime(data.createdAt) }}</span>
             <span class="mx-2">•</span>
-            <span>Expire le {{ formatDateTime(data.expiresAt) }}</span>
+            <span>{{ t('shopping.expiresAt') }} {{ formatDateTime(data.expiresAt) }}</span>
           </div>
           <a
             href="/shopping-list"
             class="text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
           >
-            Creer ma propre liste
+            {{ t('shopping.createMyOwn') }}
           </a>
         </div>
 

@@ -96,13 +96,13 @@ class PveSyncService
 
         // Notify sync started
         if ($userId !== null) {
-            $this->mercurePublisher->syncStarted($userId, 'pve', 'Synchronisation des données PVE...');
+            $this->mercurePublisher->syncStarted($userId, 'pve', 'Syncing PVE data...');
         }
 
         try {
             try {
                 if ($userId !== null) {
-                    $this->mercurePublisher->syncProgress($userId, 'pve', 10, 'Récupération des bounties...');
+                    $this->mercurePublisher->syncProgress($userId, 'pve', 10, 'Fetching bounties...');
                 }
                 $results['bounties'] = $this->syncWalletJournal($user);
             } catch (\Throwable $e) {
@@ -112,7 +112,7 @@ class PveSyncService
 
             try {
                 if ($userId !== null) {
-                    $this->mercurePublisher->syncProgress($userId, 'pve', 35, 'Récupération des ventes de loot...');
+                    $this->mercurePublisher->syncProgress($userId, 'pve', 35, 'Fetching loot sales...');
                 }
                 $results['lootSales'] = $this->syncLootSalesFromTransactions($user);
             } catch (\Throwable $e) {
@@ -122,7 +122,7 @@ class PveSyncService
 
             try {
                 if ($userId !== null) {
-                    $this->mercurePublisher->syncProgress($userId, 'pve', 60, 'Analyse des contrats de loot...');
+                    $this->mercurePublisher->syncProgress($userId, 'pve', 60, 'Analyzing loot contracts...');
                 }
                 $results['lootContracts'] = $this->syncLootFromContracts($user);
             } catch (\Throwable $e) {
@@ -132,7 +132,7 @@ class PveSyncService
 
             try {
                 if ($userId !== null) {
-                    $this->mercurePublisher->syncProgress($userId, 'pve', 85, 'Récupération des dépenses...');
+                    $this->mercurePublisher->syncProgress($userId, 'pve', 85, 'Fetching expenses...');
                 }
                 $results['expenses'] = $this->syncExpensesFromTransactions($user);
             } catch (\Throwable $e) {
@@ -149,7 +149,7 @@ class PveSyncService
             if ($userId !== null) {
                 $totalImported = $results['bounties'] + $results['lootSales'] + $results['lootContracts'] + $results['expenses'];
                 $message = sprintf(
-                    '%d bounties, %d ventes, %d contrats, %d dépenses',
+                    '%d bounties, %d sales, %d contracts, %d expenses',
                     $results['bounties'],
                     $results['lootSales'],
                     $results['lootContracts'],

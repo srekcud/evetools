@@ -1,7 +1,16 @@
+import { useI18n } from 'vue-i18n'
+
 /**
  * Composable for formatting values (ISK currency, dates)
+ * Uses the current i18n locale for number/date formatting.
  */
 export function useFormatters() {
+  const { locale } = useI18n()
+
+  function getLocaleStr(): string {
+    return locale.value === 'fr' ? 'fr-FR' : 'en-US'
+  }
+
   function formatIsk(amount: number | undefined | null, decimals = 2): string {
     if (amount === undefined || amount === null) return '---'
     if (amount >= 1_000_000_000) {
@@ -17,11 +26,11 @@ export function useFormatters() {
   }
 
   function formatIskFull(amount: number): string {
-    return amount.toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' ISK'
+    return amount.toLocaleString(getLocaleStr(), { maximumFractionDigits: 0 }) + ' ISK'
   }
 
   function formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleDateString('fr-FR', {
+    return new Date(dateStr).toLocaleDateString(getLocaleStr(), {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -29,7 +38,7 @@ export function useFormatters() {
   }
 
   function formatDateTime(dateStr: string): string {
-    return new Date(dateStr).toLocaleString('fr-FR', {
+    return new Date(dateStr).toLocaleString(getLocaleStr(), {
       day: '2-digit',
       month: '2-digit',
       hour: '2-digit',
@@ -65,7 +74,7 @@ export function useFormatters() {
 
   function formatNumber(value: number | undefined | null, decimals = 2): string {
     if (value === undefined || value === null) return '---'
-    return value.toLocaleString('fr-FR', { maximumFractionDigits: decimals })
+    return value.toLocaleString(getLocaleStr(), { maximumFractionDigits: decimals })
   }
 
   // Alias for backward compatibility

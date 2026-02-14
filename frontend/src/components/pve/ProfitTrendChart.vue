@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Bar } from 'vue-chartjs'
 import {
   Chart as ChartJS,
@@ -20,6 +21,8 @@ ChartJS.register(
   Tooltip,
   Legend
 )
+
+const { t } = useI18n()
 
 const props = defineProps<{
   data: DailyStats[]
@@ -86,7 +89,7 @@ const chartOptions = {
 
 <template>
   <div class="bg-gray-800 rounded-lg p-4">
-    <h3 class="text-lg font-medium text-white mb-4">Daily Profit</h3>
+    <h3 class="text-lg font-medium text-white mb-4">{{ t('pve.charts.dailyProfit') }}</h3>
     <div class="h-64">
       <Bar :data="chartData" :options="chartOptions" />
     </div>

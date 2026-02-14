@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { authFetch, safeJsonParse } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import MainLayout from '@/layouts/MainLayout.vue'
 
+const { t } = useI18n()
 const authStore = useAuthStore()
 const { formatIsk, formatDate, formatDateTime } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
@@ -63,11 +65,11 @@ const error = ref('')
 const selectedStatus = ref('outstanding')
 const expandedContract = ref<number | null>(null)
 
-const statusOptions = [
-  { value: 'outstanding', label: 'En cours' },
-  { value: 'finished', label: 'Terminés' },
-  { value: 'all', label: 'Tous' },
-]
+const statusOptions = computed(() => [
+  { value: 'outstanding', label: t('contracts.filters.outstanding') },
+  { value: 'finished', label: t('contracts.filters.finished') },
+  { value: 'all', label: t('contracts.filters.all') },
+])
 
 async function fetchContracts() {
   isLoading.value = true
@@ -86,23 +88,26 @@ async function fetchContracts() {
     const data = await safeJsonParse<{ contracts: Contract[] }>(response)
     contracts.value = data.contracts
   } catch (e: any) {
-    error.value = e.message || 'Erreur lors du chargement des contrats'
+    error.value = e.message || t('common.errors.loadFailed')
     console.error(e)
   } finally {
     isLoading.value = false
   }
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  outstanding: 'En cours',
-  finished: 'Termine',
-  completed: 'Complete',
-  cancelled: 'Annule',
-  rejected: 'Rejete',
-  failed: 'Echoue',
-  deleted: 'Supprime',
-  reversed: 'Inverse',
-  in_progress: 'En traitement',
+function getStatusLabelKey(status: string): string {
+  const keys: Record<string, string> = {
+    outstanding: 'contracts.statuses.outstanding',
+    finished: 'contracts.statuses.finished',
+    completed: 'contracts.statuses.completed',
+    cancelled: 'contracts.statuses.cancelled',
+    rejected: 'contracts.statuses.rejected',
+    failed: 'contracts.statuses.failed',
+    deleted: 'contracts.statuses.deleted',
+    reversed: 'contracts.statuses.reversed',
+    in_progress: 'contracts.statuses.inProgress',
+  }
+  return keys[status] ?? status
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -116,7 +121,8 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 function getStatusLabel(status: string): string {
-  return STATUS_LABELS[status] ?? status
+  const key = getStatusLabelKey(status)
+  return key.startsWith('contracts.') ? t(key) : key
 }
 
 function getStatusColor(status: string): string {
@@ -173,7 +179,7 @@ function onStatusChange() {
             <svg :class="['w-4 h-4', isLoading && 'animate-spin']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
             </svg>
-            {{ isLoading ? 'Chargement...' : 'Actualiser' }}
+            {{ isLoading ? t('common.status.loading') : t('common.actions.refresh') }}
           </button>
         </div>
       </div>
@@ -193,8 +199,8 @@ function onStatusChange() {
         <svg class="w-10 h-10 animate-spin text-cyan-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
         </svg>
-        <p class="text-slate-400">Chargement des contrats et prix marche...</p>
-        <p class="text-slate-500 text-sm mt-1">Cela peut prendre quelques secondes</p>
+        <p class="text-slate-400">{{ t('contracts.loading') }}</p>
+        <p class="text-slate-500 text-sm mt-1">{{ t('contracts.loadingHint') }}</p>
       </div>
 
       <template v-else>
@@ -204,7 +210,7 @@ function onStatusChange() {
           <div class="group relative bg-slate-900 rounded-2xl p-5 border border-slate-800 overflow-hidden transition-all duration-300 hover:border-cyan-500/40 hover:shadow-lg hover:shadow-cyan-500/10 hover:-translate-y-1">
             <div class="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
             <div class="relative">
-              <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">Total contrats</p>
+              <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">{{ t('contracts.kpi.totalContracts') }}</p>
               <p class="text-3xl font-bold text-cyan-400">{{ contracts.length }}</p>
             </div>
           </div>
@@ -213,7 +219,7 @@ function onStatusChange() {
           <div class="group relative bg-slate-900 rounded-2xl p-5 border border-slate-800 overflow-hidden transition-all duration-300 hover:border-amber-500/40 hover:shadow-lg hover:shadow-amber-500/10 hover:-translate-y-1">
             <div class="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
             <div class="relative">
-              <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">Ventes</p>
+              <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">{{ t('contracts.kpi.sales') }}</p>
               <p class="text-3xl font-bold text-amber-400">{{ sellContracts.length }}</p>
             </div>
           </div>
@@ -222,7 +228,7 @@ function onStatusChange() {
           <div class="group relative bg-slate-900 rounded-2xl p-5 border border-slate-800 overflow-hidden transition-all duration-300 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/10 hover:-translate-y-1">
             <div class="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
             <div class="relative">
-              <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">Competitifs</p>
+              <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">{{ t('contracts.competitive') }}</p>
               <p class="text-3xl font-bold text-emerald-400">{{ competitiveCount }}</p>
             </div>
           </div>
@@ -231,7 +237,7 @@ function onStatusChange() {
           <div class="group relative bg-slate-900 rounded-2xl p-5 border border-slate-800 overflow-hidden transition-all duration-300 hover:border-red-500/40 hover:shadow-lg hover:shadow-red-500/10 hover:-translate-y-1">
             <div class="absolute inset-0 bg-gradient-to-r from-transparent via-red-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
             <div class="relative">
-              <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">Trop chers</p>
+              <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">{{ t('contracts.notCompetitive') }}</p>
               <p class="text-3xl font-bold text-red-400">{{ nonCompetitiveCount }}</p>
             </div>
           </div>
@@ -240,10 +246,10 @@ function onStatusChange() {
         <!-- Contracts list -->
         <div v-if="contracts.length > 0" class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
           <div class="px-5 py-4 border-b border-slate-800">
-            <h3 class="font-semibold">Contrats Item Exchange</h3>
-            <p class="text-sm text-slate-500">Prix compares avec le marche Jita (The Forge)</p>
+            <h3 class="font-semibold">{{ t('contracts.itemExchange') }}</h3>
+            <p class="text-sm text-slate-500">{{ t('contracts.jitaComparison') }}</p>
             <p class="text-xs text-slate-600 mt-1">
-              Seuils : max +5% vs contrats similaires, max +10% vs Jita (0 ISK = toujours competitif pour les achats)
+              {{ t('contracts.thresholds') }}
             </p>
           </div>
 
@@ -275,7 +281,7 @@ function onStatusChange() {
                           {{ getStatusLabel(contract.status) }}
                         </span>
                         <span :class="['text-xs px-2 py-0.5 rounded', contract.isSeller ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400']">
-                          {{ contract.isSeller ? 'Vente' : 'Achat' }}
+                          {{ contract.isSeller ? t('contracts.sell') : t('contracts.buy') }}
                         </span>
                         <span class="text-xs text-slate-500">
                           #{{ contract.contractId }}
@@ -286,7 +292,7 @@ function onStatusChange() {
                       </p>
                       <p class="text-xs text-slate-500 mt-1">
                         {{ formatDateTime(contract.dateIssued) }}
-                        <span v-if="contract.dateExpired"> - Expire: {{ formatDate(contract.dateExpired) }}</span>
+                        <span v-if="contract.dateExpired"> - {{ t('contracts.expires') }}: {{ formatDate(contract.dateExpired) }}</span>
                       </p>
                     </div>
                   </div>
@@ -296,7 +302,7 @@ function onStatusChange() {
                     <div class="flex items-center gap-4">
                       <!-- Contract price -->
                       <div>
-                        <p class="text-xs text-slate-500 uppercase">Prix contrat</p>
+                        <p class="text-xs text-slate-500 uppercase">{{ t('contracts.contractPrice') }}</p>
                         <p class="text-lg font-bold text-slate-200">{{ formatIsk(contract.price) }}</p>
                       </div>
 
@@ -320,7 +326,7 @@ function onStatusChange() {
 
                       <!-- Similar contracts -->
                       <div v-if="contract.similarCount > 0" class="min-w-24">
-                        <p class="text-xs text-slate-500 uppercase">Similaires ({{ contract.similarCount }})</p>
+                        <p class="text-xs text-slate-500 uppercase">{{ t('contracts.similar') }} ({{ contract.similarCount }})</p>
                         <p class="text-sm font-medium text-slate-400">{{ formatIsk(contract.lowestSimilar!) }}</p>
                         <p v-if="contract.similarDiffPercent !== null" :class="['text-xs', getDiffColor(contract.similarDiff, contract.isSeller)]">
                           {{ contract.similarDiff && contract.similarDiff >= 0 ? '+' : '' }}{{ contract.similarDiffPercent?.toFixed(0) }}%
@@ -348,7 +354,7 @@ function onStatusChange() {
                 class="px-5 pb-4 bg-slate-800/30"
               >
                 <div class="border-t border-slate-800 pt-4">
-                  <p class="text-xs text-slate-500 uppercase tracking-wider mb-3">Contenu du contrat</p>
+                  <p class="text-xs text-slate-500 uppercase tracking-wider mb-3">{{ t('contracts.contractContents') }}</p>
                   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     <div
                       v-for="item in contract.items"
@@ -391,8 +397,8 @@ function onStatusChange() {
           <svg class="w-16 h-16 mx-auto text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
           </svg>
-          <p class="text-slate-400 text-lg">Aucun contrat trouve</p>
-          <p class="text-slate-500 text-sm mt-1">Creez des contrats Item Exchange pour les voir apparaitre ici</p>
+          <p class="text-slate-400 text-lg">{{ t('contracts.noContracts') }}</p>
+          <p class="text-slate-500 text-sm mt-1">{{ t('contracts.noContractsHint') }}</p>
         </div>
       </template>
   </MainLayout>

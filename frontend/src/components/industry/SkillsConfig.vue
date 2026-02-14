@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useStructuresStore } from '@/stores/industry/structures'
 import type { CharacterSkill } from '@/stores/industry/types'
+
+const { t } = useI18n()
 
 const store = useStructuresStore()
 
@@ -48,11 +51,11 @@ function formatRelativeTime(dateStr: string | null): string {
   const diffHours = Math.floor(diffMins / 60)
   const diffDays = Math.floor(diffHours / 24)
 
-  if (diffMins < 1) return "à l'instant"
-  if (diffMins < 60) return `il y a ${diffMins}min`
-  if (diffHours < 24) return `il y a ${diffHours}h`
-  if (diffDays < 7) return `il y a ${diffDays}j`
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  if (diffMins < 1) return t('common.time.justNow')
+  if (diffMins < 60) return t('common.time.minutesAgo', { minutes: diffMins })
+  if (diffHours < 24) return t('common.time.hoursAgo', { hours: diffHours })
+  if (diffDays < 7) return t('industry.skills.daysAgo', { days: diffDays })
+  return d.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 </script>
 
@@ -60,13 +63,13 @@ function formatRelativeTime(dateStr: string | null): string {
   <div class="bg-slate-900 rounded-xl border border-slate-800">
     <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
       <div>
-        <h3 class="text-lg font-semibold text-slate-100">Skills industrie</h3>
+        <h3 class="text-lg font-semibold text-slate-100">{{ t('industry.skills.title') }}</h3>
         <p class="text-sm text-slate-400 mt-1">
-          Les skills industrie affectent le temps de production. Synchronisez depuis ESI ou saisissez manuellement.
+          {{ t('industry.skills.description') }}
           <span class="group relative inline-block ml-1 cursor-help">
             <svg class="w-3.5 h-3.5 inline-block text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M12 16h.01M12 8v4"/></svg>
             <span class="invisible group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-300 shadow-lg z-10">
-              La synchronisation récupère aussi les skills scientifiques requis par les blueprints (ex: Graviton Physics, Mechanical Engineering…). Ils ne sont pas affichés ici mais sont utilisés dans le calcul des temps de production.
+              {{ t('industry.skills.syncTooltip') }}
             </span>
           </span>
         </p>
@@ -85,7 +88,7 @@ function formatRelativeTime(dateStr: string | null): string {
         >
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
-        Sync tous les skills (ESI)
+        {{ t('industry.skills.syncAll') }}
       </button>
     </div>
 
@@ -96,19 +99,19 @@ function formatRelativeTime(dateStr: string | null): string {
       </div>
 
       <div v-if="store.characterSkills.length === 0" class="text-slate-500 text-sm py-4">
-        Aucun personnage trouvé. Ajoutez un personnage via le menu principal.
+        {{ t('industry.skills.noCharacters') }}
       </div>
 
       <div v-else class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-slate-800 text-slate-400 text-xs uppercase">
-              <th class="text-left py-3 px-3">Personnage</th>
+              <th class="text-left py-3 px-3">{{ t('industry.skills.character') }}</th>
               <th class="text-center py-3 px-3">Industry</th>
               <th class="text-center py-3 px-3">Adv. Industry</th>
               <th class="text-center py-3 px-3">Reactions</th>
-              <th class="text-center py-3 px-3">Source</th>
-              <th class="text-center py-3 px-3">Dernière sync</th>
+              <th class="text-center py-3 px-3">{{ t('industry.skills.source') }}</th>
+              <th class="text-center py-3 px-3">{{ t('industry.skills.lastSync') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -170,7 +173,7 @@ function formatRelativeTime(dateStr: string | null): string {
                       : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                   ]"
                 >
-                  {{ char.source === 'esi' ? 'ESI' : 'Manuel' }}
+                  {{ char.source === 'esi' ? 'ESI' : t('industry.skills.manual') }}
                 </span>
               </td>
 

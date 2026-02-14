@@ -165,7 +165,7 @@ class StructureMarketService
 
         // Notify sync started
         if ($userId !== null) {
-            $this->mercurePublisher->syncStarted($userId, 'market-structure', sprintf('Synchronisation du marché de %s...', $structureName));
+            $this->mercurePublisher->syncStarted($userId, 'market-structure', sprintf('Syncing %s market...', $structureName));
         }
 
         $startTime = microtime(true);
@@ -179,7 +179,7 @@ class StructureMarketService
 
             // Update progress
             if ($userId !== null) {
-                $this->mercurePublisher->syncProgress($userId, 'market-structure', 50, 'Traitement des ordres de marché...');
+                $this->mercurePublisher->syncProgress($userId, 'market-structure', 50, 'Processing market orders...');
             }
 
             // Track minimum sell price per type (memory efficient)
@@ -204,7 +204,7 @@ class StructureMarketService
 
             // Update progress
             if ($userId !== null) {
-                $this->mercurePublisher->syncProgress($userId, 'market-structure', 80, sprintf('Mise en cache de %d prix...', count($minPriceByType)));
+                $this->mercurePublisher->syncProgress($userId, 'market-structure', 80, sprintf('Caching %d prices...', count($minPriceByType)));
             }
 
             // Cache the data (now much smaller - only min prices)
@@ -239,7 +239,7 @@ class StructureMarketService
 
             // Notify sync completed
             if ($userId !== null) {
-                $message = sprintf('%d ordres, %d types uniques', $sellOrders, count($minPriceByType));
+                $message = sprintf('%d orders, %d unique types', $sellOrders, count($minPriceByType));
                 $this->mercurePublisher->syncCompleted($userId, 'market-structure', $message, [
                     'structureId' => $structureId,
                     'structureName' => $structureName,

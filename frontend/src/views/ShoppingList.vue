@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { authFetch, safeJsonParse } from '@/services/api'
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -26,6 +27,7 @@ interface StructureSearchResult {
   solarSystemId: number | null
 }
 
+const { t } = useI18n()
 const authStore = useAuthStore()
 
 // State
@@ -227,10 +229,10 @@ async function shareList() {
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">
-            Liste de courses
+            {{ t('shopping.title') }}
           </h1>
           <p class="text-slate-400 text-sm mt-1">
-            Collez une liste d'items pour calculer les prix et volumes
+            {{ t('shopping.subtitle') }}
           </p>
         </div>
       </div>
@@ -240,7 +242,7 @@ async function shareList() {
         <div class="space-y-4">
           <div>
             <label class="block text-sm font-medium text-slate-300 mb-2">
-              Collez votre liste d'items
+              {{ t('shopping.pasteLabel') }}
             </label>
             <textarea
               v-model="inputText"
@@ -253,7 +255,7 @@ Megacyte 100
 ..."
             ></textarea>
             <p class="text-xs text-slate-500 mt-2">
-              Formats supportes: "Item Name&#9;123", "Item Name 123", "123x Item Name", "Item Name x 123"
+              {{ t('shopping.supportedFormats') }}
             </p>
           </div>
 
@@ -261,7 +263,7 @@ Megacyte 100
             <!-- Structure selector with search -->
             <div class="flex-1 min-w-[300px] max-w-[450px]">
               <label class="block text-sm font-medium text-slate-300 mb-1">
-                Structure de comparaison (avec Jita)
+                {{ t('shopping.structureLabel') }}
               </label>
 
               <div class="relative">
@@ -314,7 +316,7 @@ Megacyte 100
                     v-if="structureSearchQuery.length >= 3 && structureSearchResults.length === 0 && !isSearchingStructures"
                     class="px-3 py-2 text-slate-400 text-sm"
                   >
-                    Aucune structure trouvee (verifiez le dock access)
+                    {{ t('shopping.noStructureFound') }}
                   </div>
                 </div>
               </div>
@@ -324,7 +326,7 @@ Megacyte 100
             <!-- Transport cost -->
             <div>
               <label class="block text-sm font-medium text-slate-300 mb-1">
-                Transport (ISK/m³)
+                {{ t('shopping.transportCost') }}
               </label>
               <input
                 v-model.number="transportCostPerM3"
@@ -342,7 +344,7 @@ Megacyte 100
               :disabled="!hasInput && !result"
               class="px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-slate-200 text-sm font-medium transition-colors"
             >
-              Effacer
+              {{ t('common.actions.clear') }}
             </button>
             <button
               @click="parseItems"
@@ -353,7 +355,7 @@ Megacyte 100
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              Calculer les prix
+              {{ t('shopping.calculate') }}
             </button>
           </div>
         </div>

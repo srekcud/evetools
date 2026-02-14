@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useIndustryStore } from '@/stores/industry'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
@@ -7,6 +8,8 @@ import { parseIskValue } from '@/composables/useIskParser'
 import { formatDuration, useProjectTime } from '@/composables/useProjectTime'
 import StepsTab from './StepsTab.vue'
 import ShoppingTab from './ShoppingTab.vue'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   projectId: string
@@ -236,7 +239,7 @@ onMounted(async () => {
                 v-if="!editingProjectName && store.currentProject.status !== 'completed'"
                 @click="startEditProjectName"
                 class="p-1 text-slate-500 hover:text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                title="Modifier le nom"
+                :title="t('industry.projectDetail.editName')"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -253,7 +256,7 @@ onMounted(async () => {
                     : 'bg-cyan-500/20 text-cyan-400',
                 ]"
               >
-                {{ store.currentProject.status === 'completed' ? 'Terminé' : 'Actif' }}
+                {{ store.currentProject.status === 'completed' ? t('industry.stepStatus.completed') : t('common.status.active') }}
               </span>
               <span v-if="store.currentProject.name" class="text-slate-400">{{ store.currentProject.productTypeName }}</span>
               <span class="text-slate-400">{{ store.currentProject.runs }} run{{ store.currentProject.runs > 1 ? 's' : '' }} · ME {{ store.currentProject.meLevel }} · TE {{ store.currentProject.teLevel }}</span>
@@ -261,7 +264,7 @@ onMounted(async () => {
               <!-- Jobs start date -->
               <span class="text-slate-600">·</span>
               <label class="flex items-center gap-1 text-xs text-slate-500">
-                <span>Début:</span>
+                <span>{{ t('industry.projectDetail.start') }}:</span>
                 <input
                   type="date"
                   :value="store.currentProject.jobsStartDate ? store.currentProject.jobsStartDate.slice(0, 10) : ''"
@@ -286,10 +289,10 @@ onMounted(async () => {
                 </span>
               </div>
               <div class="flex items-center gap-2 mt-1">
-                <p>{{ totalRootStepCount }} steps - Créé le {{ formatDateTime(store.currentProject.createdAt) }}</p>
+                <p>{{ totalRootStepCount }} steps - {{ t('industry.projectDetail.createdOn') }} {{ formatDateTime(store.currentProject.createdAt) }}</p>
                 <span class="text-slate-600">·</span>
                 <label class="flex items-center gap-1 text-xs text-slate-500">
-                  <span>Début:</span>
+                  <span>{{ t('industry.projectDetail.start') }}:</span>
                   <input
                     type="date"
                     :value="store.currentProject.jobsStartDate ? store.currentProject.jobsStartDate.slice(0, 10) : ''"
@@ -326,7 +329,7 @@ onMounted(async () => {
               d="M5 13l4 4L19 7"
             />
           </svg>
-          {{ store.currentProject?.status === 'completed' ? 'Réactiver' : 'Terminé' }}
+          {{ store.currentProject?.status === 'completed' ? t('industry.projectDetail.reactivate') : t('industry.stepStatus.completed') }}
         </button>
       </div>
     </div>
@@ -336,7 +339,7 @@ onMounted(async () => {
       <svg class="w-8 h-8 animate-spin text-cyan-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
       </svg>
-      Chargement...
+      {{ t('common.status.loading') }}
     </div>
 
     <!-- Content -->
@@ -346,7 +349,7 @@ onMounted(async () => {
         <div class="grid grid-cols-4 md:grid-cols-8 gap-4">
           <!-- BPC Kit (editable) -->
           <div>
-            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">BPC Kit</p>
+            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costs.bpcKit') }}</p>
             <input
               v-if="editingCostField === 'bpoCost'"
               v-model="editCostValue"
@@ -358,27 +361,27 @@ onMounted(async () => {
               @blur="saveEditCost"
               autofocus
             />
-            <p v-else class="text-sm font-mono text-slate-200 editable" @click="startEditCost('bpoCost')" title="Cliquer pour modifier">
+            <p v-else class="text-sm font-mono text-slate-200 editable" @click="startEditCost('bpoCost')" :title="t('industry.projectDetail.clickToEdit')">
               {{ store.currentProject.bpoCost !== null ? formatIsk(store.currentProject.bpoCost) : '-' }}
             </p>
           </div>
           <!-- Mat. estimé (readonly) -->
           <div>
-            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Mat. estimé</p>
+            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costs.estimatedMat') }}</p>
             <p class="text-sm font-mono text-slate-400">
               {{ shoppingTotals?.best ? formatIsk(shoppingTotals.best) : '-' }}
             </p>
           </div>
           <!-- Mat. réel (readonly, from purchases) -->
           <div>
-            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Mat. réel</p>
+            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costs.actualMat') }}</p>
             <p class="text-sm font-mono text-emerald-400">
               {{ purchasesTotalCost > 0 ? formatIsk(purchasesTotalCost) : '-' }}
             </p>
           </div>
           <!-- Transport (editable) -->
           <div>
-            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Transport</p>
+            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costs.transport') }}</p>
             <input
               v-if="editingCostField === 'transportCost'"
               v-model="editCostValue"
@@ -390,20 +393,20 @@ onMounted(async () => {
               @blur="saveEditCost"
               autofocus
             />
-            <p v-else class="text-sm font-mono text-slate-200 editable" @click="startEditCost('transportCost')" title="Cliquer pour modifier">
+            <p v-else class="text-sm font-mono text-slate-200 editable" @click="startEditCost('transportCost')" :title="t('industry.projectDetail.clickToEdit')">
               {{ store.currentProject.transportCost !== null ? formatIsk(store.currentProject.transportCost) : '-' }}
             </p>
           </div>
           <!-- Jobs ESI (readonly) -->
           <div>
-            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Jobs ESI</p>
+            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costs.esiJobs') }}</p>
             <p class="text-sm font-mono text-slate-400">
               {{ formatIsk(store.currentProject.jobsCost) }}
             </p>
           </div>
           <!-- Taxes (editable, hidden for personalUse) -->
           <div>
-            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Taxes</p>
+            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costs.taxes') }}</p>
             <template v-if="!store.currentProject.personalUse">
               <input
                 v-if="editingCostField === 'taxAmount'"
@@ -416,7 +419,7 @@ onMounted(async () => {
                 @blur="saveEditCost"
                 autofocus
               />
-              <p v-else class="text-sm font-mono text-slate-200 editable" @click="startEditCost('taxAmount')" title="Cliquer pour modifier">
+              <p v-else class="text-sm font-mono text-slate-200 editable" @click="startEditCost('taxAmount')" :title="t('industry.projectDetail.clickToEdit')">
                 {{ store.currentProject.taxAmount !== null ? formatIsk(store.currentProject.taxAmount) : '-' }}
               </p>
             </template>
@@ -424,7 +427,7 @@ onMounted(async () => {
           </div>
           <!-- Vente (editable, hidden for personalUse) -->
           <div>
-            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Vente</p>
+            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costs.sell') }}</p>
             <template v-if="!store.currentProject.personalUse">
               <input
                 v-if="editingCostField === 'sellPrice'"
@@ -437,7 +440,7 @@ onMounted(async () => {
                 @blur="saveEditCost"
                 autofocus
               />
-              <p v-else class="text-sm font-mono text-slate-200 editable" @click="startEditCost('sellPrice')" title="Cliquer pour modifier">
+              <p v-else class="text-sm font-mono text-slate-200 editable" @click="startEditCost('sellPrice')" :title="t('industry.projectDetail.clickToEdit')">
                 {{ store.currentProject.sellPrice !== null ? formatIsk(store.currentProject.sellPrice) : '-' }}
               </p>
             </template>
@@ -445,7 +448,7 @@ onMounted(async () => {
           </div>
           <!-- Profit + % -->
           <div>
-            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Profit</p>
+            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costs.profit') }}</p>
             <template v-if="!store.currentProject.personalUse">
               <p
                 class="text-lg font-bold font-mono"
@@ -481,7 +484,7 @@ onMounted(async () => {
             activeTab === 'steps' ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200',
           ]"
         >
-          Étapes
+          {{ t('industry.project.steps') }}
         </button>
         <button
           @click="store.currentProject?.status !== 'completed' && switchTab('shopping')"
@@ -492,9 +495,9 @@ onMounted(async () => {
               ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
               : activeTab === 'shopping' ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200',
           ]"
-          :title="store.currentProject?.status === 'completed' ? 'Non disponible pour les projets terminés' : ''"
+          :title="store.currentProject?.status === 'completed' ? t('industry.projectDetail.completedTooltip') : ''"
         >
-          Approvisionnement
+          {{ t('industry.projectDetail.procurement') }}
         </button>
       </div>
 
@@ -544,11 +547,11 @@ onMounted(async () => {
         </div>
         <div class="px-6 py-4">
           <p class="text-sm text-slate-400 mb-4">
-            Cette action va marquer toutes les étapes BPC comme achetées et définir le coût du kit.
+            {{ t('industry.projectDetail.bpcKitDescription') }}
           </p>
           <div>
             <label class="block text-sm font-medium text-slate-300 mb-2">
-              Prix du kit BPC
+              {{ t('industry.projectDetail.bpcKitPriceLabel') }}
             </label>
             <input
               v-model="bpcKitPrice"
@@ -560,7 +563,7 @@ onMounted(async () => {
               autofocus
             />
             <p class="text-xs text-slate-500 mt-2">
-              Formats acceptés : 50M, 1.5B, 500K, 1000000
+              {{ t('industry.projectDetail.acceptedFormats') }}
             </p>
           </div>
         </div>
@@ -569,7 +572,7 @@ onMounted(async () => {
             @click="closeBpcKitModal"
             class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm font-medium transition-colors"
           >
-            Annuler
+            {{ t('common.actions.cancel') }}
           </button>
           <button
             @click="confirmBpcKit"
@@ -583,7 +586,7 @@ onMounted(async () => {
             <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
-            Confirmer
+            {{ t('common.actions.confirm') }}
           </button>
         </div>
       </div>
@@ -607,7 +610,7 @@ onMounted(async () => {
             <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
-            Effacer le stock ?
+            {{ t('industry.projectDetail.clearStockTitle') }}
           </h3>
           <button
             @click="shoppingTabRef!.showClearStockModal = false"
@@ -620,7 +623,7 @@ onMounted(async () => {
         </div>
         <div class="px-6 py-4">
           <p class="text-sm text-slate-400">
-            Cette action supprimera toutes les données de stock enregistrées pour ce projet.
+            {{ t('industry.projectDetail.clearStockDescription') }}
           </p>
           <ul v-if="shoppingTabRef?.parsedStock?.length" class="mt-3 max-h-60 overflow-y-auto space-y-1 pr-1">
             <li
@@ -638,7 +641,7 @@ onMounted(async () => {
             @click="shoppingTabRef!.showClearStockModal = false"
             class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm font-medium transition-colors"
           >
-            Annuler
+            {{ t('common.actions.cancel') }}
           </button>
           <button
             @click="shoppingTabRef?.clearStock()"
@@ -647,7 +650,7 @@ onMounted(async () => {
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
-            Effacer
+            {{ t('common.actions.clear') }}
           </button>
         </div>
       </div>

@@ -34,7 +34,7 @@ class WalletTransactionSyncService
         $characterId = $character->getEveCharacterId();
 
         if ($userId !== null) {
-            $this->mercurePublisher->syncStarted($userId, 'wallet-transactions', 'Récupération des transactions wallet...');
+            $this->mercurePublisher->syncStarted($userId, 'wallet-transactions', 'Fetching wallet transactions...');
         }
 
         $totalCount = 0;
@@ -104,7 +104,7 @@ class WalletTransactionSyncService
                         $userId,
                         'wallet-transactions',
                         0,
-                        sprintf('%d transactions récupérées...', $totalCount),
+                        sprintf('%d transactions fetched...', $totalCount),
                     );
                 }
             }
@@ -132,7 +132,7 @@ class WalletTransactionSyncService
             $this->mercurePublisher->syncCompleted(
                 $userId,
                 'wallet-transactions',
-                sprintf('%d transactions récupérées (%d nouvelles)', $totalCount, $newCount),
+                sprintf('%d transactions fetched (%d new)', $totalCount, $newCount),
             );
         }
     }

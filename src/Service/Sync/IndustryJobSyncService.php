@@ -41,7 +41,7 @@ class IndustryJobSyncService
 
         // Notify sync started
         if ($userId !== null) {
-            $this->mercurePublisher->syncStarted($userId, 'industry-jobs', 'Récupération des jobs industrie...');
+            $this->mercurePublisher->syncStarted($userId, 'industry-jobs', 'Fetching industry jobs...');
         }
 
         try {
@@ -59,7 +59,7 @@ class IndustryJobSyncService
 
             // Update progress
             if ($userId !== null) {
-                $this->mercurePublisher->syncProgress($userId, 'industry-jobs', 30, 'Jobs personnels récupérés...');
+                $this->mercurePublisher->syncProgress($userId, 'industry-jobs', 30, 'Personal jobs fetched...');
             }
 
             // Sync corporation jobs (only once per corporation per sync run)
@@ -86,7 +86,7 @@ class IndustryJobSyncService
 
             // Update progress
             if ($userId !== null) {
-                $this->mercurePublisher->syncProgress($userId, 'industry-jobs', 60, sprintf('Traitement de %d jobs...', count($allJobs)));
+                $this->mercurePublisher->syncProgress($userId, 'industry-jobs', 60, sprintf('Processing %d jobs...', count($allJobs)));
             }
 
             // Deduplicate by job_id (in case a personal job is also in corp jobs)
@@ -171,7 +171,7 @@ class IndustryJobSyncService
 
             // Notify sync completed
             if ($userId !== null) {
-                $message = sprintf('%d jobs actifs, %d prêts à livrer', count($activeJobs), count($readyJobs));
+                $message = sprintf('%d active jobs, %d ready to deliver', count($activeJobs), count($readyJobs));
                 $this->mercurePublisher->syncCompleted($userId, 'industry-jobs', $message, [
                     'total' => count($jobsByJobId),
                     'active' => count($activeJobs),
@@ -187,7 +187,7 @@ class IndustryJobSyncService
                         'industry-job-completed',
                         'notification',
                         null,
-                        sprintf('%s - %s terminé !', $productName, $activityName),
+                        sprintf('%s - %s completed!', $productName, $activityName),
                         [
                             'jobId' => $jobData['job_id'],
                             'productTypeId' => $jobData['product_type_id'] ?? $jobData['blueprint_type_id'],
@@ -277,7 +277,7 @@ class IndustryJobSyncService
                 'industry-project',
                 'notification',
                 null,
-                sprintf('Projet "%s" : %s termine(s)', $update['projectName'], $stepNames),
+                sprintf('Project "%s": %s completed', $update['projectName'], $stepNames),
                 [
                     'projectId' => $projectId,
                     'completedSteps' => $update['completedSteps'],
