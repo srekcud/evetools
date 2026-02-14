@@ -78,12 +78,22 @@ PROD=docker compose -f docker-compose.yaml -f docker-compose.prod.yml
 deploy: ## Deploy to production (build + migrate + restart)
 	git pull origin main
 	$(PROD) build
-	$(PROD) up -d --force-recreate --remove-orphans
+	@# 1. Restart app+worker first (proxy stays up → serves maintenance page)
+	$(PROD) up -d --force-recreate --remove-orphans app worker
+	@echo "Waiting for app to be healthy..."
+	@timeout=60; while [ $$timeout -gt 0 ]; do \
+		if $(PROD) exec -T app curl -sf http://localhost:80/health > /dev/null 2>&1; then \
+			echo "App is healthy!"; break; \
+		fi; \
+		sleep 2; timeout=$$((timeout - 2)); \
+	done
 	$(PROD) exec app php bin/console doctrine:migrations:migrate --no-interaction
 	$(PROD) exec app php bin/console cache:clear
 	$(PROD) exec app php bin/console cache:warmup
 	$(PROD) exec worker php bin/console cache:clear
 	$(PROD) exec worker php bin/console cache:warmup
 	$(PROD) restart worker
+	@# 2. Update proxy last (new frontend + Caddyfile, app already ready)
+	$(PROD) up -d --force-recreate proxy
 
 deploy-full: base-build deploy ## Full deploy (rebuild base image + deploy)

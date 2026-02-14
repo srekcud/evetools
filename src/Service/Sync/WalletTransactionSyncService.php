@@ -103,7 +103,7 @@ class WalletTransactionSyncService
                     $this->mercurePublisher->syncProgress(
                         $userId,
                         'wallet-transactions',
-                        null,
+                        0,
                         sprintf('%d transactions récupérées...', $totalCount),
                     );
                 }

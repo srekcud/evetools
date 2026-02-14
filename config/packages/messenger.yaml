@@ -12,7 +12,6 @@ framework:
                     max_delay: 0
             failed:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%?queues[failed]/exchange[failed]'
-            scheduler_default: 'sync://'
 
         routing:
             App\Message\SyncCharacterAssets: async

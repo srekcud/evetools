@@ -20,12 +20,16 @@ use Psr\Cache\CacheItemPoolInterface;
 #[Route('/auth')]
 class EveOAuthController extends AbstractController
 {
+    private const OAUTH_STATE_TTL = 600; // 10 minutes
+
     public function __construct(
         private readonly AuthenticationService $authService,
         private readonly JWTTokenManagerInterface $jwtManager,
         private readonly CacheItemPoolInterface $jwtBlacklist,
+        private readonly CacheItemPoolInterface $oauthStateCache,
         private readonly MessageBusInterface $messageBus,
         private readonly Security $security,
+        private readonly int $jwtTokenTtl,
     ) {
     }
 
@@ -34,6 +38,12 @@ class EveOAuthController extends AbstractController
     {
         $state = bin2hex(random_bytes(16));
         $url = $this->authService->getAuthorizationUrl($state);
+
+        // Store state in cache for verification in callback (single-use, 10 min TTL)
+        $cacheItem = $this->oauthStateCache->getItem('oauth_state_' . $state);
+        $cacheItem->set(true);
+        $cacheItem->expiresAfter(self::OAUTH_STATE_TTL);
+        $this->oauthStateCache->save($cacheItem);
 
         return new JsonResponse([
             'redirect_url' => $url,
@@ -47,6 +57,7 @@ class EveOAuthController extends AbstractController
     {
         $code = $request->query->get('code');
         $error = $request->query->get('error');
+        $state = $request->query->get('state');
 
         if ($error !== null) {
             return new JsonResponse([
@@ -54,6 +65,26 @@ class EveOAuthController extends AbstractController
                 'error_description' => $request->query->get('error_description'),
             ], Response::HTTP_BAD_REQUEST);
         }
+
+        // Verify OAuth state parameter (CSRF protection)
+        if ($state === null) {
+            return new JsonResponse([
+                'error' => 'missing_state',
+                'message' => 'OAuth state parameter is required',
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        $stateCacheItem = $this->oauthStateCache->getItem('oauth_state_' . $state);
+
+        if (!$stateCacheItem->isHit()) {
+            return new JsonResponse([
+                'error' => 'invalid_state',
+                'message' => 'Invalid or expired OAuth state parameter',
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        // Delete state after verification (single-use)
+        $this->oauthStateCache->deleteItem('oauth_state_' . $state);
 
         if ($code === null) {
             return new JsonResponse([
@@ -142,7 +173,7 @@ class EveOAuthController extends AbstractController
             // Add token to blacklist
             $cacheItem = $this->jwtBlacklist->getItem('jwt_blacklist_' . $tokenId);
             $cacheItem->set(true);
-            $cacheItem->expiresAfter(3700); // 1 hour + buffer
+            $cacheItem->expiresAfter($this->jwtTokenTtl);
             $this->jwtBlacklist->save($cacheItem);
         }
 

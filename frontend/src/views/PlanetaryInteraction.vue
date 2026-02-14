@@ -58,11 +58,11 @@ const PLANET_TYPE_CONFIG: Record<string, { typeId: number; badgeBg: string; badg
 }
 
 const TIER_CONFIG: Record<string, { label: string; badgeBg: string; badgeText: string; badgeBorder: string }> = {
-  P0: { label: 'Raw', badgeBg: 'bg-slate-600/50', badgeText: 'text-slate-300', badgeBorder: 'border-slate-600/50' },
-  P1: { label: 'Processed', badgeBg: 'bg-cyan-500/15', badgeText: 'text-cyan-400', badgeBorder: 'border-cyan-500/20' },
-  P2: { label: 'Refined', badgeBg: 'bg-indigo-500/15', badgeText: 'text-indigo-400', badgeBorder: 'border-indigo-500/20' },
-  P3: { label: 'Specialized', badgeBg: 'bg-amber-500/15', badgeText: 'text-amber-400', badgeBorder: 'border-amber-500/20' },
-  P4: { label: 'Advanced', badgeBg: 'bg-rose-500/15', badgeText: 'text-rose-400', badgeBorder: 'border-rose-500/20' },
+  P0: { label: 'Brut', badgeBg: 'bg-slate-600/50', badgeText: 'text-slate-300', badgeBorder: 'border-slate-600/50' },
+  P1: { label: 'Transforme', badgeBg: 'bg-cyan-500/15', badgeText: 'text-cyan-400', badgeBorder: 'border-cyan-500/20' },
+  P2: { label: 'Raffine', badgeBg: 'bg-indigo-500/15', badgeText: 'text-indigo-400', badgeBorder: 'border-indigo-500/20' },
+  P3: { label: 'Specialise', badgeBg: 'bg-amber-500/15', badgeText: 'text-amber-400', badgeBorder: 'border-amber-500/20' },
+  P4: { label: 'Avance', badgeBg: 'bg-rose-500/15', badgeText: 'text-rose-400', badgeBorder: 'border-rose-500/20' },
 }
 
 // ========== UI State ==========
@@ -107,7 +107,7 @@ const totalCharacterCount = computed(() => {
 // ========== Timer Helpers ==========
 
 function getTimerInfo(expiryTime: string | null): { remaining: number; formatted: string; status: 'active' | 'expiring' | 'expired' } {
-  if (!expiryTime) return { remaining: -1, formatted: 'N/A', status: 'expired' }
+  if (!expiryTime) return { remaining: -1, formatted: 'N/D', status: 'expired' }
 
   const expiry = new Date(expiryTime)
   const diff = expiry.getTime() - now.value.getTime()
@@ -140,6 +140,18 @@ function getTimerColorClasses(status: 'active' | 'expiring' | 'expired'): { dot:
 
 // ========== Colony helpers ==========
 
+function getSecurityColorClass(security: number | null): string {
+  if (security === null) return 'text-slate-500'
+  if (security >= 0.5) return 'text-emerald-400'
+  if (security >= 0.1) return 'text-yellow-400'
+  return 'text-red-400'
+}
+
+function formatSecurity(security: number | null): string {
+  if (security === null) return '?'
+  return security.toFixed(1)
+}
+
 function getPlanetConfig(planetType: string) {
   const key = planetType.toLowerCase()
   return PLANET_TYPE_CONFIG[key] || PLANET_TYPE_CONFIG.barren
@@ -164,9 +176,161 @@ function getStoragePins(colony: Colony): Pin[] {
   )
 }
 
+// ========== Flow View helpers (routes-based) ==========
+
+// Approximate volume per unit by PI tier
+const VOLUME_BY_TIER: Record<string, number> = {
+  P0: 0.01,
+  P1: 0.38,
+  P2: 1.50,
+  P3: 6.00,
+  P4: 100.00,
+}
+
+interface FlowLine {
+  contentTypeName: string
+  contentTypeId: number
+  quantityPerCycle: number
+  cycleTimeSeconds: number | null // null = unknown source pin cycle
+  dailyQuantity: number | null    // null if cycle time unknown
+}
+
+interface StorageFlowData {
+  incoming: FlowLine[]
+  outgoing: FlowLine[]
+  netDailyVolume: number | null   // positive = accumulating, negative = draining
+  fillDays: number | null         // days until full at current net rate
+  capacity: number | null
+}
+
+function getSourcePinCycleTime(colony: Colony, sourcePinId: number): number | null {
+  const pin = colony.pins.find(p => p.pinId === sourcePinId)
+  if (!pin) return null
+
+  // Extractors: use extractorCycleTime
+  if (pin.extractorCycleTime && pin.extractorCycleTime > 0) {
+    return pin.extractorCycleTime
+  }
+  // Factories: use schematicCycleTime
+  if (pin.schematicCycleTime && pin.schematicCycleTime > 0) {
+    return pin.schematicCycleTime
+  }
+
+  return null
+}
+
+function guessItemTier(contentTypeId: number): string {
+  // Use production data from the store to find the tier
+  for (const tier of planetaryStore.production) {
+    if (tier.items.some(i => i.typeId === contentTypeId)) {
+      return tier.tier
+    }
+  }
+  return 'P0'
+}
+
+function getStorageFlowData(colony: Colony, storagePin: Pin): StorageFlowData {
+  // Store per-route data: { quantity, cycleTime } grouped by contentTypeId and direction
+  interface RouteEntry { quantity: number; cycleTime: number | null }
+  const inMap = new Map<number, { name: string; routes: RouteEntry[] }>()
+  const outMap = new Map<number, { name: string; routes: RouteEntry[] }>()
+
+  for (const route of colony.routes) {
+    if (route.destinationPinId === storagePin.pinId) {
+      const entry: RouteEntry = { quantity: route.quantity, cycleTime: getSourcePinCycleTime(colony, route.sourcePinId) }
+      const existing = inMap.get(route.contentTypeId)
+      if (existing) {
+        existing.routes.push(entry)
+      } else {
+        inMap.set(route.contentTypeId, { name: route.contentTypeName, routes: [entry] })
+      }
+    }
+    if (route.sourcePinId === storagePin.pinId) {
+      const entry: RouteEntry = { quantity: route.quantity, cycleTime: getSourcePinCycleTime(colony, route.destinationPinId) }
+      const existing = outMap.get(route.contentTypeId)
+      if (existing) {
+        existing.routes.push(entry)
+      } else {
+        outMap.set(route.contentTypeId, { name: route.contentTypeName, routes: [entry] })
+      }
+    }
+  }
+
+  function buildFlowLines(map: Map<number, { name: string; routes: RouteEntry[] }>): FlowLine[] {
+    const lines: FlowLine[] = []
+    for (const [typeId, data] of map) {
+      const totalQty = data.routes.reduce((sum, r) => sum + r.quantity, 0)
+      const allCyclesKnown = data.routes.every(r => r.cycleTime !== null && r.cycleTime > 0)
+      const dailyQuantity = allCyclesKnown
+        ? Math.round(data.routes.reduce((sum, r) => sum + r.quantity * (86400 / r.cycleTime!), 0))
+        : null
+      const firstCycle = data.routes.find(r => r.cycleTime !== null)?.cycleTime ?? null
+
+      lines.push({
+        contentTypeName: data.name,
+        contentTypeId: typeId,
+        quantityPerCycle: totalQty,
+        cycleTimeSeconds: firstCycle,
+        dailyQuantity,
+      })
+    }
+    return lines
+  }
+
+  const incoming = buildFlowLines(inMap)
+  const outgoing = buildFlowLines(outMap)
+
+  // Compute net daily volume (in m3)
+  let netDailyVolume: number | null = null
+  const allInKnown = incoming.every(f => f.dailyQuantity !== null)
+  const allOutKnown = outgoing.every(f => f.dailyQuantity !== null)
+
+  if (allInKnown && allOutKnown && (incoming.length > 0 || outgoing.length > 0)) {
+    const computeVolume = (flows: FlowLine[]) =>
+      flows.reduce((sum, f) => {
+        const vol = VOLUME_BY_TIER[guessItemTier(f.contentTypeId)] ?? 0.38
+        return sum + (f.dailyQuantity ?? 0) * vol
+      }, 0)
+
+    netDailyVolume = Math.round((computeVolume(incoming) - computeVolume(outgoing)) * 100) / 100
+  }
+
+  // Fill days (only meaningful when net flow is positive = accumulating)
+  let fillDays: number | null = null
+  if (netDailyVolume !== null && netDailyVolume > 0 && storagePin.capacity && storagePin.capacity > 0) {
+    fillDays = Math.round((storagePin.capacity / netDailyVolume) * 10) / 10
+  }
+
+  return { incoming, outgoing, netDailyVolume, fillDays, capacity: storagePin.capacity }
+}
+
+function getNetFlowColorClass(net: number | null): string {
+  if (net === null) return 'text-slate-500'
+  if (net > 0) return 'text-emerald-400'
+  if (net < 0) return 'text-red-400'
+  return 'text-slate-500'
+}
+
+function formatNetFlow(net: number | null): string {
+  if (net === null) return '-'
+  const sign = net > 0 ? '+' : ''
+  return `${sign}${formatNumber(net, 1)} m3/jour`
+}
+
 interface ColonyProductionItem {
   typeName: string
   dailyQuantity: number
+  outputTier: string | null
+  unitPrice: number
+  dailyIskValue: number
+}
+
+function findUnitPrice(typeId: number): number {
+  for (const tier of planetaryStore.production) {
+    const item = tier.items.find(i => i.typeId === typeId)
+    if (item && item.unitPrice) return item.unitPrice
+  }
+  return 0
 }
 
 function getColonyProduction(colony: Colony): ColonyProductionItem[] {
@@ -177,11 +341,19 @@ function getColonyProduction(colony: Colony): ColonyProductionItem[] {
     if (pin.schematicOutput && pin.schematicCycleTime && pin.schematicCycleTime > 0) {
       const cyclesPerDay = (3600 / pin.schematicCycleTime) * 24
       const dailyQty = Math.round(pin.schematicOutput.quantity * cyclesPerDay)
+      const unitPrice = findUnitPrice(pin.schematicOutput.typeId)
       const existing = items.find(i => i.typeName === pin.schematicOutput!.typeName)
       if (existing) {
         existing.dailyQuantity += dailyQty
+        existing.dailyIskValue += dailyQty * unitPrice
       } else {
-        items.push({ typeName: pin.schematicOutput.typeName, dailyQuantity: dailyQty })
+        items.push({
+          typeName: pin.schematicOutput.typeName,
+          dailyQuantity: dailyQty,
+          outputTier: pin.outputTier,
+          unitPrice,
+          dailyIskValue: dailyQty * unitPrice,
+        })
       }
     }
   }
@@ -235,7 +407,7 @@ function formatDailyOutput(pin: Pin): string {
   if (!pin.extractorQtyPerCycle || !pin.extractorCycleTime) return '-'
   const cyclesPerHour = 3600 / pin.extractorCycleTime
   const hourly = Math.round(pin.extractorQtyPerCycle * cyclesPerHour)
-  return `~${formatNumber(hourly)} / heure`
+  return `max ~${formatNumber(hourly)} / heure`
 }
 
 // ========== Production tier helpers ==========
@@ -287,7 +459,7 @@ function formatDelta(delta: number): string {
             <div class="absolute inset-[-4px] border border-cyan-500/20 rounded-full orbit-ring"></div>
           </div>
           <div>
-            <h1 class="text-2xl font-bold text-white tracking-wide">Planetary Interaction</h1>
+            <h1 class="text-2xl font-bold text-white tracking-wide">Interaction Planetaire</h1>
             <p class="text-sm text-slate-500 -mt-0.5">Gestion des colonies PI</p>
           </div>
         </div>
@@ -424,7 +596,7 @@ function formatDelta(delta: number): string {
             <span class="text-red-400">{{ planetaryStore.expiredColonies.length }} extracteur{{ planetaryStore.expiredColonies.length > 1 ? 's' : '' }} expire{{ planetaryStore.expiredColonies.length > 1 ? 's' : '' }}</span>
             <span class="text-red-300/60">-</span>
             <span class="text-red-300/80 text-xs">
-              {{ planetaryStore.expiredColonies.map(c => `${c.solarSystemName || 'Unknown'} (${c.planetType})`).join(', ') }}
+              {{ planetaryStore.expiredColonies.map(c => `${c.solarSystemName || 'Inconnu'} (${c.planetType})`).join(', ') }}
             </span>
           </div>
           <div v-if="planetaryStore.expiringColonies.length > 0" class="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-lg text-sm">
@@ -502,10 +674,10 @@ function formatDelta(delta: number): string {
                         <!-- Header -->
                         <div class="flex items-center gap-4 text-[10px] text-slate-500 uppercase tracking-wider mb-2 px-1">
                           <span class="flex-1">Produit</span>
-                          <span v-if="tier.tier !== 'P0'" class="w-28 text-right">Inputs</span>
+                          <span v-if="tier.tier !== 'P0'" class="w-28 text-right">Entrees</span>
                           <span class="w-14 text-right">Sortie</span>
                           <span class="w-20 text-right">ISK/j</span>
-                          <span v-if="tier.tier !== 'P0'" class="w-24 text-right">Supply</span>
+                          <span v-if="tier.tier !== 'P0'" class="w-24 text-right">Appro.</span>
                         </div>
                         <!-- Items -->
                         <div class="space-y-1.5">
@@ -619,7 +791,7 @@ function formatDelta(delta: number): string {
                     <div>
                       <div class="flex items-center gap-2">
                         <span class="text-white font-semibold text-[15px]">
-                          {{ colony.planetName || `${colony.solarSystemName || 'Unknown'} ${colony.planetId}` }}
+                          {{ colony.planetName || `${colony.solarSystemName || 'Inconnu'} ${colony.planetId}` }}
                         </span>
                         <span :class="['text-[10px] px-1.5 py-0.5 rounded-full font-medium uppercase tracking-wider border',
                           getPlanetConfig(colony.planetType).badgeBg,
@@ -630,7 +802,9 @@ function formatDelta(delta: number): string {
                         </span>
                       </div>
                       <div class="flex items-center gap-1.5 text-xs text-slate-500">
-                        <span>{{ colony.solarSystemName || 'Unknown' }}</span>
+                        <span>{{ colony.solarSystemName || 'Inconnu' }}</span>
+                        <span class="text-slate-600">|</span>
+                        <span :class="getSecurityColorClass(colony.solarSystemSecurity)" class="font-medium">{{ formatSecurity(colony.solarSystemSecurity) }}</span>
                       </div>
                     </div>
                   </div>
@@ -655,15 +829,34 @@ function formatDelta(delta: number): string {
 
                   <!-- Extractor timers -->
                   <div class="flex items-center gap-3 flex-1">
-                    <template v-for="pin in getExtractorPins(colony)" :key="pin.pinId">
+                    <!-- Detail loaded: show individual extractor timers -->
+                    <template v-if="colony.pins.length > 0">
+                      <template v-for="pin in getExtractorPins(colony)" :key="pin.pinId">
+                        <div class="flex items-center gap-1.5">
+                          <div :class="['w-2 h-2 rounded-full', getTimerColorClasses(getTimerInfo(pin.expiryTime).status).dot, getTimerColorClasses(getTimerInfo(pin.expiryTime).status).pulse]"></div>
+                          <span :class="['font-mono-tech text-sm', getTimerColorClasses(getTimerInfo(pin.expiryTime).status).text, getTimerInfo(pin.expiryTime).status === 'expired' ? 'font-bold' : '']">
+                            {{ getTimerInfo(pin.expiryTime).formatted }}
+                          </span>
+                        </div>
+                      </template>
+                      <span v-if="getExtractorPins(colony).length === 0" class="text-slate-500 text-xs italic">
+                        Aucun extracteur
+                      </span>
+                    </template>
+                    <!-- Collection mode: show summary from colony-level metadata -->
+                    <template v-else-if="colony.extractorCount > 0">
                       <div class="flex items-center gap-1.5">
-                        <div :class="['w-2 h-2 rounded-full', getTimerColorClasses(getTimerInfo(pin.expiryTime).status).dot, getTimerColorClasses(getTimerInfo(pin.expiryTime).status).pulse]"></div>
-                        <span :class="['font-mono-tech text-sm', getTimerColorClasses(getTimerInfo(pin.expiryTime).status).text, getTimerInfo(pin.expiryTime).status === 'expired' ? 'font-bold' : '']">
-                          {{ getTimerInfo(pin.expiryTime).formatted }}
+                        <div :class="['w-2 h-2 rounded-full', getTimerColorClasses(getTimerInfo(colony.nearestExpiry).status).dot, getTimerColorClasses(getTimerInfo(colony.nearestExpiry).status).pulse]"></div>
+                        <span :class="['font-mono-tech text-sm', getTimerColorClasses(getTimerInfo(colony.nearestExpiry).status).text, getTimerInfo(colony.nearestExpiry).status === 'expired' ? 'font-bold' : '']">
+                          {{ getTimerInfo(colony.nearestExpiry).formatted }}
                         </span>
                       </div>
+                      <span class="text-slate-500 text-xs">
+                        &middot; {{ colony.extractorCount }} extracteur{{ colony.extractorCount > 1 ? 's' : '' }}
+                      </span>
                     </template>
-                    <span v-if="getExtractorPins(colony).length === 0" class="text-slate-500 text-xs italic">
+                    <!-- No extractors at all -->
+                    <span v-else class="text-slate-500 text-xs italic">
                       Aucun extracteur
                     </span>
                   </div>
@@ -672,7 +865,7 @@ function formatDelta(delta: number): string {
                   <div class="text-right min-w-[100px]">
                     <div class="text-xs text-slate-500">MAJ {{ formatTimeSince(colony.cachedAt) }}</div>
                     <div v-if="isStaleData(colony)" class="mt-0.5">
-                      <span class="stale-badge text-[10px] text-slate-900 px-1.5 py-0.5 rounded-full font-medium">STALE</span>
+                      <span class="stale-badge text-[10px] text-slate-900 px-1.5 py-0.5 rounded-full font-medium">OBSOLETE</span>
                     </div>
                   </div>
 
@@ -706,12 +899,17 @@ function formatDelta(delta: number): string {
                       >
                         <div class="flex items-center justify-between mb-2">
                           <div class="flex items-center gap-2">
-                            <div class="w-7 h-7 rounded bg-slate-700 border border-slate-600 flex items-center justify-center">
-                              <span class="text-[9px] text-slate-400">P0</span>
+                            <div :class="['w-7 h-7 rounded border flex items-center justify-center',
+                              pin.outputTier ? TIER_CONFIG[pin.outputTier]?.badgeBg || 'bg-slate-700' : 'bg-slate-700',
+                              pin.outputTier ? TIER_CONFIG[pin.outputTier]?.badgeBorder || 'border-slate-600' : 'border-slate-600']">
+                              <span :class="['text-[9px] font-bold',
+                                pin.outputTier ? TIER_CONFIG[pin.outputTier]?.badgeText || 'text-slate-400' : 'text-slate-400']">
+                                {{ pin.outputTier || 'P0' }}
+                              </span>
                             </div>
                             <div>
-                              <span class="text-white text-sm font-medium">{{ pin.extractorProductName || pin.typeName || 'Unknown' }}</span>
-                              <div class="text-[10px] text-slate-500">Extractor Control Unit</div>
+                              <span class="text-white text-sm font-medium">{{ pin.extractorProductName || pin.typeName || 'Inconnu' }}</span>
+                              <div class="text-[10px] text-slate-500">Unite d'extraction</div>
                             </div>
                           </div>
                           <div class="text-right">
@@ -727,16 +925,16 @@ function formatDelta(delta: number): string {
                             <span class="text-white font-medium">{{ formatCycleTime(pin.extractorCycleTime) }}</span>
                           </div>
                           <div class="bg-slate-800/50 rounded px-2 py-1.5">
-                            <span class="text-slate-500 block">Qty/cycle</span>
+                            <span class="text-slate-500 block">Qte/cycle</span>
                             <span class="text-white font-medium">{{ pin.extractorQtyPerCycle ? formatNumber(pin.extractorQtyPerCycle, 0) : '-' }}</span>
                           </div>
                           <div class="bg-slate-800/50 rounded px-2 py-1.5">
-                            <span class="text-slate-500 block">Tetes</span>
+                            <span class="text-slate-500 block">Tetes d'extr.</span>
                             <span class="text-white font-medium">{{ pin.extractorNumHeads ?? '-' }}</span>
                           </div>
                         </div>
                         <div class="mt-2 flex items-center justify-between text-xs">
-                          <span class="text-slate-500">Output estime</span>
+                          <span class="text-slate-500" title="Debit initial. Le rendement reel decroit au cours du cycle d'extraction.">Debit initial</span>
                           <span class="text-cyan-400 font-medium">{{ formatDailyOutput(pin) }}</span>
                         </div>
                       </div>
@@ -749,21 +947,21 @@ function formatDelta(delta: number): string {
                       <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                       </svg>
-                      Factories <span class="text-slate-500 font-normal">({{ getFactoryPins(colony).length }})</span>
+                      Usines <span class="text-slate-500 font-normal">({{ getFactoryPins(colony).length }})</span>
                     </h4>
                     <div class="bg-slate-800/60 rounded-lg border border-slate-700/30 overflow-hidden">
                       <table class="w-full text-sm">
                         <thead>
                           <tr class="text-[10px] text-slate-500 uppercase tracking-wider border-b border-slate-700/30">
-                            <th class="text-left px-3 py-2 font-medium">Schematic</th>
-                            <th class="text-left px-3 py-2 font-medium">Inputs</th>
-                            <th class="text-left px-3 py-2 font-medium">Output</th>
+                            <th class="text-left px-3 py-2 font-medium">Schema</th>
+                            <th class="text-left px-3 py-2 font-medium">Entrees</th>
+                            <th class="text-left px-3 py-2 font-medium">Sortie</th>
                             <th class="text-right px-3 py-2 font-medium">Cycle</th>
                           </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-700/20">
                           <tr v-for="pin in getFactoryPins(colony)" :key="pin.pinId" class="hover:bg-slate-700/20">
-                            <td class="px-3 py-2 text-white font-medium">{{ pin.schematicName || pin.typeName || 'Unknown' }}</td>
+                            <td class="px-3 py-2 text-white font-medium">{{ pin.schematicName || pin.typeName || 'Inconnu' }}</td>
                             <td class="px-3 py-2 text-slate-400 text-xs">
                               <template v-if="pin.schematicInputs && pin.schematicInputs.length > 0">
                                 {{ pin.schematicInputs.map(i => `${formatNumber(i.quantity, 0)} ${i.typeName}`).join(' + ') }}
@@ -772,7 +970,15 @@ function formatDelta(delta: number): string {
                             </td>
                             <td class="px-3 py-2">
                               <template v-if="pin.schematicOutput">
-                                <span class="text-white text-xs">{{ formatNumber(pin.schematicOutput.quantity, 0) }} {{ pin.schematicOutput.typeName }}</span>
+                                <div class="flex items-center gap-1.5">
+                                  <span v-if="pin.outputTier" :class="['text-[9px] px-1 py-0.5 rounded border font-bold',
+                                    TIER_CONFIG[pin.outputTier]?.badgeBg, TIER_CONFIG[pin.outputTier]?.badgeText, TIER_CONFIG[pin.outputTier]?.badgeBorder]">
+                                    {{ pin.outputTier }}
+                                  </span>
+                                  <span :class="['text-xs', pin.outputTier ? TIER_CONFIG[pin.outputTier]?.badgeText || 'text-white' : 'text-white']">
+                                    {{ formatNumber(pin.schematicOutput.quantity, 0) }} {{ pin.schematicOutput.typeName }}
+                                  </span>
+                                </div>
                               </template>
                               <span v-else class="text-slate-500 text-xs">-</span>
                             </td>
@@ -803,23 +1009,40 @@ function formatDelta(delta: number): string {
                             :key="prod.typeName"
                             class="flex items-center justify-between px-3 py-2.5"
                           >
-                            <span class="text-white text-sm">{{ prod.typeName }}</span>
-                            <div class="text-right">
-                              <span class="text-white text-sm font-medium font-mono-tech">{{ formatNumber(prod.dailyQuantity, 0) }}</span>
-                              <span class="text-slate-500 text-xs ml-1">/ jour</span>
+                            <div class="flex items-center gap-1.5">
+                              <span v-if="prod.outputTier" :class="['text-[9px] px-1 py-0.5 rounded border font-bold',
+                                TIER_CONFIG[prod.outputTier]?.badgeBg, TIER_CONFIG[prod.outputTier]?.badgeText, TIER_CONFIG[prod.outputTier]?.badgeBorder]">
+                                {{ prod.outputTier }}
+                              </span>
+                              <span :class="['text-sm', prod.outputTier ? TIER_CONFIG[prod.outputTier]?.badgeText || 'text-white' : 'text-white']">
+                                {{ prod.typeName }}
+                              </span>
+                            </div>
+                            <div class="text-right flex items-center gap-3">
+                              <span class="text-slate-500 text-xs font-mono-tech">{{ formatNumber(prod.dailyQuantity, 0) }}/j</span>
+                              <span class="text-cyan-400 text-sm font-medium font-mono-tech min-w-[70px] text-right">
+                                {{ prod.dailyIskValue > 0 ? formatIsk(prod.dailyIskValue) : '-' }}
+                              </span>
                             </div>
                           </div>
+                        </div>
+                        <!-- Total row -->
+                        <div v-if="getColonyProduction(colony).length > 0" class="border-t border-slate-700/50 px-3 py-2.5 flex items-center justify-between bg-slate-800/30">
+                          <span class="text-cyan-400 text-sm font-semibold">Total</span>
+                          <span class="text-cyan-400 text-sm font-bold font-mono-tech">
+                            {{ formatIsk(getColonyProduction(colony).reduce((sum, p) => sum + p.dailyIskValue, 0)) }}
+                          </span>
                         </div>
                       </div>
                     </div>
 
-                    <!-- Storage -->
+                    <!-- Flow View (routes-based) -->
                     <div v-if="getStoragePins(colony).length > 0">
                       <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                         <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                         </svg>
-                        Stockage
+                        Flux de stockage
                       </h4>
                       <div class="space-y-2">
                         <div
@@ -827,30 +1050,98 @@ function formatDelta(delta: number): string {
                           :key="storagePin.pinId"
                           class="bg-slate-800/60 rounded-lg border border-slate-700/30 overflow-hidden"
                         >
-                          <div class="px-3 py-2">
-                            <span class="text-slate-400 text-sm">{{ storagePin.typeName || 'Storage' }}</span>
-                          </div>
-                          <!-- Snapshot indicator -->
-                          <div class="border-t border-slate-700/20 px-3 py-1.5 bg-amber-500/5 flex items-center gap-2">
-                            <svg class="w-3.5 h-3.5 text-amber-400/70 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span class="text-[10px] text-amber-400/70">
-                              Snapshot du {{ new Date(colony.cachedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) }}
-                              a {{ new Date(colony.cachedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) }}
+                          <!-- Pin header -->
+                          <div class="px-3 py-2 flex items-center justify-between">
+                            <span class="text-slate-300 text-sm font-medium">{{ storagePin.typeName || 'Stockage' }}</span>
+                            <span v-if="storagePin.capacity" class="text-[10px] text-slate-500 font-mono-tech">
+                              capacite : {{ formatNumber(storagePin.capacity, 0) }} m3
                             </span>
                           </div>
-                          <div v-if="storagePin.contents && storagePin.contents.length > 0" class="border-t border-slate-700/20 px-3 py-2 text-xs space-y-1">
-                            <div
-                              v-for="content in storagePin.contents"
-                              :key="content.typeId"
-                              class="flex justify-between text-slate-400"
-                            >
-                              <span>{{ content.typeName }} x {{ formatNumber(content.amount, 0) }}</span>
-                            </div>
-                          </div>
-                          <div v-else class="border-t border-slate-700/20 px-3 py-2">
-                            <span class="text-xs text-slate-500 italic">Vide</span>
+
+                          <!-- Flow data -->
+                          <template v-if="colony.routes.length > 0">
+                            <!-- Use v-for with single-element array to compute flowData once per storagePin -->
+                            <template v-for="flowData in [getStorageFlowData(colony, storagePin)]" :key="storagePin.pinId">
+                              <div class="px-3 pb-3 space-y-2">
+                                <!-- Incoming flows -->
+                                <div v-if="flowData.incoming.length > 0" class="space-y-1">
+                                  <div class="flex items-center gap-1.5 text-[10px] text-emerald-400/70 uppercase tracking-wider font-medium">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                    </svg>
+                                    Entrant
+                                  </div>
+                                  <div
+                                    v-for="flow in flowData.incoming"
+                                    :key="'in-' + flow.contentTypeId"
+                                    class="flex items-center justify-between pl-4 text-xs"
+                                  >
+                                    <span class="text-emerald-400">{{ flow.contentTypeName }}</span>
+                                    <div class="flex items-center gap-3 text-slate-400 font-mono-tech">
+                                      <span>{{ formatNumber(flow.quantityPerCycle, 0) }}/cycle</span>
+                                      <span v-if="flow.dailyQuantity !== null" class="text-emerald-400/80">
+                                        ~{{ formatNumber(flow.dailyQuantity, 0) }}/jour
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <!-- Outgoing flows -->
+                                <div v-if="flowData.outgoing.length > 0" class="space-y-1">
+                                  <div class="flex items-center gap-1.5 text-[10px] text-amber-400/70 uppercase tracking-wider font-medium">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                                    </svg>
+                                    Sortant
+                                  </div>
+                                  <div
+                                    v-for="flow in flowData.outgoing"
+                                    :key="'out-' + flow.contentTypeId"
+                                    class="flex items-center justify-between pl-4 text-xs"
+                                  >
+                                    <span class="text-amber-400">{{ flow.contentTypeName }}</span>
+                                    <div class="flex items-center gap-3 text-slate-400 font-mono-tech">
+                                      <span>{{ formatNumber(flow.quantityPerCycle, 0) }}/cycle</span>
+                                      <span v-if="flow.dailyQuantity !== null" class="text-amber-400/80">
+                                        ~{{ formatNumber(flow.dailyQuantity, 0) }}/jour
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <!-- No flows -->
+                                <div
+                                  v-if="flowData.incoming.length === 0 && flowData.outgoing.length === 0"
+                                  class="text-xs text-slate-500 italic py-1"
+                                >
+                                  Aucun flux configure
+                                </div>
+
+                                <!-- Net flow summary -->
+                                <div
+                                  v-if="flowData.incoming.length > 0 || flowData.outgoing.length > 0"
+                                  class="border-t border-slate-700/30 pt-2 mt-1 flex items-center justify-between text-xs"
+                                >
+                                  <span class="text-slate-500">Flux net</span>
+                                  <div class="flex items-center gap-3">
+                                    <span :class="['font-mono-tech font-medium', getNetFlowColorClass(flowData.netDailyVolume)]">
+                                      {{ formatNetFlow(flowData.netDailyVolume) }}
+                                    </span>
+                                    <span
+                                      v-if="flowData.fillDays !== null"
+                                      class="text-slate-500 font-mono-tech"
+                                    >
+                                      remplissage ~{{ flowData.fillDays }} jours
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </template>
+                          </template>
+
+                          <!-- No routes loaded -->
+                          <div v-else class="px-3 pb-2">
+                            <span class="text-xs text-slate-500 italic">Chargement des routes...</span>
                           </div>
                         </div>
                       </div>

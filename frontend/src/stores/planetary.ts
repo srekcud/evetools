@@ -8,6 +8,7 @@ export interface PinContent {
   typeId: number
   typeName: string
   amount: number
+  volume: number | null
 }
 
 export interface SchematicIO {
@@ -21,6 +22,7 @@ export interface Pin {
   typeId: number
   typeName: string | null
   pinCategory: string
+  capacity: number | null
   schematicId: number | null
   schematicName: string | null
   schematicCycleTime: number | null
@@ -35,6 +37,17 @@ export interface Pin {
   extractorNumHeads: number | null
   contents: PinContent[]
   dailyOutput: number | null
+  outputTier: string | null
+}
+
+export interface Route {
+  routeId: number
+  sourcePinId: number
+  destinationPinId: number
+  contentTypeId: number
+  contentTypeName: string
+  quantity: number
+  waypoints: number[]
 }
 
 export interface Colony {
@@ -46,6 +59,7 @@ export interface Colony {
   planetType: string
   solarSystemId: number
   solarSystemName: string | null
+  solarSystemSecurity: number | null
   upgradeLevel: number
   numPins: number
   lastUpdate: string
@@ -56,7 +70,7 @@ export interface Colony {
   nearestExpiry: string | null
   status: 'active' | 'expiring' | 'expired' | 'idle'
   pins: Pin[]
-  routes: unknown[]
+  routes: Route[]
 }
 
 export interface PlanetaryStats {

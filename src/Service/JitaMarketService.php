@@ -182,6 +182,10 @@ class JitaMarketService
         $reprocessOutputIds = $this->getReprocessOutputTypeIds();
         $typeIds = array_unique(array_merge($typeIds, $reprocessOutputIds));
 
+        // Also add PI commodities (P1-P4) for planetary production valuation
+        $piTypeIds = $this->getPiCommodityTypeIds();
+        $typeIds = array_unique(array_merge($typeIds, $piTypeIds));
+
         return $typeIds;
     }
 
@@ -227,6 +231,30 @@ class JitaMarketService
             FROM sde_inv_types t
             WHERE t.type_name LIKE 'Compressed %'
             AND t.type_name NOT LIKE '%Blueprint%'
+            AND t.published = true
+        SQL;
+
+        $result = $this->connection->fetchFirstColumn($sql);
+
+        return array_map('intval', $result);
+    }
+
+    /**
+     * Get all PI commodity type IDs (P1-P4) for planetary production valuation.
+     *
+     * @return int[]
+     */
+    private function getPiCommodityTypeIds(): array
+    {
+        // PI market groups: P1=1334, P2=1335, P3=1336, P4=1337
+        $sql = <<<SQL
+            SELECT DISTINCT t.type_id
+            FROM sde_inv_types t
+            JOIN sde_inv_market_groups mg ON t.market_group_id = mg.market_group_id
+            WHERE (
+                mg.market_group_id IN (1334, 1335, 1336, 1337)
+                OR mg.parent_group_id IN (1334, 1335, 1336, 1337)
+            )
             AND t.published = true
         SQL;
 

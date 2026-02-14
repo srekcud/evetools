@@ -50,7 +50,7 @@ class WalletProvider implements ProviderInterface
                     $this->tokenManager->refreshAccessToken($token);
                 }
 
-                $key = $character->getEveCharacterId();
+                $key = (string) $character->getEveCharacterId();
                 $requests[$key] = [
                     'endpoint' => "/characters/{$key}/wallet/",
                     'token' => $token,

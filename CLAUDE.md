@@ -521,6 +521,40 @@ Frontend:
 
 ---
 
+## Roadmap V0.7 - Internationalisation (i18n)
+
+**Statut** : Planifié
+
+Ajouter le support anglais/français à l'ensemble du site via **vue-i18n v10**.
+
+### Architecture
+- Fichiers : `frontend/src/i18n/index.ts` + `locales/fr.json` + `locales/en.json`
+- Clés : `module.section.key` en camelCase (~820 chaînes)
+- Switch langue : `localStorage` + détection `navigator.language`
+- Sélecteur FR/EN dans la sidebar MainLayout
+- Messages Mercure backend → anglais neutre, traduits côté frontend dans `useNotificationFeed.ts`
+
+### Phases
+
+| Phase | Contenu | Fichiers |
+|-------|---------|----------|
+| 1 | Infrastructure (install vue-i18n, config, sélecteur langue) | `package.json`, `main.ts`, `i18n/index.ts`, `MainLayout.vue` |
+| 2 | Composables (useFormatters locale dynamique, useNotificationFeed, useProjectTime) | 3 composables |
+| 3 | Backend Mercure → messages anglais (parallélisable avec P2) | `MercurePublisherService.php`, 6 sync services |
+| 4 | Vues simples (Login, Dashboard, Shopping, Assets, Contracts, Characters) | 7 vues |
+| 5 | Vues complexes (Industry+11 composants, Ledger+PVE, Escalations, PI, Admin) | ~20 fichiers |
+| 6 | Traduction anglaise du fr.json | `en.json` |
+| 7 | QA : test visuel 2 langues, nombres, dates, pluriels | - |
+
+### Points d'attention
+- Templates WTS/Discord (Escalations) : textes EVE universels, **pas à traduire**
+- Noms d'items/systèmes/structures : viennent du SDE, restent en anglais
+- Labels métier universels (ISK, P0-P4, m3, ME, TE, BPO, DED) : pas à traduire
+- Formatage nombres : `1 000,00` (FR) vs `1,000.00` (EN) — géré par `toLocaleString(locale)`
+- Chart.js labels : computed recalculés au changement de langue
+
+---
+
 ## Améliorations marché / pricing
 
 ### Prix pondéré par volume (weighted price)

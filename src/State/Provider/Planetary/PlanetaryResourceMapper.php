@@ -8,13 +8,20 @@ use App\ApiResource\Planetary\ColonyResource;
 use App\Entity\PlanetaryColony;
 use App\Entity\PlanetaryPin;
 use App\Repository\Sde\InvTypeRepository;
+use App\Repository\Sde\MapSolarSystemRepository;
 use App\Repository\Sde\PlanetSchematicRepository;
 
 class PlanetaryResourceMapper
 {
+    private const MARKET_GROUP_P1 = 1334;
+    private const MARKET_GROUP_P2 = 1335;
+    private const MARKET_GROUP_P3 = 1336;
+    private const MARKET_GROUP_P4 = 1337;
+
     public function __construct(
         private readonly InvTypeRepository $invTypeRepository,
         private readonly PlanetSchematicRepository $schematicRepository,
+        private readonly MapSolarSystemRepository $solarSystemRepository,
     ) {
     }
 
@@ -32,6 +39,7 @@ class PlanetaryResourceMapper
         $resource->planetType = $colony->getPlanetType();
         $resource->solarSystemId = $colony->getSolarSystemId();
         $resource->solarSystemName = $colony->getSolarSystemName();
+        $resource->solarSystemSecurity = $this->resolveSolarSystemSecurity($colony->getSolarSystemId());
         $resource->upgradeLevel = $colony->getUpgradeLevel();
         $resource->numPins = $colony->getNumPins();
         $resource->lastUpdate = $colony->getLastUpdate()->format('c');
@@ -136,16 +144,22 @@ class PlanetaryResourceMapper
             ? $this->resolveSchematicDetail($pin->getSchematicId())
             : null;
 
+        // Resolve storage capacity from SDE (InvType.capacity) for the pin type
+        $pinType = $this->invTypeRepository->find($pin->getTypeId());
+        $capacity = $pinType?->getCapacity();
+
         return [
             'pinId' => $pin->getPinId(),
             'typeId' => $pin->getTypeId(),
             'typeName' => $pin->getTypeName() ?? $this->resolveTypeName($pin->getTypeId()),
             'pinCategory' => $this->derivePinCategory($pin),
+            'capacity' => $capacity,
             'schematicId' => $pin->getSchematicId(),
             'schematicName' => $schematicDetail['name'] ?? null,
             'schematicCycleTime' => $schematicDetail['cycleTime'] ?? null,
             'schematicInputs' => $schematicDetail['inputs'] ?? [],
             'schematicOutput' => $schematicDetail['output'] ?? null,
+            'outputTier' => $this->resolveOutputTier($pin, $schematicDetail),
             'latitude' => $pin->getLatitude(),
             'longitude' => $pin->getLongitude(),
             'installTime' => $pin->getInstallTime()?->format('c'),
@@ -199,11 +213,16 @@ class PlanetaryResourceMapper
             return [];
         }
 
-        return array_map(fn (array $item) => [
-            'typeId' => $item['type_id'],
-            'typeName' => $this->resolveTypeName($item['type_id']),
-            'amount' => $item['amount'],
-        ], $contents);
+        return array_map(function (array $item) {
+            $type = $this->invTypeRepository->find($item['type_id']);
+
+            return [
+                'typeId' => $item['type_id'],
+                'typeName' => $type?->getTypeName() ?? "Type #{$item['type_id']}",
+                'amount' => $item['amount'],
+                'volume' => $type?->getVolume(),
+            ];
+        }, $contents);
     }
 
     private function resolveTypeName(int $typeId): string
@@ -211,6 +230,13 @@ class PlanetaryResourceMapper
         $type = $this->invTypeRepository->find($typeId);
 
         return $type?->getTypeName() ?? "Type #{$typeId}";
+    }
+
+    private function resolveSolarSystemSecurity(int $solarSystemId): ?float
+    {
+        $system = $this->solarSystemRepository->findBySolarSystemId($solarSystemId);
+
+        return $system?->getSecurity();
     }
 
     private function resolveSchematicDetail(int $schematicId): array
@@ -249,5 +275,55 @@ class PlanetaryResourceMapper
             'inputs' => $inputs,
             'output' => $output,
         ];
+    }
+
+    private function resolveOutputTier(PlanetaryPin $pin, ?array $schematicDetail): ?string
+    {
+        if ($pin->isExtractor() && $pin->getExtractorProductTypeId() !== null) {
+            return $this->classifyTier($pin->getExtractorProductTypeId());
+        }
+
+        if ($pin->isFactory() && isset($schematicDetail['output']['typeId'])) {
+            return $this->classifyTier($schematicDetail['output']['typeId']);
+        }
+
+        return null;
+    }
+
+    private function classifyTier(int $typeId): string
+    {
+        $type = $this->invTypeRepository->find($typeId);
+        if ($type === null) {
+            return 'P0';
+        }
+
+        $marketGroup = $type->getMarketGroup();
+        if ($marketGroup === null) {
+            return 'P0';
+        }
+
+        $current = $marketGroup;
+        $depth = 0;
+        while ($current !== null && $depth < 10) {
+            $mgId = $current->getMarketGroupId();
+
+            if ($mgId === self::MARKET_GROUP_P1) {
+                return 'P1';
+            }
+            if ($mgId === self::MARKET_GROUP_P2) {
+                return 'P2';
+            }
+            if ($mgId === self::MARKET_GROUP_P3) {
+                return 'P3';
+            }
+            if ($mgId === self::MARKET_GROUP_P4) {
+                return 'P4';
+            }
+
+            $current = $current->getParentGroup();
+            $depth++;
+        }
+
+        return 'P0';
     }
 }

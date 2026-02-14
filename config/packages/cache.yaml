@@ -18,6 +18,9 @@ framework:
             jwt.blacklist:
                 adapter: cache.adapter.redis
                 default_lifetime: 604900  # 1 week + 100 seconds buffer
+            oauth.state.cache:
+                adapter: cache.adapter.redis
+                default_lifetime: 600  # 10 minutes
             structure_market.cache:
                 adapter: cache.adapter.redis
                 default_lifetime: 7200  # 2 hours
@@ -34,6 +37,8 @@ when@test:
                 esi.cache:
                     adapter: cache.adapter.array
                 jwt.blacklist:
+                    adapter: cache.adapter.array
+                oauth.state.cache:
                     adapter: cache.adapter.array
                 structure_market.cache:
                     adapter: cache.adapter.array

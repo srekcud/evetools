@@ -48,6 +48,8 @@ services:
     App\Controller\Auth\EveOAuthController:
         arguments:
             $jwtBlacklist: '@jwt.blacklist'
+            $oauthStateCache: '@oauth.state.cache'
+            $jwtTokenTtl: '%lexik_jwt_authentication.token_ttl%'
 
     # SDE Import Service
     App\Service\Sde\SdeImportService:

@@ -3,6 +3,31 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.6.5 (2026-02-14)
+--------------------------------------------------------------------------------
+
+### Planetary Interaction
+- Flow View : remplacement du stockage ESI (peu fiable) par les flux calcules depuis les routes
+- Valorisation ISK par colonie avec prix Jita des commodites PI (P1-P4)
+- Couleurs et badges tier sur les outputs (extracteurs, factories, production)
+- Indicateur securite systeme + barres volume stockage
+- Timers extracteurs en vue repliee, label output, notice ESI stockage
+- Traduction francaise complete du module PI
+
+### Securite (OWASP)
+- Headers securite Caddy (X-Frame-Options, HSTS, nosniff, Referrer-Policy)
+- TTL blacklist JWT aligne sur la duree du token (1 semaine)
+- Verification OAuth state CSRF (Redis cache, usage unique)
+
+### Qualite
+- PHPStan passe de level 4 a level 5 (4 erreurs corrigees)
+- Roadmap i18n (vue-i18n v10) documentee pour V0.7
+
+### Corrections
+- Fix maintenance mode : simplifier Caddyfile + deployer proxy en dernier
+- Fix scheduler : supprimer sync:// qui empechait la consommation
+
+--------------------------------------------------------------------------------
 Version 0.6 (2026-02-12)
 --------------------------------------------------------------------------------
 

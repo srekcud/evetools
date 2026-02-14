@@ -46,6 +46,7 @@ onMounted(async () => {
 
   // Check if we have an OAuth code from EVE callback
   const code = route.query.code as string
+  const state = route.query.state as string
   if (code) {
     isLoading.value = true
     try {
@@ -59,7 +60,13 @@ onMounted(async () => {
         headers['Authorization'] = `Bearer ${existingToken}`
       }
 
-      const response = await fetch(`/auth/eve/exchange?code=${encodeURIComponent(code)}`, {
+      // Build exchange URL with code and state
+      const params = new URLSearchParams({ code })
+      if (state) {
+        params.set('state', state)
+      }
+
+      const response = await fetch(`/auth/eve/exchange?${params.toString()}`, {
         headers,
       })
       const data = await safeJsonParse<{ error?: boolean; message?: string; token?: string }>(response)

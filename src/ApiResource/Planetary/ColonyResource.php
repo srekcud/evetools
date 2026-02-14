@@ -57,6 +57,8 @@ class ColonyResource
 
     public ?string $solarSystemName;
 
+    public ?float $solarSystemSecurity = null;
+
     public int $upgradeLevel;
 
     public int $numPins;

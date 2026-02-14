@@ -99,7 +99,7 @@ class CorporationStructureProvider implements ProviderInterface
 
         usort($structures, fn ($a, $b) => strcasecmp($a->locationName ?? '', $b->locationName ?? ''));
 
-        $result->structures = array_values($structures);
+        $result->structures = $structures;
 
         return $result;
     }

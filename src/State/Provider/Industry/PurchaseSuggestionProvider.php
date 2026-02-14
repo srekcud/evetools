@@ -68,7 +68,7 @@ class PurchaseSuggestionProvider implements ProviderInterface
                 $placeholders = implode(',', array_fill(0, count($blueprintTypeIds), '?'));
                 $rows = $conn->fetchAllAssociative(
                     "SELECT DISTINCT material_type_id FROM sde_industry_activity_materials WHERE type_id IN ({$placeholders}) AND activity_id = 1",
-                    array_values(array_keys($blueprintTypeIds)),
+                    array_keys($blueprintTypeIds),
                 );
                 foreach ($rows as $row) {
                     $materialTypeIds[(int) $row['material_type_id']] = true;
