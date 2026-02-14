@@ -128,13 +128,13 @@ defineExpose({
       v-if="matchJobsWarning"
       class="mb-4 p-3 bg-amber-500/20 border border-amber-500/50 rounded-lg flex items-center gap-3"
     >
-      <svg class="w-5 h-5 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-5 h-5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
       </svg>
       <span class="text-amber-200 text-sm">{{ matchJobsWarning }}</span>
       <button
         @click="matchJobsWarning = null"
-        class="ml-auto p-1 hover:bg-amber-500/30 rounded text-amber-400"
+        class="ml-auto p-1 hover:bg-amber-500/30 rounded-sm text-amber-400"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -178,7 +178,7 @@ defineExpose({
         <button
           @click="stepsViewMode = 'flat'"
           :class="[
-            'px-3 py-1.5 text-xs font-medium rounded transition-colors',
+            'px-3 py-1.5 text-xs font-medium rounded-sm transition-colors',
             stepsViewMode === 'flat'
               ? 'bg-cyan-600 text-white'
               : 'text-slate-400 hover:text-slate-200'
@@ -194,7 +194,7 @@ defineExpose({
         <button
           @click="stepsViewMode = 'tree'"
           :class="[
-            'px-3 py-1.5 text-xs font-medium rounded transition-colors',
+            'px-3 py-1.5 text-xs font-medium rounded-sm transition-colors',
             stepsViewMode === 'tree'
               ? 'bg-cyan-600 text-white'
               : 'text-slate-400 hover:text-slate-200'
@@ -266,7 +266,7 @@ defineExpose({
               <td class="py-2 px-2 text-right font-mono text-slate-300">{{ job.runs }}</td>
               <td class="py-2 px-2">
                 <span :class="[
-                  'text-xs px-1.5 py-0.5 rounded',
+                  'text-xs px-1.5 py-0.5 rounded-sm',
                   job.status === 'active' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-emerald-500/20 text-emerald-400'
                 ]">
                   {{ job.status === 'active' ? t('industry.stepStatus.active') : t('industry.stepStatus.completed') }}
@@ -285,7 +285,7 @@ defineExpose({
                 <button
                   v-if="job.matchId"
                   @click="unlinkJobMatch(job.matchId!)"
-                  class="px-2 py-1 text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded border border-red-500/30"
+                  class="px-2 py-1 text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-sm border border-red-500/30"
                   :title="t('industry.stepsTab.unlink')"
                 >
                   {{ t('industry.stepsTab.unlink') }}
@@ -294,7 +294,7 @@ defineExpose({
                 <select
                   v-else-if="compatibleSteps(job.blueprintTypeId).length > 0"
                   @change="(e) => { const val = (e.target as HTMLSelectElement).value; if (val) linkJobToStep(val, job.esiJobId); (e.target as HTMLSelectElement).value = '' }"
-                  class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-300 focus:outline-none focus:border-cyan-500"
+                  class="bg-slate-800 border border-slate-700 rounded-sm px-2 py-1 text-xs text-slate-300 focus:outline-hidden focus:border-cyan-500"
                 >
                   <option value="">{{ t('industry.stepsTab.linkToStep') }}</option>
                   <option

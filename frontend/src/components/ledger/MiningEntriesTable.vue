@@ -209,7 +209,7 @@ defineExpose({ resetPage: () => { currentPage.value = 1 } })
                 :checked="selectedEntryIds.size === paginatedEntries.length && paginatedEntries.length > 0"
                 :indeterminate="selectedEntryIds.size > 0 && selectedEntryIds.size < paginatedEntries.length"
                 @change="selectedEntryIds.size === paginatedEntries.length ? clearSelection() : selectAllEntries()"
-                class="w-4 h-4 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-800"
+                class="w-4 h-4 rounded-sm border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-800"
               />
             </th>
             <th class="px-3 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">{{ t('ledger.mining.date') }}</th>
@@ -238,7 +238,7 @@ defineExpose({ resetPage: () => { currentPage.value = 1 } })
                 type="checkbox"
                 :checked="selectedEntryIds.has(entry.id)"
                 @change="toggleEntrySelection(entry.id, $event)"
-                class="w-4 h-4 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-800"
+                class="w-4 h-4 rounded-sm border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-800"
               />
             </td>
             <td class="px-3 py-3 text-sm text-slate-300">{{ formatDate(entry.date) }}</td>
@@ -308,14 +308,14 @@ defineExpose({ resetPage: () => { currentPage.value = 1 } })
         <button
           @click="goToPage(1)"
           :disabled="currentPage === 1"
-          class="px-2 py-1 text-sm rounded hover:bg-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed text-slate-400"
+          class="px-2 py-1 text-sm rounded-sm hover:bg-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed text-slate-400"
         >
           &lt;&lt;
         </button>
         <button
           @click="goToPage(currentPage - 1)"
           :disabled="currentPage === 1"
-          class="px-2 py-1 text-sm rounded hover:bg-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed text-slate-400"
+          class="px-2 py-1 text-sm rounded-sm hover:bg-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed text-slate-400"
         >
           &lt;
         </button>
@@ -324,7 +324,7 @@ defineExpose({ resetPage: () => { currentPage.value = 1 } })
             v-if="page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1)"
             @click="goToPage(page)"
             :class="[
-              'px-3 py-1 text-sm rounded transition-colors',
+              'px-3 py-1 text-sm rounded-sm transition-colors',
               page === currentPage
                 ? 'bg-cyan-600 text-white'
                 : 'text-slate-400 hover:bg-slate-700/50'
@@ -340,14 +340,14 @@ defineExpose({ resetPage: () => { currentPage.value = 1 } })
         <button
           @click="goToPage(currentPage + 1)"
           :disabled="currentPage === totalPages"
-          class="px-2 py-1 text-sm rounded hover:bg-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed text-slate-400"
+          class="px-2 py-1 text-sm rounded-sm hover:bg-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed text-slate-400"
         >
           &gt;
         </button>
         <button
           @click="goToPage(totalPages)"
           :disabled="currentPage === totalPages"
-          class="px-2 py-1 text-sm rounded hover:bg-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed text-slate-400"
+          class="px-2 py-1 text-sm rounded-sm hover:bg-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed text-slate-400"
         >
           &gt;&gt;
         </button>

@@ -7,6 +7,7 @@ namespace App\ApiResource\Pve;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Pve\TypeSearchProvider;
 
 #[ApiResource(
@@ -16,12 +17,12 @@ use App\State\Provider\Pve\TypeSearchProvider;
         new GetCollection(
             uriTemplate: '/pve/search-types',
             provider: TypeSearchProvider::class,
-            openapiContext: [
-                'summary' => 'Search for item types by name',
-                'parameters' => [
-                    ['name' => 'query', 'in' => 'query', 'type' => 'string', 'description' => 'Search query (min 2 characters)'],
+            openapi: new Model\Operation(
+                summary: 'Search for item types by name',
+                parameters: [
+                    new Model\Parameter(name: 'query', in: 'query', schema: ['type' => 'string']),
                 ],
-            ],
+            ),
         ),
     ],
     security: "is_granted('ROLE_USER')",

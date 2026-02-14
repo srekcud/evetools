@@ -11,7 +11,7 @@ const { t } = useI18n()
       <div class="flex items-center gap-6 text-xs flex-wrap">
         <span class="text-slate-500 uppercase tracking-wider font-medium">{{ t('pi.legend.piTiers') }}</span>
         <div v-for="(config, tier) in TIER_CONFIG" :key="tier" class="flex items-center gap-1.5">
-          <span :class="['px-1.5 py-0.5 rounded border', config.badgeBg, config.badgeText, config.badgeBorder]">{{ tier }}</span>
+          <span :class="['px-1.5 py-0.5 rounded-sm border', config.badgeBg, config.badgeText, config.badgeBorder]">{{ tier }}</span>
           <span class="text-slate-500">{{ t(config.labelKey) }}</span>
         </div>
       </div>

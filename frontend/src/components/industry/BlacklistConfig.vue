@@ -116,7 +116,7 @@ function hideDropdownDelayed() {
                 type="checkbox"
                 :checked="cat.blacklisted"
                 @change="toggleCategory(cat.key)"
-                class="w-4 h-4 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900"
+                class="w-4 h-4 rounded-sm border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900"
               />
               <span class="text-sm text-slate-200">{{ cat.label }}</span>
             </label>
@@ -133,7 +133,7 @@ function hideDropdownDelayed() {
               v-model="itemSearchQuery"
               type="text"
               :placeholder="t('industry.blacklist.searchPlaceholder')"
-              class="w-full px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500"
+              class="w-full px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-hidden focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500"
               @focus="showDropdown = itemSearchResults.length > 0"
               @blur="hideDropdownDelayed"
             />
@@ -150,7 +150,7 @@ function hideDropdownDelayed() {
               >
                 <img
                   :src="getTypeIconUrl(result.typeId, 32)"
-                  class="w-6 h-6 rounded"
+                  class="w-6 h-6 rounded-sm"
                   @error="onImageError"
                 />
                 <span class="text-sm text-slate-200">{{ result.typeName }}</span>
@@ -170,13 +170,13 @@ function hideDropdownDelayed() {
             >
               <img
                 :src="getTypeIconUrl(item.typeId, 32)"
-                class="w-5 h-5 rounded"
+                class="w-5 h-5 rounded-sm"
                 @error="onImageError"
               />
               <span class="text-sm text-slate-200">{{ item.typeName }}</span>
               <button
                 @click="removeItem(item.typeId)"
-                class="p-0.5 hover:bg-slate-700 rounded text-slate-500 hover:text-red-400"
+                class="p-0.5 hover:bg-slate-700 rounded-sm text-slate-500 hover:text-red-400"
               >
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />

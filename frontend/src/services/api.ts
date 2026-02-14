@@ -196,7 +196,7 @@ export async function apiRequest<T>(
       throw new Error(errorData?.description || 'Erreur de validation')
     }
 
-    type ErrorResponse = { error?: string; description?: string; detail?: string; 'hydra:description'?: string }
+    type ErrorResponse = { error?: string; description?: string; detail?: string }
     const errorData = await safeJsonParse<ErrorResponse>(response).catch((): ErrorResponse => ({}))
 
     // Also check for rate limit in error message
@@ -206,7 +206,7 @@ export async function apiRequest<T>(
       rateLimitStore.setRateLimited()
     }
 
-    throw new Error(errorData?.error || errorData?.description || errorData?.detail || errorData?.['hydra:description'] || `API error: ${response.status}`)
+    throw new Error(errorData?.error || errorData?.description || errorData?.detail || `API error: ${response.status}`)
   }
 
   if (response.status === 204) return null as T
@@ -278,7 +278,7 @@ export async function safeJsonParse<T>(response: Response): Promise<T> {
     }
   }
 
-  // Parse JSON-LD response (strip metadata, extract hydra:member for collections)
+  // Parse JSON-LD response (strip metadata, extract member for collections)
   return parseApiResponse<T>(data)
 }
 

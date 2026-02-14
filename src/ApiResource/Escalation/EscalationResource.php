@@ -11,6 +11,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\Escalation\CreateEscalationInput;
 use App\State\Processor\Escalation\CreateEscalationProcessor;
 use App\State\Processor\Escalation\DeleteEscalationProcessor;
@@ -28,24 +29,24 @@ use App\State\Provider\Escalation\EscalationPublicProvider;
         new GetCollection(
             uriTemplate: '/escalations',
             provider: EscalationCollectionProvider::class,
-            openapiContext: [
-                'summary' => 'List own escalations',
-                'parameters' => [
-                    ['name' => 'visibility', 'in' => 'query', 'type' => 'string', 'description' => 'Filter by visibility (perso, corp, alliance, public)'],
-                    ['name' => 'saleStatus', 'in' => 'query', 'type' => 'string', 'description' => 'Filter by sale status (envente, vendu)'],
-                    ['name' => 'active', 'in' => 'query', 'type' => 'boolean', 'description' => 'Only active escalations'],
+            openapi: new Model\Operation(
+                summary: 'List own escalations',
+                parameters: [
+                    new Model\Parameter(name: 'visibility', in: 'query', schema: ['type' => 'string']),
+                    new Model\Parameter(name: 'saleStatus', in: 'query', schema: ['type' => 'string']),
+                    new Model\Parameter(name: 'active', in: 'query', schema: ['type' => 'boolean']),
                 ],
-            ],
+            ),
         ),
         new GetCollection(
             uriTemplate: '/escalations/corp',
             provider: EscalationCorpProvider::class,
-            openapiContext: ['summary' => 'List corporation escalations'],
+            openapi: new Model\Operation(summary: 'List corporation escalations'),
         ),
         new GetCollection(
             uriTemplate: '/escalations/public',
             provider: EscalationPublicProvider::class,
-            openapiContext: ['summary' => 'List public escalations (no auth required)'],
+            openapi: new Model\Operation(summary: 'List public escalations (no auth required)'),
         ),
         new Get(
             uriTemplate: '/escalations/{id}',
@@ -60,10 +61,10 @@ use App\State\Provider\Escalation\EscalationPublicProvider;
             uriTemplate: '/escalations/{id}',
             provider: EscalationProvider::class,
             processor: UpdateEscalationProcessor::class,
-            openapiContext: [
-                'summary' => 'Update an escalation',
-                'requestBody' => [
-                    'content' => [
+            openapi: new Model\Operation(
+                summary: 'Update an escalation',
+                requestBody: new Model\RequestBody(
+                    content: new \ArrayObject([
                         'application/merge-patch+json' => [
                             'schema' => [
                                 'type' => 'object',
@@ -76,9 +77,9 @@ use App\State\Provider\Escalation\EscalationPublicProvider;
                                 ],
                             ],
                         ],
-                    ],
-                ],
-            ],
+                    ]),
+                ),
+            ),
         ),
         new Delete(
             uriTemplate: '/escalations/{id}',

@@ -279,7 +279,7 @@ defineExpose({
             @blur="onExportTaxBlur"
             min="0"
             step="100"
-            class="w-20 bg-slate-800/50 border border-slate-600 rounded-lg px-2 py-2 text-sm text-slate-200 text-right focus:outline-none focus:border-cyan-500/50"
+            class="w-20 bg-slate-800/50 border border-slate-600 rounded-lg px-2 py-2 text-sm text-slate-200 text-right focus:outline-hidden focus:border-cyan-500/50"
             :title="t('ledger.mining.exportTaxTooltip')"
           />
           <span class="text-xs text-slate-500">ISK/m3</span>
@@ -296,7 +296,7 @@ defineExpose({
             min="0"
             max="100"
             step="0.01"
-            class="w-20 bg-slate-800/50 border border-slate-600 rounded-lg px-2 py-2 text-sm text-slate-200 text-right focus:outline-none focus:border-cyan-500/50"
+            class="w-20 bg-slate-800/50 border border-slate-600 rounded-lg px-2 py-2 text-sm text-slate-200 text-right focus:outline-hidden focus:border-cyan-500/50"
           />
           <span class="text-xs text-slate-500">%</span>
         </div>
@@ -312,7 +312,7 @@ defineExpose({
               @focus="showStructureDropdown = true"
               @blur="onStructureInputBlur"
               :class="[
-                'w-80 rounded-lg pl-3 pr-10 py-2 text-sm focus:outline-none',
+                'w-80 rounded-lg pl-3 pr-10 py-2 text-sm focus:outline-hidden',
                 selectedStructure.id
                   ? 'bg-slate-800/50 border-2 border-cyan-500/50 text-cyan-400 placeholder-cyan-400'
                   : 'bg-slate-800/50 border border-slate-600 text-slate-200 placeholder-slate-400 focus:border-cyan-500/50'

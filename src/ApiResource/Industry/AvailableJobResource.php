@@ -6,6 +6,7 @@ namespace App\ApiResource\Industry;
 
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Industry\AvailableJobsProvider;
 
 #[ApiResource(
@@ -15,10 +16,7 @@ use App\State\Provider\Industry\AvailableJobsProvider;
         new GetCollection(
             uriTemplate: '/industry/projects/{id}/available-jobs',
             provider: AvailableJobsProvider::class,
-            openapiContext: [
-                'summary' => 'Available ESI jobs',
-                'description' => 'Lists ESI jobs matching the project blueprints, with link status',
-            ],
+            openapi: new Model\Operation(summary: 'Available ESI jobs', description: 'Lists ESI jobs matching the project blueprints, with link status'),
         ),
     ],
     security: "is_granted('ROLE_USER')",

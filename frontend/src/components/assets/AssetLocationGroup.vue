@@ -86,7 +86,7 @@ function getDisplayName(asset: Asset): string {
             <img
               :src="getTypeIconUrl(asset.typeId, 32)"
               :alt="asset.typeName"
-              class="w-8 h-8 rounded"
+              class="w-8 h-8 rounded-sm"
               @error="onImageError"
             />
             <div class="flex items-center gap-2">
@@ -126,7 +126,7 @@ function getDisplayName(asset: Asset): string {
               <img
                 :src="getTypeIconUrl(item.typeId, 32)"
                 :alt="item.typeName"
-                class="w-6 h-6 rounded"
+                class="w-6 h-6 rounded-sm"
                 @error="onImageError"
               />
               <span class="text-slate-300 text-sm">{{ getDisplayName(item) }}</span>

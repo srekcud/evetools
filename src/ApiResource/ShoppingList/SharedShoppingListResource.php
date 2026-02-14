@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\ShoppingList\ShareListInput;
 use App\State\Processor\ShoppingList\ShareListProcessor;
 use App\State\Provider\ShoppingList\SharedShoppingListProvider;
@@ -21,18 +22,12 @@ use App\State\Provider\ShoppingList\SharedShoppingListProvider;
             security: "is_granted('ROLE_USER')",
             processor: ShareListProcessor::class,
             input: ShareListInput::class,
-            openapiContext: [
-                'summary' => 'Create a shareable link for a shopping list',
-                'description' => 'Creates a shareable link that expires after 1 week',
-            ],
+            openapi: new Model\Operation(summary: 'Create a shareable link for a shopping list', description: 'Creates a shareable link that expires after 1 week'),
         ),
         new Get(
             uriTemplate: '/shopping-list/shared/{token}',
             provider: SharedShoppingListProvider::class,
-            openapiContext: [
-                'summary' => 'Get a shared shopping list by token',
-                'description' => 'Retrieves a shared shopping list. No authentication required.',
-            ],
+            openapi: new Model\Operation(summary: 'Get a shared shopping list by token', description: 'Retrieves a shared shopping list. No authentication required.'),
         ),
     ],
 )]

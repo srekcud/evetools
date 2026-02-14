@@ -11,34 +11,20 @@ use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\LoggerInterface;
 
 #[CoversClass(IndustryBonusService::class)]
 class IndustryBonusServiceTest extends TestCase
 {
     private IndustryBonusService $bonusService;
-    private IndustryRigCategoryRepository&MockObject $categoryRepository;
-    private IndustryStructureConfigRepository&MockObject $structureRepository;
-    private InvTypeRepository&MockObject $invTypeRepository;
-    private IndustryActivityProductRepository&MockObject $activityProductRepository;
-    private LoggerInterface&MockObject $logger;
 
     protected function setUp(): void
     {
-        $this->categoryRepository = $this->createMock(IndustryRigCategoryRepository::class);
-        $this->structureRepository = $this->createMock(IndustryStructureConfigRepository::class);
-        $this->invTypeRepository = $this->createMock(InvTypeRepository::class);
-        $this->activityProductRepository = $this->createMock(IndustryActivityProductRepository::class);
-        $this->logger = $this->createMock(LoggerInterface::class);
-
         $this->bonusService = new IndustryBonusService(
-            $this->categoryRepository,
-            $this->structureRepository,
-            $this->invTypeRepository,
-            $this->activityProductRepository,
-            $this->logger,
+            $this->createStub(IndustryRigCategoryRepository::class),
+            $this->createStub(IndustryStructureConfigRepository::class),
+            $this->createStub(InvTypeRepository::class),
+            $this->createStub(IndustryActivityProductRepository::class),
         );
     }
 
@@ -328,10 +314,10 @@ class IndustryBonusServiceTest extends TestCase
             ['Standup XL-Set Structure and Component Manufacturing Efficiency II']
         );
 
-        // EC base: 20%, Rig time bonus: 2.4% × 2.1 = 5.04%
-        // Multiplicative stacking: 1 - (1 - 0.20) × (1 - 0.0504) = 1 - 0.80 × 0.9496 = 1 - 0.75968 = 24.03%
+        // EC base: 20%, Rig time bonus: 24.0% (10x material) × 2.1 = 50.4%
+        // Multiplicative stacking: 1 - (1 - 0.20) × (1 - 0.504) = 1 - 0.80 × 0.496 = 1 - 0.3968 = 60.32%
         $bonus = $this->bonusService->calculateStructureTimeBonusForCategory($structure, 'basic_capital_component');
-        $this->assertSame(24.03, $bonus);
+        $this->assertSame(60.32, $bonus);
     }
 
     public function testRefineryTimeBonusWithReactorEfficiencyRig(): void
@@ -343,10 +329,10 @@ class IndustryBonusServiceTest extends TestCase
             ['Standup L-Set Reactor Efficiency II']
         );
 
-        // Refinery base: 25%, Reactor rig time bonus: 2.4% × 1.1 = 2.64%
-        // Multiplicative stacking: 1 - (1 - 0.25) × (1 - 0.0264) = 1 - 0.75 × 0.9736 = 1 - 0.7302 = 26.98%
+        // Refinery base: 25%, Reactor rig time bonus: 24.0% (10x material) × 1.1 = 26.4%
+        // Multiplicative stacking: 1 - (1 - 0.25) × (1 - 0.264) = 1 - 0.75 × 0.736 = 1 - 0.552 = 44.8%
         $bonus = $this->bonusService->calculateStructureTimeBonusForCategory($structure, 'composite_reaction');
-        $this->assertSame(26.98, $bonus);
+        $this->assertSame(44.8, $bonus);
     }
 
     public function testMSetMaterialEfficiencyRigNoTimeBonus(): void

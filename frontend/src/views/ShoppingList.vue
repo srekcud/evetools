@@ -228,7 +228,7 @@ async function shareList() {
       <!-- Header -->
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">
+          <h1 class="text-2xl font-bold text-transparent bg-clip-text bg-linear-to-r from-cyan-400 to-blue-400">
             {{ t('shopping.title') }}
           </h1>
           <p class="text-slate-400 text-sm mt-1">
@@ -247,7 +247,7 @@ async function shareList() {
             <textarea
               v-model="inputText"
               rows="8"
-              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 font-mono text-sm"
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-200 placeholder-slate-500 focus:outline-hidden focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 font-mono text-sm"
               placeholder="Tritanium&#9;10000
 Pyerite&#9;5000
 Megacyte 100
@@ -274,7 +274,7 @@ Megacyte 100
                   @focus="showStructureDropdown = true"
                   @blur="onStructureInputBlur"
                   :class="[
-                    'w-full rounded-lg pl-3 pr-10 py-2 focus:outline-none',
+                    'w-full rounded-lg pl-3 pr-10 py-2 focus:outline-hidden',
                     selectedStructure.id
                       ? 'bg-slate-800 border-2 border-cyan-500/50 text-cyan-400 placeholder-cyan-400'
                       : 'bg-slate-800 border border-slate-700 text-slate-200 placeholder-slate-400 focus:border-cyan-500/50'
@@ -333,7 +333,7 @@ Megacyte 100
                 type="number"
                 min="0"
                 step="100"
-                class="w-28 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500/50"
+                class="w-28 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-hidden focus:border-cyan-500/50"
               />
             </div>
 

@@ -7,6 +7,7 @@ namespace App\ApiResource\Admin;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Admin\QueueStatusProvider;
 
 #[ApiResource(
@@ -16,9 +17,7 @@ use App\State\Provider\Admin\QueueStatusProvider;
         new Get(
             uriTemplate: '/admin/queues',
             provider: QueueStatusProvider::class,
-            openapiContext: [
-                'summary' => 'Get queue status',
-            ],
+            openapi: new Model\Operation(summary: 'Get queue status'),
         ),
     ],
     security: "is_granted('ROLE_USER')",

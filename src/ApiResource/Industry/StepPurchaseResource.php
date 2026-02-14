@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\Industry\CreatePurchaseInput;
 use App\State\Processor\Industry\CreatePurchaseProcessor;
 use App\State\Processor\Industry\DeletePurchaseProcessor;
@@ -21,19 +22,13 @@ use App\State\Provider\Industry\StepPurchaseDeleteProvider;
             uriTemplate: '/industry/projects/{id}/steps/{stepId}/purchases',
             processor: CreatePurchaseProcessor::class,
             input: CreatePurchaseInput::class,
-            openapiContext: [
-                'summary' => 'Create purchase',
-                'description' => 'Links a purchase (ESI wallet or manual) to a step',
-            ],
+            openapi: new Model\Operation(summary: 'Create purchase', description: 'Links a purchase (ESI wallet or manual) to a step'),
         ),
         new Delete(
             uriTemplate: '/industry/projects/{id}/steps/{stepId}/purchases/{purchaseId}',
             provider: StepPurchaseDeleteProvider::class,
             processor: DeletePurchaseProcessor::class,
-            openapiContext: [
-                'summary' => 'Delete purchase',
-                'description' => 'Removes a purchase link from a step',
-            ],
+            openapi: new Model\Operation(summary: 'Delete purchase', description: 'Removes a purchase link from a step'),
         ),
     ],
     security: "is_granted('ROLE_USER')",

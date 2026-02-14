@@ -134,7 +134,7 @@ function onBlur(target: 'mfg' | 'rxn') {
               v-model="mfgQuery"
               type="text"
               :placeholder="t('industry.favoriteSystems.searchSystem')"
-              class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 placeholder-slate-500"
+              class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:border-cyan-500 placeholder-slate-500"
               @blur="onBlur('mfg')"
             />
             <div v-if="mfgDropdown && mfgResults.length > 0" class="absolute z-20 mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-48 overflow-y-auto">
@@ -174,7 +174,7 @@ function onBlur(target: 'mfg' | 'rxn') {
               v-model="rxnQuery"
               type="text"
               :placeholder="t('industry.favoriteSystems.searchSystem')"
-              class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 placeholder-slate-500"
+              class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:border-cyan-500 placeholder-slate-500"
               @blur="onBlur('rxn')"
             />
             <div v-if="rxnDropdown && rxnResults.length > 0" class="absolute z-20 mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-48 overflow-y-auto">

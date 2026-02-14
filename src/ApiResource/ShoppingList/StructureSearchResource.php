@@ -7,6 +7,7 @@ namespace App\ApiResource\ShoppingList;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\OpenApi\Model;
 use App\State\Provider\ShoppingList\StructureSearchProvider;
 
 #[ApiResource(
@@ -16,12 +17,12 @@ use App\State\Provider\ShoppingList\StructureSearchProvider;
         new Get(
             uriTemplate: '/shopping-list/search-structures',
             provider: StructureSearchProvider::class,
-            openapiContext: [
-                'summary' => 'Search for structures by name',
-                'parameters' => [
-                    ['name' => 'q', 'in' => 'query', 'type' => 'string', 'description' => 'Search query (min 3 characters)'],
+            openapi: new Model\Operation(
+                summary: 'Search for structures by name',
+                parameters: [
+                    new Model\Parameter(name: 'q', in: 'query', schema: ['type' => 'string']),
                 ],
-            ],
+            ),
         ),
     ],
     security: "is_granted('ROLE_USER')",

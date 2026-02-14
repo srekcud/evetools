@@ -1056,7 +1056,7 @@ defineExpose({
             >
               <div class="flex items-center gap-2">
                 <span :class="[
-                  'text-xs px-2 py-0.5 rounded',
+                  'text-xs px-2 py-0.5 rounded-sm',
                   entry.refType === 'ess' ? 'bg-violet-500/20 text-violet-400' :
                   entry.refType === 'mission' ? 'bg-sky-500/20 text-sky-400' :
                   'bg-emerald-500/20 text-emerald-400'
@@ -1083,7 +1083,7 @@ defineExpose({
             <div class="flex gap-2">
               <button
                 @click="showLootConfig = true"
-                class="p-1.5 bg-slate-700 hover:bg-slate-600 rounded text-white"
+                class="p-1.5 bg-slate-700 hover:bg-slate-600 rounded-sm text-white"
                 :title="t('pve.configLootTypes')"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1094,7 +1094,7 @@ defineExpose({
               <button
                 @click="scanLootSales"
                 :disabled="isScanningLoot"
-                class="p-1.5 bg-amber-600 hover:bg-amber-500 rounded text-white disabled:opacity-50"
+                class="p-1.5 bg-amber-600 hover:bg-amber-500 rounded-sm text-white disabled:opacity-50"
                 :title="t('pve.scanSales')"
               >
                 <svg v-if="isScanningLoot" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1107,7 +1107,7 @@ defineExpose({
               <button
                 v-if="declinedContractsCount > 0 || declinedTransactionsCount > 0"
                 @click="resetSeenContracts"
-                class="p-1.5 bg-slate-700 hover:bg-red-600 rounded text-slate-400 hover:text-white"
+                class="p-1.5 bg-slate-700 hover:bg-red-600 rounded-sm text-slate-400 hover:text-white"
                 :title="t('pve.resetFilter', { count: declinedContractsCount + declinedTransactionsCount })"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1117,7 +1117,7 @@ defineExpose({
               <button
                 type="button"
                 @click="openAddLootSaleForm"
-                class="p-1.5 bg-slate-700 hover:bg-slate-600 rounded text-white"
+                class="p-1.5 bg-slate-700 hover:bg-slate-600 rounded-sm text-white"
                 :title="t('pve.addManually')"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1134,7 +1134,7 @@ defineExpose({
             >
               <div class="flex items-center gap-3">
                 <span
-                  class="text-xs px-2 py-1 rounded"
+                  class="text-xs px-2 py-1 rounded-sm"
                   :class="sale.type === 'corp_project' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-amber-500/20 text-amber-400'"
                 >
                   {{ sale.type === 'corp_project' ? t('pve.project') : 'Loot' }}
@@ -1148,7 +1148,7 @@ defineExpose({
                 <span class="text-amber-400 font-mono text-sm">+{{ formatIskFull(sale.amount) }}</span>
                 <button
                   @click="deleteLootSale(sale.id)"
-                  class="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded text-slate-400 hover:text-red-400 transition-all"
+                  class="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded-sm text-slate-400 hover:text-red-400 transition-all"
                   title="Supprimer"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1176,7 +1176,7 @@ defineExpose({
               class="px-5 py-3 flex items-center justify-between group"
             >
               <div class="flex items-center gap-3">
-                <span :class="['text-xs px-2 py-1 rounded', getExpenseTypeColor(expense.type)]">
+                <span :class="['text-xs px-2 py-1 rounded-sm', getExpenseTypeColor(expense.type)]">
                   {{ getExpenseTypeLabel(expense.type) }}
                 </span>
                 <div>
@@ -1188,7 +1188,7 @@ defineExpose({
                 <span class="text-red-400 font-mono text-sm">-{{ formatIskFull(expense.amount) }}</span>
                 <button
                   @click="deleteExpense(expense.id)"
-                  class="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded text-slate-400 hover:text-red-400 transition-all"
+                  class="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded-sm text-slate-400 hover:text-red-400 transition-all"
                   title="Supprimer"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1243,7 +1243,7 @@ defineExpose({
               <label class="block text-sm text-slate-400 mb-1">{{ t('pve.type') }}</label>
               <select
                 v-model="newExpense.type"
-                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-cyan-500"
+                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-cyan-500"
               >
                 <option v-for="et in expenseTypes" :key="et.value" :value="et.value">{{ et.label }}</option>
               </select>
@@ -1257,7 +1257,7 @@ defineExpose({
                 type="text"
                 :placeholder="t('pve.descriptionPlaceholder')"
                 :class="[
-                  'w-full bg-slate-800 border rounded-lg px-4 py-2 text-sm focus:outline-none',
+                  'w-full bg-slate-800 border rounded-lg px-4 py-2 text-sm focus:outline-hidden',
                   formErrors.description ? 'border-red-500 focus:border-red-500' : 'border-slate-700 focus:border-cyan-500'
                 ]"
               />
@@ -1272,7 +1272,7 @@ defineExpose({
                 type="number"
                 placeholder="150000000"
                 :class="[
-                  'w-full bg-slate-800 border rounded-lg px-4 py-2 text-sm focus:outline-none',
+                  'w-full bg-slate-800 border rounded-lg px-4 py-2 text-sm focus:outline-hidden',
                   formErrors.amount ? 'border-red-500 focus:border-red-500' : 'border-slate-700 focus:border-cyan-500'
                 ]"
               />
@@ -1285,7 +1285,7 @@ defineExpose({
               <input
                 v-model="newExpense.date"
                 type="date"
-                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-cyan-500"
+                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-cyan-500"
               />
             </div>
           </div>
@@ -1338,7 +1338,7 @@ defineExpose({
               @input="onAmmoSearchInput"
               type="text"
               :placeholder="t('pve.searchAmmoPlaceholder')"
-              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-cyan-500 pr-10"
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-cyan-500 pr-10"
             />
             <div v-if="isSearchingAmmo" class="absolute right-3 top-2.5">
               <svg class="w-5 h-5 animate-spin text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1375,14 +1375,14 @@ defineExpose({
                 <img
                   :src="getTypeIconUrl(ammo.typeId, 32)"
                   :alt="ammo.typeName"
-                  class="w-6 h-6 rounded"
+                  class="w-6 h-6 rounded-sm"
                   @error="onImageError"
                 />
                 <span class="text-sm">{{ ammo.typeName }}</span>
               </div>
               <button
                 @click="removeAmmoType(ammo.typeId)"
-                class="p-1 hover:bg-red-500/20 rounded text-slate-400 hover:text-red-400 transition-colors"
+                class="p-1 hover:bg-red-500/20 rounded-sm text-slate-400 hover:text-red-400 transition-colors"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -1430,7 +1430,7 @@ defineExpose({
               @input="onLootSearchInput"
               type="text"
               :placeholder="t('pve.searchLootPlaceholder')"
-              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-amber-500 pr-10"
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-amber-500 pr-10"
             />
             <div v-if="isSearchingLoot" class="absolute right-3 top-2.5">
               <svg class="w-5 h-5 animate-spin text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1467,14 +1467,14 @@ defineExpose({
                 <img
                   :src="getTypeIconUrl(loot.typeId, 32)"
                   :alt="loot.typeName"
-                  class="w-6 h-6 rounded"
+                  class="w-6 h-6 rounded-sm"
                   @error="onImageError"
                 />
                 <span class="text-sm">{{ loot.typeName }}</span>
               </div>
               <button
                 @click="removeLootType(loot.typeId)"
-                class="p-1 hover:bg-red-500/20 rounded text-slate-400 hover:text-red-400 transition-colors"
+                class="p-1 hover:bg-red-500/20 rounded-sm text-slate-400 hover:text-red-400 transition-colors"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -1540,9 +1540,9 @@ defineExpose({
                 ]"
               >
                 <div class="flex items-start gap-4">
-                  <div class="flex-shrink-0 pt-1">
+                  <div class="shrink-0 pt-1">
                     <div :class="[
-                      'w-5 h-5 rounded border-2 flex items-center justify-center',
+                      'w-5 h-5 rounded-sm border-2 flex items-center justify-center',
                       expense.selected ? 'border-cyan-500 bg-cyan-500' : 'border-slate-600'
                     ]">
                       <svg v-if="expense.selected" class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1553,12 +1553,12 @@ defineExpose({
                   <img
                     :src="getTypeIconUrl(expense.typeId, 64)"
                     :alt="expense.typeName"
-                    class="w-12 h-12 rounded"
+                    class="w-12 h-12 rounded-sm"
                     @error="onImageError"
                   />
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 mb-1">
-                      <span :class="['text-xs px-2 py-0.5 rounded', getExpenseTypeColor(expense.type)]">
+                      <span :class="['text-xs px-2 py-0.5 rounded-sm', getExpenseTypeColor(expense.type)]">
                         {{ getExpenseTypeLabel(expense.type) }}
                       </span>
                       <span v-if="expense.source === 'contract'" class="text-xs text-slate-500">
@@ -1636,7 +1636,7 @@ defineExpose({
                 type="text"
                 :placeholder="t('pve.lootSaleDescriptionPlaceholder')"
                 :class="[
-                  'w-full bg-slate-800 border rounded-lg px-4 py-2 text-sm focus:outline-none',
+                  'w-full bg-slate-800 border rounded-lg px-4 py-2 text-sm focus:outline-hidden',
                   lootSaleFormErrors.description ? 'border-red-500 focus:border-red-500' : 'border-slate-700 focus:border-amber-500'
                 ]"
               />
@@ -1651,7 +1651,7 @@ defineExpose({
                 type="number"
                 placeholder="500000000"
                 :class="[
-                  'w-full bg-slate-800 border rounded-lg px-4 py-2 text-sm focus:outline-none',
+                  'w-full bg-slate-800 border rounded-lg px-4 py-2 text-sm focus:outline-hidden',
                   lootSaleFormErrors.amount ? 'border-red-500 focus:border-red-500' : 'border-slate-700 focus:border-amber-500'
                 ]"
               />
@@ -1664,7 +1664,7 @@ defineExpose({
               <input
                 v-model="newLootSale.date"
                 type="date"
-                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-amber-500"
+                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-amber-500"
               />
             </div>
           </div>
@@ -1725,18 +1725,18 @@ defineExpose({
                   <img
                     :src="getTypeIconUrl(sale.typeId, 64)"
                     :alt="sale.typeName"
-                    class="w-12 h-12 rounded"
+                    class="w-12 h-12 rounded-sm"
                     @error="onImageError"
                   />
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 mb-1">
-                      <span v-if="sale.source === 'contract'" class="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-400">
+                      <span v-if="sale.source === 'contract'" class="text-xs px-2 py-0.5 rounded-sm bg-amber-500/20 text-amber-400">
                         {{ t('pve.contractNumber', { id: sale.contractId }) }}
                       </span>
-                      <span v-else-if="sale.source === 'corp_project'" class="text-xs px-2 py-0.5 rounded bg-violet-500/20 text-violet-400">
+                      <span v-else-if="sale.source === 'corp_project'" class="text-xs px-2 py-0.5 rounded-sm bg-violet-500/20 text-violet-400">
                         {{ sale.projectName || t('pve.corpProject') }}
                       </span>
-                      <span v-else class="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-400">
+                      <span v-else class="text-xs px-2 py-0.5 rounded-sm bg-blue-500/20 text-blue-400">
                         {{ t('pve.market') }}
                       </span>
                       <span class="text-xs text-slate-500">{{ sale.characterName }}</span>
@@ -1750,7 +1750,7 @@ defineExpose({
                       <input
                         type="number"
                         v-model.number="sale.price"
-                        class="w-28 px-2 py-1 text-right bg-slate-700 border border-slate-600 rounded text-amber-400 font-mono text-sm focus:outline-none focus:border-amber-500"
+                        class="w-28 px-2 py-1 text-right bg-slate-700 border border-slate-600 rounded-sm text-amber-400 font-mono text-sm focus:outline-hidden focus:border-amber-500"
                         min="0"
                         step="100000"
                         :placeholder="sale.source === 'corp_project' ? 'Valeur' : 'Prix'"
@@ -1764,14 +1764,14 @@ defineExpose({
                       <button
                         @click="importSingleLootSale(sale)"
                         :disabled="isImportingLoot || ((sale.source === 'contract' || sale.source === 'corp_project') && sale.price <= 0)"
-                        class="px-3 py-1 text-xs bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded text-white font-medium"
+                        class="px-3 py-1 text-xs bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-sm text-white font-medium"
                       >
                         {{ t('common.actions.add') }}
                       </button>
                       <button
                         @click="ignoreLootSale(sale)"
                         :disabled="isImportingLoot"
-                        class="px-3 py-1 text-xs bg-slate-600 hover:bg-slate-500 disabled:opacity-50 rounded text-slate-300 font-medium"
+                        class="px-3 py-1 text-xs bg-slate-600 hover:bg-slate-500 disabled:opacity-50 rounded-sm text-slate-300 font-medium"
                       >
                         {{ t('pve.ignore') }}
                       </button>

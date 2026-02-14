@@ -7,6 +7,7 @@ namespace App\ApiResource\Industry;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Industry\RigOptionsProvider;
 
 #[ApiResource(
@@ -16,10 +17,7 @@ use App\State\Provider\Industry\RigOptionsProvider;
         new Get(
             uriTemplate: '/industry/structures/rig-options',
             provider: RigOptionsProvider::class,
-            openapiContext: [
-                'summary' => 'Get rig options',
-                'description' => 'Returns available rig options for structures',
-            ],
+            openapi: new Model\Operation(summary: 'Get rig options', description: 'Returns available rig options for structures'),
         ),
     ],
     security: "is_granted('ROLE_USER')",

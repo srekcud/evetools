@@ -28,7 +28,7 @@ class CharacterVoterTest extends TestCase
         $character = new Character();
         $user->addCharacter($character);
 
-        $token = $this->createMock(TokenInterface::class);
+        $token = $this->createStub(TokenInterface::class);
         $token->method('getUser')->willReturn($user);
 
         $result = $this->voter->vote($token, $character, [CharacterVoter::VIEW]);
@@ -43,7 +43,7 @@ class CharacterVoterTest extends TestCase
         $character = new Character();
         $user2->addCharacter($character);
 
-        $token = $this->createMock(TokenInterface::class);
+        $token = $this->createStub(TokenInterface::class);
         $token->method('getUser')->willReturn($user1);
 
         $result = $this->voter->vote($token, $character, [CharacterVoter::VIEW]);
@@ -58,7 +58,7 @@ class CharacterVoterTest extends TestCase
         $user->addCharacter($character);
         $user->setMainCharacter($character);
 
-        $token = $this->createMock(TokenInterface::class);
+        $token = $this->createStub(TokenInterface::class);
         $token->method('getUser')->willReturn($user);
 
         $result = $this->voter->vote($token, $character, [CharacterVoter::DELETE]);
@@ -76,7 +76,7 @@ class CharacterVoterTest extends TestCase
         $user->addCharacter($altCharacter);
         $user->setMainCharacter($mainCharacter);
 
-        $token = $this->createMock(TokenInterface::class);
+        $token = $this->createStub(TokenInterface::class);
         $token->method('getUser')->willReturn($user);
 
         $result = $this->voter->vote($token, $altCharacter, [CharacterVoter::DELETE]);
@@ -88,7 +88,7 @@ class CharacterVoterTest extends TestCase
     {
         $user = new User();
 
-        $token = $this->createMock(TokenInterface::class);
+        $token = $this->createStub(TokenInterface::class);
         $token->method('getUser')->willReturn($user);
 
         $result = $this->voter->vote($token, new \stdClass(), [CharacterVoter::VIEW]);

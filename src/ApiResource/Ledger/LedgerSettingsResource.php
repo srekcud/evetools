@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Patch;
+use ApiPlatform\OpenApi\Model;
 use App\State\Processor\Ledger\UpdateLedgerSettingsProcessor;
 use App\State\Provider\Ledger\LedgerSettingsProvider;
 
@@ -18,18 +19,16 @@ use App\State\Provider\Ledger\LedgerSettingsProvider;
         new Get(
             uriTemplate: '/ledger/settings',
             provider: LedgerSettingsProvider::class,
-            openapiContext: [
-                'summary' => 'Get ledger settings',
-            ],
+            openapi: new Model\Operation(summary: 'Get ledger settings'),
         ),
         new Patch(
             uriTemplate: '/ledger/settings',
             provider: LedgerSettingsProvider::class,
             processor: UpdateLedgerSettingsProcessor::class,
-            openapiContext: [
-                'summary' => 'Update ledger settings',
-                'requestBody' => [
-                    'content' => [
+            openapi: new Model\Operation(
+                summary: 'Update ledger settings',
+                requestBody: new Model\RequestBody(
+                    content: new \ArrayObject([
                         'application/merge-patch+json' => [
                             'schema' => [
                                 'type' => 'object',
@@ -56,9 +55,9 @@ use App\State\Provider\Ledger\LedgerSettingsProvider;
                                 ],
                             ],
                         ],
-                    ],
-                ],
-            ],
+                    ]),
+                ),
+            ),
         ),
     ],
     security: "is_granted('ROLE_USER')",

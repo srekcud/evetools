@@ -7,6 +7,7 @@ namespace App\ApiResource\Industry;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Industry\PurchaseSuggestionProvider;
 
 #[ApiResource(
@@ -16,10 +17,7 @@ use App\State\Provider\Industry\PurchaseSuggestionProvider;
         new Get(
             uriTemplate: '/industry/projects/{id}/purchase-suggestions',
             provider: PurchaseSuggestionProvider::class,
-            openapiContext: [
-                'summary' => 'Get purchase suggestions',
-                'description' => 'Returns wallet transactions matching project materials',
-            ],
+            openapi: new Model\Operation(summary: 'Get purchase suggestions', description: 'Returns wallet transactions matching project materials'),
         ),
     ],
     security: "is_granted('ROLE_USER')",

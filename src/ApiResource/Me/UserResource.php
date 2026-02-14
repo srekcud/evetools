@@ -7,6 +7,7 @@ namespace App\ApiResource\Me;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Me\UserProvider;
 
 #[ApiResource(
@@ -16,10 +17,7 @@ use App\State\Provider\Me\UserProvider;
         new Get(
             uriTemplate: '/me',
             provider: UserProvider::class,
-            openapiContext: [
-                'summary' => 'Get current user',
-                'description' => 'Returns the authenticated user with their characters',
-            ],
+            openapi: new Model\Operation(summary: 'Get current user', description: 'Returns the authenticated user with their characters'),
         ),
     ],
     security: "is_granted('ROLE_USER')",

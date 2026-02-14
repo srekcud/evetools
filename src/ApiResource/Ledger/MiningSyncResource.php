@@ -6,6 +6,7 @@ namespace App\ApiResource\Ledger;
 
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\EmptyInput;
 use App\State\Processor\Ledger\SyncMiningProcessor;
 
@@ -17,9 +18,7 @@ use App\State\Processor\Ledger\SyncMiningProcessor;
             uriTemplate: '/ledger/mining/sync',
             input: EmptyInput::class,
             processor: SyncMiningProcessor::class,
-            openapiContext: [
-                'summary' => 'Sync mining ledger from ESI',
-            ],
+            openapi: new Model\Operation(summary: 'Sync mining ledger from ESI'),
         ),
     ],
     security: "is_granted('ROLE_USER')",

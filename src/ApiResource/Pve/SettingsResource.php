@@ -7,6 +7,7 @@ namespace App\ApiResource\Pve;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\Pve\ResetDeclinedInput;
 use App\State\Processor\Pve\ResetDeclinedProcessor;
 use App\State\Provider\Pve\SettingsProvider;
@@ -18,18 +19,14 @@ use App\State\Provider\Pve\SettingsProvider;
         new Get(
             uriTemplate: '/pve/settings',
             provider: SettingsProvider::class,
-            openapiContext: [
-                'summary' => 'Get PVE settings',
-            ],
+            openapi: new Model\Operation(summary: 'Get PVE settings'),
         ),
         new Post(
             uriTemplate: '/pve/settings/reset-declined',
             processor: ResetDeclinedProcessor::class,
             input: ResetDeclinedInput::class,
             output: SuccessResource::class,
-            openapiContext: [
-                'summary' => 'Reset declined contracts/transactions',
-            ],
+            openapi: new Model\Operation(summary: 'Reset declined contracts/transactions'),
         ),
     ],
     security: "is_granted('ROLE_USER')",

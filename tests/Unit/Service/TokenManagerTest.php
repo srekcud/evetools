@@ -7,7 +7,6 @@ namespace App\Tests\Unit\Service;
 use App\Entity\EveToken;
 use App\Service\ESI\TokenManager;
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -16,20 +15,16 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 class TokenManagerTest extends TestCase
 {
     private TokenManager $tokenManager;
-    private HttpClientInterface&MockObject $httpClient;
-    private EntityManagerInterface&MockObject $entityManager;
     private string $encryptionKey;
 
     protected function setUp(): void
     {
         $this->encryptionKey = base64_encode(random_bytes(SODIUM_CRYPTO_SECRETBOX_KEYBYTES));
-        $this->httpClient = $this->createMock(HttpClientInterface::class);
-        $this->entityManager = $this->createMock(EntityManagerInterface::class);
 
         $this->tokenManager = new TokenManager(
             $this->encryptionKey,
-            $this->httpClient,
-            $this->entityManager,
+            $this->createStub(HttpClientInterface::class),
+            $this->createStub(EntityManagerInterface::class),
             'test_client_id',
             'test_client_secret',
         );

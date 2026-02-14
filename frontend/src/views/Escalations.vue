@@ -431,7 +431,7 @@ onUnmounted(() => {
             <button
               @click="currentPage = 1"
               :disabled="currentPage === 1"
-              class="px-2 py-1 rounded text-sm transition-colors"
+              class="px-2 py-1 rounded-sm text-sm transition-colors"
               :class="currentPage === 1 ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5"/></svg>
@@ -439,7 +439,7 @@ onUnmounted(() => {
             <button
               @click="currentPage--"
               :disabled="currentPage === 1"
-              class="px-2 py-1 rounded text-sm transition-colors"
+              class="px-2 py-1 rounded-sm text-sm transition-colors"
               :class="currentPage === 1 ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
@@ -448,7 +448,7 @@ onUnmounted(() => {
               <button
                 v-if="page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1)"
                 @click="currentPage = page"
-                class="w-8 h-8 rounded text-sm font-medium transition-colors"
+                class="w-8 h-8 rounded-sm text-sm font-medium transition-colors"
                 :class="page === currentPage ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
               >
                 {{ page }}
@@ -461,7 +461,7 @@ onUnmounted(() => {
             <button
               @click="currentPage++"
               :disabled="currentPage === totalPages"
-              class="px-2 py-1 rounded text-sm transition-colors"
+              class="px-2 py-1 rounded-sm text-sm transition-colors"
               :class="currentPage === totalPages ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
@@ -469,7 +469,7 @@ onUnmounted(() => {
             <button
               @click="currentPage = totalPages"
               :disabled="currentPage === totalPages"
-              class="px-2 py-1 rounded text-sm transition-colors"
+              class="px-2 py-1 rounded-sm text-sm transition-colors"
               :class="currentPage === totalPages ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 4.5l7.5 7.5-7.5 7.5m6-15l7.5 7.5-7.5 7.5"/></svg>

@@ -34,7 +34,7 @@ function formatPercent(value: number): string {
         <div class="mt-2 flex items-center gap-2">
           <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
             <div
-              class="h-full bg-gradient-to-r from-cyan-500 to-blue-500"
+              class="h-full bg-linear-to-r from-cyan-500 to-blue-500"
               :style="{ width: `${dashboard.pvePercent}%` }"
             />
           </div>
@@ -105,11 +105,11 @@ function formatPercent(value: number): string {
       </div>
       <div class="mt-4 flex items-center justify-center gap-6 text-sm">
         <div class="flex items-center gap-2">
-          <div class="w-3 h-3 bg-cyan-500 rounded" />
+          <div class="w-3 h-3 bg-cyan-500 rounded-sm" />
           <span class="text-slate-400">PVE</span>
         </div>
         <div class="flex items-center gap-2">
-          <div class="w-3 h-3 bg-amber-500 rounded" />
+          <div class="w-3 h-3 bg-amber-500 rounded-sm" />
           <span class="text-slate-400">Mining</span>
         </div>
       </div>

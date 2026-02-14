@@ -7,6 +7,7 @@ namespace App\ApiResource\Assets;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Assets\CorporationAssetsStatusProvider;
 
 #[ApiResource(
@@ -16,10 +17,7 @@ use App\State\Provider\Assets\CorporationAssetsStatusProvider;
         new Get(
             uriTemplate: '/me/corporation/assets/status',
             provider: CorporationAssetsStatusProvider::class,
-            openapiContext: [
-                'summary' => 'Get corporation assets access status',
-                'description' => 'Returns whether the user has access to corporation assets',
-            ],
+            openapi: new Model\Operation(summary: 'Get corporation assets access status', description: 'Returns whether the user has access to corporation assets'),
         ),
     ],
     security: "is_granted('ROLE_USER')",

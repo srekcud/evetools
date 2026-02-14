@@ -6,7 +6,7 @@ const { toasts } = useToast()
 
 <template>
   <Teleport to="body">
-    <div class="fixed top-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none">
+    <div class="fixed top-6 right-6 z-100 flex flex-col gap-3 pointer-events-none">
       <div
         v-for="toast in toasts"
         :key="toast.id"
@@ -19,7 +19,7 @@ const { toasts } = useToast()
           'translate-x-[120%]': !toast.visible,
         }"
       >
-        <span class="flex-shrink-0">
+        <span class="shrink-0">
           <!-- Success icon -->
           <svg v-if="toast.type === 'success'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           <!-- Warning icon -->

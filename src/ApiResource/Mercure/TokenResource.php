@@ -7,6 +7,7 @@ namespace App\ApiResource\Mercure;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Mercure\TokenProvider;
 
 #[ApiResource(
@@ -16,10 +17,7 @@ use App\State\Provider\Mercure\TokenProvider;
         new Get(
             uriTemplate: '/mercure/token',
             provider: TokenProvider::class,
-            openapiContext: [
-                'summary' => 'Get Mercure subscription token',
-                'description' => 'Returns a JWT token for subscribing to Mercure topics',
-            ],
+            openapi: new Model\Operation(summary: 'Get Mercure subscription token', description: 'Returns a JWT token for subscribing to Mercure topics'),
         ),
     ],
     security: "is_granted('ROLE_USER')",

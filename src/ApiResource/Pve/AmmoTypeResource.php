@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\Pve\AddTypeInput;
 use App\State\Processor\Pve\AddAmmoTypeProcessor;
 use App\State\Processor\Pve\RemoveAmmoTypeProcessor;
@@ -21,17 +22,13 @@ use App\State\Provider\Pve\AmmoTypeProvider;
             uriTemplate: '/pve/settings/ammo',
             processor: AddAmmoTypeProcessor::class,
             input: AddTypeInput::class,
-            openapiContext: [
-                'summary' => 'Add ammo type to settings',
-            ],
+            openapi: new Model\Operation(summary: 'Add ammo type to settings'),
         ),
         new Delete(
             uriTemplate: '/pve/settings/ammo/{id}',
             provider: AmmoTypeProvider::class,
             processor: RemoveAmmoTypeProcessor::class,
-            openapiContext: [
-                'summary' => 'Remove ammo type from settings',
-            ],
+            openapi: new Model\Operation(summary: 'Remove ammo type from settings'),
         ),
     ],
     security: "is_granted('ROLE_USER')",

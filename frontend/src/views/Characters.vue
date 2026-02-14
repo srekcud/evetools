@@ -65,8 +65,8 @@ async function fetchCharacters() {
       headers: { 'Authorization': `Bearer ${authStore.token}` },
     })
     if (!response.ok) throw new Error('Failed to fetch characters')
-    const data = await safeJsonParse<Character[] | { member?: Character[]; 'hydra:member'?: Character[] }>(response)
-    characters.value = Array.isArray(data) ? data : (data.member || data['hydra:member'] || [])
+    const data = await safeJsonParse<Character[] | { member?: Character[] }>(response)
+    characters.value = Array.isArray(data) ? data : (data.member || [])
   } catch (e) {
     error.value = 'Failed to load characters'
     console.error(e)
@@ -454,7 +454,7 @@ async function reauthorize(character: Character) {
                 Make <strong class="text-slate-200">{{ selectedCharacter?.name }}</strong> your main character?
               </p>
               <div v-if="selectedCharacter?.corporationId !== mainCharacter?.corporationId" class="text-amber-400 text-sm mb-6 p-3 bg-amber-500/10 rounded-xl border border-amber-500/20 flex items-start gap-2">
-                <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                 </svg>
                 <span>This character is in a different corporation. Your corp reference will change.</span>

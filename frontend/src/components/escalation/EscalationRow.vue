@@ -71,7 +71,7 @@ function visDescFor(vis: string): string {
           <!-- Visibility badge (clickable) -->
           <div class="relative" v-if="escalation.isOwner">
             <button
-              class="text-xs px-1.5 py-0.5 rounded flex items-center gap-1 hover:ring-1 transition-all cursor-pointer"
+              class="text-xs px-1.5 py-0.5 rounded-sm flex items-center gap-1 hover:ring-1 transition-all cursor-pointer"
               :class="visibilityBadgeClasses"
               :title="`${visibilityTitle} — ${t('escalations.visibility.clickToChange')}`"
               @click="emit('toggle-vis-popover', escalation.id, $event)"
@@ -103,7 +103,7 @@ function visDescFor(vis: string): string {
                 @click="emit('change-visibility', escalation, vis)"
               >
                 <!-- Icons -->
-                <span class="flex-shrink-0">
+                <span class="shrink-0">
                   <svg v-if="vis === 'perso'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
                   <svg v-else-if="vis === 'corp'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
                   <svg v-else-if="vis === 'alliance'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg>
@@ -114,7 +114,7 @@ function visDescFor(vis: string): string {
                   <p class="text-[10px]" :class="escalation.visibility === vis ? 'opacity-70' : 'text-slate-500'">{{ visDescFor(vis) }}</p>
                 </div>
                 <!-- Checkmark for active -->
-                <svg v-if="escalation.visibility === vis" class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                <svg v-if="escalation.visibility === vis" class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
               </button>
             </div>
           </div>
@@ -122,7 +122,7 @@ function visDescFor(vis: string): string {
           <!-- Non-owner visibility badge (read-only) -->
           <span
             v-else
-            class="text-xs px-1.5 py-0.5 rounded flex items-center gap-1"
+            class="text-xs px-1.5 py-0.5 rounded-sm flex items-center gap-1"
             :class="visibilityBadgeClasses.replace('hover:ring-', '').split(' ').slice(0, 2).join(' ')"
           >
             <svg v-if="escalation.visibility === 'corp'" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
@@ -133,20 +133,20 @@ function visDescFor(vis: string): string {
 
           <!-- BM badge -->
           <span
-            class="text-xs px-2 py-0.5 rounded"
+            class="text-xs px-2 py-0.5 rounded-sm"
             :class="escalation.bmStatus === 'nouveau' ? 'bg-slate-500/20 text-slate-400' : 'bg-emerald-500/20 text-emerald-400'"
           ><span v-if="escalation.bmStatus === 'nouveau'" class="line-through">BM</span><span v-else>BM</span></span>
 
           <!-- Sale badge -->
           <span
-            class="text-xs px-2 py-0.5 rounded"
+            class="text-xs px-2 py-0.5 rounded-sm"
             :class="escalation.saleStatus === 'envente' ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'"
           >{{ escalation.saleStatus === 'envente' ? t('escalations.saleStatus.forSale') : t('escalations.saleStatus.sold') }}</span>
 
           <!-- Urgent badge -->
           <span
             v-if="timerInfo.zone === 'danger' && escalation.saleStatus !== 'vendu'"
-            class="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400 animate-pulse"
+            class="text-xs px-2 py-0.5 rounded-sm bg-red-500/20 text-red-400 animate-pulse"
           >{{ t('escalations.urgent') }}</span>
 
           <!-- Type name -->
@@ -191,18 +191,18 @@ function visDescFor(vis: string): string {
       </div>
 
       <!-- Right: Actions -->
-      <div class="flex items-center gap-4 flex-shrink-0">
+      <div class="flex items-center gap-4 shrink-0">
         <!-- Toggle buttons (only for owner) -->
         <div v-if="escalation.isOwner" class="flex items-center gap-2">
           <button
-            class="px-2.5 py-1 rounded text-xs font-medium border transition-colors"
+            class="px-2.5 py-1 rounded-sm text-xs font-medium border transition-colors"
             :class="escalation.bmStatus === 'nouveau'
               ? 'bg-slate-500/20 text-slate-400 border-slate-500/30 hover:bg-slate-500/30'
               : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30'"
             @click="emit('toggle-bm', escalation)"
           ><span v-if="escalation.bmStatus === 'nouveau'" class="line-through">BM</span><span v-else>BM</span></button>
           <button
-            class="px-2.5 py-1 rounded text-xs font-medium border transition-colors"
+            class="px-2.5 py-1 rounded-sm text-xs font-medium border transition-colors"
             :class="escalation.saleStatus === 'envente'
               ? 'bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-amber-500/30'
               : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30'"

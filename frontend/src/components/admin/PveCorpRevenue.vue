@@ -37,7 +37,7 @@ const { formatIsk } = useFormatters()
         <span class="text-slate-500 text-sm w-6">{{ index + 1 }}.</span>
         <img
           :src="`https://images.evetech.net/corporations/${corp.corporationId}/logo?size=32`"
-          class="w-8 h-8 rounded"
+          class="w-8 h-8 rounded-sm"
           :alt="corp.corporationName"
         />
         <span class="flex-1 text-slate-200 truncate">{{ corp.corporationName }}</span>

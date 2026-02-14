@@ -495,14 +495,14 @@ function mergeGroup(stepId: string) {
             </svg>
             <img
               :src="getTypeIconUrl(splitGroup.productTypeId, 32)"
-              class="w-8 h-8 rounded"
+              class="w-8 h-8 rounded-sm"
               @error="onImageError"
             />
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="font-medium text-slate-200">{{ splitGroup.productTypeName }}</span>
                 <span v-if="splitGroup.children.length > 1" class="text-xs text-slate-500">({{ splitGroup.children.length }} jobs)</span>
-                <span :class="['text-xs px-1.5 py-0.5 rounded', activityBadgeClass(splitGroup.activityType)]">
+                <span :class="['text-xs px-1.5 py-0.5 rounded-sm', activityBadgeClass(splitGroup.activityType)]">
                   {{ activityLabel(splitGroup.activityType) }}
                 </span>
                 <!-- Structure info -->
@@ -529,7 +529,7 @@ function mergeGroup(stepId: string) {
                 <!-- Facility delta: unconfigured -->
                 <span
                   v-if="splitGroup.facilityInfoType === 'unconfigured'"
-                  class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  class="text-xs px-1.5 py-0.5 rounded-sm bg-amber-500/10 text-amber-400 border border-amber-500/20"
                 >
                   {{ splitGroup.actualFacilityName }} ({{ t('industry.stepTree.unconfigured') }})
                 </span>
@@ -571,7 +571,7 @@ function mergeGroup(stepId: string) {
             <button
               v-if="splitGroup.children.length > 1 && splitGroup.depth > 0 && !readonly"
               @click.stop="mergeGroup(splitGroup.children[0].id)"
-              class="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded text-slate-300"
+              class="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-sm text-slate-300"
               :title="t('industry.step.merge')"
             >
               {{ t('industry.step.merge') }}
@@ -588,7 +588,7 @@ function mergeGroup(stepId: string) {
                 :checked="allChildrenPurchased(splitGroup.children)"
                 :disabled="readonly"
                 @change="toggleAllPurchased(splitGroup.children)"
-                class="w-4 h-4 rounded border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500 focus:ring-offset-slate-900 disabled:cursor-not-allowed"
+                class="w-4 h-4 rounded-sm border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500 focus:ring-offset-slate-900 disabled:cursor-not-allowed"
               />
               <span class="text-xs text-slate-400">{{ t('industry.step.purchased') }}</span>
             </label>
@@ -606,7 +606,7 @@ function mergeGroup(stepId: string) {
 
               <img
                 :src="getTypeIconUrl(step.productTypeId, 32)"
-                class="w-8 h-8 rounded"
+                class="w-8 h-8 rounded-sm"
                 @error="onImageError"
               />
               <div class="flex-1 min-w-0">
@@ -621,7 +621,7 @@ function mergeGroup(stepId: string) {
                         v-model.number="editRunsValue"
                         type="number"
                         min="1"
-                        class="w-16 px-1 py-0.5 bg-slate-700 border border-cyan-500 rounded text-xs text-slate-200 focus:outline-none"
+                        class="w-16 px-1 py-0.5 bg-slate-700 border border-cyan-500 rounded-sm text-xs text-slate-200 focus:outline-hidden"
                         @keydown.enter="saveEditRuns(step.id)"
                         @keydown.escape="cancelEditRuns"
                         @blur="saveEditRuns(step.id)"
@@ -654,7 +654,7 @@ function mergeGroup(stepId: string) {
                         :value="step.meLevel"
                         min="0"
                         max="10"
-                        class="w-10 bg-slate-800 border border-slate-700 rounded px-1 py-0.5 text-xs text-center focus:border-cyan-500 focus:outline-none"
+                        class="w-10 bg-slate-800 border border-slate-700 rounded-sm px-1 py-0.5 text-xs text-center focus:border-cyan-500 focus:outline-hidden"
                         @change="(e) => onMeChange(step.id, (e.target as HTMLInputElement).value)"
                         @click.stop
                       />
@@ -666,7 +666,7 @@ function mergeGroup(stepId: string) {
                         :value="step.teLevel"
                         min="0"
                         max="20"
-                        class="w-10 bg-slate-800 border border-slate-700 rounded px-1 py-0.5 text-xs text-center focus:border-cyan-500 focus:outline-none"
+                        class="w-10 bg-slate-800 border border-slate-700 rounded-sm px-1 py-0.5 text-xs text-center focus:border-cyan-500 focus:outline-hidden"
                         @change="(e) => onTeChange(step.id, (e.target as HTMLInputElement).value)"
                         @click.stop
                       />
@@ -679,18 +679,18 @@ function mergeGroup(stepId: string) {
                   <!-- Structure display -->
                   <span
                     v-if="step.recommendedStructureName"
-                    class="bg-slate-800/50 border border-slate-700/50 rounded px-2 py-1 text-xs text-slate-400"
+                    class="bg-slate-800/50 border border-slate-700/50 rounded-sm px-2 py-1 text-xs text-slate-400"
                     :title="step.recommendedStructureName"
                   >{{ step.recommendedStructureName }} — {{ step.structureBonus }}%</span>
                   <!-- ESI linked indicator with unlink button -->
                   <span v-if="isLinkedToEsi(step)" class="inline-flex items-center gap-1">
-                    <span class="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400" :title="t('industry.step.jobMatched')">
+                    <span class="text-xs px-1.5 py-0.5 rounded-sm bg-blue-500/20 text-blue-400" :title="t('industry.step.jobMatched')">
                       ESI
                     </span>
                     <button
                       v-if="!readonly && step.jobMatches && step.jobMatches.length > 0"
                       @click.stop="emit('unlink-job', step.jobMatches[0].id)"
-                      class="text-xs px-1 py-0.5 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20"
+                      class="text-xs px-1 py-0.5 rounded-sm bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20"
                       :title="t('industry.stepsTab.unlinkEsi')"
                     >
                       &times;
@@ -699,13 +699,13 @@ function mergeGroup(stepId: string) {
                   <!-- Character badge: ESI character or recommended -->
                   <span
                     v-if="step.esiJobCharacterName"
-                    class="px-2 py-1 rounded text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                    class="px-2 py-1 rounded-sm text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
                   >
                     {{ step.esiJobCharacterName }}
                   </span>
                   <span
                     v-else-if="step.recommendedCharacterName && !step.purchased && !step.inStock"
-                    class="px-2 py-1 rounded text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+                    class="px-2 py-1 rounded-sm text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
                     :title="t('industry.stepTree.recommendedCharacter')"
                   >
                     {{ step.recommendedCharacterName }}
@@ -722,14 +722,14 @@ function mergeGroup(stepId: string) {
                   <!-- Facility info: unconfigured (visible badge) -->
                   <span
                     v-if="step.facilityInfoType === 'unconfigured'"
-                    class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                    class="text-xs px-1.5 py-0.5 rounded-sm bg-amber-500/10 text-amber-400 border border-amber-500/20"
                   >
                     {{ step.actualFacilityName }} ({{ t('industry.stepTree.unconfigured') }})
                   </span>
                   <!-- Similar jobs warning -->
                   <span
                     v-if="step.similarJobs && step.similarJobs.length > 0"
-                    class="text-xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 cursor-help"
+                    class="text-xs px-1.5 py-0.5 rounded-sm bg-amber-500/20 text-amber-400 cursor-help"
                     :title="formatSimilarJobsWarning(step.similarJobs)"
                   >
                     {{ t('industry.stepTree.similarJobs', { count: step.similarJobs.length }) }}
@@ -769,7 +769,7 @@ function mergeGroup(stepId: string) {
                 </div>
               </div>
 
-              <span :class="['text-xs px-2 py-1 rounded', stepStatusClass(step)]">
+              <span :class="['text-xs px-2 py-1 rounded-sm', stepStatusClass(step)]">
                 {{ stepStatusLabel(step) }}
               </span>
 
@@ -784,7 +784,7 @@ function mergeGroup(stepId: string) {
                   :checked="step.purchased"
                   :disabled="readonly"
                   @change="onToggle(step)"
-                  class="w-4 h-4 rounded border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500 focus:ring-offset-slate-900 disabled:cursor-not-allowed"
+                  class="w-4 h-4 rounded-sm border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500 focus:ring-offset-slate-900 disabled:cursor-not-allowed"
                 />
                 <span class="text-xs text-slate-400">{{ t('industry.step.purchased') }}</span>
               </label>
@@ -797,20 +797,20 @@ function mergeGroup(stepId: string) {
                     type="number"
                     min="2"
                     max="20"
-                    class="w-12 px-1 py-0.5 bg-slate-700 border border-cyan-500 rounded text-xs text-center"
+                    class="w-12 px-1 py-0.5 bg-slate-700 border border-cyan-500 rounded-sm text-xs text-center"
                     @keydown.enter="confirmSplit(step.id)"
                     @keydown.escape="cancelSplit"
                     autofocus
                   />
                   <button
                     @click.stop="confirmSplit(step.id)"
-                    class="px-1.5 py-0.5 bg-cyan-600 hover:bg-cyan-500 rounded text-xs text-white"
+                    class="px-1.5 py-0.5 bg-cyan-600 hover:bg-cyan-500 rounded-sm text-xs text-white"
                   >
                     OK
                   </button>
                   <button
                     @click.stop="cancelSplit"
-                    class="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-xs text-slate-300"
+                    class="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 rounded-sm text-xs text-slate-300"
                   >
                     ✗
                   </button>
@@ -818,7 +818,7 @@ function mergeGroup(stepId: string) {
                 <button
                   v-else
                   @click.stop="startSplit(step.id)"
-                  class="px-2 py-1 rounded text-xs bg-slate-800 text-slate-400 hover:text-cyan-400 border border-slate-700"
+                  class="px-2 py-1 rounded-sm text-xs bg-slate-800 text-slate-400 hover:text-cyan-400 border border-slate-700"
                   :title="t('industry.step.split')"
                 >
                   {{ t('industry.step.split') }} ▾
@@ -834,7 +834,7 @@ function mergeGroup(stepId: string) {
               <button
                 v-if="!isLinkedToEsi(step) && !readonly"
                 @click.stop="deleteStep(step.id, step.productTypeName)"
-                class="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-700 rounded"
+                class="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-700 rounded-sm"
                 :title="t('industry.stepTree.deleteStep')"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -857,20 +857,20 @@ function mergeGroup(stepId: string) {
                     v-model.number="addChildRunsValue"
                     type="number"
                     min="1"
-                    class="w-20 px-2 py-1 bg-slate-700 border border-cyan-500 rounded text-sm text-slate-200 focus:outline-none"
+                    class="w-20 px-2 py-1 bg-slate-700 border border-cyan-500 rounded-sm text-sm text-slate-200 focus:outline-hidden"
                     @keydown.enter="confirmAddChild(splitGroup.splitGroupId, splitGroup.children[0]?.id)"
                     @keydown.escape="cancelAddChild"
                     autofocus
                   />
                   <button
                     @click="confirmAddChild(splitGroup.splitGroupId, splitGroup.children[0]?.id)"
-                    class="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 rounded text-sm text-white"
+                    class="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 rounded-sm text-sm text-white"
                   >
                     {{ t('common.actions.add') }}
                   </button>
                   <button
                     @click="cancelAddChild"
-                    class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm text-slate-300"
+                    class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded-sm text-sm text-slate-300"
                   >
                     {{ t('common.actions.cancel') }}
                   </button>

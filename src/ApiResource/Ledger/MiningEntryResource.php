@@ -9,6 +9,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
+use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Ledger\MiningEntryCollectionProvider;
 use App\State\Provider\Ledger\MiningEntryProvider;
 use App\State\Processor\Ledger\UpdateMiningEntryUsageProcessor;
@@ -20,16 +21,16 @@ use App\State\Processor\Ledger\UpdateMiningEntryUsageProcessor;
         new GetCollection(
             uriTemplate: '/ledger/mining/entries',
             provider: MiningEntryCollectionProvider::class,
-            openapiContext: [
-                'summary' => 'List mining entries',
-                'parameters' => [
-                    ['name' => 'days', 'in' => 'query', 'type' => 'integer', 'description' => 'Number of days (default: 30)'],
-                    ['name' => 'typeId', 'in' => 'query', 'type' => 'integer', 'description' => 'Filter by ore type'],
-                    ['name' => 'usage', 'in' => 'query', 'type' => 'string', 'description' => 'Filter by usage (unknown, sold, corp_project, industry)'],
-                    ['name' => 'structureId', 'in' => 'query', 'type' => 'integer', 'description' => 'Structure ID for price comparison'],
-                    ['name' => 'reprocessYield', 'in' => 'query', 'type' => 'integer', 'description' => 'Reprocessing yield percentage (default: 78)'],
+            openapi: new Model\Operation(
+                summary: 'List mining entries',
+                parameters: [
+                    new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),
+                    new Model\Parameter(name: 'typeId', in: 'query', schema: ['type' => 'integer']),
+                    new Model\Parameter(name: 'usage', in: 'query', schema: ['type' => 'string']),
+                    new Model\Parameter(name: 'structureId', in: 'query', schema: ['type' => 'integer']),
+                    new Model\Parameter(name: 'reprocessYield', in: 'query', schema: ['type' => 'integer']),
                 ],
-            ],
+            ),
         ),
         new Get(
             uriTemplate: '/ledger/mining/entries/{id}',
@@ -39,10 +40,10 @@ use App\State\Processor\Ledger\UpdateMiningEntryUsageProcessor;
             uriTemplate: '/ledger/mining/entries/{id}',
             provider: MiningEntryProvider::class,
             processor: UpdateMiningEntryUsageProcessor::class,
-            openapiContext: [
-                'summary' => 'Update mining entry usage',
-                'requestBody' => [
-                    'content' => [
+            openapi: new Model\Operation(
+                summary: 'Update mining entry usage',
+                requestBody: new Model\RequestBody(
+                    content: new \ArrayObject([
                         'application/merge-patch+json' => [
                             'schema' => [
                                 'type' => 'object',
@@ -53,9 +54,9 @@ use App\State\Processor\Ledger\UpdateMiningEntryUsageProcessor;
                                 ],
                             ],
                         ],
-                    ],
-                ],
-            ],
+                    ]),
+                ),
+            ),
         ),
     ],
     security: "is_granted('ROLE_USER')",

@@ -6,6 +6,7 @@ namespace App\ApiResource\Planetary;
 
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Planetary\PlanetaryStatsProvider;
 
 #[ApiResource(
@@ -15,7 +16,7 @@ use App\State\Provider\Planetary\PlanetaryStatsProvider;
         new Get(
             uriTemplate: '/planetary/stats',
             provider: PlanetaryStatsProvider::class,
-            openapiContext: ['summary' => 'Get PI statistics and KPIs'],
+            openapi: new Model\Operation(summary: 'Get PI statistics and KPIs'),
         ),
     ],
     security: "is_granted('ROLE_USER')",

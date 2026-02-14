@@ -6,8 +6,8 @@ export interface HydraCollection<T> {
   '@context'?: string
   '@id'?: string
   '@type'?: string
-  'hydra:member': T[]
-  'hydra:totalItems'?: number
+  'member': T[]
+  'totalItems'?: number
 }
 
 /**
@@ -17,8 +17,8 @@ export function isHydraCollection<T>(data: unknown): data is HydraCollection<T> 
   return (
     typeof data === 'object' &&
     data !== null &&
-    'hydra:member' in data &&
-    Array.isArray((data as HydraCollection<T>)['hydra:member'])
+    'member' in data &&
+    Array.isArray((data as HydraCollection<T>)['member'])
   )
 }
 
@@ -53,13 +53,13 @@ export function stripJsonLdMetadata<T>(data: T): T {
 
 /**
  * Parse API response handling both JSON-LD collections and single resources
- * For collections: extracts hydra:member and strips metadata
+ * For collections: extracts member and strips metadata
  * For single resources: strips JSON-LD metadata
  */
 export function parseApiResponse<T>(data: unknown): T {
   // If it's a Hydra collection, extract the members and strip metadata
   if (isHydraCollection<T>(data)) {
-    const members = data['hydra:member']
+    const members = data['member']
     return members.map(item => stripJsonLdMetadata(item)) as unknown as T
   }
 

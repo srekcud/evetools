@@ -7,6 +7,7 @@ namespace App\ApiResource\Me;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Me\SkillQueueProvider;
 
 #[ApiResource(
@@ -16,10 +17,7 @@ use App\State\Provider\Me\SkillQueueProvider;
         new Get(
             uriTemplate: '/me/skillqueues',
             provider: SkillQueueProvider::class,
-            openapiContext: [
-                'summary' => 'Get skill queues',
-                'description' => 'Returns currently training skills for all characters',
-            ],
+            openapi: new Model\Operation(summary: 'Get skill queues', description: 'Returns currently training skills for all characters'),
         ),
     ],
     security: "is_granted('ROLE_USER')",

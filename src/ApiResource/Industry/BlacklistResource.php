@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Put;
+use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\Industry\UpdateBlacklistInput;
 use App\State\Processor\Industry\UpdateBlacklistProcessor;
 use App\State\Provider\Industry\BlacklistProvider;
@@ -19,19 +20,13 @@ use App\State\Provider\Industry\BlacklistProvider;
         new Get(
             uriTemplate: '/industry/blacklist',
             provider: BlacklistProvider::class,
-            openapiContext: [
-                'summary' => 'Get blacklist',
-                'description' => 'Returns categories and items blacklisted from production',
-            ],
+            openapi: new Model\Operation(summary: 'Get blacklist', description: 'Returns categories and items blacklisted from production'),
         ),
         new Put(
             uriTemplate: '/industry/blacklist',
             processor: UpdateBlacklistProcessor::class,
             input: UpdateBlacklistInput::class,
-            openapiContext: [
-                'summary' => 'Update blacklist',
-                'description' => 'Updates the blacklist groups and types',
-            ],
+            openapi: new Model\Operation(summary: 'Update blacklist', description: 'Updates the blacklist groups and types'),
         ),
     ],
     security: "is_granted('ROLE_USER')",

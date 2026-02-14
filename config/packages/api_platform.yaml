@@ -16,7 +16,8 @@ api_platform:
             standard_put: true
             rfc_7807_compliant_errors: true
 
-    event_listeners_backward_compatibility_layer: false
+    serializer:
+        hydra_prefix: false
     enable_swagger_ui: true
     enable_docs: true
 

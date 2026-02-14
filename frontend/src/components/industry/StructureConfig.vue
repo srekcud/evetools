@@ -528,7 +528,7 @@ const previewReactionTimeBonus = computed(() => {
             <select
               v-model="selectedCorpStructure"
               @change="onCorpStructureSelected"
-              class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 text-sm focus:outline-none focus:border-cyan-500"
+              class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 text-sm focus:outline-hidden focus:border-cyan-500"
             >
               <option :value="null">-- {{ t('industry.structures.selectStructure') }} --</option>
               <option
@@ -556,7 +556,7 @@ const previewReactionTimeBonus = computed(() => {
               @input="onEsiSearchInput"
               @focus="showEsiSearchDropdown = esiSearchResults.length > 0"
               @blur="hideEsiDropdownDelayed"
-              class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 text-sm focus:outline-none focus:border-cyan-500"
+              class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 text-sm focus:outline-hidden focus:border-cyan-500"
             />
             <div v-if="isSearchingEsi" class="absolute right-3 top-7">
               <svg class="animate-spin h-4 w-4 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -622,7 +622,7 @@ const previewReactionTimeBonus = computed(() => {
             v-model="formName"
             type="text"
             placeholder="Ex: Tatara C-J6MT"
-            class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 text-sm focus:outline-none focus:border-cyan-500"
+            class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 text-sm focus:outline-hidden focus:border-cyan-500"
           />
         </div>
 
@@ -631,7 +631,7 @@ const previewReactionTimeBonus = computed(() => {
           <label class="block text-xs text-slate-400 mb-1">{{ t('industry.structures.structureType') }}</label>
           <select
             v-model="formStructureType"
-            class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 text-sm focus:outline-none focus:border-cyan-500"
+            class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 text-sm focus:outline-hidden focus:border-cyan-500"
           >
             <optgroup label="NPC">
               <option value="station">{{ t('industry.structures.npcStationOption') }}</option>
@@ -681,7 +681,7 @@ const previewReactionTimeBonus = computed(() => {
               type="text"
               :placeholder="canAddMoreRigs ? t('industry.structures.searchRig') : t('industry.structures.maxRigsReached')"
               :disabled="!canAddMoreRigs"
-              class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 text-sm focus:outline-none focus:border-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 text-sm focus:outline-hidden focus:border-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed"
               @focus="showRigDropdown = filteredRigs.length > 0"
               @blur="hideDropdownDelayed"
               @input="showRigDropdown = true"
@@ -743,7 +743,7 @@ const previewReactionTimeBonus = computed(() => {
                 </div>
                 <button
                   @click="removeRig(rigInfo.name)"
-                  class="ml-2 p-1 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded shrink-0"
+                  class="ml-2 p-1 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-sm shrink-0"
                   :title="t('industry.structures.removeRig')"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -822,7 +822,7 @@ const previewReactionTimeBonus = computed(() => {
               <h4 class="text-sm font-medium text-slate-200">{{ structure.name }}</h4>
               <span
                 v-if="structure.isCorporationStructure"
-                class="px-1.5 py-0.5 bg-cyan-900/50 text-cyan-400 text-xs rounded border border-cyan-700/50"
+                class="px-1.5 py-0.5 bg-cyan-900/50 text-cyan-400 text-xs rounded-sm border border-cyan-700/50"
               >
                 CORPO
               </span>
@@ -857,7 +857,7 @@ const previewReactionTimeBonus = computed(() => {
               <span
                 v-for="rig in structure.rigs"
                 :key="rig"
-                class="px-2 py-0.5 bg-slate-700 text-slate-300 text-xs rounded"
+                class="px-2 py-0.5 bg-slate-700 text-slate-300 text-xs rounded-sm"
               >
                 {{ formatRigName(rig) }}
               </span>
@@ -866,7 +866,7 @@ const previewReactionTimeBonus = computed(() => {
           <div class="flex items-center gap-2">
             <button
               @click="openEditForm(structure)"
-              class="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-700 rounded"
+              class="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-700 rounded-sm"
               :title="t('common.actions.edit')"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -875,7 +875,7 @@ const previewReactionTimeBonus = computed(() => {
             </button>
             <button
               @click="openDeleteModal(structure)"
-              class="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded"
+              class="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-sm"
               :title="t('common.actions.delete')"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
