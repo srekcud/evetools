@@ -29,6 +29,7 @@ class EsiClient
     }
 
     /**
+     * @param array<string, string> $extraHeaders
      * @return array<mixed>
      */
     public function get(string $endpoint, ?EveToken $token = null, array $extraHeaders = []): array
@@ -196,6 +197,7 @@ class EsiClient
     }
 
     /**
+     * @param array<int|string, mixed> $body
      * @return array<mixed>
      */
     public function post(string $endpoint, array $body, ?EveToken $token = null): array
@@ -216,6 +218,7 @@ class EsiClient
         }
     }
 
+    /** @param array<string, string> $extraHeaders  */
     private function rawGet(string $endpoint, ?EveToken $token, int $timeout = self::REQUEST_TIMEOUT, array $extraHeaders = []): ResponseInterface
     {
         $this->throttleIfNeeded();
@@ -247,6 +250,7 @@ class EsiClient
     }
 
     /**
+     * @param array<string, string> $extra
      * @return array<string, string>
      */
     private function buildHeaders(?EveToken $token, array $extra = []): array

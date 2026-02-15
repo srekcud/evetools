@@ -185,7 +185,7 @@ watch(
     <!-- Error state -->
     <div v-else-if="adminStore.error" class="bg-red-500/20 border border-red-500 p-4 rounded-lg">
       <p class="text-red-400">{{ adminStore.error }}</p>
-      <button @click="refreshData" class="mt-2 px-4 py-2 bg-red-500/30 hover:bg-red-500/50 rounded text-sm">
+      <button @click="refreshData" class="mt-2 px-4 py-2 bg-red-500/30 hover:bg-red-500/50 rounded-sm text-sm">
         {{ t('common.actions.retry') }}
       </button>
     </div>

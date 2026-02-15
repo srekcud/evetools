@@ -25,6 +25,7 @@ class SolarSystemSearchProvider implements ProviderInterface
     ) {
     }
 
+    /** @return list<SolarSystemSearchResource> */
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): array
     {
         $user = $this->security->getUser();

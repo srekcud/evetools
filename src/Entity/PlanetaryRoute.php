@@ -40,6 +40,7 @@ class PlanetaryRoute
     #[ORM\Column(type: 'float')]
     private float $quantity;
 
+    /** @var list<int>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $waypoints = null;
 
@@ -114,11 +115,13 @@ class PlanetaryRoute
         return $this;
     }
 
+    /** @return list<int>|null */
     public function getWaypoints(): ?array
     {
         return $this->waypoints;
     }
 
+    /** @param list<int>|null $waypoints */
     public function setWaypoints(?array $waypoints): static
     {
         $this->waypoints = $waypoints;

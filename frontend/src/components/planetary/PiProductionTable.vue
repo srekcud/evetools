@@ -74,7 +74,7 @@ function toggleTier(tier: string): void {
               </td>
               <td class="py-2.5">
                 <div class="flex items-center gap-2">
-                  <span :class="['text-[10px] px-1.5 py-0.5 rounded border', TIER_CONFIG[tier.tier]?.badgeBg, TIER_CONFIG[tier.tier]?.badgeText, TIER_CONFIG[tier.tier]?.badgeBorder]">
+                  <span :class="['text-[10px] px-1.5 py-0.5 rounded-sm border', TIER_CONFIG[tier.tier]?.badgeBg, TIER_CONFIG[tier.tier]?.badgeText, TIER_CONFIG[tier.tier]?.badgeBorder]">
                     {{ tier.tier }}
                   </span>
                   <span class="text-slate-400">{{ TIER_CONFIG[tier.tier]?.labelKey ? t(TIER_CONFIG[tier.tier].labelKey) : tier.tier }}</span>

@@ -19,11 +19,11 @@ function formatPercent(value: number): string {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4">
     <!-- KPI Cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <!-- Total -->
-      <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
+      <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
         <div class="flex items-center justify-between">
           <span class="text-slate-400 text-sm">{{ t('common.status.total') }}</span>
           <span class="text-xs text-slate-500">{{ t('ledger.period.nDays', { n: selectedDays }) }}</span>
@@ -34,7 +34,7 @@ function formatPercent(value: number): string {
         <div class="mt-2 flex items-center gap-2">
           <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
             <div
-              class="h-full bg-gradient-to-r from-cyan-500 to-blue-500"
+              class="h-full bg-linear-to-r from-cyan-500 to-blue-500"
               :style="{ width: `${dashboard.pvePercent}%` }"
             />
           </div>
@@ -46,7 +46,7 @@ function formatPercent(value: number): string {
       </div>
 
       <!-- PVE -->
-      <div class="bg-slate-900 rounded-xl p-6 border border-cyan-500/20">
+      <div class="bg-slate-900 rounded-xl p-4 border border-cyan-500/20">
         <div class="flex items-center justify-between">
           <span class="text-cyan-400 text-sm">PVE</span>
           <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -62,7 +62,7 @@ function formatPercent(value: number): string {
       </div>
 
       <!-- Mining -->
-      <div class="bg-slate-900 rounded-xl p-6 border border-amber-500/20">
+      <div class="bg-slate-900 rounded-xl p-4 border border-amber-500/20">
         <div class="flex items-center justify-between">
           <span class="text-amber-400 text-sm">Mining</span>
           <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -79,9 +79,9 @@ function formatPercent(value: number): string {
     </div>
 
     <!-- Stacked Bar Chart -->
-    <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
-      <h3 class="text-lg font-semibold text-white mb-4">{{ t('ledger.dashboard.dailyRevenue') }}</h3>
-      <div v-if="dailyStats?.daily" class="h-64 flex items-end gap-1">
+    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
+      <h3 class="text-sm font-semibold text-white mb-3">{{ t('ledger.dashboard.dailyRevenue') }}</h3>
+      <div v-if="dailyStats?.daily" class="h-44 flex items-end gap-1">
         <div
           v-for="day in dailyStats.daily"
           :key="day.date"
@@ -92,34 +92,34 @@ function formatPercent(value: number): string {
           <div
             v-if="day.mining > 0"
             class="bg-amber-500/80 rounded-t-sm min-h-[2px]"
-            :style="{ height: `${(day.mining / maxDailyValue) * 200}px` }"
+            :style="{ height: `${(day.mining / maxDailyValue) * 150}px` }"
           />
           <!-- PVE bar -->
           <div
             v-if="day.pve > 0"
             class="bg-cyan-500/80 min-h-[2px]"
             :class="{ 'rounded-t-sm': day.mining === 0 }"
-            :style="{ height: `${(day.pve / maxDailyValue) * 200}px` }"
+            :style="{ height: `${(day.pve / maxDailyValue) * 150}px` }"
           />
         </div>
       </div>
-      <div class="mt-4 flex items-center justify-center gap-6 text-sm">
+      <div class="mt-3 flex items-center justify-center gap-6 text-xs">
         <div class="flex items-center gap-2">
-          <div class="w-3 h-3 bg-cyan-500 rounded" />
+          <div class="w-3 h-3 bg-cyan-500 rounded-sm" />
           <span class="text-slate-400">PVE</span>
         </div>
         <div class="flex items-center gap-2">
-          <div class="w-3 h-3 bg-amber-500 rounded" />
+          <div class="w-3 h-3 bg-amber-500 rounded-sm" />
           <span class="text-slate-400">Mining</span>
         </div>
       </div>
     </div>
 
     <!-- Breakdown -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <!-- PVE Breakdown -->
-      <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
-        <h3 class="text-lg font-semibold text-white mb-4">{{ t('ledger.dashboard.pveBreakdown') }}</h3>
+      <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
+        <h3 class="text-sm font-semibold text-white mb-3">{{ t('ledger.dashboard.pveBreakdown') }}</h3>
         <div class="space-y-3">
           <div class="flex items-center justify-between">
             <span class="text-slate-400">Bounties</span>
@@ -145,8 +145,8 @@ function formatPercent(value: number): string {
       </div>
 
       <!-- Mining Breakdown -->
-      <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
-        <h3 class="text-lg font-semibold text-white mb-4">{{ t('ledger.dashboard.miningBreakdown') }}</h3>
+      <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
+        <h3 class="text-sm font-semibold text-white mb-3">{{ t('ledger.dashboard.miningBreakdown') }}</h3>
         <div class="space-y-3">
           <div class="flex items-center justify-between">
             <span class="text-slate-400">{{ t('ledger.mining.usage.sold') }}</span>

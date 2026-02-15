@@ -174,7 +174,7 @@ onMounted(() => {
                   <div class="flex items-center gap-2 mt-3">
                     <span
                       :class="[
-                        'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
+                        'inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium',
                         character.hasValidToken
                           ? 'bg-emerald-500/20 text-emerald-400'
                           : 'bg-red-500/20 text-red-400'
@@ -222,17 +222,17 @@ onMounted(() => {
                 class="px-4 py-3 hover:bg-slate-800/30 transition-colors group/notif"
               >
                 <div class="flex items-start gap-3">
-                  <div :class="['w-2 h-2 rounded-full mt-1.5 flex-shrink-0', getLevelDot(notif.level)]"></div>
+                  <div :class="['w-2 h-2 rounded-full mt-1.5 shrink-0', getLevelDot(notif.level)]"></div>
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center justify-between gap-2">
                       <span class="text-xs font-medium text-slate-300">{{ notif.title }}</span>
-                      <span class="text-[10px] text-slate-600 flex-shrink-0">{{ formatTimeAgo(notif.timestamp) }}</span>
+                      <span class="text-[10px] text-slate-600 shrink-0">{{ formatTimeAgo(notif.timestamp) }}</span>
                     </div>
                     <p class="text-xs text-slate-500 mt-0.5 truncate">{{ notif.message }}</p>
                   </div>
                   <button
                     @click="removeNotification(notif.id)"
-                    class="opacity-0 group-hover/notif:opacity-100 text-slate-600 hover:text-slate-400 transition-all flex-shrink-0"
+                    class="opacity-0 group-hover/notif:opacity-100 text-slate-600 hover:text-slate-400 transition-all shrink-0"
                   >
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />

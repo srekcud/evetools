@@ -49,9 +49,10 @@ final readonly class SyncCharacterAssetsHandler
 
             // Trigger structure owner warmup for the user
             $user = $character->getUser();
-            if ($user !== null) {
+            $userId = $user?->getId();
+            if ($userId !== null) {
                 $this->messageBus->dispatch(
-                    new WarmupStructureOwnersMessage($user->getId()->toRfc4122())
+                    new WarmupStructureOwnersMessage($userId->toRfc4122())
                 );
             }
         } catch (EveAuthRequiredException $e) {

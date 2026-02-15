@@ -39,6 +39,7 @@ class UpdateStepProcessor implements ProcessorInterface
     ) {
     }
 
+    /** @return ProjectStepResource|list<ProjectStepResource> */
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): ProjectStepResource|array
     {
         $user = $this->security->getUser();

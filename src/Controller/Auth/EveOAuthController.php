@@ -103,14 +103,17 @@ class EveOAuthController extends AbstractController
                 $scopes = $token ? $token->getScopes() : [];
 
                 // Trigger background asset sync for the new character
-                $this->messageBus->dispatch(
-                    new SyncCharacterAssets($character->getId()->toRfc4122())
-                );
+                $characterId = $character->getId();
+                if ($characterId !== null) {
+                    $this->messageBus->dispatch(
+                        new SyncCharacterAssets($characterId->toRfc4122())
+                    );
+                }
 
                 return new JsonResponse([
                     'message' => 'Character added successfully',
                     'character' => [
-                        'id' => $character->getId()->toRfc4122(),
+                        'id' => $characterId?->toRfc4122() ?? '',
                         'name' => $character->getName(),
                         'scopes_count' => count($scopes),
                     ],
@@ -123,15 +126,18 @@ class EveOAuthController extends AbstractController
 
             // Trigger background asset sync for all characters
             foreach ($user->getCharacters() as $character) {
-                $this->messageBus->dispatch(
-                    new SyncCharacterAssets($character->getId()->toRfc4122())
-                );
+                $charId = $character->getId();
+                if ($charId !== null) {
+                    $this->messageBus->dispatch(
+                        new SyncCharacterAssets($charId->toRfc4122())
+                    );
+                }
             }
 
             return new JsonResponse([
                 'token' => $jwt,
                 'user' => [
-                    'id' => $user->getId()->toRfc4122(),
+                    'id' => $user->getId()?->toRfc4122() ?? '',
                     'main_character' => $user->getMainCharacter()?->getName(),
                 ],
             ]);

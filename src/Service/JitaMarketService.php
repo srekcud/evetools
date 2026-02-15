@@ -19,6 +19,7 @@ class JitaMarketService
     private const JITA_STATION_ID = 60003760;
     private const THE_FORGE_REGION_ID = 10000002;
     private const CACHE_KEY = 'jita_market_prices';
+    private const CACHE_KEY_BUY = 'jita_market_buy_prices';
     private const CACHE_META_KEY = 'jita_market_meta';
     private const CACHE_TTL = 7200; // 2 hours
     private const ESI_BASE_URL = 'https://esi.evetech.net/latest';
@@ -51,19 +52,25 @@ class JitaMarketService
             ]);
 
             // Fetch prices in batches (per type ID) to avoid OOM
-            $prices = $this->fetchPricesInBatches($typeIds);
+            $allPrices = $this->fetchPricesInBatches($typeIds);
 
-            // Cache the prices
+            // Cache sell prices
             $cacheItem = $this->cache->getItem(self::CACHE_KEY);
-            $cacheItem->set($prices);
+            $cacheItem->set($allPrices['sell']);
             $cacheItem->expiresAfter(self::CACHE_TTL);
             $this->cache->save($cacheItem);
+
+            // Cache buy prices
+            $buyItem = $this->cache->getItem(self::CACHE_KEY_BUY);
+            $buyItem->set($allPrices['buy']);
+            $buyItem->expiresAfter(self::CACHE_TTL);
+            $this->cache->save($buyItem);
 
             // Cache metadata
             $metaItem = $this->cache->getItem(self::CACHE_META_KEY);
             $metaItem->set([
                 'syncedAt' => new \DateTimeImmutable(),
-                'typeCount' => count($prices),
+                'typeCount' => count($allPrices['sell']),
             ]);
             $metaItem->expiresAfter(self::CACHE_TTL);
             $this->cache->save($metaItem);
@@ -72,7 +79,7 @@ class JitaMarketService
 
             return [
                 'success' => true,
-                'typeCount' => count($prices),
+                'typeCount' => count($allPrices['sell']),
                 'duration' => $duration,
             ];
         } catch (\Throwable $e) {
@@ -100,6 +107,7 @@ class JitaMarketService
             return null;
         }
 
+        /** @var array<int, float> $prices */
         $prices = $cacheItem->get();
 
         return $prices[$typeId] ?? null;
@@ -124,6 +132,53 @@ class JitaMarketService
             return $result;
         }
 
+        /** @var array<int, float> $prices */
+        $prices = $cacheItem->get();
+
+        foreach ($typeIds as $typeId) {
+            $result[$typeId] = $prices[$typeId] ?? null;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get the highest buy price for a type from cached Jita prices.
+     */
+    public function getBuyPrice(int $typeId): ?float
+    {
+        $cacheItem = $this->cache->getItem(self::CACHE_KEY_BUY);
+
+        if (!$cacheItem->isHit()) {
+            return null;
+        }
+
+        /** @var array<int, float> $prices */
+        $prices = $cacheItem->get();
+
+        return $prices[$typeId] ?? null;
+    }
+
+    /**
+     * Get buy prices for multiple types at once.
+     *
+     * @param int[] $typeIds
+     * @return array<int, float|null>
+     */
+    public function getBuyPrices(array $typeIds): array
+    {
+        $result = [];
+        foreach ($typeIds as $typeId) {
+            $result[$typeId] = null;
+        }
+
+        $cacheItem = $this->cache->getItem(self::CACHE_KEY_BUY);
+
+        if (!$cacheItem->isHit()) {
+            return $result;
+        }
+
+        /** @var array<int, float> $prices */
         $prices = $cacheItem->get();
 
         foreach ($typeIds as $typeId) {
@@ -152,9 +207,10 @@ class JitaMarketService
             return null;
         }
 
+        /** @var array{syncedAt: \DateTimeImmutable, typeCount: int} $meta */
         $meta = $cacheItem->get();
 
-        return $meta['syncedAt'] ?? null;
+        return $meta['syncedAt'];
     }
 
     /**
@@ -268,11 +324,12 @@ class JitaMarketService
      * Much more memory efficient than loading all Forge orders.
      *
      * @param int[] $typeIds
-     * @return array<int, float>
+     * @return array{sell: array<int, float>, buy: array<int, float>}
      */
     private function fetchPricesInBatches(array $typeIds): array
     {
-        $prices = [];
+        $sellPrices = [];
+        $buyPrices = [];
         $batchSize = 20; // Concurrent requests
         $batches = array_chunk($typeIds, $batchSize);
         $totalBatches = count($batches);
@@ -283,7 +340,7 @@ class JitaMarketService
             // Start parallel requests for this batch
             foreach ($batch as $typeId) {
                 $url = sprintf(
-                    '%s/markets/%d/orders/?order_type=sell&type_id=%d',
+                    '%s/markets/%d/orders/?order_type=all&type_id=%d',
                     self::ESI_BASE_URL,
                     self::THE_FORGE_REGION_ID,
                     $typeId
@@ -299,10 +356,14 @@ class JitaMarketService
                 try {
                     $statusCode = $response->getStatusCode();
                     if ($statusCode === 200) {
+                        /** @var list<array<string, mixed>> $orders */
                         $orders = $response->toArray();
-                        $price = $this->findBestPrice($orders);
-                        if ($price !== null) {
-                            $prices[$typeId] = $price;
+                        $prices = $this->findPrices($orders);
+                        if ($prices['sell'] !== null) {
+                            $sellPrices[$typeId] = $prices['sell'];
+                        }
+                        if ($prices['buy'] !== null) {
+                            $buyPrices[$typeId] = $prices['buy'];
                         }
                     }
                 } catch (\Throwable $e) {
@@ -322,7 +383,8 @@ class JitaMarketService
                 $this->logger->info('Jita sync progress', [
                     'batch' => $batchIndex + 1,
                     'totalBatches' => $totalBatches,
-                    'pricesFound' => count($prices),
+                    'sellPricesFound' => count($sellPrices),
+                    'buyPricesFound' => count($buyPrices),
                 ]);
             }
 
@@ -332,42 +394,58 @@ class JitaMarketService
 
         $this->logger->info('Jita price fetch completed', [
             'totalTypes' => count($typeIds),
-            'pricesFound' => count($prices),
+            'sellPricesFound' => count($sellPrices),
+            'buyPricesFound' => count($buyPrices),
         ]);
 
-        return $prices;
+        return ['sell' => $sellPrices, 'buy' => $buyPrices];
     }
 
     /**
-     * Find the best price from orders (prefer Jita station, fallback to region).
+     * Find sell and buy prices from orders (prefer Jita station, fallback to region).
+     * Sell = lowest sell order, Buy = highest buy order.
      *
-     * @param array $orders
-     * @return float|null
+     * @param list<array<string, mixed>> $orders
+     * @return array{sell: ?float, buy: ?float}
      */
-    private function findBestPrice(array $orders): ?float
+    private function findPrices(array $orders): array
     {
-        $jitaPrice = null;
-        $regionPrice = null;
+        $jitaSell = null;
+        $regionSell = null;
+        $jitaBuy = null;
+        $regionBuy = null;
 
         foreach ($orders as $order) {
-            if ($order['is_buy_order']) {
-                continue;
-            }
-
             $price = (float) $order['price'];
             $locationId = $order['location_id'];
+            $isBuyOrder = (bool) $order['is_buy_order'];
 
-            if ($locationId === self::JITA_STATION_ID) {
-                if ($jitaPrice === null || $price < $jitaPrice) {
-                    $jitaPrice = $price;
+            if ($isBuyOrder) {
+                // Buy orders: keep the highest price
+                if ($locationId === self::JITA_STATION_ID) {
+                    if ($jitaBuy === null || $price > $jitaBuy) {
+                        $jitaBuy = $price;
+                    }
                 }
-            }
-
-            if ($regionPrice === null || $price < $regionPrice) {
-                $regionPrice = $price;
+                if ($regionBuy === null || $price > $regionBuy) {
+                    $regionBuy = $price;
+                }
+            } else {
+                // Sell orders: keep the lowest price
+                if ($locationId === self::JITA_STATION_ID) {
+                    if ($jitaSell === null || $price < $jitaSell) {
+                        $jitaSell = $price;
+                    }
+                }
+                if ($regionSell === null || $price < $regionSell) {
+                    $regionSell = $price;
+                }
             }
         }
 
-        return $jitaPrice ?? $regionPrice;
+        return [
+            'sell' => $jitaSell ?? $regionSell,
+            'buy' => $jitaBuy ?? $regionBuy,
+        ];
     }
 }

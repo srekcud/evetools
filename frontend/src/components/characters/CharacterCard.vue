@@ -76,7 +76,7 @@ const isCorp = props.variant === 'corp'
   >
     <!-- Scan effect on hover -->
     <div :class="[
-      'absolute inset-0 bg-gradient-to-r from-transparent to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out',
+      'absolute inset-0 bg-linear-to-r from-transparent to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out',
       isCorp ? 'via-cyan-500/10' : 'via-slate-400/10'
     ]"></div>
 

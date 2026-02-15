@@ -1,6 +1,6 @@
 # Base image for EVE Tools — rebuild only when changing PHP version or extensions
 # Usage: docker build -f Dockerfile.base -t evetools-base:latest .
-FROM dunglas/frankenphp:php8.4-alpine
+FROM dunglas/frankenphp:1.11-php8.5-alpine
 
 # System dependencies
 RUN apk add --no-cache \
@@ -10,7 +10,7 @@ RUN apk add --no-cache \
 
 # PHP extensions
 RUN install-php-extensions \
-    amqp apcu intl opcache \
+    amqp apcu intl \
     pdo_pgsql redis sodium uuid zip
 
 # PHP config

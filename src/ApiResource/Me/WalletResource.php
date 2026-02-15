@@ -7,6 +7,7 @@ namespace App\ApiResource\Me;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Me\WalletProvider;
 
 #[ApiResource(
@@ -16,10 +17,7 @@ use App\State\Provider\Me\WalletProvider;
         new Get(
             uriTemplate: '/me/wallets',
             provider: WalletProvider::class,
-            openapiContext: [
-                'summary' => 'Get wallet balances',
-                'description' => 'Returns ISK balances for all characters',
-            ],
+            openapi: new Model\Operation(summary: 'Get wallet balances', description: 'Returns ISK balances for all characters'),
         ),
     ],
     security: "is_granted('ROLE_USER')",

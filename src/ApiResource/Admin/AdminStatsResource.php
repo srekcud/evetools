@@ -7,6 +7,7 @@ namespace App\ApiResource\Admin;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Admin\AccessCheckProvider;
 use App\State\Provider\Admin\AdminStatsProvider;
 
@@ -18,16 +19,12 @@ use App\State\Provider\Admin\AdminStatsProvider;
             uriTemplate: '/admin/access',
             provider: AccessCheckProvider::class,
             output: AccessCheckResource::class,
-            openapiContext: [
-                'summary' => 'Check if current user has admin access',
-            ],
+            openapi: new Model\Operation(summary: 'Check if current user has admin access'),
         ),
         new Get(
             uriTemplate: '/admin/stats',
             provider: AdminStatsProvider::class,
-            openapiContext: [
-                'summary' => 'Get admin statistics',
-            ],
+            openapi: new Model\Operation(summary: 'Get admin statistics'),
         ),
     ],
     security: "is_granted('ROLE_USER')",

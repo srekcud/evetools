@@ -13,6 +13,7 @@ use App\Entity\User;
 use App\Entity\UserLedgerSettings;
 use App\Repository\MiningEntryRepository;
 use App\Repository\UserLedgerSettingsRepository;
+use App\Service\MiningBestValueCalculator;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -26,6 +27,7 @@ class MiningStatsDailyProvider implements ProviderInterface
         private readonly Security $security,
         private readonly MiningEntryRepository $miningEntryRepository,
         private readonly UserLedgerSettingsRepository $settingsRepository,
+        private readonly MiningBestValueCalculator $miningBestValueCalculator,
         private readonly RequestStack $requestStack,
     ) {
     }
@@ -47,7 +49,10 @@ class MiningStatsDailyProvider implements ProviderInterface
         $settings = $this->settingsRepository->findByUser($user);
         $excludeUsages = $this->getExcludeUsages($settings);
 
-        // Get daily totals
+        // Get daily best-price values
+        $dailyBestValues = $this->miningBestValueCalculator->getDailyBestValues($user, $from, $to, $excludeUsages);
+
+        // Get daily quantities for display
         $dailyTotals = $this->miningEntryRepository->getDailyTotals($user, $from, $to, $excludeUsages);
 
         // Fill in missing days with zero values
@@ -58,8 +63,8 @@ class MiningStatsDailyProvider implements ProviderInterface
             $dayStats = new MiningDailyStatsResource();
             $dayStats->date = $dateStr;
 
+            $dayStats->totalValue = $dailyBestValues[$dateStr] ?? 0.0;
             if (isset($dailyTotals[$dateStr])) {
-                $dayStats->totalValue = $dailyTotals[$dateStr]['totalValue'];
                 $dayStats->totalQuantity = $dailyTotals[$dateStr]['totalQuantity'];
             }
 
@@ -81,7 +86,7 @@ class MiningStatsDailyProvider implements ProviderInterface
     /**
      * Determine which usages to exclude based on settings.
      *
-     * @return string[]|null
+     * @return list<string>|null
      */
     private function getExcludeUsages(?UserLedgerSettings $settings): ?array
     {

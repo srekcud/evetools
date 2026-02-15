@@ -57,7 +57,7 @@ class RefreshAnsiblexProcessor implements ProcessorInterface
         $result = new AnsiblexSyncResultResource();
 
         if ($async) {
-            $this->messageBus->dispatch(new SyncAnsiblexGates($mainCharacter->getId()->toRfc4122()));
+            $this->messageBus->dispatch(new SyncAnsiblexGates($mainCharacter->getId()?->toRfc4122() ?? ''));
 
             $result->status = 'queued';
             $result->message = 'Ansiblex sync has been queued';

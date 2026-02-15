@@ -56,6 +56,7 @@ class PlanetaryService
      */
     public function fetchPlanetInfo(int $planetId): array
     {
+        /** @var array{name: string, planet_id: int, system_id: int, type_id: int} */
         return $this->esiClient->get("/universe/planets/{$planetId}/");
     }
 }

@@ -7,6 +7,7 @@ namespace App\ApiResource\ShoppingList;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\ShoppingList\ParseListInput;
 use App\State\Processor\ShoppingList\ParseProcessor;
 
@@ -18,9 +19,7 @@ use App\State\Processor\ShoppingList\ParseProcessor;
             uriTemplate: '/shopping-list/parse',
             processor: ParseProcessor::class,
             input: ParseListInput::class,
-            openapiContext: [
-                'summary' => 'Parse a shopping list and get prices',
-            ],
+            openapi: new Model\Operation(summary: 'Parse a shopping list and get prices'),
         ),
     ],
     security: "is_granted('ROLE_USER')",
@@ -36,6 +35,7 @@ class ParseResultResource
     /** @var string[] */
     public array $notFound = [];
 
+    /** @var array<string, float> */
     public array $totals = [];
 
     public float $transportCostPerM3 = 1200.0;

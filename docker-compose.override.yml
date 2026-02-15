@@ -53,4 +53,4 @@ services:
       - APP_ENV=dev
 
   rabbitmq:
-    image: rabbitmq:3-management-alpine
+    image: rabbitmq:4-management-alpine

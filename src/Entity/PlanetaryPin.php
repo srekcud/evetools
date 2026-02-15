@@ -68,6 +68,7 @@ class PlanetaryPin
     #[ORM\Column(type: 'smallint', nullable: true)]
     private ?int $extractorNumHeads = null;
 
+    /** @var array<int, array{type_id: int, amount: int}>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $contents = null;
 
@@ -241,11 +242,13 @@ class PlanetaryPin
         return $this;
     }
 
+    /** @return array<int, array{type_id: int, amount: int}>|null */
     public function getContents(): ?array
     {
         return $this->contents;
     }
 
+    /** @param array<int, array{type_id: int, amount: int}>|null $contents */
     public function setContents(?array $contents): static
     {
         $this->contents = $contents;

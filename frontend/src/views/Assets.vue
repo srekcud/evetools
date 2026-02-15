@@ -346,7 +346,7 @@ watch([selectedCharacterId, viewMode], () => {
           </div>
           <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
             <div
-              class="h-full bg-gradient-to-r from-cyan-500 to-cyan-400 transition-all duration-300"
+              class="h-full bg-linear-to-r from-cyan-500 to-cyan-400 transition-all duration-300"
               :style="{ width: (currentSyncProgress.progress ?? 0) + '%' }"
             ></div>
           </div>

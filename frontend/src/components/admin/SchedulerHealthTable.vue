@@ -86,7 +86,7 @@ function formatInterval(seconds: number): string {
                 v-if="syncActionMap[entry.type]"
                 @click="emit('execute-action', syncActionMap[entry.type].key, syncActionMap[entry.type].action)"
                 :disabled="actionLoading !== null"
-                class="p-1.5 rounded hover:bg-cyan-500/20 text-slate-500 hover:text-cyan-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                class="p-1.5 rounded-sm hover:bg-cyan-500/20 text-slate-500 hover:text-cyan-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 :title="t('admin.triggerSync')"
               >
                 <svg :class="['w-3.5 h-3.5', actionLoading === syncActionMap[entry.type].key ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -83,6 +83,7 @@ class PveSyncService
         return false;
     }
 
+    /** @return array<string, mixed> */
     public function syncAll(User $user): array
     {
         $userId = $user->getId()?->toRfc4122();
@@ -682,6 +683,7 @@ class PveSyncService
         return $imported;
     }
 
+    /** @param array<string, mixed> $entry */
     private function formatBountyDescription(array $entry, string $characterName): string
     {
         $refType = $entry['ref_type'] ?? 'unknown';

@@ -73,7 +73,7 @@ class RefreshCharacterAssetsProcessor implements ProcessorInterface
             $this->assetsSyncService->syncCharacterAssets($character);
 
             $this->messageBus->dispatch(
-                new WarmupStructureOwnersMessage($user->getId()->toRfc4122())
+                new WarmupStructureOwnersMessage($user->getId()?->toRfc4122() ?? '')
             );
 
             $result->status = 'completed';

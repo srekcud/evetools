@@ -17,6 +17,7 @@ class AccessCheckProvider implements ProviderInterface
 {
     public function __construct(
         private readonly Security $security,
+        /** @var list<string> */
         private readonly array $adminCharacterNames,
     ) {
     }

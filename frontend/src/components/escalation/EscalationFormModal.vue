@@ -220,7 +220,7 @@ function onSystemSearch(query: string): void {
 
       if (response.ok) {
         const data = await response.json()
-        const items = data['hydra:member'] ?? []
+        const items = data['member'] ?? []
         systemSearchResults.value = items.slice(0, 8).map((s: Record<string, unknown>) => ({
           name: (s.solarSystemName as string) ?? '',
           sec: (s.security as number) ?? 0,
@@ -349,11 +349,11 @@ function resetForm(): void {
                   class="flex items-center gap-2 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 cursor-pointer hover:border-cyan-500/50 transition-colors"
                   @click.stop="showCharDropdown = !showCharDropdown"
                 >
-                  <div class="w-6 h-6 rounded bg-slate-700 flex items-center justify-center text-cyan-400 text-xs font-bold flex-shrink-0">
+                  <div class="w-6 h-6 rounded-sm bg-slate-700 flex items-center justify-center text-cyan-400 text-xs font-bold shrink-0">
                     {{ formCharacterName ? getCharInitials(formCharacterName) : '?' }}
                   </div>
                   <span class="text-sm truncate">{{ formCharacterName || t('escalations.modal.selectCharacter') }}</span>
-                  <svg class="w-4 h-4 text-slate-500 ml-auto flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                  <svg class="w-4 h-4 text-slate-500 ml-auto shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </div>
 
                 <!-- Character dropdown -->
@@ -364,7 +364,7 @@ function resetForm(): void {
                     class="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-cyan-500/10 transition-colors text-left"
                     @click.stop="selectFormCharacter(char.eveCharacterId, char.name)"
                   >
-                    <div class="w-6 h-6 rounded bg-slate-700 flex items-center justify-center text-cyan-400 text-xs font-bold">
+                    <div class="w-6 h-6 rounded-sm bg-slate-700 flex items-center justify-center text-cyan-400 text-xs font-bold">
                       {{ getCharInitials(char.name) }}
                     </div>
                     <div>
@@ -385,7 +385,7 @@ function resetForm(): void {
                   @click.stop="showTypeDropdown = !showTypeDropdown; showCharDropdown = false"
                 >
                   <span class="text-sm" :class="formType ? 'text-slate-200' : 'text-slate-500'">{{ formType || t('escalations.modal.selectType') }}</span>
-                  <svg class="w-4 h-4 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                  <svg class="w-4 h-4 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </div>
 
                 <div v-if="showTypeDropdown" class="absolute z-10 mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden max-h-64 overflow-y-auto">
@@ -420,7 +420,7 @@ function resetForm(): void {
                   @focus="onSystemSearch(formSystemSearch)"
                   :placeholder="t('escalations.modal.searchSystem')"
                   autocomplete="off"
-                  class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-500 hover:border-cyan-500/50 transition-colors"
+                  class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm placeholder-slate-500 focus:outline-hidden focus:border-cyan-500 hover:border-cyan-500/50 transition-colors"
                 >
 
                 <!-- Autocomplete dropdown -->
@@ -434,7 +434,7 @@ function resetForm(): void {
                     class="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-cyan-500/10 transition-colors text-left"
                     @click.stop="selectSystem(sys)"
                   >
-                    <span class="text-xs font-mono font-bold px-1.5 py-0.5 rounded" :class="secBadgeClasses(sys.sec)">
+                    <span class="text-xs font-mono font-bold px-1.5 py-0.5 rounded-sm" :class="secBadgeClasses(sys.sec)">
                       {{ sys.sec.toFixed(1) }}
                     </span>
                     <span class="text-sm text-slate-200">{{ sys.name }}</span>
@@ -445,7 +445,7 @@ function resetForm(): void {
 
               <!-- Selected system badge -->
               <div v-else class="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-800/80 rounded-lg border border-slate-700/50">
-                <span class="text-xs font-mono font-bold px-1.5 py-0.5 rounded" :class="secBadgeClasses(formSystemSec)">
+                <span class="text-xs font-mono font-bold px-1.5 py-0.5 rounded-sm" :class="secBadgeClasses(formSystemSec)">
                   {{ formSystemSec.toFixed(1) }}
                 </span>
                 <span class="text-sm text-slate-200">{{ formSystemName }}</span>
@@ -469,7 +469,7 @@ function resetForm(): void {
                     v-model.number="formTimerDays"
                     min="0"
                     max="3"
-                    class="w-14 bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:border-cyan-500 font-mono hover:border-cyan-500/50 transition-colors"
+                    class="w-14 bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-sm text-center focus:outline-hidden focus:border-cyan-500 font-mono hover:border-cyan-500/50 transition-colors"
                   >
                   <span class="text-xs text-slate-500">j</span>
                 </div>
@@ -479,7 +479,7 @@ function resetForm(): void {
                     v-model.number="formTimerHours"
                     min="0"
                     max="23"
-                    class="w-14 bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:border-cyan-500 font-mono hover:border-cyan-500/50 transition-colors"
+                    class="w-14 bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-sm text-center focus:outline-hidden focus:border-cyan-500 font-mono hover:border-cyan-500/50 transition-colors"
                   >
                   <span class="text-xs text-slate-500">h</span>
                 </div>
@@ -489,7 +489,7 @@ function resetForm(): void {
                     v-model.number="formTimerMinutes"
                     min="0"
                     max="59"
-                    class="w-14 bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:border-cyan-500 font-mono hover:border-cyan-500/50 transition-colors"
+                    class="w-14 bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-sm text-center focus:outline-hidden focus:border-cyan-500 font-mono hover:border-cyan-500/50 transition-colors"
                   >
                   <span class="text-xs text-slate-500">m</span>
                 </div>
@@ -515,7 +515,7 @@ function resetForm(): void {
                   type="number"
                   v-model.number="formPrice"
                   min="0"
-                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 font-mono pr-8 hover:border-cyan-500/50 transition-colors"
+                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:border-cyan-500 font-mono pr-8 hover:border-cyan-500/50 transition-colors"
                 >
                 <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500">m</span>
               </div>
@@ -524,7 +524,7 @@ function resetForm(): void {
                 <button
                   v-for="sp in currentSuggestedPrices"
                   :key="sp"
-                  class="px-2 py-0.5 text-xs rounded border transition-colors font-mono"
+                  class="px-2 py-0.5 text-xs rounded-sm border transition-colors font-mono"
                   :class="formPrice === sp
                     ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30'
                     : 'bg-slate-800 text-slate-400 hover:text-cyan-400 hover:bg-slate-700 border-slate-700/50'"
@@ -544,7 +544,7 @@ function resetForm(): void {
               type="text"
               v-model="formNotes"
               :placeholder="t('escalations.modal.notesPlaceholder')"
-              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-500 hover:border-cyan-500/50 transition-colors"
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm placeholder-slate-500 focus:outline-hidden focus:border-cyan-500 hover:border-cyan-500/50 transition-colors"
             >
           </div>
 
@@ -581,7 +581,7 @@ function resetForm(): void {
             <div class="flex items-center justify-between">
               <div>
                 <div class="flex items-center gap-2 mb-1">
-                  <span class="text-xs px-2 py-0.5 rounded bg-slate-500/20 text-slate-400 line-through">BM</span>
+                  <span class="text-xs px-2 py-0.5 rounded-sm bg-slate-500/20 text-slate-400 line-through">BM</span>
                   <span class="text-sm text-slate-300">{{ previewType }}</span>
                 </div>
                 <p class="text-xs text-slate-500 flex items-center gap-3">

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
+import { dateFormat } from '@/composables/useFormatters'
 </script>
 
 <template>
-  <RouterView />
+  <RouterView :key="dateFormat" />
 </template>

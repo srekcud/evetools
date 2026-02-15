@@ -164,7 +164,7 @@ function onStatusChange() {
           <select
             v-model="selectedStatus"
             @change="onStatusChange"
-            class="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-cyan-500"
+            class="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-cyan-500"
           >
             <option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
               {{ opt.label }}
@@ -208,7 +208,7 @@ function onStatusChange() {
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <!-- Total contracts -->
           <div class="group relative bg-slate-900 rounded-2xl p-5 border border-slate-800 overflow-hidden transition-all duration-300 hover:border-cyan-500/40 hover:shadow-lg hover:shadow-cyan-500/10 hover:-translate-y-1">
-            <div class="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
+            <div class="absolute inset-0 bg-linear-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
             <div class="relative">
               <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">{{ t('contracts.kpi.totalContracts') }}</p>
               <p class="text-3xl font-bold text-cyan-400">{{ contracts.length }}</p>
@@ -217,7 +217,7 @@ function onStatusChange() {
 
           <!-- Sell contracts -->
           <div class="group relative bg-slate-900 rounded-2xl p-5 border border-slate-800 overflow-hidden transition-all duration-300 hover:border-amber-500/40 hover:shadow-lg hover:shadow-amber-500/10 hover:-translate-y-1">
-            <div class="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
+            <div class="absolute inset-0 bg-linear-to-r from-transparent via-amber-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
             <div class="relative">
               <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">{{ t('contracts.kpi.sales') }}</p>
               <p class="text-3xl font-bold text-amber-400">{{ sellContracts.length }}</p>
@@ -226,7 +226,7 @@ function onStatusChange() {
 
           <!-- Competitive -->
           <div class="group relative bg-slate-900 rounded-2xl p-5 border border-slate-800 overflow-hidden transition-all duration-300 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/10 hover:-translate-y-1">
-            <div class="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
+            <div class="absolute inset-0 bg-linear-to-r from-transparent via-emerald-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
             <div class="relative">
               <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">{{ t('contracts.competitive') }}</p>
               <p class="text-3xl font-bold text-emerald-400">{{ competitiveCount }}</p>
@@ -235,7 +235,7 @@ function onStatusChange() {
 
           <!-- Non competitive -->
           <div class="group relative bg-slate-900 rounded-2xl p-5 border border-slate-800 overflow-hidden transition-all duration-300 hover:border-red-500/40 hover:shadow-lg hover:shadow-red-500/10 hover:-translate-y-1">
-            <div class="absolute inset-0 bg-gradient-to-r from-transparent via-red-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
+            <div class="absolute inset-0 bg-linear-to-r from-transparent via-red-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
             <div class="relative">
               <p class="text-slate-500 text-sm uppercase tracking-wider mb-1">{{ t('contracts.notCompetitive') }}</p>
               <p class="text-3xl font-bold text-red-400">{{ nonCompetitiveCount }}</p>
@@ -277,10 +277,10 @@ function onStatusChange() {
                     <!-- Contract info -->
                     <div>
                       <div class="flex items-center gap-2 mb-1">
-                        <span :class="['text-xs px-2 py-0.5 rounded', getStatusColor(contract.status)]">
+                        <span :class="['text-xs px-2 py-0.5 rounded-sm', getStatusColor(contract.status)]">
                           {{ getStatusLabel(contract.status) }}
                         </span>
-                        <span :class="['text-xs px-2 py-0.5 rounded', contract.isSeller ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400']">
+                        <span :class="['text-xs px-2 py-0.5 rounded-sm', contract.isSeller ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400']">
                           {{ contract.isSeller ? t('contracts.sell') : t('contracts.buy') }}
                         </span>
                         <span class="text-xs text-slate-500">
@@ -364,7 +364,7 @@ function onStatusChange() {
                       <img
                         :src="getTypeIconUrl(item.typeId, 32)"
                         :alt="item.typeName"
-                        class="w-8 h-8 rounded"
+                        class="w-8 h-8 rounded-sm"
                         @error="onImageError"
                       />
                       <div class="flex-1 min-w-0">

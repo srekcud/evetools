@@ -112,7 +112,7 @@ class IndustryProjectService
 
             if ($userId !== null) {
                 $this->mercurePublisher->syncCompleted($userId, 'industry-project', 'Steps regenerated', [
-                    'projectId' => $project->getId()->toRfc4122(),
+                    'projectId' => $project->getId()?->toRfc4122() ?? '',
                     'stepsCount' => count($rawSteps),
                 ]);
             }
@@ -127,6 +127,7 @@ class IndustryProjectService
     /**
      * Sort raw steps and create entities on the project.
      */
+    /** @param list<array<string, mixed>> $rawSteps */
     private function sortAndCreateSteps(IndustryProject $project, array &$rawSteps): void
     {
         $activityOrder = ['reaction' => 0, 'copy' => 1, 'manufacturing' => 2];
@@ -173,6 +174,10 @@ class IndustryProjectService
     /**
      * Flatten the tree into an array of step data.
      * Steps are consolidated by (blueprintTypeId, activityType).
+     */
+    /**
+     * @param array<string, array<string, mixed>> $steps
+     * @param array<string, mixed> $node
      */
     private function collectStepsFromTree(array &$steps, array $node): void
     {
@@ -225,6 +230,7 @@ class IndustryProjectService
     /**
      * Recalculate reaction step quantities based on consolidated consumer needs.
      */
+    /** @param array<string, array<string, mixed>> $steps */
     private function recalculateReactionQuantities(array &$steps, User $user): void
     {
         $reactionSteps = [];
@@ -456,6 +462,8 @@ class IndustryProjectService
 
     /**
      * Create a job match entity from a cached ESI job, with facility auto-correction.
+     *
+     * @param array<int, bool> $assignedJobIds
      */
     private function createJobMatch(
         \App\Entity\CachedIndustryJob $job,
@@ -651,6 +659,7 @@ class IndustryProjectService
      * Get a shopping list of raw materials from the production tree.
      * Includes extraQuantity per material when steps use suboptimal structures.
      */
+    /** @return list<array<string, mixed>> */
     public function getShoppingList(IndustryProject $project): array
     {
         $user = $project->getUser();
@@ -792,6 +801,12 @@ class IndustryProjectService
         return $quantities;
     }
 
+    /**
+     * @param list<array<string, mixed>> $materials
+     * @param array<string, mixed> $node
+     * @param list<int> $purchasedTypeIds
+     * @param array<int, int> $inStockQuantities
+     */
     private function collectRawMaterials(array &$materials, array $node, array $purchasedTypeIds, array &$inStockQuantities): void
     {
         foreach ($node['materials'] as $material) {
@@ -821,6 +836,7 @@ class IndustryProjectService
         }
     }
 
+    /** @param list<array<string, mixed>> $materials */
     private function addToMaterialList(array &$materials, int $typeId, string $typeName, int $quantity): void
     {
         foreach ($materials as &$mat) {
@@ -836,6 +852,7 @@ class IndustryProjectService
         ];
     }
 
+    /** @param array<string, array<string, mixed>> $steps */
     private function addTimeDataToSteps(array &$steps, User $user, int $projectTeLevel = 20): void
     {
         // Preload all skills for all characters (one query per character)
@@ -957,6 +974,10 @@ class IndustryProjectService
         return $bestMultiplier;
     }
 
+    /**
+     * @param array<string, array<string, mixed>> $steps
+     * @return list<array<string, mixed>>
+     */
     private function splitLongJobs(array $steps, float $maxDurationDays): array
     {
         $result = [];

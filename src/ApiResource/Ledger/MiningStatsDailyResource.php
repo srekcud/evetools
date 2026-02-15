@@ -11,6 +11,7 @@ class MiningStatsDailyResource
     #[ApiProperty(identifier: true)]
     public string $id = 'mining-stats-daily';
 
+    /** @var array<string, mixed> */
     public array $period = [];
 
     /** @var MiningDailyStatsResource[] */

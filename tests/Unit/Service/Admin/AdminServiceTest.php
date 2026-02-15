@@ -4,55 +4,37 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Admin;
 
-use App\Entity\User;
-use App\Repository\CachedAssetRepository;
-use App\Repository\CharacterRepository;
-use App\Repository\IndustryProjectRepository;
-use App\Repository\UserRepository;
 use App\Service\Admin\AdminService;
+use App\Service\Admin\SyncTracker;
 use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Result;
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(AdminService::class)]
 class AdminServiceTest extends TestCase
 {
     private AdminService $adminService;
-    private Connection&MockObject $connection;
+    private Connection $connection;
 
     protected function setUp(): void
     {
-        $userRepository = $this->createMock(UserRepository::class);
-        $characterRepository = $this->createMock(CharacterRepository::class);
-        $assetRepository = $this->createMock(CachedAssetRepository::class);
-        $projectRepository = $this->createMock(IndustryProjectRepository::class);
-        $this->connection = $this->createMock(Connection::class);
+        $this->connection = $this->createStub(Connection::class);
+        $syncTracker = $this->createStub(SyncTracker::class);
+        $syncTracker->method('getAll')->willReturn([]);
 
         $this->adminService = new AdminService(
-            $userRepository,
-            $characterRepository,
-            $assetRepository,
-            $projectRepository,
             $this->connection,
+            $syncTracker,
         );
     }
 
     public function testGetStatsReturnsExpectedStructure(): void
     {
-        // Mock fetchOne to return appropriate values for each query
-        $this->connection
-            ->method('fetchOne')
-            ->willReturn(0);
-
-        $this->connection
-            ->method('fetchAllAssociative')
-            ->willReturn([]);
+        $this->connection->method('fetchOne')->willReturn(0);
+        $this->connection->method('fetchAllAssociative')->willReturn([]);
 
         $stats = $this->adminService->getStats();
 
-        // Verify structure
         $this->assertArrayHasKey('users', $stats);
         $this->assertArrayHasKey('characters', $stats);
         $this->assertArrayHasKey('tokens', $stats);
@@ -136,15 +118,12 @@ class AdminServiceTest extends TestCase
         $this->assertArrayHasKey('activity', $charts);
         $this->assertArrayHasKey('assetDistribution', $charts);
 
-        // Registrations structure
         $this->assertArrayHasKey('labels', $charts['registrations']);
         $this->assertArrayHasKey('data', $charts['registrations']);
 
-        // Activity structure
         $this->assertArrayHasKey('labels', $charts['activity']);
         $this->assertArrayHasKey('logins', $charts['activity']);
 
-        // Asset distribution structure
         $this->assertArrayHasKey('labels', $charts['assetDistribution']);
         $this->assertArrayHasKey('data', $charts['assetDistribution']);
     }

@@ -160,7 +160,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
               <template v-else>
                 <img
                   :src="getTypeIconUrl(project.productTypeId, 32)"
-                  class="w-6 h-6 rounded"
+                  class="w-6 h-6 rounded-sm"
                   @error="onImageError"
                 />
                 <span>{{ project.displayName }}</span>
@@ -184,7 +184,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
                 v-model="editValue"
                 type="number"
                 min="1"
-                class="w-16 bg-slate-700 border border-cyan-500 rounded px-2 py-1 text-sm focus:outline-none"
+                class="w-16 bg-slate-700 border border-cyan-500 rounded-sm px-2 py-1 text-sm focus:outline-hidden"
                 @keydown.enter="saveEdit(project)"
                 @keydown.escape="cancelEdit"
                 @blur="saveEdit(project)"
@@ -216,7 +216,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
               @click="togglePersonalUse(project)"
               :disabled="project.status === 'completed'"
               :class="[
-                'text-xs px-2 py-1 rounded',
+                'text-xs px-2 py-1 rounded-sm',
                 project.personalUse
                   ? 'bg-amber-500/20 text-amber-400'
                   : 'bg-slate-600/20 text-slate-500',
@@ -240,7 +240,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
               v-model="editValue"
               type="text"
               placeholder="ex: 10M, 1.5B"
-              class="w-24 bg-slate-700 border border-cyan-500 rounded px-2 py-1 text-right text-sm focus:outline-none"
+              class="w-24 bg-slate-700 border border-cyan-500 rounded-sm px-2 py-1 text-right text-sm focus:outline-hidden"
               @keydown.enter="saveEdit(project)"
               @keydown.escape="cancelEdit"
               @blur="saveEdit(project)"
@@ -278,7 +278,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
                 v-model="editValue"
                 type="text"
                 placeholder="ex: 10M, 1.5B"
-                class="w-24 bg-slate-700 border border-cyan-500 rounded px-2 py-1 text-right text-sm focus:outline-none"
+                class="w-24 bg-slate-700 border border-cyan-500 rounded-sm px-2 py-1 text-right text-sm focus:outline-hidden"
                 @keydown.enter="saveEdit(project)"
                 @keydown.escape="cancelEdit"
                 @blur="saveEdit(project)"
@@ -322,7 +322,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
             <button
               @click="toggleStatus(project)"
               :class="[
-                'text-xs px-2 py-1 rounded',
+                'text-xs px-2 py-1 rounded-sm',
                 project.status === 'completed'
                   ? 'bg-emerald-500/20 text-emerald-400'
                   : 'bg-cyan-500/20 text-cyan-400',
@@ -337,7 +337,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
             <div class="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 @click="emit('view-project', project.id)"
-                class="p-1 hover:bg-slate-700 rounded text-slate-400 hover:text-cyan-400"
+                class="p-1 hover:bg-slate-700 rounded-sm text-slate-400 hover:text-cyan-400"
                 :title="t('industry.table.details')"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -347,7 +347,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
               </button>
               <button
                 @click="emit('duplicate-project', project)"
-                class="p-1 hover:bg-slate-700 rounded text-slate-400 hover:text-cyan-400"
+                class="p-1 hover:bg-slate-700 rounded-sm text-slate-400 hover:text-cyan-400"
                 :title="t('industry.table.duplicate')"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -356,7 +356,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
               </button>
               <button
                 @click="deleteProject(project.id)"
-                class="p-1 hover:bg-red-500/20 rounded text-slate-400 hover:text-red-400"
+                class="p-1 hover:bg-red-500/20 rounded-sm text-slate-400 hover:text-red-400"
                 :title="t('common.actions.delete')"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

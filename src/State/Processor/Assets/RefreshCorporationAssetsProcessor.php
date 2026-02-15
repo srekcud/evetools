@@ -63,7 +63,7 @@ class RefreshCorporationAssetsProcessor implements ProcessorInterface
         if ($async) {
             $this->messageBus->dispatch(new SyncCorporationAssets(
                 $corporationId,
-                $mainCharacter->getId()->toRfc4122()
+                $mainCharacter->getId()?->toRfc4122() ?? ''
             ));
 
             $result->status = 'pending';

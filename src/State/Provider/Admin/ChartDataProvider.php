@@ -21,6 +21,7 @@ class ChartDataProvider implements ProviderInterface
     public function __construct(
         private readonly Security $security,
         private readonly AdminService $adminService,
+        /** @var list<string> */
         private readonly array $adminCharacterNames,
     ) {
     }

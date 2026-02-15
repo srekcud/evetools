@@ -9,6 +9,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\EmptyInput;
 use App\State\Processor\Me\DeleteCharacterProcessor;
 use App\State\Provider\Me\CharacterDeleteProvider;
@@ -22,29 +23,20 @@ use App\State\Provider\Me\CharacterCollectionProvider;
         new GetCollection(
             uriTemplate: '/me/characters',
             provider: CharacterCollectionProvider::class,
-            openapiContext: [
-                'summary' => 'List user characters',
-                'description' => 'Returns all characters linked to the authenticated user',
-            ],
+            openapi: new Model\Operation(summary: 'List user characters', description: 'Returns all characters linked to the authenticated user'),
         ),
         new Delete(
             uriTemplate: '/me/characters/{id}',
             provider: CharacterDeleteProvider::class,
             processor: DeleteCharacterProcessor::class,
-            openapiContext: [
-                'summary' => 'Delete a character',
-                'description' => 'Unlinks a character from the user account (cannot delete main character)',
-            ],
+            openapi: new Model\Operation(summary: 'Delete a character', description: 'Unlinks a character from the user account (cannot delete main character)'),
         ),
         new Post(
             uriTemplate: '/me/characters/{id}/set-main',
             processor: SetMainCharacterProcessor::class,
             input: EmptyInput::class,
             output: CharacterResource::class,
-            openapiContext: [
-                'summary' => 'Set main character',
-                'description' => 'Sets a character as the main character for the user',
-            ],
+            openapi: new Model\Operation(summary: 'Set main character', description: 'Sets a character as the main character for the user'),
         ),
     ],
     security: "is_granted('ROLE_USER')",

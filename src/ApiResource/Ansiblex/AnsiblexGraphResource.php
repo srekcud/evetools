@@ -7,6 +7,7 @@ namespace App\ApiResource\Ansiblex;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Ansiblex\AnsiblexGraphProvider;
 
 #[ApiResource(
@@ -16,10 +17,7 @@ use App\State\Provider\Ansiblex\AnsiblexGraphProvider;
         new Get(
             uriTemplate: '/me/ansiblex/graph',
             provider: AnsiblexGraphProvider::class,
-            openapiContext: [
-                'summary' => 'Get Ansiblex graph',
-                'description' => 'Returns adjacency list of Ansiblex connections for pathfinding',
-            ],
+            openapi: new Model\Operation(summary: 'Get Ansiblex graph', description: 'Returns adjacency list of Ansiblex connections for pathfinding'),
         ),
     ],
     security: "is_granted('ROLE_USER')",

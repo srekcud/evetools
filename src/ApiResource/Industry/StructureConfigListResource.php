@@ -14,6 +14,6 @@ class StructureConfigListResource
     /** @var StructureConfigResource[] */
     public array $structures = [];
 
-    /** @var array<string, array<string, mixed>> */
+    /** @var array<string, list<array<string, mixed>>> */
     public array $rigOptions = [];
 }

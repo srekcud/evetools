@@ -60,7 +60,7 @@ defineExpose({ clear })
       @blur="onBlur"
       type="text"
       :placeholder="t('industry.createProject.searchPlaceholder')"
-      class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-cyan-500 pr-10"
+      class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:outline-hidden focus:border-cyan-500 pr-10"
     />
     <svg
       class="absolute right-3 top-3 w-4 h-4 text-slate-500"
@@ -87,7 +87,7 @@ defineExpose({ clear })
       >
         <img
           :src="`https://images.evetech.net/types/${result.typeId}/icon?size=32`"
-          class="w-6 h-6 rounded"
+          class="w-6 h-6 rounded-sm"
           @error="($event.target as HTMLImageElement).style.display = 'none'"
         />
         <span>{{ result.typeName }}</span>

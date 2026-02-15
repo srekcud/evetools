@@ -39,7 +39,7 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
      * Activity IDs: 1 = Manufacturing, 9 = Reactions, 11 = Reverse Engineering
      *
      * @param int                     $blueprintTypeId Blueprint to match
-     * @param array                   $characterIds    Characters to search
+     * @param list<\Symfony\Component\Uid\Uuid|int|null> $characterIds Characters to search
      * @param int|null                $targetRuns      If provided, only return jobs with exact run match
      * @param \DateTimeImmutable|null $startedAfter    Only match jobs started after this date
      *
@@ -78,7 +78,7 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
      * Find jobs with same blueprint but DIFFERENT run count (for warning).
      *
      * @param int                     $blueprintTypeId Blueprint to match
-     * @param array                   $characterIds    Characters to search
+     * @param list<\Symfony\Component\Uid\Uuid|int|null> $characterIds Characters to search
      * @param int                     $targetRuns      Run count to exclude (we want different runs)
      * @param \DateTimeImmutable|null $startedAfter    Only match jobs started after this date
      *
@@ -113,7 +113,7 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
      * Find all jobs matching any of the given blueprint type IDs for the given characters.
      *
      * @param int[]                    $blueprintTypeIds
-     * @param array                    $characterIds
+     * @param list<\Symfony\Component\Uid\Uuid|int|null> $characterIds
      * @param \DateTimeImmutable|null  $startedAfter
      *
      * @return CachedIndustryJob[]

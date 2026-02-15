@@ -11,11 +11,11 @@ use App\Entity\MiningEntry;
 use App\Entity\PveIncome;
 use App\Entity\User;
 use App\Entity\UserLedgerSettings;
-use App\Repository\MiningEntryRepository;
 use App\Repository\PveExpenseRepository;
 use App\Repository\PveIncomeRepository;
 use App\Repository\UserLedgerSettingsRepository;
 use App\Repository\UserPveSettingsRepository;
+use App\Service\MiningBestValueCalculator;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -29,9 +29,9 @@ class LedgerDashboardProvider implements ProviderInterface
         private readonly Security $security,
         private readonly PveIncomeRepository $pveIncomeRepository,
         private readonly PveExpenseRepository $pveExpenseRepository,
-        private readonly MiningEntryRepository $miningEntryRepository,
         private readonly UserLedgerSettingsRepository $ledgerSettingsRepository,
         private readonly UserPveSettingsRepository $pveSettingsRepository,
+        private readonly MiningBestValueCalculator $miningBestValueCalculator,
         private readonly RequestStack $requestStack,
     ) {
     }
@@ -76,12 +76,13 @@ class LedgerDashboardProvider implements ProviderInterface
         $expensesByType = $this->pveExpenseRepository->getTotalsByTypeAndDateRange($user, $from, $to);
 
         // Get mining totals
+        /** @var list<string>|null $excludeMiningUsages */
         $excludeMiningUsages = $corpProjectAccounting === UserLedgerSettings::CORP_PROJECT_ACCOUNTING_PVE
             ? [MiningEntry::USAGE_CORP_PROJECT]
             : null;
 
-        $miningTotal = $this->miningEntryRepository->getTotalValueByUserAndDateRange($user, $from, $to, $excludeMiningUsages);
-        $miningByUsage = $this->miningEntryRepository->getTotalsByUsage($user, $from, $to);
+        $miningTotal = $this->miningBestValueCalculator->getTotalBestValue($user, $from, $to, $excludeMiningUsages);
+        $miningByUsage = $this->miningBestValueCalculator->getTotalsByUsageBestValue($user, $from, $to);
 
         // Calculate combined totals
         $totalIncome = $pveTotal + $miningTotal;

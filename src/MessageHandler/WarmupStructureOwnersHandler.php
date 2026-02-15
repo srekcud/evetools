@@ -187,7 +187,7 @@ class WarmupStructureOwnersHandler
      *
      * @return EveToken[]
      */
-    private function collectCorporationTokens($user): array
+    private function collectCorporationTokens(\App\Entity\User $user): array
     {
         $tokens = [];
         $corporationId = $user->getCorporationId();

@@ -24,7 +24,7 @@ final readonly class MercurePublisherService
      * @param string      $status   The status: 'started', 'in_progress', 'completed', 'error'
      * @param int|null    $progress The progress percentage (0-100)
      * @param string|null $message  A human-readable message describing the current step
-     * @param array|null  $data     Additional data to include in the update
+     * @param array<string, mixed>|null  $data     Additional data to include in the update
      */
     public function publishSyncProgress(
         string $userId,
@@ -78,6 +78,7 @@ final readonly class MercurePublisherService
     /**
      * Publish a sync progress event.
      */
+    /** @param array<string, mixed>|null $data */
     public function syncProgress(string $userId, string $syncType, int $progress, string $message, ?array $data = null): void
     {
         $this->publishSyncProgress($userId, $syncType, 'in_progress', $progress, $message, $data);
@@ -86,6 +87,7 @@ final readonly class MercurePublisherService
     /**
      * Publish a sync completed event.
      */
+    /** @param array<string, mixed>|null $data */
     public function syncCompleted(string $userId, string $syncType, ?string $message = null, ?array $data = null): void
     {
         $this->publishSyncProgress($userId, $syncType, 'completed', 100, $message ?? 'Done', $data);
@@ -102,6 +104,7 @@ final readonly class MercurePublisherService
     /**
      * Publish an alert for a specific user.
      */
+    /** @param array<string, mixed> $data */
     public function publishAlert(string $userId, string $alertType, array $data): void
     {
         $topic = sprintf('/user/%s/alerts/%s', $userId, $alertType);
@@ -135,6 +138,9 @@ final readonly class MercurePublisherService
 
     /**
      * Publish an escalation event to group topics (corp/alliance).
+     */
+    /**
+     * @param array<string, mixed> $escalationData
      */
     public function publishEscalationEvent(
         string $action,
@@ -187,6 +193,7 @@ final readonly class MercurePublisherService
      * Get the list of sync topics for a user.
      * Used for generating subscriber JWT tokens.
      */
+    /** @return list<string> */
     public static function getTopicsForUser(string $userId): array
     {
         return [
@@ -210,6 +217,7 @@ final readonly class MercurePublisherService
      * Get group topics for a user (corp/alliance escalations).
      * These are non-private topics for shared data.
      */
+    /** @return list<string> */
     public static function getGroupTopics(?int $corporationId, ?int $allianceId): array
     {
         $topics = ['/public/escalations'];

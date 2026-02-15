@@ -17,6 +17,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Uid\Uuid;
 
+/** @implements ProcessorInterface<mixed, void> */
 class DeleteEscalationProcessor implements ProcessorInterface
 {
     public function __construct(

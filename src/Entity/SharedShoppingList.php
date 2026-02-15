@@ -21,6 +21,7 @@ class SharedShoppingList
     #[ORM\Column(type: Types::STRING, length: 64, unique: true)]
     private string $token;
 
+    /** @var array<string, mixed> */
     #[ORM\Column(type: Types::JSON)]
     private array $data;
 
@@ -52,11 +53,13 @@ class SharedShoppingList
         return $this->token;
     }
 
+    /** @return array<string, mixed> */
     public function getData(): array
     {
         return $this->data;
     }
 
+    /** @param array<string, mixed> $data */
     public function setData(array $data): self
     {
         $this->data = $data;

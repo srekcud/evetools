@@ -5,12 +5,14 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useRateLimitStore } from '@/stores/rateLimit'
 import { useAdminStore } from '@/stores/admin'
+import { useFormatters } from '@/composables/useFormatters'
 
 const router = useRouter()
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const rateLimitStore = useRateLimitStore()
 const adminStore = useAdminStore()
+const { dateFormat, setDateFormat } = useFormatters()
 
 // Check admin access on mount
 const isAdmin = ref(false)
@@ -18,6 +20,7 @@ onMounted(async () => {
   isAdmin.value = await adminStore.checkAccess()
 })
 
+import LegalFooter from '@/components/LegalFooter.vue'
 import { APP_VERSION } from '@/version'
 
 // Release notes modal
@@ -97,7 +100,7 @@ const allNavItems = [
   { id: 'industry', labelKey: 'nav.industry', route: '/industry', icon: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z' },
   { id: 'escalations', labelKey: 'nav.escalations', route: '/escalations', icon: 'M15 10.5a3 3 0 11-6 0 3 3 0 016 0z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z' },
   { id: 'planetary', labelKey: 'nav.pi', route: '/planetary', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9' },
-  { id: 'shopping-list', labelKey: 'nav.shoppingList', route: '/shopping-list', icon: 'M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z' },
+  { id: 'shopping-list', labelKey: 'nav.shoppingList', route: '/shopping-list', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
   { id: 'assets', labelKey: 'nav.assets', route: '/assets', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
   { id: 'contracts', labelKey: 'nav.contracts', route: '/contracts', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
   { id: 'admin', labelKey: 'nav.admin', route: '/admin', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z', adminOnly: true },
@@ -194,7 +197,7 @@ function setLocale(lang: 'fr' | 'en') {
     <div class="fixed inset-0 overflow-hidden pointer-events-none">
       <div class="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-radial from-cyan-900/20 via-transparent to-transparent animate-pulse-slow"></div>
       <div class="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-radial from-indigo-900/15 via-transparent to-transparent animate-pulse-slower"></div>
-      <div class="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.03)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
+      <div class="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.03)_1px,transparent_1px)] bg-size-[50px_50px]"></div>
     </div>
 
     <!-- Rate Limit Banner -->
@@ -218,20 +221,20 @@ function setLocale(lang: 'fr' | 'en') {
         <!-- Logo -->
         <div class="p-6 border-b border-cyan-500/20">
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/30">
+            <div class="w-10 h-10 rounded-lg bg-linear-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/30">
               <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
               </svg>
             </div>
             <div>
-              <h1 class="text-lg font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">EVE Tools</h1>
+              <h1 class="text-lg font-bold tracking-tight text-transparent bg-clip-text bg-linear-to-r from-cyan-400 to-blue-400">EVE Tools</h1>
               <p class="text-xs text-slate-500 tracking-widest uppercase">Utilities</p>
             </div>
           </div>
         </div>
 
         <!-- Navigation -->
-        <nav class="flex-1 p-4 space-y-1">
+        <nav class="flex-1 p-4 space-y-1 overflow-y-auto min-h-0">
           <button
             v-for="item in navItems"
             :key="item.id"
@@ -239,12 +242,12 @@ function setLocale(lang: 'fr' | 'en') {
             :class="[
               'w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group relative overflow-hidden border',
               isActiveRoute(item)
-                ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/10 text-cyan-400 shadow-lg shadow-cyan-500/10 border-cyan-500/30'
+                ? 'bg-linear-to-r from-cyan-500/20 to-blue-500/10 text-cyan-400 shadow-lg shadow-cyan-500/10 border-cyan-500/30'
                 : 'text-slate-400 border-transparent hover:bg-slate-800/50 hover:text-slate-200 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/5 hover:-translate-y-0.5'
             ]"
           >
             <!-- Scan effect on hover -->
-            <div class="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
+            <div class="absolute inset-0 bg-linear-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
             <svg class="w-5 h-5 relative" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="item.icon"/>
             </svg>
@@ -320,9 +323,9 @@ function setLocale(lang: 'fr' | 'en') {
           ></div>
 
           <!-- Modal -->
-          <div class="relative bg-slate-900 rounded-2xl border border-cyan-500/30 shadow-2xl shadow-cyan-500/10 w-full max-w-md mx-4">
+          <div class="relative bg-slate-900 rounded-2xl border border-cyan-500/30 shadow-2xl shadow-cyan-500/10 w-full max-w-md mx-4 max-h-[85vh] flex flex-col">
             <!-- Header -->
-            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800 shrink-0">
               <h3 class="text-lg font-semibold text-slate-100">{{ t('settings.title') }}</h3>
               <button
                 @click="showSettings = false"
@@ -335,7 +338,7 @@ function setLocale(lang: 'fr' | 'en') {
             </div>
 
             <!-- Content -->
-            <div class="p-6">
+            <div class="p-6 overflow-y-auto min-h-0">
               <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4">{{ t('settings.visibleModules') }}</h4>
               <div class="space-y-2">
                 <label
@@ -347,7 +350,7 @@ function setLocale(lang: 'fr' | 'en') {
                     type="checkbox"
                     :checked="isModuleVisible(item.id)"
                     @change="toggleModule(item.id)"
-                    class="w-4 h-4 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900"
+                    class="w-4 h-4 rounded-sm border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900"
                   />
                   <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="item.icon"/>
@@ -389,10 +392,40 @@ function setLocale(lang: 'fr' | 'en') {
               <p class="mt-2 text-xs text-slate-500">
                 {{ t('settings.languageNote') }}
               </p>
+
+              <!-- Date format selector -->
+              <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4 mt-6">{{ t('settings.dateFormat') }}</h4>
+              <div class="flex gap-2">
+                <button
+                  @click="setDateFormat('eu')"
+                  :class="[
+                    'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors border',
+                    dateFormat === 'eu'
+                      ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                      : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-cyan-500/30 hover:text-slate-200'
+                  ]"
+                >
+                  JJ/MM/AA
+                </button>
+                <button
+                  @click="setDateFormat('us')"
+                  :class="[
+                    'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors border',
+                    dateFormat === 'us'
+                      ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                      : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-cyan-500/30 hover:text-slate-200'
+                  ]"
+                >
+                  MM/DD/YY
+                </button>
+              </div>
+              <p class="mt-2 text-xs text-slate-500">
+                {{ t('settings.dateFormatNote') }}
+              </p>
             </div>
 
             <!-- Footer -->
-            <div class="px-6 py-4 border-t border-slate-800 flex justify-end">
+            <div class="px-6 py-4 border-t border-slate-800 flex justify-end shrink-0">
               <button
                 @click="showSettings = false"
                 class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-colors"
@@ -516,22 +549,15 @@ function setLocale(lang: 'fr' | 'en') {
             <slot />
           </div>
         </div>
+
+        <!-- Legal footer -->
+        <LegalFooter />
       </main>
     </div>
   </div>
 </template>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
-
-:root {
-  font-family: 'Rajdhani', sans-serif;
-}
-
-.font-mono {
-  font-family: 'Share Tech Mono', monospace;
-}
-
 .bg-gradient-radial {
   background: radial-gradient(circle, var(--tw-gradient-from) 0%, var(--tw-gradient-via) 50%, var(--tw-gradient-to) 100%);
 }

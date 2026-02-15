@@ -229,7 +229,7 @@ onMounted(async () => {
                 v-else
                 v-model="projectNameEdit"
                 type="text"
-                class="text-lg font-semibold bg-slate-800 border border-cyan-500 rounded px-2 py-0.5 focus:outline-none"
+                class="text-lg font-semibold bg-slate-800 border border-cyan-500 rounded-sm px-2 py-0.5 focus:outline-hidden"
                 @keydown.enter="saveProjectName"
                 @keydown.escape="cancelProjectNameEdit"
                 @blur="saveProjectName"
@@ -250,7 +250,7 @@ onMounted(async () => {
             <div v-if="!isMultiProduct" class="flex items-center gap-2 text-sm text-slate-500 flex-wrap">
               <span
                 :class="[
-                  'text-xs px-2 py-0.5 rounded',
+                  'text-xs px-2 py-0.5 rounded-sm',
                   store.currentProject.status === 'completed'
                     ? 'bg-emerald-500/20 text-emerald-400'
                     : 'bg-cyan-500/20 text-cyan-400',
@@ -269,7 +269,7 @@ onMounted(async () => {
                   type="date"
                   :value="store.currentProject.jobsStartDate ? store.currentProject.jobsStartDate.slice(0, 10) : ''"
                   :disabled="store.currentProject.status === 'completed'"
-                  class="bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-xs text-slate-300 focus:border-cyan-500 focus:outline-none disabled:opacity-50"
+                  class="bg-slate-800 border border-slate-700 rounded-sm px-1.5 py-0.5 text-xs text-slate-300 focus:border-cyan-500 focus:outline-hidden disabled:opacity-50"
                   @change="onJobsStartDateChange"
                 />
               </label>
@@ -297,7 +297,7 @@ onMounted(async () => {
                     type="date"
                     :value="store.currentProject.jobsStartDate ? store.currentProject.jobsStartDate.slice(0, 10) : ''"
                     :disabled="store.currentProject.status === 'completed'"
-                    class="bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-xs text-slate-300 focus:border-cyan-500 focus:outline-none disabled:opacity-50"
+                    class="bg-slate-800 border border-slate-700 rounded-sm px-1.5 py-0.5 text-xs text-slate-300 focus:border-cyan-500 focus:outline-hidden disabled:opacity-50"
                     @change="onJobsStartDateChange"
                   />
                 </label>
@@ -355,7 +355,7 @@ onMounted(async () => {
               v-model="editCostValue"
               type="text"
               placeholder="ex: 50M"
-              class="w-full text-sm font-mono bg-slate-800 border border-cyan-500 rounded px-1.5 py-0.5 focus:outline-none"
+              class="w-full text-sm font-mono bg-slate-800 border border-cyan-500 rounded-sm px-1.5 py-0.5 focus:outline-hidden"
               @keydown.enter="saveEditCost"
               @keydown.escape="cancelEditCost"
               @blur="saveEditCost"
@@ -387,7 +387,7 @@ onMounted(async () => {
               v-model="editCostValue"
               type="text"
               placeholder="ex: 50M"
-              class="w-full text-sm font-mono bg-slate-800 border border-cyan-500 rounded px-1.5 py-0.5 focus:outline-none"
+              class="w-full text-sm font-mono bg-slate-800 border border-cyan-500 rounded-sm px-1.5 py-0.5 focus:outline-hidden"
               @keydown.enter="saveEditCost"
               @keydown.escape="cancelEditCost"
               @blur="saveEditCost"
@@ -413,7 +413,7 @@ onMounted(async () => {
                 v-model="editCostValue"
                 type="text"
                 placeholder="ex: 50M"
-                class="w-full text-sm font-mono bg-slate-800 border border-cyan-500 rounded px-1.5 py-0.5 focus:outline-none"
+                class="w-full text-sm font-mono bg-slate-800 border border-cyan-500 rounded-sm px-1.5 py-0.5 focus:outline-hidden"
                 @keydown.enter="saveEditCost"
                 @keydown.escape="cancelEditCost"
                 @blur="saveEditCost"
@@ -434,7 +434,7 @@ onMounted(async () => {
                 v-model="editCostValue"
                 type="text"
                 placeholder="ex: 1.5B"
-                class="w-full text-sm font-mono bg-slate-800 border border-cyan-500 rounded px-1.5 py-0.5 focus:outline-none"
+                class="w-full text-sm font-mono bg-slate-800 border border-cyan-500 rounded-sm px-1.5 py-0.5 focus:outline-hidden"
                 @keydown.enter="saveEditCost"
                 @keydown.escape="cancelEditCost"
                 @blur="saveEditCost"
@@ -525,7 +525,7 @@ onMounted(async () => {
       @keydown.escape="closeBpcKitModal"
     >
       <div
-        class="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        class="absolute inset-0 bg-black/70 backdrop-blur-xs"
         @click="closeBpcKitModal"
       ></div>
       <div class="relative bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
@@ -538,7 +538,7 @@ onMounted(async () => {
           </h3>
           <button
             @click="closeBpcKitModal"
-            class="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-slate-200"
+            class="p-1 hover:bg-slate-800 rounded-sm text-slate-400 hover:text-slate-200"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -557,7 +557,7 @@ onMounted(async () => {
               v-model="bpcKitPrice"
               type="text"
               placeholder="ex: 50M, 1.5B, 500000 (vide = 0)"
-              class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 font-mono"
+              class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-hidden focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 font-mono"
               @keydown.enter="confirmBpcKit"
               @keydown.escape="closeBpcKitModal"
               autofocus
@@ -601,7 +601,7 @@ onMounted(async () => {
       @keydown.escape="shoppingTabRef!.showClearStockModal = false"
     >
       <div
-        class="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        class="absolute inset-0 bg-black/70 backdrop-blur-xs"
         @click="shoppingTabRef!.showClearStockModal = false"
       ></div>
       <div class="relative bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
@@ -614,7 +614,7 @@ onMounted(async () => {
           </h3>
           <button
             @click="shoppingTabRef!.showClearStockModal = false"
-            class="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-slate-200"
+            class="p-1 hover:bg-slate-800 rounded-sm text-slate-400 hover:text-slate-200"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -629,7 +629,7 @@ onMounted(async () => {
             <li
               v-for="item in shoppingTabRef.parsedStock"
               :key="item.name"
-              class="flex justify-between text-sm px-2 py-1 rounded bg-slate-800/50"
+              class="flex justify-between text-sm px-2 py-1 rounded-sm bg-slate-800/50"
             >
               <span class="text-slate-300 truncate mr-3">{{ item.name }}</span>
               <span class="text-slate-500 tabular-nums shrink-0">× {{ item.quantity.toLocaleString() }}</span>

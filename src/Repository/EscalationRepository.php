@@ -127,10 +127,13 @@ class EscalationRepository extends ServiceEntityRepository
         foreach ($results as $row) {
             $cnt = (int) $row['cnt'];
             $counts['total'] += $cnt;
-            $counts[$row['bmStatus']] = ($counts[$row['bmStatus']] ?? 0) + $cnt;
-            $counts[$row['saleStatus']] = ($counts[$row['saleStatus']] ?? 0) + $cnt;
+            $bmStatus = (string) $row['bmStatus'];
+            $saleStatus = (string) $row['saleStatus'];
+            $counts[$bmStatus] = ($counts[$bmStatus] ?? 0) + $cnt;
+            $counts[$saleStatus] = ($counts[$saleStatus] ?? 0) + $cnt;
         }
 
+        /** @var array{total: int, nouveau: int, bm: int, envente: int, vendu: int} $counts */
         return $counts;
     }
 

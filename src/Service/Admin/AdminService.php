@@ -15,6 +15,7 @@ class AdminService
     ) {
     }
 
+    /** @return array<string, mixed> */
     public function getStats(): array
     {
         return [
@@ -30,6 +31,7 @@ class AdminService
         ];
     }
 
+    /** @return array<string, int> */
     private function getUserStats(): array
     {
         $total = (int) $this->connection->fetchOne('SELECT COUNT(*) FROM users');
@@ -60,6 +62,7 @@ class AdminService
         ];
     }
 
+    /** @return array<string, int> */
     private function getCharacterStats(): array
     {
         $total = (int) $this->connection->fetchOne('SELECT COUNT(*) FROM characters');
@@ -97,6 +100,7 @@ class AdminService
         ];
     }
 
+    /** @return array<string, int> */
     private function getTokenStats(): array
     {
         $total = (int) $this->connection->fetchOne('SELECT COUNT(*) FROM eve_tokens');
@@ -121,6 +125,7 @@ class AdminService
         ];
     }
 
+    /** @return array<string, mixed> */
     private function getIndustryJobsStats(): array
     {
         $activeJobs = (int) $this->connection->fetchOne(
@@ -144,6 +149,7 @@ class AdminService
         ];
     }
 
+    /** @return array<string, mixed> */
     private function getSyncStats(): array
     {
         // Last asset sync (most recent character sync)
@@ -190,6 +196,7 @@ class AdminService
         ];
     }
 
+    /** @return array<string, int> */
     private function getAssetStats(): array
     {
         $totalItems = (int) $this->connection->fetchOne('SELECT COUNT(*) FROM cached_assets');
@@ -207,6 +214,7 @@ class AdminService
         ];
     }
 
+    /** @return array<string, int> */
     private function getIndustryStats(): array
     {
         $activeProjects = (int) $this->connection->fetchOne(
@@ -222,6 +230,7 @@ class AdminService
         ];
     }
 
+    /** @return array<string, mixed> */
     private function getPveStats(): array
     {
         // Get total PVE income (last 30 days)
@@ -255,6 +264,7 @@ class AdminService
         ];
     }
 
+    /** @return array<string, array<string, int|null>> */
     public function getQueueStatus(): array
     {
         // Try to get messenger transport status via Symfony's messenger:stats command output
@@ -284,6 +294,7 @@ class AdminService
         ];
     }
 
+    /** @return array<string, array<string, mixed>> */
     public function getChartData(): array
     {
         return [
@@ -293,6 +304,7 @@ class AdminService
         ];
     }
 
+    /** @return array<string, list<string|int>> */
     private function getRegistrationChartData(): array
     {
         $labels = [];
@@ -317,6 +329,7 @@ class AdminService
         ];
     }
 
+    /** @return array<string, list<string|int>> */
     private function getActivityChartData(): array
     {
         $labels = [];
@@ -344,6 +357,7 @@ class AdminService
         ];
     }
 
+    /** @return array<string, list<string|int>> */
     private function getAssetDistributionData(): array
     {
         $personal = (int) $this->connection->fetchOne(

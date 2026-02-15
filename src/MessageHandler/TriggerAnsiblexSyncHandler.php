@@ -44,11 +44,16 @@ final readonly class TriggerAnsiblexSyncHandler
                     continue;
                 }
 
-                $this->messageBus->dispatch(new SyncAnsiblexGates($mainCharacter->getId()->toRfc4122()));
+                $characterId = $mainCharacter->getId()?->toRfc4122();
+                if ($characterId === null) {
+                    continue;
+                }
+
+                $this->messageBus->dispatch(new SyncAnsiblexGates($characterId));
                 $dispatched++;
 
                 $this->logger->debug('Dispatched Ansiblex sync for character', [
-                    'character_id' => $mainCharacter->getId()->toRfc4122(),
+                    'character_id' => $characterId,
                     'character_name' => $mainCharacter->getName(),
                 ]);
             }

@@ -200,7 +200,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
               type="number"
               min="0.5"
               step="0.1"
-              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:border-cyan-500"
             />
           </div>
           <p class="text-xs text-slate-500 self-end pb-1">
@@ -270,7 +270,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
               v-model="projectName"
               type="text"
               placeholder="Ex: Rorqual Fleet"
-              class="w-64 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-cyan-500 placeholder-slate-600"
+              class="w-64 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-hidden focus:border-cyan-500 placeholder-slate-600"
             />
           </div>
 
@@ -287,7 +287,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
                   v-model.number="product.runs"
                   type="number"
                   min="1"
-                  class="w-16 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-sm text-center"
+                  class="w-16 bg-slate-700 border border-slate-600 rounded-sm px-2 py-1 text-sm text-center"
                 />
                 <span class="text-slate-500 text-xs">runs</span>
               </div>
@@ -298,7 +298,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
                   type="number"
                   min="0"
                   max="10"
-                  class="w-12 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-sm text-center"
+                  class="w-12 bg-slate-700 border border-slate-600 rounded-sm px-2 py-1 text-sm text-center"
                 />
               </div>
               <div class="flex items-center gap-1">
@@ -308,7 +308,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
                   type="number"
                   min="0"
                   max="20"
-                  class="w-12 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-sm text-center"
+                  class="w-12 bg-slate-700 border border-slate-600 rounded-sm px-2 py-1 text-sm text-center"
                 />
               </div>
               <button
@@ -340,7 +340,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
                 v-model.number="runs"
                 type="number"
                 min="1"
-                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-cyan-500"
+                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-hidden focus:border-cyan-500"
               />
             </div>
             <div class="w-24">
@@ -350,7 +350,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
                 type="number"
                 min="0"
                 max="10"
-                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-cyan-500"
+                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-hidden focus:border-cyan-500"
               />
             </div>
             <div class="w-24">
@@ -360,7 +360,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
                 type="number"
                 min="0"
                 max="20"
-                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-cyan-500"
+                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-hidden focus:border-cyan-500"
               />
             </div>
 

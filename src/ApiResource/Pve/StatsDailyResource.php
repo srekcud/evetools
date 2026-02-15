@@ -6,6 +6,7 @@ namespace App\ApiResource\Pve;
 
 class StatsDailyResource
 {
+    /** @var array<string, mixed> */
     public array $period = [];
 
     /** @var DailyStatsResource[] */

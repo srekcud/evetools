@@ -80,7 +80,7 @@ class MiningEntryCollectionProvider implements ProviderInterface
     }
 
     /**
-     * @param array<int, array> $orePrices
+     * @param array<int, array<string, mixed>> $orePrices
      */
     private function toResource(MiningEntry $entry, array $orePrices = []): MiningEntryResource
     {

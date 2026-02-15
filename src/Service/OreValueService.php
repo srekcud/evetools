@@ -19,6 +19,7 @@ class OreValueService
     private const DEFAULT_REPROCESS_YIELD = 0.78; // 78% yield with skills
 
     // Cache for compressed type mappings
+    /** @var array<int, array{typeId: int, typeName: string}|null> */
     private array $compressedTypeCache = [];
 
     public function __construct(
@@ -98,7 +99,7 @@ class OreValueService
      * @param int[] $typeIds
      * @param float $reprocessYield Reprocessing yield (0.0 to 1.0)
      * @param float $exportTax Export tax in ISK/m³ to subtract from Jita prices
-     * @return array<int, array> typeId => price data
+     * @return array<int, array<string, mixed>> typeId => price data
      */
     public function getBatchOrePrices(array $typeIds, ?int $structureId = null, float $reprocessYield = self::DEFAULT_REPROCESS_YIELD, float $exportTax = 0.0): array
     {

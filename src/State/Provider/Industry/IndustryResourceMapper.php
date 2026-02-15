@@ -62,7 +62,7 @@ class IndustryResourceMapper
     public function characterSkillsToResource(Character $character, array $skills): CharacterSkillResource
     {
         $resource = new CharacterSkillResource();
-        $resource->characterId = $character->getId()->toRfc4122();
+        $resource->characterId = $character->getId()?->toRfc4122() ?? '';
         $resource->characterName = $character->getName();
 
         $hasEsi = false;
@@ -353,7 +353,7 @@ class IndustryResourceMapper
         }
 
         // Cache includes blueprint ID since science skills vary per blueprint
-        $cacheKey = $user->getId()->toRfc4122() . '_' . $step->getBlueprintTypeId() . '_' . $activityType;
+        $cacheKey = ($user->getId()?->toRfc4122() ?? '') . '_' . $step->getBlueprintTypeId() . '_' . $activityType;
 
         if (isset($this->bestCharacterCache[$cacheKey])) {
             return $this->bestCharacterCache[$cacheKey];

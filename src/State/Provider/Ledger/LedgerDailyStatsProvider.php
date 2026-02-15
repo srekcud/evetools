@@ -11,10 +11,10 @@ use App\ApiResource\Ledger\LedgerDayResource;
 use App\Entity\MiningEntry;
 use App\Entity\User;
 use App\Entity\UserLedgerSettings;
-use App\Repository\MiningEntryRepository;
 use App\Repository\PveExpenseRepository;
 use App\Repository\PveIncomeRepository;
 use App\Repository\UserLedgerSettingsRepository;
+use App\Service\MiningBestValueCalculator;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -28,8 +28,8 @@ class LedgerDailyStatsProvider implements ProviderInterface
         private readonly Security $security,
         private readonly PveIncomeRepository $pveIncomeRepository,
         private readonly PveExpenseRepository $pveExpenseRepository,
-        private readonly MiningEntryRepository $miningEntryRepository,
         private readonly UserLedgerSettingsRepository $ledgerSettingsRepository,
+        private readonly MiningBestValueCalculator $miningBestValueCalculator,
         private readonly RequestStack $requestStack,
     ) {
     }
@@ -57,11 +57,11 @@ class LedgerDailyStatsProvider implements ProviderInterface
         // Get expense daily totals
         $expenseDaily = $this->pveExpenseRepository->getDailyTotals($user, $from, $to);
 
-        // Get mining daily totals
+        // Get mining daily totals using best-price strategy
         $excludeMiningUsages = $corpProjectAccounting === UserLedgerSettings::CORP_PROJECT_ACCOUNTING_PVE
             ? [MiningEntry::USAGE_CORP_PROJECT]
             : null;
-        $miningDaily = $this->miningEntryRepository->getDailyTotals($user, $from, $to, $excludeMiningUsages);
+        $miningDailyBestValues = $this->miningBestValueCalculator->getDailyBestValues($user, $from, $to, $excludeMiningUsages);
 
         // Build combined daily stats
         $daily = [];
@@ -77,9 +77,8 @@ class LedgerDailyStatsProvider implements ProviderInterface
             $pveDay = $pveDailyByType[$dateStr] ?? ['bounties' => 0.0, 'lootSales' => 0.0];
             $day->pve = $pveDay['bounties'] + $pveDay['lootSales'];
 
-            // Mining
-            $miningDay = $miningDaily[$dateStr] ?? ['totalValue' => 0.0];
-            $day->mining = $miningDay['totalValue'];
+            // Mining (best-price strategy)
+            $day->mining = $miningDailyBestValues[$dateStr] ?? 0.0;
 
             // Expenses
             $expenseDay = $expenseDaily[$dateStr] ?? ['total' => 0.0];

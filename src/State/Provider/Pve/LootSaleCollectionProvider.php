@@ -26,6 +26,7 @@ class LootSaleCollectionProvider implements ProviderInterface
     ) {
     }
 
+    /** @return list<LootSaleResource> */
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): array
     {
         $user = $this->security->getUser();
@@ -41,7 +42,7 @@ class LootSaleCollectionProvider implements ProviderInterface
 
         $lootSales = $this->incomeRepository->findByUserAndDateRange($user, $from, $to);
 
-        return array_map(fn(PveIncome $i) => $this->toResource($i), $lootSales);
+        return array_values(array_map(fn(PveIncome $i) => $this->toResource($i), $lootSales));
     }
 
     private function toResource(PveIncome $income): LootSaleResource

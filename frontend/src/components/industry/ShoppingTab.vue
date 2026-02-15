@@ -900,7 +900,7 @@ defineExpose({
               type="text"
               :placeholder="selectedStructure.name || DEFAULT_STRUCTURE_NAME"
               :class="[
-                'w-full bg-slate-800 border rounded pl-3 pr-8 py-1.5 text-sm focus:outline-none',
+                'w-full bg-slate-800 border rounded-sm pl-3 pr-8 py-1.5 text-sm focus:outline-hidden',
                 selectedStructure.id
                   ? 'border-cyan-500/50 text-cyan-400 placeholder-cyan-400'
                   : 'border-slate-600 text-slate-200 placeholder-slate-400 focus:border-cyan-500/50'
@@ -948,7 +948,7 @@ defineExpose({
           <button
             @click="syncStructureMarket"
             :disabled="shoppingSyncing || (marketStructureProgress?.status === 'started' || marketStructureProgress?.status === 'in_progress')"
-            class="mt-auto w-full px-3 py-1.5 bg-cyan-500/20 border border-cyan-500/50 text-cyan-400 rounded text-xs font-medium disabled:opacity-50 flex items-center justify-center gap-1.5 hover:bg-cyan-500/30 transition-colors"
+            class="mt-auto w-full px-3 py-1.5 bg-cyan-500/20 border border-cyan-500/50 text-cyan-400 rounded-sm text-xs font-medium disabled:opacity-50 flex items-center justify-center gap-1.5 hover:bg-cyan-500/30 transition-colors"
           >
             <svg v-if="shoppingSyncing" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -967,13 +967,13 @@ defineExpose({
               type="number"
               min="0"
               step="100"
-              class="w-full px-2 py-1.5 bg-slate-800 border border-slate-600 rounded text-slate-200 text-sm font-mono focus:outline-none focus:border-cyan-500"
+              class="w-full px-2 py-1.5 bg-slate-800 border border-slate-600 rounded-sm text-slate-200 text-sm font-mono focus:outline-hidden focus:border-cyan-500"
             />
             <span class="text-xs text-slate-500 whitespace-nowrap">ISK/m³</span>
           </div>
           <button
             @click="loadShoppingList"
-            class="mt-auto w-full px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 rounded text-white text-xs font-medium"
+            class="mt-auto w-full px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 rounded-sm text-white text-xs font-medium"
           >
             {{ t('industry.shoppingTab.recalculate') }}
           </button>
@@ -985,20 +985,20 @@ defineExpose({
           <textarea
             v-model="pastedStock"
             :placeholder="t('industry.shoppingTab.pasteInventory')"
-            class="w-full h-12 bg-slate-800 border border-slate-700 rounded p-2 text-xs font-mono text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+            class="w-full h-12 bg-slate-800 border border-slate-700 rounded-sm p-2 text-xs font-mono text-slate-200 placeholder-slate-500 focus:outline-hidden focus:border-cyan-500 resize-none"
           />
           <div class="flex gap-2 mt-auto">
             <button
               @click="analyzeStock"
               :disabled="stockAnalysisLoading"
-              class="flex-1 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 rounded text-white text-xs font-medium"
+              class="flex-1 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 rounded-sm text-white text-xs font-medium"
             >
               {{ t('industry.shoppingTab.apply') }}
             </button>
             <button
               v-if="parsedStock.length > 0"
               @click="confirmClearStock"
-              class="px-3 py-1.5 text-red-400 hover:bg-red-500/10 border border-red-500/30 rounded text-xs"
+              class="px-3 py-1.5 text-red-400 hover:bg-red-500/10 border border-red-500/30 rounded-sm text-xs"
             >
               {{ t('common.actions.clear') }}
             </button>
@@ -1011,7 +1011,7 @@ defineExpose({
         v-if="marketStructureProgress && (marketStructureProgress.status === 'started' || marketStructureProgress.status === 'in_progress')"
         class="p-3 bg-cyan-900/20 border border-cyan-500/30 rounded-lg flex items-center gap-3"
       >
-        <svg class="w-5 h-5 text-cyan-400 animate-spin flex-shrink-0" fill="none" viewBox="0 0 24 24">
+        <svg class="w-5 h-5 text-cyan-400 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
@@ -1032,7 +1032,7 @@ defineExpose({
         class="bg-amber-900/30 border border-amber-500/50 rounded-lg p-3"
       >
         <div class="flex items-center gap-3">
-          <svg class="w-5 h-5 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-5 h-5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           <div class="text-sm">
@@ -1046,7 +1046,7 @@ defineExpose({
 
       <!-- Error message -->
       <div v-if="stockAnalysisError" class="p-3 bg-red-900/20 border border-red-500/30 rounded-lg flex items-center gap-2">
-        <svg class="w-5 h-5 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-5 h-5 text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <span class="text-red-400 text-sm">{{ stockAnalysisError }}</span>
@@ -1064,7 +1064,7 @@ defineExpose({
             </ul>
             <p class="mt-1 text-xs text-amber-400/60">{{ t('industry.shoppingTab.duplicateHint') }}</p>
           </div>
-          <button @click="stockPurchaseWarnings = []" class="text-amber-400 hover:text-amber-300 flex-shrink-0 p-0.5">
+          <button @click="stockPurchaseWarnings = []" class="text-amber-400 hover:text-amber-300 shrink-0 p-0.5">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -1136,7 +1136,7 @@ defineExpose({
                 <div class="flex items-center gap-2">
                   <img
                     :src="getTypeIconUrl(item.typeId, 32)"
-                    class="w-5 h-5 rounded"
+                    class="w-5 h-5 rounded-sm"
                     @error="onImageError"
                   />
                   <span class="text-slate-200">{{ item.typeName }}</span>
@@ -1152,7 +1152,7 @@ defineExpose({
               <td class="py-3 px-2 text-center">
                 <div class="flex items-center justify-center gap-1.5">
                   <span
-                    class="w-2 h-2 rounded-full flex-shrink-0"
+                    class="w-2 h-2 rounded-full shrink-0"
                     :class="[
                       item.status === 'ok' ? 'bg-emerald-500' :
                       item.status === 'partial' ? 'bg-amber-500' : 'bg-red-500'
@@ -1163,7 +1163,7 @@ defineExpose({
                     v-model="editingStockValue"
                     type="number"
                     min="0"
-                    class="w-16 bg-slate-700 border border-cyan-500 rounded px-1.5 py-0.5 text-xs text-right font-mono focus:outline-none"
+                    class="w-16 bg-slate-700 border border-cyan-500 rounded-sm px-1.5 py-0.5 text-xs text-right font-mono focus:outline-hidden"
                     @keydown.enter="saveEditStock(item.typeName)"
                     @keydown.escape="cancelEditStock"
                     @blur="saveEditStock(item.typeName)"
@@ -1172,7 +1172,7 @@ defineExpose({
                   <span
                     v-else
                     @click="startEditStock(item)"
-                    class="font-mono text-xs cursor-pointer hover:text-cyan-400 min-w-[2rem]"
+                    class="font-mono text-xs cursor-pointer hover:text-cyan-400 min-w-8"
                     :class="item.inStock > 0 ? 'text-slate-300' : 'text-slate-600'"
                     :title="t('industry.projectDetail.clickToEdit')"
                   >
@@ -1210,7 +1210,7 @@ defineExpose({
       <!-- Price info + Apply as material cost -->
       <div class="flex items-center gap-3">
         <div class="flex-1 bg-cyan-900/20 border border-cyan-500/20 rounded-lg px-3 py-2 flex items-center gap-2">
-          <svg class="w-4 h-4 text-cyan-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-4 h-4 text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <p class="text-cyan-300/80 text-xs">
@@ -1226,7 +1226,7 @@ defineExpose({
         <button
           v-if="shoppingTotals && shoppingTotals.best > 0 && store.currentProject?.status !== 'completed'"
           @click="applyAsMaterialCost"
-          class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 flex-shrink-0"
+          class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 shrink-0"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
@@ -1295,12 +1295,12 @@ defineExpose({
                   <td class="py-2 px-3 text-right font-mono text-slate-200">{{ formatIsk(suggestion.totalPrice) }}</td>
                   <td class="py-2 px-3 text-slate-400 text-xs">{{ suggestion.characterName }}</td>
                   <td class="py-2 px-3 text-center">
-                    <span v-if="suggestion.alreadyLinked" class="px-2 py-0.5 rounded text-xs bg-emerald-500/10 text-emerald-400">{{ t('industry.shoppingTab.linked') }}</span>
+                    <span v-if="suggestion.alreadyLinked" class="px-2 py-0.5 rounded-sm text-xs bg-emerald-500/10 text-emerald-400">{{ t('industry.shoppingTab.linked') }}</span>
                     <button
                       v-else-if="findStepForType(suggestion.typeId)"
                       @click="linkSuggestion(suggestion)"
                       :disabled="linkingId === suggestion.transactionId"
-                      class="px-2 py-0.5 rounded text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 disabled:opacity-50"
+                      class="px-2 py-0.5 rounded-sm text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 disabled:opacity-50"
                     >
                       <template v-if="linkingId === suggestion.transactionId">
                         <svg class="w-3 h-3 animate-spin inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1321,7 +1321,7 @@ defineExpose({
                 <button
                   @click="suggestionsPage--"
                   :disabled="suggestionsPage <= 1"
-                  class="px-2 py-1 rounded text-xs bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                  class="px-2 py-1 rounded-sm text-xs bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {{ t('industry.shoppingTab.previous') }}
                 </button>
@@ -1329,7 +1329,7 @@ defineExpose({
                 <button
                   @click="suggestionsPage++"
                   :disabled="suggestionsPage >= totalSuggestionsPages"
-                  class="px-2 py-1 rounded text-xs bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                  class="px-2 py-1 rounded-sm text-xs bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {{ t('industry.shoppingTab.next') }}
                 </button>
@@ -1376,7 +1376,7 @@ defineExpose({
                   <td class="py-2 px-3 text-center">
                     <span
                       :class="[
-                        'px-2 py-0.5 rounded text-xs',
+                        'px-2 py-0.5 rounded-sm text-xs',
                         purchase.source === 'esi_wallet' ? 'bg-cyan-500/10 text-cyan-400' : 'bg-amber-500/10 text-amber-400'
                       ]"
                     >
@@ -1404,7 +1404,7 @@ defineExpose({
                 <button
                   @click="purchasesPage--"
                   :disabled="purchasesPage <= 1"
-                  class="px-2 py-1 rounded text-xs bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                  class="px-2 py-1 rounded-sm text-xs bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {{ t('industry.shoppingTab.previous') }}
                 </button>
@@ -1412,7 +1412,7 @@ defineExpose({
                 <button
                   @click="purchasesPage++"
                   :disabled="purchasesPage >= totalPurchasesPages"
-                  class="px-2 py-1 rounded text-xs bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                  class="px-2 py-1 rounded-sm text-xs bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {{ t('industry.shoppingTab.next') }}
                 </button>

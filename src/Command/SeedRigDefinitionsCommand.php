@@ -155,6 +155,7 @@ class SeedRigDefinitionsCommand extends Command
         return Command::SUCCESS;
     }
 
+    /** @return list<string> */
     private function determineTargetCategories(string $rigName): array
     {
         foreach (self::RIG_CATEGORY_MAPPINGS as $pattern => $categories) {

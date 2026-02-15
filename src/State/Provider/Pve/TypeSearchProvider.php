@@ -25,6 +25,7 @@ class TypeSearchProvider implements ProviderInterface
     ) {
     }
 
+    /** @return list<TypeSearchResource> */
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): array
     {
         $user = $this->security->getUser();
@@ -42,12 +43,12 @@ class TypeSearchProvider implements ProviderInterface
 
         $types = $this->invTypeRepository->searchByName($query, 20);
 
-        return array_map(function ($t) {
+        return array_values(array_map(function ($t) {
             $resource = new TypeSearchResource();
             $resource->typeId = $t->getTypeId();
             $resource->typeName = $t->getTypeName();
 
             return $resource;
-        }, $types);
+        }, $types));
     }
 }

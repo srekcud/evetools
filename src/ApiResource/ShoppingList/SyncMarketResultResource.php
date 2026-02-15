@@ -7,6 +7,7 @@ namespace App\ApiResource\ShoppingList;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\ShoppingList\SyncMarketInput;
 use App\State\Processor\ShoppingList\SyncMarketProcessor;
 
@@ -18,9 +19,7 @@ use App\State\Processor\ShoppingList\SyncMarketProcessor;
             uriTemplate: '/shopping-list/sync-structure-market',
             processor: SyncMarketProcessor::class,
             input: SyncMarketInput::class,
-            openapiContext: [
-                'summary' => 'Sync structure market data',
-            ],
+            openapi: new Model\Operation(summary: 'Sync structure market data'),
         ),
     ],
     security: "is_granted('ROLE_USER')",

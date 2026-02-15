@@ -35,9 +35,10 @@ final readonly class TriggerPveSyncHandler
             $syncCount = 0;
 
             foreach ($users as $user) {
-                if ($this->pveSyncService->canSync($user) && $this->pveSyncService->shouldSync($user)) {
+                $userId = $user->getId()?->toRfc4122();
+                if ($userId !== null && $this->pveSyncService->canSync($user) && $this->pveSyncService->shouldSync($user)) {
                     $this->messageBus->dispatch(
-                        new SyncUserPveData($user->getId()->toRfc4122())
+                        new SyncUserPveData($userId)
                     );
                     $syncCount++;
                 }

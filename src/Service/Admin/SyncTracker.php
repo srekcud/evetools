@@ -101,6 +101,7 @@ class SyncTracker
         });
     }
 
+    /** @return list<array<string, mixed>> */
     public function getAll(): array
     {
         $result = [];
@@ -124,6 +125,7 @@ class SyncTracker
         return $result;
     }
 
+    /** @param array<string, mixed> $state */
     private function computeHealth(array $state, int $expectedInterval): string
     {
         if ($state['status'] === 'running') {
@@ -148,6 +150,7 @@ class SyncTracker
         return 'stale';
     }
 
+    /** @return array<string, mixed> */
     private function getState(string $type): array
     {
         $key = self::CACHE_PREFIX . str_replace('-', '_', $type);
@@ -158,6 +161,7 @@ class SyncTracker
         });
     }
 
+    /** @param array<string, mixed> $state */
     private function saveState(string $type, array $state): void
     {
         $key = self::CACHE_PREFIX . str_replace('-', '_', $type);

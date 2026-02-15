@@ -496,34 +496,185 @@ Frontend:
 
 ---
 
-## Roadmap V0.5 - Intel Map & Space Travel
+## Roadmap V0.8 — Quick Wins haute valeur
 
-### Phase 1 : Fondations Map (V0.5.0)
-- [ ] Scheduler Ansiblex Discovery quotidien (4h)
-- [ ] Endpoints cartographiques (`/api/map/regions`, `/api/map/graph`, etc.)
-- [ ] Frontend : Map Canvas 2D avec zoom/pan, couleurs sécurité
+### 1. Prix pondéré par volume (Weighted Price)
+**Statut** : Planifié | **Complexité** : S
 
-### Phase 2 : Pathfinding (V0.5.1)
-- [ ] Service Dijkstra (stargates + Ansiblex)
-- [ ] Endpoint `POST /api/map/route` avec options (avoid lowsec, etc.)
-- [ ] Frontend : sélection A→B, route overlay
+Au lieu du meilleur sell order, calculer le prix moyen pondéré en empilant les orders jusqu'à couvrir la quantité demandée. Indicateur de profondeur de marché. Warning si la profondeur est insuffisante.
 
-### Phase 3 : Intel System (V0.5.2)
-- [ ] Plugin Windows Python (lit `Documents/EVE/logs/Chatlogs/`)
-- [ ] Entité `IntelReport` + endpoints
-- [ ] Mercure : push intel temps réel
-- [ ] Frontend : markers pulsants, alertes sonores
+**Impact** : `JitaMarketService`, `StructureMarketService`, `PlanetaryProductionCalculator`, `ShoppingTab`
+**Changement** : Stocker les N meilleurs orders (pas juste le min price) dans le cache
 
-### Phase 4 : Threat Assessment (V0.5.3)
-- [ ] Service zKillboard (stats, kills récents)
-- [ ] ThreatAssessmentService (score de menace)
-- [ ] Frontend : popup pilote avec stats
+### 2. Shopping List + Appraisal
+**Statut** : Planifié | **Complexite** : M
+
+**Concept** : Enrichir le module Shopping List existant avec un mode "Appraisal" (toggle Shopping/Appraisal). L'Appraisal affiche les buy + sell prices pour evaluer la valeur d'un ensemble d'items.
+
+**Difference avec Shopping List** :
+- Shopping List = "combien ca me coute d'acheter ca" (sell orders)
+- Appraisal = "combien ca vaut ce que j'ai" (buy orders + sell orders)
+
+**Backend -- Buy Prices Cache** :
+- Modifier `JitaMarketService` pour stocker buy ET sell dans le cache Redis (actuellement sell uniquement)
+- Retirer le filtre `order_type=sell` de l'URL ESI -- recupere buy+sell dans la meme requete, 0 requete supplementaire
+- Format cache : `array<int, float>` -> `array<int, array{sell: float|null, buy: float|null}>`
+- Retrocompatibilite avec l'ancien format pendant la transition
+
+**Backend -- Parsers specialises** :
+- `PasteFormat` enum + `PasteParserInterface`
+- 5 nouveaux parsers : CargoScan, EftFitting, DScan, Contract, Killmail
+- `FormatDetector` avec detection automatique (ordre : EFT -> D-Scan -> Killmail -> Contract -> Cargo Scan -> Multibuy/Inventory)
+- Fichiers dans `src/Service/ShoppingList/Parser/`
+
+**Backend -- Endpoint enrichi** :
+- `ParseListInput` : ajouter `mode` (shopping/appraisal) et `format` (nullable, pour forcer)
+- `ShoppingListItemResource` : ajouter `buyPrice`, `buyTotal`
+- `ParseResultResource` : ajouter `mode`, `detectedFormat`
+- `ShareListInput`/`SharedShoppingListResource` : ajouter `mode`
+
+**Frontend** :
+- Toggle Shopping/Appraisal dans le header
+- `FormatChips.vue` : chips de format avec badge auto-detection
+- `FormatHelp.vue` : section collapsible avec exemples de formats
+- `AppraisalKpi.vue` : 4 KPI cards (Sell cyan, Buy amber, Volume, Spread)
+- `ShoppingListResults.vue` : table adaptee au mode (buy/sell colonnes en appraisal)
+
+**Backend -- Appraisal public & partage** :
+- Entite `SharedAppraisal` : `slug` (8 chars, unique), `items` (JSON snapshot items + prix), `sellTotal`, `buyTotal`, `volume`, `itemCount`, `detectedFormat`, `createdAt`
+- TTL 7 jours (purge via scheduler ou TTL DB)
+- `POST /api/shopping-list/appraisals/share` (auth) : calcule, snapshote les prix, stocke, retourne le slug
+- `GET /api/appraisals/{slug}` (public, pas d'auth) : retourne le snapshot avec `createdAt` (timing du snapshot)
+- OpenGraph meta tags pour preview Discord/Slack : titre "EVE Appraisal — 23.4M ISK", description "7 items — Sell: 23,450,800 ISK — Buy: 21,280,400 ISK", image optionnelle (logo EVE Tools)
+- Le controller OpenGraph est un controller Symfony classique (pas API Platform) qui sert le HTML avec `<meta og:*>` pour le crawler, puis redirige le navigateur vers le SPA
+
+**Frontend -- Partage** :
+- Route publique `/appraisal/{slug}` (pas de `requiresAuth`)
+- Composant en mode lecture seule (pas de textarea, pas de bouton Appraise)
+- Badge "Appraised on 14 Feb 2026 at 15:42 UTC" avec indication si >24h "prices may have changed"
+- Bouton "Share" copie le lien dans le clipboard
+
+**Maquette** : `mockups/shopping-appraisal.html`
+
+**Endpoints ESI** : Aucun nouveau (reutilise le cache marche existant + `POST /universe/names/`)
+
+### 3. Open In-Game Window
+**Statut** : Planifié | **Complexité** : S
+
+Boutons "ouvrir en jeu" (marché, info, contrat) sur les items, systèmes, personnages dans toute l'app. Composant réutilisable `<OpenInGameButton>`.
+
+**Endpoints ESI** : `POST /ui/openwindow/marketdetails/`, `POST /ui/openwindow/information/`, `POST /ui/openwindow/contract/` (scope `esi-ui.open_window.v1`, déjà demandé)
+
+---
+
+## Roadmap V0.9 — Analytique & Intelligence
+
+### 4. Profit Tracker Industrie
+**Statut** : Planifié | **Complexité** : M
+
+Calcul automatique du profit par item fabriqué : coût matériaux + coût job install + taxe structure vs prix de vente (wallet transactions). Historique des marges. Cross-reference jobs terminés → transactions de vente.
+
+**Synergies** : Industry (jobs, blueprints, ME), Ledger (wallet), Market (prix)
+
+### 5. Market Browser & Historique de prix
+**Statut** : Planifié | **Complexité** : M/L
+
+Navigateur marché intégré avec historique de prix (graphique Chart.js), spread buy/sell, volume quotidien. Comparaison Jita vs structure locale. Alertes de prix (notification quand seuil atteint).
+
+**Endpoints ESI** : `GET /markets/{region_id}/history/` (pas besoin d'auth)
+**Stockage** : Table dédiée en DB (rétention 90 jours, sync quotidien des types suivis)
+
+### 6. Notifications centralisées
+**Statut** : Planifié | **Complexité** : M
+
+Hub unifié : timers PI expirants, jobs industrie terminés, escalations expirantes, alertes prix, notifications ESI in-game. Push browser via Service Workers.
+
+**Endpoints ESI** : `GET /characters/{id}/notifications/` (scope déjà demandé)
+**Synergies** : Mercure déjà en place pour le temps réel
+
+---
+
+## Roadmap V0.10 — Map & Corp
+
+### 7. Intel Map (phases 1+2)
+**Statut** : Planifié | **Complexité** : L
+
+Carte 2D interactive de New Eden. Affichage systèmes solaires avec couleurs de sécurité. Pathfinding A→B via stargates + Ansiblex (Dijkstra). Options : éviter lowsec, préférer Ansiblex. Overlay colonies PI, structures industry, escalations.
+
+**Données SDE** : `MapSolarSystem`, `MapSolarSystemJump`, `MapConstellation`, `MapRegion` (déjà importés)
+**Rendu** : Canvas (pixi.js) ou SVG (d3.js), ~5000 systèmes
+
+### 8. Corporation Projects Dashboard
+**Statut** : Planifié | **Complexité** : M
+
+Tableau de bord des projets corporation (feature ESI récente). Projets actifs, progression, contributions par membre, récompenses ISK. Cursor-based pagination (nouveau pattern ESI).
+
+**Endpoints ESI** : `GET /corporations/{id}/projects/` (scope `esi-corporations.read_projects.v1`, déjà demandé)
+
+---
+
+## Upgrades infrastructure planifiés
+
+- **PostgreSQL 18** : Migrer de PG16 à PG18 (attendre release stable, prévu Q3 2026)
+- **Symfony 8 LTS** : Migrer de Symfony 7.4 vers Symfony 8 quand la LTS sera disponible
+
+---
+
+## Roadmap V1.0 — Maturité
+
+### 9. Intel Map (phases 3+4)
+Plugin logs Windows/Python (lit chatlogs EVE), intel temps réel via Mercure, threat assessment zKillboard (score de menace par pilote).
+
+### 10. Simulateur & Templates PI
+**Complexité** : M/L
+
+**Niveau 1 — Ranking profitabilité** : Classement des produits PI (P1→P4) par ISK/jour selon les prix Jita, par type de planète.
+
+**Niveau 2 — Builder visuel** : Placer extracteurs + processeurs + factories sur une planète virtuelle, définir les routes, voir la production théorique.
+
+**Niveau 3 — Templates importables** : Génération de fichiers JSON au format natif EVE (importable directement dans le client). Format :
+```json
+{
+  "CmdCtrLv": 5, "Cmt": "Robotics", "Diam": 10780.0, "Pln": 2016,
+  "P": [{"H": 0, "La": 0.91761, "Lo": 1.60449, "S": 3689, "T": 2474}, ...],
+  "L": [{"D": 19, "Lv": 0, "S": 15}, ...],
+  "R": [{"P": [3, 2, 17], "Q": 5, "T": 3689}, ...]
+}
+```
+
+Fonctionnalités :
+- Export des colonies existantes (ESI → JSON template)
+- Bibliothèque de templates optimisés par produit/planète
+- Partage de templates entre utilisateurs
+- Import en jeu sans configuration manuelle
+
+### 11. Comptabilité Corporation
+**Complexité** : L
+
+Dashboard comptable : soldes 7 divisions wallet, journal revenus/dépenses, contrats corp, ordres marché corp. Graphiques + export CSV.
+
+**Scopes ESI à ajouter** : `esi-wallet.read_corporation_wallets.v1`, `esi-contracts.read_corporation_contracts.v1`, `esi-markets.read_corporation_orders.v1`
+**Rôles in-game** : Accountant, Junior Accountant ou Director
+
+### 12. Fleet Tracker
+**Complexité** : L
+
+Suivi flotte minage/PVE en temps réel. Qui mine quoi, répartition des gains, loot partagé.
+
+**Endpoints ESI** : `GET /fleets/{id}/members/` (scope `esi-fleets.read_fleet.v1`, déjà demandé)
+
+### 13. Skill Planner
+**Complexité** : M
+
+Arbre de compétences, prérequis par blueprint/ship/module, calcul temps de training, priorités basées sur les jobs industry en cours.
+
+**Données SDE** : `IndustryActivitySkills`, `DgmTypeAttribute`
 
 ---
 
 ## Roadmap V0.7 - Internationalisation (i18n)
 
-**Statut** : Planifié
+**Statut** : Implémenté (V0.7.0)
 
 Ajouter le support anglais/français à l'ensemble du site via **vue-i18n v10**.
 
@@ -555,19 +706,6 @@ Ajouter le support anglais/français à l'ensemble du site via **vue-i18n v10**.
 
 ---
 
-## Améliorations marché / pricing
-
-### Prix pondéré par volume (weighted price)
-**Idée** : Le prix sell Jita utilisé pour la valorisation (PI, shopping list industrie) prend actuellement le meilleur sell order, qui peut n'avoir que quelques unités. Si la quantité requise dépasse le volume disponible au meilleur prix, le coût réel est plus élevé.
-
-**Amélioration** : Calculer un prix moyen pondéré en empilant les sell orders jusqu'à couvrir la quantité demandée (= "fill or kill" simulé). Afficher un warning si la profondeur de marché est insuffisante.
-
-**Impact** : `JitaMarketService`, `PlanetaryProductionCalculator`, `ShoppingTab` (prix unitaire + coût total)
-
-**Statut** : Idée future
-
----
-
 ## TODO / Points en suspens
 
 ### Ansiblex Jump Gates
@@ -578,18 +716,6 @@ Ajouter le support anglais/français à l'ensemble du site via **vue-i18n v10**.
 - API : `POST /api/me/ansiblex/discover`
 
 **À faire** : Ajouter un scheduler quotidien (Phase 1 du roadmap)
-
-### Comptabilité Corporation
-**Idée**: Module de gestion comptable pour la corporation (suivi revenus/dépenses, bilans).
-
-**Scopes ESI requis** (à ajouter si implémenté):
-- `esi-wallet.read_corporation_wallets.v1` - Soldes et journal des 7 divisions
-- `esi-contracts.read_corporation_contracts.v1` - Contrats corp
-- `esi-markets.read_corporation_orders.v1` - Ordres de marché corp
-
-**Rôles in-game requis**: Accountant, Junior Accountant ou Director
-
-**Statut**: Idée future
 
 ### Sessions PVE
 **Feature supprimée** : Les sessions PVE (start/stop/tracking) ne font pas partie du périmètre de l'application. Ne pas implémenter les endpoints `/api/pve/sessions/*`.

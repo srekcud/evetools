@@ -56,13 +56,15 @@ class PlanetaryProductionCalculator
      * Calculate production breakdown by tier.
      *
      * @param PlanetaryColony[] $colonies
-     * @return array{tiers: array, totalDailyIsk: float, totalMonthlyIsk: float}
+     * @return array{tiers: list<array<string, mixed>>, totalDailyIsk: float, totalMonthlyIsk: float}
      */
     public function calculateProduction(array $colonies): array
     {
         $schematicMap = $this->schematicTypeRepository->getSchematicMap();
 
+        /** @var array<int, float> $consumptionByType */
         $consumptionByType = [];
+        /** @var array<int, array<int, float>> $inputsByOutputType */
         $inputsByOutputType = [];
         $outputsByType = $this->aggregateOutputs($colonies, $schematicMap, $consumptionByType, $inputsByOutputType);
 
@@ -179,6 +181,9 @@ class PlanetaryProductionCalculator
                 // Track consumption for factory pins
                 if ($pin->isFactory()) {
                     $schematicId = $pin->getSchematicId();
+                    if ($schematicId === null) {
+                        continue;
+                    }
                     $schematicInputs = $schematicMap[$schematicId]['inputs'] ?? [];
                     $schematic = $this->schematicRepository->findBySchematicId($schematicId);
 
@@ -208,6 +213,7 @@ class PlanetaryProductionCalculator
     /**
      * Calculate the daily output of a single pin.
      *
+     * @param array<int, array<string, mixed>> $schematicMap
      * @return array{typeId: int, quantity: float}|null
      */
     private function calculatePinDailyOutput(PlanetaryPin $pin, array $schematicMap, \DateTimeImmutable $now): ?array

@@ -156,6 +156,7 @@ class StructureMarketService
      * @param EveToken    $token         The ESI token for API access
      * @param string|null $userId        Optional user ID for Mercure notifications
      */
+    /** @return array<string, mixed> */
     public function syncStructureMarket(int $structureId, string $structureName, EveToken $token, ?string $userId = null): array
     {
         $this->logger->info('Starting structure market sync', [

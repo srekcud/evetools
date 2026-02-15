@@ -6,6 +6,7 @@ namespace App\ApiResource\Pve;
 
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\EmptyInput;
 use App\State\Processor\Pve\SyncPveProcessor;
 
@@ -17,9 +18,7 @@ use App\State\Processor\Pve\SyncPveProcessor;
             uriTemplate: '/pve/sync',
             input: EmptyInput::class,
             processor: SyncPveProcessor::class,
-            openapiContext: [
-                'summary' => 'Sync PVE data from ESI',
-            ],
+            openapi: new Model\Operation(summary: 'Sync PVE data from ESI'),
         ),
     ],
     security: "is_granted('ROLE_USER')",
@@ -30,9 +29,11 @@ class PveSyncResource
 
     public string $message = '';
 
+    /** @var array<string, int> */
     public array $imported = [];
 
     public ?string $lastSyncAt = null;
 
+    /** @var list<string> */
     public array $errors = [];
 }

@@ -238,6 +238,7 @@ class IndustryJobSyncService
         $this->syncedCorporations = [];
     }
 
+    /** @param list<array<string, mixed>> $completedJobs */
     private function notifyProjectProgress(string $userId, array $completedJobs): void
     {
         if (empty($completedJobs)) {

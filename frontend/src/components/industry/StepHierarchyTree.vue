@@ -79,7 +79,7 @@ function onToggle(step: IndustryProjectStep) {
       <div class="flex items-center gap-3">
         <img
           :src="getTypeIconUrl(tree.productTypeId, 32)"
-          class="w-8 h-8 rounded"
+          class="w-8 h-8 rounded-sm"
           @error="onImageError"
         />
         <div class="flex-1 min-w-0">
@@ -87,7 +87,7 @@ function onToggle(step: IndustryProjectStep) {
             <span class="font-medium text-slate-200">{{ tree.productTypeName }}</span>
             <span class="text-xs text-slate-500">×{{ tree.quantity.toLocaleString() }}</span>
             <span class="text-xs text-slate-600">({{ tree.runs }} runs)</span>
-            <span :class="['text-xs px-1.5 py-0.5 rounded', activityBadgeClass(tree.activityType)]">
+            <span :class="['text-xs px-1.5 py-0.5 rounded-sm', activityBadgeClass(tree.activityType)]">
               {{ activityLabel(tree.activityType) }}
             </span>
           </div>
@@ -100,7 +100,7 @@ function onToggle(step: IndustryProjectStep) {
           </div>
         </div>
         <template v-if="findStep(tree)">
-          <span :class="['text-xs px-2 py-1 rounded', stepStatusClass(findStep(tree))]">
+          <span :class="['text-xs px-2 py-1 rounded-sm', stepStatusClass(findStep(tree))]">
             {{ stepStatusLabel(findStep(tree)) }}
           </span>
           <!-- Purchased checkbox (hidden for depth 0 - root products, hidden if inStock) -->
@@ -113,7 +113,7 @@ function onToggle(step: IndustryProjectStep) {
               :checked="findStep(tree)?.purchased"
               :disabled="readonly"
               @change="onToggle(findStep(tree)!)"
-              class="w-4 h-4 rounded border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500 focus:ring-offset-slate-900 disabled:cursor-not-allowed"
+              class="w-4 h-4 rounded-sm border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500 focus:ring-offset-slate-900 disabled:cursor-not-allowed"
             />
             <span class="text-xs text-slate-400">{{ t('industry.step.purchased') }}</span>
           </label>
@@ -139,7 +139,7 @@ function onToggle(step: IndustryProjectStep) {
           <div class="flex items-center gap-2">
             <img
               :src="getTypeIconUrl(mat.typeId, 32)"
-              class="w-6 h-6 rounded"
+              class="w-6 h-6 rounded-sm"
               @error="onImageError"
             />
             <span class="text-sm text-slate-400">{{ mat.typeName }}</span>

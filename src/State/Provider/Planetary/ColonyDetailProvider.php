@@ -46,11 +46,15 @@ class ColonyDetailProvider implements ProviderInterface
 
         // Verify ownership: colony's character must belong to the current user
         $character = $colony->getCharacter();
+        $characterId = $character->getId();
         $isOwner = false;
-        foreach ($user->getCharacters() as $userChar) {
-            if ($userChar->getId()->equals($character->getId())) {
-                $isOwner = true;
-                break;
+        if ($characterId !== null) {
+            foreach ($user->getCharacters() as $userChar) {
+                $userCharId = $userChar->getId();
+                if ($userCharId !== null && $userCharId->equals($characterId)) {
+                    $isOwner = true;
+                    break;
+                }
             }
         }
 

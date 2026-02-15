@@ -12,6 +12,7 @@ use App\Entity\User;
 use App\Entity\UserLedgerSettings;
 use App\Repository\MiningEntryRepository;
 use App\Repository\UserLedgerSettingsRepository;
+use App\Service\MiningBestValueCalculator;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -25,6 +26,7 @@ class MiningStatsProvider implements ProviderInterface
         private readonly Security $security,
         private readonly MiningEntryRepository $miningEntryRepository,
         private readonly UserLedgerSettingsRepository $settingsRepository,
+        private readonly MiningBestValueCalculator $miningBestValueCalculator,
         private readonly RequestStack $requestStack,
     ) {
     }
@@ -47,14 +49,16 @@ class MiningStatsProvider implements ProviderInterface
         $excludeUsages = $this->getExcludeUsages($settings);
 
         // Get totals
-        $totalValue = $this->miningEntryRepository->getTotalValueByUserAndDateRange($user, $from, $to, $excludeUsages);
         $totalQuantity = $this->miningEntryRepository->getTotalQuantityByUserAndDateRange($user, $from, $to, $excludeUsages);
 
-        // Get by usage
-        $byUsage = $this->miningEntryRepository->getTotalsByUsage($user, $from, $to);
+        // Get best-price total (uses OreValueService for compressed/reprocess prices)
+        $totalBestValue = $this->miningBestValueCalculator->getTotalBestValue($user, $from, $to, $excludeUsages);
 
-        // Calculate ISK per day
-        $iskPerDay = $days > 0 ? $totalValue / $days : 0;
+        // Get by usage
+        $byUsage = $this->miningBestValueCalculator->getTotalsByUsageBestValue($user, $from, $to);
+
+        // Calculate ISK per day based on best value
+        $iskPerDay = $days > 0 ? $totalBestValue / $days : 0;
 
         $resource = new MiningStatsResource();
         $resource->period = [
@@ -63,7 +67,7 @@ class MiningStatsProvider implements ProviderInterface
             'days' => $days,
         ];
         $resource->totals = [
-            'totalValue' => $totalValue,
+            'totalValue' => $totalBestValue,
             'totalQuantity' => $totalQuantity,
         ];
         $resource->byUsage = $byUsage;
@@ -75,7 +79,7 @@ class MiningStatsProvider implements ProviderInterface
     /**
      * Determine which usages to exclude based on settings.
      *
-     * @return string[]|null
+     * @return list<string>|null
      */
     private function getExcludeUsages(?UserLedgerSettings $settings): ?array
     {

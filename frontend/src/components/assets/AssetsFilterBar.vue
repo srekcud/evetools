@@ -60,7 +60,7 @@ const { t } = useI18n()
         v-if="props.viewMode === 'character'"
         :value="props.selectedCharacterId"
         @change="emit('update:selectedCharacterId', ($event.target as HTMLSelectElement).value)"
-        class="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-cyan-500"
+        class="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-cyan-500"
       >
         <option v-for="char in props.characters" :key="char.id" :value="char.id">
           {{ char.name }} {{ char.isMain ? '(Main)' : '' }}
@@ -77,7 +77,7 @@ const { t } = useI18n()
           @input="emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
           type="text"
           :placeholder="t('assets.searchPlaceholder')"
-          class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-cyan-500"
+          class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-hidden focus:border-cyan-500"
         />
       </div>
     </div>
@@ -89,7 +89,7 @@ const { t } = useI18n()
         <select
           :value="props.selectedSolarSystem"
           @change="emit('update:selectedSolarSystem', ($event.target as HTMLSelectElement).value)"
-          class="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:border-cyan-500 min-w-[200px]"
+          class="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-hidden focus:border-cyan-500 min-w-[200px]"
         >
           <option value="">{{ t('assets.allSystems') }} ({{ props.solarSystems.length }})</option>
           <option v-for="system in props.solarSystems" :key="system" :value="system">
@@ -103,7 +103,7 @@ const { t } = useI18n()
         <select
           :value="props.selectedLocation"
           @change="emit('update:selectedLocation', ($event.target as HTMLSelectElement).value)"
-          class="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:border-cyan-500 min-w-[250px]"
+          class="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-hidden focus:border-cyan-500 min-w-[250px]"
         >
           <option value="">{{ t('assets.allLocations') }} ({{ props.locations.length }})</option>
           <option v-for="loc in props.locations" :key="loc.name" :value="loc.name">

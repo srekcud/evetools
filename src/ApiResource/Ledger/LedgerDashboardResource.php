@@ -7,6 +7,7 @@ namespace App\ApiResource\Ledger;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Ledger\LedgerDashboardProvider;
 use App\State\Provider\Ledger\LedgerDailyStatsProvider;
 
@@ -17,23 +18,23 @@ use App\State\Provider\Ledger\LedgerDailyStatsProvider;
         new Get(
             uriTemplate: '/ledger/dashboard',
             provider: LedgerDashboardProvider::class,
-            openapiContext: [
-                'summary' => 'Get combined ledger dashboard',
-                'parameters' => [
-                    ['name' => 'days', 'in' => 'query', 'type' => 'integer', 'description' => 'Number of days (default: 30)'],
+            openapi: new Model\Operation(
+                summary: 'Get combined ledger dashboard',
+                parameters: [
+                    new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),
                 ],
-            ],
+            ),
         ),
         new Get(
             uriTemplate: '/ledger/stats/daily',
             provider: LedgerDailyStatsProvider::class,
             output: LedgerDailyStatsResource::class,
-            openapiContext: [
-                'summary' => 'Get combined daily ledger statistics (PVE + Mining)',
-                'parameters' => [
-                    ['name' => 'days', 'in' => 'query', 'type' => 'integer', 'description' => 'Number of days (default: 30)'],
+            openapi: new Model\Operation(
+                summary: 'Get combined daily ledger statistics (PVE + Mining)',
+                parameters: [
+                    new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),
                 ],
-            ],
+            ),
         ),
     ],
     security: "is_granted('ROLE_USER')",
@@ -43,6 +44,7 @@ class LedgerDashboardResource
     #[ApiProperty(identifier: true)]
     public string $id = 'dashboard';
 
+    /** @var array<string, mixed> */
     public array $period = [];
 
     /**
@@ -65,6 +67,7 @@ class LedgerDashboardResource
 
     /**
      * Expenses breakdown by type.
+     * @var array<string, float>
      */
     public array $expensesByType = [];
 
@@ -85,11 +88,13 @@ class LedgerDashboardResource
 
     /**
      * Last sync timestamps.
+     * @var array<string, string|null>
      */
     public array $lastSync = [];
 
     /**
      * Current user settings.
+     * @var array<string, mixed>
      */
     public array $settings = [];
 }

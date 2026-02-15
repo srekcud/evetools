@@ -123,7 +123,7 @@ function formatRelativeTime(dateStr: string | null): string {
               <!-- Character with avatar -->
               <td class="py-3 px-3">
                 <div class="flex items-center gap-3">
-                  <div class="w-8 h-8 rounded bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-cyan-400 text-xs font-bold ring-1 ring-cyan-500/30">
+                  <div class="w-8 h-8 rounded-sm bg-linear-to-br from-slate-700 to-slate-800 flex items-center justify-center text-cyan-400 text-xs font-bold ring-1 ring-cyan-500/30">
                     {{ getInitials(char.characterName) }}
                   </div>
                   <div class="text-slate-200 font-medium">{{ char.characterName }}</div>
@@ -135,7 +135,7 @@ function formatRelativeTime(dateStr: string | null): string {
                 <select
                   :value="char.industry"
                   @change="(e) => saveSkill(char, 'industry', parseInt((e.target as HTMLSelectElement).value))"
-                  class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-center text-cyan-400 font-mono focus:outline-none focus:border-cyan-500"
+                  class="bg-slate-800 border border-slate-700 rounded-sm px-2 py-1 text-sm text-center text-cyan-400 font-mono focus:outline-hidden focus:border-cyan-500"
                 >
                   <option v-for="n in 6" :key="n-1" :value="n-1">{{ n-1 }}</option>
                 </select>
@@ -146,7 +146,7 @@ function formatRelativeTime(dateStr: string | null): string {
                 <select
                   :value="char.advancedIndustry"
                   @change="(e) => saveSkill(char, 'advancedIndustry', parseInt((e.target as HTMLSelectElement).value))"
-                  class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-center text-cyan-400 font-mono focus:outline-none focus:border-cyan-500"
+                  class="bg-slate-800 border border-slate-700 rounded-sm px-2 py-1 text-sm text-center text-cyan-400 font-mono focus:outline-hidden focus:border-cyan-500"
                 >
                   <option v-for="n in 6" :key="n-1" :value="n-1">{{ n-1 }}</option>
                 </select>
@@ -157,7 +157,7 @@ function formatRelativeTime(dateStr: string | null): string {
                 <select
                   :value="char.reactions"
                   @change="(e) => saveSkill(char, 'reactions', parseInt((e.target as HTMLSelectElement).value))"
-                  class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-center text-cyan-400 font-mono focus:outline-none focus:border-cyan-500"
+                  class="bg-slate-800 border border-slate-700 rounded-sm px-2 py-1 text-sm text-center text-cyan-400 font-mono focus:outline-hidden focus:border-cyan-500"
                 >
                   <option v-for="n in 6" :key="n-1" :value="n-1">{{ n-1 }}</option>
                 </select>
@@ -167,7 +167,7 @@ function formatRelativeTime(dateStr: string | null): string {
               <td class="py-3 px-3 text-center">
                 <span
                   :class="[
-                    'px-2 py-1 rounded text-xs',
+                    'px-2 py-1 rounded-sm text-xs',
                     char.source === 'esi'
                       ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
                       : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'

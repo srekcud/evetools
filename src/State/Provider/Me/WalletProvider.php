@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Me\WalletEntryResource;
 use App\ApiResource\Me\WalletResource;
+use App\Entity\EveToken;
 use App\Entity\User;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
@@ -35,6 +36,7 @@ class WalletProvider implements ProviderInterface
         }
 
         // Prepare batch requests for concurrent execution
+        /** @var array<string, array{endpoint: string, token: ?EveToken}> $requests */
         $requests = [];
         $characterMap = [];
 
@@ -63,6 +65,7 @@ class WalletProvider implements ProviderInterface
         }
 
         // Execute all wallet requests concurrently with 10s timeout per request
+        /** @phpstan-var array<string, array{endpoint: string, token: ?EveToken}> $requests */
         $balances = $this->esiClient->getScalarBatch($requests, 10);
 
         $wallets = [];

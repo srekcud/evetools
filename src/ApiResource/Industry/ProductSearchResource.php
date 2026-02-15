@@ -7,6 +7,7 @@ namespace App\ApiResource\Industry;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Industry\ProductSearchProvider;
 use App\State\Provider\Industry\BlacklistSearchProvider;
 
@@ -18,28 +19,19 @@ use App\State\Provider\Industry\BlacklistSearchProvider;
             uriTemplate: '/industry/search',
             provider: ProductSearchProvider::class,
             output: ProductSearchListResource::class,
-            openapiContext: [
-                'summary' => 'Search products',
-                'description' => 'Search for manufacturable products by name',
-                'parameters' => [
-                    [
-                        'name' => 'q',
-                        'in' => 'query',
-                        'required' => true,
-                        'schema' => ['type' => 'string'],
-                        'description' => 'Search query (min 2 characters)',
-                    ],
+            openapi: new Model\Operation(
+                summary: 'Search products',
+                description: 'Search for manufacturable products by name',
+                parameters: [
+                    new Model\Parameter(name: 'q', in: 'query', required: true, schema: ['type' => 'string']),
                 ],
-            ],
+            ),
         ),
         new Get(
             uriTemplate: '/industry/blacklist/search',
             provider: BlacklistSearchProvider::class,
             output: ProductSearchListResource::class,
-            openapiContext: [
-                'summary' => 'Search blacklist items',
-                'description' => 'Search for items to add to blacklist',
-            ],
+            openapi: new Model\Operation(summary: 'Search blacklist items', description: 'Search for items to add to blacklist'),
         ),
     ],
     security: "is_granted('ROLE_USER')",

@@ -66,7 +66,7 @@ class CharacterCollectionProvider implements ProviderInterface
         }
 
         $hasMissingScopes = false;
-        if ($hasValidToken) {
+        if ($hasValidToken && $token !== null) {
             $tokenScopes = $token->getScopes();
             $requiredScopes = AuthenticationService::getRequiredScopes();
             $missingScopes = array_diff($requiredScopes, $tokenScopes);

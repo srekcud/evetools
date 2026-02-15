@@ -282,6 +282,13 @@ class Escalation
 
     public function isOwnedBy(User $user): bool
     {
-        return $this->user->getId()?->equals($user->getId()) ?? false;
+        $thisId = $this->user->getId();
+        $otherId = $user->getId();
+
+        if ($thisId === null || $otherId === null) {
+            return false;
+        }
+
+        return $thisId->equals($otherId);
     }
 }

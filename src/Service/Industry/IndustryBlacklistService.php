@@ -74,6 +74,7 @@ class IndustryBlacklistService
     /**
      * Resolve the user's blacklist (groups + individual types) into a flat array of type IDs.
      */
+    /** @return list<int> */
     public function resolveBlacklistedTypeIds(User $user): array
     {
         $typeIds = $user->getIndustryBlacklistTypeIds();
@@ -97,11 +98,12 @@ class IndustryBlacklistService
     /**
      * Get the blacklist categories with their enabled state for a user.
      */
+    /** @return list<array<string, mixed>> */
     public function getCategories(User $user): array
     {
         $userGroupIds = $user->getIndustryBlacklistGroupIds();
 
-        return array_map(function (array $cat) use ($userGroupIds) {
+        return array_values(array_map(function (array $cat) use ($userGroupIds) {
             // A category is blacklisted if ALL its group IDs are in the user's blacklist
             $enabled = !empty(array_intersect($cat['groupIds'], $userGroupIds));
             return [
@@ -110,12 +112,13 @@ class IndustryBlacklistService
                 'groupIds' => $cat['groupIds'],
                 'blacklisted' => $enabled,
             ];
-        }, self::BLACKLIST_CATEGORIES);
+        }, self::BLACKLIST_CATEGORIES));
     }
 
     /**
      * Get individually blacklisted items with names.
      */
+    /** @return list<array{typeId: int, typeName: string}> */
     public function getBlacklistedItems(User $user): array
     {
         $typeIds = $user->getIndustryBlacklistTypeIds();

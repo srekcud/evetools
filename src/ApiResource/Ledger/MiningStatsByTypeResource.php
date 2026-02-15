@@ -11,6 +11,7 @@ class MiningStatsByTypeResource
     #[ApiProperty(identifier: true)]
     public string $id = 'mining-stats-by-type';
 
+    /** @var array<string, mixed> */
     public array $period = [];
 
     /** @var MiningTypeStatsResource[] */

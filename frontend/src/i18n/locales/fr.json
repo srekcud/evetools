@@ -69,11 +69,11 @@
   "nav": {
     "dashboard": "Tableau de bord",
     "characters": "Personnages",
-    "ledger": "Ledger",
+    "ledger": "Registre",
     "industry": "Industrie",
     "escalations": "Escalations",
     "pi": "PI",
-    "shoppingList": "Liste de courses",
+    "shoppingList": "Évaluateur",
     "assets": "Inventaire",
     "contracts": "Contrats",
     "admin": "Administration"
@@ -85,7 +85,9 @@
     "language": "Langue",
     "languageNote": "L'interface sera traduite dans la langue choisie.",
     "french": "Francais",
-    "english": "English"
+    "english": "English",
+    "dateFormat": "Format de date",
+    "dateFormatNote": "Format d'affichage des dates dans toute l'application"
   },
   "auth": {
     "login": "Connexion",
@@ -731,7 +733,7 @@
     }
   },
   "ledger": {
-    "title": "Ledger",
+    "title": "Registre",
     "tabs": {
       "dashboard": "Vue d'ensemble",
       "mining": "Minage",
@@ -751,7 +753,7 @@
       "loot": "Loot"
     },
     "mining": {
-      "title": "Ledger de minage",
+      "title": "Registre de minage",
       "subtitle": "Historique de minage et valorisation",
       "lastSync": "Derniere sync :",
       "noSync": "Jamais synchronise",
@@ -821,7 +823,7 @@
     },
     "settings": {
       "corpProjectTitle": "Comptabilite projets corporation",
-      "corpProjectDescription": "Configurez comment les revenus de projets corporation sont comptabilises dans le ledger.",
+      "corpProjectDescription": "Configurez comment les revenus de projets corporation sont comptabilises dans le registre.",
       "pveSide": "Cote PVE",
       "pveSideDescription": "Les revenus de projets corp sont deduits du PVE (primes, loot vendu au projet corp).",
       "recommended": "Recommande",
@@ -910,8 +912,10 @@
     }
   },
   "shopping": {
-    "title": "Liste de courses",
+    "title": "Évaluateur",
     "subtitle": "Comparez les prix entre Jita et votre structure",
+    "importTab": "Import",
+    "appraisalTab": "Appraisal",
     "inputPlaceholder": "Collez votre liste d'items ici...",
     "pasteLabel": "Collez votre liste d'items (depuis le jeu ou au format nom + quantite)",
     "supportedFormats": "Formats : Tritanium 10000 / 200x Nocxium / copier-coller depuis EVE",
@@ -949,6 +953,30 @@
     "quantityColumn": "Quantite",
     "volumeColumn": "Volume",
     "buyAt": "Acheter a"
+  },
+  "appraisal": {
+    "title": "Appraisal",
+    "subtitle": "Evaluer la valeur de vos items aux prix Jita",
+    "appraise": "Evaluer",
+    "appraising": "Evaluation...",
+    "infoBanner": "Sell value = cout d'achat (ordres sell les plus bas). Buy value = ce que vous recevez en vendant (ordres buy les plus hauts). Tous les prix viennent de Jita 4-4.",
+    "sellValue": "Valeur Sell",
+    "sellValueDesc": "Cout pour acheter ces items",
+    "buyValue": "Valeur Buy",
+    "buyValueDesc": "Ce que vous recevez en vendant",
+    "totalVolume": "Volume total",
+    "splitValue": "Valeur Split",
+    "splitValueDesc": "(Sell + Buy) / 2",
+    "sellUnit": "Sell (unite)",
+    "sellTotal": "Sell Total",
+    "buyUnit": "Buy (unite)",
+    "buyTotal": "Buy Total",
+    "splitUnit": "Split (unite)",
+    "splitTotal": "Split Total",
+    "itemsAppraised": "{count} items evalues",
+    "copy": "Copier",
+    "copied": "Copie !",
+    "share": "Partager"
   },
   "admin": {
     "title": "Administration",

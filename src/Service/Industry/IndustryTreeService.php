@@ -29,15 +29,21 @@ class IndustryTreeService
     /**
      * Build a full production tree for a product, including reactions.
      *
-     * @param int[] $excludedTypeIds Type IDs to treat as raw materials (not expanded)
+     * @param list<int> $excludedTypeIds Type IDs to treat as raw materials (not expanded)
      * @param User|null $user User for structure bonus calculation (optional)
      * @param array<int, float> $structureBonusOverrides Map of productTypeId => materialBonus to override best-structure lookup
+     * @return array<string, mixed>
      */
     public function buildProductionTree(int $productTypeId, int $runs = 1, int $finalMe = 0, array $excludedTypeIds = [], ?User $user = null, array $structureBonusOverrides = []): array
     {
         return $this->buildNode($productTypeId, $runs, $finalMe, 0, $excludedTypeIds, $user, true, $structureBonusOverrides);
     }
 
+    /**
+     * @param list<int> $excludedTypeIds
+     * @param array<int, float> $structureBonusOverrides
+     * @return array<string, mixed>
+     */
     private function buildNode(int $productTypeId, int $quantity, int $meLevel, int $depth, array $excludedTypeIds, ?User $user, bool $isRoot = false, array $structureBonusOverrides = []): array
     {
         // Find the blueprint/formula that produces this type (manufacturing or reaction)

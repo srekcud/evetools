@@ -12,6 +12,7 @@ use App\ApiResource\ShoppingList\ShoppingListItemResource;
 use App\Entity\User;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\MarketService;
+use App\Service\ItemParserService;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -26,6 +27,7 @@ class ParseProcessor implements ProcessorInterface
         private readonly Security $security,
         private readonly InvTypeRepository $invTypeRepository,
         private readonly MarketService $marketService,
+        private readonly ItemParserService $itemParserService,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -47,13 +49,13 @@ class ParseProcessor implements ProcessorInterface
         $structureId = $data->structureId ?? $user->getPreferredMarketStructureId();
         $transportCostPerM3 = $data->transportCost;
 
-        $parsedItems = $this->parseItemList($data->text);
+        $parsedItems = $this->itemParserService->parseItemList($data->text);
 
         if (empty($parsedItems)) {
             throw new BadRequestHttpException('No items could be parsed from the text');
         }
 
-        $resolvedItems = $this->resolveItemNames($parsedItems);
+        $resolvedItems = $this->itemParserService->resolveItemNames($parsedItems);
 
         $resource = new ParseResultResource();
         $resource->transportCostPerM3 = $transportCostPerM3;
@@ -191,119 +193,7 @@ class ParseProcessor implements ProcessorInterface
         return $resource;
     }
 
-    private function parseItemList(string $text): array
-    {
-        $items = [];
-        $lines = preg_split('/\r?\n/', trim($text));
-
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if (empty($line)) {
-                continue;
-            }
-
-            $parsed = $this->parseLine($line);
-            if ($parsed !== null) {
-                $found = false;
-                foreach ($items as &$item) {
-                    if (strcasecmp($item['name'], $parsed['name']) === 0) {
-                        $item['quantity'] += $parsed['quantity'];
-                        $found = true;
-                        break;
-                    }
-                }
-                unset($item);
-
-                if (!$found) {
-                    $items[] = $parsed;
-                }
-            }
-        }
-
-        return $items;
-    }
-
-    private function parseLine(string $line): ?array
-    {
-        $line = preg_replace('/^\s*[-*•]\s*/', '', $line);
-
-        if (preg_match('/^(\d[\d,\s]*)\s*x\s+(.+)$/i', $line, $matches)) {
-            $quantity = (int) str_replace([',', ' '], '', $matches[1]);
-
-            return ['name' => trim($matches[2]), 'quantity' => max(1, $quantity)];
-        }
-
-        if (preg_match('/^(.+?)\s+x\s*(\d[\d,\s]*)$/i', $line, $matches)) {
-            $quantity = (int) str_replace([',', ' '], '', $matches[2]);
-
-            return ['name' => trim($matches[1]), 'quantity' => max(1, $quantity)];
-        }
-
-        if (preg_match('/^(.+?)\t+(\d[\d,\s]*)$/', $line, $matches)) {
-            $quantity = (int) str_replace([',', ' '], '', $matches[2]);
-
-            return ['name' => trim($matches[1]), 'quantity' => max(1, $quantity)];
-        }
-
-        if (preg_match('/^(.+?)\s{2,}(\d[\d,\s]*)$/', $line, $matches)) {
-            $quantity = (int) str_replace([',', ' '], '', $matches[2]);
-
-            return ['name' => trim($matches[1]), 'quantity' => max(1, $quantity)];
-        }
-
-        if (preg_match('/^(.+?)\s+(\d[\d,]*)$/', $line, $matches)) {
-            $name = trim($matches[1]);
-            if (!preg_match('/^\d/', $name)) {
-                $quantity = (int) str_replace([',', ' '], '', $matches[2]);
-
-                return ['name' => $name, 'quantity' => max(1, $quantity)];
-            }
-        }
-
-        if (preg_match('/^[a-zA-Z]/', $line)) {
-            return ['name' => $line, 'quantity' => 1];
-        }
-
-        return null;
-    }
-
-    private function resolveItemNames(array $items): array
-    {
-        $found = [];
-        $notFound = [];
-
-        foreach ($items as $item) {
-            // Normalize multiple spaces to single space
-            $name = preg_replace('/\s+/', ' ', trim($item['name']));
-            $quantity = $item['quantity'];
-
-            $type = $this->invTypeRepository->findOneBy(['typeName' => $name]);
-
-            if ($type === null) {
-                $types = $this->invTypeRepository->createQueryBuilder('t')
-                    ->where('LOWER(t.typeName) = LOWER(:name)')
-                    ->setParameter('name', $name)
-                    ->setMaxResults(1)
-                    ->getQuery()
-                    ->getResult();
-
-                $type = $types[0] ?? null;
-            }
-
-            if ($type !== null && $type->isPublished()) {
-                $found[] = [
-                    'typeId' => $type->getTypeId(),
-                    'typeName' => $type->getTypeName(),
-                    'quantity' => $quantity,
-                ];
-            } else {
-                $notFound[] = $name;
-            }
-        }
-
-        return ['found' => $found, 'notFound' => $notFound];
-    }
-
+    /** @return array<string, float> */
     private function emptyTotals(): array
     {
         return [

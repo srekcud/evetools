@@ -6,6 +6,7 @@ namespace App\ApiResource\Planetary;
 
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Planetary\PlanetaryProductionProvider;
 
 #[ApiResource(
@@ -15,7 +16,7 @@ use App\State\Provider\Planetary\PlanetaryProductionProvider;
         new Get(
             uriTemplate: '/planetary/production',
             provider: PlanetaryProductionProvider::class,
-            openapiContext: ['summary' => 'Get PI production breakdown by tier'],
+            openapi: new Model\Operation(summary: 'Get PI production breakdown by tier'),
         ),
     ],
     security: "is_granted('ROLE_USER')",
@@ -25,6 +26,7 @@ class PlanetaryProductionResource
     #[\ApiPlatform\Metadata\ApiProperty(identifier: true)]
     public string $id = 'production';
 
+    /** @var list<array<string, mixed>> */
     public array $tiers = [];
 
     public float $totalDailyIsk = 0.0;

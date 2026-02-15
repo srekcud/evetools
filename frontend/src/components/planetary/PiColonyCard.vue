@@ -83,7 +83,7 @@ defineEmits<{
             <div
               v-for="level in 5"
               :key="level"
-              :class="['w-3.5 h-1.5 rounded-sm', level <= colony.upgradeLevel ? 'bg-cyan-400' : 'bg-slate-700']"
+              :class="['w-3.5 h-1.5 rounded-xs', level <= colony.upgradeLevel ? 'bg-cyan-400' : 'bg-slate-700']"
             ></div>
           </div>
         </div>
@@ -166,7 +166,7 @@ defineEmits<{
             >
               <div class="flex items-center justify-between mb-2">
                 <div class="flex items-center gap-2">
-                  <div :class="['w-7 h-7 rounded border flex items-center justify-center',
+                  <div :class="['w-7 h-7 rounded-sm border flex items-center justify-center',
                     pin.outputTier ? TIER_CONFIG[pin.outputTier]?.badgeBg || 'bg-slate-700' : 'bg-slate-700',
                     pin.outputTier ? TIER_CONFIG[pin.outputTier]?.badgeBorder || 'border-slate-600' : 'border-slate-600']">
                     <span :class="['text-[9px] font-bold',
@@ -187,15 +187,15 @@ defineEmits<{
                 </div>
               </div>
               <div class="grid grid-cols-3 gap-2 text-xs">
-                <div class="bg-slate-800/50 rounded px-2 py-1.5">
+                <div class="bg-slate-800/50 rounded-sm px-2 py-1.5">
                   <span class="text-slate-500 block">{{ t('pi.colony.cycle') }}</span>
                   <span class="text-white font-medium">{{ formatCycleTime(pin.extractorCycleTime) }}</span>
                 </div>
-                <div class="bg-slate-800/50 rounded px-2 py-1.5">
+                <div class="bg-slate-800/50 rounded-sm px-2 py-1.5">
                   <span class="text-slate-500 block">{{ t('pi.colony.qtyPerCycle') }}</span>
                   <span class="text-white font-medium">{{ pin.extractorQtyPerCycle ? formatNumber(pin.extractorQtyPerCycle, 0) : '-' }}</span>
                 </div>
-                <div class="bg-slate-800/50 rounded px-2 py-1.5">
+                <div class="bg-slate-800/50 rounded-sm px-2 py-1.5">
                   <span class="text-slate-500 block">{{ t('pi.colony.extractorHeads') }}</span>
                   <span class="text-white font-medium">{{ pin.extractorNumHeads ?? '-' }}</span>
                 </div>
@@ -238,7 +238,7 @@ defineEmits<{
                   <td class="px-3 py-2">
                     <template v-if="pin.schematicOutput">
                       <div class="flex items-center gap-1.5">
-                        <span v-if="pin.outputTier" :class="['text-[9px] px-1 py-0.5 rounded border font-bold',
+                        <span v-if="pin.outputTier" :class="['text-[9px] px-1 py-0.5 rounded-sm border font-bold',
                           TIER_CONFIG[pin.outputTier]?.badgeBg, TIER_CONFIG[pin.outputTier]?.badgeText, TIER_CONFIG[pin.outputTier]?.badgeBorder]">
                           {{ pin.outputTier }}
                         </span>
@@ -277,7 +277,7 @@ defineEmits<{
                   class="flex items-center justify-between px-3 py-2.5"
                 >
                   <div class="flex items-center gap-1.5">
-                    <span v-if="prod.outputTier" :class="['text-[9px] px-1 py-0.5 rounded border font-bold',
+                    <span v-if="prod.outputTier" :class="['text-[9px] px-1 py-0.5 rounded-sm border font-bold',
                       TIER_CONFIG[prod.outputTier]?.badgeBg, TIER_CONFIG[prod.outputTier]?.badgeText, TIER_CONFIG[prod.outputTier]?.badgeBorder]">
                       {{ prod.outputTier }}
                     </span>

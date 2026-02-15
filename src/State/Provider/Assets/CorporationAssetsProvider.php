@@ -59,7 +59,7 @@ class CorporationAssetsProvider implements ProviderInterface
     private function toItemResource(CachedAsset $asset): AssetItemResource
     {
         $item = new AssetItemResource();
-        $item->id = $asset->getId()->toRfc4122();
+        $item->id = $asset->getId()?->toRfc4122() ?? '';
         $item->itemId = $asset->getItemId();
         $item->typeId = $asset->getTypeId();
         $item->typeName = $asset->getTypeName();
@@ -67,7 +67,7 @@ class CorporationAssetsProvider implements ProviderInterface
         $item->locationId = $asset->getLocationId();
         $item->locationName = $asset->getLocationName();
         $item->locationType = $asset->getLocationType();
-        $item->locationFlag = $asset->getLocationFlag();
+        $item->locationFlag = $asset->getLocationFlag() ?? '';
         $item->solarSystemId = $asset->getSolarSystemId();
         $item->solarSystemName = $asset->getSolarSystemName();
         $item->itemName = $asset->getItemName();

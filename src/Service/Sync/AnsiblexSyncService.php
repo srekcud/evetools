@@ -131,9 +131,11 @@ class AnsiblexSyncService
         }
     }
 
-    private function getCorporationStructures(int $corporationId, $token): array
+    /** @return list<array<string, mixed>> */
+    private function getCorporationStructures(int $corporationId, \App\Entity\EveToken $token): array
     {
         try {
+            /** @var list<array<string, mixed>> */
             return $this->esiClient->getPaginated(
                 "/corporations/{$corporationId}/structures/",
                 $token
@@ -162,7 +164,8 @@ class AnsiblexSyncService
         }
     }
 
-    private function processAnsiblexStructure(array $structure, $token, ?int $allianceId): string
+    /** @param array<string, mixed> $structure */
+    private function processAnsiblexStructure(array $structure, \App\Entity\EveToken $token, ?int $allianceId): string
     {
         $structureId = $structure['structure_id'];
         $name = $structure['name'] ?? '';
@@ -239,6 +242,7 @@ class AnsiblexSyncService
         return 'added';
     }
 
+    /** @return array{0: string, 1: string}|null */
     private function parseAnsiblexName(string $name): ?array
     {
         // Common formats:
@@ -265,8 +269,8 @@ class AnsiblexSyncService
                     }
 
                     // Clean up any extra characters
-                    $source = preg_replace('/[<>»«\-]+$/', '', $source);
-                    $dest = preg_replace('/[<>»«\-]+$/', '', $dest);
+                    $source = (string) preg_replace('/[<>»«\-]+$/', '', $source);
+                    $dest = (string) preg_replace('/[<>»«\-]+$/', '', $dest);
 
                     return [trim($source), trim($dest)];
                 }
@@ -276,22 +280,26 @@ class AnsiblexSyncService
         return null;
     }
 
-    private function findSolarSystemByName(string $name): ?object
+    private function findSolarSystemByName(string $name): ?\App\Entity\Sde\MapSolarSystem
     {
+        $repo = $this->entityManager->getRepository(\App\Entity\Sde\MapSolarSystem::class);
+
         // Try exact match first
-        $system = $this->entityManager->getRepository(\App\Entity\Sde\MapSolarSystem::class)
+        /** @var \App\Entity\Sde\MapSolarSystem|null $system */
+        $system = $repo
             ->createQueryBuilder('s')
             ->where('s.solarSystemName = :name')
             ->setParameter('name', $name)
             ->getQuery()
             ->getOneOrNullResult();
 
-        if ($system) {
+        if ($system !== null) {
             return $system;
         }
 
         // Try case-insensitive match
-        return $this->entityManager->getRepository(\App\Entity\Sde\MapSolarSystem::class)
+        /** @var \App\Entity\Sde\MapSolarSystem|null */
+        return $repo
             ->createQueryBuilder('s')
             ->where('LOWER(s.solarSystemName) = LOWER(:name)')
             ->setParameter('name', $name)
@@ -299,7 +307,8 @@ class AnsiblexSyncService
             ->getOneOrNullResult();
     }
 
-    private function getStructureInfo(int $structureId, $token): ?array
+    /** @return array<string, mixed>|null */
+    private function getStructureInfo(int $structureId, \App\Entity\EveToken $token): ?array
     {
         try {
             return $this->esiClient->get("/universe/structures/{$structureId}/", $token);
@@ -308,6 +317,7 @@ class AnsiblexSyncService
         }
     }
 
+    /** @param list<int> $seenIds */
     private function deactivateNotSeenGates(int $allianceId, array $seenIds): int
     {
         if (empty($seenIds)) {
@@ -427,7 +437,8 @@ class AnsiblexSyncService
      * Search for Ansiblex structures using the ESI search endpoint.
      * ESI requires minimum 3 characters for search, so we search for " » " with spaces.
      */
-    private function searchAnsiblexStructures(int $characterId, $token): array
+    /** @return list<int> */
+    private function searchAnsiblexStructures(int $characterId, \App\Entity\EveToken $token): array
     {
         $allStructureIds = [];
 
@@ -468,13 +479,14 @@ class AnsiblexSyncService
         }
 
         // Remove duplicates
-        return array_unique($allStructureIds);
+        /** @var list<int> */
+        return array_values(array_unique($allStructureIds));
     }
 
     /**
      * Process a discovered structure ID - get details and save if it's an Ansiblex.
      */
-    private function processDiscoveredStructure(int $structureId, $token, ?int $allianceId): string
+    private function processDiscoveredStructure(int $structureId, \App\Entity\EveToken $token, ?int $allianceId): string
     {
         try {
             // Check if gate already exists FIRST (before any ESI calls)
@@ -602,6 +614,7 @@ class AnsiblexSyncService
         ]);
     }
 
+    /** @param list<string> $requiredScopes */
     private function hasRequiredScopes(Character $character, array $requiredScopes): bool
     {
         $token = $character->getEveToken();

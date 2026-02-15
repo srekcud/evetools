@@ -180,6 +180,10 @@ class AuthenticationService
         // Get or create user
         $user = $character->getUser();
 
+        if ($user === null) {
+            throw new \RuntimeException('Character has no associated user');
+        }
+
         // Update last login
         $user->updateLastLogin();
         $user->markAuthValid();

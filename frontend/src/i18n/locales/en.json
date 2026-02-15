@@ -73,7 +73,7 @@
     "industry": "Industry",
     "escalations": "Escalations",
     "pi": "PI",
-    "shoppingList": "Shopping List",
+    "shoppingList": "Valuator",
     "assets": "Inventory",
     "contracts": "Contracts",
     "admin": "Administration"
@@ -85,7 +85,9 @@
     "language": "Language",
     "languageNote": "The interface will be translated to the selected language.",
     "french": "Francais",
-    "english": "English"
+    "english": "English",
+    "dateFormat": "Date format",
+    "dateFormatNote": "Date display format throughout the application"
   },
   "auth": {
     "login": "Login",
@@ -910,8 +912,10 @@
     }
   },
   "shopping": {
-    "title": "Shopping List",
+    "title": "Valuator",
     "subtitle": "Compare prices between Jita and your structure",
+    "importTab": "Import",
+    "appraisalTab": "Appraisal",
     "inputPlaceholder": "Paste your item list here...",
     "pasteLabel": "Paste your item list (from the game or in name + quantity format)",
     "supportedFormats": "Formats: Tritanium 10000 / 200x Nocxium / copy-paste from EVE",
@@ -949,6 +953,30 @@
     "quantityColumn": "Quantity",
     "volumeColumn": "Volume",
     "buyAt": "Buy at"
+  },
+  "appraisal": {
+    "title": "Appraisal",
+    "subtitle": "Evaluate the value of your items at Jita prices",
+    "appraise": "Appraise",
+    "appraising": "Appraising...",
+    "infoBanner": "Sell value = cost to buy (lowest sell orders). Buy value = what you receive selling to buy orders (highest buy orders). All prices from Jita 4-4.",
+    "sellValue": "Sell Value",
+    "sellValueDesc": "Cost to buy these items",
+    "buyValue": "Buy Value",
+    "buyValueDesc": "What you receive selling",
+    "totalVolume": "Total Volume",
+    "splitValue": "Split Value",
+    "splitValueDesc": "(Sell + Buy) / 2",
+    "sellUnit": "Sell (unit)",
+    "sellTotal": "Sell Total",
+    "buyUnit": "Buy (unit)",
+    "buyTotal": "Buy Total",
+    "splitUnit": "Split (unit)",
+    "splitTotal": "Split Total",
+    "itemsAppraised": "{count} items appraised",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "share": "Share"
   },
   "admin": {
     "title": "Administration",

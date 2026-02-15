@@ -3,6 +3,12 @@ import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
+  scrollBehavior(to) {
+    if (to.hash) {
+      return { el: to.hash, behavior: 'smooth' }
+    }
+    return { top: 0 }
+  },
   routes: [
     {
       path: '/',
@@ -83,6 +89,12 @@ const router = createRouter({
       path: '/shopping-list/shared/:token',
       name: 'shared-shopping-list',
       component: () => import('@/views/SharedShoppingList.vue'),
+      meta: { requiresAuth: false },
+    },
+    {
+      path: '/legal',
+      name: 'legal',
+      component: () => import('@/views/Legal.vue'),
       meta: { requiresAuth: false },
     },
     {

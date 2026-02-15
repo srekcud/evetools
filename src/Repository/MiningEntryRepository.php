@@ -40,6 +40,7 @@ class MiningEntryRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param list<string>|null $excludeUsages
      * @return MiningEntry[]
      */
     public function findByUserAndDateRange(
@@ -72,6 +73,7 @@ class MiningEntryRepository extends ServiceEntityRepository
 
     /**
      * Get total value by user in date range.
+     * @param list<string>|null $excludeUsages
      */
     public function getTotalValueByUserAndDateRange(
         User $user,
@@ -101,6 +103,7 @@ class MiningEntryRepository extends ServiceEntityRepository
 
     /**
      * Get total quantity by user in date range.
+     * @param list<string>|null $excludeUsages
      */
     public function getTotalQuantityByUserAndDateRange(
         User $user,
@@ -129,6 +132,7 @@ class MiningEntryRepository extends ServiceEntityRepository
 
     /**
      * Get daily totals for mining.
+     * @param list<string>|null $excludeUsages
      * @return array<string, array{date: string, totalValue: float, totalQuantity: int}>
      */
     public function getDailyTotals(
@@ -170,6 +174,7 @@ class MiningEntryRepository extends ServiceEntityRepository
 
     /**
      * Get totals by ore type.
+     * @param list<string>|null $excludeUsages
      * @return array<int, array{typeId: int, typeName: string, totalValue: float, totalQuantity: int}>
      */
     public function getTotalsByType(
@@ -279,6 +284,7 @@ class MiningEntryRepository extends ServiceEntityRepository
 
     /**
      * Get totals by solar system.
+     * @param list<string>|null $excludeUsages
      * @return array<int, array{solarSystemId: int, solarSystemName: string, totalValue: float, totalQuantity: int}>
      */
     public function getTotalsBySolarSystem(
@@ -319,7 +325,123 @@ class MiningEntryRepository extends ServiceEntityRepository
     }
 
     /**
+     * Get aggregated quantities by type (no LIMIT).
+     * Used for best-price calculation across all entries.
+     *
+     * @param list<string>|null $excludeUsages
+     * @return array<int, array{typeId: int, quantity: int}>
+     */
+    public function getQuantitiesByType(
+        User $user,
+        \DateTimeImmutable $from,
+        \DateTimeImmutable $to,
+        ?array $excludeUsages = null
+    ): array {
+        $qb = $this->createQueryBuilder('m')
+            ->select('m.typeId, SUM(m.quantity) as totalQuantity')
+            ->where('m.user = :user')
+            ->andWhere('m.date >= :from')
+            ->andWhere('m.date <= :to')
+            ->setParameter('user', $user)
+            ->setParameter('from', $from)
+            ->setParameter('to', $to)
+            ->groupBy('m.typeId');
+
+        if ($excludeUsages !== null && !empty($excludeUsages)) {
+            $qb->andWhere('m.usage NOT IN (:excludeUsages)')
+               ->setParameter('excludeUsages', $excludeUsages);
+        }
+
+        $results = $qb->getQuery()->getResult();
+
+        $quantities = [];
+        foreach ($results as $row) {
+            $typeId = (int) $row['typeId'];
+            $quantities[$typeId] = [
+                'typeId' => $typeId,
+                'quantity' => (int) ($row['totalQuantity'] ?? 0),
+            ];
+        }
+
+        return $quantities;
+    }
+
+    /**
+     * Get aggregated quantities by type and date (no LIMIT).
+     * Used for best-price daily stats calculation.
+     *
+     * @param list<string>|null $excludeUsages
+     * @return array<string, array<int, int>> date => [typeId => quantity]
+     */
+    public function getQuantitiesByTypeAndDate(
+        User $user,
+        \DateTimeImmutable $from,
+        \DateTimeImmutable $to,
+        ?array $excludeUsages = null
+    ): array {
+        $qb = $this->createQueryBuilder('m')
+            ->select('m.date as day, m.typeId, SUM(m.quantity) as totalQuantity')
+            ->where('m.user = :user')
+            ->andWhere('m.date >= :from')
+            ->andWhere('m.date <= :to')
+            ->setParameter('user', $user)
+            ->setParameter('from', $from)
+            ->setParameter('to', $to)
+            ->groupBy('m.date, m.typeId');
+
+        if ($excludeUsages !== null && !empty($excludeUsages)) {
+            $qb->andWhere('m.usage NOT IN (:excludeUsages)')
+               ->setParameter('excludeUsages', $excludeUsages);
+        }
+
+        $results = $qb->getQuery()->getResult();
+
+        $byDateAndType = [];
+        foreach ($results as $row) {
+            $date = $row['day'] instanceof \DateTimeImmutable ? $row['day']->format('Y-m-d') : $row['day'];
+            $typeId = (int) $row['typeId'];
+            $byDateAndType[$date][$typeId] = (int) ($row['totalQuantity'] ?? 0);
+        }
+
+        return $byDateAndType;
+    }
+
+    /**
+     * Get aggregated quantities by type and usage.
+     * Used for best-price calculation per usage breakdown.
+     *
+     * @return array<string, array<int, int>> usage => [typeId => quantity]
+     */
+    public function getQuantitiesByTypeAndUsage(
+        User $user,
+        \DateTimeImmutable $from,
+        \DateTimeImmutable $to,
+    ): array {
+        $results = $this->createQueryBuilder('m')
+            ->select('m.usage, m.typeId, SUM(m.quantity) as totalQuantity')
+            ->where('m.user = :user')
+            ->andWhere('m.date >= :from')
+            ->andWhere('m.date <= :to')
+            ->setParameter('user', $user)
+            ->setParameter('from', $from)
+            ->setParameter('to', $to)
+            ->groupBy('m.usage, m.typeId')
+            ->getQuery()
+            ->getResult();
+
+        $byUsageAndType = [];
+        foreach ($results as $row) {
+            $usage = $row['usage'];
+            $typeId = (int) $row['typeId'];
+            $byUsageAndType[$usage][$typeId] = (int) ($row['totalQuantity'] ?? 0);
+        }
+
+        return $byUsageAndType;
+    }
+
+    /**
      * Get totals by character.
+     * @param list<string>|null $excludeUsages
      * @return array<int, array{characterId: int, characterName: string, totalValue: float, totalQuantity: int}>
      */
     public function getTotalsByCharacter(

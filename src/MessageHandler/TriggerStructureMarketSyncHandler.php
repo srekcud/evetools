@@ -43,7 +43,13 @@ final readonly class TriggerStructureMarketSyncHandler
             }
 
             $character = $characters[0];
-            $characterId = $character->getId()->toRfc4122();
+            $charUuid = $character->getId();
+            if ($charUuid === null) {
+                $this->logger->warning('Character has no ID for structure market sync');
+                $this->syncTracker->complete('market-structure', 'Character has no ID');
+                return;
+            }
+            $characterId = $charUuid->toRfc4122();
 
             foreach (self::STRUCTURES as $structureId => $structureName) {
                 $this->messageBus->dispatch(

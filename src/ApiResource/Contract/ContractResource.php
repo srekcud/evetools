@@ -7,6 +7,7 @@ namespace App\ApiResource\Contract;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Contract\ContractCollectionProvider;
 use App\State\Provider\Contract\ContractItemsProvider;
 
@@ -18,20 +19,18 @@ use App\State\Provider\Contract\ContractItemsProvider;
             uriTemplate: '/contracts',
             provider: ContractCollectionProvider::class,
             output: ContractListResource::class,
-            openapiContext: [
-                'summary' => 'List user contracts with price comparison',
-                'parameters' => [
-                    ['name' => 'status', 'in' => 'query', 'type' => 'string', 'description' => 'Filter by status (outstanding, all)'],
+            openapi: new Model\Operation(
+                summary: 'List user contracts with price comparison',
+                parameters: [
+                    new Model\Parameter(name: 'status', in: 'query', schema: ['type' => 'string']),
                 ],
-            ],
+            ),
         ),
         new Get(
             uriTemplate: '/contracts/{contractId}/items',
             provider: ContractItemsProvider::class,
             output: ContractItemsResource::class,
-            openapiContext: [
-                'summary' => 'Get contract items with Jita prices',
-            ],
+            openapi: new Model\Operation(summary: 'Get contract items with Jita prices'),
         ),
     ],
     security: "is_granted('ROLE_USER')",

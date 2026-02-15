@@ -21,6 +21,7 @@ class PurgeFailedProcessor implements ProcessorInterface
     public function __construct(
         private readonly Security $security,
         private readonly Connection $connection,
+        /** @var list<string> */
         private readonly array $adminCharacterNames,
     ) {
     }
@@ -44,7 +45,7 @@ class PurgeFailedProcessor implements ProcessorInterface
 
             $resource->success = true;
             $resource->message = "Purged {$deleted} failed messages";
-            $resource->deleted = $deleted;
+            $resource->deleted = (int) $deleted;
         } catch (\Throwable $e) {
             $resource->success = false;
             $resource->message = 'Error: ' . $e->getMessage();

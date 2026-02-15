@@ -9,6 +9,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\Pve\CreateLootSaleInput;
 use App\ApiResource\Input\Pve\ImportLootContractsInput;
 use App\ApiResource\Input\Pve\ImportLootSalesInput;
@@ -26,46 +27,38 @@ use App\State\Provider\Pve\LootSaleProvider;
         new GetCollection(
             uriTemplate: '/pve/loot-sales',
             provider: LootSaleCollectionProvider::class,
-            openapiContext: [
-                'summary' => 'List loot sales',
-                'parameters' => [
-                    ['name' => 'days', 'in' => 'query', 'type' => 'integer', 'description' => 'Number of days to include (default: 30)'],
+            openapi: new Model\Operation(
+                summary: 'List loot sales',
+                parameters: [
+                    new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),
                 ],
-            ],
+            ),
         ),
         new Post(
             uriTemplate: '/pve/loot-sales',
             processor: CreateLootSaleProcessor::class,
             input: CreateLootSaleInput::class,
-            openapiContext: [
-                'summary' => 'Create a loot sale',
-            ],
+            openapi: new Model\Operation(summary: 'Create a loot sale'),
         ),
         new Delete(
             uriTemplate: '/pve/loot-sales/{id}',
             provider: LootSaleProvider::class,
             processor: DeleteLootSaleProcessor::class,
-            openapiContext: [
-                'summary' => 'Delete a loot sale',
-            ],
+            openapi: new Model\Operation(summary: 'Delete a loot sale'),
         ),
         new Post(
             uriTemplate: '/pve/import-loot-sales',
             processor: ImportLootSalesProcessor::class,
             input: ImportLootSalesInput::class,
             output: ImportResultResource::class,
-            openapiContext: [
-                'summary' => 'Import scanned loot sales',
-            ],
+            openapi: new Model\Operation(summary: 'Import scanned loot sales'),
         ),
         new Post(
             uriTemplate: '/pve/import-loot-contracts',
             processor: ImportLootContractsProcessor::class,
             input: ImportLootContractsInput::class,
             output: ImportResultResource::class,
-            openapiContext: [
-                'summary' => 'Import scanned loot contracts',
-            ],
+            openapi: new Model\Operation(summary: 'Import scanned loot contracts'),
         ),
     ],
     security: "is_granted('ROLE_USER')",

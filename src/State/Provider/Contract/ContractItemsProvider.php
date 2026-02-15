@@ -97,6 +97,10 @@ class ContractItemsProvider implements ProviderInterface
         }
     }
 
+    /**
+     * @param array<int> $typeIds
+     * @return array<int, string>
+     */
     private function resolveTypeNames(array $typeIds): array
     {
         if (empty($typeIds)) {
@@ -104,7 +108,7 @@ class ContractItemsProvider implements ProviderInterface
         }
 
         try {
-            $response = $this->esiClient->post('/universe/names/', array_values($typeIds));
+            $response = $this->esiClient->post('/universe/names/', $typeIds);
             $names = [];
             foreach ($response as $item) {
                 $names[$item['id']] = $item['name'];

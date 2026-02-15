@@ -35,9 +35,10 @@ final readonly class TriggerAssetsSyncHandler
             $syncCount = 0;
 
             foreach ($characters as $character) {
-                if ($this->assetsSyncService->shouldSync($character) && $this->assetsSyncService->canSync($character)) {
+                $characterId = $character->getId()?->toRfc4122();
+                if ($characterId !== null && $this->assetsSyncService->shouldSync($character) && $this->assetsSyncService->canSync($character)) {
                     $this->messageBus->dispatch(
-                        new SyncCharacterAssets($character->getId()->toRfc4122())
+                        new SyncCharacterAssets($characterId)
                     );
                     $syncCount++;
                 }

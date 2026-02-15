@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { safeJsonParse } from '@/services/api'
+import LegalFooter from '@/components/LegalFooter.vue'
 import { APP_VERSION } from '@/version'
 
 const { t } = useI18n()
@@ -162,7 +163,7 @@ async function loginWithEve() {
   <div class="min-h-screen bg-eve-dark flex items-center justify-center relative overflow-hidden">
     <!-- Animated background -->
     <div class="absolute inset-0">
-      <div class="absolute inset-0 bg-gradient-to-br from-eve-dark via-[#0d1015] to-eve-dark"></div>
+      <div class="absolute inset-0 bg-linear-to-br from-eve-dark via-[#0d1015] to-eve-dark"></div>
       <div class="absolute inset-0 opacity-10">
         <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-eve-accent rounded-full filter blur-[100px] animate-pulse-slow"></div>
         <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-eve-accent-dim rounded-full filter blur-[100px] animate-pulse-slow" style="animation-delay: 1s"></div>
@@ -194,7 +195,7 @@ async function loginWithEve() {
       <!-- ESI Maintenance warning -->
       <div v-if="esiMaintenance" class="mb-6 p-4 bg-amber-500/20 border border-amber-500/50 rounded-lg">
         <div class="flex items-center gap-3">
-          <svg class="w-5 h-5 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-5 h-5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           <div>
@@ -222,7 +223,7 @@ async function loginWithEve() {
       <button
         v-else
         @click="loginWithEve"
-        class="w-full flex justify-center transition-all duration-300 hover:scale-105 hover:drop-shadow-[0_0_15px_rgba(0,212,255,0.4)] focus:outline-none focus:ring-2 focus:ring-eve-accent/50 rounded"
+        class="w-full flex justify-center transition-all duration-300 hover:scale-105 hover:drop-shadow-[0_0_15px_rgba(0,212,255,0.4)] focus:outline-hidden focus:ring-2 focus:ring-eve-accent/50 rounded-sm"
       >
         <img
           src="https://web.ccpgamescdn.com/eveonlineassets/developers/eve-sso-login-black-large.png"
@@ -240,9 +241,10 @@ async function loginWithEve() {
       </p>
     </div>
 
-    <!-- Version -->
-    <div class="absolute bottom-4 left-1/2 -translate-x-1/2 text-eve-text/40 font-mono text-xs">
-      v{{ APP_VERSION }}
+    <!-- Footer -->
+    <div class="absolute bottom-0 left-0 right-0 flex flex-col items-center gap-1 pb-3">
+      <LegalFooter />
+      <span class="text-eve-text/40 font-mono text-xs">v{{ APP_VERSION }}</span>
     </div>
   </div>
 </template>

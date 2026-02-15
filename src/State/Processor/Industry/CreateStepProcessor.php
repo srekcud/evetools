@@ -38,6 +38,7 @@ class CreateStepProcessor implements ProcessorInterface
     ) {
     }
 
+    /** @return ProjectStepResource|array<string, mixed> */
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): ProjectStepResource|array
     {
         $user = $this->security->getUser();
@@ -145,6 +146,10 @@ class CreateStepProcessor implements ProcessorInterface
         }
 
         // Create new step from typeId
+        if ($typeId === null) {
+            throw new BadRequestHttpException('typeId is required for new step');
+        }
+
         $type = $this->invTypeRepository->find($typeId);
         if ($type === null) {
             throw new BadRequestHttpException('Unknown type');
@@ -183,8 +188,8 @@ class CreateStepProcessor implements ProcessorInterface
         $step->setDepth(0);
         $step->setActivityType($activityType);
         $step->setSortOrder($maxSortOrder + 1);
-        $step->setMeLevel($meLevel);
-        $step->setTeLevel($teLevel);
+        $step->setMeLevel($meLevel ?? 0);
+        $step->setTeLevel($teLevel ?? 0);
 
         $project->addStep($step);
         $this->entityManager->flush();

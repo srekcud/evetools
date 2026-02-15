@@ -35,9 +35,10 @@ final readonly class TriggerMiningSyncHandler
             $syncCount = 0;
 
             foreach ($users as $user) {
-                if ($this->miningSyncService->canSync($user) && $this->miningSyncService->shouldSync($user)) {
+                $userId = $user->getId()?->toRfc4122();
+                if ($userId !== null && $this->miningSyncService->canSync($user) && $this->miningSyncService->shouldSync($user)) {
                     $this->messageBus->dispatch(
-                        new SyncUserMiningData($user->getId()->toRfc4122())
+                        new SyncUserMiningData($userId)
                     );
                     $syncCount++;
                 }

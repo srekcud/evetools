@@ -9,6 +9,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\EmptyInput;
 use App\ApiResource\Input\Industry\CreateStepInput;
 use App\ApiResource\Input\Industry\LinkJobInput;
@@ -33,65 +34,44 @@ use App\State\Provider\Industry\ProjectStepProvider;
             uriTemplate: '/industry/projects/{id}/steps',
             processor: CreateStepProcessor::class,
             input: CreateStepInput::class,
-            openapiContext: [
-                'summary' => 'Create step',
-                'description' => 'Creates a new step in the project',
-            ],
+            openapi: new Model\Operation(summary: 'Create step', description: 'Creates a new step in the project'),
         ),
         new Patch(
             uriTemplate: '/industry/projects/{id}/steps/{stepId}',
             provider: ProjectStepProvider::class,
             processor: UpdateStepProcessor::class,
             input: UpdateStepInput::class,
-            openapiContext: [
-                'summary' => 'Update step',
-                'description' => 'Updates step properties',
-            ],
+            openapi: new Model\Operation(summary: 'Update step', description: 'Updates step properties'),
         ),
         new Delete(
             uriTemplate: '/industry/projects/{id}/steps/{stepId}',
             provider: ProjectStepDeleteProvider::class,
             processor: DeleteStepProcessor::class,
-            openapiContext: [
-                'summary' => 'Delete step',
-                'description' => 'Deletes a step from the project',
-            ],
+            openapi: new Model\Operation(summary: 'Delete step', description: 'Deletes a step from the project'),
         ),
         new Post(
             uriTemplate: '/industry/projects/{id}/steps/{stepId}/split',
             processor: SplitStepProcessor::class,
             input: SplitStepInput::class,
-            openapiContext: [
-                'summary' => 'Split step',
-                'description' => 'Splits a step into N equal jobs',
-            ],
+            openapi: new Model\Operation(summary: 'Split step', description: 'Splits a step into N equal jobs'),
         ),
         new Post(
             uriTemplate: '/industry/projects/{id}/steps/{stepId}/merge',
             processor: MergeStepsProcessor::class,
             input: EmptyInput::class,
-            openapiContext: [
-                'summary' => 'Merge split group',
-                'description' => 'Merges all steps in a split group back into one',
-            ],
+            openapi: new Model\Operation(summary: 'Merge split group', description: 'Merges all steps in a split group back into one'),
         ),
         new Post(
             uriTemplate: '/industry/projects/{id}/steps/{stepId}/link-job',
             processor: LinkJobProcessor::class,
             input: LinkJobInput::class,
-            openapiContext: [
-                'summary' => 'Link ESI job',
-                'description' => 'Links an ESI job to this step',
-            ],
+            openapi: new Model\Operation(summary: 'Link ESI job', description: 'Links an ESI job to this step'),
         ),
         new Delete(
             uriTemplate: '/industry/step-job-matches/{id}',
             provider: JobMatchDeleteProvider::class,
             processor: UnlinkJobProcessor::class,
-            openapiContext: [
-                'summary' => 'Unlink ESI job',
-                'description' => 'Removes a job match from a step',
-            ],
+            openapi: new Model\Operation(summary: 'Unlink ESI job', description: 'Removes a job match from a step'),
         ),
     ],
     security: "is_granted('ROLE_USER')",
@@ -164,13 +144,13 @@ class ProjectStepResource
     /** Best structure material bonus (for 'suboptimal' case) */
     public ?float $bestMaterialBonus = null;
 
-    /** @var array Job matches from IndustryStepJobMatch entities */
+    /** @var array<int, array<string, mixed>> Job matches from IndustryStepJobMatch entities */
     public array $jobMatches = [];
 
     /** Total job cost summed from matches */
     public ?float $jobsCost = null;
 
-    /** @var array Purchases from IndustryStepPurchase entities */
+    /** @var array<int, array<string, mixed>> Purchases from IndustryStepPurchase entities */
     public array $purchases = [];
 
     /** Total purchase cost */
@@ -179,6 +159,6 @@ class ProjectStepResource
     /** Sum of purchased quantities for this step (computed from linked purchases) */
     public int $purchasedQuantity = 0;
 
-    /** @var array All ESI jobs with same blueprint (informational, independent of matching) */
+    /** @var array<int, array<string, mixed>> All ESI jobs with same blueprint (informational, independent of matching) */
     public array $similarJobs = [];
 }

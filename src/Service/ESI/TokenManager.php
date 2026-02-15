@@ -103,6 +103,7 @@ class TokenManager
     /**
      * Extract scopes from EVE JWT access token payload
      */
+    /** @return list<string> */
     public function extractScopesFromJwt(string $jwt): array
     {
         $parts = explode('.', $jwt);
@@ -118,10 +119,10 @@ class TokenManager
         // EVE JWT has scopes as space-separated string or array in 'scp' claim
         $scp = $payload['scp'] ?? [];
         if (is_string($scp)) {
-            return array_filter(explode(' ', $scp), fn($s) => $s !== '');
+            return array_values(array_filter(explode(' ', $scp), fn($s) => $s !== ''));
         }
         if (is_array($scp)) {
-            return array_filter($scp, fn($s) => is_string($s) && $s !== '');
+            return array_values(array_filter($scp, fn($s) => is_string($s) && $s !== ''));
         }
 
         return [];

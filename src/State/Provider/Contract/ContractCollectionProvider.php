@@ -96,6 +96,7 @@ class ContractCollectionProvider implements ProviderInterface
         }
     }
 
+    /** @return array<int, array{price: float, volume: float}> */
     private function getPublicContractsForComparison(): array
     {
         try {
@@ -128,7 +129,11 @@ class ContractCollectionProvider implements ProviderInterface
         }
     }
 
-    private function processContract(array $contract, int $characterId, $token, array $publicContracts): ?ContractResource
+    /**
+     * @param array<string, mixed> $contract
+     * @param array<int, array{price: float, volume: float}> $publicContracts
+     */
+    private function processContract(array $contract, int $characterId, \App\Entity\EveToken $token, array $publicContracts): ?ContractResource
     {
         try {
             $items = $this->esiClient->get(
@@ -273,6 +278,10 @@ class ContractCollectionProvider implements ProviderInterface
         }
     }
 
+    /**
+     * @param array<int, array{price: float, volume: float}> $publicContracts
+     * @return list<array{price: float, volume: float}>
+     */
     private function findSimilarPublicContracts(float $volume, array $publicContracts): array
     {
         if ($volume <= 0) {
@@ -285,7 +294,7 @@ class ContractCollectionProvider implements ProviderInterface
 
         $similar = [];
         foreach ($publicContracts as $contractId => $contract) {
-            $contractVolume = $contract['volume'] ?? 0;
+            $contractVolume = $contract['volume'];
             if ($contractVolume >= $minVolume && $contractVolume <= $maxVolume) {
                 $similar[] = $contract;
             }
@@ -294,6 +303,10 @@ class ContractCollectionProvider implements ProviderInterface
         return $similar;
     }
 
+    /**
+     * @param array<int> $typeIds
+     * @return array<int, string>
+     */
     private function resolveTypeNames(array $typeIds): array
     {
         if (empty($typeIds)) {
@@ -301,7 +314,7 @@ class ContractCollectionProvider implements ProviderInterface
         }
 
         try {
-            $response = $this->esiClient->post('/universe/names/', array_values($typeIds));
+            $response = $this->esiClient->post('/universe/names/', $typeIds);
             $names = [];
             foreach ($response as $item) {
                 $names[$item['id']] = $item['name'];

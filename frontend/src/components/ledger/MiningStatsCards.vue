@@ -26,7 +26,7 @@ const { formatIskShort, formatNumber } = useFormatters()
   <div class="grid grid-cols-3 gap-3">
     <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
       <span class="text-slate-400 text-xs uppercase tracking-wider">{{ t('ledger.mining.totalValue') }}</span>
-      <div class="mt-1 text-xl font-bold text-amber-400">{{ formatIskShort(miningByUsage.total) }}</div>
+      <div class="mt-1 text-xl font-bold text-amber-400">{{ formatIskShort(miningStats?.totals.totalValue ?? 0) }}</div>
     </div>
     <div class="bg-slate-900 rounded-xl p-4 border border-emerald-500/20">
       <span class="text-emerald-400 text-xs uppercase tracking-wider">{{ t('ledger.mining.personal') }}</span>
@@ -69,7 +69,7 @@ const { formatIskShort, formatNumber } = useFormatters()
   <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
     <div class="flex items-center justify-between mb-2">
       <span class="text-sm text-slate-400">{{ t('ledger.mining.oreBreakdown') }}</span>
-      <span class="text-xs text-slate-500">{{ formatIskShort(miningByUsage.total) }} total</span>
+      <span class="text-xs text-slate-500">{{ formatIskShort(miningStats?.totals.totalValue ?? 0) }} total</span>
     </div>
     <div class="h-3 flex rounded-full overflow-hidden bg-slate-700">
       <div

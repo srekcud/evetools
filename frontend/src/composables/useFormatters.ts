@@ -1,14 +1,30 @@
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+// Module-level shared ref for date format (shared across all components)
+export const dateFormat = ref<'eu' | 'us'>(
+  (localStorage.getItem('evetools_date_format') as 'eu' | 'us') || 'eu'
+)
+
+function setDateFormat(format: 'eu' | 'us') {
+  dateFormat.value = format
+  localStorage.setItem('evetools_date_format', format)
+}
 
 /**
  * Composable for formatting values (ISK currency, dates)
- * Uses the current i18n locale for number/date formatting.
+ * Uses the current i18n locale for number formatting.
+ * Uses the dateFormat setting (eu/us) for date formatting, independent of language.
  */
 export function useFormatters() {
   const { locale } = useI18n()
 
   function getLocaleStr(): string {
     return locale.value === 'fr' ? 'fr-FR' : 'en-US'
+  }
+
+  function getDateLocaleStr(): string {
+    return dateFormat.value === 'eu' ? 'fr-FR' : 'en-US'
   }
 
   function formatIsk(amount: number | undefined | null, decimals = 2): string {
@@ -30,15 +46,15 @@ export function useFormatters() {
   }
 
   function formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleDateString(getLocaleStr(), {
+    return new Date(dateStr).toLocaleDateString(getDateLocaleStr(), {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric',
+      year: '2-digit',
     })
   }
 
   function formatDateTime(dateStr: string): string {
-    return new Date(dateStr).toLocaleString(getLocaleStr(), {
+    return new Date(dateStr).toLocaleString(getDateLocaleStr(), {
       day: '2-digit',
       month: '2-digit',
       hour: '2-digit',
@@ -89,5 +105,7 @@ export function useFormatters() {
     formatTimeSince,
     formatDuration,
     formatNumber,
+    dateFormat,
+    setDateFormat,
   }
 }

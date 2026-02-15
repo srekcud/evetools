@@ -32,6 +32,7 @@ class TriggerSyncProcessor implements ProcessorInterface
         private readonly Security $security,
         private readonly MessageBusInterface $messageBus,
         private readonly SyncTracker $syncTracker,
+        /** @var list<string> */
         private readonly array $adminCharacterNames,
     ) {
     }
@@ -63,9 +64,9 @@ class TriggerSyncProcessor implements ProcessorInterface
         $resource->success = true;
 
         // Resolve short operation name (strip API Platform prefix)
-        $shortName = $operationName;
+        $shortName = $operationName ?? '';
         foreach (self::ACTION_TO_SYNC_TYPE as $action => $syncType) {
-            if (str_contains($operationName, str_replace('_', '-', $action))) {
+            if (str_contains($shortName, str_replace('_', '-', $action))) {
                 $shortName = $action;
                 break;
             }

@@ -24,6 +24,7 @@ class RigOptionsProvider implements ProviderInterface
         return $resource;
     }
 
+    /** @return array<string, list<array<string, mixed>>> */
     public function getRigOptionsArray(): array
     {
         return [

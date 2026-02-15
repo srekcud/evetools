@@ -55,6 +55,9 @@ class TestCorpAssetsCommand extends Command
         // Test each character
         foreach ($charactersWithTokens as $testChar) {
             $token = $testChar->getEveToken();
+            if ($token === null) {
+                continue;
+            }
             $corporationId = $testChar->getCorporationId();
 
             $io->title("Testing: {$testChar->getName()}" . ($testChar->isMain() ? ' (MAIN)' : ' (ALT)'));

@@ -201,7 +201,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
                         continue;
                     }
 
-                    $trackingId = -$contract['contract_id'];
+                    $trackingId = -(int) $contract['contract_id'];
 
                     if (in_array($trackingId, $importedTransactionIds, true)) {
                         continue;
@@ -363,6 +363,9 @@ class ScanLootSalesProcessor implements ProcessorInterface
                         foreach ($matchingCharIds as $characterId) {
                             $charToCheck = $userCharactersMap[$characterId];
                             $charToken = $charToCheck->getEveToken();
+                            if ($charToken === null) {
+                                continue;
+                            }
 
                             try {
                                 $contributionUrl = "https://esi.evetech.net/corporations/{$corporationId}/projects/{$projectId}/contribution/{$characterId}";
@@ -449,6 +452,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
     /**
      * Fetch from a full ESI URL (bypasses EsiClient base URL for Data Hub endpoints).
      *
+     * @param array<string, string> $headers
      * @return array<mixed>
      */
     private function fetchFromEsi(string $fullUrl, EveToken $token, array $headers = [], int $timeout = 10): array
@@ -478,6 +482,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
     /**
      * Get corporation projects with caching.
      *
+     * @param array<string, string> $headers
      * @return array<mixed>
      */
     private function getCachedCorpProjects(int $corporationId, EveToken $token, array $headers): array
@@ -504,6 +509,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
     /**
      * Get project contributors with caching.
      *
+     * @param array<string, string> $headers
      * @return array<int>
      */
     private function getCachedContributors(int $corporationId, string $projectId, EveToken $token, array $headers): array
@@ -532,6 +538,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
     /**
      * Get project details with caching.
      *
+     * @param array<string, string> $headers
      * @return array<mixed>
      */
     private function getCachedProjectDetails(int $corporationId, string $projectId, EveToken $token, array $headers): array

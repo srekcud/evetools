@@ -238,6 +238,7 @@ class User implements UserInterface
 
     public function getUserIdentifier(): string
     {
-        return $this->id?->toRfc4122() ?? '';
+        /** @var non-empty-string */
+        return $this->id?->toRfc4122() ?? 'anonymous';
     }
 }

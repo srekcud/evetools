@@ -185,7 +185,7 @@ class SdeImportService
     }
 
     /**
-     * @return \Generator<int|string, array>
+     * @return \Generator<int|string, array<string, mixed>>
      */
     private function readJsonlFile(string $filename): \Generator
     {
@@ -195,6 +195,9 @@ class SdeImportService
         }
 
         $handle = fopen($path, 'r');
+        if ($handle === false) {
+            throw new \RuntimeException("Cannot open SDE file: {$filename}");
+        }
         while (($line = fgets($handle)) !== false) {
             $line = trim($line);
             if ($line === '') {
@@ -208,6 +211,7 @@ class SdeImportService
         fclose($handle);
     }
 
+    /** @param array<string, mixed> $data */
     private function getName(array $data): string
     {
         if (isset($data['name'])) {
@@ -227,6 +231,7 @@ class SdeImportService
         return '';
     }
 
+    /** @param array<string, mixed> $data */
     private function getString(array $data, string $key): ?string
     {
         if (!isset($data[$key])) {
@@ -252,6 +257,7 @@ class SdeImportService
         return null;
     }
 
+    /** @param array<string, mixed> $data */
     private function getDescription(array $data): ?string
     {
         if (isset($data['description'])) {
@@ -341,7 +347,8 @@ class SdeImportService
         $this->notify($progressCallback, "  Total: {$count} groups imported");
     }
 
-    private function insertGroupsBatch($connection, array $batch): void
+    /** @param list<array<string, mixed>> $batch */
+    private function insertGroupsBatch(\Doctrine\DBAL\Connection $connection, array $batch): void
     {
         foreach ($batch as $row) {
             $connection->insert('sde_inv_groups', $row, [
@@ -467,7 +474,8 @@ class SdeImportService
         $this->notify($progressCallback, "  Total: {$count} types imported");
     }
 
-    private function insertTypesBatch($connection, array $batch): void
+    /** @param list<array<string, mixed>> $batch */
+    private function insertTypesBatch(\Doctrine\DBAL\Connection $connection, array $batch): void
     {
         foreach ($batch as $row) {
             $connection->insert('sde_inv_types', $row, [
@@ -512,7 +520,8 @@ class SdeImportService
         $this->notify($progressCallback, "  Total: {$count} type materials imported");
     }
 
-    private function insertTypeMaterialsBatch($connection, array $batch): void
+    /** @param list<array<string, mixed>> $batch */
+    private function insertTypeMaterialsBatch(\Doctrine\DBAL\Connection $connection, array $batch): void
     {
         foreach ($batch as $row) {
             $connection->insert('sde_inv_type_materials', $row);
@@ -692,7 +701,8 @@ class SdeImportService
         $this->notify($progressCallback, "  Total: {$count} solar systems imported");
     }
 
-    private function insertSolarSystemsBatch($connection, array $batch): void
+    /** @param list<array<string, mixed>> $batch */
+    private function insertSolarSystemsBatch(\Doctrine\DBAL\Connection $connection, array $batch): void
     {
         foreach ($batch as $row) {
             $connection->insert('sde_map_solar_systems', $row, [
@@ -774,7 +784,8 @@ class SdeImportService
         $this->notify($progressCallback, "  Total: {$count} stations imported");
     }
 
-    private function insertStationsBatch($connection, array $batch): void
+    /** @param list<array<string, mixed>> $batch */
+    private function insertStationsBatch(\Doctrine\DBAL\Connection $connection, array $batch): void
     {
         foreach ($batch as $row) {
             $connection->insert('sde_sta_stations', $row);
@@ -853,7 +864,8 @@ class SdeImportService
         $this->notify($progressCallback, "  Total: {$count} jumps imported");
     }
 
-    private function insertJumpsBatch($connection, array $batch): void
+    /** @param list<array<string, mixed>> $batch */
+    private function insertJumpsBatch(\Doctrine\DBAL\Connection $connection, array $batch): void
     {
         foreach ($batch as $row) {
             $connection->insert('sde_map_solar_system_jumps', $row);
@@ -1006,7 +1018,8 @@ class SdeImportService
         $this->notify($progressCallback, "  Total: {$count} attribute types imported");
     }
 
-    private function insertAttributeTypesBatch($connection, array $batch): void
+    /** @param list<array<string, mixed>> $batch */
+    private function insertAttributeTypesBatch(\Doctrine\DBAL\Connection $connection, array $batch): void
     {
         foreach ($batch as $row) {
             $connection->insert('sde_dgm_attribute_types', $row, [
@@ -1070,7 +1083,8 @@ class SdeImportService
         $this->notify($progressCallback, "  Total: {$count} type attributes imported");
     }
 
-    private function insertTypeAttributesBatch($connection, array $batch): void
+    /** @param list<array<string, mixed>> $batch */
+    private function insertTypeAttributesBatch(\Doctrine\DBAL\Connection $connection, array $batch): void
     {
         foreach ($batch as $row) {
             $connection->insert('sde_dgm_type_attributes', $row);
@@ -1167,7 +1181,8 @@ class SdeImportService
         $this->notify($progressCallback, "  Total: {$count} type effects imported");
     }
 
-    private function insertTypeEffectsBatch($connection, array $batch): void
+    /** @param list<array<string, mixed>> $batch */
+    private function insertTypeEffectsBatch(\Doctrine\DBAL\Connection $connection, array $batch): void
     {
         foreach ($batch as $row) {
             $connection->insert('sde_dgm_type_effects', $row, [

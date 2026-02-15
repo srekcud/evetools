@@ -11,6 +11,7 @@ class LedgerDailyStatsResource
     #[ApiProperty(identifier: true)]
     public string $id = 'ledger-daily-stats';
 
+    /** @var array<string, mixed> */
     public array $period = [];
 
     /** @var LedgerDayResource[] */

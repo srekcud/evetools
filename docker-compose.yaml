@@ -97,7 +97,7 @@ services:
       retries: 5
 
   rabbitmq:
-    image: rabbitmq:3-alpine
+    image: rabbitmq:4-alpine
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-eve_user}
@@ -114,7 +114,7 @@ services:
       retries: 5
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     restart: unless-stopped
     volumes:
       - redis_data:/data

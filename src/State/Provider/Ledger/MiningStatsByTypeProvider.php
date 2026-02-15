@@ -13,6 +13,7 @@ use App\Entity\User;
 use App\Entity\UserLedgerSettings;
 use App\Repository\MiningEntryRepository;
 use App\Repository\UserLedgerSettingsRepository;
+use App\Service\MiningBestValueCalculator;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -26,6 +27,7 @@ class MiningStatsByTypeProvider implements ProviderInterface
         private readonly Security $security,
         private readonly MiningEntryRepository $miningEntryRepository,
         private readonly UserLedgerSettingsRepository $settingsRepository,
+        private readonly MiningBestValueCalculator $miningBestValueCalculator,
         private readonly RequestStack $requestStack,
     ) {
     }
@@ -47,19 +49,27 @@ class MiningStatsByTypeProvider implements ProviderInterface
         $settings = $this->settingsRepository->findByUser($user);
         $excludeUsages = $this->getExcludeUsages($settings);
 
-        // Get totals by type
+        // Get totals by type (quantities + names)
         $byType = $this->miningEntryRepository->getTotalsByType($user, $from, $to, $excludeUsages);
 
-        // Convert to resource objects
+        // Get best unit prices for all ore types
+        $typeIds = array_column($byType, 'typeId');
+        $bestPrices = $this->miningBestValueCalculator->getBestUnitPrices($typeIds);
+
+        // Convert to resource objects with best-price values
         $typeStats = [];
         foreach ($byType as $data) {
             $stat = new MiningTypeStatsResource();
             $stat->typeId = $data['typeId'];
             $stat->typeName = $data['typeName'];
-            $stat->totalValue = $data['totalValue'];
+            $bestUnitPrice = $bestPrices[$data['typeId']] ?? 0.0;
+            $stat->totalValue = $bestUnitPrice * $data['totalQuantity'];
             $stat->totalQuantity = $data['totalQuantity'];
             $typeStats[] = $stat;
         }
+
+        // Re-sort by totalValue DESC after recalculation
+        usort($typeStats, fn(MiningTypeStatsResource $a, MiningTypeStatsResource $b) => $b->totalValue <=> $a->totalValue);
 
         $resource = new MiningStatsByTypeResource();
         $resource->period = [
@@ -75,7 +85,7 @@ class MiningStatsByTypeProvider implements ProviderInterface
     /**
      * Determine which usages to exclude based on settings.
      *
-     * @return string[]|null
+     * @return list<string>|null
      */
     private function getExcludeUsages(?UserLedgerSettings $settings): ?array
     {

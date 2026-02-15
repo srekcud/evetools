@@ -138,6 +138,7 @@ class PlanetaryResourceMapper
         return 'idle';
     }
 
+    /** @return array<string, mixed> */
     private function mapPin(PlanetaryPin $pin): array
     {
         $schematicDetail = $pin->getSchematicId()
@@ -207,13 +208,17 @@ class PlanetaryResourceMapper
         return 'other';
     }
 
+    /**
+     * @param array<int, array{type_id: int, amount: int}>|null $contents
+     * @return list<array<string, mixed>>
+     */
     private function mapContents(?array $contents): array
     {
         if (empty($contents)) {
             return [];
         }
 
-        return array_map(function (array $item) {
+        return array_values(array_map(function (array $item) {
             $type = $this->invTypeRepository->find($item['type_id']);
 
             return [
@@ -222,7 +227,7 @@ class PlanetaryResourceMapper
                 'amount' => $item['amount'],
                 'volume' => $type?->getVolume(),
             ];
-        }, $contents);
+        }, $contents));
     }
 
     private function resolveTypeName(int $typeId): string
@@ -239,6 +244,7 @@ class PlanetaryResourceMapper
         return $system?->getSecurity();
     }
 
+    /** @return array{name: string, cycleTime: int, inputs: list<array<string, mixed>>, output: array<string, mixed>|null} */
     private function resolveSchematicDetail(int $schematicId): array
     {
         $schematic = $this->schematicRepository->find($schematicId);
@@ -277,6 +283,7 @@ class PlanetaryResourceMapper
         ];
     }
 
+    /** @param array{name: string, cycleTime: int, inputs: list<array<string, mixed>>, output: array<string, mixed>|null}|null $schematicDetail */
     private function resolveOutputTier(PlanetaryPin $pin, ?array $schematicDetail): ?string
     {
         if ($pin->isExtractor() && $pin->getExtractorProductTypeId() !== null) {

@@ -24,6 +24,7 @@ class ClearCacheProcessor implements ProcessorInterface
     public function __construct(
         private readonly Security $security,
         private readonly KernelInterface $kernel,
+        /** @var list<string> */
         private readonly array $adminCharacterNames,
     ) {
     }

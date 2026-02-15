@@ -221,6 +221,7 @@ class IndustryCalculationService
      * Includes blueprint-specific science skills (1% per level) in addition to
      * Industry (4%/lvl), Advanced Industry (3%/lvl), and Reactions (4%/lvl).
      *
+     * @param array<int, int>|null $characterSkills Skill type ID => level
      * @return int|null Time per run in seconds, or null if base time not found
      */
     public function calculateTimePerRun(IndustryProjectStep $step, ?array $characterSkills = null): ?int
