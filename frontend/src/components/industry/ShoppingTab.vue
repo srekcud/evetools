@@ -10,6 +10,7 @@ import { useEveImages } from '@/composables/useEveImages'
 import { parseEveStock } from '@/composables/useStockAnalysis'
 import type { ParsedStockItem, IntermediateInStock, RelevantStockItem } from '@/composables/useStockAnalysis'
 import { apiRequest, authFetch, safeJsonParse } from '@/services/api'
+import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import type { ShoppingListItem, ShoppingListTotals, ProductionTreeNode } from '@/stores/industry/types'
 
 interface StructureSearchResult {
@@ -34,6 +35,8 @@ export interface EnrichedShoppingItem extends ShoppingListItem {
   missingPrice: number | null
   missingVolume: number
   missingJita: number | null
+  missingJitaWeighted: number | null
+  missingJitaCoverage: number | null
   missingStructure: number | null
   missingBest: number | null
   missingSavings: number | null
@@ -216,10 +219,12 @@ const enrichedShoppingList = computed<EnrichedShoppingItem[]>(() => {
     const ratio = item.quantity > 0 ? missing / item.quantity : 0
     const missingVolume = item.volume * missing
     const missingJita = item.jitaWithImport !== null ? item.jitaWithImport * ratio : null
+    const missingJitaWeighted = item.jitaWeightedTotal !== null ? item.jitaWeightedTotal * ratio : null
+    const missingJitaCoverage = item.jitaCoverage
     const missingStructure = item.structureTotal !== null ? item.structureTotal * ratio : null
     const missingBest = item.bestPrice !== null ? item.bestPrice * ratio : null
     const missingSavings = item.savings !== null ? item.savings * ratio : null
-    return { ...item, inStock, missing, missingPrice, missingVolume, missingJita, missingStructure, missingBest, missingSavings, status }
+    return { ...item, inStock, missing, missingPrice, missingVolume, missingJita, missingJitaWeighted, missingJitaCoverage, missingStructure, missingBest, missingSavings, status }
   })
 })
 
@@ -227,6 +232,8 @@ const missingTotals = computed(() => {
   let totalMissingPrice = 0
   let totalMissingVolume = 0
   let totalMissingJita = 0
+  let totalMissingJitaWeighted = 0
+  let hasAnyJitaWeighted = false
   let totalMissingStructure = 0
   let totalMissingSavings = 0
   for (const item of enrichedShoppingList.value) {
@@ -234,6 +241,12 @@ const missingTotals = computed(() => {
       if (item.missingPrice !== null) totalMissingPrice += item.missingPrice
       totalMissingVolume += item.volume * item.missing
       if (item.missingJita !== null) totalMissingJita += item.missingJita
+      if (item.missingJitaWeighted !== null) {
+        totalMissingJitaWeighted += item.missingJitaWeighted
+        hasAnyJitaWeighted = true
+      } else if (item.missingJita !== null) {
+        totalMissingJitaWeighted += item.missingJita
+      }
       if (item.missingStructure !== null) totalMissingStructure += item.missingStructure
       if (item.missingSavings !== null) totalMissingSavings += item.missingSavings
     }
@@ -242,6 +255,7 @@ const missingTotals = computed(() => {
     price: totalMissingPrice,
     volume: totalMissingVolume,
     jita: totalMissingJita,
+    jitaWeighted: hasAnyJitaWeighted ? totalMissingJitaWeighted : null,
     structure: totalMissingStructure,
     savings: totalMissingSavings,
   }
@@ -1081,7 +1095,10 @@ defineExpose({
           </div>
           <div>
             <div class="text-xs text-slate-500 uppercase mb-1">{{ t('industry.shoppingTab.jitaImport') }}</div>
-            <div class="font-mono text-slate-200">{{ formatIsk(hasAnyStock ? missingTotals.jita : shoppingTotals.jitaWithImport) }}</div>
+            <div class="font-mono text-slate-200">{{ formatIsk(hasAnyStock ? (missingTotals.jitaWeighted ?? missingTotals.jita) : shoppingTotals.jitaWithImport) }}</div>
+            <div v-if="hasAnyStock && missingTotals.jitaWeighted !== null" class="text-[10px] text-slate-600 font-mono mt-0.5">
+              {{ formatIsk(missingTotals.jita) }}
+            </div>
           </div>
           <div>
             <div class="text-xs text-slate-500 uppercase mb-1">{{ t('industry.shoppingTab.structure') }}</div>
@@ -1140,6 +1157,7 @@ defineExpose({
                     @error="onImageError"
                   />
                   <span class="text-slate-200">{{ item.typeName }}</span>
+                  <OpenInGameButton type="market" :targetId="item.typeId" />
                 </div>
               </td>
               <td class="py-3 px-2 text-right font-mono text-slate-300">
@@ -1187,8 +1205,28 @@ defineExpose({
               <!-- Volume (based on missing) -->
               <td class="py-3 px-2 text-right font-mono text-slate-400">{{ item.missingVolume.toLocaleString() }} m³</td>
               <!-- Jita (based on missing) -->
-              <td class="py-3 px-2 text-right font-mono" :class="item.bestLocation === 'jita' && item.missing > 0 ? 'text-emerald-400' : 'text-slate-300'">
-                {{ item.missingJita !== null ? formatIsk(item.missingJita) : '-' }}
+              <td class="py-3 px-2 text-right font-mono">
+                <div v-if="item.missingJitaWeighted !== null || item.missingJita !== null">
+                  <div class="flex items-center justify-end gap-1">
+                    <span
+                      v-if="item.missingJitaCoverage !== null && item.missingJitaCoverage < 1.0"
+                      class="shrink-0"
+                      :class="item.missingJitaCoverage >= 0.5 ? 'text-amber-400' : 'text-red-400'"
+                      :title="t('industry.shoppingTab.depthWarning', { coverage: Math.round((item.missingJitaCoverage ?? 0) * 100) })"
+                    >
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </span>
+                    <span :class="item.bestLocation === 'jita' && item.missing > 0 ? 'text-emerald-400' : 'text-slate-300'">
+                      {{ formatIsk(item.missingJitaWeighted ?? item.missingJita) }}
+                    </span>
+                  </div>
+                  <div v-if="item.missingJitaWeighted !== null && item.missingJita !== null" class="text-[10px] text-slate-600 mt-0.5">
+                    {{ formatIsk(item.missingJita) }}
+                  </div>
+                </div>
+                <span v-else class="text-slate-300">-</span>
               </td>
               <!-- Structure (based on missing) -->
               <td class="py-3 px-2 text-right font-mono" :class="item.bestLocation === 'structure' && item.missing > 0 ? 'text-emerald-400' : 'text-slate-300'">

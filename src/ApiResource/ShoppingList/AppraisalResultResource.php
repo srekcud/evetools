@@ -32,7 +32,7 @@ class AppraisalResultResource
     /** @var list<string> */
     public array $notFound = [];
 
-    /** @var array<string, float> */
+    /** @var array<string, float|null> */
     public array $totals = [];
 
     public ?string $priceError = null;

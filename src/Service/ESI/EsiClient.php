@@ -197,6 +197,44 @@ class EsiClient
     }
 
     /**
+     * POST without JSON body (for UI endpoints that take query params).
+     */
+    public function postEmpty(string $endpoint, ?EveToken $token): void
+    {
+        $this->throttleIfNeeded();
+        $headers = $this->buildHeaders($token);
+
+        try {
+            $response = $this->httpClient->request('POST', $this->baseUrl . $endpoint, [
+                'headers' => $headers,
+                'timeout' => self::REQUEST_TIMEOUT,
+            ]);
+
+            $statusCode = $response->getStatusCode();
+            $this->processRateLimitHeaders($response);
+
+            // Consume response body to prevent curl handle issues
+            $response->getContent(false);
+
+            if ($statusCode < 200 || $statusCode >= 300) {
+                $message = match ($statusCode) {
+                    401 => 'Authentication failed',
+                    403 => 'Access forbidden',
+                    404 => 'Resource not found',
+                    420 => 'Error limited',
+                    429 => 'Rate limit exceeded',
+                    500, 502, 503, 504 => 'ESI server error',
+                    default => 'ESI request failed',
+                };
+
+                throw EsiApiException::fromResponse($statusCode, $message, $endpoint);
+            }
+        } catch (TransportExceptionInterface $e) {
+            throw EsiApiException::fromResponse(0, 'Network error: ' . $e->getMessage(), $endpoint);
+        }
+    }
+
+    /**
      * @param array<int|string, mixed> $body
      * @return array<mixed>
      */

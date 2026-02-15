@@ -72,13 +72,25 @@ class AppraiseProcessor implements ProcessorInterface
             $volumes[$type->getTypeId()] = $type->getVolume() ?? 0.0;
         }
 
-        // Fetch sell and buy prices
+        // Fetch sell and buy prices (best prices)
         $priceError = null;
         $sellPrices = [];
         $buyPrices = [];
+        $weightedSellPrices = [];
+        $weightedBuyPrices = [];
         try {
             $sellPrices = $this->jitaMarketService->getPrices($typeIds);
             $buyPrices = $this->jitaMarketService->getBuyPrices($typeIds);
+
+            // Build typeId => quantity map for weighted price calculation
+            $typeQuantities = [];
+            foreach ($resolvedItems['found'] as $item) {
+                $typeId = $item['typeId'];
+                $typeQuantities[$typeId] = ($typeQuantities[$typeId] ?? 0) + $item['quantity'];
+            }
+
+            $weightedSellPrices = $this->jitaMarketService->getWeightedSellPrices($typeQuantities);
+            $weightedBuyPrices = $this->jitaMarketService->getWeightedBuyPrices($typeQuantities);
         } catch (\Throwable $e) {
             $this->logger->warning('Failed to fetch Jita prices for appraisal', [
                 'error' => $e->getMessage(),
@@ -90,6 +102,9 @@ class AppraiseProcessor implements ProcessorInterface
         $totalSell = 0.0;
         $totalBuy = 0.0;
         $totalSplit = 0.0;
+        $totalSellWeighted = 0.0;
+        $totalBuyWeighted = 0.0;
+        $totalSplitWeighted = 0.0;
         $totalVolume = 0.0;
 
         foreach ($resolvedItems['found'] as $item) {
@@ -98,6 +113,7 @@ class AppraiseProcessor implements ProcessorInterface
             $volume = $volumes[$typeId] ?? 0.0;
             $totalItemVolume = $volume * $quantity;
 
+            // Best prices (existing behavior)
             $sellPrice = $sellPrices[$typeId] ?? null;
             $buyPrice = $buyPrices[$typeId] ?? null;
 
@@ -109,6 +125,22 @@ class AppraiseProcessor implements ProcessorInterface
             if ($sellPrice !== null && $buyPrice !== null) {
                 $splitPrice = ($sellPrice + $buyPrice) / 2;
                 $splitTotal = $splitPrice * $quantity;
+            }
+
+            // Weighted prices
+            $weightedSell = $weightedSellPrices[$typeId] ?? null;
+            $weightedBuy = $weightedBuyPrices[$typeId] ?? null;
+
+            $sellPriceWeighted = $weightedSell !== null ? $weightedSell['weightedPrice'] : null;
+            $sellTotalWeighted = $sellPriceWeighted !== null ? $sellPriceWeighted * $quantity : null;
+            $buyPriceWeighted = $weightedBuy !== null ? $weightedBuy['weightedPrice'] : null;
+            $buyTotalWeighted = $buyPriceWeighted !== null ? $buyPriceWeighted * $quantity : null;
+
+            $splitPriceWeighted = null;
+            $splitTotalWeighted = null;
+            if ($sellPriceWeighted !== null && $buyPriceWeighted !== null) {
+                $splitPriceWeighted = ($sellPriceWeighted + $buyPriceWeighted) / 2;
+                $splitTotalWeighted = $splitPriceWeighted * $quantity;
             }
 
             $itemResource = new AppraisalItemResource();
@@ -123,6 +155,14 @@ class AppraiseProcessor implements ProcessorInterface
             $itemResource->buyTotal = $buyTotal !== null ? round($buyTotal, 2) : null;
             $itemResource->splitPrice = $splitPrice !== null ? round($splitPrice, 2) : null;
             $itemResource->splitTotal = $splitTotal !== null ? round($splitTotal, 2) : null;
+            $itemResource->sellPriceWeighted = $sellPriceWeighted !== null ? round($sellPriceWeighted, 2) : null;
+            $itemResource->sellTotalWeighted = $sellTotalWeighted !== null ? round($sellTotalWeighted, 2) : null;
+            $itemResource->buyPriceWeighted = $buyPriceWeighted !== null ? round($buyPriceWeighted, 2) : null;
+            $itemResource->buyTotalWeighted = $buyTotalWeighted !== null ? round($buyTotalWeighted, 2) : null;
+            $itemResource->splitPriceWeighted = $splitPriceWeighted !== null ? round($splitPriceWeighted, 2) : null;
+            $itemResource->splitTotalWeighted = $splitTotalWeighted !== null ? round($splitTotalWeighted, 2) : null;
+            $itemResource->sellCoverage = $weightedSell !== null ? round($weightedSell['coverage'], 4) : null;
+            $itemResource->buyCoverage = $weightedBuy !== null ? round($weightedBuy['coverage'], 4) : null;
 
             $items[] = $itemResource;
 
@@ -135,6 +175,15 @@ class AppraiseProcessor implements ProcessorInterface
             if ($splitTotal !== null) {
                 $totalSplit += $splitTotal;
             }
+            if ($sellTotalWeighted !== null) {
+                $totalSellWeighted += $sellTotalWeighted;
+            }
+            if ($buyTotalWeighted !== null) {
+                $totalBuyWeighted += $buyTotalWeighted;
+            }
+            if ($splitTotalWeighted !== null) {
+                $totalSplitWeighted += $splitTotalWeighted;
+            }
             $totalVolume += $totalItemVolume;
         }
 
@@ -144,6 +193,9 @@ class AppraiseProcessor implements ProcessorInterface
             'sellTotal' => round($totalSell, 2),
             'buyTotal' => round($totalBuy, 2),
             'splitTotal' => round($totalSplit, 2),
+            'sellTotalWeighted' => round($totalSellWeighted, 2),
+            'buyTotalWeighted' => round($totalBuyWeighted, 2),
+            'splitTotalWeighted' => round($totalSplitWeighted, 2),
             'volume' => round($totalVolume, 2),
         ];
         $resource->priceError = $priceError;
@@ -158,6 +210,9 @@ class AppraiseProcessor implements ProcessorInterface
             'sellTotal' => 0.0,
             'buyTotal' => 0.0,
             'splitTotal' => 0.0,
+            'sellTotalWeighted' => 0.0,
+            'buyTotalWeighted' => 0.0,
+            'splitTotalWeighted' => 0.0,
             'volume' => 0.0,
         ];
     }

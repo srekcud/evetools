@@ -702,7 +702,7 @@
       "best": "Meilleur",
       "savings": "Economie",
       "suboptimalExtra": "du a des structures sous-optimales",
-      "priceInfo": "Prix = ordres de vente les plus bas (Jita Sell + import vs {structure} Sell)",
+      "priceInfo": "Prix ponderes par volume (Jita Sell + import vs {structure} Sell). Prix unitaire le plus bas affiche en comparaison.",
       "applyAsMaterialCost": "Appliquer comme cout materiaux",
       "loadingSuggestions": "Chargement des suggestions d'achats...",
       "purchaseSuggestions": "Suggestions d'achats (wallet ESI)",
@@ -729,7 +729,9 @@
       "estimated": "Estime",
       "pasteStockError": "Collez votre inventaire EVE dans la zone de texte",
       "noItemDetected": "Aucun item detecte. Verifiez le format (copier depuis EVE avec Ctrl+A puis Ctrl+C)",
-      "loadShoppingError": "Impossible de charger la liste de courses. Reessayez."
+      "loadShoppingError": "Impossible de charger la liste de courses. Reessayez.",
+      "weightedPrice": "Prix pondere",
+      "depthWarning": "Couverture marche : {coverage}%"
     }
   },
   "ledger": {
@@ -960,6 +962,7 @@
     "appraise": "Evaluer",
     "appraising": "Evaluation...",
     "infoBanner": "Sell value = cout d'achat (ordres sell les plus bas). Buy value = ce que vous recevez en vendant (ordres buy les plus hauts). Tous les prix viennent de Jita 4-4.",
+    "weightedInfoBanner": "Les prix affiches sont ponderes par volume (empile les ordres pour couvrir la quantite). Le prix unitaire le plus bas est affiche en dessous a titre de comparaison.",
     "sellValue": "Valeur Sell",
     "sellValueDesc": "Cout pour acheter ces items",
     "buyValue": "Valeur Buy",
@@ -976,7 +979,11 @@
     "itemsAppraised": "{count} items evalues",
     "copy": "Copier",
     "copied": "Copie !",
-    "share": "Partager"
+    "share": "Partager",
+    "weightedPrice": "Prix pondere",
+    "bestPrice": "Meilleur prix",
+    "depthWarning": "Profondeur de marche insuffisante",
+    "coverageTooltip": "Prix base sur {coverage}% de la quantite demandee"
   },
   "admin": {
     "title": "Administration",
@@ -1057,6 +1064,13 @@
       "total30d": "Total 30 jours",
       "noData": "Aucune donnee PVE"
     }
+  },
+  "openWindow": {
+    "market": "Ouvrir le marche en jeu",
+    "info": "Ouvrir les infos en jeu",
+    "contract": "Ouvrir le contrat en jeu",
+    "success": "Fenetre ouverte en jeu",
+    "error": "Erreur lors de l'ouverture"
   },
   "notifications": {
     "syncTitles": {

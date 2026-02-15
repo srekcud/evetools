@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 
 export interface AppraisalItem {
   typeId: number
@@ -16,6 +17,14 @@ export interface AppraisalItem {
   buyTotal: number | null
   splitPrice: number | null
   splitTotal: number | null
+  sellPriceWeighted: number | null
+  sellTotalWeighted: number | null
+  buyPriceWeighted: number | null
+  buyTotalWeighted: number | null
+  splitPriceWeighted: number | null
+  splitTotalWeighted: number | null
+  sellCoverage: number | null
+  buyCoverage: number | null
 }
 
 export interface AppraisalTotals {
@@ -23,6 +32,9 @@ export interface AppraisalTotals {
   buyTotal: number
   splitTotal: number
   volume: number
+  sellTotalWeighted: number | null
+  buyTotalWeighted: number | null
+  splitTotalWeighted: number | null
 }
 
 const props = defineProps<{
@@ -38,25 +50,40 @@ const { getTypeIconUrl, onImageError } = useEveImages()
 
 const copied = ref(false)
 
+function coverageClass(coverage: number | null): string {
+  if (coverage === null || coverage >= 1.0) return ''
+  if (coverage >= 0.5) return 'text-amber-400'
+  return 'text-red-400'
+}
+
+function coveragePercent(coverage: number | null): number {
+  if (coverage === null) return 100
+  return Math.round(coverage * 100)
+}
+
+function displayPrice(weighted: number | null, best: number | null): number | null {
+  return weighted ?? best
+}
+
 function copyTable() {
   const header = ['Item', 'Qty', 'Volume', 'Sell (unit)', 'Sell Total', 'Buy (unit)', 'Buy Total', 'Split (unit)', 'Split Total'].join('\t')
   const rows = props.items.map(item => [
     item.typeName,
     item.quantity,
     formatNumber(item.totalVolume) + ' m3',
-    item.sellPrice !== null ? formatNumber(item.sellPrice) : '-',
-    item.sellTotal !== null ? formatNumber(item.sellTotal) : '-',
-    item.buyPrice !== null ? formatNumber(item.buyPrice) : '-',
-    item.buyTotal !== null ? formatNumber(item.buyTotal) : '-',
-    item.splitPrice !== null ? formatNumber(item.splitPrice) : '-',
-    item.splitTotal !== null ? formatNumber(item.splitTotal) : '-',
+    displayPrice(item.sellPriceWeighted, item.sellPrice) !== null ? formatNumber(displayPrice(item.sellPriceWeighted, item.sellPrice)!) : '-',
+    displayPrice(item.sellTotalWeighted, item.sellTotal) !== null ? formatNumber(displayPrice(item.sellTotalWeighted, item.sellTotal)!) : '-',
+    displayPrice(item.buyPriceWeighted, item.buyPrice) !== null ? formatNumber(displayPrice(item.buyPriceWeighted, item.buyPrice)!) : '-',
+    displayPrice(item.buyTotalWeighted, item.buyTotal) !== null ? formatNumber(displayPrice(item.buyTotalWeighted, item.buyTotal)!) : '-',
+    displayPrice(item.splitPriceWeighted, item.splitPrice) !== null ? formatNumber(displayPrice(item.splitPriceWeighted, item.splitPrice)!) : '-',
+    displayPrice(item.splitTotalWeighted, item.splitTotal) !== null ? formatNumber(displayPrice(item.splitTotalWeighted, item.splitTotal)!) : '-',
   ].join('\t'))
 
   const footer = [
     'Total', '--', formatNumber(props.totals.volume) + ' m3',
-    '--', formatNumber(props.totals.sellTotal),
-    '--', formatNumber(props.totals.buyTotal),
-    '--', formatNumber(props.totals.splitTotal),
+    '--', formatNumber(props.totals.sellTotalWeighted ?? props.totals.sellTotal),
+    '--', formatNumber(props.totals.buyTotalWeighted ?? props.totals.buyTotal),
+    '--', formatNumber(props.totals.splitTotalWeighted ?? props.totals.splitTotal),
   ].join('\t')
 
   const text = [header, ...rows, footer].join('\n')
@@ -69,13 +96,14 @@ function copyTable() {
 <template>
   <div class="space-y-4">
     <!-- Info banner -->
-    <div class="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 flex items-center gap-3">
-      <svg class="w-5 h-5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div class="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 flex items-start gap-3">
+      <svg class="w-5 h-5 text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
-      <p class="text-amber-200 text-sm">
-        {{ t('appraisal.infoBanner') }}
-      </p>
+      <div class="text-sm space-y-1">
+        <p class="text-amber-200">{{ t('appraisal.infoBanner') }}</p>
+        <p class="text-amber-200/70 text-xs">{{ t('appraisal.weightedInfoBanner') }}</p>
+      </div>
     </div>
 
     <!-- Not Found Items -->
@@ -101,7 +129,10 @@ function copyTable() {
           </svg>
           {{ t('appraisal.sellValue') }}
         </p>
-        <p class="text-[22px] font-bold text-cyan-400 font-mono">{{ formatIsk(totals.sellTotal) }}</p>
+        <p class="text-[22px] font-bold text-cyan-400 font-mono">{{ formatIsk(totals.sellTotalWeighted ?? totals.sellTotal) }}</p>
+        <p v-if="totals.sellTotalWeighted !== null && totals.sellTotalWeighted !== undefined" class="text-[11px] text-slate-600 font-mono mt-0.5">
+          {{ t('appraisal.bestPrice') }}: {{ formatIsk(totals.sellTotal) }}
+        </p>
         <p class="text-[11px] text-slate-500 mt-1">{{ t('appraisal.sellValueDesc') }}</p>
       </div>
 
@@ -113,7 +144,10 @@ function copyTable() {
           </svg>
           {{ t('appraisal.buyValue') }}
         </p>
-        <p class="text-[22px] font-bold text-amber-400 font-mono">{{ formatIsk(totals.buyTotal) }}</p>
+        <p class="text-[22px] font-bold text-amber-400 font-mono">{{ formatIsk(totals.buyTotalWeighted ?? totals.buyTotal) }}</p>
+        <p v-if="totals.buyTotalWeighted !== null && totals.buyTotalWeighted !== undefined" class="text-[11px] text-slate-600 font-mono mt-0.5">
+          {{ t('appraisal.bestPrice') }}: {{ formatIsk(totals.buyTotal) }}
+        </p>
         <p class="text-[11px] text-slate-500 mt-1">{{ t('appraisal.buyValueDesc') }}</p>
       </div>
 
@@ -137,7 +171,10 @@ function copyTable() {
           </svg>
           {{ t('appraisal.splitValue') }}
         </p>
-        <p class="text-[22px] font-bold text-emerald-400 font-mono">{{ formatIsk(totals.splitTotal) }}</p>
+        <p class="text-[22px] font-bold text-emerald-400 font-mono">{{ formatIsk(totals.splitTotalWeighted ?? totals.splitTotal) }}</p>
+        <p v-if="totals.splitTotalWeighted !== null && totals.splitTotalWeighted !== undefined" class="text-[11px] text-slate-600 font-mono mt-0.5">
+          {{ t('appraisal.bestPrice') }}: {{ formatIsk(totals.splitTotal) }}
+        </p>
         <p class="text-[11px] text-slate-500 mt-1">{{ t('appraisal.splitValueDesc') }}</p>
       </div>
     </div>
@@ -208,6 +245,7 @@ function copyTable() {
                     class="w-8 h-8 rounded-sm"
                   />
                   <span class="text-slate-200">{{ item.typeName }}</span>
+                  <OpenInGameButton type="market" :targetId="item.typeId" />
                 </div>
               </td>
               <td class="px-4 py-2.5 text-right text-slate-300 font-mono">
@@ -217,28 +255,88 @@ function copyTable() {
                 {{ formatNumber(item.totalVolume) }} m³
               </td>
               <!-- Sell unit -->
-              <td class="px-4 py-2.5 text-right text-cyan-300 font-mono">
-                {{ item.sellPrice !== null ? formatNumber(item.sellPrice) : '-' }}
+              <td class="px-4 py-2.5 text-right font-mono">
+                <div v-if="displayPrice(item.sellPriceWeighted, item.sellPrice) !== null">
+                  <div class="flex items-center justify-end gap-1">
+                    <span
+                      v-if="item.sellCoverage !== null && item.sellCoverage < 1.0"
+                      class="shrink-0"
+                      :class="coverageClass(item.sellCoverage)"
+                      :title="t('appraisal.coverageTooltip', { coverage: coveragePercent(item.sellCoverage) })"
+                    >
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </span>
+                    <span class="text-cyan-300">{{ formatNumber(displayPrice(item.sellPriceWeighted, item.sellPrice)!) }}</span>
+                  </div>
+                  <div v-if="item.sellPriceWeighted !== null && item.sellPrice !== null" class="text-[10px] text-slate-600 mt-0.5">
+                    {{ formatNumber(item.sellPrice) }}
+                  </div>
+                </div>
+                <span v-else class="text-cyan-300">-</span>
               </td>
               <!-- Sell total -->
-              <td class="px-4 py-2.5 text-right text-cyan-400 font-semibold font-mono">
-                {{ item.sellTotal !== null ? formatNumber(item.sellTotal) : '-' }}
+              <td class="px-4 py-2.5 text-right font-mono">
+                <div v-if="displayPrice(item.sellTotalWeighted, item.sellTotal) !== null">
+                  <span class="text-cyan-400 font-semibold">{{ formatNumber(displayPrice(item.sellTotalWeighted, item.sellTotal)!) }}</span>
+                  <div v-if="item.sellTotalWeighted !== null && item.sellTotal !== null" class="text-[10px] text-slate-600 mt-0.5">
+                    {{ formatNumber(item.sellTotal) }}
+                  </div>
+                </div>
+                <span v-else class="text-cyan-400 font-semibold">-</span>
               </td>
               <!-- Buy unit -->
-              <td class="px-4 py-2.5 text-right text-amber-300 font-mono">
-                {{ item.buyPrice !== null ? formatNumber(item.buyPrice) : '-' }}
+              <td class="px-4 py-2.5 text-right font-mono">
+                <div v-if="displayPrice(item.buyPriceWeighted, item.buyPrice) !== null">
+                  <div class="flex items-center justify-end gap-1">
+                    <span
+                      v-if="item.buyCoverage !== null && item.buyCoverage < 1.0"
+                      class="shrink-0"
+                      :class="coverageClass(item.buyCoverage)"
+                      :title="t('appraisal.coverageTooltip', { coverage: coveragePercent(item.buyCoverage) })"
+                    >
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </span>
+                    <span class="text-amber-300">{{ formatNumber(displayPrice(item.buyPriceWeighted, item.buyPrice)!) }}</span>
+                  </div>
+                  <div v-if="item.buyPriceWeighted !== null && item.buyPrice !== null" class="text-[10px] text-slate-600 mt-0.5">
+                    {{ formatNumber(item.buyPrice) }}
+                  </div>
+                </div>
+                <span v-else class="text-amber-300">-</span>
               </td>
               <!-- Buy total -->
-              <td class="px-4 py-2.5 text-right text-amber-400 font-semibold font-mono">
-                {{ item.buyTotal !== null ? formatNumber(item.buyTotal) : '-' }}
+              <td class="px-4 py-2.5 text-right font-mono">
+                <div v-if="displayPrice(item.buyTotalWeighted, item.buyTotal) !== null">
+                  <span class="text-amber-400 font-semibold">{{ formatNumber(displayPrice(item.buyTotalWeighted, item.buyTotal)!) }}</span>
+                  <div v-if="item.buyTotalWeighted !== null && item.buyTotal !== null" class="text-[10px] text-slate-600 mt-0.5">
+                    {{ formatNumber(item.buyTotal) }}
+                  </div>
+                </div>
+                <span v-else class="text-amber-400 font-semibold">-</span>
               </td>
               <!-- Split unit -->
-              <td class="px-4 py-2.5 text-right text-emerald-300 font-mono">
-                {{ item.splitPrice !== null ? formatNumber(item.splitPrice) : '-' }}
+              <td class="px-4 py-2.5 text-right font-mono">
+                <div v-if="displayPrice(item.splitPriceWeighted, item.splitPrice) !== null">
+                  <span class="text-emerald-300">{{ formatNumber(displayPrice(item.splitPriceWeighted, item.splitPrice)!) }}</span>
+                  <div v-if="item.splitPriceWeighted !== null && item.splitPrice !== null" class="text-[10px] text-slate-600 mt-0.5">
+                    {{ formatNumber(item.splitPrice) }}
+                  </div>
+                </div>
+                <span v-else class="text-emerald-300">-</span>
               </td>
               <!-- Split total -->
-              <td class="px-4 py-2.5 text-right text-emerald-400 font-semibold font-mono">
-                {{ item.splitTotal !== null ? formatNumber(item.splitTotal) : '-' }}
+              <td class="px-4 py-2.5 text-right font-mono">
+                <div v-if="displayPrice(item.splitTotalWeighted, item.splitTotal) !== null">
+                  <span class="text-emerald-400 font-semibold">{{ formatNumber(displayPrice(item.splitTotalWeighted, item.splitTotal)!) }}</span>
+                  <div v-if="item.splitTotalWeighted !== null && item.splitTotal !== null" class="text-[10px] text-slate-600 mt-0.5">
+                    {{ formatNumber(item.splitTotal) }}
+                  </div>
+                </div>
+                <span v-else class="text-emerald-400 font-semibold">-</span>
               </td>
             </tr>
           </tbody>
@@ -248,11 +346,26 @@ function copyTable() {
               <td class="px-4 py-3 text-right text-slate-200 font-mono text-[13px]">--</td>
               <td class="px-4 py-3 text-right text-slate-400 font-mono text-[13px]">{{ formatNumber(totals.volume) }} m³</td>
               <td class="px-4 py-3 text-right text-slate-500 text-[13px]">--</td>
-              <td class="px-4 py-3 text-right text-cyan-400 font-bold font-mono text-sm">{{ formatNumber(totals.sellTotal) }}</td>
+              <td class="px-4 py-3 text-right font-mono text-sm">
+                <span class="text-cyan-400 font-bold">{{ formatNumber(totals.sellTotalWeighted ?? totals.sellTotal) }}</span>
+                <div v-if="totals.sellTotalWeighted !== null && totals.sellTotalWeighted !== undefined" class="text-[10px] text-slate-600 mt-0.5">
+                  {{ formatNumber(totals.sellTotal) }}
+                </div>
+              </td>
               <td class="px-4 py-3 text-right text-slate-500 text-[13px]">--</td>
-              <td class="px-4 py-3 text-right text-amber-400 font-bold font-mono text-sm">{{ formatNumber(totals.buyTotal) }}</td>
+              <td class="px-4 py-3 text-right font-mono text-sm">
+                <span class="text-amber-400 font-bold">{{ formatNumber(totals.buyTotalWeighted ?? totals.buyTotal) }}</span>
+                <div v-if="totals.buyTotalWeighted !== null && totals.buyTotalWeighted !== undefined" class="text-[10px] text-slate-600 mt-0.5">
+                  {{ formatNumber(totals.buyTotal) }}
+                </div>
+              </td>
               <td class="px-4 py-3 text-right text-slate-500 text-[13px]">--</td>
-              <td class="px-4 py-3 text-right text-emerald-400 font-bold font-mono text-sm">{{ formatNumber(totals.splitTotal) }}</td>
+              <td class="px-4 py-3 text-right font-mono text-sm">
+                <span class="text-emerald-400 font-bold">{{ formatNumber(totals.splitTotalWeighted ?? totals.splitTotal) }}</span>
+                <div v-if="totals.splitTotalWeighted !== null && totals.splitTotalWeighted !== undefined" class="text-[10px] text-slate-600 mt-0.5">
+                  {{ formatNumber(totals.splitTotal) }}
+                </div>
+              </td>
             </tr>
           </tfoot>
         </table>

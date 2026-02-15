@@ -146,6 +146,9 @@ export interface ShoppingListItem {
   savings: number | null
   purchasedQuantity: number
   extraQuantity: number
+  jitaWeightedUnitPrice: number | null
+  jitaWeightedTotal: number | null
+  jitaCoverage: number | null
 }
 
 export interface ShoppingListTotals {

@@ -14,6 +14,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\MarketService;
 use App\Service\Industry\IndustryProjectService;
+use App\Service\JitaMarketService;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -32,6 +33,7 @@ class ShoppingListProvider implements ProviderInterface
         private readonly IndustryProjectService $projectService,
         private readonly InvTypeRepository $invTypeRepository,
         private readonly MarketService $marketService,
+        private readonly JitaMarketService $jitaMarketService,
         private readonly RequestStack $requestStack,
         private readonly LoggerInterface $logger,
     ) {
@@ -84,6 +86,22 @@ class ShoppingListProvider implements ProviderInterface
                 'projectId' => $uriVariables['id'],
             ]);
             $priceError = 'Impossible de récupérer les prix du marché. Réessayez plus tard.';
+        }
+
+        // Calculate weighted Jita prices per material
+        $typeQuantities = [];
+        foreach ($materials as $mat) {
+            $typeId = $mat['typeId'];
+            $typeQuantities[$typeId] = ($typeQuantities[$typeId] ?? 0) + $mat['quantity'];
+        }
+
+        $weightedJitaPrices = [];
+        try {
+            $weightedJitaPrices = $this->jitaMarketService->getWeightedSellPrices($typeQuantities);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to fetch weighted Jita prices', [
+                'error' => $e->getMessage(),
+            ]);
         }
 
         $enrichedMaterials = [];
@@ -139,6 +157,12 @@ class ShoppingListProvider implements ProviderInterface
             }
             $totals->volume += $totalItemVolume;
 
+            // Weighted Jita prices
+            $weightedData = $weightedJitaPrices[$typeId] ?? null;
+            $jitaWeightedUnitPrice = $weightedData !== null ? $weightedData['weightedPrice'] : null;
+            $jitaWeightedTotal = $jitaWeightedUnitPrice !== null ? $jitaWeightedUnitPrice * $quantity : null;
+            $jitaCoverage = $weightedData !== null ? $weightedData['coverage'] : null;
+
             $material = new ShoppingListMaterialResource();
             $material->typeId = $typeId;
             $material->typeName = $mat['typeName'];
@@ -156,6 +180,9 @@ class ShoppingListProvider implements ProviderInterface
             $material->savings = $savings;
             $material->purchasedQuantity = $purchasedQuantities[$typeId] ?? 0;
             $material->extraQuantity = $mat['extraQuantity'] ?? 0;
+            $material->jitaWeightedUnitPrice = $jitaWeightedUnitPrice;
+            $material->jitaWeightedTotal = $jitaWeightedTotal;
+            $material->jitaCoverage = $jitaCoverage;
 
             $enrichedMaterials[] = $material;
         }

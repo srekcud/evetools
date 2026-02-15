@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePlanetaryHelpers } from '@/composables/usePlanetaryHelpers'
+import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import { TIER_CONFIG } from '@/composables/usePlanetaryHelpers'
 import type { ProductionTier } from '@/stores/planetary'
 
@@ -117,6 +118,7 @@ function toggleTier(tier: string): void {
                       <div class="flex items-center gap-2 flex-1">
                         <span class="w-1.5 h-1.5 rounded-full" :class="TIER_CONFIG[tier.tier]?.badgeText?.replace('text-', 'bg-') || 'bg-cyan-400'"></span>
                         <span class="text-slate-300">{{ item.typeName }}</span>
+                        <OpenInGameButton type="market" :targetId="item.typeId" />
                         <span v-if="item.inputs?.length" class="text-slate-600 text-[10px]">
                           &larr; {{ item.inputs.map(i => i.typeName).join(' + ') }}
                         </span>

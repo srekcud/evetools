@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 
 export interface ShoppingItem {
   typeId: number
@@ -337,6 +338,7 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
                     class="w-8 h-8 rounded-sm"
                   />
                   <span class="text-slate-200">{{ item.typeName }}</span>
+                  <OpenInGameButton type="market" :targetId="item.typeId" />
                 </div>
               </td>
               <td class="px-4 py-3 text-right text-slate-300 font-mono">

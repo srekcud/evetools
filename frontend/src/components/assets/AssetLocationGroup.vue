@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useEveImages } from '@/composables/useEveImages'
+import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import type { Asset } from '@/types'
 
 const props = defineProps<{
@@ -91,6 +92,7 @@ function getDisplayName(asset: Asset): string {
             />
             <div class="flex items-center gap-2">
               <span class="text-slate-200">{{ getDisplayName(asset) }}</span>
+              <OpenInGameButton type="market" :targetId="asset.typeId" />
               <!-- Container indicator -->
               <span v-if="isContainer(asset)" class="flex items-center gap-1 text-xs text-amber-400">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -130,6 +132,7 @@ function getDisplayName(asset: Asset): string {
                 @error="onImageError"
               />
               <span class="text-slate-300 text-sm">{{ getDisplayName(item) }}</span>
+              <OpenInGameButton type="market" :targetId="item.typeId" />
             </div>
             <span class="text-slate-500 font-mono text-sm">x{{ formatNumber(item.quantity) }}</span>
           </div>

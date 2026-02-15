@@ -702,7 +702,7 @@
       "best": "Best",
       "savings": "Savings",
       "suboptimalExtra": "due to suboptimal structures",
-      "priceInfo": "Price = lowest sell orders (Jita Sell + import vs {structure} Sell)",
+      "priceInfo": "Volume-weighted prices (Jita Sell + import vs {structure} Sell). Best single-order price shown for comparison.",
       "applyAsMaterialCost": "Apply as material cost",
       "loadingSuggestions": "Loading purchase suggestions...",
       "purchaseSuggestions": "Purchase suggestions (ESI wallet)",
@@ -729,7 +729,9 @@
       "estimated": "Estimated",
       "pasteStockError": "Paste your EVE inventory in the text area",
       "noItemDetected": "No item detected. Check the format (copy from EVE with Ctrl+A then Ctrl+C)",
-      "loadShoppingError": "Unable to load the shopping list. Please try again."
+      "loadShoppingError": "Unable to load the shopping list. Please try again.",
+      "weightedPrice": "Weighted price",
+      "depthWarning": "Market coverage: {coverage}%"
     }
   },
   "ledger": {
@@ -960,6 +962,7 @@
     "appraise": "Appraise",
     "appraising": "Appraising...",
     "infoBanner": "Sell value = cost to buy (lowest sell orders). Buy value = what you receive selling to buy orders (highest buy orders). All prices from Jita 4-4.",
+    "weightedInfoBanner": "Prices shown are volume-weighted (stacking orders to cover the requested quantity). The best single-order price is shown below for comparison.",
     "sellValue": "Sell Value",
     "sellValueDesc": "Cost to buy these items",
     "buyValue": "Buy Value",
@@ -976,7 +979,11 @@
     "itemsAppraised": "{count} items appraised",
     "copy": "Copy",
     "copied": "Copied!",
-    "share": "Share"
+    "share": "Share",
+    "weightedPrice": "Weighted price",
+    "bestPrice": "Best price",
+    "depthWarning": "Insufficient market depth",
+    "coverageTooltip": "Price based on {coverage}% of requested quantity"
   },
   "admin": {
     "title": "Administration",
@@ -1057,6 +1064,13 @@
       "total30d": "Total 30 days",
       "noData": "No PVE data"
     }
+  },
+  "openWindow": {
+    "market": "Open market in-game",
+    "info": "Open info in-game",
+    "contract": "Open contract in-game",
+    "success": "Window opened in-game",
+    "error": "Error opening window"
   },
   "notifications": {
     "syncTitles": {

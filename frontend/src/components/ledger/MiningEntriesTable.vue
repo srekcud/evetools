@@ -5,6 +5,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { useMiningPricing } from '@/composables/useMiningPricing'
 import { useContextMenu } from '@/composables/useContextMenu'
+import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import type { MiningEntry } from '@/stores/ledger'
 import MiningEntryMenu from './MiningEntryMenu.vue'
 
@@ -251,6 +252,7 @@ defineExpose({ resetPage: () => { currentPage.value = 1 } })
                   @error="onImageError"
                 />
                 <span class="text-sm text-white truncate max-w-[120px]" :title="entry.typeName">{{ entry.typeName }}</span>
+                <OpenInGameButton type="market" :targetId="entry.typeId" />
               </div>
             </td>
             <td class="px-3 py-3 text-sm text-right text-slate-300">{{ formatNumber(entry.quantity, 0) }}</td>

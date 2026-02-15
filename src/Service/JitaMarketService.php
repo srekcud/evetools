@@ -13,6 +13,8 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 /**
  * Service for syncing and caching Jita (The Forge) market prices.
  * Runs as a background job to keep prices up-to-date.
+ *
+ * Stores an order book (top N orders) per type to support weighted price calculations.
  */
 class JitaMarketService
 {
@@ -23,6 +25,7 @@ class JitaMarketService
     private const CACHE_META_KEY = 'jita_market_meta';
     private const CACHE_TTL = 7200; // 2 hours
     private const ESI_BASE_URL = 'https://esi.evetech.net/latest';
+    private const MAX_ORDERS_PER_TYPE = 20;
 
     public function __construct(
         private readonly HttpClientInterface $httpClient,
@@ -98,19 +101,19 @@ class JitaMarketService
 
     /**
      * Get the lowest sell price for a type from cached Jita prices.
+     * Returns the best (first) price from the order book.
      */
     public function getPrice(int $typeId): ?float
     {
-        $cacheItem = $this->cache->getItem(self::CACHE_KEY);
+        $orderBook = $this->getOrderBook(self::CACHE_KEY);
 
-        if (!$cacheItem->isHit()) {
+        if ($orderBook === null) {
             return null;
         }
 
-        /** @var array<int, float> $prices */
-        $prices = $cacheItem->get();
+        $orders = $orderBook[$typeId] ?? [];
 
-        return $prices[$typeId] ?? null;
+        return $orders[0]['price'] ?? null;
     }
 
     /**
@@ -126,17 +129,15 @@ class JitaMarketService
             $result[$typeId] = null;
         }
 
-        $cacheItem = $this->cache->getItem(self::CACHE_KEY);
+        $orderBook = $this->getOrderBook(self::CACHE_KEY);
 
-        if (!$cacheItem->isHit()) {
+        if ($orderBook === null) {
             return $result;
         }
 
-        /** @var array<int, float> $prices */
-        $prices = $cacheItem->get();
-
         foreach ($typeIds as $typeId) {
-            $result[$typeId] = $prices[$typeId] ?? null;
+            $orders = $orderBook[$typeId] ?? [];
+            $result[$typeId] = $orders[0]['price'] ?? null;
         }
 
         return $result;
@@ -144,19 +145,19 @@ class JitaMarketService
 
     /**
      * Get the highest buy price for a type from cached Jita prices.
+     * Returns the best (first) price from the order book.
      */
     public function getBuyPrice(int $typeId): ?float
     {
-        $cacheItem = $this->cache->getItem(self::CACHE_KEY_BUY);
+        $orderBook = $this->getOrderBook(self::CACHE_KEY_BUY);
 
-        if (!$cacheItem->isHit()) {
+        if ($orderBook === null) {
             return null;
         }
 
-        /** @var array<int, float> $prices */
-        $prices = $cacheItem->get();
+        $orders = $orderBook[$typeId] ?? [];
 
-        return $prices[$typeId] ?? null;
+        return $orders[0]['price'] ?? null;
     }
 
     /**
@@ -172,20 +173,163 @@ class JitaMarketService
             $result[$typeId] = null;
         }
 
-        $cacheItem = $this->cache->getItem(self::CACHE_KEY_BUY);
+        $orderBook = $this->getOrderBook(self::CACHE_KEY_BUY);
 
-        if (!$cacheItem->isHit()) {
+        if ($orderBook === null) {
             return $result;
         }
 
-        /** @var array<int, float> $prices */
-        $prices = $cacheItem->get();
-
         foreach ($typeIds as $typeId) {
-            $result[$typeId] = $prices[$typeId] ?? null;
+            $orders = $orderBook[$typeId] ?? [];
+            $result[$typeId] = $orders[0]['price'] ?? null;
         }
 
         return $result;
+    }
+
+    /**
+     * Calculate weighted average sell price for a given quantity.
+     * Stacks orders from best (cheapest) to worst until the quantity is covered.
+     *
+     * @return array{weightedPrice: float, coverage: float, ordersUsed: int}|null
+     */
+    public function getWeightedSellPrice(int $typeId, int $quantity): ?array
+    {
+        $orderBook = $this->getOrderBook(self::CACHE_KEY);
+
+        if ($orderBook === null) {
+            return null;
+        }
+
+        $orders = $orderBook[$typeId] ?? [];
+
+        return $this->calculateWeightedPrice($orders, $quantity);
+    }
+
+    /**
+     * Calculate weighted average buy price for a given quantity.
+     * Stacks orders from best (highest) to worst until the quantity is covered.
+     *
+     * @return array{weightedPrice: float, coverage: float, ordersUsed: int}|null
+     */
+    public function getWeightedBuyPrice(int $typeId, int $quantity): ?array
+    {
+        $orderBook = $this->getOrderBook(self::CACHE_KEY_BUY);
+
+        if ($orderBook === null) {
+            return null;
+        }
+
+        $orders = $orderBook[$typeId] ?? [];
+
+        return $this->calculateWeightedPrice($orders, $quantity);
+    }
+
+    /**
+     * Calculate weighted sell prices for multiple type/quantity pairs.
+     *
+     * @param array<int, int> $typeQuantities typeId => quantity
+     * @return array<int, array{weightedPrice: float, coverage: float, ordersUsed: int}|null>
+     */
+    public function getWeightedSellPrices(array $typeQuantities): array
+    {
+        $orderBook = $this->getOrderBook(self::CACHE_KEY);
+        $result = [];
+
+        foreach ($typeQuantities as $typeId => $quantity) {
+            if ($orderBook === null) {
+                $result[$typeId] = null;
+                continue;
+            }
+
+            $orders = $orderBook[$typeId] ?? [];
+            $result[$typeId] = $this->calculateWeightedPrice($orders, $quantity);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Calculate weighted buy prices for multiple type/quantity pairs.
+     *
+     * @param array<int, int> $typeQuantities typeId => quantity
+     * @return array<int, array{weightedPrice: float, coverage: float, ordersUsed: int}|null>
+     */
+    public function getWeightedBuyPrices(array $typeQuantities): array
+    {
+        $orderBook = $this->getOrderBook(self::CACHE_KEY_BUY);
+        $result = [];
+
+        foreach ($typeQuantities as $typeId => $quantity) {
+            if ($orderBook === null) {
+                $result[$typeId] = null;
+                continue;
+            }
+
+            $orders = $orderBook[$typeId] ?? [];
+            $result[$typeId] = $this->calculateWeightedPrice($orders, $quantity);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Stack orders from best to worst until the requested quantity is covered.
+     *
+     * @param list<array{price: float, volume: int}> $orders sorted by price (best first)
+     * @return array{weightedPrice: float, coverage: float, ordersUsed: int}|null
+     */
+    private function calculateWeightedPrice(array $orders, int $quantity): ?array
+    {
+        if (empty($orders) || $quantity <= 0) {
+            return null;
+        }
+
+        $totalCost = 0.0;
+        $coveredQuantity = 0;
+        $ordersUsed = 0;
+
+        foreach ($orders as $order) {
+            $remaining = $quantity - $coveredQuantity;
+
+            if ($remaining <= 0) {
+                break;
+            }
+
+            $take = min($remaining, $order['volume']);
+            $totalCost += $take * $order['price'];
+            $coveredQuantity += $take;
+            $ordersUsed++;
+        }
+
+        if ($coveredQuantity === 0) {
+            return null;
+        }
+
+        return [
+            'weightedPrice' => $totalCost / $coveredQuantity,
+            'coverage' => min(1.0, (float) $coveredQuantity / (float) $quantity),
+            'ordersUsed' => $ordersUsed,
+        ];
+    }
+
+    /**
+     * Get the order book from cache.
+     *
+     * @return array<int, list<array{price: float, volume: int}>>|null
+     */
+    private function getOrderBook(string $cacheKey): ?array
+    {
+        $cacheItem = $this->cache->getItem($cacheKey);
+
+        if (!$cacheItem->isHit()) {
+            return null;
+        }
+
+        /** @var array<int, list<array{price: float, volume: int}>> $data */
+        $data = $cacheItem->get();
+
+        return $data;
     }
 
     /**
@@ -321,15 +465,15 @@ class JitaMarketService
 
     /**
      * Fetch prices in batches using parallel requests per type.
-     * Much more memory efficient than loading all Forge orders.
+     * Collects top N orders per type for weighted price calculations.
      *
      * @param int[] $typeIds
-     * @return array{sell: array<int, float>, buy: array<int, float>}
+     * @return array{sell: array<int, list<array{price: float, volume: int}>>, buy: array<int, list<array{price: float, volume: int}>>}
      */
     private function fetchPricesInBatches(array $typeIds): array
     {
-        $sellPrices = [];
-        $buyPrices = [];
+        $sellOrderBooks = [];
+        $buyOrderBooks = [];
         $batchSize = 20; // Concurrent requests
         $batches = array_chunk($typeIds, $batchSize);
         $totalBatches = count($batches);
@@ -358,12 +502,12 @@ class JitaMarketService
                     if ($statusCode === 200) {
                         /** @var list<array<string, mixed>> $orders */
                         $orders = $response->toArray();
-                        $prices = $this->findPrices($orders);
-                        if ($prices['sell'] !== null) {
-                            $sellPrices[$typeId] = $prices['sell'];
+                        $orderBooks = $this->collectOrderBooks($orders);
+                        if (!empty($orderBooks['sell'])) {
+                            $sellOrderBooks[$typeId] = $orderBooks['sell'];
                         }
-                        if ($prices['buy'] !== null) {
-                            $buyPrices[$typeId] = $prices['buy'];
+                        if (!empty($orderBooks['buy'])) {
+                            $buyOrderBooks[$typeId] = $orderBooks['buy'];
                         }
                     }
                 } catch (\Throwable $e) {
@@ -383,8 +527,8 @@ class JitaMarketService
                 $this->logger->info('Jita sync progress', [
                     'batch' => $batchIndex + 1,
                     'totalBatches' => $totalBatches,
-                    'sellPricesFound' => count($sellPrices),
-                    'buyPricesFound' => count($buyPrices),
+                    'sellTypesFound' => count($sellOrderBooks),
+                    'buyTypesFound' => count($buyOrderBooks),
                 ]);
             }
 
@@ -394,58 +538,62 @@ class JitaMarketService
 
         $this->logger->info('Jita price fetch completed', [
             'totalTypes' => count($typeIds),
-            'sellPricesFound' => count($sellPrices),
-            'buyPricesFound' => count($buyPrices),
+            'sellTypesFound' => count($sellOrderBooks),
+            'buyTypesFound' => count($buyOrderBooks),
         ]);
 
-        return ['sell' => $sellPrices, 'buy' => $buyPrices];
+        return ['sell' => $sellOrderBooks, 'buy' => $buyOrderBooks];
     }
 
     /**
-     * Find sell and buy prices from orders (prefer Jita station, fallback to region).
-     * Sell = lowest sell order, Buy = highest buy order.
+     * Collect order books from ESI orders (prefer Jita station, fallback to region).
+     * Sell orders sorted ascending by price, buy orders sorted descending by price.
+     * Keeps top MAX_ORDERS_PER_TYPE orders per side.
      *
      * @param list<array<string, mixed>> $orders
-     * @return array{sell: ?float, buy: ?float}
+     * @return array{sell: list<array{price: float, volume: int}>, buy: list<array{price: float, volume: int}>}
      */
-    private function findPrices(array $orders): array
+    private function collectOrderBooks(array $orders): array
     {
-        $jitaSell = null;
-        $regionSell = null;
-        $jitaBuy = null;
-        $regionBuy = null;
+        $jitaSellOrders = [];
+        $regionSellOrders = [];
+        $jitaBuyOrders = [];
+        $regionBuyOrders = [];
 
         foreach ($orders as $order) {
             $price = (float) $order['price'];
+            $volume = (int) $order['volume_remain'];
             $locationId = $order['location_id'];
             $isBuyOrder = (bool) $order['is_buy_order'];
+            $entry = ['price' => $price, 'volume' => $volume];
 
             if ($isBuyOrder) {
-                // Buy orders: keep the highest price
                 if ($locationId === self::JITA_STATION_ID) {
-                    if ($jitaBuy === null || $price > $jitaBuy) {
-                        $jitaBuy = $price;
-                    }
+                    $jitaBuyOrders[] = $entry;
                 }
-                if ($regionBuy === null || $price > $regionBuy) {
-                    $regionBuy = $price;
-                }
+                $regionBuyOrders[] = $entry;
             } else {
-                // Sell orders: keep the lowest price
                 if ($locationId === self::JITA_STATION_ID) {
-                    if ($jitaSell === null || $price < $jitaSell) {
-                        $jitaSell = $price;
-                    }
+                    $jitaSellOrders[] = $entry;
                 }
-                if ($regionSell === null || $price < $regionSell) {
-                    $regionSell = $price;
-                }
+                $regionSellOrders[] = $entry;
             }
         }
 
-        return [
-            'sell' => $jitaSell ?? $regionSell,
-            'buy' => $jitaBuy ?? $regionBuy,
-        ];
+        // Pick Jita orders if available, fallback to region
+        $sellOrders = !empty($jitaSellOrders) ? $jitaSellOrders : $regionSellOrders;
+        $buyOrders = !empty($jitaBuyOrders) ? $jitaBuyOrders : $regionBuyOrders;
+
+        // Sort sell orders ascending by price (cheapest first)
+        usort($sellOrders, static fn (array $a, array $b) => $a['price'] <=> $b['price']);
+
+        // Sort buy orders descending by price (highest first)
+        usort($buyOrders, static fn (array $a, array $b) => $b['price'] <=> $a['price']);
+
+        // Keep only top N
+        $sellOrders = \array_slice($sellOrders, 0, self::MAX_ORDERS_PER_TYPE);
+        $buyOrders = \array_slice($buyOrders, 0, self::MAX_ORDERS_PER_TYPE);
+
+        return ['sell' => $sellOrders, 'buy' => $buyOrders];
     }
 }
