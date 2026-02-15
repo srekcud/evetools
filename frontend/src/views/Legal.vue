@@ -40,8 +40,8 @@ import { APP_VERSION } from '@/version'
           <div>
             <h3 class="text-lg font-semibold text-slate-200 mb-3">Publisher</h3>
             <ul class="space-y-1.5 text-slate-400 leading-relaxed">
-              <li><span class="text-slate-500">Name:</span> Sylvain (personal non-commercial project)</li>
-              <li><span class="text-slate-500">Contact:</span> contact@evetools.example.com</li>
+              <li><span class="text-slate-500">Name:</span> Sylvain</li>
+              <li><span class="text-slate-500">Contact:</span> infos@srekcud.be</li>
               <li><span class="text-slate-500">Status:</span> Personal non-commercial website</li>
             </ul>
           </div>
@@ -73,8 +73,8 @@ import { APP_VERSION } from '@/version'
           <div>
             <h3 class="text-lg font-semibold text-slate-200 mb-3">1. Data Controller</h3>
             <p class="text-slate-400 leading-relaxed">
-              Sylvain (personal non-commercial project).
-              Contact: contact@evetools.example.com
+              Sylvain.
+              Contact: infos@srekcud.be
             </p>
           </div>
 
@@ -163,7 +163,7 @@ import { APP_VERSION } from '@/version'
             </ul>
             <div class="mt-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
               <p class="text-slate-400 text-sm leading-relaxed">
-                <span class="font-medium text-slate-300">Contact:</span> contact@evetools.example.com
+                <span class="font-medium text-slate-300">Contact:</span> infos@srekcud.be
               </p>
               <p class="text-slate-400 text-sm leading-relaxed mt-2">
                 <span class="font-medium text-slate-300">Supervisory authority:</span>

@@ -10,9 +10,9 @@ Application web d'utilitaires pour EVE Online :
 
 ## Stack Technique
 
-- **Backend**: Symfony 7.4 + API Platform 3.4
-- **Frontend**: Vue.js 3.5 + Vite + Tailwind CSS
-- **Runtime**: FrankenPHP 8.4 Alpine
+- **Backend**: Symfony 7.4 + API Platform 4.2
+- **Frontend**: Vue.js 3.5 + Vite + Tailwind CSS 4
+- **Runtime**: FrankenPHP 8.5 Alpine
 - **Database**: PostgreSQL 16
 - **Queue**: RabbitMQ (Symfony Messenger)
 - **Cache**: Redis
@@ -350,7 +350,7 @@ make base-build
 
 ## Migrations en attente (Production)
 
-**Note** : V0.3.1 n'a pas encore été déployée. Toutes les migrations ci-dessous doivent être exécutées lors du déploiement V0.5.
+**Note** : Toutes les migrations ci-dessous doivent être exécutées lors du prochain déploiement (V0.8).
 
 | Migration | Version | Description |
 |-----------|---------|-------------|
@@ -372,28 +372,22 @@ make base-build
 php bin/console doctrine:migrations:migrate
 ```
 
-### Actions post-déploiement V0.5
+### Actions post-déploiement V0.8
 
-- [ ] **Réimporter le SDE** (depuis V0.3.1 : source YAML → JSONL)
-  ```bash
-  rm -rf var/sde/
-  php bin/console app:sde:import --force
-  ```
-- [ ] **Relancer sync assets** pour peupler `owner_corporation_id` dans les structures
-- [ ] **Seed rig categories** (catégories étendues par type de structure)
-  ```bash
-  php bin/console app:seed-rig-categories
-  ```
-- [ ] **Redémarrer le worker** pour les nouveaux handlers (SyncWalletTransactions) + proxies Doctrine
-
-### Actions post-déploiement V0.6
-
-- [ ] **Réimporter le SDE** (pour les planet schematics)
+- [ ] **Réimporter le SDE** (JSONL, pour planet schematics)
   ```bash
   php bin/console app:sde:import --force
   ```
 - [ ] **Re-authentifier les utilisateurs** (nouveau scope `esi-planets.manage_planets.v1`)
-- [ ] **Redémarrer le worker** pour les nouveaux handlers (SyncPlanetaryColonies, TriggerPlanetarySync)
+- [ ] **Seed rig categories**
+  ```bash
+  php bin/console app:seed-rig-categories
+  ```
+- [ ] **Sync Jita market** (pour peupler le cache buy prices)
+  ```bash
+  php bin/console app:sync-jita-market
+  ```
+- [ ] **Redémarrer le worker** pour les nouveaux handlers
 
 ---
 
@@ -496,7 +490,43 @@ Frontend:
 
 ---
 
-## Roadmap V0.8 — Quick Wins haute valeur
+## V0.8 - Stack Upgrade, Valuator/Appraisal, PHPStan 8 ✅
+
+**Statut** : Implémenté
+
+### Fonctionnalités
+- Stack upgrade: PHP 8.5, API Platform 4.2, Tailwind CSS 4
+- PHPStan level 5 → 8 : null-safety stricte, types union, assertions ESI
+- GDPR/Legal compliance : page mentions légales, footer, politique cookies
+- Fix Ledger : valorisation mining cohérente dashboard ↔ onglet (MiningBestValueCalculator)
+- Valuator : mode Appraisal (sell/buy/split Jita), renommage Shopping List → Valuator
+- Settings : choix format de date JJ/MM/AA ou MM/DD/YY
+- i18n : Évaluateur (FR), Registre (FR)
+
+### Fichiers clés
+```
+Backend:
+- src/Service/MiningBestValueCalculator.php (valorisation mining best price)
+- src/Service/ItemParserService.php (extraction parsing shopping → réutilisable)
+- src/Service/JitaMarketService.php (buy + sell prices, order_type=all)
+- src/State/Processor/ShoppingList/AppraiseProcessor.php
+- src/ApiResource/ShoppingList/AppraisalResultResource.php
+- src/ApiResource/ShoppingList/AppraisalItemResource.php
+
+Frontend:
+- frontend/src/components/shopping/AppraisalResults.vue
+- frontend/src/views/ShoppingList.vue (mode toggle Appraisal/Import)
+- frontend/src/composables/useFormatters.ts (date format preference)
+```
+
+### API Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/shopping-list/appraise` | Appraise items (sell/buy/split) |
+
+---
+
+## Roadmap V0.9 — Quick Wins
 
 ### 1. Prix pondéré par volume (Weighted Price)
 **Statut** : Planifié | **Complexité** : S
@@ -506,59 +536,7 @@ Au lieu du meilleur sell order, calculer le prix moyen pondéré en empilant les
 **Impact** : `JitaMarketService`, `StructureMarketService`, `PlanetaryProductionCalculator`, `ShoppingTab`
 **Changement** : Stocker les N meilleurs orders (pas juste le min price) dans le cache
 
-### 2. Shopping List + Appraisal
-**Statut** : Planifié | **Complexite** : M
-
-**Concept** : Enrichir le module Shopping List existant avec un mode "Appraisal" (toggle Shopping/Appraisal). L'Appraisal affiche les buy + sell prices pour evaluer la valeur d'un ensemble d'items.
-
-**Difference avec Shopping List** :
-- Shopping List = "combien ca me coute d'acheter ca" (sell orders)
-- Appraisal = "combien ca vaut ce que j'ai" (buy orders + sell orders)
-
-**Backend -- Buy Prices Cache** :
-- Modifier `JitaMarketService` pour stocker buy ET sell dans le cache Redis (actuellement sell uniquement)
-- Retirer le filtre `order_type=sell` de l'URL ESI -- recupere buy+sell dans la meme requete, 0 requete supplementaire
-- Format cache : `array<int, float>` -> `array<int, array{sell: float|null, buy: float|null}>`
-- Retrocompatibilite avec l'ancien format pendant la transition
-
-**Backend -- Parsers specialises** :
-- `PasteFormat` enum + `PasteParserInterface`
-- 5 nouveaux parsers : CargoScan, EftFitting, DScan, Contract, Killmail
-- `FormatDetector` avec detection automatique (ordre : EFT -> D-Scan -> Killmail -> Contract -> Cargo Scan -> Multibuy/Inventory)
-- Fichiers dans `src/Service/ShoppingList/Parser/`
-
-**Backend -- Endpoint enrichi** :
-- `ParseListInput` : ajouter `mode` (shopping/appraisal) et `format` (nullable, pour forcer)
-- `ShoppingListItemResource` : ajouter `buyPrice`, `buyTotal`
-- `ParseResultResource` : ajouter `mode`, `detectedFormat`
-- `ShareListInput`/`SharedShoppingListResource` : ajouter `mode`
-
-**Frontend** :
-- Toggle Shopping/Appraisal dans le header
-- `FormatChips.vue` : chips de format avec badge auto-detection
-- `FormatHelp.vue` : section collapsible avec exemples de formats
-- `AppraisalKpi.vue` : 4 KPI cards (Sell cyan, Buy amber, Volume, Spread)
-- `ShoppingListResults.vue` : table adaptee au mode (buy/sell colonnes en appraisal)
-
-**Backend -- Appraisal public & partage** :
-- Entite `SharedAppraisal` : `slug` (8 chars, unique), `items` (JSON snapshot items + prix), `sellTotal`, `buyTotal`, `volume`, `itemCount`, `detectedFormat`, `createdAt`
-- TTL 7 jours (purge via scheduler ou TTL DB)
-- `POST /api/shopping-list/appraisals/share` (auth) : calcule, snapshote les prix, stocke, retourne le slug
-- `GET /api/appraisals/{slug}` (public, pas d'auth) : retourne le snapshot avec `createdAt` (timing du snapshot)
-- OpenGraph meta tags pour preview Discord/Slack : titre "EVE Appraisal — 23.4M ISK", description "7 items — Sell: 23,450,800 ISK — Buy: 21,280,400 ISK", image optionnelle (logo EVE Tools)
-- Le controller OpenGraph est un controller Symfony classique (pas API Platform) qui sert le HTML avec `<meta og:*>` pour le crawler, puis redirige le navigateur vers le SPA
-
-**Frontend -- Partage** :
-- Route publique `/appraisal/{slug}` (pas de `requiresAuth`)
-- Composant en mode lecture seule (pas de textarea, pas de bouton Appraise)
-- Badge "Appraised on 14 Feb 2026 at 15:42 UTC" avec indication si >24h "prices may have changed"
-- Bouton "Share" copie le lien dans le clipboard
-
-**Maquette** : `mockups/shopping-appraisal.html`
-
-**Endpoints ESI** : Aucun nouveau (reutilise le cache marche existant + `POST /universe/names/`)
-
-### 3. Open In-Game Window
+### 2. Open In-Game Window
 **Statut** : Planifié | **Complexité** : S
 
 Boutons "ouvrir en jeu" (marché, info, contrat) sur les items, systèmes, personnages dans toute l'app. Composant réutilisable `<OpenInGameButton>`.
@@ -567,7 +545,7 @@ Boutons "ouvrir en jeu" (marché, info, contrat) sur les items, systèmes, perso
 
 ---
 
-## Roadmap V0.9 — Analytique & Intelligence
+## Roadmap V0.10 — Analytique & Intelligence
 
 ### 4. Profit Tracker Industrie
 **Statut** : Planifié | **Complexité** : M
@@ -594,7 +572,7 @@ Hub unifié : timers PI expirants, jobs industrie terminés, escalations expiran
 
 ---
 
-## Roadmap V0.10 — Map & Corp
+## Roadmap V0.11 — Map & Corp
 
 ### 7. Intel Map (phases 1+2)
 **Statut** : Planifié | **Complexité** : L
