@@ -438,11 +438,43 @@ class JitaMarketService
     }
 
     /**
+     * Get sell orders for a specific type from the cached order book.
+     *
+     * @return list<array{price: float, volume: int}>
+     */
+    public function getSellOrders(int $typeId): array
+    {
+        $orderBook = $this->getOrderBook(self::CACHE_KEY);
+
+        if ($orderBook === null) {
+            return [];
+        }
+
+        return $orderBook[$typeId] ?? [];
+    }
+
+    /**
+     * Get buy orders for a specific type from the cached order book.
+     *
+     * @return list<array{price: float, volume: int}>
+     */
+    public function getBuyOrders(int $typeId): array
+    {
+        $orderBook = $this->getOrderBook(self::CACHE_KEY_BUY);
+
+        if ($orderBook === null) {
+            return [];
+        }
+
+        return $orderBook[$typeId] ?? [];
+    }
+
+    /**
      * Get the order book from cache.
      *
      * @return array<int, list<array{price: float, volume: int}>>|null
      */
-    private function getOrderBook(string $cacheKey): ?array
+    public function getOrderBook(string $cacheKey): ?array
     {
         $cacheItem = $this->cache->getItem($cacheKey);
 

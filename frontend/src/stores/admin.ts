@@ -73,6 +73,21 @@ export interface SchedulerHealthEntry {
   expectedInterval: number
 }
 
+export interface AdminNotificationStats {
+  total: number
+  unread: number
+  pushSubscriptions: number
+  preferences: number
+}
+
+export interface AdminMarketStats {
+  historyTypes: number
+  historyEntries: number
+  alertsActive: number
+  alertsTriggered: number
+  favorites: number
+}
+
 export interface AdminStats {
   users: AdminUserStats
   characters: AdminCharacterStats
@@ -82,6 +97,8 @@ export interface AdminStats {
   industryJobs: AdminIndustryJobsStats
   syncs: AdminSyncStats
   pve: AdminPveStats
+  notifications: AdminNotificationStats
+  market: AdminMarketStats
   schedulerHealth: SchedulerHealthEntry[]
 }
 
@@ -232,6 +249,18 @@ export const useAdminStore = defineStore('admin', () => {
     return triggerAction('sync-planetary')
   }
 
+  async function checkMarketAlerts(): Promise<{ success: boolean; message: string }> {
+    return triggerAction('check-market-alerts')
+  }
+
+  async function purgeNotifications(): Promise<{ success: boolean; message: string }> {
+    return triggerAction('purge-notifications')
+  }
+
+  async function purgeMarketHistory(): Promise<{ success: boolean; message: string }> {
+    return triggerAction('purge-market-history')
+  }
+
   async function retryFailed(): Promise<{ success: boolean; message: string }> {
     return triggerAction('retry-failed')
   }
@@ -265,6 +294,9 @@ export const useAdminStore = defineStore('admin', () => {
     syncMining,
     syncAnsiblex,
     syncPlanetary,
+    checkMarketAlerts,
+    purgeNotifications,
+    purgeMarketHistory,
     retryFailed,
     purgeFailed,
     clearCache,

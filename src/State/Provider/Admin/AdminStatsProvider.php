@@ -95,6 +95,19 @@ class AdminStatsProvider implements ProviderInterface
             $stats['pve']['byCorporation'] ?? []
         );
 
+        // Notifications
+        $resource->notifications->total = $stats['notifications']['total'] ?? 0;
+        $resource->notifications->unread = $stats['notifications']['unread'] ?? 0;
+        $resource->notifications->pushSubscriptions = $stats['notifications']['pushSubscriptions'] ?? 0;
+        $resource->notifications->preferences = $stats['notifications']['preferences'] ?? 0;
+
+        // Market
+        $resource->market->historyTypes = $stats['market']['historyTypes'] ?? 0;
+        $resource->market->historyEntries = $stats['market']['historyEntries'] ?? 0;
+        $resource->market->alertsActive = $stats['market']['alertsActive'] ?? 0;
+        $resource->market->alertsTriggered = $stats['market']['alertsTriggered'] ?? 0;
+        $resource->market->favorites = $stats['market']['favorites'] ?? 0;
+
         // Scheduler Health
         $resource->schedulerHealth = array_map(
             fn(array $entry) => new SchedulerHealthEntryDto(

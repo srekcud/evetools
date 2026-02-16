@@ -1,0 +1,165 @@
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { useNotificationsStore } from '@/stores/notifications'
+import type { AppNotification, NotificationCategory } from '@/stores/notifications'
+import NotificationItem from './NotificationItem.vue'
+
+const { t } = useI18n()
+const router = useRouter()
+const store = useNotificationsStore()
+
+const emit = defineEmits<{
+  close: []
+  openSettings: []
+}>()
+
+const dropdownRef = ref<HTMLElement | null>(null)
+const activeCategory = ref<NotificationCategory | undefined>(undefined)
+
+const categories: { key: NotificationCategory | undefined; labelKey: string }[] = [
+  { key: undefined, labelKey: 'common.status.all' },
+  { key: 'planetary', labelKey: 'notificationHub.categories.planetary' },
+  { key: 'industry', labelKey: 'notificationHub.categories.industry' },
+  { key: 'escalation', labelKey: 'notificationHub.categories.escalation' },
+  { key: 'esi', labelKey: 'notificationHub.categories.esi' },
+  { key: 'price', labelKey: 'notificationHub.categories.price' },
+]
+
+function setCategory(category: NotificationCategory | undefined): void {
+  activeCategory.value = category
+  store.fetchNotifications(1, category)
+}
+
+function handleClickOutside(event: MouseEvent): void {
+  if (dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
+    // Check if click is on the bell button itself (parent handles toggle)
+    const bellButton = document.getElementById('notification-bell-btn')
+    if (bellButton?.contains(event.target as Node)) return
+    emit('close')
+  }
+}
+
+async function handleNotificationClick(notification: AppNotification): Promise<void> {
+  if (!notification.isRead) {
+    await store.markAsRead(notification.id)
+  }
+  if (notification.route) {
+    emit('close')
+    router.push(notification.route)
+  }
+}
+
+async function handleMarkAllRead(): Promise<void> {
+  await store.markAllAsRead()
+}
+
+function loadMore(): void {
+  store.fetchNotifications(store.currentPage + 1, activeCategory.value)
+}
+
+onMounted(() => {
+  store.fetchNotifications(1, activeCategory.value)
+  document.addEventListener('mousedown', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('mousedown', handleClickOutside)
+})
+</script>
+
+<template>
+  <div
+    ref="dropdownRef"
+    class="absolute right-0 top-full mt-2 w-96 bg-slate-900 rounded-xl border border-cyan-500/20 shadow-2xl shadow-black/50 z-50 flex flex-col max-h-[32rem] overflow-hidden"
+  >
+    <!-- Header -->
+    <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800 shrink-0">
+      <h3 class="text-sm font-semibold text-slate-200">{{ t('notificationHub.title') }}</h3>
+      <div class="flex items-center gap-2">
+        <button
+          v-if="store.unreadCount > 0"
+          @click="handleMarkAllRead"
+          class="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+        >
+          {{ t('notificationHub.markAllRead') }}
+        </button>
+        <button
+          @click="emit('openSettings')"
+          class="p-1 hover:bg-slate-800 rounded-lg transition-colors"
+          :title="t('notificationHub.settings')"
+        >
+          <svg class="w-4 h-4 text-slate-400 hover:text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Category filter pills -->
+    <div class="flex items-center gap-1.5 px-4 py-2 border-b border-slate-800/50 shrink-0 overflow-x-auto">
+      <button
+        v-for="cat in categories"
+        :key="cat.key ?? 'all'"
+        @click="setCategory(cat.key)"
+        :class="[
+          'px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap',
+          activeCategory === cat.key
+            ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent'
+        ]"
+      >
+        {{ t(cat.labelKey) }}
+      </button>
+    </div>
+
+    <!-- Notification list -->
+    <div class="flex-1 overflow-y-auto min-h-0">
+      <!-- Loading state -->
+      <div v-if="store.isLoading" class="flex items-center justify-center py-8">
+        <svg class="animate-spin h-6 w-6 text-cyan-500" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+      </div>
+
+      <!-- Empty state -->
+      <div v-else-if="store.notifications.length === 0" class="px-4 py-10 text-center">
+        <svg class="w-8 h-8 text-slate-700 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+        <p class="text-sm text-slate-600">{{ t('notificationHub.empty') }}</p>
+      </div>
+
+      <!-- Notification items -->
+      <div v-else class="divide-y divide-slate-800/50">
+        <NotificationItem
+          v-for="notif in store.notifications"
+          :key="notif.id"
+          :notification="notif"
+          @click="handleNotificationClick"
+        />
+      </div>
+    </div>
+
+    <!-- Load more -->
+    <div v-if="store.hasMore && !store.isLoading" class="px-4 py-2 border-t border-slate-800 shrink-0">
+      <button
+        @click="loadMore"
+        :disabled="store.isLoadingMore"
+        class="w-full py-1.5 text-xs text-cyan-400 hover:text-cyan-300 transition-colors disabled:opacity-50"
+      >
+        <span v-if="store.isLoadingMore" class="flex items-center justify-center gap-2">
+          <svg class="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          {{ t('common.actions.loading') }}
+        </span>
+        <span v-else>{{ t('notificationHub.loadMore') }}</span>
+      </button>
+    </div>
+  </div>
+</template>

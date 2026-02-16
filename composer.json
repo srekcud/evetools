@@ -17,6 +17,7 @@
         "doctrine/doctrine-migrations-bundle": "^3.4",
         "doctrine/orm": "^3.3",
         "lexik/jwt-authentication-bundle": "^3.1",
+        "minishlink/web-push": "^10.0",
         "nelmio/cors-bundle": "^2.5",
         "predis/predis": "^3.0",
         "symfony/amqp-messenger": "^7.4",

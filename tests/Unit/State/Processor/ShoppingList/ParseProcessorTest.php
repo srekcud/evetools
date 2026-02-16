@@ -4,29 +4,29 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\State\Processor\ShoppingList;
 
-use App\State\Processor\ShoppingList\ParseProcessor;
+use App\Service\ItemParserService;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Tests for the parse logic in ParseProcessor.
+ * Tests for the parse logic in ItemParserService.
  *
- * Uses reflection to test parseItemList() and parseLine() directly,
- * since they contain non-trivial text parsing logic that benefits from
- * thorough unit coverage.
+ * Uses reflection to test parseLine() directly (private method),
+ * and calls parseItemList() publicly, since they contain non-trivial
+ * text parsing logic that benefits from thorough unit coverage.
  */
-#[CoversClass(ParseProcessor::class)]
+#[CoversClass(ItemParserService::class)]
 class ParseProcessorTest extends TestCase
 {
-    private ParseProcessor $processor;
+    private ItemParserService $parser;
 
     protected function setUp(): void
     {
-        // The processor has dependencies we don't need for parsing tests.
+        // The service has dependencies we don't need for parsing tests.
         // We create a partial instance using reflection to skip the constructor.
-        $reflection = new \ReflectionClass(ParseProcessor::class);
-        $this->processor = $reflection->newInstanceWithoutConstructor();
+        $reflection = new \ReflectionClass(ItemParserService::class);
+        $this->parser = $reflection->newInstanceWithoutConstructor();
     }
 
     // ===========================================
@@ -101,7 +101,7 @@ class ParseProcessorTest extends TestCase
     {
         $text = "Tritanium 1000\nPyerite 500\nMexallon 200";
 
-        $result = $this->invokeParseItemList($text);
+        $result = $this->parser->parseItemList($text);
 
         $this->assertCount(3, $result);
         $this->assertSame('Tritanium', $result[0]['name']);
@@ -116,7 +116,7 @@ class ParseProcessorTest extends TestCase
     {
         $text = "Tritanium 1000\nPyerite 500\nTritanium 2000";
 
-        $result = $this->invokeParseItemList($text);
+        $result = $this->parser->parseItemList($text);
 
         $this->assertCount(2, $result);
         // Tritanium should be merged: 1000 + 2000 = 3000
@@ -129,7 +129,7 @@ class ParseProcessorTest extends TestCase
     {
         $text = "Tritanium 1000\ntritanium 500";
 
-        $result = $this->invokeParseItemList($text);
+        $result = $this->parser->parseItemList($text);
 
         $this->assertCount(1, $result);
         $this->assertSame(1500, $result[0]['quantity']);
@@ -139,7 +139,7 @@ class ParseProcessorTest extends TestCase
     {
         $text = "Tritanium 1000\n\n\nPyerite 500\n\n";
 
-        $result = $this->invokeParseItemList($text);
+        $result = $this->parser->parseItemList($text);
 
         $this->assertCount(2, $result);
     }
@@ -148,7 +148,7 @@ class ParseProcessorTest extends TestCase
     {
         $text = "Tritanium 1000\r\nPyerite 500\r\nMexallon 200";
 
-        $result = $this->invokeParseItemList($text);
+        $result = $this->parser->parseItemList($text);
 
         $this->assertCount(3, $result);
     }
@@ -163,7 +163,7 @@ class ParseProcessorTest extends TestCase
             "Nocxium 50",
         ]);
 
-        $result = $this->invokeParseItemList($text);
+        $result = $this->parser->parseItemList($text);
 
         $this->assertCount(5, $result);
         $this->assertSame('Tritanium', $result[0]['name']);
@@ -174,14 +174,14 @@ class ParseProcessorTest extends TestCase
 
     public function testParseItemListEmptyTextReturnsEmpty(): void
     {
-        $result = $this->invokeParseItemList('');
+        $result = $this->parser->parseItemList('');
 
         $this->assertSame([], $result);
     }
 
     public function testParseItemListWhitespaceOnlyReturnsEmpty(): void
     {
-        $result = $this->invokeParseItemList("   \n  \n   ");
+        $result = $this->parser->parseItemList("   \n  \n   ");
 
         $this->assertSame([], $result);
     }
@@ -191,7 +191,7 @@ class ParseProcessorTest extends TestCase
         // Standard EVE multibuy format (from in-game copy)
         $text = "Tritanium\t10000\nPyerite\t5000\nMexallon\t2000";
 
-        $result = $this->invokeParseItemList($text);
+        $result = $this->parser->parseItemList($text);
 
         $this->assertCount(3, $result);
         $this->assertSame('Tritanium', $result[0]['name']);
@@ -204,15 +204,8 @@ class ParseProcessorTest extends TestCase
 
     private function invokeParseLine(string $line): ?array
     {
-        $method = new \ReflectionMethod(ParseProcessor::class, 'parseLine');
+        $method = new \ReflectionMethod(ItemParserService::class, 'parseLine');
 
-        return $method->invoke($this->processor, $line);
-    }
-
-    private function invokeParseItemList(string $text): array
-    {
-        $method = new \ReflectionMethod(ParseProcessor::class, 'parseItemList');
-
-        return $method->invoke($this->processor, $text);
+        return $method->invoke($this->parser, $line);
     }
 }

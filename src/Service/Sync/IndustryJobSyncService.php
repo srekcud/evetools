@@ -6,11 +6,13 @@ namespace App\Service\Sync;
 
 use App\Entity\CachedIndustryJob;
 use App\Entity\Character;
+use App\Entity\Notification;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryStepJobMatchRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Notification\NotificationDispatcher;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -27,6 +29,7 @@ class IndustryJobSyncService
         private readonly LoggerInterface $logger,
         private readonly MercurePublisherService $mercurePublisher,
         private readonly IndustryStepJobMatchRepository $jobMatchRepository,
+        private readonly NotificationDispatcher $notificationDispatcher,
     ) {
     }
 
@@ -179,9 +182,11 @@ class IndustryJobSyncService
                 ]);
 
                 // Send individual notifications for newly completed jobs
+                $user = $character->getUser();
                 foreach ($newlyCompletedJobs as $jobData) {
                     $productName = $this->getTypeName($jobData['product_type_id'] ?? $jobData['blueprint_type_id']);
                     $activityName = $this->getActivityName($jobData['activity_id']);
+                    // Keep existing Mercure sync progress for backward compat
                     $this->mercurePublisher->publishSyncProgress(
                         $userId,
                         'industry-job-completed',
@@ -196,6 +201,25 @@ class IndustryJobSyncService
                             'activityId' => $jobData['activity_id'],
                         ]
                     );
+
+                    // Dispatch notification to hub
+                    if ($user !== null) {
+                        $this->notificationDispatcher->dispatch(
+                            $user,
+                            Notification::CATEGORY_INDUSTRY,
+                            Notification::LEVEL_SUCCESS,
+                            sprintf('Job completed: %s', $productName),
+                            sprintf('%s %s (%dx) ready to deliver', $productName, $activityName, $jobData['runs']),
+                            [
+                                'jobId' => $jobData['job_id'],
+                                'productTypeId' => $jobData['product_type_id'] ?? $jobData['blueprint_type_id'],
+                                'productName' => $productName,
+                                'runs' => $jobData['runs'],
+                                'activityId' => $jobData['activity_id'],
+                            ],
+                            '/industry',
+                        );
+                    }
                 }
 
                 // Notify project pipeline progress

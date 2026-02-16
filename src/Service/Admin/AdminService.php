@@ -27,6 +27,9 @@ class AdminService
             'industryJobs' => $this->getIndustryJobsStats(),
             'syncs' => $this->getSyncStats(),
             'pve' => $this->getPveStats(),
+            'notifications' => $this->getNotificationStats(),
+            'market' => $this->getMarketStats(),
+            'profitTracker' => $this->getProfitTrackerStats(),
             'schedulerHealth' => $this->syncTracker->getAll(),
         ];
     }
@@ -370,6 +373,81 @@ class AdminService
         return [
             'labels' => ['Personnel', 'Corporation'],
             'data' => [$personal, $corporation],
+        ];
+    }
+
+    /** @return array<string, int> */
+    private function getNotificationStats(): array
+    {
+        $total = (int) $this->connection->fetchOne('SELECT COUNT(*) FROM notifications');
+        $unread = (int) $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM notifications WHERE is_read = false'
+        );
+        $pushSubscriptions = (int) $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM push_subscriptions'
+        );
+        $preferences = (int) $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM user_notification_preferences'
+        );
+
+        return [
+            'total' => $total,
+            'unread' => $unread,
+            'pushSubscriptions' => $pushSubscriptions,
+            'preferences' => $preferences,
+        ];
+    }
+
+    /** @return array<string, int|float> */
+    private function getProfitTrackerStats(): array
+    {
+        $thirtyDaysAgo = (new \DateTimeImmutable('-30 days'))->format('Y-m-d H:i:s');
+
+        $totalMatches = (int) $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM profit_matches WHERE matched_at >= ?',
+            [$thirtyDaysAgo]
+        );
+        $totalProfit = (float) $this->connection->fetchOne(
+            'SELECT COALESCE(SUM(profit), 0) FROM profit_matches WHERE matched_at >= ?',
+            [$thirtyDaysAgo]
+        );
+        $itemsTracked = (int) $this->connection->fetchOne(
+            'SELECT COUNT(DISTINCT product_type_id) FROM profit_matches WHERE matched_at >= ?',
+            [$thirtyDaysAgo]
+        );
+
+        return [
+            'totalMatches' => $totalMatches,
+            'totalProfit30d' => round($totalProfit, 2),
+            'itemsTracked' => $itemsTracked,
+        ];
+    }
+
+    /** @return array<string, int> */
+    private function getMarketStats(): array
+    {
+        $historyTypes = (int) $this->connection->fetchOne(
+            'SELECT COUNT(DISTINCT type_id) FROM market_price_history'
+        );
+        $historyEntries = (int) $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM market_price_history'
+        );
+        $alertsActive = (int) $this->connection->fetchOne(
+            "SELECT COUNT(*) FROM market_price_alerts WHERE status = 'active'"
+        );
+        $alertsTriggered = (int) $this->connection->fetchOne(
+            "SELECT COUNT(*) FROM market_price_alerts WHERE status = 'triggered'"
+        );
+        $favorites = (int) $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM market_favorites'
+        );
+
+        return [
+            'historyTypes' => $historyTypes,
+            'historyEntries' => $historyEntries,
+            'alertsActive' => $alertsActive,
+            'alertsTriggered' => $alertsTriggered,
+            'favorites' => $favorites,
         ];
     }
 }

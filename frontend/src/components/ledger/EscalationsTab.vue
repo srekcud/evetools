@@ -3,7 +3,6 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEscalationStore, type Escalation, type CreateEscalationInput } from '@/stores/escalation'
 import { useAuthStore } from '@/stores/auth'
-import MainLayout from '@/layouts/MainLayout.vue'
 import { useEscalationTimers } from '@/composables/useEscalationTimers'
 import { useEscalationHelpers } from '@/composables/useEscalationHelpers'
 import { useToast } from '@/composables/useToast'
@@ -327,197 +326,195 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <MainLayout>
-    <div class="space-y-6">
+  <div class="space-y-6">
 
-      <!-- Header: Filters + Add button -->
-      <EscalationFilters
-        :status-filter="statusFilter"
-        :visibility-filter="visibilityFilter"
-        :character-filter="characterFilter"
-        :characters="characters"
-        :shareable-count="shareableEscalations.length"
-        @update:status-filter="statusFilter = $event"
-        @update:visibility-filter="visibilityFilter = $event"
-        @update:character-filter="characterFilter = $event"
-        @share-wts="handleShareAllWts"
-        @share-discord="handleShareAllDiscord"
-        @add="openModal"
-      />
+    <!-- Header: Filters + Add button -->
+    <EscalationFilters
+      :status-filter="statusFilter"
+      :visibility-filter="visibilityFilter"
+      :character-filter="characterFilter"
+      :characters="characters"
+      :shareable-count="shareableEscalations.length"
+      @update:status-filter="statusFilter = $event"
+      @update:visibility-filter="visibilityFilter = $event"
+      @update:character-filter="characterFilter = $event"
+      @share-wts="handleShareAllWts"
+      @share-discord="handleShareAllDiscord"
+      @add="openModal"
+    />
 
-      <!-- KPI Cards -->
-      <EscalationKpiCards
-        :total="kpiTotal"
-        :new-bm="kpiNewBm"
-        :en-vente="kpiEnvente"
-        :vendu="kpiVendu"
-      />
+    <!-- KPI Cards -->
+    <EscalationKpiCards
+      :total="kpiTotal"
+      :new-bm="kpiNewBm"
+      :en-vente="kpiEnvente"
+      :vendu="kpiVendu"
+    />
 
-      <!-- Loading State -->
-      <div v-if="escalationStore.isLoading" class="flex items-center justify-center py-16">
-        <div class="flex items-center gap-3">
-          <svg class="w-5 h-5 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <span class="text-slate-400">{{ t('escalations.loading') }}</span>
-        </div>
-      </div>
-
-      <!-- Error State -->
-      <div v-else-if="escalationStore.error" class="bg-red-500/10 border border-red-500/30 rounded-xl p-6 text-center">
-        <svg class="w-8 h-8 text-red-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/>
+    <!-- Loading State -->
+    <div v-if="escalationStore.isLoading" class="flex items-center justify-center py-16">
+      <div class="flex items-center gap-3">
+        <svg class="w-5 h-5 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
-        <p class="text-red-400 mb-3">{{ escalationStore.error }}</p>
-        <button @click="loadData" class="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm transition-colors">
-          {{ t('common.actions.retry') }}
-        </button>
+        <span class="text-slate-400">{{ t('escalations.loading') }}</span>
       </div>
-
-      <!-- Empty State -->
-      <div v-else-if="filteredEscalations.length === 0" class="bg-slate-900 rounded-xl border border-slate-800 p-12 text-center">
-        <svg class="w-12 h-12 text-slate-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/>
-          <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/>
-        </svg>
-        <p class="text-slate-400 mb-2">{{ t('escalations.noEscalations') }}</p>
-        <p class="text-sm text-slate-600 mb-4">{{ t('escalations.noEscalationsHint') }}</p>
-        <button @click="openModal" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-colors">
-          {{ t('escalations.addEscalation') }}
-        </button>
-      </div>
-
-      <!-- Escalation List -->
-      <div v-else class="bg-slate-900 rounded-xl border border-slate-800">
-        <div class="px-5 py-4 border-b border-slate-800">
-          <h3 class="font-semibold">{{ t('escalations.listTitle') }}</h3>
-          <p class="text-sm text-slate-500">{{ t('escalations.listSubtitle') }}</p>
-        </div>
-
-        <div class="divide-y divide-slate-800">
-          <EscalationRow
-            v-for="escalation in paginatedEscalations"
-            :key="escalation.id"
-            :escalation="escalation"
-            :timer-info="getTimerInfo(escalation.expiresAt)"
-            :active-vis-popover-id="activeVisPopoverId"
-            :timer-bar-color="timerBarColor(getTimerInfo(escalation.expiresAt).zone)"
-            :timer-text-color="timerTextColor(getTimerInfo(escalation.expiresAt).zone)"
-            :price-color-class="priceColor(escalation)"
-            :price-sub-color-class="priceSubColor(escalation)"
-            :sec-status-color-class="secStatusColor(escalation.securityStatus)"
-            :visibility-badge-classes="visibilityBadgeClasses(escalation.visibility)"
-            :visibility-label="visibilityLabel(escalation.visibility)"
-            :visibility-title="visibilityTitle(escalation.visibility)"
-            :show-share-buttons="shouldShowShareButtons(escalation)"
-            @toggle-bm="toggleBmStatus"
-            @toggle-sale="toggleSaleStatus"
-            @change-visibility="changeVisibility"
-            @toggle-vis-popover="toggleVisPopover"
-            @share-wts="handleShareWts"
-            @share-discord="shareDiscord"
-            @edit="openEditModal"
-            @delete="askDeleteEscalation"
-          />
-        </div>
-
-        <!-- Pagination -->
-        <div v-if="totalPages > 1" class="px-5 py-3 border-t border-slate-800 flex items-center justify-between">
-          <p class="text-sm text-slate-500">
-            {{ t('escalations.pagination.showing', { from: (currentPage - 1) * perPage + 1, to: Math.min(currentPage * perPage, filteredEscalations.length), total: filteredEscalations.length }) }}
-          </p>
-          <div class="flex items-center gap-1">
-            <button
-              @click="currentPage = 1"
-              :disabled="currentPage === 1"
-              class="px-2 py-1 rounded-sm text-sm transition-colors"
-              :class="currentPage === 1 ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5"/></svg>
-            </button>
-            <button
-              @click="currentPage--"
-              :disabled="currentPage === 1"
-              class="px-2 py-1 rounded-sm text-sm transition-colors"
-              :class="currentPage === 1 ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
-            </button>
-            <template v-for="page in totalPages" :key="page">
-              <button
-                v-if="page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1)"
-                @click="currentPage = page"
-                class="w-8 h-8 rounded-sm text-sm font-medium transition-colors"
-                :class="page === currentPage ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
-              >
-                {{ page }}
-              </button>
-              <span
-                v-else-if="page === currentPage - 2 || page === currentPage + 2"
-                class="text-slate-600 px-1"
-              >...</span>
-            </template>
-            <button
-              @click="currentPage++"
-              :disabled="currentPage === totalPages"
-              class="px-2 py-1 rounded-sm text-sm transition-colors"
-              :class="currentPage === totalPages ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
-            </button>
-            <button
-              @click="currentPage = totalPages"
-              :disabled="currentPage === totalPages"
-              class="px-2 py-1 rounded-sm text-sm transition-colors"
-              :class="currentPage === totalPages ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 4.5l7.5 7.5-7.5 7.5m6-15l7.5 7.5-7.5 7.5"/></svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
     </div>
 
-    <!-- Add/Edit Modal -->
-    <EscalationFormModal
-      :visible="showModal"
-      :editing-escalation="editingEscalation"
-      :characters="characters"
-      @close="closeModal"
-      @submit="handleFormSubmit"
-    />
+    <!-- Error State -->
+    <div v-else-if="escalationStore.error" class="bg-red-500/10 border border-red-500/30 rounded-xl p-6 text-center">
+      <svg class="w-8 h-8 text-red-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/>
+      </svg>
+      <p class="text-red-400 mb-3">{{ escalationStore.error }}</p>
+      <button @click="loadData" class="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm transition-colors">
+        {{ t('common.actions.retry') }}
+      </button>
+    </div>
 
-    <!-- Delete Confirmation Modal -->
-    <ConfirmModal
-      :show="showDeleteModal && !!deleteTarget"
-      :title="t('escalations.deleteModal.title')"
-      :subtitle="deleteTarget?.type"
-      :message="deleteTarget ? `${deleteTarget.solarSystemName} \u00b7 ${deleteTarget.characterName}` : ''"
-      :confirm-label="isDeleting ? t('escalations.deleteModal.deleting') : t('common.actions.delete')"
-      confirm-color="red"
-      icon="delete"
-      :is-loading="isDeleting"
-      @confirm="confirmDelete"
-      @cancel="cancelDelete"
-    />
+    <!-- Empty State -->
+    <div v-else-if="filteredEscalations.length === 0" class="bg-slate-900 rounded-xl border border-slate-800 p-12 text-center">
+      <svg class="w-12 h-12 text-slate-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/>
+      </svg>
+      <p class="text-slate-400 mb-2">{{ t('escalations.noEscalations') }}</p>
+      <p class="text-sm text-slate-600 mb-4">{{ t('escalations.noEscalationsHint') }}</p>
+      <button @click="openModal" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-colors">
+        {{ t('escalations.addEscalation') }}
+      </button>
+    </div>
 
-    <!-- Sell Confirmation Modal -->
-    <ConfirmModal
-      :show="showSellModal && !!sellTarget"
-      :title="t('escalations.sellModal.title')"
-      :subtitle="sellTarget?.type"
-      :message="sellTarget ? `${sellTarget.solarSystemName} \u00b7 ${sellTarget.price}m ISK` : ''"
-      :confirm-label="isSelling ? t('escalations.sellModal.confirming') : t('common.actions.confirm')"
-      confirm-color="emerald"
-      icon="check"
-      :is-loading="isSelling"
-      @confirm="confirmSell"
-      @cancel="cancelSell"
-    />
+    <!-- Escalation List -->
+    <div v-else class="bg-slate-900 rounded-xl border border-slate-800">
+      <div class="px-5 py-4 border-b border-slate-800">
+        <h3 class="font-semibold">{{ t('escalations.listTitle') }}</h3>
+        <p class="text-sm text-slate-500">{{ t('escalations.listSubtitle') }}</p>
+      </div>
 
-    <!-- Toast Notifications -->
-    <ToastContainer />
-  </MainLayout>
+      <div class="divide-y divide-slate-800">
+        <EscalationRow
+          v-for="escalation in paginatedEscalations"
+          :key="escalation.id"
+          :escalation="escalation"
+          :timer-info="getTimerInfo(escalation.expiresAt)"
+          :active-vis-popover-id="activeVisPopoverId"
+          :timer-bar-color="timerBarColor(getTimerInfo(escalation.expiresAt).zone)"
+          :timer-text-color="timerTextColor(getTimerInfo(escalation.expiresAt).zone)"
+          :price-color-class="priceColor(escalation)"
+          :price-sub-color-class="priceSubColor(escalation)"
+          :sec-status-color-class="secStatusColor(escalation.securityStatus)"
+          :visibility-badge-classes="visibilityBadgeClasses(escalation.visibility)"
+          :visibility-label="visibilityLabel(escalation.visibility)"
+          :visibility-title="visibilityTitle(escalation.visibility)"
+          :show-share-buttons="shouldShowShareButtons(escalation)"
+          @toggle-bm="toggleBmStatus"
+          @toggle-sale="toggleSaleStatus"
+          @change-visibility="changeVisibility"
+          @toggle-vis-popover="toggleVisPopover"
+          @share-wts="handleShareWts"
+          @share-discord="shareDiscord"
+          @edit="openEditModal"
+          @delete="askDeleteEscalation"
+        />
+      </div>
+
+      <!-- Pagination -->
+      <div v-if="totalPages > 1" class="px-5 py-3 border-t border-slate-800 flex items-center justify-between">
+        <p class="text-sm text-slate-500">
+          {{ t('escalations.pagination.showing', { from: (currentPage - 1) * perPage + 1, to: Math.min(currentPage * perPage, filteredEscalations.length), total: filteredEscalations.length }) }}
+        </p>
+        <div class="flex items-center gap-1">
+          <button
+            @click="currentPage = 1"
+            :disabled="currentPage === 1"
+            class="px-2 py-1 rounded-sm text-sm transition-colors"
+            :class="currentPage === 1 ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5"/></svg>
+          </button>
+          <button
+            @click="currentPage--"
+            :disabled="currentPage === 1"
+            class="px-2 py-1 rounded-sm text-sm transition-colors"
+            :class="currentPage === 1 ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+          </button>
+          <template v-for="page in totalPages" :key="page">
+            <button
+              v-if="page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1)"
+              @click="currentPage = page"
+              class="w-8 h-8 rounded-sm text-sm font-medium transition-colors"
+              :class="page === currentPage ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
+            >
+              {{ page }}
+            </button>
+            <span
+              v-else-if="page === currentPage - 2 || page === currentPage + 2"
+              class="text-slate-600 px-1"
+            >...</span>
+          </template>
+          <button
+            @click="currentPage++"
+            :disabled="currentPage === totalPages"
+            class="px-2 py-1 rounded-sm text-sm transition-colors"
+            :class="currentPage === totalPages ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+          </button>
+          <button
+            @click="currentPage = totalPages"
+            :disabled="currentPage === totalPages"
+            class="px-2 py-1 rounded-sm text-sm transition-colors"
+            :class="currentPage === totalPages ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 4.5l7.5 7.5-7.5 7.5m6-15l7.5 7.5-7.5 7.5"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Add/Edit Modal -->
+  <EscalationFormModal
+    :visible="showModal"
+    :editing-escalation="editingEscalation"
+    :characters="characters"
+    @close="closeModal"
+    @submit="handleFormSubmit"
+  />
+
+  <!-- Delete Confirmation Modal -->
+  <ConfirmModal
+    :show="showDeleteModal && !!deleteTarget"
+    :title="t('escalations.deleteModal.title')"
+    :subtitle="deleteTarget?.type"
+    :message="deleteTarget ? `${deleteTarget.solarSystemName} \u00b7 ${deleteTarget.characterName}` : ''"
+    :confirm-label="isDeleting ? t('escalations.deleteModal.deleting') : t('common.actions.delete')"
+    confirm-color="red"
+    icon="delete"
+    :is-loading="isDeleting"
+    @confirm="confirmDelete"
+    @cancel="cancelDelete"
+  />
+
+  <!-- Sell Confirmation Modal -->
+  <ConfirmModal
+    :show="showSellModal && !!sellTarget"
+    :title="t('escalations.sellModal.title')"
+    :subtitle="sellTarget?.type"
+    :message="sellTarget ? `${sellTarget.solarSystemName} \u00b7 ${sellTarget.price}m ISK` : ''"
+    :confirm-label="isSelling ? t('escalations.sellModal.confirming') : t('common.actions.confirm')"
+    confirm-color="emerald"
+    icon="check"
+    :is-loading="isSelling"
+    @confirm="confirmSell"
+    @cancel="cancelSell"
+  />
+
+  <!-- Toast Notifications -->
+  <ToastContainer />
 </template>

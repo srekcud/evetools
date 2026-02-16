@@ -50,6 +50,10 @@ class AdminStatsResource
 
     public PveStatsDto $pve;
 
+    public NotificationStatsDto $notifications;
+
+    public MarketStatsDto $market;
+
     /** @var SchedulerHealthEntryDto[] */
     public array $schedulerHealth = [];
 
@@ -63,6 +67,8 @@ class AdminStatsResource
         $this->industryJobs = new IndustryJobsStatsDto();
         $this->syncs = new SyncStatsDto();
         $this->pve = new PveStatsDto();
+        $this->notifications = new NotificationStatsDto();
+        $this->market = new MarketStatsDto();
     }
 }
 
@@ -142,6 +148,23 @@ class PveCorporationStatsDto
         $this->corporationName = $corporationName;
         $this->total = $total;
     }
+}
+
+class NotificationStatsDto
+{
+    public int $total = 0;
+    public int $unread = 0;
+    public int $pushSubscriptions = 0;
+    public int $preferences = 0;
+}
+
+class MarketStatsDto
+{
+    public int $historyTypes = 0;
+    public int $historyEntries = 0;
+    public int $alertsActive = 0;
+    public int $alertsTriggered = 0;
+    public int $favorites = 0;
 }
 
 class SchedulerHealthEntryDto

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Sync;
 
 use App\Entity\Character;
+use App\Entity\Notification;
 use App\Entity\PlanetaryColony;
 use App\Entity\PlanetaryPin;
 use App\Entity\PlanetaryRoute;
@@ -13,6 +14,7 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\ESI\PlanetaryService;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Notification\NotificationDispatcher;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -25,6 +27,7 @@ class PlanetarySyncService
         private readonly InvTypeRepository $invTypeRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly MercurePublisherService $mercurePublisher,
+        private readonly NotificationDispatcher $notificationDispatcher,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -276,6 +279,7 @@ class PlanetarySyncService
             return;
         }
 
+        $user = $character->getUser();
         $now = new \DateTimeImmutable();
         $threshold = $now->modify('+2 hours');
 
@@ -290,26 +294,71 @@ class PlanetarySyncService
                     continue;
                 }
 
+                $planetName = $colony->getPlanetName() ?? $colony->getSolarSystemName() ?? 'Unknown';
+                $productName = $this->resolveTypeName($pin->getExtractorProductTypeId());
+
                 if ($expiry < $now) {
+                    // Keep existing Mercure alert for backward compat
                     $this->mercurePublisher->publishAlert($userId, 'planetary-expiry', [
                         'level' => 'expired',
-                        'planetName' => $colony->getPlanetName() ?? $colony->getSolarSystemName() ?? 'Unknown',
+                        'planetName' => $planetName,
                         'planetType' => $colony->getPlanetType(),
-                        'productName' => $this->resolveTypeName($pin->getExtractorProductTypeId()),
+                        'productName' => $productName,
                         'characterName' => $character->getName(),
                         'colonyId' => $colony->getId()?->toRfc4122(),
                     ]);
+
+                    // Dispatch notification
+                    if ($user !== null) {
+                        $this->notificationDispatcher->dispatch(
+                            $user,
+                            Notification::CATEGORY_PLANETARY,
+                            Notification::LEVEL_ERROR,
+                            'Extractor expired',
+                            sprintf('%s extractor on %s has expired (%s)', $productName, $planetName, $character->getName()),
+                            [
+                                'colonyId' => $colony->getId()?->toRfc4122(),
+                                'planetName' => $planetName,
+                                'productName' => $productName,
+                                'characterName' => $character->getName(),
+                            ],
+                            '/planetary',
+                        );
+                    }
                 } elseif ($expiry < $threshold) {
                     $minutesRemaining = (int)(($expiry->getTimestamp() - $now->getTimestamp()) / 60);
+                    $level = $minutesRemaining < 30 ? 'critical' : 'warning';
+
+                    // Keep existing Mercure alert for backward compat
                     $this->mercurePublisher->publishAlert($userId, 'planetary-expiry', [
-                        'level' => $minutesRemaining < 30 ? 'critical' : 'warning',
+                        'level' => $level,
                         'minutesRemaining' => $minutesRemaining,
-                        'planetName' => $colony->getPlanetName() ?? $colony->getSolarSystemName() ?? 'Unknown',
+                        'planetName' => $planetName,
                         'planetType' => $colony->getPlanetType(),
-                        'productName' => $this->resolveTypeName($pin->getExtractorProductTypeId()),
+                        'productName' => $productName,
                         'characterName' => $character->getName(),
                         'colonyId' => $colony->getId()?->toRfc4122(),
                     ]);
+
+                    // Dispatch notification
+                    if ($user !== null) {
+                        $notifLevel = $minutesRemaining < 30 ? Notification::LEVEL_CRITICAL : Notification::LEVEL_WARNING;
+                        $this->notificationDispatcher->dispatch(
+                            $user,
+                            Notification::CATEGORY_PLANETARY,
+                            $notifLevel,
+                            'Extractor expiring soon',
+                            sprintf('%s extractor on %s expires in %d min (%s)', $productName, $planetName, $minutesRemaining, $character->getName()),
+                            [
+                                'colonyId' => $colony->getId()?->toRfc4122(),
+                                'planetName' => $planetName,
+                                'productName' => $productName,
+                                'minutesRemaining' => $minutesRemaining,
+                                'characterName' => $character->getName(),
+                            ],
+                            '/planetary',
+                        );
+                    }
                 }
             }
         }

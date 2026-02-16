@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
 import { safeJsonParse } from '@/services/api'
@@ -8,11 +9,18 @@ import MainLayout from '@/layouts/MainLayout.vue'
 import AssetsFilterBar from '@/components/assets/AssetsFilterBar.vue'
 import AssetsStatsCards from '@/components/assets/AssetsStatsCards.vue'
 import AssetLocationGroup from '@/components/assets/AssetLocationGroup.vue'
+import ContractsTab from '@/components/assets/ContractsTab.vue'
 import type { Asset } from '@/types'
 
 const { t } = useI18n()
+const route = useRoute()
 const authStore = useAuthStore()
 const syncStore = useSyncStore()
+
+// Tab state
+type AssetTabId = 'assets' | 'contracts'
+const validTabs: AssetTabId[] = ['assets', 'contracts']
+const activeTab = ref<AssetTabId>('assets')
 
 const user = computed(() => authStore.user)
 const characters = computed(() => user.value?.characters || [])
@@ -297,6 +305,12 @@ function clearFilters() {
 
 // Initialize
 onMounted(() => {
+  // Deep linking: read tab from query param
+  const tabParam = route.query.tab as string | undefined
+  if (tabParam && validTabs.includes(tabParam as AssetTabId)) {
+    activeTab.value = tabParam as AssetTabId
+  }
+
   if (characters.value.length > 0) {
     const main = characters.value.find(c => c.isMain)
     selectedCharacterId.value = main?.id || characters.value[0].id
@@ -322,126 +336,154 @@ watch([selectedCharacterId, viewMode], () => {
 
 <template>
   <MainLayout>
-      <!-- Action bar -->
-      <div class="flex items-center justify-between mb-6">
-        <p class="text-slate-400">{{ t('assets.subtitle') }}</p>
-        <button
-          @click="refreshAssets"
-          :disabled="isRefreshing || isLoading"
-          class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <svg :class="['w-4 h-4', isRefreshing && 'animate-spin']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-          </svg>
-          {{ isRefreshing ? t('common.actions.syncing') : t('common.actions.refresh') }}
-        </button>
+    <div class="space-y-6">
+      <!-- Tabs -->
+      <div class="border-b border-slate-800">
+        <nav class="flex gap-6">
+          <button
+            v-for="tab in [
+              { id: 'assets', label: t('assets.tabs.assets') },
+              { id: 'contracts', label: t('assets.tabs.contracts') },
+            ]"
+            :key="tab.id"
+            @click="activeTab = tab.id as AssetTabId"
+            :class="[
+              'pb-3 text-sm font-medium border-b-2 transition-colors',
+              activeTab === tab.id
+                ? 'border-cyan-500 text-cyan-400'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            ]"
+          >
+            {{ tab.label }}
+          </button>
+        </nav>
       </div>
 
-      <!-- Sync progress bar (Mercure real-time) -->
-      <div v-if="currentSyncProgress && (currentSyncProgress.status === 'started' || currentSyncProgress.status === 'in_progress')" class="mb-6">
-        <div class="bg-slate-900 rounded-lg p-4 border border-slate-800">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-sm text-slate-300">{{ currentSyncProgress.message || t('assets.syncing') }}</span>
-            <span v-if="currentSyncProgress.progress !== null" class="text-sm text-cyan-400 font-mono">{{ currentSyncProgress.progress }}%</span>
-          </div>
-          <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
-            <div
-              class="h-full bg-linear-to-r from-cyan-500 to-cyan-400 transition-all duration-300"
-              :style="{ width: (currentSyncProgress.progress ?? 0) + '%' }"
-            ></div>
-          </div>
-        </div>
-      </div>
-
-      <div>
-      <!-- Error message -->
-      <div v-if="error" class="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 flex items-center justify-between">
-        <span>{{ error }}</span>
-        <button @click="error = ''" class="text-red-400 hover:text-red-300">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-        </button>
-      </div>
-
-      <!-- Filters -->
-      <AssetsFilterBar
-        :view-mode="viewMode"
-        :characters="characters"
-        :selected-character-id="selectedCharacterId"
-        :search-query="searchQuery"
-        :solar-systems="solarSystems"
-        :locations="locations"
-        :selected-solar-system="selectedSolarSystem"
-        :selected-location="selectedLocation"
-        @update:view-mode="viewMode = $event"
-        @update:selected-character-id="selectedCharacterId = $event"
-        @update:search-query="searchQuery = $event"
-        @update:selected-solar-system="selectedSolarSystem = $event"
-        @update:selected-location="selectedLocation = $event"
-        @clear-filters="clearFilters"
-      />
-
-      <!-- Stats -->
-      <AssetsStatsCards
-        :total-items="totalItems"
-        :total-types="totalTypes"
-        :total-systems="totalSystems"
-        :total-locations="totalLocations"
-      />
-
-      <!-- Loading state -->
-      <div v-if="isLoading" class="flex flex-col items-center justify-center py-20">
-        <svg class="w-10 h-10 animate-spin text-cyan-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-        </svg>
-        <p class="text-slate-400">{{ t('assets.loading') }}</p>
-      </div>
-
-      <!-- Empty state -->
-      <div v-else-if="assets.length === 0" class="text-center py-20">
-        <template v-if="isRefreshing">
-          <svg class="w-16 h-16 mx-auto text-cyan-500 mb-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-          </svg>
-          <p class="text-slate-300 font-medium mb-2">{{ t('assets.syncInProgress') }}</p>
-          <p class="text-slate-500 text-sm max-w-md mx-auto">
-            {{ t('assets.syncDescription') }}
-          </p>
-        </template>
-        <template v-else>
-          <svg class="w-16 h-16 mx-auto text-slate-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-          </svg>
-          <p class="text-slate-500 mb-4">{{ t('assets.noAssets') }}</p>
+      <!-- Assets Tab -->
+      <template v-if="activeTab === 'assets'">
+        <!-- Action bar -->
+        <div class="flex items-center justify-between">
+          <p class="text-slate-400">{{ t('assets.subtitle') }}</p>
           <button
             @click="refreshAssets"
-            :disabled="isRefreshing"
-            class="text-cyan-400 hover:underline text-sm"
+            :disabled="isRefreshing || isLoading"
+            class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {{ t('assets.refreshFromEve') }}
+            <svg :class="['w-4 h-4', isRefreshing && 'animate-spin']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            {{ isRefreshing ? t('common.actions.syncing') : t('common.actions.refresh') }}
           </button>
-        </template>
-      </div>
+        </div>
 
-      <!-- Assets by location -->
-      <div v-else class="space-y-4">
-        <AssetLocationGroup
-          v-for="location in assetsByLocation"
-          :key="location.locationName"
-          :location="location"
-          :expanded-containers="expandedContainers"
-          :collapsed-locations="collapsedLocations"
-          :container-contents="containerContents"
-          @toggle-container="toggleContainer"
-          @toggle-location="toggleLocation"
+        <!-- Sync progress bar (Mercure real-time) -->
+        <div v-if="currentSyncProgress && (currentSyncProgress.status === 'started' || currentSyncProgress.status === 'in_progress')">
+          <div class="bg-slate-900 rounded-lg p-4 border border-slate-800">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm text-slate-300">{{ currentSyncProgress.message || t('assets.syncing') }}</span>
+              <span v-if="currentSyncProgress.progress !== null" class="text-sm text-cyan-400 font-mono">{{ currentSyncProgress.progress }}%</span>
+            </div>
+            <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
+              <div
+                class="h-full bg-linear-to-r from-cyan-500 to-cyan-400 transition-all duration-300"
+                :style="{ width: (currentSyncProgress.progress ?? 0) + '%' }"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Error message -->
+        <div v-if="error" class="p-4 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 flex items-center justify-between">
+          <span>{{ error }}</span>
+          <button @click="error = ''" class="text-red-400 hover:text-red-300">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Filters -->
+        <AssetsFilterBar
+          :view-mode="viewMode"
+          :characters="characters"
+          :selected-character-id="selectedCharacterId"
+          :search-query="searchQuery"
+          :solar-systems="solarSystems"
+          :locations="locations"
+          :selected-solar-system="selectedSolarSystem"
+          :selected-location="selectedLocation"
+          @update:view-mode="viewMode = $event"
+          @update:selected-character-id="selectedCharacterId = $event"
+          @update:search-query="searchQuery = $event"
+          @update:selected-solar-system="selectedSolarSystem = $event"
+          @update:selected-location="selectedLocation = $event"
+          @clear-filters="clearFilters"
         />
-      </div>
 
-      <!-- No results -->
-      <div v-if="!isLoading && assets.length > 0 && filteredAssets.length === 0" class="text-center py-12">
-        <p class="text-slate-500">{{ t('assets.noMatchingItems') }}</p>
-      </div>
+        <!-- Stats -->
+        <AssetsStatsCards
+          :total-items="totalItems"
+          :total-types="totalTypes"
+          :total-systems="totalSystems"
+          :total-locations="totalLocations"
+        />
+
+        <!-- Loading state -->
+        <div v-if="isLoading" class="flex flex-col items-center justify-center py-20">
+          <svg class="w-10 h-10 animate-spin text-cyan-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          <p class="text-slate-400">{{ t('assets.loading') }}</p>
+        </div>
+
+        <!-- Empty state -->
+        <div v-else-if="assets.length === 0" class="text-center py-20">
+          <template v-if="isRefreshing">
+            <svg class="w-16 h-16 mx-auto text-cyan-500 mb-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            <p class="text-slate-300 font-medium mb-2">{{ t('assets.syncInProgress') }}</p>
+            <p class="text-slate-500 text-sm max-w-md mx-auto">
+              {{ t('assets.syncDescription') }}
+            </p>
+          </template>
+          <template v-else>
+            <svg class="w-16 h-16 mx-auto text-slate-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+            </svg>
+            <p class="text-slate-500 mb-4">{{ t('assets.noAssets') }}</p>
+            <button
+              @click="refreshAssets"
+              :disabled="isRefreshing"
+              class="text-cyan-400 hover:underline text-sm"
+            >
+              {{ t('assets.refreshFromEve') }}
+            </button>
+          </template>
+        </div>
+
+        <!-- Assets by location -->
+        <div v-else class="space-y-4">
+          <AssetLocationGroup
+            v-for="location in assetsByLocation"
+            :key="location.locationName"
+            :location="location"
+            :expanded-containers="expandedContainers"
+            :collapsed-locations="collapsedLocations"
+            :container-contents="containerContents"
+            @toggle-container="toggleContainer"
+            @toggle-location="toggleLocation"
+          />
+        </div>
+
+        <!-- No results -->
+        <div v-if="!isLoading && assets.length > 0 && filteredAssets.length === 0" class="text-center py-12">
+          <p class="text-slate-500">{{ t('assets.noMatchingItems') }}</p>
+        </div>
+      </template>
+
+      <!-- Contracts Tab -->
+      <ContractsTab v-else-if="activeTab === 'contracts'" />
     </div>
   </MainLayout>
 </template>

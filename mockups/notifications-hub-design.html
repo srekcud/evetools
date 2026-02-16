@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EVE Tools - Notifications Hub Mockup</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+
+  body {
+    background: #020617;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* Match the app's exact scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); }
+  ::-webkit-scrollbar-thumb { background: rgba(6, 182, 212, 0.3); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(6, 182, 212, 0.5); }
+
+  /* Bell ring animation on hover */
+  @keyframes bell-ring {
+    0% { transform: rotate(0); }
+    10% { transform: rotate(14deg); }
+    20% { transform: rotate(-12deg); }
+    30% { transform: rotate(10deg); }
+    40% { transform: rotate(-8deg); }
+    50% { transform: rotate(4deg); }
+    60% { transform: rotate(-2deg); }
+    70% { transform: rotate(0); }
+    100% { transform: rotate(0); }
+  }
+  .bell-ring:hover svg { animation: bell-ring 0.8s ease-in-out; }
+
+  /* Badge pulse */
+  @keyframes badge-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+    50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
+  }
+  .badge-pulse { animation: badge-pulse 2s ease-in-out infinite; }
+
+  /* Dropdown slide */
+  @keyframes dropdown-enter {
+    from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .dropdown-anim { animation: dropdown-enter 0.2s ease-out; }
+
+  /* Notification slide in */
+  @keyframes notif-in {
+    from { opacity: 0; transform: translateX(12px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .notif-enter { animation: notif-in 0.25s ease-out backwards; }
+
+  /* Toggle switch */
+  .toggle-track {
+    width: 40px; height: 22px;
+    border-radius: 11px;
+    transition: background-color 0.2s;
+    cursor: pointer;
+    position: relative;
+  }
+  .toggle-track::after {
+    content: '';
+    position: absolute;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: white;
+    top: 3px; left: 3px;
+    transition: transform 0.2s;
+  }
+  .toggle-track.active { background-color: #06b6d4; }
+  .toggle-track.active::after { transform: translateX(18px); }
+  .toggle-track:not(.active) { background-color: #334155; }
+
+  /* Push notification mock */
+  @keyframes push-slide {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .push-enter { animation: push-slide 0.3s ease-out backwards; }
+
+  /* Section label */
+  .section-label {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: 'JetBrains Mono', monospace;
+  }
+</style>
+</head>
+<body class="text-slate-100 min-h-screen p-8">
+
+<div class="max-w-4xl mx-auto space-y-16">
+
+  <!-- Page Title -->
+  <div class="text-center pt-8">
+    <h1 class="text-3xl font-bold text-transparent bg-clip-text" style="background-image: linear-gradient(to right, #22d3ee, #3b82f6);">Notifications Hub</h1>
+    <p class="text-slate-500 mt-2 text-sm">UI Mockup Reference &mdash; V0.10</p>
+    <div class="mt-4 flex items-center justify-center gap-3 text-xs text-slate-600">
+      <span class="section-label" style="background: rgba(6,182,212,0.15); color: #22d3ee;">SECTION A</span>
+      <span>Header Bell</span>
+      <span class="text-slate-700">&bull;</span>
+      <span class="section-label" style="background: rgba(6,182,212,0.15); color: #22d3ee;">SECTION B</span>
+      <span>Dropdown</span>
+      <span class="text-slate-700">&bull;</span>
+      <span class="section-label" style="background: rgba(6,182,212,0.15); color: #22d3ee;">SECTION C</span>
+      <span>Settings</span>
+      <span class="text-slate-700">&bull;</span>
+      <span class="section-label" style="background: rgba(6,182,212,0.15); color: #22d3ee;">SECTION D</span>
+      <span>Push Preview</span>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- SECTION A: Header with Notification Bell                      -->
+  <!-- ============================================================ -->
+  <section>
+    <div class="flex items-center gap-2 mb-4">
+      <span class="section-label" style="background: rgba(6,182,212,0.15); color: #22d3ee;">A</span>
+      <h2 class="text-lg font-semibold text-slate-300">Notification Bell in Header</h2>
+    </div>
+    <p class="text-sm text-slate-500 mb-6">Positioned in the sticky header, between ESI status and alliance/corp badges. Two states shown: with unread count, and without.</p>
+
+    <!-- Mock header bar -->
+    <div class="bg-slate-900 border border-cyan-500/10 rounded-2xl overflow-hidden">
+      <div class="px-8 py-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-2xl font-bold text-slate-100">Dashboard</h2>
+            <p class="text-sm text-slate-500 mt-1">Welcome back, capsuleer</p>
+          </div>
+          <div class="flex items-center gap-4">
+            <!-- ESI Status -->
+            <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-emerald-500/10 border-emerald-500/30 text-xs">
+              <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+              <span class="text-emerald-400">ESI OK</span>
+              <span class="text-slate-500">24.1k</span>
+            </div>
+
+            <!-- STATE 1: Bell WITH unread count -->
+            <div class="relative">
+              <button class="bell-ring relative p-2 rounded-lg border border-transparent hover:border-cyan-500/30 hover:bg-cyan-500/10 transition-all duration-200 group">
+                <svg class="w-5 h-5 text-slate-400 group-hover:text-cyan-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/>
+                </svg>
+                <!-- Badge -->
+                <span class="badge-pulse absolute -top-0.5 -right-0.5 flex items-center justify-center w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold ring-2 ring-slate-900">3</span>
+              </button>
+              <span class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-cyan-400/60 whitespace-nowrap font-mono">with unread</span>
+            </div>
+
+            <!-- Spacer for visual separation -->
+            <div class="w-px h-6 bg-slate-700/50 mx-1"></div>
+
+            <!-- STATE 2: Bell WITHOUT unread -->
+            <div class="relative">
+              <button class="bell-ring p-2 rounded-lg border border-transparent hover:border-cyan-500/30 hover:bg-cyan-500/10 transition-all duration-200 group">
+                <svg class="w-5 h-5 text-slate-500 group-hover:text-cyan-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/>
+                </svg>
+              </button>
+              <span class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-slate-600 whitespace-nowrap font-mono">no unread</span>
+            </div>
+
+            <div class="w-px h-6 bg-slate-700/50 mx-1"></div>
+
+            <!-- Alliance badge -->
+            <div class="flex items-center gap-2 px-4 py-2 bg-amber-500/10 rounded-lg border border-amber-500/30">
+              <div class="w-6 h-6 rounded bg-amber-500/30"></div>
+              <span class="text-amber-400 text-sm font-medium">Goonswarm</span>
+            </div>
+            <!-- Corp badge -->
+            <div class="flex items-center gap-2 px-4 py-2 bg-cyan-500/10 rounded-lg border border-cyan-500/30">
+              <div class="w-6 h-6 rounded bg-cyan-500/30"></div>
+              <span class="text-cyan-400 text-sm font-medium">KarmaFleet</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- SECTION B: Notification Dropdown Panel                        -->
+  <!-- ============================================================ -->
+  <section>
+    <div class="flex items-center gap-2 mb-4">
+      <span class="section-label" style="background: rgba(6,182,212,0.15); color: #22d3ee;">B</span>
+      <h2 class="text-lg font-semibold text-slate-300">Notification Dropdown Panel</h2>
+    </div>
+    <p class="text-sm text-slate-500 mb-6">Opens on bell click. Max height 500px, scrollable. Grouped by category with timestamps.</p>
+
+    <!-- Dropdown positioned as it would appear -->
+    <div class="flex justify-end pr-12">
+      <div class="dropdown-anim w-[420px] bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl shadow-black/50 overflow-hidden" style="max-height: 540px; display: flex; flex-direction: column;">
+
+        <!-- Dropdown Header -->
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-slate-800 shrink-0">
+          <div class="flex items-center gap-2.5">
+            <h3 class="text-sm font-semibold text-slate-100">Notifications</h3>
+            <span class="flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500/20 text-red-400 text-[10px] font-bold">7</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="text-xs text-slate-500 hover:text-cyan-400 transition-colors">Mark all as read</button>
+            <button class="p-1 rounded hover:bg-slate-800 transition-colors" title="Notification settings">
+              <svg class="w-4 h-4 text-slate-500 hover:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Scrollable notification list -->
+        <div class="overflow-y-auto flex-1" style="max-height: 430px;">
+
+          <!-- Category: Planetary Interaction -->
+          <div class="px-4 pt-3 pb-1">
+            <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Planetary Interaction</span>
+          </div>
+
+          <!-- PI - Expired (CRITICAL) -->
+          <div class="notif-enter px-4 py-3 hover:bg-slate-800/50 cursor-pointer transition-colors border-l-2 border-red-500" style="animation-delay: 0ms;">
+            <div class="flex items-start gap-3">
+              <div class="shrink-0 mt-0.5 w-8 h-8 rounded-lg bg-red-500/15 flex items-center justify-center">
+                <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <p class="text-sm font-medium text-red-400 truncate">Extractor expired</p>
+                  <div class="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0"></div>
+                </div>
+                <p class="text-xs text-slate-400 mt-0.5 truncate">Temperate Planet &mdash; Bacteria</p>
+                <p class="text-[10px] text-slate-600 mt-1 font-mono">Sylvain Durand &bull; 12 min ago</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- PI - Expiring Soon (WARNING) -->
+          <div class="notif-enter px-4 py-3 hover:bg-slate-800/50 cursor-pointer transition-colors border-l-2 border-amber-500" style="animation-delay: 40ms;">
+            <div class="flex items-start gap-3">
+              <div class="shrink-0 mt-0.5 w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center">
+                <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <p class="text-sm font-medium text-amber-400 truncate">Extractor expiring</p>
+                  <div class="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"></div>
+                </div>
+                <p class="text-xs text-slate-400 mt-0.5 truncate">Lava Planet &mdash; Silicon</p>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">23 min remaining</span>
+                  <span class="text-[10px] text-slate-600 font-mono">Sylvain Durand</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Divider -->
+          <div class="mx-4 border-t border-slate-800/60"></div>
+
+          <!-- Category: Industry -->
+          <div class="px-4 pt-3 pb-1">
+            <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Industry</span>
+          </div>
+
+          <!-- Industry - Job Completed -->
+          <div class="notif-enter px-4 py-3 hover:bg-slate-800/50 cursor-pointer transition-colors border-l-2 border-emerald-500" style="animation-delay: 80ms;">
+            <div class="flex items-start gap-3">
+              <div class="shrink-0 mt-0.5 w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <p class="text-sm font-medium text-emerald-400 truncate">Job completed: 10x Drake</p>
+                  <div class="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></div>
+                </div>
+                <p class="text-xs text-slate-400 mt-0.5 truncate">Delivered to C-J6MT &mdash; Goonswarm Keepstar</p>
+                <p class="text-[10px] text-slate-600 mt-1 font-mono">Sylvain Durand &bull; 5 min ago</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Industry - Completing Soon -->
+          <div class="notif-enter px-4 py-3 hover:bg-slate-800/50 cursor-pointer transition-colors border-l-2 border-cyan-500" style="animation-delay: 120ms;">
+            <div class="flex items-start gap-3">
+              <div class="shrink-0 mt-0.5 w-8 h-8 rounded-lg bg-cyan-500/15 flex items-center justify-center">
+                <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <p class="text-sm font-medium text-cyan-400 truncate">Job completing soon</p>
+                  <div class="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0"></div>
+                </div>
+                <p class="text-xs text-slate-400 mt-0.5 truncate">5x Scourge Fury Heavy Missile</p>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400">15 min remaining</span>
+                  <span class="text-[10px] text-slate-600 font-mono">Alt Character</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Divider -->
+          <div class="mx-4 border-t border-slate-800/60"></div>
+
+          <!-- Category: Escalations -->
+          <div class="px-4 pt-3 pb-1">
+            <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Escalations</span>
+          </div>
+
+          <!-- Escalation - Expiring -->
+          <div class="notif-enter px-4 py-3 hover:bg-slate-800/50 cursor-pointer transition-colors border-l-2 border-amber-500" style="animation-delay: 160ms;">
+            <div class="flex items-start gap-3">
+              <div class="shrink-0 mt-0.5 w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center">
+                <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/>
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <p class="text-sm font-medium text-amber-400 truncate">Escalation expiring</p>
+                </div>
+                <p class="text-xs text-slate-400 mt-0.5 truncate">Guristas Scout Outpost &mdash; BWF-ZZ (0.0)</p>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">2h 15m remaining</span>
+                  <span class="text-[10px] text-slate-600 font-mono">38 min ago</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Divider -->
+          <div class="mx-4 border-t border-slate-800/60"></div>
+
+          <!-- Category: ESI Notifications -->
+          <div class="px-4 pt-3 pb-1">
+            <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">EVE Notifications</span>
+          </div>
+
+          <!-- ESI - Structure -->
+          <div class="notif-enter px-4 py-3 hover:bg-slate-800/50 cursor-pointer transition-colors border-l-2 border-slate-600" style="animation-delay: 200ms;">
+            <div class="flex items-start gap-3">
+              <div class="shrink-0 mt-0.5 w-8 h-8 rounded-lg bg-slate-700/50 flex items-center justify-center">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/>
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-slate-300 truncate">Structure reinforced</p>
+                <p class="text-xs text-slate-400 mt-0.5 truncate">C-J6MT &mdash; Goonswarm Keepstar</p>
+                <p class="text-[10px] text-slate-600 mt-1 font-mono">via ESI &bull; 1h ago</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Divider -->
+          <div class="mx-4 border-t border-slate-800/60"></div>
+
+          <!-- Category: Price Alerts -->
+          <div class="px-4 pt-3 pb-1">
+            <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Price Alerts</span>
+          </div>
+
+          <!-- Price Alert -->
+          <div class="notif-enter px-4 py-3 hover:bg-slate-800/50 cursor-pointer transition-colors border-l-2 border-emerald-500" style="animation-delay: 240ms;">
+            <div class="flex items-start gap-3">
+              <div class="shrink-0 mt-0.5 w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941"/>
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <p class="text-sm font-medium text-emerald-400 truncate">Price target reached</p>
+                </div>
+                <p class="text-xs text-slate-400 mt-0.5 truncate">Tritanium below <span class="text-amber-400 font-mono">4.50 ISK</span> in Jita</p>
+                <p class="text-[10px] text-slate-600 mt-1 font-mono">2h ago</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Dropdown Footer -->
+        <div class="px-5 py-3 border-t border-slate-800 shrink-0 text-center">
+          <a href="#" class="text-xs text-cyan-400 hover:text-cyan-300 transition-colors font-medium">View all notifications</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- SECTION C: Notification Settings Modal                        -->
+  <!-- ============================================================ -->
+  <section>
+    <div class="flex items-center gap-2 mb-4">
+      <span class="section-label" style="background: rgba(6,182,212,0.15); color: #22d3ee;">C</span>
+      <h2 class="text-lg font-semibold text-slate-300">Notification Settings</h2>
+    </div>
+    <p class="text-sm text-slate-500 mb-6">Accessed via gear icon in dropdown header, or from the Settings modal. Per-category toggles with threshold configuration.</p>
+
+    <!-- Modal -->
+    <div class="max-w-lg mx-auto">
+      <div class="bg-slate-900 rounded-2xl border border-cyan-500/30 shadow-2xl shadow-cyan-500/10 overflow-hidden flex flex-col" style="max-height: 700px;">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800 shrink-0">
+          <h3 class="text-lg font-semibold text-slate-100">Notification Preferences</h3>
+          <button class="p-1 hover:bg-slate-800 rounded-lg transition-colors">
+            <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Content -->
+        <div class="p-6 overflow-y-auto flex-1 space-y-5">
+
+          <!-- PI -->
+          <div class="bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center">
+                  <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-slate-200">Planetary Interaction</p>
+                  <p class="text-xs text-slate-500 mt-0.5">Extractor expiry alerts</p>
+                </div>
+              </div>
+              <div class="toggle-track active"></div>
+            </div>
+            <div class="mt-3 ml-11 flex items-center gap-3">
+              <label class="text-xs text-slate-400">Alert threshold</label>
+              <select class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500/50">
+                <option>15 min before</option>
+                <option selected>30 min before</option>
+                <option>1 hour before</option>
+                <option>2 hours before</option>
+                <option>6 hours before</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Industry -->
+          <div class="bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+                  <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-slate-200">Industry</p>
+                  <p class="text-xs text-slate-500 mt-0.5">Manufacturing & research jobs</p>
+                </div>
+              </div>
+              <div class="toggle-track active"></div>
+            </div>
+            <div class="mt-3 ml-11 space-y-2">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked class="w-3.5 h-3.5 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900">
+                <span class="text-xs text-slate-400">Notify when job completes</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" class="w-3.5 h-3.5 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900">
+                <span class="text-xs text-slate-400">Notify 15 min before completion</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Escalations -->
+          <div class="bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-cyan-500/15 flex items-center justify-center">
+                  <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-slate-200">Escalations</p>
+                  <p class="text-xs text-slate-500 mt-0.5">Expiry countdown alerts</p>
+                </div>
+              </div>
+              <div class="toggle-track active"></div>
+            </div>
+            <div class="mt-3 ml-11 flex items-center gap-3">
+              <label class="text-xs text-slate-400">Alert threshold</label>
+              <select class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500/50">
+                <option>30 min before</option>
+                <option selected>1 hour before</option>
+                <option>2 hours before</option>
+                <option>6 hours before</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Price Alerts (disabled) -->
+          <div class="bg-slate-800/40 rounded-xl p-4 border border-slate-700/50 opacity-60">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-slate-700/50 flex items-center justify-center">
+                  <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-slate-400">Price Alerts</p>
+                  <p class="text-xs text-slate-600 mt-0.5">Market price thresholds</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-700 text-slate-400 border border-slate-600">V0.11</span>
+                <div class="toggle-track" style="opacity: 0.4; pointer-events: none;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ESI Notifications -->
+          <div class="bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-slate-700/50 flex items-center justify-center">
+                  <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-slate-200">ESI Notifications</p>
+                  <p class="text-xs text-slate-500 mt-0.5">In-game notifications from EVE</p>
+                </div>
+              </div>
+              <div class="toggle-track active"></div>
+            </div>
+            <div class="mt-3 ml-11">
+              <p class="text-xs text-slate-500 mb-2">Show only these types:</p>
+              <div class="flex flex-wrap gap-1.5">
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 cursor-pointer">Structure alerts</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 cursor-pointer">War declarations</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-700 text-slate-400 border border-slate-600 cursor-pointer">Sovereignty</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-700 text-slate-400 border border-slate-600 cursor-pointer">Corp management</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-700 text-slate-400 border border-slate-600 cursor-pointer">Bounties &amp; kills</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Browser Push -->
+          <div class="bg-slate-800/40 rounded-xl p-4 border border-amber-500/20">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center">
+                  <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-slate-200">Browser Push Notifications</p>
+                </div>
+              </div>
+              <div class="toggle-track"></div>
+            </div>
+            <div class="mt-3 ml-11">
+              <div class="flex items-start gap-2 px-3 py-2 bg-amber-500/5 rounded-lg border border-amber-500/10">
+                <svg class="w-4 h-4 text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+                </svg>
+                <p class="text-[11px] text-amber-400/80 leading-relaxed">Allow browser notifications for alerts even when the app is not focused. Your browser will ask for permission.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-end gap-3 shrink-0">
+          <button class="px-4 py-2 text-sm text-slate-400 hover:text-slate-200 transition-colors">Cancel</button>
+          <button class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-colors">Save preferences</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- SECTION D: Browser Push Notification Previews                 -->
+  <!-- ============================================================ -->
+  <section class="pb-16">
+    <div class="flex items-center gap-2 mb-4">
+      <span class="section-label" style="background: rgba(6,182,212,0.15); color: #22d3ee;">D</span>
+      <h2 class="text-lg font-semibold text-slate-300">Browser Push Notifications</h2>
+    </div>
+    <p class="text-sm text-slate-500 mb-6">Native browser notifications shown when the app tab is not focused. Clicking navigates to the relevant module.</p>
+
+    <div class="max-w-sm ml-auto space-y-3">
+      <!-- Push 1: PI Alert -->
+      <div class="push-enter bg-slate-800 rounded-xl p-4 border border-slate-700 shadow-xl shadow-black/40" style="animation-delay: 0ms;">
+        <div class="flex items-start gap-3">
+          <div class="shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-bold text-slate-200">EVE Tools &mdash; PI Alert</p>
+              <span class="text-[10px] text-slate-500">now</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1 leading-relaxed">Extractor expired on Temperate Planet (Bacteria) &mdash; Character: Sylvain Durand</p>
+            <p class="text-[10px] text-cyan-400/60 mt-1.5">Click to view in Planetary</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Push 2: Industry -->
+      <div class="push-enter bg-slate-800 rounded-xl p-4 border border-slate-700 shadow-xl shadow-black/40" style="animation-delay: 150ms;">
+        <div class="flex items-start gap-3">
+          <div class="shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-bold text-slate-200">EVE Tools &mdash; Industry</p>
+              <span class="text-[10px] text-slate-500">2m ago</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1 leading-relaxed">Job completed: 10x Drake delivered to C-J6MT Keepstar</p>
+            <p class="text-[10px] text-cyan-400/60 mt-1.5">Click to view in Industry</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Push 3: Escalation -->
+      <div class="push-enter bg-slate-800 rounded-xl p-4 border border-slate-700 shadow-xl shadow-black/40" style="animation-delay: 300ms;">
+        <div class="flex items-start gap-3">
+          <div class="shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-bold text-slate-200">EVE Tools &mdash; Escalation</p>
+              <span class="text-[10px] text-slate-500">5m ago</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1 leading-relaxed">Guristas Scout Outpost expiring in 30 minutes &mdash; BWF-ZZ</p>
+            <p class="text-[10px] text-cyan-400/60 mt-1.5">Click to view in Escalations</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>

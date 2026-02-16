@@ -14,10 +14,14 @@ use App\Message\TriggerAssetsSync;
 use App\Message\TriggerPlanetarySync;
 use App\Message\TriggerJitaMarketSync;
 use App\Message\TriggerMiningSync;
+use App\Message\TriggerProfitComputation;
 use App\Message\TriggerPveSync;
 use App\Message\TriggerStructureMarketSync;
 use App\Message\SyncWalletTransactions;
+use App\Repository\MarketPriceHistoryRepository;
+use App\Repository\NotificationRepository;
 use App\Service\Admin\SyncTracker;
+use App\Service\MarketAlertService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -32,6 +36,9 @@ class TriggerSyncProcessor implements ProcessorInterface
         private readonly Security $security,
         private readonly MessageBusInterface $messageBus,
         private readonly SyncTracker $syncTracker,
+        private readonly MarketAlertService $marketAlertService,
+        private readonly NotificationRepository $notificationRepository,
+        private readonly MarketPriceHistoryRepository $marketPriceHistoryRepository,
         /** @var list<string> */
         private readonly array $adminCharacterNames,
     ) {
@@ -65,7 +72,13 @@ class TriggerSyncProcessor implements ProcessorInterface
 
         // Resolve short operation name (strip API Platform prefix)
         $shortName = $operationName ?? '';
-        foreach (self::ACTION_TO_SYNC_TYPE as $action => $syncType) {
+
+        $allActions = array_merge(
+            array_keys(self::ACTION_TO_SYNC_TYPE),
+            ['compute_profit', 'check_market_alerts', 'purge_notifications', 'purge_market_history'],
+        );
+
+        foreach ($allActions as $action) {
             if (str_contains($shortName, str_replace('_', '-', $action))) {
                 $shortName = $action;
                 break;
@@ -112,6 +125,28 @@ class TriggerSyncProcessor implements ProcessorInterface
             case 'sync_planetary':
                 $this->messageBus->dispatch(new TriggerPlanetarySync());
                 $resource->message = 'Planetary Interaction sync triggered';
+                break;
+
+            case 'compute_profit':
+                $this->messageBus->dispatch(new TriggerProfitComputation());
+                $resource->message = 'Profit computation triggered for all active users';
+                break;
+
+            case 'check_market_alerts':
+                $triggered = $this->marketAlertService->checkAlerts();
+                $resource->message = sprintf('Market alerts checked: %d triggered', $triggered);
+                break;
+
+            case 'purge_notifications':
+                $deleted = $this->notificationRepository->deleteOlderThan(new \DateTimeImmutable('-7 days'));
+                $resource->message = sprintf('Purged %d notifications older than 7 days', $deleted);
+                $resource->deleted = $deleted;
+                break;
+
+            case 'purge_market_history':
+                $deleted = $this->marketPriceHistoryRepository->purgeOlderThan(365);
+                $resource->message = sprintf('Purged %d market history entries older than 365 days', $deleted);
+                $resource->deleted = $deleted;
                 break;
 
             default:

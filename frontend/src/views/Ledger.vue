@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { useLedgerStore } from '@/stores/ledger'
 import { usePveStore } from '@/stores/pve'
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -8,13 +9,17 @@ import PveTab from '@/components/ledger/PveTab.vue'
 import LedgerDashboardTab from '@/components/ledger/LedgerDashboardTab.vue'
 import MiningTab from '@/components/ledger/MiningTab.vue'
 import LedgerSettingsTab from '@/components/ledger/LedgerSettingsTab.vue'
+import EscalationsTab from '@/components/ledger/EscalationsTab.vue'
 
 const { t } = useI18n()
+const route = useRoute()
 const ledgerStore = useLedgerStore()
 const pveStore = usePveStore()
 
 // Tab state
-const activeTab = ref<'dashboard' | 'pve' | 'mining' | 'settings'>('dashboard')
+type TabId = 'dashboard' | 'pve' | 'mining' | 'settings' | 'escalations'
+const validTabs: TabId[] = ['dashboard', 'pve', 'mining', 'settings', 'escalations']
+const activeTab = ref<TabId>('dashboard')
 
 // Period selection (cached in localStorage)
 const selectedDays = ref(parseInt(localStorage.getItem('ledgerSelectedDays') || '30'))
@@ -76,6 +81,11 @@ watch(selectedDays, async () => {
 
 // Initialize
 onMounted(async () => {
+  // Deep linking: read tab from query param
+  const tabParam = route.query.tab as string | undefined
+  if (tabParam && validTabs.includes(tabParam as TabId)) {
+    activeTab.value = tabParam as TabId
+  }
   await fetchData()
 })
 </script>
@@ -123,10 +133,11 @@ onMounted(async () => {
               { id: 'dashboard', label: t('ledger.tabs.dashboard') },
               { id: 'pve', label: t('ledger.tabs.pve') },
               { id: 'mining', label: t('ledger.tabs.mining') },
+              { id: 'escalations', label: t('ledger.tabs.escalations') },
               { id: 'settings', label: t('ledger.tabs.settings') },
             ]"
             :key="tab.id"
-            @click="activeTab = tab.id as typeof activeTab"
+            @click="activeTab = tab.id as TabId"
             :class="[
               'pb-3 text-sm font-medium border-b-2 transition-colors',
               activeTab === tab.id
@@ -171,6 +182,11 @@ onMounted(async () => {
           @sync="fetchData"
         />
       </div>
+
+      <!-- Escalations Tab -->
+      <EscalationsTab
+        v-else-if="activeTab === 'escalations'"
+      />
 
       <!-- Settings Tab -->
       <LedgerSettingsTab

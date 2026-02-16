@@ -54,6 +54,8 @@ export const useSyncStore = defineStore('sync', () => {
   const walletTransactionsProgress = computed(() => getSyncProgress('wallet-transactions'))
   const planetaryProgress = computed(() => getSyncProgress('planetary'))
   const adminSyncProgress = computed(() => getSyncProgress('admin-sync'))
+  const notificationsProgress = computed(() => getSyncProgress('notifications'))
+  const profitTrackerProgress = computed(() => getSyncProgress('profit-tracker'))
 
   // Actions
   async function fetchToken(): Promise<MercureToken | null> {
@@ -117,12 +119,26 @@ export const useSyncStore = defineStore('sync', () => {
 
       eventSource.value.onmessage = (event: MessageEvent) => {
         try {
-          const data: SyncProgress = JSON.parse(event.data)
+          const data = JSON.parse(event.data)
+
+          // Dispatch notification messages to the notifications store
+          // Notification messages have category, title, and id fields
+          if (data.category && data.title && data.id && !data.syncType) {
+            import('./notifications').then(({ useNotificationsStore }) => {
+              const notificationsStore = useNotificationsStore()
+              notificationsStore.addNotification(data)
+            })
+            console.debug('Mercure: Received notification', data)
+            return
+          }
+
+          // Default: sync progress message
+          const syncData = data as SyncProgress
           syncStatus.value = {
             ...syncStatus.value,
-            [data.syncType]: data,
+            [syncData.syncType]: syncData,
           }
-          console.debug('Mercure: Received update', data)
+          console.debug('Mercure: Received update', syncData)
         } catch (error) {
           console.error('Mercure: Failed to parse message', error)
         }
@@ -231,6 +247,8 @@ export const useSyncStore = defineStore('sync', () => {
     walletTransactionsProgress,
     planetaryProgress,
     adminSyncProgress,
+    notificationsProgress,
+    profitTrackerProgress,
 
     // Actions
     connect,

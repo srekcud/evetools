@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { useIndustryStore, type SearchResult } from '@/stores/industry'
 
 const { t } = useI18n()
+const route = useRoute()
 import MainLayout from '@/layouts/MainLayout.vue'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
 import ProjectTable from '@/components/industry/ProjectTable.vue'
@@ -11,6 +13,7 @@ import ProjectDetail from '@/components/industry/ProjectDetail.vue'
 import BlacklistConfig from '@/components/industry/BlacklistConfig.vue'
 import StructureConfig from '@/components/industry/StructureConfig.vue'
 import SkillsConfig from '@/components/industry/SkillsConfig.vue'
+import ProfitTab from '@/components/industry/ProfitTab.vue'
 
 const store = useIndustryStore()
 
@@ -41,12 +44,15 @@ function cleanTypeName(name: string): string {
 const viewingProjectId = ref<string | null>(null)
 
 // Main tabs
-const mainTab = ref<'projects' | 'config'>('projects')
+const mainTab = ref<'projects' | 'config' | 'profit'>('projects')
 
 // Config sub-tabs
 const configTab = ref<'skills' | 'structures' | 'blacklist'>('skills')
 
 onMounted(() => {
+  if (route.query.tab && ['projects', 'config', 'profit'].includes(route.query.tab as string)) {
+    mainTab.value = route.query.tab as typeof mainTab.value
+  }
   store.fetchProjects()
 })
 
@@ -167,6 +173,17 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
           >
             {{ t('industry.tabs.config') }}
           </button>
+          <button
+            @click="mainTab = 'profit'"
+            :class="[
+              'px-4 py-2 rounded-lg text-sm font-medium',
+              mainTab === 'profit'
+                ? 'bg-cyan-600 text-white'
+                : 'bg-slate-800 text-slate-400 hover:text-slate-200',
+            ]"
+          >
+            {{ t('industry.tabs.profit') }}
+          </button>
         </div>
       </div>
 
@@ -255,6 +272,11 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
         <div v-else>
           <BlacklistConfig />
         </div>
+      </template>
+
+      <!-- Profit view -->
+      <template v-else-if="mainTab === 'profit'">
+        <ProfitTab />
       </template>
 
       <!-- Main view (projects) -->

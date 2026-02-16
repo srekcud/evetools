@@ -70,12 +70,17 @@
     "dashboard": "Dashboard",
     "characters": "Characters",
     "ledger": "Ledger",
+    "revenue": "Revenue",
     "industry": "Industry",
     "escalations": "Escalations",
     "pi": "PI",
     "shoppingList": "Valuator",
+    "production": "Production",
+    "inventory": "Inventory",
     "assets": "Inventory",
     "contracts": "Contracts",
+    "market": "Market",
+    "profitTracker": "Profit Tracker",
     "admin": "Administration"
   },
   "settings": {
@@ -461,7 +466,8 @@
     "subtitle": "Manufacturing and reaction projects",
     "tabs": {
       "projects": "Projects",
-      "config": "Configuration"
+      "config": "Configuration",
+      "profit": "Profit"
     },
     "configTabs": {
       "skills": "Skills",
@@ -740,7 +746,8 @@
       "dashboard": "Overview",
       "mining": "Mining",
       "pve": "PVE",
-      "settings": "Settings"
+      "settings": "Settings",
+      "escalations": "Escalations"
     },
     "period": {
       "7days": "7 days",
@@ -837,6 +844,10 @@
   "assets": {
     "title": "Inventory",
     "subtitle": "Browse and search your EVE Online assets",
+    "tabs": {
+      "assets": "Inventory",
+      "contracts": "Contracts"
+    },
     "characterAssets": "Character assets",
     "corporationAssets": "Corporation assets",
     "searchPlaceholder": "Search an item...",
@@ -1001,7 +1012,11 @@
     "triggerSync": "Trigger sync",
     "actions": {
       "retryFailed": "Retry Failed",
-      "purgeFailed": "Purge Failed"
+      "purgeFailed": "Purge Failed",
+      "marketAndNotifications": "Market & Notifications",
+      "checkMarketAlerts": "Check Market Alerts",
+      "purgeNotifications": "Purge Notifications (>7d)",
+      "purgeMarketHistory": "Purge Market History (>365d)"
     },
     "maintenance": "Maintenance",
     "clearCache": "Clear Cache",
@@ -1023,7 +1038,14 @@
       "esiJobs": "ESI Jobs",
       "structures": "Structures",
       "queue": "Queue",
-      "failed": "Failed"
+      "failed": "Failed",
+      "notifications": "Notifications",
+      "unread": "Unread",
+      "pushSubs": "Push subs",
+      "historyTypes": "Types tracked",
+      "alertsActive": "Alerts active",
+      "alertsTriggered": "Alerts triggered",
+      "favorites": "Favorites"
     },
     "sync": {
       "title": "Synchronizations",
@@ -1092,5 +1114,165 @@
     "jobCompletedMessage": "A job is complete",
     "projectProgress": "Industry project",
     "projectProgressMessage": "Project progress"
+  },
+  "notificationHub": {
+    "title": "Notifications",
+    "markAllRead": "Mark all as read",
+    "settings": "Preferences",
+    "empty": "No notifications",
+    "loadMore": "Load more",
+    "timeAgo": {
+      "justNow": "Just now",
+      "minutesAgo": "{n}m ago",
+      "hoursAgo": "{n}h ago",
+      "daysAgo": "{n}d ago"
+    },
+    "categories": {
+      "planetary": "Planetary",
+      "industry": "Industry",
+      "escalation": "Escalations",
+      "esi": "EVE Notifications",
+      "price": "Price Alerts"
+    },
+    "settingsModal": {
+      "title": "Notification Preferences",
+      "category": "Category",
+      "enabled": "Enabled",
+      "push": "Browser Push",
+      "threshold": "Threshold (min)",
+      "save": "Save",
+      "pushDenied": "Push notifications were denied by the browser",
+      "pushNotSupported": "Push not supported by this browser"
+    }
+  },
+  "market": {
+    "title": "Market Browser",
+    "recentSearches": "Recent Searches",
+    "clearRecent": "Clear",
+    "categories": {
+      "all": "All"
+    },
+    "search": {
+      "placeholder": "Search for an item...",
+      "noResults": "No results"
+    },
+    "tabs": {
+      "browse": "Browse",
+      "favorites": "Favorites",
+      "alerts": "Alerts"
+    },
+    "detail": {
+      "jitaSell": "Jita Sell",
+      "jitaBuy": "Jita Buy",
+      "spread": "Spread",
+      "volume": "Volume/day",
+      "change30d": "30d Change",
+      "orderBook": "Order Book",
+      "comparison": "Comparison",
+      "sell": "Sell",
+      "buy": "Buy",
+      "category": "Category",
+      "priceHistory": "Price History"
+    },
+    "favorite": {
+      "add": "Add to favorites",
+      "remove": "Remove from favorites"
+    },
+    "alert": {
+      "create": "Create Alert",
+      "direction": "Direction",
+      "above": "Above",
+      "below": "Below",
+      "threshold": "Threshold",
+      "priceSource": "Price Source",
+      "status": {
+        "active": "Active",
+        "triggered": "Triggered",
+        "expired": "Expired"
+      },
+      "delete": "Delete",
+      "currentPrice": "Current price"
+    },
+    "period": {
+      "30d": "30d",
+      "90d": "90d",
+      "365d": "1 year"
+    }
+  },
+  "profitTracker": {
+    "title": "Profit Tracker",
+    "compute": "Recompute",
+    "computing": "Computing...",
+    "period": {
+      "7d": "7 days",
+      "30d": "30 days",
+      "90d": "90 days"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "detail": "Item Detail",
+      "unmatched": "Unmatched"
+    },
+    "kpi": {
+      "totalProfit": "Total Profit",
+      "totalRevenue": "Total Revenue",
+      "totalCost": "Total Cost",
+      "avgMargin": "Avg Margin",
+      "itemCount": "Items Tracked",
+      "bestItem": "Best Performer",
+      "worstItem": "Worst Performer"
+    },
+    "table": {
+      "item": "Item",
+      "qtyProduced": "Produced",
+      "qtySold": "Sold",
+      "materialCost": "Materials",
+      "jobCost": "Job Cost",
+      "tax": "Tax",
+      "totalCost": "Total Cost",
+      "revenue": "Revenue",
+      "profit": "Profit",
+      "margin": "Margin",
+      "lastSale": "Last Sale",
+      "search": "Search items..."
+    },
+    "filter": {
+      "all": "All",
+      "profit": "Profitable",
+      "loss": "Loss"
+    },
+    "detail": {
+      "costBreakdown": "Cost Breakdown",
+      "matches": "Matches",
+      "marginTrend": "Margin Trend",
+      "salesHistory": "Sales History",
+      "unitPrice": "Unit Price",
+      "back": "Back to list",
+      "selectItem": "Select an item from the overview to see its details"
+    },
+    "trend": {
+      "title": "Profit Trend"
+    },
+    "unmatched": {
+      "jobs": "Jobs without sales",
+      "sales": "Sales without jobs",
+      "jobsInfo": "Items produced but not yet sold",
+      "salesInfo": "Items sold without a matching manufacturing job",
+      "completed": "Completed",
+      "ignore": "Ignore",
+      "comingSoon": "Feature coming soon",
+      "hint": "Sales without matching jobs may be resold items or items produced before the tracking period.",
+      "allJobsMatched": "All jobs have been matched to sales",
+      "allSalesMatched": "All sales have been matched to jobs"
+    },
+    "settings": {
+      "title": "Settings",
+      "taxRate": "Sales tax rate (%)",
+      "costSource": "Default cost source",
+      "costSourceMarket": "Market prices",
+      "costSourceProject": "Industry projects",
+      "costSourceManual": "Manual",
+      "save": "Save"
+    }
   }
 }

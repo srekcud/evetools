@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Scheduler;
 
+use App\Message\CheckMarketAlerts;
+use App\Message\PurgeOldMarketHistory;
+use App\Message\PurgeOldNotifications;
+use App\Message\TriggerProfitComputation;
 use App\Message\TriggerAnsiblexSync;
 use App\Message\TriggerAssetsSync;
 use App\Message\SyncIndustryJobs;
@@ -63,6 +67,22 @@ class SyncScheduler implements ScheduleProviderInterface
             // Planetary colonies sync every 30 minutes
             ->add(
                 RecurringMessage::every('30 minutes', new TriggerPlanetarySync())
+            )
+            // Profit matching every 2 hours (after wallet & industry syncs)
+            ->add(
+                RecurringMessage::every('2 hours', new TriggerProfitComputation())
+            )
+            // Check market price alerts every 2 hours
+            ->add(
+                RecurringMessage::every('2 hours', new CheckMarketAlerts())
+            )
+            // Purge old notifications daily
+            ->add(
+                RecurringMessage::every('1 day', new PurgeOldNotifications())
+            )
+            // Purge old market history daily
+            ->add(
+                RecurringMessage::every('1 day', new PurgeOldMarketHistory())
             );
     }
 }

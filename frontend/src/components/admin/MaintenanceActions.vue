@@ -48,6 +48,42 @@ const { t } = useI18n()
         </svg>
         {{ t('admin.clearCache') }}
       </button>
+
+      <div class="border-t border-slate-700 my-3"></div>
+      <p class="text-xs text-slate-500 uppercase mb-2">{{ t('admin.actions.marketAndNotifications') }}</p>
+
+      <button
+        @click="emit('execute-action', 'check-market-alerts', 'checkMarketAlerts')"
+        :disabled="actionLoading !== null"
+        class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <svg :class="['w-4 h-4', actionLoading === 'check-market-alerts' ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+        </svg>
+        {{ t('admin.actions.checkMarketAlerts') }}
+      </button>
+
+      <button
+        @click="emit('execute-action', 'purge-notifications', 'purgeNotifications')"
+        :disabled="actionLoading !== null"
+        class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <svg :class="['w-4 h-4', actionLoading === 'purge-notifications' ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+        </svg>
+        {{ t('admin.actions.purgeNotifications') }}
+      </button>
+
+      <button
+        @click="emit('execute-action', 'purge-market-history', 'purgeMarketHistory')"
+        :disabled="actionLoading !== null"
+        class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <svg :class="['w-4 h-4', actionLoading === 'purge-market-history' ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+        </svg>
+        {{ t('admin.actions.purgeMarketHistory') }}
+      </button>
     </div>
   </div>
 </template>

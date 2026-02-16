@@ -25,6 +25,8 @@ class SyncTracker
         'planetary' => 1800,        // 30 min
         'market-jita' => 7200,      // 2h
         'market-structure' => 7200, // 2h
+        'profit' => 7200,           // 2h
+        'market-alerts' => 7200,    // 2h
     ];
 
     private const LABELS = [
@@ -37,6 +39,8 @@ class SyncTracker
         'planetary' => 'Planetary',
         'market-jita' => 'Market Jita',
         'market-structure' => 'Market Structure',
+        'profit' => 'Profit Tracker',
+        'market-alerts' => 'Market Alerts',
     ];
 
     public function __construct(

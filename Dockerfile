@@ -10,9 +10,9 @@ RUN composer install --prefer-dist --no-dev --no-autoloader --no-scripts --no-pr
 # Application code
 COPY . .
 
-# Autoloader + post-install scripts
+# Autoloader + bundle assets (assets:install does not need DATABASE_URL)
 RUN composer dump-autoload --optimize && \
-    composer run-script post-install-cmd --no-interaction || true
+    php bin/console assets:install public --no-interaction
 
 # Warmup cache + Doctrine proxies (baked into image)
 RUN php bin/console cache:warmup --env=prod || true

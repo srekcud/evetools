@@ -21,6 +21,7 @@ onMounted(async () => {
 })
 
 import LegalFooter from '@/components/LegalFooter.vue'
+import NotificationBell from '@/components/notifications/NotificationBell.vue'
 import { APP_VERSION } from '@/version'
 
 // Release notes modal
@@ -91,27 +92,102 @@ onUnmounted(() => {
 const user = computed(() => authStore.user)
 const mainCharacter = computed(() => user.value?.mainCharacter || user.value?.characters?.[0])
 
-const DEFAULT_HIDDEN_MODULES = ['assets', 'contracts']
+const DEFAULT_HIDDEN_MODULES: string[] = []
 
-const allNavItems = [
+// Navigation types
+interface NavItem {
+  id: string
+  labelKey: string
+  icon: string
+  route: string
+}
+
+interface NavGroup {
+  id: string
+  labelKey: string
+  icon: string
+  collapsible: true
+  children: NavItem[]
+}
+
+type NavEntry = NavItem | NavGroup
+
+function isNavGroup(entry: NavEntry): entry is NavGroup {
+  return 'collapsible' in entry && entry.collapsible === true
+}
+
+const allNavEntries: NavEntry[] = [
   { id: 'dashboard', labelKey: 'nav.dashboard', route: '/dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-  { id: 'characters', labelKey: 'nav.characters', route: '/characters', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
-  { id: 'ledger', labelKey: 'nav.ledger', route: '/ledger', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' },
+  { id: 'ledger', labelKey: 'nav.revenue', route: '/ledger', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' },
+  {
+    id: 'production',
+    labelKey: 'nav.production',
+    icon: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z',
+    collapsible: true,
+    children: [
+      { id: 'industry', labelKey: 'nav.industry', route: '/industry', icon: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z' },
+      { id: 'shopping-list', labelKey: 'nav.shoppingList', route: '/shopping-list', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+      { id: 'planetary', labelKey: 'nav.pi', route: '/planetary', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9' },
+    ]
+  },
+  { id: 'market', labelKey: 'nav.market', route: '/market', icon: 'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z' },
+  { id: 'assets', labelKey: 'nav.inventory', route: '/assets', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
+]
+
+const adminNavItem: NavItem = {
+  id: 'admin', labelKey: 'nav.admin', route: '/admin', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z'
+}
+
+// Flat list of all settable module IDs (for settings modal)
+const settableModules: NavItem[] = [
+  { id: 'dashboard', labelKey: 'nav.dashboard', route: '/dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
+  { id: 'ledger', labelKey: 'nav.revenue', route: '/ledger', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' },
   { id: 'industry', labelKey: 'nav.industry', route: '/industry', icon: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z' },
-  { id: 'escalations', labelKey: 'nav.escalations', route: '/escalations', icon: 'M15 10.5a3 3 0 11-6 0 3 3 0 016 0z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z' },
-  { id: 'planetary', labelKey: 'nav.pi', route: '/planetary', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9' },
   { id: 'shopping-list', labelKey: 'nav.shoppingList', route: '/shopping-list', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
-  { id: 'assets', labelKey: 'nav.assets', route: '/assets', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
-  { id: 'contracts', labelKey: 'nav.contracts', route: '/contracts', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-  { id: 'admin', labelKey: 'nav.admin', route: '/admin', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z', adminOnly: true },
+  { id: 'planetary', labelKey: 'nav.pi', route: '/planetary', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9' },
+  { id: 'market', labelKey: 'nav.market', route: '/market', icon: 'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z' },
+  { id: 'assets', labelKey: 'nav.inventory', route: '/assets', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
 ]
 
 // Settings
 const showSettings = ref(false)
 const hiddenModules = ref<string[]>([])
 
+// Collapse state for nav groups
+const collapsedGroups = ref<Record<string, boolean>>({})
+
+function loadCollapsedGroups(): void {
+  const saved = localStorage.getItem('evetools_nav_collapsed')
+  if (saved) {
+    try {
+      collapsedGroups.value = JSON.parse(saved)
+    } catch {
+      collapsedGroups.value = {}
+    }
+  }
+}
+
+function saveCollapsedGroups(): void {
+  localStorage.setItem('evetools_nav_collapsed', JSON.stringify(collapsedGroups.value))
+}
+
+function toggleGroup(groupId: string): void {
+  collapsedGroups.value[groupId] = !collapsedGroups.value[groupId]
+  saveCollapsedGroups()
+}
+
+function isGroupExpanded(group: NavGroup): boolean {
+  // Auto-expand if a child route is active
+  const currentPath = router.currentRoute.value.path
+  const hasActiveChild = group.children.some(child => currentPath === child.route)
+  if (hasActiveChild) return true
+  // Otherwise use stored state (default expanded)
+  return !collapsedGroups.value[group.id]
+}
+
 // Load settings from localStorage
 onMounted(() => {
+  loadCollapsedGroups()
   const saved = localStorage.getItem('evetools_hidden_modules')
   if (saved) {
     try {
@@ -125,11 +201,11 @@ onMounted(() => {
 })
 
 // Save settings to localStorage
-function saveSettings() {
+function saveSettings(): void {
   localStorage.setItem('evetools_hidden_modules', JSON.stringify(hiddenModules.value))
 }
 
-function toggleModule(moduleId: string) {
+function toggleModule(moduleId: string): void {
   const index = hiddenModules.value.indexOf(moduleId)
   if (index === -1) {
     hiddenModules.value.push(moduleId)
@@ -143,22 +219,51 @@ function isModuleVisible(moduleId: string): boolean {
   return !hiddenModules.value.includes(moduleId)
 }
 
-// Filtered nav items (visible only and admin check)
-const navItems = computed(() => allNavItems.filter(item => {
-  // Hide admin-only items for non-admins
-  if ((item as { adminOnly?: boolean }).adminOnly && !isAdmin.value) {
-    return false
+// Filtered nav entries (visible only)
+const filteredNavEntries = computed((): NavEntry[] => {
+  const result: NavEntry[] = []
+  for (const entry of allNavEntries) {
+    if (isNavGroup(entry)) {
+      const visibleChildren = entry.children.filter(child => isModuleVisible(child.id))
+      if (visibleChildren.length > 0) {
+        result.push({ ...entry, children: visibleChildren })
+      }
+    } else {
+      if (isModuleVisible(entry.id)) {
+        result.push(entry)
+      }
+    }
   }
-  return isModuleVisible(item.id)
-}))
+  // Add admin item if admin
+  if (isAdmin.value) {
+    result.push(adminNavItem)
+  }
+  return result
+})
 
-function navigateTo(item: typeof allNavItems[0]) {
+function navigateTo(item: NavItem): void {
   router.push(item.route)
 }
 
-function isActiveRoute(item: typeof allNavItems[0]): boolean {
+function isActiveRoute(item: NavItem): boolean {
   return router.currentRoute.value.path === item.route
 }
+
+// Current page title - search all entries including group children
+const currentPageTitle = computed(() => {
+  const currentPath = router.currentRoute.value.path
+  for (const entry of allNavEntries) {
+    if (isNavGroup(entry)) {
+      const child = entry.children.find(c => currentPath === c.route)
+      if (child) return t(child.labelKey)
+    } else {
+      if (currentPath === entry.route) return t(entry.labelKey)
+    }
+  }
+  if (currentPath === adminNavItem.route) return t(adminNavItem.labelKey)
+  if (currentPath === '/characters') return t('nav.characters')
+  return t('nav.dashboard')
+})
 
 const isLoggingOut = ref(false)
 
@@ -178,11 +283,6 @@ const logout = async () => {
     router.push('/login')
   }
 }
-
-const currentPageTitle = computed(() => {
-  const item = allNavItems.find(n => isActiveRoute(n))
-  return item ? t(item.labelKey) : t('nav.dashboard')
-})
 
 // Language switcher
 function setLocale(lang: 'fr' | 'en') {
@@ -235,25 +335,72 @@ function setLocale(lang: 'fr' | 'en') {
 
         <!-- Navigation -->
         <nav class="flex-1 p-4 space-y-1 overflow-y-auto min-h-0">
-          <button
-            v-for="item in navItems"
-            :key="item.id"
-            @click="navigateTo(item)"
-            :class="[
-              'w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group relative overflow-hidden border',
-              isActiveRoute(item)
-                ? 'bg-linear-to-r from-cyan-500/20 to-blue-500/10 text-cyan-400 shadow-lg shadow-cyan-500/10 border-cyan-500/30'
-                : 'text-slate-400 border-transparent hover:bg-slate-800/50 hover:text-slate-200 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/5 hover:-translate-y-0.5'
-            ]"
-          >
-            <!-- Scan effect on hover -->
-            <div class="absolute inset-0 bg-linear-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
-            <svg class="w-5 h-5 relative" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="item.icon"/>
-            </svg>
-            <span class="font-medium relative">{{ t(item.labelKey) }}</span>
-            <div v-if="isActiveRoute(item)" class="ml-auto w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse relative"></div>
-          </button>
+          <template v-for="entry in filteredNavEntries" :key="entry.id">
+            <!-- Collapsible group -->
+            <div v-if="'collapsible' in entry && entry.collapsible">
+              <!-- Group header -->
+              <button
+                @click="toggleGroup(entry.id)"
+                class="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group relative overflow-hidden border text-slate-400 border-transparent hover:bg-slate-800/50 hover:text-slate-200 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/5"
+              >
+                <div class="absolute inset-0 bg-linear-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
+                <svg class="w-5 h-5 relative" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="entry.icon"/>
+                </svg>
+                <span class="font-medium relative">{{ t(entry.labelKey) }}</span>
+                <svg
+                  class="w-4 h-4 ml-auto relative transition-transform duration-200"
+                  :class="{ 'rotate-90': isGroupExpanded(entry as NavGroup) }"
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+              </button>
+              <!-- Group children -->
+              <div
+                v-if="isGroupExpanded(entry as NavGroup)"
+                class="mt-1 space-y-0.5 pl-4"
+              >
+                <button
+                  v-for="child in (entry as NavGroup).children"
+                  :key="child.id"
+                  @click="navigateTo(child)"
+                  :class="[
+                    'w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-300 group relative overflow-hidden border text-sm',
+                    isActiveRoute(child)
+                      ? 'bg-linear-to-r from-cyan-500/20 to-blue-500/10 text-cyan-400 shadow-lg shadow-cyan-500/10 border-cyan-500/30'
+                      : 'text-slate-400 border-transparent hover:bg-slate-800/50 hover:text-slate-200 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/5 hover:-translate-y-0.5'
+                  ]"
+                >
+                  <div class="absolute inset-0 bg-linear-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
+                  <svg class="w-4 h-4 relative" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="child.icon"/>
+                  </svg>
+                  <span class="font-medium relative">{{ t(child.labelKey) }}</span>
+                  <div v-if="isActiveRoute(child)" class="ml-auto w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse relative"></div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Simple nav item -->
+            <button
+              v-else
+              @click="navigateTo(entry as NavItem)"
+              :class="[
+                'w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group relative overflow-hidden border',
+                isActiveRoute(entry as NavItem)
+                  ? 'bg-linear-to-r from-cyan-500/20 to-blue-500/10 text-cyan-400 shadow-lg shadow-cyan-500/10 border-cyan-500/30'
+                  : 'text-slate-400 border-transparent hover:bg-slate-800/50 hover:text-slate-200 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/5 hover:-translate-y-0.5'
+              ]"
+            >
+              <div class="absolute inset-0 bg-linear-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
+              <svg class="w-5 h-5 relative" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="(entry as NavItem).icon"/>
+              </svg>
+              <span class="font-medium relative">{{ t((entry as NavItem).labelKey) }}</span>
+              <div v-if="isActiveRoute(entry as NavItem)" class="ml-auto w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse relative"></div>
+            </button>
+          </template>
         </nav>
 
         <!-- User card -->
@@ -285,6 +432,15 @@ function setLocale(lang: 'fr' | 'en') {
               </svg>
             </div>
             <div class="mt-4 flex items-center gap-2">
+              <button
+                @click="router.push('/characters')"
+                class="py-2 px-3 bg-slate-700/50 hover:bg-cyan-500/20 rounded-lg text-sm text-slate-400 hover:text-cyan-400 transition-colors flex items-center justify-center gap-2 group"
+                :title="t('nav.characters')"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+              </button>
               <button
                 @click="logout"
                 :disabled="isLoggingOut"
@@ -342,7 +498,7 @@ function setLocale(lang: 'fr' | 'en') {
               <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4">{{ t('settings.visibleModules') }}</h4>
               <div class="space-y-2">
                 <label
-                  v-for="item in allNavItems"
+                  v-for="item in settableModules"
                   :key="item.id"
                   class="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-colors"
                 >
@@ -498,6 +654,8 @@ function setLocale(lang: 'fr' | 'en') {
               <p class="text-sm text-slate-500 mt-1">{{ t('header.welcomeBack') }}</p>
             </div>
             <div class="flex items-center gap-4">
+              <!-- Notification Bell -->
+              <NotificationBell />
               <!-- ESI Status -->
               <div
                 :class="[

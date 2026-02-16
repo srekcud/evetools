@@ -137,6 +137,41 @@ final readonly class MercurePublisherService
     }
 
     /**
+     * Publish a notification to a user's notification topic.
+     */
+    /** @param array<string, mixed> $notificationData */
+    public function publishNotification(string $userId, array $notificationData): void
+    {
+        $topic = sprintf('/user/%s/notifications', $userId);
+
+        $payload = [
+            'type' => 'notification',
+            'notification' => $notificationData,
+            'timestamp' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+        ];
+
+        try {
+            $update = new Update(
+                $topic,
+                json_encode($payload, JSON_THROW_ON_ERROR),
+                private: true,
+            );
+
+            $this->hub->publish($update);
+
+            $this->logger->debug('Notification published', [
+                'topic' => $topic,
+                'category' => $notificationData['category'] ?? 'unknown',
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to publish notification', [
+                'topic' => $topic,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * Publish an escalation event to group topics (corp/alliance).
      */
     /**
@@ -208,8 +243,11 @@ final readonly class MercurePublisherService
             sprintf('/user/%s/sync/wallet-transactions', $userId),
             sprintf('/user/%s/sync/market-structure', $userId),
             sprintf('/user/%s/sync/planetary', $userId),
+            sprintf('/user/%s/sync/profit-tracker', $userId),
             sprintf('/user/%s/sync/admin-sync', $userId),
             sprintf('/user/%s/alerts/planetary-expiry', $userId),
+            sprintf('/user/%s/alerts/market-price', $userId),
+            sprintf('/user/%s/notifications', $userId),
         ];
     }
 

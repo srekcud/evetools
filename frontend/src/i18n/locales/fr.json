@@ -70,12 +70,17 @@
     "dashboard": "Tableau de bord",
     "characters": "Personnages",
     "ledger": "Registre",
+    "revenue": "Revenus",
     "industry": "Industrie",
     "escalations": "Escalations",
     "pi": "PI",
     "shoppingList": "Évaluateur",
+    "production": "Production",
+    "inventory": "Inventaire",
     "assets": "Inventaire",
     "contracts": "Contrats",
+    "market": "Marche",
+    "profitTracker": "Profit Tracker",
     "admin": "Administration"
   },
   "settings": {
@@ -461,7 +466,8 @@
     "subtitle": "Projets de fabrication et reactions",
     "tabs": {
       "projects": "Projets",
-      "config": "Configuration"
+      "config": "Configuration",
+      "profit": "Profit"
     },
     "configTabs": {
       "skills": "Competences",
@@ -740,7 +746,8 @@
       "dashboard": "Vue d'ensemble",
       "mining": "Minage",
       "pve": "PVE",
-      "settings": "Parametres"
+      "settings": "Parametres",
+      "escalations": "Escalations"
     },
     "period": {
       "7days": "7 jours",
@@ -837,6 +844,10 @@
   "assets": {
     "title": "Inventaire",
     "subtitle": "Consultez et recherchez vos assets EVE Online",
+    "tabs": {
+      "assets": "Inventaire",
+      "contracts": "Contrats"
+    },
     "characterAssets": "Assets personnage",
     "corporationAssets": "Assets corporation",
     "searchPlaceholder": "Rechercher un item...",
@@ -1001,7 +1012,11 @@
     "triggerSync": "Lancer la synchronisation",
     "actions": {
       "retryFailed": "Retry Failed",
-      "purgeFailed": "Purge Failed"
+      "purgeFailed": "Purge Failed",
+      "marketAndNotifications": "Marche & Notifications",
+      "checkMarketAlerts": "Verifier les alertes marche",
+      "purgeNotifications": "Purger les notifications (>7j)",
+      "purgeMarketHistory": "Purger l'historique marche (>365j)"
     },
     "maintenance": "Maintenance",
     "clearCache": "Clear Cache",
@@ -1023,7 +1038,14 @@
       "esiJobs": "Jobs ESI",
       "structures": "Structures",
       "queue": "Queue",
-      "failed": "Failed"
+      "failed": "Failed",
+      "notifications": "Notifications",
+      "unread": "Non lues",
+      "pushSubs": "Abo. push",
+      "historyTypes": "Types suivis",
+      "alertsActive": "Alertes actives",
+      "alertsTriggered": "Alertes declenchees",
+      "favorites": "Favoris"
     },
     "sync": {
       "title": "Synchronisations",
@@ -1092,5 +1114,165 @@
     "jobCompletedMessage": "Un job est termine",
     "projectProgress": "Projet industrie",
     "projectProgressMessage": "Progression projet"
+  },
+  "notificationHub": {
+    "title": "Notifications",
+    "markAllRead": "Tout marquer comme lu",
+    "settings": "Preferences",
+    "empty": "Aucune notification",
+    "loadMore": "Charger plus",
+    "timeAgo": {
+      "justNow": "A l'instant",
+      "minutesAgo": "Il y a {n} min",
+      "hoursAgo": "Il y a {n}h",
+      "daysAgo": "Il y a {n}j"
+    },
+    "categories": {
+      "planetary": "Planetaire",
+      "industry": "Industrie",
+      "escalation": "Escalations",
+      "esi": "Notifications EVE",
+      "price": "Alertes prix"
+    },
+    "settingsModal": {
+      "title": "Preferences de notifications",
+      "category": "Categorie",
+      "enabled": "Active",
+      "push": "Push navigateur",
+      "threshold": "Seuil (min)",
+      "save": "Enregistrer",
+      "pushDenied": "Les notifications push ont ete refusees par le navigateur",
+      "pushNotSupported": "Push non supporte par ce navigateur"
+    }
+  },
+  "market": {
+    "title": "Navigateur Marche",
+    "recentSearches": "Recherches recentes",
+    "clearRecent": "Effacer",
+    "categories": {
+      "all": "Tous"
+    },
+    "search": {
+      "placeholder": "Rechercher un item...",
+      "noResults": "Aucun resultat"
+    },
+    "tabs": {
+      "browse": "Parcourir",
+      "favorites": "Favoris",
+      "alerts": "Alertes"
+    },
+    "detail": {
+      "jitaSell": "Jita Sell",
+      "jitaBuy": "Jita Buy",
+      "spread": "Spread",
+      "volume": "Volume/jour",
+      "change30d": "Variation 30j",
+      "orderBook": "Carnet d'ordres",
+      "comparison": "Comparaison",
+      "sell": "Vente",
+      "buy": "Achat",
+      "category": "Categorie",
+      "priceHistory": "Historique des prix"
+    },
+    "favorite": {
+      "add": "Ajouter aux favoris",
+      "remove": "Retirer des favoris"
+    },
+    "alert": {
+      "create": "Creer une alerte",
+      "direction": "Direction",
+      "above": "Au-dessus de",
+      "below": "En-dessous de",
+      "threshold": "Seuil",
+      "priceSource": "Source de prix",
+      "status": {
+        "active": "Active",
+        "triggered": "Declenchee",
+        "expired": "Expiree"
+      },
+      "delete": "Supprimer",
+      "currentPrice": "Prix actuel"
+    },
+    "period": {
+      "30d": "30j",
+      "90d": "90j",
+      "365d": "1 an"
+    }
+  },
+  "profitTracker": {
+    "title": "Profit Tracker",
+    "compute": "Recalculer",
+    "computing": "Calcul en cours...",
+    "period": {
+      "7d": "7 jours",
+      "30d": "30 jours",
+      "90d": "90 jours"
+    },
+    "tabs": {
+      "overview": "Vue d'ensemble",
+      "detail": "Detail item",
+      "unmatched": "Non apparies"
+    },
+    "kpi": {
+      "totalProfit": "Profit total",
+      "totalRevenue": "Revenu total",
+      "totalCost": "Cout total",
+      "avgMargin": "Marge moyenne",
+      "itemCount": "Items suivis",
+      "bestItem": "Meilleur item",
+      "worstItem": "Pire item"
+    },
+    "table": {
+      "item": "Item",
+      "qtyProduced": "Produit",
+      "qtySold": "Vendu",
+      "materialCost": "Materiaux",
+      "jobCost": "Cout job",
+      "tax": "Taxe",
+      "totalCost": "Cout total",
+      "revenue": "Revenu",
+      "profit": "Profit",
+      "margin": "Marge",
+      "lastSale": "Derniere vente",
+      "search": "Rechercher un item..."
+    },
+    "filter": {
+      "all": "Tous",
+      "profit": "Profitable",
+      "loss": "Deficitaire"
+    },
+    "detail": {
+      "costBreakdown": "Repartition des couts",
+      "matches": "Correspondances",
+      "marginTrend": "Tendance marge",
+      "salesHistory": "Historique des ventes",
+      "unitPrice": "Prix unitaire",
+      "back": "Retour a la liste",
+      "selectItem": "Selectionnez un item dans la vue d'ensemble pour voir ses details"
+    },
+    "trend": {
+      "title": "Tendance des profits"
+    },
+    "unmatched": {
+      "jobs": "Jobs sans vente",
+      "sales": "Ventes sans job",
+      "jobsInfo": "Items produits mais pas encore vendus",
+      "salesInfo": "Items vendus sans job de fabrication correspondant",
+      "completed": "Termine",
+      "ignore": "Ignorer",
+      "comingSoon": "Fonctionnalite a venir",
+      "hint": "Les ventes sans job correspondant peuvent etre des items revendus ou produits avant la periode de suivi.",
+      "allJobsMatched": "Tous les jobs ont ete apparies a des ventes",
+      "allSalesMatched": "Toutes les ventes ont ete appariees a des jobs"
+    },
+    "settings": {
+      "title": "Parametres",
+      "taxRate": "Taux de taxe de vente (%)",
+      "costSource": "Source de cout par defaut",
+      "costSourceMarket": "Prix marche",
+      "costSourceProject": "Projets industrie",
+      "costSourceManual": "Manuel",
+      "save": "Enregistrer"
+    }
   }
 }

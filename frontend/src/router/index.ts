@@ -63,9 +63,7 @@ const router = createRouter({
     },
     {
       path: '/escalations',
-      name: 'escalations',
-      component: () => import('@/views/Escalations.vue'),
-      meta: { requiresAuth: true },
+      redirect: '/ledger?tab=escalations',
     },
     {
       path: '/planetary',
@@ -75,9 +73,7 @@ const router = createRouter({
     },
     {
       path: '/contracts',
-      name: 'contracts',
-      component: () => import('@/views/Contracts.vue'),
-      meta: { requiresAuth: true },
+      redirect: '/assets?tab=contracts',
     },
     {
       path: '/shopping-list',
@@ -96,6 +92,16 @@ const router = createRouter({
       name: 'legal',
       component: () => import('@/views/Legal.vue'),
       meta: { requiresAuth: false },
+    },
+    {
+      path: '/market',
+      name: 'market',
+      component: () => import('@/views/MarketBrowser.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/profit-tracker',
+      redirect: '/industry?tab=profit',
     },
     {
       path: '/admin',
