@@ -3,6 +3,92 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.10 (2026-02-16)
+--------------------------------------------------------------------------------
+
+### Navigation rationalisee
+- Sidebar groupee : 5 items + admin (Dashboard, Revenus, Production, Marche, Inventaire)
+- Groupe collapsible Production (Industrie, Shopping List, Planetaire)
+- Fusions : Escalations dans Ledger (onglet), Contracts dans Assets (onglet), Profit dans Industry (onglet)
+- Deep linking avec redirections (/escalations -> /ledger?tab=escalations, etc.)
+- Personnages deplace dans le user card (retire du nav)
+- Etat collapse persiste dans localStorage
+
+### Module Profit Tracker (nouveau)
+- Calcul automatique du profit par item fabrique
+- Matching jobs industrie termines avec transactions de vente wallet
+- KPI : marge brute, marge nette, ROI, items les plus rentables
+- Detail par item : cout materiaux, job install, taxes, prix de vente
+- Panel items non-matches (jobs sans vente, ventes sans job)
+- Graphique tendance de profit
+- Settings : periode d'analyse, seuils de matching
+
+### Module Market Browser (nouveau)
+- Recherche d'items avec autocompletion
+- Detail type : prix Jita sell/buy, spread, volume quotidien
+- Historique de prix avec graphique (Chart.js)
+- Order book (sell/buy orders)
+- Comparaison prix Jita vs structure locale
+- Alertes de prix (notification quand seuil atteint)
+- Favoris marche
+
+### Module Notifications (nouveau)
+- Hub centralise de notifications
+- Push browser via Service Workers (VAPID)
+- Preferences par type de notification
+- Badge compteur non-lus
+
+### Admin ameliore
+- Grille KPI admin
+- Actions de maintenance
+- Sync tracker etendu
+
+### Corrections
+- Fix Dockerfile : assets:install explicite (corrige 404 /api/docs en production)
+
+--------------------------------------------------------------------------------
+Version 0.9.1 (2026-02-16)
+--------------------------------------------------------------------------------
+
+### Market
+- Volume journalier affiche dans les tooltips marche
+- Amelioration couverture des tooltips prix
+
+--------------------------------------------------------------------------------
+Version 0.9 (2026-02-16)
+--------------------------------------------------------------------------------
+
+### Prix pondere par volume (Weighted Price)
+- Calcul du prix moyen pondere en empilant les orders de marche
+- Indicateur de profondeur de marche
+- Avertissement si profondeur insuffisante pour la quantite demandee
+
+### Open In-Game Window
+- Boutons "ouvrir en jeu" sur les items (marche, info)
+- Composant reutilisable OpenInGameButton
+- Endpoints ESI : marketdetails, information
+
+--------------------------------------------------------------------------------
+Version 0.8 (2026-02-15)
+--------------------------------------------------------------------------------
+
+### Stack technique
+- Upgrade PHP 8.5, Symfony 7.4, API Platform 4.2
+- Migration vers FrankenPHP Alpine
+- PHPStan level 8
+
+### Valuator / Appraisal
+- Estimation de valeur des assets par categorie
+- Valorisation basee sur les prix Jita
+
+### GDPR
+- Mentions legales et email de contact
+- Page Legal accessible depuis le footer
+
+### i18n
+- Registre international (dates, nombres)
+
+--------------------------------------------------------------------------------
 Version 0.7.0 (2026-02-14)
 --------------------------------------------------------------------------------
 
