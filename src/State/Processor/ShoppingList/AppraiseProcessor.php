@@ -98,6 +98,16 @@ class AppraiseProcessor implements ProcessorInterface
             $priceError = 'Unable to fetch market prices. Please try again later.';
         }
 
+        // Fetch average daily volumes (non-critical, failures are silently ignored)
+        $avgDailyVolumes = [];
+        try {
+            $avgDailyVolumes = $this->jitaMarketService->getAverageDailyVolumes($typeIds);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to fetch average daily volumes for appraisal', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         $items = [];
         $totalSell = 0.0;
         $totalBuy = 0.0;
@@ -163,6 +173,7 @@ class AppraiseProcessor implements ProcessorInterface
             $itemResource->splitTotalWeighted = $splitTotalWeighted !== null ? round($splitTotalWeighted, 2) : null;
             $itemResource->sellCoverage = $weightedSell !== null ? round($weightedSell['coverage'], 4) : null;
             $itemResource->buyCoverage = $weightedBuy !== null ? round($weightedBuy['coverage'], 4) : null;
+            $itemResource->avgDailyVolume = $avgDailyVolumes[$typeId] ?? null;
 
             $items[] = $itemResource;
 

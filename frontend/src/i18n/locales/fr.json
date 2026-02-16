@@ -731,7 +731,7 @@
       "noItemDetected": "Aucun item detecte. Verifiez le format (copier depuis EVE avec Ctrl+A puis Ctrl+C)",
       "loadShoppingError": "Impossible de charger la liste de courses. Reessayez.",
       "weightedPrice": "Prix pondere",
-      "depthWarning": "Couverture marche : {coverage}%"
+      "depthWarning": "Seulement {available} sur {total} disponibles"
     }
   },
   "ledger": {
@@ -983,7 +983,9 @@
     "weightedPrice": "Prix pondere",
     "bestPrice": "Meilleur prix",
     "depthWarning": "Profondeur de marche insuffisante",
-    "coverageTooltip": "Prix base sur {coverage}% de la quantite demandee"
+    "coverageTooltip": "Seulement {available} sur {total} disponibles (top 20 ordres)",
+    "avgDailyVolume": "~{volume}/jour",
+    "avgDailyVolumeTooltip": "Volume journalier moyen sur Jita (30 jours)"
   },
   "admin": {
     "title": "Administration",

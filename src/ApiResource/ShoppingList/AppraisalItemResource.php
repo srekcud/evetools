@@ -51,4 +51,7 @@ class AppraisalItemResource
 
     /** Buy order book coverage ratio (0.0 to 1.0) */
     public ?float $buyCoverage = null;
+
+    /** Average daily volume traded on Jita market (last 30 days) */
+    public ?float $avgDailyVolume = null;
 }

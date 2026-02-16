@@ -731,7 +731,7 @@
       "noItemDetected": "No item detected. Check the format (copy from EVE with Ctrl+A then Ctrl+C)",
       "loadShoppingError": "Unable to load the shopping list. Please try again.",
       "weightedPrice": "Weighted price",
-      "depthWarning": "Market coverage: {coverage}%"
+      "depthWarning": "Only {available} of {total} available"
     }
   },
   "ledger": {
@@ -983,7 +983,9 @@
     "weightedPrice": "Weighted price",
     "bestPrice": "Best price",
     "depthWarning": "Insufficient market depth",
-    "coverageTooltip": "Price based on {coverage}% of requested quantity"
+    "coverageTooltip": "Only {available} of {total} available (top 20 orders)",
+    "avgDailyVolume": "~{volume}/day",
+    "avgDailyVolumeTooltip": "Average daily volume on Jita (30 days)"
   },
   "admin": {
     "title": "Administration",

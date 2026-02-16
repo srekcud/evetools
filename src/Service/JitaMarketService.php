@@ -26,6 +26,9 @@ class JitaMarketService
     private const CACHE_TTL = 7200; // 2 hours
     private const ESI_BASE_URL = 'https://esi.evetech.net/latest';
     private const MAX_ORDERS_PER_TYPE = 20;
+    private const VOLUME_CACHE_PREFIX = 'jita_volume_';
+    private const VOLUME_CACHE_TTL = 86400; // 24 hours
+    private const VOLUME_HISTORY_DAYS = 30;
 
     public function __construct(
         private readonly HttpClientInterface $httpClient,
@@ -185,6 +188,127 @@ class JitaMarketService
         }
 
         return $result;
+    }
+
+    /**
+     * Fetch average daily volume for multiple types from ESI market history.
+     * Caches per-type with 24h TTL to avoid repeated calls.
+     * Averages the last 30 days of data.
+     *
+     * @param int[] $typeIds
+     * @return array<int, float> typeId => avgDailyVolume
+     */
+    public function getAverageDailyVolumes(array $typeIds): array
+    {
+        $result = [];
+        $uncachedTypeIds = [];
+
+        // Check cache first for each type
+        foreach ($typeIds as $typeId) {
+            $cacheItem = $this->cache->getItem(self::VOLUME_CACHE_PREFIX . $typeId);
+
+            if ($cacheItem->isHit()) {
+                /** @var float $volume */
+                $volume = $cacheItem->get();
+                $result[$typeId] = $volume;
+            } else {
+                $uncachedTypeIds[] = $typeId;
+            }
+        }
+
+        if (empty($uncachedTypeIds)) {
+            return $result;
+        }
+
+        $this->logger->info('Fetching market history for volume averages', [
+            'typeCount' => count($uncachedTypeIds),
+        ]);
+
+        // Fetch uncached types from ESI in batches
+        $batchSize = 10;
+        $batches = array_chunk($uncachedTypeIds, $batchSize);
+
+        foreach ($batches as $batch) {
+            $responses = [];
+
+            foreach ($batch as $typeId) {
+                $url = sprintf(
+                    '%s/markets/%d/history/?type_id=%d',
+                    self::ESI_BASE_URL,
+                    self::THE_FORGE_REGION_ID,
+                    $typeId
+                );
+
+                try {
+                    $responses[$typeId] = $this->httpClient->request('GET', $url, [
+                        'timeout' => 15,
+                        'headers' => ['Accept' => 'application/json'],
+                    ]);
+                } catch (\Throwable $e) {
+                    $this->logger->debug('Failed to start market history request', [
+                        'typeId' => $typeId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            foreach ($responses as $typeId => $response) {
+                try {
+                    if ($response->getStatusCode() === 200) {
+                        /** @var list<array{date: string, order_count: int, volume: int, lowest: float, highest: float, average: float}> $history */
+                        $history = $response->toArray();
+                        $avgVolume = $this->computeAverageDailyVolume($history);
+
+                        $result[$typeId] = $avgVolume;
+
+                        // Cache the result
+                        $cacheItem = $this->cache->getItem(self::VOLUME_CACHE_PREFIX . $typeId);
+                        $cacheItem->set($avgVolume);
+                        $cacheItem->expiresAfter(self::VOLUME_CACHE_TTL);
+                        $this->cache->save($cacheItem);
+                    }
+                } catch (\Throwable $e) {
+                    $this->logger->debug('Failed to fetch market history for type', [
+                        'typeId' => $typeId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            unset($responses);
+
+            // Small delay between batches to avoid rate limiting
+            usleep(50000); // 50ms
+        }
+
+        return $result;
+    }
+
+    /**
+     * Compute the average daily volume from the last 30 days of market history.
+     *
+     * @param list<array{date: string, order_count: int, volume: int, lowest: float, highest: float, average: float}> $history
+     */
+    private function computeAverageDailyVolume(array $history): float
+    {
+        if (empty($history)) {
+            return 0.0;
+        }
+
+        // Take the last N entries (already sorted by date ascending from ESI)
+        $recentHistory = \array_slice($history, -self::VOLUME_HISTORY_DAYS);
+        $count = count($recentHistory);
+
+        if ($count === 0) {
+            return 0.0;
+        }
+
+        $totalVolume = 0;
+        foreach ($recentHistory as $day) {
+            $totalVolume += $day['volume'];
+        }
+
+        return round((float) $totalVolume / $count, 2);
     }
 
     /**

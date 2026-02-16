@@ -25,6 +25,7 @@ export interface AppraisalItem {
   splitTotalWeighted: number | null
   sellCoverage: number | null
   buyCoverage: number | null
+  avgDailyVolume?: number | null
 }
 
 export interface AppraisalTotals {
@@ -54,11 +55,6 @@ function coverageClass(coverage: number | null): string {
   if (coverage === null || coverage >= 1.0) return ''
   if (coverage >= 0.5) return 'text-amber-400'
   return 'text-red-400'
-}
-
-function coveragePercent(coverage: number | null): number {
-  if (coverage === null) return 100
-  return Math.round(coverage * 100)
 }
 
 function displayPrice(weighted: number | null, best: number | null): number | null {
@@ -262,7 +258,7 @@ function copyTable() {
                       v-if="item.sellCoverage !== null && item.sellCoverage < 1.0"
                       class="shrink-0"
                       :class="coverageClass(item.sellCoverage)"
-                      :title="t('appraisal.coverageTooltip', { coverage: coveragePercent(item.sellCoverage) })"
+                      :title="t('appraisal.coverageTooltip', { available: Math.round((item.sellCoverage ?? 1) * item.quantity).toLocaleString(), total: item.quantity.toLocaleString() })"
                     >
                       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -272,6 +268,14 @@ function copyTable() {
                   </div>
                   <div v-if="item.sellPriceWeighted !== null && item.sellPrice !== null" class="text-[10px] text-slate-600 mt-0.5">
                     {{ formatNumber(item.sellPrice) }}
+                  </div>
+                  <div
+                    v-if="item.avgDailyVolume != null"
+                    class="text-[10px] mt-0.5"
+                    :class="item.quantity > item.avgDailyVolume ? 'text-amber-400/70' : 'text-slate-500'"
+                    :title="t('appraisal.avgDailyVolumeTooltip')"
+                  >
+                    {{ t('appraisal.avgDailyVolume', { volume: formatNumber(Math.round(item.avgDailyVolume), 0) }) }}
                   </div>
                 </div>
                 <span v-else class="text-cyan-300">-</span>
@@ -294,7 +298,7 @@ function copyTable() {
                       v-if="item.buyCoverage !== null && item.buyCoverage < 1.0"
                       class="shrink-0"
                       :class="coverageClass(item.buyCoverage)"
-                      :title="t('appraisal.coverageTooltip', { coverage: coveragePercent(item.buyCoverage) })"
+                      :title="t('appraisal.coverageTooltip', { available: Math.round((item.buyCoverage ?? 1) * item.quantity).toLocaleString(), total: item.quantity.toLocaleString() })"
                     >
                       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
