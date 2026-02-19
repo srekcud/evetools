@@ -43,4 +43,21 @@ class MarketPriceAlertRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * Get distinct type IDs from all active alerts.
+     *
+     * @return int[]
+     */
+    public function getActiveAlertTypeIds(): array
+    {
+        $result = $this->createQueryBuilder('a')
+            ->select('DISTINCT a.typeId')
+            ->where('a.status = :status')
+            ->setParameter('status', MarketPriceAlert::STATUS_ACTIVE)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_map('intval', $result);
+    }
 }

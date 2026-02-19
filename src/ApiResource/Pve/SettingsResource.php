@@ -19,14 +19,14 @@ use App\State\Provider\Pve\SettingsProvider;
         new Get(
             uriTemplate: '/pve/settings',
             provider: SettingsProvider::class,
-            openapi: new Model\Operation(summary: 'Get PVE settings'),
+            openapi: new Model\Operation(summary: 'Get PVE settings', tags: ['Revenue - PVE']),
         ),
         new Post(
             uriTemplate: '/pve/settings/reset-declined',
             processor: ResetDeclinedProcessor::class,
             input: ResetDeclinedInput::class,
             output: SuccessResource::class,
-            openapi: new Model\Operation(summary: 'Reset declined contracts/transactions'),
+            openapi: new Model\Operation(summary: 'Reset declined contracts/transactions', tags: ['Revenue - PVE']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

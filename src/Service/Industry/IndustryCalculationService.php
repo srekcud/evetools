@@ -12,20 +12,21 @@ use App\Entity\User;
 use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\IndustryUserSettingsRepository;
+use App\Enum\IndustryActivityType;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\StaStationRepository;
+use App\Service\TypeNameResolver;
 use Doctrine\ORM\EntityManagerInterface;
 
 class IndustryCalculationService
 {
-    private const ACTIVITY_MANUFACTURING = 1;
-    private const ACTIVITY_REACTION = 11;
 
     /** @var array<string, int[]> Cache of blueprint science skill IDs */
     private array $blueprintSkillCache = [];
 
     public function __construct(
         private readonly InvTypeRepository $invTypeRepository,
+        private readonly TypeNameResolver $typeNameResolver,
         private readonly IndustryBonusService $bonusService,
         private readonly IndustryStructureConfigRepository $structureConfigRepository,
         private readonly IndustryUserSettingsRepository $settingsRepository,
@@ -53,8 +54,7 @@ class IndustryCalculationService
 
     public function resolveTypeName(int $typeId): string
     {
-        $type = $this->invTypeRepository->find($typeId);
-        return $type?->getTypeName() ?? "Type #{$typeId}";
+        return $this->typeNameResolver->resolve($typeId);
     }
 
     /**
@@ -62,31 +62,40 @@ class IndustryCalculationService
      *
      * Formula: max(runs, ceil(round(baseQty * runs * ((100-ME)/100) * EC_modifier * rig_modifier, 2)))
      *
+     * EVE applies structure base bonus and rig bonus multiplicatively:
+     * EC_modifier = (1 - structureBaseBonus/100)
+     * rig_modifier = (1 - rigBonus/100)
+     *
      * @param int $baseQty Base material quantity per run from SDE
      * @param int $runs Number of runs
      * @param int $meLevel Material Efficiency level (0-10)
-     * @param float $structureBonus Total structure ME bonus percentage (base + rigs)
+     * @param float $structureBaseBonus Structure base ME bonus percentage (e.g. 1% for EC)
+     * @param float $rigBonus Rig ME bonus percentage after security multiplier (e.g. 4.2%)
      */
-    public function calculateMaterialQuantity(int $baseQty, int $runs, int $meLevel, float $structureBonus = 0.0): int
+    public function calculateMaterialQuantity(int $baseQty, int $runs, int $meLevel, float $structureBaseBonus = 0.0, float $rigBonus = 0.0): int
     {
         $meMultiplier = (100 - $meLevel) / 100;
-        $structureMultiplier = $structureBonus > 0 ? (1 - $structureBonus / 100) : 1.0;
+        $structureMultiplier = $structureBaseBonus > 0 ? (1 - $structureBaseBonus / 100) : 1.0;
+        $rigMultiplier = $rigBonus > 0 ? (1 - $rigBonus / 100) : 1.0;
 
         return max(
             $runs,
-            (int) ceil(round($baseQty * $runs * $meMultiplier * $structureMultiplier, 2))
+            (int) ceil(round($baseQty * $runs * $meMultiplier * $structureMultiplier * $rigMultiplier, 2))
         );
     }
 
     /**
      * Get the structure bonus for a step, using the step's assigned structure or finding the best one.
      *
-     * @return array{structure: IndustryStructureConfig|null, materialBonus: float, timeBonus: float, name: string|null}
+     * Returns materialBonus as an array with separate base/rig values for multiplicative stacking.
+     *
+     * @return array{structure: IndustryStructureConfig|null, materialBonus: array{total: float, base: float, rig: float}, timeBonus: float, name: string|null}
      */
     public function getStructureBonusForStep(IndustryProjectStep $step): array
     {
         $structureConfig = $step->getStructureConfig();
         $isReaction = $step->getActivityType() === 'reaction';
+        $zeroBonus = ['total' => 0.0, 'base' => 0.0, 'rig' => 0.0];
 
         if ($structureConfig !== null) {
             $category = $this->bonusService->getCategoryForProduct($step->getProductTypeId(), $isReaction);
@@ -95,7 +104,8 @@ class IndustryCalculationService
                 $timeBonus = $this->bonusService->calculateStructureTimeBonusForCategory($structureConfig, $category);
             } else {
                 // No rig category (e.g. Deployables) — apply base structure bonus only
-                $materialBonus = $this->bonusService->getBaseMaterialBonus($structureConfig, $isReaction);
+                $baseMat = $this->bonusService->getBaseMaterialBonus($structureConfig, $isReaction);
+                $materialBonus = ['total' => $baseMat, 'base' => $baseMat, 'rig' => 0.0];
                 $timeBonus = $this->bonusService->getBaseTimeBonus($structureConfig, $isReaction);
             }
 
@@ -142,7 +152,7 @@ class IndustryCalculationService
     /**
      * Find the best structure in the user's favorite solar system for the given activity.
      *
-     * @return array{structure: IndustryStructureConfig, materialBonus: float, timeBonus: float, name: string}|null
+     * @return array{structure: IndustryStructureConfig, materialBonus: array{total: float, base: float, rig: float}, timeBonus: float, name: string}|null
      */
     private function findBestInFavoriteSystem(User $user, int $productTypeId, bool $isReaction): ?array
     {
@@ -174,12 +184,13 @@ class IndustryCalculationService
         $category = $this->bonusService->getCategoryForProduct($productTypeId, $isReaction);
 
         $bestStructure = null;
-        $bestBonus = -1.0;
+        /** @var array{total: float, base: float, rig: float} $bestBonus */
+        $bestBonus = ['total' => -1.0, 'base' => 0.0, 'rig' => 0.0];
 
         if ($category !== null) {
             foreach ($inSystem as $structure) {
                 $bonus = $this->bonusService->calculateStructureBonusForCategory($structure, $category);
-                if ($bonus > $bestBonus) {
+                if ($bonus['total'] > $bestBonus['total']) {
                     $bestBonus = $bonus;
                     $bestStructure = $structure;
                 }
@@ -194,7 +205,10 @@ class IndustryCalculationService
                     $bestStructure = $structure;
                 }
             }
-            $bestBonus = $bestStructure ? $this->bonusService->getBaseMaterialBonus($bestStructure, $isReaction) : 0.0;
+            if ($bestStructure !== null) {
+                $baseMat = $this->bonusService->getBaseMaterialBonus($bestStructure, $isReaction);
+                $bestBonus = ['total' => $baseMat, 'base' => $baseMat, 'rig' => 0.0];
+            }
         }
 
         if ($bestStructure === null) {
@@ -276,8 +290,8 @@ class IndustryCalculationService
         }
 
         $activityId = match ($activityType) {
-            'reaction' => self::ACTIVITY_REACTION,
-            default => self::ACTIVITY_MANUFACTURING,
+            'reaction' => IndustryActivityType::Reaction->value,
+            default => IndustryActivityType::Manufacturing->value,
         };
 
         $conn = $this->entityManager->getConnection();
@@ -307,8 +321,8 @@ class IndustryCalculationService
     private function getBaseTimePerRun(int $blueprintTypeId, string $activityType): ?int
     {
         $activityId = match ($activityType) {
-            'reaction' => self::ACTIVITY_REACTION,
-            default => self::ACTIVITY_MANUFACTURING,
+            'reaction' => IndustryActivityType::Reaction->value,
+            default => IndustryActivityType::Manufacturing->value,
         };
 
         $conn = $this->entityManager->getConnection();
@@ -323,7 +337,7 @@ class IndustryCalculationService
     /**
      * Get the best structure bonus available for a product, across all user structures.
      *
-     * @return array{name: string|null, materialBonus: float}
+     * @return array{name: string|null, materialBonus: array{total: float, base: float, rig: float}}
      */
     public function getBestStructureBonusForProduct(User $user, int $productTypeId, bool $isReaction): array
     {

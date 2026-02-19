@@ -11,7 +11,7 @@ use App\ApiResource\Me\SkillQueueResource;
 use App\Entity\User;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Service\TypeNameResolver;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
@@ -24,7 +24,7 @@ class SkillQueueProvider implements ProviderInterface
         private readonly Security $security,
         private readonly EsiClient $esiClient,
         private readonly TokenManager $tokenManager,
-        private readonly EntityManagerInterface $entityManager,
+        private readonly TypeNameResolver $typeNameResolver,
     ) {
     }
 
@@ -98,9 +98,6 @@ class SkillQueueProvider implements ProviderInterface
 
     private function resolveTypeName(int $typeId): string
     {
-        $conn = $this->entityManager->getConnection();
-        $name = $conn->fetchOne('SELECT type_name FROM sde_inv_types WHERE type_id = ?', [$typeId]);
-
-        return $name !== false ? $name : "Skill #{$typeId}";
+        return $this->typeNameResolver->resolve($typeId);
     }
 }

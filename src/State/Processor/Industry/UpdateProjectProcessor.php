@@ -10,7 +10,7 @@ use App\ApiResource\Industry\ProjectResource;
 use App\ApiResource\Input\Industry\UpdateProjectInput;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
-use App\Service\Industry\IndustryProjectService;
+use App\Service\Industry\IndustryProjectFactory;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -26,7 +26,7 @@ class UpdateProjectProcessor implements ProcessorInterface
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
-        private readonly IndustryProjectService $projectService,
+        private readonly IndustryProjectFactory $projectFactory,
         private readonly IndustryResourceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,
     ) {
@@ -84,6 +84,9 @@ class UpdateProjectProcessor implements ProcessorInterface
         if ($data->jobsStartDate !== null) {
             $project->setJobsStartDate(new \DateTimeImmutable($data->jobsStartDate));
         }
+        if ($data->inventionMaterials !== null) {
+            $project->setInventionMaterials($data->inventionMaterials);
+        }
 
         if ($data->runs !== null && $data->runs >= 1 && $data->runs !== $project->getRuns()) {
             $project->setRuns($data->runs);
@@ -91,6 +94,10 @@ class UpdateProjectProcessor implements ProcessorInterface
         }
         if ($data->maxJobDurationDays !== null && $data->maxJobDurationDays > 0 && $data->maxJobDurationDays !== $project->getMaxJobDurationDays()) {
             $project->setMaxJobDurationDays($data->maxJobDurationDays);
+            $regenerateSteps = true;
+        }
+        if ($data->meLevel !== null && $data->meLevel >= 0 && $data->meLevel <= 10 && $data->meLevel !== $project->getMeLevel()) {
+            $project->setMeLevel($data->meLevel);
             $regenerateSteps = true;
         }
         if ($data->teLevel !== null && $data->teLevel >= 0 && $data->teLevel <= 20 && $data->teLevel !== $project->getTeLevel()) {
@@ -101,7 +108,7 @@ class UpdateProjectProcessor implements ProcessorInterface
         $this->entityManager->flush();
 
         if ($regenerateSteps) {
-            $this->projectService->regenerateSteps($project);
+            $this->projectFactory->regenerateSteps($project);
         }
 
         return $this->mapper->projectToResource($project);

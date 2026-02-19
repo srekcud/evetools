@@ -24,6 +24,12 @@ framework:
             structure_market.cache:
                 adapter: cache.adapter.redis
                 default_lifetime: 7200  # 2 hours
+            esi_cost_index.cache:
+                adapter: cache.adapter.redis
+                default_lifetime: 86400  # 24 hours
+            public_contracts.cache:
+                adapter: cache.adapter.redis
+                default_lifetime: 3600  # 1 hour
 
 when@test:
     framework:
@@ -41,4 +47,8 @@ when@test:
                 oauth.state.cache:
                     adapter: cache.adapter.array
                 structure_market.cache:
+                    adapter: cache.adapter.array
+                esi_cost_index.cache:
+                    adapter: cache.adapter.array
+                public_contracts.cache:
                     adapter: cache.adapter.array

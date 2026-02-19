@@ -30,6 +30,14 @@ framework:
             App\Message\SyncUserMiningData: async
             App\Message\SyncAnsiblexGates: async
             App\Message\SyncStructureMarket: async
+            App\Message\SyncPublicContracts: async
+            App\Message\SyncAdjustedPrices: async
+            App\Message\SyncCostIndices: async
+            App\Message\CheckAlertPrices: async
+            App\Message\CheckMarketAlerts: async
+            App\Message\PurgeOldMarketHistory: async
+            App\Message\PurgeOldNotifications: async
+            App\Message\WarmupStructureOwnersMessage: async
 
 when@test:
     framework:

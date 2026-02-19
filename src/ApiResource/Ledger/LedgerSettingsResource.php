@@ -19,7 +19,7 @@ use App\State\Provider\Ledger\LedgerSettingsProvider;
         new Get(
             uriTemplate: '/ledger/settings',
             provider: LedgerSettingsProvider::class,
-            openapi: new Model\Operation(summary: 'Get ledger settings'),
+            openapi: new Model\Operation(summary: 'Get ledger settings', tags: ['Ledger']),
         ),
         new Patch(
             uriTemplate: '/ledger/settings',
@@ -27,6 +27,7 @@ use App\State\Provider\Ledger\LedgerSettingsProvider;
             processor: UpdateLedgerSettingsProcessor::class,
             openapi: new Model\Operation(
                 summary: 'Update ledger settings',
+                tags: ['Ledger'],
                 requestBody: new Model\RequestBody(
                     content: new \ArrayObject([
                         'application/merge-patch+json' => [

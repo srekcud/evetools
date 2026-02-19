@@ -17,7 +17,7 @@ use App\State\Provider\Admin\ChartDataProvider;
         new Get(
             uriTemplate: '/admin/charts',
             provider: ChartDataProvider::class,
-            openapi: new Model\Operation(summary: 'Get chart data for admin dashboard'),
+            openapi: new Model\Operation(summary: 'Get chart data for admin dashboard', tags: ['Administration']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

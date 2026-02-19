@@ -17,7 +17,7 @@ use App\State\Provider\Ansiblex\AnsiblexGraphProvider;
         new Get(
             uriTemplate: '/me/ansiblex/graph',
             provider: AnsiblexGraphProvider::class,
-            openapi: new Model\Operation(summary: 'Get Ansiblex graph', description: 'Returns adjacency list of Ansiblex connections for pathfinding'),
+            openapi: new Model\Operation(summary: 'Get Ansiblex graph', description: 'Returns adjacency list of Ansiblex connections for pathfinding', tags: ['Navigation']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

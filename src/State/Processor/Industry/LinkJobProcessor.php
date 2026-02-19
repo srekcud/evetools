@@ -15,7 +15,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Service\Industry\IndustryCalculationService;
-use App\Service\Industry\IndustryProjectService;
+use App\Service\Industry\IndustryStepCalculator;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -36,7 +36,7 @@ class LinkJobProcessor implements ProcessorInterface
         private readonly CachedIndustryJobRepository $jobRepository,
         private readonly IndustryStructureConfigRepository $structureConfigRepository,
         private readonly IndustryCalculationService $calculationService,
-        private readonly IndustryProjectService $projectService,
+        private readonly IndustryStepCalculator $stepCalculator,
         private readonly IndustryResourceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,
     ) {
@@ -106,12 +106,12 @@ class LinkJobProcessor implements ProcessorInterface
                     // Record what was planned before correction
                     $match->setPlannedStructureName($currentConfig?->getName() ?? 'Aucune structure');
                     $currentBonus = $this->calculationService->getStructureBonusForStep($step);
-                    $match->setPlannedMaterialBonus($currentBonus['materialBonus']);
+                    $match->setPlannedMaterialBonus($currentBonus['materialBonus']['total']);
 
                     // Auto-correct
                     $step->setStructureConfig($facilityConfig);
                     $this->entityManager->flush();
-                    $this->projectService->recalculateStepQuantities($project);
+                    $this->stepCalculator->recalculateStepQuantities($project);
                 }
             }
         }
@@ -137,7 +137,7 @@ class LinkJobProcessor implements ProcessorInterface
         $this->entityManager->flush();
 
         if ($runsChanged) {
-            $this->projectService->recalculateStepQuantities($project);
+            $this->stepCalculator->recalculateStepQuantities($project);
         }
 
         return $this->mapper->stepToResource($step);

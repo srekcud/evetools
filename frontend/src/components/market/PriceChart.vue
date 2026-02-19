@@ -29,6 +29,7 @@ ChartJS.register(
 const props = defineProps<{
   data: HistoryEntry[]
   selectedPeriod: number
+  source?: 'jita' | 'structure'
 }>()
 
 const emit = defineEmits<{
@@ -47,8 +48,10 @@ function formatPrice(value: number): string {
   if (value >= 1_000_000_000) return (value / 1_000_000_000).toFixed(2) + 'B'
   if (value >= 1_000_000) return (value / 1_000_000).toFixed(2) + 'M'
   if (value >= 1_000) return (value / 1_000).toFixed(1) + 'K'
-  return value.toFixed(0)
+  return value.toFixed(2)
 }
+
+const isStructure = computed(() => props.source === 'structure')
 
 const chartData = computed(() => {
   const labels = props.data.map(d => {
@@ -56,40 +59,62 @@ const chartData = computed(() => {
     return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
   })
 
+  if (isStructure.value) {
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Sell Price',
+          data: props.data.map(d => d.sellMin ?? null),
+          borderColor: '#22d3ee',
+          backgroundColor: 'rgba(34, 211, 238, 0.05)',
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          pointHoverBackgroundColor: '#22d3ee',
+          tension: 0.3,
+          fill: '+1',
+        },
+        {
+          label: 'Buy Price',
+          data: props.data.map(d => d.buyMax ?? null),
+          borderColor: '#f59e0b',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          pointHoverBackgroundColor: '#f59e0b',
+          tension: 0.3,
+          fill: false,
+        },
+      ],
+    }
+  }
+
   return {
     labels,
     datasets: [
       {
-        label: 'Highest (Sell)',
+        label: 'Sell Price',
         data: props.data.map(d => d.highest),
         borderColor: '#22d3ee',
         backgroundColor: 'rgba(34, 211, 238, 0.05)',
-        borderWidth: 1.5,
+        borderWidth: 2,
         pointRadius: 0,
         pointHoverRadius: 4,
+        pointHoverBackgroundColor: '#22d3ee',
         tension: 0.3,
         fill: '+1',
       },
       {
-        label: 'Lowest (Buy)',
+        label: 'Buy Price',
         data: props.data.map(d => d.lowest),
-        borderColor: '#10b981',
-        backgroundColor: 'rgba(16, 185, 129, 0.05)',
-        borderWidth: 1.5,
-        pointRadius: 0,
-        pointHoverRadius: 4,
-        tension: 0.3,
-        fill: false,
-      },
-      {
-        label: 'Average',
-        data: props.data.map(d => d.average),
-        borderColor: 'rgba(148, 163, 184, 0.8)',
+        borderColor: '#f59e0b',
         backgroundColor: 'transparent',
-        borderWidth: 1,
-        borderDash: [4, 4],
+        borderWidth: 2,
         pointRadius: 0,
         pointHoverRadius: 4,
+        pointHoverBackgroundColor: '#f59e0b',
         tension: 0.3,
         fill: false,
       },
@@ -106,23 +131,17 @@ const chartOptions = computed(() => ({
   },
   plugins: {
     legend: {
-      display: true,
-      position: 'top' as const,
-      labels: {
-        color: '#94a3b8',
-        usePointStyle: true,
-        pointStyle: 'line' as const,
-        padding: 16,
-        font: { size: 11 },
-      },
+      display: false,
     },
     tooltip: {
       backgroundColor: 'rgba(15, 23, 42, 0.95)',
       borderColor: 'rgba(6, 182, 212, 0.3)',
       borderWidth: 1,
-      titleColor: '#e2e8f0',
-      bodyColor: '#94a3b8',
-      padding: 10,
+      titleColor: '#94a3b8',
+      bodyColor: '#e2e8f0',
+      bodyFont: { family: 'JetBrains Mono', size: 12 },
+      padding: 12,
+      displayColors: true,
       callbacks: {
         label: (context: { dataset: { label?: string }; raw: unknown }) => {
           const value = context.raw as number
@@ -133,24 +152,23 @@ const chartOptions = computed(() => ({
   },
   scales: {
     x: {
+      grid: { color: 'rgba(51, 65, 85, 0.3)' },
       ticks: {
-        color: '#64748b',
-        maxTicksLimit: 12,
-        font: { size: 10 },
+        color: '#475569',
+        font: { family: 'JetBrains Mono', size: 10 },
+        maxTicksLimit: 8,
+        maxRotation: 0,
       },
-      grid: {
-        color: 'rgba(51, 65, 85, 0.3)',
-      },
+      border: { display: false },
     },
     y: {
+      grid: { color: 'rgba(51, 65, 85, 0.3)' },
       ticks: {
-        color: '#64748b',
+        color: '#475569',
+        font: { family: 'JetBrains Mono', size: 10 },
         callback: (value: string | number) => formatPrice(Number(value)),
-        font: { size: 10 },
       },
-      grid: {
-        color: 'rgba(51, 65, 85, 0.3)',
-      },
+      border: { display: false },
     },
   },
 }))
@@ -164,17 +182,27 @@ const chartOptions = computed(() => ({
         v-for="period in periods"
         :key="period.days"
         @click="emit('update:selectedPeriod', period.days)"
-        class="px-3 py-1 rounded-md text-xs font-medium transition-colors"
+        class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border"
         :class="selectedPeriod === period.days
-          ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-          : 'text-slate-500 hover:text-slate-300 border border-transparent'"
+          ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+          : 'bg-slate-800/50 text-slate-400 border-slate-700/50 hover:border-cyan-500/30 hover:text-cyan-400'"
       >
         {{ t(period.label) }}
       </button>
     </div>
 
+    <!-- Structure history accumulating banner -->
+    <div
+      v-if="isStructure && data.length < 3 && data.length > 0"
+      class="mb-3 px-3 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-lg"
+    >
+      <p class="text-xs text-indigo-400">
+        {{ t('market.detail.structureHistoryAccumulating') }}
+      </p>
+    </div>
+
     <!-- Chart -->
-    <div class="h-64 md:h-72">
+    <div style="height: 280px;">
       <Line
         v-if="data.length > 0"
         :data="chartData"
@@ -183,6 +211,22 @@ const chartOptions = computed(() => ({
       <div v-else class="flex items-center justify-center h-full">
         <p class="text-sm text-slate-500">{{ t('market.search.noResults') }}</p>
       </div>
+    </div>
+
+    <!-- Custom Legend -->
+    <div class="flex items-center gap-6 mt-3 ml-2">
+      <span class="flex items-center gap-2 text-xs text-slate-500">
+        <span class="inline-block w-3 h-0.5 bg-cyan-400 rounded-full"></span>
+        {{ t('market.detail.sellPrice') }}
+      </span>
+      <span class="flex items-center gap-2 text-xs text-slate-500">
+        <span class="inline-block w-3 h-0.5 bg-amber-400 rounded-full"></span>
+        {{ t('market.detail.buyPrice') }}
+      </span>
+      <span class="flex items-center gap-2 text-xs text-slate-500">
+        <span class="inline-block w-3 rounded-full bg-cyan-400/20" style="height: 8px"></span>
+        {{ t('market.detail.spreadArea') }}
+      </span>
     </div>
   </div>
 </template>

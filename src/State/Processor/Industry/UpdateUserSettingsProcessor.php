@@ -59,12 +59,22 @@ class UpdateUserSettingsProcessor implements ProcessorInterface
             );
         }
 
+        if ($data->brokerFeeRate !== null) {
+            $settings->setBrokerFeeRate(max(0.0, $data->brokerFeeRate));
+        }
+
+        if ($data->salesTaxRate !== null) {
+            $settings->setSalesTaxRate(max(0.0, $data->salesTaxRate));
+        }
+
         $this->entityManager->flush();
 
         // Build response
         $resource = new UserSettingsResource();
         $resource->favoriteManufacturingSystemId = $settings->getFavoriteManufacturingSystemId();
         $resource->favoriteReactionSystemId = $settings->getFavoriteReactionSystemId();
+        $resource->brokerFeeRate = $settings->getBrokerFeeRate();
+        $resource->salesTaxRate = $settings->getSalesTaxRate();
 
         if ($resource->favoriteManufacturingSystemId !== null) {
             $system = $this->solarSystemRepository->find($resource->favoriteManufacturingSystemId);

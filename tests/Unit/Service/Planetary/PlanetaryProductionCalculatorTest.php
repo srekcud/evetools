@@ -14,6 +14,7 @@ use App\Repository\Sde\PlanetSchematicRepository;
 use App\Repository\Sde\PlanetSchematicTypeRepository;
 use App\Service\JitaMarketService;
 use App\Service\Planetary\PlanetaryProductionCalculator;
+use App\Service\TypeNameResolver;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -26,6 +27,7 @@ class PlanetaryProductionCalculatorTest extends TestCase
     private PlanetSchematicRepository $schematicRepository;
     private PlanetSchematicTypeRepository $schematicTypeRepository;
     private InvTypeRepository $invTypeRepository;
+    private TypeNameResolver $typeNameResolver;
     private JitaMarketService $jitaMarketService;
     private PlanetaryProductionCalculator $calculator;
 
@@ -34,12 +36,14 @@ class PlanetaryProductionCalculatorTest extends TestCase
         $this->schematicRepository = $this->createStub(PlanetSchematicRepository::class);
         $this->schematicTypeRepository = $this->createStub(PlanetSchematicTypeRepository::class);
         $this->invTypeRepository = $this->createStub(InvTypeRepository::class);
+        $this->typeNameResolver = $this->createStub(TypeNameResolver::class);
         $this->jitaMarketService = $this->createStub(JitaMarketService::class);
 
         $this->calculator = new PlanetaryProductionCalculator(
             $this->schematicRepository,
             $this->schematicTypeRepository,
             $this->invTypeRepository,
+            $this->typeNameResolver,
             $this->jitaMarketService,
         );
     }

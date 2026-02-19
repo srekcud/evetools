@@ -7,6 +7,7 @@ namespace App\MessageHandler;
 use App\Message\SyncStructureMarket;
 use App\Message\TriggerStructureMarketSync;
 use App\Repository\CharacterRepository;
+use App\Repository\UserRepository;
 use App\Service\Admin\SyncTracker;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -15,16 +16,14 @@ use Symfony\Component\Messenger\MessageBusInterface;
 #[AsMessageHandler]
 final readonly class TriggerStructureMarketSyncHandler
 {
-    // Structures to sync market data for
-    private const STRUCTURES = [
-        1049588174021 => 'C-J6MT - 1st Taj Mahgoon (Keepstar)',
-    ];
-
     public function __construct(
         private CharacterRepository $characterRepository,
+        private UserRepository $userRepository,
         private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
         private SyncTracker $syncTracker,
+        private int $defaultMarketStructureId,
+        private string $defaultMarketStructureName,
     ) {
     }
 
@@ -51,7 +50,10 @@ final readonly class TriggerStructureMarketSyncHandler
             }
             $characterId = $charUuid->toRfc4122();
 
-            foreach (self::STRUCTURES as $structureId => $structureName) {
+            // Build the list of structures to sync: default + user preferences
+            $structures = $this->getStructuresToSync();
+
+            foreach ($structures as $structureId => $structureName) {
                 $this->messageBus->dispatch(
                     new SyncStructureMarket($structureId, $structureName, $characterId)
                 );
@@ -61,10 +63,32 @@ final readonly class TriggerStructureMarketSyncHandler
                 ]);
             }
 
-            $this->syncTracker->complete('market-structure', count(self::STRUCTURES) . ' structures queued');
+            $this->syncTracker->complete('market-structure', count($structures) . ' structures queued');
         } catch (\Throwable $e) {
             $this->syncTracker->fail('market-structure', $e->getMessage());
             throw $e;
         }
+    }
+
+    /**
+     * Collect the default structure + all distinct user-preferred structures.
+     *
+     * @return array<int, string> structureId => structureName
+     */
+    private function getStructuresToSync(): array
+    {
+        $structures = [
+            $this->defaultMarketStructureId => $this->defaultMarketStructureName,
+        ];
+
+        $userStructureIds = $this->userRepository->findDistinctPreferredMarketStructureIds();
+
+        foreach ($userStructureIds as $structureId) {
+            if (!isset($structures[$structureId])) {
+                $structures[$structureId] = "Structure {$structureId}";
+            }
+        }
+
+        return $structures;
     }
 }

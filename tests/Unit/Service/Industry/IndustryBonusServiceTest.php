@@ -56,9 +56,12 @@ class IndustryBonusServiceTest extends TestCase
             ['Standup XL-Set Structure and Component Manufacturing Efficiency I']
         );
 
-        // Base 1% + (2.0% × 2.1) = 5.2%
+        // Base 1%, Rig (2.0% × 2.1) = 4.2%
+        // Multiplicative: 1 - (1 - 0.01) × (1 - 0.042) = 1 - 0.99 × 0.958 = 1 - 0.94842 = 5.158%
         $bonus = $this->bonusService->calculateStructureBonusForCategory($structure, 'basic_capital_component');
-        $this->assertSame(5.2, $bonus);
+        $this->assertSame(1.0, $bonus['base']);
+        $this->assertSame(4.2, $bonus['rig']);
+        $this->assertSame(5.16, $bonus['total']);
     }
 
     public function testEngineeringComplexNullsecWithTier2Rig(): void
@@ -70,9 +73,12 @@ class IndustryBonusServiceTest extends TestCase
             ['Standup XL-Set Structure and Component Manufacturing Efficiency II']
         );
 
-        // Base 1% + (2.4% × 2.1) = 6.04%
+        // Base 1%, Rig (2.4% × 2.1) = 5.04%
+        // Multiplicative: 1 - (1 - 0.01) × (1 - 0.0504) = 1 - 0.99 × 0.9496 = 1 - 0.940104 = 5.9896%
         $bonus = $this->bonusService->calculateStructureBonusForCategory($structure, 'basic_capital_component');
-        $this->assertSame(6.04, $bonus);
+        $this->assertSame(1.0, $bonus['base']);
+        $this->assertSame(5.04, $bonus['rig']);
+        $this->assertSame(5.99, $bonus['total']);
     }
 
     public function testEngineeringComplexHighsec(): void
@@ -84,9 +90,12 @@ class IndustryBonusServiceTest extends TestCase
             ['Standup XL-Set Structure and Component Manufacturing Efficiency II']
         );
 
-        // Base 1% + (2.4% × 1.0) = 3.4%
+        // Base 1%, Rig (2.4% × 1.0) = 2.4%
+        // Multiplicative: 1 - (1 - 0.01) × (1 - 0.024) = 1 - 0.99 × 0.976 = 1 - 0.96624 = 3.376%
         $bonus = $this->bonusService->calculateStructureBonusForCategory($structure, 'basic_capital_component');
-        $this->assertSame(3.4, $bonus);
+        $this->assertSame(1.0, $bonus['base']);
+        $this->assertSame(2.4, $bonus['rig']);
+        $this->assertSame(3.38, $bonus['total']);
     }
 
     public function testEngineeringComplexLowsec(): void
@@ -98,9 +107,12 @@ class IndustryBonusServiceTest extends TestCase
             ['Standup XL-Set Structure and Component Manufacturing Efficiency II']
         );
 
-        // Base 1% + (2.4% × 1.9) = 5.56%
+        // Base 1%, Rig (2.4% × 1.9) = 4.56%
+        // Multiplicative: 1 - (1 - 0.01) × (1 - 0.0456) = 1 - 0.99 × 0.9544 = 1 - 0.944856 = 5.5144%
         $bonus = $this->bonusService->calculateStructureBonusForCategory($structure, 'basic_capital_component');
-        $this->assertSame(5.56, $bonus);
+        $this->assertSame(1.0, $bonus['base']);
+        $this->assertSame(4.56, $bonus['rig']);
+        $this->assertSame(5.51, $bonus['total']);
     }
 
     public function testRefineryNullsecWithReactorRig(): void
@@ -114,9 +126,12 @@ class IndustryBonusServiceTest extends TestCase
 
         // Reactor rigs have different security multipliers (1.1x for nullsec)
         // Refineries have NO base material bonus (only time bonus)
-        // Total: 2.4% × 1.1 = 2.64%
+        // Rig: 2.4% × 1.1 = 2.64%, base: 0%
+        // Total = 2.64% (no base to multiply with)
         $bonus = $this->bonusService->calculateStructureBonusForCategory($structure, 'composite_reaction');
-        $this->assertSame(2.64, $bonus);
+        $this->assertSame(0.0, $bonus['base']);
+        $this->assertSame(2.64, $bonus['rig']);
+        $this->assertSame(2.64, $bonus['total']);
     }
 
     public function testRefineryLowsecWithReactorRig(): void
@@ -129,9 +144,11 @@ class IndustryBonusServiceTest extends TestCase
         );
 
         // Reactor rigs in lowsec have 1.0x multiplier (same as highsec)
-        // Total: 2.4% × 1.0 = 2.4%
+        // Rig: 2.4% × 1.0 = 2.4%, base: 0%
         $bonus = $this->bonusService->calculateStructureBonusForCategory($structure, 'composite_reaction');
-        $this->assertSame(2.4, $bonus);
+        $this->assertSame(0.0, $bonus['base']);
+        $this->assertSame(2.4, $bonus['rig']);
+        $this->assertSame(2.4, $bonus['total']);
     }
 
     public function testRefineryHighsecWithReactorRig(): void
@@ -144,9 +161,11 @@ class IndustryBonusServiceTest extends TestCase
         );
 
         // Reactor rigs in highsec have 1.0x multiplier
-        // Total: 2.4% × 1.0 = 2.4%
+        // Rig: 2.4% × 1.0 = 2.4%, base: 0%
         $bonus = $this->bonusService->calculateStructureBonusForCategory($structure, 'composite_reaction');
-        $this->assertSame(2.4, $bonus);
+        $this->assertSame(0.0, $bonus['base']);
+        $this->assertSame(2.4, $bonus['rig']);
+        $this->assertSame(2.4, $bonus['total']);
     }
 
     public function testRefineryNoBaseForManufacturing(): void
@@ -161,7 +180,9 @@ class IndustryBonusServiceTest extends TestCase
         // Refinery doesn't give base bonus for manufacturing categories
         // And Reactor rigs don't apply to manufacturing
         $bonus = $this->bonusService->calculateStructureBonusForCategory($structure, 'basic_capital_component');
-        $this->assertSame(0.0, $bonus);
+        $this->assertSame(0.0, $bonus['base']);
+        $this->assertSame(0.0, $bonus['rig']);
+        $this->assertSame(0.0, $bonus['total']);
     }
 
     public function testEngineeringComplexNoBaseForReactions(): void
@@ -176,7 +197,9 @@ class IndustryBonusServiceTest extends TestCase
         // EC doesn't give base bonus for reaction categories
         // And manufacturing rigs don't apply to reactions
         $bonus = $this->bonusService->calculateStructureBonusForCategory($structure, 'composite_reaction');
-        $this->assertSame(0.0, $bonus);
+        $this->assertSame(0.0, $bonus['base']);
+        $this->assertSame(0.0, $bonus['rig']);
+        $this->assertSame(0.0, $bonus['total']);
     }
 
     public function testStationNoBonus(): void
@@ -190,7 +213,9 @@ class IndustryBonusServiceTest extends TestCase
 
         // Stations have no base bonus and no rigs
         $bonus = $this->bonusService->calculateStructureBonusForCategory($structure, 'basic_capital_component');
-        $this->assertSame(0.0, $bonus);
+        $this->assertSame(0.0, $bonus['base']);
+        $this->assertSame(0.0, $bonus['rig']);
+        $this->assertSame(0.0, $bonus['total']);
     }
 
     // ===========================================
@@ -209,9 +234,12 @@ class IndustryBonusServiceTest extends TestCase
             ]
         );
 
-        // Base 1% + ((2.0% + 2.4%) × 2.1) = 1% + 9.24% = 10.24%
+        // Base 1%, Rigs ((2.0% + 2.4%) × 2.1) = 9.24%
+        // Multiplicative: 1 - (1 - 0.01) × (1 - 0.0924) = 1 - 0.99 × 0.9076 = 1 - 0.898524 = 10.1476%
         $bonus = $this->bonusService->calculateStructureBonusForCategory($structure, 'basic_capital_component');
-        $this->assertSame(10.24, $bonus);
+        $this->assertSame(1.0, $bonus['base']);
+        $this->assertSame(9.24, $bonus['rig']);
+        $this->assertSame(10.15, $bonus['total']);
     }
 
     public function testRigsOnlyApplyToMatchingCategory(): void
@@ -224,9 +252,11 @@ class IndustryBonusServiceTest extends TestCase
         );
 
         // Ship rig doesn't apply to components
-        // Only base 1% applies
+        // Only base 1% applies, rig = 0%
         $bonus = $this->bonusService->calculateStructureBonusForCategory($structure, 'basic_capital_component');
-        $this->assertSame(1.0, $bonus);
+        $this->assertSame(1.0, $bonus['base']);
+        $this->assertSame(0.0, $bonus['rig']);
+        $this->assertSame(1.0, $bonus['total']);
     }
 
     // ===========================================
@@ -247,12 +277,14 @@ class IndustryBonusServiceTest extends TestCase
 
         $bonuses = $this->bonusService->calculateAllBonusesForStructure($structure);
 
-        // Component categories: 1% base + (2.4% × 2.1) = 6.04%
-        $this->assertSame(6.04, $bonuses['basic_capital_component'] ?? 0);
-        $this->assertSame(6.04, $bonuses['advanced_component'] ?? 0);
+        // Component categories: base 1%, rig (2.4% × 2.1) = 5.04%
+        // Multiplicative: 1 - (0.99 × 0.9496) = 5.99%
+        $this->assertSame(5.99, $bonuses['basic_capital_component'] ?? 0);
+        $this->assertSame(5.99, $bonuses['advanced_component'] ?? 0);
 
-        // Ship categories: 1% base + (2.4% × 2.1) = 6.04%
-        $this->assertSame(6.04, $bonuses['capital_ship'] ?? 0);
+        // Ship categories: base 1%, rig (2.4% × 2.1) = 5.04%
+        // Same: 5.99%
+        $this->assertSame(5.99, $bonuses['capital_ship'] ?? 0);
     }
 
     public function testCalculateAllBonusesForRefineryWithReactorRig(): void
@@ -267,7 +299,7 @@ class IndustryBonusServiceTest extends TestCase
         $bonuses = $this->bonusService->calculateAllBonusesForStructure($structure);
 
         // Reactor rigs: 2.4% × 1.1 (nullsec) = 2.64%
-        // Refineries have NO base material bonus
+        // Refineries have NO base material bonus, so total = rig only = 2.64%
         $this->assertSame(2.64, $bonuses['composite_reaction'] ?? 0);
         $this->assertSame(2.64, $bonuses['biochemical_reaction'] ?? 0);
         $this->assertSame(2.64, $bonuses['hybrid_reaction'] ?? 0);

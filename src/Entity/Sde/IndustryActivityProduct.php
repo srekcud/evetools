@@ -27,6 +27,9 @@ class IndustryActivityProduct
     #[ORM\Column(type: 'integer')]
     private int $quantity;
 
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $probability = null;
+
     public function getTypeId(): int
     {
         return $this->typeId;
@@ -68,6 +71,17 @@ class IndustryActivityProduct
     public function setQuantity(int $quantity): self
     {
         $this->quantity = $quantity;
+        return $this;
+    }
+
+    public function getProbability(): ?float
+    {
+        return $this->probability;
+    }
+
+    public function setProbability(?float $probability): self
+    {
+        $this->probability = $probability;
         return $this;
     }
 }

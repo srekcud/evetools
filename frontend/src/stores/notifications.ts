@@ -69,12 +69,12 @@ export const useNotificationsStore = defineStore('notifications', () => {
       const data = await apiRequest<PaginatedResponse>(url)
 
       if (page === 1) {
-        notifications.value = data.items
+        notifications.value = data.items ?? []
       } else {
-        notifications.value = [...notifications.value, ...data.items]
+        notifications.value = [...notifications.value, ...(data.items ?? [])]
       }
 
-      totalItems.value = data.total
+      totalItems.value = data.total ?? 0
       currentPage.value = page
       hasMore.value = notifications.value.length < data.total
     } catch (e) {
@@ -132,7 +132,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
       const data = await apiRequest<{ preferences: NotificationPreference[] }>(
         '/me/notification-preferences'
       )
-      preferences.value = data.preferences
+      preferences.value = data.preferences ?? []
     } catch (e) {
       console.error('Failed to fetch preferences:', e)
     }

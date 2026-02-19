@@ -72,6 +72,26 @@ class IndustryProject
     #[ORM\Column(type: 'json')]
     private array $excludedTypeIds = [];
 
+    /** @var array<array{typeId: int, typeName: string, quantity: int}>|null */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $inventionMaterials = null;
+
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $estimatedJobCost = null;
+
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $estimatedMaterialCost = null;
+
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $estimatedSellPrice = null;
+
+    /** @var string|null Source of estimated sell price: 'jita' or 'structure' */
+    #[ORM\Column(type: 'string', length: 20, nullable: true)]
+    private ?string $estimatedSellPriceSource = null;
+
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $estimatedTaxAmount = null;
+
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $notes = null;
 
@@ -254,6 +274,61 @@ class IndustryProject
         return $this;
     }
 
+    public function getEstimatedJobCost(): ?float
+    {
+        return $this->estimatedJobCost;
+    }
+
+    public function setEstimatedJobCost(?float $estimatedJobCost): static
+    {
+        $this->estimatedJobCost = $estimatedJobCost;
+        return $this;
+    }
+
+    public function getEstimatedMaterialCost(): ?float
+    {
+        return $this->estimatedMaterialCost;
+    }
+
+    public function setEstimatedMaterialCost(?float $estimatedMaterialCost): static
+    {
+        $this->estimatedMaterialCost = $estimatedMaterialCost;
+        return $this;
+    }
+
+    public function getEstimatedSellPrice(): ?float
+    {
+        return $this->estimatedSellPrice;
+    }
+
+    public function setEstimatedSellPrice(?float $estimatedSellPrice): static
+    {
+        $this->estimatedSellPrice = $estimatedSellPrice;
+        return $this;
+    }
+
+    public function getEstimatedSellPriceSource(): ?string
+    {
+        return $this->estimatedSellPriceSource;
+    }
+
+    public function setEstimatedSellPriceSource(?string $estimatedSellPriceSource): static
+    {
+        $this->estimatedSellPriceSource = $estimatedSellPriceSource;
+        return $this;
+    }
+
+    public function getEstimatedTaxAmount(): ?float
+    {
+        return $this->estimatedTaxAmount;
+    }
+
+    public function setEstimatedTaxAmount(?float $estimatedTaxAmount): static
+    {
+        $this->estimatedTaxAmount = $estimatedTaxAmount;
+        return $this;
+    }
+
     /** @return int[] */
     public function getExcludedTypeIds(): array
     {
@@ -264,6 +339,19 @@ class IndustryProject
     public function setExcludedTypeIds(array $excludedTypeIds): static
     {
         $this->excludedTypeIds = $excludedTypeIds;
+        return $this;
+    }
+
+    /** @return array<array{typeId: int, typeName: string, quantity: int}>|null */
+    public function getInventionMaterials(): ?array
+    {
+        return $this->inventionMaterials;
+    }
+
+    /** @param array<array{typeId: int, typeName: string, quantity: int}>|null $inventionMaterials */
+    public function setInventionMaterials(?array $inventionMaterials): static
+    {
+        $this->inventionMaterials = $inventionMaterials;
         return $this;
     }
 

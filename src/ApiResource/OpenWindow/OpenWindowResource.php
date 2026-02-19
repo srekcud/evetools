@@ -23,6 +23,7 @@ use App\State\Processor\OpenWindow\OpenWindowProcessor;
             openapi: new Model\Operation(
                 summary: 'Open market details window',
                 description: 'Opens the in-game market details window for the given type ID',
+                tags: ['Navigation'],
             ),
         ),
         new Post(
@@ -32,6 +33,7 @@ use App\State\Processor\OpenWindow\OpenWindowProcessor;
             openapi: new Model\Operation(
                 summary: 'Open information window',
                 description: 'Opens the in-game information window for the given target ID (character, corporation, type, etc.)',
+                tags: ['Navigation'],
             ),
         ),
         new Post(
@@ -41,6 +43,7 @@ use App\State\Processor\OpenWindow\OpenWindowProcessor;
             openapi: new Model\Operation(
                 summary: 'Open contract window',
                 description: 'Opens the in-game contract window for the given contract ID',
+                tags: ['Navigation'],
             ),
         ),
     ],

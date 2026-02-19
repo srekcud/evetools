@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\ProductSearchListResource;
 use App\ApiResource\Industry\ProductSearchResource;
+use App\Enum\IndustryActivityType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 
@@ -34,10 +35,16 @@ class ProductSearchProvider implements ProviderInterface
         }
 
         $conn = $this->entityManager->getConnection();
+        $manufacturing = IndustryActivityType::Manufacturing->value;
+        $reaction = IndustryActivityType::Reaction->value;
+        $invention = IndustryActivityType::Invention->value;
+
         $sql = <<<SQL
-            SELECT DISTINCT t.type_id, t.type_name
+            SELECT DISTINCT t.type_id, t.type_name,
+                CASE WHEN inv.product_type_id IS NOT NULL THEN true ELSE false END AS is_t2
             FROM sde_inv_types t
-            INNER JOIN sde_industry_activity_products p ON p.product_type_id = t.type_id AND p.activity_id = 1
+            INNER JOIN sde_industry_activity_products p ON p.product_type_id = t.type_id AND p.activity_id IN ({$manufacturing}, {$reaction})
+            LEFT JOIN sde_industry_activity_products inv ON inv.product_type_id = p.type_id AND inv.activity_id = {$invention}
             WHERE t.published = true
               AND LOWER(t.type_name) LIKE LOWER(:query)
             ORDER BY t.type_name
@@ -50,6 +57,7 @@ class ProductSearchProvider implements ProviderInterface
             $item = new ProductSearchResource();
             $item->typeId = (int) $row['type_id'];
             $item->typeName = $row['type_name'];
+            $item->isT2 = (bool) $row['is_t2'];
 
             return $item;
         }, $results);

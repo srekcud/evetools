@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EVE Tools - Appraisal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #020617; /* slate-950 */
+      color: #e2e8f0;
+    }
+
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); }
+    ::-webkit-scrollbar-thumb { background: rgba(6, 182, 212, 0.3); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(6, 182, 212, 0.5); }
+
+    /* Subtle glow on KPI cards */
+    .kpi-sell { box-shadow: 0 -2px 12px -4px rgba(6, 182, 212, 0.15); }
+    .kpi-buy { box-shadow: 0 -2px 12px -4px rgba(245, 158, 11, 0.15); }
+    .kpi-volume { box-shadow: 0 -2px 12px -4px rgba(99, 102, 241, 0.15); }
+
+    /* Config panel transition */
+    .config-panel {
+      transition: max-height 0.3s ease, opacity 0.2s ease, padding 0.3s ease;
+      overflow: hidden;
+    }
+    .config-panel.collapsed {
+      max-height: 0;
+      opacity: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+    }
+    .config-panel.expanded {
+      max-height: 400px;
+      opacity: 1;
+    }
+
+    /* Table row hover */
+    tbody tr:hover {
+      background: rgba(30, 41, 59, 0.4) !important;
+    }
+
+    /* Chevron rotation */
+    .chevron { transition: transform 0.2s ease; }
+    .chevron.open { transform: rotate(180deg); }
+
+    /* Badge shimmer */
+    .badge-best {
+      position: relative;
+      overflow: hidden;
+    }
+    .badge-best::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%; width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+      animation: shimmer 3s infinite;
+    }
+    @keyframes shimmer {
+      0% { left: -100%; }
+      100% { left: 200%; }
+    }
+
+    /* Format chips */
+    .format-chip {
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: 1px solid transparent;
+      background: rgba(30, 41, 59, 0.6);
+      color: #64748b;
+      letter-spacing: 0.02em;
+    }
+    .format-chip:hover {
+      color: #94a3b8;
+      background: rgba(51, 65, 85, 0.6);
+    }
+    .format-chip.active {
+      background: rgba(6, 182, 212, 0.12);
+      color: #22d3ee;
+      border-color: rgba(6, 182, 212, 0.25);
+    }
+    .format-chip.detected {
+      background: rgba(34, 197, 94, 0.12);
+      color: #4ade80;
+      border-color: rgba(34, 197, 94, 0.25);
+      animation: chipPulse 2s ease-in-out;
+    }
+    @keyframes chipPulse {
+      0%, 100% { box-shadow: none; }
+      50% { box-shadow: 0 0 12px rgba(34, 197, 94, 0.2); }
+    }
+
+    /* Badge pulse for detected format */
+    .detected-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      background: rgba(34, 197, 94, 0.1);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.2);
+    }
+    .detected-badge .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #4ade80;
+      animation: dotBlink 1.5s ease-in-out infinite;
+    }
+    @keyframes dotBlink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* Textarea focus glow */
+    textarea:focus {
+      box-shadow: 0 0 0 1px rgba(6, 182, 212, 0.4), 0 0 20px -6px rgba(6, 182, 212, 0.15);
+    }
+
+    /* Animate button */
+    .btn-analyze {
+      background: linear-gradient(135deg, #0e7490, #0891b2, #06b6d4);
+      background-size: 200% 200%;
+      animation: gradient-shift 3s ease infinite;
+    }
+    @keyframes gradient-shift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    /* Column group tints */
+    .col-jita {
+      background: rgba(6, 182, 212, 0.03);
+    }
+    .col-structure {
+      background: rgba(139, 92, 246, 0.03);
+    }
+
+    /* Coverage bar */
+    .coverage-bar {
+      height: 3px;
+      border-radius: 2px;
+      background: rgba(51, 65, 85, 0.5);
+      margin-top: 4px;
+      overflow: hidden;
+    }
+    .coverage-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+    .coverage-full { background: #10b981; }
+    .coverage-partial { background: #f59e0b; }
+    .coverage-low { background: #ef4444; }
+  </style>
+</head>
+<body>
+  <!-- Page container (simulates MainLayout content area) -->
+  <div style="max-width: 1280px; margin: 0 auto; padding: 32px;">
+
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+
+      <!-- =========================================================== -->
+      <!-- HEADER -->
+      <!-- =========================================================== -->
+      <div>
+        <h1 style="font-size: 1.5rem; font-weight: 700; background: linear-gradient(to right, #22d3ee, #60a5fa); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+          Appraisal
+        </h1>
+        <p style="color: #94a3b8; font-size: 0.875rem; margin-top: 4px;">
+          Appraise your items and compare prices across markets -- paste once, see everything.
+        </p>
+      </div>
+
+      <!-- =========================================================== -->
+      <!-- INPUT SECTION -->
+      <!-- =========================================================== -->
+      <div style="background: #0f172a; border-radius: 12px; padding: 24px; border: 1px solid rgba(6,182,212,0.15);">
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+
+          <!-- Label -->
+          <label style="font-size: 0.875rem; font-weight: 500; color: #cbd5e1;">
+            Paste your item list (from the game or in name + quantity format)
+          </label>
+
+          <!-- Textarea -->
+          <textarea
+            rows="6"
+            style="width: 100%; background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px 16px; color: #e2e8f0; font-family: 'JetBrains Mono', monospace; font-size: 0.8125rem; outline: none; resize: vertical; line-height: 1.6;"
+            placeholder="Tritanium&#9;10000&#10;Pyerite&#9;5000&#10;Megacyte 200&#10;200x Nocxium&#10;..."
+          >Tritanium	10000
+Pyerite	5000
+Megacyte	200
+Isogen	3000
+Nocxium	1500
+Zydrine	500
+Mexallon	8000</textarea>
+
+          <!-- Format detection chips -->
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: -8px;">
+            <span style="font-size: 11px; color: #64748b; margin-right: 4px;">Format:</span>
+            <span class="format-chip active">Auto-detect</span>
+            <span class="format-chip detected">Multibuy</span>
+            <span class="format-chip">Cargo Scan</span>
+            <span class="format-chip">EFT Fitting</span>
+            <span class="format-chip">D-Scan</span>
+            <span class="format-chip">Contract</span>
+            <span class="format-chip">Killmail</span>
+            <span class="format-chip">Inventory</span>
+            <div style="flex: 1;"></div>
+            <span class="detected-badge">
+              <span class="dot"></span>
+              Detected: Multibuy
+            </span>
+          </div>
+
+          <!-- Action row -->
+          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+
+            <!-- Structure selector -->
+            <div style="position: relative; min-width: 300px; max-width: 420px;">
+              <svg style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: #64748b; pointer-events: none;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                value=""
+                placeholder="C-J6MT - 1st Taj Mahgoon (default)"
+                style="width: 100%; background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 8px 32px 8px 32px; color: #e2e8f0; font-size: 0.8125rem; outline: none;"
+              />
+              <button style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #64748b; padding: 2px; font-size: 16px; line-height: 1;" title="Clear structure">
+                &times;
+              </button>
+            </div>
+
+            <div style="flex: 1;"></div>
+
+            <!-- Clear -->
+            <button style="padding: 8px 16px; background: #334155; border: none; border-radius: 8px; color: #e2e8f0; font-size: 0.8125rem; font-weight: 500; cursor: pointer;">
+              Clear
+            </button>
+
+            <!-- Analyze button -->
+            <button class="btn-analyze" style="padding: 8px 24px; border: none; border-radius: 8px; color: white; font-size: 0.8125rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              Analyze
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- =========================================================== -->
+      <!-- KPI CARDS (Appraisal summary) -->
+      <!-- =========================================================== -->
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+
+        <!-- Sell Value -->
+        <div class="kpi-sell" style="background: #0f172a; border-radius: 12px; padding: 20px; border: 1px solid #1e293b; border-top: 2px solid #22d3ee; position: relative; overflow: hidden;">
+          <p style="font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <svg style="width: 12px; height: 12px; color: #22d3ee;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            </svg>
+            Sell Value
+          </p>
+          <p class="font-mono" style="font-size: 1.375rem; font-weight: 700; color: #22d3ee;">52.48M</p>
+          <p class="font-mono" style="font-size: 0.6875rem; color: #475569; margin-top: 2px;">Best: 51.92M</p>
+          <p style="font-size: 0.6875rem; color: #64748b; margin-top: 4px;">Cost to buy these items</p>
+        </div>
+
+        <!-- Buy Value -->
+        <div class="kpi-buy" style="background: #0f172a; border-radius: 12px; padding: 20px; border: 1px solid #1e293b; border-top: 2px solid #f59e0b; position: relative; overflow: hidden;">
+          <p style="font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <svg style="width: 12px; height: 12px; color: #f59e0b;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+            </svg>
+            Buy Value
+          </p>
+          <p class="font-mono" style="font-size: 1.375rem; font-weight: 700; color: #f59e0b;">48.31M</p>
+          <p class="font-mono" style="font-size: 0.6875rem; color: #475569; margin-top: 2px;">Best: 47.85M</p>
+          <p style="font-size: 0.6875rem; color: #64748b; margin-top: 4px;">What you receive selling</p>
+        </div>
+
+        <!-- Total Volume -->
+        <div class="kpi-volume" style="background: #0f172a; border-radius: 12px; padding: 20px; border: 1px solid #1e293b; border-top: 2px solid #6366f1; position: relative; overflow: hidden;">
+          <p style="font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <svg style="width: 12px; height: 12px; color: #6366f1;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+            Total Volume
+          </p>
+          <p class="font-mono" style="font-size: 1.375rem; font-weight: 700; color: #818cf8;">2,847 m<sup style="font-size: 0.6em;">3</sup></p>
+          <p style="font-size: 0.6875rem; color: #64748b; margin-top: 8px;">7 items appraised</p>
+        </div>
+      </div>
+
+      <!-- =========================================================== -->
+      <!-- IMPORT COMPARISON PANEL (collapsible) -->
+      <!-- =========================================================== -->
+      <div style="background: #0f172a; border-radius: 12px; border: 1px solid #1e293b; overflow: hidden;">
+        <!-- Toggle header -->
+        <button id="configToggle" onclick="toggleConfig()" style="width: 100%; padding: 14px 20px; display: flex; align-items: center; gap: 10px; background: none; border: none; cursor: pointer; color: #e2e8f0;">
+          <svg style="width: 18px; height: 18px; color: #a78bfa;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+          </svg>
+          <span style="font-size: 0.8125rem; font-weight: 600;">Structure Comparison</span>
+          <span style="font-size: 0.6875rem; color: #64748b; margin-left: 4px;">-- Compare Jita vs local structure</span>
+          <span style="flex: 1;"></span>
+
+          <!-- Summary when collapsed (shows structure name + best price) -->
+          <span id="configSummary" style="display: none; font-size: 0.75rem; color: #a78bfa; font-family: 'JetBrains Mono', monospace;">
+            C-J6MT &middot; Best: 49.82M
+          </span>
+
+          <svg id="configChevron" class="chevron open" style="width: 16px; height: 16px; color: #64748b;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        <!-- Config content -->
+        <div id="configContent" class="config-panel expanded" style="padding: 0 20px 20px 20px; border-top: 1px solid #1e293b;">
+          <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; padding-top: 16px;">
+
+            <!-- Transport cost -->
+            <div>
+              <label style="display: block; font-size: 0.8125rem; font-weight: 500; color: #cbd5e1; margin-bottom: 6px;">
+                Transport cost / m<sup>3</sup>
+              </label>
+              <input
+                type="number"
+                value="1200"
+                style="width: 112px; background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 8px 12px; color: #e2e8f0; font-size: 0.8125rem; outline: none; font-family: 'JetBrains Mono', monospace;"
+              />
+            </div>
+
+            <!-- Sync button -->
+            <button style="padding: 8px 14px; background: rgba(167,139,250,0.15); border: 1px solid rgba(167,139,250,0.3); border-radius: 8px; color: #c4b5fd; font-size: 0.75rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; white-space: nowrap;">
+              <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Sync prices
+            </button>
+          </div>
+
+          <!-- Cache info -->
+          <div style="margin-top: 10px; display: flex; align-items: center; gap: 8px;">
+            <svg style="width: 14px; height: 14px; color: #64748b;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span style="font-size: 0.6875rem; color: #64748b;">C-J6MT prices updated 47 minutes ago</span>
+          </div>
+
+          <!-- Import KPI sub-row -->
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 16px;">
+            <div style="background: #1e293b; border-radius: 8px; padding: 12px 16px;">
+              <p style="font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Jita + Transport</p>
+              <p class="font-mono" style="font-size: 1.125rem; font-weight: 600; color: #22d3ee;">55.90M</p>
+            </div>
+            <div style="background: #1e293b; border-radius: 8px; padding: 12px 16px;">
+              <p style="font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">C-J6MT (weighted)</p>
+              <p class="font-mono" style="font-size: 1.125rem; font-weight: 600; color: #a78bfa;">53.12M</p>
+            </div>
+            <div style="background: #1e293b; border-radius: 8px; padding: 12px 16px;">
+              <p style="font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Best Price (mixed)</p>
+              <p class="font-mono" style="font-size: 1.125rem; font-weight: 700; color: #4ade80;">49.82M</p>
+            </div>
+            <!-- Structure coverage KPI -->
+            <div style="background: #1e293b; border-radius: 8px; padding: 12px 16px;">
+              <p style="font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Structure Coverage</p>
+              <div style="display: flex; align-items: baseline; gap: 6px;">
+                <p class="font-mono" style="font-size: 1.125rem; font-weight: 600; color: #f59e0b;">6 / 7</p>
+                <span style="font-size: 0.6875rem; color: #64748b;">items fully covered</span>
+              </div>
+              <div class="coverage-bar" style="margin-top: 6px; height: 4px;">
+                <div class="coverage-bar-fill coverage-partial" style="width: 86%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =========================================================== -->
+      <!-- COMBINED RESULTS TABLE -->
+      <!-- =========================================================== -->
+      <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; overflow: hidden;">
+
+        <!-- Table header bar -->
+        <div style="padding: 16px 20px; border-bottom: 1px solid #1e293b; display: flex; align-items: center; justify-content: space-between;">
+          <h3 style="font-size: 0.9375rem; font-weight: 600; color: #e2e8f0;">
+            Items (7)
+          </h3>
+          <div style="display: flex; align-items: center; gap: 16px; font-size: 0.8125rem;">
+            <!-- Legend -->
+            <span style="display: flex; align-items: center; gap: 6px;">
+              <span style="width: 10px; height: 10px; border-radius: 50%; background: #06b6d4;"></span>
+              <span style="color: #94a3b8;">Jita (4)</span>
+            </span>
+            <span style="display: flex; align-items: center; gap: 6px;">
+              <span style="width: 10px; height: 10px; border-radius: 50%; background: #8b5cf6;"></span>
+              <span style="color: #94a3b8;">C-J6MT (3)</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; font-size: 0.8125rem; border-collapse: collapse;">
+            <thead>
+              <!-- Group header row -->
+              <tr style="background: rgba(15,23,42,0.8);">
+                <!-- Empty cells for Item, Qty, Volume -->
+                <th colspan="3" style="padding: 0;"></th>
+                <!-- Jita group header -->
+                <th colspan="3" style="padding: 8px 16px; text-align: center; border-left: 2px solid rgba(6,182,212,0.2); border-right: 2px solid rgba(6,182,212,0.2); border-top: 2px solid rgba(6,182,212,0.25); border-top-left-radius: 2px; border-top-right-radius: 2px; background: rgba(6,182,212,0.06);">
+                  <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <div style="width: 6px; height: 6px; border-radius: 50%; background: #22d3ee;"></div>
+                    <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #22d3ee;">Jita 4-4</span>
+                    <div style="width: 6px; height: 6px; border-radius: 50%; background: #22d3ee;"></div>
+                  </div>
+                </th>
+                <!-- Structure group header -->
+                <th colspan="1" style="padding: 8px 16px; text-align: center; border-left: 2px solid rgba(139,92,246,0.2); border-right: 2px solid rgba(139,92,246,0.2); border-top: 2px solid rgba(139,92,246,0.25); background: rgba(139,92,246,0.06);">
+                  <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <div style="width: 6px; height: 6px; border-radius: 50%; background: #a78bfa;"></div>
+                    <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #a78bfa;">C-J6MT</span>
+                    <div style="width: 6px; height: 6px; border-radius: 50%; background: #a78bfa;"></div>
+                  </div>
+                </th>
+                <!-- Buy at -->
+                <th style="padding: 0;"></th>
+              </tr>
+              <!-- Column headers row -->
+              <tr style="background: rgba(30,41,59,0.5);">
+                <th style="padding: 10px 16px; text-align: left; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b;">Item</th>
+                <th style="padding: 10px 16px; text-align: right; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b;">Qty</th>
+                <th style="padding: 10px 16px; text-align: right; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b;">Volume</th>
+                <!-- Jita columns (stacked sell/buy) -->
+                <th class="col-jita" style="padding: 10px 16px; text-align: right; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; border-left: 2px solid rgba(6,182,212,0.15);">Unit Price</th>
+                <th class="col-jita" style="padding: 10px 16px; text-align: right; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8;">Weighted Total</th>
+                <th class="col-jita" style="padding: 10px 16px; text-align: right; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #67e8f9; border-right: 2px solid rgba(6,182,212,0.15);">
+                  <span title="Jita sell + transport cost per m3">+ Import</span>
+                </th>
+                <!-- Structure column with purple tint -->
+                <th class="col-structure" style="padding: 10px 16px; text-align: right; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #c4b5fd; border-left: 2px solid rgba(139,92,246,0.15); border-right: 2px solid rgba(139,92,246,0.15);">
+                  <span title="Weighted sell price based on available sell orders">Weighted Sell</span>
+                </th>
+                <th style="padding: 10px 16px; text-align: center; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b;">Buy at</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Tritanium -->
+              <tr style="border-bottom: 1px solid rgba(30,41,59,0.6);">
+                <td style="padding: 10px 16px;">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <img src="https://images.evetech.net/types/34/icon?size=32" alt="Tritanium" style="width: 32px; height: 32px; border-radius: 3px;" />
+                    <span style="color: #e2e8f0;">Tritanium</span>
+                    <button style="background: none; border: none; cursor: pointer; color: #475569; padding: 2px;" title="Open in-game market">
+                      <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                    </button>
+                  </div>
+                </td>
+                <td class="font-mono" style="padding: 10px 16px; text-align: right; color: #cbd5e1;">10,000</td>
+                <td class="font-mono" style="padding: 10px 16px; text-align: right; color: #94a3b8; font-size: 0.75rem;">1.0 m<sup>3</sup></td>
+                <!-- Unit Price (stacked sell/buy) -->
+                <td class="font-mono col-jita" style="padding: 10px 16px; text-align: right; border-left: 2px solid rgba(6,182,212,0.08);">
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #0891b2; text-transform: uppercase; letter-spacing: 0.05em;">Sell</span>
+                    <span style="color: #67e8f9;">6.12</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">5.98</div>
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #b45309; text-transform: uppercase; letter-spacing: 0.05em;">Buy</span>
+                    <span style="color: #fcd34d;">5.87</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">5.72</div>
+                  <div style="font-size: 10px; color: #64748b; margin-top: 2px;">~1.2M/day</div>
+                </td>
+                <!-- Weighted Total (stacked sell/buy) -->
+                <td class="font-mono col-jita" style="padding: 10px 16px; text-align: right;">
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #0891b2; text-transform: uppercase; letter-spacing: 0.05em;">Sell</span>
+                    <span style="color: #22d3ee; font-weight: 600;">61,200</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">59,800</div>
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #b45309; text-transform: uppercase; letter-spacing: 0.05em;">Buy</span>
+                    <span style="color: #f59e0b; font-weight: 600;">58,700</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">57,200</div>
+                </td>
+                <!-- Jita + Import -->
+                <td class="font-mono col-jita" style="padding: 10px 16px; text-align: right; border-right: 2px solid rgba(6,182,212,0.08); color: #22d3ee; font-weight: 500;">62,400</td>
+                <!-- Structure weighted price - full coverage -->
+                <td class="font-mono col-structure" style="padding: 10px 16px; text-align: right; border-left: 2px solid rgba(139,92,246,0.08); border-right: 2px solid rgba(139,92,246,0.08);">
+                  <span style="color: #c4b5fd;">64,500</span>
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 3px;">
+                    <span style="font-size: 10px; color: #10b981;">10,000 / 10,000</span>
+                  </div>
+                  <div class="coverage-bar" style="width: 64px; margin-left: auto;">
+                    <div class="coverage-bar-fill coverage-full" style="width: 100%;"></div>
+                  </div>
+                </td>
+                <!-- Buy at -->
+                <td style="padding: 10px 16px; text-align: center;">
+                  <span class="badge-best" style="display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 9999px; font-size: 0.6875rem; font-weight: 500; background: rgba(6,182,212,0.15); color: #67e8f9;">Jita</span>
+                </td>
+              </tr>
+
+              <!-- Pyerite -->
+              <tr style="border-bottom: 1px solid rgba(30,41,59,0.6);">
+                <td style="padding: 10px 16px;">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <img src="https://images.evetech.net/types/35/icon?size=32" alt="Pyerite" style="width: 32px; height: 32px; border-radius: 3px;" />
+                    <span style="color: #e2e8f0;">Pyerite</span>
+                    <button style="background: none; border: none; cursor: pointer; color: #475569; padding: 2px;" title="Open in-game market">
+                      <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                    </button>
+                  </div>
+                </td>
+                <td class="font-mono" style="padding: 10px 16px; text-align: right; color: #cbd5e1;">5,000</td>
+                <td class="font-mono" style="padding: 10px 16px; text-align: right; color: #94a3b8; font-size: 0.75rem;">0.5 m<sup>3</sup></td>
+                <!-- Unit Price (stacked sell/buy) -->
+                <td class="font-mono col-jita" style="padding: 10px 16px; text-align: right; border-left: 2px solid rgba(6,182,212,0.08);">
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #0891b2; text-transform: uppercase; letter-spacing: 0.05em;">Sell</span>
+                    <span style="color: #67e8f9;">9.45</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">9.21</div>
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #b45309; text-transform: uppercase; letter-spacing: 0.05em;">Buy</span>
+                    <span style="color: #fcd34d;">8.90</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">8.75</div>
+                  <div style="font-size: 10px; color: #64748b; margin-top: 2px;">~890K/day</div>
+                </td>
+                <!-- Weighted Total (stacked sell/buy) -->
+                <td class="font-mono col-jita" style="padding: 10px 16px; text-align: right;">
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #0891b2; text-transform: uppercase; letter-spacing: 0.05em;">Sell</span>
+                    <span style="color: #22d3ee; font-weight: 600;">47,250</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">46,050</div>
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #b45309; text-transform: uppercase; letter-spacing: 0.05em;">Buy</span>
+                    <span style="color: #f59e0b; font-weight: 600;">44,500</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">43,750</div>
+                </td>
+                <!-- Jita + Import -->
+                <td class="font-mono col-jita" style="padding: 10px 16px; text-align: right; border-right: 2px solid rgba(6,182,212,0.08); color: #94a3b8;">47,850</td>
+                <!-- Structure weighted price - full coverage, best price -->
+                <td class="font-mono col-structure" style="padding: 10px 16px; text-align: right; border-left: 2px solid rgba(139,92,246,0.08); border-right: 2px solid rgba(139,92,246,0.08);">
+                  <span style="color: #a78bfa; font-weight: 500;">45,120</span>
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 3px;">
+                    <span style="font-size: 10px; color: #10b981;">5,000 / 5,000</span>
+                  </div>
+                  <div class="coverage-bar" style="width: 64px; margin-left: auto;">
+                    <div class="coverage-bar-fill coverage-full" style="width: 100%;"></div>
+                  </div>
+                </td>
+                <td style="padding: 10px 16px; text-align: center;">
+                  <span class="badge-best" style="display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 9999px; font-size: 0.6875rem; font-weight: 500; background: rgba(139,92,246,0.15); color: #c4b5fd;">C-J6MT</span>
+                </td>
+              </tr>
+
+              <!-- Mexallon -->
+              <tr style="border-bottom: 1px solid rgba(30,41,59,0.6);">
+                <td style="padding: 10px 16px;">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <img src="https://images.evetech.net/types/36/icon?size=32" alt="Mexallon" style="width: 32px; height: 32px; border-radius: 3px;" />
+                    <span style="color: #e2e8f0;">Mexallon</span>
+                    <button style="background: none; border: none; cursor: pointer; color: #475569; padding: 2px;" title="Open in-game market">
+                      <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                    </button>
+                  </div>
+                </td>
+                <td class="font-mono" style="padding: 10px 16px; text-align: right; color: #cbd5e1;">8,000</td>
+                <td class="font-mono" style="padding: 10px 16px; text-align: right; color: #94a3b8; font-size: 0.75rem;">0.8 m<sup>3</sup></td>
+                <!-- Unit Price (stacked sell/buy) -->
+                <td class="font-mono col-jita" style="padding: 10px 16px; text-align: right; border-left: 2px solid rgba(6,182,212,0.08);">
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #0891b2; text-transform: uppercase; letter-spacing: 0.05em;">Sell</span>
+                    <span style="color: #67e8f9;">76.52</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">74.30</div>
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #b45309; text-transform: uppercase; letter-spacing: 0.05em;">Buy</span>
+                    <span style="color: #fcd34d;">72.10</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">70.85</div>
+                  <div style="font-size: 10px; color: #64748b; margin-top: 2px;">~620K/day</div>
+                </td>
+                <!-- Weighted Total (stacked sell/buy) -->
+                <td class="font-mono col-jita" style="padding: 10px 16px; text-align: right;">
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #0891b2; text-transform: uppercase; letter-spacing: 0.05em;">Sell</span>
+                    <span style="color: #22d3ee; font-weight: 600;">612,160</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">594,400</div>
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #b45309; text-transform: uppercase; letter-spacing: 0.05em;">Buy</span>
+                    <span style="color: #f59e0b; font-weight: 600;">576,800</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">566,800</div>
+                </td>
+                <!-- Jita + Import -->
+                <td class="font-mono col-jita" style="padding: 10px 16px; text-align: right; border-right: 2px solid rgba(6,182,212,0.08); color: #22d3ee; font-weight: 500;">613,120</td>
+                <!-- Structure weighted price - full coverage -->
+                <td class="font-mono col-structure" style="padding: 10px 16px; text-align: right; border-left: 2px solid rgba(139,92,246,0.08); border-right: 2px solid rgba(139,92,246,0.08);">
+                  <span style="color: #c4b5fd;">648,000</span>
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 3px;">
+                    <span style="font-size: 10px; color: #10b981;">8,000 / 8,000</span>
+                  </div>
+                  <div class="coverage-bar" style="width: 64px; margin-left: auto;">
+                    <div class="coverage-bar-fill coverage-full" style="width: 100%;"></div>
+                  </div>
+                </td>
+                <td style="padding: 10px 16px; text-align: center;">
+                  <span class="badge-best" style="display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 9999px; font-size: 0.6875rem; font-weight: 500; background: rgba(6,182,212,0.15); color: #67e8f9;">Jita</span>
+                </td>
+              </tr>
+
+              <!-- Isogen -->
+              <tr style="border-bottom: 1px solid rgba(30,41,59,0.6);">
+                <td style="padding: 10px 16px;">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <img src="https://images.evetech.net/types/37/icon?size=32" alt="Isogen" style="width: 32px; height: 32px; border-radius: 3px;" />
+                    <span style="color: #e2e8f0;">Isogen</span>
+                    <button style="background: none; border: none; cursor: pointer; color: #475569; padding: 2px;" title="Open in-game market">
+                      <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                    </button>
+                  </div>
+                </td>
+                <td class="font-mono" style="padding: 10px 16px; text-align: right; color: #cbd5e1;">3,000</td>
+                <td class="font-mono" style="padding: 10px 16px; text-align: right; color: #94a3b8; font-size: 0.75rem;">3.0 m<sup>3</sup></td>
+                <!-- Unit Price (stacked sell/buy) -->
+                <td class="font-mono col-jita" style="padding: 10px 16px; text-align: right; border-left: 2px solid rgba(6,182,212,0.08);">
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #0891b2; text-transform: uppercase; letter-spacing: 0.05em;">Sell</span>
+                    <span style="color: #67e8f9;">142.30</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">138.50</div>
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #b45309; text-transform: uppercase; letter-spacing: 0.05em;">Buy</span>
+                    <span style="color: #fcd34d;">135.60</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">132.00</div>
+                  <div style="font-size: 10px; color: #64748b; margin-top: 2px;">~45K/day</div>
+                </td>
+                <!-- Weighted Total (stacked sell/buy) -->
+                <td class="font-mono col-jita" style="padding: 10px 16px; text-align: right;">
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #0891b2; text-transform: uppercase; letter-spacing: 0.05em;">Sell</span>
+                    <span style="color: #22d3ee; font-weight: 600;">426,900</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">415,500</div>
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #b45309; text-transform: uppercase; letter-spacing: 0.05em;">Buy</span>
+                    <span style="color: #f59e0b; font-weight: 600;">406,800</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">396,000</div>
+                </td>
+                <!-- Jita + Import -->
+                <td class="font-mono col-jita" style="padding: 10px 16px; text-align: right; border-right: 2px solid rgba(6,182,212,0.08); color: #94a3b8;">430,500</td>
+                <!-- Structure weighted price - full coverage, best price -->
+                <td class="font-mono col-structure" style="padding: 10px 16px; text-align: right; border-left: 2px solid rgba(139,92,246,0.08); border-right: 2px solid rgba(139,92,246,0.08);">
+                  <span style="color: #a78bfa; font-weight: 500;">417,600</span>
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 3px;">
+                    <span style="font-size: 10px; color: #10b981;">3,000 / 3,000</span>
+                  </div>
+                  <div class="coverage-bar" style="width: 64px; margin-left: auto;">
+                    <div class="coverage-bar-fill coverage-full" style="width: 100%;"></div>
+                  </div>
+                </td>
+                <td style="padding: 10px 16px; text-align: center;">
+                  <span class="badge-best" style="display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 9999px; font-size: 0.6875rem; font-weight: 500; background: rgba(139,92,246,0.15); color: #c4b5fd;">C-J6MT</span>
+                </td>
+              </tr>
+
+              <!-- Nocxium -->
+              <tr style="border-bottom: 1px solid rgba(30,41,59,0.6);">
+                <td style="padding: 10px 16px;">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <img src="https://images.evetech.net/types/38/icon?size=32" alt="Nocxium" style="width: 32px; height: 32px; border-radius: 3px;" />
+                    <span style="color: #e2e8f0;">Nocxium</span>
+                    <button style="background: none; border: none; cursor: pointer; color: #475569; padding: 2px;" title="Open in-game market">
+                      <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                    </button>
+                  </div>
+                </td>
+                <td class="font-mono" style="padding: 10px 16px; text-align: right; color: #cbd5e1;">1,500</td>
+                <td class="font-mono" style="padding: 10px 16px; text-align: right; color: #94a3b8; font-size: 0.75rem;">15.0 m<sup>3</sup></td>
+                <!-- Unit Price (stacked sell/buy) -->
+                <td class="font-mono col-jita" style="padding: 10px 16px; text-align: right; border-left: 2px solid rgba(6,182,212,0.08);">
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #0891b2; text-transform: uppercase; letter-spacing: 0.05em;">Sell</span>
+                    <span style="color: #67e8f9;">1,245.80</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">1,210.00</div>
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #b45309; text-transform: uppercase; letter-spacing: 0.05em;">Buy</span>
+                    <span style="color: #fcd34d;">1,180.50</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">1,155.00</div>
+                  <div style="font-size: 10px; color: #64748b; margin-top: 2px;">~12K/day</div>
+                </td>
+                <!-- Weighted Total (stacked sell/buy) -->
+                <td class="font-mono col-jita" style="padding: 10px 16px; text-align: right;">
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #0891b2; text-transform: uppercase; letter-spacing: 0.05em;">Sell</span>
+                    <span style="color: #22d3ee; font-weight: 600;">1,868,700</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">1,815,000</div>
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #b45309; text-transform: uppercase; letter-spacing: 0.05em;">Buy</span>
+                    <span style="color: #f59e0b; font-weight: 600;">1,770,750</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">1,732,500</div>
+                </td>
+                <!-- Jita + Import -->
+                <td class="font-mono col-jita" style="padding: 10px 16px; text-align: right; border-right: 2px solid rgba(6,182,212,0.08); color: #22d3ee; font-weight: 500;">1,886,700</td>
+                <!-- Structure weighted price - partial coverage (amber) -->
+                <td class="font-mono col-structure" style="padding: 10px 16px; text-align: right; border-left: 2px solid rgba(139,92,246,0.08); border-right: 2px solid rgba(139,92,246,0.08);">
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 4px;">
+                    <svg style="width: 13px; height: 13px; color: #f59e0b; flex-shrink: 0;" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="Partial coverage: only 1,200 of 1,500 available">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span style="color: #f59e0b; font-weight: 500;">1,560,000</span>
+                  </div>
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 3px;">
+                    <span style="font-size: 10px; color: #f59e0b;">1,200 / 1,500</span>
+                  </div>
+                  <div class="coverage-bar" style="width: 64px; margin-left: auto;">
+                    <div class="coverage-bar-fill coverage-partial" style="width: 80%;"></div>
+                  </div>
+                </td>
+                <td style="padding: 10px 16px; text-align: center;">
+                  <span class="badge-best" style="display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 9999px; font-size: 0.6875rem; font-weight: 500; background: rgba(6,182,212,0.15); color: #67e8f9;">Jita</span>
+                </td>
+              </tr>
+
+              <!-- Zydrine -->
+              <tr style="border-bottom: 1px solid rgba(30,41,59,0.6);">
+                <td style="padding: 10px 16px;">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <img src="https://images.evetech.net/types/39/icon?size=32" alt="Zydrine" style="width: 32px; height: 32px; border-radius: 3px;" />
+                    <span style="color: #e2e8f0;">Zydrine</span>
+                    <button style="background: none; border: none; cursor: pointer; color: #475569; padding: 2px;" title="Open in-game market">
+                      <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                    </button>
+                  </div>
+                </td>
+                <td class="font-mono" style="padding: 10px 16px; text-align: right; color: #cbd5e1;">500</td>
+                <td class="font-mono" style="padding: 10px 16px; text-align: right; color: #94a3b8; font-size: 0.75rem;">5.0 m<sup>3</sup></td>
+                <!-- Unit Price (stacked sell/buy) -->
+                <td class="font-mono col-jita" style="padding: 10px 16px; text-align: right; border-left: 2px solid rgba(6,182,212,0.08);">
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #0891b2; text-transform: uppercase; letter-spacing: 0.05em;">Sell</span>
+                    <span style="color: #67e8f9;">2,845.00</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">2,780.00</div>
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #b45309; text-transform: uppercase; letter-spacing: 0.05em;">Buy</span>
+                    <span style="color: #fcd34d;">2,710.00</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">2,650.00</div>
+                  <div style="font-size: 10px; color: #64748b; margin-top: 2px;">~5K/day</div>
+                </td>
+                <!-- Weighted Total (stacked sell/buy) -->
+                <td class="font-mono col-jita" style="padding: 10px 16px; text-align: right;">
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #0891b2; text-transform: uppercase; letter-spacing: 0.05em;">Sell</span>
+                    <span style="color: #22d3ee; font-weight: 600;">1,422,500</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">1,390,000</div>
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #b45309; text-transform: uppercase; letter-spacing: 0.05em;">Buy</span>
+                    <span style="color: #f59e0b; font-weight: 600;">1,355,000</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">1,325,000</div>
+                </td>
+                <!-- Jita + Import -->
+                <td class="font-mono col-jita" style="padding: 10px 16px; text-align: right; border-right: 2px solid rgba(6,182,212,0.08); color: #94a3b8;">1,428,500</td>
+                <!-- Structure weighted price - full coverage, best price -->
+                <td class="font-mono col-structure" style="padding: 10px 16px; text-align: right; border-left: 2px solid rgba(139,92,246,0.08); border-right: 2px solid rgba(139,92,246,0.08);">
+                  <span style="color: #a78bfa; font-weight: 500;">1,395,000</span>
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 3px;">
+                    <span style="font-size: 10px; color: #10b981;">500 / 500</span>
+                  </div>
+                  <div class="coverage-bar" style="width: 64px; margin-left: auto;">
+                    <div class="coverage-bar-fill coverage-full" style="width: 100%;"></div>
+                  </div>
+                </td>
+                <td style="padding: 10px 16px; text-align: center;">
+                  <span class="badge-best" style="display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 9999px; font-size: 0.6875rem; font-weight: 500; background: rgba(139,92,246,0.15); color: #c4b5fd;">C-J6MT</span>
+                </td>
+              </tr>
+
+              <!-- Megacyte (with severe coverage warning) -->
+              <tr style="border-bottom: 1px solid rgba(30,41,59,0.6);">
+                <td style="padding: 10px 16px;">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <img src="https://images.evetech.net/types/40/icon?size=32" alt="Megacyte" style="width: 32px; height: 32px; border-radius: 3px;" />
+                    <span style="color: #e2e8f0;">Megacyte</span>
+                    <button style="background: none; border: none; cursor: pointer; color: #475569; padding: 2px;" title="Open in-game market">
+                      <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                    </button>
+                  </div>
+                </td>
+                <td class="font-mono" style="padding: 10px 16px; text-align: right; color: #cbd5e1;">200</td>
+                <td class="font-mono" style="padding: 10px 16px; text-align: right; color: #94a3b8; font-size: 0.75rem;">2,822 m<sup>3</sup></td>
+                <!-- Unit Price (stacked sell/buy) with Jita coverage warning -->
+                <td class="font-mono col-jita" style="padding: 10px 16px; text-align: right; border-left: 2px solid rgba(6,182,212,0.08);">
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                    <svg style="width: 14px; height: 14px; color: #f59e0b; flex-shrink: 0;" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="Only 150 of 200 available (top 20 orders)">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span style="font-size: 9px; font-weight: 600; color: #0891b2; text-transform: uppercase; letter-spacing: 0.05em;">Sell</span>
+                    <span style="color: #67e8f9;">241,500</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">235,000</div>
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #b45309; text-transform: uppercase; letter-spacing: 0.05em;">Buy</span>
+                    <span style="color: #fcd34d;">228,900</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">224,000</div>
+                  <div style="font-size: 10px; color: #f59e0b; margin-top: 2px;">~180/day</div>
+                </td>
+                <!-- Weighted Total (stacked sell/buy) -->
+                <td class="font-mono col-jita" style="padding: 10px 16px; text-align: right;">
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #0891b2; text-transform: uppercase; letter-spacing: 0.05em;">Sell</span>
+                    <span style="color: #22d3ee; font-weight: 600;">48,300,000</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">47,000,000</div>
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #b45309; text-transform: uppercase; letter-spacing: 0.05em;">Buy</span>
+                    <span style="color: #f59e0b; font-weight: 600;">45,780,000</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">44,800,000</div>
+                </td>
+                <!-- Jita + Import -->
+                <td class="font-mono col-jita" style="padding: 10px 16px; text-align: right; border-right: 2px solid rgba(6,182,212,0.08); color: #22d3ee; font-weight: 500;">51,685,200</td>
+                <!-- Structure weighted price - LOW coverage (red) -->
+                <td class="font-mono col-structure" style="padding: 10px 16px; text-align: right; border-left: 2px solid rgba(139,92,246,0.08); border-right: 2px solid rgba(139,92,246,0.08);">
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 4px;">
+                    <svg style="width: 13px; height: 13px; color: #ef4444; flex-shrink: 0;" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="Very low coverage: only 45 of 200 available">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span style="color: #ef4444; font-weight: 500;">11,925,000</span>
+                  </div>
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 3px;">
+                    <span style="font-size: 10px; color: #ef4444;">45 / 200</span>
+                  </div>
+                  <div class="coverage-bar" style="width: 64px; margin-left: auto;">
+                    <div class="coverage-bar-fill coverage-low" style="width: 22.5%;"></div>
+                  </div>
+                </td>
+                <td style="padding: 10px 16px; text-align: center;">
+                  <span class="badge-best" style="display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 9999px; font-size: 0.6875rem; font-weight: 500; background: rgba(6,182,212,0.15); color: #67e8f9;">Jita</span>
+                </td>
+              </tr>
+            </tbody>
+
+            <!-- Footer -->
+            <tfoot>
+              <tr style="background: rgba(30,41,59,0.4); border-top: 1px solid rgba(51,65,85,0.4);">
+                <td style="padding: 12px 16px; font-weight: 600; color: #e2e8f0; font-size: 0.8125rem;">Total</td>
+                <td class="font-mono" style="padding: 12px 16px; text-align: right; color: #94a3b8;">--</td>
+                <td class="font-mono" style="padding: 12px 16px; text-align: right; color: #94a3b8; font-size: 0.8125rem;">2,847 m<sup>3</sup></td>
+                <!-- Unit Price -->
+                <td class="font-mono col-jita" style="padding: 12px 16px; text-align: right; color: #64748b; border-left: 2px solid rgba(6,182,212,0.08);">--</td>
+                <!-- Weighted Total (stacked sell/buy) -->
+                <td class="font-mono col-jita" style="padding: 12px 16px; text-align: right;">
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #0891b2; text-transform: uppercase; letter-spacing: 0.05em;">Sell</span>
+                    <span style="color: #22d3ee; font-weight: 700; font-size: 0.875rem;">52.74M</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">51.32M</div>
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 6px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #b45309; text-transform: uppercase; letter-spacing: 0.05em;">Buy</span>
+                    <span style="color: #f59e0b; font-weight: 700; font-size: 0.875rem;">49.99M</span>
+                  </div>
+                  <div style="font-size: 10px; color: #475569; margin-top: 1px; text-align: right;">48.12M</div>
+                </td>
+                <!-- + Import -->
+                <td class="font-mono col-jita" style="padding: 12px 16px; text-align: right; border-right: 2px solid rgba(6,182,212,0.08);">
+                  <span style="color: #22d3ee; font-weight: 700; font-size: 0.875rem;">55.90M</span>
+                </td>
+                <td class="font-mono col-structure" style="padding: 12px 16px; text-align: right; border-left: 2px solid rgba(139,92,246,0.08); border-right: 2px solid rgba(139,92,246,0.08);">
+                  <span style="color: #a78bfa; font-weight: 700; font-size: 0.875rem;">53.12M</span>
+                  <div style="font-size: 10px; color: #f59e0b; margin-top: 3px;">1 item with low coverage</div>
+                </td>
+                <td class="font-mono" style="padding: 12px 16px; text-align: center;">
+                  <span style="color: #4ade80; font-weight: 700; font-size: 0.875rem;">49.82M</span>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- =========================================================== -->
+      <!-- ACTION BAR -->
+      <!-- =========================================================== -->
+      <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+
+        <!-- Copy Jita Multibuy -->
+        <button style="display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(6,182,212,0.15); border: 1px solid rgba(6,182,212,0.3); border-radius: 8px; color: #67e8f9; font-size: 0.8125rem; font-weight: 500; cursor: pointer;">
+          <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+          Copy Jita (4)
+        </button>
+
+        <!-- Copy Structure Multibuy -->
+        <button style="display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3); border-radius: 8px; color: #c4b5fd; font-size: 0.8125rem; font-weight: 500; cursor: pointer;">
+          <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+          Copy C-J6MT (3)
+        </button>
+
+        <!-- Copy Table -->
+        <button style="display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(51,65,85,0.5); border: 1px solid #334155; border-radius: 8px; color: #94a3b8; font-size: 0.6875rem; font-weight: 500; cursor: pointer;">
+          <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+          Copy table
+        </button>
+
+        <div style="flex: 1;"></div>
+
+        <!-- Share -->
+        <button style="display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); border-radius: 8px; color: #6ee7b7; font-size: 0.8125rem; font-weight: 500; cursor: pointer;">
+          <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+          </svg>
+          Share
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    function toggleConfig() {
+      const content = document.getElementById('configContent');
+      const chevron = document.getElementById('configChevron');
+      const summary = document.getElementById('configSummary');
+
+      if (content.classList.contains('expanded')) {
+        content.classList.remove('expanded');
+        content.classList.add('collapsed');
+        chevron.classList.remove('open');
+        summary.style.display = 'inline';
+      } else {
+        content.classList.remove('collapsed');
+        content.classList.add('expanded');
+        chevron.classList.add('open');
+        summary.style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>

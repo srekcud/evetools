@@ -53,11 +53,16 @@ class MarketTypeDetailProvider implements ProviderInterface
         $resource->groupName = $invType->getGroup()->getGroupName();
         $resource->categoryName = $invType->getGroup()->getCategory()->getCategoryName();
 
-        // Jita prices and order books
-        $resource->jitaSell = $this->jitaMarketService->getPrice($typeId);
-        $resource->jitaBuy = $this->jitaMarketService->getBuyPrice($typeId);
-        $resource->sellOrders = $this->jitaMarketService->getSellOrders($typeId);
-        $resource->buyOrders = $this->jitaMarketService->getBuyOrders($typeId);
+        // Jita prices (with on-demand ESI fallback for items outside the sync cache)
+        $sellPrices = $this->jitaMarketService->getPricesWithFallback([$typeId]);
+        $buyPrices = $this->jitaMarketService->getBuyPricesWithFallback([$typeId]);
+        $resource->jitaSell = $sellPrices[$typeId] ?? null;
+        $resource->jitaBuy = $buyPrices[$typeId] ?? null;
+
+        // Order books (with on-demand ESI fallback)
+        $orderBooks = $this->jitaMarketService->getOrderBooksWithFallback($typeId);
+        $resource->sellOrders = $orderBooks['sell'];
+        $resource->buyOrders = $orderBooks['buy'];
 
         // Spread
         if ($resource->jitaSell !== null && $resource->jitaBuy !== null && $resource->jitaSell > 0) {
@@ -66,8 +71,13 @@ class MarketTypeDetailProvider implements ProviderInterface
 
         // Structure prices (if user has a preferred structure)
         $structureId = $user->getPreferredMarketStructureId();
+        $resource->hasPreferredStructure = $structureId !== null;
         if ($structureId !== null) {
+            $resource->structureName = $user->getPreferredMarketStructureName();
             $resource->structureSell = $this->structureMarketService->getLowestSellPrice($structureId, $typeId);
+            $resource->structureBuy = $this->structureMarketService->getHighestBuyPrice($structureId, $typeId);
+            $resource->structureSellOrders = $this->structureMarketService->getSellOrders($structureId, $typeId);
+            $resource->structureBuyOrders = $this->structureMarketService->getBuyOrders($structureId, $typeId);
         }
 
         // Volume and price change from history

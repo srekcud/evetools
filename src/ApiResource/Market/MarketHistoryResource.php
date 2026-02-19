@@ -19,8 +19,10 @@ use App\State\Provider\Market\MarketHistoryProvider;
             provider: MarketHistoryProvider::class,
             openapi: new Model\Operation(
                 summary: 'Get price history for an item',
+                tags: ['Market'],
                 parameters: [
                     new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer', 'default' => 30]),
+                    new Model\Parameter(name: 'source', in: 'query', schema: ['type' => 'string', 'enum' => ['jita', 'structure'], 'default' => 'jita']),
                 ],
             ),
         ),
@@ -34,4 +36,13 @@ class MarketHistoryResource
 
     /** @var MarketHistoryEntryResource[] */
     public array $entries = [];
+
+    /** Data source: 'jita' (ESI region history) or 'structure' (local snapshots). */
+    public string $source = 'jita';
+
+    /** Structure ID (when source=structure). */
+    public ?int $structureId = null;
+
+    /** Structure name (when source=structure). */
+    public ?string $structureName = null;
 }

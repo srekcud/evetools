@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\ESI;
 
+use App\Constant\EveConstants;
 use App\Entity\EveToken;
 use App\Entity\User;
 use App\Exception\EsiApiException;
@@ -15,14 +16,8 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class MarketService
 {
-    // Jita 4-4 CNAP station
-    private const JITA_STATION_ID = 60003760;
-    // The Forge region (where Jita is)
-    private const THE_FORGE_REGION_ID = 10000002;
-
-    // Default player structure: C-J6MT - 1st Taj Mahgoon (Keepstar)
-    private const DEFAULT_STRUCTURE_ID = 1049588174021;
-    private const DEFAULT_STRUCTURE_NAME = 'C-J6MT - 1st Taj Mahgoon (Keepstar)';
+    private const JITA_STATION_ID = EveConstants::JITA_STATION_ID;
+    private const THE_FORGE_REGION_ID = EveConstants::THE_FORGE_REGION_ID;
 
     // Max concurrent requests to avoid timeout
     private const MAX_CONCURRENT_REQUESTS = 10;
@@ -34,6 +29,8 @@ class MarketService
         private readonly LoggerInterface $logger,
         private readonly StructureMarketService $structureMarketService,
         private readonly JitaMarketService $jitaMarketService,
+        private readonly int $defaultMarketStructureId,
+        private readonly string $defaultMarketStructureName,
         private readonly string $esiBaseUrl = 'https://esi.evetech.net/latest',
     ) {
     }
@@ -52,13 +49,13 @@ class MarketService
             return [];
         }
 
-        // Try JitaMarketService cache first (populated by background sync)
+        // Use JitaMarketService with on-demand fallback for missing types
         if ($this->jitaMarketService->hasCachedData()) {
-            $this->logger->debug('Using JitaMarketService cache for Jita prices', [
+            $this->logger->debug('Using JitaMarketService cache for Jita prices (with fallback)', [
                 'typeCount' => count($typeIds),
             ]);
 
-            return $this->jitaMarketService->getPrices($typeIds);
+            return $this->jitaMarketService->getPricesWithFallback($typeIds);
         }
 
         // Fall back to on-demand fetch
@@ -210,8 +207,8 @@ class MarketService
      */
     public function comparePrices(array $typeIds, ?int $structureId, ?EveToken $token): array
     {
-        $structureId = $structureId ?? self::DEFAULT_STRUCTURE_ID;
-        $structureName = $this->getStructureName($structureId, $token) ?? self::DEFAULT_STRUCTURE_NAME;
+        $structureId = $structureId ?? $this->defaultMarketStructureId;
+        $structureName = $this->getStructureName($structureId, $token) ?? $this->defaultMarketStructureName;
 
         // Get Jita prices (from cache if available)
         $jitaFromCache = $this->jitaMarketService->hasCachedData();
@@ -292,11 +289,11 @@ class MarketService
 
     public function getDefaultStructureId(): int
     {
-        return self::DEFAULT_STRUCTURE_ID;
+        return $this->defaultMarketStructureId;
     }
 
     public function getDefaultStructureName(): string
     {
-        return self::DEFAULT_STRUCTURE_NAME;
+        return $this->defaultMarketStructureName;
     }
 }

@@ -74,6 +74,22 @@ class UserRepository extends ServiceEntityRepository
     }
 
     /**
+     * Get all distinct non-null preferred market structure IDs across users.
+     *
+     * @return int[]
+     */
+    public function findDistinctPreferredMarketStructureIds(): array
+    {
+        $rows = $this->createQueryBuilder('u')
+            ->select('DISTINCT u.preferredMarketStructureId')
+            ->where('u.preferredMarketStructureId IS NOT NULL')
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_map(intval(...), $rows);
+    }
+
+    /**
      * @return User[]
      */
     public function findActiveWithCharacters(int $activeDays = 7): array

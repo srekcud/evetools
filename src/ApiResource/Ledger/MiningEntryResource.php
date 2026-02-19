@@ -23,6 +23,7 @@ use App\State\Processor\Ledger\UpdateMiningEntryUsageProcessor;
             provider: MiningEntryCollectionProvider::class,
             openapi: new Model\Operation(
                 summary: 'List mining entries',
+                tags: ['Ledger - Mining'],
                 parameters: [
                     new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),
                     new Model\Parameter(name: 'typeId', in: 'query', schema: ['type' => 'integer']),
@@ -35,6 +36,7 @@ use App\State\Processor\Ledger\UpdateMiningEntryUsageProcessor;
         new Get(
             uriTemplate: '/ledger/mining/entries/{id}',
             provider: MiningEntryProvider::class,
+            openapi: new Model\Operation(tags: ['Ledger - Mining']),
         ),
         new Patch(
             uriTemplate: '/ledger/mining/entries/{id}',
@@ -42,6 +44,7 @@ use App\State\Processor\Ledger\UpdateMiningEntryUsageProcessor;
             processor: UpdateMiningEntryUsageProcessor::class,
             openapi: new Model\Operation(
                 summary: 'Update mining entry usage',
+                tags: ['Ledger - Mining'],
                 requestBody: new Model\RequestBody(
                     content: new \ArrayObject([
                         'application/merge-patch+json' => [

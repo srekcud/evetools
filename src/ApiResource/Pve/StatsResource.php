@@ -21,6 +21,7 @@ use App\State\Provider\Pve\StatsProvider;
             provider: StatsProvider::class,
             openapi: new Model\Operation(
                 summary: 'Get PVE statistics',
+                tags: ['Revenue - PVE'],
                 parameters: [
                     new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),
                 ],
@@ -32,6 +33,7 @@ use App\State\Provider\Pve\StatsProvider;
             output: StatsDailyResource::class,
             openapi: new Model\Operation(
                 summary: 'Get daily PVE statistics',
+                tags: ['Revenue - PVE'],
                 parameters: [
                     new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),
                 ],
@@ -43,6 +45,7 @@ use App\State\Provider\Pve\StatsProvider;
             output: StatsByTypeResource::class,
             openapi: new Model\Operation(
                 summary: 'Get PVE statistics by type',
+                tags: ['Revenue - PVE'],
                 parameters: [
                     new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),
                 ],

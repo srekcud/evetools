@@ -16,7 +16,7 @@ use App\State\Provider\Planetary\PlanetaryStatsProvider;
         new Get(
             uriTemplate: '/planetary/stats',
             provider: PlanetaryStatsProvider::class,
-            openapi: new Model\Operation(summary: 'Get PI statistics and KPIs'),
+            openapi: new Model\Operation(summary: 'Get PI statistics and KPIs', tags: ['Planetary']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

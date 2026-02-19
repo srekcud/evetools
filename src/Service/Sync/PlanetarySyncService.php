@@ -10,11 +10,11 @@ use App\Entity\PlanetaryColony;
 use App\Entity\PlanetaryPin;
 use App\Entity\PlanetaryRoute;
 use App\Repository\PlanetaryColonyRepository;
-use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\ESI\PlanetaryService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
+use App\Service\TypeNameResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -24,7 +24,7 @@ class PlanetarySyncService
         private readonly PlanetaryService $planetaryService,
         private readonly PlanetaryColonyRepository $colonyRepository,
         private readonly MapSolarSystemRepository $solarSystemRepository,
-        private readonly InvTypeRepository $invTypeRepository,
+        private readonly TypeNameResolver $typeNameResolver,
         private readonly EntityManagerInterface $entityManager,
         private readonly MercurePublisherService $mercurePublisher,
         private readonly NotificationDispatcher $notificationDispatcher,
@@ -199,13 +199,7 @@ class PlanetarySyncService
     {
         // Collect type IDs to resolve names in batch
         $typeIds = array_unique(array_column($pinsData, 'type_id'));
-        $typeNames = [];
-        if (!empty($typeIds)) {
-            $types = $this->invTypeRepository->findByTypeIds($typeIds);
-            foreach ($types as $typeId => $type) {
-                $typeNames[$typeId] = $type->getTypeName();
-            }
-        }
+        $typeNames = $this->typeNameResolver->resolveMany($typeIds);
 
         foreach ($pinsData as $pinData) {
             $pin = new PlanetaryPin();
@@ -366,7 +360,6 @@ class PlanetarySyncService
 
     private function resolveTypeName(int $typeId): string
     {
-        $type = $this->invTypeRepository->find($typeId);
-        return $type?->getTypeName() ?? "Type #{$typeId}";
+        return $this->typeNameResolver->resolve($typeId);
     }
 }

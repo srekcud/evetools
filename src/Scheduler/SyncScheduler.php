@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Scheduler;
 
-use App\Message\CheckMarketAlerts;
+use App\Message\CheckAlertPrices;
 use App\Message\PurgeOldMarketHistory;
 use App\Message\PurgeOldNotifications;
-use App\Message\TriggerProfitComputation;
+use App\Message\SyncAdjustedPrices;
+use App\Message\SyncCostIndices;
+use App\Message\SyncPublicContracts;
 use App\Message\TriggerAnsiblexSync;
 use App\Message\TriggerAssetsSync;
 use App\Message\SyncIndustryJobs;
@@ -40,13 +42,13 @@ class SyncScheduler implements ScheduleProviderInterface
             ->add(
                 RecurringMessage::every('12 hours', new TriggerAnsiblexSync())
             )
-            // Structure market sync every 2 hours (C-J6MT Keepstar)
+            // Structure market sync every hour
             ->add(
-                RecurringMessage::every('2 hours', new TriggerStructureMarketSync())
+                RecurringMessage::every('1 hour', new TriggerStructureMarketSync())
             )
-            // Jita market sync every 2 hours
+            // Jita market sync every hour
             ->add(
-                RecurringMessage::every('2 hours', new TriggerJitaMarketSync())
+                RecurringMessage::every('1 hour', new TriggerJitaMarketSync())
             )
             // PVE data sync every hour
             ->add(
@@ -68,13 +70,21 @@ class SyncScheduler implements ScheduleProviderInterface
             ->add(
                 RecurringMessage::every('30 minutes', new TriggerPlanetarySync())
             )
-            // Profit matching every 2 hours (after wallet & industry syncs)
+            // Refresh prices for alert types and check thresholds every 30 minutes
             ->add(
-                RecurringMessage::every('2 hours', new TriggerProfitComputation())
+                RecurringMessage::every('30 minutes', new CheckAlertPrices())
             )
-            // Check market price alerts every 2 hours
+            // ESI adjusted prices sync every 24 hours
             ->add(
-                RecurringMessage::every('2 hours', new CheckMarketAlerts())
+                RecurringMessage::every('24 hours', new SyncAdjustedPrices())
+            )
+            // ESI system cost indices sync every 2 hours
+            ->add(
+                RecurringMessage::every('2 hours', new SyncCostIndices())
+            )
+            // Public contract prices sync every 30 minutes
+            ->add(
+                RecurringMessage::every('30 minutes', new SyncPublicContracts())
             )
             // Purge old notifications daily
             ->add(

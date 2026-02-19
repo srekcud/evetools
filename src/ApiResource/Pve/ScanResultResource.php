@@ -23,6 +23,7 @@ use App\State\Processor\Pve\ScanLootSalesProcessor;
             output: ScanContractsResultResource::class,
             openapi: new Model\Operation(
                 summary: 'Scan contracts for expenses',
+                tags: ['Revenue - PVE'],
                 parameters: [
                     new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),
                 ],
@@ -35,6 +36,7 @@ use App\State\Processor\Pve\ScanLootSalesProcessor;
             output: ScanLootSalesResultResource::class,
             openapi: new Model\Operation(
                 summary: 'Scan for loot sales',
+                tags: ['Revenue - PVE'],
                 parameters: [
                     new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),
                 ],
@@ -47,6 +49,7 @@ use App\State\Processor\Pve\ScanLootSalesProcessor;
             output: ScanLootContractsResultResource::class,
             openapi: new Model\Operation(
                 summary: 'Scan for loot contracts',
+                tags: ['Revenue - PVE'],
                 parameters: [
                     new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),
                 ],

@@ -38,7 +38,7 @@ class SharedShoppingList
     public function __construct()
     {
         $this->id = Uuid::v4();
-        $this->token = bin2hex(random_bytes(32));
+        $this->token = substr(rtrim(strtr(base64_encode(random_bytes(8)), '+/', '-_'), '='), 0, 11);
         $this->createdAt = new \DateTimeImmutable();
         $this->expiresAt = new \DateTimeImmutable('+1 week');
     }

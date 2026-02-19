@@ -11,6 +11,7 @@ import { parseEveStock } from '@/composables/useStockAnalysis'
 import type { ParsedStockItem, IntermediateInStock, RelevantStockItem } from '@/composables/useStockAnalysis'
 import { apiRequest, authFetch, safeJsonParse } from '@/services/api'
 import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import type { ShoppingListItem, ShoppingListTotals, ProductionTreeNode } from '@/stores/industry/types'
 
 interface StructureSearchResult {
@@ -923,10 +924,7 @@ defineExpose({
               @blur="onStructureInputBlur"
             />
             <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
-              <svg v-if="isSearchingStructures" class="w-4 h-4 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
+              <LoadingSpinner v-if="isSearchingStructures" size="sm" class="text-cyan-400" />
               <button
                 v-else-if="selectedStructure.id || structureSearchQuery"
                 @mousedown.prevent="clearStructure"
@@ -964,10 +962,7 @@ defineExpose({
             :disabled="shoppingSyncing || (marketStructureProgress?.status === 'started' || marketStructureProgress?.status === 'in_progress')"
             class="mt-auto w-full px-3 py-1.5 bg-cyan-500/20 border border-cyan-500/50 text-cyan-400 rounded-sm text-xs font-medium disabled:opacity-50 flex items-center justify-center gap-1.5 hover:bg-cyan-500/30 transition-colors"
           >
-            <svg v-if="shoppingSyncing" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
+            <LoadingSpinner v-if="shoppingSyncing" size="xs+" />
             {{ t('common.actions.sync') }}
           </button>
         </div>
@@ -1025,10 +1020,7 @@ defineExpose({
         v-if="marketStructureProgress && (marketStructureProgress.status === 'started' || marketStructureProgress.status === 'in_progress')"
         class="p-3 bg-cyan-900/20 border border-cyan-500/30 rounded-lg flex items-center gap-3"
       >
-        <svg class="w-5 h-5 text-cyan-400 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
+        <LoadingSpinner size="md" class="text-cyan-400 shrink-0" />
         <div class="flex-1">
           <div class="text-sm text-cyan-300">{{ marketStructureProgress.message || 'Synchronisation du marché...' }}</div>
           <div v-if="marketStructureProgress.progress !== null" class="mt-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">

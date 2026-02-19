@@ -17,7 +17,7 @@ use App\State\Provider\Industry\PurchaseSuggestionProvider;
         new Get(
             uriTemplate: '/industry/projects/{id}/purchase-suggestions',
             provider: PurchaseSuggestionProvider::class,
-            openapi: new Model\Operation(summary: 'Get purchase suggestions', description: 'Returns wallet transactions matching project materials'),
+            openapi: new Model\Operation(summary: 'Get purchase suggestions', description: 'Returns wallet transactions matching project materials', tags: ['Industry - Projects']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

@@ -645,36 +645,38 @@ function mergeGroup(stepId: string) {
                   </span>
                   <!-- Split index -->
                   <span v-if="splitGroup.children.length > 1" class="text-xs text-slate-500">Split {{ stepIdx + 1 }}/{{ splitGroup.children.length }}</span>
-                  <!-- ME/TE always-visible inputs -->
-                  <template v-if="!readonly && !isLinkedToEsi(step)">
-                    <span class="inline-flex items-center gap-0.5" @click.stop>
-                      <span class="text-slate-500 text-xs">ME</span>
-                      <input
-                        type="number"
-                        :value="step.meLevel"
-                        min="0"
-                        max="10"
-                        class="w-10 bg-slate-800 border border-slate-700 rounded-sm px-1 py-0.5 text-xs text-center focus:border-cyan-500 focus:outline-hidden"
-                        @change="(e) => onMeChange(step.id, (e.target as HTMLInputElement).value)"
-                        @click.stop
-                      />
-                    </span>
-                    <span class="inline-flex items-center gap-0.5" @click.stop>
-                      <span class="text-slate-500 text-xs">TE</span>
-                      <input
-                        type="number"
-                        :value="step.teLevel"
-                        min="0"
-                        max="20"
-                        class="w-10 bg-slate-800 border border-slate-700 rounded-sm px-1 py-0.5 text-xs text-center focus:border-cyan-500 focus:outline-hidden"
-                        @change="(e) => onTeChange(step.id, (e.target as HTMLInputElement).value)"
-                        @click.stop
-                      />
-                    </span>
-                  </template>
-                  <template v-else>
-                    <span class="text-xs text-slate-600">ME{{ step.meLevel }}</span>
-                    <span class="text-xs text-slate-600">TE{{ step.teLevel }}</span>
+                  <!-- ME/TE (not relevant for copy steps) -->
+                  <template v-if="step.activityType !== 'copy'">
+                    <template v-if="!readonly && !isLinkedToEsi(step)">
+                      <span class="inline-flex items-center gap-0.5" @click.stop>
+                        <span class="text-slate-500 text-xs">ME</span>
+                        <input
+                          type="number"
+                          :value="step.meLevel"
+                          min="0"
+                          max="10"
+                          class="w-10 bg-slate-800 border border-slate-700 rounded-sm px-1 py-0.5 text-xs text-center focus:border-cyan-500 focus:outline-hidden"
+                          @change="(e) => onMeChange(step.id, (e.target as HTMLInputElement).value)"
+                          @click.stop
+                        />
+                      </span>
+                      <span class="inline-flex items-center gap-0.5" @click.stop>
+                        <span class="text-slate-500 text-xs">TE</span>
+                        <input
+                          type="number"
+                          :value="step.teLevel"
+                          min="0"
+                          max="20"
+                          class="w-10 bg-slate-800 border border-slate-700 rounded-sm px-1 py-0.5 text-xs text-center focus:border-cyan-500 focus:outline-hidden"
+                          @change="(e) => onTeChange(step.id, (e.target as HTMLInputElement).value)"
+                          @click.stop
+                        />
+                      </span>
+                    </template>
+                    <template v-else>
+                      <span class="text-xs text-slate-600">ME{{ step.meLevel }}</span>
+                      <span class="text-xs text-slate-600">TE{{ step.teLevel }}</span>
+                    </template>
                   </template>
                   <!-- Structure display -->
                   <span

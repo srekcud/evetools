@@ -14,10 +14,6 @@ const props = defineProps<{
   projectId: string
 }>()
 
-const emit = defineEmits<{
-  'open-bpc-modal': []
-}>()
-
 const store = useIndustryStore()
 const stepsStore = useStepsStore()
 const syncStore = useSyncStore()
@@ -38,10 +34,6 @@ watch(industryProjectProgress, (progress) => {
     regeneratingSteps.value = false
   }
 })
-
-function hasBpcSteps(): boolean {
-  return store.currentProject?.steps?.some(s => s.activityType === 'copy') ?? false
-}
 
 async function togglePurchased(stepId: string, purchased: boolean) {
   await store.toggleStepPurchased(props.projectId, stepId, purchased)
@@ -144,18 +136,7 @@ defineExpose({
 
     <!-- Toolbar: BPC Kit + Available Jobs + View toggle -->
     <div class="mb-4 flex items-center justify-between">
-      <!-- BPC Kit button + Available Jobs button -->
       <div class="flex items-center gap-4">
-        <button
-          v-if="hasBpcSteps() && store.currentProject?.status !== 'completed'"
-          @click="emit('open-bpc-modal')"
-          class="flex items-center gap-2 text-sm px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 rounded-lg text-blue-400"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          BPC Kit
-        </button>
         <button
           v-if="store.currentProject?.status !== 'completed'"
           @click="toggleAvailableJobs"

@@ -56,9 +56,10 @@ class MarketSearchProvider implements ProviderInterface
             array_values($marketableTypes),
         );
 
-        // Batch-load prices
-        $sellPrices = $this->jitaMarketService->getPrices($typeIds);
-        $buyPrices = $this->jitaMarketService->getBuyPrices($typeIds);
+        // Batch-load prices and volumes
+        $sellPrices = $this->jitaMarketService->getPricesWithFallback($typeIds);
+        $buyPrices = $this->jitaMarketService->getBuyPricesWithFallback($typeIds);
+        $volumes = $this->jitaMarketService->getAverageDailyVolumes($typeIds);
 
         foreach ($marketableTypes as $type) {
             $item = new MarketSearchItemResource();
@@ -77,6 +78,7 @@ class MarketSearchProvider implements ProviderInterface
             }
 
             $item->change30d = $this->marketHistoryService->get30dPriceChange($type->getTypeId());
+            $item->avgDailyVolume = $volumes[$type->getTypeId()] ?? null;
 
             $resource->results[] = $item;
         }

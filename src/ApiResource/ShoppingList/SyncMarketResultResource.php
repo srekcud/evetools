@@ -19,7 +19,7 @@ use App\State\Processor\ShoppingList\SyncMarketProcessor;
             uriTemplate: '/shopping-list/sync-structure-market',
             processor: SyncMarketProcessor::class,
             input: SyncMarketInput::class,
-            openapi: new Model\Operation(summary: 'Sync structure market data'),
+            openapi: new Model\Operation(summary: 'Sync structure market data', tags: ['Shopping List']),
         ),
     ],
     security: "is_granted('ROLE_USER')",
@@ -38,6 +38,8 @@ class SyncMarketResultResource
     public int $totalOrders = 0;
 
     public int $sellOrders = 0;
+
+    public int $buyOrders = 0;
 
     public int $typeCount = 0;
 

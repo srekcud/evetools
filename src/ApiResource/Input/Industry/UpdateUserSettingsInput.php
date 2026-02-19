@@ -9,4 +9,8 @@ class UpdateUserSettingsInput
     public ?int $favoriteManufacturingSystemId = null;
 
     public ?int $favoriteReactionSystemId = null;
+
+    public ?float $brokerFeeRate = null;
+
+    public ?float $salesTaxRate = null;
 }

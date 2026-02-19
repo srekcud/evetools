@@ -20,13 +20,13 @@ use App\State\Provider\Notification\PreferencesProvider;
         new Get(
             uriTemplate: '/me/notification-preferences',
             provider: PreferencesProvider::class,
-            openapi: new Model\Operation(summary: 'Get notification preferences'),
+            openapi: new Model\Operation(summary: 'Get notification preferences', tags: ['Notifications']),
         ),
         new Put(
             uriTemplate: '/me/notification-preferences',
             input: PreferencesInput::class,
             processor: PreferencesProcessor::class,
-            openapi: new Model\Operation(summary: 'Save notification preferences'),
+            openapi: new Model\Operation(summary: 'Save notification preferences', tags: ['Notifications']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

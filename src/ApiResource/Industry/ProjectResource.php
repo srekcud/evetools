@@ -36,62 +36,62 @@ use App\State\Provider\Industry\ShoppingListProvider;
             uriTemplate: '/industry/projects',
             provider: ProjectCollectionProvider::class,
             output: ProjectListResource::class,
-            openapi: new Model\Operation(summary: 'List projects', description: 'Returns all industry projects for the user'),
+            openapi: new Model\Operation(summary: 'List projects', description: 'Returns all industry projects for the user', tags: ['Industry - Projects']),
         ),
         new Get(
             uriTemplate: '/industry/projects/{id}',
             provider: ProjectProvider::class,
-            openapi: new Model\Operation(summary: 'Get project details', description: 'Returns detailed project information with steps and tree'),
+            openapi: new Model\Operation(summary: 'Get project details', description: 'Returns detailed project information with steps and tree', tags: ['Industry - Projects']),
         ),
         new Post(
             uriTemplate: '/industry/projects',
             processor: CreateProjectProcessor::class,
             input: CreateProjectInput::class,
-            openapi: new Model\Operation(summary: 'Create project', description: 'Creates a new industry project'),
+            openapi: new Model\Operation(summary: 'Create project', description: 'Creates a new industry project', tags: ['Industry - Projects']),
         ),
         new Patch(
             uriTemplate: '/industry/projects/{id}',
             provider: ProjectProvider::class,
             processor: UpdateProjectProcessor::class,
             input: UpdateProjectInput::class,
-            openapi: new Model\Operation(summary: 'Update project', description: 'Updates project properties'),
+            openapi: new Model\Operation(summary: 'Update project', description: 'Updates project properties', tags: ['Industry - Projects']),
         ),
         new Delete(
             uriTemplate: '/industry/projects/{id}',
             provider: ProjectDeleteProvider::class,
             processor: DeleteProjectProcessor::class,
-            openapi: new Model\Operation(summary: 'Delete project', description: 'Deletes an industry project'),
+            openapi: new Model\Operation(summary: 'Delete project', description: 'Deletes an industry project', tags: ['Industry - Projects']),
         ),
         new Get(
             uriTemplate: '/industry/projects/{id}/shopping-list',
             provider: ShoppingListProvider::class,
             output: ShoppingListResource::class,
-            openapi: new Model\Operation(summary: 'Get shopping list', description: 'Returns materials needed with price comparison'),
+            openapi: new Model\Operation(summary: 'Get shopping list', description: 'Returns materials needed with price comparison', tags: ['Industry - Projects']),
         ),
         new Post(
             uriTemplate: '/industry/projects/{id}/regenerate-steps',
             processor: RegenerateStepsProcessor::class,
             input: EmptyInput::class,
-            openapi: new Model\Operation(summary: 'Regenerate steps', description: 'Regenerates all project steps from scratch'),
+            openapi: new Model\Operation(summary: 'Regenerate steps', description: 'Regenerates all project steps from scratch', tags: ['Industry - Projects']),
         ),
         new Post(
             uriTemplate: '/industry/projects/{id}/match-jobs',
             processor: MatchJobsProcessor::class,
             input: EmptyInput::class,
             output: MatchJobsResultResource::class,
-            openapi: new Model\Operation(summary: 'Match ESI jobs', description: 'Matches project steps with ESI industry jobs'),
+            openapi: new Model\Operation(summary: 'Match ESI jobs', description: 'Matches project steps with ESI industry jobs', tags: ['Industry - Projects']),
         ),
         new Post(
             uriTemplate: '/industry/projects/{id}/apply-stock',
             processor: ApplyStockProcessor::class,
             input: ApplyStockInput::class,
-            openapi: new Model\Operation(summary: 'Apply stock', description: 'Applies parsed inventory stock to project steps'),
+            openapi: new Model\Operation(summary: 'Apply stock', description: 'Applies parsed inventory stock to project steps', tags: ['Industry - Projects']),
         ),
         new Post(
             uriTemplate: '/industry/projects/{id}/adapt-stock',
             processor: AdaptStockProcessor::class,
             input: EmptyInput::class,
-            openapi: new Model\Operation(summary: 'Adapt plan to stock', description: 'Recalculates step runs based on in-stock quantities'),
+            openapi: new Model\Operation(summary: 'Adapt plan to stock', description: 'Recalculates step runs based on in-stock quantities', tags: ['Industry - Projects']),
         ),
     ],
     security: "is_granted('ROLE_USER')",
@@ -116,6 +116,8 @@ class ProjectResource
 
     public int $teLevel;
 
+    public bool $isT2 = false;
+
     public float $maxJobDurationDays;
 
     public string $status;
@@ -138,6 +140,16 @@ class ProjectResource
 
     public ?float $totalCost = null;
 
+    public ?float $estimatedJobCost = null;
+
+    public ?float $estimatedMaterialCost = null;
+
+    public ?float $estimatedSellPrice = null;
+
+    public ?string $estimatedSellPriceSource = null;
+
+    public ?float $estimatedTaxAmount = null;
+
     public ?string $notes = null;
 
     public bool $personalUse = false;
@@ -156,4 +168,7 @@ class ProjectResource
 
     /** @var array<string, mixed>|null */
     public ?array $tree = null;
+
+    /** @var array<array{typeId: int, typeName: string, quantity: int}>|null */
+    public ?array $inventionMaterials = null;
 }

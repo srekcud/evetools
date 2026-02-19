@@ -8,6 +8,7 @@ use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
 use App\Repository\IndustryRigCategoryRepository;
 use App\Repository\IndustryStructureConfigRepository;
+use App\Enum\IndustryActivityType;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
 
@@ -25,8 +26,6 @@ class IndustryBonusService
 
     /** @var array<string, array<string, float>> Rig name -> [category => time bonus] mapping */
     private array $rigTimeBonusMap = [];
-
-    private const ACTIVITY_REACTION = 11;
 
     // Structure base time bonuses (fixed per structure type)
     private const STRUCTURE_TIME_BONUSES = [
@@ -87,7 +86,7 @@ class IndustryBonusService
     {
         // For reactions, we need to check the FORMULA's group, not the product's group
         if ($isReaction) {
-            $formula = $this->activityProductRepository->findBlueprintForProduct($typeId, self::ACTIVITY_REACTION);
+            $formula = $this->activityProductRepository->findBlueprintForProduct($typeId, IndustryActivityType::Reaction->value);
             if ($formula) {
                 $formulaType = $this->invTypeRepository->find($formula->getTypeId());
                 if ($formulaType) {
@@ -124,7 +123,7 @@ class IndustryBonusService
     /**
      * Find the best structure and its bonus for a given product.
      *
-     * @return array{structure: IndustryStructureConfig|null, bonus: float, category: string|null}
+     * @return array{structure: IndustryStructureConfig|null, bonus: array{total: float, base: float, rig: float}, category: string|null}
      */
     public function findBestStructureForProduct(User $user, int $typeId, bool $isReaction = false): array
     {
@@ -143,14 +142,15 @@ class IndustryBonusService
      * Find the best structure when no rig category matches (e.g. Deployables).
      * Only base structure bonuses are considered.
      *
-     * @return array{structure: IndustryStructureConfig|null, bonus: float, category: string|null}
+     * @return array{structure: IndustryStructureConfig|null, bonus: array{total: float, base: float, rig: float}, category: string|null}
      */
     private function findBestStructureBaseOnly(User $user, bool $isReaction): array
     {
         $structures = $this->structureRepository->findByUser($user);
+        $zeroBonus = ['total' => 0.0, 'base' => 0.0, 'rig' => 0.0];
 
         if (empty($structures)) {
-            return ['structure' => null, 'bonus' => 0.0, 'category' => null];
+            return ['structure' => null, 'bonus' => $zeroBonus, 'category' => null];
         }
 
         $bestStructure = null;
@@ -179,7 +179,7 @@ class IndustryBonusService
             $materialBonus = self::STRUCTURE_MATERIAL_BONUSES[$bestStructure->getStructureType()] ?? 0.0;
         }
 
-        return ['structure' => $bestStructure, 'bonus' => $materialBonus, 'category' => null];
+        return ['structure' => $bestStructure, 'bonus' => ['total' => $materialBonus, 'base' => $materialBonus, 'rig' => 0.0], 'category' => null];
     }
 
     /**
@@ -224,18 +224,19 @@ class IndustryBonusService
     /**
      * Find the best structure and its bonus for a given category.
      *
-     * @return array{structure: IndustryStructureConfig|null, bonus: float, category: string|null}
+     * @return array{structure: IndustryStructureConfig|null, bonus: array{total: float, base: float, rig: float}, category: string|null}
      */
     public function findBestStructureForCategory(User $user, string $category, bool $isReaction = false): array
     {
         $structures = $this->structureRepository->findByUser($user);
+        $zeroBonus = ['total' => 0.0, 'base' => 0.0, 'rig' => 0.0];
 
         if (empty($structures)) {
-            return ['structure' => null, 'bonus' => 0.0, 'category' => $category];
+            return ['structure' => null, 'bonus' => $zeroBonus, 'category' => $category];
         }
 
         $bestStructure = null;
-        $bestBonus = 0.0;
+        $bestBonus = $zeroBonus;
 
         foreach ($structures as $structure) {
             $structureType = $structure->getStructureType();
@@ -251,7 +252,7 @@ class IndustryBonusService
 
             $bonus = $this->calculateStructureBonusForCategory($structure, $category);
 
-            if ($bonus > $bestBonus) {
+            if ($bonus['total'] > $bestBonus['total']) {
                 $bestBonus = $bonus;
                 $bestStructure = $structure;
             }
@@ -266,12 +267,16 @@ class IndustryBonusService
      * - Engineering Complexes (Raitaru, Azbel, Sotiyo): 1% material reduction for manufacturing
      * - Refineries (Athanor, Tatara): NO material bonus (only time bonus)
      * - NPC Stations: NO bonuses
+     *
+     * Returns separate base and rig values for multiplicative stacking.
+     * EVE applies them as: (1 - base/100) * (1 - rig/100), NOT (1 - (base+rig)/100).
+     *
+     * @return array{total: float, base: float, rig: float}
      */
-    public function calculateStructureBonusForCategory(IndustryStructureConfig $structure, string $category): float
+    public function calculateStructureBonusForCategory(IndustryStructureConfig $structure, string $category): array
     {
         $isReactionCategory = str_contains($category, 'reaction');
         $structureType = $structure->getStructureType();
-        $structureCategory = self::STRUCTURE_CATEGORIES[$structureType] ?? $structureType;
 
         // Base structure bonus (from lookup table, only for manufacturing)
         $baseBonus = 0.0;
@@ -294,49 +299,47 @@ class IndustryBonusService
             }
         }
 
-        // Total bonus = base structure bonus + (rig bonus × security multiplier)
-        return round($baseBonus + ($rigBonus * $securityMultiplier), 2);
+        $effectiveRigBonus = round($rigBonus * $securityMultiplier, 2);
+
+        // Multiplicative total: 1 - (1 - base/100) * (1 - rig/100)
+        $total = 1 - (1 - $baseBonus / 100) * (1 - $effectiveRigBonus / 100);
+
+        return [
+            'total' => round($total * 100, 2),
+            'base' => $baseBonus,
+            'rig' => $effectiveRigBonus,
+        ];
     }
 
     /**
      * Get all bonuses a structure provides, grouped by category.
      * Includes base structure bonuses (1% for EC manufacturing).
+     * Returns the multiplicative total for each category.
      *
-     * @return array<string, float> category => bonus
+     * @return array<string, float> category => total bonus (multiplicative)
      */
     public function calculateAllBonusesForStructure(IndustryStructureConfig $structure): array
     {
-        $bonusesByCategory = [];
-        $structureType = $structure->getStructureType();
+        $result = [];
 
+        // Collect all categories affected by this structure's rigs
+        $categories = [];
         foreach ($structure->getRigs() as $rigName) {
             if (!isset($this->rigBonusMap[$rigName])) {
                 continue;
             }
-
             foreach ($this->rigBonusMap[$rigName] as $category => $bonus) {
-                if (!isset($bonusesByCategory[$category])) {
-                    $bonusesByCategory[$category] = 0.0;
-                }
-                $bonusesByCategory[$category] += $bonus;
+                $categories[$category] = true;
             }
         }
 
-        // Apply security multiplier (different for reactions vs manufacturing) and add base structure bonus
-        foreach ($bonusesByCategory as $category => $bonus) {
-            $isReactionCategory = str_contains($category, 'reaction');
-            $securityMultiplier = $this->getSecurityMultiplier($structure->getSecurityType(), $isReactionCategory);
-
-            // Base structure bonus (from lookup table, only for manufacturing)
-            $baseBonus = 0.0;
-            if (!$isReactionCategory) {
-                $baseBonus = self::STRUCTURE_MATERIAL_BONUSES[$structureType] ?? 0.0;
-            }
-
-            $bonusesByCategory[$category] = round($baseBonus + ($bonus * $securityMultiplier), 2);
+        // Calculate multiplicative bonus for each category
+        foreach (array_keys($categories) as $category) {
+            $bonusData = $this->calculateStructureBonusForCategory($structure, $category);
+            $result[$category] = $bonusData['total'];
         }
 
-        return $bonusesByCategory;
+        return $result;
     }
 
     /**

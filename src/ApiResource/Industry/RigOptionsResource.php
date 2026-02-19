@@ -17,7 +17,7 @@ use App\State\Provider\Industry\RigOptionsProvider;
         new Get(
             uriTemplate: '/industry/structures/rig-options',
             provider: RigOptionsProvider::class,
-            openapi: new Model\Operation(summary: 'Get rig options', description: 'Returns available rig options for structures'),
+            openapi: new Model\Operation(summary: 'Get rig options', description: 'Returns available rig options for structures', tags: ['Industry - Structures']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

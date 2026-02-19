@@ -38,14 +38,22 @@ class OpenWindowProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        $mainCharacter = $user->getMainCharacter();
-        if ($mainCharacter === null) {
-            throw new AccessDeniedHttpException('No main character set');
+        $character = $user->getMainCharacter();
+        $token = $character?->getEveToken();
+
+        // Fallback to any character with valid token
+        if ($token === null) {
+            foreach ($user->getCharacters() as $alt) {
+                $altToken = $alt->getEveToken();
+                if ($altToken !== null) {
+                    $token = $altToken;
+                    break;
+                }
+            }
         }
 
-        $token = $mainCharacter->getEveToken();
         if ($token === null) {
-            throw new AccessDeniedHttpException('No EVE token available');
+            throw new AccessDeniedHttpException('No character with valid EVE token available');
         }
 
         $result = new OpenWindowResource();

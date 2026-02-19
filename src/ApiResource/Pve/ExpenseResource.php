@@ -27,6 +27,7 @@ use App\State\Provider\Pve\ExpenseProvider;
             provider: ExpenseCollectionProvider::class,
             openapi: new Model\Operation(
                 summary: 'List PVE expenses',
+                tags: ['Revenue - PVE'],
                 parameters: [
                     new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),
                 ],
@@ -36,20 +37,20 @@ use App\State\Provider\Pve\ExpenseProvider;
             uriTemplate: '/pve/expenses',
             processor: CreateExpenseProcessor::class,
             input: CreateExpenseInput::class,
-            openapi: new Model\Operation(summary: 'Create a PVE expense'),
+            openapi: new Model\Operation(summary: 'Create a PVE expense', tags: ['Revenue - PVE']),
         ),
         new Delete(
             uriTemplate: '/pve/expenses/{id}',
             provider: ExpenseProvider::class,
             processor: DeleteExpenseProcessor::class,
-            openapi: new Model\Operation(summary: 'Delete a PVE expense'),
+            openapi: new Model\Operation(summary: 'Delete a PVE expense', tags: ['Revenue - PVE']),
         ),
         new Post(
             uriTemplate: '/pve/import-expenses',
             processor: ImportExpensesProcessor::class,
             input: ImportExpensesInput::class,
             output: ImportResultResource::class,
-            openapi: new Model\Operation(summary: 'Import scanned expenses'),
+            openapi: new Model\Operation(summary: 'Import scanned expenses', tags: ['Revenue - PVE']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

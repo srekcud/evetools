@@ -7,6 +7,7 @@ namespace App\ApiResource\ShoppingList;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\ShoppingList\AppraiseInput;
 use App\State\Processor\ShoppingList\AppraiseProcessor;
 
@@ -17,6 +18,7 @@ use App\State\Processor\ShoppingList\AppraiseProcessor;
             uriTemplate: '/shopping-list/appraise',
             processor: AppraiseProcessor::class,
             input: AppraiseInput::class,
+            openapi: new Model\Operation(tags: ['Shopping List']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

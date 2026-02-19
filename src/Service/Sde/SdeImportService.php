@@ -17,14 +17,14 @@ class SdeImportService
 
     public const VALID_SECTIONS = ['inventory', 'map', 'industry', 'dogma', 'reference', 'planetary'];
 
-    // Activity ID mapping (name in JSONL -> ID in database)
+    // Activity ID mapping (name in JSONL -> EVE standard ramActivities ID)
     private const ACTIVITY_IDS = [
         'manufacturing' => 1,
-        'research_time' => 2,
-        'research_material' => 3,
-        'copying' => 4,
-        'invention' => 5,
-        'reaction' => 6,
+        'research_time' => 3,
+        'research_material' => 4,
+        'copying' => 5,
+        'invention' => 8,
+        'reaction' => 11,
     ];
 
     private string $tempDir;
@@ -936,6 +936,7 @@ class SdeImportService
                         'activity_id' => $activityId,
                         'product_type_id' => (int) $product['typeID'],
                         'quantity' => (int) $product['quantity'],
+                        'probability' => $product['probability'] ?? null,
                     ]);
                     $productCount++;
                 }

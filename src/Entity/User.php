@@ -48,6 +48,10 @@ class User implements UserInterface
     #[ORM\Column(type: 'bigint', nullable: true)]
     private ?int $preferredMarketStructureId = null;
 
+    /** Preferred structure name (display only) */
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    private ?string $preferredMarketStructureName = null;
+
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
@@ -221,6 +225,17 @@ class User implements UserInterface
     public function setPreferredMarketStructureId(?int $structureId): static
     {
         $this->preferredMarketStructureId = $structureId;
+        return $this;
+    }
+
+    public function getPreferredMarketStructureName(): ?string
+    {
+        return $this->preferredMarketStructureName;
+    }
+
+    public function setPreferredMarketStructureName(?string $name): static
+    {
+        $this->preferredMarketStructureName = $name;
         return $this;
     }
 

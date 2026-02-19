@@ -10,6 +10,7 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\PlanetSchematicRepository;
 use App\Repository\Sde\PlanetSchematicTypeRepository;
 use App\Service\JitaMarketService;
+use App\Service\TypeNameResolver;
 
 /**
  * Calculates PI production output and ISK value.
@@ -36,6 +37,7 @@ class PlanetaryProductionCalculator
         private readonly PlanetSchematicRepository $schematicRepository,
         private readonly PlanetSchematicTypeRepository $schematicTypeRepository,
         private readonly InvTypeRepository $invTypeRepository,
+        private readonly TypeNameResolver $typeNameResolver,
         private readonly JitaMarketService $jitaMarketService,
     ) {
     }
@@ -325,8 +327,6 @@ class PlanetaryProductionCalculator
 
     private function resolveTypeName(int $typeId): string
     {
-        $type = $this->invTypeRepository->find($typeId);
-
-        return $type?->getTypeName() ?? "Type #{$typeId}";
+        return $this->typeNameResolver->resolve($typeId);
     }
 }

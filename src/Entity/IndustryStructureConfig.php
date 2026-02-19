@@ -57,6 +57,10 @@ class IndustryStructureConfig
     #[ORM\Column]
     private bool $isCorporationStructure = false;
 
+    /** Facility tax rate as a percentage (e.g. 3.5 means 3.5%) */
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $facilityTaxRate = null;
+
     /** Soft-deleted (hidden from user but preserved for corp sharing) */
     #[ORM\Column]
     private bool $isDeleted = false;
@@ -197,6 +201,17 @@ class IndustryStructureConfig
     public function setIsCorporationStructure(bool $isCorporationStructure): self
     {
         $this->isCorporationStructure = $isCorporationStructure;
+        return $this;
+    }
+
+    public function getFacilityTaxRate(): ?float
+    {
+        return $this->facilityTaxRate;
+    }
+
+    public function setFacilityTaxRate(?float $facilityTaxRate): self
+    {
+        $this->facilityTaxRate = $facilityTaxRate;
         return $this;
     }
 

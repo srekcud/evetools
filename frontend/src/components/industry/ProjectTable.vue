@@ -110,9 +110,6 @@ function formatRootProducts(project: IndustryProject): string {
   }).join(', ')
 }
 
-// Split editable fields to insert jobsCost (readonly) in the middle
-const costFields = ['bpoCost', 'materialCost', 'transportCost']
-const afterJobsFields = ['taxAmount', 'sellPrice']
 </script>
 
 <template>
@@ -127,10 +124,14 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
           <th class="text-center py-3 px-2">{{ t('industry.table.personal') }}</th>
           <th class="text-right py-3 px-2">BPC Kit</th>
           <th class="text-right py-3 px-2">{{ t('industry.table.materials') }}</th>
+          <th class="text-right py-3 px-2">{{ t('industry.costs.estimatedMat') }}</th>
           <th class="text-right py-3 px-2">{{ t('industry.table.transport') }}</th>
           <th class="text-right py-3 px-2">Jobs</th>
+          <th class="text-right py-3 px-2">{{ t('industry.costs.estimatedJobs') }}</th>
           <th class="text-right py-3 px-2">{{ t('industry.table.taxes') }}</th>
+          <th class="text-right py-3 px-2">{{ t('industry.costs.estimatedTaxes') }}</th>
           <th class="text-right py-3 px-2">{{ t('industry.table.sell') }}</th>
+          <th class="text-right py-3 px-2">{{ t('industry.costs.estimatedSell') }}</th>
           <th class="text-right py-3 px-2">{{ t('industry.table.profit') }}</th>
           <th class="text-right py-3 px-2">%</th>
           <th class="text-center py-3 px-2">Status</th>
@@ -228,15 +229,10 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
             </button>
           </td>
 
-          <!-- Editable cost fields (BPC, Matériaux, Transport) -->
-          <td
-            v-for="field in costFields"
-            :key="field"
-            class="py-3 px-2 text-right"
-          >
-            <!-- Editing mode -->
+          <!-- BPC Kit (editable) -->
+          <td class="py-3 px-2 text-right">
             <input
-              v-if="isEditing(project.id, field)"
+              v-if="isEditing(project.id, 'bpoCost')"
               v-model="editValue"
               type="text"
               placeholder="ex: 10M, 1.5B"
@@ -246,35 +242,98 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
               @blur="saveEdit(project)"
               autofocus
             />
-            <!-- Display mode -->
             <span
               v-else
-              @dblclick="startEdit(project, field)"
+              @dblclick="startEdit(project, 'bpoCost')"
               :class="[
                 'font-mono text-slate-300',
                 project.status !== 'completed' ? 'editable' : ''
               ]"
-              :title="project.status !== 'completed' ? 'Double-cliquer pour modifier' : 'Projet terminé'"
+              :title="project.status !== 'completed' ? t('industry.table.doubleClickEdit') : t('industry.table.projectCompleted')"
             >
-              {{ formatValue((project as Record<string, unknown>)[field] as number | null) }}
+              {{ formatValue(project.bpoCost) }}
             </span>
           </td>
 
-          <!-- Jobs cost (readonly) -->
+          <!-- Materials (editable) -->
+          <td class="py-3 px-2 text-right">
+            <input
+              v-if="isEditing(project.id, 'materialCost')"
+              v-model="editValue"
+              type="text"
+              placeholder="ex: 10M, 1.5B"
+              class="w-24 bg-slate-700 border border-cyan-500 rounded-sm px-2 py-1 text-right text-sm focus:outline-hidden"
+              @keydown.enter="saveEdit(project)"
+              @keydown.escape="cancelEdit"
+              @blur="saveEdit(project)"
+              autofocus
+            />
+            <span
+              v-else
+              @dblclick="startEdit(project, 'materialCost')"
+              :class="[
+                'font-mono text-slate-300',
+                project.status !== 'completed' ? 'editable' : ''
+              ]"
+              :title="project.status !== 'completed' ? t('industry.table.doubleClickEdit') : t('industry.table.projectCompleted')"
+            >
+              {{ formatValue(project.materialCost) }}
+            </span>
+          </td>
+
+          <!-- Est. Mat. (readonly, hidden if materialCost is set) -->
+          <td class="py-3 px-2 text-right font-mono text-slate-500">
+            <template v-if="project.materialCost == null">
+              {{ project.estimatedMaterialCost != null ? formatIsk(project.estimatedMaterialCost) : '-' }}
+            </template>
+            <span v-else class="text-slate-700">&mdash;</span>
+          </td>
+
+          <!-- Transport (editable) -->
+          <td class="py-3 px-2 text-right">
+            <input
+              v-if="isEditing(project.id, 'transportCost')"
+              v-model="editValue"
+              type="text"
+              placeholder="ex: 10M, 1.5B"
+              class="w-24 bg-slate-700 border border-cyan-500 rounded-sm px-2 py-1 text-right text-sm focus:outline-hidden"
+              @keydown.enter="saveEdit(project)"
+              @keydown.escape="cancelEdit"
+              @blur="saveEdit(project)"
+              autofocus
+            />
+            <span
+              v-else
+              @dblclick="startEdit(project, 'transportCost')"
+              :class="[
+                'font-mono text-slate-300',
+                project.status !== 'completed' ? 'editable' : ''
+              ]"
+              :title="project.status !== 'completed' ? t('industry.table.doubleClickEdit') : t('industry.table.projectCompleted')"
+            >
+              {{ formatValue(project.transportCost) }}
+            </span>
+          </td>
+
+          <!-- Jobs (readonly) -->
           <td class="py-3 px-2 text-right font-mono text-slate-400">
             {{ formatValue(project.jobsCost) }}
           </td>
 
-          <!-- Editable fields after Jobs (Taxes, Vente) - hidden for personal use -->
+          <!-- Est. Jobs (readonly, hidden if jobsCost > 0) -->
+          <td class="py-3 px-2 text-right font-mono text-slate-500">
+            <template v-if="!project.jobsCost || project.jobsCost <= 0">
+              {{ project.estimatedJobCost != null ? formatIsk(project.estimatedJobCost) : '-' }}
+            </template>
+            <span v-else class="text-slate-700">&mdash;</span>
+          </td>
+
+          <!-- Taxes, Est. Taxes, Sell, Est. Sell, Profit, % - hidden for personal use -->
           <template v-if="!project.personalUse">
-            <td
-              v-for="field in afterJobsFields"
-              :key="field"
-              class="py-3 px-2 text-right"
-            >
-              <!-- Editing mode -->
+            <!-- Taxes (editable) -->
+            <td class="py-3 px-2 text-right">
               <input
-                v-if="isEditing(project.id, field)"
+                v-if="isEditing(project.id, 'taxAmount')"
                 v-model="editValue"
                 type="text"
                 placeholder="ex: 10M, 1.5B"
@@ -284,18 +343,59 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
                 @blur="saveEdit(project)"
                 autofocus
               />
-              <!-- Display mode -->
               <span
                 v-else
-                @dblclick="startEdit(project, field)"
+                @dblclick="startEdit(project, 'taxAmount')"
                 :class="[
                   'font-mono text-slate-300',
                   project.status !== 'completed' ? 'editable' : ''
                 ]"
                 :title="project.status !== 'completed' ? t('industry.table.doubleClickEdit') : t('industry.table.projectCompleted')"
               >
-                {{ formatValue((project as Record<string, unknown>)[field] as number | null) }}
+                {{ formatValue(project.taxAmount) }}
               </span>
+            </td>
+
+            <!-- Est. Taxes (readonly, hidden if taxAmount is set) -->
+            <td class="py-3 px-2 text-right font-mono text-slate-500">
+              <template v-if="project.taxAmount == null">
+                {{ project.estimatedTaxAmount != null ? formatIsk(project.estimatedTaxAmount) : '-' }}
+              </template>
+              <span v-else class="text-slate-700">&mdash;</span>
+            </td>
+
+            <!-- Sell (editable) -->
+            <td class="py-3 px-2 text-right">
+              <input
+                v-if="isEditing(project.id, 'sellPrice')"
+                v-model="editValue"
+                type="text"
+                placeholder="ex: 10M, 1.5B"
+                class="w-24 bg-slate-700 border border-cyan-500 rounded-sm px-2 py-1 text-right text-sm focus:outline-hidden"
+                @keydown.enter="saveEdit(project)"
+                @keydown.escape="cancelEdit"
+                @blur="saveEdit(project)"
+                autofocus
+              />
+              <span
+                v-else
+                @dblclick="startEdit(project, 'sellPrice')"
+                :class="[
+                  'font-mono text-slate-300',
+                  project.status !== 'completed' ? 'editable' : ''
+                ]"
+                :title="project.status !== 'completed' ? t('industry.table.doubleClickEdit') : t('industry.table.projectCompleted')"
+              >
+                {{ formatValue(project.sellPrice) }}
+              </span>
+            </td>
+
+            <!-- Est. Sell (readonly, hidden if sellPrice is set) -->
+            <td class="py-3 px-2 text-right font-mono text-slate-500">
+              <template v-if="project.sellPrice == null">
+                {{ project.estimatedSellPrice != null ? formatIsk(project.estimatedSellPrice) : '-' }}
+              </template>
+              <span v-else class="text-slate-700">&mdash;</span>
             </td>
 
             <!-- Profit -->
@@ -305,12 +405,14 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
 
             <!-- Profit % -->
             <td class="py-3 px-2 text-right font-mono" :class="profitClass(project.profitPercent)">
-              {{ project.profitPercent != null ? `${project.profitPercent}%` : '-' }}
+              {{ project.profitPercent != null ? `${project.profitPercent.toFixed(1)}%` : '-' }}
             </td>
           </template>
 
-          <!-- Placeholder cells for personal use projects -->
+          <!-- Placeholder cells for personal use projects (Taxes, Est.Taxes, Sell, Est.Sell, Profit, %) -->
           <template v-else>
+            <td class="py-3 px-2 text-right text-slate-600 font-mono">N/A</td>
+            <td class="py-3 px-2 text-right text-slate-600 font-mono">N/A</td>
             <td class="py-3 px-2 text-right text-slate-600 font-mono">N/A</td>
             <td class="py-3 px-2 text-right text-slate-600 font-mono">N/A</td>
             <td class="py-3 px-2 text-right text-slate-600 font-mono">N/A</td>
@@ -370,7 +472,7 @@ const afterJobsFields = ['taxAmount', 'sellPrice']
       <!-- Total row -->
       <tfoot v-if="store.projects.length > 0">
         <tr class="border-t border-slate-600 font-semibold text-slate-200">
-          <td colspan="11" class="py-3 px-3 text-right">{{ t('industry.table.totalProfit') }}</td>
+          <td colspan="15" class="py-3 px-3 text-right">{{ t('industry.table.totalProfit') }}</td>
           <td class="py-3 px-2 text-right font-mono" :class="profitClass(store.totalProfit)">
             {{ formatValue(store.totalProfit) }}
           </td>

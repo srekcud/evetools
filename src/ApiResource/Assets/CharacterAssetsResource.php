@@ -23,6 +23,7 @@ use App\State\Provider\Assets\CharacterAssetsProvider;
             openapi: new Model\Operation(
                 summary: 'Get character assets',
                 description: 'Returns all assets for a specific character',
+                tags: ['Inventory'],
                 parameters: [
                     new Model\Parameter(name: 'locationId', in: 'query', required: false, schema: ['type' => 'integer']),
                 ],
@@ -36,6 +37,7 @@ use App\State\Provider\Assets\CharacterAssetsProvider;
             openapi: new Model\Operation(
                 summary: 'Refresh character assets',
                 description: 'Triggers a sync of character assets from ESI',
+                tags: ['Inventory'],
                 parameters: [
                     new Model\Parameter(name: 'async', in: 'query', required: false, schema: ['type' => 'boolean', 'default' => true]),
                 ],

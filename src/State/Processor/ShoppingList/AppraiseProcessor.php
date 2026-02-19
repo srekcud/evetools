@@ -72,15 +72,16 @@ class AppraiseProcessor implements ProcessorInterface
             $volumes[$type->getTypeId()] = $type->getVolume() ?? 0.0;
         }
 
-        // Fetch sell and buy prices (best prices)
+        // Fetch sell and buy prices (best prices) with on-demand ESI fallback
+        // for types not covered by the background sync (e.g. finished products like ships)
         $priceError = null;
         $sellPrices = [];
         $buyPrices = [];
         $weightedSellPrices = [];
         $weightedBuyPrices = [];
         try {
-            $sellPrices = $this->jitaMarketService->getPrices($typeIds);
-            $buyPrices = $this->jitaMarketService->getBuyPrices($typeIds);
+            $sellPrices = $this->jitaMarketService->getPricesWithFallback($typeIds);
+            $buyPrices = $this->jitaMarketService->getBuyPricesWithFallback($typeIds);
 
             // Build typeId => quantity map for weighted price calculation
             $typeQuantities = [];
@@ -89,8 +90,8 @@ class AppraiseProcessor implements ProcessorInterface
                 $typeQuantities[$typeId] = ($typeQuantities[$typeId] ?? 0) + $item['quantity'];
             }
 
-            $weightedSellPrices = $this->jitaMarketService->getWeightedSellPrices($typeQuantities);
-            $weightedBuyPrices = $this->jitaMarketService->getWeightedBuyPrices($typeQuantities);
+            $weightedSellPrices = $this->jitaMarketService->getWeightedSellPricesWithFallback($typeQuantities);
+            $weightedBuyPrices = $this->jitaMarketService->getWeightedBuyPricesWithFallback($typeQuantities);
         } catch (\Throwable $e) {
             $this->logger->warning('Failed to fetch Jita prices for appraisal', [
                 'error' => $e->getMessage(),

@@ -7,6 +7,7 @@ namespace App\ApiResource\Market;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
@@ -23,17 +24,24 @@ use App\State\Provider\Market\MarketAlertDeleteProvider;
         new GetCollection(
             uriTemplate: '/market/alerts',
             provider: MarketAlertCollectionProvider::class,
-            openapi: new Model\Operation(summary: 'List alerts with current prices'),
+            openapi: new Model\Operation(summary: 'List alerts with current prices', tags: ['Market']),
+        ),
+        new Get(
+            uriTemplate: '/market/alerts/{id}',
+            provider: MarketAlertDeleteProvider::class,
+            openapi: new Model\Operation(summary: 'Get a single alert', tags: ['Market']),
         ),
         new Post(
             uriTemplate: '/market/alerts',
             input: CreateAlertInput::class,
             processor: CreateAlertProcessor::class,
+            openapi: new Model\Operation(tags: ['Market']),
         ),
         new Delete(
             uriTemplate: '/market/alerts/{id}',
             provider: MarketAlertDeleteProvider::class,
             processor: DeleteAlertProcessor::class,
+            openapi: new Model\Operation(tags: ['Market']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

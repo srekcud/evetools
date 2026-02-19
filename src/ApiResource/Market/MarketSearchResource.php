@@ -20,6 +20,7 @@ use App\State\Provider\Market\MarketSearchProvider;
             openapi: new Model\Operation(
                 summary: 'Search marketable items',
                 description: 'Search for published items with market group, enriched with Jita prices',
+                tags: ['Market'],
                 parameters: [
                     new Model\Parameter(name: 'q', in: 'query', required: true, schema: ['type' => 'string']),
                 ],

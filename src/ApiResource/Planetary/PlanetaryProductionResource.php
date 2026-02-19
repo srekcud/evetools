@@ -16,7 +16,7 @@ use App\State\Provider\Planetary\PlanetaryProductionProvider;
         new Get(
             uriTemplate: '/planetary/production',
             provider: PlanetaryProductionProvider::class,
-            openapi: new Model\Operation(summary: 'Get PI production breakdown by tier'),
+            openapi: new Model\Operation(summary: 'Get PI production breakdown by tier', tags: ['Planetary']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

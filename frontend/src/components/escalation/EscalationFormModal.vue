@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import type { Escalation, CreateEscalationInput } from '@/stores/escalation'
 import { ESCALATION_SITES, SUGGESTED_PRICES } from '@/constants/escalationConstants'
 import { useEscalationTimers } from '@/composables/useEscalationTimers'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
@@ -618,10 +619,7 @@ function resetForm(): void {
               :disabled="(!isEditMode && !isFormValid) || isSubmitting"
               class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed rounded-lg text-white text-sm font-medium transition-colors flex items-center gap-2 shadow-lg shadow-cyan-500/20 disabled:shadow-none"
             >
-              <svg v-if="isSubmitting" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
+              <LoadingSpinner v-if="isSubmitting" size="sm" />
               {{ isSubmitting ? (isEditMode ? t('escalations.modal.saving') : t('escalations.modal.adding')) : (isEditMode ? t('escalations.modal.save') : t('escalations.modal.add')) }}
             </button>
           </div>

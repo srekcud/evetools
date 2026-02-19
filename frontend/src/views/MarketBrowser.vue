@@ -2,47 +2,75 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMarketStore, type MarketSearchItem } from '@/stores/market'
+import { useEveImages } from '@/composables/useEveImages'
+import { apiRequest } from '@/services/api'
 import MainLayout from '@/layouts/MainLayout.vue'
 import MarketSearch from '@/components/market/MarketSearch.vue'
 import MarketResultsTable from '@/components/market/MarketResultsTable.vue'
 import MarketTypeDetail from '@/components/market/MarketTypeDetail.vue'
 import AlertsPanel from '@/components/market/AlertsPanel.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const { t } = useI18n()
 const marketStore = useMarketStore()
+const { getTypeIconUrl, onImageError } = useEveImages()
 
-type Tab = 'browse' | 'favorites' | 'alerts'
+// Structure name from user settings
+const structureSystemName = ref<string | null>(null)
+
+type Tab = 'browse' | 'detail' | 'alerts'
 const activeTab = ref<Tab>('browse')
 
 const activeAlertsCount = computed(() =>
   marketStore.alerts.filter(a => a.status === 'active').length
 )
 
-// Filtered search results based on selected category group
+// Filtered search results: include mode takes priority over exclude mode
 const filteredSearchResults = computed(() => {
-  if (marketStore.selectedGroupId === null) {
+  // Include mode: show only the selected category
+  if (marketStore.includedGroupId !== null) {
+    const group = marketStore.rootGroups.find(g => g.id === marketStore.includedGroupId)
+    if (group) {
+      return marketStore.searchResults.filter(item => item.categoryName === group.name)
+    }
+  }
+  // Exclude mode: hide excluded categories
+  if (marketStore.excludedGroupIds.size === 0) {
     return marketStore.searchResults
   }
-  const selectedGroup = marketStore.rootGroups.find(
-    g => g.id === marketStore.selectedGroupId
+  const excludedNames = new Set(
+    marketStore.rootGroups
+      .filter(g => marketStore.excludedGroupIds.has(g.id))
+      .map(g => g.name)
   )
-  if (!selectedGroup) return marketStore.searchResults
   return marketStore.searchResults.filter(
-    item => item.categoryName === selectedGroup.name
+    item => !excludedNames.has(item.categoryName)
   )
 })
 
-// Load root groups on mount
-onMounted(() => {
+// Load root groups, favorites, alerts and settings on mount
+onMounted(async () => {
   marketStore.fetchRootGroups()
+  marketStore.fetchFavorites()
+  marketStore.fetchAlerts()
+
+  try {
+    const settings = await apiRequest<{
+      effectiveMarketStructureName: string
+    }>('/me/settings')
+    const fullName = settings.effectiveMarketStructureName
+    if (fullName) {
+      structureSystemName.value = fullName.split(' - ')[0] || fullName
+    }
+  } catch {
+    // Non-blocking: badge simply won't show
+  }
 })
 
-// Load tab-specific data
-watch(activeTab, (tab) => {
-  if (tab === 'favorites') {
-    marketStore.fetchFavorites()
-  } else if (tab === 'alerts') {
-    marketStore.fetchAlerts()
+// When typeDetail is set, automatically switch to detail tab
+watch(() => marketStore.typeDetail, (detail) => {
+  if (detail) {
+    activeTab.value = 'detail'
   }
 })
 
@@ -59,61 +87,110 @@ function handleRecentSearchClick(typeId: number): void {
   selectItem(typeId)
 }
 
-function selectItemAndBrowse(typeId: number): void {
-  activeTab.value = 'browse'
+function handleFavoriteClick(typeId: number): void {
   selectItem(typeId)
 }
 
-const tabClasses = (tab: Tab): string => {
-  return activeTab.value === tab
-    ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
-    : 'text-slate-400 border-transparent hover:text-slate-200 hover:border-slate-600'
+function handleCloseDetail(): void {
+  marketStore.clearDetail()
+  activeTab.value = 'browse'
 }
 
-const categoryPillClasses = (groupId: number | null): string => {
-  return marketStore.selectedGroupId === groupId
-    ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/50'
-    : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700 hover:text-slate-300'
+function selectItemFromAlerts(typeId: number): void {
+  selectItem(typeId)
 }
+
+const categoryPillClasses = (groupId: number): string => {
+  if (marketStore.includedGroupId === groupId) {
+    return 'bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500/40'
+  }
+  if (marketStore.excludedGroupIds.has(groupId)) {
+    return 'bg-red-500/10 text-red-400/50 line-through'
+  }
+  return 'bg-slate-800/40 text-slate-500 hover:bg-slate-700/50 hover:text-slate-300'
+}
+
+const allButtonClasses = computed(() => {
+  return (marketStore.includedGroupId !== null || marketStore.excludedGroupIds.size > 0)
+    ? 'bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500/40'
+    : 'bg-slate-800/40 text-slate-500 hover:bg-slate-700/50 hover:text-slate-300'
+})
+
+const allButtonLabel = computed(() => {
+  if (marketStore.includedGroupId !== null) {
+    return t('market.categories.all')
+  }
+  if (marketStore.excludedGroupIds.size > 0) {
+    return `${t('market.categories.all')} (${t('market.categories.hiddenCount', { count: marketStore.excludedGroupIds.size })})`
+  }
+  return t('market.categories.all')
+})
 </script>
 
 <template>
   <MainLayout>
-    <div class="space-y-6">
+    <div class="space-y-0">
 
-      <!-- Tabs -->
-      <div class="flex items-center gap-1 border-b border-slate-800 pb-px">
+      <!-- Page Header -->
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-100">{{ t('market.title') }}</h1>
+          <p class="text-sm text-slate-500 mt-1">{{ t('market.subtitle') }}</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-emerald-500/10 border-emerald-500/30 text-xs">
+            <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+            <span class="text-emerald-400">{{ t('market.syncJita') }}</span>
+          </div>
+          <div v-if="structureSystemName" class="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-cyan-500/10 border-cyan-500/30 text-xs">
+            <div class="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></div>
+            <span class="text-cyan-400">{{ structureSystemName }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Navigation -->
+      <div class="flex items-center gap-1 mb-6 border-b border-slate-800/50">
+        <!-- Browse tab -->
         <button
           @click="activeTab = 'browse'"
-          class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors"
-          :class="tabClasses('browse')"
+          class="tab-btn px-5 py-3 text-sm font-medium transition-colors relative"
+          :class="activeTab === 'browse' ? 'tab-active text-cyan-400' : 'text-slate-500 hover:text-slate-300'"
         >
-          {{ t('market.tabs.browse') }}
-        </button>
-        <button
-          @click="activeTab = 'favorites'"
-          class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors"
-          :class="tabClasses('favorites')"
-        >
-          {{ t('market.tabs.favorites') }}
-          <span
-            v-if="marketStore.favorites.length > 0"
-            class="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-amber-500/20 text-amber-400"
-          >
-            {{ marketStore.favorites.length }}
+          <span class="flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            {{ t('market.tabs.browse') }}
           </span>
         </button>
+
+        <!-- Item Detail tab (dynamic, only visible when an item is selected) -->
+        <button
+          v-if="marketStore.typeDetail"
+          @click="activeTab = 'detail'"
+          class="tab-btn px-5 py-3 text-sm font-medium transition-colors relative"
+          :class="activeTab === 'detail' ? 'tab-active text-cyan-400' : 'text-slate-500 hover:text-slate-300'"
+        >
+          <span class="flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            {{ marketStore.typeDetail.typeName }}
+          </span>
+        </button>
+
+        <!-- Alerts tab -->
         <button
           @click="activeTab = 'alerts'"
-          class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors"
-          :class="tabClasses('alerts')"
+          class="tab-btn px-5 py-3 text-sm font-medium transition-colors relative"
+          :class="activeTab === 'alerts' ? 'tab-active text-cyan-400' : 'text-slate-500 hover:text-slate-300'"
         >
-          {{ t('market.tabs.alerts') }}
-          <span
-            v-if="activeAlertsCount > 0"
-            class="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-cyan-500/20 text-cyan-400"
-          >
-            {{ activeAlertsCount }}
+          <span class="flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+            {{ t('market.tabs.alerts') }}
+            <span
+              v-if="activeAlertsCount > 0"
+              class="text-xs bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded"
+            >
+              {{ activeAlertsCount }}
+            </span>
           </span>
         </button>
       </div>
@@ -121,7 +198,7 @@ const categoryPillClasses = (groupId: number | null): string => {
       <!-- Error banner -->
       <div
         v-if="marketStore.error"
-        class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-center gap-3"
+        class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-center gap-3 mb-6"
       >
         <svg class="w-5 h-5 text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -139,140 +216,150 @@ const categoryPillClasses = (groupId: number | null): string => {
 
       <!-- Browse Tab -->
       <div v-if="activeTab === 'browse'">
-        <div class="flex flex-col lg:flex-row gap-6">
-          <!-- Left: Search + Results -->
-          <div class="lg:w-2/5 space-y-4" :class="{ 'lg:w-full': !marketStore.typeDetail }">
-            <MarketSearch @select="handleSearchSelect" />
+        <MarketSearch @select="handleSearchSelect" />
 
-            <!-- Recent Searches -->
-            <div v-if="marketStore.recentSearches.length > 0" class="space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">{{ t('market.recentSearches') }}</span>
+        <!-- Recent Searches + Favorites Row -->
+        <div
+          v-if="marketStore.recentSearches.length > 0 || marketStore.favorites.length > 0"
+          class="flex items-start gap-6 mb-6 mt-5"
+        >
+          <!-- Recent Searches -->
+          <div v-if="marketStore.recentSearches.length > 0" class="flex-1">
+            <h3 class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">{{ t('market.recentSearches') }}</h3>
+            <div class="flex flex-wrap gap-2">
+              <span
+                v-for="entry in marketStore.recentSearches"
+                :key="entry.typeId"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/50 border border-slate-700/50 rounded-lg text-xs text-slate-300 hover:border-cyan-500/30 hover:text-cyan-400 cursor-pointer transition-colors group"
+                @click="handleRecentSearchClick(entry.typeId)"
+              >
+                <img
+                  :src="getTypeIconUrl(entry.typeId, 32)"
+                  @error="onImageError"
+                  class="w-4 h-4 rounded"
+                  :alt="entry.typeName"
+                  loading="lazy"
+                />
+                {{ entry.typeName }}
                 <button
-                  @click="marketStore.clearRecentSearches()"
-                  class="text-xs text-slate-500 hover:text-slate-300 transition-colors"
-                >
-                  {{ t('market.clearRecent') }}
-                </button>
-              </div>
-              <div class="flex flex-wrap gap-1.5">
-                <button
-                  v-for="entry in marketStore.recentSearches"
-                  :key="entry.typeId"
-                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 text-xs hover:bg-slate-700 transition-colors group"
-                  @click="handleRecentSearchClick(entry.typeId)"
-                >
-                  <span>{{ entry.typeName }}</span>
-                  <svg
-                    class="w-3 h-3 text-slate-500 hover:text-slate-200 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    @click.stop="marketStore.removeRecentSearch(entry.typeId)"
-                  >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <!-- Category Filter Pills -->
-            <div v-if="marketStore.rootGroups.length > 0" class="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
-              <button
-                class="shrink-0 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors"
-                :class="categoryPillClasses(null)"
-                @click="marketStore.setSelectedGroup(null)"
-              >
-                {{ t('market.categories.all') }}
-              </button>
-              <button
-                v-for="group in marketStore.rootGroups"
-                :key="group.id"
-                class="shrink-0 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors whitespace-nowrap"
-                :class="categoryPillClasses(group.id)"
-                @click="marketStore.setSelectedGroup(group.id)"
-              >
-                {{ group.name }}
-              </button>
-            </div>
-
-            <MarketResultsTable
-              v-if="filteredSearchResults.length > 0"
-              :items="filteredSearchResults"
-              :selected-type-id="marketStore.selectedTypeId"
-              :show-category="true"
-              @select="selectItem"
-            />
-          </div>
-
-          <!-- Right: Detail panel -->
-          <div v-if="marketStore.typeDetail" class="lg:w-3/5">
-            <div class="bg-slate-900 rounded-xl border border-slate-800 p-5 relative">
-              <!-- Close button -->
-              <button
-                @click="marketStore.clearDetail()"
-                class="absolute top-3 right-3 p-1.5 hover:bg-slate-800 rounded-lg transition-colors text-slate-500 hover:text-slate-300"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-
-              <MarketTypeDetail :detail="marketStore.typeDetail" />
+                  @click.stop="marketStore.removeRecentSearch(entry.typeId)"
+                  class="ml-1 text-slate-600 hover:text-red-400 transition-colors"
+                >&times;</button>
+              </span>
             </div>
           </div>
 
-          <!-- Empty state when no detail selected and no search results -->
-          <div
-            v-if="!marketStore.typeDetail && filteredSearchResults.length === 0 && marketStore.searchResults.length === 0"
-            class="lg:flex-1 flex items-center justify-center py-16"
-          >
-            <div class="text-center">
-              <svg class="w-16 h-16 text-slate-700 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-              <p class="text-slate-500 text-sm">{{ t('market.search.placeholder') }}</p>
+          <!-- Favorites -->
+          <div v-if="marketStore.favorites.length > 0" class="flex-1">
+            <h3 class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
+              <span class="inline-flex items-center gap-1">
+                <svg class="w-3.5 h-3.5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                {{ t('market.favorites') }}
+              </span>
+            </h3>
+            <div class="flex flex-wrap gap-2">
+              <span
+                v-for="fav in marketStore.favorites"
+                :key="fav.typeId"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/5 border border-amber-500/20 rounded-lg text-xs text-amber-300 hover:border-amber-500/40 cursor-pointer transition-colors"
+                @click="handleFavoriteClick(fav.typeId)"
+              >
+                <img
+                  :src="getTypeIconUrl(fav.typeId, 32)"
+                  @error="onImageError"
+                  class="w-4 h-4 rounded"
+                  :alt="fav.typeName"
+                  loading="lazy"
+                />
+                {{ fav.typeName }}
+              </span>
             </div>
           </div>
         </div>
 
-        <!-- Loading overlay for detail -->
+        <!-- Category Filter Pills -->
+        <div v-if="marketStore.rootGroups.length > 0" class="flex flex-wrap items-center gap-1.5 mb-5">
+          <button
+            class="shrink-0 px-2 py-1 rounded-md text-[11px] font-medium transition-colors"
+            :class="allButtonClasses"
+            @click="marketStore.resetGroupFilters()"
+          >
+            {{ allButtonLabel }}
+          </button>
+          <button
+            v-for="group in marketStore.rootGroups"
+            :key="group.id"
+            class="shrink-0 px-2 py-1 rounded-md text-[11px] font-medium transition-colors whitespace-nowrap"
+            :class="categoryPillClasses(group.id)"
+            @click="marketStore.includedGroupId === group.id ? marketStore.setIncludedGroup(null) : marketStore.setIncludedGroup(group.id)"
+            @contextmenu.prevent="marketStore.toggleGroupExclusion(group.id)"
+          >
+            {{ group.name }}
+          </button>
+        </div>
+
+        <MarketResultsTable
+          v-if="filteredSearchResults.length > 0"
+          :items="filteredSearchResults"
+          :selected-type-id="marketStore.selectedTypeId"
+          :show-category="true"
+          @select="selectItem"
+        />
+
+        <!-- Empty state when no search results -->
+        <div
+          v-if="filteredSearchResults.length === 0 && marketStore.searchResults.length === 0"
+          class="flex items-center justify-center py-16"
+        >
+          <div class="text-center">
+            <svg class="w-16 h-16 text-slate-700 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            </svg>
+            <p class="text-slate-500 text-sm">{{ t('market.search.placeholder') }}</p>
+          </div>
+        </div>
+
+        <!-- Loading overlay for search -->
         <div
           v-if="marketStore.isLoading"
           class="flex items-center justify-center py-8"
         >
-          <svg class="w-6 h-6 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
+          <LoadingSpinner size="md+" class="text-cyan-400" />
           <span class="ml-2 text-slate-400 text-sm">{{ t('common.actions.loading') }}</span>
         </div>
       </div>
 
-      <!-- Favorites Tab -->
-      <div v-if="activeTab === 'favorites'">
-        <MarketResultsTable
-          :items="marketStore.favorites.map(f => ({
-            typeId: f.typeId,
-            typeName: f.typeName,
-            jitaSell: f.jitaSell,
-            jitaBuy: f.jitaBuy,
-            change30d: f.change30d,
-          }))"
-          :selected-type-id="marketStore.selectedTypeId"
-          @select="selectItemAndBrowse"
-        />
+      <!-- Detail Tab (full width) -->
+      <div v-if="activeTab === 'detail' && marketStore.typeDetail">
+        <MarketTypeDetail :detail="marketStore.typeDetail" @back="handleCloseDetail" />
       </div>
 
       <!-- Alerts Tab -->
       <div v-if="activeTab === 'alerts'">
         <AlertsPanel
           :alerts="marketStore.alerts"
+          :structure-name="marketStore.typeDetail?.structureName"
           @delete="(id: string) => marketStore.deleteAlert(id)"
-          @select-item="selectItemAndBrowse"
+          @select-item="selectItemFromAlerts"
         />
       </div>
 
     </div>
   </MainLayout>
 </template>
+
+<style scoped>
+.tab-active {
+  position: relative;
+}
+.tab-active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #22d3ee, #6366f1);
+  border-radius: 1px;
+}
+</style>

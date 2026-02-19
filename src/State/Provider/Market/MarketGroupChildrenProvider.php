@@ -22,7 +22,7 @@ class MarketGroupChildrenProvider implements ProviderInterface
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): MarketGroupResource
     {
-        $groupId = (int) ($uriVariables['groupId'] ?? 0);
+        $groupId = (int) ($uriVariables['id'] ?? 0);
         $group = $this->marketGroupRepository->find($groupId);
 
         if ($group === null) {

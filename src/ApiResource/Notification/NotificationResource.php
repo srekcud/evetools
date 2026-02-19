@@ -25,6 +25,7 @@ use App\State\Provider\Notification\NotificationProvider;
             provider: NotificationCollectionProvider::class,
             openapi: new Model\Operation(
                 summary: 'List notifications (paginated)',
+                tags: ['Notifications'],
                 parameters: [
                     new Model\Parameter(name: 'page', in: 'query', schema: ['type' => 'integer', 'default' => 1]),
                     new Model\Parameter(name: 'category', in: 'query', schema: ['type' => 'string']),
@@ -38,6 +39,7 @@ use App\State\Provider\Notification\NotificationProvider;
             processor: MarkReadProcessor::class,
             openapi: new Model\Operation(
                 summary: 'Mark a notification as read',
+                tags: ['Notifications'],
                 requestBody: new Model\RequestBody(
                     content: new \ArrayObject([
                         'application/merge-patch+json' => [
@@ -54,7 +56,7 @@ use App\State\Provider\Notification\NotificationProvider;
             uriTemplate: '/me/notifications/read-all',
             input: EmptyInput::class,
             processor: MarkAllReadProcessor::class,
-            openapi: new Model\Operation(summary: 'Mark all notifications as read'),
+            openapi: new Model\Operation(summary: 'Mark all notifications as read', tags: ['Notifications']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

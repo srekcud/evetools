@@ -17,7 +17,7 @@ use App\State\Provider\Me\UserProvider;
         new Get(
             uriTemplate: '/me',
             provider: UserProvider::class,
-            openapi: new Model\Operation(summary: 'Get current user', description: 'Returns the authenticated user with their characters'),
+            openapi: new Model\Operation(summary: 'Get current user', description: 'Returns the authenticated user with their characters', tags: ['Account & Characters']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

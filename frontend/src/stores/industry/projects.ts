@@ -1,13 +1,16 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiRequest } from '@/services/api'
-import type { IndustryProject, IndustryProjectStep, SearchResult, ShoppingListResponse } from './types'
+import type { IndustryProject, IndustryProjectStep, SearchResult, ShoppingListResponse, CostEstimation, BpcKit, CopyCosts, ProfitMarginResult } from './types'
 import { enrichProject, enrichStep, formatErrorMessage } from './compat'
 
 export const useProjectsStore = defineStore('industry-projects', () => {
   const projects = ref<IndustryProject[]>([])
   const currentProject = ref<IndustryProject | null>(null)
   const searchResults = ref<SearchResult[]>([])
+  const costEstimation = ref<CostEstimation | null>(null)
+  const bpcKit = ref<BpcKit | null>(null)
+  const copyCosts = ref<CopyCosts | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const totalProfit = ref(0)
@@ -201,6 +204,86 @@ export const useProjectsStore = defineStore('industry-projects', () => {
     }
   }
 
+  async function fetchCostEstimation(projectId: string): Promise<CostEstimation | null> {
+    try {
+      const data = await apiRequest<CostEstimation>(
+        `/industry/projects/${projectId}/cost-estimation`,
+      )
+      costEstimation.value = data
+      return data
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to fetch cost estimation'
+      return null
+    }
+  }
+
+  async function fetchBpcKit(projectId: string, desiredBpcCount: number = 1): Promise<BpcKit | null> {
+    try {
+      const params = new URLSearchParams()
+      if (desiredBpcCount > 1) params.set('desired_bpc_count', desiredBpcCount.toString())
+      const queryString = params.toString() ? `?${params.toString()}` : ''
+      const data = await apiRequest<BpcKit>(
+        `/industry/projects/${projectId}/bpc-kit${queryString}`,
+      )
+      bpcKit.value = data
+      return data
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to fetch BPC kit'
+      return null
+    }
+  }
+
+  async function fetchCopyCosts(projectId: string): Promise<CopyCosts | null> {
+    try {
+      const data = await apiRequest<CopyCosts>(
+        `/industry/projects/${projectId}/copy-costs`,
+      )
+      copyCosts.value = data
+      return data
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to fetch copy costs'
+      return null
+    }
+  }
+
+  // Profit Margin
+  const marginResult = ref<ProfitMarginResult | null>(null)
+  const marginLoading = ref(false)
+
+  async function analyzeMargin(
+    typeId: number,
+    params: {
+      runs?: number
+      me?: number
+      te?: number
+      solarSystemId?: number
+      structureId?: number
+      decryptorTypeId?: number | null
+    } = {},
+  ): Promise<ProfitMarginResult | null> {
+    marginLoading.value = true
+    try {
+      const queryParams = new URLSearchParams()
+      if (params.runs != null) queryParams.set('runs', params.runs.toString())
+      if (params.me != null) queryParams.set('me', params.me.toString())
+      if (params.te != null) queryParams.set('te', params.te.toString())
+      if (params.solarSystemId != null) queryParams.set('solarSystemId', params.solarSystemId.toString())
+      if (params.structureId != null) queryParams.set('structureId', params.structureId.toString())
+      if (params.decryptorTypeId != null) queryParams.set('decryptorTypeId', params.decryptorTypeId.toString())
+      const qs = queryParams.toString() ? `?${queryParams.toString()}` : ''
+      const data = await apiRequest<ProfitMarginResult>(
+        `/industry/profit-margin/${typeId}${qs}`,
+      )
+      marginResult.value = data
+      return data
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to analyze profit margin'
+      return null
+    } finally {
+      marginLoading.value = false
+    }
+  }
+
   function clearError() {
     error.value = null
   }
@@ -209,6 +292,11 @@ export const useProjectsStore = defineStore('industry-projects', () => {
     projects,
     currentProject,
     searchResults,
+    costEstimation,
+    bpcKit,
+    copyCosts,
+    marginResult,
+    marginLoading,
     isLoading,
     error,
     totalProfit,
@@ -222,8 +310,12 @@ export const useProjectsStore = defineStore('industry-projects', () => {
     deleteProject,
     matchJobs,
     fetchShoppingList,
+    fetchCostEstimation,
+    fetchBpcKit,
+    fetchCopyCosts,
     applyStock,
     adaptStock,
+    analyzeMargin,
     clearError,
   }
 })

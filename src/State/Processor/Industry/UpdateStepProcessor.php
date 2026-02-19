@@ -13,7 +13,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
-use App\Service\Industry\IndustryProjectService;
+use App\Service\Industry\IndustryStepCalculator;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -33,7 +33,7 @@ class UpdateStepProcessor implements ProcessorInterface
         private readonly IndustryProjectStepRepository $stepRepository,
         private readonly IndustryActivityProductRepository $activityProductRepository,
         private readonly IndustryStructureConfigRepository $structureConfigRepository,
-        private readonly IndustryProjectService $projectService,
+        private readonly IndustryStepCalculator $stepCalculator,
         private readonly IndustryResourceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,
     ) {
@@ -109,7 +109,7 @@ class UpdateStepProcessor implements ProcessorInterface
         $this->entityManager->flush();
 
         if ($needsCascade) {
-            $cascadedSteps = $this->projectService->recalculateStepQuantities($project);
+            $cascadedSteps = $this->stepCalculator->recalculateStepQuantities($project);
 
             if (!empty($cascadedSteps)) {
                 $updatedStepResources = [$this->mapper->stepToResource($step)];

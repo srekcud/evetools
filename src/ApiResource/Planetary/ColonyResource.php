@@ -22,11 +22,12 @@ use App\State\Provider\Planetary\ColonyDetailProvider;
         new GetCollection(
             uriTemplate: '/planetary',
             provider: ColonyCollectionProvider::class,
-            openapi: new Model\Operation(summary: 'List all PI colonies'),
+            openapi: new Model\Operation(summary: 'List all PI colonies', tags: ['Planetary']),
         ),
         new Get(
             uriTemplate: '/planetary/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}',
             provider: ColonyDetailProvider::class,
+            openapi: new Model\Operation(tags: ['Planetary']),
         ),
         new Post(
             uriTemplate: '/planetary/sync',
@@ -34,7 +35,7 @@ use App\State\Provider\Planetary\ColonyDetailProvider;
             output: false,
             status: 204,
             processor: SyncPlanetaryProcessor::class,
-            openapi: new Model\Operation(summary: 'Sync planetary colonies from ESI'),
+            openapi: new Model\Operation(summary: 'Sync planetary colonies from ESI', tags: ['Planetary']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

@@ -111,6 +111,7 @@ export interface IndustryProject {
   maxJobDurationDays: number
   status: string
   personalUse: boolean
+  isT2: boolean
   bpoCost: number | null
   materialCost: number | null
   transportCost: number | null
@@ -118,6 +119,11 @@ export interface IndustryProject {
   taxAmount: number | null
   sellPrice: number | null
   totalCost: number | null
+  estimatedJobCost: number | null
+  estimatedSellPrice: number | null
+  estimatedSellPriceSource: 'jita' | 'structure' | null
+  estimatedTaxAmount: number | null
+  estimatedMaterialCost: number | null
   profit: number | null
   profitPercent: number | null
   notes: string | null
@@ -149,6 +155,7 @@ export interface ShoppingListItem {
   jitaWeightedUnitPrice: number | null
   jitaWeightedTotal: number | null
   jitaCoverage: number | null
+  isInventionMaterial?: boolean
 }
 
 export interface ShoppingListTotals {
@@ -200,6 +207,7 @@ export interface TreeMaterial {
 export interface SearchResult {
   typeId: number
   typeName: string
+  isT2: boolean
 }
 
 export interface BlacklistCategory {
@@ -293,6 +301,84 @@ export interface UserSettings {
   favoriteManufacturingSystemName: string | null
   favoriteReactionSystemId: number | null
   favoriteReactionSystemName: string | null
+  brokerFeeRate: number
+  salesTaxRate: number
+}
+
+// Profit Margin types
+
+export interface ProfitMarginMaterial {
+  typeId: number
+  typeName: string
+  quantity: number
+  unitPrice: number
+  totalPrice: number
+}
+
+export interface ProfitMarginJobStep {
+  productTypeId: number
+  productName: string
+  activityType: string
+  runs: number
+  installCost: number
+}
+
+export interface ProfitMarginSellPrices {
+  jitaSell: number | null
+  structureSell: number | null
+  structureBuy: number | null
+  contractSell: number | null
+  contractCount: number | null
+  structureId: number
+  structureName: string
+}
+
+export interface MarginEntry {
+  revenue: number
+  fees: number
+  profit: number
+  margin: number
+}
+
+export interface ProfitMarginInventionOption {
+  decryptorTypeId: number | null
+  decryptorName: string
+  me: number
+  te: number
+  runs: number
+  probability: number
+  inventionCost: number
+  totalProductionCost: number
+  bestMargin: number
+}
+
+export interface ProfitMarginResult {
+  typeId: number
+  typeName: string
+  isT2: boolean
+  runs: number
+  outputQuantity: number
+  outputPerRun: number
+  materialCost: number
+  materials: ProfitMarginMaterial[]
+  jobInstallCost: number
+  jobInstallSteps: ProfitMarginJobStep[]
+  inventionCost: number
+  copyCost: number
+  totalCost: number
+  costPerUnit: number
+  invention: {
+    baseProbability: number
+    datacores: string[]
+    selectedDecryptorTypeId: number | null
+    selectedDecryptorName: string
+    options: ProfitMarginInventionOption[]
+  } | null
+  sellPrices: ProfitMarginSellPrices
+  brokerFeeRate: number
+  salesTaxRate: number
+  margins: Record<string, MarginEntry | null>
+  dailyVolume: number
 }
 
 export interface AvailableJob {
@@ -311,6 +397,36 @@ export interface AvailableJob {
   matchId: string | null
 }
 
+export interface CostEstimationMaterial {
+  typeId: number
+  typeName: string
+  quantity: number
+  unitPrice: number
+  totalPrice: number
+}
+
+export interface CostEstimationStep {
+  stepId: string
+  productTypeId: number
+  productName: string
+  solarSystemId: number
+  systemName: string
+  costIndex: number
+  runs: number
+  installCost: number
+}
+
+export interface CostEstimation {
+  id: string
+  materialCost: number
+  jobInstallCost: number
+  bpoCost: number
+  totalCost: number
+  perUnit: number
+  materials: CostEstimationMaterial[]
+  jobInstallSteps: CostEstimationStep[]
+}
+
 export interface PurchaseSuggestion {
   transactionId: number
   transactionUuid: string
@@ -323,4 +439,71 @@ export interface PurchaseSuggestion {
   characterName: string
   locationId: number | null
   alreadyLinked: boolean
+}
+
+// Copy costs types (for CostEstimation tab)
+
+export interface CopyCostEntry {
+  blueprintTypeId: number
+  blueprintName: string
+  productTypeName: string
+  runs: number
+  cost: number
+  depth: number
+}
+
+export interface CopyCosts {
+  id: string
+  copies: CopyCostEntry[]
+  totalCopyCost: number
+}
+
+// BPC Kit types
+
+export interface BpcKitDatacore {
+  typeId: number
+  typeName: string
+  quantity: number
+  unitPrice: number
+  totalPrice: number
+}
+
+export interface BpcKitDecryptorOption {
+  decryptorTypeId: number | null
+  decryptorName: string
+  me: number
+  te: number
+  runs: number
+  probability: number
+  costPerAttempt: number
+  expectedAttempts: number
+  totalCost: number
+  costBreakdown: {
+    datacores: number
+    decryptor: number
+    copyCost: number
+    inventionInstall: number
+  }
+}
+
+export interface BpcKitInvention {
+  productTypeId: number
+  productName: string
+  baseProbability: number
+  desiredSuccesses: number
+  datacores: BpcKitDatacore[]
+  decryptorOptions: BpcKitDecryptorOption[]
+}
+
+export interface BpcKitSummary {
+  totalInventionCost: number
+  bestDecryptorTypeId: number | null
+  totalBpcKitCost: number
+}
+
+export interface BpcKit {
+  id: string
+  isT2: boolean
+  inventions: BpcKitInvention[]
+  summary: BpcKitSummary
 }

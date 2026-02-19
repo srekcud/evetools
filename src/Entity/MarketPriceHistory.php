@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Constant\EveConstants;
 use App\Repository\MarketPriceHistoryRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -16,7 +17,7 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(columns: ['type_id'])]
 class MarketPriceHistory
 {
-    public const DEFAULT_REGION_ID = 10000002; // The Forge
+    public const DEFAULT_REGION_ID = EveConstants::THE_FORGE_REGION_ID;
 
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]

@@ -41,4 +41,7 @@ class UpdateProjectInput
     public ?bool $personalUse = null;
 
     public ?string $jobsStartDate = null;
+
+    /** @var array<array{typeId: int, typeName: string, quantity: int}>|null */
+    public ?array $inventionMaterials = null;
 }

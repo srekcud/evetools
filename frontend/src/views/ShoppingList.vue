@@ -8,6 +8,7 @@ import ShoppingListResults from '@/components/shopping/ShoppingListResults.vue'
 import AppraisalResults from '@/components/shopping/AppraisalResults.vue'
 import type { ShoppingItem, ShoppingTotals } from '@/components/shopping/ShoppingListResults.vue'
 import type { AppraisalItem, AppraisalTotals } from '@/components/shopping/AppraisalResults.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 interface ShoppingListResponse {
   items: ShoppingItem[]
@@ -29,6 +30,24 @@ interface AppraisalResponse {
   priceError: string | null
 }
 
+type FormatType = 'auto' | 'multibuy' | 'cargo_scan' | 'eft' | 'dscan' | 'contract' | 'killmail' | 'inventory'
+
+interface FormatOption {
+  key: FormatType
+  labelKey: string
+}
+
+const FORMAT_OPTIONS: FormatOption[] = [
+  { key: 'auto', labelKey: 'appraisal.formatAutoDetect' },
+  { key: 'multibuy', labelKey: 'appraisal.formatMultibuy' },
+  { key: 'cargo_scan', labelKey: 'appraisal.formatCargoScan' },
+  { key: 'eft', labelKey: 'appraisal.formatEft' },
+  { key: 'dscan', labelKey: 'appraisal.formatDscan' },
+  { key: 'contract', labelKey: 'appraisal.formatContract' },
+  { key: 'killmail', labelKey: 'appraisal.formatKillmail' },
+  { key: 'inventory', labelKey: 'appraisal.formatInventory' },
+]
+
 interface StructureSearchResult {
   id: number
   name: string
@@ -41,6 +60,22 @@ const authStore = useAuthStore()
 
 // Mode toggle
 const mode = ref<'import' | 'appraisal'>('appraisal')
+
+// Format detection
+const selectedFormat = ref<FormatType>('auto')
+const detectedFormat = ref<FormatType | null>(null)
+
+function selectFormat(format: FormatType) {
+  selectedFormat.value = format
+  if (format !== 'auto') {
+    detectedFormat.value = null
+  }
+}
+
+function formatLabelForDetection(format: FormatType): string {
+  const option = FORMAT_OPTIONS.find(o => o.key === format)
+  return option ? t(option.labelKey) : format
+}
 
 // State
 const inputText = ref('')
@@ -146,6 +181,11 @@ async function parseItems() {
     }
 
     result.value = await safeJsonParse<ShoppingListResponse>(response)
+
+    // Simulate format detection (visual feedback)
+    if (selectedFormat.value === 'auto' && result.value && result.value.items.length > 0) {
+      detectedFormat.value = 'multibuy'
+    }
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'An error occurred'
   } finally {
@@ -159,6 +199,8 @@ function clear() {
   appraisalResult.value = null
   error.value = ''
   shareUrl.value = null
+  selectedFormat.value = 'auto'
+  detectedFormat.value = null
 }
 
 async function appraise() {
@@ -178,6 +220,7 @@ async function appraise() {
       },
       body: JSON.stringify({
         text: inputText.value,
+        structureId: selectedStructure.value.id,
       }),
     })
 
@@ -187,6 +230,11 @@ async function appraise() {
     }
 
     appraisalResult.value = await safeJsonParse<AppraisalResponse>(response)
+
+    // Simulate format detection (backend auto-detects, this is visual feedback)
+    if (selectedFormat.value === 'auto' && appraisalResult.value && appraisalResult.value.items.length > 0) {
+      detectedFormat.value = 'multibuy'
+    }
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'An error occurred'
   } finally {
@@ -337,89 +385,110 @@ Megacyte 100
 200x Nocxium
 ..."
             ></textarea>
-            <p class="text-xs text-slate-500 mt-2">
-              {{ t('shopping.supportedFormats') }}
-            </p>
+            <!-- Format detection chips -->
+            <div class="flex items-center gap-2 flex-wrap mt-1">
+              <span class="text-[11px] text-slate-500 mr-1">{{ t('appraisal.formatLabel') }}</span>
+              <button
+                v-for="fmt in FORMAT_OPTIONS"
+                :key="fmt.key"
+                @click="selectFormat(fmt.key)"
+                class="px-3 py-1 rounded-md text-[11px] font-medium transition-all border cursor-pointer"
+                :class="[
+                  selectedFormat === fmt.key && fmt.key === 'auto' && !detectedFormat
+                    ? 'bg-cyan-500/12 text-cyan-400 border-cyan-500/25'
+                    : detectedFormat === fmt.key && selectedFormat === 'auto'
+                      ? 'bg-green-500/12 text-green-400 border-green-500/25'
+                      : selectedFormat === fmt.key && fmt.key !== 'auto'
+                        ? 'bg-cyan-500/12 text-cyan-400 border-cyan-500/25'
+                        : 'bg-slate-800/60 text-slate-500 border-transparent hover:text-slate-400 hover:bg-slate-700/60'
+                ]"
+              >
+                {{ t(fmt.labelKey) }}
+              </button>
+              <div class="flex-1"></div>
+              <span
+                v-if="detectedFormat && selectedFormat === 'auto'"
+                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-green-500/10 text-green-400 border border-green-500/20"
+              >
+                <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+                {{ t('appraisal.formatDetected', { format: formatLabelForDetection(detectedFormat) }) }}
+              </span>
+            </div>
           </div>
 
           <div class="flex flex-wrap items-end gap-4">
-            <!-- Structure selector with search (import mode only) -->
-            <template v-if="mode === 'import'">
-              <div class="flex-1 min-w-[300px] max-w-[450px]">
-                <label class="block text-sm font-medium text-slate-300 mb-1">
-                  {{ t('shopping.structureLabel') }}
-                </label>
+            <!-- Structure selector with search (shared between both modes) -->
+            <div class="flex-1 min-w-[300px] max-w-[450px]">
+              <label class="block text-sm font-medium text-slate-300 mb-1">
+                {{ t('shopping.structureLabel') }}
+              </label>
 
-                <div class="relative">
-                  <input
-                    v-model="structureSearchQuery"
-                    type="text"
-                    :placeholder="selectedStructure.id ? selectedStructure.name : 'C-J6MT - 1st Taj Mahgoon (defaut)'"
-                    @focus="showStructureDropdown = true"
-                    @blur="onStructureInputBlur"
-                    :class="[
-                      'w-full rounded-lg pl-3 pr-10 py-2 focus:outline-hidden',
-                      selectedStructure.id
-                        ? 'bg-slate-800 border-2 border-cyan-500/50 text-cyan-400 placeholder-cyan-400'
-                        : 'bg-slate-800 border border-slate-700 text-slate-200 placeholder-slate-400 focus:border-cyan-500/50'
-                    ]"
-                  />
+              <div class="relative">
+                <input
+                  v-model="structureSearchQuery"
+                  type="text"
+                  :placeholder="selectedStructure.id ? selectedStructure.name : 'C-J6MT - 1st Taj Mahgoon (defaut)'"
+                  @focus="showStructureDropdown = true"
+                  @blur="onStructureInputBlur"
+                  :class="[
+                    'w-full rounded-lg pl-3 pr-10 py-2 focus:outline-hidden',
+                    selectedStructure.id
+                      ? 'bg-slate-800 border-2 border-cyan-500/50 text-cyan-400 placeholder-cyan-400'
+                      : 'bg-slate-800 border border-slate-700 text-slate-200 placeholder-slate-400 focus:border-cyan-500/50'
+                  ]"
+                />
 
-                  <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                    <svg v-if="isSearchingStructures" class="w-4 h-4 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
-                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <button
-                      v-else-if="selectedStructure.id || structureSearchQuery"
-                      @mousedown.prevent="clearStructure"
-                      class="text-slate-400 hover:text-slate-200"
-                      title="Revenir au defaut"
-                    >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  <!-- Dropdown -->
-                  <div
-                    v-if="showStructureDropdown && (structureSearchResults.length > 0 || (structureSearchQuery.length >= 3 && !isSearchingStructures))"
-                    class="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto"
+                <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  <LoadingSpinner v-if="isSearchingStructures" size="sm" class="text-cyan-400" />
+                  <button
+                    v-else-if="selectedStructure.id || structureSearchQuery"
+                    @mousedown.prevent="clearStructure"
+                    class="text-slate-400 hover:text-slate-200"
+                    title="Revenir au defaut"
                   >
-                    <button
-                      v-for="struct in structureSearchResults"
-                      :key="struct.id"
-                      @mousedown.prevent="selectStructure(struct)"
-                      class="w-full px-3 py-2 text-left text-slate-200 hover:bg-slate-700/50 transition-colors border-b border-slate-800 last:border-0"
-                    >
-                      <div class="font-medium truncate">{{ struct.name }}</div>
-                    </button>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
 
-                    <div
-                      v-if="structureSearchQuery.length >= 3 && structureSearchResults.length === 0 && !isSearchingStructures"
-                      class="px-3 py-2 text-slate-400 text-sm"
-                    >
-                      {{ t('shopping.noStructureFound') }}
-                    </div>
+                <!-- Dropdown -->
+                <div
+                  v-if="showStructureDropdown && (structureSearchResults.length > 0 || (structureSearchQuery.length >= 3 && !isSearchingStructures))"
+                  class="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto"
+                >
+                  <button
+                    v-for="struct in structureSearchResults"
+                    :key="struct.id"
+                    @mousedown.prevent="selectStructure(struct)"
+                    class="w-full px-3 py-2 text-left text-slate-200 hover:bg-slate-700/50 transition-colors border-b border-slate-800 last:border-0"
+                  >
+                    <div class="font-medium truncate">{{ struct.name }}</div>
+                  </button>
+
+                  <div
+                    v-if="structureSearchQuery.length >= 3 && structureSearchResults.length === 0 && !isSearchingStructures"
+                    class="px-3 py-2 text-slate-400 text-sm"
+                  >
+                    {{ t('shopping.noStructureFound') }}
                   </div>
                 </div>
               </div>
+            </div>
 
-              <!-- Transport cost -->
-              <div>
-                <label class="block text-sm font-medium text-slate-300 mb-1">
-                  {{ t('shopping.transportCost') }}
-                </label>
-                <input
-                  v-model.number="transportCostPerM3"
-                  type="number"
-                  min="0"
-                  step="100"
-                  class="w-28 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-hidden focus:border-cyan-500/50"
-                />
-              </div>
-            </template>
+            <!-- Transport cost (import mode only) -->
+            <div v-if="mode === 'import'">
+              <label class="block text-sm font-medium text-slate-300 mb-1">
+                {{ t('shopping.transportCost') }}
+              </label>
+              <input
+                v-model.number="transportCostPerM3"
+                type="number"
+                min="0"
+                step="100"
+                class="w-28 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-hidden focus:border-cyan-500/50"
+              />
+            </div>
 
             <div class="flex-1"></div>
 
@@ -438,10 +507,7 @@ Megacyte 100
               :disabled="!hasInput || isLoading"
               class="px-6 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white text-sm font-medium transition-colors flex items-center gap-2"
             >
-              <svg v-if="isLoading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
+              <LoadingSpinner v-if="isLoading" size="sm" />
               {{ t('shopping.calculate') }}
             </button>
 
@@ -452,10 +518,7 @@ Megacyte 100
               :disabled="!hasInput || isLoading"
               class="px-6 py-2 bg-gradient-to-r from-amber-700 to-amber-600 hover:from-amber-600 hover:to-amber-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white text-sm font-medium transition-colors flex items-center gap-2"
             >
-              <svg v-if="isLoading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
+              <LoadingSpinner v-if="isLoading" size="sm" />
               <svg v-else class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
               </svg>
@@ -495,6 +558,8 @@ Megacyte 100
         :totals="appraisalResult.totals"
         :not-found="appraisalResult.notFound"
         :price-error="appraisalResult.priceError"
+        :structure-id="selectedStructure.id"
+        :structure-name="selectedStructure.name || null"
       />
     </div>
   </MainLayout>

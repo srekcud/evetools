@@ -53,9 +53,9 @@ export const useSyncStore = defineStore('sync', () => {
   const miningProgress = computed(() => getSyncProgress('mining'))
   const walletTransactionsProgress = computed(() => getSyncProgress('wallet-transactions'))
   const planetaryProgress = computed(() => getSyncProgress('planetary'))
+  const publicContractsProgress = computed(() => getSyncProgress('public-contracts'))
   const adminSyncProgress = computed(() => getSyncProgress('admin-sync'))
   const notificationsProgress = computed(() => getSyncProgress('notifications'))
-  const profitTrackerProgress = computed(() => getSyncProgress('profit-tracker'))
 
   // Actions
   async function fetchToken(): Promise<MercureToken | null> {
@@ -246,9 +246,9 @@ export const useSyncStore = defineStore('sync', () => {
     miningProgress,
     walletTransactionsProgress,
     planetaryProgress,
+    publicContractsProgress,
     adminSyncProgress,
     notificationsProgress,
-    profitTrackerProgress,
 
     // Actions
     connect,

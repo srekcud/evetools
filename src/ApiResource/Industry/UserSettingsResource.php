@@ -19,14 +19,14 @@ use App\State\Provider\Industry\UserSettingsProvider;
         new Get(
             uriTemplate: '/industry/settings',
             provider: UserSettingsProvider::class,
-            openapi: new Model\Operation(summary: 'Get industry settings', description: 'Returns industry user settings including favorite systems'),
+            openapi: new Model\Operation(summary: 'Get industry settings', description: 'Returns industry user settings including favorite systems', tags: ['Industry - Configuration']),
         ),
         new Patch(
             uriTemplate: '/industry/settings',
             provider: UserSettingsProvider::class,
             processor: UpdateUserSettingsProcessor::class,
             input: UpdateUserSettingsInput::class,
-            openapi: new Model\Operation(summary: 'Update industry settings', description: 'Updates industry user settings'),
+            openapi: new Model\Operation(summary: 'Update industry settings', description: 'Updates industry user settings', tags: ['Industry - Configuration']),
         ),
     ],
     security: "is_granted('ROLE_USER')",
@@ -40,4 +40,8 @@ class UserSettingsResource
     public ?int $favoriteReactionSystemId = null;
 
     public ?string $favoriteReactionSystemName = null;
+
+    public float $brokerFeeRate = 0.036;
+
+    public float $salesTaxRate = 0.036;
 }

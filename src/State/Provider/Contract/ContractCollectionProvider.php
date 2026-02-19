@@ -9,8 +9,10 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Contract\ContractItemResource;
 use App\ApiResource\Contract\ContractListResource;
 use App\ApiResource\Contract\ContractResource;
+use App\Constant\EveConstants;
 use App\Entity\User;
 use App\Service\ESI\EsiClient;
+use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -23,15 +25,16 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
  */
 class ContractCollectionProvider implements ProviderInterface
 {
-    private const FORGE_REGION_ID = 10000002;
-    private const CJ6MT_KEEPSTAR_ID = 1049588174021;
+    private const FORGE_REGION_ID = EveConstants::THE_FORGE_REGION_ID;
 
     public function __construct(
         private readonly Security $security,
         private readonly EsiClient $esiClient,
         private readonly StructureMarketService $structureMarketService,
+        private readonly JitaMarketService $jitaMarketService,
         private readonly RequestStack $requestStack,
         private readonly LoggerInterface $logger,
+        private readonly int $defaultMarketStructureId,
     ) {
     }
 
@@ -72,9 +75,45 @@ class ContractCollectionProvider implements ProviderInterface
 
             $publicContracts = $this->getPublicContractsForComparison();
 
+            // Pre-fetch all contract items to collect type IDs for batch price lookup
+            $contractItems = [];
+            $allTypeIds = [];
+
+            foreach ($itemExchangeContracts as $contract) {
+                try {
+                    $items = $this->esiClient->get(
+                        "/characters/{$characterId}/contracts/{$contract['contract_id']}/items/",
+                        $token
+                    );
+                    $contractItems[$contract['contract_id']] = $items;
+
+                    foreach ($items as $item) {
+                        if ($item['is_included'] ?? true) {
+                            $allTypeIds[] = $item['type_id'];
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    $this->logger->warning('Failed to fetch contract items', [
+                        'contractId' => $contract['contract_id'],
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // Batch-fetch all Jita prices in a single call
+            $allTypeIds = array_values(array_unique($allTypeIds));
+            $jitaPrices = !empty($allTypeIds)
+                ? $this->jitaMarketService->getPricesWithFallback($allTypeIds)
+                : [];
+
             $result = [];
             foreach ($itemExchangeContracts as $contract) {
-                $contractData = $this->processContract($contract, $characterId, $token, $publicContracts);
+                $items = $contractItems[$contract['contract_id']] ?? null;
+                if ($items === null) {
+                    continue;
+                }
+
+                $contractData = $this->processContract($contract, $characterId, $items, $jitaPrices, $publicContracts);
                 if ($contractData !== null) {
                     $result[] = $contractData;
                 }
@@ -131,16 +170,13 @@ class ContractCollectionProvider implements ProviderInterface
 
     /**
      * @param array<string, mixed> $contract
+     * @param list<array<string, mixed>> $items
+     * @param array<int, float|null> $jitaPrices
      * @param array<int, array{price: float, volume: float}> $publicContracts
      */
-    private function processContract(array $contract, int $characterId, \App\Entity\EveToken $token, array $publicContracts): ?ContractResource
+    private function processContract(array $contract, int $characterId, array $items, array $jitaPrices, array $publicContracts): ?ContractResource
     {
         try {
-            $items = $this->esiClient->get(
-                "/characters/{$characterId}/contracts/{$contract['contract_id']}/items/",
-                $token
-            );
-
             $includedItems = array_filter($items, fn($item) => ($item['is_included'] ?? true));
 
             if (empty($includedItems)) {
@@ -159,10 +195,10 @@ class ContractCollectionProvider implements ProviderInterface
                 $quantity = $item['quantity'];
                 $typeName = $typeNames[$typeId] ?? 'Unknown';
 
-                $jitaPrice = $this->getLowestSellPrice($typeId, self::FORGE_REGION_ID);
+                $jitaPrice = $jitaPrices[$typeId] ?? null;
                 $itemJitaValue = $jitaPrice !== null ? $jitaPrice * $quantity : null;
 
-                $delvePrice = $this->structureMarketService->getLowestSellPrice(self::CJ6MT_KEEPSTAR_ID, $typeId);
+                $delvePrice = $this->structureMarketService->getLowestSellPrice($this->defaultMarketStructureId, $typeId);
                 $itemDelveValue = $delvePrice !== null ? $delvePrice * $quantity : null;
 
                 if ($itemJitaValue !== null) {
@@ -257,23 +293,6 @@ class ContractCollectionProvider implements ProviderInterface
                 'error' => $e->getMessage(),
             ]);
 
-            return null;
-        }
-    }
-
-    private function getLowestSellPrice(int $typeId, int $regionId): ?float
-    {
-        try {
-            $orders = $this->esiClient->get(
-                "/markets/{$regionId}/orders/?type_id={$typeId}&order_type=sell"
-            );
-
-            if (empty($orders)) {
-                return null;
-            }
-
-            return min(array_column($orders, 'price'));
-        } catch (\Throwable) {
             return null;
         }
     }

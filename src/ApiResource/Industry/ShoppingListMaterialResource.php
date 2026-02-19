@@ -46,4 +46,7 @@ class ShoppingListMaterialResource
 
     /** Order book coverage ratio (0.0 to 1.0), below 1.0 means insufficient depth */
     public ?float $jitaCoverage = null;
+
+    /** Whether this material is an invention material (datacore, decryptor) */
+    public bool $isInventionMaterial = false;
 }

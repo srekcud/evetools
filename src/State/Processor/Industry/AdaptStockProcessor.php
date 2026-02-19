@@ -10,7 +10,7 @@ use App\ApiResource\Industry\ProjectResource;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
-use App\Service\Industry\IndustryProjectService;
+use App\Service\Industry\IndustryStepCalculator;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -29,7 +29,7 @@ class AdaptStockProcessor implements ProcessorInterface
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
         private readonly IndustryActivityProductRepository $productRepository,
-        private readonly IndustryProjectService $projectService,
+        private readonly IndustryStepCalculator $stepCalculator,
         private readonly IndustryResourceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,
     ) {
@@ -84,7 +84,7 @@ class AdaptStockProcessor implements ProcessorInterface
         $this->entityManager->flush();
 
         // Cascade recalculation to update child steps
-        $this->projectService->recalculateStepQuantities($project);
+        $this->stepCalculator->recalculateStepQuantities($project);
 
         $resource = $this->mapper->projectToResource($project);
         $resource->steps = array_map(

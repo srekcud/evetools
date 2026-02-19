@@ -24,6 +24,7 @@ ChartJS.register(
 
 const props = defineProps<{
   data: HistoryEntry[]
+  source?: 'jita' | 'structure'
 }>()
 
 const { t } = useI18n()
@@ -34,25 +35,36 @@ function formatVolume(value: number): string {
   return value.toFixed(0)
 }
 
+const isStructure = computed(() => props.source === 'structure')
+
 const chartData = computed(() => {
   const labels = props.data.map(d => {
     const date = new Date(d.date)
     return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
   })
 
+  // Price reference for trend coloring: sellMin for structure, average for Jita
+  const getPrice = isStructure.value
+    ? (d: HistoryEntry) => d.sellMin ?? d.average
+    : (d: HistoryEntry) => d.average
+
+  const getVolume = isStructure.value
+    ? (d: HistoryEntry) => (d.sellVolume ?? 0) + (d.buyVolume ?? 0)
+    : (d: HistoryEntry) => d.volume
+
   // Color bars based on price trend vs previous day
   const colors = props.data.map((d, i) => {
     if (i === 0) return 'rgba(34, 211, 238, 0.6)'
-    const prevAvg = props.data[i - 1].average
-    return d.average >= prevAvg
+    const prev = getPrice(props.data[i - 1])
+    return getPrice(d) >= prev
       ? 'rgba(16, 185, 129, 0.6)'
       : 'rgba(239, 68, 68, 0.6)'
   })
 
   const borderColors = props.data.map((d, i) => {
     if (i === 0) return '#22d3ee'
-    const prevAvg = props.data[i - 1].average
-    return d.average >= prevAvg ? '#10b981' : '#ef4444'
+    const prev = getPrice(props.data[i - 1])
+    return getPrice(d) >= prev ? '#10b981' : '#ef4444'
   })
 
   return {
@@ -60,7 +72,7 @@ const chartData = computed(() => {
     datasets: [
       {
         label: t('market.detail.volume'),
-        data: props.data.map(d => d.volume),
+        data: props.data.map(d => getVolume(d)),
         backgroundColor: colors,
         borderColor: borderColors,
         borderWidth: 1,
@@ -118,7 +130,7 @@ const chartOptions = computed(() => ({
 
 <template>
   <div>
-    <div class="h-40 md:h-48">
+    <div style="height: 140px;">
       <Bar
         v-if="data.length > 0"
         :data="chartData"
@@ -127,6 +139,21 @@ const chartOptions = computed(() => ({
       <div v-else class="flex items-center justify-center h-full">
         <p class="text-sm text-slate-500">{{ t('market.search.noResults') }}</p>
       </div>
+    </div>
+
+    <!-- Custom Legend (colored by price trend) -->
+    <div
+      v-if="data.length > 0"
+      class="flex items-center justify-center gap-4 mt-2 text-[11px] text-slate-500"
+    >
+      <span class="flex items-center gap-1.5">
+        <span class="w-2.5 h-2.5 rounded-sm bg-emerald-500/60"></span>
+        {{ t('market.detail.priceUp') }}
+      </span>
+      <span class="flex items-center gap-1.5">
+        <span class="w-2.5 h-2.5 rounded-sm bg-red-500/60"></span>
+        {{ t('market.detail.priceDown') }}
+      </span>
     </div>
   </div>
 </template>

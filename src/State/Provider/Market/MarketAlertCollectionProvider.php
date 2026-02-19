@@ -11,6 +11,7 @@ use App\Entity\MarketPriceAlert;
 use App\Entity\User;
 use App\Repository\MarketPriceAlertRepository;
 use App\Service\JitaMarketService;
+use App\Service\StructureMarketService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
@@ -23,6 +24,7 @@ class MarketAlertCollectionProvider implements ProviderInterface
         private readonly Security $security,
         private readonly MarketPriceAlertRepository $alertRepository,
         private readonly JitaMarketService $jitaMarketService,
+        private readonly StructureMarketService $structureMarketService,
     ) {
     }
 
@@ -43,15 +45,39 @@ class MarketAlertCollectionProvider implements ProviderInterface
             return [];
         }
 
-        // Batch-load current prices
+        // Batch-load current Jita prices
         $typeIds = array_values(array_unique(array_map(
             static fn (MarketPriceAlert $a) => $a->getTypeId(),
             $alerts,
         )));
-        $sellPrices = $this->jitaMarketService->getPrices($typeIds);
-        $buyPrices = $this->jitaMarketService->getBuyPrices($typeIds);
+        $sellPrices = $this->jitaMarketService->getPricesWithFallback($typeIds);
+        $buyPrices = $this->jitaMarketService->getBuyPricesWithFallback($typeIds);
 
-        return array_map(function (MarketPriceAlert $alert) use ($sellPrices, $buyPrices) {
+        // Batch-load structure prices if user has a preferred structure and any alerts use it
+        $structureSellPrices = [];
+        $structureBuyPrices = [];
+        $structureId = $user->getPreferredMarketStructureId();
+
+        if ($structureId !== null) {
+            $hasStructureAlerts = array_filter(
+                $alerts,
+                static fn (MarketPriceAlert $a) => in_array($a->getPriceSource(), [
+                    MarketPriceAlert::SOURCE_STRUCTURE_SELL,
+                    MarketPriceAlert::SOURCE_STRUCTURE_BUY,
+                ], true),
+            );
+
+            if (!empty($hasStructureAlerts)) {
+                $structureTypeIds = array_values(array_unique(array_map(
+                    static fn (MarketPriceAlert $a) => $a->getTypeId(),
+                    $hasStructureAlerts,
+                )));
+                $structureSellPrices = $this->structureMarketService->getLowestSellPrices($structureId, $structureTypeIds);
+                $structureBuyPrices = $this->structureMarketService->getHighestBuyPrices($structureId, $structureTypeIds);
+            }
+        }
+
+        return array_map(function (MarketPriceAlert $alert) use ($sellPrices, $buyPrices, $structureSellPrices, $structureBuyPrices) {
             $resource = new MarketAlertResource();
             $resource->id = $alert->getId()?->toRfc4122() ?? '';
             $resource->typeId = $alert->getTypeId();
@@ -67,6 +93,8 @@ class MarketAlertCollectionProvider implements ProviderInterface
             $resource->currentPrice = match ($alert->getPriceSource()) {
                 MarketPriceAlert::SOURCE_JITA_SELL => $sellPrices[$alert->getTypeId()] ?? null,
                 MarketPriceAlert::SOURCE_JITA_BUY => $buyPrices[$alert->getTypeId()] ?? null,
+                MarketPriceAlert::SOURCE_STRUCTURE_SELL => $structureSellPrices[$alert->getTypeId()] ?? null,
+                MarketPriceAlert::SOURCE_STRUCTURE_BUY => $structureBuyPrices[$alert->getTypeId()] ?? null,
                 default => null,
             };
 

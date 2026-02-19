@@ -19,12 +19,12 @@ use App\State\Provider\Market\MarketGroupProvider;
         new GetCollection(
             uriTemplate: '/market/groups',
             provider: MarketGroupProvider::class,
-            openapi: new Model\Operation(summary: 'List root market groups'),
+            openapi: new Model\Operation(summary: 'List root market groups', tags: ['Market']),
         ),
         new Get(
-            uriTemplate: '/market/groups/{groupId}',
+            uriTemplate: '/market/groups/{id}',
             provider: MarketGroupChildrenProvider::class,
-            openapi: new Model\Operation(summary: 'Get children of a market group'),
+            openapi: new Model\Operation(summary: 'Get children of a market group', tags: ['Market']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

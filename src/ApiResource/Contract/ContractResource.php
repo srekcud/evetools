@@ -21,6 +21,7 @@ use App\State\Provider\Contract\ContractItemsProvider;
             output: ContractListResource::class,
             openapi: new Model\Operation(
                 summary: 'List user contracts with price comparison',
+                tags: ['Inventory'],
                 parameters: [
                     new Model\Parameter(name: 'status', in: 'query', schema: ['type' => 'string']),
                 ],
@@ -30,7 +31,7 @@ use App\State\Provider\Contract\ContractItemsProvider;
             uriTemplate: '/contracts/{contractId}/items',
             provider: ContractItemsProvider::class,
             output: ContractItemsResource::class,
-            openapi: new Model\Operation(summary: 'Get contract items with Jita prices'),
+            openapi: new Model\Operation(summary: 'Get contract items with Jita prices', tags: ['Inventory']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

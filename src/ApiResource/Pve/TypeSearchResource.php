@@ -19,6 +19,7 @@ use App\State\Provider\Pve\TypeSearchProvider;
             provider: TypeSearchProvider::class,
             openapi: new Model\Operation(
                 summary: 'Search for item types by name',
+                tags: ['Revenue - PVE'],
                 parameters: [
                     new Model\Parameter(name: 'query', in: 'query', schema: ['type' => 'string']),
                 ],

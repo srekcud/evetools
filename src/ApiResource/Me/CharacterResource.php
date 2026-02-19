@@ -23,20 +23,20 @@ use App\State\Provider\Me\CharacterCollectionProvider;
         new GetCollection(
             uriTemplate: '/me/characters',
             provider: CharacterCollectionProvider::class,
-            openapi: new Model\Operation(summary: 'List user characters', description: 'Returns all characters linked to the authenticated user'),
+            openapi: new Model\Operation(summary: 'List user characters', description: 'Returns all characters linked to the authenticated user', tags: ['Account & Characters']),
         ),
         new Delete(
             uriTemplate: '/me/characters/{id}',
             provider: CharacterDeleteProvider::class,
             processor: DeleteCharacterProcessor::class,
-            openapi: new Model\Operation(summary: 'Delete a character', description: 'Unlinks a character from the user account (cannot delete main character)'),
+            openapi: new Model\Operation(summary: 'Delete a character', description: 'Unlinks a character from the user account (cannot delete main character)', tags: ['Account & Characters']),
         ),
         new Post(
             uriTemplate: '/me/characters/{id}/set-main',
             processor: SetMainCharacterProcessor::class,
             input: EmptyInput::class,
             output: CharacterResource::class,
-            openapi: new Model\Operation(summary: 'Set main character', description: 'Sets a character as the main character for the user'),
+            openapi: new Model\Operation(summary: 'Set main character', description: 'Sets a character as the main character for the user', tags: ['Account & Characters']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

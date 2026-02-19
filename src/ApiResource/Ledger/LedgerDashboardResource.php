@@ -20,6 +20,7 @@ use App\State\Provider\Ledger\LedgerDailyStatsProvider;
             provider: LedgerDashboardProvider::class,
             openapi: new Model\Operation(
                 summary: 'Get combined ledger dashboard',
+                tags: ['Ledger'],
                 parameters: [
                     new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),
                 ],
@@ -31,6 +32,7 @@ use App\State\Provider\Ledger\LedgerDailyStatsProvider;
             output: LedgerDailyStatsResource::class,
             openapi: new Model\Operation(
                 summary: 'Get combined daily ledger statistics (PVE + Mining)',
+                tags: ['Ledger'],
                 parameters: [
                     new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),
                 ],

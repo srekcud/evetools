@@ -21,7 +21,7 @@ use App\State\Provider\Ansiblex\AnsiblexCollectionProvider;
         new GetCollection(
             uriTemplate: '/me/ansiblex',
             provider: AnsiblexCollectionProvider::class,
-            openapi: new Model\Operation(summary: 'List Ansiblex gates', description: 'Returns all Ansiblex jump gates for the user alliance'),
+            openapi: new Model\Operation(summary: 'List Ansiblex gates', description: 'Returns all Ansiblex jump gates for the user alliance', tags: ['Navigation']),
         ),
         new Post(
             uriTemplate: '/me/ansiblex/refresh',
@@ -31,6 +31,7 @@ use App\State\Provider\Ansiblex\AnsiblexCollectionProvider;
             openapi: new Model\Operation(
                 summary: 'Refresh Ansiblex gates',
                 description: 'Triggers a sync of Ansiblex gates (requires Director role)',
+                tags: ['Navigation'],
                 parameters: [
                     new Model\Parameter(name: 'async', in: 'query', required: false, schema: ['type' => 'boolean', 'default' => true]),
                 ],
@@ -41,7 +42,7 @@ use App\State\Provider\Ansiblex\AnsiblexCollectionProvider;
             processor: DiscoverAnsiblexProcessor::class,
             input: EmptyInput::class,
             output: AnsiblexSyncResultResource::class,
-            openapi: new Model\Operation(summary: 'Discover Ansiblex gates', description: 'Discovers Ansiblex gates via search (any character with ACL access)'),
+            openapi: new Model\Operation(summary: 'Discover Ansiblex gates', description: 'Discovers Ansiblex gates via search (any character with ACL access)', tags: ['Navigation']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

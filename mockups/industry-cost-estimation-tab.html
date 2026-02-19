@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EVE Tools - Cost Estimation Tab</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Rajdhani', 'sans-serif'],
+            mono: ['Share Tech Mono', 'monospace'],
+          },
+          colors: {
+            eve: {
+              dark: '#0a0c0f',
+              darker: '#050607',
+              accent: '#00d4ff',
+              'accent-dim': '#0099bb',
+              warning: '#ff6b35',
+              success: '#00ff88',
+              text: '#8892a2',
+              'text-bright': '#c5cdd8',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    html { font-family: 'Rajdhani', sans-serif; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0a0c0f; }
+    ::-webkit-scrollbar-thumb { background: rgba(6,182,212,.3); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(6,182,212,.5); }
+
+    .eve-card { background: rgb(15 23 42); border: 1px solid rgb(30 41 59); border-radius: 0.5rem; }
+    .editable { cursor: pointer; border-bottom: 1px dashed rgba(100, 116, 139, 0.3); }
+    .editable:hover { color: #06b6d4; border-bottom-color: #06b6d4; }
+  </style>
+</head>
+<body class="bg-eve-dark text-slate-200 min-h-screen font-display">
+
+  <!-- Simulated page wrapper -->
+  <div class="max-w-7xl mx-auto p-6">
+
+    <!-- Project header (simplified context) -->
+    <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <button class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-200">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+          </button>
+          <div class="flex items-center gap-4">
+            <div class="w-14 h-14 rounded-lg border border-slate-700 bg-slate-800 flex items-center justify-center overflow-hidden">
+              <img src="https://images.evetech.net/types/22456/icon?size=64" alt="Sabre" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+            </div>
+            <div>
+              <h3 class="text-2xl font-bold text-slate-100">Sabre</h3>
+              <div class="flex items-center gap-2 text-sm text-slate-500">
+                <span class="text-xs px-2 py-0.5 rounded-sm bg-cyan-500/20 text-cyan-400">Active</span>
+                <span class="text-slate-400">3 runs &middot; ME 2 &middot; TE 4</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button class="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/30 flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          Completed
+        </button>
+      </div>
+
+      <!-- Costs panel (existing 8 columns) -->
+      <div class="px-6 pt-6">
+        <div class="eve-card p-4 mb-6">
+          <div class="grid grid-cols-4 md:grid-cols-8 gap-4">
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">BPC Kit</p>
+              <p class="text-sm font-mono text-slate-200 editable">1.78M</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Mat. Est.</p>
+              <p class="text-sm font-mono text-slate-400">245.7M</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Mat. Actual</p>
+              <p class="text-sm font-mono text-emerald-400">238.2M</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Transport</p>
+              <p class="text-sm font-mono text-slate-200 editable">12M</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">ESI Jobs</p>
+              <p class="text-sm font-mono text-slate-400">12.3M</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Taxes</p>
+              <p class="text-sm font-mono text-slate-200 editable">11.5M</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Sell</p>
+              <p class="text-sm font-mono text-slate-200 editable">320M</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Profit</p>
+              <p class="text-lg font-bold font-mono text-emerald-400">+44.2M</p>
+              <p class="text-xs font-mono text-emerald-400">15.8%</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex gap-2 mb-6">
+          <button class="px-4 py-2 rounded-lg text-sm font-medium bg-slate-800 text-slate-400 hover:text-slate-200">
+            Steps
+          </button>
+          <button class="px-4 py-2 rounded-lg text-sm font-medium bg-slate-800 text-slate-400 hover:text-slate-200">
+            Procurement
+          </button>
+          <button class="px-4 py-2 rounded-lg text-sm font-medium bg-slate-800 text-slate-400 hover:text-slate-200">
+            BPC Kit
+          </button>
+          <button class="px-4 py-2 rounded-lg text-sm font-medium bg-cyan-600 text-white">
+            Costs
+          </button>
+        </div>
+
+        <!-- ==================== COST ESTIMATION TAB CONTENT ==================== -->
+        <div class="space-y-4 pb-6">
+
+          <!-- Summary Cards -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Material Cost -->
+            <div class="eve-card p-4">
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-2">Material Cost</p>
+              <p class="text-xl font-mono text-slate-100 font-semibold">245,678,900</p>
+              <p class="text-xs text-slate-600 mt-1">from Shopping tab</p>
+            </div>
+            <!-- Job Install Cost -->
+            <div class="eve-card p-4">
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-2">Job Install Cost</p>
+              <p class="text-xl font-mono text-slate-100 font-semibold">12,345,000</p>
+              <p class="text-xs text-slate-600 mt-1">estimated from ESI</p>
+            </div>
+            <!-- BPC Cost -->
+            <div class="eve-card p-4">
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-2">BPC Cost</p>
+              <p class="text-xl font-mono text-slate-100 font-semibold">1,780,690</p>
+              <p class="text-xs text-slate-600 mt-1">from BPC Kit tab</p>
+            </div>
+            <!-- Total Production Cost -->
+            <div class="eve-card p-4 border-cyan-500/30">
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-2">Total Production Cost</p>
+              <p class="text-xl font-mono text-cyan-400 font-bold">259,804,590</p>
+              <p class="text-xs text-slate-500 font-mono mt-1">Per unit: <span class="text-slate-400">86,601,530 ISK</span></p>
+            </div>
+          </div>
+
+          <!-- Section: Material Cost Breakdown -->
+          <div class="eve-card overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                <h4 class="text-sm font-semibold text-slate-200">Material Cost Breakdown</h4>
+              </div>
+              <span class="text-xs text-slate-600">Prices from Jita weighted average</span>
+            </div>
+
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
+                  <th class="text-left py-2.5 px-4">Material</th>
+                  <th class="text-right py-2.5 px-3">Quantity</th>
+                  <th class="text-right py-2.5 px-3">Unit Price</th>
+                  <th class="text-right py-2.5 px-4">Total</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800">
+                <tr class="hover:bg-slate-800/50">
+                  <td class="py-2.5 px-4">
+                    <div class="flex items-center gap-2">
+                      <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden shrink-0">
+                        <img src="https://images.evetech.net/types/34/icon?size=32" alt="" class="w-full h-full" onerror="this.style.display='none'" />
+                      </div>
+                      <span class="text-slate-200">Tritanium</span>
+                    </div>
+                  </td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-300">1,200,000</td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-400">5.20</td>
+                  <td class="py-2.5 px-4 text-right font-mono text-slate-200">6,240,000</td>
+                </tr>
+                <tr class="hover:bg-slate-800/50">
+                  <td class="py-2.5 px-4">
+                    <div class="flex items-center gap-2">
+                      <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden shrink-0">
+                        <img src="https://images.evetech.net/types/35/icon?size=32" alt="" class="w-full h-full" onerror="this.style.display='none'" />
+                      </div>
+                      <span class="text-slate-200">Pyerite</span>
+                    </div>
+                  </td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-300">450,000</td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-400">11.50</td>
+                  <td class="py-2.5 px-4 text-right font-mono text-slate-200">5,175,000</td>
+                </tr>
+                <tr class="hover:bg-slate-800/50">
+                  <td class="py-2.5 px-4">
+                    <div class="flex items-center gap-2">
+                      <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden shrink-0">
+                        <img src="https://images.evetech.net/types/36/icon?size=32" alt="" class="w-full h-full" onerror="this.style.display='none'" />
+                      </div>
+                      <span class="text-slate-200">Mexallon</span>
+                    </div>
+                  </td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-300">120,000</td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-400">45.80</td>
+                  <td class="py-2.5 px-4 text-right font-mono text-slate-200">5,496,000</td>
+                </tr>
+                <tr class="hover:bg-slate-800/50">
+                  <td class="py-2.5 px-4">
+                    <div class="flex items-center gap-2">
+                      <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden shrink-0">
+                        <img src="https://images.evetech.net/types/37/icon?size=32" alt="" class="w-full h-full" onerror="this.style.display='none'" />
+                      </div>
+                      <span class="text-slate-200">Isogen</span>
+                    </div>
+                  </td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-300">35,000</td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-400">72.30</td>
+                  <td class="py-2.5 px-4 text-right font-mono text-slate-200">2,530,500</td>
+                </tr>
+                <tr class="hover:bg-slate-800/50">
+                  <td class="py-2.5 px-4">
+                    <div class="flex items-center gap-2">
+                      <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden shrink-0">
+                        <img src="https://images.evetech.net/types/38/icon?size=32" alt="" class="w-full h-full" onerror="this.style.display='none'" />
+                      </div>
+                      <span class="text-slate-200">Nocxium</span>
+                    </div>
+                  </td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-300">8,500</td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-400">450.00</td>
+                  <td class="py-2.5 px-4 text-right font-mono text-slate-200">3,825,000</td>
+                </tr>
+                <tr class="hover:bg-slate-800/50">
+                  <td class="py-2.5 px-4">
+                    <div class="flex items-center gap-2">
+                      <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden shrink-0">
+                        <img src="https://images.evetech.net/types/39/icon?size=32" alt="" class="w-full h-full" onerror="this.style.display='none'" />
+                      </div>
+                      <span class="text-slate-200">Zydrine</span>
+                    </div>
+                  </td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-300">2,100</td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-400">980.00</td>
+                  <td class="py-2.5 px-4 text-right font-mono text-slate-200">2,058,000</td>
+                </tr>
+                <tr class="hover:bg-slate-800/50">
+                  <td class="py-2.5 px-4">
+                    <div class="flex items-center gap-2">
+                      <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden shrink-0">
+                        <img src="https://images.evetech.net/types/40/icon?size=32" alt="" class="w-full h-full" onerror="this.style.display='none'" />
+                      </div>
+                      <span class="text-slate-200">Megacyte</span>
+                    </div>
+                  </td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-300">850</td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-400">3,200.00</td>
+                  <td class="py-2.5 px-4 text-right font-mono text-slate-200">2,720,000</td>
+                </tr>
+                <tr class="hover:bg-slate-800/50">
+                  <td class="py-2.5 px-4">
+                    <div class="flex items-center gap-2">
+                      <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden shrink-0">
+                        <img src="https://images.evetech.net/types/11399/icon?size=32" alt="" class="w-full h-full" onerror="this.style.display='none'" />
+                      </div>
+                      <span class="text-slate-200">Morphite</span>
+                    </div>
+                  </td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-300">45</td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-400">12,500.00</td>
+                  <td class="py-2.5 px-4 text-right font-mono text-slate-200">562,500</td>
+                </tr>
+                <tr class="hover:bg-slate-800/50">
+                  <td class="py-2.5 px-4">
+                    <div class="flex items-center gap-2">
+                      <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden shrink-0">
+                        <img src="https://images.evetech.net/types/16637/icon?size=32" alt="" class="w-full h-full" onerror="this.style.display='none'" />
+                      </div>
+                      <span class="text-slate-200">Fernite Carbide</span>
+                    </div>
+                  </td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-300">15,000</td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-400">1,450.00</td>
+                  <td class="py-2.5 px-4 text-right font-mono text-slate-200">21,750,000</td>
+                </tr>
+                <tr class="hover:bg-slate-800/50">
+                  <td class="py-2.5 px-4">
+                    <div class="flex items-center gap-2">
+                      <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden shrink-0">
+                        <img src="https://images.evetech.net/types/16636/icon?size=32" alt="" class="w-full h-full" onerror="this.style.display='none'" />
+                      </div>
+                      <span class="text-slate-200">Ferrofluid</span>
+                    </div>
+                  </td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-300">12,000</td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-400">1,890.00</td>
+                  <td class="py-2.5 px-4 text-right font-mono text-slate-200">22,680,000</td>
+                </tr>
+                <tr class="hover:bg-slate-800/50">
+                  <td class="py-2.5 px-4">
+                    <div class="flex items-center gap-2">
+                      <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden shrink-0">
+                        <img src="https://images.evetech.net/types/16635/icon?size=32" alt="" class="w-full h-full" onerror="this.style.display='none'" />
+                      </div>
+                      <span class="text-slate-200">Crystalline Carbonide</span>
+                    </div>
+                  </td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-300">18,000</td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-400">2,350.00</td>
+                  <td class="py-2.5 px-4 text-right font-mono text-slate-200">42,300,000</td>
+                </tr>
+                <tr class="hover:bg-slate-800/50">
+                  <td class="py-2.5 px-4">
+                    <div class="flex items-center gap-2">
+                      <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden shrink-0">
+                        <img src="https://images.evetech.net/types/16634/icon?size=32" alt="" class="w-full h-full" onerror="this.style.display='none'" />
+                      </div>
+                      <span class="text-slate-200">Sylramic Fibers</span>
+                    </div>
+                  </td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-300">6,500</td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-400">3,120.00</td>
+                  <td class="py-2.5 px-4 text-right font-mono text-slate-200">20,280,000</td>
+                </tr>
+                <!-- Remaining items collapsed hint -->
+                <tr class="hover:bg-slate-800/50">
+                  <td class="py-2 px-4" colspan="3">
+                    <button class="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-400 transition-colors">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                      +14 more materials...
+                    </button>
+                  </td>
+                  <td class="py-2 px-4 text-right font-mono text-slate-500">110,061,900</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr class="border-t border-slate-700 bg-slate-800/30">
+                  <td colspan="3" class="py-3 px-4 text-right text-xs text-slate-500 uppercase tracking-wider">Total Material Cost</td>
+                  <td class="py-3 px-4 text-right font-mono text-slate-100 font-bold text-base">245,678,900 ISK</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <!-- Section: Job Install Costs -->
+          <div class="eve-card overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-800 flex items-center gap-2">
+              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <h4 class="text-sm font-semibold text-slate-200">Job Install Costs</h4>
+            </div>
+
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
+                  <th class="text-center py-2.5 px-3 w-12">#</th>
+                  <th class="text-left py-2.5 px-3">Product</th>
+                  <th class="text-left py-2.5 px-3">Activity</th>
+                  <th class="text-left py-2.5 px-3">System</th>
+                  <th class="text-right py-2.5 px-3">Cost Index</th>
+                  <th class="text-right py-2.5 px-3">Runs</th>
+                  <th class="text-right py-2.5 px-4">Install Cost</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800">
+                <tr class="hover:bg-slate-800/50">
+                  <td class="py-2.5 px-3 text-center text-slate-600 font-mono text-xs">1</td>
+                  <td class="py-2.5 px-3">
+                    <div class="flex items-center gap-2">
+                      <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden shrink-0">
+                        <img src="https://images.evetech.net/types/22456/icon?size=32" alt="" class="w-full h-full" onerror="this.style.display='none'" />
+                      </div>
+                      <span class="text-slate-200">Sabre</span>
+                    </div>
+                  </td>
+                  <td class="py-2.5 px-3">
+                    <span class="text-xs px-1.5 py-0.5 rounded-sm bg-cyan-500/10 text-cyan-400">Manufacturing</span>
+                  </td>
+                  <td class="py-2.5 px-3 text-slate-300">1DQ1-A</td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-400">3.45%</td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-300">3</td>
+                  <td class="py-2.5 px-4 text-right font-mono text-slate-200">8,234,000</td>
+                </tr>
+                <tr class="hover:bg-slate-800/50">
+                  <td class="py-2.5 px-3 text-center text-slate-600 font-mono text-xs">2</td>
+                  <td class="py-2.5 px-3">
+                    <div class="flex items-center gap-2">
+                      <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden shrink-0">
+                        <img src="https://images.evetech.net/types/16637/icon?size=32" alt="" class="w-full h-full" onerror="this.style.display='none'" />
+                      </div>
+                      <span class="text-slate-200">Fernite Carbide</span>
+                    </div>
+                  </td>
+                  <td class="py-2.5 px-3">
+                    <span class="text-xs px-1.5 py-0.5 rounded-sm bg-purple-500/10 text-purple-400">Reaction</span>
+                  </td>
+                  <td class="py-2.5 px-3 text-slate-300">1DQ1-A</td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-400">1.23%</td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-300">15</td>
+                  <td class="py-2.5 px-4 text-right font-mono text-slate-200">2,456,000</td>
+                </tr>
+                <tr class="hover:bg-slate-800/50">
+                  <td class="py-2.5 px-3 text-center text-slate-600 font-mono text-xs">3</td>
+                  <td class="py-2.5 px-3">
+                    <div class="flex items-center gap-2">
+                      <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden shrink-0">
+                        <img src="https://images.evetech.net/types/16636/icon?size=32" alt="" class="w-full h-full" onerror="this.style.display='none'" />
+                      </div>
+                      <span class="text-slate-200">Ferrofluid</span>
+                    </div>
+                  </td>
+                  <td class="py-2.5 px-3">
+                    <span class="text-xs px-1.5 py-0.5 rounded-sm bg-purple-500/10 text-purple-400">Reaction</span>
+                  </td>
+                  <td class="py-2.5 px-3 text-slate-300">1DQ1-A</td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-400">1.23%</td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-300">10</td>
+                  <td class="py-2.5 px-4 text-right font-mono text-slate-200">1,655,000</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr class="border-t border-slate-700 bg-slate-800/30">
+                  <td colspan="6" class="py-3 px-4 text-right text-xs text-slate-500 uppercase tracking-wider">Total Job Install Cost</td>
+                  <td class="py-3 px-4 text-right font-mono text-slate-100 font-bold text-base">12,345,000 ISK</td>
+                </tr>
+              </tfoot>
+            </table>
+
+            <!-- Info note -->
+            <div class="px-4 py-3 bg-cyan-900/10 border-t border-slate-800 flex items-center gap-2">
+              <svg class="w-4 h-4 text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p class="text-xs text-cyan-300/70">Job install costs are estimated based on ESI system cost indices. Actual costs may vary based on facility bonuses and structure rigs.</p>
+            </div>
+          </div>
+
+          <!-- Section: BPC Cost -->
+          <div class="eve-card p-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <div>
+                  <h4 class="text-sm font-semibold text-slate-200">BPC Cost</h4>
+                  <p class="text-xs text-slate-500">From BPC Kit tab &middot; Attainment decryptor &middot; 1 invention attempt</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="font-mono text-lg text-slate-100 font-semibold">1,780,690 ISK</span>
+                <button class="p-1.5 hover:bg-slate-800 rounded-sm text-slate-500 hover:text-cyan-400 transition-colors" title="Go to BPC Kit tab">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section: Sell Price Comparison -->
+          <div class="eve-card overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-800 flex items-center gap-2">
+              <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h4 class="text-sm font-semibold text-slate-200">Sell Price Comparison</h4>
+              <span class="text-xs text-slate-600 ml-2">C-J6MT &middot; 3 units</span>
+            </div>
+
+            <div class="p-4">
+              <div class="grid grid-cols-4 gap-6 text-center">
+                <div>
+                  <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">Total Cost</div>
+                  <div class="font-mono text-slate-200 text-lg">259,804,590</div>
+                </div>
+                <div>
+                  <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">Sell Price</div>
+                  <div class="font-mono text-slate-200 text-lg">320,000,000</div>
+                  <div class="text-xs text-slate-600 font-mono">@ 106.7M / unit</div>
+                </div>
+                <div>
+                  <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">Profit</div>
+                  <div class="font-mono text-emerald-400 text-lg font-bold">+60,195,410</div>
+                </div>
+                <div>
+                  <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">Margin</div>
+                  <div class="font-mono text-emerald-400 text-xl font-bold">18.8%</div>
+                </div>
+              </div>
+
+              <!-- Breakdown bar -->
+              <div class="mt-4 pt-4 border-t border-slate-800">
+                <div class="flex items-center gap-1 text-xs text-slate-500 mb-2">
+                  <span>Cost breakdown</span>
+                </div>
+                <div class="h-3 rounded-full overflow-hidden flex bg-slate-800">
+                  <div class="bg-blue-500/60" style="width: 94.5%" title="Materials: 245.7M (94.5%)"></div>
+                  <div class="bg-amber-500/60" style="width: 4.8%" title="Job Install: 12.3M (4.8%)"></div>
+                  <div class="bg-purple-500/60" style="width: 0.7%" title="BPC: 1.8M (0.7%)"></div>
+                </div>
+                <div class="flex items-center gap-4 mt-2 text-xs">
+                  <span class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-blue-500/60"></span>
+                    <span class="text-slate-500">Materials</span>
+                    <span class="font-mono text-slate-400">94.5%</span>
+                  </span>
+                  <span class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-amber-500/60"></span>
+                    <span class="text-slate-500">Job Install</span>
+                    <span class="font-mono text-slate-400">4.8%</span>
+                  </span>
+                  <span class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-purple-500/60"></span>
+                    <span class="text-slate-500">BPC</span>
+                    <span class="font-mono text-slate-400">0.7%</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom action bar -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <button class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                Save Costs to Project
+              </button>
+              <button class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm font-medium flex items-center gap-2 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh Prices
+              </button>
+            </div>
+            <div class="text-xs text-slate-600">
+              Last updated: 2 hours ago
+            </div>
+          </div>
+
+        </div>
+        <!-- END COST ESTIMATION TAB CONTENT -->
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

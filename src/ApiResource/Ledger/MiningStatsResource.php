@@ -21,6 +21,7 @@ use App\State\Provider\Ledger\MiningStatsProvider;
             provider: MiningStatsProvider::class,
             openapi: new Model\Operation(
                 summary: 'Get mining statistics',
+                tags: ['Ledger - Mining'],
                 parameters: [
                     new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),
                 ],
@@ -32,6 +33,7 @@ use App\State\Provider\Ledger\MiningStatsProvider;
             output: MiningStatsDailyResource::class,
             openapi: new Model\Operation(
                 summary: 'Get daily mining statistics',
+                tags: ['Ledger - Mining'],
                 parameters: [
                     new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),
                 ],
@@ -43,6 +45,7 @@ use App\State\Provider\Ledger\MiningStatsProvider;
             output: MiningStatsByTypeResource::class,
             openapi: new Model\Operation(
                 summary: 'Get mining statistics by ore type',
+                tags: ['Ledger - Mining'],
                 parameters: [
                     new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),
                 ],

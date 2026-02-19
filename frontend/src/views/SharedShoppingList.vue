@@ -4,14 +4,15 @@ import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { safeJsonParse } from '@/services/api'
 import { useFormatters } from '@/composables/useFormatters'
-import ShoppingListResults from '@/components/shopping/ShoppingListResults.vue'
-import type { ShoppingItem, ShoppingTotals } from '@/components/shopping/ShoppingListResults.vue'
+import AppraisalResults from '@/components/shopping/AppraisalResults.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import type { AppraisalItem, AppraisalTotals } from '@/components/shopping/AppraisalResults.vue'
 
 interface SharedListResponse {
   token: string
-  items: ShoppingItem[]
+  items: AppraisalItem[]
   notFound: string[]
-  totals: ShoppingTotals
+  totals: AppraisalTotals
   transportCostPerM3: number
   structureId: number | null
   structureName: string | null
@@ -46,7 +47,7 @@ async function loadSharedList() {
 
     if (!response.ok) {
       if (response.status === 404) {
-        throw new Error(t('shopping.listExpired'))
+        throw new Error(t('shopping.sharedExpired'))
       }
       throw new Error(t('shopping.loadError'))
     }
@@ -67,23 +68,20 @@ async function loadSharedList() {
       <div class="mb-8">
         <div class="flex items-center gap-3 mb-2">
           <svg class="w-8 h-8 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
           </svg>
           <h1 class="text-2xl font-bold text-transparent bg-clip-text bg-linear-to-r from-cyan-400 to-blue-400">
-            {{ t('shopping.sharedList') }}
+            {{ t('shopping.sharedAppraisal') }}
           </h1>
         </div>
         <p class="text-slate-400 text-sm">
-          EVE Tools - Valuator
+          EVE Tools - Appraisal
         </p>
       </div>
 
       <!-- Loading -->
       <div v-if="isLoading" class="flex justify-center py-20">
-        <svg class="animate-spin h-8 w-8 text-cyan-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
+        <LoadingSpinner size="lg" class="text-cyan-500" />
       </div>
 
       <!-- Error -->
@@ -93,10 +91,10 @@ async function loadSharedList() {
         </svg>
         <p class="text-red-400 text-lg font-medium">{{ error }}</p>
         <a
-          href="/shopping-list"
+          href="/appraisal"
           class="inline-block mt-4 px-6 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-colors"
         >
-          {{ t('shopping.createNewList') }}
+          {{ t('shopping.createNewAppraisal') }}
         </a>
       </div>
 
@@ -110,20 +108,20 @@ async function loadSharedList() {
             <span>{{ t('shopping.expiresAt') }} {{ formatDateTime(data.expiresAt) }}</span>
           </div>
           <a
-            href="/shopping-list"
+            href="/appraisal"
             class="text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
           >
-            {{ t('shopping.createMyOwn') }}
+            {{ t('shopping.createMyOwnAppraisal') }}
           </a>
         </div>
 
         <!-- Results -->
-        <ShoppingListResults
+        <AppraisalResults
           :items="data.items"
           :totals="data.totals"
-          :structure-name="data.structureName || 'C-J6MT Keepstar'"
           :not-found="data.notFound"
-          :readonly="true"
+          :structure-id="data.structureId"
+          :structure-name="data.structureName"
         />
       </div>
 

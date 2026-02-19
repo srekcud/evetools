@@ -6,7 +6,7 @@ namespace App\Command;
 
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryCalculationService;
-use App\Service\Industry\IndustryProjectService;
+use App\Service\Industry\IndustryProjectFactory;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -22,7 +22,7 @@ class RegenerateProjectStepsCommand extends Command
 {
     public function __construct(
         private readonly IndustryProjectRepository $projectRepository,
-        private readonly IndustryProjectService $projectService,
+        private readonly IndustryProjectFactory $projectFactory,
         private readonly IndustryCalculationService $calculationService,
     ) {
         parent::__construct();
@@ -48,7 +48,7 @@ class RegenerateProjectStepsCommand extends Command
         $io->info("Regenerating steps for: {$productName}");
 
         $oldCount = $project->getSteps()->count();
-        $this->projectService->regenerateSteps($project);
+        $this->projectFactory->regenerateSteps($project);
         $newCount = $project->getSteps()->count();
 
         $io->success("Steps regenerated: {$oldCount} -> {$newCount}");

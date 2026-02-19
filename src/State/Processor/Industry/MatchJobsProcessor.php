@@ -10,7 +10,7 @@ use App\ApiResource\Industry\MatchJobsResultResource;
 use App\Entity\User;
 use App\Exception\EsiApiException;
 use App\Repository\IndustryProjectRepository;
-use App\Service\Industry\IndustryProjectService;
+use App\Service\Industry\IndustryJobMatcher;
 use App\Service\Sync\IndustryJobSyncService;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Psr\Log\LoggerInterface;
@@ -27,7 +27,7 @@ class MatchJobsProcessor implements ProcessorInterface
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
-        private readonly IndustryProjectService $projectService,
+        private readonly IndustryJobMatcher $jobMatcher,
         private readonly IndustryJobSyncService $jobSyncService,
         private readonly IndustryResourceMapper $mapper,
         private readonly LoggerInterface $logger,
@@ -74,7 +74,7 @@ class MatchJobsProcessor implements ProcessorInterface
             }
         }
 
-        $this->projectService->matchEsiJobs($project);
+        $this->jobMatcher->matchEsiJobs($project);
 
         $result = new MatchJobsResultResource();
         $result->steps = array_map(

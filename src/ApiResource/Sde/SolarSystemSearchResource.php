@@ -6,6 +6,7 @@ namespace App\ApiResource\Sde;
 
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Sde\SolarSystemSearchProvider;
 
 #[ApiResource(
@@ -14,6 +15,7 @@ use App\State\Provider\Sde\SolarSystemSearchProvider;
         new GetCollection(
             uriTemplate: '/sde/solar-systems',
             provider: SolarSystemSearchProvider::class,
+            openapi: new Model\Operation(tags: ['Navigation']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

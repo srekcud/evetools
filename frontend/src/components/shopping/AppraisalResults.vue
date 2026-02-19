@@ -42,7 +42,9 @@ const props = defineProps<{
   items: AppraisalItem[]
   totals: AppraisalTotals
   notFound: string[]
-  priceError: string | null
+  priceError?: string | null
+  structureId?: number | null
+  structureName?: string | null
 }>()
 
 const { t } = useI18n()
@@ -91,17 +93,6 @@ function copyTable() {
 
 <template>
   <div class="space-y-4">
-    <!-- Info banner -->
-    <div class="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 flex items-start gap-3">
-      <svg class="w-5 h-5 text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-      <div class="text-sm space-y-1">
-        <p class="text-amber-200">{{ t('appraisal.infoBanner') }}</p>
-        <p class="text-amber-200/70 text-xs">{{ t('appraisal.weightedInfoBanner') }}</p>
-      </div>
-    </div>
-
     <!-- Not Found Items -->
     <div v-if="notFound && notFound.length > 0" class="bg-yellow-900/30 border border-yellow-500/30 rounded-xl p-4">
       <h3 class="text-yellow-400 font-medium mb-2">{{ t('shopping.notFound', { count: notFound.length }) }}</h3>

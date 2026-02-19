@@ -17,7 +17,7 @@ use App\State\Provider\Assets\CorporationAssetsStatusProvider;
         new Get(
             uriTemplate: '/me/corporation/assets/status',
             provider: CorporationAssetsStatusProvider::class,
-            openapi: new Model\Operation(summary: 'Get corporation assets access status', description: 'Returns whether the user has access to corporation assets'),
+            openapi: new Model\Operation(summary: 'Get corporation assets access status', description: 'Returns whether the user has access to corporation assets', tags: ['Inventory']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

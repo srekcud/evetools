@@ -17,7 +17,7 @@ use App\State\Provider\Me\WalletProvider;
         new Get(
             uriTemplate: '/me/wallets',
             provider: WalletProvider::class,
-            openapi: new Model\Operation(summary: 'Get wallet balances', description: 'Returns ISK balances for all characters'),
+            openapi: new Model\Operation(summary: 'Get wallet balances', description: 'Returns ISK balances for all characters', tags: ['Account & Characters']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

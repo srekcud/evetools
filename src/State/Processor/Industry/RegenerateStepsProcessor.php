@@ -10,7 +10,7 @@ use App\ApiResource\Industry\ProjectResource;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryBlacklistService;
-use App\Service\Industry\IndustryProjectService;
+use App\Service\Industry\IndustryProjectFactory;
 use App\Service\Industry\IndustryTreeService;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -26,7 +26,7 @@ class RegenerateStepsProcessor implements ProcessorInterface
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
-        private readonly IndustryProjectService $projectService,
+        private readonly IndustryProjectFactory $projectFactory,
         private readonly IndustryTreeService $treeService,
         private readonly IndustryBlacklistService $blacklistService,
         private readonly IndustryResourceMapper $mapper,
@@ -47,7 +47,7 @@ class RegenerateStepsProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $this->projectService->regenerateSteps($project);
+        $this->projectFactory->regenerateSteps($project);
 
         $resource = $this->mapper->projectToResource($project);
         $resource->steps = array_map(

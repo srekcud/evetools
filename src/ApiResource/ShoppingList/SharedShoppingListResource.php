@@ -22,12 +22,12 @@ use App\State\Provider\ShoppingList\SharedShoppingListProvider;
             security: "is_granted('ROLE_USER')",
             processor: ShareListProcessor::class,
             input: ShareListInput::class,
-            openapi: new Model\Operation(summary: 'Create a shareable link for a shopping list', description: 'Creates a shareable link that expires after 1 week'),
+            openapi: new Model\Operation(summary: 'Create a shareable link for a shopping list', description: 'Creates a shareable link that expires after 1 week', tags: ['Shopping List']),
         ),
         new Get(
             uriTemplate: '/shopping-list/shared/{token}',
             provider: SharedShoppingListProvider::class,
-            openapi: new Model\Operation(summary: 'Get a shared shopping list by token', description: 'Retrieves a shared shopping list. No authentication required.'),
+            openapi: new Model\Operation(summary: 'Get a shared shopping list by token', description: 'Retrieves a shared shopping list. No authentication required.', tags: ['Shopping List']),
         ),
     ],
 )]

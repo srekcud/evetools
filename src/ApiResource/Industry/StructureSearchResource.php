@@ -21,6 +21,7 @@ use App\State\Provider\Industry\StructureSearchProvider;
             openapi: new Model\Operation(
                 summary: 'Search structures',
                 description: 'Search for structures by name via ESI',
+                tags: ['Industry - Structures'],
                 parameters: [
                     new Model\Parameter(name: 'q', in: 'query', required: true, schema: ['type' => 'string', 'minLength' => 3]),
                 ],

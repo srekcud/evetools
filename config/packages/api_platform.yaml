@@ -20,6 +20,7 @@ api_platform:
         hydra_prefix: false
     enable_swagger_ui: true
     enable_docs: true
+    show_webby: false
 
     docs_formats:
         jsonld: ['application/ld+json']

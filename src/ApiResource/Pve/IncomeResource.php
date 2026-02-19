@@ -19,6 +19,7 @@ use App\State\Provider\Pve\IncomeProvider;
             provider: IncomeProvider::class,
             openapi: new Model\Operation(
                 summary: 'Get PVE income data',
+                tags: ['Revenue - PVE'],
                 parameters: [
                     new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),
                 ],

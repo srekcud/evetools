@@ -7,6 +7,8 @@ parameters:
     eve_client_id: '%env(EVE_CLIENT_ID)%'
     eve_client_secret: '%env(EVE_CLIENT_SECRET)%'
     eve_callback_url: '%env(EVE_CALLBACK_URL)%'
+    app.default_market_structure_id: 1049588174021
+    app.default_market_structure_name: 'C-J6MT - 1st Taj Mahgoon (Keepstar)'
 
 services:
     _defaults:
@@ -14,6 +16,8 @@ services:
         autoconfigure: true
         bind:
             $adminCharacterNames: '%admin_character_names%'
+            $defaultMarketStructureId: '%app.default_market_structure_id%'
+            $defaultMarketStructureName: '%app.default_market_structure_name%'
 
     App\:
         resource: '../src/'

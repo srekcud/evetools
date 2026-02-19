@@ -19,12 +19,11 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 class SyncStructureMarketCommand extends Command
 {
-    private const DEFAULT_STRUCTURE_ID = 1049588174021; // C-J6MT Keepstar
-    private const DEFAULT_STRUCTURE_NAME = 'C-J6MT - 1st Taj Mahgoon (Keepstar)';
-
     public function __construct(
         private readonly CharacterRepository $characterRepository,
         private readonly StructureMarketService $structureMarketService,
+        private readonly int $defaultMarketStructureId,
+        private readonly string $defaultMarketStructureName,
     ) {
         parent::__construct();
     }
@@ -33,7 +32,7 @@ class SyncStructureMarketCommand extends Command
     {
         $this
             ->addArgument('character_name', InputArgument::REQUIRED, 'Character name to use for API access')
-            ->addArgument('structure_id', InputArgument::OPTIONAL, 'Structure ID', self::DEFAULT_STRUCTURE_ID);
+            ->addArgument('structure_id', InputArgument::OPTIONAL, 'Structure ID', (string) $this->defaultMarketStructureId);
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -54,8 +53,8 @@ class SyncStructureMarketCommand extends Command
             return Command::FAILURE;
         }
 
-        $structureName = $structureId === self::DEFAULT_STRUCTURE_ID
-            ? self::DEFAULT_STRUCTURE_NAME
+        $structureName = $structureId === $this->defaultMarketStructureId
+            ? $this->defaultMarketStructureName
             : "Structure {$structureId}";
 
         $io->info("Syncing market data for: {$structureName}");

@@ -13,6 +13,6 @@ class CreateAlertInput
 
     public float $threshold;
 
-    /** 'jita_sell' or 'jita_buy' */
+    /** 'jita_sell', 'jita_buy', 'structure_sell', or 'structure_buy' */
     public string $priceSource;
 }

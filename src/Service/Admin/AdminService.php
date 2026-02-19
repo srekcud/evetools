@@ -29,7 +29,6 @@ class AdminService
             'pve' => $this->getPveStats(),
             'notifications' => $this->getNotificationStats(),
             'market' => $this->getMarketStats(),
-            'profitTracker' => $this->getProfitTrackerStats(),
             'schedulerHealth' => $this->syncTracker->getAll(),
         ];
     }
@@ -395,31 +394,6 @@ class AdminService
             'unread' => $unread,
             'pushSubscriptions' => $pushSubscriptions,
             'preferences' => $preferences,
-        ];
-    }
-
-    /** @return array<string, int|float> */
-    private function getProfitTrackerStats(): array
-    {
-        $thirtyDaysAgo = (new \DateTimeImmutable('-30 days'))->format('Y-m-d H:i:s');
-
-        $totalMatches = (int) $this->connection->fetchOne(
-            'SELECT COUNT(*) FROM profit_matches WHERE matched_at >= ?',
-            [$thirtyDaysAgo]
-        );
-        $totalProfit = (float) $this->connection->fetchOne(
-            'SELECT COALESCE(SUM(profit), 0) FROM profit_matches WHERE matched_at >= ?',
-            [$thirtyDaysAgo]
-        );
-        $itemsTracked = (int) $this->connection->fetchOne(
-            'SELECT COUNT(DISTINCT product_type_id) FROM profit_matches WHERE matched_at >= ?',
-            [$thirtyDaysAgo]
-        );
-
-        return [
-            'totalMatches' => $totalMatches,
-            'totalProfit30d' => round($totalProfit, 2),
-            'itemsTracked' => $itemsTracked,
         ];
     }
 

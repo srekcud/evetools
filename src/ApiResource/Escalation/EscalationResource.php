@@ -31,6 +31,7 @@ use App\State\Provider\Escalation\EscalationPublicProvider;
             provider: EscalationCollectionProvider::class,
             openapi: new Model\Operation(
                 summary: 'List own escalations',
+                tags: ['Revenue - Escalations'],
                 parameters: [
                     new Model\Parameter(name: 'visibility', in: 'query', schema: ['type' => 'string']),
                     new Model\Parameter(name: 'saleStatus', in: 'query', schema: ['type' => 'string']),
@@ -41,21 +42,23 @@ use App\State\Provider\Escalation\EscalationPublicProvider;
         new GetCollection(
             uriTemplate: '/escalations/corp',
             provider: EscalationCorpProvider::class,
-            openapi: new Model\Operation(summary: 'List corporation escalations'),
+            openapi: new Model\Operation(summary: 'List corporation escalations', tags: ['Revenue - Escalations']),
         ),
         new GetCollection(
             uriTemplate: '/escalations/public',
             provider: EscalationPublicProvider::class,
-            openapi: new Model\Operation(summary: 'List public escalations (no auth required)'),
+            openapi: new Model\Operation(summary: 'List public escalations (no auth required)', tags: ['Revenue - Escalations']),
         ),
         new Get(
             uriTemplate: '/escalations/{id}',
             provider: EscalationProvider::class,
+            openapi: new Model\Operation(tags: ['Revenue - Escalations']),
         ),
         new Post(
             uriTemplate: '/escalations',
             input: CreateEscalationInput::class,
             processor: CreateEscalationProcessor::class,
+            openapi: new Model\Operation(tags: ['Revenue - Escalations']),
         ),
         new Patch(
             uriTemplate: '/escalations/{id}',
@@ -63,6 +66,7 @@ use App\State\Provider\Escalation\EscalationPublicProvider;
             processor: UpdateEscalationProcessor::class,
             openapi: new Model\Operation(
                 summary: 'Update an escalation',
+                tags: ['Revenue - Escalations'],
                 requestBody: new Model\RequestBody(
                     content: new \ArrayObject([
                         'application/merge-patch+json' => [
@@ -85,6 +89,7 @@ use App\State\Provider\Escalation\EscalationPublicProvider;
             uriTemplate: '/escalations/{id}',
             provider: EscalationDeleteProvider::class,
             processor: DeleteEscalationProcessor::class,
+            openapi: new Model\Operation(tags: ['Revenue - Escalations']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

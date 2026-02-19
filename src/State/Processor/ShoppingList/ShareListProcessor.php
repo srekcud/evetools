@@ -51,7 +51,7 @@ class ShareListProcessor implements ProcessorInterface
         // Build share URL
         $request = $this->requestStack->getCurrentRequest();
         $baseUrl = $request ? $request->getSchemeAndHttpHost() : '';
-        $shareUrl = $baseUrl . '/shopping-list/shared/' . $sharedList->getToken();
+        $shareUrl = $baseUrl . '/appraisal/shared/' . $sharedList->getToken();
 
         $resource = new SharedShoppingListResource();
         $resource->token = $sharedList->getToken();

@@ -23,6 +23,7 @@ use App\State\Provider\Assets\CorporationAssetsProvider;
             openapi: new Model\Operation(
                 summary: 'Get corporation assets',
                 description: 'Returns all assets for the user corporation',
+                tags: ['Inventory'],
                 parameters: [
                     new Model\Parameter(name: 'divisionName', in: 'query', required: false, schema: ['type' => 'string']),
                 ],
@@ -36,6 +37,7 @@ use App\State\Provider\Assets\CorporationAssetsProvider;
             openapi: new Model\Operation(
                 summary: 'Refresh corporation assets',
                 description: 'Triggers a sync of corporation assets from ESI',
+                tags: ['Inventory'],
                 parameters: [
                     new Model\Parameter(name: 'async', in: 'query', required: false, schema: ['type' => 'boolean', 'default' => true]),
                 ],

@@ -18,7 +18,7 @@ use App\State\Provider\Industry\CorporationStructureProvider;
             uriTemplate: '/industry/corporation-structures',
             provider: CorporationStructureProvider::class,
             output: CorporationStructureListResource::class,
-            openapi: new Model\Operation(summary: 'Get corporation structures', description: 'Returns structures shared by corporation members'),
+            openapi: new Model\Operation(summary: 'Get corporation structures', description: 'Returns structures shared by corporation members', tags: ['Industry - Structures']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

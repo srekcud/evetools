@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Constant\EveConstants;
 use Doctrine\DBAL\Connection;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
@@ -18,8 +19,8 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  */
 class JitaMarketService
 {
-    private const JITA_STATION_ID = 60003760;
-    private const THE_FORGE_REGION_ID = 10000002;
+    private const JITA_STATION_ID = EveConstants::JITA_STATION_ID;
+    private const THE_FORGE_REGION_ID = EveConstants::THE_FORGE_REGION_ID;
     private const CACHE_KEY = 'jita_market_prices';
     private const CACHE_KEY_BUY = 'jita_market_buy_prices';
     private const CACHE_META_KEY = 'jita_market_meta';
@@ -29,6 +30,8 @@ class JitaMarketService
     private const VOLUME_CACHE_PREFIX = 'jita_volume_';
     private const VOLUME_CACHE_TTL = 86400; // 24 hours
     private const VOLUME_HISTORY_DAYS = 30;
+    private const ON_DEMAND_CACHE_PREFIX = 'jita_ondemand_';
+    private const ON_DEMAND_CACHE_TTL = 300; // 5 minutes
 
     public function __construct(
         private readonly HttpClientInterface $httpClient,
@@ -90,6 +93,73 @@ class JitaMarketService
             ];
         } catch (\Throwable $e) {
             $this->logger->error('Jita market sync failed', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'typeCount' => 0,
+                'duration' => round(microtime(true) - $startTime, 2),
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Refresh prices for specific type IDs and merge into the main cache.
+     * Used for frequent alert price checks without doing a full region sync.
+     *
+     * @param int[] $typeIds
+     * @return array{success: bool, typeCount: int, duration: float, error?: string}
+     */
+    public function refreshPricesForTypes(array $typeIds): array
+    {
+        $startTime = microtime(true);
+
+        if (empty($typeIds)) {
+            return [
+                'success' => true,
+                'typeCount' => 0,
+                'duration' => 0.0,
+            ];
+        }
+
+        try {
+            $this->logger->info('Refreshing Jita prices for alert types', [
+                'typeCount' => count($typeIds),
+            ]);
+
+            $freshBooks = $this->fetchPricesInBatches($typeIds);
+
+            // Merge fresh data into existing sell cache
+            $existingSell = $this->getOrderBook(self::CACHE_KEY) ?? [];
+            foreach ($freshBooks['sell'] as $typeId => $orders) {
+                $existingSell[$typeId] = $orders;
+            }
+            $sellItem = $this->cache->getItem(self::CACHE_KEY);
+            $sellItem->set($existingSell);
+            $sellItem->expiresAfter(self::CACHE_TTL);
+            $this->cache->save($sellItem);
+
+            // Merge fresh data into existing buy cache
+            $existingBuy = $this->getOrderBook(self::CACHE_KEY_BUY) ?? [];
+            foreach ($freshBooks['buy'] as $typeId => $orders) {
+                $existingBuy[$typeId] = $orders;
+            }
+            $buyItem = $this->cache->getItem(self::CACHE_KEY_BUY);
+            $buyItem->set($existingBuy);
+            $buyItem->expiresAfter(self::CACHE_TTL);
+            $this->cache->save($buyItem);
+
+            $duration = round(microtime(true) - $startTime, 2);
+
+            return [
+                'success' => true,
+                'typeCount' => count($typeIds),
+                'duration' => $duration,
+            ];
+        } catch (\Throwable $e) {
+            $this->logger->error('Alert price refresh failed', [
                 'error' => $e->getMessage(),
             ]);
 
@@ -188,6 +258,235 @@ class JitaMarketService
         }
 
         return $result;
+    }
+
+    /**
+     * Get sell prices for multiple types, with on-demand ESI fallback for types not in the cache.
+     * Uses the background-synced order book first, then fetches missing types from ESI.
+     *
+     * @param int[] $typeIds
+     * @return array<int, float|null>
+     */
+    public function getPricesWithFallback(array $typeIds): array
+    {
+        $result = $this->getPrices($typeIds);
+
+        $missingTypeIds = [];
+        foreach ($result as $typeId => $price) {
+            if ($price === null) {
+                $missingTypeIds[] = $typeId;
+            }
+        }
+
+        if (empty($missingTypeIds)) {
+            return $result;
+        }
+
+        $onDemandBooks = $this->fetchOnDemandOrderBooks($missingTypeIds);
+
+        foreach ($missingTypeIds as $typeId) {
+            $orders = $onDemandBooks['sell'][$typeId] ?? [];
+            $result[$typeId] = $orders[0]['price'] ?? null;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get buy prices for multiple types, with on-demand ESI fallback for types not in the cache.
+     *
+     * @param int[] $typeIds
+     * @return array<int, float|null>
+     */
+    public function getBuyPricesWithFallback(array $typeIds): array
+    {
+        $result = $this->getBuyPrices($typeIds);
+
+        $missingTypeIds = [];
+        foreach ($result as $typeId => $price) {
+            if ($price === null) {
+                $missingTypeIds[] = $typeId;
+            }
+        }
+
+        if (empty($missingTypeIds)) {
+            return $result;
+        }
+
+        $onDemandBooks = $this->fetchOnDemandOrderBooks($missingTypeIds);
+
+        foreach ($missingTypeIds as $typeId) {
+            $orders = $onDemandBooks['buy'][$typeId] ?? [];
+            $result[$typeId] = $orders[0]['price'] ?? null;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get weighted sell prices with on-demand ESI fallback for types not in the cache.
+     *
+     * @param array<int, int> $typeQuantities typeId => quantity
+     * @return array<int, array{weightedPrice: float, coverage: float, ordersUsed: int}|null>
+     */
+    public function getWeightedSellPricesWithFallback(array $typeQuantities): array
+    {
+        $result = $this->getWeightedSellPrices($typeQuantities);
+
+        $missingTypeIds = [];
+        foreach ($result as $typeId => $data) {
+            if ($data === null) {
+                $missingTypeIds[] = $typeId;
+            }
+        }
+
+        if (empty($missingTypeIds)) {
+            return $result;
+        }
+
+        $onDemandBooks = $this->fetchOnDemandOrderBooks($missingTypeIds);
+
+        foreach ($missingTypeIds as $typeId) {
+            $orders = $onDemandBooks['sell'][$typeId] ?? [];
+            $result[$typeId] = $this->calculateWeightedPrice($orders, $typeQuantities[$typeId]);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get weighted buy prices with on-demand ESI fallback for types not in the cache.
+     *
+     * @param array<int, int> $typeQuantities typeId => quantity
+     * @return array<int, array{weightedPrice: float, coverage: float, ordersUsed: int}|null>
+     */
+    public function getWeightedBuyPricesWithFallback(array $typeQuantities): array
+    {
+        $result = $this->getWeightedBuyPrices($typeQuantities);
+
+        $missingTypeIds = [];
+        foreach ($result as $typeId => $data) {
+            if ($data === null) {
+                $missingTypeIds[] = $typeId;
+            }
+        }
+
+        if (empty($missingTypeIds)) {
+            return $result;
+        }
+
+        $onDemandBooks = $this->fetchOnDemandOrderBooks($missingTypeIds);
+
+        foreach ($missingTypeIds as $typeId) {
+            $orders = $onDemandBooks['buy'][$typeId] ?? [];
+            $result[$typeId] = $this->calculateWeightedPrice($orders, $typeQuantities[$typeId]);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Fetch order books on-demand from ESI for types not in the background-synced cache.
+     * Uses a per-type short-lived cache to avoid repeated ESI calls for the same type.
+     *
+     * @param int[] $typeIds
+     * @return array{sell: array<int, list<array{price: float, volume: int}>>, buy: array<int, list<array{price: float, volume: int}>>}
+     */
+    private function fetchOnDemandOrderBooks(array $typeIds): array
+    {
+        $sellBooks = [];
+        $buyBooks = [];
+        $uncachedTypeIds = [];
+
+        // Check per-type on-demand cache first
+        foreach ($typeIds as $typeId) {
+            $cacheItem = $this->cache->getItem(self::ON_DEMAND_CACHE_PREFIX . $typeId);
+
+            if ($cacheItem->isHit()) {
+                /** @var array{sell: list<array{price: float, volume: int}>, buy: list<array{price: float, volume: int}>} $cached */
+                $cached = $cacheItem->get();
+                if (!empty($cached['sell'])) {
+                    $sellBooks[$typeId] = $cached['sell'];
+                }
+                if (!empty($cached['buy'])) {
+                    $buyBooks[$typeId] = $cached['buy'];
+                }
+            } else {
+                $uncachedTypeIds[] = $typeId;
+            }
+        }
+
+        if (empty($uncachedTypeIds)) {
+            return ['sell' => $sellBooks, 'buy' => $buyBooks];
+        }
+
+        $this->logger->info('Fetching on-demand Jita prices for uncached types', [
+            'typeCount' => count($uncachedTypeIds),
+        ]);
+
+        // Fetch from ESI in batches
+        $batchSize = 10;
+        $batches = array_chunk($uncachedTypeIds, $batchSize);
+
+        foreach ($batches as $batch) {
+            $responses = [];
+
+            foreach ($batch as $typeId) {
+                $url = sprintf(
+                    '%s/markets/%d/orders/?order_type=all&type_id=%d',
+                    self::ESI_BASE_URL,
+                    self::THE_FORGE_REGION_ID,
+                    $typeId
+                );
+
+                try {
+                    $responses[$typeId] = $this->httpClient->request('GET', $url, [
+                        'timeout' => 15,
+                        'headers' => ['Accept' => 'application/json'],
+                    ]);
+                } catch (\Throwable $e) {
+                    $this->logger->debug('Failed to start on-demand market request', [
+                        'typeId' => $typeId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            foreach ($responses as $typeId => $response) {
+                try {
+                    if ($response->getStatusCode() === 200) {
+                        /** @var list<array<string, mixed>> $orders */
+                        $orders = $response->toArray();
+                        $orderBooks = $this->collectOrderBooks($orders);
+
+                        if (!empty($orderBooks['sell'])) {
+                            $sellBooks[$typeId] = $orderBooks['sell'];
+                        }
+                        if (!empty($orderBooks['buy'])) {
+                            $buyBooks[$typeId] = $orderBooks['buy'];
+                        }
+
+                        // Cache per-type with short TTL
+                        $cacheItem = $this->cache->getItem(self::ON_DEMAND_CACHE_PREFIX . $typeId);
+                        $cacheItem->set($orderBooks);
+                        $cacheItem->expiresAfter(self::ON_DEMAND_CACHE_TTL);
+                        $this->cache->save($cacheItem);
+                    }
+                } catch (\Throwable $e) {
+                    $this->logger->debug('Failed to fetch on-demand price for type', [
+                        'typeId' => $typeId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            unset($responses);
+
+            // Small delay between batches to avoid rate limiting
+            usleep(50000); // 50ms
+        }
+
+        return ['sell' => $sellBooks, 'buy' => $buyBooks];
     }
 
     /**
@@ -467,6 +766,29 @@ class JitaMarketService
         }
 
         return $orderBook[$typeId] ?? [];
+    }
+
+    /**
+     * Get order books (sell + buy) for a single type, with on-demand ESI fallback.
+     * Checks the background-synced cache first, then fetches from ESI if missing.
+     *
+     * @return array{sell: list<array{price: float, volume: int}>, buy: list<array{price: float, volume: int}>}
+     */
+    public function getOrderBooksWithFallback(int $typeId): array
+    {
+        $sellOrders = $this->getSellOrders($typeId);
+        $buyOrders = $this->getBuyOrders($typeId);
+
+        if (!empty($sellOrders) || !empty($buyOrders)) {
+            return ['sell' => $sellOrders, 'buy' => $buyOrders];
+        }
+
+        $onDemandBooks = $this->fetchOnDemandOrderBooks([$typeId]);
+
+        return [
+            'sell' => $onDemandBooks['sell'][$typeId] ?? [],
+            'buy' => $onDemandBooks['buy'][$typeId] ?? [],
+        ];
     }
 
     /**

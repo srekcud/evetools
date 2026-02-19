@@ -18,6 +18,7 @@ use App\Entity\IndustryStructureConfig;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedIndustryJobRepository;
 use App\Service\Industry\IndustryCalculationService;
+use App\Service\Industry\InventionService;
 
 class IndustryResourceMapper
 {
@@ -28,10 +29,14 @@ class IndustryResourceMapper
     /** @var array<int, array<array{esiJobId: int, runs: int, status: string, characterName: string}>>|null */
     private ?array $similarJobsByBlueprint = null;
 
+    /** @var array<int, bool> */
+    private array $isT2Cache = [];
+
     public function __construct(
         private readonly IndustryCalculationService $calculationService,
         private readonly CachedCharacterSkillRepository $skillRepository,
         private readonly CachedIndustryJobRepository $industryJobRepository,
+        private readonly InventionService $inventionService,
     ) {
     }
 
@@ -112,6 +117,13 @@ class IndustryResourceMapper
         $resource->id = (string) $project->getId();
         $resource->productTypeId = $project->getProductTypeId();
         $resource->productTypeName = $this->calculationService->resolveTypeName($project->getProductTypeId());
+
+        $productTypeId = $project->getProductTypeId();
+        if (!isset($this->isT2Cache[$productTypeId])) {
+            $this->isT2Cache[$productTypeId] = $this->inventionService->isT2($productTypeId);
+        }
+        $resource->isT2 = $this->isT2Cache[$productTypeId];
+
         $resource->name = $project->getName();
         $resource->runs = $project->getRuns();
         $resource->meLevel = $project->getMeLevel();
@@ -125,10 +137,37 @@ class IndustryResourceMapper
         $resource->taxAmount = $project->getTaxAmount();
         $resource->sellPrice = $project->getSellPrice();
         $resource->jobsCost = $project->getJobsCost();
-        $resource->totalCost = $project->getTotalCost();
-        $resource->profit = $project->getProfit();
-        $resource->profitPercent = $project->getProfitPercent();
+        $resource->estimatedJobCost = $project->getEstimatedJobCost();
+        $resource->estimatedMaterialCost = $project->getEstimatedMaterialCost();
+        $resource->estimatedSellPrice = $project->getEstimatedSellPrice();
+        $resource->estimatedSellPriceSource = $project->getEstimatedSellPriceSource();
+        $resource->estimatedTaxAmount = $project->getEstimatedTaxAmount();
+
+        // Calculate total cost and profit using estimated values as fallback
+        // when "real" values haven't been filled by the user
+        $effectiveTaxAmount = $project->getTaxAmount() ?? $project->getEstimatedTaxAmount() ?? 0.0;
+        $effectiveJobsCost = $project->getJobsCost() > 0 ? $project->getJobsCost() : ($project->getEstimatedJobCost() ?? 0.0);
+        $effectiveSellPrice = $project->getSellPrice() ?? $project->getEstimatedSellPrice();
+
+        $effectiveMaterialCost = $project->getMaterialCost() ?? $project->getEstimatedMaterialCost() ?? 0.0;
+
+        $resource->totalCost = ($project->getBpoCost() ?? 0)
+            + $effectiveMaterialCost
+            + ($project->getTransportCost() ?? 0)
+            + $effectiveJobsCost
+            + $effectiveTaxAmount;
+
+        if ($effectiveSellPrice !== null && !$project->isPersonalUse()) {
+            $resource->profit = $effectiveSellPrice - $resource->totalCost;
+            $resource->profitPercent = $resource->totalCost > 0
+                ? ($resource->profit / $resource->totalCost) * 100
+                : null;
+        } else {
+            $resource->profit = $project->getProfit();
+            $resource->profitPercent = $project->getProfitPercent();
+        }
         $resource->notes = $project->getNotes();
+        $resource->inventionMaterials = $project->getInventionMaterials();
         $resource->jobsStartDate = $project->getJobsStartDate()?->format('c');
         $resource->completedAt = $project->getCompletedAt()?->format('c');
         $resource->createdAt = $project->getCreatedAt()->format('c');
@@ -201,7 +240,7 @@ class IndustryResourceMapper
         // Dynamic calculations
         $structureData = $this->calculationService->getStructureBonusForStep($step);
         $resource->structureConfigName = $structureData['name'];
-        $resource->structureMaterialBonus = $structureData['materialBonus'];
+        $resource->structureMaterialBonus = $structureData['materialBonus']['total'];
         $resource->structureTimeBonus = $structureData['timeBonus'];
 
         // Calculate time with best character's skills
@@ -245,10 +284,10 @@ class IndustryResourceMapper
             $isReaction = $step->getActivityType() === 'reaction';
             $bestData = $this->calculationService->getBestStructureBonusForProduct($user, $step->getProductTypeId(), $isReaction);
 
-            if ($bestData['materialBonus'] > $structureData['materialBonus'] + 0.01) {
+            if ($bestData['materialBonus']['total'] > $structureData['materialBonus']['total'] + 0.01) {
                 $resource->facilityInfoType = 'suboptimal';
                 $resource->bestStructureName = $bestData['name'];
-                $resource->bestMaterialBonus = $bestData['materialBonus'];
+                $resource->bestMaterialBonus = $bestData['materialBonus']['total'];
             }
         }
         $resource->jobsCost = $step->getJobsCost();

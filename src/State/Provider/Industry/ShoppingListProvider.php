@@ -13,7 +13,7 @@ use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\MarketService;
-use App\Service\Industry\IndustryProjectService;
+use App\Service\Industry\IndustryShoppingListBuilder;
 use App\Service\JitaMarketService;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -30,7 +30,7 @@ class ShoppingListProvider implements ProviderInterface
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
-        private readonly IndustryProjectService $projectService,
+        private readonly IndustryShoppingListBuilder $shoppingListBuilder,
         private readonly InvTypeRepository $invTypeRepository,
         private readonly MarketService $marketService,
         private readonly JitaMarketService $jitaMarketService,
@@ -53,8 +53,23 @@ class ShoppingListProvider implements ProviderInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $materials = $this->projectService->getShoppingList($project);
-        $purchasedQuantities = $this->projectService->getPurchasedQuantities($project);
+        $materials = $this->shoppingListBuilder->getShoppingList($project);
+
+        // Append invention materials stored on the project (datacores, decryptors)
+        $inventionMaterials = $project->getInventionMaterials();
+        if (!empty($inventionMaterials)) {
+            foreach ($inventionMaterials as $invMat) {
+                $materials[] = [
+                    'typeId' => $invMat['typeId'],
+                    'typeName' => $invMat['typeName'],
+                    'quantity' => $invMat['quantity'],
+                    'extraQuantity' => 0,
+                    'isInventionMaterial' => true,
+                ];
+            }
+        }
+
+        $purchasedQuantities = $this->shoppingListBuilder->getPurchasedQuantities($project);
 
         $request = $this->requestStack->getCurrentRequest();
         $structureId = $request?->query->get('structureId');
@@ -97,7 +112,7 @@ class ShoppingListProvider implements ProviderInterface
 
         $weightedJitaPrices = [];
         try {
-            $weightedJitaPrices = $this->jitaMarketService->getWeightedSellPrices($typeQuantities);
+            $weightedJitaPrices = $this->jitaMarketService->getWeightedSellPricesWithFallback($typeQuantities);
         } catch (\Throwable $e) {
             $this->logger->warning('Failed to fetch weighted Jita prices', [
                 'error' => $e->getMessage(),
@@ -183,6 +198,7 @@ class ShoppingListProvider implements ProviderInterface
             $material->jitaWeightedUnitPrice = $jitaWeightedUnitPrice;
             $material->jitaWeightedTotal = $jitaWeightedTotal;
             $material->jitaCoverage = $jitaCoverage;
+            $material->isInventionMaterial = $mat['isInventionMaterial'] ?? false;
 
             $enrichedMaterials[] = $material;
         }

@@ -21,14 +21,13 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
  */
 class SyncMarketProcessor implements ProcessorInterface
 {
-    private const DEFAULT_STRUCTURE_ID = 1049588174021;
-    private const DEFAULT_STRUCTURE_NAME = 'C-J6MT - 1st Taj Mahgoon (Keepstar)';
-
     public function __construct(
         private readonly Security $security,
         private readonly MarketService $marketService,
         private readonly StructureMarketService $structureMarketService,
         private readonly LoggerInterface $logger,
+        private readonly int $defaultMarketStructureId,
+        private readonly string $defaultMarketStructureName,
     ) {
     }
 
@@ -42,7 +41,10 @@ class SyncMarketProcessor implements ProcessorInterface
 
         assert($data instanceof SyncMarketInput);
 
-        $structureId = $data->structureId ?? self::DEFAULT_STRUCTURE_ID;
+        // Cascade: explicit input > user preference > app default
+        $structureId = $data->structureId
+            ?? $user->getPreferredMarketStructureId()
+            ?? $this->defaultMarketStructureId;
 
         $token = null;
         foreach ($user->getCharacters() as $character) {
@@ -58,8 +60,8 @@ class SyncMarketProcessor implements ProcessorInterface
 
         $structureName = $this->marketService->getStructureName($structureId, $token);
         if ($structureName === null) {
-            $structureName = $structureId === self::DEFAULT_STRUCTURE_ID
-                ? self::DEFAULT_STRUCTURE_NAME
+            $structureName = $structureId === $this->defaultMarketStructureId
+                ? $this->defaultMarketStructureName
                 : "Structure {$structureId}";
         }
 
@@ -83,6 +85,7 @@ class SyncMarketProcessor implements ProcessorInterface
             $resource->success = true;
             $resource->totalOrders = $result['totalOrders'];
             $resource->sellOrders = $result['sellOrders'];
+            $resource->buyOrders = $result['buyOrders'] ?? 0;
             $resource->typeCount = $result['typeCount'];
         } catch (\Throwable $e) {
             $this->logger->error('Structure market sync failed', [

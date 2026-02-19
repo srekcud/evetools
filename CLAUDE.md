@@ -26,232 +26,31 @@ Application web d'utilitaires pour EVE Online :
 **IMPORTANT**: PHP n'est PAS installé sur la machine locale. Toutes les commandes PHP/Symfony doivent être exécutées via Docker :
 
 ```bash
-# Exécuter une commande Symfony
 docker compose exec app php bin/console <commande>
-
-# Ou via make shell puis exécuter les commandes
-make shell
-php bin/console <commande>
 ```
 
 ---
 
 ## API EVE Online (ESI)
 
-### Base URL
-```
-https://esi.evetech.net/latest
-```
-
-### Authentification
-- OAuth 2.0 via EVE SSO
-- Token en header : `Authorization: Bearer <token>`
-- Scopes requis selon endpoints (ex: `esi-assets.read_assets.v1`)
-
-### Endpoints principaux utilisés
-
-| Catégorie | Endpoint | Usage |
-|-----------|----------|-------|
-| **Character** | `GET /characters/{id}/` | Info personnage |
-| **Assets** | `GET /characters/{id}/assets/` | Assets personnels |
-| **Assets** | `GET /corporations/{id}/assets/` | Assets corporation |
-| **Universe** | `POST /universe/names/` | Résoudre type_id → name |
-| **Industry** | `GET /characters/{id}/industry/jobs/` | Jobs industrie |
-| **Mining** | `GET /characters/{id}/mining/` | Historique minage |
-| **Skills** | `GET /characters/{id}/skills/` | Compétences |
-| **Wallet** | `GET /characters/{id}/wallet/` | Portefeuille |
-| **Market** | `GET /markets/{region_id}/orders/` | Ordres de marché |
-| **Blueprints** | `GET /characters/{id}/blueprints/` | Blueprints |
-| **Contracts** | `GET /characters/{id}/contracts/` | Contrats |
-| **Killmails** | `GET /characters/{id}/killmails/recent/` | Killmails |
-| **Fleet** | `GET /fleets/{id}/` | Info flotte |
-
-### Rate Limiting
-- Code **420** = rate limit dépassé
-- Support ETag / Cache-Control
-- Pagination via `page` param (max ~1000 items/page)
-
-### Format
-- JSON uniquement
-- Multi-langue via `Accept-Language` (en, fr, de, ja, ru, zh, ko, es)
+- **Base URL**: `https://esi.evetech.net/latest`
+- **Auth**: OAuth 2.0 via EVE SSO, `Authorization: Bearer <token>`
+- **Rate Limit**: Code **420** = rate limit dépassé. Support ETag / Cache-Control.
+- **Pagination**: `page` param (max ~1000 items/page)
+- **24 scopes** en lecture seule (assets, wallet, industry, mining, skills, blueprints, market, fleet, PI, notifications, UI, corp)
 
 ---
 
 ## Static Data Export (SDE)
 
-### URLs de téléchargement
 ```bash
 # JSON Lines (recommandé - streaming)
 https://developers.eveonline.com/static-data/eve-online-static-data-latest-jsonl.zip
-
-# YAML
-https://developers.eveonline.com/static-data/eve-online-static-data-latest-yaml.zip
 ```
 
-### Tables requises pour le projet
+Tables importées : types, groups, categories, marketGroups, map (regions/constellations/systems/jumps), stations, blueprints, industryActivity (materials/products/skills), planet schematics. Entités Doctrine dans `src/Entity/Sde/`.
 
-#### Priorité 1 - Core (Assets & Inventaire)
-
-| Fichier | Description | Champs clés |
-|---------|-------------|-------------|
-| `types.yaml` | Tous les objets du jeu | `typeID`, `typeName`, `groupID`, `mass`, `volume`, `basePrice`, `marketGroupID`, `published` |
-| `groups.yaml` | Groupes d'objets | `groupID`, `categoryID`, `groupName` |
-| `categories.yaml` | Catégories | `categoryID`, `categoryName`, `published` |
-| `marketGroups.yaml` | Hiérarchie marché | `marketGroupID`, `parentGroupID`, `marketGroupName` |
-
-#### Priorité 2 - Localisation
-
-| Fichier | Champs clés |
-|---------|-------------|
-| `mapRegions` | `regionID`, `regionName`, `x`, `y`, `z`, `factionID` |
-| `mapConstellations` | `constellationID`, `constellationName`, `regionID` |
-| `mapSolarSystems` | `solarSystemID`, `solarSystemName`, `security`, `factionID` |
-| `mapSolarSystemJumps` | `fromSolarSystemID`, `toSolarSystemID` (stargates NPC pour pathfinding) |
-| `ansiblex_jump_gates` | Jump bridges joueurs (données dynamiques, import manuel/ESI) |
-| `staStations` | `stationID`, `stationName`, `solarSystemID`, `operationID` |
-
-#### Priorité 3 - Industrie
-
-| Fichier | Description |
-|---------|-------------|
-| `blueprints` | Données blueprints (manufacturing, invention) |
-| `industryActivity` | Types d'activités (Manufacturing, Research, etc.) |
-| `industryActivityMaterials` | Matériaux requis par blueprint |
-| `industryActivityProducts` | Produits résultants |
-| `industryActivitySkills` | Compétences requises |
-
-#### Priorité 4 - Dogma (Attributs & Effets)
-
-| Fichier | Description |
-|---------|-------------|
-| `dgmAttributeTypes` | Types d'attributs (DPS, HP, résistances) |
-| `dgmTypeAttributes` | Attributs par item |
-| `dgmEffects` | Effets des modules |
-| `dgmTypeEffects` | Effets par type |
-
-#### Priorité 5 - Référentiel
-
-| Fichier | Description |
-|---------|-------------|
-| `chrRaces` | Races (Caldari, Gallente, etc.) |
-| `chrFactions` | Factions NPC |
-| `invFlags` | Flags de location (Cargo, CorpSAG1, etc.) |
-| `eveIcons` | Icônes des items |
-
-### Relations hiérarchiques
-```
-categories (Ships, Modules, Skills...)
-    └── groups (Frigates, Battleships...)
-            └── types (Rifter, Raven...)
-```
-
-### Changelog
-Les modifications du SDE sont documentées dans `schema-changelog.yaml` disponible à :
-```
-https://developers.eveonline.com/static-data/tranquility/changes/<build-number>.jsonl
-```
-
----
-
-## Scopes OAuth2 EVE (24 scopes - lecture seule)
-
-### Assets & Corporation
-- `esi-assets.read_assets.v1` - Inventaire personnel
-- `esi-assets.read_corporation_assets.v1` - Inventaire corporation
-- `esi-characters.read_corporation_roles.v1` - Vérifier rôles (Director)
-- `esi-corporations.read_divisions.v1` - Noms des hangars
-- `esi-corporations.read_structures.v1` - Structures corp (Ansiblex)
-
-### Wallet & Contrats (PVE)
-- `esi-wallet.read_character_wallet.v1` - Journal + transactions
-- `esi-contracts.read_character_contracts.v1` - Contrats (dépenses)
-
-### Industrie & Minage
-- `esi-industry.read_character_jobs.v1` - Jobs industrie perso
-- `esi-industry.read_corporation_jobs.v1` - Jobs industrie corp
-- `esi-industry.read_character_mining.v1` - Ledger minage perso
-- `esi-industry.read_corporation_mining.v1` - Ledger minage corp
-- `esi-characters.read_blueprints.v1` - Blueprints perso
-- `esi-corporations.read_blueprints.v1` - Blueprints corp
-
-### Skills
-- `esi-skills.read_skills.v1` - Compétences (calculs ME/TE)
-
-### Location & Fleet
-- `esi-location.read_location.v1` - Position du joueur
-- `esi-location.read_ship_type.v1` - Vaisseau actuel
-- `esi-location.read_online.v1` - Status en ligne
-- `esi-fleets.read_fleet.v1` - Info flotte
-
-### Universe & Search
-- `esi-universe.read_structures.v1` - Info structures (citadelles)
-- `esi-search.search_structures.v1` - Recherche structures
-
-### Intel
-- `esi-characters.read_notifications.v1` - Notifications (alertes)
-- `esi-killmails.read_killmails.v1` - Kills récents
-
-### Market & UI
-- `esi-markets.structure_markets.v1` - Prix en citadelle
-- `esi-ui.open_window.v1` - Ouvrir fenêtre in-game
-
-### Planetary Interaction
-- `esi-planets.manage_planets.v1` - Colonies et pins PI
-
-### Corporation Projects
-- `esi-corporations.read_projects.v1` - Opportunités/projets corporation (contributions)
-
----
-
-## Structure du projet
-
-```
-src/
-├── ApiResource/        # Resources API Platform (DTOs)
-├── Controller/
-│   ├── Auth/           # OAuth EVE
-│   └── Api/            # Endpoints API
-├── Command/            # Console commands
-│   └── SdeImportCommand.php
-├── Entity/             # Doctrine entities
-│   ├── User.php
-│   ├── Character.php
-│   ├── EveToken.php
-│   ├── CachedAsset.php
-│   ├── AnsiblexJumpGate.php
-│   └── Sde/            # SDE entities
-│       ├── InvCategory.php
-│       ├── InvGroup.php
-│       ├── InvType.php
-│       ├── InvMarketGroup.php
-│       ├── MapRegion.php
-│       ├── MapConstellation.php
-│       ├── MapSolarSystem.php
-│       ├── MapSolarSystemJump.php
-│       └── StaStation.php
-├── Service/
-│   ├── ESI/            # Clients API EVE
-│   │   ├── EsiClient.php
-│   │   ├── TokenManager.php
-│   │   ├── AuthenticationService.php
-│   │   ├── CharacterService.php
-│   │   ├── AssetsService.php
-│   │   └── CorporationService.php
-│   ├── Sde/            # SDE import
-│   │   └── SdeImportService.php
-│   └── Sync/           # Synchronisation async
-├── Message/            # Messages Messenger
-├── MessageHandler/     # Handlers async
-└── Scheduler/          # Tâches planifiées
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── views/
-│   ├── stores/         # Pinia stores
-│   └── router/
-└── vite.config.ts
-```
+Hiérarchie : `categories → groups → types`
 
 ---
 
@@ -259,315 +58,108 @@ frontend/
 
 ```bash
 # Docker
-make up              # Démarrer
-make down            # Arrêter
-make logs            # Logs
-make shell           # Shell container
+make up / make down / make logs / make shell
 
 # Database
-make db-migrate      # Migrations
-make db-create       # Créer DB
+make db-migrate / make db-create
 
-# SDE (Static Data Export)
-make sde-import      # Importer données statiques EVE
-
-# Ansiblex Sync
-php bin/console app:ansiblex:sync "character name"  # Sync manuel
+# SDE
+make sde-import
 
 # Tests
-make test            # Tous les tests
+make test
+docker compose exec app php vendor/bin/phpunit --no-coverage
 
-# Messenger (async)
-make messenger       # Consumer
-```
+# Messenger
+make messenger
 
-### Mise en production (MTP)
-
-```bash
-# Déploiement standard (une seule commande)
-make deploy
-
-# Déploiement complet (rebuild image de base + deploy)
-# À utiliser si changement de version PHP ou d'extensions
-make deploy-full
-
-# Rebuild image de base uniquement
-make base-build
+# Deploy
+make deploy          # Standard
+make deploy-full     # Rebuild image base + deploy
+make base-build      # Rebuild image base uniquement
 ```
 
 **Architecture Docker** :
-- `evetools-base:latest` — Image de base (PHP, extensions, Composer). Rebuild rare via `make base-build`.
-- `evetools-app` — Image applicative (code + vendor). `app` et `worker` partagent la même image.
+- `evetools-base:latest` — Image de base (PHP, extensions, Composer). Rebuild rare.
+- `evetools-app` — Image applicative. `app` et `worker` partagent la même image.
 
-**Note**: Le service `worker` réutilise l'image `evetools-app` (pas de build séparé). `make deploy` redémarre automatiquement le worker après le déploiement.
-
-**IMPORTANT pour Claude**: Lors de changements impliquant des seeds, fixtures ou commandes console (ex: `app:seed-rig-categories`), toujours rappeler à l'utilisateur d'exécuter ces commandes en production après le déploiement.
+**IMPORTANT**: Lors de changements impliquant des seeds, fixtures ou commandes console, toujours rappeler à l'utilisateur d'exécuter ces commandes en production après le déploiement.
 
 ---
 
 ## Préférences Git
 
 - **NE PAS ajouter de "Co-Authored-By: Claude"** dans les commits
-- Format de version : `V0.1.x` (ex: V0.1, V0.1.1, V0.1.2)
+- Format de version : `V0.x` (ex: V0.1, V0.2, V0.10)
 
 ---
 
 ## Préférences de développement
 
 - **Toujours utiliser API Platform** pour les endpoints API, jamais de contrôleurs Symfony classiques
-- Pour les opérations POST sans body, utiliser un DTO vide (`input: EmptyInput::class`) plutôt que `input: false`
-- Pour les opérations DELETE, toujours fournir un `provider` qui renvoie la resource (même minimal) - le processor doit retourner `void`
-- Les ApiResources sans identifiant ne doivent pas avoir de propriété `$id` avec `#[ApiProperty(identifier: true)]` pour éviter les routes GET parasites
+- POST sans body : `input: EmptyInput::class` (pas `input: false`)
+- DELETE : toujours fournir un `provider` qui renvoie la resource
+- ApiResources sans identifiant : pas de `$id` avec `#[ApiProperty(identifier: true)]`
+- PATCH content type : `application/merge-patch+json`
 
 ---
 
-## API Endpoints
+## Mercure (temps réel)
 
-### Ansiblex Jump Gates
+- Hub : `/.well-known/mercure` (intégré dans FrankenPHP/Caddy)
+- Backend : `MercurePublisherService` (syncStarted → syncProgress → syncCompleted/syncError)
+- Frontend : `stores/sync.ts` + `composables/useMercure.ts`
+- Topics : `/user/{userId}/sync/{syncType}`
+- Types sync : character-assets, corporation-assets, ansiblex, industry-jobs, pve, market-jita, market-structure, mining-ledger, planetary-colonies, wallet-transactions, alert-prices, cost-indices, adjusted-prices
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/me/ansiblex` | Liste les Ansiblex de l'alliance |
-| `POST` | `/api/me/ansiblex/refresh` | Lance un sync (async par défaut) |
-| `POST` | `/api/me/ansiblex/refresh?async=false` | Sync synchrone |
-| `GET` | `/api/me/ansiblex/graph` | Graphe pour pathfinding |
+---
 
-### Scheduler
+## Scheduler
 
 | Tâche | Intervalle |
 |-------|------------|
-| Assets sync | 30 minutes |
-| Structure owner warmup | Après chaque sync d'assets |
-| Ansiblex sync | 12 heures |
-| Industry jobs sync | 15 minutes |
-| PVE data sync | 20 minutes |
-| Mining ledger sync | 30 minutes |
-| Market sync (Jita + Structure) | 2 heures |
-| Wallet transactions sync | 20 minutes |
-| Planetary colonies sync | 30 minutes |
+| Assets sync | 30 min |
+| Industry jobs sync | 15 min |
+| PVE data sync | 20 min |
+| Mining ledger sync | 30 min |
+| Wallet transactions sync | 20 min |
+| Market sync (Jita + Structure) | 2h |
+| Planetary colonies sync | 30 min |
+| Alert prices check | 30 min |
+| Ansiblex sync | 12h |
 
 ---
 
-## Migrations en attente (Production)
+## Roadmap
 
-**Note** : Toutes les migrations ci-dessous doivent être exécutées lors du prochain déploiement (V0.8).
+### Implémenté
+- V0.1–V0.6 : Auth, assets, PVE, contracts, industry, escalations, PI
+- V0.7 : i18n bilingue
+- V0.8 : Stack upgrade, Valuator/Appraisal, PHPStan 8, GDPR
+- V0.9 : Weighted Price + Open In-Game Window
+- V0.10 (en cours) : Market Browser, Profit Margins, Cost Estimation, BPC Kit
 
-| Migration | Version | Description |
-|-----------|---------|-------------|
-| `Version20260131130430` | V0.2 | Ajoute `location_id` et `corporation_id` à `industry_structure_configs` |
-| `Version20260131133840` | V0.2 | Ajoute `location_owner_corporation_id` à `cached_assets` |
-| `Version20260131133934` | V0.2 | Ajoute `owner_corporation_id` à `cached_structure` |
-| `Version20260131223001` | V0.2 | Ajoute `te_level` à `industry_projects` |
-| `Version20260202100000` | V0.3 | Ajoute `in_stock_quantity` à `industry_project_steps` |
-| `Version20260205080822` | V0.4 | Crée la table `escalations` |
-| `Version20260209200000` | V0.5 | Migre jobs ESI → `industry_step_job_matches`, supprime anciennes colonnes |
-| `Version20260210121432` | V0.5 | Renommage index + ajustements types |
-| `Version20260210123656` | V0.5 | Ajoute `solar_system_id` aux structure configs |
-| `Version20260211135848` | V0.5 | Ajoute `station_id` aux cached_industry_jobs + facility tracking |
-| `Version20260211143214` | V0.5 | Ajoute `planned_structure_name` + `planned_material_bonus` aux job matches |
-| `Version20260212142627` | V0.6 | Planetary Interaction : colonies, pins, routes, SDE schematics |
+### Planifié
+- **Notifications Hub** : timers PI, jobs terminés, alertes prix, notifications ESI. Push via Service Workers.
+- **Intel Map** : Carte 2D (pixi.js/d3.js), pathfinding Dijkstra (stargates + Ansiblex), overlays PI/industry/escalations
+- **Corp Projects Dashboard** : ESI `GET /corporations/{id}/projects/`, cursor-based pagination
+- **Simulateur PI** : Ranking profitabilité → Builder visuel → Templates importables JSON natif EVE
+- **Comptabilité Corp** : 7 divisions wallet, journal, contrats, ordres marché. Scopes: wallet/contracts/orders corp
+- **Fleet Tracker** : Suivi minage/PVE temps réel
+- **Skill Planner** : Arbre compétences, prérequis par blueprint/ship
 
-```bash
-# Exécuter en production
-php bin/console doctrine:migrations:migrate
-```
-
-### Actions post-déploiement V0.8
-
-- [ ] **Réimporter le SDE** (JSONL, pour planet schematics)
-  ```bash
-  php bin/console app:sde:import --force
-  ```
-- [ ] **Re-authentifier les utilisateurs** (nouveau scope `esi-planets.manage_planets.v1`)
-- [ ] **Seed rig categories**
-  ```bash
-  php bin/console app:seed-rig-categories
-  ```
-- [ ] **Sync Jita market** (pour peupler le cache buy prices)
-  ```bash
-  php bin/console app:sync-jita-market
-  ```
-- [ ] **Redémarrer le worker** pour les nouveaux handlers
+### Upgrades infrastructure
+- PostgreSQL 18 (Q3 2026)
+- Symfony 8 LTS (quand disponible)
 
 ---
 
-## Roadmap V0.9 — Quick Wins
+## Points en suspens
 
-### 1. Prix pondéré par volume (Weighted Price)
-**Statut** : Planifié | **Complexité** : S
-
-Au lieu du meilleur sell order, calculer le prix moyen pondéré en empilant les orders jusqu'à couvrir la quantité demandée. Indicateur de profondeur de marché. Warning si la profondeur est insuffisante.
-
-**Impact** : `JitaMarketService`, `StructureMarketService`, `PlanetaryProductionCalculator`, `ShoppingTab`
-**Changement** : Stocker les N meilleurs orders (pas juste le min price) dans le cache
-
-### 2. Open In-Game Window
-**Statut** : Planifié | **Complexité** : S
-
-Boutons "ouvrir en jeu" (marché, info, contrat) sur les items, systèmes, personnages dans toute l'app. Composant réutilisable `<OpenInGameButton>`.
-
-**Endpoints ESI** : `POST /ui/openwindow/marketdetails/`, `POST /ui/openwindow/information/`, `POST /ui/openwindow/contract/` (scope `esi-ui.open_window.v1`, déjà demandé)
-
----
-
-## Roadmap V0.10 — Analytique & Intelligence
-
-### 4. Profit Tracker Industrie
-**Statut** : Planifié | **Complexité** : M
-
-Calcul automatique du profit par item fabriqué : coût matériaux + coût job install + taxe structure vs prix de vente (wallet transactions). Historique des marges. Cross-reference jobs terminés → transactions de vente.
-
-**Synergies** : Industry (jobs, blueprints, ME), Ledger (wallet), Market (prix)
-
-### 5. Market Browser & Historique de prix
-**Statut** : Planifié | **Complexité** : M/L
-
-Navigateur marché intégré avec historique de prix (graphique Chart.js), spread buy/sell, volume quotidien. Comparaison Jita vs structure locale. Alertes de prix (notification quand seuil atteint).
-
-**Endpoints ESI** : `GET /markets/{region_id}/history/` (pas besoin d'auth)
-**Stockage** : Table dédiée en DB (rétention 90 jours, sync quotidien des types suivis)
-
-### 6. Notifications centralisées
-**Statut** : Planifié | **Complexité** : M
-
-Hub unifié : timers PI expirants, jobs industrie terminés, escalations expirantes, alertes prix, notifications ESI in-game. Push browser via Service Workers.
-
-**Endpoints ESI** : `GET /characters/{id}/notifications/` (scope déjà demandé)
-**Synergies** : Mercure déjà en place pour le temps réel
-
----
-
-## Roadmap V0.11 — Map & Corp
-
-### 7. Intel Map (phases 1+2)
-**Statut** : Planifié | **Complexité** : L
-
-Carte 2D interactive de New Eden. Affichage systèmes solaires avec couleurs de sécurité. Pathfinding A→B via stargates + Ansiblex (Dijkstra). Options : éviter lowsec, préférer Ansiblex. Overlay colonies PI, structures industry, escalations.
-
-**Données SDE** : `MapSolarSystem`, `MapSolarSystemJump`, `MapConstellation`, `MapRegion` (déjà importés)
-**Rendu** : Canvas (pixi.js) ou SVG (d3.js), ~5000 systèmes
-
-### 8. Corporation Projects Dashboard
-**Statut** : Planifié | **Complexité** : M
-
-Tableau de bord des projets corporation (feature ESI récente). Projets actifs, progression, contributions par membre, récompenses ISK. Cursor-based pagination (nouveau pattern ESI).
-
-**Endpoints ESI** : `GET /corporations/{id}/projects/` (scope `esi-corporations.read_projects.v1`, déjà demandé)
-
----
-
-## Upgrades infrastructure planifiés
-
-- **PostgreSQL 18** : Migrer de PG16 à PG18 (attendre release stable, prévu Q3 2026)
-- **Symfony 8 LTS** : Migrer de Symfony 7.4 vers Symfony 8 quand la LTS sera disponible
-
----
-
-## Roadmap V1.0 — Maturité
-
-### 9. Intel Map (phases 3+4)
-Plugin logs Windows/Python (lit chatlogs EVE), intel temps réel via Mercure, threat assessment zKillboard (score de menace par pilote).
-
-### 10. Simulateur & Templates PI
-**Complexité** : M/L
-
-**Niveau 1 — Ranking profitabilité** : Classement des produits PI (P1→P4) par ISK/jour selon les prix Jita, par type de planète.
-
-**Niveau 2 — Builder visuel** : Placer extracteurs + processeurs + factories sur une planète virtuelle, définir les routes, voir la production théorique.
-
-**Niveau 3 — Templates importables** : Génération de fichiers JSON au format natif EVE (importable directement dans le client). Format :
-```json
-{
-  "CmdCtrLv": 5, "Cmt": "Robotics", "Diam": 10780.0, "Pln": 2016,
-  "P": [{"H": 0, "La": 0.91761, "Lo": 1.60449, "S": 3689, "T": 2474}, ...],
-  "L": [{"D": 19, "Lv": 0, "S": 15}, ...],
-  "R": [{"P": [3, 2, 17], "Q": 5, "T": 3689}, ...]
-}
-```
-
-Fonctionnalités :
-- Export des colonies existantes (ESI → JSON template)
-- Bibliothèque de templates optimisés par produit/planète
-- Partage de templates entre utilisateurs
-- Import en jeu sans configuration manuelle
-
-### 11. Comptabilité Corporation
-**Complexité** : L
-
-Dashboard comptable : soldes 7 divisions wallet, journal revenus/dépenses, contrats corp, ordres marché corp. Graphiques + export CSV.
-
-**Scopes ESI à ajouter** : `esi-wallet.read_corporation_wallets.v1`, `esi-contracts.read_corporation_contracts.v1`, `esi-markets.read_corporation_orders.v1`
-**Rôles in-game** : Accountant, Junior Accountant ou Director
-
-### 12. Fleet Tracker
-**Complexité** : L
-
-Suivi flotte minage/PVE en temps réel. Qui mine quoi, répartition des gains, loot partagé.
-
-**Endpoints ESI** : `GET /fleets/{id}/members/` (scope `esi-fleets.read_fleet.v1`, déjà demandé)
-
-### 13. Skill Planner
-**Complexité** : M
-
-Arbre de compétences, prérequis par blueprint/ship/module, calcul temps de training, priorités basées sur les jobs industry en cours.
-
-**Données SDE** : `IndustryActivitySkills`, `DgmTypeAttribute`
-
----
-
-## TODO / Points en suspens
-
-### Ansiblex Jump Gates
-**Solution implémentée** : `syncViaSearch()` permet de découvrir les Ansiblex via l'API search ESI (scope `esi-search.search_structures.v1`). Fonctionne sans rôle Director.
-
-**Commandes** :
-- CLI : `php bin/console app:test-ansiblex-discover "character name"`
-- API : `POST /api/me/ansiblex/discover`
-
-**À faire** : Ajouter un scheduler quotidien (Phase 1 du roadmap)
-
-### Sessions PVE
-**Feature supprimée** : Les sessions PVE (start/stop/tracking) ne font pas partie du périmètre de l'application. Ne pas implémenter les endpoints `/api/pve/sessions/*`.
-
-### Synchronisation temps réel avec Mercure
-**Implémenté**: Mercure est intégré via FrankenPHP pour les mises à jour en temps réel.
-
-**Architecture**:
-- Hub Mercure: `/.well-known/mercure` (intégré dans FrankenPHP/Caddy)
-- Backend publie via `MercurePublisherService`
-- Frontend s'abonne via `useSyncStore` (Pinia store)
-- Topics: `/user/{userId}/sync/{syncType}`
-
-**Types de sync supportés**:
-- `character-assets` - Assets personnage
-- `corporation-assets` - Assets corporation
-- `ansiblex` - Ansiblex jump gates
-- `industry-jobs` - Jobs industrie
-- `pve` - Données PVE
-- `market-jita` / `market-structure` - Données marché
-
-**Fichiers clés**:
-- `src/Service/Mercure/MercurePublisherService.php` - Service de publication
-- `src/Controller/Api/MercureController.php` - Endpoint JWT token
-- `frontend/src/stores/sync.ts` - Store Pinia pour l'état sync
-- `frontend/src/composables/useMercure.ts` - Composable EventSource
-
-**Statut**: Implémenté (Assets character/corporation)
-
-### Rigs de structure (Industrie)
-
-**Rigs intégrés** (Manufacturing & Reactions) :
-- M-Set Material Efficiency (Raitaru)
-- M-Set Time Efficiency (Raitaru)
-- L-Set Efficiency (Azbel) - ME + TE combinés
-- XL-Set Efficiency (Sotiyo) - ME + TE combinés
-- M-Set Reactor Material Efficiency (Athanor)
-- L-Set Reactor Efficiency (Tatara) - ME + TE combinés
-- Laboratory Optimization (Research/Invention/Copy)
-
-**Rigs NON intégrés** :
-- Reprocessing rigs (L-Set Reprocessing Monitor I/II) - Affectent le rendement de retraitement de minerai, pas la production
-- Moon Ore Reprocessing rigs
+- **Ansiblex** : `syncViaSearch()` implémenté. TODO : scheduler quotidien.
+- **Sessions PVE** : Feature supprimée. Ne pas implémenter `/api/pve/sessions/*`.
+- **Corp assets partagés** : Director sync les assets corpo, choisit les divisions visibles aux membres.
+- **Profit Tracker (legacy)** : Backend files conservés mais déconnectés de l'UI. Remplacé par Profit Margins.
 
 ---
 
@@ -577,5 +169,49 @@ Arbre de compétences, prérequis par blueprint/ship/module, calcul temps de tra
 - [ESI API Explorer](https://developers.eveonline.com/api-explorer)
 - [Static Data](https://developers.eveonline.com/static-data)
 - [ESI Documentation](https://docs.esi.evetech.net/)
-- [EVE University Wiki - SDE](https://wiki.eveuniversity.org/Static_Data_Export)
-- [Fuzzwork SDE Conversions](https://www.fuzzwork.co.uk/dump/)
+
+---
+
+## AI Coding Rules — 4 Rules of Simple Design
+
+Follow Kent Beck's 4 Rules of Simple Design in priority order. When rules conflict, higher-priority rules always win.
+
+### Rule 1: Passes the Tests (Highest Priority)
+- Every function written or modified MUST have corresponding tests
+- If modifying existing code, run existing tests first — never break them
+- Write the test BEFORE or alongside the implementation, never as an afterthought
+- Tests must cover: expected behaviour, edge cases, and error paths
+- If unsure whether behaviour is correct, ask — do not guess
+- Never mark a task as complete if tests are failing
+
+### Rule 2: Reveals Intention
+- Use descriptive, specific names. Bad: `data`, `process`, `handle`. Good: `unpaidInvoices`, `calculateShippingCost`
+- Avoid over-descriptive names that repeat context already clear from the module or type signature
+- Extract magic numbers and strings into named constants
+- Use TypeScript types to document data shapes. Prefer `type` over `interface` (use `interface` only for declaration merging)
+- Prefer named functions over inline lambdas for non-trivial logic
+- Each function should do one thing. If you need "and" to describe it, split it
+- Comments explain WHY, never WHAT
+
+### Rule 3: No Duplication
+- Never copy-paste logic — extract shared behaviour into a function, type, or module
+- Duplication includes: repeated business rules, conditionals, data transformations, structural patterns
+- When you spot duplication, refactor it — even if you didn't introduce it
+- Do NOT force an abstraction when two pieces of code only look similar but represent different concepts (Rule 2 takes priority)
+
+### Rule 4: Fewest Elements (Lowest Priority)
+- Do not create abstractions for hypothetical future requirements
+- Prefer functions over classes when no state management is required
+- Prefer module-level functions with namespace imports over classes with methods
+- Remove dead code, unused imports, and unnecessary parameters
+- If an abstraction makes the code harder to follow without reducing real duplication, remove it
+- One file with 3 clear functions is better than 3 files with 1 function each (unless genuinely different domains)
+
+### Conflict Resolution
+1. Working, tested code (Rule 1) > everything
+2. Clarity (Rule 2) > DRY (Rule 3) — a little repetition is OK if the alternative is an unclear abstraction
+3. DRY (Rule 3) > Minimalism (Rule 4) — an extra function to eliminate duplication is justified
+4. Never add complexity to satisfy Rule 4
+
+### Refactoring Loop
+After every change, mentally run: (1) Tests green? Fix if not. (2) Code clearly expresses intent? Rename/restructure if not. (3) Duplication? Extract. (4) Can anything be removed without breaking rules 1-3? Remove.

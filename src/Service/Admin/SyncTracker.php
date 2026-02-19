@@ -23,10 +23,12 @@ class SyncTracker
         'mining' => 3600,           // 1h
         'ansiblex' => 43200,        // 12h
         'planetary' => 1800,        // 30 min
-        'market-jita' => 7200,      // 2h
-        'market-structure' => 7200, // 2h
+        'market-jita' => 3600,      // 1h
+        'market-structure' => 3600, // 1h
         'profit' => 7200,           // 2h
         'market-alerts' => 7200,    // 2h
+        'alert-prices' => 1800,     // 30 min
+        'public-contracts' => 1800, // 30 min
     ];
 
     private const LABELS = [
@@ -41,6 +43,8 @@ class SyncTracker
         'market-structure' => 'Market Structure',
         'profit' => 'Profit Tracker',
         'market-alerts' => 'Market Alerts',
+        'alert-prices' => 'Alert Price Refresh',
+        'public-contracts' => 'Public Contracts',
     ];
 
     public function __construct(

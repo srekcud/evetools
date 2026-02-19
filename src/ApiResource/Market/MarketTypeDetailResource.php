@@ -17,7 +17,7 @@ use App\State\Provider\Market\MarketTypeDetailProvider;
         new Get(
             uriTemplate: '/market/types/{typeId}',
             provider: MarketTypeDetailProvider::class,
-            openapi: new Model\Operation(summary: 'Get full market detail for an item'),
+            openapi: new Model\Operation(summary: 'Get full market detail for an item', tags: ['Market']),
         ),
     ],
     security: "is_granted('ROLE_USER')",
@@ -49,9 +49,19 @@ class MarketTypeDetailResource
 
     public ?float $structureBuy = null;
 
+    /** @var list<array{price: float, volume: int}> */
+    public array $structureSellOrders = [];
+
+    /** @var list<array{price: float, volume: int}> */
+    public array $structureBuyOrders = [];
+
     public ?float $avgDailyVolume = null;
 
     public ?float $change30d = null;
 
     public bool $isFavorite = false;
+
+    public bool $hasPreferredStructure = false;
+
+    public ?string $structureName = null;
 }

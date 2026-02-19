@@ -17,7 +17,7 @@ use App\State\Provider\Mercure\TokenProvider;
         new Get(
             uriTemplate: '/mercure/token',
             provider: TokenProvider::class,
-            openapi: new Model\Operation(summary: 'Get Mercure subscription token', description: 'Returns a JWT token for subscribing to Mercure topics'),
+            openapi: new Model\Operation(summary: 'Get Mercure subscription token', description: 'Returns a JWT token for subscribing to Mercure topics', tags: ['Real-time']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

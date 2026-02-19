@@ -8,6 +8,8 @@ import { parseIskValue } from '@/composables/useIskParser'
 import { formatDuration, useProjectTime } from '@/composables/useProjectTime'
 import StepsTab from './StepsTab.vue'
 import ShoppingTab from './ShoppingTab.vue'
+import BpcKitTab from './BpcKitTab.vue'
+import CostEstimationTab from './CostEstimationTab.vue'
 
 const { t } = useI18n()
 
@@ -26,11 +28,12 @@ const { getTypeIconUrl, onImageError } = useEveImages()
 const projectRef = computed(() => store.currentProject)
 const { estimatedProjectTime } = useProjectTime(projectRef)
 
-const activeTab = ref<'steps' | 'shopping'>('steps')
+const activeTab = ref<'steps' | 'shopping' | 'invention' | 'costs'>('steps')
 
 // Template refs to child components
 const stepsTabRef = ref<InstanceType<typeof StepsTab> | null>(null)
 const shoppingTabRef = ref<InstanceType<typeof ShoppingTab> | null>(null)
+const costsTabRef = ref<InstanceType<typeof CostEstimationTab> | null>(null)
 
 // Project name editing
 const editingProjectName = ref(false)
@@ -82,48 +85,15 @@ const rootProducts = computed(() => {
 const totalRootStepCount = computed(() => rootProducts.value.reduce((sum, p) => sum + p.count, 0))
 const isMultiProduct = computed(() => rootProducts.value.length > 1 || totalRootStepCount.value > 1)
 
+const hasT2Components = computed(() => {
+  const project = store.currentProject
+  if (!project) return false
+  return project.isT2
+})
+
 // Costs panel data from child components
 const shoppingTotals = computed(() => shoppingTabRef.value?.shoppingTotals ?? null)
 const purchasesTotalCost = computed(() => shoppingTabRef.value?.projectPurchasesTotalCost ?? 0)
-
-// BPC Kit modal
-const showBpcKitModal = ref(false)
-const bpcKitPrice = ref('')
-const bpcKitLoading = ref(false)
-
-function openBpcKitModal() {
-  bpcKitPrice.value = ''
-  showBpcKitModal.value = true
-}
-
-function closeBpcKitModal() {
-  showBpcKitModal.value = false
-  bpcKitPrice.value = ''
-}
-
-async function confirmBpcKit() {
-  if (!store.currentProject?.steps) return
-  bpcKitLoading.value = true
-  try {
-    const kitPrice = parseIskValue(bpcKitPrice.value) ?? 0
-
-    const bpcSteps = store.currentProject.steps.filter(s => s.activityType === 'copy' && s.depth > 0)
-    for (const step of bpcSteps) {
-      if (!step.purchased) {
-        try {
-          await store.toggleStepPurchased(props.projectId, step.id, true)
-        } catch {
-          // Ignore errors for individual steps
-        }
-      }
-    }
-
-    await store.updateProject(props.projectId, { bpoCost: kitPrice })
-    closeBpcKitModal()
-  } finally {
-    bpcKitLoading.value = false
-  }
-}
 
 // Inline cost editing
 const editingCostField = ref<string | null>(null)
@@ -164,11 +134,13 @@ async function toggleProjectStatus() {
   }
 }
 
-async function switchTab(tab: 'steps' | 'shopping') {
+async function switchTab(tab: 'steps' | 'shopping' | 'invention' | 'costs') {
   activeTab.value = tab
   if (tab === 'shopping') {
     await shoppingTabRef.value?.activate()
     await shoppingTabRef.value?.loadSuggestions()
+  } else if (tab === 'costs') {
+    await costsTabRef.value?.activate()
   }
 }
 
@@ -346,10 +318,10 @@ onMounted(async () => {
     <div v-else-if="store.currentProject" class="p-6">
       <!-- Costs panel (8 columns) -->
       <div class="eve-card p-4 mb-6">
-        <div class="grid grid-cols-4 md:grid-cols-8 gap-4">
-          <!-- BPC Kit (editable) -->
-          <div>
-            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costs.bpcKit') }}</p>
+        <div class="grid grid-cols-4 md:grid-cols-11 gap-4">
+          <!-- Invention cost (only for T2) -->
+          <div v-if="hasT2Components">
+            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costs.invention') }}</p>
             <input
               v-if="editingCostField === 'bpoCost'"
               v-model="editCostValue"
@@ -365,11 +337,11 @@ onMounted(async () => {
               {{ store.currentProject.bpoCost !== null ? formatIsk(store.currentProject.bpoCost) : '-' }}
             </p>
           </div>
-          <!-- Mat. estimé (readonly) -->
-          <div>
+          <!-- Mat. estimé (readonly, hidden if materialCost is set) -->
+          <div v-if="store.currentProject.materialCost == null">
             <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costs.estimatedMat') }}</p>
             <p class="text-sm font-mono text-slate-400">
-              {{ shoppingTotals?.best ? formatIsk(shoppingTotals.best) : '-' }}
+              {{ shoppingTotals?.best ? formatIsk(shoppingTotals.best) : (store.currentProject.estimatedMaterialCost != null ? formatIsk(store.currentProject.estimatedMaterialCost) : '-') }}
             </p>
           </div>
           <!-- Mat. réel (readonly, from purchases) -->
@@ -404,47 +376,65 @@ onMounted(async () => {
               {{ formatIsk(store.currentProject.jobsCost) }}
             </p>
           </div>
+          <!-- Estimated job cost (readonly, hidden if jobsCost > 0) -->
+          <div v-if="!store.currentProject.jobsCost || store.currentProject.jobsCost <= 0">
+            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costs.estimatedJobs') }}</p>
+            <p class="text-sm font-mono text-slate-400">
+              {{ store.currentProject.estimatedJobCost != null ? formatIsk(store.currentProject.estimatedJobCost) : '-' }}
+            </p>
+          </div>
           <!-- Taxes (editable, hidden for personalUse) -->
-          <div>
+          <div v-if="!store.currentProject.personalUse">
             <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costs.taxes') }}</p>
-            <template v-if="!store.currentProject.personalUse">
-              <input
-                v-if="editingCostField === 'taxAmount'"
-                v-model="editCostValue"
-                type="text"
-                placeholder="ex: 50M"
-                class="w-full text-sm font-mono bg-slate-800 border border-cyan-500 rounded-sm px-1.5 py-0.5 focus:outline-hidden"
-                @keydown.enter="saveEditCost"
-                @keydown.escape="cancelEditCost"
-                @blur="saveEditCost"
-                autofocus
-              />
-              <p v-else class="text-sm font-mono text-slate-200 editable" @click="startEditCost('taxAmount')" :title="t('industry.projectDetail.clickToEdit')">
-                {{ store.currentProject.taxAmount !== null ? formatIsk(store.currentProject.taxAmount) : '-' }}
-              </p>
-            </template>
-            <p v-else class="text-sm font-mono text-slate-600">—</p>
+            <input
+              v-if="editingCostField === 'taxAmount'"
+              v-model="editCostValue"
+              type="text"
+              placeholder="ex: 50M"
+              class="w-full text-sm font-mono bg-slate-800 border border-cyan-500 rounded-sm px-1.5 py-0.5 focus:outline-hidden"
+              @keydown.enter="saveEditCost"
+              @keydown.escape="cancelEditCost"
+              @blur="saveEditCost"
+              autofocus
+            />
+            <p v-else class="text-sm font-mono text-slate-200 editable" @click="startEditCost('taxAmount')" :title="t('industry.projectDetail.clickToEdit')">
+              {{ store.currentProject.taxAmount !== null ? formatIsk(store.currentProject.taxAmount) : '-' }}
+            </p>
+          </div>
+          <!-- Estimated tax amount (readonly, hidden if taxAmount is set or personalUse) -->
+          <div v-if="store.currentProject.taxAmount == null && !store.currentProject.personalUse">
+            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costs.estimatedTaxes') }}</p>
+            <p class="text-sm font-mono text-slate-400">
+              {{ store.currentProject.estimatedTaxAmount != null ? formatIsk(store.currentProject.estimatedTaxAmount) : '-' }}
+            </p>
           </div>
           <!-- Vente (editable, hidden for personalUse) -->
-          <div>
+          <div v-if="!store.currentProject.personalUse">
             <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costs.sell') }}</p>
-            <template v-if="!store.currentProject.personalUse">
-              <input
-                v-if="editingCostField === 'sellPrice'"
-                v-model="editCostValue"
-                type="text"
-                placeholder="ex: 1.5B"
-                class="w-full text-sm font-mono bg-slate-800 border border-cyan-500 rounded-sm px-1.5 py-0.5 focus:outline-hidden"
-                @keydown.enter="saveEditCost"
-                @keydown.escape="cancelEditCost"
-                @blur="saveEditCost"
-                autofocus
-              />
-              <p v-else class="text-sm font-mono text-slate-200 editable" @click="startEditCost('sellPrice')" :title="t('industry.projectDetail.clickToEdit')">
-                {{ store.currentProject.sellPrice !== null ? formatIsk(store.currentProject.sellPrice) : '-' }}
-              </p>
-            </template>
-            <p v-else class="text-sm font-mono text-slate-600">—</p>
+            <input
+              v-if="editingCostField === 'sellPrice'"
+              v-model="editCostValue"
+              type="text"
+              placeholder="ex: 1.5B"
+              class="w-full text-sm font-mono bg-slate-800 border border-cyan-500 rounded-sm px-1.5 py-0.5 focus:outline-hidden"
+              @keydown.enter="saveEditCost"
+              @keydown.escape="cancelEditCost"
+              @blur="saveEditCost"
+              autofocus
+            />
+            <p v-else class="text-sm font-mono text-slate-200 editable" @click="startEditCost('sellPrice')" :title="t('industry.projectDetail.clickToEdit')">
+              {{ store.currentProject.sellPrice !== null ? formatIsk(store.currentProject.sellPrice) : '-' }}
+            </p>
+          </div>
+          <!-- Estimated sell price (readonly, hidden if sellPrice is set or personalUse) -->
+          <div v-if="store.currentProject.sellPrice == null && !store.currentProject.personalUse">
+            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costs.estimatedSell') }}</p>
+            <p class="text-sm font-mono text-slate-400">
+              {{ store.currentProject.estimatedSellPrice != null ? formatIsk(store.currentProject.estimatedSellPrice) : '-' }}
+            </p>
+            <p v-if="store.currentProject.estimatedSellPriceSource" class="text-[10px] text-slate-600 mt-0.5">
+              {{ store.currentProject.estimatedSellPriceSource === 'jita' ? 'Jita' : t('industry.costs.structure') }}
+            </p>
           </div>
           <!-- Profit + % -->
           <div>
@@ -467,7 +457,7 @@ onMounted(async () => {
                 class="text-xs font-mono"
                 :class="store.currentProject.profitPercent >= 0 ? 'text-emerald-400' : 'text-red-400'"
               >
-                {{ store.currentProject.profitPercent }}%
+                {{ store.currentProject.profitPercent?.toFixed(1) }}%
               </p>
             </template>
             <p v-else class="text-lg font-mono text-slate-600">—</p>
@@ -477,6 +467,17 @@ onMounted(async () => {
 
       <!-- Tabs (pill style) -->
       <div class="flex gap-2 mb-6">
+        <!-- Invention tab (only for T2 projects) -->
+        <button
+          v-if="hasT2Components"
+          @click="switchTab('invention')"
+          :class="[
+            'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+            activeTab === 'invention' ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200',
+          ]"
+        >
+          {{ t('industry.tabs.invention') }}
+        </button>
         <button
           @click="switchTab('steps')"
           :class="[
@@ -499,6 +500,15 @@ onMounted(async () => {
         >
           {{ t('industry.projectDetail.procurement') }}
         </button>
+        <button
+          @click="switchTab('costs')"
+          :class="[
+            'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+            activeTab === 'costs' ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200',
+          ]"
+        >
+          {{ t('industry.costEstimation.tabLabel') }}
+        </button>
       </div>
 
       <!-- Tab content -->
@@ -506,7 +516,6 @@ onMounted(async () => {
         v-show="activeTab === 'steps'"
         ref="stepsTabRef"
         :project-id="projectId"
-        @open-bpc-modal="openBpcKitModal"
       />
 
       <ShoppingTab
@@ -514,84 +523,20 @@ onMounted(async () => {
         ref="shoppingTabRef"
         :project-id="projectId"
       />
+
+      <BpcKitTab
+        v-if="activeTab === 'invention'"
+        :project-id="projectId"
+      />
+
+      <CostEstimationTab
+        v-show="activeTab === 'costs'"
+        ref="costsTabRef"
+        :project-id="projectId"
+        @switch-tab="(tab: string) => switchTab(tab as 'steps' | 'shopping' | 'invention' | 'costs')"
+      />
     </div>
   </div>
-
-  <!-- BPC Kit Modal -->
-  <Teleport to="body">
-    <div
-      v-if="showBpcKitModal"
-      class="fixed inset-0 z-50 flex items-center justify-center"
-      @keydown.escape="closeBpcKitModal"
-    >
-      <div
-        class="absolute inset-0 bg-black/70 backdrop-blur-xs"
-        @click="closeBpcKitModal"
-      ></div>
-      <div class="relative bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
-          <h3 class="text-lg font-semibold text-slate-100 flex items-center gap-2">
-            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            BPC Kit
-          </h3>
-          <button
-            @click="closeBpcKitModal"
-            class="p-1 hover:bg-slate-800 rounded-sm text-slate-400 hover:text-slate-200"
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <div class="px-6 py-4">
-          <p class="text-sm text-slate-400 mb-4">
-            {{ t('industry.projectDetail.bpcKitDescription') }}
-          </p>
-          <div>
-            <label class="block text-sm font-medium text-slate-300 mb-2">
-              {{ t('industry.projectDetail.bpcKitPriceLabel') }}
-            </label>
-            <input
-              v-model="bpcKitPrice"
-              type="text"
-              placeholder="ex: 50M, 1.5B, 500000 (vide = 0)"
-              class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-hidden focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 font-mono"
-              @keydown.enter="confirmBpcKit"
-              @keydown.escape="closeBpcKitModal"
-              autofocus
-            />
-            <p class="text-xs text-slate-500 mt-2">
-              {{ t('industry.projectDetail.acceptedFormats') }}
-            </p>
-          </div>
-        </div>
-        <div class="px-6 py-4 border-t border-slate-700 flex justify-end gap-3">
-          <button
-            @click="closeBpcKitModal"
-            class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm font-medium transition-colors"
-          >
-            {{ t('common.actions.cancel') }}
-          </button>
-          <button
-            @click="confirmBpcKit"
-            :disabled="bpcKitLoading"
-            class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed rounded-lg text-white text-sm font-medium transition-colors flex items-center gap-2"
-          >
-            <svg v-if="bpcKitLoading" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-            {{ t('common.actions.confirm') }}
-          </button>
-        </div>
-      </div>
-    </div>
-  </Teleport>
 
   <!-- Clear Stock Confirmation Modal -->
   <Teleport to="body">

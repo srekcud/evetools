@@ -12,6 +12,7 @@ use App\Entity\MarketPriceAlert;
 use App\Entity\User;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\JitaMarketService;
+use App\Service\StructureMarketService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -27,6 +28,7 @@ class CreateAlertProcessor implements ProcessorInterface
         private readonly EntityManagerInterface $em,
         private readonly InvTypeRepository $invTypeRepository,
         private readonly JitaMarketService $jitaMarketService,
+        private readonly StructureMarketService $structureMarketService,
     ) {
     }
 
@@ -53,9 +55,21 @@ class CreateAlertProcessor implements ProcessorInterface
         }
 
         // Validate price source
-        $validSources = [MarketPriceAlert::SOURCE_JITA_SELL, MarketPriceAlert::SOURCE_JITA_BUY];
+        $validSources = [
+            MarketPriceAlert::SOURCE_JITA_SELL,
+            MarketPriceAlert::SOURCE_JITA_BUY,
+            MarketPriceAlert::SOURCE_STRUCTURE_SELL,
+            MarketPriceAlert::SOURCE_STRUCTURE_BUY,
+        ];
         if (!in_array($data->priceSource, $validSources, true)) {
-            throw new BadRequestHttpException('Invalid price source. Must be "jita_sell" or "jita_buy"');
+            throw new BadRequestHttpException('Invalid price source. Must be one of: jita_sell, jita_buy, structure_sell, structure_buy');
+        }
+
+        // Structure sources require a preferred structure
+        if (in_array($data->priceSource, [MarketPriceAlert::SOURCE_STRUCTURE_SELL, MarketPriceAlert::SOURCE_STRUCTURE_BUY], true)
+            && $user->getPreferredMarketStructureId() === null
+        ) {
+            throw new BadRequestHttpException('You must set a preferred market structure before using structure price alerts');
         }
 
         // Validate threshold
@@ -75,9 +89,19 @@ class CreateAlertProcessor implements ProcessorInterface
         $this->em->flush();
 
         // Get current price for response
-        $currentPrice = $data->priceSource === MarketPriceAlert::SOURCE_JITA_SELL
-            ? $this->jitaMarketService->getPrice($data->typeId)
-            : $this->jitaMarketService->getBuyPrice($data->typeId);
+        $currentPrice = match ($data->priceSource) {
+            MarketPriceAlert::SOURCE_JITA_SELL => $this->jitaMarketService->getPricesWithFallback([$data->typeId])[$data->typeId] ?? null,
+            MarketPriceAlert::SOURCE_JITA_BUY => $this->jitaMarketService->getBuyPricesWithFallback([$data->typeId])[$data->typeId] ?? null,
+            MarketPriceAlert::SOURCE_STRUCTURE_SELL => $this->structureMarketService->getLowestSellPrice(
+                $user->getPreferredMarketStructureId(),
+                $data->typeId,
+            ),
+            MarketPriceAlert::SOURCE_STRUCTURE_BUY => $this->structureMarketService->getHighestBuyPrice(
+                $user->getPreferredMarketStructureId(),
+                $data->typeId,
+            ),
+            default => null,
+        };
 
         $resource = new MarketAlertResource();
         $resource->id = $alert->getId()?->toRfc4122() ?? '';

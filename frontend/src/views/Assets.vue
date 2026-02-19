@@ -360,7 +360,7 @@ watch([selectedCharacterId, viewMode], () => {
       </div>
 
       <!-- Assets Tab -->
-      <template v-if="activeTab === 'assets'">
+      <div v-if="activeTab === 'assets'" key="assets" class="space-y-6">
         <!-- Action bar -->
         <div class="flex items-center justify-between">
           <p class="text-slate-400">{{ t('assets.subtitle') }}</p>
@@ -480,10 +480,12 @@ watch([selectedCharacterId, viewMode], () => {
         <div v-if="!isLoading && assets.length > 0 && filteredAssets.length === 0" class="text-center py-12">
           <p class="text-slate-500">{{ t('assets.noMatchingItems') }}</p>
         </div>
-      </template>
+      </div>
 
       <!-- Contracts Tab -->
-      <ContractsTab v-else-if="activeTab === 'contracts'" />
+      <div v-else-if="activeTab === 'contracts'" key="contracts">
+        <ContractsTab />
+      </div>
     </div>
   </MainLayout>
 </template>

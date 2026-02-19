@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
+import { useEveImages } from '@/composables/useEveImages'
 
 const props = defineProps<{
   visible: boolean
@@ -9,7 +10,17 @@ const props = defineProps<{
   typeId: number
   currentSellPrice: number | null
   currentBuyPrice: number | null
+  hasStructure?: boolean
+  structureName?: string | null
+  currentStructureSellPrice?: number | null
+  currentStructureBuyPrice?: number | null
 }>()
+
+function extractSystemName(name: string | null | undefined): string {
+  if (!name) return 'Structure'
+  const dash = name.indexOf(' - ')
+  return dash > 0 ? name.substring(0, dash) : name
+}
 
 const emit = defineEmits<{
   close: []
@@ -18,6 +29,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const { formatIsk } = useFormatters()
+const { getTypeIconUrl, onImageError } = useEveImages()
 
 const direction = ref<'above' | 'below'>('below')
 const threshold = ref<number>(0)
@@ -89,7 +101,8 @@ function handleBackdropClick(): void {
             <label class="block text-sm font-medium text-slate-400 mb-1">Item</label>
             <div class="flex items-center gap-2 px-3 py-2 bg-slate-800/50 rounded-lg border border-slate-700">
               <img
-                :src="`https://images.evetech.net/types/${typeId}/icon?size=32`"
+                :src="getTypeIconUrl(typeId, 32)"
+                @error="onImageError"
                 :alt="typeName"
                 class="w-6 h-6 rounded"
               />
@@ -98,7 +111,7 @@ function handleBackdropClick(): void {
           </div>
 
           <!-- Current price reference -->
-          <div class="flex gap-4 text-sm">
+          <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
             <div>
               <span class="text-slate-500">Jita Sell:</span>
               <span class="ml-1 text-cyan-400 font-mono">{{ formatIsk(currentSellPrice) }}</span>
@@ -107,6 +120,16 @@ function handleBackdropClick(): void {
               <span class="text-slate-500">Jita Buy:</span>
               <span class="ml-1 text-emerald-400 font-mono">{{ formatIsk(currentBuyPrice) }}</span>
             </div>
+            <template v-if="hasStructure">
+              <div>
+                <span class="text-slate-500">{{ extractSystemName(structureName) }} Sell:</span>
+                <span class="ml-1 text-cyan-400 font-mono">{{ formatIsk(currentStructureSellPrice ?? null) }}</span>
+              </div>
+              <div>
+                <span class="text-slate-500">{{ extractSystemName(structureName) }} Buy:</span>
+                <span class="ml-1 text-emerald-400 font-mono">{{ formatIsk(currentStructureBuyPrice ?? null) }}</span>
+              </div>
+            </template>
           </div>
 
           <!-- Price Source -->
@@ -118,6 +141,8 @@ function handleBackdropClick(): void {
             >
               <option value="jita_sell">Jita Sell</option>
               <option value="jita_buy">Jita Buy</option>
+              <option v-if="hasStructure" value="structure_sell">{{ extractSystemName(structureName) }} Sell</option>
+              <option v-if="hasStructure" value="structure_buy">{{ extractSystemName(structureName) }} Buy</option>
             </select>
           </div>
 

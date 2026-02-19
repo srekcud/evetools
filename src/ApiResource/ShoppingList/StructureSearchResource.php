@@ -19,6 +19,7 @@ use App\State\Provider\ShoppingList\StructureSearchProvider;
             provider: StructureSearchProvider::class,
             openapi: new Model\Operation(
                 summary: 'Search for structures by name',
+                tags: ['Shopping List'],
                 parameters: [
                     new Model\Parameter(name: 'q', in: 'query', schema: ['type' => 'string']),
                 ],

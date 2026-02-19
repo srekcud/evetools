@@ -24,8 +24,12 @@ export interface MarketTypeDetail {
   spread: number | null
   sellOrders: MarketOrder[]
   buyOrders: MarketOrder[]
+  structureSellOrders: MarketOrder[]
+  structureBuyOrders: MarketOrder[]
   structureSell: number | null
   structureBuy: number | null
+  structureName: string | null
+  hasPreferredStructure: boolean
   avgDailyVolume: number | null
   change30d: number | null
   isFavorite: boolean
@@ -43,6 +47,10 @@ export interface HistoryEntry {
   lowest: number
   orderCount: number
   volume: number
+  sellMin?: number | null
+  buyMax?: number | null
+  sellVolume?: number | null
+  buyVolume?: number | null
 }
 
 export interface MarketFavorite {
@@ -89,6 +97,7 @@ export interface RecentSearchEntry {
 
 const RECENT_SEARCHES_KEY = 'market-recent-searches'
 const MAX_RECENT_SEARCHES = 10
+const EXCLUDED_GROUPS_KEY = 'evetools_market_excluded_groups'
 
 function loadRecentSearches(): RecentSearchEntry[] {
   try {
@@ -116,6 +125,26 @@ function saveRecentSearches(entries: RecentSearchEntry[]): void {
   }
 }
 
+function loadExcludedGroups(): Set<number> {
+  try {
+    const raw = localStorage.getItem(EXCLUDED_GROUPS_KEY)
+    if (!raw) return new Set()
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return new Set()
+    return new Set(parsed.filter((v: unknown): v is number => typeof v === 'number'))
+  } catch {
+    return new Set()
+  }
+}
+
+function saveExcludedGroups(groups: Set<number>): void {
+  try {
+    localStorage.setItem(EXCLUDED_GROUPS_KEY, JSON.stringify([...groups]))
+  } catch {
+    // localStorage might be full or unavailable
+  }
+}
+
 export const useMarketStore = defineStore('market', () => {
   // State
   const searchResults = ref<MarketSearchItem[]>([])
@@ -126,6 +155,7 @@ export const useMarketStore = defineStore('market', () => {
   const searchQuery = ref('')
   const selectedTypeId = ref<number | null>(null)
   const historyDays = ref(30)
+  const historySource = ref<'jita' | 'structure'>('jita')
   const isLoading = ref(false)
   const isSearching = ref(false)
   const error = ref<string | null>(null)
@@ -135,7 +165,8 @@ export const useMarketStore = defineStore('market', () => {
 
   // Category filter
   const rootGroups = ref<MarketGroup[]>([])
-  const selectedGroupId = ref<number | null>(null)
+  const excludedGroupIds = ref<Set<number>>(loadExcludedGroups())
+  const includedGroupId = ref<number | null>(null)
 
   // Actions
   async function searchItems(q: string): Promise<void> {
@@ -148,10 +179,10 @@ export const useMarketStore = defineStore('market', () => {
     error.value = null
 
     try {
-      const data = await apiRequest<{ items: MarketSearchItem[] }>(
+      const data = await apiRequest<{ results: MarketSearchItem[] }>(
         `/market/search?q=${encodeURIComponent(q)}`
       )
-      searchResults.value = data.items
+      searchResults.value = data.results ?? []
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Search failed'
       searchResults.value = []
@@ -177,14 +208,16 @@ export const useMarketStore = defineStore('market', () => {
     }
   }
 
-  async function fetchHistory(typeId: number, days: number): Promise<void> {
+  async function fetchHistory(typeId: number, days: number, source: 'jita' | 'structure' = 'jita'): Promise<void> {
     error.value = null
 
     try {
-      history.value = await apiRequest<HistoryEntry[]>(
-        `/market/types/${typeId}/history?days=${days}`
+      const data = await apiRequest<{ entries: HistoryEntry[], source: string, structureId?: number, structureName?: string }>(
+        `/market/types/${typeId}/history?days=${days}&source=${source}`
       )
+      history.value = data.entries ?? []
       historyDays.value = days
+      historySource.value = source
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to load price history'
       history.value = []
@@ -306,8 +339,25 @@ export const useMarketStore = defineStore('market', () => {
     }
   }
 
-  function setSelectedGroup(groupId: number | null): void {
-    selectedGroupId.value = groupId
+  function toggleGroupExclusion(groupId: number): void {
+    const newSet = new Set(excludedGroupIds.value)
+    if (newSet.has(groupId)) {
+      newSet.delete(groupId)
+    } else {
+      newSet.add(groupId)
+    }
+    excludedGroupIds.value = newSet
+    saveExcludedGroups(newSet)
+  }
+
+  function setIncludedGroup(groupId: number | null): void {
+    includedGroupId.value = groupId
+  }
+
+  function resetGroupFilters(): void {
+    includedGroupId.value = null
+    excludedGroupIds.value = new Set()
+    saveExcludedGroups(new Set())
   }
 
   function clearError(): void {
@@ -330,12 +380,14 @@ export const useMarketStore = defineStore('market', () => {
     searchQuery,
     selectedTypeId,
     historyDays,
+    historySource,
     isLoading,
     isSearching,
     error,
     recentSearches,
     rootGroups,
-    selectedGroupId,
+    excludedGroupIds,
+    includedGroupId,
 
     // Actions
     searchItems,
@@ -353,6 +405,8 @@ export const useMarketStore = defineStore('market', () => {
     removeRecentSearch,
     clearRecentSearches,
     fetchRootGroups,
-    setSelectedGroup,
+    toggleGroupExclusion,
+    setIncludedGroup,
+    resetGroupFilters,
   }
 })

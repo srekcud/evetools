@@ -40,6 +40,8 @@ class UserSettingsProvider implements ProviderInterface
         if ($settings !== null) {
             $resource->favoriteManufacturingSystemId = $settings->getFavoriteManufacturingSystemId();
             $resource->favoriteReactionSystemId = $settings->getFavoriteReactionSystemId();
+            $resource->brokerFeeRate = $settings->getBrokerFeeRate();
+            $resource->salesTaxRate = $settings->getSalesTaxRate();
 
             if ($resource->favoriteManufacturingSystemId !== null) {
                 $system = $this->solarSystemRepository->find($resource->favoriteManufacturingSystemId);

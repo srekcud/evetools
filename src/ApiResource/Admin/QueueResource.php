@@ -17,7 +17,7 @@ use App\State\Provider\Admin\QueueStatusProvider;
         new Get(
             uriTemplate: '/admin/queues',
             provider: QueueStatusProvider::class,
-            openapi: new Model\Operation(summary: 'Get queue status'),
+            openapi: new Model\Operation(summary: 'Get queue status', tags: ['Administration']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

@@ -10,6 +10,7 @@ use App\Entity\PlanetaryPin;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Repository\Sde\PlanetSchematicRepository;
+use App\Service\TypeNameResolver;
 
 class PlanetaryResourceMapper
 {
@@ -20,6 +21,7 @@ class PlanetaryResourceMapper
 
     public function __construct(
         private readonly InvTypeRepository $invTypeRepository,
+        private readonly TypeNameResolver $typeNameResolver,
         private readonly PlanetSchematicRepository $schematicRepository,
         private readonly MapSolarSystemRepository $solarSystemRepository,
     ) {
@@ -232,9 +234,7 @@ class PlanetaryResourceMapper
 
     private function resolveTypeName(int $typeId): string
     {
-        $type = $this->invTypeRepository->find($typeId);
-
-        return $type?->getTypeName() ?? "Type #{$typeId}";
+        return $this->typeNameResolver->resolve($typeId);
     }
 
     private function resolveSolarSystemSecurity(int $solarSystemId): ?float

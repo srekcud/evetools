@@ -3,6 +3,133 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.11 (2026-02-20)
+--------------------------------------------------------------------------------
+
+### Analyse de couts industrie (nouveau)
+- Onglet BPC Kit : couts de copie + comparaison des 9 decrypteurs d'invention
+- Onglet Estimation : cout materiaux (Jita), cout d'installation jobs (ESI cost indices)
+- Decomposition complete : materiaux, jobs, BPC, total par unite
+
+### Marges de profit (nouveau)
+- Onglet Margins : analyse prospective de rentabilite avant production
+- 4 lieux de vente : Jita sell, structure undercut, structure instant, contrats publics
+- Frais inclus : broker fee + sales tax (configurables dans Settings)
+- Section invention T2 avec selection de decrypteur et recalcul temps reel
+- Volume journalier pour evaluer la demande
+
+### Contrats publics
+- Sync periodique des contrats mono-item de The Forge (30min)
+- Prix contrats integres comme 4e lieu de vente dans les marges
+
+### ESI Cost Index
+- Service de calcul des couts d'installation jobs (system cost indices + adjusted prices)
+- Sync automatique des indices de cout et prix ajustes
+
+### Qualite de code
+- Enum IndustryActivityType (remplace 7 jeux de constantes dupliquees)
+- Service TypeNameResolver (remplace 8+ methodes copiees-collees)
+- Classe EveConstants (constantes centralisees)
+- IndustryProjectService decoupe en 4 services (Factory, StepCalculator, ShoppingListBuilder, JobMatcher)
+- Composant LoadingSpinner (remplace 34 SVG inline)
+- Module ProfitTracker supprime (24 fichiers morts)
+- 50 nouveaux tests unitaires
+
+### Corrections
+- Market : fallback ESI pour items non caches, images SKINs, null guards
+- Industry : ME/TE par defaut depth > 0 = ME 10 / TE 20
+- Messenger : 8 routes async manquantes (contrats, cost indices, alertes, purge)
+- Notifications : fix crash .length sur undefined
+- Swagger : 17 tags EN, layout user card
+- SDE : fix activity IDs (invention=8, reaction=11), ajout probabilite
+
+--------------------------------------------------------------------------------
+Version 0.10 (2026-02-16)
+--------------------------------------------------------------------------------
+
+### Navigation rationalisee
+- Sidebar groupee : 5 items + admin (Dashboard, Revenus, Production, Marche, Inventaire)
+- Groupe collapsible Production (Industrie, Shopping List, Planetaire)
+- Fusions : Escalations dans Ledger (onglet), Contracts dans Assets (onglet), Profit dans Industry (onglet)
+- Deep linking avec redirections (/escalations -> /ledger?tab=escalations, etc.)
+- Personnages deplace dans le user card (retire du nav)
+- Etat collapse persiste dans localStorage
+
+### Module Profit Tracker (nouveau)
+- Calcul automatique du profit par item fabrique
+- Matching jobs industrie termines avec transactions de vente wallet
+- KPI : marge brute, marge nette, ROI, items les plus rentables
+- Detail par item : cout materiaux, job install, taxes, prix de vente
+- Panel items non-matches (jobs sans vente, ventes sans job)
+- Graphique tendance de profit
+- Settings : periode d'analyse, seuils de matching
+
+### Module Market Browser (nouveau)
+- Recherche d'items avec autocompletion
+- Detail type : prix Jita sell/buy, spread, volume quotidien
+- Historique de prix avec graphique (Chart.js)
+- Order book (sell/buy orders)
+- Comparaison prix Jita vs structure locale
+- Alertes de prix (notification quand seuil atteint)
+- Favoris marche
+
+### Module Notifications (nouveau)
+- Hub centralise de notifications
+- Push browser via Service Workers (VAPID)
+- Preferences par type de notification
+- Badge compteur non-lus
+
+### Admin ameliore
+- Grille KPI admin
+- Actions de maintenance
+- Sync tracker etendu
+
+### Corrections
+- Fix Dockerfile : assets:install explicite (corrige 404 /api/docs en production)
+
+--------------------------------------------------------------------------------
+Version 0.9.1 (2026-02-16)
+--------------------------------------------------------------------------------
+
+### Market
+- Volume journalier affiche dans les tooltips marche
+- Amelioration couverture des tooltips prix
+
+--------------------------------------------------------------------------------
+Version 0.9 (2026-02-16)
+--------------------------------------------------------------------------------
+
+### Prix pondere par volume (Weighted Price)
+- Calcul du prix moyen pondere en empilant les orders de marche
+- Indicateur de profondeur de marche
+- Avertissement si profondeur insuffisante pour la quantite demandee
+
+### Open In-Game Window
+- Boutons "ouvrir en jeu" sur les items (marche, info)
+- Composant reutilisable OpenInGameButton
+- Endpoints ESI : marketdetails, information
+
+--------------------------------------------------------------------------------
+Version 0.8 (2026-02-15)
+--------------------------------------------------------------------------------
+
+### Stack technique
+- Upgrade PHP 8.5, Symfony 7.4, API Platform 4.2
+- Migration vers FrankenPHP Alpine
+- PHPStan level 8
+
+### Valuator / Appraisal
+- Estimation de valeur des assets par categorie
+- Valorisation basee sur les prix Jita
+
+### GDPR
+- Mentions legales et email de contact
+- Page Legal accessible depuis le footer
+
+### i18n
+- Registre international (dates, nombres)
+
+--------------------------------------------------------------------------------
 Version 0.7.0 (2026-02-14)
 --------------------------------------------------------------------------------
 

@@ -18,7 +18,7 @@ use App\State\Processor\Pve\SyncPveProcessor;
             uriTemplate: '/pve/sync',
             input: EmptyInput::class,
             processor: SyncPveProcessor::class,
-            openapi: new Model\Operation(summary: 'Sync PVE data from ESI'),
+            openapi: new Model\Operation(summary: 'Sync PVE data from ESI', tags: ['Revenue - PVE']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

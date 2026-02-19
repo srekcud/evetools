@@ -7,15 +7,12 @@ namespace App\Service\Industry;
 use App\Entity\User;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Enum\IndustryActivityType;
 use App\Repository\Sde\InvTypeRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 class IndustryTreeService
 {
-    // EVE SDE activity IDs
-    private const ACTIVITY_MANUFACTURING = 1;
-    private const ACTIVITY_COPYING = 5;
-    private const ACTIVITY_REACTION = 11;
 
     public function __construct(
         private readonly IndustryActivityProductRepository $activityProductRepository,
@@ -62,27 +59,35 @@ class IndustryTreeService
         $productTypeName = $type?->getTypeName() ?? "Type #{$productTypeId}";
 
         $activityType = match ($activityId) {
-            self::ACTIVITY_REACTION => 'reaction',
-            self::ACTIVITY_COPYING => 'copy',
+            IndustryActivityType::Reaction->value => 'reaction',
+            IndustryActivityType::Copying->value => 'copy',
             default => 'manufacturing',
         };
 
-        // Get structure bonus for this product
-        $structureBonus = 0.0;
+        // Get structure bonus for this product (separate base and rig for multiplicative stacking)
+        $structureBaseBonus = 0.0;
+        $rigBonus = 0.0;
+        $structureBonusTotal = 0.0;
         $structureName = null;
         $productCategory = null;
         $hasOverride = isset($structureBonusOverrides[$productTypeId]);
 
         if ($hasOverride) {
-            $structureBonus = $structureBonusOverrides[$productTypeId];
+            // Override provides a single total value (used for suboptimal comparison)
+            $structureBonusTotal = $structureBonusOverrides[$productTypeId];
+            // For overrides, treat as a single combined value (backward compat for shopping list delta)
+            $structureBaseBonus = $structureBonusTotal;
+            $rigBonus = 0.0;
             if ($user !== null) {
-                $isReaction = ($activityId === self::ACTIVITY_REACTION);
+                $isReaction = ($activityId === IndustryActivityType::Reaction->value);
                 $productCategory = $this->bonusService->getCategoryForProduct($productTypeId, $isReaction);
             }
         } elseif ($user !== null) {
-            $isReaction = ($activityId === self::ACTIVITY_REACTION);
+            $isReaction = ($activityId === IndustryActivityType::Reaction->value);
             $bestStructure = $this->bonusService->findBestStructureForProduct($user, $productTypeId, $isReaction);
-            $structureBonus = $bestStructure['bonus'];
+            $structureBaseBonus = $bestStructure['bonus']['base'];
+            $rigBonus = $bestStructure['bonus']['rig'];
+            $structureBonusTotal = $bestStructure['bonus']['total'];
             $structureName = $bestStructure['structure']?->getName();
             $productCategory = $bestStructure['category'];
         }
@@ -95,7 +100,7 @@ class IndustryTreeService
 
         // ME only applies to manufacturing, not reactions
         // Structure bonus applies to both manufacturing and reactions
-        $applyMe = ($activityId === self::ACTIVITY_MANUFACTURING);
+        $applyMe = ($activityId === IndustryActivityType::Manufacturing->value);
         $effectiveMe = $applyMe ? $meLevel : 0;
 
         $materialNodes = [];
@@ -104,26 +109,29 @@ class IndustryTreeService
             $baseQuantity = $material->getQuantity();
 
             // Calculate material reduction
-            // Formula: base * runs * (1 - ME/100) * (1 - structureBonus/100)
+            // Formula: base * runs * (1 - ME/100) * (1 - structureBase/100) * (1 - rigBonus/100)
             // IMPORTANT: The structure bonus must be looked up for EACH material's category,
             // not the parent product's category. E.g., when building a Rorqual (capital_ship),
             // the CCP materials are basic_capital_component and need their own bonus.
             // When an override is active for this node, use a single bonus (matching recalculateStepQuantities behavior).
-            $materialStructureBonus = $structureBonus;
+            $matStructureBase = $structureBaseBonus;
+            $matRigBonus = $rigBonus;
             if (!$hasOverride && $user !== null) {
                 $materialCategory = $this->bonusService->getCategoryForProduct($matTypeId, false);
                 if ($materialCategory !== null && $materialCategory !== $productCategory) {
                     $materialBonusData = $this->bonusService->findBestStructureForCategory($user, $materialCategory, false);
-                    $materialStructureBonus = $materialBonusData['bonus'];
+                    $matStructureBase = $materialBonusData['bonus']['base'];
+                    $matRigBonus = $materialBonusData['bonus']['rig'];
                 }
             }
 
             $meMultiplier = $applyMe && $effectiveMe > 0 ? (1 - $effectiveMe / 100) : 1.0;
-            $structureMultiplier = $materialStructureBonus > 0 ? (1 - $materialStructureBonus / 100) : 1.0;
+            $structureMultiplier = $matStructureBase > 0 ? (1 - $matStructureBase / 100) : 1.0;
+            $rigMultiplier = $matRigBonus > 0 ? (1 - $matRigBonus / 100) : 1.0;
 
             $adjustedQuantity = max(
                 $runs,
-                (int) ceil(round($baseQuantity * $runs * $meMultiplier * $structureMultiplier, 2))
+                (int) ceil(round($baseQuantity * $runs * $meMultiplier * $structureMultiplier * $rigMultiplier, 2))
             );
 
             $matType = $this->invTypeRepository->find($matTypeId);
@@ -137,7 +145,7 @@ class IndustryTreeService
             $matActivityType = null;
             if ($isBuildable) {
                 $matActivityType = match ($matProducer->getActivityId()) {
-                    self::ACTIVITY_REACTION => 'reaction',
+                    IndustryActivityType::Reaction->value => 'reaction',
                     default => 'manufacturing',
                 };
             }
@@ -152,7 +160,7 @@ class IndustryTreeService
 
             if ($isBuildable) {
                 // Intermediate manufacturing uses ME 10, reactions have no ME
-                $childMe = ($matProducer->getActivityId() === self::ACTIVITY_MANUFACTURING) ? 10 : 0;
+                $childMe = ($matProducer->getActivityId() === IndustryActivityType::Manufacturing->value) ? 10 : 0;
                 $node['blueprint'] = $this->buildNode($matTypeId, $adjustedQuantity, $childMe, $depth + 1, $excludedTypeIds, $user, false, $structureBonusOverrides);
             }
 
@@ -174,7 +182,7 @@ class IndustryTreeService
             'hasCopy' => $hasCopy,
             'materials' => $materialNodes,
             // Structure bonus info
-            'structureBonus' => $structureBonus,
+            'structureBonus' => $structureBonusTotal,
             'structureName' => $structureName,
             'productCategory' => $productCategory,
         ];
@@ -187,13 +195,13 @@ class IndustryTreeService
     private function findProducerFor(int $productTypeId): ?\App\Entity\Sde\IndustryActivityProduct
     {
         // Try manufacturing first
-        $product = $this->activityProductRepository->findBlueprintForProduct($productTypeId, self::ACTIVITY_MANUFACTURING);
+        $product = $this->activityProductRepository->findBlueprintForProduct($productTypeId, IndustryActivityType::Manufacturing->value);
         if ($product !== null) {
             return $product;
         }
 
         // Try reaction
-        return $this->activityProductRepository->findBlueprintForProduct($productTypeId, self::ACTIVITY_REACTION);
+        return $this->activityProductRepository->findBlueprintForProduct($productTypeId, IndustryActivityType::Reaction->value);
     }
 
     /**
@@ -204,7 +212,7 @@ class IndustryTreeService
         $conn = $this->entityManager->getConnection();
         $result = $conn->fetchOne(
             'SELECT COUNT(*) FROM sde_industry_activities WHERE type_id = ? AND activity_id = ?',
-            [$blueprintTypeId, self::ACTIVITY_COPYING],
+            [$blueprintTypeId, IndustryActivityType::Copying->value],
         );
 
         return (int) $result > 0;

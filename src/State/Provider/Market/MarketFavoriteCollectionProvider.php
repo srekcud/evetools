@@ -54,8 +54,8 @@ class MarketFavoriteCollectionProvider implements ProviderInterface
 
         // Batch-load SDE types and prices
         $types = $this->invTypeRepository->findByTypeIds($typeIds);
-        $sellPrices = $this->jitaMarketService->getPrices($typeIds);
-        $buyPrices = $this->jitaMarketService->getBuyPrices($typeIds);
+        $sellPrices = $this->jitaMarketService->getPricesWithFallback($typeIds);
+        $buyPrices = $this->jitaMarketService->getBuyPricesWithFallback($typeIds);
 
         $resources = [];
 

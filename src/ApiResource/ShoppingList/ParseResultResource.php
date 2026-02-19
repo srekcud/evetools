@@ -19,7 +19,7 @@ use App\State\Processor\ShoppingList\ParseProcessor;
             uriTemplate: '/shopping-list/parse',
             processor: ParseProcessor::class,
             input: ParseListInput::class,
-            openapi: new Model\Operation(summary: 'Parse a shopping list and get prices'),
+            openapi: new Model\Operation(summary: 'Parse a shopping list and get prices', tags: ['Shopping List']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

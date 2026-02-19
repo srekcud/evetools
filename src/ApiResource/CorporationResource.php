@@ -7,6 +7,7 @@ namespace App\ApiResource;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\OpenApi\Model;
 use App\State\Provider\CorporationProvider;
 
 #[ApiResource(
@@ -15,6 +16,7 @@ use App\State\Provider\CorporationProvider;
         new Get(
             uriTemplate: '/me/corporation',
             provider: CorporationProvider::class,
+            openapi: new Model\Operation(tags: ['Account & Characters']),
         ),
     ],
 )]

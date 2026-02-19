@@ -8,8 +8,8 @@ use App\Entity\MiningEntry;
 use App\Entity\User;
 use App\Repository\MiningEntryRepository;
 use App\Repository\UserLedgerSettingsRepository;
-use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
+use App\Service\TypeNameResolver;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\MarketService;
 use App\Service\ESI\TokenManager;
@@ -33,7 +33,7 @@ class MiningSyncService
         private readonly MarketService $marketService,
         private readonly MiningEntryRepository $miningEntryRepository,
         private readonly UserLedgerSettingsRepository $settingsRepository,
-        private readonly InvTypeRepository $invTypeRepository,
+        private readonly TypeNameResolver $typeNameResolver,
         private readonly MapSolarSystemRepository $solarSystemRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
@@ -286,8 +286,7 @@ class MiningSyncService
     private function resolveTypeName(int $typeId): string
     {
         if (!isset($this->typeNameCache[$typeId])) {
-            $type = $this->invTypeRepository->find($typeId);
-            $this->typeNameCache[$typeId] = $type?->getTypeName() ?? "Type #{$typeId}";
+            $this->typeNameCache[$typeId] = $this->typeNameResolver->resolve($typeId);
         }
         return $this->typeNameCache[$typeId];
     }

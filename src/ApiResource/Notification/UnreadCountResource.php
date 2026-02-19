@@ -17,7 +17,7 @@ use App\State\Provider\Notification\UnreadCountProvider;
         new Get(
             uriTemplate: '/me/notifications/unread-count',
             provider: UnreadCountProvider::class,
-            openapi: new Model\Operation(summary: 'Get unread notifications count'),
+            openapi: new Model\Operation(summary: 'Get unread notifications count', tags: ['Notifications']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

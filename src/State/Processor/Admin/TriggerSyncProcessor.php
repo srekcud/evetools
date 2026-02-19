@@ -14,7 +14,6 @@ use App\Message\TriggerAssetsSync;
 use App\Message\TriggerPlanetarySync;
 use App\Message\TriggerJitaMarketSync;
 use App\Message\TriggerMiningSync;
-use App\Message\TriggerProfitComputation;
 use App\Message\TriggerPveSync;
 use App\Message\TriggerStructureMarketSync;
 use App\Message\SyncWalletTransactions;
@@ -75,7 +74,7 @@ class TriggerSyncProcessor implements ProcessorInterface
 
         $allActions = array_merge(
             array_keys(self::ACTION_TO_SYNC_TYPE),
-            ['compute_profit', 'check_market_alerts', 'purge_notifications', 'purge_market_history'],
+            ['check_market_alerts', 'purge_notifications', 'purge_market_history'],
         );
 
         foreach ($allActions as $action) {
@@ -125,11 +124,6 @@ class TriggerSyncProcessor implements ProcessorInterface
             case 'sync_planetary':
                 $this->messageBus->dispatch(new TriggerPlanetarySync());
                 $resource->message = 'Planetary Interaction sync triggered';
-                break;
-
-            case 'compute_profit':
-                $this->messageBus->dispatch(new TriggerProfitComputation());
-                $resource->message = 'Profit computation triggered for all active users';
                 break;
 
             case 'check_market_alerts':

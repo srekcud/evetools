@@ -22,6 +22,7 @@ use App\State\Provider\Industry\BlacklistSearchProvider;
             openapi: new Model\Operation(
                 summary: 'Search products',
                 description: 'Search for manufacturable products by name',
+                tags: ['Industry - Configuration'],
                 parameters: [
                     new Model\Parameter(name: 'q', in: 'query', required: true, schema: ['type' => 'string']),
                 ],
@@ -31,7 +32,7 @@ use App\State\Provider\Industry\BlacklistSearchProvider;
             uriTemplate: '/industry/blacklist/search',
             provider: BlacklistSearchProvider::class,
             output: ProductSearchListResource::class,
-            openapi: new Model\Operation(summary: 'Search blacklist items', description: 'Search for items to add to blacklist'),
+            openapi: new Model\Operation(summary: 'Search blacklist items', description: 'Search for items to add to blacklist', tags: ['Industry - Configuration']),
         ),
     ],
     security: "is_granted('ROLE_USER')",
@@ -42,4 +43,6 @@ class ProductSearchResource
     public int $typeId;
 
     public string $typeName;
+
+    public bool $isT2 = false;
 }

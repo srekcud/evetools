@@ -29,16 +29,19 @@ export function useFormatters() {
 
   function formatIsk(amount: number | undefined | null, decimals = 2): string {
     if (amount === undefined || amount === null) return '---'
-    if (amount >= 1_000_000_000) {
-      return (amount / 1_000_000_000).toFixed(decimals) + ' B'
+    const abs = Math.abs(amount)
+    const sign = amount < 0 ? '-' : ''
+    const loc = getLocaleStr()
+    if (abs >= 1_000_000_000) {
+      return sign + (abs / 1_000_000_000).toLocaleString(loc, { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + ' B'
     }
-    if (amount >= 1_000_000) {
-      return (amount / 1_000_000).toFixed(decimals) + ' M'
+    if (abs >= 1_000_000) {
+      return sign + (abs / 1_000_000).toLocaleString(loc, { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + ' M'
     }
-    if (amount >= 1_000) {
-      return (amount / 1_000).toFixed(decimals) + ' K'
+    if (abs >= 1_000) {
+      return sign + (abs / 1_000).toLocaleString(loc, { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + ' K'
     }
-    return amount.toFixed(0)
+    return amount.toLocaleString(loc, { maximumFractionDigits: 0 })
   }
 
   function formatIskFull(amount: number): string {

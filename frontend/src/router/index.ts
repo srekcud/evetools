@@ -82,10 +82,20 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
-      path: '/shopping-list/shared/:token',
-      name: 'shared-shopping-list',
+      path: '/appraisal',
+      name: 'appraisal',
+      component: () => import('@/views/Appraisal.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/appraisal/shared/:token',
+      name: 'shared-appraisal',
       component: () => import('@/views/SharedShoppingList.vue'),
       meta: { requiresAuth: false },
+    },
+    {
+      path: '/shopping-list/shared/:token',
+      redirect: to => ({ name: 'shared-appraisal', params: { token: to.params.token } }),
     },
     {
       path: '/legal',
@@ -98,10 +108,6 @@ const router = createRouter({
       name: 'market',
       component: () => import('@/views/MarketBrowser.vue'),
       meta: { requiresAuth: true },
-    },
-    {
-      path: '/profit-tracker',
-      redirect: '/industry?tab=profit',
     },
     {
       path: '/admin',

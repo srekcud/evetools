@@ -6,7 +6,7 @@ namespace App\Command;
 
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryCalculationService;
-use App\Service\Industry\IndustryProjectService;
+use App\Service\Industry\IndustryJobMatcher;
 use App\Service\Sync\IndustryJobSyncService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -23,7 +23,7 @@ class MatchProjectJobsCommand extends Command
 {
     public function __construct(
         private readonly IndustryProjectRepository $projectRepository,
-        private readonly IndustryProjectService $projectService,
+        private readonly IndustryJobMatcher $jobMatcher,
         private readonly IndustryJobSyncService $jobSyncService,
         private readonly IndustryCalculationService $calculationService,
     ) {
@@ -63,7 +63,7 @@ class MatchProjectJobsCommand extends Command
         }
 
         $io->info("Matching jobs to steps...");
-        $this->projectService->matchEsiJobs($project);
+        $this->jobMatcher->matchEsiJobs($project);
 
         // Count matched steps
         $matchedCount = 0;

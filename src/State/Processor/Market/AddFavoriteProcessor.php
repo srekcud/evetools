@@ -65,8 +65,8 @@ class AddFavoriteProcessor implements ProcessorInterface
         $resource = new MarketFavoriteResource();
         $resource->typeId = $invType->getTypeId();
         $resource->typeName = $invType->getTypeName();
-        $resource->jitaSell = $this->jitaMarketService->getPrice($data->typeId);
-        $resource->jitaBuy = $this->jitaMarketService->getBuyPrice($data->typeId);
+        $resource->jitaSell = $this->jitaMarketService->getPricesWithFallback([$data->typeId])[$data->typeId] ?? null;
+        $resource->jitaBuy = $this->jitaMarketService->getBuyPricesWithFallback([$data->typeId])[$data->typeId] ?? null;
         $resource->createdAt = $favorite->getCreatedAt()->format('c');
 
         return $resource;

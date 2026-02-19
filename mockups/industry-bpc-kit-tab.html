@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EVE Tools - BPC Kit Tab</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Rajdhani', 'sans-serif'],
+            mono: ['Share Tech Mono', 'monospace'],
+          },
+          colors: {
+            eve: {
+              dark: '#0a0c0f',
+              darker: '#050607',
+              accent: '#00d4ff',
+              'accent-dim': '#0099bb',
+              warning: '#ff6b35',
+              success: '#00ff88',
+              text: '#8892a2',
+              'text-bright': '#c5cdd8',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    html { font-family: 'Rajdhani', sans-serif; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0a0c0f; }
+    ::-webkit-scrollbar-thumb { background: rgba(6,182,212,.3); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(6,182,212,.5); }
+
+    .eve-card { background: rgb(15 23 42); border: 1px solid rgb(30 41 59); border-radius: 0.5rem; }
+    .editable { cursor: pointer; border-bottom: 1px dashed rgba(100, 116, 139, 0.3); }
+    .editable:hover { color: #06b6d4; border-bottom-color: #06b6d4; }
+
+    /* Tooltip */
+    .cost-tooltip { display: none; position: absolute; z-index: 50; }
+    tr:hover .cost-tooltip { display: block; }
+
+    /* Radio pulse on selected */
+    .radio-selected { box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.3); }
+
+    /* Subtle glow on best row */
+    .best-row { position: relative; }
+    .best-row::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0; width: 2px;
+      background: rgb(16 185 129);
+      border-radius: 1px;
+    }
+  </style>
+</head>
+<body class="bg-eve-dark text-slate-200 min-h-screen font-display">
+
+  <!-- Simulated page wrapper -->
+  <div class="max-w-7xl mx-auto p-6">
+
+    <!-- Project header (simplified context) -->
+    <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <button class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-200">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+          </button>
+          <div class="flex items-center gap-4">
+            <div class="w-14 h-14 rounded-lg border border-slate-700 bg-slate-800 flex items-center justify-center overflow-hidden">
+              <img src="https://images.evetech.net/types/22456/icon?size=64" alt="Sabre" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+            </div>
+            <div>
+              <h3 class="text-2xl font-bold text-slate-100">Sabre</h3>
+              <div class="flex items-center gap-2 text-sm text-slate-500">
+                <span class="text-xs px-2 py-0.5 rounded-sm bg-cyan-500/20 text-cyan-400">Active</span>
+                <span class="text-slate-400">3 runs &middot; ME 2 &middot; TE 4</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button class="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/30 flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          Completed
+        </button>
+      </div>
+
+      <!-- Costs panel -->
+      <div class="px-6 pt-6">
+        <div class="eve-card p-4 mb-6">
+          <div class="grid grid-cols-4 md:grid-cols-8 gap-4">
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">BPC Kit</p>
+              <p class="text-sm font-mono text-slate-200 editable">1.78M</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Mat. Est.</p>
+              <p class="text-sm font-mono text-slate-400">245.7M</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Mat. Actual</p>
+              <p class="text-sm font-mono text-emerald-400">238.2M</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Transport</p>
+              <p class="text-sm font-mono text-slate-200 editable">12M</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">ESI Jobs</p>
+              <p class="text-sm font-mono text-slate-400">12.3M</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Taxes</p>
+              <p class="text-sm font-mono text-slate-200 editable">11.5M</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Sell</p>
+              <p class="text-sm font-mono text-slate-200 editable">320M</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Profit</p>
+              <p class="text-lg font-bold font-mono text-emerald-400">+44.2M</p>
+              <p class="text-xs font-mono text-emerald-400">15.8%</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex gap-2 mb-6">
+          <button class="px-4 py-2 rounded-lg text-sm font-medium bg-slate-800 text-slate-400 hover:text-slate-200">
+            Steps
+          </button>
+          <button class="px-4 py-2 rounded-lg text-sm font-medium bg-slate-800 text-slate-400 hover:text-slate-200">
+            Procurement
+          </button>
+          <button class="px-4 py-2 rounded-lg text-sm font-medium bg-cyan-600 text-white">
+            BPC Kit
+          </button>
+          <button class="px-4 py-2 rounded-lg text-sm font-medium bg-slate-800 text-slate-400 hover:text-slate-200">
+            Costs
+          </button>
+        </div>
+
+        <!-- ==================== BPC KIT TAB CONTENT ==================== -->
+        <div class="space-y-4 pb-6">
+
+          <!-- Top controls -->
+          <div class="eve-card p-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-4">
+                <div>
+                  <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">Desired T2 BPCs</label>
+                  <input type="number" value="1" min="1" class="w-20 bg-slate-800 border border-slate-700 rounded-sm px-3 py-1.5 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500" />
+                </div>
+                <div class="text-xs text-slate-500 mt-5">
+                  How many successful T2 BPCs you need for this project
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">Invention System</label>
+                <div class="flex items-center gap-2">
+                  <select class="bg-slate-800 border border-slate-700 rounded-sm px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
+                    <option>Perimeter</option>
+                    <option>Jita</option>
+                    <option>1DQ1-A</option>
+                  </select>
+                  <span class="text-xs text-slate-600">Cost index: 0.12%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 1: Copy Costs -->
+          <div class="eve-card overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-800 flex items-center gap-2">
+              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              <h4 class="text-sm font-semibold text-slate-200">Copy Job</h4>
+              <span class="text-xs text-slate-600 ml-2">T1 BPC creation from BPO</span>
+            </div>
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
+                  <th class="text-left py-2.5 px-4">Blueprint</th>
+                  <th class="text-right py-2.5 px-4">Runs / Copy</th>
+                  <th class="text-right py-2.5 px-4">Copies Needed</th>
+                  <th class="text-right py-2.5 px-4">Install Cost</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800">
+                <tr class="hover:bg-slate-800/50">
+                  <td class="py-2.5 px-4">
+                    <div class="flex items-center gap-2">
+                      <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden">
+                        <img src="https://images.evetech.net/types/22455/icon?size=32" alt="" class="w-full h-full" onerror="this.parentElement.innerHTML='<span class=\'text-[8px] text-slate-500\'>BP</span>'" />
+                      </div>
+                      <span class="text-slate-200">Sabre Blueprint</span>
+                      <span class="text-xs text-slate-600">(copy)</span>
+                    </div>
+                  </td>
+                  <td class="py-2.5 px-4 text-right font-mono text-slate-300">10</td>
+                  <td class="py-2.5 px-4 text-right font-mono text-slate-300">3</td>
+                  <td class="py-2.5 px-4 text-right font-mono text-slate-300">45,230 ISK</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr class="border-t border-slate-700 bg-slate-800/30">
+                  <td colspan="3" class="py-2.5 px-4 text-right text-xs text-slate-500 uppercase tracking-wider">Total Copy Cost</td>
+                  <td class="py-2.5 px-4 text-right font-mono text-slate-200 font-semibold">135,690 ISK</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <!-- Section 2: Invention — Decryptor Comparison -->
+          <div class="eve-card overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-800">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  <h4 class="text-sm font-semibold text-slate-200">Sabre &mdash; Invention</h4>
+                </div>
+                <div class="flex items-center gap-4 text-xs text-slate-500">
+                  <span>Base probability: <span class="text-cyan-400 font-mono">34.0%</span></span>
+                  <span class="text-slate-700">|</span>
+                  <span>Datacores: <span class="text-slate-400">Graviton Physics + Minmatar Starship Eng.</span></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
+                    <th class="text-center py-2.5 px-2 w-8"></th>
+                    <th class="text-left py-2.5 px-3">Decryptor</th>
+                    <th class="text-center py-2.5 px-2">ME</th>
+                    <th class="text-center py-2.5 px-2">TE</th>
+                    <th class="text-center py-2.5 px-2">Runs/BPC</th>
+                    <th class="text-right py-2.5 px-3">Adj. Prob.</th>
+                    <th class="text-right py-2.5 px-3">Cost / Attempt</th>
+                    <th class="text-right py-2.5 px-3">Exp. Attempts</th>
+                    <th class="text-right py-2.5 px-3">Total Cost</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800">
+
+                  <!-- None -->
+                  <tr class="hover:bg-slate-800/50 relative group cursor-pointer" onclick="selectRow(this)">
+                    <td class="py-2.5 px-2 text-center">
+                      <div class="w-3.5 h-3.5 rounded-full border border-slate-600 mx-auto"></div>
+                    </td>
+                    <td class="py-2.5 px-3">
+                      <span class="text-slate-400 italic">None</span>
+                    </td>
+                    <td class="py-2.5 px-2 text-center font-mono text-emerald-400">-2</td>
+                    <td class="py-2.5 px-2 text-center font-mono text-emerald-400">-4</td>
+                    <td class="py-2.5 px-2 text-center font-mono text-slate-300">1</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-300">34.0%</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-300 relative">
+                      1,245,000
+                      <div class="cost-tooltip right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-3 w-56 text-xs">
+                        <div class="space-y-1.5">
+                          <div class="flex justify-between"><span class="text-slate-400">Datacores</span><span class="font-mono text-slate-200">1,090,000</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">Decryptor</span><span class="font-mono text-slate-500">--</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">T1 BPC copy</span><span class="font-mono text-slate-200">45,230</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">Install cost</span><span class="font-mono text-slate-200">109,770</span></div>
+                          <div class="border-t border-slate-700 pt-1.5 flex justify-between font-semibold"><span class="text-slate-300">Total</span><span class="font-mono text-slate-100">1,245,000</span></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-300">3</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-200">3,735,000</td>
+                  </tr>
+
+                  <!-- Accelerant -->
+                  <tr class="hover:bg-slate-800/50 relative group cursor-pointer" onclick="selectRow(this)">
+                    <td class="py-2.5 px-2 text-center">
+                      <div class="w-3.5 h-3.5 rounded-full border border-slate-600 mx-auto"></div>
+                    </td>
+                    <td class="py-2.5 px-3 text-slate-200">Accelerant</td>
+                    <td class="py-2.5 px-2 text-center font-mono text-emerald-400">-2</td>
+                    <td class="py-2.5 px-2 text-center font-mono text-emerald-400">-2</td>
+                    <td class="py-2.5 px-2 text-center font-mono text-slate-300">1</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-300">40.8%</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-300 relative">
+                      2,845,000
+                      <div class="cost-tooltip right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-3 w-56 text-xs">
+                        <div class="space-y-1.5">
+                          <div class="flex justify-between"><span class="text-slate-400">Datacores</span><span class="font-mono text-slate-200">1,090,000</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">Decryptor</span><span class="font-mono text-slate-200">1,600,000</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">T1 BPC copy</span><span class="font-mono text-slate-200">45,230</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">Install cost</span><span class="font-mono text-slate-200">109,770</span></div>
+                          <div class="border-t border-slate-700 pt-1.5 flex justify-between font-semibold"><span class="text-slate-300">Total</span><span class="font-mono text-slate-100">2,845,000</span></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-300">3</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-200">8,535,000</td>
+                  </tr>
+
+                  <!-- Attainment (BEST + SELECTED) -->
+                  <tr class="best-row bg-emerald-500/5 hover:bg-emerald-500/10 relative group cursor-pointer border-l-2 border-l-emerald-500" onclick="selectRow(this)">
+                    <td class="py-2.5 px-2 text-center">
+                      <div class="w-3.5 h-3.5 rounded-full border-2 border-cyan-500 mx-auto flex items-center justify-center radio-selected">
+                        <div class="w-1.5 h-1.5 rounded-full bg-cyan-400"></div>
+                      </div>
+                    </td>
+                    <td class="py-2.5 px-3">
+                      <div class="flex items-center gap-2">
+                        <span class="text-slate-100 font-semibold">Attainment</span>
+                        <span class="text-[10px] uppercase tracking-wider px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-sm font-semibold">Best</span>
+                      </div>
+                    </td>
+                    <td class="py-2.5 px-2 text-center font-mono text-emerald-400 font-semibold">-1</td>
+                    <td class="py-2.5 px-2 text-center font-mono text-emerald-400 font-semibold">-2</td>
+                    <td class="py-2.5 px-2 text-center font-mono text-slate-100 font-semibold">4</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-100 font-semibold">44.2%</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-100 font-semibold relative">
+                      1,645,000
+                      <div class="cost-tooltip right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-3 w-56 text-xs">
+                        <div class="space-y-1.5">
+                          <div class="flex justify-between"><span class="text-slate-400">Datacores</span><span class="font-mono text-slate-200">1,090,000</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">Decryptor</span><span class="font-mono text-slate-200">400,000</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">T1 BPC copy</span><span class="font-mono text-slate-200">45,230</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">Install cost</span><span class="font-mono text-slate-200">109,770</span></div>
+                          <div class="border-t border-slate-700 pt-1.5 flex justify-between font-semibold"><span class="text-slate-300">Total</span><span class="font-mono text-slate-100">1,645,000</span></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-100 font-semibold">1</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-emerald-400 font-bold">1,645,000</td>
+                  </tr>
+
+                  <!-- Augmentation -->
+                  <tr class="hover:bg-slate-800/50 relative group cursor-pointer" onclick="selectRow(this)">
+                    <td class="py-2.5 px-2 text-center">
+                      <div class="w-3.5 h-3.5 rounded-full border border-slate-600 mx-auto"></div>
+                    </td>
+                    <td class="py-2.5 px-3 text-slate-200">Augmentation</td>
+                    <td class="py-2.5 px-2 text-center font-mono text-red-400">+1</td>
+                    <td class="py-2.5 px-2 text-center font-mono text-emerald-400">-4</td>
+                    <td class="py-2.5 px-2 text-center font-mono text-slate-300">9</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-300">27.2%</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-300 relative">
+                      3,245,000
+                      <div class="cost-tooltip right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-3 w-56 text-xs">
+                        <div class="space-y-1.5">
+                          <div class="flex justify-between"><span class="text-slate-400">Datacores</span><span class="font-mono text-slate-200">1,090,000</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">Decryptor</span><span class="font-mono text-slate-200">2,000,000</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">T1 BPC copy</span><span class="font-mono text-slate-200">45,230</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">Install cost</span><span class="font-mono text-slate-200">109,770</span></div>
+                          <div class="border-t border-slate-700 pt-1.5 flex justify-between font-semibold"><span class="text-slate-300">Total</span><span class="font-mono text-slate-100">3,245,000</span></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-300">4</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-200">12,980,000</td>
+                  </tr>
+
+                  <!-- Optimized Attainment -->
+                  <tr class="hover:bg-slate-800/50 relative group cursor-pointer" onclick="selectRow(this)">
+                    <td class="py-2.5 px-2 text-center">
+                      <div class="w-3.5 h-3.5 rounded-full border border-slate-600 mx-auto"></div>
+                    </td>
+                    <td class="py-2.5 px-3 text-slate-200">Optimized Attainment</td>
+                    <td class="py-2.5 px-2 text-center font-mono text-emerald-400">-1</td>
+                    <td class="py-2.5 px-2 text-center font-mono text-red-400">+2</td>
+                    <td class="py-2.5 px-2 text-center font-mono text-slate-300">2</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-300">34.0%</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-300 relative">
+                      1,345,000
+                      <div class="cost-tooltip right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-3 w-56 text-xs">
+                        <div class="space-y-1.5">
+                          <div class="flex justify-between"><span class="text-slate-400">Datacores</span><span class="font-mono text-slate-200">1,090,000</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">Decryptor</span><span class="font-mono text-slate-200">100,000</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">T1 BPC copy</span><span class="font-mono text-slate-200">45,230</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">Install cost</span><span class="font-mono text-slate-200">109,770</span></div>
+                          <div class="border-t border-slate-700 pt-1.5 flex justify-between font-semibold"><span class="text-slate-300">Total</span><span class="font-mono text-slate-100">1,345,000</span></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-300">2</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-200">2,690,000</td>
+                  </tr>
+
+                  <!-- Parity -->
+                  <tr class="hover:bg-slate-800/50 relative group cursor-pointer" onclick="selectRow(this)">
+                    <td class="py-2.5 px-2 text-center">
+                      <div class="w-3.5 h-3.5 rounded-full border border-slate-600 mx-auto"></div>
+                    </td>
+                    <td class="py-2.5 px-3 text-slate-200">Parity</td>
+                    <td class="py-2.5 px-2 text-center font-mono text-emerald-400">-2</td>
+                    <td class="py-2.5 px-2 text-center font-mono text-emerald-400">-4</td>
+                    <td class="py-2.5 px-2 text-center font-mono text-slate-300">3</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-300">51.0%</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-300 relative">
+                      1,745,000
+                      <div class="cost-tooltip right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-3 w-56 text-xs">
+                        <div class="space-y-1.5">
+                          <div class="flex justify-between"><span class="text-slate-400">Datacores</span><span class="font-mono text-slate-200">1,090,000</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">Decryptor</span><span class="font-mono text-slate-200">500,000</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">T1 BPC copy</span><span class="font-mono text-slate-200">45,230</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">Install cost</span><span class="font-mono text-slate-200">109,770</span></div>
+                          <div class="border-t border-slate-700 pt-1.5 flex justify-between font-semibold"><span class="text-slate-300">Total</span><span class="font-mono text-slate-100">1,745,000</span></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-300">1</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-200">1,745,000</td>
+                  </tr>
+
+                  <!-- Process -->
+                  <tr class="hover:bg-slate-800/50 relative group cursor-pointer" onclick="selectRow(this)">
+                    <td class="py-2.5 px-2 text-center">
+                      <div class="w-3.5 h-3.5 rounded-full border border-slate-600 mx-auto"></div>
+                    </td>
+                    <td class="py-2.5 px-3 text-slate-200">Process</td>
+                    <td class="py-2.5 px-2 text-center font-mono text-red-400">+3</td>
+                    <td class="py-2.5 px-2 text-center font-mono text-emerald-400">-2</td>
+                    <td class="py-2.5 px-2 text-center font-mono text-slate-300">1</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-300">34.0%</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-300 relative">
+                      1,445,000
+                      <div class="cost-tooltip right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-3 w-56 text-xs">
+                        <div class="space-y-1.5">
+                          <div class="flex justify-between"><span class="text-slate-400">Datacores</span><span class="font-mono text-slate-200">1,090,000</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">Decryptor</span><span class="font-mono text-slate-200">200,000</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">T1 BPC copy</span><span class="font-mono text-slate-200">45,230</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">Install cost</span><span class="font-mono text-slate-200">109,770</span></div>
+                          <div class="border-t border-slate-700 pt-1.5 flex justify-between font-semibold"><span class="text-slate-300">Total</span><span class="font-mono text-slate-100">1,445,000</span></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-300">3</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-200">4,335,000</td>
+                  </tr>
+
+                  <!-- Symmetry -->
+                  <tr class="hover:bg-slate-800/50 relative group cursor-pointer" onclick="selectRow(this)">
+                    <td class="py-2.5 px-2 text-center">
+                      <div class="w-3.5 h-3.5 rounded-full border border-slate-600 mx-auto"></div>
+                    </td>
+                    <td class="py-2.5 px-3 text-slate-200">Symmetry</td>
+                    <td class="py-2.5 px-2 text-center font-mono text-emerald-400">-2</td>
+                    <td class="py-2.5 px-2 text-center font-mono text-slate-400">+0</td>
+                    <td class="py-2.5 px-2 text-center font-mono text-slate-300">2</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-300">34.0%</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-300 relative">
+                      1,545,000
+                      <div class="cost-tooltip right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-3 w-56 text-xs">
+                        <div class="space-y-1.5">
+                          <div class="flex justify-between"><span class="text-slate-400">Datacores</span><span class="font-mono text-slate-200">1,090,000</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">Decryptor</span><span class="font-mono text-slate-200">300,000</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">T1 BPC copy</span><span class="font-mono text-slate-200">45,230</span></div>
+                          <div class="flex justify-between"><span class="text-slate-400">Install cost</span><span class="font-mono text-slate-200">109,770</span></div>
+                          <div class="border-t border-slate-700 pt-1.5 flex justify-between font-semibold"><span class="text-slate-300">Total</span><span class="font-mono text-slate-100">1,545,000</span></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-300">2</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-200">3,090,000</td>
+                  </tr>
+
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Section 3: Invention Materials -->
+          <div class="eve-card p-4">
+            <div class="flex items-center gap-2 mb-3">
+              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              <h4 class="text-sm font-semibold text-slate-200">Materials for Invention</h4>
+              <span class="text-xs text-slate-600">(added to Shopping List)</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div class="flex items-center gap-2 bg-slate-800/50 rounded-sm px-3 py-2">
+                <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
+                  <img src="https://images.evetech.net/types/20171/icon?size=32" alt="" class="w-full h-full" onerror="this.style.display='none'" />
+                </div>
+                <span class="text-sm text-slate-300 truncate">Datacore - Graviton Physics</span>
+                <span class="text-sm font-mono text-slate-500 ml-auto shrink-0">&times;6</span>
+              </div>
+              <div class="flex items-center gap-2 bg-slate-800/50 rounded-sm px-3 py-2">
+                <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
+                  <img src="https://images.evetech.net/types/20424/icon?size=32" alt="" class="w-full h-full" onerror="this.style.display='none'" />
+                </div>
+                <span class="text-sm text-slate-300 truncate">Datacore - Minmatar Starship Eng.</span>
+                <span class="text-sm font-mono text-slate-500 ml-auto shrink-0">&times;6</span>
+              </div>
+              <div class="flex items-center gap-2 bg-slate-800/50 rounded-sm px-3 py-2">
+                <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
+                  <img src="https://images.evetech.net/types/34203/icon?size=32" alt="" class="w-full h-full" onerror="this.style.display='none'" />
+                </div>
+                <span class="text-sm text-slate-300 truncate">Attainment Decryptor</span>
+                <span class="text-sm font-mono text-slate-500 ml-auto shrink-0">&times;1</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 4: Summary -->
+          <div class="eve-card p-4">
+            <div class="grid grid-cols-3 gap-6 text-center mb-4">
+              <div>
+                <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">Copy Costs</div>
+                <div class="text-lg font-mono text-slate-200">135,690 ISK</div>
+              </div>
+              <div>
+                <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">Invention Costs</div>
+                <div class="text-lg font-mono text-slate-200">1,645,000 ISK</div>
+                <div class="text-xs text-slate-500">Attainment &middot; 1 attempt</div>
+              </div>
+              <div>
+                <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">Total BPC Kit Cost</div>
+                <div class="text-xl font-bold font-mono text-cyan-400">1,780,690 ISK</div>
+              </div>
+            </div>
+
+            <div class="border-t border-slate-800 pt-4 flex items-center justify-between">
+              <button class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                Apply to Project
+              </button>
+              <div class="flex items-center gap-3">
+                <span class="text-xs text-slate-500">Or enter manually:</span>
+                <input type="text" placeholder="ex: 2M, 1.5B" class="w-32 bg-slate-800 border border-slate-700 rounded-sm px-3 py-1.5 text-sm font-mono text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-500" />
+                <button class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-sm text-slate-200 text-sm font-medium transition-colors">
+                  Apply
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <!-- END BPC KIT TAB CONTENT -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function selectRow(row) {
+      // Deselect all rows
+      const tbody = row.closest('tbody');
+      tbody.querySelectorAll('tr').forEach(tr => {
+        tr.classList.remove('bg-cyan-500/10');
+        const radio = tr.querySelector('td:first-child > div');
+        if (radio) {
+          radio.className = 'w-3.5 h-3.5 rounded-full border border-slate-600 mx-auto';
+          radio.innerHTML = '';
+        }
+      });
+
+      // Keep best row styling if it's the best row
+      const bestRow = tbody.querySelector('.best-row');
+      if (bestRow && bestRow !== row) {
+        bestRow.classList.add('bg-emerald-500/5');
+      }
+
+      // Select clicked row
+      if (!row.classList.contains('best-row')) {
+        row.classList.add('bg-cyan-500/10');
+      }
+      const radio = row.querySelector('td:first-child > div');
+      if (radio) {
+        radio.className = 'w-3.5 h-3.5 rounded-full border-2 border-cyan-500 mx-auto flex items-center justify-center radio-selected';
+        radio.innerHTML = '<div class="w-1.5 h-1.5 rounded-full bg-cyan-400"></div>';
+      }
+    }
+  </script>
+
+</body>
+</html>

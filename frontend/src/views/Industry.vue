@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { useIndustryStore, type SearchResult } from '@/stores/industry'
+import { useAdminStore } from '@/stores/admin'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -13,9 +14,45 @@ import ProjectDetail from '@/components/industry/ProjectDetail.vue'
 import BlacklistConfig from '@/components/industry/BlacklistConfig.vue'
 import StructureConfig from '@/components/industry/StructureConfig.vue'
 import SkillsConfig from '@/components/industry/SkillsConfig.vue'
-import ProfitTab from '@/components/industry/ProfitTab.vue'
+import ProfitMarginTab from '@/components/industry/ProfitMarginTab.vue'
 
 const store = useIndustryStore()
+const adminStore = useAdminStore()
+const isAdmin = ref(false)
+
+// Broker/Tax settings local state
+const brokerFeeRate = ref(3.6)
+const salesTaxRate = ref(3.6)
+const feeSettingsLoaded = ref(false)
+const feeSettingsSaving = ref(false)
+const feeSettingsSaved = ref(false)
+
+async function loadFeeSettings(): Promise<void> {
+  if (feeSettingsLoaded.value) return
+  await store.fetchUserSettings()
+  if (store.userSettings) {
+    brokerFeeRate.value = store.userSettings.brokerFeeRate * 100
+    salesTaxRate.value = store.userSettings.salesTaxRate * 100
+  }
+  feeSettingsLoaded.value = true
+}
+
+async function saveFeeSettings(): Promise<void> {
+  feeSettingsSaving.value = true
+  feeSettingsSaved.value = false
+  try {
+    await store.updateUserSettings({
+      brokerFeeRate: brokerFeeRate.value / 100,
+      salesTaxRate: salesTaxRate.value / 100,
+    })
+    feeSettingsSaved.value = true
+    setTimeout(() => { feeSettingsSaved.value = false }, 2000)
+  } catch {
+    // Error handled in store
+  } finally {
+    feeSettingsSaving.value = false
+  }
+}
 
 // Create project form
 interface ProductToAdd {
@@ -24,6 +61,7 @@ interface ProductToAdd {
   runs: number
   meLevel: number
   teLevel: number
+  isT2: boolean
 }
 
 const selectedProduct = ref<SearchResult | null>(null)
@@ -44,31 +82,45 @@ function cleanTypeName(name: string): string {
 const viewingProjectId = ref<string | null>(null)
 
 // Main tabs
-const mainTab = ref<'projects' | 'config' | 'profit'>('projects')
+const mainTab = ref<'projects' | 'config' | 'margins'>('projects')
 
 // Config sub-tabs
 const configTab = ref<'skills' | 'structures' | 'blacklist'>('skills')
 
-onMounted(() => {
-  if (route.query.tab && ['projects', 'config', 'profit'].includes(route.query.tab as string)) {
+onMounted(async () => {
+  isAdmin.value = await adminStore.checkAccess()
+  if (route.query.tab && ['projects', 'config', 'margins'].includes(route.query.tab as string)) {
     mainTab.value = route.query.tab as typeof mainTab.value
   }
   store.fetchProjects()
 })
 
+// Load fee settings when config tab is activated
+watch(mainTab, (tab) => {
+  if (tab === 'config') {
+    loadFeeSettings()
+  }
+})
+
 function onProductSelect(result: SearchResult) {
   selectedProduct.value = result
+  if (result.isT2) {
+    meLevel.value = 2
+    teLevel.value = 4
+  }
 }
 
 // Add product to the list
 function addProductToList() {
   if (!selectedProduct.value) return
+  const isT2 = selectedProduct.value.isT2 ?? false
   productsToAdd.value.push({
     typeId: selectedProduct.value.typeId,
     typeName: cleanTypeName(selectedProduct.value.typeName),
     runs: runs.value,
-    meLevel: meLevel.value,
-    teLevel: teLevel.value,
+    meLevel: isT2 ? 2 : meLevel.value,
+    teLevel: isT2 ? 4 : teLevel.value,
+    isT2,
   })
 }
 
@@ -163,26 +215,30 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
             {{ t('industry.tabs.projects') }}
           </button>
           <button
-            @click="mainTab = 'config'"
+            @click="mainTab = 'margins'"
             :class="[
               'px-4 py-2 rounded-lg text-sm font-medium',
+              mainTab === 'margins'
+                ? 'bg-cyan-600 text-white'
+                : 'bg-slate-800 text-slate-400 hover:text-slate-200',
+            ]"
+          >
+            {{ t('industry.tabs.margins') }}
+          </button>
+          <button
+            @click="mainTab = 'config'"
+            :class="[
+              'p-2 rounded-lg',
               mainTab === 'config'
                 ? 'bg-cyan-600 text-white'
                 : 'bg-slate-800 text-slate-400 hover:text-slate-200',
             ]"
+            :title="t('industry.tabs.config')"
           >
-            {{ t('industry.tabs.config') }}
-          </button>
-          <button
-            @click="mainTab = 'profit'"
-            :class="[
-              'px-4 py-2 rounded-lg text-sm font-medium',
-              mainTab === 'profit'
-                ? 'bg-cyan-600 text-white'
-                : 'bg-slate-800 text-slate-400 hover:text-slate-200',
-            ]"
-          >
-            {{ t('industry.tabs.profit') }}
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
           </button>
         </div>
       </div>
@@ -201,12 +257,12 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
       </div>
 
       <!-- Detail view -->
-      <template v-if="viewingProjectId">
+      <div v-if="viewingProjectId" key="detail">
         <ProjectDetail :project-id="viewingProjectId" @close="closeDetail" />
-      </template>
+      </div>
 
       <!-- Config view -->
-      <template v-else-if="mainTab === 'config'">
+      <div v-else-if="mainTab === 'config'" key="config">
         <!-- General settings -->
         <div class="flex items-center gap-4 mb-6 bg-slate-900 rounded-xl border border-slate-800 px-6 py-4">
           <div class="w-48">
@@ -223,6 +279,53 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
           <p class="text-xs text-slate-500 self-end pb-1">
             {{ t('industry.config.maxJobDurationHint') }}
           </p>
+        </div>
+
+        <!-- Broker Fee & Sales Tax settings -->
+        <div class="mb-6 bg-slate-900 rounded-xl border border-slate-800 px-6 py-4">
+          <h4 class="text-sm font-medium text-slate-300 mb-4">{{ t('industry.config.feesTitle') }}</h4>
+          <div class="flex items-end gap-6 flex-wrap">
+            <div class="w-48">
+              <label class="block text-xs text-slate-500 mb-1">{{ t('industry.config.brokerFee') }}</label>
+              <div class="relative">
+                <input
+                  v-model.number="brokerFeeRate"
+                  type="number"
+                  min="0"
+                  max="10"
+                  step="0.1"
+                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:border-cyan-500 font-mono"
+                />
+                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">%</span>
+              </div>
+            </div>
+            <div class="w-48">
+              <label class="block text-xs text-slate-500 mb-1">{{ t('industry.config.salesTax') }}</label>
+              <div class="relative">
+                <input
+                  v-model.number="salesTaxRate"
+                  type="number"
+                  min="0"
+                  max="15"
+                  step="0.1"
+                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:border-cyan-500 font-mono"
+                />
+                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">%</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <button
+                @click="saveFeeSettings"
+                :disabled="feeSettingsSaving"
+                class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-cyan-600/50 rounded-lg text-white text-sm font-medium transition-colors disabled:cursor-not-allowed"
+              >
+                {{ feeSettingsSaving ? t('common.actions.loading') : t('common.actions.save') }}
+              </button>
+              <Transition name="fade">
+                <span v-if="feeSettingsSaved" class="text-xs text-emerald-400">{{ t('settings.marketStructureSaved') }}</span>
+              </Transition>
+            </div>
+          </div>
         </div>
 
         <!-- Sub-tabs -->
@@ -272,15 +375,15 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
         <div v-else>
           <BlacklistConfig />
         </div>
-      </template>
+      </div>
 
-      <!-- Profit view -->
-      <template v-else-if="mainTab === 'profit'">
-        <ProfitTab />
-      </template>
+      <!-- Margins view -->
+      <div v-else-if="mainTab === 'margins'" key="margins">
+        <ProfitMarginTab />
+      </div>
 
       <!-- Main view (projects) -->
-      <template v-else>
+      <div v-else key="projects">
         <!-- New project form -->
         <div class="bg-slate-900 rounded-xl border border-slate-800 p-6 mb-6">
           <h3 class="text-lg font-semibold text-slate-100 mb-4">{{ t('industry.createProject.title') }}</h3>
@@ -303,7 +406,10 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
               :key="index"
               class="flex items-center gap-3 bg-slate-800/50 rounded-lg px-4 py-2"
             >
-              <span class="flex-1 text-slate-200">{{ product.typeName }}</span>
+              <span class="flex-1 text-slate-200">
+                {{ product.typeName }}
+                <span v-if="product.isT2" class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-sm ml-1">T2</span>
+              </span>
               <div class="flex items-center gap-1">
                 <input
                   v-model.number="product.runs"
@@ -320,7 +426,11 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
                   type="number"
                   min="0"
                   max="10"
-                  class="w-12 bg-slate-700 border border-slate-600 rounded-sm px-2 py-1 text-sm text-center"
+                  :readonly="product.isT2"
+                  :class="[
+                    'w-12 bg-slate-700 border border-slate-600 rounded-sm px-2 py-1 text-sm text-center',
+                    product.isT2 ? 'cursor-not-allowed opacity-60' : '',
+                  ]"
                 />
               </div>
               <div class="flex items-center gap-1">
@@ -330,7 +440,11 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
                   type="number"
                   min="0"
                   max="20"
-                  class="w-12 bg-slate-700 border border-slate-600 rounded-sm px-2 py-1 text-sm text-center"
+                  :readonly="product.isT2"
+                  :class="[
+                    'w-12 bg-slate-700 border border-slate-600 rounded-sm px-2 py-1 text-sm text-center',
+                    product.isT2 ? 'cursor-not-allowed opacity-60' : '',
+                  ]"
                 />
               </div>
               <button
@@ -366,23 +480,37 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
               />
             </div>
             <div class="w-24">
-              <label class="block text-sm text-slate-400 mb-1">{{ t('industry.createProject.me') }}</label>
+              <label class="block text-sm text-slate-400 mb-1">
+                {{ t('industry.createProject.me') }}
+                <span v-if="selectedProduct?.isT2" class="text-xs text-blue-400 ml-1">T2</span>
+              </label>
               <input
                 v-model.number="meLevel"
                 type="number"
                 min="0"
                 max="10"
-                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-hidden focus:border-cyan-500"
+                :readonly="selectedProduct?.isT2"
+                :class="[
+                  'w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-hidden focus:border-cyan-500',
+                  selectedProduct?.isT2 ? 'cursor-not-allowed opacity-60' : '',
+                ]"
               />
             </div>
             <div class="w-24">
-              <label class="block text-sm text-slate-400 mb-1">{{ t('industry.createProject.te') }}</label>
+              <label class="block text-sm text-slate-400 mb-1">
+                {{ t('industry.createProject.te') }}
+                <span v-if="selectedProduct?.isT2" class="text-xs text-blue-400 ml-1">T2</span>
+              </label>
               <input
                 v-model.number="teLevel"
                 type="number"
                 min="0"
                 max="20"
-                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-hidden focus:border-cyan-500"
+                :readonly="selectedProduct?.isT2"
+                :class="[
+                  'w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-hidden focus:border-cyan-500',
+                  selectedProduct?.isT2 ? 'cursor-not-allowed opacity-60' : '',
+                ]"
               />
             </div>
 
@@ -446,6 +574,6 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
           </div>
           <ProjectTable v-else @view-project="viewProject" @duplicate-project="duplicateProject" />
         </div>
-      </template>
+      </div>
   </MainLayout>
 </template>

@@ -20,13 +20,13 @@ use App\State\Provider\Industry\BlacklistProvider;
         new Get(
             uriTemplate: '/industry/blacklist',
             provider: BlacklistProvider::class,
-            openapi: new Model\Operation(summary: 'Get blacklist', description: 'Returns categories and items blacklisted from production'),
+            openapi: new Model\Operation(summary: 'Get blacklist', description: 'Returns categories and items blacklisted from production', tags: ['Industry - Configuration']),
         ),
         new Put(
             uriTemplate: '/industry/blacklist',
             processor: UpdateBlacklistProcessor::class,
             input: UpdateBlacklistInput::class,
-            openapi: new Model\Operation(summary: 'Update blacklist', description: 'Updates the blacklist groups and types'),
+            openapi: new Model\Operation(summary: 'Update blacklist', description: 'Updates the blacklist groups and types', tags: ['Industry - Configuration']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

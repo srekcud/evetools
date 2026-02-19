@@ -91,6 +91,7 @@ defineExpose({ clear })
           @error="($event.target as HTMLImageElement).style.display = 'none'"
         />
         <span>{{ result.typeName }}</span>
+        <span v-if="result.isT2" class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-sm">T2</span>
       </button>
     </div>
   </div>

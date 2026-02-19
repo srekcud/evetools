@@ -20,6 +20,8 @@ class MarketPriceAlert
 
     public const SOURCE_JITA_SELL = 'jita_sell';
     public const SOURCE_JITA_BUY = 'jita_buy';
+    public const SOURCE_STRUCTURE_SELL = 'structure_sell';
+    public const SOURCE_STRUCTURE_BUY = 'structure_buy';
 
     public const STATUS_ACTIVE = 'active';
     public const STATUS_TRIGGERED = 'triggered';

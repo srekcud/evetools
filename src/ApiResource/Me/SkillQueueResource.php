@@ -17,7 +17,7 @@ use App\State\Provider\Me\SkillQueueProvider;
         new Get(
             uriTemplate: '/me/skillqueues',
             provider: SkillQueueProvider::class,
-            openapi: new Model\Operation(summary: 'Get skill queues', description: 'Returns currently training skills for all characters'),
+            openapi: new Model\Operation(summary: 'Get skill queues', description: 'Returns currently training skills for all characters', tags: ['Account & Characters']),
         ),
     ],
     security: "is_granted('ROLE_USER')",
