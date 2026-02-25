@@ -75,11 +75,18 @@ use App\State\Processor\Admin\TriggerSyncProcessor;
             openapi: new Model\Operation(summary: 'Trigger Planetary Interaction sync', tags: ['Administration']),
         ),
         new Post(
-            uriTemplate: '/admin/actions/compute-profit',
+            uriTemplate: '/admin/actions/sync-alert-prices',
             processor: TriggerSyncProcessor::class,
             input: EmptyInput::class,
-            name: 'compute_profit',
-            openapi: new Model\Operation(summary: 'Trigger profit computation for all users', tags: ['Administration']),
+            name: 'sync_alert_prices',
+            openapi: new Model\Operation(summary: 'Trigger alert price refresh', tags: ['Administration']),
+        ),
+        new Post(
+            uriTemplate: '/admin/actions/sync-public-contracts',
+            processor: TriggerSyncProcessor::class,
+            input: EmptyInput::class,
+            name: 'sync_public_contracts',
+            openapi: new Model\Operation(summary: 'Trigger public contracts sync', tags: ['Administration']),
         ),
         new Post(
             uriTemplate: '/admin/actions/check-market-alerts',

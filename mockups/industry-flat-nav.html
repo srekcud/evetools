@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1600">
+  <title>EVE Tools - Industry (Flat Navigation)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Exo 2', sans-serif;
+      background: #020617;
+      color: #e2e8f0;
+      overflow-x: hidden;
+    }
+
+    .font-mono-tech { font-family: 'Share Tech Mono', monospace; }
+    .font-display { font-family: 'Rajdhani', sans-serif; }
+
+    /* Subtle scan-line overlay on the page */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.015) 2px,
+        rgba(0, 0, 0, 0.015) 4px
+      );
+    }
+
+    /* Nav pill active state with glow */
+    .nav-pill-active {
+      background: linear-gradient(135deg, #0891b2, #0e7490);
+      color: white;
+      box-shadow: 0 0 12px rgba(8, 145, 178, 0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+    }
+
+    .nav-pill-inactive {
+      background: rgba(30, 41, 59, 0.6);
+      color: #94a3b8;
+      border: 1px solid rgba(51, 65, 85, 0.5);
+      transition: all 0.2s ease;
+    }
+    .nav-pill-inactive:hover {
+      background: rgba(30, 41, 59, 0.9);
+      color: #e2e8f0;
+      border-color: rgba(71, 85, 105, 0.8);
+      transform: translateY(-1px);
+    }
+
+    /* Group label styling */
+    .group-label {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 9px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #475569;
+      position: absolute;
+      top: -14px;
+      left: 4px;
+      white-space: nowrap;
+    }
+
+    /* Divider with subtle glow */
+    .nav-divider {
+      width: 1px;
+      height: 24px;
+      background: linear-gradient(180deg, transparent, #334155 30%, #334155 70%, transparent);
+      margin: 0 6px;
+      align-self: center;
+    }
+
+    /* KPI card styling */
+    .kpi-card {
+      background: linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.7));
+      border: 1px solid rgba(30, 41, 59, 0.8);
+      border-radius: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(8, 145, 178, 0.3), transparent);
+    }
+
+    /* Alert row left accent */
+    .alert-row { position: relative; transition: background 0.15s ease; }
+    .alert-row::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      border-radius: 3px 0 0 3px;
+    }
+    .alert-amber::before { background: #f59e0b; box-shadow: 0 0 8px rgba(245,158,11,0.25); }
+    .alert-red::before { background: #ef4444; box-shadow: 0 0 8px rgba(239,68,68,0.25); }
+    .alert-blue::before { background: #3b82f6; box-shadow: 0 0 8px rgba(59,130,246,0.25); }
+
+    /* Ring chart glow */
+    .ring-glow-emerald { filter: drop-shadow(0 0 6px rgba(52,211,153,0.15)); }
+    .ring-glow-amber { filter: drop-shadow(0 0 6px rgba(251,191,36,0.15)); }
+
+    /* Card with stagger entrance */
+    @keyframes cardSlideUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .card-animate {
+      animation: cardSlideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    }
+
+    /* Progress bar shimmer */
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .progress-shimmer {
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+      background-size: 200% 100%;
+      animation: shimmer 3s ease-in-out infinite;
+    }
+
+    /* Sidebar nav item hover */
+    .sidebar-item {
+      transition: all 0.15s ease;
+      position: relative;
+    }
+    .sidebar-item:hover {
+      background: rgba(30, 41, 59, 0.5);
+    }
+    .sidebar-item.active {
+      background: rgba(8, 145, 178, 0.1);
+      border-right: 2px solid #06b6d4;
+    }
+    .sidebar-item.active svg { color: #06b6d4; }
+
+    /* Button micro-interactions */
+    .btn-action { transition: all 0.15s ease; }
+    .btn-action:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    .btn-action:active { transform: translateY(0); }
+
+    /* Config gear rotation on hover */
+    .gear-btn svg { transition: transform 0.4s ease; }
+    .gear-btn:hover svg { transform: rotate(90deg); }
+
+    /* Table row hover */
+    .table-row { transition: background 0.1s ease; }
+    .table-row:hover { background: rgba(30, 41, 59, 0.4); }
+
+    /* EVE-style subtle grid background */
+    .eve-grid-bg {
+      background-image:
+        linear-gradient(rgba(30, 41, 59, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(30, 41, 59, 0.1) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    /* Sidebar collapsed width */
+    .sidebar-collapsed { width: 60px; }
+
+    /* Content area */
+    .main-content {
+      margin-left: 60px;
+      min-height: 100vh;
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+</head>
+<body class="eve-grid-bg">
+
+  <!-- ===== SIDEBAR (collapsed) ===== -->
+  <aside class="sidebar-collapsed fixed left-0 top-0 bottom-0 bg-slate-950 border-r border-slate-800/80 z-40 flex flex-col items-center py-4">
+    <!-- App logo -->
+    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 to-cyan-700 flex items-center justify-center mb-6 shadow-lg shadow-cyan-900/30">
+      <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+    </div>
+
+    <!-- Nav icons -->
+    <nav class="flex flex-col items-center gap-1 flex-1">
+      <a href="#" class="sidebar-item w-10 h-10 rounded-lg flex items-center justify-center" title="Dashboard">
+        <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      </a>
+      <a href="#" class="sidebar-item w-10 h-10 rounded-lg flex items-center justify-center" title="Ledger">
+        <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+      </a>
+      <a href="#" class="sidebar-item active w-10 h-10 rounded-lg flex items-center justify-center" title="Industry">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+      </a>
+      <a href="#" class="sidebar-item w-10 h-10 rounded-lg flex items-center justify-center" title="Market">
+        <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+      </a>
+      <a href="#" class="sidebar-item w-10 h-10 rounded-lg flex items-center justify-center" title="Assets">
+        <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+      </a>
+    </nav>
+
+    <!-- Bottom: user avatar -->
+    <div class="mt-auto">
+      <div class="w-9 h-9 rounded-lg bg-slate-800 border border-slate-700 overflow-hidden">
+        <div class="w-full h-full bg-gradient-to-br from-slate-600 to-slate-700"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <main class="main-content">
+
+    <!-- Top bar -->
+    <header class="h-14 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-sm flex items-center justify-between px-6 sticky top-0 z-30">
+      <div class="flex items-center gap-3">
+        <span class="font-mono-tech text-xs text-slate-600">TQ</span>
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span class="text-xs text-slate-500">32,441 pilots</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <!-- Notification bell -->
+        <button class="relative p-2 text-slate-400 hover:text-slate-200 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/></svg>
+          <span class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center">3</span>
+        </button>
+        <span class="text-xs text-slate-500 font-mono-tech">v0.11</span>
+      </div>
+    </header>
+
+    <!-- ===== PAGE CONTENT ===== -->
+    <div class="px-6 py-5">
+
+      <!-- Page header + Flat navigation -->
+      <div class="mb-6">
+        <!-- Title row -->
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <h1 class="font-display text-2xl font-bold text-white tracking-wide">Industry</h1>
+            <span class="text-xs text-slate-600">Manufacturing and reaction projects</span>
+          </div>
+        </div>
+
+        <!-- ===== FLAT PILL NAVIGATION ===== -->
+        <div class="flex items-center gap-1 bg-slate-900/50 rounded-xl border border-slate-800/60 px-3 py-2.5">
+
+          <!-- Group 1: Overview -->
+          <div class="relative flex items-center gap-1 pr-1">
+            <span class="group-label">Overview</span>
+            <button class="nav-pill-active px-4 py-1.5 rounded-lg text-sm font-medium">
+              Dashboard
+            </button>
+            <button class="nav-pill-inactive px-4 py-1.5 rounded-lg text-sm font-medium">
+              Projects
+            </button>
+          </div>
+
+          <div class="nav-divider"></div>
+
+          <!-- Group 2: Analysis (ex-Scanner children) -->
+          <div class="relative flex items-center gap-1 px-1">
+            <span class="group-label">Analysis</span>
+            <button class="nav-pill-inactive px-3.5 py-1.5 rounded-lg text-sm font-medium">
+              Margins
+            </button>
+            <button class="nav-pill-inactive px-3.5 py-1.5 rounded-lg text-sm font-medium">
+              Batch Scan
+            </button>
+            <button class="nav-pill-inactive px-3.5 py-1.5 rounded-lg text-sm font-medium">
+              Buy vs Build
+            </button>
+            <button class="nav-pill-inactive px-3.5 py-1.5 rounded-lg text-sm font-medium">
+              Pivot
+            </button>
+          </div>
+
+          <div class="nav-divider"></div>
+
+          <!-- Group 3: Operations -->
+          <div class="relative flex items-center gap-1 px-1">
+            <span class="group-label">Operations</span>
+            <button class="nav-pill-inactive px-4 py-1.5 rounded-lg text-sm font-medium">
+              Slots
+            </button>
+            <button class="nav-pill-inactive px-4 py-1.5 rounded-lg text-sm font-medium">
+              Stockpile
+            </button>
+          </div>
+
+          <!-- Spacer -->
+          <div class="flex-1"></div>
+
+          <!-- Config gear (right-aligned) -->
+          <button class="gear-btn nav-pill-inactive p-2 rounded-lg" title="Configuration">
+            <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- ===== DASHBOARD CONTENT ===== -->
+
+      <!-- KPI Cards Row -->
+      <div class="grid grid-cols-4 gap-4 mb-6">
+
+        <!-- KPI 1: Active Projects -->
+        <div class="kpi-card p-5 card-animate" style="animation-delay: 0ms">
+          <div class="flex items-center justify-between mb-3">
+            <p class="text-[10px] text-slate-500 uppercase tracking-widest font-semibold">Active Projects</p>
+            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+          </div>
+          <p class="font-mono-tech text-3xl font-bold text-cyan-400" style="font-variant-numeric: tabular-nums">7</p>
+        </div>
+
+        <!-- KPI 2: Estimated Profit -->
+        <div class="kpi-card p-5 card-animate" style="animation-delay: 60ms">
+          <div class="flex items-center justify-between mb-3">
+            <p class="text-[10px] text-slate-500 uppercase tracking-widest font-semibold">Est. Profit</p>
+            <svg class="w-4 h-4 text-emerald-500/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+          </div>
+          <p class="font-mono-tech text-3xl font-bold text-emerald-400" style="font-variant-numeric: tabular-nums">2.4B</p>
+          <p class="text-[10px] text-slate-600 mt-1">Across 7 active projects</p>
+        </div>
+
+        <!-- KPI 3: Slots Used -->
+        <div class="kpi-card p-5 card-animate" style="animation-delay: 120ms">
+          <p class="text-[10px] text-slate-500 uppercase tracking-widest font-semibold mb-3">Slots Used</p>
+          <div class="flex items-center gap-3">
+            <div class="relative w-12 h-12 flex-shrink-0 ring-glow-amber">
+              <svg viewBox="0 0 48 48" class="w-12 h-12" style="transform: rotate(-90deg)">
+                <circle cx="24" cy="24" r="19" fill="none" stroke="rgb(30 41 59)" stroke-width="4"/>
+                <circle cx="24" cy="24" r="19" fill="none" stroke="#fbbf24" stroke-width="4" stroke-linecap="round" stroke-dasharray="119.38" stroke-dashoffset="35.8"/>
+              </svg>
+              <div class="absolute inset-0 flex items-center justify-center">
+                <span class="text-[10px] font-mono-tech font-bold text-amber-400">70%</span>
+              </div>
+            </div>
+            <div>
+              <p class="text-2xl font-bold text-white font-mono-tech" style="font-variant-numeric: tabular-nums">21<span class="text-slate-500 text-lg">/30</span></p>
+              <p class="text-[10px] text-amber-400/70">9 available</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- KPI 4: Pipeline Health -->
+        <div class="kpi-card p-5 card-animate" style="animation-delay: 180ms">
+          <p class="text-[10px] text-slate-500 uppercase tracking-widest font-semibold mb-3">Pipeline Health</p>
+          <div class="flex items-center gap-3">
+            <div class="relative w-12 h-12 flex-shrink-0 ring-glow-emerald">
+              <svg viewBox="0 0 48 48" class="w-12 h-12" style="transform: rotate(-90deg)">
+                <circle cx="24" cy="24" r="19" fill="none" stroke="rgb(30 41 59)" stroke-width="4"/>
+                <circle cx="24" cy="24" r="19" fill="none" stroke="#34d399" stroke-width="4" stroke-linecap="round" stroke-dasharray="119.38" stroke-dashoffset="23.88"/>
+              </svg>
+              <div class="absolute inset-0 flex items-center justify-center">
+                <span class="text-[10px] font-mono-tech font-bold text-emerald-400">80%</span>
+              </div>
+            </div>
+            <div>
+              <p class="text-2xl font-bold font-mono-tech text-emerald-400" style="font-variant-numeric: tabular-nums">80%</p>
+              <p class="text-[10px] text-slate-600">12/15 targets met</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alerts Section -->
+      <div class="bg-slate-900/80 rounded-xl border border-slate-800/80 mb-6 card-animate" style="animation-delay: 240ms">
+        <div class="px-6 py-3.5 border-b border-slate-800 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+            <h3 class="text-sm font-semibold text-slate-200">Alerts</h3>
+            <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-medium font-mono-tech">3</span>
+          </div>
+        </div>
+
+        <div class="divide-y divide-slate-800/50">
+          <!-- Alert 1 -->
+          <div class="alert-row alert-amber px-6 py-3 flex items-center gap-4 cursor-pointer hover:bg-slate-800/30">
+            <div class="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+              <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm text-slate-200"><span class="font-semibold text-amber-300">2 jobs</span> ready for delivery</p>
+              <p class="text-[11px] text-slate-500 mt-0.5">Go to Slots to deliver completed industry jobs</p>
+            </div>
+            <svg class="w-4 h-4 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </div>
+
+          <!-- Alert 2 -->
+          <div class="alert-row alert-red px-6 py-3 flex items-center gap-4 cursor-pointer hover:bg-slate-800/30">
+            <div class="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0">
+              <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm text-slate-200"><span class="font-semibold text-red-300">Tritanium</span> at 12% &mdash; critically low</p>
+              <p class="text-[11px] text-slate-500 mt-0.5">Stock: 45,200 / Target: 400,000 &mdash; Deficit cost: 128M ISK</p>
+            </div>
+            <svg class="w-4 h-4 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </div>
+
+          <!-- Alert 3 -->
+          <div class="alert-row alert-blue px-6 py-3 flex items-center gap-4 cursor-pointer hover:bg-slate-800/30">
+            <div class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+              <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm text-slate-200"><span class="font-semibold text-blue-300">9 slots</span> available across characters</p>
+              <p class="text-[11px] text-slate-500 mt-0.5">Consider starting new manufacturing or science jobs</p>
+            </div>
+            <svg class="w-4 h-4 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="flex flex-wrap gap-3 mb-6 card-animate" style="animation-delay: 300ms">
+        <button class="btn-action px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          New Project
+        </button>
+        <button class="btn-action px-4 py-2.5 bg-amber-600 hover:bg-amber-500 rounded-lg text-white text-sm font-medium flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          Restock Critical
+        </button>
+        <button class="btn-action px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm font-medium flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          Scan Profits
+        </button>
+        <button class="btn-action px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm font-medium flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          View Stockpile
+        </button>
+      </div>
+
+      <!-- Recent Projects Table -->
+      <div class="bg-slate-900/80 rounded-xl border border-slate-800/80 card-animate" style="animation-delay: 360ms">
+        <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-slate-200">Recent Projects</h3>
+          <button class="text-sm text-cyan-400 hover:text-cyan-300 font-medium flex items-center gap-1 transition-colors">
+            View all projects
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-700/50 text-[10px] text-slate-500 uppercase tracking-wider">
+                <th class="text-left py-3 px-6">Product</th>
+                <th class="text-left py-3 px-3">Status</th>
+                <th class="text-right py-3 px-3">Profit</th>
+                <th class="text-left py-3 px-6 w-48">Progress</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/50">
+              <!-- Row 1 -->
+              <tr class="table-row cursor-pointer">
+                <td class="py-3 px-6">
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden">
+                      <div class="w-full h-full bg-gradient-to-br from-cyan-900/30 to-slate-800"></div>
+                    </div>
+                    <span class="text-slate-100 font-medium hover:text-cyan-400 transition-colors">Sabre</span>
+                  </div>
+                </td>
+                <td class="py-3 px-3">
+                  <span class="text-[10px] px-2 py-0.5 rounded border bg-cyan-500/15 text-cyan-400 border-cyan-500/20">Active</span>
+                </td>
+                <td class="py-3 px-3 text-right font-mono-tech text-emerald-400" style="font-variant-numeric: tabular-nums">342M</td>
+                <td class="py-3 px-6">
+                  <div class="flex items-center gap-3">
+                    <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                      <div class="h-full rounded-full bg-cyan-500/60 relative" style="width: 65%">
+                        <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+                      </div>
+                    </div>
+                    <span class="text-[11px] font-mono-tech text-slate-500 w-8 text-right">65%</span>
+                  </div>
+                </td>
+              </tr>
+              <!-- Row 2 -->
+              <tr class="table-row cursor-pointer">
+                <td class="py-3 px-6">
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden">
+                      <div class="w-full h-full bg-gradient-to-br from-blue-900/30 to-slate-800"></div>
+                    </div>
+                    <span class="text-slate-100 font-medium">Ishtar</span>
+                  </div>
+                </td>
+                <td class="py-3 px-3">
+                  <span class="text-[10px] px-2 py-0.5 rounded border bg-cyan-500/15 text-cyan-400 border-cyan-500/20">Active</span>
+                </td>
+                <td class="py-3 px-3 text-right font-mono-tech text-emerald-400" style="font-variant-numeric: tabular-nums">1.2B</td>
+                <td class="py-3 px-6">
+                  <div class="flex items-center gap-3">
+                    <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                      <div class="h-full rounded-full bg-cyan-500/60 relative" style="width: 30%">
+                        <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+                      </div>
+                    </div>
+                    <span class="text-[11px] font-mono-tech text-slate-500 w-8 text-right">30%</span>
+                  </div>
+                </td>
+              </tr>
+              <!-- Row 3 -->
+              <tr class="table-row cursor-pointer">
+                <td class="py-3 px-6">
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden">
+                      <div class="w-full h-full bg-gradient-to-br from-purple-900/30 to-slate-800"></div>
+                    </div>
+                    <span class="text-slate-100 font-medium">Jackdaw</span>
+                  </div>
+                </td>
+                <td class="py-3 px-3">
+                  <span class="text-[10px] px-2 py-0.5 rounded border bg-cyan-500/15 text-cyan-400 border-cyan-500/20">Active</span>
+                </td>
+                <td class="py-3 px-3 text-right font-mono-tech text-emerald-400" style="font-variant-numeric: tabular-nums">189M</td>
+                <td class="py-3 px-6">
+                  <div class="flex items-center gap-3">
+                    <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                      <div class="h-full rounded-full bg-emerald-500/60 relative" style="width: 92%">
+                        <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+                      </div>
+                    </div>
+                    <span class="text-[11px] font-mono-tech text-emerald-400 w-8 text-right">92%</span>
+                  </div>
+                </td>
+              </tr>
+              <!-- Row 4 -->
+              <tr class="table-row cursor-pointer">
+                <td class="py-3 px-6">
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden">
+                      <div class="w-full h-full bg-gradient-to-br from-amber-900/30 to-slate-800"></div>
+                    </div>
+                    <span class="text-slate-100 font-medium">Hurricane</span>
+                  </div>
+                </td>
+                <td class="py-3 px-3">
+                  <span class="text-[10px] px-2 py-0.5 rounded border bg-emerald-500/15 text-emerald-400 border-emerald-500/20">Completed</span>
+                </td>
+                <td class="py-3 px-3 text-right font-mono-tech text-emerald-400" style="font-variant-numeric: tabular-nums">456M</td>
+                <td class="py-3 px-6">
+                  <div class="flex items-center gap-3">
+                    <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                      <div class="h-full rounded-full bg-emerald-500/60" style="width: 100%"></div>
+                    </div>
+                    <span class="text-[11px] font-mono-tech text-emerald-400 w-8 text-right">100%</span>
+                  </div>
+                </td>
+              </tr>
+              <!-- Row 5 -->
+              <tr class="table-row cursor-pointer">
+                <td class="py-3 px-6">
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden">
+                      <div class="w-full h-full bg-gradient-to-br from-red-900/30 to-slate-800"></div>
+                    </div>
+                    <span class="text-slate-100 font-medium">Ferox</span>
+                  </div>
+                </td>
+                <td class="py-3 px-3">
+                  <span class="text-[10px] px-2 py-0.5 rounded border bg-cyan-500/15 text-cyan-400 border-cyan-500/20">Active</span>
+                </td>
+                <td class="py-3 px-3 text-right font-mono-tech text-red-400" style="font-variant-numeric: tabular-nums">-23M</td>
+                <td class="py-3 px-6">
+                  <div class="flex items-center gap-3">
+                    <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                      <div class="h-full rounded-full bg-cyan-500/60 relative" style="width: 12%">
+                        <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+                      </div>
+                    </div>
+                    <span class="text-[11px] font-mono-tech text-slate-500 w-8 text-right">12%</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Bottom annotation -->
+      <div class="mt-6 text-center card-animate" style="animation-delay: 420ms">
+        <p class="text-[10px] text-slate-600 uppercase tracking-widest font-mono-tech">
+          Approach 1 &mdash; Flat Pill Navigation with Grouped Dividers &mdash; All 8 tabs visible at once, zero nesting
+        </p>
+      </div>
+
+    </div>
+  </main>
+
+</body>
+</html>

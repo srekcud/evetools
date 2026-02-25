@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Service\Industry;
 
-use App\Entity\CachedCharacterSkill;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\User;
@@ -261,7 +260,27 @@ class IndustryProjectFactory
         }
         unset($step);
 
+        if (empty($reactionSteps)) {
+            return;
+        }
+
         uasort($reactionSteps, fn ($a, $b) => $a['depth'] <=> $b['depth']);
+
+        // Preload all materials for all consumer steps (non-copy) in one batch query
+        $consumerTypeIds = [];
+        $consumerActivityIds = [];
+        foreach ($steps as $step) {
+            if ($step['activityType'] === 'copy') {
+                continue;
+            }
+            $activityId = match ($step['activityType']) {
+                'reaction' => IndustryActivityType::Reaction->value,
+                default => IndustryActivityType::Manufacturing->value,
+            };
+            $consumerTypeIds[] = $step['blueprintTypeId'];
+            $consumerActivityIds[] = $activityId;
+        }
+        $materialsByKey = $this->materialRepository->findMaterialEntitiesForBlueprints($consumerTypeIds, $consumerActivityIds);
 
         foreach ($reactionSteps as $reactionKey => &$reaction) {
             $productTypeId = $reaction['productTypeId'];
@@ -280,10 +299,8 @@ class IndustryProjectFactory
                     default => IndustryActivityType::Manufacturing->value,
                 };
 
-                $materials = $this->materialRepository->findBy([
-                    'typeId' => $consumer['blueprintTypeId'],
-                    'activityId' => $activityId,
-                ]);
+                $materialKey = $consumer['blueprintTypeId'] . '-' . $activityId;
+                $materials = $materialsByKey[$materialKey] ?? [];
 
                 foreach ($materials as $material) {
                     if ($material->getMaterialTypeId() === $productTypeId) {
@@ -344,6 +361,20 @@ class IndustryProjectFactory
         // Preload all skills for all characters (one query per character)
         $characterSkillLevels = $this->loadAllCharacterSkills($user);
 
+        // Preload all activities in one batch query
+        $allTypeIds = [];
+        $allActivityIds = [];
+        foreach ($steps as $step) {
+            $activityId = match ($step['activityType']) {
+                'reaction' => IndustryActivityType::Reaction->value,
+                'copy' => IndustryActivityType::Copying->value,
+                default => IndustryActivityType::Manufacturing->value,
+            };
+            $allTypeIds[] = $step['blueprintTypeId'];
+            $allActivityIds[] = $activityId;
+        }
+        $activitiesByKey = $this->activityRepository->findByTypeIdsAndActivityIds($allTypeIds, $allActivityIds);
+
         foreach ($steps as &$step) {
             $activityId = match ($step['activityType']) {
                 'reaction' => IndustryActivityType::Reaction->value,
@@ -351,10 +382,8 @@ class IndustryProjectFactory
                 default => IndustryActivityType::Manufacturing->value,
             };
 
-            $activity = $this->activityRepository->findOneBy([
-                'typeId' => $step['blueprintTypeId'],
-                'activityId' => $activityId,
-            ]);
+            $activityKey = $step['blueprintTypeId'] . '-' . $activityId;
+            $activity = $activitiesByKey[$activityKey] ?? null;
 
             $baseTimePerRun = $activity?->getTime();
             $step['baseTimePerRun'] = $baseTimePerRun;
@@ -432,25 +461,7 @@ class IndustryProjectFactory
         $bestMultiplier = 1.0;
 
         foreach ($characterSkillLevels as $skillLevels) {
-            $multiplier = 1.0;
-
-            if ($activityType === 'reaction') {
-                $reactionLevel = $skillLevels[CachedCharacterSkill::SKILL_REACTIONS] ?? 0;
-                $multiplier *= (1 - 0.04 * $reactionLevel);
-            } else {
-                $industryLevel = $skillLevels[CachedCharacterSkill::SKILL_INDUSTRY] ?? 0;
-                $advancedLevel = $skillLevels[CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY] ?? 0;
-                $multiplier *= (1 - 0.04 * $industryLevel);
-                $multiplier *= (1 - 0.03 * $advancedLevel);
-            }
-
-            // Blueprint-specific science skills (1% per level)
-            foreach ($scienceSkillIds as $skillId) {
-                $level = $skillLevels[$skillId] ?? 0;
-                if ($level > 0) {
-                    $multiplier *= (1 - 0.01 * $level);
-                }
-            }
+            $multiplier = $this->calculationService->calculateSkillTimeMultiplier($skillLevels, $activityType, $scienceSkillIds);
 
             if ($multiplier < $bestMultiplier) {
                 $bestMultiplier = $multiplier;

@@ -44,6 +44,17 @@ use App\State\Provider\UserSettings\UserSettingsProvider;
                                         'nullable' => true,
                                         'description' => 'Preferred structure name (for display)',
                                     ],
+                                    'marketStructures' => [
+                                        'type' => 'array',
+                                        'description' => 'List of favorite market structures',
+                                        'items' => [
+                                            'type' => 'object',
+                                            'properties' => [
+                                                'id' => ['type' => 'integer'],
+                                                'name' => ['type' => 'string'],
+                                            ],
+                                        ],
+                                    ],
                                 ],
                             ],
                         ],
@@ -74,4 +85,7 @@ class UserSettingsResource
 
     /** Effective structure name (user preference or default). */
     public string $effectiveMarketStructureName;
+
+    /** @var list<array{id: int, name: string}> User's favorite market structures. */
+    public array $marketStructures = [];
 }

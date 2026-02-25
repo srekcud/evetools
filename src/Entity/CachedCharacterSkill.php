@@ -20,10 +20,33 @@ class CachedCharacterSkill
     public const SKILL_ADVANCED_INDUSTRY = 3388;
     public const SKILL_REACTIONS = 45746;
 
+    /** Time bonus per level for each skill (fractional, e.g. 0.04 = 4% per level) */
+    public const INDUSTRY_TIME_BONUS_PER_LEVEL = 0.04;
+    public const ADVANCED_INDUSTRY_TIME_BONUS_PER_LEVEL = 0.03;
+    public const REACTION_TIME_BONUS_PER_LEVEL = 0.04;
+    public const SCIENCE_SKILL_TIME_BONUS_PER_LEVEL = 0.01;
+
     public const INDUSTRY_SKILL_IDS = [
         self::SKILL_INDUSTRY,
         self::SKILL_ADVANCED_INDUSTRY,
         self::SKILL_REACTIONS,
+    ];
+
+    /** Slot-related skill type IDs */
+    public const SKILL_MASS_PRODUCTION = 3387;
+    public const SKILL_ADVANCED_MASS_PRODUCTION = 24625;
+    public const SKILL_MASS_REACTIONS = 45749;
+    public const SKILL_ADVANCED_REACTIONS = 45748;
+    public const SKILL_LABORATORY_OPERATION = 3406;
+    public const SKILL_ADVANCED_LABORATORY_OPERATION = 24624;
+
+    public const SLOT_SKILL_IDS = [
+        self::SKILL_MASS_PRODUCTION,
+        self::SKILL_ADVANCED_MASS_PRODUCTION,
+        self::SKILL_MASS_REACTIONS,
+        self::SKILL_ADVANCED_REACTIONS,
+        self::SKILL_LABORATORY_OPERATION,
+        self::SKILL_ADVANCED_LABORATORY_OPERATION,
     ];
 
     #[ORM\Id]

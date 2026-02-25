@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router'
 import { useLedgerStore } from '@/stores/ledger'
 import { usePveStore } from '@/stores/pve'
 import MainLayout from '@/layouts/MainLayout.vue'
+import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import PveTab from '@/components/ledger/PveTab.vue'
 import LedgerDashboardTab from '@/components/ledger/LedgerDashboardTab.vue'
 import MiningTab from '@/components/ledger/MiningTab.vue'
@@ -196,12 +197,7 @@ onMounted(async () => {
       </div>
 
       <!-- Error state -->
-      <div v-if="ledgerStore.error" class="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-        <p class="text-red-400">{{ ledgerStore.error }}</p>
-        <button @click="ledgerStore.clearError()" class="mt-2 text-sm text-red-400 hover:text-red-300">
-          {{ t('common.actions.close') }}
-        </button>
-      </div>
+      <ErrorBanner v-if="ledgerStore.error" :message="ledgerStore.error" @dismiss="ledgerStore.clearError()" />
     </div>
   </MainLayout>
 </template>

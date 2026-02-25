@@ -9,6 +9,7 @@ use App\Entity\IndustryProjectStep;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Constant\EveConstants;
 use App\Enum\IndustryActivityType;
+use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\JitaMarketService;
@@ -26,6 +27,7 @@ class ProductionCostService
         private readonly IndustryShoppingListBuilder $shoppingListBuilder,
         private readonly IndustryCalculationService $calculationService,
         private readonly IndustryUserSettingsRepository $userSettingsRepository,
+        private readonly IndustryActivityMaterialRepository $materialRepository,
         private readonly IndustryActivityProductRepository $productRepository,
         private readonly MapSolarSystemRepository $solarSystemRepository,
     ) {
@@ -89,8 +91,16 @@ class ProductionCostService
             $solarSystemId = $this->resolveSolarSystemForStep($step, $project);
             $facilityTaxRate = $step->getStructureConfig()?->getFacilityTaxRate();
 
+            // Compute EIV from ME0 materials for this step's blueprint
+            $activityIdValue = $activityType === 'reaction' ? IndustryActivityType::Reaction->value : IndustryActivityType::Manufacturing->value;
+            $me0Materials = $this->materialRepository->findMaterialsForBlueprints(
+                [$step->getBlueprintTypeId()],
+                [$activityIdValue],
+            );
+            $eiv = $this->esiCostIndexService->calculateEiv($me0Materials[$step->getBlueprintTypeId()] ?? []);
+
             $installCost = $this->esiCostIndexService->calculateJobInstallCost(
-                $step->getProductTypeId(),
+                $eiv,
                 $step->getRuns(),
                 $solarSystemId,
                 $esiActivity,

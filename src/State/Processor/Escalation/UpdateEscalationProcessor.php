@@ -9,6 +9,9 @@ use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Escalation\EscalationResource;
 use App\Entity\Escalation;
 use App\Entity\User;
+use App\Enum\EscalationBmStatus;
+use App\Enum\EscalationSaleStatus;
+use App\Enum\EscalationVisibility;
 use App\Repository\EscalationRepository;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Provider\Escalation\EscalationResourceMapper;
@@ -56,20 +59,25 @@ class UpdateEscalationProcessor implements ProcessorInterface
         $request = $this->requestStack->getCurrentRequest();
         $payload = json_decode($request?->getContent() ?? '{}', true);
 
-        $validVisibilities = [Escalation::VISIBILITY_PERSO, Escalation::VISIBILITY_CORP, Escalation::VISIBILITY_ALLIANCE, Escalation::VISIBILITY_PUBLIC];
-        $validBmStatuses = [Escalation::BM_NOUVEAU, Escalation::BM_BM];
-        $validSaleStatuses = [Escalation::SALE_ENVENTE, Escalation::SALE_VENDU];
-
-        if (isset($payload['visibility']) && in_array($payload['visibility'], $validVisibilities, true)) {
-            $escalation->setVisibility($payload['visibility']);
+        if (isset($payload['visibility'])) {
+            $parsedVisibility = EscalationVisibility::tryFrom($payload['visibility']);
+            if ($parsedVisibility !== null) {
+                $escalation->setVisibility($parsedVisibility);
+            }
         }
 
-        if (isset($payload['bmStatus']) && in_array($payload['bmStatus'], $validBmStatuses, true)) {
-            $escalation->setBmStatus($payload['bmStatus']);
+        if (isset($payload['bmStatus'])) {
+            $parsedBmStatus = EscalationBmStatus::tryFrom($payload['bmStatus']);
+            if ($parsedBmStatus !== null) {
+                $escalation->setBmStatus($parsedBmStatus);
+            }
         }
 
-        if (isset($payload['saleStatus']) && in_array($payload['saleStatus'], $validSaleStatuses, true)) {
-            $escalation->setSaleStatus($payload['saleStatus']);
+        if (isset($payload['saleStatus'])) {
+            $parsedSaleStatus = EscalationSaleStatus::tryFrom($payload['saleStatus']);
+            if ($parsedSaleStatus !== null) {
+                $escalation->setSaleStatus($parsedSaleStatus);
+            }
         }
 
         if (isset($payload['price']) && is_int($payload['price'])) {
@@ -88,7 +96,7 @@ class UpdateEscalationProcessor implements ProcessorInterface
 
         // Publish Mercure event for non-personal escalations
         $visibility = $escalation->getVisibility();
-        if ($visibility !== Escalation::VISIBILITY_PERSO) {
+        if ($visibility !== EscalationVisibility::Perso) {
             $this->mercurePublisher->publishEscalationEvent(
                 'updated',
                 [
@@ -96,13 +104,13 @@ class UpdateEscalationProcessor implements ProcessorInterface
                     'type' => $escalation->getType(),
                     'solarSystemName' => $escalation->getSolarSystemName(),
                     'characterName' => $escalation->getCharacterName(),
-                    'visibility' => $visibility,
-                    'saleStatus' => $escalation->getSaleStatus(),
-                    'bmStatus' => $escalation->getBmStatus(),
+                    'visibility' => $visibility->value,
+                    'saleStatus' => $escalation->getSaleStatus()->value,
+                    'bmStatus' => $escalation->getBmStatus()->value,
                 ],
                 $escalation->getCorporationId(),
                 $escalation->getAllianceId(),
-                $visibility,
+                $visibility->value,
             );
         }
 

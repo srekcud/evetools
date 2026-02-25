@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Service\Industry;
 use App\Entity\User;
 use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryStructureConfigRepository;
+use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Service\Industry\EsiCostIndexService;
 use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\IndustryTreeService;
@@ -33,6 +34,7 @@ class ProfitMarginServiceTest extends TestCase
     private CachedStructureRepository&MockObject $cachedStructureRepository;
     private IndustryBlacklistService&MockObject $blacklistService;
     private IndustryStructureConfigRepository&MockObject $structureConfigRepository;
+    private IndustryActivityMaterialRepository&MockObject $materialRepository;
     private ProfitMarginService $service;
 
     // EVE IDs
@@ -53,6 +55,7 @@ class ProfitMarginServiceTest extends TestCase
         $this->cachedStructureRepository = $this->createMock(CachedStructureRepository::class);
         $this->blacklistService = $this->createMock(IndustryBlacklistService::class);
         $this->structureConfigRepository = $this->createMock(IndustryStructureConfigRepository::class);
+        $this->materialRepository = $this->createMock(IndustryActivityMaterialRepository::class);
 
         $this->service = new ProfitMarginService(
             $this->treeService,
@@ -65,6 +68,7 @@ class ProfitMarginServiceTest extends TestCase
             $this->cachedStructureRepository,
             $this->blacklistService,
             $this->structureConfigRepository,
+            $this->materialRepository,
         );
     }
 
@@ -114,6 +118,8 @@ class ProfitMarginServiceTest extends TestCase
         $this->structureConfigRepository->method('findByUser')->willReturn([]);
         $this->publicContractPriceService->method('getLowestUnitPrice')->willReturn(null);
         $this->publicContractPriceService->method('getContractCount')->willReturn(0);
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([]);
+        $this->esiCostIndexService->method('calculateEiv')->willReturn(500000.0);
     }
 
     // ===========================================

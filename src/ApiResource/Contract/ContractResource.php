@@ -24,6 +24,7 @@ use App\State\Provider\Contract\ContractItemsProvider;
                 tags: ['Inventory'],
                 parameters: [
                     new Model\Parameter(name: 'status', in: 'query', schema: ['type' => 'string']),
+                    new Model\Parameter(name: 'availability', in: 'query', schema: ['type' => 'string']),
                 ],
             ),
         ),
@@ -44,6 +45,8 @@ class ContractResource
     public string $type = '';
 
     public string $status = '';
+
+    public string $availability = '';
 
     public string $title = '';
 

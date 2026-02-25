@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { authFetch, safeJsonParse } from '@/services/api'
 import MainLayout from '@/layouts/MainLayout.vue'
+import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import { useFormatters } from '@/composables/useFormatters'
-import { useEveImages } from '@/composables/useEveImages'
-import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import AppraisalInputPanel from '@/components/appraisal/AppraisalInputPanel.vue'
+import AppraisalResultsTable from '@/components/appraisal/AppraisalResultsTable.vue'
+import type { MergedItem } from '@/components/appraisal/AppraisalResultsTable.vue'
+import AppraisalActions from '@/components/appraisal/AppraisalActions.vue'
 
 // -- Types --
 
-interface AppraisalItem {
+type AppraisalItem = {
   typeId: number
   typeName: string
   quantity: number
@@ -29,7 +31,7 @@ interface AppraisalItem {
   avgDailyVolume: number | null
 }
 
-interface AppraisalTotals {
+type AppraisalTotals = {
   sellTotal: number
   buyTotal: number
   volume: number
@@ -37,14 +39,14 @@ interface AppraisalTotals {
   buyTotalWeighted: number | null
 }
 
-interface AppraisalResponse {
+type AppraisalResponse = {
   items: AppraisalItem[]
   notFound: string[]
   totals: AppraisalTotals
   priceError: string | null
 }
 
-interface ShoppingItem {
+type ShoppingItem = {
   typeId: number
   typeName: string
   quantity: number
@@ -56,7 +58,7 @@ interface ShoppingItem {
   bestLocation: 'jita' | 'structure' | null
 }
 
-interface ShoppingResponse {
+type ShoppingResponse = {
   items: ShoppingItem[]
   notFound: string[]
   totals: {
@@ -74,69 +76,12 @@ interface ShoppingResponse {
   structureLastSync?: string | null
 }
 
-interface StructureSearchResult {
-  id: number
-  name: string
-  typeId: number | null
-  solarSystemId: number | null
-}
-
 type FormatType = 'auto' | 'multibuy' | 'cargo_scan' | 'eft' | 'dscan' | 'contract' | 'killmail' | 'inventory'
-
-interface FormatOption {
-  key: FormatType
-  labelKey: string
-}
-
-// Merged item combining appraisal + shopping data
-interface MergedItem {
-  typeId: number
-  typeName: string
-  quantity: number
-  volume: number
-  totalVolume: number
-  // Jita sell
-  sellPrice: number | null
-  sellPriceWeighted: number | null
-  sellTotal: number | null
-  sellTotalWeighted: number | null
-  sellCoverage: number | null
-  // Jita buy
-  buyPrice: number | null
-  buyPriceWeighted: number | null
-  buyTotal: number | null
-  buyTotalWeighted: number | null
-  buyCoverage: number | null
-  // Daily volume
-  avgDailyVolume: number | null
-  // Jita + import
-  jitaWithImport: number | null
-  // Structure
-  structureTotal: number | null
-  structureCoverage: number | null
-  structureCoverageQty: number | null
-  // Best
-  bestLocation: 'jita' | 'structure' | null
-}
 
 // -- Composables --
 
 const { t } = useI18n()
 const { formatIsk, formatNumber, formatTimeSince } = useFormatters()
-const { getTypeIconUrl, onImageError } = useEveImages()
-
-// -- Constants --
-
-const FORMAT_OPTIONS: FormatOption[] = [
-  { key: 'auto', labelKey: 'appraisal.formatAutoDetect' },
-  { key: 'multibuy', labelKey: 'appraisal.formatMultibuy' },
-  { key: 'cargo_scan', labelKey: 'appraisal.formatCargoScan' },
-  { key: 'eft', labelKey: 'appraisal.formatEft' },
-  { key: 'dscan', labelKey: 'appraisal.formatDscan' },
-  { key: 'contract', labelKey: 'appraisal.formatContract' },
-  { key: 'killmail', labelKey: 'appraisal.formatKillmail' },
-  { key: 'inventory', labelKey: 'appraisal.formatInventory' },
-]
 
 // -- State --
 
@@ -145,10 +90,6 @@ const transportCostPerM3 = ref(1200)
 const selectedFormat = ref<FormatType>('auto')
 const detectedFormat = ref<FormatType | null>(null)
 const selectedStructure = ref<{ id: number | null; name: string }>({ id: null, name: '' })
-const structureSearchQuery = ref('')
-const structureSearchResults = ref<StructureSearchResult[]>([])
-const isSearchingStructures = ref(false)
-const showStructureDropdown = ref(false)
 const isLoading = ref(false)
 const isSyncing = ref(false)
 const error = ref('')
@@ -163,12 +104,6 @@ const configExpanded = ref(true)
 // Share state
 const isSharing = ref(false)
 const shareUrl = ref<string | null>(null)
-
-// Copy states
-const copiedJita = ref(false)
-const copiedStructure = ref(false)
-const copiedTable = ref(false)
-const copiedShare = ref(false)
 
 // -- Computed --
 
@@ -215,7 +150,7 @@ const mergedItems = computed((): MergedItem[] => {
       avgDailyVolume: ai.avgDailyVolume,
       jitaWithImport: si?.jitaWithImport ?? null,
       structureTotal: si?.structureTotal ?? null,
-      structureCoverage: null, // Structure coverage ratio not available from API yet
+      structureCoverage: null,
       structureCoverageQty: null,
       bestLocation: si?.bestLocation ?? null,
     }
@@ -289,66 +224,6 @@ const lowCoverageItems = computed(() => {
 })
 
 // -- Methods --
-
-function selectFormat(format: FormatType): void {
-  selectedFormat.value = format
-  if (format !== 'auto') {
-    detectedFormat.value = null
-  }
-}
-
-function formatLabelForDetection(format: FormatType): string {
-  const option = FORMAT_OPTIONS.find(o => o.key === format)
-  return option ? t(option.labelKey) : format
-}
-
-// Debounced structure search
-let searchTimeout: ReturnType<typeof setTimeout> | null = null
-watch(structureSearchQuery, (query) => {
-  if (searchTimeout) clearTimeout(searchTimeout)
-  if (query.length < 3) {
-    structureSearchResults.value = []
-    return
-  }
-  searchTimeout = setTimeout(() => {
-    searchStructures(query)
-  }, 300)
-})
-
-async function searchStructures(query: string): Promise<void> {
-  isSearchingStructures.value = true
-  try {
-    const response = await authFetch(`/api/shopping-list/search-structures?q=${encodeURIComponent(query)}`)
-    if (response.ok) {
-      const data = await safeJsonParse<{ results: StructureSearchResult[] }>(response)
-      structureSearchResults.value = data.results
-      showStructureDropdown.value = true
-    }
-  } catch (e) {
-    console.error('Structure search failed:', e)
-  } finally {
-    isSearchingStructures.value = false
-  }
-}
-
-function selectStructure(structure: StructureSearchResult): void {
-  selectedStructure.value = { id: structure.id, name: structure.name }
-  structureSearchQuery.value = ''
-  structureSearchResults.value = []
-  showStructureDropdown.value = false
-}
-
-function clearStructure(): void {
-  selectedStructure.value = { id: null, name: '' }
-  structureSearchQuery.value = ''
-  structureSearchResults.value = []
-}
-
-function onStructureInputBlur(): void {
-  setTimeout(() => {
-    showStructureDropdown.value = false
-  }, 200)
-}
 
 function toggleConfig(): void {
   configExpanded.value = !configExpanded.value
@@ -440,66 +315,6 @@ async function syncStructureMarket(): Promise<void> {
   }
 }
 
-// Coverage helpers
-function coverageColorClass(coverage: number | null): string {
-  if (coverage == null || coverage >= 1.0) return 'text-emerald-500'
-  if (coverage >= 0.5) return 'text-amber-400'
-  return 'text-red-400'
-}
-
-function structurePriceColorClass(coverage: number | null): string {
-  if (coverage == null || coverage >= 1.0) return 'text-violet-400'
-  if (coverage >= 0.5) return 'text-amber-500'
-  return 'text-red-400'
-}
-
-function structureCoverageBarClass(coverage: number | null): string {
-  if (coverage == null || coverage >= 1.0) return 'bg-emerald-500'
-  if (coverage >= 0.5) return 'bg-amber-500'
-  return 'bg-red-500'
-}
-
-function structureCoverageTextClass(coverage: number | null): string {
-  if (coverage == null || coverage >= 1.0) return 'text-emerald-500'
-  if (coverage >= 0.5) return 'text-amber-500'
-  return 'text-red-400'
-}
-
-// Copy functions
-function copyJitaMultibuy(): void {
-  const items = mergedItems.value.filter(i => i.bestLocation === 'jita' || i.bestLocation === null)
-  const text = items.map(i => `${i.typeName}\t${i.quantity}`).join('\n')
-  navigator.clipboard.writeText(text)
-  copiedJita.value = true
-  setTimeout(() => copiedJita.value = false, 2000)
-}
-
-function copyStructureMultibuy(): void {
-  const items = mergedItems.value.filter(i => i.bestLocation === 'structure')
-  const text = items.map(i => `${i.typeName}\t${i.quantity}`).join('\n')
-  navigator.clipboard.writeText(text)
-  copiedStructure.value = true
-  setTimeout(() => copiedStructure.value = false, 2000)
-}
-
-function copyTable(): void {
-  const header = ['Item', 'Qty', 'Volume', 'Jita Sell', 'Jita Buy', 'Jita+Import', 'Structure', 'Buy at'].join('\t')
-  const rows = mergedItems.value.map(i => [
-    i.typeName,
-    i.quantity,
-    formatNumber(i.totalVolume) + ' m3',
-    i.sellTotalWeighted != null ? formatNumber(i.sellTotalWeighted) : '-',
-    i.buyTotalWeighted != null ? formatNumber(i.buyTotalWeighted) : '-',
-    i.jitaWithImport != null ? formatNumber(i.jitaWithImport) : '-',
-    i.structureTotal != null ? formatNumber(i.structureTotal) : '-',
-    i.bestLocation ?? '-',
-  ].join('\t'))
-  const text = [header, ...rows].join('\n')
-  navigator.clipboard.writeText(text)
-  copiedTable.value = true
-  setTimeout(() => copiedTable.value = false, 2000)
-}
-
 async function shareAppraisal(): Promise<void> {
   if (!appraisalResult.value) return
 
@@ -532,9 +347,6 @@ async function shareAppraisal(): Promise<void> {
     if (data.shareUrl) {
       navigator.clipboard.writeText(data.shareUrl)
     }
-
-    copiedShare.value = true
-    setTimeout(() => copiedShare.value = false, 3000)
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to share'
   } finally {
@@ -554,23 +366,6 @@ function formatRelativeTime(isoDate: string | null): string {
   if (diffHours < 24) return t('common.time.hoursAgo', { hours: diffHours })
   return formatTimeSince(isoDate)
 }
-
-// Display helpers
-function displaySellWeighted(item: MergedItem): number | null {
-  return item.sellPriceWeighted ?? item.sellPrice
-}
-
-function displayBuyWeighted(item: MergedItem): number | null {
-  return item.buyPriceWeighted ?? item.buyPrice
-}
-
-function displaySellTotalWeighted(item: MergedItem): number | null {
-  return item.sellTotalWeighted ?? item.sellTotal
-}
-
-function displayBuyTotalWeighted(item: MergedItem): number | null {
-  return item.buyTotalWeighted ?? item.buyTotal
-}
 </script>
 
 <template>
@@ -588,140 +383,24 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
       </div>
 
       <!-- INPUT SECTION -->
-      <div class="bg-slate-900 rounded-xl p-6 border border-cyan-500/15">
-        <div class="flex flex-col gap-4">
-
-          <!-- Label -->
-          <label class="text-sm font-medium text-slate-300">
-            {{ t('shopping.pasteLabel') }}
-          </label>
-
-          <!-- Textarea -->
-          <textarea
-            v-model="inputText"
-            rows="6"
-            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-200 placeholder-slate-500 focus:outline-hidden font-mono text-[13px] resize-y leading-relaxed"
-            :class="{ 'ring-1 ring-cyan-500/40 border-cyan-500/40 shadow-[0_0_20px_-6px_rgba(6,182,212,0.15)]': inputText.trim().length > 0 }"
-            placeholder="Tritanium&#9;10000&#10;Pyerite&#9;5000&#10;Megacyte 200&#10;200x Nocxium&#10;..."
-          ></textarea>
-
-          <!-- Format detection chips -->
-          <div class="flex items-center gap-2 flex-wrap -mt-2">
-            <span class="text-[11px] text-slate-500 mr-1">{{ t('appraisal.formatLabel') }}</span>
-            <button
-              v-for="fmt in FORMAT_OPTIONS"
-              :key="fmt.key"
-              @click="selectFormat(fmt.key)"
-              class="px-3 py-1 rounded-md text-[11px] font-medium transition-all border cursor-pointer tracking-wide"
-              :class="[
-                selectedFormat === fmt.key && fmt.key === 'auto' && !detectedFormat
-                  ? 'bg-cyan-500/12 text-cyan-400 border-cyan-500/25'
-                  : detectedFormat === fmt.key && selectedFormat === 'auto'
-                    ? 'bg-green-500/12 text-green-400 border-green-500/25'
-                    : selectedFormat === fmt.key && fmt.key !== 'auto'
-                      ? 'bg-cyan-500/12 text-cyan-400 border-cyan-500/25'
-                      : 'bg-slate-800/60 text-slate-500 border-transparent hover:text-slate-400 hover:bg-slate-700/60'
-              ]"
-            >
-              {{ t(fmt.labelKey) }}
-            </button>
-            <div class="flex-1"></div>
-            <span
-              v-if="detectedFormat && selectedFormat === 'auto'"
-              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-green-500/10 text-green-400 border border-green-500/20"
-            >
-              <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
-              {{ t('appraisal.formatDetected', { format: formatLabelForDetection(detectedFormat) }) }}
-            </span>
-          </div>
-
-          <!-- Action row -->
-          <div class="flex items-center gap-3 flex-wrap">
-
-            <!-- Structure selector -->
-            <div class="relative min-w-[300px] max-w-[420px]">
-              <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
-                v-model="structureSearchQuery"
-                type="text"
-                :placeholder="selectedStructure.id ? selectedStructure.name : t('shopping.searchStructure')"
-                @focus="showStructureDropdown = true"
-                @blur="onStructureInputBlur"
-                class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-8 pr-8 py-2 text-slate-200 text-[13px] focus:outline-hidden focus:border-cyan-500/50 placeholder-slate-400"
-                :class="{ 'border-cyan-500/50 text-cyan-400 placeholder-cyan-400': selectedStructure.id }"
-              />
-              <button
-                v-if="selectedStructure.id || structureSearchQuery"
-                @mousedown.prevent="clearStructure"
-                class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-200 p-0.5"
-                :title="t('shopping.clearStructure')"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-              <LoadingSpinner
-                v-else-if="isSearchingStructures"
-                size="sm"
-                class="absolute right-2.5 top-1/2 -translate-y-1/2 text-cyan-400"
-              />
-
-              <!-- Dropdown -->
-              <div
-                v-if="showStructureDropdown && (structureSearchResults.length > 0 || (structureSearchQuery.length >= 3 && !isSearchingStructures))"
-                class="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto"
-              >
-                <button
-                  v-for="struct in structureSearchResults"
-                  :key="struct.id"
-                  @mousedown.prevent="selectStructure(struct)"
-                  class="w-full px-3 py-2 text-left text-slate-200 hover:bg-slate-700/50 transition-colors border-b border-slate-800 last:border-0"
-                >
-                  <div class="font-medium truncate">{{ struct.name }}</div>
-                </button>
-                <div
-                  v-if="structureSearchQuery.length >= 3 && structureSearchResults.length === 0 && !isSearchingStructures"
-                  class="px-3 py-2 text-slate-400 text-sm"
-                >
-                  {{ t('shopping.noStructureFound') }}
-                </div>
-              </div>
-            </div>
-
-            <div class="flex-1"></div>
-
-            <!-- Clear -->
-            <button
-              @click="clear"
-              :disabled="!hasInput && !hasResults"
-              class="px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-slate-200 text-[13px] font-medium transition-colors"
-            >
-              {{ t('common.actions.clear') }}
-            </button>
-
-            <!-- Analyze button -->
-            <button
-              @click="analyze"
-              :disabled="!hasInput || isLoading"
-              class="px-6 py-2 rounded-lg text-white text-[13px] font-semibold transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              :class="isLoading ? 'bg-cyan-700' : 'btn-analyze'"
-            >
-              <LoadingSpinner v-if="isLoading" size="sm" />
-              <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
-              {{ isLoading ? t('appraisal.appraising') : t('appraisal.analyze') }}
-            </button>
-          </div>
-        </div>
-      </div>
+      <AppraisalInputPanel
+        :input-text="inputText"
+        :selected-format="selectedFormat"
+        :detected-format="detectedFormat"
+        :selected-structure="selectedStructure"
+        :is-loading="isLoading"
+        :has-input="hasInput"
+        :has-results="hasResults"
+        @update:input-text="inputText = $event"
+        @update:selected-format="selectedFormat = $event"
+        @update:detected-format="detectedFormat = $event"
+        @update:selected-structure="selectedStructure = $event"
+        @analyze="analyze"
+        @clear="clear"
+      />
 
       <!-- Error -->
-      <div v-if="error" class="bg-red-900/30 border border-red-500/30 rounded-xl p-4 text-red-400">
-        {{ error }}
-      </div>
+      <ErrorBanner v-if="error" :message="error" @dismiss="error = ''" />
 
       <!-- Not Found Items -->
       <div
@@ -911,428 +590,40 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
       </div>
 
       <!-- COMBINED RESULTS TABLE -->
-      <div
+      <AppraisalResultsTable
         v-if="hasResults"
-        class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden"
-      >
-        <!-- Table header bar -->
-        <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-          <h3 class="text-[15px] font-semibold text-slate-200">
-            Items ({{ itemCount }})
-          </h3>
-          <div v-if="hasStructureResults" class="flex items-center gap-4 text-[13px]">
-            <span class="flex items-center gap-1.5">
-              <span class="w-2.5 h-2.5 rounded-full bg-cyan-500"></span>
-              <span class="text-slate-400">Jita ({{ jitaItemCount }})</span>
-            </span>
-            <span class="flex items-center gap-1.5">
-              <span class="w-2.5 h-2.5 rounded-full bg-violet-500"></span>
-              <span class="text-slate-400">{{ shortStructureName }} ({{ structureItemCount }})</span>
-            </span>
-          </div>
-        </div>
-
-        <!-- Table -->
-        <div class="overflow-x-auto">
-          <table class="w-full text-[13px] border-collapse">
-            <thead>
-              <!-- Group header row -->
-              <tr v-if="hasStructureResults" class="bg-slate-950/80">
-                <th colspan="3" class="p-0"></th>
-                <!-- Jita group -->
-                <th
-                  colspan="3"
-                  class="px-4 py-2 text-center border-l-2 border-r-2 border-t-2 border-cyan-500/20 bg-cyan-500/6 rounded-tl-sm rounded-tr-sm"
-                >
-                  <div class="flex items-center justify-center gap-2">
-                    <div class="w-1.5 h-1.5 rounded-full bg-cyan-400"></div>
-                    <span class="text-[11px] font-bold uppercase tracking-widest text-cyan-400">Jita 4-4</span>
-                    <div class="w-1.5 h-1.5 rounded-full bg-cyan-400"></div>
-                  </div>
-                </th>
-                <!-- Structure group -->
-                <th
-                  class="px-4 py-2 text-center border-l-2 border-r-2 border-t-2 border-violet-500/20 bg-violet-500/6"
-                >
-                  <div class="flex items-center justify-center gap-2">
-                    <div class="w-1.5 h-1.5 rounded-full bg-violet-400"></div>
-                    <span class="text-[11px] font-bold uppercase tracking-widest text-violet-400">{{ shortStructureName }}</span>
-                    <div class="w-1.5 h-1.5 rounded-full bg-violet-400"></div>
-                  </div>
-                </th>
-                <th class="p-0"></th>
-              </tr>
-
-              <!-- Column headers row -->
-              <tr class="bg-slate-800/50">
-                <th class="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500">{{ t('shopping.itemColumn') }}</th>
-                <th class="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-500">{{ t('shopping.quantityColumn') }}</th>
-                <th class="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-500">{{ t('shopping.volumeColumn') }}</th>
-                <!-- Jita columns -->
-                <th
-                  class="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-400"
-                  :class="hasStructureResults ? 'border-l-2 border-cyan-500/15 bg-cyan-500/3' : ''"
-                >
-                  {{ t('appraisal.unitPrice') }}
-                </th>
-                <th
-                  class="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-400"
-                  :class="hasStructureResults ? 'bg-cyan-500/3' : ''"
-                >
-                  {{ t('appraisal.weightedTotal') }}
-                </th>
-                <th
-                  v-if="hasStructureResults"
-                  class="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-cyan-300 border-r-2 border-cyan-500/15 bg-cyan-500/3"
-                  :title="t('appraisal.importTooltip')"
-                >
-                  + Import
-                </th>
-                <!-- Structure column -->
-                <th
-                  v-if="hasStructureResults"
-                  class="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-violet-300 border-l-2 border-r-2 border-violet-500/15 bg-violet-500/3"
-                  :title="t('appraisal.weightedSellTooltip')"
-                >
-                  {{ t('appraisal.weightedSell') }}
-                </th>
-                <th v-if="hasStructureResults" class="px-4 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-slate-500">{{ t('shopping.buyAt') }}</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              <tr
-                v-for="item in mergedItems"
-                :key="item.typeId"
-                class="border-b border-slate-800/60 hover:bg-slate-800/40 transition-colors"
-              >
-                <!-- Item name -->
-                <td class="px-4 py-2.5">
-                  <div class="flex items-center gap-2.5">
-                    <img
-                      :src="getTypeIconUrl(item.typeId)"
-                      :alt="item.typeName"
-                      @error="onImageError"
-                      class="w-8 h-8 rounded-sm"
-                    />
-                    <span class="text-slate-200">{{ item.typeName }}</span>
-                    <OpenInGameButton type="market" :targetId="item.typeId" />
-                  </div>
-                </td>
-                <!-- Qty -->
-                <td class="px-4 py-2.5 text-right text-slate-300 font-mono">
-                  {{ formatNumber(item.quantity, 0) }}
-                </td>
-                <!-- Volume -->
-                <td class="px-4 py-2.5 text-right text-slate-400 font-mono text-xs">
-                  {{ formatNumber(item.totalVolume) }} m<sup>3</sup>
-                </td>
-
-                <!-- Unit Price (stacked sell/buy) -->
-                <td
-                  class="px-4 py-2.5 text-right font-mono"
-                  :class="hasStructureResults ? 'border-l-2 border-cyan-500/8 bg-cyan-500/3' : ''"
-                >
-                  <div v-if="displaySellWeighted(item) != null">
-                    <!-- Sell row -->
-                    <div class="flex items-center justify-end gap-1.5">
-                      <span
-                        v-if="item.sellCoverage != null && item.sellCoverage < 1.0"
-                        class="shrink-0"
-                        :class="coverageColorClass(item.sellCoverage)"
-                        :title="t('appraisal.coverageTooltip', { available: Math.round((item.sellCoverage ?? 1) * item.quantity).toLocaleString(), total: item.quantity.toLocaleString() })"
-                      >
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                      </span>
-                      <span class="text-[9px] font-semibold text-cyan-700 uppercase tracking-wider">Sell</span>
-                      <span class="text-cyan-300">{{ formatNumber(displaySellWeighted(item)!) }}</span>
-                    </div>
-                    <div v-if="item.sellPriceWeighted != null && item.sellPrice != null" class="text-[10px] text-slate-600 mt-0.5 text-right">
-                      {{ formatNumber(item.sellPrice) }}
-                    </div>
-                    <!-- Buy row -->
-                    <div class="flex items-center justify-end gap-1.5 mt-1.5">
-                      <span class="text-[9px] font-semibold text-amber-700 uppercase tracking-wider">Buy</span>
-                      <span class="text-amber-300">{{ displayBuyWeighted(item) != null ? formatNumber(displayBuyWeighted(item)!) : '-' }}</span>
-                    </div>
-                    <div v-if="item.buyPriceWeighted != null && item.buyPrice != null" class="text-[10px] text-slate-600 mt-0.5 text-right">
-                      {{ formatNumber(item.buyPrice) }}
-                    </div>
-                    <!-- Daily volume -->
-                    <div
-                      v-if="item.avgDailyVolume != null"
-                      class="text-[10px] mt-0.5"
-                      :class="item.quantity > (item.avgDailyVolume ?? 0) ? 'text-amber-400/70' : 'text-slate-500'"
-                    >
-                      {{ t('appraisal.avgDailyVolume', { volume: formatNumber(Math.round(item.avgDailyVolume), 0) }) }}
-                    </div>
-                  </div>
-                  <span v-else class="text-slate-500">-</span>
-                </td>
-
-                <!-- Weighted Total (stacked sell/buy) -->
-                <td
-                  class="px-4 py-2.5 text-right font-mono"
-                  :class="hasStructureResults ? 'bg-cyan-500/3' : ''"
-                >
-                  <div v-if="displaySellTotalWeighted(item) != null">
-                    <!-- Sell total -->
-                    <div class="flex items-center justify-end gap-1.5">
-                      <span class="text-[9px] font-semibold text-cyan-700 uppercase tracking-wider">Sell</span>
-                      <span class="text-cyan-400 font-semibold">{{ formatNumber(displaySellTotalWeighted(item)!) }}</span>
-                    </div>
-                    <div v-if="item.sellTotalWeighted != null && item.sellTotal != null" class="text-[10px] text-slate-600 mt-0.5 text-right">
-                      {{ formatNumber(item.sellTotal) }}
-                    </div>
-                    <!-- Buy total -->
-                    <div class="flex items-center justify-end gap-1.5 mt-1.5">
-                      <span class="text-[9px] font-semibold text-amber-700 uppercase tracking-wider">Buy</span>
-                      <span class="text-amber-500 font-semibold">{{ displayBuyTotalWeighted(item) != null ? formatNumber(displayBuyTotalWeighted(item)!) : '-' }}</span>
-                    </div>
-                    <div v-if="item.buyTotalWeighted != null && item.buyTotal != null" class="text-[10px] text-slate-600 mt-0.5 text-right">
-                      {{ formatNumber(item.buyTotal) }}
-                    </div>
-                  </div>
-                  <span v-else class="text-slate-500">-</span>
-                </td>
-
-                <!-- Jita + Import -->
-                <td
-                  v-if="hasStructureResults"
-                  class="px-4 py-2.5 text-right font-mono border-r-2 border-cyan-500/8 bg-cyan-500/3"
-                >
-                  <span v-if="item.jitaWithImport != null" class="text-cyan-400 font-medium">
-                    {{ formatNumber(item.jitaWithImport) }}
-                  </span>
-                  <span v-else class="text-slate-500">-</span>
-                </td>
-
-                <!-- Structure weighted price -->
-                <td
-                  v-if="hasStructureResults"
-                  class="px-4 py-2.5 text-right font-mono border-l-2 border-r-2 border-violet-500/8 bg-violet-500/3"
-                >
-                  <div v-if="item.structureTotal != null">
-                    <div class="flex items-center justify-end gap-1">
-                      <!-- Warning icon for partial/low coverage -->
-                      <svg
-                        v-if="item.structureCoverage != null && item.structureCoverage < 1.0"
-                        class="w-[13px] h-[13px] shrink-0"
-                        :class="structurePriceColorClass(item.structureCoverage)"
-                        :title="t('appraisal.coverageTooltip', { available: Math.round((item.structureCoverage ?? 1) * item.quantity).toLocaleString(), total: item.quantity.toLocaleString() })"
-                        fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                      >
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                      <span class="font-medium" :class="structurePriceColorClass(item.structureCoverage)">{{ formatNumber(item.structureTotal) }}</span>
-                    </div>
-                    <!-- Coverage qty display -->
-                    <div
-                      v-if="item.structureCoverageQty != null"
-                      class="flex items-center justify-end gap-1 mt-0.5"
-                    >
-                      <span class="text-[10px]" :class="structureCoverageTextClass(item.structureCoverage)">
-                        {{ formatNumber(item.structureCoverageQty, 0) }} / {{ formatNumber(item.quantity, 0) }}
-                      </span>
-                    </div>
-                    <!-- Coverage bar -->
-                    <div
-                      v-if="item.structureCoverage != null"
-                      class="h-[3px] rounded-sm bg-slate-700/50 mt-1 ml-auto overflow-hidden"
-                      style="width: 64px;"
-                    >
-                      <div
-                        class="h-full rounded-sm transition-all duration-300"
-                        :class="structureCoverageBarClass(item.structureCoverage)"
-                        :style="{ width: Math.min(item.structureCoverage * 100, 100) + '%' }"
-                      ></div>
-                    </div>
-                  </div>
-                  <span v-else class="text-slate-600">--</span>
-                </td>
-
-                <!-- Buy at -->
-                <td v-if="hasStructureResults" class="px-4 py-2.5 text-center">
-                  <span
-                    v-if="item.bestLocation === 'jita'"
-                    class="badge-best inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-cyan-500/15 text-cyan-300"
-                  >
-                    Jita
-                  </span>
-                  <span
-                    v-else-if="item.bestLocation === 'structure'"
-                    class="badge-best inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-violet-500/15 text-violet-300"
-                  >
-                    {{ shortStructureName }}
-                  </span>
-                  <span v-else class="text-slate-600">-</span>
-                </td>
-              </tr>
-            </tbody>
-
-            <!-- Footer -->
-            <tfoot>
-              <tr class="bg-slate-800/40 border-t border-slate-700/40">
-                <td class="px-4 py-3 font-semibold text-slate-200 text-[13px]">Total</td>
-                <td class="px-4 py-3 text-right text-slate-400 font-mono">--</td>
-                <td class="px-4 py-3 text-right text-slate-400 font-mono text-[13px]">
-                  {{ formatNumber(totalVolume) }} m<sup>3</sup>
-                </td>
-                <!-- Unit Price -->
-                <td
-                  class="px-4 py-3 text-right text-slate-500"
-                  :class="hasStructureResults ? 'border-l-2 border-cyan-500/8 bg-cyan-500/3' : ''"
-                >--</td>
-                <!-- Weighted Total (stacked) -->
-                <td
-                  class="px-4 py-3 text-right font-mono"
-                  :class="hasStructureResults ? 'bg-cyan-500/3' : ''"
-                >
-                  <div class="flex items-center justify-end gap-1.5">
-                    <span class="text-[9px] font-semibold text-cyan-700 uppercase tracking-wider">Sell</span>
-                    <span class="text-cyan-400 font-bold text-sm">{{ formatIsk(sellValue) }}</span>
-                  </div>
-                  <div v-if="appraisalResult?.totals.sellTotalWeighted != null" class="text-[10px] text-slate-600 mt-0.5 text-right">
-                    {{ formatIsk(sellValueBest) }}
-                  </div>
-                  <div class="flex items-center justify-end gap-1.5 mt-1.5">
-                    <span class="text-[9px] font-semibold text-amber-700 uppercase tracking-wider">Buy</span>
-                    <span class="text-amber-500 font-bold text-sm">{{ formatIsk(buyValue) }}</span>
-                  </div>
-                  <div v-if="appraisalResult?.totals.buyTotalWeighted != null" class="text-[10px] text-slate-600 mt-0.5 text-right">
-                    {{ formatIsk(buyValueBest) }}
-                  </div>
-                </td>
-                <!-- + Import -->
-                <td
-                  v-if="hasStructureResults"
-                  class="px-4 py-3 text-right font-mono border-r-2 border-cyan-500/8 bg-cyan-500/3"
-                >
-                  <span class="text-cyan-400 font-bold text-sm">{{ formatIsk(jitaPlusTransport) }}</span>
-                </td>
-                <!-- Structure -->
-                <td
-                  v-if="hasStructureResults"
-                  class="px-4 py-3 text-right font-mono border-l-2 border-r-2 border-violet-500/8 bg-violet-500/3"
-                >
-                  <span class="text-violet-400 font-bold text-sm">{{ formatIsk(structureTotal) }}</span>
-                  <div v-if="lowCoverageItems > 0" class="text-[10px] text-amber-500 mt-1">
-                    {{ lowCoverageItems }} {{ t('appraisal.itemsLowCoverage') }}
-                  </div>
-                </td>
-                <!-- Best -->
-                <td v-if="hasStructureResults" class="px-4 py-3 text-center font-mono">
-                  <span class="text-green-400 font-bold text-sm">{{ formatIsk(bestPrice) }}</span>
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
+        :items="mergedItems"
+        :has-structure-results="hasStructureResults"
+        :short-structure-name="shortStructureName"
+        :item-count="itemCount"
+        :jita-item-count="jitaItemCount"
+        :structure-item-count="structureItemCount"
+        :total-volume="totalVolume"
+        :sell-value="sellValue"
+        :sell-value-best="sellValueBest"
+        :buy-value="buyValue"
+        :buy-value-best="buyValueBest"
+        :jita-plus-transport="jitaPlusTransport"
+        :structure-total="structureTotal"
+        :best-price="bestPrice"
+        :low-coverage-items="lowCoverageItems"
+        :has-sell-total-weighted="appraisalResult?.totals.sellTotalWeighted != null"
+        :has-buy-total-weighted="appraisalResult?.totals.buyTotalWeighted != null"
+      />
 
       <!-- ACTION BAR -->
-      <div v-if="hasResults" class="flex flex-wrap gap-3 items-center">
-        <!-- Copy Jita Multibuy -->
-        <button
-          v-if="hasStructureResults && jitaItemCount > 0"
-          @click="copyJitaMultibuy"
-          class="flex items-center gap-2 px-4 py-2 bg-cyan-500/15 border border-cyan-500/30 rounded-lg text-cyan-300 text-[13px] font-medium cursor-pointer hover:bg-cyan-500/25 transition-colors"
-        >
-          <svg v-if="!copiedJita" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-          </svg>
-          <svg v-else class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-          </svg>
-          {{ copiedJita ? t('shopping.copied') : t('shopping.copyJita', { count: jitaItemCount }) }}
-        </button>
-
-        <!-- Copy Structure Multibuy -->
-        <button
-          v-if="hasStructureResults && structureItemCount > 0"
-          @click="copyStructureMultibuy"
-          class="flex items-center gap-2 px-4 py-2 bg-violet-500/15 border border-violet-500/30 rounded-lg text-violet-300 text-[13px] font-medium cursor-pointer hover:bg-violet-500/25 transition-colors"
-        >
-          <svg v-if="!copiedStructure" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-          </svg>
-          <svg v-else class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-          </svg>
-          {{ copiedStructure ? t('shopping.copied') : t('shopping.copyStructure', { name: shortStructureName, count: structureItemCount }) }}
-        </button>
-
-        <!-- Copy Table -->
-        <button
-          @click="copyTable"
-          class="flex items-center gap-2 px-4 py-2 bg-slate-700/50 border border-slate-700 rounded-lg text-slate-400 text-[11px] font-medium cursor-pointer hover:text-slate-200 hover:bg-slate-700 transition-colors"
-        >
-          <svg v-if="!copiedTable" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-          </svg>
-          <svg v-else class="w-3.5 h-3.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-          </svg>
-          {{ copiedTable ? t('shopping.copied') : t('appraisal.copyTable') }}
-        </button>
-
-        <div class="flex-1"></div>
-
-        <!-- Share -->
-        <button
-          @click="shareAppraisal"
-          :disabled="isSharing"
-          class="flex items-center gap-2 px-4 py-2 bg-emerald-500/15 border border-emerald-500/30 rounded-lg text-emerald-300 text-[13px] font-medium cursor-pointer hover:bg-emerald-500/25 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          <LoadingSpinner v-if="isSharing" size="sm" />
-          <svg v-else-if="!copiedShare" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-          </svg>
-          <svg v-else class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-          </svg>
-          {{ isSharing ? t('shopping.sharing') : copiedShare ? t('shopping.linkCopied') : t('common.actions.share') }}
-        </button>
-      </div>
+      <AppraisalActions
+        v-if="hasResults"
+        :merged-items="mergedItems"
+        :has-structure-results="hasStructureResults"
+        :short-structure-name="shortStructureName"
+        :jita-item-count="jitaItemCount"
+        :structure-item-count="structureItemCount"
+        :is-sharing="isSharing"
+        :share-url="shareUrl"
+        @share="shareAppraisal"
+      />
 
     </div>
   </MainLayout>
 </template>
-
-<style scoped>
-/* Animated gradient on Analyze button */
-.btn-analyze {
-  background: linear-gradient(135deg, #0e7490, #0891b2, #06b6d4);
-  background-size: 200% 200%;
-  animation: gradient-shift 3s ease infinite;
-}
-
-@keyframes gradient-shift {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-}
-
-/* Shimmer effect on "Buy at" badges */
-.badge-best {
-  position: relative;
-  overflow: hidden;
-}
-
-.badge-best::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
-  animation: shimmer 3s infinite;
-}
-
-@keyframes shimmer {
-  0% { left: -100%; }
-  100% { left: 200%; }
-}
-</style>

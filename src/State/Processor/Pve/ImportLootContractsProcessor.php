@@ -10,6 +10,7 @@ use App\ApiResource\Input\Pve\ImportLootContractsInput;
 use App\ApiResource\Pve\ImportResultResource;
 use App\Entity\PveIncome;
 use App\Entity\User;
+use App\Enum\PveIncomeType;
 use App\Repository\PveIncomeRepository;
 use App\Repository\UserPveSettingsRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -74,7 +75,7 @@ class ImportLootContractsProcessor implements ProcessorInterface
 
             $income = new PveIncome();
             $income->setUser($user);
-            $income->setType(PveIncome::TYPE_LOOT_CONTRACT);
+            $income->setType(PveIncomeType::LootContract);
             $income->setDescription($description);
             $income->setAmount($price);
             $income->setDate(new \DateTimeImmutable($contractData['date']));

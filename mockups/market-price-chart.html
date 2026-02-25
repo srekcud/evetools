@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EVE Tools - Market Browser Price History</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --slate-50: #f8fafc;
+      --slate-100: #f1f5f9;
+      --slate-200: #e2e8f0;
+      --slate-300: #cbd5e1;
+      --slate-400: #94a3b8;
+      --slate-500: #64748b;
+      --slate-600: #475569;
+      --slate-700: #334155;
+      --slate-800: #1e293b;
+      --slate-900: #0f172a;
+      --slate-950: #020617;
+      --cyan-400: #22d3ee;
+      --cyan-500: #06b6d4;
+      --amber-400: #fbbf24;
+      --amber-500: #f59e0b;
+      --emerald-400: #34d399;
+      --emerald-500: #10b981;
+      --red-400: #f87171;
+      --red-500: #ef4444;
+      --indigo-400: #818cf8;
+      --indigo-500: #6366f1;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--slate-950);
+      color: var(--slate-300);
+      line-height: 1.5;
+      min-height: 100vh;
+      padding: 32px;
+    }
+
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* Layout container mimicking MainLayout content area */
+    .page-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* Item Header */
+    .item-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .back-btn {
+      padding: 8px;
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(51, 65, 85, 0.5);
+      border-radius: 8px;
+      color: var(--slate-400);
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .back-btn:hover {
+      border-color: rgba(6, 182, 212, 0.3);
+      color: var(--cyan-400);
+    }
+
+    .item-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 8px;
+      box-shadow: 0 0 0 2px rgba(51, 65, 85, 0.5);
+      background: var(--slate-800);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .item-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .item-info { flex: 1; }
+
+    .item-name-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .item-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--slate-100);
+    }
+
+    .favorite-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--amber-400);
+      transition: color 0.15s;
+    }
+
+    .open-ingame-btn {
+      padding: 4px 10px;
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(51, 65, 85, 0.5);
+      border-radius: 6px;
+      color: var(--slate-400);
+      cursor: pointer;
+      font-size: 11px;
+      transition: all 0.15s;
+    }
+    .open-ingame-btn:hover {
+      border-color: rgba(6, 182, 212, 0.3);
+      color: var(--cyan-400);
+    }
+
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--slate-500);
+      margin-top: 4px;
+    }
+    .breadcrumb .sep { color: var(--slate-700); }
+    .breadcrumb .current { color: var(--slate-400); }
+    .breadcrumb .id-badge {
+      margin-left: 8px;
+      padding: 2px 6px;
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(51, 65, 85, 0.5);
+      border-radius: 4px;
+      color: var(--slate-500);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+    }
+
+    .alert-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(51, 65, 85, 0.5);
+      border-radius: 8px;
+      color: var(--slate-400);
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.15s;
+    }
+    .alert-btn:hover {
+      border-color: rgba(245, 158, 11, 0.3);
+      color: var(--amber-400);
+    }
+
+    /* KPI Cards Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 768px) {
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .kpi-card {
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid rgba(30, 41, 59, 0.5);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .kpi-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--slate-500);
+      margin-bottom: 4px;
+    }
+
+    .kpi-value {
+      font-size: 18px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .kpi-value .unit {
+      font-size: 12px;
+      color: var(--slate-500);
+      font-weight: 400;
+    }
+
+    .kpi-sublabel {
+      font-size: 12px;
+      color: var(--slate-500);
+      margin-top: 4px;
+    }
+
+    .text-cyan { color: var(--cyan-400); }
+    .text-amber { color: var(--amber-400); }
+    .text-emerald { color: var(--emerald-400); }
+    .text-red { color: var(--red-400); }
+    .text-slate-200 { color: var(--slate-200); }
+
+    /* Source Toggle */
+    .source-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .source-btn {
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      border: 1px solid;
+    }
+    .source-btn.active-jita {
+      background: rgba(6, 182, 212, 0.2);
+      color: var(--cyan-400);
+      border-color: rgba(6, 182, 212, 0.3);
+    }
+    .source-btn.inactive {
+      background: var(--slate-800);
+      color: var(--slate-400);
+      border-color: var(--slate-700);
+    }
+    .source-btn.inactive:hover {
+      border-color: var(--slate-600);
+    }
+    .source-btn.active-structure {
+      background: rgba(99, 102, 241, 0.2);
+      color: var(--indigo-400);
+      border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    /* Chart Card */
+    .chart-card {
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid rgba(30, 41, 59, 0.5);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .chart-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--slate-300);
+    }
+
+    /* Period Toggle */
+    .period-toggle {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .period-btn {
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      border: 1px solid;
+    }
+    .period-btn.active {
+      background: rgba(6, 182, 212, 0.2);
+      color: var(--cyan-400);
+      border-color: rgba(6, 182, 212, 0.3);
+    }
+    .period-btn.inactive {
+      background: rgba(30, 41, 59, 0.5);
+      color: var(--slate-400);
+      border-color: rgba(51, 65, 85, 0.5);
+    }
+    .period-btn.inactive:hover {
+      border-color: rgba(6, 182, 212, 0.3);
+      color: var(--cyan-400);
+    }
+
+    /* Chart Container */
+    .chart-container {
+      position: relative;
+      height: 320px;
+    }
+
+    /* Custom Legend */
+    .chart-legend {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      margin-top: 12px;
+      margin-left: 8px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--slate-500);
+    }
+
+    .legend-line {
+      display: inline-block;
+      width: 12px;
+      height: 2px;
+      border-radius: 999px;
+    }
+    .legend-line.cyan { background: var(--cyan-400); }
+    .legend-line.amber { background: var(--amber-400); }
+    .legend-line.dashed {
+      background: transparent;
+      border-top: 2px dashed var(--slate-400);
+      height: 0;
+    }
+
+    .legend-swatch {
+      display: inline-block;
+      width: 12px;
+      height: 8px;
+      border-radius: 2px;
+    }
+    .legend-swatch.spread { background: rgba(34, 211, 238, 0.15); border: 1px solid rgba(34, 211, 238, 0.3); }
+    .legend-swatch.vol-up { background: rgba(16, 185, 129, 0.5); }
+    .legend-swatch.vol-down { background: rgba(239, 68, 68, 0.5); }
+
+    /* Crosshair plugin style */
+    .chart-container canvas {
+      cursor: crosshair;
+    }
+
+    /* Mockup label */
+    .mockup-badge {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      padding: 4px 10px;
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: 6px;
+      font-size: 11px;
+      color: var(--indigo-400);
+      font-family: 'JetBrains Mono', monospace;
+      z-index: 100;
+    }
+
+    /* Structure KPI row */
+    .structure-kpi-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card.structure-border {
+      border-color: rgba(99, 102, 241, 0.2);
+    }
+
+    .structure-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--indigo-500);
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <div class="mockup-badge">MOCKUP - Phase 2A</div>
+
+  <div class="page-container">
+
+    <!-- ======================== ITEM HEADER ======================== -->
+    <div class="item-header">
+      <button class="back-btn">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+      </button>
+
+      <div class="item-icon">
+        <img src="https://images.evetech.net/types/34/icon?size=64" alt="Tritanium">
+      </div>
+
+      <div class="item-info">
+        <div class="item-name-row">
+          <span class="item-name">Tritanium</span>
+          <button class="favorite-btn">
+            <svg width="20" height="20" fill="currentColor" stroke="currentColor" viewBox="0 0 20 20">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+            </svg>
+          </button>
+          <button class="open-ingame-btn">Open in EVE</button>
+        </div>
+        <div class="breadcrumb">
+          <span>Materials</span>
+          <span class="sep">&rsaquo;</span>
+          <span>Minerals</span>
+          <span class="sep">&rsaquo;</span>
+          <span class="current">Tritanium</span>
+          <span class="id-badge">ID: 34</span>
+        </div>
+      </div>
+
+      <button class="alert-btn">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+        </svg>
+        Set Alert
+      </button>
+    </div>
+
+    <!-- ======================== KPI CARDS ======================== -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Best Sell</div>
+        <div class="kpi-value text-cyan">5.52 <span class="unit">ISK</span></div>
+        <div class="kpi-sublabel">Jita 4-4 CNAP</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Best Buy</div>
+        <div class="kpi-value text-amber">5.21 <span class="unit">ISK</span></div>
+        <div class="kpi-sublabel">Jita 4-4 CNAP</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Spread</div>
+        <div class="kpi-value text-slate-200">0.31 <span class="unit">ISK</span></div>
+        <div class="kpi-sublabel" style="color: rgba(251, 191, 36, 0.7);">5.6%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Daily Volume</div>
+        <div class="kpi-value text-slate-200 mono">2,847,561,203</div>
+        <div class="kpi-sublabel">avg / day</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">30d Change</div>
+        <div class="kpi-value text-emerald" style="display: flex; align-items: center; gap: 4px;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
+          </svg>
+          +3.8%
+        </div>
+        <div class="kpi-sublabel">5.32 &rarr; 5.52</div>
+      </div>
+    </div>
+
+    <!-- ======================== STRUCTURE KPI ROW ======================== -->
+    <div class="structure-kpi-grid">
+      <div class="kpi-card structure-border">
+        <div class="kpi-label">
+          <span class="structure-dot"></span>Structure Sell
+        </div>
+        <div class="kpi-value text-cyan">5.89 <span class="unit">ISK</span></div>
+        <div class="kpi-sublabel">C-J6MT - Imperial 1DQ Fortizar</div>
+      </div>
+      <div class="kpi-card structure-border">
+        <div class="kpi-label">
+          <span class="structure-dot"></span>Structure Buy
+        </div>
+        <div class="kpi-value text-amber">4.95 <span class="unit">ISK</span></div>
+        <div class="kpi-sublabel">C-J6MT - Imperial 1DQ Fortizar</div>
+      </div>
+    </div>
+
+    <!-- ======================== SOURCE TOGGLE ======================== -->
+    <div class="source-toggle">
+      <button class="source-btn active-jita" id="srcJita" onclick="switchSource('jita')">Jita 4-4</button>
+      <button class="source-btn inactive" id="srcStructure" onclick="switchSource('structure')">C-J6MT</button>
+    </div>
+
+    <!-- ======================== UNIFIED CHART CARD ======================== -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <h3 class="chart-title">Price History & Volume</h3>
+        <div class="period-toggle">
+          <button class="period-btn inactive" data-days="30" onclick="switchPeriod(30)">30d</button>
+          <button class="period-btn active" data-days="90" onclick="switchPeriod(90)">90d</button>
+          <button class="period-btn inactive" data-days="365" onclick="switchPeriod(365)">365d</button>
+        </div>
+      </div>
+
+      <div class="chart-container">
+        <canvas id="unifiedChart"></canvas>
+      </div>
+
+      <!-- Custom Legend -->
+      <div class="chart-legend">
+        <span class="legend-item">
+          <span class="legend-line cyan"></span>
+          Sell (Highest)
+        </span>
+        <span class="legend-item">
+          <span class="legend-line amber"></span>
+          Buy (Lowest)
+        </span>
+        <span class="legend-item">
+          <span class="legend-line dashed"></span>
+          Average
+        </span>
+        <span class="legend-item">
+          <span class="legend-swatch spread"></span>
+          Spread
+        </span>
+        <span class="legend-item">
+          <span class="legend-swatch vol-up"></span>
+          Volume (up)
+        </span>
+        <span class="legend-item">
+          <span class="legend-swatch vol-down"></span>
+          Volume (down)
+        </span>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ============================================================
+    // Generate realistic Tritanium market data
+    // ============================================================
+    function generateMarketData(days) {
+      const data = [];
+      const now = new Date();
+      let sellPrice = 5.52;
+      let buyPrice = 5.21;
+
+      for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+
+        // Realistic fluctuations
+        const trend = Math.sin(i / 15) * 0.08;
+        const noise = (Math.random() - 0.5) * 0.12;
+        const spike = Math.random() > 0.95 ? (Math.random() - 0.5) * 0.3 : 0;
+
+        sellPrice = Math.max(4.8, Math.min(6.2, sellPrice + trend * 0.02 + noise * 0.04 + spike));
+        buyPrice = sellPrice - (0.25 + Math.random() * 0.15);
+
+        const avg = (sellPrice + buyPrice) / 2;
+        const baseVolume = 2_500_000_000 + Math.random() * 1_000_000_000;
+        const volumeSpike = Math.random() > 0.9 ? baseVolume * 0.5 : 0;
+        const volume = Math.round(baseVolume + volumeSpike + Math.sin(i / 7) * 300_000_000);
+
+        data.push({
+          date: date.toISOString().split('T')[0],
+          highest: parseFloat(sellPrice.toFixed(2)),
+          lowest: parseFloat(buyPrice.toFixed(2)),
+          average: parseFloat(avg.toFixed(2)),
+          volume: Math.max(500_000_000, volume),
+          orderCount: Math.round(8000 + Math.random() * 4000),
+        });
+      }
+      return data;
+    }
+
+    // ============================================================
+    // Crosshair Plugin
+    // ============================================================
+    const crosshairPlugin = {
+      id: 'crosshair',
+      afterDraw(chart) {
+        if (chart.tooltip?._active?.length) {
+          const ctx = chart.ctx;
+          const activePoint = chart.tooltip._active[0];
+          const x = activePoint.element.x;
+          const topY = chart.scales.y.top;
+          const bottomY = chart.scales.y.bottom;
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.setLineDash([3, 3]);
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
+          ctx.moveTo(x, topY);
+          ctx.lineTo(x, bottomY);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+    };
+
+    // ============================================================
+    // Chart Setup
+    // ============================================================
+    let chartInstance = null;
+    let currentDays = 90;
+
+    function formatPrice(value) {
+      if (value >= 1_000_000_000) return (value / 1_000_000_000).toFixed(2) + 'B';
+      if (value >= 1_000_000) return (value / 1_000_000).toFixed(2) + 'M';
+      if (value >= 1_000) return (value / 1_000).toFixed(1) + 'K';
+      return value.toFixed(2);
+    }
+
+    function formatVolume(value) {
+      if (value >= 1_000_000_000) return (value / 1_000_000_000).toFixed(1) + 'B';
+      if (value >= 1_000_000) return (value / 1_000_000).toFixed(0) + 'M';
+      if (value >= 1_000) return (value / 1_000).toFixed(0) + 'K';
+      return value.toFixed(0);
+    }
+
+    function buildChart(days) {
+      const marketData = generateMarketData(days);
+
+      const labels = marketData.map(d => {
+        const date = new Date(d.date);
+        return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+      });
+
+      // Volume bar colors based on price trend
+      const volumeColors = marketData.map((d, i) => {
+        if (i === 0) return 'rgba(34, 211, 238, 0.4)';
+        return d.average >= marketData[i - 1].average
+          ? 'rgba(16, 185, 129, 0.45)'
+          : 'rgba(239, 68, 68, 0.4)';
+      });
+
+      const volumeBorders = marketData.map((d, i) => {
+        if (i === 0) return 'rgba(34, 211, 238, 0.6)';
+        return d.average >= marketData[i - 1].average
+          ? 'rgba(16, 185, 129, 0.65)'
+          : 'rgba(239, 68, 68, 0.6)';
+      });
+
+      const config = {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            // Volume bars (rendered first, behind lines)
+            {
+              type: 'bar',
+              label: 'Volume',
+              data: marketData.map(d => d.volume),
+              backgroundColor: volumeColors,
+              borderColor: volumeBorders,
+              borderWidth: 1,
+              borderRadius: 2,
+              yAxisID: 'yVolume',
+              order: 3,
+              barPercentage: 0.85,
+              categoryPercentage: 0.9,
+            },
+            // Sell price line
+            {
+              type: 'line',
+              label: 'Sell Price',
+              data: marketData.map(d => d.highest),
+              borderColor: '#22d3ee',
+              backgroundColor: 'rgba(34, 211, 238, 0.06)',
+              borderWidth: 2,
+              pointRadius: 0,
+              pointHoverRadius: 5,
+              pointHoverBackgroundColor: '#22d3ee',
+              pointHoverBorderColor: '#0f172a',
+              pointHoverBorderWidth: 2,
+              tension: 0.3,
+              fill: '+1',
+              yAxisID: 'y',
+              order: 1,
+            },
+            // Buy price line
+            {
+              type: 'line',
+              label: 'Buy Price',
+              data: marketData.map(d => d.lowest),
+              borderColor: '#f59e0b',
+              backgroundColor: 'transparent',
+              borderWidth: 2,
+              pointRadius: 0,
+              pointHoverRadius: 5,
+              pointHoverBackgroundColor: '#f59e0b',
+              pointHoverBorderColor: '#0f172a',
+              pointHoverBorderWidth: 2,
+              tension: 0.3,
+              fill: false,
+              yAxisID: 'y',
+              order: 1,
+            },
+            // Average dashed line
+            {
+              type: 'line',
+              label: 'Average',
+              data: marketData.map(d => d.average),
+              borderColor: 'rgba(148, 163, 184, 0.35)',
+              borderWidth: 1,
+              borderDash: [4, 4],
+              pointRadius: 0,
+              pointHoverRadius: 3,
+              pointHoverBackgroundColor: '#94a3b8',
+              tension: 0.3,
+              fill: false,
+              yAxisID: 'y',
+              order: 2,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false,
+          },
+          plugins: {
+            legend: {
+              display: false,
+            },
+            tooltip: {
+              backgroundColor: 'rgba(15, 23, 42, 0.96)',
+              borderColor: 'rgba(6, 182, 212, 0.25)',
+              borderWidth: 1,
+              titleColor: '#94a3b8',
+              titleFont: { family: 'JetBrains Mono', size: 11, weight: '400' },
+              bodyColor: '#e2e8f0',
+              bodyFont: { family: 'JetBrains Mono', size: 12 },
+              bodySpacing: 6,
+              padding: { top: 10, bottom: 10, left: 14, right: 14 },
+              cornerRadius: 8,
+              displayColors: true,
+              boxWidth: 8,
+              boxHeight: 8,
+              boxPadding: 4,
+              usePointStyle: false,
+              callbacks: {
+                title: function(items) {
+                  const idx = items[0].dataIndex;
+                  const d = marketData[idx];
+                  const date = new Date(d.date);
+                  return date.toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                  });
+                },
+                label: function(context) {
+                  const idx = context.dataIndex;
+                  const d = marketData[idx];
+
+                  switch (context.dataset.label) {
+                    case 'Sell Price':
+                      return `  Sell:      ${d.highest.toFixed(2)} ISK`;
+                    case 'Buy Price':
+                      return `  Buy:       ${d.lowest.toFixed(2)} ISK`;
+                    case 'Average':
+                      return `  Average:   ${d.average.toFixed(2)} ISK`;
+                    case 'Volume':
+                      return `  Volume:    ${d.volume.toLocaleString()}`;
+                    default:
+                      return '';
+                  }
+                },
+                afterBody: function(items) {
+                  const idx = items[0].dataIndex;
+                  const d = marketData[idx];
+                  const spread = (d.highest - d.lowest).toFixed(2);
+                  const spreadPct = ((d.highest - d.lowest) / d.highest * 100).toFixed(1);
+                  return [
+                    `  Spread:    ${spread} ISK (${spreadPct}%)`,
+                    `  Orders:    ${d.orderCount.toLocaleString()}`
+                  ];
+                },
+              },
+            },
+          },
+          scales: {
+            x: {
+              grid: {
+                color: 'rgba(51, 65, 85, 0.2)',
+                drawTicks: false,
+              },
+              ticks: {
+                color: '#475569',
+                font: { family: 'JetBrains Mono', size: 10 },
+                maxTicksLimit: days <= 30 ? 10 : days <= 90 ? 12 : 15,
+                maxRotation: 0,
+                padding: 8,
+              },
+              border: { display: false },
+            },
+            y: {
+              position: 'left',
+              grid: {
+                color: 'rgba(51, 65, 85, 0.2)',
+                drawTicks: false,
+              },
+              ticks: {
+                color: '#475569',
+                font: { family: 'JetBrains Mono', size: 10 },
+                callback: function(value) { return formatPrice(value); },
+                padding: 8,
+              },
+              border: { display: false },
+              title: {
+                display: true,
+                text: 'Price (ISK)',
+                color: '#334155',
+                font: { family: 'JetBrains Mono', size: 10 },
+                padding: { bottom: 4 },
+              },
+            },
+            yVolume: {
+              position: 'right',
+              grid: {
+                drawOnChartArea: false,
+                drawTicks: false,
+              },
+              ticks: {
+                color: '#334155',
+                font: { family: 'JetBrains Mono', size: 10 },
+                callback: function(value) { return formatVolume(value); },
+                padding: 8,
+              },
+              border: { display: false },
+              title: {
+                display: true,
+                text: 'Volume',
+                color: '#334155',
+                font: { family: 'JetBrains Mono', size: 10 },
+                padding: { bottom: 4 },
+              },
+              // Push volume bars to bottom third of chart
+              max: function() {
+                const maxVol = Math.max(...marketData.map(d => d.volume));
+                return maxVol * 3.5;
+              }(),
+            },
+          },
+        },
+        plugins: [crosshairPlugin],
+      };
+
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      const ctx = document.getElementById('unifiedChart').getContext('2d');
+      chartInstance = new Chart(ctx, config);
+    }
+
+    // ============================================================
+    // Controls
+    // ============================================================
+    function switchPeriod(days) {
+      currentDays = days;
+      document.querySelectorAll('.period-btn').forEach(btn => {
+        btn.className = 'period-btn ' + (parseInt(btn.dataset.days) === days ? 'active' : 'inactive');
+      });
+      buildChart(days);
+    }
+
+    function switchSource(source) {
+      const jitaBtn = document.getElementById('srcJita');
+      const structBtn = document.getElementById('srcStructure');
+
+      if (source === 'jita') {
+        jitaBtn.className = 'source-btn active-jita';
+        structBtn.className = 'source-btn inactive';
+      } else {
+        jitaBtn.className = 'source-btn inactive';
+        structBtn.className = 'source-btn active-structure';
+      }
+      // In real app this would fetch different data; here we just regenerate
+      buildChart(currentDays);
+    }
+
+    // ============================================================
+    // Init
+    // ============================================================
+    buildChart(90);
+  </script>
+</body>
+</html>

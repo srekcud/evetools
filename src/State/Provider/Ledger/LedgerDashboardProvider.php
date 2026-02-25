@@ -10,6 +10,7 @@ use App\ApiResource\Ledger\LedgerDashboardResource;
 use App\Entity\MiningEntry;
 use App\Entity\PveIncome;
 use App\Entity\User;
+use App\Enum\PveIncomeType;
 use App\Entity\UserLedgerSettings;
 use App\Repository\PveExpenseRepository;
 use App\Repository\PveIncomeRepository;
@@ -58,12 +59,12 @@ class LedgerDashboardProvider implements ProviderInterface
         // Get PVE income by type
         $pveIncomeByType = $this->pveIncomeRepository->getTotalsByType($user, $from, $to);
 
-        $bountyTotal = $pveIncomeByType[PveIncome::TYPE_BOUNTY] ?? 0.0;
-        $essTotal = $pveIncomeByType[PveIncome::TYPE_ESS] ?? 0.0;
-        $missionTotal = $pveIncomeByType[PveIncome::TYPE_MISSION] ?? 0.0;
-        $lootSalesTotal = ($pveIncomeByType[PveIncome::TYPE_LOOT_SALE] ?? 0.0)
-            + ($pveIncomeByType[PveIncome::TYPE_LOOT_CONTRACT] ?? 0.0);
-        $corpProjectPveTotal = $pveIncomeByType[PveIncome::TYPE_CORP_PROJECT] ?? 0.0;
+        $bountyTotal = $pveIncomeByType[PveIncomeType::Bounty->value] ?? 0.0;
+        $essTotal = $pveIncomeByType[PveIncomeType::Ess->value] ?? 0.0;
+        $missionTotal = $pveIncomeByType[PveIncomeType::Mission->value] ?? 0.0;
+        $lootSalesTotal = ($pveIncomeByType[PveIncomeType::LootSale->value] ?? 0.0)
+            + ($pveIncomeByType[PveIncomeType::LootContract->value] ?? 0.0);
+        $corpProjectPveTotal = $pveIncomeByType[PveIncomeType::CorpProject->value] ?? 0.0;
 
         // PVE total: include corp projects if corpProjectAccounting is 'pve'
         $pveTotal = $bountyTotal + $essTotal + $missionTotal + $lootSalesTotal;

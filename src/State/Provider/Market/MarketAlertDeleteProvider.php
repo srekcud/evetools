@@ -52,10 +52,10 @@ class MarketAlertDeleteProvider implements ProviderInterface
         $resource->id = $alert->getId()?->toRfc4122() ?? '';
         $resource->typeId = $alert->getTypeId();
         $resource->typeName = $alert->getTypeName();
-        $resource->direction = $alert->getDirection();
+        $resource->direction = $alert->getDirection()->value;
         $resource->threshold = $alert->getThreshold();
-        $resource->priceSource = $alert->getPriceSource();
-        $resource->status = $alert->getStatus();
+        $resource->priceSource = $alert->getPriceSource()->value;
+        $resource->status = $alert->getStatus()->value;
         $resource->triggeredAt = $alert->getTriggeredAt()?->format('c');
         $resource->createdAt = $alert->getCreatedAt()->format('c');
 

@@ -327,7 +327,7 @@ defineEmits<{
 
                 <!-- Flow data -->
                 <template v-if="colony.routes.length > 0">
-                  <template v-for="flowData in [getStorageFlowData(colony, storagePin)]" :key="storagePin.pinId">
+                  <template v-for="(flowData, _flowIndex) in [getStorageFlowData(colony, storagePin)]" :key="_flowIndex">
                     <div class="px-3 pb-3 space-y-2">
                       <!-- Incoming flows -->
                       <div v-if="flowData.incoming.length > 0" class="space-y-1">

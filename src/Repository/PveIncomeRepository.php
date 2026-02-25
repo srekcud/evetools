@@ -6,6 +6,7 @@ namespace App\Repository;
 
 use App\Entity\PveIncome;
 use App\Entity\User;
+use App\Enum\PveIncomeType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -151,7 +152,8 @@ class PveIncomeRepository extends ServiceEntityRepository
 
         $totals = [];
         foreach ($results as $row) {
-            $totals[$row['type']] = (float) $row['total'];
+            $key = $row['type'] instanceof PveIncomeType ? $row['type']->value : (string) $row['type'];
+            $totals[$key] = (float) $row['total'];
         }
 
         return $totals;
@@ -171,7 +173,7 @@ class PveIncomeRepository extends ServiceEntityRepository
             ->setParameter('user', $user)
             ->setParameter('from', $from)
             ->setParameter('to', $to)
-            ->setParameter('types', [PveIncome::TYPE_BOUNTY, PveIncome::TYPE_ESS, PveIncome::TYPE_MISSION])
+            ->setParameter('types', [PveIncomeType::Bounty->value, PveIncomeType::Ess->value, PveIncomeType::Mission->value])
             ->orderBy('i.date', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
@@ -192,7 +194,7 @@ class PveIncomeRepository extends ServiceEntityRepository
             ->setParameter('user', $user)
             ->setParameter('from', $from)
             ->setParameter('to', $to)
-            ->setParameter('types', [PveIncome::TYPE_BOUNTY, PveIncome::TYPE_ESS, PveIncome::TYPE_MISSION])
+            ->setParameter('types', [PveIncomeType::Bounty->value, PveIncomeType::Ess->value, PveIncomeType::Mission->value])
             ->getQuery()
             ->getSingleScalarResult();
 
@@ -213,7 +215,7 @@ class PveIncomeRepository extends ServiceEntityRepository
             ->setParameter('user', $user)
             ->setParameter('from', $from)
             ->setParameter('to', $to)
-            ->setParameter('types', [PveIncome::TYPE_LOOT_SALE, PveIncome::TYPE_LOOT_CONTRACT, PveIncome::TYPE_CORP_PROJECT])
+            ->setParameter('types', [PveIncomeType::LootSale->value, PveIncomeType::LootContract->value, PveIncomeType::CorpProject->value])
             ->orderBy('i.date', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
@@ -234,7 +236,7 @@ class PveIncomeRepository extends ServiceEntityRepository
             ->setParameter('user', $user)
             ->setParameter('from', $from)
             ->setParameter('to', $to)
-            ->setParameter('types', [PveIncome::TYPE_LOOT_SALE, PveIncome::TYPE_LOOT_CONTRACT, PveIncome::TYPE_CORP_PROJECT])
+            ->setParameter('types', [PveIncomeType::LootSale->value, PveIncomeType::LootContract->value, PveIncomeType::CorpProject->value])
             ->getQuery()
             ->getSingleScalarResult();
 
@@ -268,17 +270,17 @@ class PveIncomeRepository extends ServiceEntityRepository
                 $dailyTotals[$date] = ['bounties' => 0.0, 'lootSales' => 0.0, 'corpProject' => 0.0];
             }
 
-            $type = $row['type'];
+            $type = $row['type'] instanceof PveIncomeType ? $row['type'] : PveIncomeType::tryFrom((string) $row['type']);
             $amount = (float) $row['total'];
 
-            if (in_array($type, [PveIncome::TYPE_BOUNTY, PveIncome::TYPE_ESS, PveIncome::TYPE_MISSION], true)) {
+            if (in_array($type, [PveIncomeType::Bounty, PveIncomeType::Ess, PveIncomeType::Mission], true)) {
                 $dailyTotals[$date]['bounties'] += $amount;
-            } elseif ($type === PveIncome::TYPE_CORP_PROJECT) {
+            } elseif ($type === PveIncomeType::CorpProject) {
                 if (!$excludeCorpProject) {
                     $dailyTotals[$date]['lootSales'] += $amount;
                 }
                 $dailyTotals[$date]['corpProject'] += $amount;
-            } elseif (in_array($type, [PveIncome::TYPE_LOOT_SALE, PveIncome::TYPE_LOOT_CONTRACT], true)) {
+            } elseif (in_array($type, [PveIncomeType::LootSale, PveIncomeType::LootContract], true)) {
                 $dailyTotals[$date]['lootSales'] += $amount;
             }
         }
@@ -300,7 +302,7 @@ class PveIncomeRepository extends ServiceEntityRepository
             ->setParameter('user', $user)
             ->setParameter('from', $from)
             ->setParameter('to', $to)
-            ->setParameter('type', PveIncome::TYPE_LOOT_CONTRACT)
+            ->setParameter('type', PveIncomeType::LootContract->value)
             ->getQuery()
             ->getSingleScalarResult();
 

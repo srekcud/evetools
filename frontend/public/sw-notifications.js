@@ -1,4 +1,4 @@
-/* eslint-disable no-restricted-globals */
+ 
 
 /**
  * Service Worker for EVE Tools push notifications.

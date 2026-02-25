@@ -7,6 +7,7 @@ namespace App\Service\Sync;
 use App\Entity\PveIncome;
 use App\Entity\PveExpense;
 use App\Entity\User;
+use App\Enum\PveIncomeType;
 use App\Entity\UserPveSettings;
 use App\Repository\PveExpenseRepository;
 use App\Repository\PveIncomeRepository;
@@ -21,10 +22,10 @@ use Psr\Log\LoggerInterface;
 class PveSyncService
 {
     private const BOUNTY_REF_TYPES = [
-        'bounty_prizes' => PveIncome::TYPE_BOUNTY,
-        'ess_escrow_transfer' => PveIncome::TYPE_ESS,
-        'agent_mission_reward' => PveIncome::TYPE_MISSION,
-        'agent_mission_time_bonus_reward' => PveIncome::TYPE_MISSION,
+        'bounty_prizes' => PveIncomeType::Bounty,
+        'ess_escrow_transfer' => PveIncomeType::Ess,
+        'agent_mission_reward' => PveIncomeType::Mission,
+        'agent_mission_time_bonus_reward' => PveIncomeType::Mission,
     ];
 
     private const SYNC_INTERVAL_MINUTES = 15;
@@ -314,7 +315,7 @@ class PveSyncService
 
                     $income = new PveIncome();
                     $income->setUser($user);
-                    $income->setType(PveIncome::TYPE_LOOT_SALE);
+                    $income->setType(PveIncomeType::LootSale);
                     $income->setDescription("{$quantity}x " . $this->getTypeName($typeId));
                     $income->setAmount($totalAmount);
                     $income->setDate($transactionDate);
@@ -445,7 +446,7 @@ class PveSyncService
 
                     $income = new PveIncome();
                     $income->setUser($user);
-                    $income->setType(PveIncome::TYPE_LOOT_CONTRACT);
+                    $income->setType(PveIncomeType::LootContract);
                     $income->setDescription($description);
                     $income->setAmount($totalAmount);
                     $income->setDate($completedDate);

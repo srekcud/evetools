@@ -10,6 +10,8 @@ use App\ApiResource\Market\MarketAlertResource;
 use App\Entity\MarketPriceAlert;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
+use App\Enum\AlertDirection;
+use App\Enum\AlertPriceSource;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
@@ -73,19 +75,19 @@ class CreateAlertProcessorTest extends TestCase
 
         $input = new CreateAlertInput();
         $input->typeId = 34;
-        $input->direction = MarketPriceAlert::DIRECTION_ABOVE;
+        $input->direction = 'above';
         $input->threshold = 10.0;
-        $input->priceSource = MarketPriceAlert::SOURCE_JITA_SELL;
+        $input->priceSource = 'jita_sell';
 
         $result = $this->processor->process($input, new Post());
 
         $this->assertInstanceOf(MarketAlertResource::class, $result);
         $this->assertSame(34, $result->typeId);
         $this->assertSame('Tritanium', $result->typeName);
-        $this->assertSame(MarketPriceAlert::DIRECTION_ABOVE, $result->direction);
+        $this->assertSame('above', $result->direction);
         $this->assertSame(10.0, $result->threshold);
-        $this->assertSame(MarketPriceAlert::SOURCE_JITA_SELL, $result->priceSource);
-        $this->assertSame(MarketPriceAlert::STATUS_ACTIVE, $result->status);
+        $this->assertSame('jita_sell', $result->priceSource);
+        $this->assertSame('active', $result->status);
         $this->assertSame(12.0, $result->currentPrice);
         $this->assertNull($result->triggeredAt);
         $this->assertNotEmpty($result->createdAt);
@@ -107,14 +109,14 @@ class CreateAlertProcessorTest extends TestCase
 
         $input = new CreateAlertInput();
         $input->typeId = 34;
-        $input->direction = MarketPriceAlert::DIRECTION_BELOW;
+        $input->direction = 'below';
         $input->threshold = 8.0;
-        $input->priceSource = MarketPriceAlert::SOURCE_JITA_BUY;
+        $input->priceSource = 'jita_buy';
 
         $result = $this->processor->process($input, new Post());
 
         $this->assertSame(9.0, $result->currentPrice);
-        $this->assertSame(MarketPriceAlert::SOURCE_JITA_BUY, $result->priceSource);
+        $this->assertSame('jita_buy', $result->priceSource);
     }
 
     // ===========================================
@@ -129,9 +131,9 @@ class CreateAlertProcessorTest extends TestCase
 
         $input = new CreateAlertInput();
         $input->typeId = 99999;
-        $input->direction = MarketPriceAlert::DIRECTION_ABOVE;
+        $input->direction = 'above';
         $input->threshold = 10.0;
-        $input->priceSource = MarketPriceAlert::SOURCE_JITA_SELL;
+        $input->priceSource = 'jita_sell';
 
         $this->expectException(BadRequestHttpException::class);
         $this->expectExceptionMessage('Invalid type ID');
@@ -153,7 +155,7 @@ class CreateAlertProcessorTest extends TestCase
         $input->typeId = 34;
         $input->direction = 'invalid';
         $input->threshold = 10.0;
-        $input->priceSource = MarketPriceAlert::SOURCE_JITA_SELL;
+        $input->priceSource = 'jita_sell';
 
         $this->expectException(BadRequestHttpException::class);
         $this->expectExceptionMessage('Invalid direction');
@@ -173,7 +175,7 @@ class CreateAlertProcessorTest extends TestCase
 
         $input = new CreateAlertInput();
         $input->typeId = 34;
-        $input->direction = MarketPriceAlert::DIRECTION_ABOVE;
+        $input->direction = 'above';
         $input->threshold = 10.0;
         $input->priceSource = 'invalid_source';
 
@@ -195,9 +197,9 @@ class CreateAlertProcessorTest extends TestCase
 
         $input = new CreateAlertInput();
         $input->typeId = 34;
-        $input->direction = MarketPriceAlert::DIRECTION_ABOVE;
+        $input->direction = 'above';
         $input->threshold = 0.0;
-        $input->priceSource = MarketPriceAlert::SOURCE_JITA_SELL;
+        $input->priceSource = 'jita_sell';
 
         $this->expectException(BadRequestHttpException::class);
         $this->expectExceptionMessage('Threshold must be positive');
@@ -217,9 +219,9 @@ class CreateAlertProcessorTest extends TestCase
 
         $input = new CreateAlertInput();
         $input->typeId = 34;
-        $input->direction = MarketPriceAlert::DIRECTION_ABOVE;
+        $input->direction = 'above';
         $input->threshold = -5.0;
-        $input->priceSource = MarketPriceAlert::SOURCE_JITA_SELL;
+        $input->priceSource = 'jita_sell';
 
         $this->expectException(BadRequestHttpException::class);
         $this->expectExceptionMessage('Threshold must be positive');
@@ -237,9 +239,9 @@ class CreateAlertProcessorTest extends TestCase
 
         $input = new CreateAlertInput();
         $input->typeId = 34;
-        $input->direction = MarketPriceAlert::DIRECTION_ABOVE;
+        $input->direction = 'above';
         $input->threshold = 10.0;
-        $input->priceSource = MarketPriceAlert::SOURCE_JITA_SELL;
+        $input->priceSource = 'jita_sell';
 
         $this->expectException(UnauthorizedHttpException::class);
 
@@ -265,16 +267,16 @@ class CreateAlertProcessorTest extends TestCase
             ->with($this->callback(function (MarketPriceAlert $alert): bool {
                 return $alert->getTypeId() === 34
                     && $alert->getTypeName() === 'Tritanium'
-                    && $alert->getDirection() === MarketPriceAlert::DIRECTION_ABOVE
+                    && $alert->getDirection() === AlertDirection::Above
                     && $alert->getThreshold() === 10.0
-                    && $alert->getPriceSource() === MarketPriceAlert::SOURCE_JITA_SELL;
+                    && $alert->getPriceSource() === AlertPriceSource::JitaSell;
             }));
 
         $input = new CreateAlertInput();
         $input->typeId = 34;
-        $input->direction = MarketPriceAlert::DIRECTION_ABOVE;
+        $input->direction = 'above';
         $input->threshold = 10.0;
-        $input->priceSource = MarketPriceAlert::SOURCE_JITA_SELL;
+        $input->priceSource = 'jita_sell';
 
         $this->processor->process($input, new Post());
     }

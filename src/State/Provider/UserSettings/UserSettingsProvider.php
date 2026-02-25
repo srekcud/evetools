@@ -39,6 +39,13 @@ class UserSettingsProvider implements ProviderInterface
         $resource->effectiveMarketStructureId = $user->getPreferredMarketStructureId() ?? $this->defaultMarketStructureId;
         $resource->effectiveMarketStructureName = $user->getPreferredMarketStructureName() ?? $this->defaultMarketStructureName;
 
+        // Seed from legacy preferred structure if marketStructures is empty
+        $marketStructures = $user->getMarketStructures();
+        if ($marketStructures === [] && $user->getPreferredMarketStructureId() !== null) {
+            $marketStructures = [['id' => $user->getPreferredMarketStructureId(), 'name' => $user->getPreferredMarketStructureName() ?? 'Unknown']];
+        }
+        $resource->marketStructures = $marketStructures;
+
         return $resource;
     }
 }

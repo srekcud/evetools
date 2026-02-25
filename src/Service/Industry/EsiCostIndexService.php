@@ -14,7 +14,10 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * Both endpoints are public (no auth required).
  *
  * Used to estimate industry job install costs:
- *   install_cost = adjusted_price * runs * system_cost_index * (1 + facility_tax_rate / 100)
+ *   install_cost = EIV * runs * system_cost_index * (1 + facility_tax_rate / 100)
+ *
+ * Where EIV (Estimated Item Value) = sum(adjustedPrice(inputMaterial) * quantity)
+ * for all input materials at ME0 (raw SDE quantities).
  */
 class EsiCostIndexService
 {
@@ -184,25 +187,43 @@ class EsiCostIndexService
     }
 
     /**
+     * Calculate Estimated Item Value (EIV) from blueprint input materials at ME0.
+     * EIV = sum(adjustedPrice(materialTypeId) * quantity).
+     *
+     * @param list<array{materialTypeId: int, quantity: int}> $materials ME0 materials from SDE
+     */
+    public function calculateEiv(array $materials): float
+    {
+        $eiv = 0.0;
+        foreach ($materials as $material) {
+            $adjustedPrice = $this->getAdjustedPrice($material['materialTypeId']);
+            if ($adjustedPrice !== null) {
+                $eiv += $adjustedPrice * $material['quantity'];
+            }
+        }
+
+        return $eiv;
+    }
+
+    /**
      * Calculate the estimated job install cost.
      *
-     * Formula: adjusted_price * runs * system_cost_index * (1 + facility_tax_rate / 100)
+     * Formula: eiv * runs * system_cost_index * (1 + facility_tax_rate / 100)
      *
-     * @param int $productTypeId The type being produced
+     * @param float $eiv Estimated Item Value (sum of adjustedPrice * quantity for ME0 materials)
      * @param int $runs Number of runs
      * @param int $solarSystemId Solar system where the job runs
      * @param string $activity Activity type (manufacturing, reaction, etc.)
      * @param float|null $facilityTaxRate Facility tax rate as percentage (e.g. 10 for 10%). Null = 0.
      */
     public function calculateJobInstallCost(
-        int $productTypeId,
+        float $eiv,
         int $runs,
         int $solarSystemId,
         string $activity,
         ?float $facilityTaxRate = null,
     ): float {
-        $adjustedPrice = $this->getAdjustedPrice($productTypeId);
-        if ($adjustedPrice === null) {
+        if ($eiv <= 0.0) {
             return 0.0;
         }
 
@@ -213,7 +234,7 @@ class EsiCostIndexService
 
         $taxMultiplier = 1.0 + ($facilityTaxRate ?? 0.0) / 100.0;
 
-        return $adjustedPrice * $runs * $costIndex * $taxMultiplier;
+        return $eiv * $runs * $costIndex * $taxMultiplier;
     }
 
     /**

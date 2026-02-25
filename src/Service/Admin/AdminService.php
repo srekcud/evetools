@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Admin;
 
 use App\Entity\User;
+use App\Enum\AuthStatus;
 use Doctrine\DBAL\Connection;
 
 class AdminService
@@ -39,7 +40,7 @@ class AdminService
         $total = (int) $this->connection->fetchOne('SELECT COUNT(*) FROM users');
         $valid = (int) $this->connection->fetchOne(
             'SELECT COUNT(*) FROM users WHERE auth_status = ?',
-            [User::AUTH_STATUS_VALID]
+            [AuthStatus::Valid->value]
         );
         $invalid = $total - $valid;
 
@@ -73,7 +74,7 @@ class AdminService
              JOIN eve_tokens t ON t.character_id = c.id
              JOIN users u ON c.user_id = u.id
              WHERE u.auth_status = ?',
-            [User::AUTH_STATUS_VALID]
+            [AuthStatus::Valid->value]
         );
 
         $threshold = (new \DateTimeImmutable('-30 minutes'))->format('Y-m-d H:i:s');
@@ -91,7 +92,7 @@ class AdminService
              JOIN eve_tokens t ON t.character_id = c.id
              JOIN users u ON c.user_id = u.id
              WHERE u.auth_status = ? AND u.last_login_at >= ?',
-            [User::AUTH_STATUS_VALID, $activeThreshold]
+            [AuthStatus::Valid->value, $activeThreshold]
         );
 
         return [

@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Industry Projects V2 — EVE Tools</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+    body {
+      background: #020617;
+      font-family: system-ui, -apple-system, sans-serif;
+      overflow-x: hidden;
+    }
+
+    .font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+    /* Subtle scan-line overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 999;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.03) 2px,
+        rgba(0, 0, 0, 0.03) 4px
+      );
+    }
+
+    /* Card entrance */
+    @keyframes cardSlideUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .card-enter {
+      animation: cardSlideUp 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) backwards;
+    }
+
+    /* Editable cell styling */
+    .editable-cell {
+      border-bottom: 1px dashed rgba(148, 163, 184, 0.3);
+      cursor: pointer;
+      position: relative;
+      transition: border-color 0.15s ease, color 0.15s ease;
+    }
+    .editable-cell:hover {
+      border-bottom-color: rgba(34, 211, 238, 0.5);
+      color: #22d3ee;
+    }
+
+    /* Pencil icon on hover */
+    .editable-cell .pencil-icon {
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      position: absolute;
+      right: -16px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    .editable-cell:hover .pencil-icon {
+      opacity: 1;
+    }
+
+    /* Modal backdrop */
+    .modal-backdrop {
+      background: rgba(2, 6, 23, 0.85);
+      backdrop-filter: blur(4px);
+    }
+
+    /* Modal entrance */
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.95) translateY(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .modal-card {
+      animation: modalIn 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    }
+
+    /* Sort indicator */
+    .sort-header {
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.15s ease;
+    }
+    .sort-header:hover {
+      color: #cbd5e1;
+    }
+
+    /* Row alternate subtle */
+    tbody tr:nth-child(even) {
+      background: rgba(15, 23, 42, 0.3);
+    }
+
+    /* Button micro-interaction */
+    .btn-action {
+      transition: all 0.15s ease;
+    }
+    .btn-action:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    .btn-action:active {
+      transform: translateY(0);
+    }
+
+    /* Tooltip for editable cells */
+    .editable-cell[title]::after {
+      content: attr(title);
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      z-index: 10;
+    }
+    .editable-cell:hover[title]::after {
+      opacity: 1;
+    }
+
+    /* Estimated value styling */
+    .est-value {
+      font-style: italic;
+      color: #64748b;
+    }
+    .est-prefix {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #475569;
+      margin-right: 2px;
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-300">
+
+  <!-- Main container -->
+  <div class="max-w-7xl mx-auto px-6 py-8">
+
+    <!-- Page header -->
+    <div class="mb-6 flex items-center justify-between card-enter" style="animation-delay: 0ms;">
+      <p class="text-slate-400">Production management and profit tracking</p>
+      <div class="flex gap-2">
+        <button class="px-4 py-2 rounded-lg text-sm font-medium bg-slate-800 text-slate-400 hover:text-slate-200">Dashboard</button>
+        <button class="px-4 py-2 rounded-lg text-sm font-medium bg-cyan-600 text-white">Projects</button>
+        <button class="px-4 py-2 rounded-lg text-sm font-medium bg-slate-800 text-slate-400 hover:text-slate-200">Scanner</button>
+        <button class="px-4 py-2 rounded-lg text-sm font-medium bg-slate-800 text-slate-400 hover:text-slate-200">Slots</button>
+        <button class="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200" title="Config">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- PROJECTS TABLE HEADER                         -->
+    <!-- ============================================ -->
+    <div class="bg-slate-900 rounded-xl border border-slate-800 card-enter" style="animation-delay: 60ms;">
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <h3 class="text-lg font-semibold text-slate-100">Projects</h3>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-400 font-mono">6 projects</span>
+        </div>
+        <button
+          onclick="document.getElementById('createModal').classList.remove('hidden')"
+          class="btn-action px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm font-semibold flex items-center gap-2"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          New Project
+        </button>
+      </div>
+
+      <!-- ============================================ -->
+      <!-- RESPONSIVE TABLE (~10 columns)               -->
+      <!-- ============================================ -->
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
+              <th class="text-left py-3 px-4 sort-header">
+                <span class="flex items-center gap-1">
+                  Product
+                  <svg class="w-3 h-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12" />
+                  </svg>
+                </span>
+              </th>
+              <th class="text-center py-3 px-2 sort-header">Status</th>
+              <th class="text-right py-3 px-2 sort-header">Runs</th>
+              <th class="text-center py-3 px-2 sort-header">ME/TE</th>
+              <th class="text-right py-3 px-2 sort-header">
+                <span class="flex items-center justify-end gap-1">
+                  Materials
+                  <svg class="w-3 h-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                  </svg>
+                </span>
+              </th>
+              <th class="text-right py-3 px-2 sort-header">Job Cost</th>
+              <th class="text-right py-3 px-2 sort-header">Taxes</th>
+              <th class="text-right py-3 px-2 sort-header">Sell Price</th>
+              <th class="text-right py-3 px-3 sort-header">
+                <span class="flex items-center justify-end gap-1">
+                  Profit
+                  <svg class="w-3 h-3 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                  </svg>
+                </span>
+              </th>
+              <th class="text-center py-3 px-2 w-20"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800">
+
+            <!-- Row 1: Ishtar (actual values) -->
+            <tr class="hover:bg-slate-800/50 group">
+              <td class="py-3.5 px-4">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0">
+                    <img src="https://images.evetech.net/types/12005/icon?size=64" alt="Ishtar" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\'text-xs text-slate-600\'>ISH</span>';" />
+                  </div>
+                  <span class="text-cyan-400 hover:text-cyan-300 font-medium cursor-pointer">Ishtar</span>
+                </div>
+              </td>
+              <td class="py-3.5 px-2 text-center">
+                <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">Active</span>
+              </td>
+              <td class="py-3.5 px-2 text-right">
+                <span class="editable-cell font-mono text-slate-300 inline-block relative" title="Double-click to edit">
+                  10
+                  <span class="pencil-icon">
+                    <svg class="w-3 h-3 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </span>
+                </span>
+              </td>
+              <td class="py-3.5 px-2 text-center">
+                <span class="editable-cell font-mono text-slate-300 inline-block relative" title="Double-click to edit">
+                  10/20
+                  <span class="pencil-icon" style="right: -18px;">
+                    <svg class="w-3 h-3 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </span>
+                </span>
+              </td>
+              <td class="py-3.5 px-2 text-right font-mono text-slate-300">1.8B</td>
+              <td class="py-3.5 px-2 text-right font-mono text-slate-300">42M</td>
+              <td class="py-3.5 px-2 text-right font-mono text-slate-300">89M</td>
+              <td class="py-3.5 px-2 text-right">
+                <span class="editable-cell font-mono text-slate-300 inline-block relative" title="Double-click to edit">
+                  3.2B
+                  <span class="pencil-icon">
+                    <svg class="w-3 h-3 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </span>
+                </span>
+              </td>
+              <td class="py-3.5 px-3 text-right">
+                <div class="flex items-center justify-end gap-1.5">
+                  <span class="font-mono text-emerald-400 font-semibold" style="font-variant-numeric: tabular-nums;">1.27B</span>
+                  <span class="text-xs text-emerald-400/70 font-mono">(+12.3%)</span>
+                </div>
+              </td>
+              <td class="py-3.5 px-2">
+                <div class="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button class="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-cyan-400" title="View details">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </button>
+                  <button
+                    class="p-1.5 hover:bg-red-500/20 rounded text-slate-400 hover:text-red-400"
+                    title="Delete"
+                    onclick="document.getElementById('deleteModal').classList.remove('hidden')"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 2: Ferox (mix of actual and estimated) -->
+            <tr class="hover:bg-slate-800/50 group">
+              <td class="py-3.5 px-4">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0">
+                    <img src="https://images.evetech.net/types/24690/icon?size=64" alt="Ferox" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\'text-xs text-slate-600\'>FRX</span>';" />
+                  </div>
+                  <span class="text-cyan-400 hover:text-cyan-300 font-medium cursor-pointer">Ferox</span>
+                </div>
+              </td>
+              <td class="py-3.5 px-2 text-center">
+                <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">Active</span>
+              </td>
+              <td class="py-3.5 px-2 text-right">
+                <span class="editable-cell font-mono text-slate-300 inline-block relative" title="Double-click to edit">
+                  20
+                  <span class="pencil-icon">
+                    <svg class="w-3 h-3 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </span>
+                </span>
+              </td>
+              <td class="py-3.5 px-2 text-center">
+                <span class="editable-cell font-mono text-slate-300 inline-block relative" title="Double-click to edit">
+                  10/20
+                  <span class="pencil-icon" style="right: -18px;">
+                    <svg class="w-3 h-3 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </span>
+                </span>
+              </td>
+              <!-- Estimated materials (no actual yet) -->
+              <td class="py-3.5 px-2 text-right">
+                <span class="est-value font-mono"><span class="est-prefix">est.</span>520M</span>
+              </td>
+              <td class="py-3.5 px-2 text-right font-mono text-slate-300">12.4M</td>
+              <!-- Estimated taxes -->
+              <td class="py-3.5 px-2 text-right">
+                <span class="est-value font-mono"><span class="est-prefix">est.</span>28M</span>
+              </td>
+              <td class="py-3.5 px-2 text-right">
+                <span class="editable-cell font-mono text-slate-300 inline-block relative" title="Double-click to edit">
+                  880M
+                  <span class="pencil-icon">
+                    <svg class="w-3 h-3 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </span>
+                </span>
+              </td>
+              <td class="py-3.5 px-3 text-right">
+                <div class="flex items-center justify-end gap-1.5">
+                  <span class="font-mono text-emerald-400 font-semibold" style="font-variant-numeric: tabular-nums;">340M</span>
+                  <span class="text-xs text-emerald-400/70 font-mono">(+8.1%)</span>
+                </div>
+              </td>
+              <td class="py-3.5 px-2">
+                <div class="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button class="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-cyan-400" title="View details">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </button>
+                  <button class="p-1.5 hover:bg-red-500/20 rounded text-slate-400 hover:text-red-400" title="Delete">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 3: Sabre (T2, completed) -->
+            <tr class="hover:bg-slate-800/50 group">
+              <td class="py-3.5 px-4">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0">
+                    <img src="https://images.evetech.net/types/22456/icon?size=64" alt="Sabre" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\'text-xs text-slate-600\'>SAB</span>';" />
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-cyan-400 hover:text-cyan-300 font-medium cursor-pointer">Sabre</span>
+                    <span class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded">T2</span>
+                  </div>
+                </div>
+              </td>
+              <td class="py-3.5 px-2 text-center">
+                <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">Completed</span>
+              </td>
+              <td class="py-3.5 px-2 text-right font-mono text-slate-500">50</td>
+              <td class="py-3.5 px-2 text-center font-mono text-slate-500">2/4</td>
+              <td class="py-3.5 px-2 text-right font-mono text-slate-500">1.4B</td>
+              <td class="py-3.5 px-2 text-right font-mono text-slate-500">85M</td>
+              <td class="py-3.5 px-2 text-right font-mono text-slate-500">67M</td>
+              <td class="py-3.5 px-2 text-right font-mono text-slate-500">1.9B</td>
+              <td class="py-3.5 px-3 text-right">
+                <div class="flex items-center justify-end gap-1.5">
+                  <span class="font-mono text-emerald-400 font-semibold" style="font-variant-numeric: tabular-nums;">348M</span>
+                  <span class="text-xs text-emerald-400/70 font-mono">(+5.7%)</span>
+                </div>
+              </td>
+              <td class="py-3.5 px-2">
+                <div class="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button class="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-cyan-400" title="View details">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </button>
+                  <button class="p-1.5 hover:bg-red-500/20 rounded text-slate-400 hover:text-red-400" title="Delete">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 4: Hurricane (negative profit) -->
+            <tr class="hover:bg-slate-800/50 group">
+              <td class="py-3.5 px-4">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0">
+                    <img src="https://images.evetech.net/types/24690/icon?size=64" alt="Hurricane" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\'text-xs text-slate-600\'>HUR</span>';" />
+                  </div>
+                  <span class="text-cyan-400 hover:text-cyan-300 font-medium cursor-pointer">Hurricane</span>
+                </div>
+              </td>
+              <td class="py-3.5 px-2 text-center">
+                <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">Active</span>
+              </td>
+              <td class="py-3.5 px-2 text-right">
+                <span class="editable-cell font-mono text-slate-300 inline-block relative" title="Double-click to edit">
+                  5
+                  <span class="pencil-icon">
+                    <svg class="w-3 h-3 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </span>
+                </span>
+              </td>
+              <td class="py-3.5 px-2 text-center">
+                <span class="editable-cell font-mono text-slate-300 inline-block relative" title="Double-click to edit">
+                  10/20
+                  <span class="pencil-icon" style="right: -18px;">
+                    <svg class="w-3 h-3 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </span>
+                </span>
+              </td>
+              <!-- All estimated -->
+              <td class="py-3.5 px-2 text-right">
+                <span class="est-value font-mono"><span class="est-prefix">est.</span>280M</span>
+              </td>
+              <td class="py-3.5 px-2 text-right">
+                <span class="est-value font-mono"><span class="est-prefix">est.</span>8.2M</span>
+              </td>
+              <td class="py-3.5 px-2 text-right">
+                <span class="est-value font-mono"><span class="est-prefix">est.</span>14M</span>
+              </td>
+              <td class="py-3.5 px-2 text-right">
+                <span class="est-value font-mono"><span class="est-prefix">est.</span>282M</span>
+              </td>
+              <td class="py-3.5 px-3 text-right">
+                <div class="flex items-center justify-end gap-1.5">
+                  <span class="font-mono text-red-400 font-semibold" style="font-variant-numeric: tabular-nums;">-20.2M</span>
+                  <span class="text-xs text-red-400/70 font-mono">(-6.7%)</span>
+                </div>
+              </td>
+              <td class="py-3.5 px-2">
+                <div class="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button class="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-cyan-400" title="View details">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </button>
+                  <button class="p-1.5 hover:bg-red-500/20 rounded text-slate-400 hover:text-red-400" title="Delete">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 5: Jackdaw (T2, active, all estimated) -->
+            <tr class="hover:bg-slate-800/50 group">
+              <td class="py-3.5 px-4">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0">
+                    <img src="https://images.evetech.net/types/34828/icon?size=64" alt="Jackdaw" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\'text-xs text-slate-600\'>JKD</span>';" />
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-cyan-400 hover:text-cyan-300 font-medium cursor-pointer">Jackdaw</span>
+                    <span class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded">T2</span>
+                  </div>
+                </div>
+              </td>
+              <td class="py-3.5 px-2 text-center">
+                <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">Active</span>
+              </td>
+              <td class="py-3.5 px-2 text-right">
+                <span class="editable-cell font-mono text-slate-300 inline-block relative" title="Double-click to edit">
+                  30
+                  <span class="pencil-icon">
+                    <svg class="w-3 h-3 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </span>
+                </span>
+              </td>
+              <td class="py-3.5 px-2 text-center font-mono text-slate-300">2/4</td>
+              <td class="py-3.5 px-2 text-right">
+                <span class="est-value font-mono"><span class="est-prefix">est.</span>890M</span>
+              </td>
+              <td class="py-3.5 px-2 text-right">
+                <span class="est-value font-mono"><span class="est-prefix">est.</span>34M</span>
+              </td>
+              <td class="py-3.5 px-2 text-right">
+                <span class="est-value font-mono"><span class="est-prefix">est.</span>52M</span>
+              </td>
+              <td class="py-3.5 px-2 text-right">
+                <span class="est-value font-mono"><span class="est-prefix">est.</span>1.2B</span>
+              </td>
+              <td class="py-3.5 px-3 text-right">
+                <div class="flex items-center justify-end gap-1.5">
+                  <span class="font-mono text-emerald-400 font-semibold" style="font-variant-numeric: tabular-nums;">224M</span>
+                  <span class="text-xs text-emerald-400/70 font-mono">(+6.8%)</span>
+                </div>
+              </td>
+              <td class="py-3.5 px-2">
+                <div class="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button class="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-cyan-400" title="View details">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </button>
+                  <button class="p-1.5 hover:bg-red-500/20 rounded text-slate-400 hover:text-red-400" title="Delete">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 6: Purifier (T2, active) -->
+            <tr class="hover:bg-slate-800/50 group">
+              <td class="py-3.5 px-4">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0">
+                    <img src="https://images.evetech.net/types/12038/icon?size=64" alt="Purifier" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\'text-xs text-slate-600\'>PUR</span>';" />
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-cyan-400 hover:text-cyan-300 font-medium cursor-pointer">Purifier</span>
+                    <span class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded">T2</span>
+                  </div>
+                </div>
+              </td>
+              <td class="py-3.5 px-2 text-center">
+                <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">Active</span>
+              </td>
+              <td class="py-3.5 px-2 text-right">
+                <span class="editable-cell font-mono text-slate-300 inline-block relative" title="Double-click to edit">
+                  40
+                  <span class="pencil-icon">
+                    <svg class="w-3 h-3 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </span>
+                </span>
+              </td>
+              <td class="py-3.5 px-2 text-center font-mono text-slate-300">2/4</td>
+              <td class="py-3.5 px-2 text-right font-mono text-slate-300">620M</td>
+              <td class="py-3.5 px-2 text-right font-mono text-slate-300">18M</td>
+              <td class="py-3.5 px-2 text-right font-mono text-slate-300">42M</td>
+              <td class="py-3.5 px-2 text-right font-mono text-slate-300">1.1B</td>
+              <td class="py-3.5 px-3 text-right">
+                <div class="flex items-center justify-end gap-1.5">
+                  <span class="font-mono text-emerald-400 font-semibold" style="font-variant-numeric: tabular-nums;">420M</span>
+                  <span class="text-xs text-emerald-400/70 font-mono">(+11.2%)</span>
+                </div>
+              </td>
+              <td class="py-3.5 px-2">
+                <div class="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button class="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-cyan-400" title="View details">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </button>
+                  <button class="p-1.5 hover:bg-red-500/20 rounded text-slate-400 hover:text-red-400" title="Delete">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+
+          </tbody>
+
+          <!-- Total row -->
+          <tfoot>
+            <tr class="border-t border-slate-600 font-semibold text-slate-200">
+              <td colspan="8" class="py-3.5 px-4 text-right">Total Profit</td>
+              <td class="py-3.5 px-3 text-right">
+                <span class="font-mono text-emerald-400 text-lg" style="font-variant-numeric: tabular-nums;">2.58B</span>
+              </td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- Legend footer -->
+      <div class="px-6 py-3 border-t border-slate-800 flex items-center gap-6 text-xs text-slate-500">
+        <div class="flex items-center gap-2">
+          <span class="inline-block border-b border-dashed border-slate-400/30 px-1 text-slate-400">value</span>
+          <span>= editable (double-click)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="est-value" style="font-size: 11px;"><span class="est-prefix">est.</span>value</span>
+          <span>= estimated (no actual data yet)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded">T2</span>
+          <span>= Tech II (fixed ME 2 / TE 4)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- CREATE PROJECT MODAL                          -->
+  <!-- ============================================ -->
+  <div id="createModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+    <div class="modal-card bg-slate-900 rounded-xl border border-slate-700 shadow-2xl w-full max-w-xl mx-4">
+      <!-- Modal header -->
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-white">New Industry Project</h3>
+        <button
+          onclick="document.getElementById('createModal').classList.add('hidden')"
+          class="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-slate-200 transition-colors"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Modal body -->
+      <div class="px-6 py-5 space-y-5">
+        <!-- Project name -->
+        <div>
+          <label class="block text-sm text-slate-400 mb-1.5">Project Name <span class="text-slate-600">(optional)</span></label>
+          <input
+            type="text"
+            placeholder="Ex: Rorqual Fleet, Capital Build..."
+            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500 placeholder-slate-600 transition-colors"
+          />
+        </div>
+
+        <!-- Item search -->
+        <div>
+          <label class="block text-sm text-slate-400 mb-1.5">Product <span class="text-red-400">*</span></label>
+          <div class="relative">
+            <input
+              type="text"
+              value="Ishtar"
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500 placeholder-slate-600"
+            />
+            <!-- Fake search result below input -->
+            <div class="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden z-10 hidden">
+              <div class="py-1">
+                <div class="px-3 py-2 hover:bg-slate-700 flex items-center gap-3 cursor-pointer">
+                  <div class="w-6 h-6 rounded bg-slate-700"></div>
+                  <span class="text-sm text-slate-200">Ishtar</span>
+                  <span class="text-xs text-slate-500 ml-auto">Heavy Assault Cruiser</span>
+                </div>
+              </div>
+            </div>
+            <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+              <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">Ishtar</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Parameters row: Runs, ME, TE -->
+        <div class="grid grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm text-slate-400 mb-1.5">Runs</label>
+            <input
+              type="number"
+              value="10"
+              min="1"
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 text-center focus:outline-none focus:border-cyan-500 font-mono"
+            />
+          </div>
+          <div>
+            <label class="block text-sm text-slate-400 mb-1.5">ME</label>
+            <input
+              type="number"
+              value="10"
+              min="0"
+              max="10"
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 text-center focus:outline-none focus:border-cyan-500 font-mono"
+            />
+          </div>
+          <div>
+            <label class="block text-sm text-slate-400 mb-1.5">TE</label>
+            <input
+              type="number"
+              value="20"
+              min="0"
+              max="20"
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 text-center focus:outline-none focus:border-cyan-500 font-mono"
+            />
+          </div>
+        </div>
+
+        <!-- Add another product link -->
+        <button class="flex items-center gap-2 text-sm text-slate-400 hover:text-cyan-400 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Add another product (multi-product project)
+        </button>
+      </div>
+
+      <!-- Modal footer -->
+      <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-end gap-3">
+        <button
+          onclick="document.getElementById('createModal').classList.add('hidden')"
+          class="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-300 text-sm font-medium transition-colors"
+        >
+          Cancel
+        </button>
+        <button class="btn-action px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm font-semibold flex items-center gap-2 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Create Project
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- DELETE CONFIRMATION MODAL                     -->
+  <!-- ============================================ -->
+  <div id="deleteModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+    <div class="modal-card bg-slate-900 rounded-xl border border-slate-700 shadow-2xl w-full max-w-sm mx-4">
+      <!-- Modal body -->
+      <div class="px-6 py-6 text-center">
+        <!-- Warning icon -->
+        <div class="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+          <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </div>
+        <h3 class="text-lg font-semibold text-white mb-2">Delete project 'Ishtar'?</h3>
+        <p class="text-sm text-slate-400">This action cannot be undone. All project data, steps, and linked jobs will be permanently removed.</p>
+      </div>
+
+      <!-- Modal footer -->
+      <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-center gap-3">
+        <button
+          onclick="document.getElementById('deleteModal').classList.add('hidden')"
+          class="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-300 text-sm font-medium transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onclick="document.getElementById('deleteModal').classList.add('hidden')"
+          class="btn-action px-6 py-2.5 bg-red-600 hover:bg-red-500 rounded-lg text-white text-sm font-semibold flex items-center gap-2 transition-colors"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

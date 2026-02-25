@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EVE Tools — Invention Calculator</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #020617;
+    color: #e2e8f0;
+  }
+  .font-mono, [class*="font-mono"] {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  /* Subtle scan-line overlay for EVE atmosphere */
+  .eve-scanlines::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.03) 2px,
+      rgba(0, 0, 0, 0.03) 4px
+    );
+    z-index: 9999;
+  }
+
+  /* Card standard */
+  .eve-card {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 0.75rem;
+  }
+
+  /* Row selection transition */
+  .decryptor-row {
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+  }
+  .decryptor-row:hover {
+    background: rgba(30, 41, 59, 0.5);
+  }
+  .decryptor-row.selected {
+    background: rgba(6, 182, 212, 0.08);
+    border-left-color: #22d3ee;
+  }
+  .decryptor-row.best-margin {
+    background: rgba(16, 185, 129, 0.04);
+  }
+  .decryptor-row.selected.best-margin {
+    background: rgba(6, 182, 212, 0.08);
+    border-left-color: #22d3ee;
+  }
+
+  /* Radio button */
+  .radio-outer {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 1.5px solid #475569;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s ease;
+  }
+  .selected .radio-outer {
+    border-color: #06b6d4;
+    box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.25);
+  }
+  .radio-inner {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: transparent;
+    transition: background 0.15s ease;
+  }
+  .selected .radio-inner {
+    background: #22d3ee;
+  }
+
+  /* Cost breakdown card hover */
+  .cost-card {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .cost-card:hover {
+    border-color: #334155;
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.04);
+  }
+
+  /* Probability bar animation */
+  .prob-bar-fill {
+    transition: width 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  /* Fade in for breakdown panel */
+  @keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .breakdown-animate {
+    animation: fadeSlideUp 0.25s ease forwards;
+  }
+
+  /* Subtle glow on the info card icon */
+  .item-icon-glow {
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.12), 0 0 40px rgba(6, 182, 212, 0.04);
+  }
+</style>
+</head>
+<body class="eve-scanlines min-h-screen p-6">
+
+<div class="max-w-7xl mx-auto space-y-5">
+
+  <!-- ========== 1. SECTION HEADER ========== -->
+  <div class="flex items-center gap-3">
+    <div class="flex items-center gap-2">
+      <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+      </svg>
+      <h2 class="text-lg font-bold text-slate-100">Invention Calculator</h2>
+    </div>
+    <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 bg-purple-500/15 text-purple-400 rounded border border-purple-500/20">T2 / T3</span>
+  </div>
+
+  <!-- ========== 2. CONFIGURATION BAR ========== -->
+  <div class="eve-card p-4">
+    <div class="flex flex-wrap items-end gap-4">
+      <!-- Search -->
+      <div class="flex-1 min-w-[280px]">
+        <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">Item</label>
+        <div class="relative">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input type="text" placeholder="Search T2 item..." value="Jackdaw"
+            class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500 placeholder-slate-600" />
+        </div>
+      </div>
+
+      <!-- Solar System -->
+      <div>
+        <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">System</label>
+        <select class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
+          <option>Perimeter</option>
+          <option>1DQ1-A</option>
+          <option>Jita</option>
+        </select>
+      </div>
+
+      <!-- Desired BPCs -->
+      <div>
+        <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">Desired BPCs</label>
+        <input type="number" value="10" min="1"
+          class="w-24 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-mono text-slate-200 text-center focus:outline-none focus:border-cyan-500" />
+      </div>
+
+      <!-- Calculate -->
+      <button class="px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        </svg>
+        Calculate
+      </button>
+    </div>
+  </div>
+
+  <!-- ========== 3. ITEM INFO CARD ========== -->
+  <div class="eve-card p-5">
+    <div class="flex items-start gap-5 flex-wrap lg:flex-nowrap">
+      <!-- Icon -->
+      <div class="flex-shrink-0">
+        <img src="https://images.evetech.net/types/34828/icon?size=64" alt="Jackdaw"
+          class="w-16 h-16 rounded-lg border border-slate-700 item-icon-glow" />
+      </div>
+
+      <!-- Main info -->
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2.5 mb-1 flex-wrap">
+          <h3 class="text-lg font-bold text-slate-100">Jackdaw</h3>
+          <span class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-sm border border-blue-500/20">T2</span>
+          <span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">Caldari Tactical Destroyer</span>
+        </div>
+        <p class="text-sm text-slate-500 italic mb-3">Invented from <span class="text-slate-400">Corax Blueprint</span></p>
+
+        <div class="flex items-center gap-6 flex-wrap">
+          <div>
+            <span class="text-xs text-slate-500 uppercase tracking-wider">Base Probability</span>
+            <div class="font-mono text-sm text-cyan-400 font-semibold">34.0%</div>
+          </div>
+          <div class="h-8 w-px bg-slate-800"></div>
+          <div>
+            <span class="text-xs text-slate-500 uppercase tracking-wider">Datacores</span>
+            <div class="text-sm text-slate-300">Datacore - Mechanical Eng. <span class="font-mono text-cyan-400">x2</span> + Datacore - Caldari Starship Eng. <span class="font-mono text-cyan-400">x2</span></div>
+          </div>
+          <div class="h-8 w-px bg-slate-800"></div>
+          <div>
+            <span class="text-xs text-slate-500 uppercase tracking-wider">Invention Time</span>
+            <div class="font-mono text-sm text-slate-300">1h 42m</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 4. DECRYPTOR COMPARISON TABLE ========== -->
+  <div class="eve-card overflow-hidden">
+    <div class="px-4 py-3 border-b border-slate-800">
+      <div class="flex items-center justify-between flex-wrap gap-2">
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+          </svg>
+          <h4 class="text-sm font-semibold text-slate-200">Decryptor Comparison</h4>
+          <span class="text-xs text-slate-600 font-mono ml-2">10 BPCs target</span>
+        </div>
+        <div class="flex items-center gap-4 text-xs text-slate-500">
+          <span class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-sm bg-emerald-400/20 border border-emerald-400/30"></span>
+            Best ME (margin)
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-sm bg-cyan-400/20 border border-cyan-400/30"></span>
+            Cheapest / BPC
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm" id="decryptor-table">
+        <thead>
+          <tr class="border-b border-slate-700">
+            <th class="text-center py-2.5 px-2 w-8"></th>
+            <th class="text-left py-2.5 px-3 text-xs uppercase tracking-wider text-slate-400">Decryptor</th>
+            <th class="text-center py-2.5 px-2 text-xs uppercase tracking-wider text-slate-400">ME</th>
+            <th class="text-center py-2.5 px-2 text-xs uppercase tracking-wider text-slate-400">TE</th>
+            <th class="text-center py-2.5 px-2 text-xs uppercase tracking-wider text-slate-400">Runs/BPC</th>
+            <th class="text-right py-2.5 px-3 text-xs uppercase tracking-wider text-slate-400">Probability</th>
+            <th class="text-right py-2.5 px-3 text-xs uppercase tracking-wider text-slate-400">Cost/Attempt</th>
+            <th class="text-right py-2.5 px-3 text-xs uppercase tracking-wider text-slate-400">Cost/BPC</th>
+            <th class="text-center py-2.5 px-2 text-xs uppercase tracking-wider text-slate-400">Attempts</th>
+            <th class="text-right py-2.5 px-4 text-xs uppercase tracking-wider text-slate-400">Total Cost</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800/60" id="decryptor-tbody">
+          <!-- Rows injected by JS -->
+        </tbody>
+      </table>
+    </div>
+
+    <div class="px-4 py-2.5 border-t border-slate-800 bg-slate-900/30">
+      <p class="text-xs text-slate-600">Click a row to select a decryptor and view its cost breakdown below.</p>
+    </div>
+  </div>
+
+  <!-- ========== 5. COST BREAKDOWN PANEL ========== -->
+  <div id="breakdown-panel" class="breakdown-animate">
+    <!-- Injected by JS on row selection -->
+  </div>
+
+  <!-- ========== 6. INFO FOOTER ========== -->
+  <div class="flex items-start gap-3 px-4 py-3 rounded-xl bg-cyan-400/5 border border-cyan-400/20">
+    <svg class="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <span class="text-sm text-cyan-300/70">Costs are based on Jita sell prices for datacores and decryptors. Install costs use the selected system's cost index. Probability does not account for Encryption skill bonuses.</span>
+  </div>
+
+</div>
+
+<script>
+// ── Data ──────────────────────────────────────────────
+const BASE_ME = 2;
+const BASE_TE = 4;
+
+const decryptors = [
+  {
+    id: 'none', name: null, label: 'No Decryptor',
+    me: 2, te: 4, runs: 1, prob: 0.340,
+    costPerAttempt: 1240000, attempts: 30, totalCost: 37200000,
+    badge: null,
+    breakdown: {
+      datacores: 892000, decryptor: 0, copyCost: 124000, installCost: 224000,
+      datacoreDetail: [
+        { name: 'Datacore - Mech. Eng.', qty: 2, cost: 456000 },
+        { name: 'Datacore - Caldari SE', qty: 2, cost: 436000 },
+      ],
+      decryptorDetail: null,
+      summary: '10 BPCs needed / 1 run per BPC = 10 successes needed / 30 attempts at 34.0% success rate'
+    }
+  },
+  {
+    id: 'accelerant', name: 'Accelerant', label: 'Accelerant Decryptor',
+    me: 4, te: 14, runs: 2, prob: 0.408,
+    costPerAttempt: 2840000, attempts: 25, totalCost: 71000000,
+    badge: null,
+    breakdown: {
+      datacores: 892000, decryptor: 1724000, copyCost: 124000, installCost: 100000,
+      datacoreDetail: [
+        { name: 'Datacore - Mech. Eng.', qty: 2, cost: 456000 },
+        { name: 'Datacore - Caldari SE', qty: 2, cost: 436000 },
+      ],
+      decryptorDetail: { name: 'Accelerant Decryptor', qty: 1, unitPrice: 1724000 },
+      summary: '10 BPCs needed / 2 runs per BPC = 5 successes needed / 25 attempts at 40.8% success rate'
+    }
+  },
+  {
+    id: 'attainment', name: 'Attainment', label: 'Attainment Decryptor',
+    me: 1, te: 8, runs: 5, prob: 0.612,
+    costPerAttempt: 5210000, attempts: 17, totalCost: 88570000,
+    badge: 'cheapest',
+    breakdown: {
+      datacores: 892000, decryptor: 3194000, copyCost: 124000, installCost: 1000000,
+      datacoreDetail: [
+        { name: 'Datacore - Mech. Eng.', qty: 2, cost: 456000 },
+        { name: 'Datacore - Caldari SE', qty: 2, cost: 436000 },
+      ],
+      decryptorDetail: { name: 'Attainment Decryptor', qty: 1, unitPrice: 3194000 },
+      summary: '10 BPCs needed / 5 runs per BPC = 2 successes needed / 17 attempts at 61.2% success rate'
+    }
+  },
+  {
+    id: 'augmentation', name: 'Augmentation', label: 'Augmentation Decryptor',
+    me: 0, te: 6, runs: 10, prob: 0.204,
+    costPerAttempt: 8560000, attempts: 49, totalCost: 419440000,
+    badge: null,
+    breakdown: {
+      datacores: 892000, decryptor: 6544000, copyCost: 124000, installCost: 1000000,
+      datacoreDetail: [
+        { name: 'Datacore - Mech. Eng.', qty: 2, cost: 456000 },
+        { name: 'Datacore - Caldari SE', qty: 2, cost: 436000 },
+      ],
+      decryptorDetail: { name: 'Augmentation Decryptor', qty: 1, unitPrice: 6544000 },
+      summary: '10 BPCs needed / 10 runs per BPC = 1 success needed / 49 attempts at 20.4% success rate'
+    }
+  },
+  {
+    id: 'opt-attainment', name: 'Optimized Attainment', label: 'Optimized Attainment Decryptor',
+    me: 3, te: 2, runs: 3, prob: 0.340,
+    costPerAttempt: 4120000, attempts: 30, totalCost: 123600000,
+    badge: null,
+    breakdown: {
+      datacores: 892000, decryptor: 2104000, copyCost: 124000, installCost: 1000000,
+      datacoreDetail: [
+        { name: 'Datacore - Mech. Eng.', qty: 2, cost: 456000 },
+        { name: 'Datacore - Caldari SE', qty: 2, cost: 436000 },
+      ],
+      decryptorDetail: { name: 'Opt. Attainment Decryptor', qty: 1, unitPrice: 2104000 },
+      summary: '10 BPCs needed / 3 runs per BPC = 4 successes needed / 30 attempts at 34.0% success rate'
+    }
+  },
+  {
+    id: 'parity', name: 'Parity', label: 'Parity Decryptor',
+    me: 3, te: 2, runs: 4, prob: 0.510,
+    costPerAttempt: 4350000, attempts: 20, totalCost: 87000000,
+    badge: null,
+    breakdown: {
+      datacores: 892000, decryptor: 2334000, copyCost: 124000, installCost: 1000000,
+      datacoreDetail: [
+        { name: 'Datacore - Mech. Eng.', qty: 2, cost: 456000 },
+        { name: 'Datacore - Caldari SE', qty: 2, cost: 436000 },
+      ],
+      decryptorDetail: { name: 'Parity Decryptor', qty: 1, unitPrice: 2334000 },
+      summary: '10 BPCs needed / 4 runs per BPC = 3 successes needed / 20 attempts at 51.0% success rate'
+    }
+  },
+  {
+    id: 'process', name: 'Process', label: 'Process Decryptor',
+    me: 5, te: 10, runs: 1, prob: 0.374,
+    costPerAttempt: 1890000, attempts: 27, totalCost: 51030000,
+    badge: 'best-margin',
+    breakdown: {
+      datacores: 892000, decryptor: 774000, copyCost: 124000, installCost: 100000,
+      datacoreDetail: [
+        { name: 'Datacore - Mech. Eng.', qty: 2, cost: 456000 },
+        { name: 'Datacore - Caldari SE', qty: 2, cost: 436000 },
+      ],
+      decryptorDetail: { name: 'Process Decryptor', qty: 1, unitPrice: 774000 },
+      summary: '10 BPCs needed / 1 run per BPC = 10 successes needed / 27 attempts at 37.4% success rate'
+    }
+  },
+  {
+    id: 'symmetry', name: 'Symmetry', label: 'Symmetry Decryptor',
+    me: 3, te: 12, runs: 3, prob: 0.340,
+    costPerAttempt: 3670000, attempts: 30, totalCost: 110100000,
+    badge: null,
+    breakdown: {
+      datacores: 892000, decryptor: 1654000, copyCost: 124000, installCost: 1000000,
+      datacoreDetail: [
+        { name: 'Datacore - Mech. Eng.', qty: 2, cost: 456000 },
+        { name: 'Datacore - Caldari SE', qty: 2, cost: 436000 },
+      ],
+      decryptorDetail: { name: 'Symmetry Decryptor', qty: 1, unitPrice: 1654000 },
+      summary: '10 BPCs needed / 3 runs per BPC = 4 successes needed / 30 attempts at 34.0% success rate'
+    }
+  },
+  {
+    id: 'opt-augmentation', name: 'Optimized Augmentation', label: 'Optimized Augmentation Decryptor',
+    me: 0, te: 4, runs: 8, prob: 0.306,
+    costPerAttempt: 7230000, attempts: 33, totalCost: 238590000,
+    badge: null,
+    breakdown: {
+      datacores: 892000, decryptor: 5214000, copyCost: 124000, installCost: 1000000,
+      datacoreDetail: [
+        { name: 'Datacore - Mech. Eng.', qty: 2, cost: 456000 },
+        { name: 'Datacore - Caldari SE', qty: 2, cost: 436000 },
+      ],
+      decryptorDetail: { name: 'Opt. Augmentation Decryptor', qty: 1, unitPrice: 5214000 },
+      summary: '10 BPCs needed / 8 runs per BPC = 2 successes needed / 33 attempts at 30.6% success rate'
+    }
+  },
+];
+
+// ── Helpers ───────────────────────────────────────────
+function fmtIsk(v) {
+  if (v >= 1e9) return (v / 1e9).toFixed(2) + 'B';
+  if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M';
+  if (v >= 1e3) return (v / 1e3).toFixed(0) + 'K';
+  return v.toFixed(0);
+}
+
+function fmtIskFull(v) {
+  return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+
+function costPerBpc(d) {
+  const totalRuns = d.runs * Math.ceil(10 / d.runs); // approximate
+  return d.totalCost / 10;
+}
+
+function meColor(me) {
+  if (me > BASE_ME) return 'text-emerald-400'; // higher ME = less materials = better
+  if (me < BASE_ME) return 'text-red-400';
+  return 'text-slate-400';
+}
+
+function teColor(te) {
+  if (te < BASE_TE) return 'text-emerald-400'; // lower TE = faster = better
+  if (te > BASE_TE) return 'text-red-400';
+  return 'text-slate-400';
+}
+
+// ── Render table ─────────────────────────────────────
+const tbody = document.getElementById('decryptor-tbody');
+let selectedIdx = 2; // Attainment pre-selected
+
+function renderTable() {
+  tbody.innerHTML = '';
+  decryptors.forEach((d, i) => {
+    const isSelected = i === selectedIdx;
+    const isBestMargin = d.badge === 'best-margin';
+    const isCheapest = d.badge === 'cheapest';
+    const bpcCost = costPerBpc(d);
+
+    const row = document.createElement('tr');
+    row.className = 'decryptor-row' +
+      (isSelected ? ' selected' : '') +
+      (isBestMargin && !isSelected ? ' best-margin' : '');
+    row.onclick = () => { selectedIdx = i; renderTable(); renderBreakdown(); };
+
+    row.innerHTML = `
+      <td class="py-2.5 px-2 text-center">
+        <div class="radio-outer mx-auto"><div class="radio-inner"></div></div>
+      </td>
+      <td class="py-2.5 px-3">
+        <div class="flex items-center gap-2">
+          ${d.name === null
+            ? '<span class="text-slate-500 italic">None</span>'
+            : `<span class="${isSelected ? 'text-slate-100 font-semibold' : 'text-slate-200'}">${d.name}</span>`
+          }
+          ${isBestMargin ? '<span class="text-[10px] uppercase tracking-wider px-1.5 py-0.5 bg-emerald-500/15 text-emerald-400 rounded-sm font-semibold border border-emerald-500/20">Best ME</span>' : ''}
+          ${isCheapest ? '<span class="text-[10px] uppercase tracking-wider px-1.5 py-0.5 bg-cyan-500/15 text-cyan-400 rounded-sm font-semibold border border-cyan-500/20">Cheapest/BPC</span>' : ''}
+        </div>
+      </td>
+      <td class="py-2.5 px-2 text-center font-mono font-semibold ${meColor(d.me)}">${d.me}</td>
+      <td class="py-2.5 px-2 text-center font-mono ${teColor(d.te)}">${d.te}</td>
+      <td class="py-2.5 px-2 text-center font-mono ${isSelected ? 'text-slate-100' : 'text-slate-300'}">${d.runs}</td>
+      <td class="py-2.5 px-3 text-right font-mono ${isSelected ? 'text-slate-100' : 'text-slate-300'}">${(d.prob * 100).toFixed(1)}%</td>
+      <td class="py-2.5 px-3 text-right font-mono ${isSelected ? 'text-slate-100' : 'text-slate-400'}">${fmtIsk(d.costPerAttempt)}</td>
+      <td class="py-2.5 px-3 text-right font-mono font-semibold ${isCheapest ? 'text-cyan-400' : (isSelected ? 'text-slate-100' : 'text-slate-300')}">${fmtIsk(bpcCost)}</td>
+      <td class="py-2.5 px-2 text-center font-mono ${isSelected ? 'text-slate-100' : 'text-slate-500'}">${d.attempts}</td>
+      <td class="py-2.5 px-4 text-right font-mono ${isSelected ? 'text-cyan-400 font-bold' : 'text-slate-300'}">${fmtIsk(d.totalCost)}</td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+// ── Render breakdown ─────────────────────────────────
+const breakdownPanel = document.getElementById('breakdown-panel');
+
+function renderBreakdown() {
+  const d = decryptors[selectedIdx];
+  const b = d.breakdown;
+
+  breakdownPanel.innerHTML = `
+    <div class="breakdown-animate space-y-4">
+      <!-- Cost cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+
+        <!-- Datacores -->
+        <div class="eve-card cost-card p-4">
+          <div class="flex items-center gap-2 mb-2">
+            <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+            <span class="text-xs text-slate-500 uppercase tracking-wider">Datacores</span>
+          </div>
+          <div class="font-mono text-lg text-slate-100 font-bold mb-2">${fmtIsk(b.datacores)}</div>
+          <div class="space-y-1">
+            ${b.datacoreDetail.map(dc =>
+              `<div class="flex items-center justify-between text-xs">
+                <span class="text-slate-400">${dc.name} <span class="font-mono text-slate-500">x${dc.qty}</span></span>
+                <span class="font-mono text-slate-300">${fmtIsk(dc.cost)}</span>
+              </div>`
+            ).join('')}
+          </div>
+        </div>
+
+        <!-- Decryptor -->
+        <div class="eve-card cost-card p-4">
+          <div class="flex items-center gap-2 mb-2">
+            <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+            <span class="text-xs text-slate-500 uppercase tracking-wider">Decryptor</span>
+          </div>
+          <div class="font-mono text-lg text-slate-100 font-bold mb-2">${fmtIsk(b.decryptor)}</div>
+          ${b.decryptorDetail
+            ? `<div class="text-xs text-slate-400">${b.decryptorDetail.name} <span class="font-mono text-slate-500">x${b.decryptorDetail.qty}</span></div>
+               <div class="text-xs font-mono text-slate-500">${fmtIsk(b.decryptorDetail.unitPrice)} / unit</div>`
+            : '<div class="text-xs text-slate-600 italic">No decryptor used</div>'
+          }
+        </div>
+
+        <!-- Copy Cost -->
+        <div class="eve-card cost-card p-4">
+          <div class="flex items-center gap-2 mb-2">
+            <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span class="text-xs text-slate-500 uppercase tracking-wider">Copy Cost</span>
+          </div>
+          <div class="font-mono text-lg text-slate-100 font-bold mb-2">${fmtIsk(b.copyCost)}</div>
+          <div class="text-xs text-slate-400">T1 BPC copy job</div>
+          <div class="text-xs text-slate-600">Per attempt (1 run copy)</div>
+        </div>
+
+        <!-- Install Cost -->
+        <div class="eve-card cost-card p-4">
+          <div class="flex items-center gap-2 mb-2">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span class="text-xs text-slate-500 uppercase tracking-wider">Install Cost</span>
+          </div>
+          <div class="font-mono text-lg text-slate-100 font-bold mb-2">${fmtIsk(b.installCost)}</div>
+          <div class="text-xs text-slate-400">Invention job install</div>
+          <div class="text-xs text-slate-600">Perimeter cost index</div>
+        </div>
+      </div>
+
+      <!-- Summary bar -->
+      <div class="eve-card p-4">
+        <div class="flex items-center justify-between flex-wrap gap-3 mb-3">
+          <div class="flex items-center gap-3">
+            <svg class="w-4 h-4 text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <span class="text-sm text-slate-300">${b.summary}</span>
+          </div>
+          <div class="flex items-center gap-4">
+            <div class="text-right">
+              <span class="text-xs text-slate-500 uppercase tracking-wider">Cost / Attempt</span>
+              <div class="font-mono text-slate-200 font-semibold">${fmtIsk(d.costPerAttempt)}</div>
+            </div>
+            <div class="text-right">
+              <span class="text-xs text-slate-500 uppercase tracking-wider">Cost / BPC</span>
+              <div class="font-mono text-cyan-400 font-bold">${fmtIsk(costPerBpc(d))}</div>
+            </div>
+            <div class="text-right">
+              <span class="text-xs text-slate-500 uppercase tracking-wider">Total</span>
+              <div class="font-mono text-slate-100 font-bold">${fmtIsk(d.totalCost)}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Probability bar -->
+        <div class="flex items-center gap-3">
+          <span class="text-xs text-slate-500 w-20 shrink-0">Success rate</span>
+          <div class="flex-1 h-2 rounded-full bg-slate-800 overflow-hidden">
+            <div class="prob-bar-fill h-full rounded-full ${d.prob >= 0.5 ? 'bg-emerald-500/60' : d.prob >= 0.3 ? 'bg-cyan-500/60' : 'bg-amber-500/60'}"
+              style="width: ${(d.prob * 100).toFixed(1)}%"></div>
+          </div>
+          <span class="font-mono text-xs ${d.prob >= 0.5 ? 'text-emerald-400' : d.prob >= 0.3 ? 'text-cyan-400' : 'text-amber-400'} w-12 text-right">${(d.prob * 100).toFixed(1)}%</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ── Init ──────────────────────────────────────────────
+renderTable();
+renderBreakdown();
+</script>
+</body>
+</html>

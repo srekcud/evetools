@@ -47,9 +47,15 @@ class IndustryCalculationService
             return $station?->getStationName();
         }
 
-        // Player structures
+        // Player structures: check cached structures first (market-synced)
         $structure = $this->cachedStructureRepository->findByStructureId($stationId);
-        return $structure?->getName();
+        if ($structure !== null) {
+            return $structure->getName();
+        }
+
+        // Fallback: check user-configured industry structures
+        $config = $this->structureConfigRepository->findByLocationId($stationId);
+        return $config?->getName();
     }
 
     public function resolveTypeName(int $typeId): string
@@ -250,30 +256,46 @@ class IndustryCalculationService
         $structureData = $this->getStructureBonusForStep($step);
         $structureTimeMultiplier = 1 - $structureData['timeBonus'] / 100;
 
-        // Skill multipliers
         $skillMultiplier = 1.0;
         if ($characterSkills !== null) {
-            if ($step->getActivityType() === 'reaction') {
-                $reactionLevel = $characterSkills[CachedCharacterSkill::SKILL_REACTIONS] ?? 0;
-                $skillMultiplier *= (1 - 0.04 * $reactionLevel);
-            } else {
-                $industryLevel = $characterSkills[CachedCharacterSkill::SKILL_INDUSTRY] ?? 0;
-                $advancedLevel = $characterSkills[CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY] ?? 0;
-                $skillMultiplier *= (1 - 0.04 * $industryLevel);
-                $skillMultiplier *= (1 - 0.03 * $advancedLevel);
-            }
-
-            // Blueprint-specific science skills (1% per level)
             $scienceSkillIds = $this->getBlueprintScienceSkillIds($step->getBlueprintTypeId(), $step->getActivityType());
-            foreach ($scienceSkillIds as $skillId) {
-                $level = $characterSkills[$skillId] ?? 0;
-                if ($level > 0) {
-                    $skillMultiplier *= (1 - 0.01 * $level);
-                }
-            }
+            $skillMultiplier = $this->calculateSkillTimeMultiplier($characterSkills, $step->getActivityType(), $scienceSkillIds);
         }
 
         return (int) ceil($baseTime * $teMultiplier * $structureTimeMultiplier * $skillMultiplier);
+    }
+
+    /**
+     * Calculate the skill time multiplier for a given set of character skills.
+     *
+     * Applies Industry (4%/lvl), Advanced Industry (3%/lvl), or Reactions (4%/lvl)
+     * plus blueprint-specific science skills (1%/lvl).
+     *
+     * @param array<int, int> $skillLevels Skill type ID => level
+     * @param int[] $scienceSkillIds Blueprint-specific science skill IDs
+     */
+    public function calculateSkillTimeMultiplier(array $skillLevels, string $activityType, array $scienceSkillIds = []): float
+    {
+        $multiplier = 1.0;
+
+        if ($activityType === 'reaction') {
+            $reactionLevel = $skillLevels[CachedCharacterSkill::SKILL_REACTIONS] ?? 0;
+            $multiplier *= (1 - CachedCharacterSkill::REACTION_TIME_BONUS_PER_LEVEL * $reactionLevel);
+        } else {
+            $industryLevel = $skillLevels[CachedCharacterSkill::SKILL_INDUSTRY] ?? 0;
+            $advancedLevel = $skillLevels[CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY] ?? 0;
+            $multiplier *= (1 - CachedCharacterSkill::INDUSTRY_TIME_BONUS_PER_LEVEL * $industryLevel);
+            $multiplier *= (1 - CachedCharacterSkill::ADVANCED_INDUSTRY_TIME_BONUS_PER_LEVEL * $advancedLevel);
+        }
+
+        foreach ($scienceSkillIds as $skillId) {
+            $level = $skillLevels[$skillId] ?? 0;
+            if ($level > 0) {
+                $multiplier *= (1 - CachedCharacterSkill::SCIENCE_SKILL_TIME_BONUS_PER_LEVEL * $level);
+            }
+        }
+
+        return $multiplier;
     }
 
     /**

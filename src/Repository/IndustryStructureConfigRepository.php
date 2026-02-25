@@ -58,6 +58,17 @@ class IndustryStructureConfigRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    public function findByLocationId(int $locationId): ?IndustryStructureConfig
+    {
+        return $this->createQueryBuilder('s')
+            ->where('s.locationId = :locationId')
+            ->andWhere('s.isDeleted = false')
+            ->setParameter('locationId', $locationId)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     public function clearDefaultForUser(User $user): void
     {
         $this->createQueryBuilder('s')

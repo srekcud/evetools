@@ -110,6 +110,9 @@ class IndustryJobSyncService
                 }
             }
 
+            // Track which ESI job IDs belong to the user's characters (not corpmates)
+            $ownedEsiJobIds = [];
+
             foreach ($jobsByJobId as $jobData) {
                 // Resolve the actual installer character — skip jobs from corpmates
                 $installerId = $jobData['installer_id'] ?? null;
@@ -118,6 +121,7 @@ class IndustryJobSyncService
                     continue;
                 }
                 $installerCharacter = $installerLookup[$installerId];
+                $ownedEsiJobIds[] = $jobData['job_id'];
 
                 $existing = $this->jobRepository->findByJobId($jobData['job_id']);
 
@@ -159,6 +163,29 @@ class IndustryJobSyncService
                 }
 
                 $this->entityManager->persist($job);
+            }
+
+            // Mark stale jobs as delivered: jobs in DB that disappeared from ESI
+            // with an end_date in the past are effectively delivered/expired
+            $now = new \DateTimeImmutable();
+            foreach ($installerLookup as $userCharacter) {
+                $activeDbJobs = $this->jobRepository->findActiveJobsByCharacter($userCharacter);
+                foreach ($activeDbJobs as $dbJob) {
+                    if (in_array($dbJob->getJobId(), $ownedEsiJobIds, true)) {
+                        continue;
+                    }
+                    if ($dbJob->getEndDate() > $now) {
+                        continue;
+                    }
+                    $dbJob->setStatus('delivered');
+                    $dbJob->setCompletedDate($dbJob->getEndDate());
+                    $dbJob->setCachedAt($now);
+                    $this->logger->info('Stale industry job marked as delivered', [
+                        'jobId' => $dbJob->getJobId(),
+                        'characterName' => $userCharacter->getName(),
+                        'endDate' => $dbJob->getEndDate()->format('c'),
+                    ]);
+                }
             }
 
             $this->entityManager->flush();

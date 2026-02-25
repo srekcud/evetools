@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Enum\AlertDirection;
+use App\Enum\AlertPriceSource;
+use App\Enum\AlertStatus;
 use App\Repository\MarketPriceAlertRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -15,18 +18,6 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(columns: ['status'])]
 class MarketPriceAlert
 {
-    public const DIRECTION_ABOVE = 'above';
-    public const DIRECTION_BELOW = 'below';
-
-    public const SOURCE_JITA_SELL = 'jita_sell';
-    public const SOURCE_JITA_BUY = 'jita_buy';
-    public const SOURCE_STRUCTURE_SELL = 'structure_sell';
-    public const SOURCE_STRUCTURE_BUY = 'structure_buy';
-
-    public const STATUS_ACTIVE = 'active';
-    public const STATUS_TRIGGERED = 'triggered';
-    public const STATUS_EXPIRED = 'expired';
-
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     #[ORM\GeneratedValue(strategy: 'CUSTOM')]
@@ -43,17 +34,17 @@ class MarketPriceAlert
     #[ORM\Column(type: 'string', length: 255)]
     private string $typeName;
 
-    #[ORM\Column(type: 'string', length: 10)]
-    private string $direction;
+    #[ORM\Column(type: 'string', length: 10, enumType: AlertDirection::class)]
+    private AlertDirection $direction;
 
     #[ORM\Column(type: 'float')]
     private float $threshold;
 
-    #[ORM\Column(type: 'string', length: 20)]
-    private string $priceSource;
+    #[ORM\Column(type: 'string', length: 20, enumType: AlertPriceSource::class)]
+    private AlertPriceSource $priceSource;
 
-    #[ORM\Column(type: 'string', length: 20)]
-    private string $status = self::STATUS_ACTIVE;
+    #[ORM\Column(type: 'string', length: 20, enumType: AlertStatus::class)]
+    private AlertStatus $status = AlertStatus::Active;
 
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $triggeredAt = null;
@@ -104,12 +95,12 @@ class MarketPriceAlert
         return $this;
     }
 
-    public function getDirection(): string
+    public function getDirection(): AlertDirection
     {
         return $this->direction;
     }
 
-    public function setDirection(string $direction): static
+    public function setDirection(AlertDirection $direction): static
     {
         $this->direction = $direction;
         return $this;
@@ -126,23 +117,23 @@ class MarketPriceAlert
         return $this;
     }
 
-    public function getPriceSource(): string
+    public function getPriceSource(): AlertPriceSource
     {
         return $this->priceSource;
     }
 
-    public function setPriceSource(string $priceSource): static
+    public function setPriceSource(AlertPriceSource $priceSource): static
     {
         $this->priceSource = $priceSource;
         return $this;
     }
 
-    public function getStatus(): string
+    public function getStatus(): AlertStatus
     {
         return $this->status;
     }
 
-    public function setStatus(string $status): static
+    public function setStatus(AlertStatus $status): static
     {
         $this->status = $status;
         return $this;
@@ -178,7 +169,7 @@ class MarketPriceAlert
 
     public function trigger(): static
     {
-        $this->status = self::STATUS_TRIGGERED;
+        $this->status = AlertStatus::Triggered;
         $this->triggeredAt = new \DateTimeImmutable();
         return $this;
     }

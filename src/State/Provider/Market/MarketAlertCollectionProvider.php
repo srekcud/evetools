@@ -9,6 +9,7 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Market\MarketAlertResource;
 use App\Entity\MarketPriceAlert;
 use App\Entity\User;
+use App\Enum\AlertPriceSource;
 use App\Repository\MarketPriceAlertRepository;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
@@ -62,8 +63,8 @@ class MarketAlertCollectionProvider implements ProviderInterface
             $hasStructureAlerts = array_filter(
                 $alerts,
                 static fn (MarketPriceAlert $a) => in_array($a->getPriceSource(), [
-                    MarketPriceAlert::SOURCE_STRUCTURE_SELL,
-                    MarketPriceAlert::SOURCE_STRUCTURE_BUY,
+                    AlertPriceSource::StructureSell,
+                    AlertPriceSource::StructureBuy,
                 ], true),
             );
 
@@ -82,20 +83,19 @@ class MarketAlertCollectionProvider implements ProviderInterface
             $resource->id = $alert->getId()?->toRfc4122() ?? '';
             $resource->typeId = $alert->getTypeId();
             $resource->typeName = $alert->getTypeName();
-            $resource->direction = $alert->getDirection();
+            $resource->direction = $alert->getDirection()->value;
             $resource->threshold = $alert->getThreshold();
-            $resource->priceSource = $alert->getPriceSource();
-            $resource->status = $alert->getStatus();
+            $resource->priceSource = $alert->getPriceSource()->value;
+            $resource->status = $alert->getStatus()->value;
             $resource->triggeredAt = $alert->getTriggeredAt()?->format('c');
             $resource->createdAt = $alert->getCreatedAt()->format('c');
 
             // Enrich with current price
             $resource->currentPrice = match ($alert->getPriceSource()) {
-                MarketPriceAlert::SOURCE_JITA_SELL => $sellPrices[$alert->getTypeId()] ?? null,
-                MarketPriceAlert::SOURCE_JITA_BUY => $buyPrices[$alert->getTypeId()] ?? null,
-                MarketPriceAlert::SOURCE_STRUCTURE_SELL => $structureSellPrices[$alert->getTypeId()] ?? null,
-                MarketPriceAlert::SOURCE_STRUCTURE_BUY => $structureBuyPrices[$alert->getTypeId()] ?? null,
-                default => null,
+                AlertPriceSource::JitaSell => $sellPrices[$alert->getTypeId()] ?? null,
+                AlertPriceSource::JitaBuy => $buyPrices[$alert->getTypeId()] ?? null,
+                AlertPriceSource::StructureSell => $structureSellPrices[$alert->getTypeId()] ?? null,
+                AlertPriceSource::StructureBuy => $structureBuyPrices[$alert->getTypeId()] ?? null,
             };
 
             return $resource;

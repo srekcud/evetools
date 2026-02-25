@@ -75,7 +75,7 @@ async function selectMfgSystem(system: SolarSystemResult) {
   mfgDropdown.value = false
   await store.updateUserSettings({
     favoriteManufacturingSystemId: system.solarSystemId,
-  } as any)
+  })
 }
 
 async function selectRxnSystem(system: SolarSystemResult) {
@@ -84,19 +84,19 @@ async function selectRxnSystem(system: SolarSystemResult) {
   rxnDropdown.value = false
   await store.updateUserSettings({
     favoriteReactionSystemId: system.solarSystemId,
-  } as any)
+  })
 }
 
 async function clearMfgSystem() {
   await store.updateUserSettings({
     favoriteManufacturingSystemId: 0,
-  } as any)
+  })
 }
 
 async function clearRxnSystem() {
   await store.updateUserSettings({
     favoriteReactionSystemId: 0,
-  } as any)
+  })
 }
 
 function onBlur(target: 'mfg' | 'rxn') {

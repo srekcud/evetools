@@ -77,6 +77,9 @@ const syncActionMap: Record<string, { action: () => Promise<{ success: boolean; 
   'planetary': { action: adminStore.syncPlanetary, key: 'sync-planetary' },
   'market-jita': { action: adminStore.syncMarket, key: 'sync-market' },
   'market-structure': { action: adminStore.syncMarket, key: 'sync-market' },
+  'market-alerts': { action: adminStore.checkMarketAlerts, key: 'check-market-alerts' },
+  'alert-prices': { action: adminStore.syncAlertPrices, key: 'sync-alert-prices' },
+  'public-contracts': { action: adminStore.syncPublicContracts, key: 'sync-public-contracts' },
 }
 
 // Sync action keys that should wait for Mercure completion

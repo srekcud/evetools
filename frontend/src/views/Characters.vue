@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { authFetch, safeJsonParse } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import MainLayout from '@/layouts/MainLayout.vue'
+import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import MainCharacterCard from '@/components/characters/MainCharacterCard.vue'
 import CharacterCard from '@/components/characters/CharacterCard.vue'
 
@@ -245,14 +246,7 @@ async function reauthorize(character: Character) {
       </div>
 
       <!-- Error message -->
-      <div v-if="error" class="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 flex items-center justify-between">
-        <span>{{ error }}</span>
-        <button @click="error = ''" class="text-red-400 hover:text-red-300 transition-colors">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-        </button>
-      </div>
+      <ErrorBanner v-if="error" :message="error" class="mb-6" @dismiss="error = ''" />
 
       <!-- Loading state -->
       <div v-if="isPageLoading" class="flex flex-col items-center justify-center py-24">

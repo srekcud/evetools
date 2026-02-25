@@ -58,6 +58,7 @@ class ContractCollectionProvider implements ProviderInterface
 
         $request = $this->requestStack->getCurrentRequest();
         $statusFilter = $request?->query->get('status', 'outstanding') ?? 'outstanding';
+        $availabilityFilter = $request?->query->get('availability');
 
         try {
             $characterId = $mainCharacter->getEveCharacterId();
@@ -69,6 +70,10 @@ class ContractCollectionProvider implements ProviderInterface
 
             if ($statusFilter !== 'all') {
                 $userContracts = array_filter($userContracts, fn($c) => ($c['status'] ?? '') === $statusFilter);
+            }
+
+            if ($availabilityFilter !== null && $availabilityFilter !== 'all') {
+                $userContracts = array_filter($userContracts, fn($c) => ($c['availability'] ?? 'personal') === $availabilityFilter);
             }
 
             $itemExchangeContracts = array_filter($userContracts, fn($c) => $c['type'] === 'item_exchange');
@@ -259,6 +264,7 @@ class ContractCollectionProvider implements ProviderInterface
             $resource->contractId = $contract['contract_id'];
             $resource->type = $contract['type'];
             $resource->status = $contract['status'] ?? 'unknown';
+            $resource->availability = $contract['availability'] ?? 'personal';
             $resource->title = $contract['title'] ?? '';
             $resource->price = $contractPrice;
             $resource->reward = $contract['reward'] ?? 0;

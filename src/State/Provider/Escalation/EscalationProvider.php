@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Escalation\EscalationResource;
 use App\Entity\User;
+use App\Enum\EscalationVisibility;
 use App\Repository\EscalationRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -47,7 +48,7 @@ class EscalationProvider implements ProviderInterface
         $isOwner = $escalation->isOwnedBy($user);
 
         // Non-owners can only see corp/public escalations
-        if (!$isOwner && $escalation->getVisibility() === 'perso') {
+        if (!$isOwner && $escalation->getVisibility() === EscalationVisibility::Perso) {
             throw new AccessDeniedHttpException('Access denied');
         }
 

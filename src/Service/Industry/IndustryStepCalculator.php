@@ -55,6 +55,22 @@ class IndustryStepCalculator
             $maxDepth = max($maxDepth, $step->getDepth());
         }
 
+        // Preload all materials and products for all non-copy steps in batch
+        $allBlueprintTypeIds = [];
+        $allActivityIds = [];
+        foreach ($steps as $step) {
+            if ($step->getActivityType() === 'copy') {
+                continue;
+            }
+            $activityId = $step->getActivityType() === 'reaction'
+                ? IndustryActivityType::Reaction->value
+                : IndustryActivityType::Manufacturing->value;
+            $allBlueprintTypeIds[] = $step->getBlueprintTypeId();
+            $allActivityIds[] = $activityId;
+        }
+        $materialsByKey = $this->materialRepository->findMaterialEntitiesForBlueprints($allBlueprintTypeIds, $allActivityIds);
+        $productsByKey = $this->productRepository->findProductsForBlueprints($allBlueprintTypeIds, $allActivityIds);
+
         $updatedSteps = [];
 
         // Process depth by depth: accumulate material needs, update child steps
@@ -71,10 +87,8 @@ class IndustryStepCalculator
                     ? IndustryActivityType::Reaction->value
                     : IndustryActivityType::Manufacturing->value;
 
-                $materials = $this->materialRepository->findBy([
-                    'typeId' => $step->getBlueprintTypeId(),
-                    'activityId' => $activityId,
-                ]);
+                $materialKey = $step->getBlueprintTypeId() . '-' . $activityId;
+                $materials = $materialsByKey[$materialKey] ?? [];
 
                 $structureData = $this->calculationService->getStructureBonusForStep($step);
                 $materialBonus = $structureData['materialBonus'];
@@ -106,15 +120,13 @@ class IndustryStepCalculator
                     continue;
                 }
 
-                // Get output per run from SDE
+                // Get output per run from preloaded products
                 $firstChild = $childSteps[0];
                 $childActivityId = $firstChild->getActivityType() === 'reaction'
                     ? IndustryActivityType::Reaction->value
                     : IndustryActivityType::Manufacturing->value;
-                $product = $this->productRepository->findOneBy([
-                    'typeId' => $firstChild->getBlueprintTypeId(),
-                    'activityId' => $childActivityId,
-                ]);
+                $productKey = $firstChild->getBlueprintTypeId() . '-' . $childActivityId;
+                $product = $productsByKey[$productKey] ?? null;
                 $outputPerRun = $product?->getQuantity() ?? 1;
 
                 $newTotalRuns = (int) ceil($newTotalQuantity / $outputPerRun);

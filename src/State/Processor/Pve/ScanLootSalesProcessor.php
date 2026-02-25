@@ -10,6 +10,7 @@ use App\ApiResource\Pve\DetectedSaleResource;
 use App\ApiResource\Pve\ScanLootSalesResultResource;
 use App\Entity\PveIncome;
 use App\Entity\User;
+use App\Enum\PveIncomeType;
 use App\Repository\PveIncomeRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\UserPveSettingsRepository;
@@ -132,7 +133,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
                     $sale = new DetectedSaleResource();
                     $sale->transactionId = $transaction['transaction_id'];
                     $sale->contractId = 0;
-                    $sale->type = PveIncome::TYPE_LOOT_SALE;
+                    $sale->type = PveIncomeType::LootSale->value;
                     $sale->typeId = $typeId;
                     $sale->typeName = "{$quantity}x {$typeName}";
                     $sale->quantity = $quantity;
@@ -254,7 +255,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
                     $sale = new DetectedSaleResource();
                     $sale->transactionId = $trackingId;
                     $sale->contractId = $contract['contract_id'];
-                    $sale->type = PveIncome::TYPE_LOOT_SALE;
+                    $sale->type = PveIncomeType::LootSale->value;
                     $sale->typeId = $firstItem['typeId'];
                     $sale->typeName = $description;
                     $sale->quantity = array_sum(array_column($soldLootItems, 'quantity'));
@@ -414,7 +415,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
                                 $sale->transactionId = $trackingId;
                                 $sale->contractId = 0;
                                 $sale->projectId = $projectId;
-                                $sale->type = PveIncome::TYPE_CORP_PROJECT;
+                                $sale->type = PveIncomeType::CorpProject->value;
                                 $sale->typeId = $typeId;
                                 $sale->typeName = "{$quantity}x {$typeName}";
                                 $sale->quantity = $quantity;

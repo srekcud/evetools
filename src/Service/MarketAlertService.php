@@ -6,6 +6,8 @@ namespace App\Service;
 
 use App\Entity\MarketPriceAlert;
 use App\Entity\User;
+use App\Enum\AlertDirection;
+use App\Enum\AlertPriceSource;
 use App\Repository\MarketPriceAlertRepository;
 use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -71,7 +73,7 @@ class MarketAlertService
                     'alertId' => $alert->getId()?->toRfc4122(),
                     'typeId' => $alert->getTypeId(),
                     'typeName' => $alert->getTypeName(),
-                    'direction' => $alert->getDirection(),
+                    'direction' => $alert->getDirection()->value,
                     'threshold' => $alert->getThreshold(),
                     'currentPrice' => $currentPrice,
                 ]);
@@ -81,10 +83,10 @@ class MarketAlertService
                         'alertId' => $alert->getId()?->toRfc4122(),
                         'typeId' => $alert->getTypeId(),
                         'typeName' => $alert->getTypeName(),
-                        'direction' => $alert->getDirection(),
+                        'direction' => $alert->getDirection()->value,
                         'threshold' => $alert->getThreshold(),
                         'currentPrice' => $currentPrice,
-                        'priceSource' => $alert->getPriceSource(),
+                        'priceSource' => $alert->getPriceSource()->value,
                     ]);
                 }
             }
@@ -110,7 +112,7 @@ class MarketAlertService
         $byUser = [];
 
         foreach ($alerts as $alert) {
-            if (!in_array($alert->getPriceSource(), [MarketPriceAlert::SOURCE_STRUCTURE_SELL, MarketPriceAlert::SOURCE_STRUCTURE_BUY], true)) {
+            if (!in_array($alert->getPriceSource(), [AlertPriceSource::StructureSell, AlertPriceSource::StructureBuy], true)) {
                 continue;
             }
 
@@ -161,20 +163,18 @@ class MarketAlertService
         ?array $structurePrices = null,
     ): ?float {
         return match ($alert->getPriceSource()) {
-            MarketPriceAlert::SOURCE_JITA_SELL => $sellPrices[$alert->getTypeId()] ?? null,
-            MarketPriceAlert::SOURCE_JITA_BUY => $buyPrices[$alert->getTypeId()] ?? null,
-            MarketPriceAlert::SOURCE_STRUCTURE_SELL => $structurePrices['sell'][$alert->getTypeId()] ?? null,
-            MarketPriceAlert::SOURCE_STRUCTURE_BUY => $structurePrices['buy'][$alert->getTypeId()] ?? null,
-            default => null,
+            AlertPriceSource::JitaSell => $sellPrices[$alert->getTypeId()] ?? null,
+            AlertPriceSource::JitaBuy => $buyPrices[$alert->getTypeId()] ?? null,
+            AlertPriceSource::StructureSell => $structurePrices['sell'][$alert->getTypeId()] ?? null,
+            AlertPriceSource::StructureBuy => $structurePrices['buy'][$alert->getTypeId()] ?? null,
         };
     }
 
     private function isTriggered(MarketPriceAlert $alert, float $currentPrice): bool
     {
         return match ($alert->getDirection()) {
-            MarketPriceAlert::DIRECTION_ABOVE => $currentPrice >= $alert->getThreshold(),
-            MarketPriceAlert::DIRECTION_BELOW => $currentPrice <= $alert->getThreshold(),
-            default => false,
+            AlertDirection::Above => $currentPrice >= $alert->getThreshold(),
+            AlertDirection::Below => $currentPrice <= $alert->getThreshold(),
         };
     }
 }

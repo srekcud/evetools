@@ -5,6 +5,7 @@ import { authFetch, safeJsonParse } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import ErrorBanner from '@/components/common/ErrorBanner.vue'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
@@ -25,6 +26,7 @@ interface Contract {
   contractId: number
   type: string
   status: string
+  availability: string
   title: string
   price: number
   reward: number
@@ -62,6 +64,7 @@ const contracts = ref<Contract[]>([])
 const isLoading = ref(false)
 const error = ref('')
 const selectedStatus = ref('outstanding')
+const selectedAvailability = ref('all')
 const expandedContract = ref<number | null>(null)
 
 const statusOptions = computed(() => [
@@ -70,12 +73,40 @@ const statusOptions = computed(() => [
   { value: 'all', label: t('contracts.filters.all') },
 ])
 
+const availabilityOptions = computed(() => [
+  { value: 'all', label: t('contracts.availability.all') },
+  { value: 'personal', label: t('contracts.availability.personal') },
+  { value: 'corporation', label: t('contracts.availability.corporation') },
+  { value: 'alliance', label: t('contracts.availability.alliance') },
+  { value: 'public', label: t('contracts.availability.public') },
+])
+
+const AVAILABILITY_COLORS: Record<string, string> = {
+  personal: 'bg-slate-500/20 text-slate-400',
+  corporation: 'bg-teal-500/20 text-teal-400',
+  alliance: 'bg-violet-500/20 text-violet-400',
+  public: 'bg-sky-500/20 text-sky-400',
+}
+
+function getAvailabilityLabel(availability: string): string {
+  const key = `contracts.availability.${availability}`
+  return t(key)
+}
+
+function getAvailabilityColor(availability: string): string {
+  return AVAILABILITY_COLORS[availability] ?? 'bg-slate-500/20 text-slate-400'
+}
+
 async function fetchContracts() {
   isLoading.value = true
   error.value = ''
 
   try {
-    const response = await authFetch(`/api/contracts?status=${selectedStatus.value}`, {
+    const params = new URLSearchParams({ status: selectedStatus.value })
+    if (selectedAvailability.value !== 'all') {
+      params.set('availability', selectedAvailability.value)
+    }
+    const response = await authFetch(`/api/contracts?${params.toString()}`, {
       headers: { 'Authorization': `Bearer ${authStore.token}` }
     })
 
@@ -152,6 +183,10 @@ onMounted(() => {
 function onStatusChange() {
   fetchContracts()
 }
+
+function onAvailabilityChange() {
+  fetchContracts()
+}
 </script>
 
 <template>
@@ -165,6 +200,16 @@ function onStatusChange() {
         class="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-cyan-500"
       >
         <option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
+          {{ opt.label }}
+        </option>
+      </select>
+      <!-- Availability selector -->
+      <select
+        v-model="selectedAvailability"
+        @change="onAvailabilityChange"
+        class="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-cyan-500"
+      >
+        <option v-for="opt in availabilityOptions" :key="opt.value" :value="opt.value">
           {{ opt.label }}
         </option>
       </select>
@@ -183,14 +228,7 @@ function onStatusChange() {
   </div>
 
   <!-- Error -->
-  <div v-if="error" class="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 flex items-center justify-between">
-    <span>{{ error }}</span>
-    <button @click="error = ''" class="text-red-400 hover:text-red-300">
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-      </svg>
-    </button>
-  </div>
+  <ErrorBanner v-if="error" :message="error" class="mb-6" @dismiss="error = ''" />
 
   <!-- Loading -->
   <div v-if="isLoading && contracts.length === 0" class="flex flex-col items-center justify-center py-20">
@@ -280,6 +318,9 @@ function onStatusChange() {
                     </span>
                     <span :class="['text-xs px-2 py-0.5 rounded-sm', contract.isSeller ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400']">
                       {{ contract.isSeller ? t('contracts.sell') : t('contracts.buy') }}
+                    </span>
+                    <span :class="['text-xs px-2 py-0.5 rounded-sm', getAvailabilityColor(contract.availability)]">
+                      {{ getAvailabilityLabel(contract.availability) }}
                     </span>
                     <span class="text-xs text-slate-500">
                       #{{ contract.contractId }}

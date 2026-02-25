@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Enum\AuthStatus;
 use App\Repository\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -16,9 +17,6 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Table(name: 'users')]
 class User implements UserInterface
 {
-    public const AUTH_STATUS_VALID = 'valid';
-    public const AUTH_STATUS_INVALID = 'invalid';
-
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     #[ORM\GeneratedValue(strategy: 'CUSTOM')]
@@ -33,8 +31,8 @@ class User implements UserInterface
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Character $mainCharacter = null;
 
-    #[ORM\Column(type: 'string', length: 20)]
-    private string $authStatus = self::AUTH_STATUS_VALID;
+    #[ORM\Column(type: 'string', length: 20, enumType: AuthStatus::class)]
+    private AuthStatus $authStatus = AuthStatus::Valid;
 
     /** @var int[] SDE group IDs blacklisted from industry production */
     #[ORM\Column(type: 'json')]
@@ -51,6 +49,10 @@ class User implements UserInterface
     /** Preferred structure name (display only) */
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $preferredMarketStructureName = null;
+
+    /** @var list<array{id: int, name: string}> User's favorite market structures */
+    #[ORM\Column(type: 'json', options: ['default' => '[]'])]
+    private array $marketStructures = [];
 
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
@@ -110,12 +112,12 @@ class User implements UserInterface
         return $this;
     }
 
-    public function getAuthStatus(): string
+    public function getAuthStatus(): AuthStatus
     {
         return $this->authStatus;
     }
 
-    public function setAuthStatus(string $authStatus): static
+    public function setAuthStatus(AuthStatus $authStatus): static
     {
         $this->authStatus = $authStatus;
 
@@ -124,19 +126,19 @@ class User implements UserInterface
 
     public function isAuthValid(): bool
     {
-        return $this->authStatus === self::AUTH_STATUS_VALID;
+        return $this->authStatus === AuthStatus::Valid;
     }
 
     public function markAuthInvalid(): static
     {
-        $this->authStatus = self::AUTH_STATUS_INVALID;
+        $this->authStatus = AuthStatus::Invalid;
 
         return $this;
     }
 
     public function markAuthValid(): static
     {
-        $this->authStatus = self::AUTH_STATUS_VALID;
+        $this->authStatus = AuthStatus::Valid;
 
         return $this;
     }
@@ -236,6 +238,39 @@ class User implements UserInterface
     public function setPreferredMarketStructureName(?string $name): static
     {
         $this->preferredMarketStructureName = $name;
+        return $this;
+    }
+
+    /** @return list<array{id: int, name: string}> */
+    public function getMarketStructures(): array
+    {
+        return $this->marketStructures;
+    }
+
+    /** @param list<array{id: int, name: string}> $structures */
+    public function setMarketStructures(array $structures): static
+    {
+        $this->marketStructures = $structures;
+        return $this;
+    }
+
+    public function addMarketStructure(int $id, string $name): static
+    {
+        foreach ($this->marketStructures as $s) {
+            if ($s['id'] === $id) {
+                return $this;
+            }
+        }
+        $this->marketStructures[] = ['id' => $id, 'name' => $name];
+        return $this;
+    }
+
+    public function removeMarketStructure(int $id): static
+    {
+        $this->marketStructures = array_values(array_filter(
+            $this->marketStructures,
+            static fn (array $s) => $s['id'] !== $id,
+        ));
         return $this;
     }
 

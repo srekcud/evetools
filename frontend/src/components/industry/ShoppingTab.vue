@@ -2,33 +2,17 @@
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useIndustryStore } from '@/stores/industry'
-import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
 import { usePurchasesStore } from '@/stores/industry/purchases'
 import { useFormatters } from '@/composables/useFormatters'
-import { useEveImages } from '@/composables/useEveImages'
-import { parseEveStock } from '@/composables/useStockAnalysis'
-import type { ParsedStockItem, IntermediateInStock, RelevantStockItem } from '@/composables/useStockAnalysis'
-import { apiRequest, authFetch, safeJsonParse } from '@/services/api'
-import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
+import { useShoppingStockAnalysis } from '@/composables/useShoppingStockAnalysis'
+import { apiRequest } from '@/services/api'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
-import type { ShoppingListItem, ShoppingListTotals, ProductionTreeNode } from '@/stores/industry/types'
-
-interface StructureSearchResult {
-  id: number
-  name: string
-  typeId: number | null
-  solarSystemId: number | null
-}
-
-interface ChildInfo {
-  typeId: number
-  typeName: string
-  blueprintTypeId: number
-  activityType: string
-  quantityPerUnit: number
-  isBuildable: boolean
-}
+import ShoppingConfigPanel from './shopping/ShoppingConfigPanel.vue'
+import ShoppingTotalsSummary from './shopping/ShoppingTotalsSummary.vue'
+import ShoppingMaterialsTable from './shopping/ShoppingMaterialsTable.vue'
+import ShoppingPurchasesPanel from './shopping/ShoppingPurchasesPanel.vue'
+import type { ShoppingListItem, ShoppingListTotals } from '@/stores/industry/types'
 
 export interface EnrichedShoppingItem extends ShoppingListItem {
   inStock: number
@@ -44,17 +28,27 @@ export interface EnrichedShoppingItem extends ShoppingListItem {
   status: 'ok' | 'partial' | 'missing'
 }
 
+interface FlatPurchase {
+  id: string
+  stepId: string
+  stepName: string
+  typeName: string
+  quantity: number
+  unitPrice: number
+  totalPrice: number
+  source: string
+  transactionId: string | null
+}
+
 const props = defineProps<{
   projectId: string
 }>()
 
 const { t } = useI18n()
 const store = useIndustryStore()
-const authStore = useAuthStore()
 const syncStore = useSyncStore()
 const purchasesStore = usePurchasesStore()
-const { formatIsk, formatDateTime } = useFormatters()
-const { getTypeIconUrl, onImageError } = useEveImages()
+const { formatDateTime } = useFormatters()
 
 // Shopping list state
 const shoppingList = ref<ShoppingListItem[]>([])
@@ -67,25 +61,22 @@ const shoppingPriceError = ref<string | null>(null)
 const shoppingLoading = ref(false)
 const shoppingSyncing = ref(false)
 const transportCostPerM3 = ref(1200)
-const copiedJita = ref(false)
-const copiedStructure = ref(false)
 
-// Stock state
-const pastedStock = ref('')
-const parsedStock = ref<ParsedStockItem[]>([])
-const relevantStock = ref<RelevantStockItem[]>([])
-const intermediatesInStock = ref<IntermediateInStock[]>([])
-const stockAnalysisError = ref<string | null>(null)
-const stockAnalysisLoading = ref(false)
-const showClearStockModal = ref(false)
-const parentChildrenMap = ref<Map<string, ChildInfo[]>>(new Map())
+// Reactive refs for the composable
+const projectIdRef = computed(() => props.projectId)
+const treeRef = computed(() => store.currentProject?.tree)
+const stepsRef = computed(() => store.currentProject?.steps ?? [])
 
-// Stock/purchase duplicate warnings
-const stockPurchaseWarnings = ref<Array<{ name: string; stockQty: number; purchasedQty: number }>>([])
-
-// Inline stock editing
-const editingStockTypeId = ref<number | null>(null)
-const editingStockValue = ref('')
+// Stock analysis composable
+const stock = useShoppingStockAnalysis(
+  projectIdRef,
+  shoppingList,
+  treeRef,
+  stepsRef,
+  (pid, sid, qty) => store.toggleStepInStock(pid, sid, qty),
+  (id) => store.fetchProject(id),
+  () => loadShoppingList(),
+)
 
 // Mercure sync progress
 const marketStructureProgress = computed(() => syncStore.getSyncProgress('market-structure'))
@@ -95,15 +86,6 @@ watch(marketStructureProgress, (progress) => {
     loadShoppingList()
   }
 })
-
-// Rebuild parent-children map when tree changes
-watch(
-  () => store.currentProject?.tree,
-  (tree) => {
-    if (tree) buildParentChildrenMap(tree)
-  },
-  { immediate: true },
-)
 
 // Structure search with persistence
 const STRUCTURE_STORAGE_KEY = 'industry_shopping_structure'
@@ -132,69 +114,16 @@ function saveStructureToStorage(structure: { id: number | null; name: string }) 
 }
 
 const selectedStructure = ref<{ id: number | null; name: string }>(loadPersistedStructure())
-const structureSearchQuery = ref('')
-const structureSearchResults = ref<StructureSearchResult[]>([])
-const isSearchingStructures = ref(false)
-const showStructureDropdown = ref(false)
-let structureSearchTimeout: ReturnType<typeof setTimeout> | null = null
 
-watch(structureSearchQuery, (query) => {
-  if (structureSearchTimeout) clearTimeout(structureSearchTimeout)
-  if (query.length < 3) {
-    structureSearchResults.value = []
-    return
-  }
-  structureSearchTimeout = setTimeout(() => {
-    searchStructures(query)
-  }, 300)
-})
-
-async function searchStructures(query: string) {
-  isSearchingStructures.value = true
-  try {
-    const response = await authFetch(`/api/shopping-list/search-structures?q=${encodeURIComponent(query)}`, {
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`,
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-    })
-    if (response.ok) {
-      const data = await safeJsonParse<{ results: StructureSearchResult[] }>(response)
-      structureSearchResults.value = data.results
-      showStructureDropdown.value = true
-    }
-  } catch (e) {
-    console.error('Structure search failed:', e)
-  } finally {
-    isSearchingStructures.value = false
-  }
-}
-
-function selectStructure(structure: StructureSearchResult) {
-  selectedStructure.value = { id: structure.id, name: structure.name }
-  saveStructureToStorage(selectedStructure.value)
-  structureSearchQuery.value = ''
-  structureSearchResults.value = []
-  showStructureDropdown.value = false
-}
-
-function clearStructure() {
-  selectedStructure.value = { id: DEFAULT_STRUCTURE_ID, name: DEFAULT_STRUCTURE_NAME }
-  saveStructureToStorage(selectedStructure.value)
-  structureSearchQuery.value = ''
-  structureSearchResults.value = []
-}
-
-function onStructureInputBlur() {
-  setTimeout(() => {
-    showStructureDropdown.value = false
-  }, 200)
+function onStructureChange(value: { id: number | null; name: string }) {
+  selectedStructure.value = value
+  saveStructureToStorage(value)
 }
 
 // Enriched shopping list with stock status
 const enrichedShoppingList = computed<EnrichedShoppingItem[]>(() => {
   const stockMap = new Map<string, number>()
-  for (const item of parsedStock.value) {
+  for (const item of stock.parsedStock.value) {
     const key = item.name.toLowerCase()
     stockMap.set(key, (stockMap.get(key) ?? 0) + item.quantity)
   }
@@ -202,7 +131,6 @@ const enrichedShoppingList = computed<EnrichedShoppingItem[]>(() => {
   return shoppingList.value.map(item => {
     const key = item.typeName.toLowerCase()
     const inStock = (stockMap.get(key) ?? 0) + (item.purchasedQuantity ?? 0)
-    // Real quantity needed = optimal + extra from suboptimal structures
     const totalNeeded = item.quantity + (item.extraQuantity ?? 0)
     const missing = Math.max(0, totalNeeded - inStock)
     let status: 'ok' | 'partial' | 'missing' = 'missing'
@@ -262,8 +190,6 @@ const missingTotals = computed(() => {
   }
 })
 
-const hasAnyStock = computed(() => parsedStock.value.length > 0)
-
 const displayStructureName = computed(() => {
   return shoppingStructureName.value || selectedStructure.value.name || 'Structure'
 })
@@ -285,6 +211,56 @@ const jitaMultibuyFormat = computed(() => {
 const structureMultibuyFormat = computed(() => {
   return structureItems.value.map(item => `${item.typeName}\t${item.missing}`).join('\n')
 })
+
+// Purchases
+const purchasesLoading = ref(false)
+const purchasesPanelRef = ref<InstanceType<typeof ShoppingPurchasesPanel> | null>(null)
+
+const projectPurchases = computed<FlatPurchase[]>(() => {
+  if (!store.currentProject?.steps) return []
+  const result: FlatPurchase[] = []
+  for (const step of store.currentProject.steps) {
+    if (step.purchases && step.purchases.length > 0) {
+      for (const p of step.purchases) {
+        result.push({
+          id: p.id,
+          stepId: step.id,
+          stepName: step.productTypeName,
+          typeName: p.typeName,
+          quantity: p.quantity,
+          unitPrice: p.unitPrice,
+          totalPrice: p.totalPrice,
+          source: p.source,
+          transactionId: p.transactionId,
+        })
+      }
+    }
+  }
+  return result
+})
+
+const projectPurchasesTotalCost = computed(() =>
+  projectPurchases.value.reduce((sum, p) => sum + p.totalPrice, 0),
+)
+
+function findStepForType(typeId: number): { id: string; name: string } | null {
+  if (!store.currentProject?.steps) return null
+  for (const step of store.currentProject.steps) {
+    if (step.depth > 0 && step.activityType !== 'copy' && step.productTypeId === typeId) {
+      return { id: step.id, name: step.productTypeName }
+    }
+  }
+  for (const step of store.currentProject.steps) {
+    if (step.depth === 0 && step.activityType !== 'copy') {
+      return { id: step.id, name: step.productTypeName }
+    }
+  }
+  return null
+}
+
+function canFindStepForType(typeId: number): boolean {
+  return findStepForType(typeId) !== null
+}
 
 function roundUpToMillion(value: number): number {
   return Math.ceil(value / 1_000_000) * 1_000_000
@@ -353,18 +329,6 @@ async function applyAsMaterialCost() {
   await store.updateProject(props.projectId, { materialCost: roundedCost })
 }
 
-function copyToClipboard(text: string, type: 'jita' | 'structure') {
-  if (!text) return
-  navigator.clipboard.writeText(text)
-  if (type === 'jita') {
-    copiedJita.value = true
-    setTimeout(() => copiedJita.value = false, 2000)
-  } else {
-    copiedStructure.value = true
-    setTimeout(() => copiedStructure.value = false, 2000)
-  }
-}
-
 function formatRelativeTime(isoDate: string | null): string {
   if (!isoDate) return ''
   const date = new Date(isoDate)
@@ -379,440 +343,31 @@ function formatRelativeTime(isoDate: string | null): string {
   return formatDateTime(isoDate)
 }
 
-// Stock persistence
-function getStockStorageKey(): string {
-  return `industry_stock_${props.projectId}`
-}
-
-function loadPersistedStock() {
-  const stored = localStorage.getItem(getStockStorageKey())
-  if (stored) {
-    try {
-      const data = JSON.parse(stored)
-      pastedStock.value = data.raw || ''
-      parsedStock.value = data.parsed || []
-    } catch {
-      // Ignore invalid data
-    }
-  }
-}
-
-function saveStockToStorage() {
-  localStorage.setItem(getStockStorageKey(), JSON.stringify({
-    raw: pastedStock.value,
-    parsed: parsedStock.value,
-  }))
-}
-
-function performStockAnalysis() {
-  if (shoppingList.value.length === 0) {
-    relevantStock.value = []
-    intermediatesInStock.value = []
-    return
-  }
-
-  const stockMap = new Map<string, number>()
-  for (const item of parsedStock.value) {
-    const key = item.name.toLowerCase()
-    stockMap.set(key, (stockMap.get(key) ?? 0) + item.quantity)
-  }
-
-  const intermediateMap = new Map<number, IntermediateInStock>()
-  const steps = store.currentProject?.steps ?? []
-  const rootProductTypeIds = new Set(
-    steps
-      .filter(s => s.depth === 0 && (s.activityType === 'manufacturing' || s.activityType === 'reaction'))
-      .map(s => s.productTypeId),
-  )
-
-  for (const step of steps) {
-    if (step.activityType !== 'manufacturing' && step.activityType !== 'reaction') continue
-    if (rootProductTypeIds.has(step.productTypeId)) continue
-    if (step.purchased || step.inStock) continue
-
-    const key = step.productTypeName.toLowerCase()
-    const inStock = stockMap.get(key) ?? 0
-    const existing = intermediateMap.get(step.productTypeId)
-
-    if (existing) {
-      existing.needed += step.quantity
-      existing.runsNeeded += step.runs
-      existing.runsCovered = existing.needed > 0
-        ? Math.min(existing.runsNeeded, Math.floor(existing.runsNeeded * existing.inStock / existing.needed))
-        : 0
-      if (existing.inStock >= existing.needed) existing.status = 'ok'
-      else if (existing.inStock > 0) existing.status = 'partial'
-      else existing.status = 'missing'
-    } else {
-      const runsCovered = step.quantity > 0
-        ? Math.min(step.runs, Math.floor(step.runs * inStock / step.quantity))
-        : 0
-      let status: 'ok' | 'partial' | 'missing' = 'missing'
-      if (inStock >= step.quantity) status = 'ok'
-      else if (inStock > 0) status = 'partial'
-
-      intermediateMap.set(step.productTypeId, {
-        typeId: step.productTypeId,
-        name: step.productTypeName,
-        inStock,
-        needed: step.quantity,
-        stepId: step.id,
-        blueprintTypeId: step.blueprintTypeId,
-        runsNeeded: step.runs,
-        runsCovered,
-        status,
-        activityType: step.activityType,
-      })
-    }
-  }
-
-  intermediatesInStock.value = Array.from(intermediateMap.values())
-    .sort((a, b) => {
-      if (a.inStock > 0 && b.inStock === 0) return -1
-      if (a.inStock === 0 && b.inStock > 0) return 1
-      return a.name.localeCompare(b.name)
-    })
-
-  const results: RelevantStockItem[] = []
-  for (const material of shoppingList.value) {
-    const key = material.typeName.toLowerCase()
-    const inStock = (stockMap.get(key) ?? 0) + (material.purchasedQuantity ?? 0)
-    const totalNeeded = material.quantity + (material.extraQuantity ?? 0)
-    if (inStock > 0 || totalNeeded > 0) {
-      const missing = Math.max(0, totalNeeded - inStock)
-      let status: 'ok' | 'partial' | 'missing' = 'missing'
-      if (inStock >= totalNeeded) status = 'ok'
-      else if (inStock > 0) status = 'partial'
-      results.push({ typeId: material.typeId, name: material.typeName, needed: totalNeeded, inStock, missing, status })
-    }
-  }
-
-  const statusOrder = { missing: 0, partial: 1, ok: 2 }
-  results.sort((a, b) => {
-    if (statusOrder[a.status] !== statusOrder[b.status]) return statusOrder[a.status] - statusOrder[b.status]
-    return a.name.localeCompare(b.name)
-  })
-  relevantStock.value = results
-}
-
-function buildParentChildrenMap(tree: ProductionTreeNode) {
-  parentChildrenMap.value.clear()
-  function traverse(node: ProductionTreeNode) {
-    const key = `${node.blueprintTypeId}_${node.activityType}`
-    const children: ChildInfo[] = []
-    for (const mat of node.materials) {
-      children.push({
-        typeId: mat.typeId,
-        typeName: mat.typeName,
-        blueprintTypeId: mat.blueprint?.blueprintTypeId ?? 0,
-        activityType: mat.blueprint?.activityType ?? '',
-        quantityPerUnit: node.quantity > 0 ? mat.quantity / node.quantity : 0,
-        isBuildable: mat.isBuildable,
-      })
-      if (mat.isBuildable && mat.blueprint) traverse(mat.blueprint)
-    }
-    if (children.length > 0) parentChildrenMap.value.set(key, children)
-  }
-  traverse(tree)
-}
-
-async function cascadeStockToChildren(blueprintTypeId: number, activityType: string, parentQuantityInStock: number) {
-  const key = `${blueprintTypeId}_${activityType}`
-  const children = parentChildrenMap.value.get(key)
-  if (!children || parentQuantityInStock <= 0) return
-
-  for (const child of children) {
-    const childQuantityNeeded = Math.ceil(parentQuantityInStock * child.quantityPerUnit)
-    if (child.isBuildable && child.blueprintTypeId > 0) {
-      const childStep = store.currentProject?.steps?.find(
-        s => s.blueprintTypeId === child.blueprintTypeId && s.activityType === child.activityType,
-      )
-      if (childStep && childStep.depth > 0) {
-        const newInStock = Math.min(childStep.inStockQuantity + childQuantityNeeded, childStep.quantity)
-        if (newInStock > childStep.inStockQuantity) {
-          await store.toggleStepInStock(props.projectId, childStep.id, newInStock)
-        }
-      }
-      await cascadeStockToChildren(child.blueprintTypeId, child.activityType, childQuantityNeeded)
-    } else {
-      const existingIdx = parsedStock.value.findIndex(
-        p => p.name.toLowerCase() === child.typeName.toLowerCase(),
-      )
-      if (existingIdx >= 0) {
-        parsedStock.value[existingIdx].quantity += childQuantityNeeded
-      } else {
-        parsedStock.value.push({ name: child.typeName, quantity: childQuantityNeeded })
-      }
-    }
-  }
-}
-
-async function analyzeStock() {
-  stockAnalysisError.value = null
-
-  if (!pastedStock.value.trim()) {
-    stockAnalysisError.value = t('industry.shoppingTab.pasteStockError')
-    return
-  }
-
-  const newItems = parseEveStock(pastedStock.value)
-  if (newItems.length === 0) {
-    stockAnalysisError.value = t('industry.shoppingTab.noItemDetected')
-    relevantStock.value = []
-    intermediatesInStock.value = []
-    return
-  }
-
-  // Detect potential duplicates between pasted stock and linked purchases
-  const warnings: typeof stockPurchaseWarnings.value = []
-  for (const newItem of newItems) {
-    const material = shoppingList.value.find(
-      m => m.typeName.toLowerCase() === newItem.name.toLowerCase(),
-    )
-    if (material && (material.purchasedQuantity ?? 0) > 0) {
-      warnings.push({
-        name: material.typeName,
-        stockQty: newItem.quantity,
-        purchasedQty: material.purchasedQuantity!,
-      })
-    }
-  }
-  stockPurchaseWarnings.value = warnings
-
-  for (const newItem of newItems) {
-    const existingIndex = parsedStock.value.findIndex(
-      p => p.name.toLowerCase() === newItem.name.toLowerCase(),
-    )
-    if (existingIndex >= 0) {
-      parsedStock.value[existingIndex].quantity = newItem.quantity
-    } else {
-      parsedStock.value.push(newItem)
-    }
-  }
-
-  pastedStock.value = ''
-  saveStockToStorage()
-
-  if (shoppingList.value.length === 0) {
-    stockAnalysisLoading.value = true
-    try {
-      await loadShoppingList()
-    } finally {
-      stockAnalysisLoading.value = false
-    }
-  }
-
-  if (shoppingList.value.length === 0) {
-    stockAnalysisError.value = t('industry.shoppingTab.loadShoppingError')
-    relevantStock.value = []
-    return
-  }
-
-  const steps = store.currentProject?.steps ?? []
-  const rootProductTypeIds = new Set(
-    steps
-      .filter(s => s.depth === 0 && (s.activityType === 'manufacturing' || s.activityType === 'reaction'))
-      .map(s => s.productTypeId),
-  )
-
-  let cascadeTriggered = false
-  for (const newItem of newItems) {
-    const matchingStep = steps.find(
-      s => s.productTypeName.toLowerCase() === newItem.name.toLowerCase() &&
-        (s.activityType === 'manufacturing' || s.activityType === 'reaction') &&
-        !rootProductTypeIds.has(s.productTypeId) &&
-        s.depth > 0 &&
-        !s.purchased &&
-        !s.inStock,
-    )
-
-    if (matchingStep && newItem.quantity > 0) {
-      const oldQuantity = (parsedStock.value.find(p => p.name.toLowerCase() === newItem.name.toLowerCase())?.quantity ?? 0) - newItem.quantity
-      const addedQuantity = Math.max(0, newItem.quantity - Math.max(0, oldQuantity))
-      if (addedQuantity > 0) {
-        const newInStock = Math.min(matchingStep.inStockQuantity + addedQuantity, matchingStep.quantity)
-        if (newInStock > matchingStep.inStockQuantity) {
-          await store.toggleStepInStock(props.projectId, matchingStep.id, newInStock)
-        }
-        await cascadeStockToChildren(matchingStep.blueprintTypeId, matchingStep.activityType, addedQuantity)
-        cascadeTriggered = true
-      }
-    }
-  }
-
-  if (cascadeTriggered) {
-    saveStockToStorage()
-    await store.fetchProject(props.projectId)
-  }
-
-  performStockAnalysis()
-}
-
-function clearStock() {
-  pastedStock.value = ''
-  parsedStock.value = []
-  stockAnalysisError.value = null
-  stockPurchaseWarnings.value = []
-  localStorage.removeItem(getStockStorageKey())
-  showClearStockModal.value = false
-  performStockAnalysis()
-}
-
-function confirmClearStock() {
-  showClearStockModal.value = true
-}
-
-function startEditStock(item: EnrichedShoppingItem) {
-  editingStockTypeId.value = item.typeId
-  editingStockValue.value = item.inStock > 0 ? String(item.inStock) : ''
-}
-
-function saveEditStock(typeName: string) {
-  if (editingStockTypeId.value === null) return
-  editingStockTypeId.value = null
-  const qty = parseInt(editingStockValue.value, 10)
-  const newQty = isNaN(qty) || qty < 0 ? 0 : qty
-  const key = typeName.toLowerCase()
-  const existingIdx = parsedStock.value.findIndex(p => p.name.toLowerCase() === key)
-  if (newQty > 0) {
-    if (existingIdx >= 0) {
-      parsedStock.value[existingIdx].quantity = newQty
-    } else {
-      parsedStock.value.push({ name: typeName, quantity: newQty })
-    }
-  } else {
-    if (existingIdx >= 0) {
-      parsedStock.value.splice(existingIdx, 1)
-    }
-  }
-  saveStockToStorage()
-  performStockAnalysis()
-}
-
-function cancelEditStock() {
-  editingStockTypeId.value = null
-}
-
 // Called by parent when tab is activated
 async function activate() {
   if (store.currentProject?.status === 'completed') return
   if (shoppingList.value.length === 0) {
-    stockAnalysisLoading.value = true
+    stock.stockAnalysisLoading.value = true
     try {
       await loadShoppingList()
     } finally {
-      stockAnalysisLoading.value = false
+      stock.stockAnalysisLoading.value = false
     }
   }
-  performStockAnalysis()
-}
-
-// Re-analyze stock without reparsing (used after loading from storage)
-async function reanalyzeStock() {
-  if (parsedStock.value.length === 0) return
-  if (shoppingList.value.length === 0) {
-    stockAnalysisLoading.value = true
-    try {
-      await loadShoppingList()
-    } finally {
-      stockAnalysisLoading.value = false
-    }
-  }
-  performStockAnalysis()
+  stock.performStockAnalysis()
 }
 
 // Refresh shopping list after purchased status changes (called by parent via StepsTab)
 async function refreshAfterPurchaseChange() {
   await loadShoppingList()
-  performStockAnalysis()
+  stock.performStockAnalysis()
 }
 
-// ─── Purchases (merged from PurchasesTab) ───
-const purchasesLoading = ref(false)
-const linkingId = ref<number | null>(null)
-const suggestionsPage = ref(1)
-const purchasesPage = ref(1)
-const PURCHASES_PER_PAGE = 15
-
-interface FlatPurchase {
-  id: string
-  stepId: string
-  stepName: string
-  typeName: string
-  quantity: number
-  unitPrice: number
-  totalPrice: number
-  source: string
-  transactionId: string | null
-}
-
-const projectPurchases = computed<FlatPurchase[]>(() => {
-  if (!store.currentProject?.steps) return []
-  const result: FlatPurchase[] = []
-  for (const step of store.currentProject.steps) {
-    if (step.purchases && step.purchases.length > 0) {
-      for (const p of step.purchases) {
-        result.push({
-          id: p.id,
-          stepId: step.id,
-          stepName: step.productTypeName,
-          typeName: p.typeName,
-          quantity: p.quantity,
-          unitPrice: p.unitPrice,
-          totalPrice: p.totalPrice,
-          source: p.source,
-          transactionId: p.transactionId,
-        })
-      }
-    }
-  }
-  return result
-})
-
-const projectPurchasesTotalCost = computed(() =>
-  projectPurchases.value.reduce((sum, p) => sum + p.totalPrice, 0),
-)
-
-// Paginated suggestions
-const paginatedSuggestions = computed(() => {
-  const start = (suggestionsPage.value - 1) * PURCHASES_PER_PAGE
-  return purchasesStore.suggestions.slice(start, start + PURCHASES_PER_PAGE)
-})
-
-const totalSuggestionsPages = computed(() =>
-  Math.ceil(purchasesStore.suggestions.length / PURCHASES_PER_PAGE),
-)
-
-// Paginated purchases
-const paginatedPurchases = computed(() => {
-  const start = (purchasesPage.value - 1) * PURCHASES_PER_PAGE
-  return projectPurchases.value.slice(start, start + PURCHASES_PER_PAGE)
-})
-
-const totalPurchasesPages = computed(() =>
-  Math.ceil(projectPurchases.value.length / PURCHASES_PER_PAGE),
-)
-
-function findStepForType(typeId: number): { id: string; name: string } | null {
-  if (!store.currentProject?.steps) return null
-  for (const step of store.currentProject.steps) {
-    if (step.depth > 0 && step.activityType !== 'copy' && step.productTypeId === typeId) {
-      return { id: step.id, name: step.productTypeName }
-    }
-  }
-  for (const step of store.currentProject.steps) {
-    if (step.depth === 0 && step.activityType !== 'copy') {
-      return { id: step.id, name: step.productTypeName }
-    }
-  }
-  return null
-}
-
+// Purchases
 async function linkSuggestion(suggestion: { transactionUuid: string; typeId: number; transactionId: number }) {
   const step = findStepForType(suggestion.typeId)
   if (!step) return
 
-  linkingId.value = suggestion.transactionId
   try {
     await purchasesStore.createPurchase(props.projectId, step.id, {
       transactionId: suggestion.transactionUuid,
@@ -822,9 +377,9 @@ async function linkSuggestion(suggestion: { transactionUuid: string; typeId: num
       purchasesStore.fetchSuggestions(props.projectId),
     ])
     await loadShoppingList()
-    performStockAnalysis()
+    stock.performStockAnalysis()
   } finally {
-    linkingId.value = null
+    purchasesPanelRef.value?.resetLinkingId()
   }
 }
 
@@ -835,7 +390,7 @@ async function removePurchase(stepId: string, purchaseId: string) {
     purchasesStore.fetchSuggestions(props.projectId),
   ])
   await loadShoppingList()
-  performStockAnalysis()
+  stock.performStockAnalysis()
 }
 
 async function loadSuggestions() {
@@ -851,14 +406,14 @@ defineExpose({
   shoppingTotals,
   enrichedShoppingList,
   missingTotals,
-  loadPersistedStock,
-  reanalyzeStock,
+  loadPersistedStock: stock.loadPersistedStock,
+  reanalyzeStock: stock.reanalyzeStock,
   activate,
   loadShoppingList,
   refreshAfterPurchaseChange,
-  showClearStockModal,
-  parsedStock,
-  clearStock,
+  showClearStockModal: stock.showClearStockModal,
+  parsedStock: stock.parsedStock,
+  clearStock: stock.clearStock,
   projectPurchasesTotalCost,
   loadSuggestions,
 })
@@ -867,7 +422,7 @@ defineExpose({
 <template>
   <div>
     <!-- Loading state -->
-    <div v-if="shoppingLoading || stockAnalysisLoading" class="text-center py-8 text-slate-500">
+    <div v-if="shoppingLoading || stock.stockAnalysisLoading.value" class="text-center py-8 text-slate-500">
       <svg class="w-6 h-6 animate-spin mx-auto mb-2 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
       </svg>
@@ -904,116 +459,25 @@ defineExpose({
 
     <!-- Main content -->
     <div v-else class="space-y-4">
-      <!-- Header: 3-column config + Stock status -->
-      <div v-if="store.currentProject?.status !== 'completed'" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <!-- Col 1: Structure selector -->
-        <div class="eve-card p-4 flex flex-col">
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.shoppingTab.marketStructure') }}</label>
-          <div class="relative">
-            <input
-              v-model="structureSearchQuery"
-              type="text"
-              :placeholder="selectedStructure.name || DEFAULT_STRUCTURE_NAME"
-              :class="[
-                'w-full bg-slate-800 border rounded-sm pl-3 pr-8 py-1.5 text-sm focus:outline-hidden',
-                selectedStructure.id
-                  ? 'border-cyan-500/50 text-cyan-400 placeholder-cyan-400'
-                  : 'border-slate-600 text-slate-200 placeholder-slate-400 focus:border-cyan-500/50'
-              ]"
-              @focus="showStructureDropdown = true"
-              @blur="onStructureInputBlur"
-            />
-            <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
-              <LoadingSpinner v-if="isSearchingStructures" size="sm" class="text-cyan-400" />
-              <button
-                v-else-if="selectedStructure.id || structureSearchQuery"
-                @mousedown.prevent="clearStructure"
-                class="text-slate-400 hover:text-slate-200"
-                :title="t('industry.shoppingTab.resetToDefault')"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <!-- Dropdown -->
-            <div
-              v-if="showStructureDropdown && (structureSearchResults.length > 0 || (structureSearchQuery.length >= 3 && !isSearchingStructures))"
-              class="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-48 overflow-y-auto"
-            >
-              <button
-                v-for="struct in structureSearchResults"
-                :key="struct.id"
-                @mousedown.prevent="selectStructure(struct)"
-                class="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-700/50 transition-colors border-b border-slate-700/50 last:border-0"
-              >
-                <div class="truncate">{{ struct.name }}</div>
-              </button>
-              <div
-                v-if="structureSearchQuery.length >= 3 && structureSearchResults.length === 0 && !isSearchingStructures"
-                class="px-3 py-2 text-slate-400 text-sm"
-              >
-                {{ t('industry.shoppingTab.noStructureFound') }}
-              </div>
-            </div>
-          </div>
-          <button
-            @click="syncStructureMarket"
-            :disabled="shoppingSyncing || (marketStructureProgress?.status === 'started' || marketStructureProgress?.status === 'in_progress')"
-            class="mt-auto w-full px-3 py-1.5 bg-cyan-500/20 border border-cyan-500/50 text-cyan-400 rounded-sm text-xs font-medium disabled:opacity-50 flex items-center justify-center gap-1.5 hover:bg-cyan-500/30 transition-colors"
-          >
-            <LoadingSpinner v-if="shoppingSyncing" size="xs+" />
-            {{ t('common.actions.sync') }}
-          </button>
-        </div>
-
-        <!-- Col 2: Transport cost -->
-        <div class="eve-card p-4 flex flex-col">
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.shoppingTab.transportCost') }}</label>
-          <div class="flex items-center gap-1.5">
-            <input
-              v-model.number="transportCostPerM3"
-              type="number"
-              min="0"
-              step="100"
-              class="w-full px-2 py-1.5 bg-slate-800 border border-slate-600 rounded-sm text-slate-200 text-sm font-mono focus:outline-hidden focus:border-cyan-500"
-            />
-            <span class="text-xs text-slate-500 whitespace-nowrap">ISK/m³</span>
-          </div>
-          <button
-            @click="loadShoppingList"
-            class="mt-auto w-full px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 rounded-sm text-white text-xs font-medium"
-          >
-            {{ t('industry.shoppingTab.recalculate') }}
-          </button>
-        </div>
-
-        <!-- Col 3: Stock rapide -->
-        <div class="eve-card p-4 flex flex-col">
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.shoppingTab.quickStock') }}</label>
-          <textarea
-            v-model="pastedStock"
-            :placeholder="t('industry.shoppingTab.pasteInventory')"
-            class="w-full h-12 bg-slate-800 border border-slate-700 rounded-sm p-2 text-xs font-mono text-slate-200 placeholder-slate-500 focus:outline-hidden focus:border-cyan-500 resize-none"
-          />
-          <div class="flex gap-2 mt-auto">
-            <button
-              @click="analyzeStock"
-              :disabled="stockAnalysisLoading"
-              class="flex-1 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 rounded-sm text-white text-xs font-medium"
-            >
-              {{ t('industry.shoppingTab.apply') }}
-            </button>
-            <button
-              v-if="parsedStock.length > 0"
-              @click="confirmClearStock"
-              class="px-3 py-1.5 text-red-400 hover:bg-red-500/10 border border-red-500/30 rounded-sm text-xs"
-            >
-              {{ t('common.actions.clear') }}
-            </button>
-          </div>
-        </div>
-      </div>
+      <!-- Header: 3-column config -->
+      <ShoppingConfigPanel
+        v-if="store.currentProject?.status !== 'completed'"
+        :selected-structure="selectedStructure"
+        :default-structure-name="DEFAULT_STRUCTURE_NAME"
+        :transport-cost-per-m3="transportCostPerM3"
+        :pasted-stock="stock.pastedStock.value"
+        :parsed-stock-count="stock.parsedStock.value.length"
+        :stock-analysis-loading="stock.stockAnalysisLoading.value"
+        :shopping-syncing="shoppingSyncing"
+        :market-structure-progress="marketStructureProgress"
+        @update:selected-structure="onStructureChange"
+        @update:transport-cost-per-m3="transportCostPerM3 = $event"
+        @update:pasted-stock="stock.pastedStock.value = $event"
+        @sync-structure="syncStructureMarket"
+        @recalculate="loadShoppingList"
+        @analyze-stock="stock.analyzeStock"
+        @confirm-clear-stock="stock.confirmClearStock"
+      />
 
       <!-- Mercure sync progress -->
       <div
@@ -1022,7 +486,7 @@ defineExpose({
       >
         <LoadingSpinner size="md" class="text-cyan-400 shrink-0" />
         <div class="flex-1">
-          <div class="text-sm text-cyan-300">{{ marketStructureProgress.message || 'Synchronisation du marché...' }}</div>
+          <div class="text-sm text-cyan-300">{{ marketStructureProgress.message || 'Synchronisation du marche...' }}</div>
           <div v-if="marketStructureProgress.progress !== null" class="mt-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
             <div
               class="h-full bg-cyan-500 transition-all duration-300"
@@ -1051,26 +515,26 @@ defineExpose({
       </div>
 
       <!-- Error message -->
-      <div v-if="stockAnalysisError" class="p-3 bg-red-900/20 border border-red-500/30 rounded-lg flex items-center gap-2">
+      <div v-if="stock.stockAnalysisError.value" class="p-3 bg-red-900/20 border border-red-500/30 rounded-lg flex items-center gap-2">
         <svg class="w-5 h-5 text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <span class="text-red-400 text-sm">{{ stockAnalysisError }}</span>
+        <span class="text-red-400 text-sm">{{ stock.stockAnalysisError.value }}</span>
       </div>
 
       <!-- Stock/purchase duplicate warning -->
-      <div v-if="stockPurchaseWarnings.length > 0" class="bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-lg p-3">
+      <div v-if="stock.stockPurchaseWarnings.value.length > 0" class="bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-lg p-3">
         <div class="flex items-start justify-between gap-2">
           <div>
             <p class="text-sm font-medium">{{ t('industry.shoppingTab.duplicateWarning') }}</p>
             <ul class="mt-1 text-xs text-amber-400/80 space-y-0.5">
-              <li v-for="w in stockPurchaseWarnings" :key="w.name">
+              <li v-for="w in stock.stockPurchaseWarnings.value" :key="w.name">
                 {{ w.name }} : {{ w.stockQty.toLocaleString() }} en stock + {{ w.purchasedQty.toLocaleString() }} achetes
               </li>
             </ul>
             <p class="mt-1 text-xs text-amber-400/60">{{ t('industry.shoppingTab.duplicateHint') }}</p>
           </div>
-          <button @click="stockPurchaseWarnings = []" class="text-amber-400 hover:text-amber-300 shrink-0 p-0.5">
+          <button @click="stock.stockPurchaseWarnings.value = []" class="text-amber-400 hover:text-amber-300 shrink-0 p-0.5">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -1079,163 +543,22 @@ defineExpose({
       </div>
 
       <!-- Totals summary -->
-      <div v-if="shoppingTotals" class="eve-card p-4">
-        <div class="grid grid-cols-5 gap-6 text-center">
-          <div>
-            <div class="text-xs text-slate-500 uppercase mb-1">{{ t('industry.shoppingTab.volumeToBuy') }}</div>
-            <div class="font-mono text-slate-200">{{ missingTotals.volume.toLocaleString() }} m³</div>
-          </div>
-          <div>
-            <div class="text-xs text-slate-500 uppercase mb-1">{{ t('industry.shoppingTab.jitaImport') }}</div>
-            <div class="font-mono text-slate-200">{{ formatIsk(hasAnyStock ? (missingTotals.jitaWeighted ?? missingTotals.jita) : shoppingTotals.jitaWithImport) }}</div>
-            <div v-if="hasAnyStock && missingTotals.jitaWeighted !== null" class="text-[10px] text-slate-600 font-mono mt-0.5">
-              {{ formatIsk(missingTotals.jita) }}
-            </div>
-          </div>
-          <div>
-            <div class="text-xs text-slate-500 uppercase mb-1">{{ t('industry.shoppingTab.structure') }}</div>
-            <div class="font-mono text-slate-200">{{ formatIsk(hasAnyStock ? missingTotals.structure : shoppingTotals.structure) }}</div>
-          </div>
-          <div>
-            <div class="text-xs text-slate-500 uppercase mb-1">{{ t('industry.shoppingTab.bestTotal') }}</div>
-            <div class="font-mono text-emerald-400 text-lg font-bold">{{ formatIsk(hasAnyStock ? missingTotals.price : shoppingTotals.best) }}</div>
-          </div>
-          <div class="flex items-center justify-center gap-2">
-            <button
-              v-if="jitaItems.length > 0"
-              @click="copyToClipboard(jitaMultibuyFormat, 'jita')"
-              class="px-3 py-2 bg-amber-500/20 border border-amber-500/50 text-amber-400 rounded-lg text-xs hover:bg-amber-500/30 transition-colors"
-            >
-              {{ copiedJita ? '✓ Copié' : `Jita Multibuy` }}
-            </button>
-            <button
-              v-if="structureItems.length > 0"
-              @click="copyToClipboard(structureMultibuyFormat, 'structure')"
-              class="px-3 py-2 bg-cyan-500/20 border border-cyan-500/50 text-cyan-400 rounded-lg text-xs hover:bg-cyan-500/30 transition-colors"
-            >
-              {{ copiedStructure ? '✓ Copié' : `Structure Multibuy` }}
-            </button>
-          </div>
-        </div>
-      </div>
+      <ShoppingTotalsSummary
+        v-if="shoppingTotals"
+        :shopping-totals="shoppingTotals"
+        :missing-totals="missingTotals"
+        :has-any-stock="stock.hasAnyStock.value"
+        :jita-multibuy-format="jitaMultibuyFormat"
+        :structure-multibuy-format="structureMultibuyFormat"
+        :has-jita-items="jitaItems.length > 0"
+        :has-structure-items="structureItems.length > 0"
+      />
 
       <!-- Materials table -->
-      <div v-if="enrichedShoppingList.length > 0" class="bg-slate-900 rounded-xl border border-slate-800">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
-              <th class="text-left py-3 px-3">{{ t('industry.shoppingTab.material') }}</th>
-              <th class="text-right py-3 px-2">{{ t('industry.shoppingTab.quantity') }}</th>
-              <th class="text-center py-3 px-2">{{ t('industry.shoppingTab.stock') }}</th>
-              <th class="text-right py-3 px-2">{{ t('industry.shoppingTab.toBuy') }}</th>
-              <th class="text-right py-3 px-2">{{ t('industry.shoppingTab.volume') }}</th>
-              <th class="text-right py-3 px-2">{{ t('industry.shoppingTab.jitaImport') }}</th>
-              <th class="text-right py-3 px-2">{{ t('industry.shoppingTab.structure') }}</th>
-              <th class="text-right py-3 px-2">{{ t('industry.shoppingTab.best') }}</th>
-              <th class="text-right py-3 px-2">{{ t('industry.shoppingTab.savings') }}</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-800">
-            <tr
-              v-for="item in enrichedShoppingList"
-              :key="item.typeId"
-              class="hover:bg-slate-800/50"
-            >
-              <td class="py-3 px-3">
-                <div class="flex items-center gap-2">
-                  <img
-                    :src="getTypeIconUrl(item.typeId, 32)"
-                    class="w-5 h-5 rounded-sm"
-                    @error="onImageError"
-                  />
-                  <span class="text-slate-200">{{ item.typeName }}</span>
-                  <OpenInGameButton type="market" :targetId="item.typeId" />
-                </div>
-              </td>
-              <td class="py-3 px-2 text-right font-mono text-slate-300">
-                {{ item.quantity.toLocaleString() }}
-                <span v-if="item.extraQuantity > 0" class="text-amber-400 text-xs" :title="`+${item.extraQuantity.toLocaleString()} ${t('industry.shoppingTab.suboptimalExtra')}`">
-                  (+{{ item.extraQuantity.toLocaleString() }})
-                </span>
-              </td>
-              <!-- Stock (editable) -->
-              <td class="py-3 px-2 text-center">
-                <div class="flex items-center justify-center gap-1.5">
-                  <span
-                    class="w-2 h-2 rounded-full shrink-0"
-                    :class="[
-                      item.status === 'ok' ? 'bg-emerald-500' :
-                      item.status === 'partial' ? 'bg-amber-500' : 'bg-red-500'
-                    ]"
-                  ></span>
-                  <input
-                    v-if="editingStockTypeId === item.typeId"
-                    v-model="editingStockValue"
-                    type="number"
-                    min="0"
-                    class="w-16 bg-slate-700 border border-cyan-500 rounded-sm px-1.5 py-0.5 text-xs text-right font-mono focus:outline-hidden"
-                    @keydown.enter="saveEditStock(item.typeName)"
-                    @keydown.escape="cancelEditStock"
-                    @blur="saveEditStock(item.typeName)"
-                    autofocus
-                  />
-                  <span
-                    v-else
-                    @click="startEditStock(item)"
-                    class="font-mono text-xs cursor-pointer hover:text-cyan-400 min-w-8"
-                    :class="item.inStock > 0 ? 'text-slate-300' : 'text-slate-600'"
-                    :title="t('industry.projectDetail.clickToEdit')"
-                  >
-                    {{ item.inStock > 0 ? item.inStock.toLocaleString() : '-' }}
-                  </span>
-                </div>
-              </td>
-              <!-- À acheter (missing) -->
-              <td class="py-3 px-2 text-right font-mono" :class="item.missing > 0 ? 'text-slate-200' : 'text-emerald-400'">
-                {{ item.missing > 0 ? item.missing.toLocaleString() : '0' }}
-              </td>
-              <!-- Volume (based on missing) -->
-              <td class="py-3 px-2 text-right font-mono text-slate-400">{{ item.missingVolume.toLocaleString() }} m³</td>
-              <!-- Jita (based on missing) -->
-              <td class="py-3 px-2 text-right font-mono">
-                <div v-if="item.missingJitaWeighted !== null || item.missingJita !== null">
-                  <div class="flex items-center justify-end gap-1">
-                    <span
-                      v-if="item.missingJitaCoverage !== null && item.missingJitaCoverage < 1.0"
-                      class="shrink-0"
-                      :class="item.missingJitaCoverage >= 0.5 ? 'text-amber-400' : 'text-red-400'"
-                      :title="t('industry.shoppingTab.depthWarning', { available: Math.round((item.missingJitaCoverage ?? 0) * item.quantity).toLocaleString(), total: item.quantity.toLocaleString() })"
-                    >
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                    </span>
-                    <span :class="item.bestLocation === 'jita' && item.missing > 0 ? 'text-emerald-400' : 'text-slate-300'">
-                      {{ formatIsk(item.missingJitaWeighted ?? item.missingJita) }}
-                    </span>
-                  </div>
-                  <div v-if="item.missingJitaWeighted !== null && item.missingJita !== null" class="text-[10px] text-slate-600 mt-0.5">
-                    {{ formatIsk(item.missingJita) }}
-                  </div>
-                </div>
-                <span v-else class="text-slate-300">-</span>
-              </td>
-              <!-- Structure (based on missing) -->
-              <td class="py-3 px-2 text-right font-mono" :class="item.bestLocation === 'structure' && item.missing > 0 ? 'text-emerald-400' : 'text-slate-300'">
-                {{ item.missingStructure !== null ? formatIsk(item.missingStructure) : '-' }}
-              </td>
-              <!-- Meilleur (based on missing) -->
-              <td class="py-3 px-2 text-right font-mono text-emerald-400">
-                {{ item.missingBest !== null ? formatIsk(item.missingBest) : '-' }}
-              </td>
-              <!-- Économie (based on missing) -->
-              <td class="py-3 px-2 text-right font-mono text-emerald-400">
-                {{ item.missingSavings !== null ? formatIsk(item.missingSavings) : '-' }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <ShoppingMaterialsTable
+        :items="enrichedShoppingList"
+        @update-stock="stock.updateStockByName"
+      />
 
       <!-- Price info + Apply as material cost -->
       <div class="flex items-center gap-3">
@@ -1265,210 +588,19 @@ defineExpose({
         </button>
       </div>
 
-      <!-- ─── Purchases sections ─── -->
-
-      <!-- Loading purchases -->
-      <div v-if="purchasesLoading" class="text-center py-6 text-slate-500">
-        <svg class="w-5 h-5 animate-spin mx-auto mb-2 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
-        {{ t('industry.shoppingTab.loadingSuggestions') }}
-      </div>
-
-      <template v-else>
-        <!-- Purchase suggestions from wallet -->
-        <div class="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
-          <div class="flex items-center justify-between mb-3">
-            <h4 class="text-sm font-semibold text-slate-200">
-              {{ t('industry.shoppingTab.purchaseSuggestions') }}
-              <span v-if="purchasesStore.suggestions.length > 0" class="text-slate-500 font-normal">({{ purchasesStore.suggestions.length }})</span>
-            </h4>
-            <button
-              @click="loadSuggestions"
-              class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-lg text-slate-300 text-xs flex items-center gap-1.5"
-            >
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              {{ t('common.actions.refresh') }}
-            </button>
-          </div>
-
-          <div v-if="purchasesStore.suggestions.length === 0" class="text-center py-6 text-slate-500 text-sm">
-            {{ t('industry.shoppingTab.noWalletMatch') }}
-          </div>
-
-          <div v-else class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase">
-                  <th class="text-left py-2 px-3">{{ t('industry.shoppingTab.date') }}</th>
-                  <th class="text-left py-2 px-3">{{ t('industry.shoppingTab.item') }}</th>
-                  <th class="text-right py-2 px-3">{{ t('industry.shoppingTab.qty') }}</th>
-                  <th class="text-right py-2 px-3">{{ t('industry.shoppingTab.unitPrice') }}</th>
-                  <th class="text-right py-2 px-3">{{ t('industry.shoppingTab.total') }}</th>
-                  <th class="text-left py-2 px-3">{{ t('industry.shoppingTab.character') }}</th>
-                  <th class="text-center py-2 px-3">{{ t('industry.shoppingTab.action') }}</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="suggestion in paginatedSuggestions"
-                  :key="suggestion.transactionId"
-                  class="border-b border-slate-800/50 hover:bg-slate-800/30"
-                  :class="{ 'opacity-50': suggestion.alreadyLinked }"
-                >
-                  <td class="py-2 px-3 text-slate-400 text-xs">{{ formatDateTime(suggestion.date) }}</td>
-                  <td class="py-2 px-3 text-slate-200">{{ suggestion.typeName }}</td>
-                  <td class="py-2 px-3 text-right font-mono text-slate-300">{{ suggestion.quantity.toLocaleString() }}</td>
-                  <td class="py-2 px-3 text-right font-mono text-slate-400">{{ formatIsk(suggestion.unitPrice) }}</td>
-                  <td class="py-2 px-3 text-right font-mono text-slate-200">{{ formatIsk(suggestion.totalPrice) }}</td>
-                  <td class="py-2 px-3 text-slate-400 text-xs">{{ suggestion.characterName }}</td>
-                  <td class="py-2 px-3 text-center">
-                    <span v-if="suggestion.alreadyLinked" class="px-2 py-0.5 rounded-sm text-xs bg-emerald-500/10 text-emerald-400">{{ t('industry.shoppingTab.linked') }}</span>
-                    <button
-                      v-else-if="findStepForType(suggestion.typeId)"
-                      @click="linkSuggestion(suggestion)"
-                      :disabled="linkingId === suggestion.transactionId"
-                      class="px-2 py-0.5 rounded-sm text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 disabled:opacity-50"
-                    >
-                      <template v-if="linkingId === suggestion.transactionId">
-                        <svg class="w-3 h-3 animate-spin inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                      </template>
-                      <template v-else>{{ t('industry.shoppingTab.link') }}</template>
-                    </button>
-                    <span v-else class="text-xs text-slate-600">—</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            <!-- Suggestions pagination -->
-            <div v-if="totalSuggestionsPages > 1" class="flex items-center justify-between px-3 py-2 border-t border-slate-700">
-              <span class="text-xs text-slate-500">{{ purchasesStore.suggestions.length }} {{ t('industry.shoppingTab.results') }}</span>
-              <div class="flex items-center gap-2">
-                <button
-                  @click="suggestionsPage--"
-                  :disabled="suggestionsPage <= 1"
-                  class="px-2 py-1 rounded-sm text-xs bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {{ t('industry.shoppingTab.previous') }}
-                </button>
-                <span class="text-xs text-slate-400">{{ suggestionsPage }} / {{ totalSuggestionsPages }}</span>
-                <button
-                  @click="suggestionsPage++"
-                  :disabled="suggestionsPage >= totalSuggestionsPages"
-                  class="px-2 py-1 rounded-sm text-xs bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {{ t('industry.shoppingTab.next') }}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Linked purchases for this project -->
-        <div v-if="store.currentProject?.steps" class="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
-          <h4 class="text-sm font-semibold text-slate-200 mb-3">
-            {{ t('industry.shoppingTab.linkedPurchases') }}
-            <span v-if="projectPurchases.length > 0" class="text-slate-500 font-normal">({{ projectPurchases.length }})</span>
-          </h4>
-
-          <div v-if="projectPurchases.length === 0" class="text-center py-4 text-slate-500 text-sm">
-            {{ t('industry.shoppingTab.noLinkedPurchases') }}
-          </div>
-
-          <div v-else class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase">
-                  <th class="text-left py-2 px-3">{{ t('industry.shoppingTab.step') }}</th>
-                  <th class="text-left py-2 px-3">{{ t('industry.shoppingTab.item') }}</th>
-                  <th class="text-right py-2 px-3">{{ t('industry.shoppingTab.qty') }}</th>
-                  <th class="text-right py-2 px-3">{{ t('industry.shoppingTab.unitPrice') }}</th>
-                  <th class="text-right py-2 px-3">{{ t('industry.shoppingTab.total') }}</th>
-                  <th class="text-center py-2 px-3">{{ t('industry.shoppingTab.source') }}</th>
-                  <th class="text-center py-2 px-3">{{ t('industry.shoppingTab.action') }}</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="purchase in paginatedPurchases"
-                  :key="purchase.id"
-                  class="border-b border-slate-800/50 hover:bg-slate-800/30"
-                >
-                  <td class="py-2 px-3 text-slate-400 text-xs">{{ purchase.stepName }}</td>
-                  <td class="py-2 px-3 text-slate-200">{{ purchase.typeName }}</td>
-                  <td class="py-2 px-3 text-right font-mono text-slate-300">{{ purchase.quantity.toLocaleString() }}</td>
-                  <td class="py-2 px-3 text-right font-mono text-slate-400">{{ formatIsk(purchase.unitPrice) }}</td>
-                  <td class="py-2 px-3 text-right font-mono text-slate-200">{{ formatIsk(purchase.totalPrice) }}</td>
-                  <td class="py-2 px-3 text-center">
-                    <span
-                      :class="[
-                        'px-2 py-0.5 rounded-sm text-xs',
-                        purchase.source === 'esi_wallet' ? 'bg-cyan-500/10 text-cyan-400' : 'bg-amber-500/10 text-amber-400'
-                      ]"
-                    >
-                      {{ purchase.source === 'esi_wallet' ? 'ESI' : t('industry.shoppingTab.manual') }}
-                    </span>
-                  </td>
-                  <td class="py-2 px-3 text-center">
-                    <button
-                      @click="removePurchase(purchase.stepId, purchase.id)"
-                      class="text-slate-500 hover:text-red-400"
-                      :title="t('industry.shoppingTab.unlink')"
-                    >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            <!-- Purchases pagination -->
-            <div v-if="totalPurchasesPages > 1" class="flex items-center justify-between px-3 py-2 border-t border-slate-700">
-              <span class="text-xs text-slate-500">{{ projectPurchases.length }} {{ t('industry.shoppingTab.results') }}</span>
-              <div class="flex items-center gap-2">
-                <button
-                  @click="purchasesPage--"
-                  :disabled="purchasesPage <= 1"
-                  class="px-2 py-1 rounded-sm text-xs bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {{ t('industry.shoppingTab.previous') }}
-                </button>
-                <span class="text-xs text-slate-400">{{ purchasesPage }} / {{ totalPurchasesPages }}</span>
-                <button
-                  @click="purchasesPage++"
-                  :disabled="purchasesPage >= totalPurchasesPages"
-                  class="px-2 py-1 rounded-sm text-xs bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {{ t('industry.shoppingTab.next') }}
-                </button>
-              </div>
-            </div>
-
-            <!-- Cost comparison -->
-            <div v-if="projectPurchasesTotalCost > 0" class="mt-4 pt-3 border-t border-slate-700 flex items-center gap-6 text-sm">
-              <span class="text-slate-400">{{ t('industry.shoppingTab.actualPurchaseCost') }}:</span>
-              <span class="font-mono text-slate-200">{{ formatIsk(projectPurchasesTotalCost) }}</span>
-              <template v-if="store.currentProject?.materialCost">
-                <span class="text-slate-400">{{ t('industry.shoppingTab.estimated') }}:</span>
-                <span class="font-mono text-slate-400">{{ formatIsk(store.currentProject.materialCost) }}</span>
-                <span
-                  :class="[
-                    'font-mono',
-                    projectPurchasesTotalCost <= store.currentProject.materialCost ? 'text-emerald-400' : 'text-red-400'
-                  ]"
-                >
-                  {{ projectPurchasesTotalCost <= store.currentProject.materialCost ? '-' : '+' }}{{ formatIsk(Math.abs(projectPurchasesTotalCost - store.currentProject.materialCost)) }}
-                </span>
-              </template>
-            </div>
-          </div>
-        </div>
-      </template>
+      <!-- Purchases panel -->
+      <ShoppingPurchasesPanel
+        ref="purchasesPanelRef"
+        :suggestions="purchasesStore.suggestions"
+        :project-purchases="projectPurchases"
+        :project-purchases-total-cost="projectPurchasesTotalCost"
+        :material-cost="store.currentProject?.materialCost ?? null"
+        :purchases-loading="purchasesLoading"
+        :can-find-step-for-type="canFindStepForType"
+        @load-suggestions="loadSuggestions"
+        @link-suggestion="linkSuggestion"
+        @remove-purchase="removePurchase"
+      />
     </div>
   </div>
 </template>

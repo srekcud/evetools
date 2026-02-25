@@ -10,6 +10,7 @@ use App\ApiResource\Input\Pve\ImportLootSalesInput;
 use App\ApiResource\Pve\ImportResultResource;
 use App\Entity\PveIncome;
 use App\Entity\User;
+use App\Enum\PveIncomeType;
 use App\Repository\PveIncomeRepository;
 use App\Repository\UserPveSettingsRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -62,7 +63,7 @@ class ImportLootSalesProcessor implements ProcessorInterface
 
             $income = new PveIncome();
             $income->setUser($user);
-            $income->setType($saleData['type'] ?? PveIncome::TYPE_LOOT_SALE);
+            $income->setType(isset($saleData['type']) ? (PveIncomeType::tryFrom($saleData['type']) ?? PveIncomeType::LootSale) : PveIncomeType::LootSale);
             $income->setDescription($saleData['typeName']);
             $income->setAmount((float) $saleData['price']);
             $income->setDate(new \DateTimeImmutable($saleData['dateIssued']));

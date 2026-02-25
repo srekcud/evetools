@@ -173,8 +173,12 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
 
         $skillIds = array_map(fn ($r) => (int) $r['skill_id'], $rows);
 
-        // Ensure the 3 base industry skills are always included
-        foreach (CachedCharacterSkill::INDUSTRY_SKILL_IDS as $id) {
+        // Ensure base industry skills and slot skills are always included
+        $alwaysInclude = array_unique(array_merge(
+            CachedCharacterSkill::INDUSTRY_SKILL_IDS,
+            CachedCharacterSkill::SLOT_SKILL_IDS,
+        ));
+        foreach ($alwaysInclude as $id) {
             if (!in_array($id, $skillIds, true)) {
                 $skillIds[] = $id;
             }

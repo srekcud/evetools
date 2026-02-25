@@ -6,6 +6,7 @@ namespace App\Repository;
 
 use App\Entity\CachedAsset;
 use App\Entity\Character;
+use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -143,5 +144,33 @@ class CachedAssetRepository extends ServiceEntityRepository
             ->setParameter('corporationId', $corporationId)
             ->getQuery()
             ->execute();
+    }
+
+    /**
+     * Aggregate personal asset quantities by typeId across all user characters.
+     *
+     * @return array<int, int> typeId => totalQuantity
+     */
+    public function getAggregatedQuantitiesByUser(User $user): array
+    {
+        $conn = $this->getEntityManager()->getConnection();
+
+        $sql = <<<SQL
+            SELECT a.type_id, SUM(a.quantity) AS total_qty
+            FROM cached_assets a
+            JOIN characters c ON c.id = a.character_id
+            WHERE c.user_id = :userId
+              AND a.is_corporation_asset = false
+            GROUP BY a.type_id
+        SQL;
+
+        $rows = $conn->fetchAllAssociative($sql, ['userId' => $user->getId()]);
+
+        $result = [];
+        foreach ($rows as $row) {
+            $result[(int) $row['type_id']] = (int) $row['total_qty'];
+        }
+
+        return $result;
     }
 }

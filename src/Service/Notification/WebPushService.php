@@ -21,17 +21,17 @@ class WebPushService
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
         #[Autowire('%env(default::VAPID_PUBLIC_KEY)%')]
-        private readonly string $vapidPublicKey,
+        private readonly ?string $vapidPublicKey,
         #[Autowire('%env(default::VAPID_PRIVATE_KEY)%')]
-        private readonly string $vapidPrivateKey,
+        private readonly ?string $vapidPrivateKey,
         #[Autowire('%env(default::VAPID_SUBJECT)%')]
-        private readonly string $vapidSubject,
+        private readonly ?string $vapidSubject,
     ) {
     }
 
     public function send(User $user, Notification $notification): void
     {
-        if ($this->vapidPublicKey === '' || $this->vapidPrivateKey === '' || $this->vapidSubject === '') {
+        if (!$this->vapidPublicKey || !$this->vapidPrivateKey || !$this->vapidSubject) {
             $this->logger->debug('Web Push: VAPID keys not configured, skipping push notification');
             return;
         }

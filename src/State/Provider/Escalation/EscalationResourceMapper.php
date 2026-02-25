@@ -20,9 +20,9 @@ class EscalationResourceMapper
         $resource->solarSystemName = $escalation->getSolarSystemName();
         $resource->securityStatus = $escalation->getSecurityStatus();
         $resource->price = $escalation->getPrice();
-        $resource->visibility = $escalation->getVisibility();
-        $resource->bmStatus = $escalation->getBmStatus();
-        $resource->saleStatus = $escalation->getSaleStatus();
+        $resource->visibility = $escalation->getVisibility()->value;
+        $resource->bmStatus = $escalation->getBmStatus()->value;
+        $resource->saleStatus = $escalation->getSaleStatus()->value;
         $resource->notes = $escalation->getNotes();
         $resource->corporationId = $escalation->getCorporationId();
         $resource->expiresAt = $escalation->getExpiresAt()->format('c');

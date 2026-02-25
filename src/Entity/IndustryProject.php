@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -47,8 +48,8 @@ class IndustryProject
     #[ORM\Column(type: 'float')]
     private float $maxJobDurationDays = 2.0;
 
-    #[ORM\Column(type: 'string', length: 20)]
-    private string $status = 'active';
+    #[ORM\Column(type: 'string', length: 20, enumType: ProjectStatus::class)]
+    private ProjectStatus $status = ProjectStatus::Active;
 
     #[ORM\Column(type: 'boolean')]
     private bool $personalUse = false;
@@ -197,12 +198,12 @@ class IndustryProject
         return $this;
     }
 
-    public function getStatus(): string
+    public function getStatus(): ProjectStatus
     {
         return $this->status;
     }
 
-    public function setStatus(string $status): static
+    public function setStatus(ProjectStatus $status): static
     {
         $this->status = $status;
         return $this;

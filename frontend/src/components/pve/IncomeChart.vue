@@ -12,6 +12,7 @@ import {
   Tooltip,
   Legend,
   Filler,
+  type TooltipItem,
 } from 'chart.js'
 import type { DailyStats } from '@/stores/pve'
 
@@ -75,8 +76,8 @@ const chartOptions = {
     },
     tooltip: {
       callbacks: {
-        label: (context: any) => {
-          return `${context.dataset.label}: ${context.raw.toFixed(2)}B ISK`
+        label: (context: TooltipItem<'line'>) => {
+          return `${context.dataset.label}: ${(context.raw as number).toFixed(2)}B ISK`
         },
       },
     },
@@ -93,7 +94,7 @@ const chartOptions = {
     y: {
       ticks: {
         color: '#9ca3af',
-        callback: (value: any) => `${value}B`,
+        callback: (value: string | number) => `${value}B`,
       },
       grid: {
         color: 'rgba(75, 85, 99, 0.3)',

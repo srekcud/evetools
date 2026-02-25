@@ -9,6 +9,7 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Pve\IncomeResource;
 use App\Entity\PveIncome;
 use App\Entity\User;
+use App\Enum\PveIncomeType;
 use App\Repository\PveExpenseRepository;
 use App\Repository\PveIncomeRepository;
 use App\Repository\UserPveSettingsRepository;
@@ -49,12 +50,12 @@ class IncomeProvider implements ProviderInterface
         $bounties = array_map(fn(PveIncome $i) => [
             'id' => $i->getJournalEntryId() ?? $i->getId()?->toRfc4122(),
             'date' => $i->getDate()->format('c'),
-            'refType' => $i->getType(),
+            'refType' => $i->getType()->value,
             'refTypeLabel' => match ($i->getType()) {
-                PveIncome::TYPE_BOUNTY => 'Bounty',
-                PveIncome::TYPE_ESS => 'ESS',
-                PveIncome::TYPE_MISSION => 'Mission',
-                default => $i->getType(),
+                PveIncomeType::Bounty => 'Bounty',
+                PveIncomeType::Ess => 'ESS',
+                PveIncomeType::Mission => 'Mission',
+                default => $i->getType()->value,
             },
             'amount' => $i->getAmount(),
             'description' => $i->getDescription(),
@@ -87,7 +88,7 @@ class IncomeProvider implements ProviderInterface
             'count' => count($lootSalesList),
             'entries' => array_map(fn(PveIncome $i) => [
                 'id' => $i->getId()?->toRfc4122(),
-                'type' => $i->getType(),
+                'type' => $i->getType()->value,
                 'description' => $i->getDescription(),
                 'amount' => $i->getAmount(),
                 'date' => $i->getDate()->format('Y-m-d'),

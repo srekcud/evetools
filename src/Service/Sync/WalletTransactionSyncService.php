@@ -57,6 +57,16 @@ class WalletTransactionSyncService
 
                 $totalCount += count($transactions);
                 $lowestId = null;
+
+                // Batch check: collect all transaction IDs and query once
+                $pageTransactionIds = array_map(
+                    fn (array $txData) => (int) $txData['transaction_id'],
+                    $transactions,
+                );
+                $existingIds = array_flip(
+                    $this->transactionRepository->findExistingTransactionIds($pageTransactionIds),
+                );
+
                 $hasNewTransactions = false;
 
                 foreach ($transactions as $txData) {
@@ -67,8 +77,7 @@ class WalletTransactionSyncService
                         $lowestId = $transactionId;
                     }
 
-                    $existing = $this->transactionRepository->findByTransactionId($transactionId);
-                    if ($existing !== null) {
+                    if (isset($existingIds[$transactionId])) {
                         continue;
                     }
 

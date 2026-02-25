@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\Entity\Escalation;
 use App\Entity\User;
+use App\Enum\EscalationVisibility;
 use App\Repository\EscalationRepository;
 use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -47,14 +48,14 @@ class DeleteEscalationProcessor implements ProcessorInterface
             throw new AccessDeniedHttpException('Access denied');
         }
 
+        $visibility = $escalation->getVisibility();
         $escalationData = [
             'id' => $escalation->getId()?->toRfc4122(),
             'type' => $escalation->getType(),
             'solarSystemName' => $escalation->getSolarSystemName(),
             'characterName' => $escalation->getCharacterName(),
-            'visibility' => $escalation->getVisibility(),
+            'visibility' => $visibility->value,
         ];
-        $visibility = $escalation->getVisibility();
         $corporationId = $escalation->getCorporationId();
         $allianceId = $escalation->getAllianceId();
 
@@ -62,13 +63,13 @@ class DeleteEscalationProcessor implements ProcessorInterface
         $this->em->flush();
 
         // Publish Mercure event for non-personal escalations
-        if ($visibility !== Escalation::VISIBILITY_PERSO) {
+        if ($visibility !== EscalationVisibility::Perso) {
             $this->mercurePublisher->publishEscalationEvent(
                 'deleted',
                 $escalationData,
                 $corporationId,
                 $allianceId,
-                $visibility,
+                $visibility->value,
             );
         }
     }

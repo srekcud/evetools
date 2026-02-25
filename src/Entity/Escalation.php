@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Enum\EscalationBmStatus;
+use App\Enum\EscalationSaleStatus;
+use App\Enum\EscalationVisibility;
 use App\Repository\EscalationRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -17,17 +20,6 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(columns: ['alliance_id', 'visibility'])]
 class Escalation
 {
-    public const VISIBILITY_PERSO = 'perso';
-    public const VISIBILITY_CORP = 'corp';
-    public const VISIBILITY_ALLIANCE = 'alliance';
-    public const VISIBILITY_PUBLIC = 'public';
-
-    public const BM_NOUVEAU = 'nouveau';
-    public const BM_BM = 'bm';
-
-    public const SALE_ENVENTE = 'envente';
-    public const SALE_VENDU = 'vendu';
-
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     #[ORM\GeneratedValue(strategy: 'CUSTOM')]
@@ -59,14 +51,14 @@ class Escalation
     #[ORM\Column(type: 'integer')]
     private int $price;
 
-    #[ORM\Column(type: 'string', length: 10)]
-    private string $visibility = self::VISIBILITY_PERSO;
+    #[ORM\Column(type: 'string', length: 10, enumType: EscalationVisibility::class)]
+    private EscalationVisibility $visibility = EscalationVisibility::Perso;
 
-    #[ORM\Column(type: 'string', length: 10)]
-    private string $bmStatus = self::BM_NOUVEAU;
+    #[ORM\Column(type: 'string', length: 10, enumType: EscalationBmStatus::class)]
+    private EscalationBmStatus $bmStatus = EscalationBmStatus::Nouveau;
 
-    #[ORM\Column(type: 'string', length: 10)]
-    private string $saleStatus = self::SALE_ENVENTE;
+    #[ORM\Column(type: 'string', length: 10, enumType: EscalationSaleStatus::class)]
+    private EscalationSaleStatus $saleStatus = EscalationSaleStatus::EnVente;
 
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $notes = null;
@@ -185,36 +177,36 @@ class Escalation
         return $this;
     }
 
-    public function getVisibility(): string
+    public function getVisibility(): EscalationVisibility
     {
         return $this->visibility;
     }
 
-    public function setVisibility(string $visibility): static
+    public function setVisibility(EscalationVisibility $visibility): static
     {
         $this->visibility = $visibility;
         $this->updatedAt = new \DateTimeImmutable();
         return $this;
     }
 
-    public function getBmStatus(): string
+    public function getBmStatus(): EscalationBmStatus
     {
         return $this->bmStatus;
     }
 
-    public function setBmStatus(string $bmStatus): static
+    public function setBmStatus(EscalationBmStatus $bmStatus): static
     {
         $this->bmStatus = $bmStatus;
         $this->updatedAt = new \DateTimeImmutable();
         return $this;
     }
 
-    public function getSaleStatus(): string
+    public function getSaleStatus(): EscalationSaleStatus
     {
         return $this->saleStatus;
     }
 
-    public function setSaleStatus(string $saleStatus): static
+    public function setSaleStatus(EscalationSaleStatus $saleStatus): static
     {
         $this->saleStatus = $saleStatus;
         $this->updatedAt = new \DateTimeImmutable();

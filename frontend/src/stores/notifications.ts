@@ -24,10 +24,7 @@ export interface NotificationPreference {
   pushEnabled: boolean
 }
 
-interface PaginatedResponse {
-  items: AppNotification[]
-  total: number
-}
+const PAGE_SIZE = 30
 
 export const useNotificationsStore = defineStore('notifications', () => {
   // State
@@ -66,17 +63,17 @@ export const useNotificationsStore = defineStore('notifications', () => {
       if (isRead !== undefined) params.push(`isRead=${isRead}`)
 
       const url = `/me/notifications?${params.join('&')}`
-      const data = await apiRequest<PaginatedResponse>(url)
+      const data = await apiRequest<AppNotification[]>(url)
+      const items = data ?? []
 
       if (page === 1) {
-        notifications.value = data.items ?? []
+        notifications.value = items
       } else {
-        notifications.value = [...notifications.value, ...(data.items ?? [])]
+        notifications.value = [...notifications.value, ...items]
       }
 
-      totalItems.value = data.total ?? 0
       currentPage.value = page
-      hasMore.value = notifications.value.length < data.total
+      hasMore.value = items.length >= PAGE_SIZE
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to fetch notifications'
     } finally {
@@ -146,8 +143,6 @@ export const useNotificationsStore = defineStore('notifications', () => {
         body: JSON.stringify({ preferences: prefs }),
       })
       preferences.value = prefs
-    } catch (e) {
-      throw e
     } finally {
       isSavingPreferences.value = false
     }

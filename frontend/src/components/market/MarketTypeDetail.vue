@@ -3,8 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMarketStore, type MarketTypeDetail as TypeDetailType } from '@/stores/market'
 import { useFormatters } from '@/composables/useFormatters'
-import PriceChart from './PriceChart.vue'
-import VolumeChart from './VolumeChart.vue'
+import MarketHistoryChart from './MarketHistoryChart.vue'
 import OrderBookPanel from './OrderBookPanel.vue'
 import PriceComparisonTable from './PriceComparisonTable.vue'
 import AlertFormModal from './AlertFormModal.vue'
@@ -306,23 +305,17 @@ const price30dAgo = computed(() => {
       </button>
     </div>
 
-    <!-- Price Chart -->
+    <!-- Unified Price & Volume Chart -->
     <div class="bg-slate-900/50 border border-slate-800/50 rounded-xl p-5 mb-6">
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-sm font-medium text-slate-300">{{ t('market.detail.priceHistory') }}</h3>
       </div>
-      <PriceChart
+      <MarketHistoryChart
         :data="marketStore.history"
         :selected-period="selectedPeriod"
         :source="chartSource"
         @update:selected-period="selectedPeriod = $event"
       />
-    </div>
-
-    <!-- Volume Chart -->
-    <div class="bg-slate-900/50 border border-slate-800/50 rounded-xl p-5 mb-6">
-      <h3 class="text-sm font-medium text-slate-300 mb-4">{{ t('market.detail.dailyVolume') }}</h3>
-      <VolumeChart :data="marketStore.history" :source="chartSource" />
     </div>
 
     <!-- Order Book + Comparison side by side -->

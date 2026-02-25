@@ -430,12 +430,9 @@ const reactionSecurityMultipliers = {
 // Calculate time bonus (base structure + rig, multiplicative)
 function calculateTimeBonus(structureType: string, rigs: string[], type: 'manufacturing' | 'reaction', security: string): number {
   // Base structure time bonus
-  let baseBonus = 0
-  if (type === 'manufacturing') {
-    baseBonus = { raitaru: 15, azbel: 20, sotiyo: 30 }[structureType] ?? 0
-  } else {
-    baseBonus = { athanor: 25, tatara: 25 }[structureType] ?? 0
-  }
+  const baseBonus = type === 'manufacturing'
+    ? ({ raitaru: 15, azbel: 20, sotiyo: 30 }[structureType] ?? 0)
+    : ({ athanor: 25, tatara: 25 }[structureType] ?? 0)
 
   // Rig time bonus (only L-Set/XL-Set "Efficiency" rigs, not "Material Efficiency")
   if (!store.rigOptions) return baseBonus

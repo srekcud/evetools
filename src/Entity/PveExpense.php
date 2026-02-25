@@ -14,7 +14,6 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(columns: ['user_id', 'date'])]
 #[ORM\Index(columns: ['user_id', 'contract_id'])]
 #[ORM\Index(columns: ['user_id', 'transaction_id'])]
-#[ORM\Index(columns: ['session_id'])]
 class PveExpense
 {
     public const TYPE_FUEL = 'fuel';
@@ -31,10 +30,6 @@ class PveExpense
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private User $user;
-
-    #[ORM\ManyToOne(targetEntity: PveSession::class, inversedBy: 'expenses')]
-    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
-    private ?PveSession $session = null;
 
     #[ORM\Column(type: 'string', length: 50)]
     private string $type;
@@ -150,14 +145,4 @@ class PveExpense
         return $this;
     }
 
-    public function getSession(): ?PveSession
-    {
-        return $this->session;
-    }
-
-    public function setSession(?PveSession $session): static
-    {
-        $this->session = $session;
-        return $this;
-    }
 }

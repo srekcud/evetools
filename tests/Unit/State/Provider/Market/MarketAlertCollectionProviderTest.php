@@ -8,6 +8,9 @@ use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\Market\MarketAlertResource;
 use App\Entity\MarketPriceAlert;
 use App\Entity\User;
+use App\Enum\AlertDirection;
+use App\Enum\AlertPriceSource;
+use App\Enum\AlertStatus;
 use App\Repository\MarketPriceAlertRepository;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
@@ -52,7 +55,7 @@ class MarketAlertCollectionProviderTest extends TestCase
         $user = $this->createUserStub();
         $this->security->method('getUser')->willReturn($user);
 
-        $alert = $this->createAlert($user, 34, 'Tritanium', MarketPriceAlert::DIRECTION_ABOVE, 10.0, MarketPriceAlert::SOURCE_JITA_SELL);
+        $alert = $this->createAlert($user, 34, 'Tritanium', AlertDirection::Above, 10.0, AlertPriceSource::JitaSell);
         $this->alertRepository->method('findByUser')->willReturn([$alert]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 12.0]);
         $this->jitaMarketService->method('getBuyPricesWithFallback')->willReturn([34 => 9.0]);
@@ -69,7 +72,7 @@ class MarketAlertCollectionProviderTest extends TestCase
         $user = $this->createUserStub();
         $this->security->method('getUser')->willReturn($user);
 
-        $alert = $this->createAlert($user, 34, 'Tritanium', MarketPriceAlert::DIRECTION_ABOVE, 10.0, MarketPriceAlert::SOURCE_JITA_SELL);
+        $alert = $this->createAlert($user, 34, 'Tritanium', AlertDirection::Above, 10.0, AlertPriceSource::JitaSell);
         $this->alertRepository->method('findByUser')->willReturn([$alert]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 12.0]);
         $this->jitaMarketService->method('getBuyPricesWithFallback')->willReturn([34 => 9.0]);
@@ -79,10 +82,10 @@ class MarketAlertCollectionProviderTest extends TestCase
 
         $this->assertSame(34, $resource->typeId);
         $this->assertSame('Tritanium', $resource->typeName);
-        $this->assertSame(MarketPriceAlert::DIRECTION_ABOVE, $resource->direction);
+        $this->assertSame('above', $resource->direction);
         $this->assertSame(10.0, $resource->threshold);
-        $this->assertSame(MarketPriceAlert::SOURCE_JITA_SELL, $resource->priceSource);
-        $this->assertSame(MarketPriceAlert::STATUS_ACTIVE, $resource->status);
+        $this->assertSame('jita_sell', $resource->priceSource);
+        $this->assertSame('active', $resource->status);
         $this->assertNull($resource->triggeredAt);
         $this->assertNotEmpty($resource->createdAt);
     }
@@ -96,7 +99,7 @@ class MarketAlertCollectionProviderTest extends TestCase
         $user = $this->createUserStub();
         $this->security->method('getUser')->willReturn($user);
 
-        $alert = $this->createAlert($user, 34, 'Tritanium', MarketPriceAlert::DIRECTION_ABOVE, 10.0, MarketPriceAlert::SOURCE_JITA_SELL);
+        $alert = $this->createAlert($user, 34, 'Tritanium', AlertDirection::Above, 10.0, AlertPriceSource::JitaSell);
         $this->alertRepository->method('findByUser')->willReturn([$alert]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 12.0]);
         $this->jitaMarketService->method('getBuyPricesWithFallback')->willReturn([34 => 9.0]);
@@ -111,7 +114,7 @@ class MarketAlertCollectionProviderTest extends TestCase
         $user = $this->createUserStub();
         $this->security->method('getUser')->willReturn($user);
 
-        $alert = $this->createAlert($user, 34, 'Tritanium', MarketPriceAlert::DIRECTION_BELOW, 8.0, MarketPriceAlert::SOURCE_JITA_BUY);
+        $alert = $this->createAlert($user, 34, 'Tritanium', AlertDirection::Below, 8.0, AlertPriceSource::JitaBuy);
         $this->alertRepository->method('findByUser')->willReturn([$alert]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 12.0]);
         $this->jitaMarketService->method('getBuyPricesWithFallback')->willReturn([34 => 9.0]);
@@ -145,8 +148,8 @@ class MarketAlertCollectionProviderTest extends TestCase
         $user = $this->createUserStub();
         $this->security->method('getUser')->willReturn($user);
 
-        $alert1 = $this->createAlert($user, 34, 'Tritanium', MarketPriceAlert::DIRECTION_ABOVE, 10.0, MarketPriceAlert::SOURCE_JITA_SELL);
-        $alert2 = $this->createAlert($user, 35, 'Pyerite', MarketPriceAlert::DIRECTION_BELOW, 20.0, MarketPriceAlert::SOURCE_JITA_BUY);
+        $alert1 = $this->createAlert($user, 34, 'Tritanium', AlertDirection::Above, 10.0, AlertPriceSource::JitaSell);
+        $alert2 = $this->createAlert($user, 35, 'Pyerite', AlertDirection::Below, 20.0, AlertPriceSource::JitaBuy);
 
         $this->alertRepository->method('findByUser')->willReturn([$alert1, $alert2]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 12.0, 35 => 15.0]);
@@ -188,9 +191,9 @@ class MarketAlertCollectionProviderTest extends TestCase
         User $user,
         int $typeId,
         string $typeName,
-        string $direction,
+        AlertDirection $direction,
         float $threshold,
-        string $priceSource,
+        AlertPriceSource $priceSource,
     ): MarketPriceAlert {
         $alert = new MarketPriceAlert();
         $alert->setUser($user);

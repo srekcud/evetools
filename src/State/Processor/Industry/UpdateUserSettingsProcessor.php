@@ -67,6 +67,10 @@ class UpdateUserSettingsProcessor implements ProcessorInterface
             $settings->setSalesTaxRate(max(0.0, $data->salesTaxRate));
         }
 
+        if ($data->exportCostPerM3 !== null) {
+            $settings->setExportCostPerM3(max(0.0, $data->exportCostPerM3));
+        }
+
         $this->entityManager->flush();
 
         // Build response
@@ -75,6 +79,7 @@ class UpdateUserSettingsProcessor implements ProcessorInterface
         $resource->favoriteReactionSystemId = $settings->getFavoriteReactionSystemId();
         $resource->brokerFeeRate = $settings->getBrokerFeeRate();
         $resource->salesTaxRate = $settings->getSalesTaxRate();
+        $resource->exportCostPerM3 = $settings->getExportCostPerM3();
 
         if ($resource->favoriteManufacturingSystemId !== null) {
             $system = $this->solarSystemRepository->find($resource->favoriteManufacturingSystemId);

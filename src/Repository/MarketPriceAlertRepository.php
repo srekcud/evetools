@@ -6,6 +6,7 @@ namespace App\Repository;
 
 use App\Entity\MarketPriceAlert;
 use App\Entity\User;
+use App\Enum\AlertStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -39,7 +40,7 @@ class MarketPriceAlertRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('a')
             ->where('a.status = :status')
-            ->setParameter('status', MarketPriceAlert::STATUS_ACTIVE)
+            ->setParameter('status', AlertStatus::Active)
             ->getQuery()
             ->getResult();
     }
@@ -54,7 +55,7 @@ class MarketPriceAlertRepository extends ServiceEntityRepository
         $result = $this->createQueryBuilder('a')
             ->select('DISTINCT a.typeId')
             ->where('a.status = :status')
-            ->setParameter('status', MarketPriceAlert::STATUS_ACTIVE)
+            ->setParameter('status', AlertStatus::Active)
             ->getQuery()
             ->getSingleColumnResult();
 

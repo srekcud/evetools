@@ -129,7 +129,7 @@ class IndustryResourceMapper
         $resource->meLevel = $project->getMeLevel();
         $resource->teLevel = $project->getTeLevel();
         $resource->maxJobDurationDays = $project->getMaxJobDurationDays();
-        $resource->status = $project->getStatus();
+        $resource->status = $project->getStatus()->value;
         $resource->personalUse = $project->isPersonalUse();
         $resource->bpoCost = $project->getBpoCost();
         $resource->materialCost = $project->getMaterialCost();

@@ -7,6 +7,7 @@ import {
   ArcElement,
   Tooltip,
   Legend,
+  type TooltipItem,
 } from 'chart.js'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
@@ -70,10 +71,12 @@ const chartOptions = {
     },
     tooltip: {
       callbacks: {
-        label: (context: any) => {
-          const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0)
-          const percentage = ((context.raw / total) * 100).toFixed(1)
-          return `${context.label}: ${context.raw.toFixed(2)}B ISK (${percentage}%)`
+        label: (context: TooltipItem<'doughnut'>) => {
+          const data = context.dataset.data as number[]
+          const total = data.reduce((a, b) => a + b, 0)
+          const value = context.raw as number
+          const percentage = ((value / total) * 100).toFixed(1)
+          return `${context.label}: ${value.toFixed(2)}B ISK (${percentage}%)`
         },
       },
     },

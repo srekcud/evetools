@@ -89,106 +89,97 @@ function hideDropdownDelayed() {
 </script>
 
 <template>
-  <div class="bg-slate-900 rounded-xl border border-slate-800">
-    <div class="px-6 py-4 border-b border-slate-800">
-      <h3 class="text-lg font-semibold text-slate-100 mb-1">{{ t('industry.blacklist.title') }}</h3>
-      <p class="text-sm text-slate-400">
-        {{ t('industry.blacklist.description') }}
-      </p>
+  <div class="space-y-6">
+    <div v-if="!store.blacklist" class="text-center py-8 text-slate-500">
+      {{ t('common.status.loading') }}
     </div>
 
-    <div class="p-6 space-y-6">
-      <div v-if="!store.blacklist" class="text-center py-8 text-slate-500">
-        {{ t('common.status.loading') }}
+    <template v-else>
+      <!-- Categories -->
+      <div>
+        <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-3">{{ t('industry.blacklist.categories') }}</h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <label
+            v-for="cat in store.blacklist.categories"
+            :key="cat.key"
+            class="flex items-center gap-3 p-2.5 rounded-lg bg-slate-800/50 border border-slate-700 cursor-pointer hover:bg-slate-800"
+          >
+            <input
+              type="checkbox"
+              :checked="cat.blacklisted"
+              @change="toggleCategory(cat.key)"
+              class="w-4 h-4 rounded-sm border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900"
+            />
+            <span class="text-sm text-slate-200">{{ cat.label }}</span>
+          </label>
+        </div>
       </div>
 
-      <template v-else>
-        <!-- Categories -->
-        <div>
-          <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-3">{{ t('industry.blacklist.categories') }}</h4>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <label
-              v-for="cat in store.blacklist.categories"
-              :key="cat.key"
-              class="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700 cursor-pointer hover:bg-slate-800"
-            >
-              <input
-                type="checkbox"
-                :checked="cat.blacklisted"
-                @change="toggleCategory(cat.key)"
-                class="w-4 h-4 rounded-sm border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900"
-              />
-              <span class="text-sm text-slate-200">{{ cat.label }}</span>
-            </label>
-          </div>
-        </div>
+      <!-- Individual items -->
+      <div>
+        <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-3">{{ t('industry.blacklist.individualItems') }}</h4>
 
-        <!-- Individual items -->
-        <div>
-          <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-3">{{ t('industry.blacklist.individualItems') }}</h4>
-
-          <!-- Search to add -->
-          <div class="relative mb-3">
-            <input
-              v-model="itemSearchQuery"
-              type="text"
-              :placeholder="t('industry.blacklist.searchPlaceholder')"
-              class="w-full px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-hidden focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500"
-              @focus="showDropdown = itemSearchResults.length > 0"
-              @blur="hideDropdownDelayed"
-            />
-            <div
-              v-if="showDropdown"
-              class="absolute z-10 mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto"
-            >
-              <button
-                v-for="result in itemSearchResults"
-                :key="result.typeId"
-                @mousedown.prevent="addItem(result.typeId)"
-                class="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-700 text-left"
-                :class="activeTypeIds.has(result.typeId) ? 'opacity-50' : ''"
-              >
-                <img
-                  :src="getTypeIconUrl(result.typeId, 32)"
-                  class="w-6 h-6 rounded-sm"
-                  @error="onImageError"
-                />
-                <span class="text-sm text-slate-200">{{ result.typeName }}</span>
-                <span v-if="activeTypeIds.has(result.typeId)" class="text-xs text-slate-500 ml-auto">
-                  {{ t('industry.blacklist.alreadyAdded') }}
-                </span>
-              </button>
-            </div>
-          </div>
-
-          <!-- List of blacklisted items -->
-          <div v-if="store.blacklist.items.length > 0" class="flex flex-wrap gap-2 max-h-64 overflow-y-auto">
-            <div
-              v-for="item in store.blacklist.items"
-              :key="item.typeId"
-              class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700"
+        <!-- Search to add -->
+        <div class="relative mb-3">
+          <input
+            v-model="itemSearchQuery"
+            type="text"
+            :placeholder="t('industry.blacklist.searchPlaceholder')"
+            class="w-full px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-hidden focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500"
+            @focus="showDropdown = itemSearchResults.length > 0"
+            @blur="hideDropdownDelayed"
+          />
+          <div
+            v-if="showDropdown"
+            class="absolute z-10 mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+          >
+            <button
+              v-for="result in itemSearchResults"
+              :key="result.typeId"
+              @mousedown.prevent="addItem(result.typeId)"
+              class="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-700 text-left"
+              :class="activeTypeIds.has(result.typeId) ? 'opacity-50' : ''"
             >
               <img
-                :src="getTypeIconUrl(item.typeId, 32)"
-                class="w-5 h-5 rounded-sm"
+                :src="getTypeIconUrl(result.typeId, 32)"
+                class="w-6 h-6 rounded-sm"
                 @error="onImageError"
               />
-              <span class="text-sm text-slate-200">{{ item.typeName }}</span>
-              <button
-                @click="removeItem(item.typeId)"
-                class="p-0.5 hover:bg-slate-700 rounded-sm text-slate-500 hover:text-red-400"
-              >
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+              <span class="text-sm text-slate-200">{{ result.typeName }}</span>
+              <span v-if="activeTypeIds.has(result.typeId)" class="text-xs text-slate-500 ml-auto">
+                {{ t('industry.blacklist.alreadyAdded') }}
+              </span>
+            </button>
           </div>
-          <p v-else class="text-sm text-slate-500">
-            {{ t('industry.blacklist.noItems') }}
-          </p>
         </div>
-      </template>
-    </div>
+
+        <!-- List of blacklisted items -->
+        <div v-if="store.blacklist.items.length > 0" class="flex flex-wrap gap-2 max-h-64 overflow-y-auto">
+          <div
+            v-for="item in store.blacklist.items"
+            :key="item.typeId"
+            class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700"
+          >
+            <img
+              :src="getTypeIconUrl(item.typeId, 32)"
+              class="w-5 h-5 rounded-sm"
+              @error="onImageError"
+            />
+            <span class="text-sm text-slate-200">{{ item.typeName }}</span>
+            <button
+              @click="removeItem(item.typeId)"
+              class="p-0.5 hover:bg-slate-700 rounded-sm text-slate-500 hover:text-red-400"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <p v-else class="text-sm text-slate-500">
+          {{ t('industry.blacklist.noItems') }}
+        </p>
+      </div>
+    </template>
   </div>
 </template>

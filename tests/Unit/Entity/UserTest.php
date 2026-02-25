@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Entity;
 
 use App\Entity\Character;
 use App\Entity\User;
+use App\Enum\AuthStatus;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
@@ -16,7 +17,7 @@ class UserTest extends TestCase
     {
         $user = new User();
 
-        $this->assertSame(User::AUTH_STATUS_VALID, $user->getAuthStatus());
+        $this->assertSame(AuthStatus::Valid, $user->getAuthStatus());
         $this->assertTrue($user->isAuthValid());
     }
 
@@ -25,7 +26,7 @@ class UserTest extends TestCase
         $user = new User();
         $user->markAuthInvalid();
 
-        $this->assertSame(User::AUTH_STATUS_INVALID, $user->getAuthStatus());
+        $this->assertSame(AuthStatus::Invalid, $user->getAuthStatus());
         $this->assertFalse($user->isAuthValid());
     }
 

@@ -6,6 +6,7 @@ namespace App\Repository;
 
 use App\Entity\Character;
 use App\Entity\User;
+use App\Enum\AuthStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -96,7 +97,7 @@ class CharacterRepository extends ServiceEntityRepository
             ->join('c.eveToken', 't')
             ->join('c.user', 'u')
             ->where('u.authStatus = :validStatus')
-            ->setParameter('validStatus', User::AUTH_STATUS_VALID)
+            ->setParameter('validStatus', AuthStatus::Valid)
             ->getQuery()
             ->getResult();
     }
@@ -113,7 +114,7 @@ class CharacterRepository extends ServiceEntityRepository
             ->join('c.user', 'u')
             ->where('u.authStatus = :validStatus')
             ->andWhere('u.lastLoginAt >= :threshold')
-            ->setParameter('validStatus', User::AUTH_STATUS_VALID)
+            ->setParameter('validStatus', AuthStatus::Valid)
             ->setParameter('threshold', $threshold)
             ->getQuery()
             ->getResult();
@@ -147,7 +148,7 @@ class CharacterRepository extends ServiceEntityRepository
             ->where('c.corporationId = :corporationId')
             ->andWhere('u.authStatus = :validStatus')
             ->setParameter('corporationId', $corporationId)
-            ->setParameter('validStatus', User::AUTH_STATUS_VALID)
+            ->setParameter('validStatus', AuthStatus::Valid)
             ->getQuery()
             ->getResult();
 

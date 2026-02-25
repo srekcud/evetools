@@ -28,6 +28,8 @@ class JitaMarketService
     private const ESI_BASE_URL = 'https://esi.evetech.net/latest';
     private const MAX_ORDERS_PER_TYPE = 20;
     private const VOLUME_CACHE_PREFIX = 'jita_volume_';
+    private const REGIONAL_VOLUME_CACHE_FORMAT = 'volume_%d_%d';
+    private const REGIONAL_VOLUME_CACHE_FORMAT_PREFIX = 'volume_%d_';
     private const VOLUME_CACHE_TTL = 86400; // 24 hours
     private const VOLUME_HISTORY_DAYS = 30;
     private const ON_DEMAND_CACHE_PREFIX = 'jita_ondemand_';
@@ -490,7 +492,45 @@ class JitaMarketService
     }
 
     /**
-     * Fetch average daily volume for multiple types from ESI market history.
+     * Get cached daily volumes only (no ESI fetch for uncached types).
+     * Returns 0.0 for types without cached volume data.
+     * Uses Jita (The Forge) cache keys.
+     *
+     * @param int[] $typeIds
+     * @return array<int, float> typeId => avgDailyVolume
+     */
+    public function getCachedDailyVolumes(array $typeIds): array
+    {
+        $result = [];
+        foreach ($typeIds as $typeId) {
+            $cacheItem = $this->cache->getItem(self::VOLUME_CACHE_PREFIX . $typeId);
+            $result[$typeId] = $cacheItem->isHit() ? (float) $cacheItem->get() : 0.0;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get cached daily volumes for a specific region (no ESI fetch for uncached types).
+     * Returns 0.0 for types without cached volume data.
+     *
+     * @param int[] $typeIds
+     * @return array<int, float> typeId => avgDailyVolume
+     */
+    public function getCachedDailyVolumesForRegion(int $regionId, array $typeIds): array
+    {
+        $result = [];
+        foreach ($typeIds as $typeId) {
+            $cacheKey = sprintf(self::REGIONAL_VOLUME_CACHE_FORMAT, $regionId, $typeId);
+            $cacheItem = $this->cache->getItem($cacheKey);
+            $result[$typeId] = $cacheItem->isHit() ? (float) $cacheItem->get() : 0.0;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Fetch average daily volume for multiple types from ESI market history (The Forge).
      * Caches per-type with 24h TTL to avoid repeated calls.
      * Averages the last 30 days of data.
      *
@@ -499,12 +539,42 @@ class JitaMarketService
      */
     public function getAverageDailyVolumes(array $typeIds): array
     {
+        return $this->fetchDailyVolumesForRegion(
+            self::THE_FORGE_REGION_ID,
+            $typeIds,
+            self::VOLUME_CACHE_PREFIX,
+        );
+    }
+
+    /**
+     * Fetch average daily volume for multiple types from ESI market history for a specific region.
+     * Caches per-type per-region with 24h TTL.
+     *
+     * @param int[] $typeIds
+     * @return array<int, float> typeId => avgDailyVolume
+     */
+    public function getAverageDailyVolumesForRegion(int $regionId, array $typeIds): array
+    {
+        $cachePrefix = sprintf(self::REGIONAL_VOLUME_CACHE_FORMAT_PREFIX, $regionId);
+
+        return $this->fetchDailyVolumesForRegion($regionId, $typeIds, $cachePrefix);
+    }
+
+    /**
+     * Fetch average daily volumes from ESI market history for a given region.
+     * Shared implementation used by both Jita and regional volume methods.
+     *
+     * @param int[] $typeIds
+     * @return array<int, float> typeId => avgDailyVolume
+     */
+    private function fetchDailyVolumesForRegion(int $regionId, array $typeIds, string $cachePrefix): array
+    {
         $result = [];
         $uncachedTypeIds = [];
 
         // Check cache first for each type
         foreach ($typeIds as $typeId) {
-            $cacheItem = $this->cache->getItem(self::VOLUME_CACHE_PREFIX . $typeId);
+            $cacheItem = $this->cache->getItem($cachePrefix . $typeId);
 
             if ($cacheItem->isHit()) {
                 /** @var float $volume */
@@ -520,6 +590,7 @@ class JitaMarketService
         }
 
         $this->logger->info('Fetching market history for volume averages', [
+            'regionId' => $regionId,
             'typeCount' => count($uncachedTypeIds),
         ]);
 
@@ -534,7 +605,7 @@ class JitaMarketService
                 $url = sprintf(
                     '%s/markets/%d/history/?type_id=%d',
                     self::ESI_BASE_URL,
-                    self::THE_FORGE_REGION_ID,
+                    $regionId,
                     $typeId
                 );
 
@@ -561,7 +632,7 @@ class JitaMarketService
                         $result[$typeId] = $avgVolume;
 
                         // Cache the result
-                        $cacheItem = $this->cache->getItem(self::VOLUME_CACHE_PREFIX . $typeId);
+                        $cacheItem = $this->cache->getItem($cachePrefix . $typeId);
                         $cacheItem->set($avgVolume);
                         $cacheItem->expiresAfter(self::VOLUME_CACHE_TTL);
                         $this->cache->save($cacheItem);

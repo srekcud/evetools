@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EVE Tools - Stockpile Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Rajdhani', 'sans-serif'],
+            mono: ['Share Tech Mono', 'monospace'],
+          },
+          colors: {
+            eve: {
+              dark: '#020617',
+              darker: '#010410',
+              accent: '#00d4ff',
+              'accent-dim': '#0891b2',
+              warning: '#fbbf24',
+              success: '#34d399',
+              danger: '#f87171',
+              text: '#94a3b8',
+              'text-bright': '#e2e8f0',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    html { font-family: 'Rajdhani', sans-serif; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #020617; }
+    ::-webkit-scrollbar-thumb { background: rgba(6,182,212,.3); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(6,182,212,.5); }
+
+    .eve-card {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 0.75rem;
+    }
+
+    .eve-inner {
+      background: #1e293b;
+      border-radius: 0.5rem;
+    }
+
+    /* Pipeline connector lines */
+    .pipeline-arrow {
+      position: relative;
+    }
+    .pipeline-arrow::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      right: -14px;
+      width: 28px;
+      height: 2px;
+      background: linear-gradient(90deg, #1e293b, #0891b2, #1e293b);
+      transform: translateY(-50%);
+    }
+    .pipeline-arrow::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      right: -18px;
+      width: 8px;
+      height: 8px;
+      border-top: 2px solid #0891b2;
+      border-right: 2px solid #0891b2;
+      transform: translateY(-50%) rotate(45deg);
+    }
+
+    /* Health ring */
+    .health-ring {
+      width: 56px;
+      height: 56px;
+    }
+    .health-ring svg {
+      transform: rotate(-90deg);
+    }
+
+    /* Progress bar animation */
+    .progress-fill {
+      transition: width 0.6s ease-out;
+    }
+
+    /* Subtle glow on hover */
+    .item-row:hover {
+      background: rgba(30, 41, 59, 0.5);
+    }
+
+    /* Dropdown styling */
+    .eve-select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 36px;
+    }
+
+    /* Tooltip */
+    .stock-tooltip {
+      display: none;
+      position: absolute;
+      z-index: 50;
+    }
+    .item-row:hover .stock-tooltip {
+      display: block;
+    }
+
+    /* Column pulse on bottleneck */
+    @keyframes bottleneck-pulse {
+      0%, 100% { box-shadow: inset 0 0 0 1px rgba(248,113,113,0.15); }
+      50% { box-shadow: inset 0 0 0 1px rgba(248,113,113,0.35); }
+    }
+    .bottleneck-highlight {
+      animation: bottleneck-pulse 3s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="bg-eve-dark text-slate-200 min-h-screen font-display">
+
+  <!-- Page wrapper -->
+  <div class="max-w-[1440px] mx-auto p-6 space-y-6">
+
+    <!-- ============================================= -->
+    <!-- PAGE HEADER                                    -->
+    <!-- ============================================= -->
+    <div class="eve-card overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <svg class="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+          </svg>
+          <h1 class="text-2xl font-bold text-slate-100">Stockpile Dashboard</h1>
+          <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 font-medium">4 targets</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <!-- Import from product dropdown -->
+          <div class="relative">
+            <select class="eve-select bg-slate-800 border border-slate-700 text-slate-300 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30">
+              <option>Import from Product...</option>
+              <option>Paladin (28659)</option>
+              <option>Golem (28710)</option>
+              <option>Kronos (28661)</option>
+              <option>Vargur (28665)</option>
+            </select>
+          </div>
+          <!-- New Target button -->
+          <button class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-semibold rounded-lg flex items-center gap-2 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            New Target
+          </button>
+        </div>
+      </div>
+
+      <!-- ============================================= -->
+      <!-- KPI SUMMARY BAR                               -->
+      <!-- ============================================= -->
+      <div class="px-6 py-4">
+        <div class="grid grid-cols-4 gap-4">
+
+          <!-- KPI 1: Pipeline Health -->
+          <div class="eve-inner p-4 flex items-center gap-4">
+            <div class="health-ring flex-shrink-0">
+              <svg viewBox="0 0 56 56" class="w-14 h-14">
+                <circle cx="28" cy="28" r="24" fill="none" stroke="#1e293b" stroke-width="4" />
+                <circle cx="28" cy="28" r="24" fill="none" stroke="#fbbf24" stroke-width="4"
+                  stroke-dasharray="150.8" stroke-dashoffset="42.2" stroke-linecap="round" />
+              </svg>
+              <div class="absolute inset-0 flex items-center justify-center" style="position:relative; margin-top:-46px;">
+                <span class="font-mono text-sm text-amber-400 font-bold">72%</span>
+              </div>
+            </div>
+            <div>
+              <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">Pipeline Health</div>
+              <div class="text-lg font-bold text-amber-400">72%</div>
+              <div class="text-xs text-slate-500">23 of 32 targets met</div>
+            </div>
+          </div>
+
+          <!-- KPI 2: Total Invested -->
+          <div class="eve-inner p-4 flex items-center gap-4">
+            <div class="w-14 h-14 rounded-lg bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
+              <svg class="w-7 h-7 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">Total Invested</div>
+              <div class="text-lg font-bold text-cyan-400 font-mono">14.2B ISK</div>
+              <div class="text-xs text-slate-500">across all stages</div>
+            </div>
+          </div>
+
+          <!-- KPI 3: Bottleneck -->
+          <div class="eve-inner p-4 flex items-center gap-4 bottleneck-highlight">
+            <div class="w-14 h-14 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0">
+              <svg class="w-7 h-7 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <div>
+              <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">Bottleneck</div>
+              <div class="text-lg font-bold text-red-400">Morphite</div>
+              <div class="text-xs text-red-400/70">12% of target &mdash; blocks 3 products</div>
+            </div>
+          </div>
+
+          <!-- KPI 4: Est. Output -->
+          <div class="eve-inner p-4 flex items-center gap-4">
+            <div class="w-14 h-14 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+              <svg class="w-7 h-7 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+              </svg>
+            </div>
+            <div>
+              <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">Est. Output</div>
+              <div class="text-lg font-bold text-emerald-400 font-mono">2 / 4</div>
+              <div class="text-xs text-slate-500">Paladin, Kronos buildable</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================= -->
+    <!-- PIPELINE COLUMNS                               -->
+    <!-- ============================================= -->
+    <div class="grid grid-cols-4 gap-5">
+
+      <!-- =============================== -->
+      <!-- COLUMN 1: Raw Materials          -->
+      <!-- =============================== -->
+      <div class="eve-card overflow-hidden pipeline-arrow">
+        <!-- Column header -->
+        <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-2 h-2 rounded-full bg-cyan-400"></div>
+            <h2 class="text-sm font-bold text-slate-100 uppercase tracking-wider">Raw Materials</h2>
+          </div>
+          <span class="text-xs font-mono text-slate-500">2.4B ISK</span>
+        </div>
+        <!-- Stage health bar -->
+        <div class="px-4 pt-3 pb-1">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs text-slate-500">Stage completion</span>
+            <span class="text-xs font-mono text-amber-400">68%</span>
+          </div>
+          <div class="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+            <div class="h-full rounded-full bg-amber-400 progress-fill" style="width: 68%"></div>
+          </div>
+        </div>
+        <!-- Items list -->
+        <div class="p-3 space-y-1.5">
+
+          <!-- Tritanium - 100% (green) -->
+          <div class="item-row rounded-lg px-3 py-2.5 transition-colors cursor-default">
+            <div class="flex items-center gap-3">
+              <img src="https://images.evetech.net/types/34/icon?size=32" alt="Tritanium" class="w-8 h-8 rounded border border-slate-700 bg-slate-800" onerror="this.style.display='none'" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-semibold text-slate-200 truncate">Tritanium</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono">100%</span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-800 overflow-hidden mb-1">
+                  <div class="h-full rounded-full bg-emerald-400 progress-fill" style="width: 100%"></div>
+                </div>
+                <div class="font-mono text-xs text-slate-500">12,450,000 / 12,000,000</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pyerite - 87% (orange) -->
+          <div class="item-row rounded-lg px-3 py-2.5 transition-colors cursor-default">
+            <div class="flex items-center gap-3">
+              <img src="https://images.evetech.net/types/35/icon?size=32" alt="Pyerite" class="w-8 h-8 rounded border border-slate-700 bg-slate-800" onerror="this.style.display='none'" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-semibold text-slate-200 truncate">Pyerite</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 font-mono">87%</span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-800 overflow-hidden mb-1">
+                  <div class="h-full rounded-full bg-amber-400 progress-fill" style="width: 87%"></div>
+                </div>
+                <div class="font-mono text-xs text-slate-500">3,480,000 / 4,000,000</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mexallon - 95% (orange) -->
+          <div class="item-row rounded-lg px-3 py-2.5 transition-colors cursor-default">
+            <div class="flex items-center gap-3">
+              <img src="https://images.evetech.net/types/36/icon?size=32" alt="Mexallon" class="w-8 h-8 rounded border border-slate-700 bg-slate-800" onerror="this.style.display='none'" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-semibold text-slate-200 truncate">Mexallon</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 font-mono">95%</span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-800 overflow-hidden mb-1">
+                  <div class="h-full rounded-full bg-amber-400 progress-fill" style="width: 95%"></div>
+                </div>
+                <div class="font-mono text-xs text-slate-500">1,425,000 / 1,500,000</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Isogen - 100% (green) -->
+          <div class="item-row rounded-lg px-3 py-2.5 transition-colors cursor-default">
+            <div class="flex items-center gap-3">
+              <img src="https://images.evetech.net/types/37/icon?size=32" alt="Isogen" class="w-8 h-8 rounded border border-slate-700 bg-slate-800" onerror="this.style.display='none'" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-semibold text-slate-200 truncate">Isogen</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono">100%</span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-800 overflow-hidden mb-1">
+                  <div class="h-full rounded-full bg-emerald-400 progress-fill" style="width: 100%"></div>
+                </div>
+                <div class="font-mono text-xs text-slate-500">520,000 / 400,000</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Nocxium - 54% (orange) -->
+          <div class="item-row rounded-lg px-3 py-2.5 transition-colors cursor-default">
+            <div class="flex items-center gap-3">
+              <img src="https://images.evetech.net/types/38/icon?size=32" alt="Nocxium" class="w-8 h-8 rounded border border-slate-700 bg-slate-800" onerror="this.style.display='none'" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-semibold text-slate-200 truncate">Nocxium</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 font-mono">54%</span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-800 overflow-hidden mb-1">
+                  <div class="h-full rounded-full bg-amber-400 progress-fill" style="width: 54%"></div>
+                </div>
+                <div class="font-mono text-xs text-slate-500">27,000 / 50,000</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Zydrine - 73% (orange) -->
+          <div class="item-row rounded-lg px-3 py-2.5 transition-colors cursor-default">
+            <div class="flex items-center gap-3">
+              <img src="https://images.evetech.net/types/39/icon?size=32" alt="Zydrine" class="w-8 h-8 rounded border border-slate-700 bg-slate-800" onerror="this.style.display='none'" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-semibold text-slate-200 truncate">Zydrine</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 font-mono">73%</span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-800 overflow-hidden mb-1">
+                  <div class="h-full rounded-full bg-amber-400 progress-fill" style="width: 73%"></div>
+                </div>
+                <div class="font-mono text-xs text-slate-500">7,300 / 10,000</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Show more link -->
+          <div class="pt-1 px-3">
+            <button class="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+              <span>Show all 8 items</span>
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- =============================== -->
+      <!-- COLUMN 2: Intermediates          -->
+      <!-- =============================== -->
+      <div class="eve-card overflow-hidden pipeline-arrow">
+        <!-- Column header -->
+        <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-2 h-2 rounded-full bg-blue-400"></div>
+            <h2 class="text-sm font-bold text-slate-100 uppercase tracking-wider">Intermediates</h2>
+          </div>
+          <span class="text-xs font-mono text-slate-500">3.8B ISK</span>
+        </div>
+        <!-- Stage health bar -->
+        <div class="px-4 pt-3 pb-1">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs text-slate-500">Stage completion</span>
+            <span class="text-xs font-mono text-amber-400">71%</span>
+          </div>
+          <div class="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+            <div class="h-full rounded-full bg-amber-400 progress-fill" style="width: 71%"></div>
+          </div>
+        </div>
+        <!-- Items list -->
+        <div class="p-3 space-y-1.5">
+
+          <!-- Fernite Carbide - 100% -->
+          <div class="item-row rounded-lg px-3 py-2.5 transition-colors cursor-default">
+            <div class="flex items-center gap-3">
+              <img src="https://images.evetech.net/types/16635/icon?size=32" alt="Fernite Carbide" class="w-8 h-8 rounded border border-slate-700 bg-slate-800" onerror="this.style.display='none'" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-semibold text-slate-200 truncate">Fernite Carbide</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono">100%</span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-800 overflow-hidden mb-1">
+                  <div class="h-full rounded-full bg-emerald-400 progress-fill" style="width: 100%"></div>
+                </div>
+                <div class="font-mono text-xs text-slate-500">85,000 / 80,000</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Crystalline Carbonide - 62% -->
+          <div class="item-row rounded-lg px-3 py-2.5 transition-colors cursor-default">
+            <div class="flex items-center gap-3">
+              <img src="https://images.evetech.net/types/16637/icon?size=32" alt="Crystalline Carbonide" class="w-8 h-8 rounded border border-slate-700 bg-slate-800" onerror="this.style.display='none'" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-semibold text-slate-200 truncate">Crystalline Carbonide</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 font-mono">62%</span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-800 overflow-hidden mb-1">
+                  <div class="h-full rounded-full bg-amber-400 progress-fill" style="width: 62%"></div>
+                </div>
+                <div class="font-mono text-xs text-slate-500">49,600 / 80,000</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Titanium Carbide - 88% -->
+          <div class="item-row rounded-lg px-3 py-2.5 transition-colors cursor-default">
+            <div class="flex items-center gap-3">
+              <img src="https://images.evetech.net/types/16638/icon?size=32" alt="Titanium Carbide" class="w-8 h-8 rounded border border-slate-700 bg-slate-800" onerror="this.style.display='none'" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-semibold text-slate-200 truncate">Titanium Carbide</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 font-mono">88%</span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-800 overflow-hidden mb-1">
+                  <div class="h-full rounded-full bg-amber-400 progress-fill" style="width: 88%"></div>
+                </div>
+                <div class="font-mono text-xs text-slate-500">35,200 / 40,000</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tungsten Carbide - 35% (red) -->
+          <div class="item-row rounded-lg px-3 py-2.5 transition-colors cursor-default">
+            <div class="flex items-center gap-3">
+              <img src="https://images.evetech.net/types/16636/icon?size=32" alt="Tungsten Carbide" class="w-8 h-8 rounded border border-slate-700 bg-slate-800" onerror="this.style.display='none'" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-semibold text-slate-200 truncate">Tungsten Carbide</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 font-mono">35%</span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-800 overflow-hidden mb-1">
+                  <div class="h-full rounded-full bg-red-400 progress-fill" style="width: 35%"></div>
+                </div>
+                <div class="font-mono text-xs text-slate-500">14,000 / 40,000</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- =============================== -->
+      <!-- COLUMN 3: Components             -->
+      <!-- =============================== -->
+      <div class="eve-card overflow-hidden pipeline-arrow">
+        <!-- Column header -->
+        <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-2 h-2 rounded-full bg-violet-400"></div>
+            <h2 class="text-sm font-bold text-slate-100 uppercase tracking-wider">Components</h2>
+          </div>
+          <span class="text-xs font-mono text-slate-500">5.1B ISK</span>
+        </div>
+        <!-- Stage health bar -->
+        <div class="px-4 pt-3 pb-1">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs text-slate-500">Stage completion</span>
+            <span class="text-xs font-mono text-emerald-400">82%</span>
+          </div>
+          <div class="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+            <div class="h-full rounded-full bg-emerald-400 progress-fill" style="width: 82%"></div>
+          </div>
+        </div>
+        <!-- Items list -->
+        <div class="p-3 space-y-1.5">
+
+          <!-- Tungsten Carbide Armor Plate - 100% -->
+          <div class="item-row rounded-lg px-3 py-2.5 transition-colors cursor-default">
+            <div class="flex items-center gap-3">
+              <img src="https://images.evetech.net/types/11539/icon?size=32" alt="Tungsten Carbide Armor Plate" class="w-8 h-8 rounded border border-slate-700 bg-slate-800" onerror="this.style.display='none'" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-semibold text-slate-200 truncate" title="Tungsten Carbide Armor Plate">Tung. Carbide Armor Plate</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono">100%</span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-800 overflow-hidden mb-1">
+                  <div class="h-full rounded-full bg-emerald-400 progress-fill" style="width: 100%"></div>
+                </div>
+                <div class="font-mono text-xs text-slate-500">1,200 / 1,000</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Antimatter Reactor Unit - 78% -->
+          <div class="item-row rounded-lg px-3 py-2.5 transition-colors cursor-default">
+            <div class="flex items-center gap-3">
+              <img src="https://images.evetech.net/types/11547/icon?size=32" alt="Antimatter Reactor Unit" class="w-8 h-8 rounded border border-slate-700 bg-slate-800" onerror="this.style.display='none'" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-semibold text-slate-200 truncate">Antimatter Reactor Unit</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 font-mono">78%</span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-800 overflow-hidden mb-1">
+                  <div class="h-full rounded-full bg-amber-400 progress-fill" style="width: 78%"></div>
+                </div>
+                <div class="font-mono text-xs text-slate-500">624 / 800</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sustained Shield Emitter - 100% -->
+          <div class="item-row rounded-lg px-3 py-2.5 transition-colors cursor-default">
+            <div class="flex items-center gap-3">
+              <img src="https://images.evetech.net/types/11555/icon?size=32" alt="Sustained Shield Emitter" class="w-8 h-8 rounded border border-slate-700 bg-slate-800" onerror="this.style.display='none'" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-semibold text-slate-200 truncate">Sustained Shield Emitter</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono">100%</span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-800 overflow-hidden mb-1">
+                  <div class="h-full rounded-full bg-emerald-400 progress-fill" style="width: 100%"></div>
+                </div>
+                <div class="font-mono text-xs text-slate-500">960 / 800</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Thermonuclear Trigger Unit - 48% (red) -->
+          <div class="item-row rounded-lg px-3 py-2.5 transition-colors cursor-default">
+            <div class="flex items-center gap-3">
+              <img src="https://images.evetech.net/types/11549/icon?size=32" alt="Thermonuclear Trigger Unit" class="w-8 h-8 rounded border border-slate-700 bg-slate-800" onerror="this.style.display='none'" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-semibold text-slate-200 truncate" title="Thermonuclear Trigger Unit">Thermonuclear Trigger Unit</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 font-mono">48%</span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-800 overflow-hidden mb-1">
+                  <div class="h-full rounded-full bg-red-400 progress-fill" style="width: 48%"></div>
+                </div>
+                <div class="font-mono text-xs text-slate-500">384 / 800</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- =============================== -->
+      <!-- COLUMN 4: Final Products         -->
+      <!-- =============================== -->
+      <div class="eve-card overflow-hidden">
+        <!-- Column header -->
+        <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-2 h-2 rounded-full bg-amber-400"></div>
+            <h2 class="text-sm font-bold text-slate-100 uppercase tracking-wider">Final Products</h2>
+          </div>
+          <span class="text-xs font-mono text-slate-500">2.9B ISK</span>
+        </div>
+        <!-- Stage health bar -->
+        <div class="px-4 pt-3 pb-1">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs text-slate-500">Stage completion</span>
+            <span class="text-xs font-mono text-amber-400">50%</span>
+          </div>
+          <div class="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+            <div class="h-full rounded-full bg-amber-400 progress-fill" style="width: 50%"></div>
+          </div>
+        </div>
+        <!-- Items list -->
+        <div class="p-3 space-y-1.5">
+
+          <!-- Paladin - 100% -->
+          <div class="item-row rounded-lg px-3 py-2.5 transition-colors cursor-default">
+            <div class="flex items-center gap-3">
+              <img src="https://images.evetech.net/types/28659/icon?size=32" alt="Paladin" class="w-8 h-8 rounded border border-slate-700 bg-slate-800" onerror="this.style.display='none'" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-semibold text-slate-200 truncate">Paladin</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono">100%</span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-800 overflow-hidden mb-1">
+                  <div class="h-full rounded-full bg-emerald-400 progress-fill" style="width: 100%"></div>
+                </div>
+                <div class="flex items-center justify-between">
+                  <div class="font-mono text-xs text-slate-500">2 / 2</div>
+                  <span class="text-xs text-emerald-400 flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                    Ready
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Golem - 0% (red) -->
+          <div class="item-row rounded-lg px-3 py-2.5 transition-colors cursor-default">
+            <div class="flex items-center gap-3">
+              <img src="https://images.evetech.net/types/28710/icon?size=32" alt="Golem" class="w-8 h-8 rounded border border-slate-700 bg-slate-800" onerror="this.style.display='none'" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-semibold text-slate-200 truncate">Golem</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 font-mono">0%</span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-800 overflow-hidden mb-1">
+                  <div class="h-full rounded-full bg-red-400 progress-fill" style="width: 0%"></div>
+                </div>
+                <div class="flex items-center justify-between">
+                  <div class="font-mono text-xs text-slate-500">0 / 1</div>
+                  <span class="text-xs text-red-400 flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01" /></svg>
+                    Missing materials
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Kronos - 100% -->
+          <div class="item-row rounded-lg px-3 py-2.5 transition-colors cursor-default">
+            <div class="flex items-center gap-3">
+              <img src="https://images.evetech.net/types/28661/icon?size=32" alt="Kronos" class="w-8 h-8 rounded border border-slate-700 bg-slate-800" onerror="this.style.display='none'" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-semibold text-slate-200 truncate">Kronos</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono">100%</span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-800 overflow-hidden mb-1">
+                  <div class="h-full rounded-full bg-emerald-400 progress-fill" style="width: 100%"></div>
+                </div>
+                <div class="flex items-center justify-between">
+                  <div class="font-mono text-xs text-slate-500">1 / 1</div>
+                  <span class="text-xs text-emerald-400 flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                    Ready
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Vargur - 0% (red) -->
+          <div class="item-row rounded-lg px-3 py-2.5 transition-colors cursor-default">
+            <div class="flex items-center gap-3">
+              <img src="https://images.evetech.net/types/28665/icon?size=32" alt="Vargur" class="w-8 h-8 rounded border border-slate-700 bg-slate-800" onerror="this.style.display='none'" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-semibold text-slate-200 truncate">Vargur</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 font-mono">0%</span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-800 overflow-hidden mb-1">
+                  <div class="h-full rounded-full bg-red-400 progress-fill" style="width: 0%"></div>
+                </div>
+                <div class="flex items-center justify-between">
+                  <div class="font-mono text-xs text-slate-500">0 / 1</div>
+                  <span class="text-xs text-red-400 flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01" /></svg>
+                    Missing materials
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ============================================= -->
+    <!-- IMPORT TARGETS PANEL                          -->
+    <!-- ============================================= -->
+    <div class="eve-card overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          <h2 class="text-lg font-bold text-slate-100">Import Targets from Blueprint</h2>
+        </div>
+      </div>
+
+      <div class="p-6">
+        <div class="grid grid-cols-12 gap-6">
+
+          <!-- Left: Product selection -->
+          <div class="col-span-5">
+            <div class="space-y-4">
+              <div>
+                <label class="block text-xs uppercase tracking-wider text-slate-500 mb-2">Final Product</label>
+                <div class="relative">
+                  <select class="eve-select w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2.5 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30">
+                    <option>Select a product...</option>
+                    <option selected>Paladin</option>
+                    <option>Golem</option>
+                    <option>Kronos</option>
+                    <option>Vargur</option>
+                  </select>
+                </div>
+              </div>
+              <div class="grid grid-cols-3 gap-3">
+                <div>
+                  <label class="block text-xs uppercase tracking-wider text-slate-500 mb-2">Runs</label>
+                  <input type="number" value="2" class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2.5 font-mono focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30" />
+                </div>
+                <div>
+                  <label class="block text-xs uppercase tracking-wider text-slate-500 mb-2">ME</label>
+                  <input type="number" value="10" class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2.5 font-mono focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30" />
+                </div>
+                <div>
+                  <label class="block text-xs uppercase tracking-wider text-slate-500 mb-2">TE</label>
+                  <input type="number" value="20" class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2.5 font-mono focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30" />
+                </div>
+              </div>
+              <button class="w-full px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                Calculate Targets
+              </button>
+            </div>
+          </div>
+
+          <!-- Right: Calculated preview -->
+          <div class="col-span-7">
+            <div class="eve-inner p-4 h-full">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs uppercase tracking-wider text-slate-500">Preview: Paladin x2 (ME 10)</span>
+                <span class="text-xs font-mono text-slate-500">32 items across 4 stages</span>
+              </div>
+
+              <!-- Preview table -->
+              <div class="space-y-3">
+                <!-- Raw materials summary -->
+                <div>
+                  <div class="flex items-center gap-2 mb-2">
+                    <div class="w-1.5 h-1.5 rounded-full bg-cyan-400"></div>
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Raw Materials</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                    <div class="flex justify-between">
+                      <span class="text-slate-400">Tritanium</span>
+                      <span class="font-mono text-slate-300">12,000,000</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-slate-400">Pyerite</span>
+                      <span class="font-mono text-slate-300">4,000,000</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-slate-400">Mexallon</span>
+                      <span class="font-mono text-slate-300">1,500,000</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-slate-400">Isogen</span>
+                      <span class="font-mono text-slate-300">400,000</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-slate-400">Nocxium</span>
+                      <span class="font-mono text-slate-300">50,000</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-slate-400">Zydrine</span>
+                      <span class="font-mono text-slate-300">10,000</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-slate-400">Megacyte</span>
+                      <span class="font-mono text-slate-300">4,000</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-slate-400">Morphite</span>
+                      <span class="font-mono text-slate-300">600</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="border-t border-slate-700"></div>
+
+                <!-- Intermediates summary -->
+                <div>
+                  <div class="flex items-center gap-2 mb-2">
+                    <div class="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Intermediates</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                    <div class="flex justify-between">
+                      <span class="text-slate-400">Fernite Carbide</span>
+                      <span class="font-mono text-slate-300">80,000</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-slate-400">Crystalline Carbonide</span>
+                      <span class="font-mono text-slate-300">80,000</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-slate-400">Titanium Carbide</span>
+                      <span class="font-mono text-slate-300">40,000</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-slate-400">Tungsten Carbide</span>
+                      <span class="font-mono text-slate-300">40,000</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="border-t border-slate-700"></div>
+
+                <!-- Components summary -->
+                <div>
+                  <div class="flex items-center gap-2 mb-2">
+                    <div class="w-1.5 h-1.5 rounded-full bg-violet-400"></div>
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Components</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                    <div class="flex justify-between">
+                      <span class="text-slate-400">Tung. Carbide Armor Plate</span>
+                      <span class="font-mono text-slate-300">1,000</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-slate-400">Antimatter Reactor Unit</span>
+                      <span class="font-mono text-slate-300">800</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-slate-400">Sustained Shield Emitter</span>
+                      <span class="font-mono text-slate-300">800</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-slate-400">Thermonuclear Trigger Unit</span>
+                      <span class="font-mono text-slate-300">800</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Action buttons -->
+              <div class="flex items-center gap-3 mt-4 pt-3 border-t border-slate-700">
+                <button class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-semibold rounded-lg flex items-center gap-2 transition-colors">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add to Stockpile
+                </button>
+                <button class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                  Merge with Existing
+                </button>
+                <div class="flex-1"></div>
+                <span class="text-xs font-mono text-slate-500">Est. total cost: <span class="text-cyan-400">6.8B ISK</span></span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================= -->
+    <!-- SHOPPING LIST (quick shortages summary)       -->
+    <!-- ============================================= -->
+    <div class="eve-card overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
+          </svg>
+          <h2 class="text-lg font-bold text-slate-100">Shopping List</h2>
+          <span class="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">9 items below target</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <button class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors border border-slate-700">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+            </svg>
+            Copy to Clipboard
+          </button>
+          <button class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors border border-slate-700">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            Critical Only
+          </button>
+        </div>
+      </div>
+
+      <div class="px-6 py-4">
+        <table class="w-full">
+          <thead>
+            <tr class="text-xs uppercase tracking-wider text-slate-500">
+              <th class="text-left pb-3 pl-2">Item</th>
+              <th class="text-left pb-3">Stage</th>
+              <th class="text-right pb-3">Have</th>
+              <th class="text-right pb-3">Need</th>
+              <th class="text-right pb-3">Deficit</th>
+              <th class="text-right pb-3">Est. Cost</th>
+              <th class="text-right pb-3 pr-2">Status</th>
+            </tr>
+          </thead>
+          <tbody class="text-sm">
+            <!-- Morphite - critical -->
+            <tr class="border-t border-slate-800/50 hover:bg-slate-800/30 transition-colors">
+              <td class="py-2.5 pl-2">
+                <div class="flex items-center gap-2">
+                  <img src="https://images.evetech.net/types/11399/icon?size=32" alt="Morphite" class="w-6 h-6 rounded border border-slate-700" onerror="this.style.display='none'" />
+                  <span class="text-slate-200 font-medium">Morphite</span>
+                </div>
+              </td>
+              <td>
+                <span class="text-xs px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400">Raw</span>
+              </td>
+              <td class="text-right font-mono text-slate-400">72</td>
+              <td class="text-right font-mono text-slate-300">600</td>
+              <td class="text-right font-mono text-red-400">-528</td>
+              <td class="text-right font-mono text-slate-300">342.7M</td>
+              <td class="text-right pr-2">
+                <span class="text-xs px-2 py-0.5 rounded bg-red-500/10 text-red-400">12%</span>
+              </td>
+            </tr>
+            <!-- Tungsten Carbide -->
+            <tr class="border-t border-slate-800/50 hover:bg-slate-800/30 transition-colors">
+              <td class="py-2.5 pl-2">
+                <div class="flex items-center gap-2">
+                  <img src="https://images.evetech.net/types/16636/icon?size=32" alt="Tungsten Carbide" class="w-6 h-6 rounded border border-slate-700" onerror="this.style.display='none'" />
+                  <span class="text-slate-200 font-medium">Tungsten Carbide</span>
+                </div>
+              </td>
+              <td>
+                <span class="text-xs px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">Intermediate</span>
+              </td>
+              <td class="text-right font-mono text-slate-400">14,000</td>
+              <td class="text-right font-mono text-slate-300">40,000</td>
+              <td class="text-right font-mono text-red-400">-26,000</td>
+              <td class="text-right font-mono text-slate-300">1.2B</td>
+              <td class="text-right pr-2">
+                <span class="text-xs px-2 py-0.5 rounded bg-red-500/10 text-red-400">35%</span>
+              </td>
+            </tr>
+            <!-- Thermonuclear Trigger Unit -->
+            <tr class="border-t border-slate-800/50 hover:bg-slate-800/30 transition-colors">
+              <td class="py-2.5 pl-2">
+                <div class="flex items-center gap-2">
+                  <img src="https://images.evetech.net/types/11549/icon?size=32" alt="Thermonuclear Trigger Unit" class="w-6 h-6 rounded border border-slate-700" onerror="this.style.display='none'" />
+                  <span class="text-slate-200 font-medium">Thermonuclear Trigger Unit</span>
+                </div>
+              </td>
+              <td>
+                <span class="text-xs px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400">Component</span>
+              </td>
+              <td class="text-right font-mono text-slate-400">384</td>
+              <td class="text-right font-mono text-slate-300">800</td>
+              <td class="text-right font-mono text-red-400">-416</td>
+              <td class="text-right font-mono text-slate-300">892.4M</td>
+              <td class="text-right pr-2">
+                <span class="text-xs px-2 py-0.5 rounded bg-red-500/10 text-red-400">48%</span>
+              </td>
+            </tr>
+            <!-- Nocxium -->
+            <tr class="border-t border-slate-800/50 hover:bg-slate-800/30 transition-colors">
+              <td class="py-2.5 pl-2">
+                <div class="flex items-center gap-2">
+                  <img src="https://images.evetech.net/types/38/icon?size=32" alt="Nocxium" class="w-6 h-6 rounded border border-slate-700" onerror="this.style.display='none'" />
+                  <span class="text-slate-200 font-medium">Nocxium</span>
+                </div>
+              </td>
+              <td>
+                <span class="text-xs px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400">Raw</span>
+              </td>
+              <td class="text-right font-mono text-slate-400">27,000</td>
+              <td class="text-right font-mono text-slate-300">50,000</td>
+              <td class="text-right font-mono text-amber-400">-23,000</td>
+              <td class="text-right font-mono text-slate-300">184.2M</td>
+              <td class="text-right pr-2">
+                <span class="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">54%</span>
+              </td>
+            </tr>
+            <!-- Crystalline Carbonide -->
+            <tr class="border-t border-slate-800/50 hover:bg-slate-800/30 transition-colors">
+              <td class="py-2.5 pl-2">
+                <div class="flex items-center gap-2">
+                  <img src="https://images.evetech.net/types/16637/icon?size=32" alt="Crystalline Carbonide" class="w-6 h-6 rounded border border-slate-700" onerror="this.style.display='none'" />
+                  <span class="text-slate-200 font-medium">Crystalline Carbonide</span>
+                </div>
+              </td>
+              <td>
+                <span class="text-xs px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">Intermediate</span>
+              </td>
+              <td class="text-right font-mono text-slate-400">49,600</td>
+              <td class="text-right font-mono text-slate-300">80,000</td>
+              <td class="text-right font-mono text-amber-400">-30,400</td>
+              <td class="text-right font-mono text-slate-300">456.0M</td>
+              <td class="text-right pr-2">
+                <span class="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">62%</span>
+              </td>
+            </tr>
+            <!-- Zydrine -->
+            <tr class="border-t border-slate-800/50 hover:bg-slate-800/30 transition-colors">
+              <td class="py-2.5 pl-2">
+                <div class="flex items-center gap-2">
+                  <img src="https://images.evetech.net/types/39/icon?size=32" alt="Zydrine" class="w-6 h-6 rounded border border-slate-700" onerror="this.style.display='none'" />
+                  <span class="text-slate-200 font-medium">Zydrine</span>
+                </div>
+              </td>
+              <td>
+                <span class="text-xs px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400">Raw</span>
+              </td>
+              <td class="text-right font-mono text-slate-400">7,300</td>
+              <td class="text-right font-mono text-slate-300">10,000</td>
+              <td class="text-right font-mono text-amber-400">-2,700</td>
+              <td class="text-right font-mono text-slate-300">89.1M</td>
+              <td class="text-right pr-2">
+                <span class="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">73%</span>
+              </td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr class="border-t border-slate-700">
+              <td colspan="5" class="py-3 pl-2 text-sm font-semibold text-slate-300">Total Deficit Cost</td>
+              <td class="py-3 text-right font-mono text-lg font-bold text-cyan-400">3.16B ISK</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- Footer note -->
+    <div class="text-center text-xs text-slate-600 py-2">
+      Stockpile Dashboard &mdash; EVE Tools Mockup &mdash; Stock levels sourced from Character Assets
+    </div>
+
+  </div>
+
+</body>
+</html>

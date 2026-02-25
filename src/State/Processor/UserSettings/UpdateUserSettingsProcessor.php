@@ -38,6 +38,7 @@ class UpdateUserSettingsProcessor implements ProcessorInterface
         // Apply merged values from the PATCH payload
         $user->setPreferredMarketStructureId($data->preferredMarketStructureId);
         $user->setPreferredMarketStructureName($data->preferredMarketStructureName);
+        $user->setMarketStructures($data->marketStructures);
 
         // If ID is cleared, also clear the name
         if ($data->preferredMarketStructureId === null) {
@@ -54,6 +55,7 @@ class UpdateUserSettingsProcessor implements ProcessorInterface
         $resource->defaultMarketStructureName = $this->defaultMarketStructureName;
         $resource->effectiveMarketStructureId = $user->getPreferredMarketStructureId() ?? $this->defaultMarketStructureId;
         $resource->effectiveMarketStructureName = $user->getPreferredMarketStructureName() ?? $this->defaultMarketStructureName;
+        $resource->marketStructures = $user->getMarketStructures();
 
         return $resource;
     }

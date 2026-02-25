@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1600">
+  <title>EVE Tools - Industry (Vertical Sub-Nav)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Exo 2', sans-serif;
+      background: #020617;
+      color: #e2e8f0;
+      overflow-x: hidden;
+    }
+
+    .font-mono-tech { font-family: 'Share Tech Mono', monospace; }
+    .font-display { font-family: 'Rajdhani', sans-serif; }
+
+    /* Subtle scan-line overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.015) 2px,
+        rgba(0, 0, 0, 0.015) 4px
+      );
+    }
+
+    /* Module sidebar navigation item */
+    .module-nav-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 16px;
+      font-size: 13px;
+      color: #94a3b8;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .module-nav-item:hover {
+      background: rgba(30, 41, 59, 0.5);
+      color: #e2e8f0;
+    }
+    .module-nav-item.active {
+      background: rgba(8, 145, 178, 0.12);
+      color: #22d3ee;
+    }
+    .module-nav-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 6px;
+      bottom: 6px;
+      width: 3px;
+      background: #06b6d4;
+      border-radius: 0 3px 3px 0;
+      box-shadow: 0 0 8px rgba(6, 182, 212, 0.4);
+    }
+
+    /* Section header in module sidebar */
+    .section-label {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #334155;
+      padding: 16px 16px 4px;
+      font-weight: 600;
+    }
+    .section-label:first-child { padding-top: 8px; }
+
+    /* KPI card */
+    .kpi-card {
+      background: linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.7));
+      border: 1px solid rgba(30, 41, 59, 0.8);
+      border-radius: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(8, 145, 178, 0.3), transparent);
+    }
+
+    /* Alert rows */
+    .alert-row { position: relative; transition: background 0.15s ease; }
+    .alert-row::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      border-radius: 3px 0 0 3px;
+    }
+    .alert-amber::before { background: #f59e0b; box-shadow: 0 0 8px rgba(245,158,11,0.25); }
+    .alert-red::before { background: #ef4444; box-shadow: 0 0 8px rgba(239,68,68,0.25); }
+    .alert-blue::before { background: #3b82f6; box-shadow: 0 0 8px rgba(59,130,246,0.25); }
+
+    /* Ring chart glow */
+    .ring-glow-emerald { filter: drop-shadow(0 0 6px rgba(52,211,153,0.15)); }
+    .ring-glow-amber { filter: drop-shadow(0 0 6px rgba(251,191,36,0.15)); }
+
+    /* Card entrance */
+    @keyframes cardSlideUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .card-animate { animation: cardSlideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+
+    /* Shimmer */
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .progress-shimmer {
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+      background-size: 200% 100%;
+      animation: shimmer 3s ease-in-out infinite;
+    }
+
+    /* App sidebar */
+    .sidebar-item { transition: all 0.15s ease; position: relative; }
+    .sidebar-item:hover { background: rgba(30, 41, 59, 0.5); }
+    .sidebar-item.active { background: rgba(8, 145, 178, 0.1); border-right: 2px solid #06b6d4; }
+    .sidebar-item.active svg { color: #06b6d4; }
+
+    /* Buttons */
+    .btn-action { transition: all 0.15s ease; }
+    .btn-action:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    .btn-action:active { transform: translateY(0); }
+
+    /* Table rows */
+    .table-row { transition: background 0.1s ease; }
+    .table-row:hover { background: rgba(30, 41, 59, 0.4); }
+
+    /* Grid background */
+    .eve-grid-bg {
+      background-image:
+        linear-gradient(rgba(30, 41, 59, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(30, 41, 59, 0.1) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    /* Module sidebar */
+    .module-sidebar {
+      width: 200px;
+      min-height: calc(100vh - 56px);
+      background: rgba(15, 23, 42, 0.6);
+      border-right: 1px solid rgba(30, 41, 59, 0.6);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    /* Config gear */
+    .gear-btn svg { transition: transform 0.4s ease; }
+    .gear-btn:hover svg { transform: rotate(90deg); }
+
+    /* Module sidebar active badge */
+    .nav-badge {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 9999px;
+      margin-left: auto;
+    }
+  </style>
+</head>
+<body class="eve-grid-bg">
+
+  <!-- ===== APP SIDEBAR (collapsed) ===== -->
+  <aside class="fixed left-0 top-0 bottom-0 w-[60px] bg-slate-950 border-r border-slate-800/80 z-40 flex flex-col items-center py-4">
+    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 to-cyan-700 flex items-center justify-center mb-6 shadow-lg shadow-cyan-900/30">
+      <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+    </div>
+    <nav class="flex flex-col items-center gap-1 flex-1">
+      <a href="#" class="sidebar-item w-10 h-10 rounded-lg flex items-center justify-center" title="Dashboard">
+        <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      </a>
+      <a href="#" class="sidebar-item w-10 h-10 rounded-lg flex items-center justify-center" title="Ledger">
+        <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+      </a>
+      <a href="#" class="sidebar-item active w-10 h-10 rounded-lg flex items-center justify-center" title="Industry">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+      </a>
+      <a href="#" class="sidebar-item w-10 h-10 rounded-lg flex items-center justify-center" title="Market">
+        <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+      </a>
+      <a href="#" class="sidebar-item w-10 h-10 rounded-lg flex items-center justify-center" title="Assets">
+        <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+      </a>
+    </nav>
+    <div class="mt-auto">
+      <div class="w-9 h-9 rounded-lg bg-slate-800 border border-slate-700 overflow-hidden">
+        <div class="w-full h-full bg-gradient-to-br from-slate-600 to-slate-700"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN AREA ===== -->
+  <div class="ml-[60px]">
+
+    <!-- Top bar -->
+    <header class="h-14 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-sm flex items-center justify-between px-6 sticky top-0 z-30">
+      <div class="flex items-center gap-3">
+        <span class="font-mono-tech text-xs text-slate-600">TQ</span>
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span class="text-xs text-slate-500">32,441 pilots</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <button class="relative p-2 text-slate-400 hover:text-slate-200 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/></svg>
+          <span class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center">3</span>
+        </button>
+        <span class="text-xs text-slate-500 font-mono-tech">v0.11</span>
+      </div>
+    </header>
+
+    <!-- Layout: Module Sidebar + Content -->
+    <div class="flex">
+
+      <!-- ===== MODULE SIDEBAR ===== -->
+      <nav class="module-sidebar flex-shrink-0 py-2 px-2">
+        <!-- Module title -->
+        <div class="px-4 py-3 mb-1">
+          <h2 class="font-display text-lg font-bold text-white tracking-wide">Industry</h2>
+          <p class="text-[10px] text-slate-600 mt-0.5">Manufacturing & Reactions</p>
+        </div>
+
+        <!-- Overview section -->
+        <div class="section-label">Overview</div>
+        <div class="module-nav-item active">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/></svg>
+          Dashboard
+        </div>
+        <div class="module-nav-item">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z"/></svg>
+          Projects
+          <span class="nav-badge bg-cyan-500/15 text-cyan-400">7</span>
+        </div>
+
+        <!-- Analysis section -->
+        <div class="section-label">Analysis</div>
+        <div class="module-nav-item">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"/></svg>
+          Margins
+        </div>
+        <div class="module-nav-item">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5m.75-9l3-3 2.148 2.148A12.061 12.061 0 0116.5 7.605"/></svg>
+          Batch Scan
+        </div>
+        <div class="module-nav-item">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"/></svg>
+          Buy vs Build
+        </div>
+        <div class="module-nav-item">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7.5 3.75H6A2.25 2.25 0 003.75 6v1.5M16.5 3.75H18A2.25 2.25 0 0120.25 6v1.5m0 9V18A2.25 2.25 0 0118 20.25h-1.5m-9 0H6A2.25 2.25 0 013.75 18v-1.5M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Pivot Advisor
+        </div>
+
+        <!-- Operations section -->
+        <div class="section-label">Operations</div>
+        <div class="module-nav-item">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Slots
+          <span class="nav-badge bg-amber-500/15 text-amber-400">70%</span>
+        </div>
+        <div class="module-nav-item">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          Stockpile
+        </div>
+
+        <!-- Spacer to push config to bottom -->
+        <div class="flex-1 min-h-[40px]"></div>
+
+        <!-- Config -->
+        <div class="border-t border-slate-800/60 pt-2 mt-2 mx-1">
+          <div class="module-nav-item gear-btn">
+            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+            Configuration
+          </div>
+        </div>
+      </nav>
+
+      <!-- ===== PAGE CONTENT ===== -->
+      <div class="flex-1 px-6 py-5 min-w-0">
+
+        <!-- KPI Cards Row -->
+        <div class="grid grid-cols-4 gap-4 mb-6">
+          <!-- KPI 1 -->
+          <div class="kpi-card p-5 card-animate" style="animation-delay: 0ms">
+            <div class="flex items-center justify-between mb-3">
+              <p class="text-[10px] text-slate-500 uppercase tracking-widest font-semibold">Active Projects</p>
+              <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+            </div>
+            <p class="font-mono-tech text-3xl font-bold text-cyan-400" style="font-variant-numeric: tabular-nums">7</p>
+          </div>
+          <!-- KPI 2 -->
+          <div class="kpi-card p-5 card-animate" style="animation-delay: 60ms">
+            <div class="flex items-center justify-between mb-3">
+              <p class="text-[10px] text-slate-500 uppercase tracking-widest font-semibold">Est. Profit</p>
+              <svg class="w-4 h-4 text-emerald-500/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+            </div>
+            <p class="font-mono-tech text-3xl font-bold text-emerald-400" style="font-variant-numeric: tabular-nums">2.4B</p>
+            <p class="text-[10px] text-slate-600 mt-1">Across 7 active projects</p>
+          </div>
+          <!-- KPI 3 -->
+          <div class="kpi-card p-5 card-animate" style="animation-delay: 120ms">
+            <p class="text-[10px] text-slate-500 uppercase tracking-widest font-semibold mb-3">Slots Used</p>
+            <div class="flex items-center gap-3">
+              <div class="relative w-12 h-12 flex-shrink-0 ring-glow-amber">
+                <svg viewBox="0 0 48 48" class="w-12 h-12" style="transform: rotate(-90deg)">
+                  <circle cx="24" cy="24" r="19" fill="none" stroke="rgb(30 41 59)" stroke-width="4"/>
+                  <circle cx="24" cy="24" r="19" fill="none" stroke="#fbbf24" stroke-width="4" stroke-linecap="round" stroke-dasharray="119.38" stroke-dashoffset="35.8"/>
+                </svg>
+                <div class="absolute inset-0 flex items-center justify-center">
+                  <span class="text-[10px] font-mono-tech font-bold text-amber-400">70%</span>
+                </div>
+              </div>
+              <div>
+                <p class="text-2xl font-bold text-white font-mono-tech" style="font-variant-numeric: tabular-nums">21<span class="text-slate-500 text-lg">/30</span></p>
+                <p class="text-[10px] text-amber-400/70">9 available</p>
+              </div>
+            </div>
+          </div>
+          <!-- KPI 4 -->
+          <div class="kpi-card p-5 card-animate" style="animation-delay: 180ms">
+            <p class="text-[10px] text-slate-500 uppercase tracking-widest font-semibold mb-3">Pipeline Health</p>
+            <div class="flex items-center gap-3">
+              <div class="relative w-12 h-12 flex-shrink-0 ring-glow-emerald">
+                <svg viewBox="0 0 48 48" class="w-12 h-12" style="transform: rotate(-90deg)">
+                  <circle cx="24" cy="24" r="19" fill="none" stroke="rgb(30 41 59)" stroke-width="4"/>
+                  <circle cx="24" cy="24" r="19" fill="none" stroke="#34d399" stroke-width="4" stroke-linecap="round" stroke-dasharray="119.38" stroke-dashoffset="23.88"/>
+                </svg>
+                <div class="absolute inset-0 flex items-center justify-center">
+                  <span class="text-[10px] font-mono-tech font-bold text-emerald-400">80%</span>
+                </div>
+              </div>
+              <div>
+                <p class="text-2xl font-bold font-mono-tech text-emerald-400" style="font-variant-numeric: tabular-nums">80%</p>
+                <p class="text-[10px] text-slate-600">12/15 targets met</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alerts Section -->
+        <div class="bg-slate-900/80 rounded-xl border border-slate-800/80 mb-6 card-animate" style="animation-delay: 240ms">
+          <div class="px-6 py-3.5 border-b border-slate-800 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+              <h3 class="text-sm font-semibold text-slate-200">Alerts</h3>
+              <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-medium font-mono-tech">3</span>
+            </div>
+          </div>
+          <div class="divide-y divide-slate-800/50">
+            <div class="alert-row alert-amber px-6 py-3 flex items-center gap-4 cursor-pointer hover:bg-slate-800/30">
+              <div class="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm text-slate-200"><span class="font-semibold text-amber-300">2 jobs</span> ready for delivery</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Go to Slots to deliver completed industry jobs</p>
+              </div>
+              <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </div>
+            <div class="alert-row alert-red px-6 py-3 flex items-center gap-4 cursor-pointer hover:bg-slate-800/30">
+              <div class="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm text-slate-200"><span class="font-semibold text-red-300">Tritanium</span> at 12% &mdash; critically low</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Stock: 45,200 / Target: 400,000 &mdash; Deficit cost: 128M ISK</p>
+              </div>
+              <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </div>
+            <div class="alert-row alert-blue px-6 py-3 flex items-center gap-4 cursor-pointer hover:bg-slate-800/30">
+              <div class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm text-slate-200"><span class="font-semibold text-blue-300">9 slots</span> available across characters</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Consider starting new manufacturing or science jobs</p>
+              </div>
+              <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="flex flex-wrap gap-3 mb-6 card-animate" style="animation-delay: 300ms">
+          <button class="btn-action px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            New Project
+          </button>
+          <button class="btn-action px-4 py-2.5 bg-amber-600 hover:bg-amber-500 rounded-lg text-white text-sm font-medium flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            Restock Critical
+          </button>
+          <button class="btn-action px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm font-medium flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            Scan Profits
+          </button>
+          <button class="btn-action px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm font-medium flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+            View Stockpile
+          </button>
+        </div>
+
+        <!-- Recent Projects Table -->
+        <div class="bg-slate-900/80 rounded-xl border border-slate-800/80 card-animate" style="animation-delay: 360ms">
+          <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-slate-200">Recent Projects</h3>
+            <button class="text-sm text-cyan-400 hover:text-cyan-300 font-medium flex items-center gap-1 transition-colors">
+              View all projects
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+            </button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-slate-700/50 text-[10px] text-slate-500 uppercase tracking-wider">
+                  <th class="text-left py-3 px-6">Product</th>
+                  <th class="text-left py-3 px-3">Status</th>
+                  <th class="text-right py-3 px-3">Profit</th>
+                  <th class="text-left py-3 px-6 w-48">Progress</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/50">
+                <tr class="table-row cursor-pointer">
+                  <td class="py-3 px-6">
+                    <div class="flex items-center gap-3">
+                      <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700"><div class="w-full h-full bg-gradient-to-br from-cyan-900/30 to-slate-800"></div></div>
+                      <span class="text-slate-100 font-medium">Sabre</span>
+                    </div>
+                  </td>
+                  <td class="py-3 px-3"><span class="text-[10px] px-2 py-0.5 rounded border bg-cyan-500/15 text-cyan-400 border-cyan-500/20">Active</span></td>
+                  <td class="py-3 px-3 text-right font-mono-tech text-emerald-400">342M</td>
+                  <td class="py-3 px-6">
+                    <div class="flex items-center gap-3">
+                      <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden"><div class="h-full rounded-full bg-cyan-500/60 relative" style="width:65%"><div class="absolute inset-0 progress-shimmer rounded-full"></div></div></div>
+                      <span class="text-[11px] font-mono-tech text-slate-500 w-8 text-right">65%</span>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="table-row cursor-pointer">
+                  <td class="py-3 px-6">
+                    <div class="flex items-center gap-3">
+                      <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700"><div class="w-full h-full bg-gradient-to-br from-blue-900/30 to-slate-800"></div></div>
+                      <span class="text-slate-100 font-medium">Ishtar</span>
+                    </div>
+                  </td>
+                  <td class="py-3 px-3"><span class="text-[10px] px-2 py-0.5 rounded border bg-cyan-500/15 text-cyan-400 border-cyan-500/20">Active</span></td>
+                  <td class="py-3 px-3 text-right font-mono-tech text-emerald-400">1.2B</td>
+                  <td class="py-3 px-6">
+                    <div class="flex items-center gap-3">
+                      <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden"><div class="h-full rounded-full bg-cyan-500/60 relative" style="width:30%"><div class="absolute inset-0 progress-shimmer rounded-full"></div></div></div>
+                      <span class="text-[11px] font-mono-tech text-slate-500 w-8 text-right">30%</span>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="table-row cursor-pointer">
+                  <td class="py-3 px-6">
+                    <div class="flex items-center gap-3">
+                      <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700"><div class="w-full h-full bg-gradient-to-br from-purple-900/30 to-slate-800"></div></div>
+                      <span class="text-slate-100 font-medium">Jackdaw</span>
+                    </div>
+                  </td>
+                  <td class="py-3 px-3"><span class="text-[10px] px-2 py-0.5 rounded border bg-cyan-500/15 text-cyan-400 border-cyan-500/20">Active</span></td>
+                  <td class="py-3 px-3 text-right font-mono-tech text-emerald-400">189M</td>
+                  <td class="py-3 px-6">
+                    <div class="flex items-center gap-3">
+                      <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden"><div class="h-full rounded-full bg-emerald-500/60 relative" style="width:92%"><div class="absolute inset-0 progress-shimmer rounded-full"></div></div></div>
+                      <span class="text-[11px] font-mono-tech text-emerald-400 w-8 text-right">92%</span>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="table-row cursor-pointer">
+                  <td class="py-3 px-6">
+                    <div class="flex items-center gap-3">
+                      <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700"><div class="w-full h-full bg-gradient-to-br from-amber-900/30 to-slate-800"></div></div>
+                      <span class="text-slate-100 font-medium">Hurricane</span>
+                    </div>
+                  </td>
+                  <td class="py-3 px-3"><span class="text-[10px] px-2 py-0.5 rounded border bg-emerald-500/15 text-emerald-400 border-emerald-500/20">Completed</span></td>
+                  <td class="py-3 px-3 text-right font-mono-tech text-emerald-400">456M</td>
+                  <td class="py-3 px-6">
+                    <div class="flex items-center gap-3">
+                      <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden"><div class="h-full rounded-full bg-emerald-500/60" style="width:100%"></div></div>
+                      <span class="text-[11px] font-mono-tech text-emerald-400 w-8 text-right">100%</span>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="table-row cursor-pointer">
+                  <td class="py-3 px-6">
+                    <div class="flex items-center gap-3">
+                      <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700"><div class="w-full h-full bg-gradient-to-br from-red-900/30 to-slate-800"></div></div>
+                      <span class="text-slate-100 font-medium">Ferox</span>
+                    </div>
+                  </td>
+                  <td class="py-3 px-3"><span class="text-[10px] px-2 py-0.5 rounded border bg-cyan-500/15 text-cyan-400 border-cyan-500/20">Active</span></td>
+                  <td class="py-3 px-3 text-right font-mono-tech text-red-400">-23M</td>
+                  <td class="py-3 px-6">
+                    <div class="flex items-center gap-3">
+                      <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden"><div class="h-full rounded-full bg-cyan-500/60 relative" style="width:12%"><div class="absolute inset-0 progress-shimmer rounded-full"></div></div></div>
+                      <span class="text-[11px] font-mono-tech text-slate-500 w-8 text-right">12%</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Annotation -->
+        <div class="mt-6 text-center card-animate" style="animation-delay: 420ms">
+          <p class="text-[10px] text-slate-600 uppercase tracking-widest font-mono-tech">
+            Approach 2 &mdash; Vertical Module Sub-Nav &mdash; Persistent sidebar with grouped sections, icons, and live badges
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

@@ -10,6 +10,8 @@ use App\ApiResource\Input\Market\CreateAlertInput;
 use App\ApiResource\Market\MarketAlertResource;
 use App\Entity\MarketPriceAlert;
 use App\Entity\User;
+use App\Enum\AlertDirection;
+use App\Enum\AlertPriceSource;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
@@ -49,24 +51,19 @@ class CreateAlertProcessor implements ProcessorInterface
         }
 
         // Validate direction
-        $validDirections = [MarketPriceAlert::DIRECTION_ABOVE, MarketPriceAlert::DIRECTION_BELOW];
-        if (!in_array($data->direction, $validDirections, true)) {
+        $direction = AlertDirection::tryFrom($data->direction);
+        if ($direction === null) {
             throw new BadRequestHttpException('Invalid direction. Must be "above" or "below"');
         }
 
         // Validate price source
-        $validSources = [
-            MarketPriceAlert::SOURCE_JITA_SELL,
-            MarketPriceAlert::SOURCE_JITA_BUY,
-            MarketPriceAlert::SOURCE_STRUCTURE_SELL,
-            MarketPriceAlert::SOURCE_STRUCTURE_BUY,
-        ];
-        if (!in_array($data->priceSource, $validSources, true)) {
+        $priceSource = AlertPriceSource::tryFrom($data->priceSource);
+        if ($priceSource === null) {
             throw new BadRequestHttpException('Invalid price source. Must be one of: jita_sell, jita_buy, structure_sell, structure_buy');
         }
 
         // Structure sources require a preferred structure
-        if (in_array($data->priceSource, [MarketPriceAlert::SOURCE_STRUCTURE_SELL, MarketPriceAlert::SOURCE_STRUCTURE_BUY], true)
+        if (in_array($priceSource, [AlertPriceSource::StructureSell, AlertPriceSource::StructureBuy], true)
             && $user->getPreferredMarketStructureId() === null
         ) {
             throw new BadRequestHttpException('You must set a preferred market structure before using structure price alerts');
@@ -81,36 +78,35 @@ class CreateAlertProcessor implements ProcessorInterface
         $alert->setUser($user);
         $alert->setTypeId($data->typeId);
         $alert->setTypeName($invType->getTypeName());
-        $alert->setDirection($data->direction);
+        $alert->setDirection($direction);
         $alert->setThreshold($data->threshold);
-        $alert->setPriceSource($data->priceSource);
+        $alert->setPriceSource($priceSource);
 
         $this->em->persist($alert);
         $this->em->flush();
 
         // Get current price for response
-        $currentPrice = match ($data->priceSource) {
-            MarketPriceAlert::SOURCE_JITA_SELL => $this->jitaMarketService->getPricesWithFallback([$data->typeId])[$data->typeId] ?? null,
-            MarketPriceAlert::SOURCE_JITA_BUY => $this->jitaMarketService->getBuyPricesWithFallback([$data->typeId])[$data->typeId] ?? null,
-            MarketPriceAlert::SOURCE_STRUCTURE_SELL => $this->structureMarketService->getLowestSellPrice(
+        $currentPrice = match ($priceSource) {
+            AlertPriceSource::JitaSell => $this->jitaMarketService->getPricesWithFallback([$data->typeId])[$data->typeId] ?? null,
+            AlertPriceSource::JitaBuy => $this->jitaMarketService->getBuyPricesWithFallback([$data->typeId])[$data->typeId] ?? null,
+            AlertPriceSource::StructureSell => $this->structureMarketService->getLowestSellPrice(
                 $user->getPreferredMarketStructureId(),
                 $data->typeId,
             ),
-            MarketPriceAlert::SOURCE_STRUCTURE_BUY => $this->structureMarketService->getHighestBuyPrice(
+            AlertPriceSource::StructureBuy => $this->structureMarketService->getHighestBuyPrice(
                 $user->getPreferredMarketStructureId(),
                 $data->typeId,
             ),
-            default => null,
         };
 
         $resource = new MarketAlertResource();
         $resource->id = $alert->getId()?->toRfc4122() ?? '';
         $resource->typeId = $alert->getTypeId();
         $resource->typeName = $alert->getTypeName();
-        $resource->direction = $alert->getDirection();
+        $resource->direction = $alert->getDirection()->value;
         $resource->threshold = $alert->getThreshold();
-        $resource->priceSource = $alert->getPriceSource();
-        $resource->status = $alert->getStatus();
+        $resource->priceSource = $alert->getPriceSource()->value;
+        $resource->status = $alert->getStatus()->value;
         $resource->currentPrice = $currentPrice;
         $resource->triggeredAt = null;
         $resource->createdAt = $alert->getCreatedAt()->format('c');

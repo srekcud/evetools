@@ -10,6 +10,7 @@ use App\ApiResource\Input\Pve\CreateLootSaleInput;
 use App\ApiResource\Pve\LootSaleResource;
 use App\Entity\PveIncome;
 use App\Entity\User;
+use App\Enum\PveIncomeType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -37,7 +38,7 @@ class CreateLootSaleProcessor implements ProcessorInterface
 
         $income = new PveIncome();
         $income->setUser($user);
-        $income->setType($data->type ?? PveIncome::TYPE_LOOT_SALE);
+        $income->setType($data->type !== null ? (PveIncomeType::tryFrom($data->type) ?? PveIncomeType::LootSale) : PveIncomeType::LootSale);
         $income->setDescription($data->description);
         $income->setAmount($data->amount);
 
@@ -50,7 +51,7 @@ class CreateLootSaleProcessor implements ProcessorInterface
 
         $resource = new LootSaleResource();
         $resource->id = $income->getId()?->toRfc4122() ?? '';
-        $resource->type = $income->getType();
+        $resource->type = $income->getType()->value;
         $resource->description = $income->getDescription();
         $resource->amount = $income->getAmount();
         $resource->date = $income->getDate()->format('Y-m-d');

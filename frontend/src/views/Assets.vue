@@ -6,10 +6,12 @@ import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
 import { safeJsonParse } from '@/services/api'
 import MainLayout from '@/layouts/MainLayout.vue'
+import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import AssetsFilterBar from '@/components/assets/AssetsFilterBar.vue'
 import AssetsStatsCards from '@/components/assets/AssetsStatsCards.vue'
 import AssetLocationGroup from '@/components/assets/AssetLocationGroup.vue'
 import ContractsTab from '@/components/assets/ContractsTab.vue'
+import AssetDistributionChart from '@/components/assets/AssetDistributionChart.vue'
 import type { Asset } from '@/types'
 
 const { t } = useI18n()
@@ -393,14 +395,7 @@ watch([selectedCharacterId, viewMode], () => {
         </div>
 
         <!-- Error message -->
-        <div v-if="error" class="p-4 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 flex items-center justify-between">
-          <span>{{ error }}</span>
-          <button @click="error = ''" class="text-red-400 hover:text-red-300">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-          </button>
-        </div>
+        <ErrorBanner v-if="error" :message="error" @dismiss="error = ''" />
 
         <!-- Filters -->
         <AssetsFilterBar
@@ -426,6 +421,12 @@ watch([selectedCharacterId, viewMode], () => {
           :total-types="totalTypes"
           :total-systems="totalSystems"
           :total-locations="totalLocations"
+        />
+
+        <!-- Distribution chart -->
+        <AssetDistributionChart
+          v-if="!isLoading && assetsByLocation.length > 0"
+          :location-groups="assetsByLocation"
         />
 
         <!-- Loading state -->

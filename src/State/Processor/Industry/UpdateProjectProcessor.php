@@ -9,6 +9,7 @@ use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\ProjectResource;
 use App\ApiResource\Input\Industry\UpdateProjectInput;
 use App\Entity\User;
+use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryProjectFactory;
 use App\State\Provider\Industry\IndustryResourceMapper;
@@ -73,9 +74,12 @@ class UpdateProjectProcessor implements ProcessorInterface
             $project->setName($name !== '' ? $name : null);
         }
         if ($data->status !== null) {
-            $project->setStatus($data->status);
-            if ($data->status === 'completed' && $project->getCompletedAt() === null) {
-                $project->setCompletedAt(new \DateTimeImmutable());
+            $parsedStatus = ProjectStatus::tryFrom($data->status);
+            if ($parsedStatus !== null) {
+                $project->setStatus($parsedStatus);
+                if ($parsedStatus === ProjectStatus::Completed && $project->getCompletedAt() === null) {
+                    $project->setCompletedAt(new \DateTimeImmutable());
+                }
             }
         }
         if ($data->personalUse !== null) {

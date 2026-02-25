@@ -6,6 +6,8 @@ namespace App\Repository;
 
 use App\Entity\Escalation;
 use App\Entity\User;
+use App\Enum\EscalationSaleStatus;
+use App\Enum\EscalationVisibility;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -30,20 +32,26 @@ class EscalationRepository extends ServiceEntityRepository
             ->orderBy('e.expiresAt', 'ASC');
 
         if ($visibility !== null) {
-            $qb->andWhere('e.visibility = :visibility')
-               ->setParameter('visibility', $visibility);
+            $parsedVisibility = EscalationVisibility::tryFrom($visibility);
+            if ($parsedVisibility !== null) {
+                $qb->andWhere('e.visibility = :visibility')
+                   ->setParameter('visibility', $parsedVisibility);
+            }
         }
 
         if ($saleStatus !== null) {
-            $qb->andWhere('e.saleStatus = :saleStatus')
-               ->setParameter('saleStatus', $saleStatus);
+            $parsedSaleStatus = EscalationSaleStatus::tryFrom($saleStatus);
+            if ($parsedSaleStatus !== null) {
+                $qb->andWhere('e.saleStatus = :saleStatus')
+                   ->setParameter('saleStatus', $parsedSaleStatus);
+            }
         }
 
         if ($activeOnly) {
             $qb->andWhere('e.expiresAt > :now')
                ->andWhere('e.saleStatus != :vendu')
                ->setParameter('now', new \DateTimeImmutable())
-               ->setParameter('vendu', Escalation::SALE_VENDU);
+               ->setParameter('vendu', EscalationSaleStatus::Vendu);
         }
 
         return $qb->getQuery()->getResult();
@@ -61,9 +69,9 @@ class EscalationRepository extends ServiceEntityRepository
             ->andWhere('e.saleStatus != :vendu')
             ->andWhere('e.expiresAt > :now')
             ->setParameter('corpId', $corporationId)
-            ->setParameter('visibilities', [Escalation::VISIBILITY_CORP, Escalation::VISIBILITY_ALLIANCE, Escalation::VISIBILITY_PUBLIC])
+            ->setParameter('visibilities', [EscalationVisibility::Corp, EscalationVisibility::Alliance, EscalationVisibility::Public])
             ->setParameter('excludeUser', $excludeUser)
-            ->setParameter('vendu', Escalation::SALE_VENDU)
+            ->setParameter('vendu', EscalationSaleStatus::Vendu)
             ->setParameter('now', new \DateTimeImmutable())
             ->orderBy('e.expiresAt', 'ASC')
             ->getQuery()
@@ -84,9 +92,9 @@ class EscalationRepository extends ServiceEntityRepository
             ->andWhere('e.expiresAt > :now')
             ->setParameter('allianceId', $allianceId)
             ->setParameter('excludeCorpId', $excludeCorporationId)
-            ->setParameter('visibilities', [Escalation::VISIBILITY_ALLIANCE, Escalation::VISIBILITY_PUBLIC])
+            ->setParameter('visibilities', [EscalationVisibility::Alliance, EscalationVisibility::Public])
             ->setParameter('excludeUser', $excludeUser)
-            ->setParameter('vendu', Escalation::SALE_VENDU)
+            ->setParameter('vendu', EscalationSaleStatus::Vendu)
             ->setParameter('now', new \DateTimeImmutable())
             ->orderBy('e.expiresAt', 'ASC')
             ->getQuery()
@@ -102,8 +110,8 @@ class EscalationRepository extends ServiceEntityRepository
             ->where('e.visibility = :visibility')
             ->andWhere('e.saleStatus = :envente')
             ->andWhere('e.expiresAt > :now')
-            ->setParameter('visibility', Escalation::VISIBILITY_PUBLIC)
-            ->setParameter('envente', Escalation::SALE_ENVENTE)
+            ->setParameter('visibility', EscalationVisibility::Public)
+            ->setParameter('envente', EscalationSaleStatus::EnVente)
             ->setParameter('now', new \DateTimeImmutable())
             ->orderBy('e.expiresAt', 'ASC')
             ->getQuery()
@@ -127,8 +135,12 @@ class EscalationRepository extends ServiceEntityRepository
         foreach ($results as $row) {
             $cnt = (int) $row['cnt'];
             $counts['total'] += $cnt;
-            $bmStatus = (string) $row['bmStatus'];
-            $saleStatus = (string) $row['saleStatus'];
+            $bmStatus = $row['bmStatus'] instanceof \App\Enum\EscalationBmStatus
+                ? $row['bmStatus']->value
+                : (string) $row['bmStatus'];
+            $saleStatus = $row['saleStatus'] instanceof \App\Enum\EscalationSaleStatus
+                ? $row['saleStatus']->value
+                : (string) $row['saleStatus'];
             $counts[$bmStatus] = ($counts[$bmStatus] ?? 0) + $cnt;
             $counts[$saleStatus] = ($counts[$saleStatus] ?? 0) + $cnt;
         }
@@ -144,7 +156,7 @@ class EscalationRepository extends ServiceEntityRepository
             ->where('e.user = :user')
             ->andWhere('e.saleStatus = :vendu')
             ->setParameter('user', $user)
-            ->setParameter('vendu', Escalation::SALE_VENDU)
+            ->setParameter('vendu', EscalationSaleStatus::Vendu)
             ->getQuery()
             ->getSingleScalarResult();
 

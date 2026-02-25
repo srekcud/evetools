@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { api, AUTH_LOGOUT_EVENT } from '@/services/api'
+import { apiRequest, AUTH_LOGOUT_EVENT } from '@/services/api'
 import type { User } from '@/types'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -14,7 +14,6 @@ export const useAuthStore = defineStore('auth', () => {
   function handleLogoutEvent() {
     token.value = null
     user.value = null
-    api.setAuthToken(null)
   }
 
   // Set up event listener (called during init)
@@ -29,13 +28,12 @@ export const useAuthStore = defineStore('auth', () => {
   function setToken(newToken: string) {
     token.value = newToken
     localStorage.setItem('jwt_token', newToken)
-    api.setAuthToken(newToken)
   }
 
   async function fetchUser() {
     loading.value = true
     try {
-      user.value = await api.getMe()
+      user.value = await apiRequest<User>('/me')
     } catch (e) {
       user.value = null
     } finally {
@@ -47,7 +45,6 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = null
     user.value = null
     localStorage.removeItem('jwt_token')
-    api.setAuthToken(null)
   }
 
   async function init() {

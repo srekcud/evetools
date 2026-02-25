@@ -10,6 +10,7 @@ import {
   Title,
   Tooltip,
   Legend,
+  type TooltipItem,
 } from 'chart.js'
 import type { DailyStats } from '@/stores/pve'
 
@@ -57,8 +58,8 @@ const chartOptions = {
     },
     tooltip: {
       callbacks: {
-        label: (context: any) => {
-          const value = context.raw
+        label: (context: TooltipItem<'bar'>) => {
+          const value = context.raw as number
           const sign = value >= 0 ? '+' : ''
           return `Profit: ${sign}${value.toFixed(2)}B ISK`
         },
@@ -77,7 +78,7 @@ const chartOptions = {
     y: {
       ticks: {
         color: '#9ca3af',
-        callback: (value: any) => `${value}B`,
+        callback: (value: string | number) => `${value}B`,
       },
       grid: {
         color: 'rgba(75, 85, 99, 0.3)',

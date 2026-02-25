@@ -6,6 +6,9 @@ namespace App\Tests\Unit\Service;
 
 use App\Entity\MarketPriceAlert;
 use App\Entity\User;
+use App\Enum\AlertDirection;
+use App\Enum\AlertPriceSource;
+use App\Enum\AlertStatus;
 use App\Repository\MarketPriceAlertRepository;
 use App\Service\JitaMarketService;
 use App\Service\MarketAlertService;
@@ -56,7 +59,7 @@ class MarketAlertServiceTest extends TestCase
 
     public function testAlertTriggersWhenPriceGoesAboveThreshold(): void
     {
-        $alert = $this->createAlert(34, 'Tritanium', MarketPriceAlert::DIRECTION_ABOVE, 10.0, MarketPriceAlert::SOURCE_JITA_SELL);
+        $alert = $this->createAlert(34, 'Tritanium', AlertDirection::Above, 10.0, AlertPriceSource::JitaSell);
 
         $this->alertRepository->method('findActiveAlerts')->willReturn([$alert]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 12.0]);
@@ -67,13 +70,13 @@ class MarketAlertServiceTest extends TestCase
         $triggered = $this->service->checkAlerts();
 
         $this->assertSame(1, $triggered);
-        $this->assertSame(MarketPriceAlert::STATUS_TRIGGERED, $alert->getStatus());
+        $this->assertSame(AlertStatus::Triggered, $alert->getStatus());
         $this->assertNotNull($alert->getTriggeredAt());
     }
 
     public function testAlertTriggersWhenPriceGoesBelowThreshold(): void
     {
-        $alert = $this->createAlert(34, 'Tritanium', MarketPriceAlert::DIRECTION_BELOW, 10.0, MarketPriceAlert::SOURCE_JITA_SELL);
+        $alert = $this->createAlert(34, 'Tritanium', AlertDirection::Below, 10.0, AlertPriceSource::JitaSell);
 
         $this->alertRepository->method('findActiveAlerts')->willReturn([$alert]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 8.0]);
@@ -84,12 +87,12 @@ class MarketAlertServiceTest extends TestCase
         $triggered = $this->service->checkAlerts();
 
         $this->assertSame(1, $triggered);
-        $this->assertSame(MarketPriceAlert::STATUS_TRIGGERED, $alert->getStatus());
+        $this->assertSame(AlertStatus::Triggered, $alert->getStatus());
     }
 
     public function testAlertTriggersOnBuyPriceSource(): void
     {
-        $alert = $this->createAlert(34, 'Tritanium', MarketPriceAlert::DIRECTION_ABOVE, 8.0, MarketPriceAlert::SOURCE_JITA_BUY);
+        $alert = $this->createAlert(34, 'Tritanium', AlertDirection::Above, 8.0, AlertPriceSource::JitaBuy);
 
         $this->alertRepository->method('findActiveAlerts')->willReturn([$alert]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 12.0]);
@@ -108,7 +111,7 @@ class MarketAlertServiceTest extends TestCase
 
     public function testAlertDoesNotTriggerWhenConditionNotMet(): void
     {
-        $alert = $this->createAlert(34, 'Tritanium', MarketPriceAlert::DIRECTION_ABOVE, 15.0, MarketPriceAlert::SOURCE_JITA_SELL);
+        $alert = $this->createAlert(34, 'Tritanium', AlertDirection::Above, 15.0, AlertPriceSource::JitaSell);
 
         $this->alertRepository->method('findActiveAlerts')->willReturn([$alert]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 10.0]);
@@ -119,12 +122,12 @@ class MarketAlertServiceTest extends TestCase
         $triggered = $this->service->checkAlerts();
 
         $this->assertSame(0, $triggered);
-        $this->assertSame(MarketPriceAlert::STATUS_ACTIVE, $alert->getStatus());
+        $this->assertSame(AlertStatus::Active, $alert->getStatus());
     }
 
     public function testAlertDoesNotTriggerBelowWhenPriceIsHigher(): void
     {
-        $alert = $this->createAlert(34, 'Tritanium', MarketPriceAlert::DIRECTION_BELOW, 5.0, MarketPriceAlert::SOURCE_JITA_SELL);
+        $alert = $this->createAlert(34, 'Tritanium', AlertDirection::Below, 5.0, AlertPriceSource::JitaSell);
 
         $this->alertRepository->method('findActiveAlerts')->willReturn([$alert]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 10.0]);
@@ -143,7 +146,7 @@ class MarketAlertServiceTest extends TestCase
 
     public function testAlertWithNoJitaPriceDataIsSkipped(): void
     {
-        $alert = $this->createAlert(99999, 'Unknown Item', MarketPriceAlert::DIRECTION_ABOVE, 10.0, MarketPriceAlert::SOURCE_JITA_SELL);
+        $alert = $this->createAlert(99999, 'Unknown Item', AlertDirection::Above, 10.0, AlertPriceSource::JitaSell);
 
         $this->alertRepository->method('findActiveAlerts')->willReturn([$alert]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([99999 => null]);
@@ -154,7 +157,7 @@ class MarketAlertServiceTest extends TestCase
         $triggered = $this->service->checkAlerts();
 
         $this->assertSame(0, $triggered);
-        $this->assertSame(MarketPriceAlert::STATUS_ACTIVE, $alert->getStatus());
+        $this->assertSame(AlertStatus::Active, $alert->getStatus());
     }
 
     // ===========================================
@@ -178,8 +181,8 @@ class MarketAlertServiceTest extends TestCase
 
     public function testMultipleAlertsMixedTriggerResults(): void
     {
-        $alertTriggered = $this->createAlert(34, 'Tritanium', MarketPriceAlert::DIRECTION_ABOVE, 5.0, MarketPriceAlert::SOURCE_JITA_SELL);
-        $alertNotTriggered = $this->createAlert(35, 'Pyerite', MarketPriceAlert::DIRECTION_ABOVE, 20.0, MarketPriceAlert::SOURCE_JITA_SELL);
+        $alertTriggered = $this->createAlert(34, 'Tritanium', AlertDirection::Above, 5.0, AlertPriceSource::JitaSell);
+        $alertNotTriggered = $this->createAlert(35, 'Pyerite', AlertDirection::Above, 20.0, AlertPriceSource::JitaSell);
 
         $this->alertRepository->method('findActiveAlerts')->willReturn([$alertTriggered, $alertNotTriggered]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 10.0, 35 => 15.0]);
@@ -190,8 +193,8 @@ class MarketAlertServiceTest extends TestCase
         $triggered = $this->service->checkAlerts();
 
         $this->assertSame(1, $triggered);
-        $this->assertSame(MarketPriceAlert::STATUS_TRIGGERED, $alertTriggered->getStatus());
-        $this->assertSame(MarketPriceAlert::STATUS_ACTIVE, $alertNotTriggered->getStatus());
+        $this->assertSame(AlertStatus::Triggered, $alertTriggered->getStatus());
+        $this->assertSame(AlertStatus::Active, $alertNotTriggered->getStatus());
     }
 
     // ===========================================
@@ -200,7 +203,7 @@ class MarketAlertServiceTest extends TestCase
 
     public function testAlertTriggersWhenPriceExactlyAtThresholdAbove(): void
     {
-        $alert = $this->createAlert(34, 'Tritanium', MarketPriceAlert::DIRECTION_ABOVE, 10.0, MarketPriceAlert::SOURCE_JITA_SELL);
+        $alert = $this->createAlert(34, 'Tritanium', AlertDirection::Above, 10.0, AlertPriceSource::JitaSell);
 
         $this->alertRepository->method('findActiveAlerts')->willReturn([$alert]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 10.0]);
@@ -215,7 +218,7 @@ class MarketAlertServiceTest extends TestCase
 
     public function testAlertTriggersWhenPriceExactlyAtThresholdBelow(): void
     {
-        $alert = $this->createAlert(34, 'Tritanium', MarketPriceAlert::DIRECTION_BELOW, 10.0, MarketPriceAlert::SOURCE_JITA_SELL);
+        $alert = $this->createAlert(34, 'Tritanium', AlertDirection::Below, 10.0, AlertPriceSource::JitaSell);
 
         $this->alertRepository->method('findActiveAlerts')->willReturn([$alert]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 10.0]);
@@ -235,7 +238,7 @@ class MarketAlertServiceTest extends TestCase
     public function testAlertTriggersOnStructureSellPrice(): void
     {
         $user = $this->createUserStubWithStructure(1234567890);
-        $alert = $this->createAlertForUser($user, 34, 'Tritanium', MarketPriceAlert::DIRECTION_ABOVE, 10.0, MarketPriceAlert::SOURCE_STRUCTURE_SELL);
+        $alert = $this->createAlertForUser($user, 34, 'Tritanium', AlertDirection::Above, 10.0, AlertPriceSource::StructureSell);
 
         $this->alertRepository->method('findActiveAlerts')->willReturn([$alert]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 12.0]);
@@ -248,13 +251,13 @@ class MarketAlertServiceTest extends TestCase
         $triggered = $this->service->checkAlerts();
 
         $this->assertSame(1, $triggered);
-        $this->assertSame(MarketPriceAlert::STATUS_TRIGGERED, $alert->getStatus());
+        $this->assertSame(AlertStatus::Triggered, $alert->getStatus());
     }
 
     public function testAlertTriggersOnStructureBuyPrice(): void
     {
         $user = $this->createUserStubWithStructure(1234567890);
-        $alert = $this->createAlertForUser($user, 34, 'Tritanium', MarketPriceAlert::DIRECTION_BELOW, 10.0, MarketPriceAlert::SOURCE_STRUCTURE_BUY);
+        $alert = $this->createAlertForUser($user, 34, 'Tritanium', AlertDirection::Below, 10.0, AlertPriceSource::StructureBuy);
 
         $this->alertRepository->method('findActiveAlerts')->willReturn([$alert]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 12.0]);
@@ -272,7 +275,7 @@ class MarketAlertServiceTest extends TestCase
     public function testStructureAlertSkippedWhenNoPreferredStructure(): void
     {
         $user = $this->createUserStubWithStructure(null);
-        $alert = $this->createAlertForUser($user, 34, 'Tritanium', MarketPriceAlert::DIRECTION_ABOVE, 10.0, MarketPriceAlert::SOURCE_STRUCTURE_SELL);
+        $alert = $this->createAlertForUser($user, 34, 'Tritanium', AlertDirection::Above, 10.0, AlertPriceSource::StructureSell);
 
         $this->alertRepository->method('findActiveAlerts')->willReturn([$alert]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 12.0]);
@@ -283,14 +286,14 @@ class MarketAlertServiceTest extends TestCase
         $triggered = $this->service->checkAlerts();
 
         $this->assertSame(0, $triggered);
-        $this->assertSame(MarketPriceAlert::STATUS_ACTIVE, $alert->getStatus());
+        $this->assertSame(AlertStatus::Active, $alert->getStatus());
     }
 
     public function testMixedJitaAndStructureAlerts(): void
     {
         $user = $this->createUserStubWithStructure(1234567890);
-        $jitaAlert = $this->createAlertForUser($user, 34, 'Tritanium', MarketPriceAlert::DIRECTION_ABOVE, 5.0, MarketPriceAlert::SOURCE_JITA_SELL);
-        $structureAlert = $this->createAlertForUser($user, 35, 'Pyerite', MarketPriceAlert::DIRECTION_ABOVE, 5.0, MarketPriceAlert::SOURCE_STRUCTURE_SELL);
+        $jitaAlert = $this->createAlertForUser($user, 34, 'Tritanium', AlertDirection::Above, 5.0, AlertPriceSource::JitaSell);
+        $structureAlert = $this->createAlertForUser($user, 35, 'Pyerite', AlertDirection::Above, 5.0, AlertPriceSource::StructureSell);
 
         $this->alertRepository->method('findActiveAlerts')->willReturn([$jitaAlert, $structureAlert]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 10.0, 35 => 15.0]);
@@ -330,9 +333,9 @@ class MarketAlertServiceTest extends TestCase
     private function createAlert(
         int $typeId,
         string $typeName,
-        string $direction,
+        AlertDirection $direction,
         float $threshold,
-        string $priceSource,
+        AlertPriceSource $priceSource,
     ): MarketPriceAlert {
         $alert = new MarketPriceAlert();
         $alert->setUser($this->createUserStub());
@@ -349,9 +352,9 @@ class MarketAlertServiceTest extends TestCase
         User $user,
         int $typeId,
         string $typeName,
-        string $direction,
+        AlertDirection $direction,
         float $threshold,
-        string $priceSource,
+        AlertPriceSource $priceSource,
     ): MarketPriceAlert {
         $alert = new MarketPriceAlert();
         $alert->setUser($user);

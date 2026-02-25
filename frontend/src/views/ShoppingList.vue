@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { authFetch, safeJsonParse } from '@/services/api'
 import MainLayout from '@/layouts/MainLayout.vue'
+import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import ShoppingListResults from '@/components/shopping/ShoppingListResults.vue'
 import AppraisalResults from '@/components/shopping/AppraisalResults.vue'
 import type { ShoppingItem, ShoppingTotals } from '@/components/shopping/ShoppingListResults.vue'
@@ -529,9 +530,7 @@ Megacyte 100
       </div>
 
       <!-- Error -->
-      <div v-if="error" class="bg-red-900/30 border border-red-500/30 rounded-xl p-4 text-red-400">
-        {{ error }}
-      </div>
+      <ErrorBanner v-if="error" :message="error" @dismiss="error = ''" />
 
       <!-- Shopping Results -->
       <ShoppingListResults

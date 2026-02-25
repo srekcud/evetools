@@ -1,9 +1,22 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
+import { Bar } from 'vue-chartjs'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js'
 import type { LedgerDashboard, LedgerDailyStats } from '@/stores/ledger'
 
-defineProps<{
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
+
+const props = defineProps<{
   dashboard: LedgerDashboard
   dailyStats: LedgerDailyStats | null
   selectedDays: number
@@ -16,6 +29,111 @@ const { formatIskShort, formatIskFull, formatDate, formatDateTime } = useFormatt
 function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`
 }
+
+function formatChartIsk(value: number): string {
+  if (value >= 1_000_000_000) return (value / 1_000_000_000).toFixed(1) + 'B'
+  if (value >= 1_000_000) return (value / 1_000_000).toFixed(0) + 'M'
+  if (value >= 1_000) return (value / 1_000).toFixed(0) + 'K'
+  return value.toFixed(0)
+}
+
+const chartData = computed(() => {
+  if (!props.dailyStats?.daily) return null
+
+  const days = props.dailyStats.daily
+  const labels = days.map(d => {
+    const date = new Date(d.date)
+    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
+  })
+
+  return {
+    labels,
+    datasets: [
+      {
+        label: 'PVE',
+        data: days.map(d => d.pve),
+        backgroundColor: 'rgba(6, 182, 212, 0.7)',
+        borderColor: '#06b6d4',
+        borderWidth: 1,
+        borderRadius: 2,
+      },
+      {
+        label: 'Mining',
+        data: days.map(d => d.mining),
+        backgroundColor: 'rgba(245, 158, 11, 0.7)',
+        borderColor: '#f59e0b',
+        borderWidth: 1,
+        borderRadius: 2,
+      },
+    ],
+  }
+})
+
+const chartOptions = computed(() => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  interaction: {
+    mode: 'index' as const,
+    intersect: false,
+  },
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      backgroundColor: 'rgba(15, 23, 42, 0.96)',
+      borderColor: 'rgba(6, 182, 212, 0.25)',
+      borderWidth: 1,
+      titleColor: '#94a3b8',
+      titleFont: { family: 'JetBrains Mono', size: 11 },
+      bodyColor: '#e2e8f0',
+      bodyFont: { family: 'JetBrains Mono', size: 12 },
+      bodySpacing: 6,
+      padding: { top: 10, bottom: 10, left: 14, right: 14 },
+      cornerRadius: 8,
+      displayColors: true,
+      boxWidth: 8,
+      boxHeight: 8,
+      callbacks: {
+        title: (items: { dataIndex: number }[]) => {
+          if (!props.dailyStats?.daily) return ''
+          const day = props.dailyStats.daily[items[0].dataIndex]
+          return formatDate(day.date)
+        },
+        label: (context: { dataset: { label?: string }; raw: unknown }) => {
+          const value = context.raw as number
+          return `  ${context.dataset.label}: ${formatIskFull(value)}`
+        },
+        afterBody: (items: { dataIndex: number }[]) => {
+          if (!props.dailyStats?.daily) return []
+          const day = props.dailyStats.daily[items[0].dataIndex]
+          return [`  Total: ${formatIskFull(day.total)}`]
+        },
+      },
+    },
+  },
+  scales: {
+    x: {
+      stacked: true,
+      grid: { display: false },
+      ticks: {
+        color: '#475569',
+        font: { family: 'JetBrains Mono', size: 10 },
+        maxTicksLimit: props.selectedDays <= 30 ? 10 : 15,
+        maxRotation: 0,
+      },
+      border: { display: false },
+    },
+    y: {
+      stacked: true,
+      grid: { color: 'rgba(51, 65, 85, 0.3)' },
+      ticks: {
+        color: '#475569',
+        font: { family: 'JetBrains Mono', size: 10 },
+        callback: (value: string | number) => formatChartIsk(Number(value)),
+      },
+      border: { display: false },
+    },
+  },
+}))
 </script>
 
 <template>
@@ -78,30 +196,14 @@ function formatPercent(value: number): string {
       </div>
     </div>
 
-    <!-- Stacked Bar Chart -->
+    <!-- Revenue Chart -->
     <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
       <h3 class="text-sm font-semibold text-white mb-3">{{ t('ledger.dashboard.dailyRevenue') }}</h3>
-      <div v-if="dailyStats?.daily" class="h-44 flex items-end gap-1">
-        <div
-          v-for="day in dailyStats.daily"
-          :key="day.date"
-          class="flex-1 flex flex-col justify-end gap-px"
-          :title="`${formatDate(day.date)}\nPVE: ${formatIskFull(day.pve)}\nMining: ${formatIskFull(day.mining)}`"
-        >
-          <!-- Mining bar -->
-          <div
-            v-if="day.mining > 0"
-            class="bg-amber-500/80 rounded-t-sm min-h-[2px]"
-            :style="{ height: `${(day.mining / maxDailyValue) * 150}px` }"
-          />
-          <!-- PVE bar -->
-          <div
-            v-if="day.pve > 0"
-            class="bg-cyan-500/80 min-h-[2px]"
-            :class="{ 'rounded-t-sm': day.mining === 0 }"
-            :style="{ height: `${(day.pve / maxDailyValue) * 150}px` }"
-          />
-        </div>
+      <div v-if="chartData" style="height: 200px;">
+        <Bar :data="chartData" :options="chartOptions" />
+      </div>
+      <div v-else class="h-44 flex items-center justify-center">
+        <p class="text-sm text-slate-500">{{ t('common.actions.loading') }}</p>
       </div>
       <div class="mt-3 flex items-center justify-center gap-6 text-xs">
         <div class="flex items-center gap-2">

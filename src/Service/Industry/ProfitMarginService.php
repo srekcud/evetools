@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Service\Industry;
 
 use App\Entity\User;
+use App\Enum\IndustryActivityType;
 use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryStructureConfigRepository;
+use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
@@ -28,6 +30,7 @@ class ProfitMarginService
         private readonly CachedStructureRepository $cachedStructureRepository,
         private readonly IndustryBlacklistService $blacklistService,
         private readonly IndustryStructureConfigRepository $structureConfigRepository,
+        private readonly IndustryActivityMaterialRepository $materialRepository,
     ) {
     }
 
@@ -290,8 +293,18 @@ class ProfitMarginService
         if ($activityType === 'manufacturing' || $activityType === 'reaction') {
             $productTypeId = (int) $node['productTypeId'];
             $nodeRuns = (int) $node['runs'];
+            $blueprintTypeId = (int) $node['blueprintTypeId'];
+
+            // Compute EIV from ME0 materials for this node's blueprint
+            $activityIdValue = $activityType === 'reaction' ? IndustryActivityType::Reaction->value : IndustryActivityType::Manufacturing->value;
+            $me0Materials = $this->materialRepository->findMaterialsForBlueprints(
+                [$blueprintTypeId],
+                [$activityIdValue],
+            );
+            $eiv = $this->esiCostIndexService->calculateEiv($me0Materials[$blueprintTypeId] ?? []);
+
             $installCost = $this->esiCostIndexService->calculateJobInstallCost(
-                $productTypeId,
+                $eiv,
                 $nodeRuns,
                 $solarSystemId,
                 $activityType,

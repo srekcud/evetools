@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Enum\PveIncomeType;
 use App\Repository\PveIncomeRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -14,17 +15,8 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(columns: ['user_id', 'date'])]
 #[ORM\Index(columns: ['user_id', 'transaction_id'])]
 #[ORM\Index(columns: ['user_id', 'journal_entry_id'])]
-#[ORM\Index(columns: ['session_id'])]
 class PveIncome
 {
-    public const TYPE_LOOT_SALE = 'loot_sale';
-    public const TYPE_BOUNTY = 'bounty';
-    public const TYPE_ESS = 'ess';
-    public const TYPE_MISSION = 'mission';
-    public const TYPE_LOOT_CONTRACT = 'loot_contract';
-    public const TYPE_CORP_PROJECT = 'corp_project';
-    public const TYPE_OTHER = 'other';
-
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     #[ORM\GeneratedValue(strategy: 'CUSTOM')]
@@ -35,12 +27,8 @@ class PveIncome
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private User $user;
 
-    #[ORM\ManyToOne(targetEntity: PveSession::class, inversedBy: 'incomes')]
-    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
-    private ?PveSession $session = null;
-
-    #[ORM\Column(type: 'string', length: 50)]
-    private string $type;
+    #[ORM\Column(type: 'string', length: 50, enumType: PveIncomeType::class)]
+    private PveIncomeType $type;
 
     #[ORM\Column(type: 'string', length: 255)]
     private string $description;
@@ -85,12 +73,12 @@ class PveIncome
         return $this;
     }
 
-    public function getType(): string
+    public function getType(): PveIncomeType
     {
         return $this->type;
     }
 
-    public function setType(string $type): static
+    public function setType(PveIncomeType $type): static
     {
         $this->type = $type;
         return $this;
@@ -167,14 +155,4 @@ class PveIncome
         return $this;
     }
 
-    public function getSession(): ?PveSession
-    {
-        return $this->session;
-    }
-
-    public function setSession(?PveSession $session): static
-    {
-        $this->session = $session;
-        return $this;
-    }
 }

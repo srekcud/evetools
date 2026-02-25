@@ -253,6 +253,14 @@ export const useAdminStore = defineStore('admin', () => {
     return triggerAction('check-market-alerts')
   }
 
+  async function syncAlertPrices(): Promise<{ success: boolean; message: string }> {
+    return triggerAction('sync-alert-prices')
+  }
+
+  async function syncPublicContracts(): Promise<{ success: boolean; message: string }> {
+    return triggerAction('sync-public-contracts')
+  }
+
   async function purgeNotifications(): Promise<{ success: boolean; message: string }> {
     return triggerAction('purge-notifications')
   }
@@ -295,6 +303,8 @@ export const useAdminStore = defineStore('admin', () => {
     syncAnsiblex,
     syncPlanetary,
     checkMarketAlerts,
+    syncAlertPrices,
+    syncPublicContracts,
     purgeNotifications,
     purgeMarketHistory,
     retryFailed,

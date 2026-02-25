@@ -10,6 +10,7 @@ use App\ApiResource\Escalation\EscalationResource;
 use App\ApiResource\Input\Escalation\CreateEscalationInput;
 use App\Entity\Escalation;
 use App\Entity\User;
+use App\Enum\EscalationVisibility;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Provider\Escalation\EscalationResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
@@ -55,15 +56,7 @@ class CreateEscalationProcessor implements ProcessorInterface
         $timerHours = min(72.0, max(0.1, $data->timerHours));
 
         // Validate visibility
-        $validVisibilities = [
-            Escalation::VISIBILITY_PERSO,
-            Escalation::VISIBILITY_CORP,
-            Escalation::VISIBILITY_ALLIANCE,
-            Escalation::VISIBILITY_PUBLIC,
-        ];
-        $visibility = in_array($data->visibility, $validVisibilities, true)
-            ? $data->visibility
-            : Escalation::VISIBILITY_PERSO;
+        $visibility = EscalationVisibility::tryFrom($data->visibility) ?? EscalationVisibility::Perso;
 
         $escalation = new Escalation();
         $escalation->setUser($user);
@@ -84,7 +77,7 @@ class CreateEscalationProcessor implements ProcessorInterface
         $this->em->flush();
 
         // Publish Mercure event for non-personal escalations
-        if ($visibility !== Escalation::VISIBILITY_PERSO) {
+        if ($visibility !== EscalationVisibility::Perso) {
             $this->mercurePublisher->publishEscalationEvent(
                 'created',
                 [
@@ -92,11 +85,11 @@ class CreateEscalationProcessor implements ProcessorInterface
                     'type' => $escalation->getType(),
                     'solarSystemName' => $escalation->getSolarSystemName(),
                     'characterName' => $escalation->getCharacterName(),
-                    'visibility' => $visibility,
+                    'visibility' => $visibility->value,
                 ],
                 $escalation->getCorporationId(),
                 $escalation->getAllianceId(),
-                $visibility,
+                $visibility->value,
             );
         }
 

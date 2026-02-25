@@ -49,7 +49,7 @@ class LootSaleCollectionProvider implements ProviderInterface
     {
         $resource = new LootSaleResource();
         $resource->id = $income->getId()?->toRfc4122() ?? '';
-        $resource->type = $income->getType();
+        $resource->type = $income->getType()->value;
         $resource->description = $income->getDescription();
         $resource->amount = $income->getAmount();
         $resource->date = $income->getDate()->format('Y-m-d');

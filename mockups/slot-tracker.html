@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EVE Tools - Slot Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Rajdhani', 'sans-serif'],
+            mono: ['Share Tech Mono', 'monospace'],
+          },
+          colors: {
+            eve: {
+              dark: '#020617',
+              accent: '#00d4ff',
+              'accent-dim': '#0099bb',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    html { font-family: 'Rajdhani', sans-serif; }
+
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #020617; }
+    ::-webkit-scrollbar-thumb { background: rgba(6,182,212,.3); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(6,182,212,.5); }
+
+    .eve-card {
+      background: rgb(15 23 42);
+      border: 1px solid rgb(30 41 59);
+      border-radius: 0.75rem;
+    }
+
+    /* Background grid matching MainLayout */
+    .bg-grid {
+      background-image:
+        linear-gradient(rgba(6,182,212,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(6,182,212,0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+    }
+
+    /* SVG ring animation */
+    @keyframes ringFill {
+      from { stroke-dashoffset: var(--ring-circumference); }
+      to { stroke-dashoffset: var(--ring-offset); }
+    }
+    .ring-animated {
+      animation: ringFill 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    /* Progress bar shimmer */
+    @keyframes progressShimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .progress-shimmer {
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+      background-size: 200% 100%;
+      animation: progressShimmer 2.5s ease-in-out infinite;
+    }
+
+    /* Gantt "now" line pulse */
+    @keyframes nowPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .now-pulse { animation: nowPulse 2s ease-in-out infinite; }
+
+    /* Card entrance stagger */
+    @keyframes cardEnter {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .card-enter {
+      animation: cardEnter 0.4s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+    }
+
+    /* Tabular nums for timers */
+    .font-tabular { font-variant-numeric: tabular-nums; }
+
+    /* Gantt bar hover */
+    .gantt-bar {
+      transition: filter 0.15s ease, transform 0.15s ease;
+      cursor: pointer;
+    }
+    .gantt-bar:hover {
+      filter: brightness(1.3);
+      transform: scaleY(1.15);
+    }
+
+    /* Tooltip */
+    .gantt-bar .gantt-tooltip {
+      display: none;
+      position: absolute;
+      z-index: 50;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
+    }
+    .gantt-bar:hover .gantt-tooltip {
+      display: block;
+    }
+  </style>
+</head>
+<body class="bg-eve-dark text-slate-200 min-h-screen font-display bg-grid">
+
+<!-- Ambient background gradients -->
+<div class="fixed inset-0 overflow-hidden pointer-events-none">
+  <div class="absolute -top-1/2 -left-1/2 w-full h-full" style="background: radial-gradient(ellipse at center, rgba(6,182,212,0.08), transparent 70%);"></div>
+  <div class="absolute -bottom-1/2 -right-1/2 w-full h-full" style="background: radial-gradient(ellipse at center, rgba(99,102,241,0.05), transparent 70%);"></div>
+</div>
+
+<div class="relative max-w-7xl mx-auto px-6 py-6 space-y-6">
+
+  <!-- ================================================================ -->
+  <!-- HEADER                                                           -->
+  <!-- ================================================================ -->
+  <div class="flex items-center justify-between card-enter" style="animation-delay: 0ms;">
+    <div class="flex items-center gap-3">
+      <svg class="w-7 h-7 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+      </svg>
+      <h1 class="text-xl font-bold text-white">Slot Tracker</h1>
+    </div>
+    <div class="flex items-center gap-4">
+      <span class="text-xs text-slate-500">Last sync: <span class="text-slate-400">3 minutes ago</span></span>
+      <button class="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- GLOBAL SUMMARY - 3 KPI CARDS                                     -->
+  <!-- ================================================================ -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 card-enter" style="animation-delay: 80ms;">
+
+    <!-- Manufacturing Slots -->
+    <div class="eve-card p-5 border-emerald-500/20">
+      <div class="flex items-center gap-5">
+        <!-- Ring chart -->
+        <div class="relative w-20 h-20 shrink-0">
+          <svg class="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="34" fill="none" stroke="rgb(30 41 59)" stroke-width="6" />
+            <circle cx="40" cy="40" r="34" fill="none" stroke="#34d399" stroke-width="6"
+              stroke-linecap="round"
+              stroke-dasharray="213.63"
+              style="--ring-circumference: 213.63; --ring-offset: 39.04;"
+              class="ring-animated"
+              stroke-dashoffset="213.63" />
+          </svg>
+          <div class="absolute inset-0 flex items-center justify-center">
+            <span class="font-mono text-lg font-bold text-emerald-400">82%</span>
+          </div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm text-slate-400 mb-1">Manufacturing Slots</p>
+          <p class="text-2xl font-bold text-white font-mono font-tabular">27<span class="text-slate-500 text-lg">/33</span></p>
+          <div class="mt-1.5 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span class="text-xs text-emerald-400 font-medium">High utilization</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reaction Slots -->
+    <div class="eve-card p-5 border-amber-500/20">
+      <div class="flex items-center gap-5">
+        <div class="relative w-20 h-20 shrink-0">
+          <svg class="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="34" fill="none" stroke="rgb(30 41 59)" stroke-width="6" />
+            <circle cx="40" cy="40" r="34" fill="none" stroke="#fbbf24" stroke-width="6"
+              stroke-linecap="round"
+              stroke-dasharray="213.63"
+              style="--ring-circumference: 213.63; --ring-offset: 59.11;"
+              class="ring-animated"
+              stroke-dashoffset="213.63" />
+          </svg>
+          <div class="absolute inset-0 flex items-center justify-center">
+            <span class="font-mono text-lg font-bold text-amber-400">73%</span>
+          </div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm text-slate-400 mb-1">Reaction Slots</p>
+          <p class="text-2xl font-bold text-white font-mono font-tabular">8<span class="text-slate-500 text-lg">/11</span></p>
+          <div class="mt-1.5 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+            <span class="text-xs text-amber-400 font-medium">Moderate utilization</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Science Slots -->
+    <div class="eve-card p-5 border-red-500/20">
+      <div class="flex items-center gap-5">
+        <div class="relative w-20 h-20 shrink-0">
+          <svg class="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="34" fill="none" stroke="rgb(30 41 59)" stroke-width="6" />
+            <circle cx="40" cy="40" r="34" fill="none" stroke="#f87171" stroke-width="6"
+              stroke-linecap="round"
+              stroke-dasharray="213.63"
+              style="--ring-circumference: 213.63; --ring-offset: 155.36;"
+              class="ring-animated"
+              stroke-dashoffset="213.63" />
+          </svg>
+          <div class="absolute inset-0 flex items-center justify-center">
+            <span class="font-mono text-lg font-bold text-red-400">27%</span>
+          </div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm text-slate-400 mb-1">Science Slots</p>
+          <p class="text-2xl font-bold text-white font-mono font-tabular">3<span class="text-slate-500 text-lg">/11</span></p>
+          <div class="mt-1.5 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-red-400"></span>
+            <span class="text-xs text-red-400 font-medium">Low utilization</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- CHARACTER 1: Sylvain Durand (Main)                               -->
+  <!-- ================================================================ -->
+  <div class="eve-card overflow-hidden card-enter" style="animation-delay: 160ms;">
+
+    <!-- Character header -->
+    <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <img src="https://images.evetech.net/characters/2119503241/portrait?size=64"
+             alt="Sylvain Durand"
+             class="w-12 h-12 rounded-lg border border-slate-700 bg-slate-800"
+             onerror="this.style.display='none'" />
+        <div>
+          <h2 class="text-lg font-bold text-white">Sylvain Durand</h2>
+          <div class="flex items-center gap-3 text-xs mt-0.5">
+            <span class="flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+              <span class="text-cyan-400 font-medium">9/11 Manufacturing</span>
+            </span>
+            <span class="text-slate-600">|</span>
+            <span class="text-slate-400">0/4 Reactions</span>
+            <span class="text-slate-600">|</span>
+            <span class="text-slate-400">0/7 Science</span>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 font-medium uppercase tracking-wider">Main</span>
+      </div>
+    </div>
+
+    <!-- Active Jobs Table -->
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
+            <th class="text-left py-2.5 px-5 w-10"></th>
+            <th class="text-left py-2.5 px-3">Product</th>
+            <th class="text-left py-2.5 px-3">Activity</th>
+            <th class="text-right py-2.5 px-3">Runs</th>
+            <th class="text-left py-2.5 px-3 w-48">Progress</th>
+            <th class="text-right py-2.5 px-3">Time Left</th>
+            <th class="text-left py-2.5 px-5">Facility</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800">
+          <!-- Paladin x2 -->
+          <tr class="hover:bg-slate-800/50">
+            <td class="py-2.5 px-5">
+              <div class="w-8 h-8 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden">
+                <img src="https://images.evetech.net/types/22440/icon?size=64" alt="Paladin" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+              </div>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-slate-100 font-semibold">Paladin</span>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Manufacturing</span>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-300">2</td>
+            <td class="py-2.5 px-3">
+              <div class="flex items-center gap-2">
+                <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-full bg-cyan-500/60 rounded-full relative" style="width: 42%;">
+                    <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+                  </div>
+                </div>
+                <span class="text-xs font-mono text-slate-500 w-8 text-right">42%</span>
+              </div>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-200 font-tabular">14h 00m</td>
+            <td class="py-2.5 px-5 text-slate-500 text-xs">1DQ1-A Sotiyo</td>
+          </tr>
+          <!-- Apocalypse x10 -->
+          <tr class="hover:bg-slate-800/50">
+            <td class="py-2.5 px-5">
+              <div class="w-8 h-8 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden">
+                <img src="https://images.evetech.net/types/642/icon?size=64" alt="Apocalypse" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+              </div>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-slate-100 font-semibold">Apocalypse</span>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Manufacturing</span>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-300">10</td>
+            <td class="py-2.5 px-3">
+              <div class="flex items-center gap-2">
+                <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-full bg-cyan-500/60 rounded-full relative" style="width: 75%;">
+                    <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+                  </div>
+                </div>
+                <span class="text-xs font-mono text-slate-500 w-8 text-right">75%</span>
+              </div>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-200 font-tabular">6h 00m</td>
+            <td class="py-2.5 px-5 text-slate-500 text-xs">1DQ1-A Sotiyo</td>
+          </tr>
+          <!-- Tungsten Carbide Armor Plate x50 -->
+          <tr class="hover:bg-slate-800/50">
+            <td class="py-2.5 px-5">
+              <div class="w-8 h-8 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden">
+                <img src="https://images.evetech.net/types/11542/icon?size=64" alt="" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+              </div>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-slate-100 font-semibold">Tungsten Carbide Armor Plate</span>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Manufacturing</span>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-300">50</td>
+            <td class="py-2.5 px-3">
+              <div class="flex items-center gap-2">
+                <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-full bg-emerald-500/60 rounded-full relative" style="width: 94%;">
+                    <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+                  </div>
+                </div>
+                <span class="text-xs font-mono text-emerald-400 w-8 text-right">94%</span>
+              </div>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-emerald-400 font-tabular">45m</td>
+            <td class="py-2.5 px-5 text-slate-500 text-xs">1DQ1-A Azbel</td>
+          </tr>
+          <!-- Antimatter Reactor Unit x100 -->
+          <tr class="hover:bg-slate-800/50">
+            <td class="py-2.5 px-5">
+              <div class="w-8 h-8 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden">
+                <img src="https://images.evetech.net/types/11549/icon?size=64" alt="" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+              </div>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-slate-100 font-semibold">Antimatter Reactor Unit</span>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Manufacturing</span>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-300">100</td>
+            <td class="py-2.5 px-3">
+              <div class="flex items-center gap-2">
+                <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-full bg-cyan-500/60 rounded-full relative" style="width: 68%;">
+                    <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+                  </div>
+                </div>
+                <span class="text-xs font-mono text-slate-500 w-8 text-right">68%</span>
+              </div>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-200 font-tabular">2h 12m</td>
+            <td class="py-2.5 px-5 text-slate-500 text-xs">1DQ1-A Azbel</td>
+          </tr>
+          <!-- Sustained Shield Emitter x80 -->
+          <tr class="hover:bg-slate-800/50">
+            <td class="py-2.5 px-5">
+              <div class="w-8 h-8 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden">
+                <img src="https://images.evetech.net/types/11555/icon?size=64" alt="" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+              </div>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-slate-100 font-semibold">Sustained Shield Emitter</span>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Manufacturing</span>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-300">80</td>
+            <td class="py-2.5 px-3">
+              <div class="flex items-center gap-2">
+                <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-full bg-cyan-500/60 rounded-full relative" style="width: 55%;">
+                    <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+                  </div>
+                </div>
+                <span class="text-xs font-mono text-slate-500 w-8 text-right">55%</span>
+              </div>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-200 font-tabular">3h 45m</td>
+            <td class="py-2.5 px-5 text-slate-500 text-xs">1DQ1-A Azbel</td>
+          </tr>
+          <!-- Life Support Backup Unit x200 -->
+          <tr class="hover:bg-slate-800/50">
+            <td class="py-2.5 px-5">
+              <div class="w-8 h-8 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden">
+                <img src="https://images.evetech.net/types/11547/icon?size=64" alt="" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+              </div>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-slate-100 font-semibold">Life Support Backup Unit</span>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Manufacturing</span>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-300">200</td>
+            <td class="py-2.5 px-3">
+              <div class="flex items-center gap-2">
+                <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-full bg-cyan-500/60 rounded-full relative" style="width: 82%;">
+                    <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+                  </div>
+                </div>
+                <span class="text-xs font-mono text-slate-500 w-8 text-right">82%</span>
+              </div>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-200 font-tabular">1h 22m</td>
+            <td class="py-2.5 px-5 text-slate-500 text-xs">1DQ1-A Azbel</td>
+          </tr>
+          <!-- Auto-Integrity Preservation Seal x150 -->
+          <tr class="hover:bg-slate-800/50">
+            <td class="py-2.5 px-5">
+              <div class="w-8 h-8 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden">
+                <img src="https://images.evetech.net/types/11553/icon?size=64" alt="" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+              </div>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-slate-100 font-semibold">Auto-Integrity Preservation Seal</span>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Manufacturing</span>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-300">150</td>
+            <td class="py-2.5 px-3">
+              <div class="flex items-center gap-2">
+                <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-full bg-cyan-500/60 rounded-full relative" style="width: 38%;">
+                    <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+                  </div>
+                </div>
+                <span class="text-xs font-mono text-slate-500 w-8 text-right">38%</span>
+              </div>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-200 font-tabular">5h 10m</td>
+            <td class="py-2.5 px-5 text-slate-500 text-xs">1DQ1-A Azbel</td>
+          </tr>
+          <!-- Core Temperature Regulator x120 -->
+          <tr class="hover:bg-slate-800/50">
+            <td class="py-2.5 px-5">
+              <div class="w-8 h-8 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden">
+                <img src="https://images.evetech.net/types/11551/icon?size=64" alt="" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+              </div>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-slate-100 font-semibold">Core Temperature Regulator</span>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Manufacturing</span>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-300">120</td>
+            <td class="py-2.5 px-3">
+              <div class="flex items-center gap-2">
+                <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-full bg-cyan-500/60 rounded-full relative" style="width: 45%;">
+                    <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+                  </div>
+                </div>
+                <span class="text-xs font-mono text-slate-500 w-8 text-right">45%</span>
+              </div>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-200 font-tabular">4h 33m</td>
+            <td class="py-2.5 px-5 text-slate-500 text-xs">1DQ1-A Sotiyo</td>
+          </tr>
+          <!-- Thermonuclear Trigger Unit x60 -->
+          <tr class="hover:bg-slate-800/50">
+            <td class="py-2.5 px-5">
+              <div class="w-8 h-8 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden">
+                <img src="https://images.evetech.net/types/11557/icon?size=64" alt="" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+              </div>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-slate-100 font-semibold">Thermonuclear Trigger Unit</span>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Manufacturing</span>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-300">60</td>
+            <td class="py-2.5 px-3">
+              <div class="flex items-center gap-2">
+                <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-full bg-cyan-500/60 rounded-full relative" style="width: 25%;">
+                    <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+                  </div>
+                </div>
+                <span class="text-xs font-mono text-slate-500 w-8 text-right">25%</span>
+              </div>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-200 font-tabular">7h 15m</td>
+            <td class="py-2.5 px-5 text-slate-500 text-xs">1DQ1-A Sotiyo</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Free slots indicator -->
+    <div class="px-5 py-3 bg-amber-500/5 border-t border-slate-800 flex items-center gap-3">
+      <div class="flex items-center gap-2">
+        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+        </svg>
+        <span class="text-sm text-amber-400 font-medium">2 Manufacturing slots free</span>
+      </div>
+      <span class="text-slate-600">|</span>
+      <div class="flex items-center gap-1.5 text-sm">
+        <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+        </svg>
+        <span class="text-slate-400">Build</span>
+        <span class="text-cyan-400 font-semibold hover:underline cursor-pointer">Tungsten Carbide Armor Plate</span>
+        <span class="text-slate-500 text-xs">(stockpile at 34%)</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- CHARACTER 2: Sylvain Alt Industry (Alt)                          -->
+  <!-- ================================================================ -->
+  <div class="eve-card overflow-hidden card-enter" style="animation-delay: 240ms;">
+
+    <!-- Character header -->
+    <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <img src="https://images.evetech.net/characters/2119503241/portrait?size=64"
+             alt="Sylvain Alt Industry"
+             class="w-12 h-12 rounded-lg border border-slate-700 bg-slate-800"
+             onerror="this.style.display='none'" />
+        <div>
+          <h2 class="text-lg font-bold text-white">Sylvain Alt Industry</h2>
+          <div class="flex items-center gap-3 text-xs mt-0.5">
+            <span class="text-slate-400">0/7 Manufacturing</span>
+            <span class="text-slate-600">|</span>
+            <span class="flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+              <span class="text-purple-400 font-medium">4/4 Reactions</span>
+            </span>
+            <span class="text-slate-600">|</span>
+            <span class="text-slate-400">0/0 Science</span>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-600/40 text-slate-400 border border-slate-600/50 font-medium uppercase tracking-wider">Alt</span>
+      </div>
+    </div>
+
+    <!-- Active Jobs Table -->
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
+            <th class="text-left py-2.5 px-5 w-10"></th>
+            <th class="text-left py-2.5 px-3">Product</th>
+            <th class="text-left py-2.5 px-3">Activity</th>
+            <th class="text-right py-2.5 px-3">Runs</th>
+            <th class="text-left py-2.5 px-3 w-48">Progress</th>
+            <th class="text-right py-2.5 px-3">Time Left</th>
+            <th class="text-left py-2.5 px-5">Facility</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800">
+          <!-- Titanium Carbide x500 -->
+          <tr class="hover:bg-slate-800/50">
+            <td class="py-2.5 px-5">
+              <div class="w-8 h-8 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden">
+                <img src="https://images.evetech.net/types/16637/icon?size=64" alt="" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+              </div>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-slate-100 font-semibold">Titanium Carbide</span>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-xs px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">Reaction</span>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-300">500</td>
+            <td class="py-2.5 px-3">
+              <div class="flex items-center gap-2">
+                <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-full bg-purple-500/60 rounded-full relative" style="width: 33%;">
+                    <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+                  </div>
+                </div>
+                <span class="text-xs font-mono text-slate-500 w-8 text-right">33%</span>
+              </div>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-200 font-tabular">8h 00m</td>
+            <td class="py-2.5 px-5 text-slate-500 text-xs">1DQ1-A Tatara</td>
+          </tr>
+          <!-- Fernite Carbide x400 -->
+          <tr class="hover:bg-slate-800/50">
+            <td class="py-2.5 px-5">
+              <div class="w-8 h-8 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden">
+                <img src="https://images.evetech.net/types/16636/icon?size=64" alt="" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+              </div>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-slate-100 font-semibold">Fernite Carbide</span>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-xs px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">Reaction</span>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-300">400</td>
+            <td class="py-2.5 px-3">
+              <div class="flex items-center gap-2">
+                <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-full bg-purple-500/60 rounded-full relative" style="width: 47%;">
+                    <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+                  </div>
+                </div>
+                <span class="text-xs font-mono text-slate-500 w-8 text-right">47%</span>
+              </div>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-200 font-tabular">6h 20m</td>
+            <td class="py-2.5 px-5 text-slate-500 text-xs">1DQ1-A Tatara</td>
+          </tr>
+          <!-- Crystalline Carbonide x300 -->
+          <tr class="hover:bg-slate-800/50">
+            <td class="py-2.5 px-5">
+              <div class="w-8 h-8 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden">
+                <img src="https://images.evetech.net/types/16635/icon?size=64" alt="" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+              </div>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-slate-100 font-semibold">Crystalline Carbonide</span>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-xs px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">Reaction</span>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-300">300</td>
+            <td class="py-2.5 px-3">
+              <div class="flex items-center gap-2">
+                <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-full bg-purple-500/60 rounded-full relative" style="width: 60%;">
+                    <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+                  </div>
+                </div>
+                <span class="text-xs font-mono text-slate-500 w-8 text-right">60%</span>
+              </div>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-200 font-tabular">4h 50m</td>
+            <td class="py-2.5 px-5 text-slate-500 text-xs">1DQ1-A Tatara</td>
+          </tr>
+          <!-- Tungsten Carbide x350 -->
+          <tr class="hover:bg-slate-800/50">
+            <td class="py-2.5 px-5">
+              <div class="w-8 h-8 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden">
+                <img src="https://images.evetech.net/types/16638/icon?size=64" alt="" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+              </div>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-slate-100 font-semibold">Tungsten Carbide</span>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-xs px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">Reaction</span>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-300">350</td>
+            <td class="py-2.5 px-3">
+              <div class="flex items-center gap-2">
+                <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-full bg-purple-500/60 rounded-full relative" style="width: 40%;">
+                    <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+                  </div>
+                </div>
+                <span class="text-xs font-mono text-slate-500 w-8 text-right">40%</span>
+              </div>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-200 font-tabular">7h 10m</td>
+            <td class="py-2.5 px-5 text-slate-500 text-xs">1DQ1-A Tatara</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- All slots occupied -->
+    <div class="px-5 py-3 bg-emerald-500/5 border-t border-slate-800 flex items-center gap-2">
+      <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+      </svg>
+      <span class="text-sm text-emerald-400 font-medium">All reaction slots occupied</span>
+    </div>
+
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- CHARACTER 3: Sylvain Alt Science (Alt)                           -->
+  <!-- ================================================================ -->
+  <div class="eve-card overflow-hidden card-enter" style="animation-delay: 320ms;">
+
+    <!-- Character header -->
+    <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <img src="https://images.evetech.net/characters/2119503241/portrait?size=64"
+             alt="Sylvain Alt Science"
+             class="w-12 h-12 rounded-lg border border-slate-700 bg-slate-800"
+             onerror="this.style.display='none'" />
+        <div>
+          <h2 class="text-lg font-bold text-white">Sylvain Alt Science</h2>
+          <div class="flex items-center gap-3 text-xs mt-0.5">
+            <span class="text-slate-400">0/0 Manufacturing</span>
+            <span class="text-slate-600">|</span>
+            <span class="text-slate-400">0/0 Reactions</span>
+            <span class="text-slate-600">|</span>
+            <span class="flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+              <span class="text-blue-400 font-medium">3/11 Science</span>
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-600/40 text-slate-400 border border-slate-600/50 font-medium uppercase tracking-wider">Alt</span>
+      </div>
+    </div>
+
+    <!-- Active Jobs Table -->
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
+            <th class="text-left py-2.5 px-5 w-10"></th>
+            <th class="text-left py-2.5 px-3">Product</th>
+            <th class="text-left py-2.5 px-3">Activity</th>
+            <th class="text-right py-2.5 px-3">Runs</th>
+            <th class="text-left py-2.5 px-3 w-48">Progress</th>
+            <th class="text-right py-2.5 px-3">Time Left</th>
+            <th class="text-left py-2.5 px-5">Facility</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800">
+          <!-- Paladin Blueprint Invention x10 -->
+          <tr class="hover:bg-slate-800/50">
+            <td class="py-2.5 px-5">
+              <div class="w-8 h-8 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden">
+                <img src="https://images.evetech.net/types/22440/icon?size=64" alt="Paladin" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+              </div>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-slate-100 font-semibold">Paladin Blueprint</span>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">Invention</span>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-300">10</td>
+            <td class="py-2.5 px-3">
+              <div class="flex items-center gap-2">
+                <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-full bg-blue-500/60 rounded-full relative" style="width: 8%;">
+                    <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+                  </div>
+                </div>
+                <span class="text-xs font-mono text-slate-500 w-8 text-right">8%</span>
+              </div>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-200 font-tabular">22h 00m</td>
+            <td class="py-2.5 px-5 text-slate-500 text-xs">1DQ1-A Raitaru</td>
+          </tr>
+          <!-- Golem Blueprint Invention x10 -->
+          <tr class="hover:bg-slate-800/50">
+            <td class="py-2.5 px-5">
+              <div class="w-8 h-8 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden">
+                <img src="https://images.evetech.net/types/28710/icon?size=64" alt="Golem" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+              </div>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-slate-100 font-semibold">Golem Blueprint</span>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">Invention</span>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-300">10</td>
+            <td class="py-2.5 px-3">
+              <div class="flex items-center gap-2">
+                <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-full bg-blue-500/60 rounded-full relative" style="width: 25%;">
+                    <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+                  </div>
+                </div>
+                <span class="text-xs font-mono text-slate-500 w-8 text-right">25%</span>
+              </div>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-200 font-tabular">18h 00m</td>
+            <td class="py-2.5 px-5 text-slate-500 text-xs">1DQ1-A Raitaru</td>
+          </tr>
+          <!-- Apocalypse BPC Copy x20 -->
+          <tr class="hover:bg-slate-800/50">
+            <td class="py-2.5 px-5">
+              <div class="w-8 h-8 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden">
+                <img src="https://images.evetech.net/types/642/icon?size=64" alt="Apocalypse" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+              </div>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-slate-100 font-semibold">Apocalypse BPC</span>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Copying</span>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-300">20</td>
+            <td class="py-2.5 px-3">
+              <div class="flex items-center gap-2">
+                <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-full bg-amber-500/60 rounded-full relative" style="width: 90%;">
+                    <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+                  </div>
+                </div>
+                <span class="text-xs font-mono text-emerald-400 w-8 text-right">90%</span>
+              </div>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-emerald-400 font-tabular">2h 00m</td>
+            <td class="py-2.5 px-5 text-slate-500 text-xs">1DQ1-A Raitaru</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Free slots indicator -->
+    <div class="px-5 py-3 bg-red-500/5 border-t border-slate-800 flex items-center gap-3">
+      <div class="flex items-center gap-2">
+        <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+        </svg>
+        <span class="text-sm text-red-400 font-medium">8 Science slots free</span>
+      </div>
+      <span class="text-slate-600">|</span>
+      <div class="flex items-center gap-1.5 text-sm">
+        <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+        </svg>
+        <span class="text-slate-400">Invent</span>
+        <span class="text-cyan-400 font-semibold hover:underline cursor-pointer">Sabre Blueprint</span>
+        <span class="text-slate-500 text-xs">(high demand)</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- TIMELINE / GANTT VIEW                                            -->
+  <!-- ================================================================ -->
+  <div class="eve-card overflow-hidden card-enter" style="animation-delay: 400ms;">
+
+    <!-- Section header -->
+    <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h3 class="text-base font-bold text-white">Job Completion Timeline</h3>
+      </div>
+      <div class="flex items-center gap-4 text-xs">
+        <span class="flex items-center gap-1.5">
+          <span class="w-3 h-2 rounded-sm bg-cyan-500/60"></span>
+          <span class="text-slate-400">Manufacturing</span>
+        </span>
+        <span class="flex items-center gap-1.5">
+          <span class="w-3 h-2 rounded-sm bg-purple-500/60"></span>
+          <span class="text-slate-400">Reaction</span>
+        </span>
+        <span class="flex items-center gap-1.5">
+          <span class="w-3 h-2 rounded-sm bg-amber-500/60"></span>
+          <span class="text-slate-400">Copying</span>
+        </span>
+        <span class="flex items-center gap-1.5">
+          <span class="w-3 h-2 rounded-sm bg-blue-500/60"></span>
+          <span class="text-slate-400">Invention</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="px-5 py-4">
+      <!-- Time axis labels -->
+      <div class="flex items-center mb-2 ml-[180px] relative">
+        <div class="flex-1 flex justify-between text-xs text-slate-500 font-mono font-tabular">
+          <span>Now</span>
+          <span>+6h</span>
+          <span>+12h</span>
+          <span>+18h</span>
+          <span>+24h</span>
+          <span>+30h</span>
+          <span>+36h</span>
+          <span>+42h</span>
+          <span>+48h</span>
+          <span>+54h</span>
+          <span>+60h</span>
+          <span>+66h</span>
+          <span>+72h</span>
+        </div>
+      </div>
+
+      <!-- Grid + Bars area -->
+      <div class="relative ml-[180px]">
+
+        <!-- Vertical grid lines -->
+        <div class="absolute inset-0 flex justify-between pointer-events-none" style="z-index: 0;">
+          <div class="w-px h-full bg-slate-800"></div>
+          <div class="w-px h-full bg-slate-800/50"></div>
+          <div class="w-px h-full bg-slate-800/50"></div>
+          <div class="w-px h-full bg-slate-800/50"></div>
+          <div class="w-px h-full bg-slate-800"></div>
+          <div class="w-px h-full bg-slate-800/50"></div>
+          <div class="w-px h-full bg-slate-800/50"></div>
+          <div class="w-px h-full bg-slate-800/50"></div>
+          <div class="w-px h-full bg-slate-800"></div>
+          <div class="w-px h-full bg-slate-800/50"></div>
+          <div class="w-px h-full bg-slate-800/50"></div>
+          <div class="w-px h-full bg-slate-800/50"></div>
+          <div class="w-px h-full bg-slate-800"></div>
+        </div>
+
+        <!-- "Now" vertical line -->
+        <div class="absolute top-0 bottom-0 left-0 w-px bg-cyan-400 now-pulse" style="z-index: 10;"></div>
+
+        <!-- Gantt rows -->
+        <div class="relative space-y-1" style="z-index: 5;">
+
+          <!-- Sylvain Durand label -->
+          <div class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold py-1 -ml-[180px] pl-1">Sylvain Durand</div>
+
+          <!-- TC Armor Plate: 45min left = 0.625/72 = 0.87% from now -->
+          <div class="flex items-center h-6 -ml-[180px]">
+            <span class="w-[180px] shrink-0 text-xs text-slate-400 pr-3 text-right truncate">TC Armor Plate</span>
+            <div class="flex-1 relative">
+              <div class="gantt-bar absolute h-5 rounded-sm bg-cyan-500/50 border border-cyan-500/30 flex items-center justify-center" style="left: 0%; width: 0.87%;">
+                <div class="gantt-tooltip bg-slate-800 border border-slate-700 rounded-lg shadow-xl px-3 py-2 text-xs">
+                  <div class="text-slate-100 font-semibold">Tungsten Carbide Armor Plate x50</div>
+                  <div class="text-slate-400 mt-0.5">Completes in 45m</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Life Support Backup Unit: 1h 22m = 1.9% -->
+          <div class="flex items-center h-6 -ml-[180px]">
+            <span class="w-[180px] shrink-0 text-xs text-slate-400 pr-3 text-right truncate">Life Support Backup</span>
+            <div class="flex-1 relative">
+              <div class="gantt-bar absolute h-5 rounded-sm bg-cyan-500/50 border border-cyan-500/30" style="left: 0%; width: 1.9%;">
+                <div class="gantt-tooltip bg-slate-800 border border-slate-700 rounded-lg shadow-xl px-3 py-2 text-xs">
+                  <div class="text-slate-100 font-semibold">Life Support Backup Unit x200</div>
+                  <div class="text-slate-400 mt-0.5">Completes in 1h 22m</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Antimatter Reactor Unit: 2h 12m = 3.05% -->
+          <div class="flex items-center h-6 -ml-[180px]">
+            <span class="w-[180px] shrink-0 text-xs text-slate-400 pr-3 text-right truncate">Antimatter Reactor</span>
+            <div class="flex-1 relative">
+              <div class="gantt-bar absolute h-5 rounded-sm bg-cyan-500/50 border border-cyan-500/30" style="left: 0%; width: 3.05%;">
+                <div class="gantt-tooltip bg-slate-800 border border-slate-700 rounded-lg shadow-xl px-3 py-2 text-xs">
+                  <div class="text-slate-100 font-semibold">Antimatter Reactor Unit x100</div>
+                  <div class="text-slate-400 mt-0.5">Completes in 2h 12m</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sustained Shield Emitter: 3h 45m = 5.2% -->
+          <div class="flex items-center h-6 -ml-[180px]">
+            <span class="w-[180px] shrink-0 text-xs text-slate-400 pr-3 text-right truncate">Shield Emitter</span>
+            <div class="flex-1 relative">
+              <div class="gantt-bar absolute h-5 rounded-sm bg-cyan-500/50 border border-cyan-500/30" style="left: 0%; width: 5.2%;">
+                <div class="gantt-tooltip bg-slate-800 border border-slate-700 rounded-lg shadow-xl px-3 py-2 text-xs">
+                  <div class="text-slate-100 font-semibold">Sustained Shield Emitter x80</div>
+                  <div class="text-slate-400 mt-0.5">Completes in 3h 45m</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Core Temp Regulator: 4h 33m = 6.3% -->
+          <div class="flex items-center h-6 -ml-[180px]">
+            <span class="w-[180px] shrink-0 text-xs text-slate-400 pr-3 text-right truncate">Core Temp Regulator</span>
+            <div class="flex-1 relative">
+              <div class="gantt-bar absolute h-5 rounded-sm bg-cyan-500/50 border border-cyan-500/30" style="left: 0%; width: 6.3%;">
+                <div class="gantt-tooltip bg-slate-800 border border-slate-700 rounded-lg shadow-xl px-3 py-2 text-xs">
+                  <div class="text-slate-100 font-semibold">Core Temperature Regulator x120</div>
+                  <div class="text-slate-400 mt-0.5">Completes in 4h 33m</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Auto-Integrity: 5h 10m = 7.18% -->
+          <div class="flex items-center h-6 -ml-[180px]">
+            <span class="w-[180px] shrink-0 text-xs text-slate-400 pr-3 text-right truncate">Auto-Integrity Seal</span>
+            <div class="flex-1 relative">
+              <div class="gantt-bar absolute h-5 rounded-sm bg-cyan-500/50 border border-cyan-500/30" style="left: 0%; width: 7.18%;">
+                <div class="gantt-tooltip bg-slate-800 border border-slate-700 rounded-lg shadow-xl px-3 py-2 text-xs">
+                  <div class="text-slate-100 font-semibold">Auto-Integrity Preservation Seal x150</div>
+                  <div class="text-slate-400 mt-0.5">Completes in 5h 10m</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Apocalypse: 6h = 8.33% -->
+          <div class="flex items-center h-6 -ml-[180px]">
+            <span class="w-[180px] shrink-0 text-xs text-slate-400 pr-3 text-right truncate">Apocalypse x10</span>
+            <div class="flex-1 relative">
+              <div class="gantt-bar absolute h-5 rounded-sm bg-cyan-500/50 border border-cyan-500/30" style="left: 0%; width: 8.33%;">
+                <div class="gantt-tooltip bg-slate-800 border border-slate-700 rounded-lg shadow-xl px-3 py-2 text-xs">
+                  <div class="text-slate-100 font-semibold">Apocalypse x10</div>
+                  <div class="text-slate-400 mt-0.5">Completes in 6h 00m</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Thermo Trigger: 7h 15m = 10.07% -->
+          <div class="flex items-center h-6 -ml-[180px]">
+            <span class="w-[180px] shrink-0 text-xs text-slate-400 pr-3 text-right truncate">Thermo Trigger Unit</span>
+            <div class="flex-1 relative">
+              <div class="gantt-bar absolute h-5 rounded-sm bg-cyan-500/50 border border-cyan-500/30" style="left: 0%; width: 10.07%;">
+                <div class="gantt-tooltip bg-slate-800 border border-slate-700 rounded-lg shadow-xl px-3 py-2 text-xs">
+                  <div class="text-slate-100 font-semibold">Thermonuclear Trigger Unit x60</div>
+                  <div class="text-slate-400 mt-0.5">Completes in 7h 15m</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Paladin: 14h = 19.44% -->
+          <div class="flex items-center h-6 -ml-[180px]">
+            <span class="w-[180px] shrink-0 text-xs text-slate-400 pr-3 text-right truncate">Paladin x2</span>
+            <div class="flex-1 relative">
+              <div class="gantt-bar absolute h-5 rounded-sm bg-cyan-500/50 border border-cyan-500/30 flex items-center px-1.5" style="left: 0%; width: 19.44%;">
+                <span class="text-[10px] text-cyan-200 truncate">Paladin x2</span>
+                <div class="gantt-tooltip bg-slate-800 border border-slate-700 rounded-lg shadow-xl px-3 py-2 text-xs">
+                  <div class="text-slate-100 font-semibold">Paladin x2</div>
+                  <div class="text-slate-400 mt-0.5">Completes in 14h 00m</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Separator -->
+          <div class="h-px bg-slate-800 -ml-[180px]"></div>
+
+          <!-- Sylvain Alt Industry label -->
+          <div class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold py-1 -ml-[180px] pl-1">Sylvain Alt Industry</div>
+
+          <!-- Crystalline Carbonide: 4h 50m = 6.7% -->
+          <div class="flex items-center h-6 -ml-[180px]">
+            <span class="w-[180px] shrink-0 text-xs text-slate-400 pr-3 text-right truncate">Crystalline Carbonide</span>
+            <div class="flex-1 relative">
+              <div class="gantt-bar absolute h-5 rounded-sm bg-purple-500/50 border border-purple-500/30" style="left: 0%; width: 6.7%;">
+                <div class="gantt-tooltip bg-slate-800 border border-slate-700 rounded-lg shadow-xl px-3 py-2 text-xs">
+                  <div class="text-slate-100 font-semibold">Crystalline Carbonide x300</div>
+                  <div class="text-slate-400 mt-0.5">Completes in 4h 50m</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fernite Carbide: 6h 20m = 8.8% -->
+          <div class="flex items-center h-6 -ml-[180px]">
+            <span class="w-[180px] shrink-0 text-xs text-slate-400 pr-3 text-right truncate">Fernite Carbide</span>
+            <div class="flex-1 relative">
+              <div class="gantt-bar absolute h-5 rounded-sm bg-purple-500/50 border border-purple-500/30" style="left: 0%; width: 8.8%;">
+                <div class="gantt-tooltip bg-slate-800 border border-slate-700 rounded-lg shadow-xl px-3 py-2 text-xs">
+                  <div class="text-slate-100 font-semibold">Fernite Carbide x400</div>
+                  <div class="text-slate-400 mt-0.5">Completes in 6h 20m</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tungsten Carbide: 7h 10m = 9.95% -->
+          <div class="flex items-center h-6 -ml-[180px]">
+            <span class="w-[180px] shrink-0 text-xs text-slate-400 pr-3 text-right truncate">Tungsten Carbide</span>
+            <div class="flex-1 relative">
+              <div class="gantt-bar absolute h-5 rounded-sm bg-purple-500/50 border border-purple-500/30" style="left: 0%; width: 9.95%;">
+                <div class="gantt-tooltip bg-slate-800 border border-slate-700 rounded-lg shadow-xl px-3 py-2 text-xs">
+                  <div class="text-slate-100 font-semibold">Tungsten Carbide x350</div>
+                  <div class="text-slate-400 mt-0.5">Completes in 7h 10m</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Titanium Carbide: 8h = 11.11% -->
+          <div class="flex items-center h-6 -ml-[180px]">
+            <span class="w-[180px] shrink-0 text-xs text-slate-400 pr-3 text-right truncate">Titanium Carbide</span>
+            <div class="flex-1 relative">
+              <div class="gantt-bar absolute h-5 rounded-sm bg-purple-500/50 border border-purple-500/30 flex items-center px-1.5" style="left: 0%; width: 11.11%;">
+                <span class="text-[10px] text-purple-200 truncate">Titanium Carbide x500</span>
+                <div class="gantt-tooltip bg-slate-800 border border-slate-700 rounded-lg shadow-xl px-3 py-2 text-xs">
+                  <div class="text-slate-100 font-semibold">Titanium Carbide x500</div>
+                  <div class="text-slate-400 mt-0.5">Completes in 8h 00m</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Separator -->
+          <div class="h-px bg-slate-800 -ml-[180px]"></div>
+
+          <!-- Sylvain Alt Science label -->
+          <div class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold py-1 -ml-[180px] pl-1">Sylvain Alt Science</div>
+
+          <!-- Apocalypse BPC Copy: 2h = 2.78% -->
+          <div class="flex items-center h-6 -ml-[180px]">
+            <span class="w-[180px] shrink-0 text-xs text-slate-400 pr-3 text-right truncate">Apocalypse BPC Copy</span>
+            <div class="flex-1 relative">
+              <div class="gantt-bar absolute h-5 rounded-sm bg-amber-500/50 border border-amber-500/30" style="left: 0%; width: 2.78%;">
+                <div class="gantt-tooltip bg-slate-800 border border-slate-700 rounded-lg shadow-xl px-3 py-2 text-xs">
+                  <div class="text-slate-100 font-semibold">Apocalypse BPC x20</div>
+                  <div class="text-slate-400 mt-0.5">Completes in 2h 00m</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Golem Blueprint Invention: 18h = 25% -->
+          <div class="flex items-center h-6 -ml-[180px]">
+            <span class="w-[180px] shrink-0 text-xs text-slate-400 pr-3 text-right truncate">Golem BP Invention</span>
+            <div class="flex-1 relative">
+              <div class="gantt-bar absolute h-5 rounded-sm bg-blue-500/50 border border-blue-500/30 flex items-center px-1.5" style="left: 0%; width: 25%;">
+                <span class="text-[10px] text-blue-200 truncate">Golem Blueprint Invention x10</span>
+                <div class="gantt-tooltip bg-slate-800 border border-slate-700 rounded-lg shadow-xl px-3 py-2 text-xs">
+                  <div class="text-slate-100 font-semibold">Golem Blueprint Invention x10</div>
+                  <div class="text-slate-400 mt-0.5">Completes in 18h 00m</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Paladin Blueprint Invention: 22h = 30.55% -->
+          <div class="flex items-center h-6 -ml-[180px]">
+            <span class="w-[180px] shrink-0 text-xs text-slate-400 pr-3 text-right truncate">Paladin BP Invention</span>
+            <div class="flex-1 relative">
+              <div class="gantt-bar absolute h-5 rounded-sm bg-blue-500/50 border border-blue-500/30 flex items-center px-1.5" style="left: 0%; width: 30.55%;">
+                <span class="text-[10px] text-blue-200 truncate">Paladin Blueprint Invention x10</span>
+                <div class="gantt-tooltip bg-slate-800 border border-slate-700 rounded-lg shadow-xl px-3 py-2 text-xs">
+                  <div class="text-slate-100 font-semibold">Paladin Blueprint Invention x10</div>
+                  <div class="text-slate-400 mt-0.5">Completes in 22h 00m</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Bottom note -->
+      <div class="mt-4 ml-[180px] flex items-center gap-2 text-xs text-slate-500">
+        <svg class="w-3.5 h-3.5 text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>Hover bars for details. Bars sorted by completion time. Next slot opens in <span class="text-cyan-400 font-mono font-semibold">45m</span> (TC Armor Plate).</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- FOOTER LEGEND                                                    -->
+  <!-- ================================================================ -->
+  <div class="bg-slate-800/30 rounded-xl border border-slate-700/30 px-4 py-3 card-enter" style="animation-delay: 480ms;">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div class="flex flex-wrap items-center gap-5 text-xs">
+        <span class="text-slate-500 uppercase tracking-wider font-medium">Activity Types</span>
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-2 rounded-sm bg-cyan-500/60 border border-cyan-500/30"></span>
+          <span class="text-slate-400">Manufacturing</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-2 rounded-sm bg-purple-500/60 border border-purple-500/30"></span>
+          <span class="text-slate-400">Reaction</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-2 rounded-sm bg-amber-500/60 border border-amber-500/30"></span>
+          <span class="text-slate-400">Copying</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-2 rounded-sm bg-blue-500/60 border border-blue-500/30"></span>
+          <span class="text-slate-400">Invention</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 text-xs text-slate-500">
+        <div class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span>> 80% utilization</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+          <span>50-80%</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-red-400"></span>
+          <span>&lt; 50%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ================================================================ -->
+<!-- JAVASCRIPT: Ring chart animation                                  -->
+<!-- ================================================================ -->
+<script>
+  // Animate ring charts on load
+  document.querySelectorAll('.ring-animated').forEach(circle => {
+    const circumference = parseFloat(circle.style.getPropertyValue('--ring-circumference'));
+    const targetOffset = parseFloat(circle.style.getPropertyValue('--ring-offset'));
+    circle.style.strokeDashoffset = circumference;
+    requestAnimationFrame(() => {
+      circle.style.transition = 'stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1)';
+      circle.style.strokeDashoffset = targetOffset;
+    });
+  });
+</script>
+
+</body>
+</html>

@@ -3,6 +3,79 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.12 (2026-02-25)
+--------------------------------------------------------------------------------
+
+### Scanner de profit (nouveau)
+- Scan massif de tous les items fabriquables/reactables classes par ISK/jour
+- Filtres par categorie : T1/T2 ships, modules, ammo, drones, rigs, composants, reactions, capitals
+- Calcul import/export, cout materiaux, cout job, frais broker + taxes
+- Lieu de vente configurable : Jita ou structure locale
+
+### Achat vs Fabrication (nouveau)
+- Analyse par composant : acheter ou fabriquer soi-meme ?
+- Toggle Build/Buy cliquable sur chaque noeud intermediaire
+- Resume dynamique "Your Mix" avec recalcul des totaux
+- Creation de projet avec exclusions personnalisees
+
+### Pivot Advisor (nouveau)
+- Suggere des items alternatifs partageant des composants intermediaires
+- Classement par marge et volume de vente
+
+### Suivi des Slots (nouveau)
+- Tableau des slots actifs manufacturing/reaction/science par personnage
+- Timeline Gantt 72h avec progression en temps reel
+- Resolution du nom des structures (NPC, market sync, structures configurees)
+
+### Stockpile (nouveau)
+- Dashboard Kanban 4 etapes : materiaux bruts, intermediaires, composants, produits finis
+- KPIs : sante du pipeline, valeur investie, goulot d'etranglement, produits prets
+- Import depuis un blueprint (arbre de production complet)
+- Liste de courses avec deficits tries par criticite
+- Modes import : remplacement total ou fusion (merge)
+
+### Dashboard Industrie (nouveau)
+- Vue unifiee : projets actifs, slots, sante du stockpile
+- Metriques cles en un coup d'oeil
+
+### Graphiques (Chart.js)
+- Market Browser : graphique unifie prix + volume (double axe)
+- Ledger : barres empilees PVE + Mining par jour
+- Assets : donut de repartition par localisation
+
+### Configuration frais & transport
+- Broker fee et sales tax configurables dans les parametres
+- Cout de transport par m3 (import/export)
+- Structures de marche multiples
+
+### Ameliorations
+- Navigation Industry par pilules plates (Dashboard, Projets, Marges, Scan, etc.)
+- Navigation inter-onglets fluide (NavigationIntent)
+- Correction requetes N+1 (batch preloads)
+- SdeImportService decoupe en 7 importeurs specialises
+- Resolution de nom de structure : fallback vers les structures configurees
+- Composant ErrorBanner avec auto-dismiss
+- Composant ConfirmModal remplacant les confirm() natifs
+- Suppression de 10 types TypeScript 'any'
+
+### Corrections
+- Achat vs Fabrication : affiche le meilleur prix effectif (min Jita/structure)
+- Stockpile : retourne les 4 etapes meme sans cibles (evite page blanche)
+- Suivi Slots : la colonne facility affiche desormais le nom des structures joueur
+- Jobs termines exclus du comptage de slots actifs
+
+### Qualite de code
+- 12 nouveaux fichiers de tests backend (602 tests, 1613 assertions)
+- 3 nouveaux fichiers de tests frontend (useFormatters, useStockAnalysis, jsonld)
+- 3 nouveaux stores Pinia (scanner, slots, stockpile)
+- Types consolides dans stores/industry/types.ts
+
+### Migrations requises
+- export_cost_per_m3 sur industry_user_settings
+- Table industry_stockpile_targets
+- market_structures JSON sur users
+
+--------------------------------------------------------------------------------
 Version 0.11 (2026-02-20)
 --------------------------------------------------------------------------------
 

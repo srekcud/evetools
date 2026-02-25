@@ -13,4 +13,6 @@ class UpdateUserSettingsInput
     public ?float $brokerFeeRate = null;
 
     public ?float $salesTaxRate = null;
+
+    public ?float $exportCostPerM3 = null;
 }

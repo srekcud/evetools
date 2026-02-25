@@ -303,6 +303,7 @@ export interface UserSettings {
   favoriteReactionSystemName: string | null
   brokerFeeRate: number
   salesTaxRate: number
+  exportCostPerM3: number
 }
 
 // Profit Margin types
@@ -507,3 +508,240 @@ export interface BpcKit {
   inventions: BpcKitInvention[]
   summary: BpcKitSummary
 }
+
+// Batch Scan types
+export type BatchScanItem = {
+  typeId: number
+  typeName: string
+  groupName: string
+  categoryLabel: string
+  marginPercent: number
+  profitPerUnit: number
+  dailyVolume: number
+  iskPerDay: number
+  materialCost: number
+  exportCost: number
+  importCost: number
+  sellPrice: number
+  meUsed: number
+  activityType: string
+}
+
+// Buy vs Build types
+export type BuyVsBuildMaterial = {
+  typeId: number
+  typeName: string
+  quantity: number
+  unitPrice: number
+  totalPrice: number
+}
+
+export type BuyVsBuildComponent = {
+  typeId: number
+  typeName: string
+  quantity: number
+  stage: string
+  buildCost: number
+  buildMaterials: BuyVsBuildMaterial[]
+  buildJobInstallCost: number
+  buyCostJita: number | null
+  buyCostStructure: number | null
+  verdict: 'build' | 'buy' | 'loss'
+  savings: number
+  savingsPercent: number
+  meUsed: number
+  runs: number
+}
+
+export type BuyVsBuildResult = {
+  typeId: number
+  typeName: string
+  isT2: boolean
+  runs: number
+  totalProductionCost: number
+  sellPrice: number
+  marginPercent: number
+  components: BuyVsBuildComponent[]
+  buildAllCost: number
+  buyAllCost: number
+  optimalMixCost: number
+  buildTypeIds: number[]
+  buyTypeIds: number[]
+}
+
+// Pivot Advisor types
+export type PivotMissingComponent = {
+  typeId: number
+  typeName: string
+  quantity: number
+  cost: number
+}
+
+export type PivotComponentCoverage = {
+  typeId: number
+  typeName: string
+  inStock: number
+  candidates: Record<number, { needed: number; status: 'covered' | 'partial' | 'none' }>
+}
+
+export type PivotCandidate = {
+  typeId: number
+  typeName: string
+  groupName: string
+  marginPercent: number | null
+  profitPerUnit: number
+  dailyVolume: number
+  coveragePercent: number
+  missingComponents: PivotMissingComponent[]
+  additionalCost: number
+  estimatedProfit: number
+  score: number
+}
+
+export type PivotSourceProduct = {
+  typeId: number
+  typeName: string
+  groupName: string
+  marginPercent: number | null
+  sellPrice: number
+  dailyVolume: number
+  keyComponents: { typeId: number; typeName: string; inStock: number }[]
+}
+
+export type PivotAnalysisResult = {
+  typeId: number
+  sourceProduct: PivotSourceProduct
+  matrix: PivotComponentCoverage[]
+  candidates: PivotCandidate[]
+  matrixProductIds: number[]
+}
+
+// Stockpile types
+export type StockpileStage = 'raw_material' | 'intermediate' | 'component' | 'final_product'
+
+export type StockpileTarget = {
+  id: string
+  typeId: number
+  typeName: string
+  targetQuantity: number
+  stage: StockpileStage
+  sourceProductTypeId: number | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type StockpileItemStatus = {
+  id: string
+  typeId: number
+  typeName: string
+  targetQuantity: number
+  stock: number
+  percent: number
+  status: 'met' | 'partial' | 'critical'
+  unitPrice: number
+  stockValue: number
+  deficitCost: number
+  sourceProductTypeId: number | null
+}
+
+export type StockpileStageStatus = {
+  items: StockpileItemStatus[]
+  totalValue: number
+  healthPercent: number
+}
+
+export type StockpileBottleneck = {
+  typeId: number
+  typeName: string
+  percent: number
+  blocksProducts: number
+} | null
+
+export type StockpileEstOutput = {
+  ready: number
+  total: number
+  readyNames: string[]
+}
+
+export type StockpileKpis = {
+  pipelineHealth: number
+  totalInvested: number
+  bottleneck: StockpileBottleneck
+  estOutput: StockpileEstOutput
+}
+
+export type StockpileStatus = {
+  targetCount: number
+  stages: Record<StockpileStage, StockpileStageStatus>
+  kpis: StockpileKpis
+  shoppingList: StockpileShoppingItem[]
+}
+
+export type StockpileShoppingItem = {
+  typeId: number
+  typeName: string
+  stage: StockpileStage
+  stock: number
+  targetQuantity: number
+  deficit: number
+  deficitCost: number
+  percent: number
+}
+
+export type StockpileImportPreviewItem = {
+  typeId: number
+  typeName: string
+  quantity: number
+  unitPrice: number | null
+}
+
+export type StockpileImportPreview = {
+  stages: Record<StockpileStage, StockpileImportPreviewItem[]>
+  totalItems: number
+  estimatedCost: number
+}
+
+// Slot Tracker types
+export type SlotActivity = 'manufacturing' | 'reaction' | 'science'
+
+export type SlotUsage = { used: number; max: number; percent?: number }
+
+export type SlotTrackerJob = {
+  jobId: number; productTypeId: number; productTypeName: string
+  activityType: string; runs: number; progress: number
+  timeLeftSeconds: number; facilityName: string | null
+  startDate: string; endDate: string
+}
+
+export type FreeSlotEntry = {
+  activityType: string; count: number
+  suggestion: { typeId: number; typeName: string; reason: string } | null
+}
+
+export type SlotTrackerCharacter = {
+  characterId: number; characterName: string; isMain: boolean
+  slots: Record<SlotActivity, SlotUsage>
+  jobs: SlotTrackerJob[]; freeSlots: FreeSlotEntry[]
+}
+
+export type TimelineJob = {
+  jobId: number; characterName: string; productTypeName: string
+  activityType: string; runs: number; timeLeftSeconds: number; endDate: string
+}
+
+export type SlotTrackerData = {
+  globalKpis: Record<SlotActivity, SlotUsage & { percent: number }>
+  characters: SlotTrackerCharacter[]; timeline: TimelineJob[]
+  skillsMayBeStale: boolean
+}
+
+// Cross-tab navigation intent for the Industry cockpit
+export type NavigationIntent =
+  | { target: 'projects'; openCreateModal?: boolean; prefill?: { typeId: number; typeName: string; runs?: number; me?: number; te?: number; excludedTypeIds?: number[] } }
+  | { target: 'margins'; typeId: number }
+  | { target: 'batch' }
+  | { target: 'buy-vs-build'; typeId: number }
+  | { target: 'pivot'; typeId: number }
+  | { target: 'slots' }
+  | { target: 'stockpile' }
+  | null

@@ -9,6 +9,7 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Pve\StatsResource;
 use App\Entity\PveIncome;
 use App\Entity\User;
+use App\Enum\PveIncomeType;
 use App\Entity\UserLedgerSettings;
 use App\Repository\PveExpenseRepository;
 use App\Repository\PveIncomeRepository;
@@ -49,16 +50,16 @@ class StatsProvider implements ProviderInterface
         $excludeCorpProject = $ledgerSettings?->getCorpProjectAccounting() === UserLedgerSettings::CORP_PROJECT_ACCOUNTING_MINING;
 
         $incomeByType = $this->incomeRepository->getTotalsByType($user, $from, $to);
-        $bountyTotal = $incomeByType[PveIncome::TYPE_BOUNTY] ?? 0.0;
-        $essTotal = $incomeByType[PveIncome::TYPE_ESS] ?? 0.0;
-        $missionTotal = $incomeByType[PveIncome::TYPE_MISSION] ?? 0.0;
+        $bountyTotal = $incomeByType[PveIncomeType::Bounty->value] ?? 0.0;
+        $essTotal = $incomeByType[PveIncomeType::Ess->value] ?? 0.0;
+        $missionTotal = $incomeByType[PveIncomeType::Mission->value] ?? 0.0;
 
         // Calculate loot sales total, optionally excluding corp_project
-        $lootSalesTotal = ($incomeByType[PveIncome::TYPE_LOOT_SALE] ?? 0.0)
-            + ($incomeByType[PveIncome::TYPE_LOOT_CONTRACT] ?? 0.0);
+        $lootSalesTotal = ($incomeByType[PveIncomeType::LootSale->value] ?? 0.0)
+            + ($incomeByType[PveIncomeType::LootContract->value] ?? 0.0);
 
         if (!$excludeCorpProject) {
-            $lootSalesTotal += $incomeByType[PveIncome::TYPE_CORP_PROJECT] ?? 0.0;
+            $lootSalesTotal += $incomeByType[PveIncomeType::CorpProject->value] ?? 0.0;
         }
 
         $expensesTotal = $this->expenseRepository->getTotalByUserAndDateRange($user, $from, $to);

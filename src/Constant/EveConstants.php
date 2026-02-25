@@ -11,4 +11,5 @@ final class EveConstants
     public const THE_FORGE_REGION_ID = 10000002;
     public const DEFAULT_BROKER_FEE_RATE = 0.036;
     public const DEFAULT_SALES_TAX_RATE = 0.036;
+    public const DEFAULT_EXPORT_COST_PER_M3 = 1200.0;
 }

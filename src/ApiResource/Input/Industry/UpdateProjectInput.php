@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\ApiResource\Input\Industry;
 
+use App\Enum\ProjectStatus;
 use Symfony\Component\Validator\Constraints as Assert;
 
 class UpdateProjectInput
@@ -35,7 +36,7 @@ class UpdateProjectInput
 
     public ?string $notes = null;
 
-    #[Assert\Choice(choices: ['active', 'completed'])]
+    #[Assert\Choice(choices: ['active', 'completed', 'archived'])]
     public ?string $status = null;
 
     public ?bool $personalUse = null;

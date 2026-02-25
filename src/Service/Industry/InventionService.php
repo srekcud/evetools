@@ -88,6 +88,42 @@ class InventionService
     }
 
     /**
+     * Identify T2 products from a batch list by checking invention paths.
+     *
+     * A product is T2 if its manufacturing blueprint is produced via invention (activity_id=8).
+     * Uses a single batch query for efficiency.
+     *
+     * @param list<array{blueprintTypeId: int, productTypeId: int, outputPerRun: int, activityId: int}> $products
+     * @return array<int, true> Set of T2 product type IDs
+     */
+    public function identifyT2Products(array $products): array
+    {
+        $manufacturingBlueprintIds = [];
+        $blueprintToProduct = [];
+        foreach ($products as $product) {
+            if ($product['activityId'] === IndustryActivityType::Manufacturing->value) {
+                $manufacturingBlueprintIds[] = $product['blueprintTypeId'];
+                $blueprintToProduct[$product['blueprintTypeId']] = $product['productTypeId'];
+            }
+        }
+
+        if (empty($manufacturingBlueprintIds)) {
+            return [];
+        }
+
+        $t2BlueprintIds = $this->activityProductRepository->findInventedBlueprintIds($manufacturingBlueprintIds);
+
+        $t2ProductIds = [];
+        foreach ($t2BlueprintIds as $bpId => $_) {
+            if (isset($blueprintToProduct[$bpId])) {
+                $t2ProductIds[$blueprintToProduct[$bpId]] = true;
+            }
+        }
+
+        return $t2ProductIds;
+    }
+
+    /**
      * Find the invention chain for a T2 item: which T1 blueprint invents into it.
      *
      * Flow:

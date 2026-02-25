@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Industry Dashboard V2 — EVE Tools</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+    body {
+      background: #020617;
+      font-family: system-ui, -apple-system, sans-serif;
+      overflow-x: hidden;
+    }
+
+    .font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+    /* Subtle scan-line overlay for atmosphere */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 999;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.03) 2px,
+        rgba(0, 0, 0, 0.03) 4px
+      );
+    }
+
+    /* Ring chart animation */
+    @keyframes ringFill {
+      from { stroke-dashoffset: var(--ring-circumference); }
+      to { stroke-dashoffset: var(--ring-target); }
+    }
+    .ring-animated {
+      animation: ringFill 1.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    }
+
+    /* Card entrance stagger */
+    @keyframes cardSlideUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .card-enter {
+      animation: cardSlideUp 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) backwards;
+    }
+
+    /* KPI value counter effect */
+    @keyframes fadeIn {
+      from { opacity: 0; filter: blur(4px); }
+      to { opacity: 1; filter: blur(0); }
+    }
+    .value-reveal {
+      animation: fadeIn 0.6s ease-out backwards;
+    }
+
+    /* Alert row left-border glow */
+    .alert-row {
+      position: relative;
+      transition: background-color 0.15s ease;
+    }
+    .alert-row::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      border-radius: 3px 0 0 3px;
+    }
+    .alert-amber::before { background: #f59e0b; box-shadow: 0 0 8px rgba(245, 158, 11, 0.3); }
+    .alert-red::before { background: #ef4444; box-shadow: 0 0 8px rgba(239, 68, 68, 0.3); }
+    .alert-orange::before { background: #f97316; box-shadow: 0 0 8px rgba(249, 115, 22, 0.3); }
+    .alert-blue::before { background: #3b82f6; box-shadow: 0 0 8px rgba(59, 130, 246, 0.3); }
+
+    /* Progress bar shimmer */
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .progress-shimmer {
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+      background-size: 200% 100%;
+      animation: shimmer 3s ease-in-out infinite;
+    }
+
+    /* Ambient glow behind KPI ring charts */
+    .ring-glow-amber { filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.15)); }
+    .ring-glow-emerald { filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.15)); }
+    .ring-glow-red { filter: drop-shadow(0 0 6px rgba(248, 113, 113, 0.15)); }
+
+    /* Button micro-interaction */
+    .btn-action {
+      transition: all 0.15s ease;
+    }
+    .btn-action:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    .btn-action:active {
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-300">
+
+  <!-- Main container (simulates the content area inside MainLayout) -->
+  <div class="max-w-7xl mx-auto px-6 py-8">
+
+    <!-- Page header -->
+    <div class="mb-6 flex items-center justify-between card-enter" style="animation-delay: 0ms;">
+      <p class="text-slate-400">Production management and profit tracking</p>
+      <div class="flex gap-2">
+        <button class="px-4 py-2 rounded-lg text-sm font-medium bg-cyan-600 text-white">Dashboard</button>
+        <button class="px-4 py-2 rounded-lg text-sm font-medium bg-slate-800 text-slate-400 hover:text-slate-200">Projects</button>
+        <button class="px-4 py-2 rounded-lg text-sm font-medium bg-slate-800 text-slate-400 hover:text-slate-200">Scanner</button>
+        <button class="px-4 py-2 rounded-lg text-sm font-medium bg-slate-800 text-slate-400 hover:text-slate-200">Slots</button>
+        <button class="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200" title="Config">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- KPI CARDS — 4 columns                        -->
+    <!-- ============================================ -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+
+      <!-- KPI 1: Active Projects -->
+      <div class="bg-slate-900 rounded-xl border border-slate-800 p-4 card-enter" style="animation-delay: 60ms;">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-xs text-slate-500 uppercase tracking-wider">Active Projects</p>
+          <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+        </div>
+        <p class="text-3xl font-bold text-cyan-400 font-mono value-reveal" style="animation-delay: 300ms; font-variant-numeric: tabular-nums;">5</p>
+        <p class="text-xs text-slate-600 mt-1">2 completing this week</p>
+      </div>
+
+      <!-- KPI 2: Estimated Profit -->
+      <div class="bg-slate-900 rounded-xl border border-slate-800 p-4 card-enter" style="animation-delay: 120ms;">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-xs text-slate-500 uppercase tracking-wider">Estimated Profit</p>
+          <svg class="w-4 h-4 text-emerald-500/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+          </svg>
+        </div>
+        <p class="text-3xl font-bold text-emerald-400 font-mono value-reveal" style="animation-delay: 360ms; font-variant-numeric: tabular-nums;">2.4B</p>
+        <p class="text-xs text-slate-600 mt-1">across all active projects</p>
+      </div>
+
+      <!-- KPI 3: Slots Used (with ring chart) -->
+      <div class="bg-slate-900 rounded-xl border border-slate-800 p-4 card-enter" style="animation-delay: 180ms;">
+        <p class="text-xs text-slate-500 uppercase tracking-wider mb-3">Slots Used</p>
+        <div class="flex items-center gap-3">
+          <!-- Mini ring chart 48x48 -->
+          <div class="relative w-12 h-12 flex-shrink-0 ring-glow-amber">
+            <svg viewBox="0 0 48 48" class="w-12 h-12" style="transform: rotate(-90deg)">
+              <!-- Background ring -->
+              <circle cx="24" cy="24" r="19" fill="none" stroke="rgb(30 41 59)" stroke-width="4" />
+              <!-- Foreground ring: 63% usage => amber -->
+              <circle
+                cx="24" cy="24" r="19" fill="none"
+                stroke="#fbbf24"
+                stroke-width="4"
+                stroke-linecap="round"
+                stroke-dasharray="119.38"
+                style="--ring-circumference: 119.38; --ring-target: 44.17;"
+                class="ring-animated"
+                stroke-dashoffset="119.38"
+              />
+            </svg>
+            <div class="absolute inset-0 flex items-center justify-center">
+              <span class="text-[10px] font-mono font-bold text-amber-400">63%</span>
+            </div>
+          </div>
+          <div>
+            <p class="text-2xl font-bold text-white font-mono" style="font-variant-numeric: tabular-nums;">
+              7<span class="text-slate-500 text-lg">/11</span>
+            </p>
+            <p class="text-xs text-amber-400/70">4 slots available</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI 4: Pipeline Health (with ring chart) -->
+      <div class="bg-slate-900 rounded-xl border border-slate-800 p-4 card-enter" style="animation-delay: 240ms;">
+        <p class="text-xs text-slate-500 uppercase tracking-wider mb-3">Pipeline Health</p>
+        <div class="flex items-center gap-3">
+          <!-- Mini ring chart 48x48 -->
+          <div class="relative w-12 h-12 flex-shrink-0 ring-glow-amber">
+            <svg viewBox="0 0 48 48" class="w-12 h-12" style="transform: rotate(-90deg)">
+              <circle cx="24" cy="24" r="19" fill="none" stroke="rgb(30 41 59)" stroke-width="4" />
+              <!-- 74% coverage => amber (50-80%) -->
+              <circle
+                cx="24" cy="24" r="19" fill="none"
+                stroke="#fbbf24"
+                stroke-width="4"
+                stroke-linecap="round"
+                stroke-dasharray="119.38"
+                style="--ring-circumference: 119.38; --ring-target: 31.04;"
+                class="ring-animated"
+                stroke-dashoffset="119.38"
+              />
+            </svg>
+            <div class="absolute inset-0 flex items-center justify-center">
+              <span class="text-[10px] font-mono font-bold text-amber-400">74%</span>
+            </div>
+          </div>
+          <div>
+            <p class="text-2xl font-bold text-amber-400 font-mono value-reveal" style="animation-delay: 420ms; font-variant-numeric: tabular-nums;">74%</p>
+            <p class="text-xs text-slate-600">18/24 targets met</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- ALERTS SECTION                                -->
+    <!-- ============================================ -->
+    <div class="bg-slate-900 rounded-xl border border-slate-800 mb-6 card-enter" style="animation-delay: 300ms;">
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+          <h3 class="text-lg font-semibold text-slate-100">Alerts</h3>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-medium">4</span>
+        </div>
+        <button class="text-xs text-slate-500 hover:text-slate-300 transition-colors">Dismiss all</button>
+      </div>
+
+      <div class="divide-y divide-slate-800/50">
+        <!-- Alert 1: Jobs ready -->
+        <div class="alert-row alert-amber px-6 py-3.5 flex items-center gap-4 cursor-pointer hover:bg-slate-800/50">
+          <div class="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+            <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm text-slate-200">
+              <span class="font-semibold text-amber-400">3 jobs</span> ready for delivery
+            </p>
+            <p class="text-xs text-slate-500 mt-0.5">Ishtar, Ferox x2 &mdash; completed 14 min ago</p>
+          </div>
+          <svg class="w-4 h-4 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+
+        <!-- Alert 2: Critical stockpile -->
+        <div class="alert-row alert-red px-6 py-3.5 flex items-center gap-4 cursor-pointer hover:bg-slate-800/50">
+          <div class="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0">
+            <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm text-slate-200">
+              <span class="font-semibold text-red-400">Tritanium</span> stockpile at 12%
+              <span class="text-slate-500">(target: 500,000)</span>
+            </p>
+            <p class="text-xs text-slate-500 mt-0.5">58,400 in stock &mdash; deficit cost: 2.1M ISK</p>
+          </div>
+          <svg class="w-4 h-4 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+
+        <!-- Alert 3: Negative margin -->
+        <div class="alert-row alert-orange px-6 py-3.5 flex items-center gap-4 cursor-pointer hover:bg-slate-800/50">
+          <div class="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+            <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm text-slate-200">
+              Project '<span class="font-semibold text-orange-400">Ishtar</span>' has negative profit margin
+              <span class="font-mono text-red-400 text-xs ml-1">-4.2%</span>
+            </p>
+            <p class="text-xs text-slate-500 mt-0.5">Material costs increased &mdash; review sell price or ME level</p>
+          </div>
+          <svg class="w-4 h-4 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+
+        <!-- Alert 4: Free slots -->
+        <div class="alert-row alert-blue px-6 py-3.5 flex items-center gap-4 cursor-pointer hover:bg-slate-800/50">
+          <div class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+            <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm text-slate-200">
+              <span class="font-semibold text-blue-400">2 free manufacturing slots</span> on Alt Character
+            </p>
+            <p class="text-xs text-slate-500 mt-0.5">Suggestion: build Sabre (high margin, stockpile demand)</p>
+          </div>
+          <svg class="w-4 h-4 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- QUICK ACTIONS                                 -->
+    <!-- ============================================ -->
+    <div class="flex gap-3 mb-6 card-enter" style="animation-delay: 360ms;">
+      <button class="btn-action px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        New Project
+      </button>
+      <button class="btn-action px-4 py-2.5 bg-amber-600 hover:bg-amber-500 rounded-lg text-white text-sm font-medium flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        Restock Critical
+      </button>
+      <button class="btn-action px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm font-medium flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+        Run Scan
+      </button>
+      <button class="btn-action px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm font-medium flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+        </svg>
+        View Stockpile
+      </button>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- RECENT PROJECTS MINI-TABLE                    -->
+    <!-- ============================================ -->
+    <div class="bg-slate-900 rounded-xl border border-slate-800 card-enter" style="animation-delay: 420ms;">
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-slate-100">Recent Projects</h3>
+        <button class="text-sm text-cyan-400 hover:text-cyan-300 font-medium flex items-center gap-1 transition-colors">
+          View all projects
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+          </svg>
+        </button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
+              <th class="text-left py-3 px-6">Product</th>
+              <th class="text-left py-3 px-3">Status</th>
+              <th class="text-right py-3 px-3">Profit</th>
+              <th class="text-left py-3 px-6 w-48">Progress</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800">
+            <!-- Row 1: Ishtar -->
+            <tr class="hover:bg-slate-800/50 cursor-pointer group">
+              <td class="py-3 px-6">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden">
+                    <img src="https://images.evetech.net/types/12005/icon?size=64" alt="Ishtar" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\'text-xs text-slate-600\'>ISH</span>';" />
+                  </div>
+                  <span class="text-slate-100 font-medium group-hover:text-cyan-400 transition-colors">Ishtar</span>
+                </div>
+              </td>
+              <td class="py-3 px-3">
+                <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">Active</span>
+              </td>
+              <td class="py-3 px-3 text-right font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">1.2B</td>
+              <td class="py-3 px-6">
+                <div class="flex items-center gap-3">
+                  <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div class="h-full bg-cyan-500/60 rounded-full relative" style="width: 65%;">
+                      <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+                    </div>
+                  </div>
+                  <span class="text-xs font-mono text-slate-500 w-8 text-right">65%</span>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 2: Ferox -->
+            <tr class="hover:bg-slate-800/50 cursor-pointer group">
+              <td class="py-3 px-6">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden">
+                    <img src="https://images.evetech.net/types/24690/icon?size=64" alt="Ferox" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\'text-xs text-slate-600\'>FRX</span>';" />
+                  </div>
+                  <span class="text-slate-100 font-medium group-hover:text-cyan-400 transition-colors">Ferox</span>
+                </div>
+              </td>
+              <td class="py-3 px-3">
+                <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">Active</span>
+              </td>
+              <td class="py-3 px-3 text-right font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">340M</td>
+              <td class="py-3 px-6">
+                <div class="flex items-center gap-3">
+                  <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div class="h-full bg-cyan-500/60 rounded-full relative" style="width: 42%;">
+                      <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+                    </div>
+                  </div>
+                  <span class="text-xs font-mono text-slate-500 w-8 text-right">42%</span>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 3: Sabre -->
+            <tr class="hover:bg-slate-800/50 cursor-pointer group">
+              <td class="py-3 px-6">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden">
+                    <img src="https://images.evetech.net/types/22456/icon?size=64" alt="Sabre" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\'text-xs text-slate-600\'>SAB</span>';" />
+                  </div>
+                  <span class="text-slate-100 font-medium group-hover:text-cyan-400 transition-colors">Sabre</span>
+                </div>
+              </td>
+              <td class="py-3 px-3">
+                <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">Completed</span>
+              </td>
+              <td class="py-3 px-3 text-right font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">89M</td>
+              <td class="py-3 px-6">
+                <div class="flex items-center gap-3">
+                  <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div class="h-full bg-emerald-500/60 rounded-full" style="width: 100%;"></div>
+                  </div>
+                  <span class="text-xs font-mono text-emerald-400 w-8 text-right">100%</span>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 4: Hurricane -->
+            <tr class="hover:bg-slate-800/50 cursor-pointer group">
+              <td class="py-3 px-6">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden">
+                    <img src="https://images.evetech.net/types/24690/icon?size=64" alt="Hurricane" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\'text-xs text-slate-600\'>HUR</span>';" />
+                  </div>
+                  <span class="text-slate-100 font-medium group-hover:text-cyan-400 transition-colors">Hurricane</span>
+                </div>
+              </td>
+              <td class="py-3 px-3">
+                <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">Active</span>
+              </td>
+              <td class="py-3 px-3 text-right font-mono text-red-400" style="font-variant-numeric: tabular-nums;">-120M</td>
+              <td class="py-3 px-6">
+                <div class="flex items-center gap-3">
+                  <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div class="h-full bg-cyan-500/60 rounded-full relative" style="width: 28%;">
+                      <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+                    </div>
+                  </div>
+                  <span class="text-xs font-mono text-slate-500 w-8 text-right">28%</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

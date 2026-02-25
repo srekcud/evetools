@@ -43,7 +43,7 @@ class UserProvider implements ProviderInterface
 
         $resource = new UserResource();
         $resource->id = $user->getId()?->toRfc4122() ?? '';
-        $resource->authStatus = $user->getAuthStatus();
+        $resource->authStatus = $user->getAuthStatus()->value;
         $resource->mainCharacter = $mainCharacter ? $this->toCharacterResource($mainCharacter) : null;
         $resource->characters = $this->getSortedCharacters($user);
         $resource->corporationId = $user->getCorporationId();

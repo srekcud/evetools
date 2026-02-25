@@ -46,4 +46,24 @@ class CachedWalletTransactionRepository extends ServiceEntityRepository
     {
         return $this->findOneBy(['transactionId' => $transactionId]);
     }
+
+    /**
+     * Check which transaction IDs already exist in the database.
+     *
+     * @param int[] $transactionIds
+     * @return int[] existing transaction IDs
+     */
+    public function findExistingTransactionIds(array $transactionIds): array
+    {
+        if (empty($transactionIds)) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('t')
+            ->select('t.transactionId')
+            ->where('t.transactionId IN (:ids)')
+            ->setParameter('ids', $transactionIds)
+            ->getQuery()
+            ->getSingleColumnResult();
+    }
 }

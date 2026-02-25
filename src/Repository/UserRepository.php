@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\User;
+use App\Enum\AuthStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -54,7 +55,7 @@ class UserRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('u')
             ->where('u.authStatus = :status')
-            ->setParameter('status', User::AUTH_STATUS_INVALID)
+            ->setParameter('status', AuthStatus::Invalid)
             ->getQuery()
             ->getResult();
     }
@@ -103,7 +104,7 @@ class UserRepository extends ServiceEntityRepository
             ->addSelect('t')
             ->where('u.authStatus = :status')
             ->andWhere('u.lastLoginAt >= :threshold')
-            ->setParameter('status', User::AUTH_STATUS_VALID)
+            ->setParameter('status', AuthStatus::Valid)
             ->setParameter('threshold', $threshold)
             ->getQuery()
             ->getResult();

@@ -6,6 +6,7 @@ namespace App\State\Provider\Planetary;
 
 use App\ApiResource\Planetary\ColonyResource;
 use App\Entity\PlanetaryColony;
+use App\Enum\ColonyStatus;
 use App\Entity\PlanetaryPin;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
@@ -128,16 +129,16 @@ class PlanetaryResourceMapper
         }
 
         if ($hasExpired) {
-            return 'expired';
+            return ColonyStatus::Expired->value;
         }
         if ($hasExpiring) {
-            return 'expiring';
+            return ColonyStatus::Expiring->value;
         }
         if ($hasActive) {
-            return 'active';
+            return ColonyStatus::Active->value;
         }
 
-        return 'idle';
+        return ColonyStatus::Idle->value;
     }
 
     /** @return array<string, mixed> */

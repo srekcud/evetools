@@ -41,6 +41,10 @@ class IndustryUserSettings
     #[ORM\Column(type: 'float', options: ['default' => 0.036])]
     private float $salesTaxRate = EveConstants::DEFAULT_SALES_TAX_RATE;
 
+    /** Export cost per m3 for transporting finished products to sell venue (ISK/m3) */
+    #[ORM\Column(type: 'float', options: ['default' => 1200.0])]
+    private float $exportCostPerM3 = EveConstants::DEFAULT_EXPORT_COST_PER_M3;
+
     public function getId(): ?Uuid
     {
         return $this->id;
@@ -98,6 +102,17 @@ class IndustryUserSettings
     public function setSalesTaxRate(float $salesTaxRate): static
     {
         $this->salesTaxRate = $salesTaxRate;
+        return $this;
+    }
+
+    public function getExportCostPerM3(): float
+    {
+        return $this->exportCostPerM3;
+    }
+
+    public function setExportCostPerM3(float $exportCostPerM3): static
+    {
+        $this->exportCostPerM3 = $exportCostPerM3;
         return $this;
     }
 }

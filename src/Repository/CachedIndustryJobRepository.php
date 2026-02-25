@@ -6,6 +6,7 @@ namespace App\Repository;
 
 use App\Entity\CachedIndustryJob;
 use App\Entity\Character;
+use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -22,6 +23,41 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
     public function findByJobId(int $jobId): ?CachedIndustryJob
     {
         return $this->findOneBy(['jobId' => $jobId]);
+    }
+
+    /**
+     * Find active jobs for a character.
+     *
+     * @return CachedIndustryJob[]
+     */
+    public function findActiveJobsByCharacter(Character $character): array
+    {
+        return $this->createQueryBuilder('j')
+            ->where('j.character = :character')
+            ->andWhere('j.status IN (:statuses)')
+            ->setParameter('character', $character)
+            ->setParameter('statuses', ['active', 'ready'])
+            ->orderBy('j.endDate', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Find active jobs for all characters of a user.
+     *
+     * @return CachedIndustryJob[]
+     */
+    public function findActiveJobsByUser(User $user): array
+    {
+        return $this->createQueryBuilder('j')
+            ->join('j.character', 'c')
+            ->where('c.user = :user')
+            ->andWhere('j.status IN (:statuses)')
+            ->setParameter('user', $user)
+            ->setParameter('statuses', ['active', 'ready'])
+            ->orderBy('j.endDate', 'ASC')
+            ->getQuery()
+            ->getResult();
     }
 
     public function deleteByCharacter(Character $character): void

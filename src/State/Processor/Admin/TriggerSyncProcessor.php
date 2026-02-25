@@ -10,6 +10,8 @@ use App\ApiResource\Admin\ActionResultResource;
 use App\Entity\User;
 use App\Message\SyncIndustryJobs;
 use App\Message\TriggerAnsiblexSync;
+use App\Message\CheckAlertPrices;
+use App\Message\SyncPublicContracts;
 use App\Message\TriggerAssetsSync;
 use App\Message\TriggerPlanetarySync;
 use App\Message\TriggerJitaMarketSync;
@@ -52,6 +54,8 @@ class TriggerSyncProcessor implements ProcessorInterface
         'sync_mining' => 'mining',
         'sync_ansiblex' => 'ansiblex',
         'sync_planetary' => 'planetary',
+        'sync_alert_prices' => 'alert-prices',
+        'sync_public_contracts' => 'public-contracts',
     ];
 
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): ActionResultResource
@@ -124,6 +128,16 @@ class TriggerSyncProcessor implements ProcessorInterface
             case 'sync_planetary':
                 $this->messageBus->dispatch(new TriggerPlanetarySync());
                 $resource->message = 'Planetary Interaction sync triggered';
+                break;
+
+            case 'sync_alert_prices':
+                $this->messageBus->dispatch(new CheckAlertPrices());
+                $resource->message = 'Alert price refresh triggered';
+                break;
+
+            case 'sync_public_contracts':
+                $this->messageBus->dispatch(new SyncPublicContracts());
+                $resource->message = 'Public contracts sync triggered';
                 break;
 
             case 'check_market_alerts':

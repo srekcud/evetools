@@ -4,12 +4,17 @@
  * Existing code importing from '@/stores/industry' will continue to work.
  * New code should import directly from '@/stores/industry/projects', etc.
  */
+import { ref } from 'vue'
 import { useProjectsStore } from './industry/projects'
 import { useStepsStore } from './industry/steps'
 import { useStructuresStore } from './industry/structures'
 import { useBlacklistStore } from './industry/blacklist'
+import type { NavigationIntent } from './industry/types'
 
 export { enrichStep, enrichProject, formatErrorMessage } from './industry/compat'
+
+// Module-level ref shared across all useIndustryStore() calls
+const navigationIntent = ref<NavigationIntent>(null)
 
 // Re-export all types for backward compatibility
 export type {
@@ -54,6 +59,16 @@ export type {
   ProfitMarginMaterial,
   ProfitMarginJobStep,
   ProfitMarginInventionOption,
+  BatchScanItem,
+  BuyVsBuildComponent,
+  BuyVsBuildMaterial,
+  BuyVsBuildResult,
+  PivotAnalysisResult,
+  PivotCandidate,
+  PivotSourceProduct,
+  PivotComponentCoverage,
+  PivotMissingComponent,
+  NavigationIntent,
 } from './industry/types'
 
 // Legacy type aliases for old field names (backward compat)
@@ -133,5 +148,9 @@ export function useIndustryStore() {
     fetchBlacklist: blacklistStore.fetchBlacklist,
     updateBlacklist: blacklistStore.updateBlacklist,
     searchBlacklistItems: blacklistStore.searchBlacklistItems,
+
+    // Cross-tab navigation intent
+    get navigationIntent() { return navigationIntent.value },
+    set navigationIntent(v: NavigationIntent) { navigationIntent.value = v },
   }
 }

@@ -9,6 +9,7 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Pve\StatsByTypeResource;
 use App\Entity\PveIncome;
 use App\Entity\User;
+use App\Enum\PveIncomeType;
 use App\Entity\UserLedgerSettings;
 use App\Repository\PveExpenseRepository;
 use App\Repository\PveIncomeRepository;
@@ -62,8 +63,8 @@ class StatsByTypeProvider implements ProviderInterface
         $incomeByType = $this->incomeRepository->getTotalsByType($user, $from, $to);
 
         // Remove corp_project from the results if it should be excluded
-        if ($excludeCorpProject && isset($incomeByType[PveIncome::TYPE_CORP_PROJECT])) {
-            unset($incomeByType[PveIncome::TYPE_CORP_PROJECT]);
+        if ($excludeCorpProject && isset($incomeByType[PveIncomeType::CorpProject->value])) {
+            unset($incomeByType[PveIncomeType::CorpProject->value]);
         }
 
         $expensesByType = $this->expenseRepository->getTotalsByTypeAndDateRange($user, $from, $to);
