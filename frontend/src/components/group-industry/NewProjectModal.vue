@@ -2,10 +2,13 @@
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
+import { useProjectsStore } from '@/stores/industry/projects'
+import type { SearchResult } from '@/stores/industry/types'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const { t } = useI18n()
 const { getTypeIconUrl, onImageError } = useEveImages()
+const projectsStore = useProjectsStore()
 
 const props = defineProps<{
   show: boolean
@@ -23,9 +26,72 @@ const addMode = ref<AddMode>('add-item')
 
 // Single item add fields
 const searchQuery = ref('')
+const selectedItem = ref<SearchResult | null>(null)
+const showDropdown = ref(false)
+let searchTimeout: ReturnType<typeof setTimeout> | null = null
 const itemMe = ref(2)
 const itemTe = ref(4)
 const itemRuns = ref(100)
+
+// --- Search logic ---
+
+function onSearchInput() {
+  // Clear previous selection when user types
+  selectedItem.value = null
+  if (searchTimeout) clearTimeout(searchTimeout)
+  if (searchQuery.value.length < 2) {
+    projectsStore.searchResults = []
+    showDropdown.value = false
+    return
+  }
+  searchTimeout = setTimeout(async () => {
+    await projectsStore.searchProducts(searchQuery.value)
+    showDropdown.value = projectsStore.searchResults.length > 0
+  }, 300)
+}
+
+function selectSearchResult(result: SearchResult) {
+  selectedItem.value = result
+  searchQuery.value = result.typeName
+  showDropdown.value = false
+  projectsStore.searchResults = []
+}
+
+function onSearchBlur() {
+  // Delay to allow mousedown on dropdown items to register first
+  setTimeout(() => {
+    showDropdown.value = false
+  }, 200)
+}
+
+function onSearchFocus() {
+  if (projectsStore.searchResults.length > 0 && !selectedItem.value) {
+    showDropdown.value = true
+  }
+}
+
+function addSelectedItem() {
+  if (!selectedItem.value) return
+  // Prevent duplicates
+  const alreadyExists = items.value.some(item => item.typeId === selectedItem.value!.typeId)
+  if (alreadyExists) {
+    // Clear and ignore silently
+    searchQuery.value = ''
+    selectedItem.value = null
+    return
+  }
+  items.value.push({
+    typeId: selectedItem.value.typeId,
+    typeName: selectedItem.value.typeName,
+    meLevel: itemMe.value,
+    teLevel: itemTe.value,
+    runs: itemRuns.value,
+  })
+  // Reset search state for next item
+  searchQuery.value = ''
+  selectedItem.value = null
+  projectsStore.searchResults = []
+}
 
 // Bulk paste
 const bulkText = ref('')
@@ -111,6 +177,10 @@ watch(() => props.show, (newVal) => {
 function resetForm() {
   addMode.value = 'add-item'
   searchQuery.value = ''
+  selectedItem.value = null
+  showDropdown.value = false
+  projectsStore.searchResults = []
+  if (searchTimeout) clearTimeout(searchTimeout)
   itemMe.value = 2
   itemTe.value = 4
   itemRuns.value = 100
@@ -243,11 +313,36 @@ function handleOverlayClick() {
                       type="text"
                       :placeholder="t('groupIndustry.modals.newProject.searchPlaceholder')"
                       class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder-slate-600"
+                      @input="onSearchInput"
+                      @focus="onSearchFocus"
+                      @blur="onSearchBlur"
                     />
                     <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
-                    <!-- Search results dropdown will be wired when the search API is available -->
+                    <!-- Search results dropdown -->
+                    <div
+                      v-if="showDropdown && projectsStore.searchResults.length > 0"
+                      class="absolute z-20 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto"
+                    >
+                      <button
+                        v-for="result in projectsStore.searchResults"
+                        :key="result.typeId"
+                        class="w-full px-4 py-2.5 text-left hover:bg-slate-700 text-sm flex items-center gap-3 transition-colors"
+                        @mousedown.prevent="selectSearchResult(result)"
+                      >
+                        <img
+                          :src="getTypeIconUrl(result.typeId, 32)"
+                          class="w-6 h-6 rounded-sm"
+                          @error="onImageError"
+                        />
+                        <span class="text-slate-200">{{ result.typeName }}</span>
+                        <span
+                          v-if="result.isT2"
+                          class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-sm"
+                        >T2</span>
+                      </button>
+                    </div>
                   </div>
                   <input
                     v-model.number="itemMe"
@@ -276,8 +371,9 @@ function handleOverlayClick() {
                     class="form-input w-20 bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2.5 text-sm text-slate-200 font-mono text-center"
                   />
                   <button
-                    class="btn-action px-3 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex-shrink-0 whitespace-nowrap"
-                    :disabled="!searchQuery.trim()"
+                    class="btn-action px-3 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex-shrink-0 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                    :disabled="!selectedItem"
+                    @click="addSelectedItem"
                   >
                     {{ t('groupIndustry.modals.newProject.addToList') }}
                   </button>
