@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useEveImages } from '@/composables/useEveImages'
+import { useGroupProjectStore } from '@/stores/group-industry/project'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ProjectKpiCards from '@/components/group-industry/ProjectKpiCards.vue'
 import ProjectCard from '@/components/group-industry/ProjectCard.vue'
@@ -17,6 +18,7 @@ const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
 const { getCorporationLogoUrl, onImageError } = useEveImages()
+const groupProjectStore = useGroupProjectStore()
 
 // --- Data ---
 
@@ -79,16 +81,20 @@ function navigateToProject(project: GroupProject) {
   router.push({ name: 'group-industry-detail', params: { id: project.id } })
 }
 
-function handleJoinProject(shortLinkCode: string) {
-  // Will be wired to store action when API is ready
-  // For now, just log
-  console.log('Join project with code:', shortLinkCode)
+async function handleJoinProject(shortLinkCode: string) {
+  try {
+    const project = await groupProjectStore.joinProject(shortLinkCode)
+    if (project) {
+      router.push({ name: 'group-industry-detail', params: { id: project.id } })
+    }
+  } catch {
+    error.value = 'Failed to join project'
+  }
 }
 
-function handleProjectCreated() {
+async function handleProjectCreated() {
   showNewProjectModal.value = false
-  // Refresh projects after creation
-  fetchProjects()
+  await fetchProjects()
 }
 
 // --- Data fetching ---
@@ -97,12 +103,10 @@ async function fetchProjects() {
   isLoading.value = true
   error.value = null
   try {
-    // Will be wired to useGroupProjectStore when it exists
-    // const projectStore = useGroupProjectStore()
-    // await projectStore.fetchMyProjects()
-    // await projectStore.fetchAvailableProjects()
-    // myProjects.value = projectStore.myProjects
-    // availableProjects.value = projectStore.availableProjects
+    await groupProjectStore.fetchMyProjects()
+    await groupProjectStore.fetchAvailableProjects()
+    myProjects.value = groupProjectStore.myProjects
+    availableProjects.value = groupProjectStore.availableProjects
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load projects'
   } finally {

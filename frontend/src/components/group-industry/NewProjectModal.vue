@@ -3,12 +3,15 @@ import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { useProjectsStore } from '@/stores/industry/projects'
+import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { SearchResult } from '@/stores/industry/types'
+import type { CreateGroupProjectInput } from '@/stores/group-industry/types'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const { t } = useI18n()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const projectsStore = useProjectsStore()
+const groupProjectStore = useGroupProjectStore()
 
 const props = defineProps<{
   show: boolean
@@ -163,6 +166,7 @@ function toggleLineRentalOverride() {
 
 // Submission
 const isCreating = ref(false)
+const errorMsg = ref<string | null>(null)
 
 // Computed
 const totalRuns = computed(() =>
@@ -203,6 +207,7 @@ function resetForm() {
     else if (r.key === 'location_factor') r.value = 1_000_000
   })
   isCreating.value = false
+  errorMsg.value = null
   blacklistCategories.value.forEach(cat => {
     cat.checked = cat.id === 'advanced_components' || cat.id === 'fuel_blocks'
   })
@@ -240,11 +245,35 @@ function parseBulkText() {
   }
 }
 
-function handleCreate() {
+async function handleCreate() {
   if (items.value.length === 0) return
   isCreating.value = true
-  // The parent (list view) will handle the actual API call via the store
-  emit('created')
+  errorMsg.value = null
+
+  const input: CreateGroupProjectInput = {
+    name: projectName.value.trim() || undefined,
+    items: items.value.map(i => ({
+      typeId: i.typeId,
+      typeName: i.typeName,
+      meLevel: i.meLevel,
+      teLevel: i.teLevel,
+      runs: i.runs,
+    })),
+    containerName: containerName.value.trim() || undefined,
+    blacklistGroupIds: [],
+    blacklistTypeIds: blacklistItems.value.map(i => i.typeId),
+    lineRentalRatesOverride: lineRentalOverrideEnabled.value
+      ? Object.fromEntries(lineRentalRates.value.map(r => [r.key, r.value]))
+      : undefined,
+  }
+
+  try {
+    await groupProjectStore.createProject(input)
+    emit('created')
+  } catch (e) {
+    errorMsg.value = e instanceof Error ? e.message : 'Failed to create project'
+    isCreating.value = false
+  }
 }
 
 function handleClose() {
@@ -664,6 +693,7 @@ function handleOverlayClick() {
 
           <!-- Modal Footer -->
           <div class="px-6 py-4 border-t border-slate-800">
+            <p v-if="errorMsg" class="text-sm text-red-400 mb-3">{{ errorMsg }}</p>
             <p class="text-xs text-slate-500 mb-3">{{ t('groupIndustry.modals.newProject.bomNote') }}</p>
             <div class="flex items-center justify-end gap-3">
               <button
