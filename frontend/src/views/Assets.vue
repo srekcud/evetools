@@ -55,6 +55,21 @@ const noDivisionsShared = computed(() =>
   && visibility.value.configuredByName == null
 )
 
+const hasSharedDivisions = computed(() =>
+  isCorpView.value
+  && !isDirector.value
+  && visibility.value != null
+  && visibility.value.visibleDivisions.length > 0
+)
+
+const sharedDivisionNames = computed(() => {
+  if (!visibility.value) return []
+  return visibility.value.visibleDivisions
+    .map(num => visibility.value!.allDivisions[num])
+    .filter((name): name is string => name != null)
+    .sort((a, b) => a.localeCompare(b))
+})
+
 // Get unique solar systems
 const solarSystems = computed(() => {
   const systems = new Set<string>()
@@ -348,6 +363,16 @@ async function refreshAssets() {
   }
 }
 
+function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
 function clearFilters() {
   selectedSolarSystem.value = ''
   selectedLocation.value = ''
@@ -455,6 +480,33 @@ watch([selectedCharacterId, viewMode], () => {
           :visibility="visibility"
           @save="saveVisibility"
         />
+
+        <!-- Shared divisions info (non-director, read-only) -->
+        <div v-if="hasSharedDivisions" class="bg-slate-900 rounded-lg border border-slate-800 px-4 py-3">
+          <div class="flex items-center gap-3">
+            <svg class="w-5 h-5 text-cyan-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            <div class="flex-1 min-w-0">
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span class="text-sm font-medium text-slate-200">{{ t('assets.visibility.sharedDivisions') }}</span>
+                <div class="flex flex-wrap gap-1.5">
+                  <span
+                    v-for="name in sharedDivisionNames"
+                    :key="name"
+                    class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                  >
+                    {{ name }}
+                  </span>
+                </div>
+              </div>
+              <p v-if="visibility?.configuredByName" class="text-xs text-slate-500 mt-1">
+                {{ t('assets.visibility.configuredBy', { name: visibility.configuredByName }) }}
+                <span v-if="visibility.updatedAt"> &mdash; {{ formatDate(visibility.updatedAt) }}</span>
+              </p>
+            </div>
+          </div>
+        </div>
 
         <!-- Error message -->
         <ErrorBanner v-if="error" :message="error" @dismiss="error = ''" />

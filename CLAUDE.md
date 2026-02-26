@@ -94,6 +94,12 @@ make base-build      # Rebuild image base uniquement
 
 ---
 
+## Règle absolue — Ne jamais deviner
+
+**JAMAIS deviner** un nom de queue, de config, d'endpoint, de table, de variable d'env, de méthode, etc. **TOUJOURS vérifier dans le code source** (config/, .env, entities, etc.) AVANT de répondre à l'utilisateur ou d'écrire du code. Lire le fichier de config pertinent prend 2 secondes, deviner et se tromper fait perdre du temps.
+
+---
+
 ## Préférences de développement
 
 - **Toujours utiliser API Platform** pour les endpoints API, jamais de contrôleurs Symfony classiques

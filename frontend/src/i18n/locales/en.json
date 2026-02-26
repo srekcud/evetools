@@ -1407,7 +1407,9 @@
       "configuredBy": "Configured by {name}",
       "lastUpdate": "Last update",
       "showPanel": "Manage visibility",
-      "hidePanel": "Hide"
+      "hidePanel": "Hide",
+      "sharedDivisions": "Shared divisions",
+      "sharedDivisionsNone": "No divisions are currently shared with you"
     }
   },
   "contracts": {
