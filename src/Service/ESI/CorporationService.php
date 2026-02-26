@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Service\ESI;
 
 use App\Entity\Character;
+use Psr\Log\LoggerInterface;
 
 class CorporationService
 {
     public function __construct(
         private readonly EsiClient $esiClient,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -36,7 +38,11 @@ class CorporationService
 
         try {
             $data = $this->esiClient->get("/corporations/{$corporationId}/divisions/", $token);
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to fetch divisions: ' . $e->getMessage(), [
+                'corporationId' => $corporationId,
+                'characterName' => $character->getName(),
+            ]);
             return [];
         }
 
