@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\GroupIndustry\UpdateGroupMemberInput;
@@ -22,6 +23,9 @@ use App\State\Provider\GroupIndustry\GroupMemberItemProvider;
     operations: [
         new GetCollection(
             uriTemplate: '/group-industry/projects/{projectId}/members',
+            uriVariables: [
+                'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
+            ],
             provider: GroupMemberCollectionProvider::class,
             openapi: new Model\Operation(
                 summary: 'List project members',
@@ -31,6 +35,10 @@ use App\State\Provider\GroupIndustry\GroupMemberItemProvider;
         ),
         new Patch(
             uriTemplate: '/group-industry/projects/{projectId}/members/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}',
+            uriVariables: [
+                'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
+                'id' => new Link(fromClass: self::class),
+            ],
             provider: GroupMemberItemProvider::class,
             processor: UpdateGroupMemberProcessor::class,
             input: UpdateGroupMemberInput::class,
@@ -42,6 +50,10 @@ use App\State\Provider\GroupIndustry\GroupMemberItemProvider;
         ),
         new Delete(
             uriTemplate: '/group-industry/projects/{projectId}/members/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}',
+            uriVariables: [
+                'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
+                'id' => new Link(fromClass: self::class),
+            ],
             provider: GroupMemberItemProvider::class,
             processor: KickGroupMemberProcessor::class,
             openapi: new Model\Operation(

@@ -7,6 +7,7 @@ namespace App\ApiResource\GroupIndustry;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Link;
 use ApiPlatform\OpenApi\Model;
 use App\State\Provider\GroupIndustry\GroupBomProvider;
 
@@ -16,6 +17,9 @@ use App\State\Provider\GroupIndustry\GroupBomProvider;
     operations: [
         new GetCollection(
             uriTemplate: '/group-industry/projects/{projectId}/bom',
+            uriVariables: [
+                'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
+            ],
             provider: GroupBomProvider::class,
             openapi: new Model\Operation(
                 summary: 'Get project BOM',

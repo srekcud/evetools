@@ -7,6 +7,7 @@ namespace App\ApiResource\GroupIndustry;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\GroupIndustry\RecordSaleInput;
@@ -19,6 +20,9 @@ use App\State\Provider\GroupIndustry\GroupSaleCollectionProvider;
     operations: [
         new GetCollection(
             uriTemplate: '/group-industry/projects/{projectId}/sales',
+            uriVariables: [
+                'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
+            ],
             provider: GroupSaleCollectionProvider::class,
             openapi: new Model\Operation(
                 summary: 'List project sales',
@@ -28,6 +32,9 @@ use App\State\Provider\GroupIndustry\GroupSaleCollectionProvider;
         ),
         new Post(
             uriTemplate: '/group-industry/projects/{projectId}/sales',
+            uriVariables: [
+                'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
+            ],
             processor: RecordSaleProcessor::class,
             input: RecordSaleInput::class,
             openapi: new Model\Operation(

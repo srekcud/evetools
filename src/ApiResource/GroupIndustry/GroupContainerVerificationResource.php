@@ -7,6 +7,7 @@ namespace App\ApiResource\GroupIndustry;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Link;
 use ApiPlatform\OpenApi\Model;
 use App\State\Provider\GroupIndustry\ContainerVerificationProvider;
 
@@ -16,6 +17,9 @@ use App\State\Provider\GroupIndustry\ContainerVerificationProvider;
     operations: [
         new GetCollection(
             uriTemplate: '/group-industry/projects/{projectId}/container-verification',
+            uriVariables: [
+                'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
+            ],
             provider: ContainerVerificationProvider::class,
             openapi: new Model\Operation(
                 summary: 'Verify container contents',

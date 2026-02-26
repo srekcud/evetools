@@ -7,6 +7,7 @@ namespace App\ApiResource\GroupIndustry;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\Link;
 use ApiPlatform\OpenApi\Model;
 use App\State\Provider\GroupIndustry\GroupDistributionProvider;
 
@@ -16,6 +17,9 @@ use App\State\Provider\GroupIndustry\GroupDistributionProvider;
     operations: [
         new Get(
             uriTemplate: '/group-industry/projects/{projectId}/distribution',
+            uriVariables: [
+                'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
+            ],
             provider: GroupDistributionProvider::class,
             openapi: new Model\Operation(
                 summary: 'Get distribution',
