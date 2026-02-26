@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const { t } = useI18n()
+const distributionStore = useGroupDistributionStore()
 
 const props = defineProps<{
   show: boolean
@@ -32,20 +34,38 @@ const rates = ref<RateRow[]>([
 ])
 
 const isSaving = ref(false)
+const saveError = ref<string | null>(null)
 
-// Reset on open
-watch(() => props.show, (newVal) => {
+// Load current rates from the store when modal opens
+watch(() => props.show, async (newVal) => {
   if (newVal) {
     isSaving.value = false
-    // In a real implementation, we would fetch current rates from the store here
+    saveError.value = null
+    await distributionStore.fetchLineRentalRates()
+    if (distributionStore.lineRentalRates) {
+      for (const rate of rates.value) {
+        if (rate.key in distributionStore.lineRentalRates.rates) {
+          rate.value = distributionStore.lineRentalRates.rates[rate.key]
+        }
+      }
+    }
   }
 })
 
-function handleSave() {
+async function handleSave(): Promise<void> {
   isSaving.value = true
-  // The store integration will handle the actual API call
-  // For now, just close after a brief delay to simulate
-  emit('close')
+  saveError.value = null
+  const rateMap: Record<string, number> = {}
+  for (const rate of rates.value) {
+    rateMap[rate.key] = rate.value
+  }
+  try {
+    await distributionStore.updateLineRentalRates(rateMap)
+    emit('close')
+  } catch (e) {
+    saveError.value = e instanceof Error ? e.message : t('groupIndustry.modals.lineRental.saveError')
+    isSaving.value = false
+  }
 }
 
 function handleClose() {
@@ -113,6 +133,8 @@ function handleOverlayClick() {
                 </tbody>
               </table>
             </div>
+
+            <p v-if="saveError" class="mt-3 text-sm text-red-400">{{ saveError }}</p>
           </div>
 
           <!-- Modal Footer -->

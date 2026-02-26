@@ -1939,6 +1939,7 @@
         "rate": "Tarif",
         "unit": "Unite",
         "saveDefaults": "Sauvegarder",
+        "saveError": "Echec de la sauvegarde des tarifs de location",
         "componentT1": "Composant T1",
         "moduleT1": "Module T1",
         "shipT1": "Vaisseau T1",
@@ -1989,7 +1990,21 @@
       "backToList": "Retour aux projets",
       "shareLink": "Lien de partage",
       "edit": "Modifier",
-      "delete": "Supprimer"
+      "delete": "Supprimer",
+      "editProject": "Modifier le projet",
+      "editError": "Echec de la mise a jour du projet",
+      "editFields": {
+        "name": "Nom du projet",
+        "namePlaceholder": "Nom personnalise du projet...",
+        "containerName": "Nom du container",
+        "containerPlaceholder": "ex: Fleet Doctrine Materials",
+        "brokerFee": "Frais courtier %",
+        "salesTax": "Taxe de vente %"
+      },
+      "deleteConfirm": {
+        "title": "Supprimer le projet",
+        "message": "Etes-vous sur de vouloir supprimer ce projet ? Cette action est irreversible. Toutes les contributions, ventes et donnees de distribution seront definitivement perdues."
+      }
     }
   },
   "market": {

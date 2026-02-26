@@ -20,7 +20,7 @@ import DistributionTable from '@/components/group-industry/DistributionTable.vue
 import MemberTable from '@/components/group-industry/MemberTable.vue'
 import PendingRequestsTable from '@/components/group-industry/PendingRequestsTable.vue'
 import ShareLinkCard from '@/components/group-industry/ShareLinkCard.vue'
-import type { BomItem, GroupProjectStatus } from '@/stores/group-industry/types'
+import type { BomItem, GroupProject, GroupProjectStatus } from '@/stores/group-industry/types'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -40,6 +40,21 @@ const activeTab = ref<DetailTab>('bom')
 // Contribute modal state
 const showContributeModal = ref(false)
 const prefilledBomItem = ref<BomItem | undefined>(undefined)
+
+// Edit modal state
+const showEditModal = ref(false)
+const editForm = ref({
+  name: '',
+  containerName: '',
+  brokerFeePercent: 0,
+  salesTaxPercent: 0,
+})
+const isEditSaving = ref(false)
+const editError = ref<string | null>(null)
+
+// Delete confirm state
+const showDeleteConfirm = ref(false)
+const isDeleting = ref(false)
 
 const project = computed(() => projectStore.currentProject)
 const isOwnerOrAdmin = computed(() =>
@@ -122,6 +137,45 @@ async function copyShareLink(): Promise<void> {
 function openContributeModal(bomItem?: BomItem): void {
   prefilledBomItem.value = bomItem
   showContributeModal.value = true
+}
+
+function openEditModal(): void {
+  if (!project.value) return
+  editForm.value = {
+    name: project.value.name ?? '',
+    containerName: project.value.containerName ?? '',
+    brokerFeePercent: project.value.brokerFeePercent,
+    salesTaxPercent: project.value.salesTaxPercent,
+  }
+  editError.value = null
+  isEditSaving.value = false
+  showEditModal.value = true
+}
+
+async function handleEditSave(): Promise<void> {
+  isEditSaving.value = true
+  editError.value = null
+  try {
+    await projectStore.updateProject(projectId.value, {
+      name: editForm.value.name || null,
+      containerName: editForm.value.containerName || null,
+      brokerFeePercent: editForm.value.brokerFeePercent,
+      salesTaxPercent: editForm.value.salesTaxPercent,
+    } as Partial<GroupProject>)
+    showEditModal.value = false
+  } catch (e) {
+    editError.value = e instanceof Error ? e.message : t('groupIndustry.detail.editError')
+    isEditSaving.value = false
+  }
+}
+
+async function handleDeleteProject(): Promise<void> {
+  isDeleting.value = true
+  await projectStore.deleteProject(projectId.value)
+  if (!projectStore.error) {
+    router.push({ name: 'group-industry' })
+  }
+  isDeleting.value = false
 }
 
 function onContributionSubmitted(): void {
@@ -231,6 +285,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
               v-if="isOwnerOrAdmin"
               class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm transition-all hover:-translate-y-px"
               :title="t('groupIndustry.detail.edit')"
+              @click="openEditModal"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
             </button>
@@ -238,6 +293,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
               v-if="isOwnerOrAdmin"
               class="px-3 py-2 bg-slate-700 hover:bg-red-600/80 rounded-lg text-slate-400 hover:text-white text-sm transition-all hover:-translate-y-px"
               :title="t('groupIndustry.detail.delete')"
+              @click="showDeleteConfirm = true"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
             </button>
@@ -392,5 +448,137 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
       @close="showContributeModal = false"
       @submitted="onContributionSubmitted"
     />
+
+    <!-- Edit Project Modal -->
+    <Teleport to="body">
+      <div v-if="showEditModal" class="fixed inset-0 z-50">
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" @click="showEditModal = false"></div>
+        <div class="relative flex items-center justify-center min-h-screen p-4 pointer-events-none">
+          <div class="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md pointer-events-auto">
+            <!-- Header -->
+            <div class="px-6 py-5 border-b border-slate-800 flex items-center justify-between">
+              <h2 class="text-lg font-bold text-slate-100">{{ t('groupIndustry.detail.editProject') }}</h2>
+              <button
+                class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-200 transition-colors"
+                @click="showEditModal = false"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- Body -->
+            <div class="px-6 py-5 space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-slate-400 mb-1">{{ t('groupIndustry.detail.editFields.name') }}</label>
+                <input
+                  v-model="editForm.name"
+                  type="text"
+                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
+                  :placeholder="t('groupIndustry.detail.editFields.namePlaceholder')"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-400 mb-1">{{ t('groupIndustry.detail.editFields.containerName') }}</label>
+                <input
+                  v-model="editForm.containerName"
+                  type="text"
+                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
+                  :placeholder="t('groupIndustry.detail.editFields.containerPlaceholder')"
+                />
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-slate-400 mb-1">{{ t('groupIndustry.detail.editFields.brokerFee') }}</label>
+                  <input
+                    v-model.number="editForm.brokerFeePercent"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:border-cyan-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-400 mb-1">{{ t('groupIndustry.detail.editFields.salesTax') }}</label>
+                  <input
+                    v-model.number="editForm.salesTaxPercent"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:border-cyan-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <p v-if="editError" class="text-sm text-red-400">{{ editError }}</p>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-end gap-3">
+              <button
+                class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-sm font-medium transition-colors"
+                @click="showEditModal = false"
+              >
+                {{ t('common.actions.cancel') }}
+              </button>
+              <button
+                class="px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all disabled:opacity-50"
+                :disabled="isEditSaving"
+                @click="handleEditSave"
+              >
+                <svg v-if="isEditSaving" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {{ t('common.actions.save') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Delete Confirm Modal -->
+    <Teleport to="body">
+      <div v-if="showDeleteConfirm" class="fixed inset-0 z-50">
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" @click="showDeleteConfirm = false"></div>
+        <div class="relative flex items-center justify-center min-h-screen p-4 pointer-events-none">
+          <div class="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm pointer-events-auto">
+            <!-- Header -->
+            <div class="px-6 py-5 border-b border-slate-800">
+              <h2 class="text-lg font-bold text-slate-100">{{ t('groupIndustry.detail.deleteConfirm.title') }}</h2>
+            </div>
+
+            <!-- Body -->
+            <div class="px-6 py-5">
+              <p class="text-sm text-slate-400">{{ t('groupIndustry.detail.deleteConfirm.message') }}</p>
+              <p v-if="projectStore.error" class="mt-3 text-sm text-red-400">{{ projectStore.error }}</p>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-end gap-3">
+              <button
+                class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-sm font-medium transition-colors"
+                @click="showDeleteConfirm = false"
+              >
+                {{ t('common.actions.cancel') }}
+              </button>
+              <button
+                class="px-6 py-2.5 bg-red-600 hover:bg-red-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all disabled:opacity-50"
+                :disabled="isDeleting"
+                @click="handleDeleteProject"
+              >
+                <svg v-if="isDeleting" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {{ t('common.actions.delete') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </MainLayout>
 </template>
