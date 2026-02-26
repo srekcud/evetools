@@ -11,7 +11,7 @@ use App\Entity\User;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Service\ESI\CharacterService;
 use App\Service\ESI\CorporationService;
-use App\Service\Sync\AssetsSyncService;
+use App\Repository\CharacterRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -26,7 +26,7 @@ class CorpAssetVisibilityProvider implements ProviderInterface
         private readonly CorpAssetVisibilityRepository $visibilityRepository,
         private readonly CharacterService $characterService,
         private readonly CorporationService $corporationService,
-        private readonly AssetsSyncService $assetsSyncService,
+        private readonly CharacterRepository $characterRepository,
     ) {
     }
 
@@ -46,9 +46,9 @@ class CorpAssetVisibilityProvider implements ProviderInterface
         $corporationId = $mainCharacter->getCorporationId();
         $isDirector = $this->characterService->canReadCorporationAssets($mainCharacter);
 
-        // Use director character to fetch divisions (non-directors can't access ESI divisions endpoint)
-        $directorCharacter = $this->assetsSyncService->getCorpAssetsCharacter($corporationId);
-        $allDivisions = $this->corporationService->getDivisions($directorCharacter ?? $mainCharacter);
+        // Use a character with divisions scope (non-directors can't access ESI divisions endpoint)
+        $divisionsCharacter = $this->characterRepository->findWithCorpDivisionsAccess($corporationId);
+        $allDivisions = $this->corporationService->getDivisions($divisionsCharacter ?? $mainCharacter);
 
         $visibility = $this->visibilityRepository->findByCorporationId($corporationId);
 
