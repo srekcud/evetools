@@ -39,9 +39,9 @@ class CorporationService
         try {
             $data = $this->esiClient->get("/corporations/{$corporationId}/divisions/", $token);
         } catch (\Throwable $e) {
-            $this->logger->warning('Failed to fetch divisions: ' . $e->getMessage(), [
+            $this->logger->warning('Failed to get corporation divisions', [
                 'corporationId' => $corporationId,
-                'characterName' => $character->getName(),
+                'error' => $e->getMessage(),
             ]);
             return [];
         }

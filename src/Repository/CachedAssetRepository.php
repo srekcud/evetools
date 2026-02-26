@@ -158,6 +158,36 @@ class CachedAssetRepository extends ServiceEntityRepository
     }
 
     /**
+     * Get distinct division numbers and names for a corporation from cached assets.
+     *
+     * @return array<int, string> Division number => division name (e.g. [1 => 'Minerals', 3 => 'Ships'])
+     */
+    public function findDistinctDivisions(int $corporationId): array
+    {
+        $results = $this->createQueryBuilder('a')
+            ->select('DISTINCT a.locationFlag, a.divisionName')
+            ->where('a.corporationId = :corporationId')
+            ->andWhere('a.isCorporationAsset = true')
+            ->andWhere('a.locationFlag LIKE :sagPrefix')
+            ->setParameter('corporationId', $corporationId)
+            ->setParameter('sagPrefix', 'CorpSAG%')
+            ->getQuery()
+            ->getResult();
+
+        $divisions = [];
+        foreach ($results as $row) {
+            if (preg_match('/^CorpSAG(\d+)$/', $row['locationFlag'], $matches)) {
+                $divisionNumber = (int) $matches[1];
+                $divisions[$divisionNumber] = $row['divisionName'] ?? "Division {$divisionNumber}";
+            }
+        }
+
+        ksort($divisions);
+
+        return $divisions;
+    }
+
+    /**
      * @return array<int, string>
      */
     public function findDistinctLocationsForCharacter(Character $character): array

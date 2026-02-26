@@ -8,6 +8,7 @@ use App\Entity\CachedAsset;
 use App\Entity\Character;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CharacterRepository;
+use App\Repository\CorpAssetVisibilityRepository;
 use App\Service\ESI\AssetsService;
 use App\Service\ESI\CorporationService;
 use App\Service\Mercure\MercurePublisherService;
@@ -23,6 +24,7 @@ class AssetsSyncService
         private readonly CorporationService $corporationService,
         private readonly CachedAssetRepository $cachedAssetRepository,
         private readonly CharacterRepository $characterRepository,
+        private readonly CorpAssetVisibilityRepository $visibilityRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
         private readonly MercurePublisherService $mercurePublisher,
@@ -196,7 +198,7 @@ class AssetsSyncService
      */
     public function syncCorporationAssetsForCorp(int $corporationId): bool
     {
-        $character = $this->characterRepository->findWithCorpAssetsAccess($corporationId);
+        $character = $this->getCorpAssetsCharacter($corporationId);
 
         if ($character === null) {
             $this->logger->info('No character with corporation assets access found', [
@@ -253,18 +255,34 @@ class AssetsSyncService
 
     /**
      * Check if corporation assets can be synced for the given corporation.
-     * Returns true if any character in the corporation has the required access.
+     * Returns true if a character with the required scope is available (preferring the Director who configured visibility).
      */
     public function canSyncCorporationAssets(int $corporationId): bool
     {
-        return $this->characterRepository->findWithCorpAssetsAccess($corporationId) !== null;
+        return $this->getCorpAssetsCharacter($corporationId) !== null;
     }
 
     /**
      * Get the character that will be used to sync corporation assets.
+     * Prefers the Director who configured visibility, falls back to any character with the scope.
      */
     public function getCorpAssetsCharacter(int $corporationId): ?Character
     {
+        // Prefer the Director who configured visibility
+        $visibility = $this->visibilityRepository->findByCorporationId($corporationId);
+        if ($visibility !== null) {
+            $directorUser = $visibility->getConfiguredBy();
+            foreach ($directorUser->getCharacters() as $character) {
+                if ($character->getCorporationId() === $corporationId) {
+                    $token = $character->getEveToken();
+                    if ($token !== null && $token->hasScope('esi-assets.read_corporation_assets.v1')) {
+                        return $character;
+                    }
+                }
+            }
+        }
+
+        // Fallback: any character in the corp with the scope
         return $this->characterRepository->findWithCorpAssetsAccess($corporationId);
     }
 
