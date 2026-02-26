@@ -38,6 +38,11 @@
         reverse_proxy app:80
     }
 
+    # Shared appraisal OG meta tags (for Discord/Slack previews)
+    handle /s/* {
+        reverse_proxy app:80
+    }
+
     # Auth routes - except callback which needs frontend
     handle /auth/eve/redirect {
         reverse_proxy app:80
