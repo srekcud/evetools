@@ -253,7 +253,7 @@ async function saveVisibility(divisions: number[]) {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${authStore.token}`,
-        'Content-Type': 'application/merge-patch+json'
+        'Content-Type': 'application/ld+json'
       },
       body: JSON.stringify({ visibleDivisions: divisions })
     })
