@@ -102,6 +102,62 @@ class CachedAssetRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param int[] $divisionNumbers Division numbers (1-7)
+     * @return CachedAsset[]
+     */
+    public function findByCorporationAndDivisions(int $corporationId, array $divisionNumbers): array
+    {
+        $flags = self::divisionNumbersToFlags($divisionNumbers);
+
+        return $this->createQueryBuilder('a')
+            ->where('a.corporationId = :corporationId')
+            ->andWhere('a.isCorporationAsset = true')
+            ->andWhere('a.locationFlag IN (:flags)')
+            ->setParameter('corporationId', $corporationId)
+            ->setParameter('flags', $flags)
+            ->orderBy('a.locationName', 'ASC')
+            ->addOrderBy('a.typeName', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Filter by division name AND restrict to visible division flags.
+     *
+     * @param int[] $divisionNumbers Division numbers (1-7)
+     * @return CachedAsset[]
+     */
+    public function findByCorporationDivisionNameAndFlags(int $corporationId, string $divisionName, array $divisionNumbers): array
+    {
+        $flags = self::divisionNumbersToFlags($divisionNumbers);
+
+        return $this->createQueryBuilder('a')
+            ->where('a.corporationId = :corporationId')
+            ->andWhere('a.divisionName = :divisionName')
+            ->andWhere('a.isCorporationAsset = true')
+            ->andWhere('a.locationFlag IN (:flags)')
+            ->setParameter('corporationId', $corporationId)
+            ->setParameter('divisionName', $divisionName)
+            ->setParameter('flags', $flags)
+            ->orderBy('a.locationName', 'ASC')
+            ->addOrderBy('a.typeName', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * @param int[] $divisionNumbers
+     * @return string[]
+     */
+    private static function divisionNumbersToFlags(array $divisionNumbers): array
+    {
+        return array_map(
+            static fn (int $n): string => "CorpSAG{$n}",
+            $divisionNumbers,
+        );
+    }
+
+    /**
      * @return array<int, string>
      */
     public function findDistinctLocationsForCharacter(Character $character): array
@@ -169,6 +225,46 @@ class CachedAssetRepository extends ServiceEntityRepository
         $result = [];
         foreach ($rows as $row) {
             $result[(int) $row['type_id']] = (int) $row['total_qty'];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Aggregate personal asset quantities by typeId with location breakdown.
+     *
+     * @return array<int, array{total: int, locations: list<array{locationId: int, locationName: string, systemName: string|null, quantity: int}>}>
+     */
+    public function getQuantitiesByUserWithLocations(User $user): array
+    {
+        $conn = $this->getEntityManager()->getConnection();
+
+        $sql = <<<SQL
+            SELECT a.type_id, a.location_id, a.location_name, a.solar_system_name, SUM(a.quantity) AS qty
+            FROM cached_assets a
+            JOIN characters c ON c.id = a.character_id
+            WHERE c.user_id = :userId
+              AND a.is_corporation_asset = false
+            GROUP BY a.type_id, a.location_id, a.location_name, a.solar_system_name
+            ORDER BY a.type_id, qty DESC
+        SQL;
+
+        $rows = $conn->fetchAllAssociative($sql, ['userId' => $user->getId()]);
+
+        $result = [];
+        foreach ($rows as $row) {
+            $typeId = (int) $row['type_id'];
+            if (!isset($result[$typeId])) {
+                $result[$typeId] = ['total' => 0, 'locations' => []];
+            }
+            $qty = (int) $row['qty'];
+            $result[$typeId]['total'] += $qty;
+            $result[$typeId]['locations'][] = [
+                'locationId' => (int) $row['location_id'],
+                'locationName' => $row['location_name'] ?? 'Unknown',
+                'systemName' => $row['solar_system_name'],
+                'quantity' => $qty,
+            ];
         }
 
         return $result;

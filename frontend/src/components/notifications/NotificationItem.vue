@@ -14,6 +14,7 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   click: [notification: AppNotification]
+  delete: [id: string]
 }>()
 
 const levelStyles: Record<NotificationLevel, { dot: string; border: string }> = {
@@ -45,6 +46,10 @@ const timeAgo = computed(() => {
 function handleClick(): void {
   emit('click', props.notification)
 }
+
+function handleDelete(): void {
+  emit('delete', props.notification.id)
+}
 </script>
 
 <template>
@@ -75,9 +80,20 @@ function handleClick(): void {
           >
             {{ notification.title }}
           </span>
-          <span class="text-[10px] text-slate-600 shrink-0 whitespace-nowrap">
-            {{ timeAgo }}
-          </span>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <span class="text-[10px] text-slate-600 whitespace-nowrap group-hover/item:hidden">
+              {{ timeAgo }}
+            </span>
+            <button
+              @click.stop="handleDelete"
+              :title="t('notificationHub.deleteOne')"
+              class="hidden group-hover/item:flex items-center justify-center w-5 h-5 rounded hover:bg-red-500/20 transition-colors"
+            >
+              <svg class="w-3.5 h-3.5 text-slate-500 hover:text-red-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
         <p class="text-xs text-slate-500 mt-0.5 line-clamp-2">
           {{ notification.message }}

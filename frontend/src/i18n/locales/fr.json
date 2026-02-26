@@ -81,6 +81,7 @@
     "contracts": "Contrats",
     "market": "Marche",
     "appraisal": "Appraisal",
+    "groupIndustry": "Industrie de groupe",
     "admin": "Administration"
   },
   "settings": {
@@ -577,7 +578,19 @@
         "copyMultibuy": "Copier Multibuy",
         "copied": "Copie !",
         "noStructure": "Configurez la structure dans les Parametres",
-        "selectStructure": "Selectionner une structure..."
+        "selectStructure": "Selectionner une structure...",
+        "factionBpc": "BPC Faction",
+        "setBpcPrice": "Definir le prix du BPC par run",
+        "bpcCostNotIncluded": "Cout BPC non inclus",
+        "bpcCostPerRun": "Cout BPC/run",
+        "saveBpcPrice": "Enregistrer",
+        "removeBpcPrice": "Supprimer",
+        "bpcPriceSet": "BPC : {price}",
+        "favorites": "Favoris",
+        "addFavorite": "Ajouter aux favoris",
+        "removeFavorite": "Retirer des favoris",
+        "missingSkills": "{count} competence(s) manquante(s)",
+        "canManufacture": "Fabricable"
       },
       "buyVsBuild": {
         "tabLabel": "Acheter vs Fabriquer",
@@ -1178,6 +1191,7 @@
         "estOutput": "Production est.",
         "buildable": "constructibles"
       },
+      "locationBreakdown": "Repartition par lieu",
       "stages": {
         "raw_material": "Matieres premieres",
         "intermediate": "Intermediaires",
@@ -1226,6 +1240,20 @@
         "description": "Importez des objectifs depuis un blueprint pour suivre votre pipeline de production.",
         "cta": "Configurer les objectifs"
       }
+    },
+    "calculator": {
+      "title": "Calculateur de Production",
+      "modeMaxRuns": "Runs Max",
+      "modeDuration": "Temps pour Runs",
+      "timePerRun": "Temps/Run",
+      "lines": "Lignes",
+      "outputPerRun": "Sortie/Run",
+      "days": "Jours",
+      "hours": "Heures",
+      "maxRuns": "Runs Max",
+      "totalOutput": "Production Totale",
+      "desiredRuns": "Runs souhaitees",
+      "requiredTime": "Temps requis"
     }
   },
   "ledger": {
@@ -1369,6 +1397,17 @@
       "title": "Répartition par emplacement",
       "noData": "Aucune donnée d'asset disponible",
       "other": "Autres emplacements"
+    },
+    "visibility": {
+      "title": "Visibilité des divisions",
+      "description": "Choisissez les divisions visibles par les membres",
+      "noDivisionsShared": "Aucune division partagée par un Directeur",
+      "save": "Enregistrer",
+      "saved": "Visibilité mise à jour",
+      "configuredBy": "Configuré par {name}",
+      "lastUpdate": "Dernière mise à jour",
+      "showPanel": "Gérer la visibilité",
+      "hidePanel": "Masquer"
     }
   },
   "contracts": {
@@ -1647,6 +1686,10 @@
   "notificationHub": {
     "title": "Notifications",
     "markAllRead": "Tout marquer comme lu",
+    "clearRead": "Supprimer lues",
+    "clearReadSuccess": "{count} notifications supprimees",
+    "deleteOne": "Supprimer",
+    "deleteOneSuccess": "Notification supprimee",
     "settings": "Preferences",
     "empty": "Aucune notification",
     "loadMore": "Charger plus",
@@ -1672,6 +1715,281 @@
       "save": "Enregistrer",
       "pushDenied": "Les notifications push ont ete refusees par le navigateur",
       "pushNotSupported": "Push non supporte par ce navigateur"
+    }
+  },
+  "groupIndustry": {
+    "title": "Industrie de groupe",
+    "subtitle": "Projets de fabrication collaboratifs",
+    "myProjects": "Mes projets",
+    "available": "Projets disponibles",
+    "noProjects": "Aucun projet de groupe. Creez-en un pour commencer !",
+    "noAvailable": "Aucun projet disponible dans votre corporation.",
+    "kpis": {
+      "activeProjects": "Projets actifs",
+      "activeDesc": "en cours de production",
+      "totalContributions": "Contributions totales",
+      "contributionsDesc": "sur tous les projets",
+      "pendingApprovals": "Approbations en attente",
+      "approvalsDesc": "contributions en attente de validation",
+      "pipelineValue": "Valeur pipeline",
+      "pipelineDesc": "valeur de vente estimee"
+    },
+    "status": {
+      "draft": "Brouillon",
+      "published": "Publie",
+      "in_progress": "En cours",
+      "selling": "En vente",
+      "completed": "Termine"
+    },
+    "bom": {
+      "title": "Nomenclature",
+      "materialsToSource": "Materiaux a sourcer",
+      "jobsToLaunch": "Jobs a lancer",
+      "blueprints": "Blueprints",
+      "components": "Composants",
+      "finalProducts": "Produits finaux",
+      "item": "Item",
+      "required": "Requis",
+      "fulfilled": "Fourni",
+      "remaining": "Restant",
+      "progress": "Progression",
+      "fulfillment": "Progression",
+      "estCost": "Cout est.",
+      "estimatedPrice": "Prix est.",
+      "estimatedTotal": "Total est.",
+      "totalItems": "Total items",
+      "totalEstCost": "Cout total est.",
+      "overallFulfillment": "Progression globale"
+    },
+    "jobs": {
+      "title": "Jobs a lancer",
+      "product": "Produit",
+      "activity": "Activite",
+      "runs": "Runs",
+      "status": "Statut",
+      "totalJobs": "Total jobs",
+      "blueprints": "Blueprints",
+      "components": "Composants",
+      "finalProducts": "Produits finaux"
+    },
+    "contribute": {
+      "title": "Ajouter une contribution",
+      "type": "Type de contribution",
+      "item": "Item",
+      "bomStep": "Etape BOM",
+      "selectItem": "Selectionnez un item...",
+      "quantity": "Quantite",
+      "estimatedValue": "Valeur estimee",
+      "totalValuation": "Valorisation totale",
+      "notes": "Notes",
+      "notesPlaceholder": "Note optionnelle sur cette contribution...",
+      "optional": "optionnel",
+      "submit": "Soumettre la contribution",
+      "pendingNote": "Votre contribution sera examinee par un admin du projet."
+    },
+    "contributions": {
+      "title": "Contributions",
+      "types": {
+        "material": "Materiau",
+        "job_install": "Installation job",
+        "bpc": "BPC",
+        "line_rental": "Location de ligne"
+      },
+      "statuses": {
+        "pending": "En attente",
+        "approved": "Approuvee",
+        "rejected": "Rejetee"
+      },
+      "autoDetected": "Auto-detectee",
+      "verified": "Verifiee",
+      "unverified": "Non verifiee",
+      "reviewedBy": "Validee par {name}",
+      "noContributions": "Aucune contribution pour le moment."
+    },
+    "distribution": {
+      "title": "Distribution",
+      "totalRevenue": "Revenu total",
+      "brokerFee": "Frais courtier",
+      "salesTax": "Taxe de vente",
+      "netRevenue": "Revenu net",
+      "totalCost": "Cout total du projet",
+      "margin": "Marge",
+      "payout": "Versement",
+      "costsEngaged": "Frais engages",
+      "share": "Part",
+      "profitPart": "Part de profit",
+      "materialCosts": "Couts materiaux",
+      "jobInstallCosts": "Couts installation",
+      "bpcCosts": "Couts BPC",
+      "lineRentalCosts": "Couts location ligne"
+    },
+    "sales": {
+      "title": "Ventes",
+      "recordSale": "Enregistrer une vente",
+      "noSales": "Aucune vente enregistree.",
+      "unitPrice": "Prix unitaire",
+      "totalPrice": "Prix total",
+      "venue": "Lieu",
+      "soldAt": "Vendu le",
+      "recordedBy": "Enregistre par"
+    },
+    "members": {
+      "title": "Membres",
+      "roles": {
+        "owner": "Proprietaire",
+        "admin": "Admin",
+        "member": "Membre"
+      },
+      "promote": "Promouvoir Admin",
+      "kick": "Exclure",
+      "acceptRequest": "Accepter",
+      "rejectRequest": "Rejeter",
+      "pendingRequests": "Demandes en attente",
+      "noPending": "Aucune demande d'adhesion en attente.",
+      "totalContributed": "Total contribue",
+      "contributionCount": "Contributions",
+      "joinedAt": "Rejoint le"
+    },
+    "shareLink": {
+      "title": "Lien d'invitation",
+      "description": "Partagez ce lien pour inviter des joueurs au projet.",
+      "copied": "Lien copie !",
+      "sameCorp": "Les membres de la meme corp sont auto-acceptes.",
+      "otherCorp": "Les autres joueurs devront etre approuves."
+    },
+    "container": {
+      "title": "Verification container",
+      "verify": "Tout verifier",
+      "verifyAll": "Tout verifier",
+      "verifying": "Verification...",
+      "statuses": {
+        "verified": "Verifie",
+        "partial": "Partiel",
+        "unchecked": "Non verifie"
+      },
+      "containerName": "Nom du container",
+      "containerQuantity": "Qte container"
+    },
+    "actions": {
+      "createProject": "Nouveau projet",
+      "joinProject": "Rejoindre le projet",
+      "submitContribution": "Ajouter une contribution",
+      "recordSale": "Enregistrer une vente",
+      "verifyContainer": "Verifier le container",
+      "lineRentalSettings": "Parametres location ligne",
+      "copyLink": "Copier le lien",
+      "advanceStatus": "Avancer le statut",
+      "deleteProject": "Supprimer le projet"
+    },
+    "modals": {
+      "newProject": {
+        "title": "Nouveau projet de groupe",
+        "subtitle": "Creer un nouveau projet industriel multi-items",
+        "nameLabel": "Nom",
+        "namePlaceholder": "Nom personnalise (ex: Build Doctrine Fleet)",
+        "optional": "optionnel",
+        "itemsToProduce": "Items a produire",
+        "itemsLabel": "Items a produire",
+        "itemsPlaceholder": "Collez les items : ItemName ME TE xRuns (un par ligne)",
+        "addItem": "Ajouter un item",
+        "bulkPaste": "Coller en lot",
+        "searchPlaceholder": "Rechercher un item (ex: Ferox, Ishtar...)",
+        "addToList": "Ajouter a la liste",
+        "parseAndAdd": "Parser et ajouter",
+        "bulkPlaceholder": "Collez les items, un par ligne :\nFerox 2 4 x100\nIshtar 4 8 x50\nSabre 4 8 x200",
+        "bulkFormat": "Format :",
+        "columnItem": "Item",
+        "columnRuns": "Runs",
+        "noItems": "Aucun item ajoute",
+        "noItemsHint": "Recherchez des items ci-dessus ou utilisez le collage en lot",
+        "totalRuns": "runs au total",
+        "containerLabel": "Container corp",
+        "containerPlaceholder": "ex: Fleet Doctrine Materials",
+        "containerHint": "Si defini, les admins peuvent verifier les contributions materielles contre le contenu de ce container dans les bureaux corp partages.",
+        "blacklist": "Liste noire",
+        "blacklistLabel": "Liste noire",
+        "blacklistDesc": "Les items ci-dessous seront achetes, pas fabriques.",
+        "blacklistItemPlaceholder": "Ajouter un item specifique...",
+        "blacklistHint": "Defauts issus de vos parametres industrie. Surcharge par projet.",
+        "lineRentalInfo": "Tarifs location de ligne :",
+        "lineRentalDefault": "Utilise les defauts de vos parametres",
+        "lineRentalCustom": "Tarifs personnalises pour ce projet",
+        "overrideForProject": "Surcharger pour ce projet",
+        "collapse": "Replier",
+        "lineRentalOverrideHint": "Ces tarifs remplacent vos parametres par defaut pour ce projet uniquement.",
+        "bomNote": "La BOM sera agreg depuis tous les items",
+        "createButton": "Creer le projet",
+        "feesLabel": "Frais",
+        "brokerFee": "Frais courtier %",
+        "salesTax": "Taxe de vente %"
+      },
+      "contribute": {
+        "title": "Ajouter une contribution",
+        "typeLabel": "Type de contribution",
+        "bomItemLabel": "Item BOM",
+        "quantityLabel": "Quantite",
+        "estimatedValueLabel": "Valeur estimee (ISK)",
+        "noteLabel": "Note",
+        "notePlaceholder": "Note optionnelle..."
+      },
+      "lineRental": {
+        "title": "Tarifs location de ligne par defaut",
+        "description": "Ces tarifs sont utilises par defaut lors de la creation de nouveaux projets de groupe. Chaque projet peut les surcharger.",
+        "category": "Categorie",
+        "rate": "Tarif",
+        "unit": "Unite",
+        "saveDefaults": "Sauvegarder",
+        "componentT1": "Composant T1",
+        "moduleT1": "Module T1",
+        "shipT1": "Vaisseau T1",
+        "moduleT2": "Module T2",
+        "shipT2": "Vaisseau T2",
+        "capitalT1": "Capital T1",
+        "capitalT2": "Capital T2",
+        "locationFactor": "Facteur localisation",
+        "perRun": "ISK/run",
+        "perDay": "ISK/jour"
+      }
+    },
+    "join": {
+      "title": "Rejoindre le projet",
+      "description": "Vous avez ete invite a rejoindre ce projet industriel de groupe.",
+      "joinButton": "Rejoindre le projet",
+      "alreadyMember": "Vous etes deja membre de ce projet.",
+      "pendingApproval": "Votre demande d'adhesion est en attente d'approbation.",
+      "projectNotFound": "Projet non trouve ou lien expire."
+    },
+    "tabs": {
+      "myProjects": "Mes projets",
+      "available": "Disponibles",
+      "sameCorp": "meme corp",
+      "materialsAndJobs": "Materiaux & Jobs",
+      "materialsJobs": "Materiaux & Jobs",
+      "contributions": "Contributions",
+      "distribution": "Distribution",
+      "members": "Membres"
+    },
+    "available": {
+      "runs": "Runs",
+      "members": "membres",
+      "joinProject": "Rejoindre le projet",
+      "infoBanner": "Projets publies par les membres de votre corporation. Rejoignez instantanement, sans approbation.",
+      "empty": "Aucun projet disponible",
+      "emptyHint": "Pas de projets ouverts dans votre corporation pour le moment."
+    },
+    "empty": {
+      "title": "Aucun projet de groupe",
+      "description": "Creez un nouveau projet pour commencer a collaborer avec votre corporation."
+    },
+    "detail": {
+      "owner": "Proprietaire : {name}",
+      "members": "{count} membre | {count} membre | {count} membres",
+      "items": "{count} item | {count} item | {count} items",
+      "bomValue": "Valeur BOM",
+      "backToList": "Retour aux projets",
+      "shareLink": "Lien de partage",
+      "edit": "Modifier",
+      "delete": "Supprimer"
     }
   },
   "market": {

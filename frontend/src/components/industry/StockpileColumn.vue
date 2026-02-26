@@ -147,8 +147,23 @@ function onDeleteTarget(targetId: string): void {
               ></div>
             </div>
             <div class="flex items-center justify-between">
-              <div class="font-mono text-xs text-slate-500">
+              <div class="relative group/loc font-mono text-xs text-slate-500" :class="{ 'cursor-help underline decoration-dotted decoration-slate-600': item.locations?.length > 1 }">
                 {{ formatNumber(item.stock, 0) }} / {{ formatNumber(item.targetQuantity, 0) }}
+                <!-- Location tooltip -->
+                <div
+                  v-if="item.locations?.length > 0"
+                  class="hidden group-hover/loc:block absolute bottom-full left-0 mb-1 z-50 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-2.5 min-w-[200px] max-w-[300px]"
+                >
+                  <p class="text-[10px] text-slate-400 uppercase tracking-wider mb-1.5">{{ t('industry.stockpile.locationBreakdown') }}</p>
+                  <div
+                    v-for="loc in item.locations"
+                    :key="loc.locationId"
+                    class="flex items-center justify-between gap-3 py-0.5 text-xs"
+                  >
+                    <span class="text-slate-300 truncate">{{ loc.locationName }}</span>
+                    <span class="text-slate-400 font-mono shrink-0">{{ formatNumber(loc.quantity, 0) }}</span>
+                  </div>
+                </div>
               </div>
               <!-- Final product status -->
               <span

@@ -258,11 +258,11 @@ class StockpileServiceTest extends TestCase
         ];
 
         $this->targetRepository->method('findByUser')->willReturn($targets);
-        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([
-            1 => 100,  // 100% met
-            2 => 30,   // 60% partial
-            3 => 200,  // 200% met (over)
-            4 => 2,    // 20% critical
+        $this->assetRepository->method('getQuantitiesByUserWithLocations')->willReturn([
+            1 => ['total' => 100, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 100]]],
+            2 => ['total' => 30, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 30]]],
+            3 => ['total' => 200, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 200]]],
+            4 => ['total' => 2, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 2]]],
         ]);
         $this->jitaMarketService->method('getPrices')->willReturn([
             1 => 10.0,
@@ -286,10 +286,10 @@ class StockpileServiceTest extends TestCase
         ];
 
         $this->targetRepository->method('findByUser')->willReturn($targets);
-        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([
-            1 => 80,   // 80%
-            2 => 60,   // 60%
-            3 => 5,    // 5% - this is the worst
+        $this->assetRepository->method('getQuantitiesByUserWithLocations')->willReturn([
+            1 => ['total' => 80, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 80]]],
+            2 => ['total' => 60, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 60]]],
+            3 => ['total' => 5, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 5]]],
         ]);
         $this->jitaMarketService->method('getPrices')->willReturn([
             1 => 10.0,
@@ -319,12 +319,12 @@ class StockpileServiceTest extends TestCase
         ];
 
         $this->targetRepository->method('findByUser')->willReturn($targets);
-        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([
-            100 => 10,  // met
-            1 => 50,    // met
-            2 => 20,    // met
-            200 => 5,   // met
-            3 => 30,    // NOT met (30/100 = 30%)
+        $this->assetRepository->method('getQuantitiesByUserWithLocations')->willReturn([
+            100 => ['total' => 10, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 10]]],
+            1 => ['total' => 50, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 50]]],
+            2 => ['total' => 20, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 20]]],
+            200 => ['total' => 5, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 5]]],
+            3 => ['total' => 30, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 30]]],
         ]);
         $this->jitaMarketService->method('getPrices')->willReturn([
             100 => 1000.0,
@@ -426,9 +426,9 @@ class StockpileServiceTest extends TestCase
         ];
 
         $this->targetRepository->method('findByUser')->willReturn($targets);
-        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([
-            1 => 50,
-            100 => 10,
+        $this->assetRepository->method('getQuantitiesByUserWithLocations')->willReturn([
+            1 => ['total' => 50, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 50]]],
+            100 => ['total' => 10, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 10]]],
         ]);
         $this->jitaMarketService->method('getPrices')->willReturn([
             1 => 10.0,
@@ -469,9 +469,9 @@ class StockpileServiceTest extends TestCase
         ];
 
         $this->targetRepository->method('findByUser')->willReturn($targets);
-        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([
-            1 => 0,   // 0 stock, but target is 0 so it is met (100%)
-            2 => 50,   // 100% met
+        $this->assetRepository->method('getQuantitiesByUserWithLocations')->willReturn([
+            1 => ['total' => 0, 'locations' => []],
+            2 => ['total' => 50, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 50]]],
         ]);
         $this->jitaMarketService->method('getPrices')->willReturn([
             1 => 10.0,
@@ -495,11 +495,11 @@ class StockpileServiceTest extends TestCase
         ];
 
         $this->targetRepository->method('findByUser')->willReturn($targets);
-        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([
-            100 => 15,   // 150% over-stocked
-            1 => 500,    // 100% exact
-            2 => 30,     // 150%
-            3 => 200,    // 200%
+        $this->assetRepository->method('getQuantitiesByUserWithLocations')->willReturn([
+            100 => ['total' => 15, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 15]]],
+            1 => ['total' => 500, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 500]]],
+            2 => ['total' => 30, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 30]]],
+            3 => ['total' => 200, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 200]]],
         ]);
         $this->jitaMarketService->method('getPrices')->willReturn([
             100 => 5000000.0,

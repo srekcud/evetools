@@ -1,0 +1,2112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Group Industry - UX Flow -- EVE Tools</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+    body { background: #020617; font-family: system-ui, -apple-system, sans-serif; overflow-x: hidden; }
+    .font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 998; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px); }
+    @keyframes ringFill { from { stroke-dashoffset: var(--ring-circumference); } to { stroke-dashoffset: var(--ring-target); } }
+    .ring-animated { animation: ringFill 1.4s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
+    @keyframes cardSlideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+    .card-enter { animation: cardSlideUp 0.5s cubic-bezier(0.25,0.46,0.45,0.94) backwards; }
+    @keyframes fadeIn { from { opacity: 0; filter: blur(4px); } to { opacity: 1; filter: blur(0); } }
+    .value-reveal { animation: fadeIn 0.6s ease-out backwards; }
+    @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+    .progress-shimmer { background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent); background-size: 200% 100%; animation: shimmer 3s ease-in-out infinite; }
+    .ring-glow-cyan { filter: drop-shadow(0 0 6px rgba(34,211,238,0.15)); }
+    .ring-glow-amber { filter: drop-shadow(0 0 6px rgba(251,191,36,0.15)); }
+    .ring-glow-emerald { filter: drop-shadow(0 0 6px rgba(52,211,153,0.15)); }
+    .btn-action { transition: all 0.15s ease; }
+    .btn-action:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    .btn-action:active { transform: translateY(0); }
+    .project-card { transition: all 0.2s ease; }
+    .project-card:hover { border-color: rgba(56,189,248,0.3); box-shadow: 0 0 20px rgba(56,189,248,0.05); }
+    .filter-pill { transition: all 0.15s ease; }
+    .filter-pill:hover { background: rgba(51,65,85,0.8); }
+    .filter-pill.active { background: rgba(14,165,233,0.15); color: #38bdf8; border-color: rgba(56,189,248,0.3); }
+    .tab-item { transition: all 0.15s ease; border-bottom: 2px solid transparent; }
+    .tab-item:hover { color: #94a3b8; }
+    .tab-item.active { color: #38bdf8; border-bottom-color: #38bdf8; }
+    .accordion-header { transition: background-color 0.15s ease; }
+    .accordion-header:hover { background-color: rgba(30,41,59,0.5); }
+    .badge-material { background: rgba(34,211,238,0.12); color: #22d3ee; border-color: rgba(34,211,238,0.25); }
+    .badge-job_install { background: rgba(251,191,36,0.12); color: #fbbf24; border-color: rgba(251,191,36,0.25); }
+    .badge-bpc { background: rgba(167,139,250,0.12); color: #a78bfa; border-color: rgba(167,139,250,0.25); }
+    .badge-line_rental { background: rgba(244,114,182,0.12); color: #f472b6; border-color: rgba(244,114,182,0.25); }
+    /* badge-transport removed (type suppressed) */
+    .status-pending { background: rgba(251,191,36,0.12); color: #fbbf24; border-color: rgba(251,191,36,0.25); }
+    .status-approved { background: rgba(52,211,153,0.12); color: #34d399; border-color: rgba(52,211,153,0.25); }
+    .status-rejected { background: rgba(248,113,113,0.12); color: #f87171; border-color: rgba(248,113,113,0.25); }
+    @keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes modalSlideUp { from { opacity: 0; transform: translateY(24px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    .modal-overlay { animation: modalFadeIn 0.2s ease-out; }
+    .modal-content { animation: modalSlideUp 0.3s cubic-bezier(0.25,0.46,0.45,0.94); }
+    .type-radio { transition: all 0.15s ease; }
+    .type-radio:hover { background: rgba(30,41,59,0.8); border-color: rgba(71,85,105,0.6); }
+    .type-radio.active { border-color: rgba(34,211,238,0.5); background: rgba(34,211,238,0.05); }
+    .form-input { transition: border-color 0.15s ease; }
+    .form-input:focus { border-color: #0ea5e9; outline: none; box-shadow: 0 0 0 2px rgba(14,165,233,0.1); }
+    @keyframes pulseGlow { 0%,100% { box-shadow: 0 0 0 0 rgba(52,211,153,0.2); } 50% { box-shadow: 0 0 12px 4px rgba(52,211,153,0.15); } }
+    .valuation-glow { animation: pulseGlow 2s ease-in-out infinite; }
+    @keyframes screenFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .screen-enter { animation: screenFadeIn 0.3s ease-out; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+    .flow-node { transition: all 0.15s ease; cursor: pointer; }
+    .flow-node:hover { background: rgba(51,65,85,0.8); }
+    .flow-node.active { background: rgba(14,165,233,0.2); color: #22d3ee; border-color: rgba(34,211,238,0.4); }
+    .flow-connector { width: 24px; height: 2px; background: #334155; }
+    .main-tab { transition: all 0.15s ease; border-bottom: 2px solid transparent; cursor: pointer; }
+    .main-tab:hover { color: #94a3b8; }
+    .main-tab.active { color: #38bdf8; border-bottom-color: #38bdf8; }
+  </style>
+</head>
+<body class="min-h-screen text-slate-300">
+
+<!-- ============================================================ -->
+<!-- FLOW MAP BAR (sticky top)                                      -->
+<!-- ============================================================ -->
+<div id="flow-bar" class="sticky top-0 z-50 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800 px-4 py-2">
+  <div class="max-w-7xl mx-auto flex items-center justify-center gap-1">
+    <div onclick="navigateTo('my-projects')" class="flow-node active px-3 py-1 rounded-lg text-xs font-medium border border-slate-700 text-slate-400" data-screen="my-projects">My Projects</div>
+    <div class="flow-connector"></div>
+    <div onclick="navigateTo('available')" class="flow-node px-3 py-1 rounded-lg text-xs font-medium border border-slate-700 text-slate-400" data-screen="available">Available</div>
+    <div class="flow-connector"></div>
+    <div onclick="navigateTo('detail-bom')" class="flow-node px-3 py-1 rounded-lg text-xs font-medium border border-slate-700 text-slate-400" data-screen="detail-bom">Detail:BOM</div>
+    <div class="flow-connector"></div>
+    <div onclick="navigateTo('detail-contributions')" class="flow-node px-3 py-1 rounded-lg text-xs font-medium border border-slate-700 text-slate-400" data-screen="detail-contributions">Detail:Contributions</div>
+    <div class="flow-connector"></div>
+    <div onclick="navigateTo('detail-distribution')" class="flow-node px-3 py-1 rounded-lg text-xs font-medium border border-slate-700 text-slate-400" data-screen="detail-distribution">Detail:Distribution</div>
+    <div class="flow-connector"></div>
+    <div onclick="navigateTo('detail-members')" class="flow-node px-3 py-1 rounded-lg text-xs font-medium border border-slate-700 text-slate-400" data-screen="detail-members">Detail:Members</div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN 1: MY PROJECTS                                          -->
+<!-- ============================================================ -->
+<section id="screen-my-projects" class="screen active" data-screen="my-projects">
+<div class="max-w-7xl mx-auto px-6 py-8">
+
+  <!-- Page header -->
+  <div class="mb-6 card-enter" style="animation-delay: 0ms;">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-100">Group Industry</h1>
+          <div class="flex items-center gap-2 mt-1">
+            <img src="https://images.evetech.net/corporations/98000001/logo?size=32" alt="Corp" class="w-5 h-5 rounded" onerror="this.style.display='none';" />
+            <span class="text-sm text-slate-500">Goonswarm Federation</span>
+            <span class="text-xs px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 border border-slate-700">12 members</span>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="openLineRentalModal()" class="btn-action px-3 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-300 text-sm" title="Line Rental Settings">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+        </button>
+        <button onclick="openNewProjectModal()" class="btn-action px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+          New Project
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Tabs: My Projects / Available -->
+  <div class="border-b border-slate-800 mb-6 card-enter" style="animation-delay: 30ms;">
+    <div class="flex gap-6">
+      <button onclick="switchMainTab('my-projects')" class="main-tab active px-1 pb-3 text-sm font-medium" data-main-tab="my-projects">My Projects <span class="ml-1.5 text-xs px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400">3</span></button>
+      <button onclick="switchMainTab('available')" class="main-tab px-1 pb-3 text-sm font-medium text-slate-500" data-main-tab="available">Available <span class="ml-1.5 text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">2</span> <span class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/20">same corp</span></button>
+    </div>
+  </div>
+
+  <!-- KPI CARDS -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-4 card-enter" style="animation-delay: 60ms;">
+      <div class="flex items-center justify-between mb-3">
+        <p class="text-xs text-slate-500 uppercase tracking-wider">Active Projects</p>
+        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+      </div>
+      <p class="text-3xl font-bold text-cyan-400 font-mono value-reveal" style="animation-delay: 300ms; font-variant-numeric: tabular-nums;">3</p>
+      <p class="text-xs text-slate-600 mt-1">1 completing this week</p>
+    </div>
+    <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-4 card-enter" style="animation-delay: 120ms;">
+      <div class="flex items-center justify-between mb-3">
+        <p class="text-xs text-slate-500 uppercase tracking-wider">Total Contributions</p>
+        <svg class="w-4 h-4 text-emerald-500/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+      </div>
+      <p class="text-3xl font-bold text-emerald-400 font-mono value-reveal" style="animation-delay: 360ms; font-variant-numeric: tabular-nums;">8.7B</p>
+      <p class="text-xs text-slate-600 mt-1">across all projects</p>
+    </div>
+    <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-4 card-enter" style="animation-delay: 180ms;">
+      <div class="flex items-center justify-between mb-3">
+        <p class="text-xs text-slate-500 uppercase tracking-wider">Pending Approvals</p>
+        <svg class="w-4 h-4 text-amber-500/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+      </div>
+      <p class="text-3xl font-bold text-amber-400 font-mono value-reveal" style="animation-delay: 420ms; font-variant-numeric: tabular-nums;">5</p>
+      <p class="text-xs text-slate-600 mt-1">contributions awaiting review</p>
+    </div>
+    <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-4 card-enter" style="animation-delay: 240ms;">
+      <div class="flex items-center justify-between mb-3">
+        <p class="text-xs text-slate-500 uppercase tracking-wider">Pipeline Value</p>
+        <svg class="w-4 h-4 text-cyan-500/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+      </div>
+      <p class="text-3xl font-bold text-white font-mono value-reveal" style="animation-delay: 480ms; font-variant-numeric: tabular-nums;">14.2B</p>
+      <p class="text-xs text-slate-600 mt-1">estimated sell value</p>
+    </div>
+  </div>
+
+  <!-- Status filter pills -->
+  <div class="flex gap-2 mb-6 card-enter" style="animation-delay: 300ms;">
+    <button class="filter-pill active px-3 py-1.5 rounded-lg text-sm font-medium border border-transparent">All <span class="ml-1 text-xs opacity-60">3</span></button>
+    <button class="filter-pill px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 border border-transparent">Published <span class="ml-1 text-xs opacity-60">0</span></button>
+    <button class="filter-pill px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 border border-transparent">In Progress <span class="ml-1 text-xs opacity-60">1</span></button>
+    <button class="filter-pill px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 border border-transparent">Selling <span class="ml-1 text-xs opacity-60">1</span></button>
+    <button class="filter-pill px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 border border-transparent">Completed <span class="ml-1 text-xs opacity-60">1</span></button>
+  </div>
+
+  <!-- Project Cards Grid -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+    <!-- Project Card 1: Fleet Doctrine Build (multi-item) -->
+    <div onclick="navigateTo('detail-bom')" class="project-card bg-slate-900/80 rounded-xl border border-slate-800 p-5 cursor-pointer card-enter" style="animation-delay: 360ms;">
+      <div class="flex items-start gap-4 mb-4">
+        <div class="flex flex-col gap-1 flex-shrink-0">
+          <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/16229/icon?size=32" alt="Ferox" class="w-full h-full object-cover" onerror="this.style.display='none';" /></div>
+          <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/12005/icon?size=32" alt="Ishtar" class="w-full h-full object-cover" onerror="this.style.display='none';" /></div>
+          <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/22456/icon?size=32" alt="Sabre" class="w-full h-full object-cover" onerror="this.style.display='none';" /></div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <h3 class="text-lg font-semibold text-slate-100 truncate">Fleet Doctrine Build</h3>
+            <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 flex-shrink-0">In Progress</span>
+          </div>
+          <p class="text-sm text-slate-500">3 items &middot; 350 runs</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 mb-4">
+        <div class="relative w-14 h-14 flex-shrink-0 ring-glow-amber">
+          <svg viewBox="0 0 56 56" class="w-14 h-14" style="transform: rotate(-90deg)">
+            <circle cx="28" cy="28" r="22" fill="none" stroke="rgb(30 41 59)" stroke-width="5" />
+            <circle cx="28" cy="28" r="22" fill="none" stroke="#fbbf24" stroke-width="5" stroke-linecap="round" stroke-dasharray="138.23" style="--ring-circumference: 138.23; --ring-target: 76.03;" class="ring-animated" stroke-dashoffset="138.23" />
+          </svg>
+          <div class="absolute inset-0 flex items-center justify-center"><span class="text-xs font-mono font-bold text-amber-400">45%</span></div>
+        </div>
+        <div class="flex-1">
+          <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">BOM Fulfillment</p>
+          <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
+            <div class="h-full bg-amber-500/60 rounded-full relative" style="width: 45%;"><div class="absolute inset-0 progress-shimmer rounded-full"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center justify-between text-xs">
+        <div class="flex items-center gap-2">
+          <img src="https://images.evetech.net/characters/96000001/portrait?size=32" alt="Sylvain" class="w-5 h-5 rounded-full" onerror="this.style.display='none';" />
+          <span class="text-slate-400">Sylvain Durand</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-1 text-slate-500">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            <span>4</span>
+          </div>
+          <span class="font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">+840M est.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Project Card 2: Ishtar -->
+    <div onclick="navigateTo('detail-distribution')" class="project-card bg-slate-900/80 rounded-xl border border-slate-800 p-5 cursor-pointer card-enter" style="animation-delay: 420ms;">
+      <div class="flex items-start gap-4 mb-4">
+        <div class="w-16 h-16 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+          <img src="https://images.evetech.net/types/12005/icon?size=64" alt="Ishtar" class="w-full h-full object-cover" onerror="this.style.display='none';" />
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <h3 class="text-lg font-semibold text-slate-100 truncate">50x Ishtar</h3>
+            <span class="text-xs px-2 py-0.5 rounded bg-violet-500/15 text-violet-400 border border-violet-500/20 flex-shrink-0">Selling</span>
+          </div>
+          <p class="text-sm text-slate-500">Heavy Assault Cruiser -- 50 runs</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 mb-4">
+        <div class="relative w-14 h-14 flex-shrink-0 ring-glow-cyan">
+          <svg viewBox="0 0 56 56" class="w-14 h-14" style="transform: rotate(-90deg)">
+            <circle cx="28" cy="28" r="22" fill="none" stroke="rgb(30 41 59)" stroke-width="5" />
+            <circle cx="28" cy="28" r="22" fill="none" stroke="#22d3ee" stroke-width="5" stroke-linecap="round" stroke-dasharray="138.23" style="--ring-circumference: 138.23; --ring-target: 30.41;" class="ring-animated" stroke-dashoffset="138.23" />
+          </svg>
+          <div class="absolute inset-0 flex items-center justify-center"><span class="text-xs font-mono font-bold text-cyan-400">78%</span></div>
+        </div>
+        <div class="flex-1">
+          <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">BOM Fulfillment</p>
+          <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
+            <div class="h-full bg-cyan-500/60 rounded-full relative" style="width: 78%;"><div class="absolute inset-0 progress-shimmer rounded-full"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center justify-between text-xs">
+        <div class="flex items-center gap-2">
+          <img src="https://images.evetech.net/characters/96000002/portrait?size=32" alt="Alice" class="w-5 h-5 rounded-full" onerror="this.style.display='none';" />
+          <span class="text-slate-400">Alice Kondur</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-1 text-slate-500">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            <span>3</span>
+          </div>
+          <span class="font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">+2.1B est.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Project Card 3: Sabre -->
+    <div onclick="navigateTo('detail-bom')" class="project-card bg-slate-900/80 rounded-xl border border-slate-800 p-5 cursor-pointer card-enter" style="animation-delay: 480ms;">
+      <div class="flex items-start gap-4 mb-4">
+        <div class="w-16 h-16 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+          <img src="https://images.evetech.net/types/22456/icon?size=64" alt="Sabre" class="w-full h-full object-cover" onerror="this.style.display='none';" />
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <h3 class="text-lg font-semibold text-slate-100 truncate">200x Sabre</h3>
+            <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 flex-shrink-0">Completed</span>
+          </div>
+          <p class="text-sm text-slate-500">Interdictor -- 200 runs</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 mb-4">
+        <div class="relative w-14 h-14 flex-shrink-0 ring-glow-emerald">
+          <svg viewBox="0 0 56 56" class="w-14 h-14" style="transform: rotate(-90deg)">
+            <circle cx="28" cy="28" r="22" fill="none" stroke="rgb(30 41 59)" stroke-width="5" />
+            <circle cx="28" cy="28" r="22" fill="none" stroke="#34d399" stroke-width="5" stroke-linecap="round" stroke-dasharray="138.23" style="--ring-circumference: 138.23; --ring-target: 0;" class="ring-animated" stroke-dashoffset="138.23" />
+          </svg>
+          <div class="absolute inset-0 flex items-center justify-center"><span class="text-xs font-mono font-bold text-emerald-400">100%</span></div>
+        </div>
+        <div class="flex-1">
+          <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">BOM Fulfillment</p>
+          <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
+            <div class="h-full bg-emerald-500/60 rounded-full" style="width: 100%;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center justify-between text-xs">
+        <div class="flex items-center gap-2">
+          <img src="https://images.evetech.net/characters/96000001/portrait?size=32" alt="Sylvain" class="w-5 h-5 rounded-full" onerror="this.style.display='none';" />
+          <span class="text-slate-400">Sylvain Durand</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-1 text-slate-500">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            <span>5</span>
+          </div>
+          <span class="font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">+1.4B profit</span>
+        </div>
+      </div>
+      <div class="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between">
+        <span class="text-xs text-slate-500">Completed Feb 20, 2026</span>
+        <span class="text-xs font-mono text-emerald-400">Margin: +18.2%</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SCREEN 2: AVAILABLE PROJECTS                                    -->
+<!-- ============================================================ -->
+<section id="screen-available" class="screen" data-screen="available">
+<div class="max-w-7xl mx-auto px-6 py-8">
+
+  <!-- Page header (same as screen 1) -->
+  <div class="mb-6 card-enter" style="animation-delay: 0ms;">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-100">Group Industry</h1>
+          <div class="flex items-center gap-2 mt-1">
+            <img src="https://images.evetech.net/corporations/98000001/logo?size=32" alt="Corp" class="w-5 h-5 rounded" onerror="this.style.display='none';" />
+            <span class="text-sm text-slate-500">Goonswarm Federation</span>
+            <span class="text-xs px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 border border-slate-700">12 members</span>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="openLineRentalModal()" class="btn-action px-3 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-300 text-sm" title="Line Rental Settings">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+        </button>
+        <button onclick="openNewProjectModal()" class="btn-action px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+          New Project
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Tabs -->
+  <div class="border-b border-slate-800 mb-6 card-enter" style="animation-delay: 30ms;">
+    <div class="flex gap-6">
+      <button onclick="switchMainTab('my-projects')" class="main-tab px-1 pb-3 text-sm font-medium text-slate-500" data-main-tab="my-projects">My Projects <span class="ml-1.5 text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">3</span></button>
+      <button onclick="switchMainTab('available')" class="main-tab active px-1 pb-3 text-sm font-medium" data-main-tab="available">Available <span class="ml-1.5 text-xs px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400">2</span> <span class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/20">same corp</span></button>
+    </div>
+  </div>
+
+  <!-- Info banner -->
+  <div class="bg-slate-800/60 rounded-xl border border-slate-700/50 p-4 mb-6 flex items-start gap-3 card-enter" style="animation-delay: 60ms;">
+    <div class="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
+      <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+    </div>
+    <p class="text-sm text-slate-400">Projects published by members of your corporation. Join instantly -- no approval needed.</p>
+  </div>
+
+  <!-- Available Project Cards (2 columns, wider) -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+    <!-- Available Card 1: Jackdaw -->
+    <div class="project-card bg-slate-900/80 rounded-xl border border-slate-800 p-5 card-enter" style="animation-delay: 120ms;">
+      <div class="flex items-start gap-4 mb-4">
+        <div class="w-16 h-16 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+          <img src="https://images.evetech.net/types/34828/icon?size=64" alt="Jackdaw" class="w-full h-full object-cover" onerror="this.style.display='none';" />
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <h3 class="text-lg font-semibold text-slate-100 truncate">30x Jackdaw</h3>
+            <span class="text-xs px-2 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/20 flex-shrink-0">Published</span>
+          </div>
+          <div class="flex items-center gap-2 mt-1">
+            <img src="https://images.evetech.net/characters/96000004/portrait?size=32" alt="Dave" class="w-5 h-5 rounded-full" onerror="this.style.display='none';" />
+            <span class="text-sm text-slate-400">Dave Explorer</span>
+            <span class="text-xs px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 border border-slate-700">Goonswarm Federation</span>
+          </div>
+        </div>
+      </div>
+      <div class="grid grid-cols-3 gap-3 mb-4 text-center">
+        <div class="bg-slate-800/50 rounded-lg px-3 py-2">
+          <p class="text-xs text-slate-500 uppercase tracking-wider mb-0.5">Runs</p>
+          <p class="text-sm font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">30</p>
+        </div>
+        <div class="bg-slate-800/50 rounded-lg px-3 py-2">
+          <p class="text-xs text-slate-500 uppercase tracking-wider mb-0.5">ME / TE</p>
+          <p class="text-sm font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">4 / 8</p>
+        </div>
+        <div class="bg-slate-800/50 rounded-lg px-3 py-2">
+          <p class="text-xs text-slate-500 uppercase tracking-wider mb-0.5">BOM</p>
+          <p class="text-sm font-mono font-semibold text-red-400" style="font-variant-numeric: tabular-nums;">0%</p>
+        </div>
+      </div>
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-500 border border-slate-700 flex items-center gap-1">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+          2 members
+        </span>
+      </div>
+      <button onclick="event.stopPropagation(); showToast('Joined 30x Jackdaw project!')" class="btn-action w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm font-medium flex items-center justify-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+        Join Project
+      </button>
+    </div>
+
+    <!-- Available Card 2: Purifier -->
+    <div class="project-card bg-slate-900/80 rounded-xl border border-slate-800 p-5 card-enter" style="animation-delay: 180ms;">
+      <div class="flex items-start gap-4 mb-4">
+        <div class="w-16 h-16 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+          <img src="https://images.evetech.net/types/12034/icon?size=64" alt="Purifier" class="w-full h-full object-cover" onerror="this.style.display='none';" />
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <h3 class="text-lg font-semibold text-slate-100 truncate">75x Purifier</h3>
+            <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 flex-shrink-0">In Progress</span>
+          </div>
+          <div class="flex items-center gap-2 mt-1">
+            <img src="https://images.evetech.net/characters/96000005/portrait?size=32" alt="Eve" class="w-5 h-5 rounded-full" onerror="this.style.display='none';" />
+            <span class="text-sm text-slate-400">Eve Industrialist</span>
+          </div>
+        </div>
+      </div>
+      <div class="grid grid-cols-3 gap-3 mb-4 text-center">
+        <div class="bg-slate-800/50 rounded-lg px-3 py-2">
+          <p class="text-xs text-slate-500 uppercase tracking-wider mb-0.5">Runs</p>
+          <p class="text-sm font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">75</p>
+        </div>
+        <div class="bg-slate-800/50 rounded-lg px-3 py-2">
+          <p class="text-xs text-slate-500 uppercase tracking-wider mb-0.5">ME / TE</p>
+          <p class="text-sm font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">2 / 4</p>
+        </div>
+        <div class="bg-slate-800/50 rounded-lg px-3 py-2">
+          <p class="text-xs text-slate-500 uppercase tracking-wider mb-0.5">BOM</p>
+          <p class="text-sm font-mono font-semibold text-amber-400" style="font-variant-numeric: tabular-nums;">32%</p>
+        </div>
+      </div>
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-500 border border-slate-700 flex items-center gap-1">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+          4 members
+        </span>
+        <div class="h-1.5 w-24 bg-slate-700 rounded-full overflow-hidden">
+          <div class="h-full bg-amber-500/60 rounded-full" style="width: 32%;"></div>
+        </div>
+      </div>
+      <button onclick="event.stopPropagation(); showToast('Joined 75x Purifier project!')" class="btn-action w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm font-medium flex items-center justify-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+        Join Project
+      </button>
+    </div>
+
+  </div>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SCREEN 3: PROJECT DETAIL - BOM TAB                            -->
+<!-- ============================================================ -->
+<section id="screen-detail-bom" class="screen" data-screen="detail-bom">
+<div class="max-w-7xl mx-auto px-6 py-8">
+
+  <!-- Breadcrumb -->
+  <div class="mb-4 card-enter" style="animation-delay: 0ms;">
+    <div class="flex items-center gap-2 text-sm">
+      <button onclick="navigateTo('my-projects')" class="text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+      </button>
+      <a onclick="navigateTo('my-projects')" class="text-slate-500 hover:text-slate-300 transition-colors cursor-pointer">Group Industry</a>
+      <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+      <span class="text-slate-300">Fleet Doctrine Build</span>
+    </div>
+  </div>
+
+  <!-- Project Header -->
+  <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-6 mb-6 card-enter" style="animation-delay: 60ms;">
+    <div class="flex items-start gap-6">
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-3 mb-3">
+          <h1 class="text-2xl font-bold text-slate-100">Fleet Doctrine Build</h1>
+          <span class="text-xs px-2.5 py-1 rounded-lg bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 font-medium">In Progress</span>
+          <span class="text-xs px-2 py-0.5 rounded-lg bg-violet-500/12 text-violet-400 border border-violet-500/25 font-medium inline-flex items-center gap-1.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>Fleet Doctrine Materials</span>
+        </div>
+        <!-- Items list -->
+        <div class="mb-4 space-y-1.5">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0"><img src="https://images.evetech.net/types/16229/icon?size=32" alt="Ferox" class="w-full h-full" onerror="this.style.display='none';" /></div>
+            <span class="text-sm text-slate-200 w-32">Ferox</span>
+            <span class="text-xs text-slate-400">ME 2 / TE 4</span>
+            <span class="text-sm font-mono text-slate-300 ml-auto" style="font-variant-numeric: tabular-nums;">x100</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0"><img src="https://images.evetech.net/types/12005/icon?size=32" alt="Ishtar" class="w-full h-full" onerror="this.style.display='none';" /></div>
+            <span class="text-sm text-slate-200 w-32">Ishtar</span>
+            <span class="text-xs text-slate-400">ME 4 / TE 8</span>
+            <span class="text-sm font-mono text-slate-300 ml-auto" style="font-variant-numeric: tabular-nums;">x50</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0"><img src="https://images.evetech.net/types/22456/icon?size=32" alt="Sabre" class="w-full h-full" onerror="this.style.display='none';" /></div>
+            <span class="text-sm text-slate-200 w-32">Sabre</span>
+            <span class="text-xs text-slate-400">ME 4 / TE 8</span>
+            <span class="text-sm font-mono text-slate-300 ml-auto" style="font-variant-numeric: tabular-nums;">x200</span>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-3">
+          <div>
+            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Items</p>
+            <p class="text-lg font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">3</p>
+          </div>
+          <div>
+            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Manager</p>
+            <div class="flex items-center gap-2 mt-0.5">
+              <img src="https://images.evetech.net/characters/96000001/portrait?size=32" alt="Sylvain" class="w-5 h-5 rounded-full" onerror="this.style.display='none';" />
+              <span class="text-sm text-slate-300">Sylvain Durand</span>
+            </div>
+          </div>
+          <div>
+            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Contributors</p>
+            <p class="text-lg font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">4</p>
+          </div>
+          <div>
+            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Est. Profit</p>
+            <p class="text-lg font-mono font-semibold text-emerald-400" style="font-variant-numeric: tabular-nums;">+840M</p>
+          </div>
+        </div>
+      </div>
+      <div class="flex gap-2 flex-shrink-0">
+        <button onclick="showToast('Link copied!')" class="btn-action px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm flex items-center gap-2" title="Share Link">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+          Share Link
+        </button>
+        <button class="btn-action px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm" title="Edit">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+        </button>
+        <button class="btn-action px-3 py-2 bg-slate-700 hover:bg-red-600/80 rounded-lg text-slate-400 hover:text-white text-sm" title="Delete">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="border-b border-slate-800 mb-6 card-enter" style="animation-delay: 120ms;">
+    <div class="flex gap-6">
+      <button onclick="navigateTo('detail-bom')" class="tab-item active px-1 pb-3 text-sm font-medium">Materials &amp; Jobs <span class="ml-1.5 text-xs px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400">5 items &middot; 10 jobs</span></button>
+      <button onclick="navigateTo('detail-contributions')" class="tab-item px-1 pb-3 text-sm font-medium text-slate-500">Contributions <span class="ml-1.5 text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">12</span></button>
+      <button onclick="navigateTo('detail-distribution')" class="tab-item px-1 pb-3 text-sm font-medium text-slate-500">Distribution</button>
+      <button onclick="navigateTo('detail-members')" class="tab-item px-1 pb-3 text-sm font-medium text-slate-500">Members <span class="ml-1.5 text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">4</span></button>
+    </div>
+  </div>
+
+  <!-- BOM Content -->
+  <div class="mb-4 card-enter" style="animation-delay: 150ms;">
+    <p class="text-xs text-slate-500">Leaf materials for 3 items (<span class="text-slate-400">Ferox</span> x100, <span class="text-slate-400">Ishtar</span> x50, <span class="text-slate-400">Sabre</span> x200) &middot; <span class="text-amber-400/60">2 categories blacklisted</span> &middot; <span class="text-slate-400">Components &amp; BPCs in Jobs below</span></p>
+  </div>
+  <!-- Container Verification Banner -->
+  <div class="bg-violet-500/5 rounded-xl border border-violet-500/20 p-3 mb-4 card-enter flex items-center justify-between" style="animation-delay: 158ms;">
+    <div class="flex items-center gap-3">
+      <div class="w-7 h-7 rounded-lg bg-violet-500/12 flex items-center justify-center flex-shrink-0">
+        <svg class="w-3.5 h-3.5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+      </div>
+      <div>
+        <span class="text-sm text-violet-400 font-medium">Container: "Fleet Doctrine Materials"</span>
+        <span class="text-xs text-slate-500 ml-2">linked to corp offices</span>
+      </div>
+    </div>
+    <button onclick="showToast('Verifying all materials against container...')" class="btn-action px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 rounded-lg text-violet-400 text-xs font-medium flex items-center gap-1.5 border border-violet-500/25 transition-colors">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+      Verify All
+    </button>
+  </div>
+
+  <!-- Materials to Source -->
+  <div class="card-enter" style="animation-delay: 165ms;">
+    <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-3">Materials to Source</h2>
+    <div class="bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800/50">
+              <th class="text-left py-2.5 px-6 w-8"></th><th class="text-left py-2.5 px-3">Item</th><th class="text-right py-2.5 px-3">Required</th><th class="text-right py-2.5 px-3">Fulfilled</th><th class="text-right py-2.5 px-3">Remaining</th><th class="text-left py-2.5 px-3 w-36">Progress</th><th class="text-right py-2.5 px-6"><div class="flex items-center justify-end gap-1">Est. Cost <svg class="w-3 h-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div><div class="text-[10px] text-slate-600 font-normal normal-case tracking-normal mt-0.5">(Jita 5% avg)</div></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800/30">
+            <tr class="hover:bg-slate-800/30">
+              <td class="py-2.5 px-6"><div class="w-7 h-7 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/34/icon?size=32" alt="Tritanium" class="w-full h-full" onerror="this.style.display='none';" /></div></td>
+              <td class="py-2.5 px-3"><span class="text-slate-200">Tritanium</span><div class="flex items-center gap-1 mt-1"><svg class="w-3 h-3 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg><span class="text-[10px] text-amber-400">Partial: 3,500,000 / 6,400,000 in container</span></div></td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">6,400,000</td>
+              <td class="py-2.5 px-3 text-right font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">3,500,000</td>
+              <td class="py-2.5 px-3 text-right font-mono text-amber-400" style="font-variant-numeric: tabular-nums;">2,900,000</td>
+              <td class="py-2.5 px-3"><div class="flex items-center gap-2"><div class="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden"><div class="h-full bg-amber-500/70 rounded-full" style="width: 55%;"></div></div><span class="text-xs font-mono text-slate-500 w-8 text-right">55%</span></div></td>
+              <td class="py-2.5 px-6 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">38.4M</td>
+            </tr>
+            <tr class="hover:bg-slate-800/30">
+              <td class="py-2.5 px-6"><div class="w-7 h-7 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/35/icon?size=32" alt="Pyerite" class="w-full h-full" onerror="this.style.display='none';" /></div></td>
+              <td class="py-2.5 px-3"><span class="text-slate-200">Pyerite</span><div class="flex items-center gap-1 mt-1"><svg class="w-3 h-3 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg><span class="text-[10px] text-emerald-400">Verified: 1,600,000 / 1,600,000 in container</span></div></td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">1,600,000</td>
+              <td class="py-2.5 px-3 text-right font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">1,600,000</td>
+              <td class="py-2.5 px-3 text-right font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">0</td>
+              <td class="py-2.5 px-3"><div class="flex items-center gap-2"><div class="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden"><div class="h-full bg-emerald-500/70 rounded-full" style="width: 100%;"></div></div><span class="text-xs font-mono text-emerald-400 w-8 text-right">100%</span><svg class="w-3 h-3 text-slate-600 inline ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg></div></td>
+              <td class="py-2.5 px-6 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">14.7M</td>
+            </tr>
+            <tr class="hover:bg-slate-800/30">
+              <td class="py-2.5 px-6"><div class="w-7 h-7 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/36/icon?size=32" alt="Mexallon" class="w-full h-full" onerror="this.style.display='none';" /></div></td>
+              <td class="py-2.5 px-3 text-slate-200">Mexallon</td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">400,000</td>
+              <td class="py-2.5 px-3 text-right font-mono text-amber-400" style="font-variant-numeric: tabular-nums;">180,000</td>
+              <td class="py-2.5 px-3 text-right font-mono text-amber-400" style="font-variant-numeric: tabular-nums;">220,000</td>
+              <td class="py-2.5 px-3"><div class="flex items-center gap-2"><div class="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden"><div class="h-full bg-amber-500/70 rounded-full" style="width: 45%;"></div></div><span class="text-xs font-mono text-slate-500 w-8 text-right">45%</span></div></td>
+              <td class="py-2.5 px-6 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">28.0M</td>
+            </tr>
+            <tr class="hover:bg-slate-800/30">
+              <td class="py-2.5 px-6"><div class="w-7 h-7 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/37/icon?size=32" alt="Isogen" class="w-full h-full" onerror="this.style.display='none';" /></div></td>
+              <td class="py-2.5 px-3 text-slate-200">Isogen</td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">100,000</td>
+              <td class="py-2.5 px-3 text-right font-mono text-red-400" style="font-variant-numeric: tabular-nums;">0</td>
+              <td class="py-2.5 px-3 text-right font-mono text-red-400" style="font-variant-numeric: tabular-nums;">100,000</td>
+              <td class="py-2.5 px-3"><div class="flex items-center gap-2"><div class="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden"><div class="h-full bg-red-500/70 rounded-full" style="width: 0%;"></div></div><span class="text-xs font-mono text-red-400 w-8 text-right">0%</span></div></td>
+              <td class="py-2.5 px-6 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">12.8M</td>
+            </tr>
+            <tr class="hover:bg-slate-800/30">
+              <td class="py-2.5 px-6"><div class="w-7 h-7 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/39/icon?size=32" alt="Zydrine" class="w-full h-full" onerror="this.style.display='none';" /></div></td>
+              <td class="py-2.5 px-3 text-slate-200">Zydrine</td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">3,200</td>
+              <td class="py-2.5 px-3 text-right font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">3,200</td>
+              <td class="py-2.5 px-3 text-right font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">0</td>
+              <td class="py-2.5 px-3"><div class="flex items-center gap-2"><div class="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden"><div class="h-full bg-emerald-500/70 rounded-full" style="width: 100%;"></div></div><span class="text-xs font-mono text-emerald-400 w-8 text-right">100%</span><svg class="w-3 h-3 text-slate-600 inline ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg></div></td>
+              <td class="py-2.5 px-6 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">4.5M</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer Summary -->
+  <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-5 mt-6 card-enter" style="animation-delay: 360ms;">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-6">
+        <div>
+          <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Total Items</p>
+          <p class="text-lg font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">5</p>
+        </div>
+        <div class="w-px h-8 bg-slate-800"></div>
+        <div>
+          <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Total Est. Cost</p>
+          <p class="text-lg font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">98.4M</p>
+        </div>
+        <div class="w-px h-8 bg-slate-800"></div>
+        <div>
+          <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Overall Fulfillment</p>
+          <div class="flex items-center gap-3">
+            <div class="relative w-10 h-10 flex-shrink-0 ring-glow-amber">
+              <svg viewBox="0 0 40 40" class="w-10 h-10" style="transform: rotate(-90deg)">
+                <circle cx="20" cy="20" r="16" fill="none" stroke="rgb(30 41 59)" stroke-width="4" />
+                <circle cx="20" cy="20" r="16" fill="none" stroke="#fbbf24" stroke-width="4" stroke-linecap="round" stroke-dasharray="100.53" style="--ring-circumference: 100.53; --ring-target: 55.29;" class="ring-animated" stroke-dashoffset="100.53" />
+              </svg>
+              <div class="absolute inset-0 flex items-center justify-center"><span class="text-[9px] font-mono font-bold text-amber-400">45%</span></div>
+            </div>
+            <p class="text-lg font-mono font-semibold text-amber-400" style="font-variant-numeric: tabular-nums;">45%</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="text-xs text-slate-600 mt-3">Prices: <span class="text-cyan-400/60">Jita top 5%</span> sell avg &middot; Updated 45 min ago</p>
+  </div>
+
+  <!-- Jobs to Launch -->
+  <div class="mt-8 card-enter" style="animation-delay: 420ms;">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold text-slate-100">Jobs to Launch</h2>
+      <div class="flex items-center gap-2 text-xs">
+        <span class="text-slate-400">4 to launch</span>
+        <span class="text-slate-700">&middot;</span>
+        <span class="text-cyan-400">3 active</span>
+        <span class="text-slate-700">&middot;</span>
+        <span class="text-emerald-400">2 delivered</span>
+        <span class="text-slate-700">&middot;</span>
+        <span class="text-violet-400">1 BPC contributed</span>
+      </div>
+    </div>
+    <div class="bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden card-enter" style="animation-delay: 450ms;">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
+              <th class="text-left py-2.5 px-6 w-8"></th>
+              <th class="text-left py-2.5 px-3">Product</th>
+              <th class="text-left py-2.5 px-3">Activity</th>
+              <th class="text-right py-2.5 px-3">Runs</th>
+              <th class="text-center py-2.5 px-3">ME/TE</th>
+              <th class="text-left py-2.5 px-3">System</th>
+              <th class="text-center py-2.5 px-3">Status</th>
+              <th class="text-right py-2.5 px-3">Est. Duration</th>
+              <th class="text-right py-2.5 px-6">Est. Cost</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800/30">
+            <!-- GROUP: Blueprints -->
+            <tr class="bg-slate-800/40">
+              <td colspan="9" class="px-6 py-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Blueprints</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-400 border border-violet-500/20">3</span>
+                </div>
+              </td>
+            </tr>
+            <!-- Job: Ferox Blueprint - Copy - Delivered -->
+            <tr class="hover:bg-slate-800/30">
+              <td class="py-2.5 px-6"><div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/16229/icon?size=32" alt="Ferox Blueprint" class="w-full h-full" onerror="this.style.display='none';" /></div></td>
+              <td class="py-2.5 px-3 text-slate-200">Ferox Blueprint</td>
+              <td class="py-2.5 px-3"><span class="text-xs px-2 py-0.5 rounded border badge-bpc font-medium">Copy</span></td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">100</td>
+              <td class="py-2.5 px-3 text-center text-xs text-slate-500">&mdash;</td>
+              <td class="py-2.5 px-3 text-sm text-slate-400">1DQ1-A</td>
+              <td class="py-2.5 px-3 text-center"><span class="text-xs px-2 py-0.5 rounded border bg-emerald-500/15 text-emerald-400 border-emerald-500/20 font-medium inline-flex items-center gap-1.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>Delivered</span></td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">6h</td>
+              <td class="py-2.5 px-6 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">0.1M</td>
+            </tr>
+            <!-- Job: Ishtar Blueprint - Invention - BPC Contributed (fulfilled, dimmed) -->
+            <tr class="hover:bg-slate-800/30 opacity-70">
+              <td class="py-2.5 px-6"><div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/12005/icon?size=32" alt="Ishtar Blueprint" class="w-full h-full" onerror="this.style.display='none';" /></div></td>
+              <td class="py-2.5 px-3 text-slate-200">Ishtar Blueprint</td>
+              <td class="py-2.5 px-3"><span class="text-xs px-2 py-0.5 rounded border badge-bpc font-medium">Invention</span></td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">50</td>
+              <td class="py-2.5 px-3 text-center text-xs text-slate-500">&mdash;</td>
+              <td class="py-2.5 px-3 text-sm text-slate-400">1DQ1-A</td>
+              <td class="py-2.5 px-3 text-center"><span class="text-xs px-2 py-0.5 rounded bg-violet-500/15 text-violet-400 border border-violet-500/20 font-medium inline-flex items-center gap-1.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>BPC Contributed</span></td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-500" style="font-variant-numeric: tabular-nums;">&mdash;</td>
+              <td class="py-2.5 px-6 text-right font-mono text-slate-500" style="font-variant-numeric: tabular-nums;">&mdash;</td>
+            </tr>
+            <!-- Job: Sabre Blueprint - Copy - Active -->
+            <tr class="hover:bg-slate-800/30">
+              <td class="py-2.5 px-6"><div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/22456/icon?size=32" alt="Sabre Blueprint" class="w-full h-full" onerror="this.style.display='none';" /></div></td>
+              <td class="py-2.5 px-3 text-slate-200">Sabre Blueprint</td>
+              <td class="py-2.5 px-3"><span class="text-xs px-2 py-0.5 rounded border badge-bpc font-medium">Copy</span></td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">200</td>
+              <td class="py-2.5 px-3 text-center text-xs text-slate-500">&mdash;</td>
+              <td class="py-2.5 px-3 text-sm text-slate-400">1DQ1-A</td>
+              <td class="py-2.5 px-3 text-center"><span class="text-xs px-2 py-0.5 rounded border bg-cyan-500/15 text-cyan-400 border-cyan-500/20 font-medium inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>Active</span></td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">12h</td>
+              <td class="py-2.5 px-6 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">0.2M</td>
+            </tr>
+            <!-- GROUP: Components -->
+            <tr class="bg-slate-800/40">
+              <td colspan="9" class="px-6 py-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Components</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20">4</span>
+                </div>
+              </td>
+            </tr>
+            <!-- Job: Gravimetric Sensor Cluster - Manufacturing - Active -->
+            <tr class="hover:bg-slate-800/30">
+              <td class="py-2.5 px-6"><div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/11539/icon?size=32" alt="Gravimetric Sensor Cluster" class="w-full h-full" onerror="this.style.display='none';" /></div></td>
+              <td class="py-2.5 px-3 text-slate-200">Gravimetric Sensor Cluster</td>
+              <td class="py-2.5 px-3"><span class="text-xs px-2 py-0.5 rounded border badge-job_install font-medium">Manufacturing</span></td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">75</td>
+              <td class="py-2.5 px-3 text-center text-xs text-slate-400">ME 10 / TE 20</td>
+              <td class="py-2.5 px-3 text-sm text-slate-400">1DQ1-A</td>
+              <td class="py-2.5 px-3 text-center"><span class="text-xs px-2 py-0.5 rounded border bg-cyan-500/15 text-cyan-400 border-cyan-500/20 font-medium inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>Active</span></td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">18h</td>
+              <td class="py-2.5 px-6 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">0.5M</td>
+            </tr>
+            <!-- Job: Photon Microprocessor - Manufacturing - To Launch -->
+            <tr class="hover:bg-slate-800/30">
+              <td class="py-2.5 px-6"><div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/11541/icon?size=32" alt="Photon Microprocessor" class="w-full h-full" onerror="this.style.display='none';" /></div></td>
+              <td class="py-2.5 px-3 text-slate-200">Photon Microprocessor</td>
+              <td class="py-2.5 px-3"><span class="text-xs px-2 py-0.5 rounded border badge-job_install font-medium">Manufacturing</span></td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">150</td>
+              <td class="py-2.5 px-3 text-center text-xs text-slate-400">ME 10 / TE 20</td>
+              <td class="py-2.5 px-3 text-sm text-slate-400">1DQ1-A</td>
+              <td class="py-2.5 px-3 text-center"><span class="text-xs px-2 py-0.5 rounded border bg-slate-700 text-slate-400 border-slate-600 font-medium">To Launch</span></td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">1d 2h</td>
+              <td class="py-2.5 px-6 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">0.8M</td>
+            </tr>
+            <!-- Job: Titanium Diborite Armor Plate - Manufacturing - To Launch -->
+            <tr class="hover:bg-slate-800/30">
+              <td class="py-2.5 px-6"><div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/11542/icon?size=32" alt="Titanium Diborite Armor Plate" class="w-full h-full" onerror="this.style.display='none';" /></div></td>
+              <td class="py-2.5 px-3 text-slate-200">Titanium Diborite Armor Plate</td>
+              <td class="py-2.5 px-3"><span class="text-xs px-2 py-0.5 rounded border badge-job_install font-medium">Manufacturing</span></td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">100</td>
+              <td class="py-2.5 px-3 text-center text-xs text-slate-400">ME 10 / TE 20</td>
+              <td class="py-2.5 px-3 text-sm text-slate-400">1DQ1-A</td>
+              <td class="py-2.5 px-3 text-center"><span class="text-xs px-2 py-0.5 rounded border bg-slate-700 text-slate-400 border-slate-600 font-medium">To Launch</span></td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">20h</td>
+              <td class="py-2.5 px-6 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">0.6M</td>
+            </tr>
+            <!-- Job: Fusion Thruster - Manufacturing - Delivered -->
+            <tr class="hover:bg-slate-800/30">
+              <td class="py-2.5 px-6"><div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/11529/icon?size=32" alt="Fusion Thruster" class="w-full h-full" onerror="this.style.display='none';" /></div></td>
+              <td class="py-2.5 px-3 text-slate-200">Fusion Thruster</td>
+              <td class="py-2.5 px-3"><span class="text-xs px-2 py-0.5 rounded border badge-job_install font-medium">Manufacturing</span></td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">50</td>
+              <td class="py-2.5 px-3 text-center text-xs text-slate-400">ME 10 / TE 20</td>
+              <td class="py-2.5 px-3 text-sm text-slate-400">1DQ1-A</td>
+              <td class="py-2.5 px-3 text-center"><span class="text-xs px-2 py-0.5 rounded border bg-emerald-500/15 text-emerald-400 border-emerald-500/20 font-medium inline-flex items-center gap-1.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>Delivered</span></td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">14h</td>
+              <td class="py-2.5 px-6 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">0.3M</td>
+            </tr>
+            <!-- GROUP: Final Products -->
+            <tr class="bg-slate-800/40">
+              <td colspan="9" class="px-6 py-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Final Products</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">3</span>
+                </div>
+              </td>
+            </tr>
+            <!-- Job: Ferox - Manufacturing - To Launch -->
+            <tr class="hover:bg-slate-800/30">
+              <td class="py-2.5 px-6"><div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/16229/icon?size=32" alt="Ferox" class="w-full h-full" onerror="this.style.display='none';" /></div></td>
+              <td class="py-2.5 px-3 text-slate-200">Ferox</td>
+              <td class="py-2.5 px-3"><span class="text-xs px-2 py-0.5 rounded border badge-job_install font-medium">Manufacturing</span></td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">100</td>
+              <td class="py-2.5 px-3 text-center text-xs text-slate-400">ME 2 / TE 4</td>
+              <td class="py-2.5 px-3 text-sm text-slate-400">1DQ1-A</td>
+              <td class="py-2.5 px-3 text-center"><span class="text-xs px-2 py-0.5 rounded border bg-slate-700 text-slate-400 border-slate-600 font-medium">To Launch</span></td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">2d 4h</td>
+              <td class="py-2.5 px-6 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">2.3M</td>
+            </tr>
+            <!-- Job: Ishtar - Manufacturing - To Launch -->
+            <tr class="hover:bg-slate-800/30">
+              <td class="py-2.5 px-6"><div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/12005/icon?size=32" alt="Ishtar" class="w-full h-full" onerror="this.style.display='none';" /></div></td>
+              <td class="py-2.5 px-3 text-slate-200">Ishtar</td>
+              <td class="py-2.5 px-3"><span class="text-xs px-2 py-0.5 rounded border badge-job_install font-medium">Manufacturing</span></td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">50</td>
+              <td class="py-2.5 px-3 text-center text-xs text-slate-400">ME 4 / TE 8</td>
+              <td class="py-2.5 px-3 text-sm text-slate-400">1DQ1-A</td>
+              <td class="py-2.5 px-3 text-center"><span class="text-xs px-2 py-0.5 rounded border bg-slate-700 text-slate-400 border-slate-600 font-medium">To Launch</span></td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">1d 12h</td>
+              <td class="py-2.5 px-6 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">4.1M</td>
+            </tr>
+            <!-- Job: Sabre - Manufacturing - Active -->
+            <tr class="hover:bg-slate-800/30">
+              <td class="py-2.5 px-6"><div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/22456/icon?size=32" alt="Sabre" class="w-full h-full" onerror="this.style.display='none';" /></div></td>
+              <td class="py-2.5 px-3 text-slate-200">Sabre</td>
+              <td class="py-2.5 px-3"><span class="text-xs px-2 py-0.5 rounded border badge-job_install font-medium">Manufacturing</span></td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">200</td>
+              <td class="py-2.5 px-3 text-center text-xs text-slate-400">ME 4 / TE 8</td>
+              <td class="py-2.5 px-3 text-sm text-slate-400">1DQ1-A</td>
+              <td class="py-2.5 px-3 text-center"><span class="text-xs px-2 py-0.5 rounded border bg-cyan-500/15 text-cyan-400 border-cyan-500/20 font-medium inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>Active</span></td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">3d 6h</td>
+              <td class="py-2.5 px-6 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">1.8M</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- Jobs Footer Summary -->
+      <div class="px-6 py-3.5 border-t border-slate-800 flex items-center gap-6">
+        <div class="flex items-center gap-2 text-sm">
+          <span class="text-slate-500">Total Jobs:</span>
+          <span class="font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">10</span>
+        </div>
+        <div class="w-px h-5 bg-slate-800"></div>
+        <div class="flex items-center gap-2 text-sm">
+          <span class="text-slate-500">Total Est. Cost:</span>
+          <span class="font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">10.7M</span>
+        </div>
+        <div class="w-px h-5 bg-slate-800"></div>
+        <div class="flex items-center gap-2 text-sm">
+          <span class="text-slate-500">Est. Duration:</span>
+          <span class="font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">3d 6h</span>
+          <span class="text-xs text-slate-600">(longest job)</span>
+        </div>
+        <div class="w-px h-5 bg-slate-800"></div>
+        <div class="flex items-center gap-2 text-sm">
+          <span class="text-xs px-2 py-0.5 rounded bg-violet-500/15 text-violet-400 border border-violet-500/20 font-medium">1 fulfilled by BPC</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SCREEN 4: PROJECT DETAIL - CONTRIBUTIONS TAB                  -->
+<!-- ============================================================ -->
+<section id="screen-detail-contributions" class="screen" data-screen="detail-contributions">
+<div class="max-w-7xl mx-auto px-6 py-8">
+
+  <!-- Breadcrumb -->
+  <div class="mb-4 card-enter" style="animation-delay: 0ms;">
+    <div class="flex items-center gap-2 text-sm">
+      <button onclick="navigateTo('my-projects')" class="text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
+      <a onclick="navigateTo('my-projects')" class="text-slate-500 hover:text-slate-300 transition-colors cursor-pointer">Group Industry</a>
+      <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+      <span class="text-slate-300">Fleet Doctrine Build</span>
+    </div>
+  </div>
+
+  <!-- Project Header (compact) -->
+  <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-5 mb-6 card-enter" style="animation-delay: 60ms;">
+    <div class="flex items-center gap-5">
+      <div class="flex flex-row gap-1 flex-shrink-0">
+        <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/16229/icon?size=32" alt="Ferox" class="w-full h-full object-cover" onerror="this.style.display='none';" /></div>
+        <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/12005/icon?size=32" alt="Ishtar" class="w-full h-full object-cover" onerror="this.style.display='none';" /></div>
+        <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/22456/icon?size=32" alt="Sabre" class="w-full h-full object-cover" onerror="this.style.display='none';" /></div>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-3 mb-1">
+          <h1 class="text-xl font-bold text-slate-100">Fleet Doctrine Build</h1>
+          <span class="text-xs px-2.5 py-1 rounded-lg bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 font-medium">In Progress</span>
+        </div>
+        <p class="text-sm text-slate-500">3 items &middot; 350 runs &middot; ME 2-4 / TE 4-8 -- Manager: Sylvain Durand -- 4 contributors</p>
+      </div>
+      <div class="flex gap-2 flex-shrink-0">
+        <button class="btn-action px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm" title="Edit"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
+        <button class="btn-action px-3 py-2 bg-slate-700 hover:bg-red-600/80 rounded-lg text-slate-400 hover:text-white text-sm" title="Delete"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="border-b border-slate-800 mb-6 card-enter" style="animation-delay: 120ms;">
+    <div class="flex gap-6">
+      <button onclick="navigateTo('detail-bom')" class="tab-item px-1 pb-3 text-sm font-medium text-slate-500">Materials &amp; Jobs <span class="ml-1.5 text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">5 items &middot; 10 jobs</span></button>
+      <button onclick="navigateTo('detail-contributions')" class="tab-item active px-1 pb-3 text-sm font-medium">Contributions <span class="ml-1.5 text-xs px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400">6</span></button>
+      <button onclick="navigateTo('detail-distribution')" class="tab-item px-1 pb-3 text-sm font-medium text-slate-500">Distribution</button>
+      <button onclick="navigateTo('detail-members')" class="tab-item px-1 pb-3 text-sm font-medium text-slate-500">Members <span class="ml-1.5 text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">4</span></button>
+    </div>
+  </div>
+
+  <!-- Actions & Filters -->
+  <div class="flex items-center justify-between mb-4 card-enter" style="animation-delay: 180ms;">
+    <div class="flex items-center gap-3">
+      <select class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-300 focus:border-cyan-500 focus:outline-none"><option>All Types</option><option>Material</option><option>Job Install</option><option>BPC</option><option>Line Rental</option></select>
+      <select class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-300 focus:border-cyan-500 focus:outline-none"><option>All Statuses</option><option>Pending</option><option>Approved</option><option>Rejected</option></select>
+    </div>
+    <button onclick="openContributionModal()" class="btn-action px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+      Add Contribution
+    </button>
+  </div>
+
+  <!-- Contributions Table -->
+  <div class="bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden card-enter" style="animation-delay: 240ms;">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
+            <th class="text-left py-3 px-6">Character</th><th class="text-left py-3 px-3">Type</th><th class="text-left py-3 px-3">Item / Description</th><th class="text-right py-3 px-3">Qty</th><th class="text-right py-3 px-3">Valuation</th><th class="text-left py-3 px-3">Method</th><th class="text-center py-3 px-3">Status</th><th class="text-center py-3 px-6">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800/30">
+          <tr class="hover:bg-slate-800/30">
+            <td class="py-3 px-6"><div class="flex items-center gap-2.5"><img src="https://images.evetech.net/characters/96000002/portrait?size=32" alt="Alice" class="w-8 h-8 rounded-full border border-slate-700" onerror="this.style.display='none';" /><span class="text-slate-200 font-medium">Alice Kondur</span></div></td>
+            <td class="py-3 px-3"><span class="text-xs px-2 py-0.5 rounded border badge-material font-medium">Material</span></td>
+            <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-6 h-6 rounded bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0"><img src="https://images.evetech.net/types/34/icon?size=32" alt="Tritanium" class="w-full h-full" onerror="this.style.display='none';" /></div><span class="text-slate-300">Tritanium</span></div></td>
+            <td class="py-3 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">500,000</td>
+            <td class="py-3 px-3 text-right font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">45.0M</td>
+            <td class="py-3 px-3"><span class="text-xs text-slate-500">Jita weighted</span></td>
+            <td class="py-3 px-3 text-center"><span class="text-xs px-2 py-0.5 rounded border status-approved font-medium">Approved</span></td>
+            <td class="py-3 px-6 text-center"><span class="text-xs text-slate-600">--</span></td>
+          </tr>
+          <tr class="hover:bg-slate-800/30">
+            <td class="py-3 px-6"><div class="flex items-center gap-2.5"><img src="https://images.evetech.net/characters/96000002/portrait?size=32" alt="Alice" class="w-8 h-8 rounded-full border border-slate-700" onerror="this.style.display='none';" /><span class="text-slate-200 font-medium">Alice Kondur</span></div></td>
+            <td class="py-3 px-3"><span class="text-xs px-2 py-0.5 rounded border badge-job_install font-medium">Job Install</span></td>
+            <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-6 h-6 rounded bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0"><img src="https://images.evetech.net/types/16229/icon?size=32" alt="Ferox" class="w-full h-full" onerror="this.style.display='none';" /></div><div><span class="text-slate-300">Ferox Manufacturing x10</span><p class="text-xs text-slate-500">1DQ1-A -- Cost Index 4.2%</p></div></div></td>
+            <td class="py-3 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">10</td>
+            <td class="py-3 px-3 text-right font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">2.3M</td>
+            <td class="py-3 px-3"><span class="text-xs text-slate-500">ESI job cost</span><span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400/70 border border-emerald-500/15 ml-1.5">ESI &#10003;</span></td>
+            <td class="py-3 px-3 text-center"><span class="text-xs px-2 py-0.5 rounded border status-approved font-medium">Approved</span><span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400/70 border border-emerald-500/15 ml-1.5">Auto-detected</span></td>
+            <td class="py-3 px-6 text-center"><span class="text-xs text-slate-600">--</span></td>
+          </tr>
+          <tr class="hover:bg-slate-800/30 bg-amber-500/[0.02]">
+            <td class="py-3 px-6"><div class="flex items-center gap-2.5"><img src="https://images.evetech.net/characters/96000003/portrait?size=32" alt="Bob" class="w-8 h-8 rounded-full border border-slate-700" onerror="this.style.display='none';" /><span class="text-slate-200 font-medium">Bob Agnon</span></div></td>
+            <td class="py-3 px-3"><span class="text-xs px-2 py-0.5 rounded border badge-bpc font-medium">BPC</span></td>
+            <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-6 h-6 rounded bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0"><img src="https://images.evetech.net/types/16229/icon?size=32" alt="Ferox BPC" class="w-full h-full" onerror="this.style.display='none';" /></div><span class="text-slate-300">Ferox Blueprint Copy x50</span></div></td>
+            <td class="py-3 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">50</td>
+            <td class="py-3 px-3 text-right font-mono text-amber-400" style="font-variant-numeric: tabular-nums;">15.0M</td>
+            <td class="py-3 px-3"><span class="text-xs text-slate-500">Invention cost</span></td>
+            <td class="py-3 px-3 text-center"><span class="text-xs px-2 py-0.5 rounded border status-pending font-medium">Pending</span></td>
+            <td class="py-3 px-6 text-center"><div class="flex items-center justify-center gap-1.5"><button class="px-2.5 py-1 rounded bg-emerald-600/20 text-emerald-400 text-xs font-medium hover:bg-emerald-600/30 transition-colors border border-emerald-600/30">Approve</button><button class="px-2.5 py-1 rounded bg-red-600/20 text-red-400 text-xs font-medium hover:bg-red-600/30 transition-colors border border-red-600/30">Reject</button></div></td>
+          </tr>
+          <tr class="hover:bg-slate-800/30 bg-amber-500/[0.02]">
+            <td class="py-3 px-6"><div class="flex items-center gap-2.5"><img src="https://images.evetech.net/characters/96000003/portrait?size=32" alt="Bob" class="w-8 h-8 rounded-full border border-slate-700" onerror="this.style.display='none';" /><span class="text-slate-200 font-medium">Bob Agnon</span></div></td>
+            <td class="py-3 px-3"><span class="text-xs px-2 py-0.5 rounded border badge-line_rental font-medium">Line Rental</span></td>
+            <td class="py-3 px-3"><div><span class="text-slate-300">Manufacturing line -- Ship T1 x50 runs</span><p class="text-xs text-slate-500">Rate: 100,000 ISK/run</p><p class="text-[10px] text-amber-400/50">No matching ESI job found</p></div></td>
+            <td class="py-3 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">50</td>
+            <td class="py-3 px-3 text-right font-mono text-amber-400" style="font-variant-numeric: tabular-nums;">5.0M</td>
+            <td class="py-3 px-3"><span class="text-xs text-slate-500">Line rental rate</span></td>
+            <td class="py-3 px-3 text-center"><span class="text-xs px-2 py-0.5 rounded border status-pending font-medium">Pending</span><span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400/70 border border-amber-500/15 ml-1.5">Unverified</span></td>
+            <td class="py-3 px-6 text-center"><div class="flex items-center justify-center gap-1.5"><button class="px-2.5 py-1 rounded bg-emerald-600/20 text-emerald-400 text-xs font-medium hover:bg-emerald-600/30 transition-colors border border-emerald-600/30">Approve</button><button class="px-2.5 py-1 rounded bg-red-600/20 text-red-400 text-xs font-medium hover:bg-red-600/30 transition-colors border border-red-600/30">Reject</button></div></td>
+          </tr>
+          <tr class="hover:bg-slate-800/30">
+            <td class="py-3 px-6"><div class="flex items-center gap-2.5"><img src="https://images.evetech.net/characters/96000004/portrait?size=32" alt="Charlie" class="w-8 h-8 rounded-full border border-slate-700" onerror="this.style.display='none';" /><span class="text-slate-200 font-medium">Charlie Orlenard</span></div></td>
+            <td class="py-3 px-3"><span class="text-xs px-2 py-0.5 rounded border badge-line_rental font-medium">Line Rental</span></td>
+            <td class="py-3 px-3"><div><span class="text-slate-300">Manufacturing line -- Ferox x100 runs</span><p class="text-xs text-slate-500">Rate: 100,000 ISK/run</p></div></td>
+            <td class="py-3 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">3</td>
+            <td class="py-3 px-3 text-right font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">3.0M</td>
+            <td class="py-3 px-3"><span class="text-xs text-slate-500">Line rental rate</span></td>
+            <td class="py-3 px-3 text-center"><span class="text-xs px-2 py-0.5 rounded border status-approved font-medium">Approved</span><span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400/70 border border-emerald-500/15 ml-1.5">Auto-detected</span></td>
+            <td class="py-3 px-6 text-center"><span class="text-xs text-slate-600">--</span></td>
+          </tr>
+          <tr class="hover:bg-slate-800/30">
+            <td class="py-3 px-6"><div class="flex items-center gap-2.5"><img src="https://images.evetech.net/characters/96000002/portrait?size=32" alt="Alice" class="w-8 h-8 rounded-full border border-slate-700" onerror="this.style.display='none';" /><span class="text-slate-200 font-medium">Alice Kondur</span></div></td>
+            <td class="py-3 px-3"><span class="text-xs px-2 py-0.5 rounded border badge-material font-medium">Material</span></td>
+            <td class="py-3 px-3"><div class="flex items-center gap-2"><div class="w-6 h-6 rounded bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0"><img src="https://images.evetech.net/types/35/icon?size=32" alt="Pyerite" class="w-full h-full" onerror="this.style.display='none';" /></div><span class="text-slate-300">Pyerite</span></div></td>
+            <td class="py-3 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">1,600,000</td>
+            <td class="py-3 px-3 text-right font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">14.7M</td>
+            <td class="py-3 px-3"><span class="text-xs text-slate-500">Jita weighted</span></td>
+            <td class="py-3 px-3 text-center"><span class="text-xs px-2 py-0.5 rounded border status-approved font-medium">Approved</span></td>
+            <td class="py-3 px-6 text-center"><span class="text-xs text-slate-600">--</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Summary Bar -->
+  <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-5 mt-4 card-enter" style="animation-delay: 300ms;">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-8">
+        <div>
+          <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Total Engaged Costs</p>
+          <p class="text-xl font-mono font-bold text-slate-100 value-reveal" style="animation-delay: 400ms; font-variant-numeric: tabular-nums;">85.0M</p>
+        </div>
+        <div class="w-px h-10 bg-slate-800"></div>
+        <div>
+          <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Approved Value</p>
+          <p class="text-xl font-mono font-bold text-emerald-400 value-reveal" style="animation-delay: 460ms; font-variant-numeric: tabular-nums;">65.0M</p>
+        </div>
+        <div class="w-px h-10 bg-slate-800"></div>
+        <div>
+          <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Pending Value</p>
+          <p class="text-xl font-mono font-bold text-amber-400 value-reveal" style="animation-delay: 520ms; font-variant-numeric: tabular-nums;">20.0M</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 text-xs text-slate-500">
+        <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Approved: 4</div>
+        <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span> Pending: 2</div>
+        <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-400"></span> Rejected: 0</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SCREEN 5: PROJECT DETAIL - DISTRIBUTION TAB                   -->
+<!-- ============================================================ -->
+<section id="screen-detail-distribution" class="screen" data-screen="detail-distribution">
+<div class="max-w-7xl mx-auto px-6 py-8">
+
+  <!-- Breadcrumb -->
+  <div class="mb-4 card-enter" style="animation-delay: 0ms;">
+    <div class="flex items-center gap-2 text-sm">
+      <button onclick="navigateTo('my-projects')" class="text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
+      <a onclick="navigateTo('my-projects')" class="text-slate-500 hover:text-slate-300 transition-colors cursor-pointer">Group Industry</a>
+      <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+      <span class="text-slate-300">50x Ishtar</span>
+    </div>
+  </div>
+
+  <!-- Project Header (compact) -->
+  <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-5 mb-6 card-enter" style="animation-delay: 60ms;">
+    <div class="flex items-center gap-5">
+      <div class="w-16 h-16 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+        <img src="https://images.evetech.net/types/12005/icon?size=64" alt="Ishtar" class="w-full h-full object-cover" onerror="this.style.display='none';" />
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-3 mb-1">
+          <h1 class="text-xl font-bold text-slate-100">50x Ishtar</h1>
+          <span class="text-xs px-2.5 py-1 rounded-lg bg-violet-500/15 text-violet-400 border border-violet-500/20 font-medium">Selling</span>
+        </div>
+        <p class="text-sm text-slate-500">ME 4 / TE 8 -- Manager: Alice Kondur -- 3 contributors</p>
+      </div>
+      <button class="btn-action px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm font-medium flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        Close Project
+      </button>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="border-b border-slate-800 mb-6 card-enter" style="animation-delay: 120ms;">
+    <div class="flex gap-6">
+      <button onclick="navigateTo('detail-bom')" class="tab-item px-1 pb-3 text-sm font-medium text-slate-500">Materials &amp; Jobs <span class="ml-1.5 text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">15</span></button>
+      <button onclick="navigateTo('detail-contributions')" class="tab-item px-1 pb-3 text-sm font-medium text-slate-500">Contributions <span class="ml-1.5 text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">9</span></button>
+      <button onclick="navigateTo('detail-distribution')" class="tab-item active px-1 pb-3 text-sm font-medium">Distribution <span class="ml-1.5 text-xs px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400">$</span></button>
+      <button onclick="navigateTo('detail-members')" class="tab-item px-1 pb-3 text-sm font-medium text-slate-500">Members <span class="ml-1.5 text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">3</span></button>
+    </div>
+  </div>
+
+  <!-- SALES SECTION -->
+  <div class="mb-8">
+    <div class="flex items-center justify-between mb-4 card-enter" style="animation-delay: 180ms;">
+      <h2 class="text-lg font-semibold text-slate-100">Sales</h2>
+      <button class="btn-action px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+        Record Sale
+      </button>
+    </div>
+    <div class="bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden card-enter" style="animation-delay: 240ms;">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
+            <th class="text-left py-3 px-6">Date</th><th class="text-right py-3 px-3">Quantity</th><th class="text-right py-3 px-3">Unit Price</th><th class="text-right py-3 px-3">Revenue</th><th class="text-left py-3 px-6">Venue</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800/30">
+          <tr class="hover:bg-slate-800/30">
+            <td class="py-3 px-6 text-slate-300">Feb 18, 2026</td>
+            <td class="py-3 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">50</td>
+            <td class="py-3 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">72,000,000</td>
+            <td class="py-3 px-3 text-right font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">3,600,000,000</td>
+            <td class="py-3 px-6"><span class="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Jita 4-4</span></td>
+          </tr>
+          <tr class="hover:bg-slate-800/30">
+            <td class="py-3 px-6 text-slate-300">Feb 22, 2026</td>
+            <td class="py-3 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">30</td>
+            <td class="py-3 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">75,000,000</td>
+            <td class="py-3 px-3 text-right font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">2,250,000,000</td>
+            <td class="py-3 px-6"><span class="text-xs px-2 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20">C-J6MT Keepstar</span></td>
+          </tr>
+          <tr class="bg-slate-800/30 border-t-2 border-slate-700">
+            <td class="py-3 px-6 text-slate-200 font-semibold">Total</td>
+            <td class="py-3 px-3 text-right font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">80</td>
+            <td class="py-3 px-3"></td>
+            <td class="py-3 px-3 text-right font-mono font-bold text-emerald-400" style="font-variant-numeric: tabular-nums;">5,850,000,000</td>
+            <td class="py-3 px-6"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- FINANCIAL SUMMARY -->
+  <div class="mb-8 card-enter" style="animation-delay: 300ms;">
+    <h2 class="text-lg font-semibold text-slate-100 mb-4">Financial Summary</h2>
+    <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-6">
+      <div class="grid grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="space-y-3">
+          <div class="flex items-center justify-between"><span class="text-sm text-slate-400">Total Revenue</span><span class="font-mono text-lg font-bold text-slate-100" style="font-variant-numeric: tabular-nums;">5.85B</span></div>
+          <div class="flex items-center justify-between"><span class="text-sm text-slate-500">Broker Fee (3.6%)</span><span class="font-mono text-sm text-red-400" style="font-variant-numeric: tabular-nums;">-210.6M</span></div>
+          <div class="flex items-center justify-between"><span class="text-sm text-slate-500">Sales Tax (3.6%)</span><span class="font-mono text-sm text-red-400" style="font-variant-numeric: tabular-nums;">-210.6M</span></div>
+          <div class="border-t border-slate-700 pt-2 flex items-center justify-between"><span class="text-sm font-semibold text-slate-300">Net Revenue</span><span class="font-mono text-lg font-bold text-slate-100" style="font-variant-numeric: tabular-nums;">5.43B</span></div>
+        </div>
+        <div class="space-y-3">
+          <div class="flex items-center justify-between"><span class="text-sm text-slate-400">Total Project Cost</span><span class="font-mono text-lg font-bold text-slate-100" style="font-variant-numeric: tabular-nums;">4.20B</span></div>
+          <div class="flex items-center justify-between"><span class="text-sm text-slate-500">Materials</span><span class="font-mono text-sm text-slate-400" style="font-variant-numeric: tabular-nums;">3.60B</span></div>
+          <div class="flex items-center justify-between"><span class="text-sm text-slate-500">Job Install + Line Rental</span><span class="font-mono text-sm text-slate-400" style="font-variant-numeric: tabular-nums;">350M</span></div>
+          <div class="flex items-center justify-between"><span class="text-sm text-slate-500">BPC</span><span class="font-mono text-sm text-slate-400" style="font-variant-numeric: tabular-nums;">250M</span></div>
+        </div>
+        <div class="bg-emerald-500/5 rounded-xl border border-emerald-500/20 p-5 flex flex-col items-center justify-center">
+          <p class="text-xs text-emerald-400/60 uppercase tracking-wider mb-1">Profit</p>
+          <p class="text-3xl font-mono font-bold text-emerald-400 value-reveal" style="animation-delay: 400ms; font-variant-numeric: tabular-nums;">+1.23B</p>
+          <p class="text-sm font-mono text-emerald-400/80 mt-1">Margin: +29.3%</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DISTRIBUTION SECTION -->
+  <div class="card-enter" style="animation-delay: 360ms;">
+    <h2 class="text-lg font-semibold text-slate-100 mb-4">Profit Distribution</h2>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Ring Chart -->
+      <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-6 flex flex-col items-center justify-center">
+        <div class="relative w-48 h-48 mb-4">
+          <svg viewBox="0 0 200 200" class="w-48 h-48" style="transform: rotate(-90deg)">
+            <circle cx="100" cy="100" r="80" fill="none" stroke="rgb(30 41 59)" stroke-width="24" />
+            <circle cx="100" cy="100" r="80" fill="none" stroke="#22d3ee" stroke-width="24" stroke-linecap="butt" stroke-dasharray="263.4 239.2" stroke-dashoffset="0" class="ring-animated" style="--ring-circumference: 502.65; --ring-target: 0;" />
+            <circle cx="100" cy="100" r="80" fill="none" stroke="#a78bfa" stroke-width="24" stroke-linecap="butt" stroke-dasharray="143.7 358.9" stroke-dashoffset="-263.4" />
+            <circle cx="100" cy="100" r="80" fill="none" stroke="#fbbf24" stroke-width="24" stroke-linecap="butt" stroke-dasharray="95.5 407.1" stroke-dashoffset="-407.1" />
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center" style="transform: none;">
+            <p class="text-xs text-slate-500 uppercase tracking-wider">Total Payout</p>
+            <p class="text-xl font-mono font-bold text-slate-100" style="font-variant-numeric: tabular-nums;">5.43B</p>
+          </div>
+        </div>
+        <div class="space-y-2 w-full">
+          <div class="flex items-center justify-between text-sm"><div class="flex items-center gap-2"><span class="w-3 h-3 rounded-sm bg-cyan-400"></span><span class="text-slate-300">Alice Kondur</span></div><span class="font-mono text-slate-400">52.4%</span></div>
+          <div class="flex items-center justify-between text-sm"><div class="flex items-center gap-2"><span class="w-3 h-3 rounded-sm bg-violet-400"></span><span class="text-slate-300">Bob Agnon</span></div><span class="font-mono text-slate-400">28.6%</span></div>
+          <div class="flex items-center justify-between text-sm"><div class="flex items-center gap-2"><span class="w-3 h-3 rounded-sm bg-amber-400"></span><span class="text-slate-300">Charlie Orlenard</span></div><span class="font-mono text-slate-400">19.0%</span></div>
+        </div>
+      </div>
+
+      <!-- Distribution Table -->
+      <div class="lg:col-span-2 bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
+              <th class="text-left py-3 px-6">Character</th><th class="text-right py-3 px-3">Costs Engaged</th><th class="text-right py-3 px-3">Share %</th><th class="text-right py-3 px-3">Profit Part</th><th class="text-right py-3 px-6">Payout Total</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800/30">
+            <!-- Alice (expanded) -->
+            <tr id="alice-row" onclick="toggleAliceBreakdown()" class="hover:bg-slate-800/30 cursor-pointer">
+              <td class="py-3.5 px-6"><div class="flex items-center gap-2.5"><img src="https://images.evetech.net/characters/96000002/portrait?size=32" alt="Alice" class="w-8 h-8 rounded-full border border-slate-700" onerror="this.style.display='none';" /><div><span class="text-slate-200 font-medium">Alice Kondur</span><div class="flex items-center gap-1 mt-0.5"><svg id="alice-chevron" class="w-3 h-3 text-cyan-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg><span class="text-xs text-cyan-400">Show breakdown</span></div></div></div></td>
+              <td class="py-3.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">2.20B</td>
+              <td class="py-3.5 px-3 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">52.4%</td>
+              <td class="py-3.5 px-3 text-right font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">+644.6M</td>
+              <td class="py-3.5 px-6 text-right"><span class="font-mono font-bold text-lg text-emerald-400" style="font-variant-numeric: tabular-nums;">2.85B</span></td>
+            </tr>
+            <tr id="alice-breakdown" class="bg-slate-800/20">
+              <td colspan="5" class="px-6 py-3">
+                <div class="ml-10 space-y-1.5 text-xs">
+                  <div class="flex items-center justify-between"><div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-cyan-400"></span><span class="text-slate-400">Materials (Tritanium, Pyerite, Mexallon...)</span></div><span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">1.95B</span></div>
+                  <div class="flex items-center justify-between"><div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-amber-400"></span><span class="text-slate-400">Job Install (Ishtar manufacturing x30)</span></div><span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">150M</span></div>
+                  <div class="flex items-center justify-between"><div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-pink-400"></span><span class="text-slate-400">Line Rental (Ship T2 x30)</span></div><span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">100M</span></div>
+                </div>
+              </td>
+            </tr>
+            <!-- Bob -->
+            <tr class="hover:bg-slate-800/30 cursor-pointer">
+              <td class="py-3.5 px-6"><div class="flex items-center gap-2.5"><img src="https://images.evetech.net/characters/96000003/portrait?size=32" alt="Bob" class="w-8 h-8 rounded-full border border-slate-700" onerror="this.style.display='none';" /><div><span class="text-slate-200 font-medium">Bob Agnon</span><p class="text-xs text-slate-600 mt-0.5">Click to expand</p></div></div></td>
+              <td class="py-3.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">1.20B</td>
+              <td class="py-3.5 px-3 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">28.6%</td>
+              <td class="py-3.5 px-3 text-right font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">+351.8M</td>
+              <td class="py-3.5 px-6 text-right"><span class="font-mono font-bold text-lg text-emerald-400" style="font-variant-numeric: tabular-nums;">1.55B</span></td>
+            </tr>
+            <!-- Charlie -->
+            <tr class="hover:bg-slate-800/30 cursor-pointer">
+              <td class="py-3.5 px-6"><div class="flex items-center gap-2.5"><img src="https://images.evetech.net/characters/96000004/portrait?size=32" alt="Charlie" class="w-8 h-8 rounded-full border border-slate-700" onerror="this.style.display='none';" /><div><span class="text-slate-200 font-medium">Charlie Orlenard</span><p class="text-xs text-slate-600 mt-0.5">Click to expand</p></div></div></td>
+              <td class="py-3.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">800M</td>
+              <td class="py-3.5 px-3 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">19.0%</td>
+              <td class="py-3.5 px-3 text-right font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">+234.5M</td>
+              <td class="py-3.5 px-6 text-right"><span class="font-mono font-bold text-lg text-emerald-400" style="font-variant-numeric: tabular-nums;">1.03B</span></td>
+            </tr>
+            <!-- Total -->
+            <tr class="bg-slate-800/30 border-t-2 border-slate-700">
+              <td class="py-3.5 px-6 text-slate-200 font-semibold">Total</td>
+              <td class="py-3.5 px-3 text-right font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">4.20B</td>
+              <td class="py-3.5 px-3 text-right font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">100%</td>
+              <td class="py-3.5 px-3 text-right font-mono font-bold text-emerald-400" style="font-variant-numeric: tabular-nums;">+1.23B</td>
+              <td class="py-3.5 px-6 text-right font-mono font-bold text-emerald-400 text-lg" style="font-variant-numeric: tabular-nums;">5.43B</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formula Footer -->
+  <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-5 mt-6 card-enter" style="animation-delay: 420ms;">
+    <div class="flex items-start gap-4">
+      <div class="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+        <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+      </div>
+      <div>
+        <h4 class="text-sm font-semibold text-slate-200 mb-2">Distribution Formula</h4>
+        <div class="font-mono text-xs text-slate-400 space-y-1">
+          <p>Payout = Costs Engaged x (1 + Margin%)</p>
+          <p class="text-slate-500">       = Costs Engaged x (Net Revenue / Total Project Cost)</p>
+        </div>
+        <div class="mt-3 bg-slate-800/50 rounded-lg p-3 text-xs">
+          <p class="text-slate-400 mb-1">Example: Alice contributed 2.20B out of 4.20B total cost</p>
+          <p class="font-mono text-slate-300">Payout = 2.20B x (1 + 29.3%) = 2.20B x 1.293 = <span class="text-emerald-400 font-semibold">2.85B</span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOSS scenario -->
+  <div class="bg-red-500/5 rounded-xl border border-red-500/20 p-5 mt-4 card-enter" style="animation-delay: 480ms;">
+    <div class="flex items-start gap-4">
+      <div class="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0 mt-0.5"><span class="text-xs font-bold text-red-400">LOSS</span></div>
+      <div>
+        <h4 class="text-sm font-semibold text-red-300 mb-1">Loss Scenario</h4>
+        <p class="text-xs text-slate-400">If the project results in a loss (negative margin), each contributor absorbs their proportional share. For example, with a -10% margin on 4.20B costs: Alice (52.4%) would receive 2.20B x 0.90 = 1.98B (a loss of 220M on her 2.20B contribution). The formula remains the same, but <span class="font-mono text-red-400">(1 + margin%)</span> becomes less than 1.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SCREEN 6: PROJECT DETAIL - MEMBERS TAB                        -->
+<!-- ============================================================ -->
+<section id="screen-detail-members" class="screen" data-screen="detail-members">
+<div class="max-w-7xl mx-auto px-6 py-8">
+
+  <!-- Breadcrumb -->
+  <div class="mb-4 card-enter" style="animation-delay: 0ms;">
+    <div class="flex items-center gap-2 text-sm">
+      <button onclick="navigateTo('my-projects')" class="text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
+      <a onclick="navigateTo('my-projects')" class="text-slate-500 hover:text-slate-300 transition-colors cursor-pointer">Group Industry</a>
+      <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+      <span class="text-slate-300">Fleet Doctrine Build</span>
+    </div>
+  </div>
+
+  <!-- Project Header (compact) -->
+  <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-5 mb-6 card-enter" style="animation-delay: 60ms;">
+    <div class="flex items-center gap-5">
+      <div class="flex flex-row gap-1 flex-shrink-0">
+        <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/16229/icon?size=32" alt="Ferox" class="w-full h-full object-cover" onerror="this.style.display='none';" /></div>
+        <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/12005/icon?size=32" alt="Ishtar" class="w-full h-full object-cover" onerror="this.style.display='none';" /></div>
+        <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/22456/icon?size=32" alt="Sabre" class="w-full h-full object-cover" onerror="this.style.display='none';" /></div>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-3 mb-1">
+          <h1 class="text-xl font-bold text-slate-100">Fleet Doctrine Build</h1>
+          <span class="text-xs px-2.5 py-1 rounded-lg bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 font-medium">In Progress</span>
+        </div>
+        <p class="text-sm text-slate-500">3 items &middot; 350 runs &middot; ME 2-4 / TE 4-8 -- Manager: Sylvain Durand -- 4 contributors</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="border-b border-slate-800 mb-6 card-enter" style="animation-delay: 120ms;">
+    <div class="flex gap-6">
+      <button onclick="navigateTo('detail-bom')" class="tab-item px-1 pb-3 text-sm font-medium text-slate-500">Materials &amp; Jobs <span class="ml-1.5 text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">5 items &middot; 10 jobs</span></button>
+      <button onclick="navigateTo('detail-contributions')" class="tab-item px-1 pb-3 text-sm font-medium text-slate-500">Contributions <span class="ml-1.5 text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">6</span></button>
+      <button onclick="navigateTo('detail-distribution')" class="tab-item px-1 pb-3 text-sm font-medium text-slate-500">Distribution</button>
+      <button onclick="navigateTo('detail-members')" class="tab-item active px-1 pb-3 text-sm font-medium">Members <span class="ml-1.5 text-xs px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400">4</span></button>
+    </div>
+  </div>
+
+  <!-- Header section -->
+  <div class="flex items-center justify-between mb-6 card-enter" style="animation-delay: 180ms;">
+    <p class="text-sm text-slate-400">1 owner &middot; 1 admin &middot; 2 members &middot; 1 pending</p>
+    <button onclick="showToast('Link copied to clipboard!')" class="btn-action px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm font-medium flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+      Copy Join Link
+    </button>
+  </div>
+
+  <!-- Members Table -->
+  <div class="bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden mb-6 card-enter" style="animation-delay: 240ms;">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
+            <th class="text-left py-3 px-6">Character</th><th class="text-left py-3 px-3">Corporation</th><th class="text-left py-3 px-3">Role</th><th class="text-center py-3 px-3">Status</th><th class="text-left py-3 px-3">Joined</th><th class="text-center py-3 px-6">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800/30">
+          <tr class="hover:bg-slate-800/30">
+            <td class="py-3 px-6"><div class="flex items-center gap-2.5"><img src="https://images.evetech.net/characters/96000001/portrait?size=32" alt="Sylvain" class="w-8 h-8 rounded-full border border-slate-700" onerror="this.style.display='none';" /><span class="text-slate-200 font-medium">Sylvain Durand</span></div></td>
+            <td class="py-3 px-3"><span class="text-sm text-slate-400">Goonswarm Federation</span></td>
+            <td class="py-3 px-3"><span class="bg-amber-500/15 text-amber-400 border border-amber-500/25 text-xs px-2 py-0.5 rounded font-medium">Owner</span></td>
+            <td class="py-3 px-3 text-center"><div class="flex items-center justify-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span><span class="text-xs text-emerald-400">Active</span></div></td>
+            <td class="py-3 px-3 text-sm text-slate-400">Feb 10, 2026</td>
+            <td class="py-3 px-6 text-center"><span class="text-xs text-slate-600">--</span></td>
+          </tr>
+          <tr class="hover:bg-slate-800/30">
+            <td class="py-3 px-6"><div class="flex items-center gap-2.5"><img src="https://images.evetech.net/characters/96000002/portrait?size=32" alt="Alice" class="w-8 h-8 rounded-full border border-slate-700" onerror="this.style.display='none';" /><span class="text-slate-200 font-medium">Alice Kondur</span></div></td>
+            <td class="py-3 px-3"><span class="text-sm text-slate-400">Goonswarm Federation</span></td>
+            <td class="py-3 px-3"><span class="bg-cyan-500/15 text-cyan-400 border border-cyan-500/25 text-xs px-2 py-0.5 rounded font-medium">Admin</span></td>
+            <td class="py-3 px-3 text-center"><div class="flex items-center justify-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span><span class="text-xs text-emerald-400">Active</span><span class="text-[10px] text-slate-600 ml-1">(auto_accepted)</span></div></td>
+            <td class="py-3 px-3 text-sm text-slate-400">Feb 11, 2026</td>
+            <td class="py-3 px-6 text-center"><div class="flex items-center justify-center gap-1.5"><button class="px-2 py-1 rounded bg-slate-600/20 text-slate-400 text-xs font-medium hover:bg-slate-600/30 border border-slate-600/30">Demote</button><button class="px-2.5 py-1 rounded bg-red-600/10 text-red-400/70 text-xs font-medium hover:bg-red-600/20 hover:text-red-400 transition-colors border border-red-600/20">Kick</button></div></td>
+          </tr>
+          <tr class="hover:bg-slate-800/30">
+            <td class="py-3 px-6"><div class="flex items-center gap-2.5"><img src="https://images.evetech.net/characters/96000003/portrait?size=32" alt="Bob" class="w-8 h-8 rounded-full border border-slate-700" onerror="this.style.display='none';" /><span class="text-slate-200 font-medium">Bob Agnon</span></div></td>
+            <td class="py-3 px-3"><span class="text-sm text-slate-400">Goonswarm Federation</span></td>
+            <td class="py-3 px-3"><span class="bg-slate-700 text-slate-400 border border-slate-600 text-xs px-2 py-0.5 rounded font-medium">Member</span></td>
+            <td class="py-3 px-3 text-center"><div class="flex items-center justify-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span><span class="text-xs text-emerald-400">Active</span><span class="text-[10px] text-slate-600 ml-1">(auto_accepted)</span></div></td>
+            <td class="py-3 px-3 text-sm text-slate-400">Feb 12, 2026</td>
+            <td class="py-3 px-6 text-center"><div class="flex items-center justify-center gap-1.5"><button class="px-2 py-1 rounded bg-cyan-600/20 text-cyan-400 text-xs font-medium hover:bg-cyan-600/30 border border-cyan-600/30">Promote</button><button class="px-2.5 py-1 rounded bg-red-600/10 text-red-400/70 text-xs font-medium hover:bg-red-600/20 hover:text-red-400 transition-colors border border-red-600/20">Kick</button></div></td>
+          </tr>
+          <tr class="hover:bg-slate-800/30">
+            <td class="py-3 px-6"><div class="flex items-center gap-2.5"><img src="https://images.evetech.net/characters/96000004/portrait?size=32" alt="Charlie" class="w-8 h-8 rounded-full border border-slate-700" onerror="this.style.display='none';" /><span class="text-slate-200 font-medium">Charlie Orlenard</span></div></td>
+            <td class="py-3 px-3"><span class="text-sm text-slate-400">Goonswarm Federation</span></td>
+            <td class="py-3 px-3"><span class="bg-slate-700 text-slate-400 border border-slate-600 text-xs px-2 py-0.5 rounded font-medium">Member</span></td>
+            <td class="py-3 px-3 text-center"><div class="flex items-center justify-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span><span class="text-xs text-emerald-400">Active</span><span class="text-[10px] text-slate-600 ml-1">(auto_accepted)</span></div></td>
+            <td class="py-3 px-3 text-sm text-slate-400">Feb 13, 2026</td>
+            <td class="py-3 px-6 text-center"><div class="flex items-center justify-center gap-1.5"><button class="px-2 py-1 rounded bg-cyan-600/20 text-cyan-400 text-xs font-medium hover:bg-cyan-600/30 border border-cyan-600/30">Promote</button><button class="px-2.5 py-1 rounded bg-red-600/10 text-red-400/70 text-xs font-medium hover:bg-red-600/20 hover:text-red-400 transition-colors border border-red-600/20">Kick</button></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Pending Requests -->
+  <div class="mb-6 card-enter" style="animation-delay: 300ms;">
+    <div class="flex items-center gap-3 mb-4">
+      <h3 class="text-sm font-semibold text-slate-200 uppercase tracking-wider">Pending Requests</h3>
+      <span class="text-xs px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 font-medium">1</span>
+    </div>
+    <div class="bg-slate-900/80 rounded-xl border border-amber-500/20 overflow-hidden">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
+            <th class="text-left py-3 px-6">Character</th><th class="text-left py-3 px-3">Corporation</th><th class="text-left py-3 px-3">Requested</th><th class="text-left py-3 px-3">Via</th><th class="text-center py-3 px-6">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="hover:bg-slate-800/30 bg-amber-500/[0.02]">
+            <td class="py-3 px-6"><div class="flex items-center gap-2.5"><img src="https://images.evetech.net/characters/96000005/portrait?size=32" alt="Unknown" class="w-8 h-8 rounded-full border border-slate-700" onerror="this.style.display='none';" /><span class="text-slate-200 font-medium">Unknown Pilot</span></div></td>
+            <td class="py-3 px-3"><span class="text-sm text-slate-400">Pandemic Horde</span></td>
+            <td class="py-3 px-3 text-sm text-slate-400">Feb 24, 2026</td>
+            <td class="py-3 px-3"><span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-500 border border-slate-700">Short Link</span></td>
+            <td class="py-3 px-6 text-center"><div class="flex items-center justify-center gap-1.5"><button class="px-3 py-1.5 rounded bg-emerald-600/20 text-emerald-400 text-xs font-medium hover:bg-emerald-600/30 transition-colors border border-emerald-600/30">Accept</button><button class="px-3 py-1.5 rounded bg-red-600/20 text-red-400 text-xs font-medium hover:bg-red-600/30 transition-colors border border-red-600/30">Reject</button></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Join Link Card -->
+  <div class="bg-slate-800/60 rounded-xl border border-slate-700/50 p-5 card-enter" style="animation-delay: 360ms;">
+    <h4 class="text-sm font-semibold text-slate-200 mb-3">Share Join Link</h4>
+    <div class="flex items-center gap-2 mb-3">
+      <input type="text" value="https://evetools.app/join/A7x9Kf" readonly class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-300 font-mono" style="font-variant-numeric: tabular-nums;" />
+      <button onclick="showToast('Link copied to clipboard!')" class="btn-action px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm font-medium flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
+        Copy
+      </button>
+    </div>
+    <p class="text-xs text-slate-500">Members from your corporation join instantly. Others require your approval.</p>
+  </div>
+
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SCREEN 7: FORM REFERENCE                                       -->
+<!-- ============================================================ -->
+<section id="screen-form-reference" class="screen" data-screen="form-reference">
+<div class="max-w-2xl mx-auto px-6 py-12 space-y-8">
+
+  <div class="flex items-center gap-2 mb-4">
+    <button onclick="navigateTo('detail-contributions')" class="text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+      Back to Contributions
+    </button>
+  </div>
+
+  <h2 class="text-lg font-semibold text-slate-400 border-b border-slate-800 pb-2">Other Contribution Form States (Reference)</h2>
+
+  <!-- JOB INSTALL FORM -->
+  <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-6">
+    <h3 class="text-sm font-semibold text-amber-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+      Job Install Form
+    </h3>
+    <div class="space-y-4">
+      <div><label class="text-sm font-medium text-slate-300 mb-1.5 block">BOM Step</label><select class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-300"><option>Ferox -- Manufacturing (Final Product)</option><option>Gravimetric Sensor Cluster -- Manufacturing</option><option>Photon Microprocessor -- Manufacturing</option></select></div>
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="text-sm font-medium text-slate-300 mb-1.5 block">Runs</label><input type="number" value="10" class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 font-mono" /></div>
+        <div><label class="text-sm font-medium text-slate-300 mb-1.5 block">Solar System</label><div class="form-input bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200">1DQ1-A <span class="text-xs text-slate-500 ml-2">Cost Index: 4.2%</span></div></div>
+      </div>
+      <div class="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
+        <div class="flex items-center justify-between mb-2"><span class="text-sm text-slate-400">ESI Job Cost Calculation</span><span class="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">ESI auto-calculated</span></div>
+        <div class="space-y-1 text-sm">
+          <div class="flex justify-between"><span class="text-slate-500">EIV (Estimated Item Value):</span><span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">5,472,000 ISK</span></div>
+          <div class="flex justify-between"><span class="text-slate-500">Cost Index (1DQ1-A):</span><span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">4.2%</span></div>
+          <div class="flex justify-between"><span class="text-slate-500">Per run:</span><span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">229,824 ISK</span></div>
+          <div class="flex justify-between border-t border-slate-700 pt-1 mt-1"><span class="text-slate-400 font-medium">10 runs total:</span><span class="font-mono font-semibold text-amber-400" style="font-variant-numeric: tabular-nums;">2,298,240 ISK</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BPC FORM -->
+  <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-6">
+    <h3 class="text-sm font-semibold text-violet-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+      BPC Form
+    </h3>
+    <div class="space-y-4">
+      <div><label class="text-sm font-medium text-slate-300 mb-1.5 block">Blueprint Copy</label><div class="form-input bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 flex items-center gap-3"><div class="w-7 h-7 rounded bg-slate-700 border border-slate-600 overflow-hidden flex-shrink-0"><img src="https://images.evetech.net/types/16229/icon?size=32" alt="Ferox" class="w-full h-full" onerror="this.style.display='none';" /></div><span>Ferox Blueprint Copy</span></div></div>
+      <div><label class="text-sm font-medium text-slate-300 mb-1.5 block">Quantity (copies)</label><input type="number" value="50" class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 font-mono" /></div>
+      <div>
+        <label class="text-sm font-medium text-slate-300 mb-3 block">Valuation Method</label>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="type-radio active rounded-xl border border-slate-700 p-3 cursor-pointer">
+            <div class="flex items-center gap-2 mb-1"><div class="w-4 h-4 rounded-full border-2 border-cyan-400 flex items-center justify-center"><div class="w-2 h-2 rounded-full bg-cyan-400"></div></div><span class="text-sm font-medium text-slate-200">Invention Cost</span></div>
+            <p class="text-xs text-slate-500 ml-6">Auto-calculated from datacores + decryptors</p>
+            <p class="font-mono text-sm text-violet-400 ml-6 mt-1" style="font-variant-numeric: tabular-nums;">300,000 ISK/copy</p>
+          </div>
+          <div class="type-radio rounded-xl border border-slate-700 p-3 cursor-pointer">
+            <div class="flex items-center gap-2 mb-1"><div class="w-4 h-4 rounded-full border-2 border-slate-600"></div><span class="text-sm font-medium text-slate-400">Contract Price</span></div>
+            <p class="text-xs text-slate-500 ml-6">Manual input (purchased from contract)</p>
+            <input type="text" placeholder="ISK per copy" class="form-input w-full bg-slate-700 border border-slate-600 rounded px-2.5 py-1.5 text-xs text-slate-400 font-mono mt-1 ml-6" disabled style="max-width: calc(100% - 1.5rem);" />
+          </div>
+        </div>
+      </div>
+      <div class="bg-violet-500/5 rounded-lg border border-violet-500/20 p-3 text-center">
+        <p class="text-xs text-violet-400/60 uppercase tracking-wider mb-0.5">Total</p>
+        <p class="font-mono font-bold text-lg text-violet-400" style="font-variant-numeric: tabular-nums;">15,000,000 ISK</p>
+        <p class="text-xs text-slate-500 mt-0.5">50 copies x 300,000 ISK</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- LINE RENTAL FORM -->
+  <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-6">
+    <h3 class="text-sm font-semibold text-pink-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+      Line Rental Form
+    </h3>
+    <div class="space-y-4">
+      <div><label class="text-sm font-medium text-slate-300 mb-1.5 block">BOM Step</label><select class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-300"><option>Ferox -- Manufacturing (Final Product)</option></select></div>
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="text-sm font-medium text-slate-300 mb-1.5 block">Runs</label><input type="number" value="50" class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 font-mono" /></div>
+        <div><label class="text-sm font-medium text-slate-300 mb-1.5 block">Detected Category</label><div class="form-input bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm flex items-center gap-2"><span class="text-xs px-2 py-0.5 rounded bg-pink-500/10 text-pink-400 border border-pink-500/20">Ship T1</span><span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">100,000 ISK/run</span></div></div>
+      </div>
+      <div><label class="text-sm font-medium text-slate-300 mb-1.5 block">Duration <span class="text-slate-600 font-normal">(optional, for location factor)</span></label><div class="grid grid-cols-2 gap-4"><input type="number" placeholder="Days" class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-400 font-mono" /><div class="flex items-center text-xs text-slate-500">Location factor: 1,000,000 ISK/day</div></div></div>
+      <div class="bg-pink-500/5 rounded-lg border border-pink-500/20 p-3 text-center">
+        <p class="text-xs text-pink-400/60 uppercase tracking-wider mb-0.5">Total</p>
+        <p class="font-mono font-bold text-lg text-pink-400" style="font-variant-numeric: tabular-nums;">5,000,000 ISK</p>
+        <p class="text-xs text-slate-500 mt-0.5">50 runs x 100,000 ISK/run</p>
+      </div>
+    </div>
+  </div>
+
+
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- MODAL 1: CREATE PROJECT                                        -->
+<!-- ============================================================ -->
+<div id="modal-new-project" class="hidden fixed inset-0 z-50">
+  <div class="modal-overlay absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeNewProjectModal()"></div>
+  <div class="relative flex items-center justify-center min-h-screen p-4 pointer-events-none">
+    <div class="modal-content bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto pointer-events-auto">
+
+      <!-- Modal Header -->
+      <div class="px-6 py-5 border-b border-slate-800 flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-slate-100">New Group Project</h2>
+          <p class="text-sm text-slate-500 mt-0.5">Create a new multi-item group industry project</p>
+        </div>
+        <button onclick="closeNewProjectModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-200 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="px-6 py-5 space-y-5">
+
+        <!-- Add Items Section -->
+        <div>
+          <label class="text-sm font-medium text-slate-300 mb-3 block">Items to produce</label>
+
+          <!-- Mode Toggle Tabs -->
+          <div class="flex gap-1 mb-3 bg-slate-800/50 rounded-lg p-0.5 w-fit">
+            <button id="tab-add-item" onclick="switchAddMode('add-item')" class="px-3 py-1.5 rounded-md text-xs font-medium bg-cyan-500/15 text-cyan-400 transition-colors">Add Item</button>
+            <button id="tab-bulk-paste" onclick="switchAddMode('bulk-paste')" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-300 transition-colors">Bulk Paste</button>
+          </div>
+
+          <!-- Mode A: Add one item -->
+          <div id="mode-add-item">
+            <div class="flex gap-2 items-start">
+              <div class="flex-1 relative">
+                <input type="text" placeholder="Search item (e.g. Ferox, Ishtar...)" class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder-slate-600" />
+                <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                <!-- Search results dropdown -->
+                <div class="mt-1 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden absolute w-full z-10">
+                  <div class="px-4 py-2 hover:bg-slate-700 cursor-pointer flex items-center gap-3 bg-cyan-500/5 border-l-2 border-cyan-400">
+                    <div class="w-6 h-6 rounded bg-slate-700 border border-slate-600 overflow-hidden flex-shrink-0"><img src="https://images.evetech.net/types/16229/icon?size=32" alt="Ferox" class="w-full h-full" onerror="this.style.display='none';" /></div>
+                    <div><span class="text-sm text-slate-200">Ferox</span><span class="text-xs text-slate-500 ml-2">Battlecruiser</span></div>
+                  </div>
+                  <div class="px-4 py-2 hover:bg-slate-700 cursor-pointer flex items-center gap-3">
+                    <div class="w-6 h-6 rounded bg-slate-700 border border-slate-600 overflow-hidden flex-shrink-0"><img src="https://images.evetech.net/types/12005/icon?size=32" alt="Ishtar" class="w-full h-full" onerror="this.style.display='none';" /></div>
+                    <div><span class="text-sm text-slate-200">Ishtar</span><span class="text-xs text-slate-500 ml-2">Heavy Assault Cruiser</span></div>
+                  </div>
+                </div>
+              </div>
+              <input type="number" value="2" min="0" max="10" placeholder="ME" class="form-input w-16 bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2.5 text-sm text-slate-200 font-mono text-center" title="ME" />
+              <input type="number" value="4" min="0" max="20" placeholder="TE" class="form-input w-16 bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2.5 text-sm text-slate-200 font-mono text-center" title="TE" />
+              <input type="number" value="100" min="1" placeholder="Runs" class="form-input w-20 bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2.5 text-sm text-slate-200 font-mono text-center" title="Runs" />
+              <button onclick="simulateParse()" class="btn-action px-3 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex-shrink-0 whitespace-nowrap">Add to list</button>
+            </div>
+            <div class="flex gap-10 mt-1.5 ml-0 text-[10px] text-slate-600 uppercase tracking-wider">
+              <span class="flex-1 pl-4">Item</span>
+              <span class="w-16 text-center">ME</span>
+              <span class="w-16 text-center">TE</span>
+              <span class="w-20 text-center">Runs</span>
+              <span class="w-[88px]"></span>
+            </div>
+          </div>
+
+          <!-- Mode B: Bulk Paste (hidden by default) -->
+          <div id="mode-bulk-paste" class="hidden">
+            <textarea rows="5" placeholder="Paste items, one per line:&#10;Ferox 2 4 x100&#10;Ishtar 4 8 x50&#10;Sabre 4 8 x200" class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-sm text-slate-200 font-mono placeholder-slate-600 resize-none" style="font-variant-numeric: tabular-nums;"></textarea>
+            <p class="text-xs text-slate-600 mt-1.5">Format: <span class="font-mono text-slate-500">ItemName ME TE xRuns</span></p>
+            <button onclick="simulateParse()" class="btn-action mt-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+              Parse &amp; Add
+            </button>
+          </div>
+        </div>
+
+        <!-- Items Table -->
+        <div>
+          <div id="items-table-empty" class="hidden bg-slate-800/30 rounded-xl border border-dashed border-slate-700 p-8 text-center">
+            <svg class="w-8 h-8 mx-auto text-slate-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+            <p class="text-sm text-slate-500">No items added yet</p>
+            <p class="text-xs text-slate-600 mt-1">Search for items above or use bulk paste</p>
+          </div>
+
+          <div id="items-table-filled" class="bg-slate-800/30 rounded-xl border border-slate-700 overflow-hidden">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-700">
+                  <th class="text-left py-2 px-3 w-8"></th>
+                  <th class="text-left py-2 px-3">Item</th>
+                  <th class="text-center py-2 px-2 w-16">ME</th>
+                  <th class="text-center py-2 px-2 w-16">TE</th>
+                  <th class="text-center py-2 px-2 w-20">Runs</th>
+                  <th class="text-center py-2 px-3 w-10"></th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-700/50">
+                <tr class="hover:bg-slate-800/30">
+                  <td class="py-2 px-3"><div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/16229/icon?size=32" alt="Ferox" class="w-full h-full" onerror="this.style.display='none';" /></div></td>
+                  <td class="py-2 px-3 text-slate-200">Ferox</td>
+                  <td class="py-2 px-2 text-center"><input type="number" value="2" min="0" max="10" class="w-12 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-xs text-slate-200 font-mono text-center focus:border-cyan-500 focus:outline-none" /></td>
+                  <td class="py-2 px-2 text-center"><input type="number" value="4" min="0" max="20" class="w-12 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-xs text-slate-200 font-mono text-center focus:border-cyan-500 focus:outline-none" /></td>
+                  <td class="py-2 px-2 text-center"><input type="number" value="100" min="1" class="w-16 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-xs text-slate-200 font-mono text-center focus:border-cyan-500 focus:outline-none" style="font-variant-numeric: tabular-nums;" /></td>
+                  <td class="py-2 px-3 text-center"><button class="text-slate-600 hover:text-red-400 transition-colors" title="Remove"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button></td>
+                </tr>
+                <tr class="hover:bg-slate-800/30">
+                  <td class="py-2 px-3"><div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/12005/icon?size=32" alt="Ishtar" class="w-full h-full" onerror="this.style.display='none';" /></div></td>
+                  <td class="py-2 px-3 text-slate-200">Ishtar</td>
+                  <td class="py-2 px-2 text-center"><input type="number" value="4" min="0" max="10" class="w-12 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-xs text-slate-200 font-mono text-center focus:border-cyan-500 focus:outline-none" /></td>
+                  <td class="py-2 px-2 text-center"><input type="number" value="8" min="0" max="20" class="w-12 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-xs text-slate-200 font-mono text-center focus:border-cyan-500 focus:outline-none" /></td>
+                  <td class="py-2 px-2 text-center"><input type="number" value="50" min="1" class="w-16 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-xs text-slate-200 font-mono text-center focus:border-cyan-500 focus:outline-none" style="font-variant-numeric: tabular-nums;" /></td>
+                  <td class="py-2 px-3 text-center"><button class="text-slate-600 hover:text-red-400 transition-colors" title="Remove"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button></td>
+                </tr>
+                <tr class="hover:bg-slate-800/30">
+                  <td class="py-2 px-3"><div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden"><img src="https://images.evetech.net/types/22456/icon?size=32" alt="Sabre" class="w-full h-full" onerror="this.style.display='none';" /></div></td>
+                  <td class="py-2 px-3 text-slate-200">Sabre</td>
+                  <td class="py-2 px-2 text-center"><input type="number" value="4" min="0" max="10" class="w-12 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-xs text-slate-200 font-mono text-center focus:border-cyan-500 focus:outline-none" /></td>
+                  <td class="py-2 px-2 text-center"><input type="number" value="8" min="0" max="20" class="w-12 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-xs text-slate-200 font-mono text-center focus:border-cyan-500 focus:outline-none" /></td>
+                  <td class="py-2 px-2 text-center"><input type="number" value="200" min="1" class="w-16 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-xs text-slate-200 font-mono text-center focus:border-cyan-500 focus:outline-none" style="font-variant-numeric: tabular-nums;" /></td>
+                  <td class="py-2 px-3 text-center"><button class="text-slate-600 hover:text-red-400 transition-colors" title="Remove"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button></td>
+                </tr>
+              </tbody>
+            </table>
+            <!-- Table Footer -->
+            <div class="px-3 py-2 border-t border-slate-700 flex items-center justify-between">
+              <span class="text-xs text-slate-400 font-medium">3 items &middot; 350 total runs</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- System Selector -->
+        <div>
+          <label class="text-sm font-medium text-slate-300 mb-1.5 block">Production System</label>
+          <div class="relative">
+            <select class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-300 appearance-none">
+              <option>1DQ1-A (Delve) -- Cost Index: 4.2%</option>
+              <option>T5ZI-S (Delve) -- Cost Index: 3.8%</option>
+              <option>Jita (The Forge) -- Cost Index: 5.1%</option>
+            </select>
+            <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+          </div>
+        </div>
+
+        <!-- Name (optional) -->
+        <div>
+          <label class="text-sm font-medium text-slate-300 mb-1.5 block">Name <span class="text-slate-600 font-normal">(optional)</span></label>
+          <input type="text" placeholder="Custom project name (e.g. Fleet Doctrine Build)" class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder-slate-600" />
+        </div>
+
+        <!-- Production Blacklist -->
+        <div>
+          <label class="text-sm font-medium text-slate-300 mb-1 block">Blacklist</label>
+          <p class="text-xs text-slate-500 mb-3">Items below will be purchased, not manufactured.</p>
+
+          <!-- Predefined categories -->
+          <div class="grid grid-cols-2 gap-x-6 gap-y-2 mb-4">
+            <label class="flex items-center gap-2.5 cursor-pointer group">
+              <input type="checkbox" checked class="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-cyan-500 cursor-pointer" />
+              <span class="text-sm text-slate-200 group-hover:text-slate-100">Advanced Components</span>
+            </label>
+            <label class="flex items-center gap-2.5 cursor-pointer group">
+              <input type="checkbox" class="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-cyan-500 cursor-pointer" />
+              <span class="text-sm text-slate-400 group-hover:text-slate-300">Capital Components</span>
+            </label>
+            <label class="flex items-center gap-2.5 cursor-pointer group">
+              <input type="checkbox" class="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-cyan-500 cursor-pointer" />
+              <span class="text-sm text-slate-400 group-hover:text-slate-300">Advanced Capital Components</span>
+            </label>
+            <label class="flex items-center gap-2.5 cursor-pointer group">
+              <input type="checkbox" class="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-cyan-500 cursor-pointer" />
+              <span class="text-sm text-slate-400 group-hover:text-slate-300">Hybrid Components</span>
+            </label>
+            <label class="flex items-center gap-2.5 cursor-pointer group">
+              <input type="checkbox" checked class="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-cyan-500 cursor-pointer" />
+              <span class="text-sm text-slate-200 group-hover:text-slate-100">Fuel Blocks</span>
+            </label>
+            <label class="flex items-center gap-2.5 cursor-pointer group">
+              <input type="checkbox" class="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-cyan-500 cursor-pointer" />
+              <span class="text-sm text-slate-400 group-hover:text-slate-300">Tools (R.A.M.)</span>
+            </label>
+            <label class="flex items-center gap-2.5 cursor-pointer group">
+              <input type="checkbox" class="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-cyan-500 cursor-pointer" />
+              <span class="text-sm text-slate-400 group-hover:text-slate-300">Simple Reactions</span>
+            </label>
+            <label class="flex items-center gap-2.5 cursor-pointer group">
+              <input type="checkbox" class="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-cyan-500 cursor-pointer" />
+              <span class="text-sm text-slate-400 group-hover:text-slate-300">Composite Reactions</span>
+            </label>
+            <label class="flex items-center gap-2.5 cursor-pointer group">
+              <input type="checkbox" class="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-cyan-500 cursor-pointer" />
+              <span class="text-sm text-slate-400 group-hover:text-slate-300">Hybrid Reactions</span>
+            </label>
+            <label class="flex items-center gap-2.5 cursor-pointer group">
+              <input type="checkbox" class="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-cyan-500 cursor-pointer" />
+              <span class="text-sm text-slate-400 group-hover:text-slate-300">Biochemical Reactions</span>
+            </label>
+          </div>
+
+          <!-- Individual items search -->
+          <div class="relative mb-2">
+            <input type="text" placeholder="Add specific item..." class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 placeholder-slate-600" />
+            <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+          </div>
+          <div class="flex flex-wrap gap-2 mb-2">
+            <span class="inline-flex items-center gap-1.5 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-300">
+              Nano Fiber Cloth
+              <button class="text-slate-500 hover:text-red-400 transition-colors"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+            </span>
+            <span class="inline-flex items-center gap-1.5 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-300">
+              Photon Microprocessor
+              <button class="text-slate-500 hover:text-red-400 transition-colors"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+            </span>
+          </div>
+          <p class="text-xs text-slate-600">Defaults from your industry settings. Override per project.</p>
+        </div>
+
+        <!-- Corp Container (Optional) -->
+        <div>
+          <label class="text-sm font-medium text-slate-300 mb-1.5 block">Corp Container <span class="text-slate-600 font-normal">(optional)</span></label>
+          <input type="text" placeholder="e.g. Fleet Doctrine Materials" class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder-slate-600" />
+          <p class="text-xs text-slate-500 mt-1.5">If set, admins can verify material contributions against this container's contents in shared corp offices.</p>
+        </div>
+
+        <!-- Line Rental Rates -->
+        <div>
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span class="text-sm text-slate-400">Line Rental Rates: <span class="text-cyan-400 cursor-pointer hover:underline">Use defaults from your settings</span></span>
+          </div>
+          <p class="text-xs text-slate-600 mt-1 ml-6">Override for this project (click to expand)</p>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-4 border-t border-slate-800">
+        <p class="text-xs text-slate-500 mb-3">BOM will be aggregated from all items</p>
+        <div class="flex items-center justify-end gap-3">
+          <button onclick="closeNewProjectModal()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-sm font-medium transition-colors">Cancel</button>
+          <button class="btn-action px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+            Create Project
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODAL 2: ADD CONTRIBUTION                                      -->
+<!-- ============================================================ -->
+<div id="modal-contribute" class="hidden fixed inset-0 z-50">
+  <div class="modal-overlay absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeContributionModal()"></div>
+  <div class="relative flex items-center justify-center min-h-screen p-4 pointer-events-none">
+    <div class="modal-content bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto pointer-events-auto">
+
+      <!-- Modal Header -->
+      <div class="px-6 py-5 border-b border-slate-800 flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-slate-100">Add Contribution</h2>
+          <p class="text-sm text-slate-500 mt-0.5">Project: Fleet Doctrine Build</p>
+        </div>
+        <button onclick="closeContributionModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-200 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="px-6 py-5 space-y-6">
+
+        <!-- Type Selector -->
+        <div>
+          <label class="text-sm font-medium text-slate-300 mb-3 block">Contribution Type</label>
+          <div class="grid grid-cols-4 gap-2">
+            <div class="type-radio active rounded-xl border border-slate-700 p-3 cursor-pointer text-center" onclick="selectContribType(this)">
+              <div class="w-8 h-8 mx-auto mb-2 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+              </div>
+              <span class="text-xs font-medium text-cyan-400">Material</span>
+            </div>
+            <div class="type-radio rounded-xl border border-slate-700 p-3 cursor-pointer text-center" onclick="selectContribType(this)">
+              <div class="w-8 h-8 mx-auto mb-2 rounded-lg bg-slate-800 flex items-center justify-center">
+                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+              </div>
+              <span class="text-xs font-medium text-slate-500">Job Install</span>
+            </div>
+            <div class="type-radio rounded-xl border border-slate-700 p-3 cursor-pointer text-center" onclick="selectContribType(this)">
+              <div class="w-8 h-8 mx-auto mb-2 rounded-lg bg-slate-800 flex items-center justify-center">
+                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+              </div>
+              <span class="text-xs font-medium text-slate-500">BPC</span>
+            </div>
+            <div class="type-radio rounded-xl border border-slate-700 p-3 cursor-pointer text-center" onclick="selectContribType(this)">
+              <div class="w-8 h-8 mx-auto mb-2 rounded-lg bg-slate-800 flex items-center justify-center">
+                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+              </div>
+              <span class="text-xs font-medium text-slate-500">Line Rental</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-800"></div>
+
+        <!-- MATERIAL FORM (Active state) -->
+        <div class="space-y-4">
+          <div>
+            <label class="text-sm font-medium text-slate-300 mb-1.5 block">Item</label>
+            <div class="form-input bg-slate-800 border border-cyan-500/50 rounded-lg px-4 py-2.5 text-sm text-slate-200 flex items-center gap-3">
+              <div class="w-7 h-7 rounded bg-slate-700 border border-slate-600 overflow-hidden flex-shrink-0"><img src="https://images.evetech.net/types/34/icon?size=32" alt="Tritanium" class="w-full h-full" onerror="this.style.display='none';" /></div>
+              <span>Tritanium</span>
+              <span class="text-xs text-slate-500 ml-auto">Type ID: 34</span>
+            </div>
+          </div>
+          <div>
+            <label class="text-sm font-medium text-slate-300 mb-1.5 block">Quantity</label>
+            <input type="text" value="500,000" class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 font-mono" style="font-variant-numeric: tabular-nums;" />
+          </div>
+          <div class="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm text-slate-400">Jita Weighted Sell Price</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Auto-calculated</span>
+            </div>
+            <div class="flex items-center justify-between"><span class="text-sm text-slate-500">Unit price:</span><span class="font-mono text-sm text-slate-300" style="font-variant-numeric: tabular-nums;">6.00 ISK</span></div>
+            <div class="flex items-center justify-between mt-1"><span class="text-sm text-slate-500">500,000 x 6.00 ISK =</span><span class="font-mono text-sm text-slate-300" style="font-variant-numeric: tabular-nums;">3,000,000 ISK</span></div>
+          </div>
+          <div class="valuation-glow bg-emerald-500/5 rounded-xl border border-emerald-500/30 p-5 text-center">
+            <p class="text-xs text-emerald-400/60 uppercase tracking-wider mb-1">Total Valuation</p>
+            <p class="text-3xl font-mono font-bold text-emerald-400 value-reveal" style="font-variant-numeric: tabular-nums;">3,000,000 ISK</p>
+            <p class="text-xs text-slate-500 mt-2">Method: Jita weighted sell price</p>
+          </div>
+          <div>
+            <label class="text-sm font-medium text-slate-300 mb-1.5 block">Notes <span class="text-slate-600 font-normal">(optional)</span></label>
+            <textarea placeholder="Add context for the manager..." rows="2" class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-400 resize-none placeholder-slate-600">Minerals from corp mining op, Feb 24</textarea>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-between">
+        <p class="text-xs text-slate-500">Contribution will be submitted as <span class="text-slate-400">Pending</span> for manager approval</p>
+        <div class="flex gap-3">
+          <button onclick="closeContributionModal()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-sm font-medium transition-colors">Cancel</button>
+          <button class="btn-action px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+            Submit Contribution
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODAL 3: LINE RENTAL SETTINGS                                  -->
+<!-- ============================================================ -->
+<div id="modal-line-rental" class="hidden fixed inset-0 z-50">
+  <div class="modal-overlay absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeLineRentalModal()"></div>
+  <div class="relative flex items-center justify-center min-h-screen p-4 pointer-events-none">
+    <div class="modal-content bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto pointer-events-auto">
+
+      <!-- Modal Header -->
+      <div class="px-6 py-5 border-b border-slate-800 flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-slate-100">Default Line Rental Rates</h2>
+        </div>
+        <button onclick="closeLineRentalModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-200 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="px-6 py-5">
+        <p class="text-sm text-slate-400 mb-5">These rates are used as defaults when creating new group projects. Each project can override them.</p>
+
+        <div class="bg-slate-800/50 rounded-xl border border-slate-700/50 overflow-hidden">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-700">
+                <th class="text-left py-3 px-4">Category</th>
+                <th class="text-right py-3 px-4">Rate</th>
+                <th class="text-left py-3 px-4">Unit</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-700/50">
+              <tr class="hover:bg-slate-800/30">
+                <td class="py-2.5 px-4 text-slate-300">Component T1</td>
+                <td class="py-2.5 px-4 text-right"><input type="text" value="250" class="w-24 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-sm text-slate-200 font-mono text-right focus:border-cyan-500 focus:outline-none" style="font-variant-numeric: tabular-nums;" /></td>
+                <td class="py-2.5 px-4 text-xs text-slate-500">ISK/run</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30">
+                <td class="py-2.5 px-4 text-slate-300">Module T1</td>
+                <td class="py-2.5 px-4 text-right"><input type="text" value="10,000" class="w-24 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-sm text-slate-200 font-mono text-right focus:border-cyan-500 focus:outline-none" style="font-variant-numeric: tabular-nums;" /></td>
+                <td class="py-2.5 px-4 text-xs text-slate-500">ISK/run</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30">
+                <td class="py-2.5 px-4 text-slate-300">Ship T1</td>
+                <td class="py-2.5 px-4 text-right"><input type="text" value="100,000" class="w-24 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-sm text-slate-200 font-mono text-right focus:border-cyan-500 focus:outline-none" style="font-variant-numeric: tabular-nums;" /></td>
+                <td class="py-2.5 px-4 text-xs text-slate-500">ISK/run</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30">
+                <td class="py-2.5 px-4 text-slate-300">Module T2</td>
+                <td class="py-2.5 px-4 text-right"><input type="text" value="100,000" class="w-24 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-sm text-slate-200 font-mono text-right focus:border-cyan-500 focus:outline-none" style="font-variant-numeric: tabular-nums;" /></td>
+                <td class="py-2.5 px-4 text-xs text-slate-500">ISK/run</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30">
+                <td class="py-2.5 px-4 text-slate-300">Ship T2</td>
+                <td class="py-2.5 px-4 text-right"><input type="text" value="2,500,000" class="w-24 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-sm text-slate-200 font-mono text-right focus:border-cyan-500 focus:outline-none" style="font-variant-numeric: tabular-nums;" /></td>
+                <td class="py-2.5 px-4 text-xs text-slate-500">ISK/run</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30">
+                <td class="py-2.5 px-4 text-slate-300">Capital T1</td>
+                <td class="py-2.5 px-4 text-right"><input type="text" value="25,000" class="w-24 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-sm text-slate-200 font-mono text-right focus:border-cyan-500 focus:outline-none" style="font-variant-numeric: tabular-nums;" /></td>
+                <td class="py-2.5 px-4 text-xs text-slate-500">ISK/run</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30">
+                <td class="py-2.5 px-4 text-slate-300">Capital T2</td>
+                <td class="py-2.5 px-4 text-right"><input type="text" value="125,000" class="w-24 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-sm text-slate-200 font-mono text-right focus:border-cyan-500 focus:outline-none" style="font-variant-numeric: tabular-nums;" /></td>
+                <td class="py-2.5 px-4 text-xs text-slate-500">ISK/run</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30 border-t-2 border-slate-600">
+                <td class="py-2.5 px-4 text-slate-300">Location Factor</td>
+                <td class="py-2.5 px-4 text-right"><input type="text" value="1,000,000" class="w-24 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-sm text-slate-200 font-mono text-right focus:border-cyan-500 focus:outline-none" style="font-variant-numeric: tabular-nums;" /></td>
+                <td class="py-2.5 px-4 text-xs text-slate-500">ISK/day</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-end gap-3">
+        <button onclick="closeLineRentalModal()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-sm font-medium transition-colors">Cancel</button>
+        <button onclick="closeLineRentalModal(); showToast('Default rates saved!')" class="btn-action px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium">Save Defaults</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TOAST NOTIFICATION                                              -->
+<!-- ============================================================ -->
+<div id="toast" class="fixed bottom-6 right-6 z-[999] hidden">
+  <div class="bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-2xl text-sm font-medium flex items-center gap-2" style="animation: cardSlideUp 0.3s ease-out;">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+    <span id="toast-text">Success!</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT: Router & Interactions                              -->
+<!-- ============================================================ -->
+<script>
+  // Screen navigation
+  function navigateTo(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+
+    const target = document.getElementById('screen-' + screenId);
+    if (target) {
+      target.classList.add('active');
+      target.classList.add('screen-enter');
+      setTimeout(() => target.classList.remove('screen-enter'), 350);
+    }
+
+    // Update flow bar
+    document.querySelectorAll('.flow-node').forEach(node => {
+      node.classList.remove('active');
+      if (node.dataset.screen === screenId) {
+        node.classList.add('active');
+      }
+    });
+
+    // Close modals
+    closeContributionModal();
+    closeNewProjectModal();
+    closeLineRentalModal();
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // Main tab switching (My Projects / Available)
+  function switchMainTab(tab) {
+    if (tab === 'my-projects') {
+      navigateTo('my-projects');
+    } else {
+      navigateTo('available');
+    }
+  }
+
+  // Contribution modal
+  function openContributionModal() {
+    document.getElementById('modal-contribute').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeContributionModal() {
+    const modal = document.getElementById('modal-contribute');
+    if (modal) { modal.classList.add('hidden'); document.body.style.overflow = ''; }
+  }
+
+  // New project modal
+  function openNewProjectModal() {
+    document.getElementById('modal-new-project').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeNewProjectModal() {
+    const modal = document.getElementById('modal-new-project');
+    if (modal) { modal.classList.add('hidden'); document.body.style.overflow = ''; }
+  }
+
+  // Line rental modal
+  function openLineRentalModal() {
+    document.getElementById('modal-line-rental').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeLineRentalModal() {
+    const modal = document.getElementById('modal-line-rental');
+    if (modal) { modal.classList.add('hidden'); document.body.style.overflow = ''; }
+  }
+
+  // Contribution type selector
+  function selectContribType(el) {
+    const container = el.parentElement;
+    container.querySelectorAll('.type-radio').forEach(r => r.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  // Alice breakdown toggle
+  function toggleAliceBreakdown() {
+    const breakdown = document.getElementById('alice-breakdown');
+    const chevron = document.getElementById('alice-chevron');
+    if (breakdown.style.display === 'none') {
+      breakdown.style.display = '';
+      chevron.style.transform = 'rotate(0deg)';
+    } else {
+      breakdown.style.display = 'none';
+      chevron.style.transform = 'rotate(-90deg)';
+    }
+  }
+
+  // Toast notification
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    document.getElementById('toast-text').textContent = msg;
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), 2500);
+  }
+
+  // Escape key closes modals
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeContributionModal();
+      closeNewProjectModal();
+      closeLineRentalModal();
+    }
+  });
+
+  // Add mode toggle (Add Item / Bulk Paste)
+  function switchAddMode(mode) {
+    const addItemTab = document.getElementById('tab-add-item');
+    const bulkPasteTab = document.getElementById('tab-bulk-paste');
+    const addItemMode = document.getElementById('mode-add-item');
+    const bulkPasteMode = document.getElementById('mode-bulk-paste');
+
+    if (mode === 'add-item') {
+      addItemTab.className = 'px-3 py-1.5 rounded-md text-xs font-medium bg-cyan-500/15 text-cyan-400 transition-colors';
+      bulkPasteTab.className = 'px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-300 transition-colors';
+      addItemMode.classList.remove('hidden');
+      bulkPasteMode.classList.add('hidden');
+    } else {
+      bulkPasteTab.className = 'px-3 py-1.5 rounded-md text-xs font-medium bg-cyan-500/15 text-cyan-400 transition-colors';
+      addItemTab.className = 'px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-300 transition-colors';
+      bulkPasteMode.classList.remove('hidden');
+      addItemMode.classList.add('hidden');
+    }
+  }
+
+  // Simulate parse: show filled table, hide empty state
+  function simulateParse() {
+    document.getElementById('items-table-empty').classList.add('hidden');
+    document.getElementById('items-table-filled').classList.remove('hidden');
+    showToast('3 items parsed and added!');
+  }
+
+  // Filter pills interaction
+  document.querySelectorAll('.filter-pill').forEach(pill => {
+    pill.addEventListener('click', function() {
+      this.parentElement.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+</script>
+
+</body>
+</html>

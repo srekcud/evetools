@@ -54,6 +54,10 @@ class User implements UserInterface
     #[ORM\Column(type: 'json', options: ['default' => '[]'])]
     private array $marketStructures = [];
 
+    /** @var array<string, int> Default line rental rates per category */
+    #[ORM\Column(type: 'json', options: ['default' => '{}'])]
+    private array $lineRentalRates = [];
+
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
@@ -271,6 +275,19 @@ class User implements UserInterface
             $this->marketStructures,
             static fn (array $s) => $s['id'] !== $id,
         ));
+        return $this;
+    }
+
+    /** @return array<string, int> */
+    public function getLineRentalRates(): array
+    {
+        return $this->lineRentalRates;
+    }
+
+    /** @param array<string, int> $rates */
+    public function setLineRentalRates(array $rates): static
+    {
+        $this->lineRentalRates = $rates;
         return $this;
     }
 

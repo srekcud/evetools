@@ -172,6 +172,49 @@ final readonly class MercurePublisherService
     }
 
     /**
+     * Publish a group industry project event.
+     *
+     * Expected actions: member_joined, member_left, contribution_submitted,
+     * contribution_approved, contribution_rejected, sale_recorded,
+     * status_changed, container_verified
+     *
+     * @param array<string, mixed> $data
+     */
+    public function publishGroupProjectEvent(
+        string $projectId,
+        string $action,
+        array $data = [],
+    ): void {
+        $topic = sprintf('/group-project/%s/events', $projectId);
+
+        $payload = [
+            'action' => $action,
+            'data' => $data,
+            'timestamp' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+        ];
+
+        try {
+            $update = new Update(
+                $topic,
+                json_encode($payload, JSON_THROW_ON_ERROR),
+            );
+
+            $this->hub->publish($update);
+
+            $this->logger->debug('Group project event published', [
+                'topic' => $topic,
+                'action' => $action,
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to publish Group Industry Mercure update', [
+                'projectId' => $projectId,
+                'action' => $action,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * Publish an escalation event to group topics (corp/alliance).
      */
     /**
@@ -252,11 +295,13 @@ final readonly class MercurePublisherService
     }
 
     /**
-     * Get group topics for a user (corp/alliance escalations).
+     * Get group topics for a user (corp/alliance escalations + group industry projects).
      * These are non-private topics for shared data.
+     *
+     * @param string[] $groupProjectIds UUIDs of group industry projects the user is a member of
+     * @return list<string>
      */
-    /** @return list<string> */
-    public static function getGroupTopics(?int $corporationId, ?int $allianceId): array
+    public static function getGroupTopics(?int $corporationId, ?int $allianceId, array $groupProjectIds = []): array
     {
         $topics = ['/public/escalations'];
 
@@ -265,6 +310,10 @@ final readonly class MercurePublisherService
         }
         if ($allianceId !== null) {
             $topics[] = sprintf('/alliance/%d/escalations', $allianceId);
+        }
+
+        foreach ($groupProjectIds as $projectId) {
+            $topics[] = sprintf('/group-project/%s/events', $projectId);
         }
 
         return $topics;

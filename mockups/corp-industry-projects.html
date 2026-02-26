@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Corporation Industry - Projects List -- EVE Tools</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+    body {
+      background: #020617;
+      font-family: system-ui, -apple-system, sans-serif;
+      overflow-x: hidden;
+    }
+
+    .font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 999;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.03) 2px,
+        rgba(0, 0, 0, 0.03) 4px
+      );
+    }
+
+    @keyframes ringFill {
+      from { stroke-dashoffset: var(--ring-circumference); }
+      to { stroke-dashoffset: var(--ring-target); }
+    }
+    .ring-animated {
+      animation: ringFill 1.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    }
+
+    @keyframes cardSlideUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .card-enter {
+      animation: cardSlideUp 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) backwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; filter: blur(4px); }
+      to { opacity: 1; filter: blur(0); }
+    }
+    .value-reveal {
+      animation: fadeIn 0.6s ease-out backwards;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .progress-shimmer {
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+      background-size: 200% 100%;
+      animation: shimmer 3s ease-in-out infinite;
+    }
+
+    .ring-glow-cyan { filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.15)); }
+    .ring-glow-amber { filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.15)); }
+    .ring-glow-emerald { filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.15)); }
+
+    .btn-action {
+      transition: all 0.15s ease;
+    }
+    .btn-action:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    .btn-action:active {
+      transform: translateY(0);
+    }
+
+    .project-card {
+      transition: all 0.2s ease;
+    }
+    .project-card:hover {
+      border-color: rgba(56, 189, 248, 0.3);
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.05);
+    }
+
+    .filter-pill {
+      transition: all 0.15s ease;
+    }
+    .filter-pill:hover {
+      background: rgba(51, 65, 85, 0.8);
+    }
+    .filter-pill.active {
+      background: rgba(14, 165, 233, 0.15);
+      color: #38bdf8;
+      border-color: rgba(56, 189, 248, 0.3);
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-300">
+
+  <div class="max-w-7xl mx-auto px-6 py-8">
+
+    <!-- Page header -->
+    <div class="mb-6 card-enter" style="animation-delay: 0ms;">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <div>
+            <h1 class="text-2xl font-bold text-slate-100">Corporation Industry</h1>
+            <div class="flex items-center gap-2 mt-1">
+              <img src="https://images.evetech.net/corporations/98000001/logo?size=32" alt="Corp" class="w-5 h-5 rounded" onerror="this.style.display='none';" />
+              <span class="text-sm text-slate-500">Goonswarm Federation</span>
+              <span class="text-xs px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 border border-slate-700">12 members</span>
+            </div>
+          </div>
+        </div>
+        <button class="btn-action px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          New Project
+        </button>
+      </div>
+    </div>
+
+    <!-- KPI CARDS -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+
+      <!-- KPI 1: Active Projects -->
+      <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-4 card-enter" style="animation-delay: 60ms;">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-xs text-slate-500 uppercase tracking-wider">Active Projects</p>
+          <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+        </div>
+        <p class="text-3xl font-bold text-cyan-400 font-mono value-reveal" style="animation-delay: 300ms; font-variant-numeric: tabular-nums;">3</p>
+        <p class="text-xs text-slate-600 mt-1">1 completing this week</p>
+      </div>
+
+      <!-- KPI 2: Total Contributions -->
+      <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-4 card-enter" style="animation-delay: 120ms;">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-xs text-slate-500 uppercase tracking-wider">Total Contributions</p>
+          <svg class="w-4 h-4 text-emerald-500/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+          </svg>
+        </div>
+        <p class="text-3xl font-bold text-emerald-400 font-mono value-reveal" style="animation-delay: 360ms; font-variant-numeric: tabular-nums;">8.7B</p>
+        <p class="text-xs text-slate-600 mt-1">across all projects</p>
+      </div>
+
+      <!-- KPI 3: Pending Approvals -->
+      <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-4 card-enter" style="animation-delay: 180ms;">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-xs text-slate-500 uppercase tracking-wider">Pending Approvals</p>
+          <svg class="w-4 h-4 text-amber-500/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <p class="text-3xl font-bold text-amber-400 font-mono value-reveal" style="animation-delay: 420ms; font-variant-numeric: tabular-nums;">5</p>
+        <p class="text-xs text-slate-600 mt-1">contributions awaiting review</p>
+      </div>
+
+      <!-- KPI 4: Pipeline Value -->
+      <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-4 card-enter" style="animation-delay: 240ms;">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-xs text-slate-500 uppercase tracking-wider">Pipeline Value</p>
+          <svg class="w-4 h-4 text-cyan-500/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+          </svg>
+        </div>
+        <p class="text-3xl font-bold text-white font-mono value-reveal" style="animation-delay: 480ms; font-variant-numeric: tabular-nums;">14.2B</p>
+        <p class="text-xs text-slate-600 mt-1">estimated sell value</p>
+      </div>
+    </div>
+
+    <!-- Status filter pills -->
+    <div class="flex gap-2 mb-6 card-enter" style="animation-delay: 300ms;">
+      <button class="filter-pill active px-3 py-1.5 rounded-lg text-sm font-medium border border-transparent">
+        All <span class="ml-1 text-xs opacity-60">3</span>
+      </button>
+      <button class="filter-pill px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 border border-transparent">
+        Published <span class="ml-1 text-xs opacity-60">0</span>
+      </button>
+      <button class="filter-pill px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 border border-transparent">
+        In Progress <span class="ml-1 text-xs opacity-60">1</span>
+      </button>
+      <button class="filter-pill px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 border border-transparent">
+        Selling <span class="ml-1 text-xs opacity-60">1</span>
+      </button>
+      <button class="filter-pill px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 border border-transparent">
+        Completed <span class="ml-1 text-xs opacity-60">1</span>
+      </button>
+    </div>
+
+    <!-- Project Cards Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+      <!-- Project Card 1: Ferox (In Progress, 45%) -->
+      <div class="project-card bg-slate-900/80 rounded-xl border border-slate-800 p-5 cursor-pointer card-enter" style="animation-delay: 360ms;">
+        <div class="flex items-start gap-4 mb-4">
+          <div class="w-16 h-16 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+            <img src="https://images.evetech.net/types/16229/icon?size=64" alt="Ferox" class="w-full h-full object-cover" onerror="this.style.display='none';" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <h3 class="text-lg font-semibold text-slate-100 truncate">100x Ferox</h3>
+              <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 flex-shrink-0">In Progress</span>
+            </div>
+            <p class="text-sm text-slate-500">Battlecruiser -- 100 runs</p>
+          </div>
+        </div>
+
+        <!-- BOM Fulfillment Ring -->
+        <div class="flex items-center gap-4 mb-4">
+          <div class="relative w-14 h-14 flex-shrink-0 ring-glow-amber">
+            <svg viewBox="0 0 56 56" class="w-14 h-14" style="transform: rotate(-90deg)">
+              <circle cx="28" cy="28" r="22" fill="none" stroke="rgb(30 41 59)" stroke-width="5" />
+              <circle
+                cx="28" cy="28" r="22" fill="none"
+                stroke="#fbbf24"
+                stroke-width="5"
+                stroke-linecap="round"
+                stroke-dasharray="138.23"
+                style="--ring-circumference: 138.23; --ring-target: 76.03;"
+                class="ring-animated"
+                stroke-dashoffset="138.23"
+              />
+            </svg>
+            <div class="absolute inset-0 flex items-center justify-center">
+              <span class="text-xs font-mono font-bold text-amber-400">45%</span>
+            </div>
+          </div>
+          <div class="flex-1">
+            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">BOM Fulfillment</p>
+            <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
+              <div class="h-full bg-amber-500/60 rounded-full relative" style="width: 45%;">
+                <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Meta info -->
+        <div class="flex items-center justify-between text-xs">
+          <div class="flex items-center gap-2">
+            <img src="https://images.evetech.net/characters/96000001/portrait?size=32" alt="Sylvain" class="w-5 h-5 rounded-full" onerror="this.style.display='none';" />
+            <span class="text-slate-400">Sylvain Durand</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-1 text-slate-500">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>4</span>
+            </div>
+            <span class="font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">+840M est.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Project Card 2: Ishtar (Selling, 78%) -->
+      <div class="project-card bg-slate-900/80 rounded-xl border border-slate-800 p-5 cursor-pointer card-enter" style="animation-delay: 420ms;">
+        <div class="flex items-start gap-4 mb-4">
+          <div class="w-16 h-16 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+            <img src="https://images.evetech.net/types/12005/icon?size=64" alt="Ishtar" class="w-full h-full object-cover" onerror="this.style.display='none';" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <h3 class="text-lg font-semibold text-slate-100 truncate">50x Ishtar</h3>
+              <span class="text-xs px-2 py-0.5 rounded bg-violet-500/15 text-violet-400 border border-violet-500/20 flex-shrink-0">Selling</span>
+            </div>
+            <p class="text-sm text-slate-500">Heavy Assault Cruiser -- 50 runs</p>
+          </div>
+        </div>
+
+        <!-- BOM Fulfillment Ring -->
+        <div class="flex items-center gap-4 mb-4">
+          <div class="relative w-14 h-14 flex-shrink-0 ring-glow-cyan">
+            <svg viewBox="0 0 56 56" class="w-14 h-14" style="transform: rotate(-90deg)">
+              <circle cx="28" cy="28" r="22" fill="none" stroke="rgb(30 41 59)" stroke-width="5" />
+              <circle
+                cx="28" cy="28" r="22" fill="none"
+                stroke="#22d3ee"
+                stroke-width="5"
+                stroke-linecap="round"
+                stroke-dasharray="138.23"
+                style="--ring-circumference: 138.23; --ring-target: 30.41;"
+                class="ring-animated"
+                stroke-dashoffset="138.23"
+              />
+            </svg>
+            <div class="absolute inset-0 flex items-center justify-center">
+              <span class="text-xs font-mono font-bold text-cyan-400">78%</span>
+            </div>
+          </div>
+          <div class="flex-1">
+            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">BOM Fulfillment</p>
+            <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
+              <div class="h-full bg-cyan-500/60 rounded-full relative" style="width: 78%;">
+                <div class="absolute inset-0 progress-shimmer rounded-full"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Meta info -->
+        <div class="flex items-center justify-between text-xs">
+          <div class="flex items-center gap-2">
+            <img src="https://images.evetech.net/characters/96000002/portrait?size=32" alt="Alice" class="w-5 h-5 rounded-full" onerror="this.style.display='none';" />
+            <span class="text-slate-400">Alice Kondur</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-1 text-slate-500">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>3</span>
+            </div>
+            <span class="font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">+2.1B est.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Project Card 3: Sabre (Completed, 100%) -->
+      <div class="project-card bg-slate-900/80 rounded-xl border border-slate-800 p-5 cursor-pointer card-enter" style="animation-delay: 480ms;">
+        <div class="flex items-start gap-4 mb-4">
+          <div class="w-16 h-16 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+            <img src="https://images.evetech.net/types/22456/icon?size=64" alt="Sabre" class="w-full h-full object-cover" onerror="this.style.display='none';" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <h3 class="text-lg font-semibold text-slate-100 truncate">200x Sabre</h3>
+              <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 flex-shrink-0">Completed</span>
+            </div>
+            <p class="text-sm text-slate-500">Interdictor -- 200 runs</p>
+          </div>
+        </div>
+
+        <!-- BOM Fulfillment Ring -->
+        <div class="flex items-center gap-4 mb-4">
+          <div class="relative w-14 h-14 flex-shrink-0 ring-glow-emerald">
+            <svg viewBox="0 0 56 56" class="w-14 h-14" style="transform: rotate(-90deg)">
+              <circle cx="28" cy="28" r="22" fill="none" stroke="rgb(30 41 59)" stroke-width="5" />
+              <circle
+                cx="28" cy="28" r="22" fill="none"
+                stroke="#34d399"
+                stroke-width="5"
+                stroke-linecap="round"
+                stroke-dasharray="138.23"
+                style="--ring-circumference: 138.23; --ring-target: 0;"
+                class="ring-animated"
+                stroke-dashoffset="138.23"
+              />
+            </svg>
+            <div class="absolute inset-0 flex items-center justify-center">
+              <span class="text-xs font-mono font-bold text-emerald-400">100%</span>
+            </div>
+          </div>
+          <div class="flex-1">
+            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">BOM Fulfillment</p>
+            <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
+              <div class="h-full bg-emerald-500/60 rounded-full" style="width: 100%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Meta info -->
+        <div class="flex items-center justify-between text-xs">
+          <div class="flex items-center gap-2">
+            <img src="https://images.evetech.net/characters/96000001/portrait?size=32" alt="Sylvain" class="w-5 h-5 rounded-full" onerror="this.style.display='none';" />
+            <span class="text-slate-400">Sylvain Durand</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-1 text-slate-500">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>5</span>
+            </div>
+            <span class="font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">+1.4B profit</span>
+          </div>
+        </div>
+
+        <!-- Completed overlay badge -->
+        <div class="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between">
+          <span class="text-xs text-slate-500">Completed Feb 20, 2026</span>
+          <span class="text-xs font-mono text-emerald-400">Margin: +18.2%</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Empty state (hidden by default, shown when no projects) -->
+    <div class="hidden mt-8">
+      <div class="bg-slate-900/80 rounded-xl border border-slate-800 border-dashed p-12 text-center">
+        <svg class="w-16 h-16 mx-auto text-slate-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+        </svg>
+        <h3 class="text-lg font-semibold text-slate-400 mb-2">No corporation projects yet</h3>
+        <p class="text-sm text-slate-600 mb-6">Create your first project to start collaborative production with your corporation members.</p>
+        <button class="btn-action px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium inline-flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Create First Project
+        </button>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

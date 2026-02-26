@@ -1,9 +1,11 @@
 {$DOMAIN:evetools.local} {
     tls internal
 
-    # Mercure real-time hub
+    # Mercure real-time hub (SSE: disable buffering)
     handle /.well-known/mercure* {
-        reverse_proxy app:80
+        reverse_proxy app:80 {
+            flush_interval -1
+        }
     }
 
     # Backend API - handle first

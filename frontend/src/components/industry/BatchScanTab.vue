@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useScannerStore } from '@/stores/industry/scanner'
 import { useIndustryStore } from '@/stores/industry'
@@ -7,6 +7,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { apiRequest } from '@/services/api'
 import type { BatchScanItem } from '@/stores/industry/types'
+import ProductionCalculator from './ProductionCalculator.vue'
 
 type UserSettingsResponse = {
   preferredMarketStructureId: number | null
@@ -198,7 +199,71 @@ function activityBadgeClasses(activity: string): string {
   return 'bg-cyan-500/10 text-cyan-400'
 }
 
+// BPC price popover state
+const bpcPopoverTypeId = ref<number | null>(null)
+const bpcPriceInput = ref<number | null>(null)
+const bpcSaving = ref(false)
+
+function openBpcPopover(event: Event, item: BatchScanItem): void {
+  event.stopPropagation()
+  if (bpcPopoverTypeId.value === item.typeId) {
+    closeBpcPopover()
+    return
+  }
+  bpcPopoverTypeId.value = item.typeId
+  bpcPriceInput.value = item.bpcCostPerRun
+}
+
+function closeBpcPopover(): void {
+  bpcPopoverTypeId.value = null
+  bpcPriceInput.value = null
+  bpcSaving.value = false
+}
+
+async function saveBpcPrice(blueprintTypeId: number): Promise<void> {
+  if (bpcPriceInput.value == null || bpcPriceInput.value <= 0) return
+  bpcSaving.value = true
+  try {
+    await scannerStore.upsertBpcPrice(blueprintTypeId, bpcPriceInput.value)
+    closeBpcPopover()
+  } catch {
+    // keep popover open on error
+    bpcSaving.value = false
+  }
+}
+
+async function removeBpcPrice(blueprintTypeId: number): Promise<void> {
+  bpcSaving.value = true
+  try {
+    await scannerStore.deleteBpcPrice(blueprintTypeId)
+    closeBpcPopover()
+  } catch {
+    bpcSaving.value = false
+  }
+}
+
+async function toggleFavorite(event: Event, typeId: number): Promise<void> {
+  event.stopPropagation()
+  if (scannerStore.isFavorite(typeId)) {
+    await scannerStore.removeFavorite(typeId)
+  } else {
+    await scannerStore.addFavorite(typeId)
+  }
+}
+
+function onFavoriteClick(typeId: number): void {
+  industryStore.navigationIntent = { target: 'buy-vs-build', typeId }
+}
+
+function onDocumentClick(event: MouseEvent): void {
+  const target = event.target as HTMLElement
+  if (bpcPopoverTypeId.value != null && !target.closest('[data-bpc-popover]')) {
+    closeBpcPopover()
+  }
+}
+
 onMounted(async () => {
+  document.addEventListener('click', onDocumentClick)
   try {
     const settings = await apiRequest<UserSettingsResponse>('/me/settings')
     if (settings.marketStructures?.length > 0) {
@@ -210,9 +275,16 @@ onMounted(async () => {
     }
   } catch { /* best-effort */ }
 
+  scannerStore.fetchBpcPrices()
+  scannerStore.fetchFavorites()
+
   if (scannerStore.scanResults?.length === 0 && !scannerStore.scanLoading) {
     onScan()
   }
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocumentClick)
 })
 </script>
 
@@ -426,6 +498,33 @@ onMounted(async () => {
         </div>
       </div>
 
+      <!-- Favorites section -->
+      <div v-if="scannerStore.favorites.length > 0" class="bg-slate-900/50 border border-slate-800 rounded-xl p-4">
+        <div class="flex items-center gap-2 mb-3">
+          <svg class="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+          </svg>
+          <h4 class="text-sm font-semibold text-slate-200">{{ t('industry.scanner.batch.favorites') }}</h4>
+          <span class="text-xs px-2 py-0.5 bg-amber-500/10 text-amber-400 rounded-full font-mono">{{ scannerStore.favorites.length }}</span>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="fav in scannerStore.favorites"
+            :key="fav.typeId"
+            @click="onFavoriteClick(fav.typeId)"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-amber-500/30 rounded-lg transition-colors group"
+          >
+            <img :src="getTypeIconUrl(fav.typeId, 32)" class="w-5 h-5 rounded-sm" @error="onImageError" />
+            <span class="text-xs text-slate-300 group-hover:text-slate-100">
+              {{ scannerStore.scanResults?.find(r => r.typeId === fav.typeId)?.typeName ?? `#${fav.typeId}` }}
+            </span>
+            <svg class="w-3 h-3 text-amber-400" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
       <!-- Results table -->
       <div class="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden">
         <!-- Table header bar -->
@@ -509,11 +608,83 @@ onMounted(async () => {
                 </td>
                 <td class="py-3 px-3">
                   <div class="flex items-center gap-2">
+                    <!-- Favorite star -->
+                    <button
+                      @click="toggleFavorite($event, item.typeId)"
+                      class="shrink-0 transition-colors"
+                      :class="scannerStore.isFavorite(item.typeId) ? 'text-amber-400 hover:text-amber-300' : 'text-slate-700 hover:text-amber-400'"
+                      :title="scannerStore.isFavorite(item.typeId) ? t('industry.scanner.batch.removeFavorite') : t('industry.scanner.batch.addFavorite')"
+                    >
+                      <svg class="w-4 h-4" :fill="scannerStore.isFavorite(item.typeId) ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                      </svg>
+                    </button>
                     <span :class="[
                       'font-semibold',
                       idx === 0 && currentPage === 1 ? 'text-slate-100' : item.marginPercent < 0 ? 'text-slate-300' : 'text-slate-200',
                     ]">{{ item.typeName }}</span>
                     <span class="text-[10px] text-slate-500">{{ item.groupName }}</span>
+                    <!-- Skills warning -->
+                    <span
+                      v-if="!item.hasAllSkills"
+                      class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-red-500/10 text-red-400"
+                      :title="t('industry.scanner.batch.missingSkills', { count: item.missingSkillCount })"
+                    >
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 7l9-5-9-5-9 5 9 5z" />
+                      </svg>
+                      {{ item.missingSkillCount }}
+                    </span>
+                    <!-- Faction BPC badge -->
+                    <div v-if="item.isFactionBlueprint" class="relative" data-bpc-popover>
+                      <button
+                        @click="openBpcPopover($event, item)"
+                        :class="[
+                          'inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded cursor-pointer transition-colors whitespace-nowrap',
+                          item.bpcCostPerRun != null
+                            ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+                            : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20',
+                        ]"
+                        :title="item.bpcCostPerRun != null ? t('industry.scanner.batch.setBpcPrice') : t('industry.scanner.batch.bpcCostNotIncluded')"
+                      >
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path v-if="item.bpcCostPerRun != null" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                        </svg>
+                        <span v-if="item.bpcCostPerRun != null">{{ t('industry.scanner.batch.bpcPriceSet', { price: formatIsk(item.bpcCostPerRun) }) }}</span>
+                        <span v-else>{{ t('industry.scanner.batch.factionBpc') }}</span>
+                      </button>
+                      <!-- BPC price popover -->
+                      <div
+                        v-if="bpcPopoverTypeId === item.typeId"
+                        class="absolute left-0 top-full mt-1 z-50 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-3 w-56"
+                        @click.stop
+                      >
+                        <label class="block text-xs text-slate-400 mb-1.5">{{ t('industry.scanner.batch.bpcCostPerRun') }}</label>
+                        <input
+                          v-model.number="bpcPriceInput"
+                          type="number"
+                          min="0"
+                          step="1000"
+                          placeholder="ISK"
+                          class="w-full bg-slate-900 border border-slate-600 rounded px-2.5 py-1.5 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500 transition-colors mb-2"
+                          @keyup.enter="saveBpcPrice(item.typeId)"
+                        />
+                        <div class="flex items-center gap-2">
+                          <button
+                            @click="saveBpcPrice(item.typeId)"
+                            :disabled="bpcSaving || bpcPriceInput == null || bpcPriceInput <= 0"
+                            class="flex-1 px-2.5 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed rounded text-xs font-semibold text-white transition-colors"
+                          >{{ t('industry.scanner.batch.saveBpcPrice') }}</button>
+                          <button
+                            v-if="item.bpcCostPerRun != null"
+                            @click="removeBpcPrice(item.typeId)"
+                            :disabled="bpcSaving"
+                            class="px-2.5 py-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 disabled:opacity-40 rounded text-xs font-semibold transition-colors"
+                          >{{ t('industry.scanner.batch.removeBpcPrice') }}</button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </td>
                 <td class="py-3 px-2 text-center">
@@ -622,6 +793,9 @@ onMounted(async () => {
           <p>{{ t('industry.scanner.batch.infoPrices') }}</p>
         </div>
       </div>
+
+      <!-- Production Calculator -->
+      <ProductionCalculator />
     </template>
 
     <!-- Empty state -->

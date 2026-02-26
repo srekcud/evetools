@@ -243,8 +243,9 @@ class BuyVsBuildService
     }
 
     /**
-     * Recursively collect buildable intermediate components from the production tree.
-     * A buildable component is a material node that has isBuildable=true.
+     * Collect buildable intermediate components from the top level of the production tree.
+     * Only depth-1 components are collected; their build costs already include buying
+     * sub-components at market price, so recursing would double-count.
      *
      * @param array<string, mixed> $node
      * @param list<array{typeId: int, quantity: int, materials: list<array{materialTypeId: int, adjustedQuantity: int}>, materialTypeIds: list<int>, jobInstallCost: float, stage: string, meLevel: int, runs: int}> $components
@@ -306,8 +307,9 @@ class BuyVsBuildService
                 'runs' => $compRuns,
             ];
 
-            // Recurse deeper
-            $this->collectBuildableComponents($blueprint, $components, $solarSystemId);
+            // Do NOT recurse deeper: sub-component costs (T1 parts, reactions) are already
+            // included in this component's build cost via its material prices at Jita.
+            // Recursing would double-count those costs in optimalMixCost.
         }
     }
 

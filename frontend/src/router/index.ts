@@ -110,6 +110,24 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/group-industry',
+      name: 'group-industry',
+      component: () => import('@/views/GroupIndustry/GroupIndustryList.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/group-industry/:id',
+      name: 'group-industry-detail',
+      component: () => import('@/views/GroupIndustry/GroupIndustryDetail.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/join/:code',
+      name: 'group-industry-join',
+      component: () => import('@/views/GroupIndustry/GroupIndustryJoin.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/admin',
       name: 'admin',
       component: () => import('@/views/Admin.vue'),

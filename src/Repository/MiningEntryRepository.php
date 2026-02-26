@@ -266,20 +266,21 @@ class MiningEntryRepository extends ServiceEntityRepository
 
     /**
      * Update price for all entries of a specific type for a user.
+     * Uses native SQL because DQL casts :unitPrice as bigint (matching quantity's type),
+     * which causes "invalid input syntax for type bigint" on float values like 47.07.
      */
     public function updatePriceByTypeId(User $user, int $typeId, float $unitPrice): int
     {
-        return $this->createQueryBuilder('m')
-            ->update()
-            ->set('m.unitPrice', ':unitPrice')
-            ->set('m.totalValue', 'm.quantity * :unitPrice')
-            ->where('m.user = :user')
-            ->andWhere('m.typeId = :typeId')
-            ->setParameter('user', $user)
-            ->setParameter('typeId', $typeId)
-            ->setParameter('unitPrice', $unitPrice)
-            ->getQuery()
-            ->execute();
+        $conn = $this->getEntityManager()->getConnection();
+
+        return $conn->executeStatement(
+            'UPDATE mining_entries SET unit_price = :unitPrice, total_value = quantity * :unitPrice WHERE user_id = :userId AND type_id = :typeId',
+            [
+                'unitPrice' => $unitPrice,
+                'userId' => $user->getId()?->toRfc4122(),
+                'typeId' => $typeId,
+            ]
+        );
     }
 
     /**

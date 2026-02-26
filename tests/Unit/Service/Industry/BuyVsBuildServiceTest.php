@@ -347,6 +347,121 @@ class BuyVsBuildServiceTest extends TestCase
         $this->assertNull($result['marginPercent']);
     }
 
+    /**
+     * Regression test: nested buildable components (T2 -> T1) must NOT be double-counted.
+     * The T2 component's build cost already includes buying T1 sub-components at Jita price.
+     * Only depth-1 components should appear in the analysis.
+     */
+    public function testNoDoubleCountingWithNestedBuildableComponents(): void
+    {
+        // Tree: Final Product -> T2 Component (buildable, depth 1) -> T1 Component (buildable, depth 2)
+        $tree = [
+            'blueprintTypeId' => 1000,
+            'productTypeId' => 1001,
+            'productTypeName' => 'T2 Ship',
+            'quantity' => 1,
+            'runs' => 1,
+            'outputPerRun' => 1,
+            'depth' => 0,
+            'activityType' => 'manufacturing',
+            'hasCopy' => false,
+            'materials' => [
+                [
+                    'typeId' => 2001, // T2 Component (buildable)
+                    'typeName' => 'T2 Component',
+                    'quantity' => 10,
+                    'isBuildable' => true,
+                    'activityType' => 'manufacturing',
+                    'blueprint' => [
+                        'blueprintTypeId' => 2000,
+                        'productTypeId' => 2001,
+                        'productTypeName' => 'T2 Component',
+                        'quantity' => 10,
+                        'runs' => 1,
+                        'outputPerRun' => 10,
+                        'depth' => 1,
+                        'activityType' => 'manufacturing',
+                        'hasCopy' => false,
+                        'materials' => [
+                            [
+                                'typeId' => 3001, // T1 Component (buildable at depth 2)
+                                'typeName' => 'T1 Component',
+                                'quantity' => 20,
+                                'isBuildable' => true,
+                                'activityType' => 'manufacturing',
+                                'blueprint' => [
+                                    'blueprintTypeId' => 3000,
+                                    'productTypeId' => 3001,
+                                    'productTypeName' => 'T1 Component',
+                                    'quantity' => 20,
+                                    'runs' => 2,
+                                    'outputPerRun' => 10,
+                                    'depth' => 2,
+                                    'activityType' => 'manufacturing',
+                                    'hasCopy' => false,
+                                    'materials' => [
+                                        ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 500, 'isBuildable' => false, 'activityType' => null],
+                                    ],
+                                    'structureBonus' => 0.0,
+                                    'structureName' => null,
+                                    'productCategory' => null,
+                                ],
+                            ],
+                        ],
+                        'structureBonus' => 0.0,
+                        'structureName' => null,
+                        'productCategory' => null,
+                    ],
+                ],
+            ],
+            'structureBonus' => 0.0,
+            'structureName' => null,
+            'productCategory' => null,
+        ];
+
+        $this->treeService->method('buildProductionTree')->willReturn($tree);
+        $this->inventionService->method('isT2')->willReturn(true);
+        $this->typeNameResolver->method('resolve')->willReturnCallback(fn (int $id) => match ($id) {
+            1001 => 'T2 Ship', 2001 => 'T2 Component', 3001 => 'T1 Component', default => "Type #{$id}",
+        });
+
+        // T1 Component costs 100 ISK each at Jita
+        // T2 Component costs 5000 ISK each at Jita
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
+            1001 => 200000.0,
+            2001 => 5000.0,
+            3001 => 100.0,
+            34 => 5.0,
+        ]);
+
+        $this->structureMarketService->method('getLowestSellPrice')->willReturn(null);
+        $this->structureMarketService->method('getLowestSellPrices')->willReturn([2001 => null]);
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([]);
+        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
+        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+
+        $result = $this->service->analyze(
+            1001, 1, 10,
+            self::SOLAR_SYSTEM_ID, self::SELL_STRUCTURE_ID,
+            0.0, 0.0, null,
+        );
+
+        // Only 1 component should be analyzed: the T2 Component (depth 1)
+        // The T1 Component (depth 2) must NOT appear separately
+        $this->assertCount(1, $result['components']);
+        $this->assertSame(2001, $result['components'][0]['typeId']);
+
+        // T2 Component build cost = T1 Component Jita price * 20 = 100 * 20 = 2000
+        // T2 Component buy cost = 5000 * 10 = 50000
+        // optimalMixCost should be 2000 (build is cheaper), NOT 2000 + T1 separate cost
+        $this->assertSame(2000.0, $result['components'][0]['buildCost']);
+        $this->assertSame(2000.0, $result['optimalMixCost']);
+
+        // totalProductionCost = optimalMixCost + leafMaterials + finalJobCost
+        // No leaf materials at root level, no job costs (mocked to 0)
+        $this->assertSame(2000.0, $result['totalProductionCost']);
+    }
+
     public function testAnalyzeComponentsSortedBySavingsDescending(): void
     {
         // Tree with two buildable components at different savings levels

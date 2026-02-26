@@ -758,22 +758,17 @@ const SUMMARY_LIST_LIMIT = 5
       </div>
 
       <!-- Bottom action bar -->
-      <div class="flex items-center justify-between flex-wrap gap-3">
+      <div class="space-y-2">
         <div class="flex items-center gap-3">
-          <div>
-            <button
-              @click="onCreateOptimalProject"
-              class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-colors"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              {{ t('industry.scanner.buyVsBuild.createProject') }}
-            </button>
-            <p v-if="excludedComponentNames.length > 0" class="text-xs text-slate-500 mt-1">
-              {{ t('industry.scanner.buyVsBuild.excludes', { items: excludedComponentNames.join(', ') }) }}
-            </p>
-          </div>
+          <button
+            @click="onCreateOptimalProject"
+            class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            {{ t('industry.scanner.buyVsBuild.createProject') }}
+          </button>
           <button
             @click="onRefreshPrices"
             :disabled="loading"
@@ -794,6 +789,9 @@ const SUMMARY_LIST_LIMIT = 5
             {{ t('industry.scanner.buyVsBuild.export') }}
           </button>
         </div>
+        <p v-if="excludedComponentNames.length > 0" class="text-xs text-slate-500">
+          {{ t('industry.scanner.buyVsBuild.excludes', { items: excludedComponentNames.join(', ') }) }}
+        </p>
       </div>
     </template>
 

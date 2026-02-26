@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useNotificationsStore } from '@/stores/notifications'
@@ -18,6 +18,8 @@ const emit = defineEmits<{
 
 const dropdownRef = ref<HTMLElement | null>(null)
 const activeCategory = ref<NotificationCategory | undefined>(undefined)
+
+const readCount = computed(() => store.notifications.filter(n => n.isRead).length)
 
 const categories: { key: NotificationCategory | undefined; labelKey: string }[] = [
   { key: undefined, labelKey: 'common.status.all' },
@@ -56,6 +58,14 @@ async function handleMarkAllRead(): Promise<void> {
   await store.markAllAsRead()
 }
 
+async function handleDelete(id: string): Promise<void> {
+  await store.deleteNotification(id)
+}
+
+async function handleClearRead(): Promise<void> {
+  await store.clearRead()
+}
+
 function loadMore(): void {
   store.fetchNotifications(store.currentPage + 1, activeCategory.value)
 }
@@ -85,6 +95,16 @@ onUnmounted(() => {
           class="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
         >
           {{ t('notificationHub.markAllRead') }}
+        </button>
+        <button
+          v-if="readCount > 0"
+          @click="handleClearRead"
+          class="p-1 hover:bg-slate-800 rounded-lg transition-colors"
+          :title="t('notificationHub.clearRead')"
+        >
+          <svg class="w-4 h-4 text-slate-400 hover:text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
         </button>
         <button
           @click="emit('openSettings')"
@@ -138,6 +158,7 @@ onUnmounted(() => {
           :key="notif.id"
           :notification="notif"
           @click="handleNotificationClick"
+          @delete="handleDelete"
         />
       </div>
     </div>

@@ -525,6 +525,21 @@ export type BatchScanItem = {
   sellPrice: number
   meUsed: number
   activityType: string
+  isFactionBlueprint: boolean
+  bpcCostPerRun: number | null
+  hasAllSkills: boolean
+  missingSkillCount: number
+}
+
+export type BpcPrice = {
+  blueprintTypeId: number
+  pricePerRun: number
+  updatedAt: string
+}
+
+export type ScannerFavorite = {
+  typeId: number
+  createdAt: string
 }
 
 // Buy vs Build types
@@ -630,6 +645,13 @@ export type StockpileTarget = {
   updatedAt: string | null
 }
 
+export type StockpileLocation = {
+  locationId: number
+  locationName: string
+  systemName: string | null
+  quantity: number
+}
+
 export type StockpileItemStatus = {
   id: string
   typeId: number
@@ -642,6 +664,7 @@ export type StockpileItemStatus = {
   stockValue: number
   deficitCost: number
   sourceProductTypeId: number | null
+  locations: StockpileLocation[]
 }
 
 export type StockpileStageStatus = {

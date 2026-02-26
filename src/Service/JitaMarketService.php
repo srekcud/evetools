@@ -808,6 +808,79 @@ class JitaMarketService
     }
 
     /**
+     * Get Ravworks-style pricing: weighted average of the cheapest percentile of sell orders by volume.
+     *
+     * For each typeId, takes sell orders sorted cheapest first, calculates total volume,
+     * then accumulates orders until the target percentile of total volume is reached.
+     * The last order is partially filled to match the target exactly.
+     *
+     * @param int[] $typeIds
+     * @return array<int, float|null> typeId => percentile price (null if no orders)
+     */
+    public function getCheapestPercentilePrices(array $typeIds, float $percentile = 0.05): array
+    {
+        $orderBook = $this->getOrderBook(self::CACHE_KEY);
+
+        $result = [];
+
+        foreach ($typeIds as $typeId) {
+            $orders = ($orderBook !== null) ? ($orderBook[$typeId] ?? []) : [];
+            $result[$typeId] = $this->calculatePercentilePrice($orders, $percentile);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Calculate the weighted average price of the cheapest percentile of sell orders by volume.
+     *
+     * @param list<array{price: float, volume: int}> $orders sorted by price ascending (cheapest first)
+     */
+    private function calculatePercentilePrice(array $orders, float $percentile): ?float
+    {
+        if (empty($orders) || $percentile <= 0.0) {
+            return null;
+        }
+
+        $totalVolume = 0;
+        foreach ($orders as $order) {
+            $totalVolume += $order['volume'];
+        }
+
+        if ($totalVolume === 0) {
+            return null;
+        }
+
+        $targetVolume = $totalVolume * min($percentile, 1.0);
+
+        // If target volume is less than 1 unit, use the cheapest order's price
+        if ($targetVolume < 1.0) {
+            return $orders[0]['price'];
+        }
+
+        $accumulatedVolume = 0.0;
+        $weightedCost = 0.0;
+
+        foreach ($orders as $order) {
+            $remaining = $targetVolume - $accumulatedVolume;
+
+            if ($remaining <= 0.0) {
+                break;
+            }
+
+            $take = min($remaining, (float) $order['volume']);
+            $weightedCost += $take * $order['price'];
+            $accumulatedVolume += $take;
+        }
+
+        if ($accumulatedVolume <= 0.0) {
+            return null;
+        }
+
+        return $weightedCost / $accumulatedVolume;
+    }
+
+    /**
      * Get sell orders for a specific type from the cached order book.
      *
      * @return list<array{price: float, volume: int}>

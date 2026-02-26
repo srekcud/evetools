@@ -136,7 +136,8 @@ class StockpileService
             ];
         }
 
-        $assetQuantities = $this->assetRepository->getAggregatedQuantitiesByUser($user);
+        $stockData = $this->assetRepository->getQuantitiesByUserWithLocations($user);
+        $assetQuantities = array_map(fn (array $data) => $data['total'], $stockData);
         $typeIds = array_map(fn (IndustryStockpileTarget $t) => $t->getTypeId(), $targets);
         $prices = $this->jitaMarketService->getPrices($typeIds);
 
@@ -183,6 +184,7 @@ class StockpileService
                 'deficitCost' => round($deficitCost, 2),
                 'stage' => $target->getStage(),
                 'sourceProductTypeId' => $target->getSourceProductTypeId(),
+                'locations' => $stockData[$tid]['locations'] ?? [],
             ];
 
             $stage = $target->getStage();

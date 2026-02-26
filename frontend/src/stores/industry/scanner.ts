@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiRequest } from '@/services/api'
-import type { BatchScanItem, BuyVsBuildResult, PivotAnalysisResult } from './types'
+import type { BatchScanItem, BpcPrice, BuyVsBuildResult, PivotAnalysisResult, ScannerFavorite } from './types'
 
 type ScanFilters = {
   category: string
@@ -24,6 +24,14 @@ export const useScannerStore = defineStore('industry-scanner', () => {
     sellVenue: 'jita',
     structureId: null,
   })
+
+  // BPC prices state
+  const bpcPrices = ref<BpcPrice[]>([])
+  const bpcPricesLoading = ref(false)
+
+  // Scanner favorites state
+  const favorites = ref<ScannerFavorite[]>([])
+  const favoritesLoading = ref(false)
 
   // Buy vs Build state
   const buyVsBuildResult = ref<BuyVsBuildResult | null>(null)
@@ -127,6 +135,80 @@ export const useScannerStore = defineStore('industry-scanner', () => {
     pivotError.value = null
   }
 
+  async function fetchBpcPrices(): Promise<void> {
+    bpcPricesLoading.value = true
+    try {
+      const data = await apiRequest<BpcPrice[]>('/industry/bpc-prices')
+      bpcPrices.value = data
+    } catch {
+      // best-effort, don't block the UI
+    } finally {
+      bpcPricesLoading.value = false
+    }
+  }
+
+  async function upsertBpcPrice(blueprintTypeId: number, pricePerRun: number): Promise<void> {
+    await apiRequest('/industry/bpc-prices', {
+      method: 'PUT',
+      body: JSON.stringify({ blueprintTypeId, pricePerRun }),
+    })
+
+    const existing = bpcPrices.value.find(p => p.blueprintTypeId === blueprintTypeId)
+    if (existing) {
+      existing.pricePerRun = pricePerRun
+      existing.updatedAt = new Date().toISOString()
+    } else {
+      bpcPrices.value.push({ blueprintTypeId, pricePerRun, updatedAt: new Date().toISOString() })
+    }
+
+    await fetchBatchScan()
+  }
+
+  async function deleteBpcPrice(blueprintTypeId: number): Promise<void> {
+    await apiRequest(`/industry/bpc-prices/${blueprintTypeId}`, {
+      method: 'DELETE',
+    })
+
+    bpcPrices.value = bpcPrices.value.filter(p => p.blueprintTypeId !== blueprintTypeId)
+
+    await fetchBatchScan()
+  }
+
+  async function fetchFavorites(): Promise<void> {
+    favoritesLoading.value = true
+    try {
+      const data = await apiRequest<ScannerFavorite[]>('/industry/scanner-favorites')
+      favorites.value = data
+    } catch {
+      // best-effort
+    } finally {
+      favoritesLoading.value = false
+    }
+  }
+
+  async function addFavorite(typeId: number): Promise<void> {
+    await apiRequest('/industry/scanner-favorites', {
+      method: 'POST',
+      body: JSON.stringify({ typeId }),
+    })
+
+    if (!favorites.value.some(f => f.typeId === typeId)) {
+      favorites.value.push({ typeId, createdAt: new Date().toISOString() })
+    }
+  }
+
+  async function removeFavorite(typeId: number): Promise<void> {
+    await apiRequest(`/industry/scanner-favorites/${typeId}`, {
+      method: 'DELETE',
+    })
+
+    favorites.value = favorites.value.filter(f => f.typeId !== typeId)
+  }
+
+  function isFavorite(typeId: number): boolean {
+    return favorites.value.some(f => f.typeId === typeId)
+  }
+
   return {
     // Batch scan
     scanResults,
@@ -135,6 +217,21 @@ export const useScannerStore = defineStore('industry-scanner', () => {
     lastScanAt,
     scanFilters,
     fetchBatchScan,
+
+    // BPC prices
+    bpcPrices,
+    bpcPricesLoading,
+    fetchBpcPrices,
+    upsertBpcPrice,
+    deleteBpcPrice,
+
+    // Scanner favorites
+    favorites,
+    favoritesLoading,
+    fetchFavorites,
+    addFavorite,
+    removeFavorite,
+    isFavorite,
 
     // Buy vs Build
     buyVsBuildResult,

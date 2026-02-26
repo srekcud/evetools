@@ -12,7 +12,8 @@ import AssetsStatsCards from '@/components/assets/AssetsStatsCards.vue'
 import AssetLocationGroup from '@/components/assets/AssetLocationGroup.vue'
 import ContractsTab from '@/components/assets/ContractsTab.vue'
 import AssetDistributionChart from '@/components/assets/AssetDistributionChart.vue'
-import type { Asset } from '@/types'
+import CorpVisibilityPanel from '@/components/assets/CorpVisibilityPanel.vue'
+import type { Asset, CorpAssetVisibility } from '@/types'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -39,6 +40,20 @@ const selectedSolarSystem = ref<string>('')
 const selectedLocation = ref<string>('')
 const expandedContainers = ref<Set<number>>(new Set())
 const collapsedLocations = ref<Set<string>>(new Set())
+
+// Corp visibility
+const visibility = ref<CorpAssetVisibility | null>(null)
+const visibilityPanel = ref<InstanceType<typeof CorpVisibilityPanel> | null>(null)
+
+const isCorpView = computed(() => viewMode.value === 'corporation')
+const isDirector = computed(() => visibility.value?.isDirector === true)
+const noDivisionsShared = computed(() =>
+  isCorpView.value
+  && !isDirector.value
+  && visibility.value != null
+  && visibility.value.visibleDivisions.length === 0
+  && visibility.value.configuredByName == null
+)
 
 // Get unique solar systems
 const solarSystems = computed(() => {
@@ -218,6 +233,40 @@ async function fetchAssets() {
   }
 }
 
+// Corp visibility
+async function fetchVisibility() {
+  try {
+    const response = await fetch('/api/me/corporation/assets/visibility', {
+      headers: { 'Authorization': `Bearer ${authStore.token}` }
+    })
+    if (!response.ok) throw new Error('Failed to fetch visibility')
+    visibility.value = await safeJsonParse<CorpAssetVisibility>(response)
+  } catch (e) {
+    console.error('Failed to load corp visibility:', e)
+    visibility.value = null
+  }
+}
+
+async function saveVisibility(divisions: number[]) {
+  try {
+    const response = await fetch('/api/me/corporation/assets/visibility', {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`,
+        'Content-Type': 'application/merge-patch+json'
+      },
+      body: JSON.stringify({ visibleDivisions: divisions })
+    })
+    if (!response.ok) throw new Error('Failed to save visibility')
+    visibilityPanel.value?.onSaveComplete()
+    await fetchVisibility()
+    await fetchAssets()
+  } catch (e) {
+    visibilityPanel.value?.onSaveError()
+    error.value = e instanceof Error ? e.message : 'Failed to save visibility'
+  }
+}
+
 // Sync progress
 const currentSyncType = computed(() =>
   viewMode.value === 'character' ? 'character-assets' : 'corporation-assets'
@@ -332,6 +381,11 @@ watch([selectedCharacterId, viewMode], () => {
   searchQuery.value = ''
   expandedContainers.value = new Set()
   collapsedLocations.value = new Set()
+  if (viewMode.value === 'corporation') {
+    fetchVisibility()
+  } else {
+    visibility.value = null
+  }
   fetchAssets()
 }, { immediate: true })
 </script>
@@ -394,93 +448,112 @@ watch([selectedCharacterId, viewMode], () => {
           </div>
         </div>
 
+        <!-- Corp visibility panel (Director only) -->
+        <CorpVisibilityPanel
+          v-if="isCorpView && isDirector && visibility"
+          ref="visibilityPanel"
+          :visibility="visibility"
+          @save="saveVisibility"
+        />
+
         <!-- Error message -->
         <ErrorBanner v-if="error" :message="error" @dismiss="error = ''" />
 
-        <!-- Filters -->
-        <AssetsFilterBar
-          :view-mode="viewMode"
-          :characters="characters"
-          :selected-character-id="selectedCharacterId"
-          :search-query="searchQuery"
-          :solar-systems="solarSystems"
-          :locations="locations"
-          :selected-solar-system="selectedSolarSystem"
-          :selected-location="selectedLocation"
-          @update:view-mode="viewMode = $event"
-          @update:selected-character-id="selectedCharacterId = $event"
-          @update:search-query="searchQuery = $event"
-          @update:selected-solar-system="selectedSolarSystem = $event"
-          @update:selected-location="selectedLocation = $event"
-          @clear-filters="clearFilters"
-        />
-
-        <!-- Stats -->
-        <AssetsStatsCards
-          :total-items="totalItems"
-          :total-types="totalTypes"
-          :total-systems="totalSystems"
-          :total-locations="totalLocations"
-        />
-
-        <!-- Distribution chart -->
-        <AssetDistributionChart
-          v-if="!isLoading && assetsByLocation.length > 0"
-          :location-groups="assetsByLocation"
-        />
-
-        <!-- Loading state -->
-        <div v-if="isLoading" class="flex flex-col items-center justify-center py-20">
-          <svg class="w-10 h-10 animate-spin text-cyan-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        <!-- No divisions shared (non-director, no config) -->
+        <div v-if="noDivisionsShared" class="text-center py-20">
+          <svg class="w-16 h-16 mx-auto text-slate-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
           </svg>
-          <p class="text-slate-400">{{ t('assets.loading') }}</p>
+          <p class="text-slate-500">{{ t('assets.visibility.noDivisionsShared') }}</p>
         </div>
 
-        <!-- Empty state -->
-        <div v-else-if="assets.length === 0" class="text-center py-20">
-          <template v-if="isRefreshing">
-            <svg class="w-16 h-16 mx-auto text-cyan-500 mb-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-            </svg>
-            <p class="text-slate-300 font-medium mb-2">{{ t('assets.syncInProgress') }}</p>
-            <p class="text-slate-500 text-sm max-w-md mx-auto">
-              {{ t('assets.syncDescription') }}
-            </p>
-          </template>
-          <template v-else>
-            <svg class="w-16 h-16 mx-auto text-slate-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-            </svg>
-            <p class="text-slate-500 mb-4">{{ t('assets.noAssets') }}</p>
-            <button
-              @click="refreshAssets"
-              :disabled="isRefreshing"
-              class="text-cyan-400 hover:underline text-sm"
-            >
-              {{ t('assets.refreshFromEve') }}
-            </button>
-          </template>
-        </div>
-
-        <!-- Assets by location -->
-        <div v-else class="space-y-4">
-          <AssetLocationGroup
-            v-for="location in assetsByLocation"
-            :key="location.locationName"
-            :location="location"
-            :expanded-containers="expandedContainers"
-            :collapsed-locations="collapsedLocations"
-            :container-contents="containerContents"
-            @toggle-container="toggleContainer"
-            @toggle-location="toggleLocation"
+        <!-- Filters, stats, and assets list (hidden when no divisions shared) -->
+        <template v-if="!noDivisionsShared">
+          <!-- Filters -->
+          <AssetsFilterBar
+            :view-mode="viewMode"
+            :characters="characters"
+            :selected-character-id="selectedCharacterId"
+            :search-query="searchQuery"
+            :solar-systems="solarSystems"
+            :locations="locations"
+            :selected-solar-system="selectedSolarSystem"
+            :selected-location="selectedLocation"
+            @update:view-mode="viewMode = $event"
+            @update:selected-character-id="selectedCharacterId = $event"
+            @update:search-query="searchQuery = $event"
+            @update:selected-solar-system="selectedSolarSystem = $event"
+            @update:selected-location="selectedLocation = $event"
+            @clear-filters="clearFilters"
           />
-        </div>
 
-        <!-- No results -->
-        <div v-if="!isLoading && assets.length > 0 && filteredAssets.length === 0" class="text-center py-12">
-          <p class="text-slate-500">{{ t('assets.noMatchingItems') }}</p>
-        </div>
+          <!-- Stats -->
+          <AssetsStatsCards
+            :total-items="totalItems"
+            :total-types="totalTypes"
+            :total-systems="totalSystems"
+            :total-locations="totalLocations"
+          />
+
+          <!-- Distribution chart -->
+          <AssetDistributionChart
+            v-if="!isLoading && assetsByLocation.length > 0"
+            :location-groups="assetsByLocation"
+          />
+
+          <!-- Loading state -->
+          <div v-if="isLoading" class="flex flex-col items-center justify-center py-20">
+            <svg class="w-10 h-10 animate-spin text-cyan-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            <p class="text-slate-400">{{ t('assets.loading') }}</p>
+          </div>
+
+          <!-- Empty state -->
+          <div v-else-if="assets.length === 0" class="text-center py-20">
+            <template v-if="isRefreshing">
+              <svg class="w-16 h-16 mx-auto text-cyan-500 mb-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              <p class="text-slate-300 font-medium mb-2">{{ t('assets.syncInProgress') }}</p>
+              <p class="text-slate-500 text-sm max-w-md mx-auto">
+                {{ t('assets.syncDescription') }}
+              </p>
+            </template>
+            <template v-else>
+              <svg class="w-16 h-16 mx-auto text-slate-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+              </svg>
+              <p class="text-slate-500 mb-4">{{ t('assets.noAssets') }}</p>
+              <button
+                @click="refreshAssets"
+                :disabled="isRefreshing"
+                class="text-cyan-400 hover:underline text-sm"
+              >
+                {{ t('assets.refreshFromEve') }}
+              </button>
+            </template>
+          </div>
+
+          <!-- Assets by location -->
+          <div v-else class="space-y-4">
+            <AssetLocationGroup
+              v-for="location in assetsByLocation"
+              :key="location.locationName"
+              :location="location"
+              :expanded-containers="expandedContainers"
+              :collapsed-locations="collapsedLocations"
+              :container-contents="containerContents"
+              @toggle-container="toggleContainer"
+              @toggle-location="toggleLocation"
+            />
+          </div>
+
+          <!-- No results -->
+          <div v-if="!isLoading && assets.length > 0 && filteredAssets.length === 0" class="text-center py-12">
+            <p class="text-slate-500">{{ t('assets.noMatchingItems') }}</p>
+          </div>
+        </template>
       </div>
 
       <!-- Contracts Tab -->

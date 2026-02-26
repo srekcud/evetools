@@ -65,4 +65,16 @@ class BatchScanResultResource
 
     /** "manufacturing" or "reaction" */
     public string $activityType = 'manufacturing';
+
+    /** Whether this item's blueprint is a faction BPC (expensive, not inventable) */
+    public bool $isFactionBlueprint = false;
+
+    /** User-defined BPC cost per run, null if not set */
+    public ?float $bpcCostPerRun = null;
+
+    /** Whether at least one character has all required skills */
+    public bool $hasAllSkills = true;
+
+    /** Number of missing skills (best character) */
+    public int $missingSkillCount = 0;
 }

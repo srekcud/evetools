@@ -6,11 +6,14 @@ namespace App\ApiResource\Notification;
 
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\EmptyInput;
+use App\State\Processor\Notification\ClearReadProcessor;
+use App\State\Processor\Notification\DeleteNotificationProcessor;
 use App\State\Processor\Notification\MarkAllReadProcessor;
 use App\State\Processor\Notification\MarkReadProcessor;
 use App\State\Provider\Notification\NotificationCollectionProvider;
@@ -57,6 +60,18 @@ use App\State\Provider\Notification\NotificationProvider;
             input: EmptyInput::class,
             processor: MarkAllReadProcessor::class,
             openapi: new Model\Operation(summary: 'Mark all notifications as read', tags: ['Notifications']),
+        ),
+        new Post(
+            uriTemplate: '/me/notifications/clear-read',
+            input: EmptyInput::class,
+            processor: ClearReadProcessor::class,
+            openapi: new Model\Operation(summary: 'Delete all read notifications', tags: ['Notifications']),
+        ),
+        new Delete(
+            uriTemplate: '/me/notifications/{id}',
+            provider: NotificationProvider::class,
+            processor: DeleteNotificationProcessor::class,
+            openapi: new Model\Operation(summary: 'Delete a notification', tags: ['Notifications']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

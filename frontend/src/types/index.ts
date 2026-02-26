@@ -51,3 +51,11 @@ export interface LocationGroup {
   items: Asset[]
   totalQuantity: number
 }
+
+export type CorpAssetVisibility = {
+  visibleDivisions: number[]
+  allDivisions: Record<number, string>
+  isDirector: boolean
+  configuredByName: string | null
+  updatedAt: string | null
+}

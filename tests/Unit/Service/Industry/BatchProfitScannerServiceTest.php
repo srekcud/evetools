@@ -10,9 +10,12 @@ use App\Service\Industry\InventionService;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
+use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedStructureRepository;
+use App\Repository\IndustryBpcPriceRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Repository\Sde\IndustryActivitySkillRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -36,6 +39,9 @@ class BatchProfitScannerServiceTest extends TestCase
     private CachedStructureRepository&MockObject $cachedStructureRepository;
     private MapSolarSystemRepository&MockObject $solarSystemRepository;
     private InventionService&MockObject $inventionService;
+    private IndustryBpcPriceRepository&MockObject $bpcPriceRepository;
+    private IndustryActivitySkillRepository&MockObject $activitySkillRepository;
+    private CachedCharacterSkillRepository&MockObject $characterSkillRepository;
     private BatchProfitScannerService $service;
 
     private const SOLAR_SYSTEM_ID = 30002510;
@@ -53,11 +59,17 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->cachedStructureRepository = $this->createMock(CachedStructureRepository::class);
         $this->solarSystemRepository = $this->createMock(MapSolarSystemRepository::class);
         $this->inventionService = $this->createMock(InventionService::class);
+        $this->bpcPriceRepository = $this->createMock(IndustryBpcPriceRepository::class);
+        $this->activitySkillRepository = $this->createMock(IndustryActivitySkillRepository::class);
+        $this->characterSkillRepository = $this->createMock(CachedCharacterSkillRepository::class);
 
         $this->entityManager->method('getConnection')->willReturn($this->connection);
 
-        // Default: no T2 products
+        // Default: no T2 products, no faction detection, no BPC prices, no skills
         $this->inventionService->method('identifyT2Products')->willReturn([]);
+        $this->productRepository->method('findFactionBlueprintIds')->willReturn([]);
+        $this->bpcPriceRepository->method('findByUserIndexed')->willReturn([]);
+        $this->activitySkillRepository->method('findSkillsForBlueprints')->willReturn([]);
 
         $this->service = new BatchProfitScannerService(
             $this->productRepository,
@@ -70,6 +82,9 @@ class BatchProfitScannerServiceTest extends TestCase
             $this->cachedStructureRepository,
             $this->solarSystemRepository,
             $this->inventionService,
+            $this->bpcPriceRepository,
+            $this->activitySkillRepository,
+            $this->characterSkillRepository,
         );
     }
 
@@ -126,9 +141,11 @@ class BatchProfitScannerServiceTest extends TestCase
             587 => 'Rifter',
         ]);
 
-        // Job install cost (EIV calculated from ME0 materials)
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(1850000.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(25000.0);
+        // Job install cost: EIV from pre-loaded adjusted prices, cost index pre-loaded per system
+        // EIV = 1850000, costIndex = 0.01 => jobInstallCost = 1850000 * 0.01 = 18500
+        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([34 => 5.0, 35 => 12.0]);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(0.01);
+        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(1850000.0);
 
         // exportCostPerM3 = 0 so importCost = 0
         $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.036, 0.036, 0.0, null);
@@ -180,8 +197,9 @@ class BatchProfitScannerServiceTest extends TestCase
         ]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 5.0]);
         $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
 
         // Filter: min margin 10%
         $result = $this->service->scan('all', 10.0, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.036, 0.036, 0.0, null);
@@ -212,8 +230,9 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 100000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 2.0]);
         $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
 
         // Filter: minDailyVolume = 5
         $result = $this->service->scan('all', null, 5.0, 'jita', null, self::SOLAR_SYSTEM_ID, 0.036, 0.036, 0.0, null);
@@ -242,8 +261,9 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->jitaMarketService->method('getPrices')->willReturn([200 => 10.0, 101 => 50000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([101 => 100.0]);
         $this->typeNameResolver->method('resolveMany')->willReturn([200 => 'Raw Material', 101 => 'Reaction Product']);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
 
         $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
 
@@ -286,8 +306,9 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => null]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
         $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
 
         $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
 
@@ -317,8 +338,9 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
         $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
 
         $exportCostPerM3 = 10.0;
         $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, $exportCostPerM3, null);
@@ -362,8 +384,9 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
         $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
 
         $exportCostPerM3 = 1200.0;
         $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, $exportCostPerM3, null);
@@ -408,8 +431,9 @@ class BatchProfitScannerServiceTest extends TestCase
             35 => 'Pyerite',
             587 => 'Rifter',
         ]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
 
         $exportCostPerM3 = 10.0;
         $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, $exportCostPerM3, null);
@@ -457,8 +481,9 @@ class BatchProfitScannerServiceTest extends TestCase
 
         $this->jitaMarketService->method('getAverageDailyVolumesForRegion')->willReturn([587 => 20.0]);
         $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
 
         $result = $this->service->scan('all', null, null, 'structure', $structureId, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
 
@@ -491,8 +516,9 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 2001 => 500.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([2001 => 5000.0]);
         $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 2001 => 'Scourge Heavy Missile']);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
 
         $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
 
@@ -533,8 +559,9 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->jitaMarketService->method('getPrices')->willReturn([587 => 2500000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
         $this->typeNameResolver->method('resolveMany')->willReturn([587 => 'Rifter']);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
 
         $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
 
@@ -567,6 +594,9 @@ class BatchProfitScannerServiceTest extends TestCase
             $this->cachedStructureRepository,
             $this->solarSystemRepository,
             $this->inventionService,
+            $this->bpcPriceRepository,
+            $this->activitySkillRepository,
+            $this->characterSkillRepository,
         );
 
         $this->connection->method('fetchAllAssociative')->willReturnCallback(
@@ -594,8 +624,9 @@ class BatchProfitScannerServiceTest extends TestCase
             587 => 'Rifter',
             11393 => 'Jaguar',
         ]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
 
         // Filter: t2_ships only (categoryId=6, onlyT2=true)
         $result = $this->service->scan('t2_ships', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
@@ -606,5 +637,152 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->assertSame('Jaguar', $result[0]['typeName']);
         $this->assertSame('T2 Ships', $result[0]['categoryLabel']);
         $this->assertSame(2, $result[0]['meUsed']); // T2 = ME 2 (Attainment decryptor default)
+    }
+
+    public function testScanIncludesFactionBlueprintFlag(): void
+    {
+        $this->productRepository = $this->createMock(IndustryActivityProductRepository::class);
+        $this->productRepository->method('findAllManufacturableProducts')->willReturn([
+            ['blueprintTypeId' => 586, 'productTypeId' => 587, 'outputPerRun' => 1, 'activityId' => 1],
+        ]);
+        // Mark blueprint 586 as faction
+        $this->productRepository->method('findFactionBlueprintIds')->willReturn([586 => true]);
+
+        $this->service = new BatchProfitScannerService(
+            $this->productRepository,
+            $this->materialRepository,
+            $this->jitaMarketService,
+            $this->structureMarketService,
+            $this->esiCostIndexService,
+            $this->typeNameResolver,
+            $this->entityManager,
+            $this->cachedStructureRepository,
+            $this->solarSystemRepository,
+            $this->inventionService,
+            $this->bpcPriceRepository,
+            $this->activitySkillRepository,
+            $this->characterSkillRepository,
+        );
+
+        $this->connection->method('fetchFirstColumn')->willReturn([]);
+        $this->connection->method('fetchAllAssociative')->willReturnCallback(
+            fn (string $sql): array => str_contains($sql, 'group_id')
+                ? [['type_id' => 587, 'group_id' => 25, 'group_name' => 'Frigate', 'category_id' => 6, 'volume' => 28100.0]]
+                : [['type_id' => 34, 'volume' => 0.01]]
+        );
+
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
+            586 => [['materialTypeId' => 34, 'quantity' => 100]],
+        ]);
+
+        $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
+        $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
+        $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
+        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+
+        $this->assertCount(1, $result);
+        $this->assertTrue($result[0]['isFactionBlueprint']);
+        $this->assertNull($result[0]['bpcCostPerRun']);
+    }
+
+    public function testScanIncludesBpcCostInTotalCost(): void
+    {
+        $user = $this->createMock(\App\Entity\User::class);
+        $user->method('getCharacters')->willReturn(new \Doctrine\Common\Collections\ArrayCollection());
+
+        // Setup BPC price mock to return a price for blueprint 586
+        $this->bpcPriceRepository = $this->createMock(IndustryBpcPriceRepository::class);
+        $this->bpcPriceRepository->method('findByUserIndexed')->willReturn([586 => 500000.0]);
+
+        $this->productRepository = $this->createMock(IndustryActivityProductRepository::class);
+        $this->productRepository->method('findAllManufacturableProducts')->willReturn([
+            ['blueprintTypeId' => 586, 'productTypeId' => 587, 'outputPerRun' => 1, 'activityId' => 1],
+        ]);
+        $this->productRepository->method('findFactionBlueprintIds')->willReturn([586 => true]);
+
+        $this->activitySkillRepository = $this->createMock(IndustryActivitySkillRepository::class);
+        $this->activitySkillRepository->method('findSkillsForBlueprints')->willReturn([]);
+
+        $this->service = new BatchProfitScannerService(
+            $this->productRepository,
+            $this->materialRepository,
+            $this->jitaMarketService,
+            $this->structureMarketService,
+            $this->esiCostIndexService,
+            $this->typeNameResolver,
+            $this->entityManager,
+            $this->cachedStructureRepository,
+            $this->solarSystemRepository,
+            $this->inventionService,
+            $this->bpcPriceRepository,
+            $this->activitySkillRepository,
+            $this->characterSkillRepository,
+        );
+
+        $this->connection->method('fetchFirstColumn')->willReturn([]);
+        $this->connection->method('fetchAllAssociative')->willReturnCallback(
+            fn (string $sql): array => str_contains($sql, 'group_id')
+                ? [['type_id' => 587, 'group_id' => 25, 'group_name' => 'Frigate', 'category_id' => 6, 'volume' => 28100.0]]
+                : [['type_id' => 34, 'volume' => 0.01]]
+        );
+
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
+            586 => [['materialTypeId' => 34, 'quantity' => 100]],
+        ]);
+
+        $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
+        $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
+        $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
+        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, $user);
+
+        $this->assertCount(1, $result);
+        $this->assertTrue($result[0]['isFactionBlueprint']);
+        $this->assertSame(500000.0, $result[0]['bpcCostPerRun']);
+
+        // Material cost with ME10: ceil(100 * 0.9) = 90 * 5.0 = 450.0
+        // BPC cost: 500000.0
+        // Total cost = 450 + 500000 = 500450
+        // Net sell = 5000000 (no broker/tax), profit = 5000000 - 500450 = 4499550
+        $this->assertSame(450.0, $result[0]['materialCost']);
+        $this->assertSame(4499550.0, $result[0]['profitPerUnit']);
+    }
+
+    public function testScanNonFactionBlueprintHasFalseFactionFlag(): void
+    {
+        $this->connection->method('fetchFirstColumn')->willReturn([]);
+        $this->connection->method('fetchAllAssociative')->willReturnCallback(
+            fn (string $sql): array => str_contains($sql, 'group_id')
+                ? [['type_id' => 587, 'group_id' => 25, 'group_name' => 'Frigate', 'category_id' => 6, 'volume' => 28100.0]]
+                : [['type_id' => 34, 'volume' => 0.01]]
+        );
+
+        $this->productRepository->method('findAllManufacturableProducts')->willReturn([
+            ['blueprintTypeId' => 586, 'productTypeId' => 587, 'outputPerRun' => 1, 'activityId' => 1],
+        ]);
+
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
+            586 => [['materialTypeId' => 34, 'quantity' => 100]],
+        ]);
+
+        $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
+        $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
+        $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
+        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+
+        $this->assertCount(1, $result);
+        $this->assertFalse($result[0]['isFactionBlueprint']);
+        $this->assertNull($result[0]['bpcCostPerRun']);
     }
 }

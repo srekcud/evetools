@@ -11,6 +11,7 @@ use App\ApiResource\Assets\CorporationAssetsResource;
 use App\Entity\CachedAsset;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
+use App\Repository\CorpAssetVisibilityRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -24,6 +25,7 @@ class CorporationAssetsProvider implements ProviderInterface
     public function __construct(
         private readonly Security $security,
         private readonly CachedAssetRepository $cachedAssetRepository,
+        private readonly CorpAssetVisibilityRepository $visibilityRepository,
         private readonly RequestStack $requestStack,
     ) {
     }
@@ -45,9 +47,23 @@ class CorporationAssetsProvider implements ProviderInterface
         $request = $this->requestStack->getCurrentRequest();
         $divisionName = $request?->query->get('divisionName');
 
-        $assets = $divisionName !== null
-            ? $this->cachedAssetRepository->findByCorporationAndDivision($corporationId, $divisionName)
-            : $this->cachedAssetRepository->findByCorporationId($corporationId);
+        $visibility = $this->visibilityRepository->findByCorporationId($corporationId);
+        $visibleDivisions = $visibility?->getVisibleDivisions();
+
+        if ($divisionName !== null && $visibleDivisions !== null) {
+            // Both division name filter and visibility config: apply both constraints
+            $assets = $this->cachedAssetRepository->findByCorporationDivisionNameAndFlags(
+                $corporationId,
+                $divisionName,
+                $visibleDivisions,
+            );
+        } elseif ($divisionName !== null) {
+            $assets = $this->cachedAssetRepository->findByCorporationAndDivision($corporationId, $divisionName);
+        } elseif ($visibleDivisions !== null) {
+            $assets = $this->cachedAssetRepository->findByCorporationAndDivisions($corporationId, $visibleDivisions);
+        } else {
+            $assets = $this->cachedAssetRepository->findByCorporationId($corporationId);
+        }
 
         $resource = new CorporationAssetsResource();
         $resource->total = count($assets);

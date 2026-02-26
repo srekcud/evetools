@@ -181,6 +181,30 @@ export const useNotificationsStore = defineStore('notifications', () => {
     }
   }
 
+  async function deleteNotification(id: string): Promise<void> {
+    await apiRequest(`/me/notifications/${id}`, { method: 'DELETE' })
+    notifications.value = notifications.value.filter(n => n.id !== id)
+    await fetchUnreadCount()
+  }
+
+  async function clearRead(): Promise<number> {
+    try {
+      const readNotifications = notifications.value.filter(n => n.isRead)
+      const count = readNotifications.length
+
+      await apiRequest('/me/notifications/clear-read', {
+        method: 'POST',
+        body: JSON.stringify({}),
+      })
+
+      notifications.value = notifications.value.filter(n => !n.isRead)
+      return count
+    } catch (e) {
+      console.error('Failed to clear read notifications:', e)
+      return 0
+    }
+  }
+
   function clearError(): void {
     error.value = null
   }
@@ -211,6 +235,8 @@ export const useNotificationsStore = defineStore('notifications', () => {
     registerPush,
     unregisterPush,
     addNotification,
+    deleteNotification,
+    clearRead,
     clearError,
   }
 })

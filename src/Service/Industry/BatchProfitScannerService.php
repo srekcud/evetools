@@ -6,9 +6,12 @@ namespace App\Service\Industry;
 
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
+use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedStructureRepository;
+use App\Repository\IndustryBpcPriceRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Repository\Sde\IndustryActivitySkillRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
@@ -120,13 +123,16 @@ class BatchProfitScannerService
         private readonly CachedStructureRepository $cachedStructureRepository,
         private readonly MapSolarSystemRepository $solarSystemRepository,
         private readonly InventionService $inventionService,
+        private readonly IndustryBpcPriceRepository $bpcPriceRepository,
+        private readonly IndustryActivitySkillRepository $activitySkillRepository,
+        private readonly CachedCharacterSkillRepository $characterSkillRepository,
     ) {
     }
 
     /**
      * Scan all manufacturable products and return ranked profit data.
      *
-     * @return list<array{typeId: int, typeName: string, groupName: string, categoryLabel: string, marginPercent: float, profitPerUnit: float, dailyVolume: float, iskPerDay: float, materialCost: float, importCost: float, exportCost: float, sellPrice: float, meUsed: int, activityType: string}>
+     * @return list<array{typeId: int, typeName: string, groupName: string, categoryLabel: string, marginPercent: float, profitPerUnit: float, dailyVolume: float, iskPerDay: float, materialCost: float, importCost: float, exportCost: float, sellPrice: float, meUsed: int, activityType: string, isFactionBlueprint: bool, bpcCostPerRun: float|null, hasAllSkills: bool, missingSkillCount: int}>
      */
     public function scan(
         ?string $category,
@@ -159,6 +165,46 @@ class BatchProfitScannerService
 
         if (empty($filteredProducts)) {
             return [];
+        }
+
+        // 4b. Load user BPC prices and detect faction blueprints
+        $bpcPrices = $user !== null ? $this->bpcPriceRepository->findByUserIndexed($user) : [];
+
+        $manufacturingBpIds = [];
+        foreach ($filteredProducts as $product) {
+            if ($product['activityId'] === IndustryActivityType::Manufacturing->value) {
+                $manufacturingBpIds[] = $product['blueprintTypeId'];
+            }
+        }
+        $factionBlueprintIds = $this->productRepository->findFactionBlueprintIds($manufacturingBpIds);
+
+        // 4c. Load user character skills and blueprint skill requirements
+        $userSkillsByCharacter = [];
+        $requiredSkillsByBlueprint = [];
+        if ($user !== null) {
+            foreach ($user->getCharacters() as $character) {
+                $skills = $this->characterSkillRepository->findAllSkillsForCharacter($character);
+                // Index by skillId => level (int)
+                $charSkills = [];
+                foreach ($skills as $skillId => $skill) {
+                    $charSkills[$skillId] = $skill->getLevel();
+                }
+                $userSkillsByCharacter[] = $charSkills;
+            }
+
+            $allBpIds = array_unique(array_map(fn (array $p) => $p['blueprintTypeId'], $filteredProducts));
+            $mfgBpIds = [];
+            $rxnBpIds = [];
+            foreach ($filteredProducts as $p) {
+                if ($p['activityId'] === IndustryActivityType::Manufacturing->value) {
+                    $mfgBpIds[] = $p['blueprintTypeId'];
+                } else {
+                    $rxnBpIds[] = $p['blueprintTypeId'];
+                }
+            }
+            $mfgSkills = $this->activitySkillRepository->findSkillsForBlueprints(array_unique($mfgBpIds), IndustryActivityType::Manufacturing->value);
+            $rxnSkills = $this->activitySkillRepository->findSkillsForBlueprints(array_unique($rxnBpIds), IndustryActivityType::Reaction->value);
+            $requiredSkillsByBlueprint = $mfgSkills + $rxnSkills;
         }
 
         // 5. Bulk-fetch materials for all remaining blueprints
@@ -214,7 +260,20 @@ class BatchProfitScannerService
         // 9. Resolve type names
         $typeNames = $this->typeNameResolver->resolveMany($uniqueTypeIds);
 
-        // 10. Calculate profit for each product
+        // 10. Pre-load adjusted prices for all materials (avoids ~20K-35K individual Redis calls)
+        $allMaterialTypeIds = [];
+        foreach ($materialsByBlueprint as $materials) {
+            foreach ($materials as $mat) {
+                $allMaterialTypeIds[$mat['materialTypeId']] = true;
+            }
+        }
+        $adjustedPrices = $this->esiCostIndexService->getAdjustedPrices(array_keys($allMaterialTypeIds));
+
+        // Pre-load cost indices once (same solar system for all products)
+        $manufacturingCostIndex = $this->esiCostIndexService->getCostIndex($solarSystemId, 'manufacturing');
+        $reactionCostIndex = $this->esiCostIndexService->getCostIndex($solarSystemId, 'reaction');
+
+        // 11. Calculate profit for each product
         $results = [];
         foreach ($filteredProducts as $product) {
             $typeId = $product['productTypeId'];
@@ -246,14 +305,10 @@ class BatchProfitScannerService
             // Import cost: transport materials from Jita to production site
             $importCost = $materialVolume * $exportCostPerM3;
 
-            // Job install cost (1 run) — EIV uses ME0 quantities from SDE
-            $eiv = $this->esiCostIndexService->calculateEiv($materials);
-            $jobInstallCost = $this->esiCostIndexService->calculateJobInstallCost(
-                $eiv,
-                1,
-                $solarSystemId,
-                $activityType,
-            );
+            // Job install cost (1 run) — EIV uses ME0 quantities from SDE with pre-loaded prices
+            $eiv = $this->esiCostIndexService->calculateEivFromPrices($materials, $adjustedPrices);
+            $costIndex = $isReaction ? $reactionCostIndex : $manufacturingCostIndex;
+            $jobInstallCost = ($eiv > 0.0 && $costIndex !== null) ? $eiv * $costIndex : 0.0;
 
             // Export cost: only when selling remotely (Jita), not at local structure
             $exportCost = 0.0;
@@ -263,6 +318,12 @@ class BatchProfitScannerService
             }
 
             $totalCost = $materialCost + $jobInstallCost + $importCost + $exportCost;
+
+            // Add BPC cost if the user has set a manual price for this blueprint
+            $bpcCostPerRun = $bpcPrices[$blueprintTypeId] ?? null;
+            if ($bpcCostPerRun !== null) {
+                $totalCost += $bpcCostPerRun;
+            }
 
             // Sell price based on venue
             $sellPrice = match ($sellVenue) {
@@ -310,6 +371,10 @@ class BatchProfitScannerService
                 'sellPrice' => round($sellPrice, 2),
                 'meUsed' => $me,
                 'activityType' => $activityType,
+                'isFactionBlueprint' => isset($factionBlueprintIds[$blueprintTypeId]),
+                'bpcCostPerRun' => $bpcCostPerRun,
+                'hasAllSkills' => $this->checkSkills($blueprintTypeId, $requiredSkillsByBlueprint, $userSkillsByCharacter),
+                'missingSkillCount' => $this->countMissingSkills($blueprintTypeId, $requiredSkillsByBlueprint, $userSkillsByCharacter),
             ];
         }
 
@@ -483,6 +548,63 @@ class BatchProfitScannerService
         }
 
         return $meta['volume'] ?? 0.0;
+    }
+
+    /**
+     * Check if at least one character has all required skills for a blueprint.
+     *
+     * @param array<int, list<array{skillId: int, level: int}>> $requiredSkillsByBlueprint
+     * @param list<array<int, int>> $userSkillsByCharacter
+     */
+    private function checkSkills(int $blueprintTypeId, array $requiredSkillsByBlueprint, array $userSkillsByCharacter): bool
+    {
+        $required = $requiredSkillsByBlueprint[$blueprintTypeId] ?? [];
+        if (empty($required) || empty($userSkillsByCharacter)) {
+            return true;
+        }
+
+        foreach ($userSkillsByCharacter as $charSkills) {
+            $hasAll = true;
+            foreach ($required as $req) {
+                if (($charSkills[$req['skillId']] ?? 0) < $req['level']) {
+                    $hasAll = false;
+                    break;
+                }
+            }
+            if ($hasAll) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Count missing skills across the best character for a blueprint.
+     *
+     * @param array<int, list<array{skillId: int, level: int}>> $requiredSkillsByBlueprint
+     * @param list<array<int, int>> $userSkillsByCharacter
+     */
+    private function countMissingSkills(int $blueprintTypeId, array $requiredSkillsByBlueprint, array $userSkillsByCharacter): int
+    {
+        $required = $requiredSkillsByBlueprint[$blueprintTypeId] ?? [];
+        if (empty($required) || empty($userSkillsByCharacter)) {
+            return 0;
+        }
+
+        // Find the character with the fewest missing skills
+        $bestMissing = \PHP_INT_MAX;
+        foreach ($userSkillsByCharacter as $charSkills) {
+            $missing = 0;
+            foreach ($required as $req) {
+                if (($charSkills[$req['skillId']] ?? 0) < $req['level']) {
+                    $missing++;
+                }
+            }
+            $bestMissing = min($bestMissing, $missing);
+        }
+
+        return $bestMissing === \PHP_INT_MAX ? 0 : $bestMissing;
     }
 
     /**

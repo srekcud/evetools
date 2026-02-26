@@ -69,6 +69,17 @@ class NotificationRepository extends ServiceEntityRepository
             ->execute();
     }
 
+    public function deleteReadForUser(User $user): int
+    {
+        return $this->createQueryBuilder('n')
+            ->delete()
+            ->where('n.user = :user')
+            ->andWhere('n.isRead = true')
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->execute();
+    }
+
     public function deleteOlderThan(\DateTimeImmutable $threshold): int
     {
         return $this->createQueryBuilder('n')

@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Mercure\TokenResource;
 use App\Entity\User;
+use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Service\Mercure\MercurePublisherService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -20,6 +21,7 @@ class TokenProvider implements ProviderInterface
 {
     public function __construct(
         private readonly Security $security,
+        private readonly GroupIndustryProjectMemberRepository $memberRepository,
         #[Autowire('%env(MERCURE_JWT_SECRET)%')]
         private readonly string $mercureSecret,
         #[Autowire('%env(MERCURE_PUBLIC_URL)%')]
@@ -41,9 +43,11 @@ class TokenProvider implements ProviderInterface
         }
 
         $topics = MercurePublisherService::getTopicsForUser($userId);
+        $groupProjectIds = $this->memberRepository->findAcceptedProjectIds($user);
         $groupTopics = MercurePublisherService::getGroupTopics(
             $user->getCorporationId(),
             $user->getAllianceId(),
+            $groupProjectIds,
         );
         $topics = array_merge($topics, $groupTopics);
         $token = $this->createSubscriberJwt($topics);

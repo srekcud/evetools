@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Corporation Industry - Add Contribution Modal -- EVE Tools</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+    body {
+      background: #020617;
+      font-family: system-ui, -apple-system, sans-serif;
+      overflow-x: hidden;
+    }
+
+    .font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 999;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.03) 2px,
+        rgba(0, 0, 0, 0.03) 4px
+      );
+    }
+
+    @keyframes cardSlideUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .card-enter {
+      animation: cardSlideUp 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) backwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; filter: blur(4px); }
+      to { opacity: 1; filter: blur(0); }
+    }
+    .value-reveal {
+      animation: fadeIn 0.6s ease-out backwards;
+    }
+
+    @keyframes modalFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes modalSlideUp {
+      from { opacity: 0; transform: translateY(24px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .modal-overlay {
+      animation: modalFadeIn 0.2s ease-out;
+    }
+    .modal-content {
+      animation: modalSlideUp 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    .btn-action {
+      transition: all 0.15s ease;
+    }
+    .btn-action:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    .btn-action:active {
+      transform: translateY(0);
+    }
+
+    .type-radio {
+      transition: all 0.15s ease;
+    }
+    .type-radio:hover {
+      background: rgba(30, 41, 59, 0.8);
+      border-color: rgba(71, 85, 105, 0.6);
+    }
+    .type-radio.active {
+      border-color: rgba(34, 211, 238, 0.5);
+      background: rgba(34, 211, 238, 0.05);
+    }
+
+    .form-input {
+      transition: border-color 0.15s ease;
+    }
+    .form-input:focus {
+      border-color: #0ea5e9;
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.1);
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.2); }
+      50% { box-shadow: 0 0 12px 4px rgba(52, 211, 153, 0.15); }
+    }
+    .valuation-glow {
+      animation: pulseGlow 2s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-300">
+
+  <!-- Background page (blurred/dimmed) -->
+  <div class="max-w-7xl mx-auto px-6 py-8 blur-sm opacity-30 pointer-events-none">
+    <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-5 mb-6">
+      <div class="flex items-center gap-5">
+        <div class="w-16 h-16 rounded-xl bg-slate-800 border border-slate-700 flex-shrink-0"></div>
+        <div class="flex-1">
+          <div class="h-6 w-48 bg-slate-800 rounded"></div>
+          <div class="h-4 w-72 bg-slate-800 rounded mt-2"></div>
+        </div>
+      </div>
+    </div>
+    <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-5">
+      <div class="space-y-3">
+        <div class="h-10 bg-slate-800 rounded"></div>
+        <div class="h-10 bg-slate-800 rounded"></div>
+        <div class="h-10 bg-slate-800 rounded"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Overlay -->
+  <div class="modal-overlay fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" style="margin-top: -100vh;">
+
+    <!-- Modal Content -->
+    <div class="modal-content bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+
+      <!-- Modal Header -->
+      <div class="px-6 py-5 border-b border-slate-800 flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-slate-100">Add Contribution</h2>
+          <p class="text-sm text-slate-500 mt-0.5">Project: 100x Ferox</p>
+        </div>
+        <button class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-200 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="px-6 py-5 space-y-6">
+
+        <!-- Type Selector -->
+        <div>
+          <label class="text-sm font-medium text-slate-300 mb-3 block">Contribution Type</label>
+          <div class="grid grid-cols-5 gap-2">
+
+            <!-- Material (active) -->
+            <div class="type-radio active rounded-xl border border-slate-700 p-3 cursor-pointer text-center">
+              <div class="w-8 h-8 mx-auto mb-2 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+              </div>
+              <span class="text-xs font-medium text-cyan-400">Material</span>
+            </div>
+
+            <!-- Job Install -->
+            <div class="type-radio rounded-xl border border-slate-700 p-3 cursor-pointer text-center">
+              <div class="w-8 h-8 mx-auto mb-2 rounded-lg bg-slate-800 flex items-center justify-center">
+                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
+              </div>
+              <span class="text-xs font-medium text-slate-500">Job Install</span>
+            </div>
+
+            <!-- BPC -->
+            <div class="type-radio rounded-xl border border-slate-700 p-3 cursor-pointer text-center">
+              <div class="w-8 h-8 mx-auto mb-2 rounded-lg bg-slate-800 flex items-center justify-center">
+                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <span class="text-xs font-medium text-slate-500">BPC</span>
+            </div>
+
+            <!-- Line Rental -->
+            <div class="type-radio rounded-xl border border-slate-700 p-3 cursor-pointer text-center">
+              <div class="w-8 h-8 mx-auto mb-2 rounded-lg bg-slate-800 flex items-center justify-center">
+                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </div>
+              <span class="text-xs font-medium text-slate-500">Line Rental</span>
+            </div>
+
+            <!-- Transport -->
+            <div class="type-radio rounded-xl border border-slate-700 p-3 cursor-pointer text-center">
+              <div class="w-8 h-8 mx-auto mb-2 rounded-lg bg-slate-800 flex items-center justify-center">
+                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+              </div>
+              <span class="text-xs font-medium text-slate-500">Transport</span>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Divider -->
+        <div class="border-t border-slate-800"></div>
+
+        <!-- ===== MATERIAL FORM (Active state with fake data) ===== -->
+        <div class="space-y-4">
+
+          <!-- Item Search -->
+          <div>
+            <label class="text-sm font-medium text-slate-300 mb-1.5 block">Item</label>
+            <div class="relative">
+              <div class="form-input bg-slate-800 border border-cyan-500/50 rounded-lg px-4 py-2.5 text-sm text-slate-200 flex items-center gap-3">
+                <div class="w-7 h-7 rounded bg-slate-700 border border-slate-600 overflow-hidden flex-shrink-0">
+                  <img src="https://images.evetech.net/types/34/icon?size=32" alt="Tritanium" class="w-full h-full" onerror="this.style.display='none';" />
+                </div>
+                <span>Tritanium</span>
+                <span class="text-xs text-slate-500 ml-auto">Type ID: 34</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quantity -->
+          <div>
+            <label class="text-sm font-medium text-slate-300 mb-1.5 block">Quantity</label>
+            <input
+              type="text"
+              value="500,000"
+              class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 font-mono"
+              style="font-variant-numeric: tabular-nums;"
+            />
+          </div>
+
+          <!-- Jita Price (auto-displayed) -->
+          <div class="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm text-slate-400">Jita Weighted Sell Price</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Auto-calculated</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-slate-500">Unit price:</span>
+              <span class="font-mono text-sm text-slate-300" style="font-variant-numeric: tabular-nums;">6.00 ISK</span>
+            </div>
+            <div class="flex items-center justify-between mt-1">
+              <span class="text-sm text-slate-500">500,000 x 6.00 ISK =</span>
+              <span class="font-mono text-sm text-slate-300" style="font-variant-numeric: tabular-nums;">3,000,000 ISK</span>
+            </div>
+          </div>
+
+          <!-- Valuation Preview -->
+          <div class="valuation-glow bg-emerald-500/5 rounded-xl border border-emerald-500/30 p-5 text-center">
+            <p class="text-xs text-emerald-400/60 uppercase tracking-wider mb-1">Total Valuation</p>
+            <p class="text-3xl font-mono font-bold text-emerald-400 value-reveal" style="font-variant-numeric: tabular-nums;">3,000,000 ISK</p>
+            <p class="text-xs text-slate-500 mt-2">Method: Jita weighted sell price</p>
+          </div>
+
+          <!-- Notes -->
+          <div>
+            <label class="text-sm font-medium text-slate-300 mb-1.5 block">Notes <span class="text-slate-600 font-normal">(optional)</span></label>
+            <textarea
+              placeholder="Add context for the manager (e.g., source, contract details...)"
+              rows="2"
+              class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-400 resize-none placeholder-slate-600"
+            >Minerals from corp mining op, Feb 24</textarea>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-between">
+        <p class="text-xs text-slate-500">Contribution will be submitted as <span class="text-slate-400">Pending</span> for manager approval</p>
+        <div class="flex gap-3">
+          <button class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-sm font-medium transition-colors">
+            Cancel
+          </button>
+          <button class="btn-action px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Submit Contribution
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- REFERENCE: Other form states (shown below for completeness)       -->
+  <!-- ================================================================ -->
+  <div class="max-w-2xl mx-auto px-6 py-12 space-y-8">
+
+    <h2 class="text-lg font-semibold text-slate-400 border-b border-slate-800 pb-2">Other Form States (Reference)</h2>
+
+    <!-- ===== JOB INSTALL FORM ===== -->
+    <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-6">
+      <h3 class="text-sm font-semibold text-amber-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+        </svg>
+        Job Install Form
+      </h3>
+      <div class="space-y-4">
+        <div>
+          <label class="text-sm font-medium text-slate-300 mb-1.5 block">BOM Step</label>
+          <select class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-300">
+            <option>Ferox -- Manufacturing (Final Product)</option>
+            <option>Gravimetric Sensor Cluster -- Manufacturing</option>
+            <option>Photon Microprocessor -- Manufacturing</option>
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-sm font-medium text-slate-300 mb-1.5 block">Runs</label>
+            <input type="number" value="10" class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 font-mono" />
+          </div>
+          <div>
+            <label class="text-sm font-medium text-slate-300 mb-1.5 block">Solar System</label>
+            <div class="form-input bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200">
+              1DQ1-A
+              <span class="text-xs text-slate-500 ml-2">Cost Index: 4.2%</span>
+            </div>
+          </div>
+        </div>
+        <div class="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-sm text-slate-400">ESI Job Cost Calculation</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">ESI auto-calculated</span>
+          </div>
+          <div class="space-y-1 text-sm">
+            <div class="flex justify-between">
+              <span class="text-slate-500">EIV (Estimated Item Value):</span>
+              <span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">5,472,000 ISK</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500">Cost Index (1DQ1-A):</span>
+              <span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">4.2%</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500">Per run:</span>
+              <span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">229,824 ISK</span>
+            </div>
+            <div class="flex justify-between border-t border-slate-700 pt-1 mt-1">
+              <span class="text-slate-400 font-medium">10 runs total:</span>
+              <span class="font-mono font-semibold text-amber-400" style="font-variant-numeric: tabular-nums;">2,298,240 ISK</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== BPC FORM ===== -->
+    <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-6">
+      <h3 class="text-sm font-semibold text-violet-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        BPC Form
+      </h3>
+      <div class="space-y-4">
+        <div>
+          <label class="text-sm font-medium text-slate-300 mb-1.5 block">Blueprint Copy</label>
+          <div class="form-input bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 flex items-center gap-3">
+            <div class="w-7 h-7 rounded bg-slate-700 border border-slate-600 overflow-hidden flex-shrink-0">
+              <img src="https://images.evetech.net/types/16229/icon?size=32" alt="Ferox" class="w-full h-full" onerror="this.style.display='none';" />
+            </div>
+            <span>Ferox Blueprint Copy</span>
+          </div>
+        </div>
+        <div>
+          <label class="text-sm font-medium text-slate-300 mb-1.5 block">Quantity (copies)</label>
+          <input type="number" value="50" class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 font-mono" />
+        </div>
+        <div>
+          <label class="text-sm font-medium text-slate-300 mb-3 block">Valuation Method</label>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="type-radio active rounded-xl border border-slate-700 p-3 cursor-pointer">
+              <div class="flex items-center gap-2 mb-1">
+                <div class="w-4 h-4 rounded-full border-2 border-cyan-400 flex items-center justify-center">
+                  <div class="w-2 h-2 rounded-full bg-cyan-400"></div>
+                </div>
+                <span class="text-sm font-medium text-slate-200">Invention Cost</span>
+              </div>
+              <p class="text-xs text-slate-500 ml-6">Auto-calculated from datacores + decryptors</p>
+              <p class="font-mono text-sm text-violet-400 ml-6 mt-1" style="font-variant-numeric: tabular-nums;">300,000 ISK/copy</p>
+            </div>
+            <div class="type-radio rounded-xl border border-slate-700 p-3 cursor-pointer">
+              <div class="flex items-center gap-2 mb-1">
+                <div class="w-4 h-4 rounded-full border-2 border-slate-600"></div>
+                <span class="text-sm font-medium text-slate-400">Contract Price</span>
+              </div>
+              <p class="text-xs text-slate-500 ml-6">Manual input (purchased from contract)</p>
+              <input type="text" placeholder="ISK per copy" class="form-input w-full bg-slate-700 border border-slate-600 rounded px-2.5 py-1.5 text-xs text-slate-400 font-mono mt-1 ml-6" disabled style="max-width: calc(100% - 1.5rem);" />
+            </div>
+          </div>
+        </div>
+        <div class="bg-violet-500/5 rounded-lg border border-violet-500/20 p-3 text-center">
+          <p class="text-xs text-violet-400/60 uppercase tracking-wider mb-0.5">Total</p>
+          <p class="font-mono font-bold text-lg text-violet-400" style="font-variant-numeric: tabular-nums;">15,000,000 ISK</p>
+          <p class="text-xs text-slate-500 mt-0.5">50 copies x 300,000 ISK</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== LINE RENTAL FORM ===== -->
+    <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-6">
+      <h3 class="text-sm font-semibold text-pink-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+        </svg>
+        Line Rental Form
+      </h3>
+      <div class="space-y-4">
+        <div>
+          <label class="text-sm font-medium text-slate-300 mb-1.5 block">BOM Step</label>
+          <select class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-300">
+            <option>Ferox -- Manufacturing (Final Product)</option>
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-sm font-medium text-slate-300 mb-1.5 block">Runs</label>
+            <input type="number" value="50" class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 font-mono" />
+          </div>
+          <div>
+            <label class="text-sm font-medium text-slate-300 mb-1.5 block">Detected Category</label>
+            <div class="form-input bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm flex items-center gap-2">
+              <span class="text-xs px-2 py-0.5 rounded bg-pink-500/10 text-pink-400 border border-pink-500/20">Ship T1</span>
+              <span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">100,000 ISK/run</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <label class="text-sm font-medium text-slate-300 mb-1.5 block">Duration <span class="text-slate-600 font-normal">(optional, for location factor)</span></label>
+          <div class="grid grid-cols-2 gap-4">
+            <input type="number" placeholder="Days" class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-400 font-mono" />
+            <div class="flex items-center text-xs text-slate-500">
+              Location factor: 1,000,000 ISK/day
+            </div>
+          </div>
+        </div>
+        <div class="bg-pink-500/5 rounded-lg border border-pink-500/20 p-3 text-center">
+          <p class="text-xs text-pink-400/60 uppercase tracking-wider mb-0.5">Total</p>
+          <p class="font-mono font-bold text-lg text-pink-400" style="font-variant-numeric: tabular-nums;">5,000,000 ISK</p>
+          <p class="text-xs text-slate-500 mt-0.5">50 runs x 100,000 ISK/run</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== TRANSPORT FORM ===== -->
+    <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-6">
+      <h3 class="text-sm font-semibold text-blue-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+        </svg>
+        Transport Form
+      </h3>
+      <div class="space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-sm font-medium text-slate-300 mb-1.5 block">Volume (m3)</label>
+            <input type="text" value="50,000" class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 font-mono" style="font-variant-numeric: tabular-nums;" />
+          </div>
+          <div>
+            <label class="text-sm font-medium text-slate-300 mb-1.5 block">Rate (ISK/m3)</label>
+            <input type="text" value="1,200" class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 font-mono" style="font-variant-numeric: tabular-nums;" />
+          </div>
+        </div>
+        <div class="bg-blue-500/5 rounded-lg border border-blue-500/20 p-3 text-center">
+          <p class="text-xs text-blue-400/60 uppercase tracking-wider mb-0.5">Total</p>
+          <p class="font-mono font-bold text-lg text-blue-400" style="font-variant-numeric: tabular-nums;">60,000,000 ISK</p>
+          <p class="text-xs text-slate-500 mt-0.5">50,000 m3 x 1,200 ISK/m3</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

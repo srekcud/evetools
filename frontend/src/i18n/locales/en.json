@@ -81,6 +81,7 @@
     "contracts": "Contracts",
     "market": "Market",
     "appraisal": "Appraisal",
+    "groupIndustry": "Group Industry",
     "admin": "Administration"
   },
   "settings": {
@@ -577,7 +578,19 @@
         "copyMultibuy": "Copy Multibuy",
         "copied": "Copied!",
         "noStructure": "Set market structure in Settings",
-        "selectStructure": "Select a structure..."
+        "selectStructure": "Select a structure...",
+        "factionBpc": "Faction BPC",
+        "setBpcPrice": "Set BPC price per run",
+        "bpcCostNotIncluded": "BPC cost not included",
+        "bpcCostPerRun": "BPC cost/run",
+        "saveBpcPrice": "Save",
+        "removeBpcPrice": "Remove",
+        "bpcPriceSet": "BPC: {price}",
+        "favorites": "Favorites",
+        "addFavorite": "Add to favorites",
+        "removeFavorite": "Remove from favorites",
+        "missingSkills": "Missing {count} skill(s)",
+        "canManufacture": "Can manufacture"
       },
       "buyVsBuild": {
         "tabLabel": "Buy vs Build",
@@ -1178,6 +1191,7 @@
         "estOutput": "Est. Output",
         "buildable": "buildable"
       },
+      "locationBreakdown": "Location Breakdown",
       "stages": {
         "raw_material": "Raw Materials",
         "intermediate": "Intermediates",
@@ -1226,6 +1240,20 @@
         "description": "Import targets from a blueprint to start tracking your production pipeline.",
         "cta": "Set up Stockpile Targets"
       }
+    },
+    "calculator": {
+      "title": "Production Calculator",
+      "modeMaxRuns": "Max Runs",
+      "modeDuration": "Time for Runs",
+      "timePerRun": "Time/Run",
+      "lines": "Lines",
+      "outputPerRun": "Output/Run",
+      "days": "Days",
+      "hours": "Hours",
+      "maxRuns": "Max Runs",
+      "totalOutput": "Total Output",
+      "desiredRuns": "Desired Runs",
+      "requiredTime": "Required Time"
     }
   },
   "ledger": {
@@ -1369,6 +1397,17 @@
       "title": "Distribution by Location",
       "noData": "No asset data available",
       "other": "Other locations"
+    },
+    "visibility": {
+      "title": "Division Visibility",
+      "description": "Choose which divisions are visible to corp members",
+      "noDivisionsShared": "No divisions shared by a Director",
+      "save": "Save",
+      "saved": "Visibility updated",
+      "configuredBy": "Configured by {name}",
+      "lastUpdate": "Last update",
+      "showPanel": "Manage visibility",
+      "hidePanel": "Hide"
     }
   },
   "contracts": {
@@ -1647,6 +1686,10 @@
   "notificationHub": {
     "title": "Notifications",
     "markAllRead": "Mark all as read",
+    "clearRead": "Clear Read",
+    "clearReadSuccess": "Cleared {count} notifications",
+    "deleteOne": "Delete",
+    "deleteOneSuccess": "Notification deleted",
     "settings": "Preferences",
     "empty": "No notifications",
     "loadMore": "Load more",
@@ -1672,6 +1715,281 @@
       "save": "Save",
       "pushDenied": "Push notifications were denied by the browser",
       "pushNotSupported": "Push not supported by this browser"
+    }
+  },
+  "groupIndustry": {
+    "title": "Group Industry",
+    "subtitle": "Collaborative manufacturing projects",
+    "myProjects": "My Projects",
+    "available": "Available Projects",
+    "noProjects": "No group projects yet. Create one to get started!",
+    "noAvailable": "No available projects from your corporation.",
+    "kpis": {
+      "activeProjects": "Active Projects",
+      "activeDesc": "currently running",
+      "totalContributions": "Total Contributions",
+      "contributionsDesc": "across all projects",
+      "pendingApprovals": "Pending Approvals",
+      "approvalsDesc": "contributions awaiting review",
+      "pipelineValue": "Pipeline Value",
+      "pipelineDesc": "estimated sell value"
+    },
+    "status": {
+      "draft": "Draft",
+      "published": "Published",
+      "in_progress": "In Progress",
+      "selling": "Selling",
+      "completed": "Completed"
+    },
+    "bom": {
+      "title": "Bill of Materials",
+      "materialsToSource": "Materials to Source",
+      "jobsToLaunch": "Jobs to Launch",
+      "blueprints": "Blueprints",
+      "components": "Components",
+      "finalProducts": "Final Products",
+      "item": "Item",
+      "required": "Required",
+      "fulfilled": "Fulfilled",
+      "remaining": "Remaining",
+      "progress": "Progress",
+      "fulfillment": "Fulfillment",
+      "estCost": "Est. Cost",
+      "estimatedPrice": "Est. Price",
+      "estimatedTotal": "Est. Total",
+      "totalItems": "Total Items",
+      "totalEstCost": "Total Est. Cost",
+      "overallFulfillment": "Overall Fulfillment"
+    },
+    "jobs": {
+      "title": "Jobs to Launch",
+      "product": "Product",
+      "activity": "Activity",
+      "runs": "Runs",
+      "status": "Status",
+      "totalJobs": "Total Jobs",
+      "blueprints": "Blueprints",
+      "components": "Components",
+      "finalProducts": "Final Products"
+    },
+    "contribute": {
+      "title": "Add Contribution",
+      "type": "Contribution Type",
+      "item": "Item",
+      "bomStep": "BOM Step",
+      "selectItem": "Select an item...",
+      "quantity": "Quantity",
+      "estimatedValue": "Estimated Value",
+      "totalValuation": "Total Valuation",
+      "notes": "Notes",
+      "notesPlaceholder": "Optional note about this contribution...",
+      "optional": "optional",
+      "submit": "Submit Contribution",
+      "pendingNote": "Your contribution will be reviewed by a project admin."
+    },
+    "contributions": {
+      "title": "Contributions",
+      "types": {
+        "material": "Material",
+        "job_install": "Job Install",
+        "bpc": "BPC",
+        "line_rental": "Line Rental"
+      },
+      "statuses": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "autoDetected": "Auto-detected",
+      "verified": "Verified",
+      "unverified": "Unverified",
+      "reviewedBy": "Reviewed by {name}",
+      "noContributions": "No contributions yet."
+    },
+    "distribution": {
+      "title": "Distribution",
+      "totalRevenue": "Total Revenue",
+      "brokerFee": "Broker Fee",
+      "salesTax": "Sales Tax",
+      "netRevenue": "Net Revenue",
+      "totalCost": "Total Project Cost",
+      "margin": "Margin",
+      "payout": "Payout",
+      "costsEngaged": "Costs Engaged",
+      "share": "Share",
+      "profitPart": "Profit Part",
+      "materialCosts": "Material Costs",
+      "jobInstallCosts": "Job Install Costs",
+      "bpcCosts": "BPC Costs",
+      "lineRentalCosts": "Line Rental Costs"
+    },
+    "sales": {
+      "title": "Sales",
+      "recordSale": "Record Sale",
+      "noSales": "No sales recorded yet.",
+      "unitPrice": "Unit Price",
+      "totalPrice": "Total Price",
+      "venue": "Venue",
+      "soldAt": "Sold At",
+      "recordedBy": "Recorded by"
+    },
+    "members": {
+      "title": "Members",
+      "roles": {
+        "owner": "Owner",
+        "admin": "Admin",
+        "member": "Member"
+      },
+      "promote": "Promote to Admin",
+      "kick": "Kick",
+      "acceptRequest": "Accept",
+      "rejectRequest": "Reject",
+      "pendingRequests": "Pending Requests",
+      "noPending": "No pending membership requests.",
+      "totalContributed": "Total Contributed",
+      "contributionCount": "Contributions",
+      "joinedAt": "Joined"
+    },
+    "shareLink": {
+      "title": "Invite Link",
+      "description": "Share this link to invite players to the project.",
+      "copied": "Link copied!",
+      "sameCorp": "Same-corp members are auto-accepted.",
+      "otherCorp": "Other players will need approval."
+    },
+    "container": {
+      "title": "Container Verification",
+      "verify": "Verify All",
+      "verifyAll": "Verify All",
+      "verifying": "Verifying...",
+      "statuses": {
+        "verified": "Verified",
+        "partial": "Partial",
+        "unchecked": "Unchecked"
+      },
+      "containerName": "Container Name",
+      "containerQuantity": "Container Qty"
+    },
+    "actions": {
+      "createProject": "New Project",
+      "joinProject": "Join Project",
+      "submitContribution": "Add Contribution",
+      "recordSale": "Record Sale",
+      "verifyContainer": "Verify Container",
+      "lineRentalSettings": "Line Rental Settings",
+      "copyLink": "Copy Link",
+      "advanceStatus": "Advance Status",
+      "deleteProject": "Delete Project"
+    },
+    "modals": {
+      "newProject": {
+        "title": "New Group Project",
+        "subtitle": "Create a new multi-item group industry project",
+        "nameLabel": "Name",
+        "namePlaceholder": "Custom project name (e.g. Fleet Doctrine Build)",
+        "optional": "optional",
+        "itemsToProduce": "Items to Produce",
+        "itemsLabel": "Items to Produce",
+        "itemsPlaceholder": "Paste items: ItemName ME TE xRuns (one per line)",
+        "addItem": "Add Item",
+        "bulkPaste": "Bulk Paste",
+        "searchPlaceholder": "Search item (e.g. Ferox, Ishtar...)",
+        "addToList": "Add to list",
+        "parseAndAdd": "Parse & Add",
+        "bulkPlaceholder": "Paste items, one per line:\nFerox 2 4 x100\nIshtar 4 8 x50\nSabre 4 8 x200",
+        "bulkFormat": "Format:",
+        "columnItem": "Item",
+        "columnRuns": "Runs",
+        "noItems": "No items added yet",
+        "noItemsHint": "Search for items above or use bulk paste",
+        "totalRuns": "total runs",
+        "containerLabel": "Corp Container",
+        "containerPlaceholder": "e.g. Fleet Doctrine Materials",
+        "containerHint": "If set, admins can verify material contributions against this container's contents in shared corp offices.",
+        "blacklist": "Blacklist",
+        "blacklistLabel": "Blacklist",
+        "blacklistDesc": "Items below will be purchased, not manufactured.",
+        "blacklistItemPlaceholder": "Add specific item...",
+        "blacklistHint": "Defaults from your industry settings. Override per project.",
+        "lineRentalInfo": "Line Rental Rates:",
+        "lineRentalDefault": "Using defaults from your settings",
+        "lineRentalCustom": "Custom rates for this project",
+        "overrideForProject": "Override for this project",
+        "collapse": "Collapse",
+        "lineRentalOverrideHint": "These rates override your default settings for this project only.",
+        "bomNote": "BOM will be aggregated from all items",
+        "createButton": "Create Project",
+        "feesLabel": "Fees",
+        "brokerFee": "Broker Fee %",
+        "salesTax": "Sales Tax %"
+      },
+      "contribute": {
+        "title": "Add Contribution",
+        "typeLabel": "Contribution Type",
+        "bomItemLabel": "BOM Item",
+        "quantityLabel": "Quantity",
+        "estimatedValueLabel": "Estimated Value (ISK)",
+        "noteLabel": "Note",
+        "notePlaceholder": "Optional note..."
+      },
+      "lineRental": {
+        "title": "Default Line Rental Rates",
+        "description": "These rates are used as defaults when creating new group projects. Each project can override them.",
+        "category": "Category",
+        "rate": "Rate",
+        "unit": "Unit",
+        "saveDefaults": "Save Defaults",
+        "componentT1": "Component T1",
+        "moduleT1": "Module T1",
+        "shipT1": "Ship T1",
+        "moduleT2": "Module T2",
+        "shipT2": "Ship T2",
+        "capitalT1": "Capital T1",
+        "capitalT2": "Capital T2",
+        "locationFactor": "Location Factor",
+        "perRun": "ISK/run",
+        "perDay": "ISK/day"
+      }
+    },
+    "join": {
+      "title": "Join Project",
+      "description": "You have been invited to join this group industry project.",
+      "joinButton": "Join Project",
+      "alreadyMember": "You are already a member of this project.",
+      "pendingApproval": "Your membership request is pending approval.",
+      "projectNotFound": "Project not found or link expired."
+    },
+    "tabs": {
+      "myProjects": "My Projects",
+      "available": "Available",
+      "sameCorp": "same corp",
+      "materialsAndJobs": "Materials & Jobs",
+      "materialsJobs": "Materials & Jobs",
+      "contributions": "Contributions",
+      "distribution": "Distribution",
+      "members": "Members"
+    },
+    "available": {
+      "runs": "Runs",
+      "members": "members",
+      "joinProject": "Join Project",
+      "infoBanner": "Projects published by members of your corporation. Join instantly -- no approval needed.",
+      "empty": "No available projects",
+      "emptyHint": "No open projects from your corporation at the moment."
+    },
+    "empty": {
+      "title": "No group projects yet",
+      "description": "Create a new project to start collaborating with your corporation."
+    },
+    "detail": {
+      "owner": "Owner: {name}",
+      "members": "{count} member | {count} member | {count} members",
+      "items": "{count} item | {count} item | {count} items",
+      "bomValue": "BOM Value",
+      "backToList": "Back to Projects",
+      "shareLink": "Share Link",
+      "edit": "Edit",
+      "delete": "Delete"
     }
   },
   "market": {

@@ -81,7 +81,7 @@ class CharacterService
 
     public function canReadCorporationAssets(Character $character): bool
     {
-        return $this->hasRole($character, 'Director') || $this->hasRole($character, 'Hangar_Take_1');
+        return $this->hasRole($character, 'Director');
     }
 
     public function canReadCorporationContracts(Character $character): bool

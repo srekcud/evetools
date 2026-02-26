@@ -149,6 +149,42 @@ class EsiCostIndexService
     }
 
     /**
+     * Get adjusted prices for multiple type IDs from cache in a single batch.
+     * Avoids N individual cache lookups when processing many products.
+     *
+     * @param int[] $typeIds
+     * @return array<int, float> typeId => adjustedPrice
+     */
+    public function getAdjustedPrices(array $typeIds): array
+    {
+        $result = [];
+        foreach ($typeIds as $typeId) {
+            $cacheItem = $this->cache->getItem(self::ADJUSTED_PRICE_PREFIX . $typeId);
+            if ($cacheItem->isHit()) {
+                $result[$typeId] = (float) $cacheItem->get();
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Calculate EIV using pre-loaded adjusted prices (avoids individual cache lookups).
+     *
+     * @param list<array{materialTypeId: int, quantity: int}> $materials ME0 materials from SDE
+     * @param array<int, float> $adjustedPrices Pre-loaded prices map from getAdjustedPrices()
+     */
+    public function calculateEivFromPrices(array $materials, array $adjustedPrices): float
+    {
+        $eiv = 0.0;
+        foreach ($materials as $material) {
+            $eiv += ($adjustedPrices[$material['materialTypeId']] ?? 0.0) * $material['quantity'];
+        }
+
+        return $eiv;
+    }
+
+    /**
      * Get the adjusted price for a type ID from cache.
      */
     public function getAdjustedPrice(int $typeId): ?float

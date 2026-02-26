@@ -33,6 +33,96 @@ class EsiCostIndexServiceTest extends TestCase
     }
 
     // ===========================================
+    // getAdjustedPrices() batch tests
+    // ===========================================
+
+    public function testGetAdjustedPricesReturnsCachedPrices(): void
+    {
+        $this->cache->method('getItem')
+            ->willReturnCallback(function (string $key): CacheItemInterface {
+                $item = $this->createMock(CacheItemInterface::class);
+                $item->method('isHit')->willReturn(true);
+                $item->method('get')->willReturn(match ($key) {
+                    'esi_adjusted_price_34' => 5.0,
+                    'esi_adjusted_price_35' => 12.0,
+                    default => 0.0,
+                });
+
+                return $item;
+            });
+
+        $result = $this->service->getAdjustedPrices([34, 35]);
+
+        $this->assertSame([34 => 5.0, 35 => 12.0], $result);
+    }
+
+    public function testGetAdjustedPricesSkipsMissingEntries(): void
+    {
+        $this->cache->method('getItem')
+            ->willReturnCallback(function (string $key): CacheItemInterface {
+                $item = $this->createMock(CacheItemInterface::class);
+                if ($key === 'esi_adjusted_price_34') {
+                    $item->method('isHit')->willReturn(true);
+                    $item->method('get')->willReturn(5.0);
+                } else {
+                    $item->method('isHit')->willReturn(false);
+                }
+
+                return $item;
+            });
+
+        $result = $this->service->getAdjustedPrices([34, 99999]);
+
+        $this->assertSame([34 => 5.0], $result);
+    }
+
+    public function testGetAdjustedPricesReturnsEmptyForEmptyInput(): void
+    {
+        $result = $this->service->getAdjustedPrices([]);
+
+        $this->assertSame([], $result);
+    }
+
+    // ===========================================
+    // calculateEivFromPrices() tests
+    // ===========================================
+
+    public function testCalculateEivFromPricesWithKnownPrices(): void
+    {
+        $materials = [
+            ['materialTypeId' => 34, 'quantity' => 100],
+            ['materialTypeId' => 35, 'quantity' => 50],
+        ];
+        $prices = [34 => 5.0, 35 => 12.0];
+
+        $eiv = $this->service->calculateEivFromPrices($materials, $prices);
+
+        // 100*5.0 + 50*12.0 = 500 + 600 = 1100
+        $this->assertSame(1100.0, $eiv);
+    }
+
+    public function testCalculateEivFromPricesDefaultsToZeroForMissingPrice(): void
+    {
+        $materials = [
+            ['materialTypeId' => 34, 'quantity' => 200],
+            ['materialTypeId' => 99999, 'quantity' => 50],
+        ];
+        $prices = [34 => 10.0]; // 99999 not in map, defaults to 0.0
+
+        $eiv = $this->service->calculateEivFromPrices($materials, $prices);
+
+        // 200*10.0 + 50*0.0 = 2000
+        $this->assertSame(2000.0, $eiv);
+    }
+
+    public function testCalculateEivFromPricesWithEmptyMaterials(): void
+    {
+        $eiv = $this->service->calculateEivFromPrices([], [34 => 5.0]);
+
+        $this->assertSame(0.0, $eiv);
+    }
+
+    // ===========================================
     // calculateEiv() tests
     // ===========================================
 

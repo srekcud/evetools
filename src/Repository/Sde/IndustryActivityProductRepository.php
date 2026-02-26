@@ -129,6 +129,54 @@ class IndustryActivityProductRepository extends ServiceEntityRepository
         return $indexed;
     }
 
+    /**
+     * Find faction blueprint IDs among the given manufacturing blueprints.
+     *
+     * A blueprint is "faction" if it manufactures a product with sofFactionName set
+     * AND the blueprint is NOT invented (not T2).
+     *
+     * @param int[] $manufacturingBlueprintTypeIds Blueprint IDs that have activity_id=1
+     * @return array<int, true> Set of faction blueprint type IDs
+     */
+    public function findFactionBlueprintIds(array $manufacturingBlueprintTypeIds): array
+    {
+        if (empty($manufacturingBlueprintTypeIds)) {
+            return [];
+        }
+
+        // Get invented blueprints to exclude them (T2 items also have sofFactionName sometimes)
+        $inventedBlueprintIds = $this->findInventedBlueprintIds($manufacturingBlueprintTypeIds);
+
+        // Filter out invented blueprints
+        $nonInventedBpIds = array_diff($manufacturingBlueprintTypeIds, array_keys($inventedBlueprintIds));
+
+        if (empty($nonInventedBpIds)) {
+            return [];
+        }
+
+        $conn = $this->getEntityManager()->getConnection();
+        $placeholders = implode(',', array_fill(0, count($nonInventedBpIds), '?'));
+
+        // Find blueprints whose manufactured product has sofFactionName set
+        $sql = <<<SQL
+            SELECT DISTINCT p.type_id AS blueprint_type_id
+            FROM sde_industry_activity_products p
+            JOIN sde_inv_types t ON t.type_id = p.product_type_id
+            WHERE p.activity_id = 1
+              AND p.type_id IN ({$placeholders})
+              AND t.sof_faction_name IS NOT NULL
+        SQL;
+
+        $rows = $conn->fetchFirstColumn($sql, array_values($nonInventedBpIds));
+
+        $result = [];
+        foreach ($rows as $bpId) {
+            $result[(int) $bpId] = true;
+        }
+
+        return $result;
+    }
+
     public function findBlueprintForProduct(int $productTypeId, int $activityId = 1): ?IndustryActivityProduct
     {
         $results = $this->findBy(
