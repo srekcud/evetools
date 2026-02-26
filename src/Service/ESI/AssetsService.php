@@ -71,10 +71,19 @@ class AssetsService
             return [];
         }
 
-        // Collect unique type IDs and location IDs
+        // Collect unique type IDs and location IDs with their types
         $typeIds = array_unique(array_column($rawAssets, 'type_id'));
-        $locationIds = array_unique(array_column($rawAssets, 'location_id'));
         $itemIds = array_column($rawAssets, 'item_id');
+
+        // Collect resolvable location IDs (skip location_type "item" — those are container/ship item_ids, not structures)
+        $locationIds = [];
+        foreach ($rawAssets as $raw) {
+            $locId = $raw['location_id'];
+            if (!isset($locationIds[$locId]) && ($raw['location_type'] ?? '') !== 'item') {
+                $locationIds[$locId] = true;
+            }
+        }
+        $locationIds = array_keys($locationIds);
 
         // Get type names
         $typeNames = $this->resolveTypeNames($typeIds);
