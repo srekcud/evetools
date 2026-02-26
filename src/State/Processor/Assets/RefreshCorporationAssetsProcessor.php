@@ -46,7 +46,9 @@ class RefreshCorporationAssetsProcessor implements ProcessorInterface
 
         $corporationId = $mainCharacter->getCorporationId();
 
-        if (!$this->assetsSyncService->canSyncCorporationAssets($corporationId)) {
+        $directorCharacter = $this->assetsSyncService->getCorpAssetsCharacter($corporationId);
+
+        if ($directorCharacter === null) {
             $result = new SyncStatusResource();
             $result->status = 'error';
             $result->error = 'No character with corporation assets access. A director with esi-assets.read_corporation_assets.v1 scope must be linked.';
@@ -63,7 +65,7 @@ class RefreshCorporationAssetsProcessor implements ProcessorInterface
         if ($async) {
             $this->messageBus->dispatch(new SyncCorporationAssets(
                 $corporationId,
-                $mainCharacter->getId()?->toRfc4122() ?? ''
+                $directorCharacter->getId()?->toRfc4122() ?? ''
             ));
 
             $result->status = 'pending';

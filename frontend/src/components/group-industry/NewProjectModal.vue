@@ -125,11 +125,11 @@ const blacklistCategories = ref<BlacklistCategory[]>([
   { id: 'advanced_capital_components', label: 'Advanced Capital Components', checked: false },
   { id: 'hybrid_components', label: 'Hybrid Components', checked: false },
   { id: 'fuel_blocks', label: 'Fuel Blocks', checked: true },
-  { id: 'tools_ram', label: 'Tools (R.A.M.)', checked: false },
+  { id: 'tools', label: 'Tools (R.A.M.)', checked: false },
   { id: 'simple_reactions', label: 'Simple Reactions', checked: false },
-  { id: 'composite_reactions', label: 'Composite Reactions', checked: false },
+  { id: 'complex_reactions', label: 'Complex Reactions', checked: false },
   { id: 'hybrid_reactions', label: 'Hybrid Reactions', checked: false },
-  { id: 'biochemical_reactions', label: 'Biochemical Reactions', checked: false },
+  { id: 'biochem_reactions', label: 'Biochemical Reactions', checked: false },
 ])
 
 // Individual blacklist items
@@ -260,7 +260,9 @@ async function handleCreate() {
       runs: i.runs,
     })),
     containerName: containerName.value.trim() || undefined,
-    blacklistGroupIds: [],
+    blacklistCategoryKeys: blacklistCategories.value
+      .filter(cat => cat.checked)
+      .map(cat => cat.id),
     blacklistTypeIds: blacklistItems.value.map(i => i.typeId),
     lineRentalRatesOverride: lineRentalOverrideEnabled.value
       ? Object.fromEntries(lineRentalRates.value.map(r => [r.key, r.value]))

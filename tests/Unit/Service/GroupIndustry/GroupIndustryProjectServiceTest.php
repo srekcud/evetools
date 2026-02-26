@@ -8,10 +8,12 @@ use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustryProjectItem;
 use App\Entity\GroupIndustryProjectMember;
+use App\Entity\Sde\IndustryBlueprint;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
+use App\Repository\Sde\IndustryBlueprintRepository;
 use App\Service\GroupIndustry\CreateProjectData;
 use App\Service\GroupIndustry\GroupIndustryProjectService;
 use App\Service\Industry\IndustryTreeService;
@@ -29,6 +31,7 @@ class GroupIndustryProjectServiceTest extends TestCase
     private IndustryTreeService&Stub $treeService;
     private JitaMarketService&Stub $jitaMarketService;
     private EntityManagerInterface&Stub $entityManager;
+    private IndustryBlueprintRepository&Stub $blueprintRepository;
     private Connection&Stub $connection;
     private GroupIndustryProjectService $service;
 
@@ -37,14 +40,18 @@ class GroupIndustryProjectServiceTest extends TestCase
         $this->treeService = $this->createStub(IndustryTreeService::class);
         $this->jitaMarketService = $this->createStub(JitaMarketService::class);
         $this->entityManager = $this->createStub(EntityManagerInterface::class);
+        $this->blueprintRepository = $this->createStub(IndustryBlueprintRepository::class);
         $this->connection = $this->createStub(Connection::class);
 
         $this->entityManager->method('getConnection')->willReturn($this->connection);
+        // Default: no blueprint found (use default limits)
+        $this->blueprintRepository->method('findBy')->willReturn([]);
 
         $this->service = new GroupIndustryProjectService(
             $this->treeService,
             $this->jitaMarketService,
             $this->entityManager,
+            $this->blueprintRepository,
         );
     }
 
@@ -261,7 +268,7 @@ class GroupIndustryProjectServiceTest extends TestCase
         $em->expects($this->once())->method('persist');
         $em->expects($this->once())->method('flush');
 
-        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em);
+        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $this->blueprintRepository);
 
         $data = new CreateProjectData(
             name: 'Persist Test',
@@ -610,7 +617,7 @@ class GroupIndustryProjectServiceTest extends TestCase
         $conn = $this->createStub(Connection::class);
         $em->method('getConnection')->willReturn($conn);
 
-        $service = new GroupIndustryProjectService($treeStub, $jitaMock, $em);
+        $service = new GroupIndustryProjectService($treeStub, $jitaMock, $em, $this->blueprintRepository);
 
         $data = new CreateProjectData(
             name: 'Priced',
@@ -695,7 +702,7 @@ class GroupIndustryProjectServiceTest extends TestCase
         $em = $this->createStub(EntityManagerInterface::class);
         $em->method('getConnection')->willReturn($this->connection);
 
-        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em);
+        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $this->blueprintRepository);
 
         $data = new CreateProjectData(
             name: 'Blacklisted',
@@ -742,7 +749,7 @@ class GroupIndustryProjectServiceTest extends TestCase
         $conn = $this->createStub(Connection::class);
         $em->method('getConnection')->willReturn($conn);
 
-        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em);
+        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $this->blueprintRepository);
 
         $data = new CreateProjectData(
             name: 'No Blacklist',
@@ -797,6 +804,70 @@ class GroupIndustryProjectServiceTest extends TestCase
         $this->assertSame(0, $reactionJob->getMeLevel());
         $this->assertSame(0, $reactionJob->getTeLevel());
         $this->assertSame('component', $reactionJob->getJobGroup());
+    }
+
+    public function testBuildBomReactionMaterialsAreLeavesNotJobs(): void
+    {
+        $user = $this->createUser();
+
+        // Build a tree where a manufacturing item requires a reaction product (Fernite Carbide),
+        // which in turn requires raw moon goo (Fernite, Carbon).
+        // Expected: Fernite Carbide = job (reaction), Fernite + Carbon = leaf materials.
+        $tree = $this->buildTreeWithComponent(
+            finalBpId: 586,
+            finalProductId: 587,
+            finalName: 'T2 Ship',
+            finalRuns: 5,
+            compBpId: 45732,
+            compProductId: 16672,
+            compName: 'Fernite Carbide',
+            compQuantity: 200,
+            compRuns: 10,
+            compActivityType: 'reaction',
+            compRawMaterials: [
+                ['typeId' => 16657, 'typeName' => 'Fernite', 'quantity' => 1000],
+                ['typeId' => 16661, 'typeName' => 'Carbon', 'quantity' => 1000],
+            ],
+            finalRawMaterials: [
+                ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 50000],
+            ],
+        );
+
+        $this->treeService->method('buildProductionTree')->willReturn($tree);
+        $this->jitaMarketService->method('getCheapestPercentilePrices')
+            ->willReturn([34 => 5.5, 16657 => 100.0, 16661 => 120.0]);
+
+        $data = new CreateProjectData(
+            name: 'Reaction Materials',
+            items: [
+                ['typeId' => 587, 'typeName' => 'T2 Ship', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5],
+            ],
+        );
+
+        $project = $this->service->createProject($user, $data);
+
+        // Fernite Carbide should be a job, not a material
+        $reactionJob = $this->findJobByActivity($project, 'reaction');
+        $this->assertNotNull($reactionJob, 'Reaction product should be a job BOM item');
+        $this->assertSame(16672, $reactionJob->getTypeId());
+        $this->assertSame('Fernite Carbide', $reactionJob->getTypeName());
+        $this->assertTrue($reactionJob->isJob());
+        $this->assertSame(10, $reactionJob->getRuns());
+
+        // Moon goo (Fernite, Carbon) should be leaf materials, not jobs
+        $materials = $this->getMaterialBomItems($project);
+        $materialTypeIds = array_map(
+            fn (GroupIndustryBomItem $item) => $item->getTypeId(),
+            $materials,
+        );
+        sort($materialTypeIds);
+
+        $this->assertContains(34, $materialTypeIds, 'Tritanium should be a leaf material');
+        $this->assertContains(16657, $materialTypeIds, 'Fernite (moon goo) should be a leaf material');
+        $this->assertContains(16661, $materialTypeIds, 'Carbon (moon goo) should be a leaf material');
+
+        // Fernite Carbide should NOT be in materials
+        $this->assertNotContains(16672, $materialTypeIds, 'Fernite Carbide should NOT be a raw material');
     }
 
     // ===========================================
@@ -958,7 +1029,7 @@ class GroupIndustryProjectServiceTest extends TestCase
         $conn = $this->createStub(Connection::class);
         $em->method('getConnection')->willReturn($conn);
 
-        $service = new GroupIndustryProjectService($treeStub, $jitaMock, $em);
+        $service = new GroupIndustryProjectService($treeStub, $jitaMock, $em, $this->blueprintRepository);
 
         $data = new CreateProjectData(
             name: 'No Mats',
@@ -971,5 +1042,255 @@ class GroupIndustryProjectServiceTest extends TestCase
 
         $materials = $this->getMaterialBomItems($project);
         $this->assertCount(0, $materials);
+    }
+
+    // ===========================================
+    // buildBom() -- job splitting by maxProductionLimit
+    // ===========================================
+
+    public function testBuildBomSplitsJobExceedingMaxProductionLimit(): void
+    {
+        $user = $this->createUser();
+
+        // Blueprint 1000 has maxProductionLimit = 10
+        $blueprint = new IndustryBlueprint();
+        $blueprint->setTypeId(1000);
+        $blueprint->setMaxProductionLimit(10);
+
+        $bpRepository = $this->createStub(IndustryBlueprintRepository::class);
+        $bpRepository->method('findBy')->willReturn([$blueprint]);
+
+        $em = $this->createStub(EntityManagerInterface::class);
+        $conn = $this->createStub(Connection::class);
+        $em->method('getConnection')->willReturn($conn);
+
+        $tree = $this->buildTreeWithComponent(
+            finalBpId: 586,
+            finalProductId: 587,
+            finalName: 'Ship',
+            finalRuns: 5,
+            compBpId: 1000,
+            compProductId: 1001,
+            compName: 'Component',
+            compQuantity: 35,
+            compRuns: 35,
+        );
+
+        $treeStub = $this->createStub(IndustryTreeService::class);
+        $treeStub->method('buildProductionTree')->willReturn($tree);
+
+        $jitaStub = $this->createStub(JitaMarketService::class);
+        $jitaStub->method('getCheapestPercentilePrices')->willReturn([]);
+
+        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $bpRepository);
+
+        $data = new CreateProjectData(
+            name: 'Split Test',
+            items: [
+                ['typeId' => 587, 'typeName' => 'Ship', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5],
+            ],
+        );
+
+        $project = $service->createProject($user, $data);
+
+        // Component with 35 runs and maxProductionLimit 10 should split into 4 jobs: 10+10+10+5
+        $componentJobs = array_values(array_filter(
+            $this->getJobBomItems($project),
+            fn (GroupIndustryBomItem $item) => $item->getTypeId() === 1001 && $item->getActivityType() === 'manufacturing',
+        ));
+        $this->assertCount(4, $componentJobs, 'Should split 35 runs into 4 jobs (10+10+10+5)');
+
+        $runs = array_map(fn (GroupIndustryBomItem $item) => $item->getRuns(), $componentJobs);
+        sort($runs);
+        $this->assertSame([5, 10, 10, 10], $runs);
+        $this->assertSame(35, array_sum($runs));
+    }
+
+    public function testBuildBomNoSplitWhenWithinLimit(): void
+    {
+        $user = $this->createUser();
+
+        // Blueprint 586 has maxProductionLimit = 100 (way above 5 runs)
+        $blueprint = new IndustryBlueprint();
+        $blueprint->setTypeId(586);
+        $blueprint->setMaxProductionLimit(100);
+
+        $bpRepository = $this->createStub(IndustryBlueprintRepository::class);
+        $bpRepository->method('findBy')->willReturn([$blueprint]);
+
+        $em = $this->createStub(EntityManagerInterface::class);
+        $conn = $this->createStub(Connection::class);
+        $em->method('getConnection')->willReturn($conn);
+
+        $tree = $this->buildFlatTreeNode(586, 587, 'Rifter', 5, 1, [
+            ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 50000],
+        ]);
+
+        $treeStub = $this->createStub(IndustryTreeService::class);
+        $treeStub->method('buildProductionTree')->willReturn($tree);
+
+        $jitaStub = $this->createStub(JitaMarketService::class);
+        $jitaStub->method('getCheapestPercentilePrices')->willReturn([34 => 5.5]);
+
+        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $bpRepository);
+
+        $data = new CreateProjectData(
+            name: 'No Split',
+            items: [
+                ['typeId' => 587, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5],
+            ],
+        );
+
+        $project = $service->createProject($user, $data);
+
+        $finalJobs = array_values(array_filter(
+            $this->getJobBomItems($project),
+            fn (GroupIndustryBomItem $item) => $item->getTypeId() === 587 && $item->getActivityType() === 'manufacturing',
+        ));
+        $this->assertCount(1, $finalJobs, 'Should not split when runs <= maxProductionLimit');
+        $this->assertSame(5, $finalJobs[0]->getRuns());
+    }
+
+    public function testBuildBomSplitsJobExactMultiple(): void
+    {
+        $user = $this->createUser();
+
+        // Blueprint 1000 has maxProductionLimit = 10, and runs are exactly 30 (3x10)
+        $blueprint = new IndustryBlueprint();
+        $blueprint->setTypeId(1000);
+        $blueprint->setMaxProductionLimit(10);
+
+        $bpRepository = $this->createStub(IndustryBlueprintRepository::class);
+        $bpRepository->method('findBy')->willReturn([$blueprint]);
+
+        $em = $this->createStub(EntityManagerInterface::class);
+        $conn = $this->createStub(Connection::class);
+        $em->method('getConnection')->willReturn($conn);
+
+        $tree = $this->buildTreeWithComponent(
+            finalBpId: 586,
+            finalProductId: 587,
+            finalName: 'Ship',
+            finalRuns: 5,
+            compBpId: 1000,
+            compProductId: 1001,
+            compName: 'Component',
+            compQuantity: 30,
+            compRuns: 30,
+        );
+
+        $treeStub = $this->createStub(IndustryTreeService::class);
+        $treeStub->method('buildProductionTree')->willReturn($tree);
+
+        $jitaStub = $this->createStub(JitaMarketService::class);
+        $jitaStub->method('getCheapestPercentilePrices')->willReturn([]);
+
+        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $bpRepository);
+
+        $data = new CreateProjectData(
+            name: 'Exact Split',
+            items: [
+                ['typeId' => 587, 'typeName' => 'Ship', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5],
+            ],
+        );
+
+        $project = $service->createProject($user, $data);
+
+        $componentJobs = array_values(array_filter(
+            $this->getJobBomItems($project),
+            fn (GroupIndustryBomItem $item) => $item->getTypeId() === 1001 && $item->getActivityType() === 'manufacturing',
+        ));
+        $this->assertCount(3, $componentJobs, 'Should split 30 runs into exactly 3 jobs of 10');
+
+        foreach ($componentJobs as $job) {
+            $this->assertSame(10, $job->getRuns());
+        }
+    }
+
+    public function testBuildBomCopyJobsAreNotSplit(): void
+    {
+        $user = $this->createUser();
+
+        // Blueprint 586 has maxProductionLimit = 5, but copy jobs should not be split
+        $blueprint = new IndustryBlueprint();
+        $blueprint->setTypeId(586);
+        $blueprint->setMaxProductionLimit(5);
+
+        $bpRepository = $this->createStub(IndustryBlueprintRepository::class);
+        $bpRepository->method('findBy')->willReturn([$blueprint]);
+
+        $em = $this->createStub(EntityManagerInterface::class);
+        $conn = $this->createStub(Connection::class);
+        $em->method('getConnection')->willReturn($conn);
+
+        $tree = $this->buildFlatTreeNode(586, 587, 'Sabre', 20, 1, [
+            ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 50000],
+        ], 0, 'manufacturing', true); // hasCopy=true
+
+        $treeStub = $this->createStub(IndustryTreeService::class);
+        $treeStub->method('buildProductionTree')->willReturn($tree);
+
+        $jitaStub = $this->createStub(JitaMarketService::class);
+        $jitaStub->method('getCheapestPercentilePrices')->willReturn([34 => 5.5]);
+
+        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $bpRepository);
+
+        $data = new CreateProjectData(
+            name: 'Copy No Split',
+            items: [
+                ['typeId' => 587, 'typeName' => 'Sabre', 'meLevel' => 2, 'teLevel' => 4, 'runs' => 20],
+            ],
+        );
+
+        $project = $service->createProject($user, $data);
+
+        $copyJobs = array_values(array_filter(
+            $this->getJobBomItems($project),
+            fn (GroupIndustryBomItem $item) => $item->getActivityType() === 'copy',
+        ));
+        $this->assertCount(1, $copyJobs, 'Copy jobs should not be split');
+        $this->assertSame(20, $copyJobs[0]->getRuns());
+    }
+
+    public function testBuildBomUsesDefaultLimitWhenBlueprintNotInSde(): void
+    {
+        $user = $this->createUser();
+
+        // No blueprint found in SDE -- should use default (10000 for manufacturing)
+        $bpRepository = $this->createStub(IndustryBlueprintRepository::class);
+        $bpRepository->method('findBy')->willReturn([]);
+
+        $em = $this->createStub(EntityManagerInterface::class);
+        $conn = $this->createStub(Connection::class);
+        $em->method('getConnection')->willReturn($conn);
+
+        $tree = $this->buildFlatTreeNode(586, 587, 'Rifter', 50, 1, [
+            ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 50000],
+        ]);
+
+        $treeStub = $this->createStub(IndustryTreeService::class);
+        $treeStub->method('buildProductionTree')->willReturn($tree);
+
+        $jitaStub = $this->createStub(JitaMarketService::class);
+        $jitaStub->method('getCheapestPercentilePrices')->willReturn([34 => 5.5]);
+
+        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $bpRepository);
+
+        $data = new CreateProjectData(
+            name: 'Default Limit',
+            items: [
+                ['typeId' => 587, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 50],
+            ],
+        );
+
+        $project = $service->createProject($user, $data);
+
+        // 50 runs with default limit of 10000 should not split
+        $jobs = array_values(array_filter(
+            $this->getJobBomItems($project),
+            fn (GroupIndustryBomItem $item) => $item->getTypeId() === 587 && $item->getActivityType() === 'manufacturing',
+        ));
+        $this->assertCount(1, $jobs, 'Should not split with default 10000 limit');
+        $this->assertSame(50, $jobs[0]->getRuns());
     }
 }

@@ -13,6 +13,7 @@ use App\Enum\GroupMemberRole;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Service\GroupIndustry\CreateProjectData;
 use App\Service\GroupIndustry\GroupIndustryProjectService;
+use App\Service\Industry\IndustryBlacklistService;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -45,11 +46,20 @@ class CreateGroupProjectProcessor implements ProcessorInterface
             throw new BadRequestHttpException('At least one item is required');
         }
 
+        // Resolve category keys to SDE group IDs
+        $resolvedGroupIds = $data->blacklistGroupIds;
+        foreach (IndustryBlacklistService::BLACKLIST_CATEGORIES as $category) {
+            if (in_array($category['key'], $data->blacklistCategoryKeys, true)) {
+                $resolvedGroupIds = array_merge($resolvedGroupIds, $category['groupIds']);
+            }
+        }
+        $resolvedGroupIds = array_values(array_unique($resolvedGroupIds));
+
         try {
             $projectData = new CreateProjectData(
                 name: $data->name ?? '',
                 items: $data->items,
-                blacklistGroupIds: $data->blacklistGroupIds,
+                blacklistGroupIds: $resolvedGroupIds,
                 blacklistTypeIds: $data->blacklistTypeIds,
                 containerName: $data->containerName,
                 lineRentalRatesOverride: $data->lineRentalRatesOverride,

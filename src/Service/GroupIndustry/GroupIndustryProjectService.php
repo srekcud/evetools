@@ -11,6 +11,7 @@ use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
+use App\Repository\Sde\IndustryBlueprintRepository;
 use App\Service\Industry\IndustryTreeService;
 use App\Service\JitaMarketService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -21,6 +22,7 @@ class GroupIndustryProjectService
         private readonly IndustryTreeService $treeService,
         private readonly JitaMarketService $jitaMarketService,
         private readonly EntityManagerInterface $entityManager,
+        private readonly IndustryBlueprintRepository $blueprintRepository,
     ) {
     }
 
@@ -79,7 +81,7 @@ class GroupIndustryProjectService
         /** @var array<int, array{typeName: string, quantity: int}> $materialAggregation */
         $materialAggregation = [];
 
-        /** @var array<string, array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null}> $jobAggregation */
+        /** @var array<string, array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null, blueprintTypeId: int}> $jobAggregation */
         $jobAggregation = [];
 
         foreach ($project->getItems() as $item) {
@@ -115,8 +117,11 @@ class GroupIndustryProjectService
             $project->addBomItem($bomItem);
         }
 
+        // Split jobs that exceed their blueprint's maxProductionLimit
+        $splitJobs = $this->splitJobsByMaxProductionLimit($jobAggregation);
+
         // Create job BOM items
-        foreach ($jobAggregation as $jobData) {
+        foreach ($splitJobs as $jobData) {
             $bomItem = new GroupIndustryBomItem();
             $bomItem->setTypeId($jobData['typeId']);
             $bomItem->setTypeName($jobData['typeName']);
@@ -137,7 +142,7 @@ class GroupIndustryProjectService
      *
      * @param array<string, mixed> $tree
      * @param array<int, array{typeName: string, quantity: int}> $materialAggregation
-     * @param array<string, array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null}> $jobAggregation
+     * @param array<string, array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null, blueprintTypeId: int}> $jobAggregation
      */
     private function flattenTree(
         array $tree,
@@ -146,6 +151,7 @@ class GroupIndustryProjectService
         ?int $parentTypeId,
     ): void {
         $productTypeId = $tree['productTypeId'];
+        $blueprintTypeId = $tree['blueprintTypeId'];
         $depth = $tree['depth'];
         $activityType = $tree['activityType'];
 
@@ -173,6 +179,7 @@ class GroupIndustryProjectService
                 'activityType' => $activityType,
                 'jobGroup' => $jobGroup,
                 'parentTypeId' => $parentTypeId,
+                'blueprintTypeId' => $blueprintTypeId,
             ];
         }
 
@@ -189,6 +196,7 @@ class GroupIndustryProjectService
                     'activityType' => 'copy',
                     'jobGroup' => 'blueprint',
                     'parentTypeId' => $parentTypeId,
+                    'blueprintTypeId' => $blueprintTypeId,
                 ];
             } else {
                 $jobAggregation[$copyKey]['runs'] += $tree['runs'];
@@ -218,6 +226,70 @@ class GroupIndustryProjectService
                 }
             }
         }
+    }
+
+    /**
+     * Split aggregated jobs that exceed their blueprint's maxProductionLimit into multiple entries.
+     *
+     * @param array<string, array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null, blueprintTypeId: int}> $jobAggregation
+     * @return list<array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null, blueprintTypeId: int}>
+     */
+    private function splitJobsByMaxProductionLimit(array $jobAggregation): array
+    {
+        // Copy jobs are not production jobs -- no splitting needed
+        $productionJobs = [];
+        $copyJobs = [];
+        foreach ($jobAggregation as $job) {
+            if ($job['activityType'] === 'copy') {
+                $copyJobs[] = $job;
+            } else {
+                $productionJobs[] = $job;
+            }
+        }
+
+        if (empty($productionJobs)) {
+            return array_values($jobAggregation);
+        }
+
+        // Batch-load all blueprint maxProductionLimit values
+        $blueprintTypeIds = array_unique(array_column($productionJobs, 'blueprintTypeId'));
+        $blueprints = $this->blueprintRepository->findBy(['typeId' => $blueprintTypeIds]);
+        $maxRunsByBlueprint = [];
+        foreach ($blueprints as $bp) {
+            $maxRunsByBlueprint[$bp->getTypeId()] = $bp->getMaxProductionLimit();
+        }
+
+        $result = [];
+        foreach ($productionJobs as $job) {
+            $maxRuns = $maxRunsByBlueprint[$job['blueprintTypeId']] ?? null;
+
+            // Default limits: reactions typically 500, manufacturing typically very high
+            if ($maxRuns === null) {
+                $maxRuns = $job['activityType'] === 'reaction' ? 500 : 10000;
+            }
+
+            if ($job['runs'] <= $maxRuns) {
+                $result[] = $job;
+                continue;
+            }
+
+            // Split into multiple entries
+            $remaining = $job['runs'];
+            while ($remaining > 0) {
+                $runsForThisJob = min($remaining, $maxRuns);
+                $splitJob = $job;
+                $splitJob['runs'] = $runsForThisJob;
+                $result[] = $splitJob;
+                $remaining -= $runsForThisJob;
+            }
+        }
+
+        // Append copy jobs at the end (no splitting)
+        foreach ($copyJobs as $copyJob) {
+            $result[] = $copyJob;
+        }
+
+        return $result;
     }
 
     /**

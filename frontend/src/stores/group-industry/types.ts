@@ -168,6 +168,7 @@ export type LineRentalRates = {
 export type CreateGroupProjectInput = {
   name?: string
   items: { typeId: number; typeName: string; meLevel: number; teLevel: number; runs: number }[]
+  blacklistCategoryKeys?: string[]
   blacklistGroupIds?: number[]
   blacklistTypeIds?: number[]
   containerName?: string

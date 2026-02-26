@@ -6,7 +6,6 @@ import { useAuthStore } from '@/stores/auth'
 import { useEscalationTimers } from '@/composables/useEscalationTimers'
 import { useEscalationHelpers } from '@/composables/useEscalationHelpers'
 import { useToast } from '@/composables/useToast'
-import ToastContainer from '@/components/common/ToastContainer.vue'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import EscalationKpiCards from '@/components/escalation/EscalationKpiCards.vue'
@@ -513,6 +512,4 @@ onUnmounted(() => {
     @cancel="cancelSell"
   />
 
-  <!-- Toast Notifications -->
-  <ToastContainer />
 </template>

@@ -504,4 +504,95 @@ class IndustryTreeServiceTest extends TestCase
         // 200 qty, 100 per run = 2 runs, 200 * 2 = 400 (no ME reduction)
         $this->assertSame(400, $tree['materials'][0]['quantity']);
     }
+
+    // ===========================================
+    // Reaction material in manufacturing tree is expanded
+    // ===========================================
+
+    public function testReactionMaterialIsExpandedAsBuildable(): void
+    {
+        // Manufacturing item (200) requires a reaction product (16672)
+        // The reaction product should be marked isBuildable with a blueprint sub-tree
+        $manufacturingProduct = $this->createProduct(100, IndustryActivityType::Manufacturing->value, 200, 1);
+        $reactionProduct = $this->createProduct(45732, IndustryActivityType::Reaction->value, 16672, 20);
+
+        $this->setupProductLookup([
+            200 => ['blueprint' => $manufacturingProduct, 'reaction' => null],
+            16672 => ['blueprint' => null, 'reaction' => $reactionProduct],
+            16657 => ['blueprint' => null, 'reaction' => null], // raw moon goo
+        ]);
+
+        // Materials for item 200: reaction product 16672
+        $reactionMat = $this->createMaterial(100, IndustryActivityType::Manufacturing->value, 16672, 100);
+        // Materials for reaction 45732: moon goo 16657
+        $moonGooMat = $this->createMaterial(45732, IndustryActivityType::Reaction->value, 16657, 200);
+
+        $this->activityMaterialRepository
+            ->method('findBy')
+            ->willReturnCallback(function (array $criteria) use ($reactionMat, $moonGooMat): array {
+                return match ($criteria['typeId']) {
+                    100 => [$reactionMat],
+                    45732 => [$moonGooMat],
+                    default => [],
+                };
+            });
+
+        $this->invTypeRepository
+            ->method('find')
+            ->willReturnCallback(fn (int $typeId) => $this->createInvType($typeId, match ($typeId) {
+                200 => 'T2 Ship',
+                16672 => 'Fernite Carbide',
+                16657 => 'Fernite',
+                default => "Type #{$typeId}",
+            }));
+
+        $tree = $this->service->buildProductionTree(200, 1, 10);
+
+        // The reaction material should be buildable with a blueprint sub-tree
+        $reactionNode = $tree['materials'][0];
+        $this->assertSame(16672, $reactionNode['typeId']);
+        $this->assertTrue($reactionNode['isBuildable']);
+        $this->assertSame('reaction', $reactionNode['activityType']);
+        $this->assertArrayHasKey('blueprint', $reactionNode);
+
+        // The nested reaction blueprint
+        $reactionBlueprint = $reactionNode['blueprint'];
+        $this->assertSame('reaction', $reactionBlueprint['activityType']);
+        $this->assertSame(45732, $reactionBlueprint['blueprintTypeId']);
+        $this->assertSame(16672, $reactionBlueprint['productTypeId']);
+        $this->assertSame(1, $reactionBlueprint['depth']);
+
+        // Moon goo inside the reaction should be a raw leaf material
+        $this->assertCount(1, $reactionBlueprint['materials']);
+        $moonGooNode = $reactionBlueprint['materials'][0];
+        $this->assertSame(16657, $moonGooNode['typeId']);
+        $this->assertFalse($moonGooNode['isBuildable']);
+        $this->assertArrayNotHasKey('blueprint', $moonGooNode);
+    }
+
+    public function testExcludedReactionIsNotExpanded(): void
+    {
+        // Same setup as above, but reaction product 16672 is excluded
+        $manufacturingProduct = $this->createProduct(100, IndustryActivityType::Manufacturing->value, 200, 1);
+
+        $this->setupProductLookup([
+            200 => ['blueprint' => $manufacturingProduct, 'reaction' => null],
+            // 16672 won't be looked up because it's excluded
+        ]);
+
+        $reactionMat = $this->createMaterial(100, IndustryActivityType::Manufacturing->value, 16672, 100);
+        $this->activityMaterialRepository->method('findBy')->willReturn([$reactionMat]);
+
+        $this->invTypeRepository
+            ->method('find')
+            ->willReturnCallback(fn (int $typeId) => $this->createInvType($typeId, "Type #{$typeId}"));
+
+        // Exclude the reaction product
+        $tree = $this->service->buildProductionTree(200, 1, 10, [16672]);
+
+        $reactionNode = $tree['materials'][0];
+        $this->assertSame(16672, $reactionNode['typeId']);
+        $this->assertFalse($reactionNode['isBuildable']);
+        $this->assertArrayNotHasKey('blueprint', $reactionNode);
+    }
 }

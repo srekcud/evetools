@@ -102,6 +102,34 @@ make base-build      # Rebuild image base uniquement
 - ApiResources sans identifiant : pas de `$id` avec `#[ApiProperty(identifier: true)]`
 - PATCH content type : `application/merge-patch+json`
 
+### Règles API Platform — Sub-resources (OBLIGATOIRE)
+
+Toute opération utilisant un paramètre parent dans le `uriTemplate` (ex: `{projectId}`) **DOIT** déclarer `uriVariables` avec `Link`. Sans ça, API Platform 4 ne résout pas les variables et renvoie des erreurs 400.
+
+```php
+use ApiPlatform\Metadata\Link;
+
+// Collection sous un parent
+new GetCollection(
+    uriTemplate: '/parent/{parentId}/children',
+    uriVariables: ['parentId' => new Link(fromClass: ParentResource::class)],
+)
+
+// Item sous un parent (2 variables)
+new Patch(
+    uriTemplate: '/parent/{parentId}/children/{id}',
+    uriVariables: [
+        'parentId' => new Link(fromClass: ParentResource::class),
+        'id' => new Link(fromClass: self::class),
+    ],
+)
+```
+
+### Noms de méthodes Entity — Pièges connus
+
+- `Character` : le champ EVE est `eveCharacterId` → `getEveCharacterId()` (PAS `getCharacterId()`)
+- Toujours vérifier les getters/setters existants dans l'entité avant d'écrire du code qui les appelle
+
 ---
 
 ## Mercure (temps réel)

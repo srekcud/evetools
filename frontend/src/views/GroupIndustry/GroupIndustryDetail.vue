@@ -211,7 +211,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
       </svg>
     </div>
 
-    <template v-else-if="project">
+    <div v-else-if="project">
       <!-- Breadcrumb -->
       <div class="mb-4">
         <div class="flex items-center gap-2 text-sm">
@@ -430,7 +430,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
         <PendingRequestsTable :project-id="projectId" :is-admin="isOwnerOrAdmin" />
         <ShareLinkCard v-if="project.shortLinkCode" :short-link-code="project.shortLinkCode" />
       </div>
-    </template>
+    </div>
 
     <!-- Error -->
     <div v-else-if="projectStore.error" class="text-center py-20">

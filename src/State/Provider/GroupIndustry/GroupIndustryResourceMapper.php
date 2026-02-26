@@ -95,7 +95,7 @@ class GroupIndustryResourceMapper
         $resource = new GroupIndustryMemberResource();
         $resource->id = $member->getId()->toString();
         $resource->characterName = $member->getUser()->getMainCharacter()?->getName() ?? 'Unknown';
-        $resource->characterId = $member->getUser()->getMainCharacter()?->getCharacterId() ?? 0;
+        $resource->characterId = $member->getUser()->getMainCharacter()?->getEveCharacterId() ?? 0;
         $resource->corporationId = $member->getUser()->getCorporationId();
         $resource->role = $member->getRole()->value;
         $resource->status = $member->getStatus()->value;

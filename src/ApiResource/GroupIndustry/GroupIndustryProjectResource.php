@@ -9,6 +9,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
@@ -88,6 +89,12 @@ use App\State\Provider\GroupIndustry\GroupProjectProvider;
         ),
         new Post(
             uriTemplate: '/group-industry/projects/join/{shortLinkCode}',
+            uriVariables: [
+                'shortLinkCode' => new Link(
+                    fromClass: self::class,
+                    identifiers: ['shortLinkCode'],
+                ),
+            ],
             processor: JoinGroupProjectProcessor::class,
             input: EmptyInput::class,
             openapi: new Model\Operation(

@@ -22,6 +22,9 @@ class CreateGroupProjectInput
     /** @var int[] */
     public array $blacklistTypeIds = [];
 
+    /** @var string[] Category keys like 'fuel_blocks', 'advanced_components' */
+    public array $blacklistCategoryKeys = [];
+
     #[Assert\Length(max: 255)]
     public ?string $containerName = null;
 
