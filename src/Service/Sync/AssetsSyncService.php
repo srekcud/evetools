@@ -114,18 +114,15 @@ class AssetsSyncService
         }
 
         try {
-            // Get division names for this corporation (uses character with divisions scope)
-            $divisionsCharacter = $this->characterRepository->findWithCorpDivisionsAccess($corporationId);
+            // Get division names using the same Director character
             $divisions = [];
-            if ($divisionsCharacter !== null) {
-                try {
-                    $divisions = $this->corporationService->getDivisions($divisionsCharacter);
-                } catch (\Throwable $e) {
-                    $this->logger->warning('Failed to get corporation divisions', [
-                        'corporationId' => $corporationId,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
+            try {
+                $divisions = $this->corporationService->getDivisions($character);
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed to get corporation divisions', [
+                    'corporationId' => $corporationId,
+                    'error' => $e->getMessage(),
+                ]);
             }
 
             // Delete existing cached corp assets

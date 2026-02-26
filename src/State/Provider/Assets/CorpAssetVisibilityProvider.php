@@ -10,6 +10,7 @@ use App\ApiResource\Assets\CorpAssetVisibilityResource;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CorpAssetVisibilityRepository;
+use App\Service\ESI\CorporationService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -23,6 +24,7 @@ class CorpAssetVisibilityProvider implements ProviderInterface
         private readonly Security $security,
         private readonly CorpAssetVisibilityRepository $visibilityRepository,
         private readonly CachedAssetRepository $cachedAssetRepository,
+        private readonly CorporationService $corporationService,
     ) {
     }
 
@@ -40,8 +42,19 @@ class CorpAssetVisibilityProvider implements ProviderInterface
         }
 
         $corporationId = $mainCharacter->getCorporationId();
-        $allDivisions = $this->cachedAssetRepository->findDistinctDivisions($corporationId);
         $visibility = $this->visibilityRepository->findByCorporationId($corporationId);
+        $allDivisions = $this->cachedAssetRepository->findDistinctDivisions($corporationId);
+
+        // Fallback: if no cached assets yet, try ESI with the Director's token
+        if (empty($allDivisions) && $visibility !== null) {
+            $directorUser = $visibility->getConfiguredBy();
+            foreach ($directorUser->getCharacters() as $directorCharacter) {
+                if ($directorCharacter->getCorporationId() === $corporationId && $directorCharacter->getEveToken() !== null) {
+                    $allDivisions = $this->corporationService->getDivisions($directorCharacter);
+                    break;
+                }
+            }
+        }
 
         $resource = new CorpAssetVisibilityResource();
         $resource->visibleDivisions = $visibility !== null

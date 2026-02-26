@@ -9,7 +9,6 @@ use App\Entity\CachedStructure;
 use App\Entity\Character;
 use App\Entity\EveToken;
 use App\Repository\CachedStructureRepository;
-use App\Repository\EveTokenRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -22,7 +21,6 @@ class AssetsService
     public function __construct(
         private readonly EsiClient $esiClient,
         private readonly MapSolarSystemRepository $solarSystemRepository,
-        private readonly EveTokenRepository $eveTokenRepository,
         private readonly CachedStructureRepository $cachedStructureRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
@@ -321,30 +319,16 @@ class AssetsService
             ];
         }
 
-        // Try with primary token first
+        // Try with primary token
         $result = $this->tryResolveStructureWithToken($structureId, $primaryToken);
         if ($result !== null) {
             $this->cacheStructure($structureId, $result);
             return [...$result, 'solar_system_name' => null];
         }
 
-        // Try with all other available tokens
-        $tokens = $this->eveTokenRepository->findAll();
-        foreach ($tokens as $token) {
-            if ($token === $primaryToken) {
-                continue;
-            }
-            $result = $this->tryResolveStructureWithToken($structureId, $token);
-            if ($result !== null) {
-                $this->cacheStructure($structureId, $result);
-                return [...$result, 'solar_system_name' => null];
-            }
-        }
-
         // Could not resolve - cache as "unresolved" to avoid retrying on every sync
-        $this->logger->warning('Could not resolve structure with any token', [
+        $this->logger->warning('Could not resolve structure', [
             'structureId' => $structureId,
-            'tokensAttempted' => count($tokens) + 1,
         ]);
 
         $unresolvedData = [
