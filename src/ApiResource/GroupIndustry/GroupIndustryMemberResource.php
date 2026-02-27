@@ -10,9 +10,12 @@ use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
+use App\ApiResource\Input\EmptyInput;
 use App\ApiResource\Input\GroupIndustry\UpdateGroupMemberInput;
 use App\State\Processor\GroupIndustry\KickGroupMemberProcessor;
+use App\State\Processor\GroupIndustry\LeaveGroupProjectProcessor;
 use App\State\Processor\GroupIndustry\UpdateGroupMemberProcessor;
 use App\State\Provider\GroupIndustry\GroupMemberCollectionProvider;
 use App\State\Provider\GroupIndustry\GroupMemberItemProvider;
@@ -59,6 +62,21 @@ use App\State\Provider\GroupIndustry\GroupMemberItemProvider;
             openapi: new Model\Operation(
                 summary: 'Kick a member',
                 description: 'Remove a member from the project (admin/owner only, cannot kick the owner)',
+                tags: ['Group Industry - Members'],
+            ),
+        ),
+        new Post(
+            uriTemplate: '/group-industry/projects/{projectId}/leave',
+            uriVariables: [
+                'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
+            ],
+            input: EmptyInput::class,
+            output: false,
+            status: 204,
+            processor: LeaveGroupProjectProcessor::class,
+            openapi: new Model\Operation(
+                summary: 'Leave a project',
+                description: 'Leave a group industry project voluntarily. Only members with no contributions can leave. Owner cannot leave.',
                 tags: ['Group Industry - Members'],
             ),
         ),

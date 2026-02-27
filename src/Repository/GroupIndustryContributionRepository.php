@@ -34,6 +34,16 @@ class GroupIndustryContributionRepository extends ServiceEntityRepository
         ]);
     }
 
+    public function countByMember(GroupIndustryProjectMember $member): int
+    {
+        return (int) $this->createQueryBuilder('c')
+            ->select('COUNT(c.id)')
+            ->andWhere('c.member = :member')
+            ->setParameter('member', $member)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     /**
      * Find an existing contribution for a member on a specific BOM item with a given type and matching statuses.
      *

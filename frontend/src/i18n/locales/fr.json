@@ -1850,7 +1850,10 @@
       "noPending": "Aucune demande d'adhesion en attente.",
       "totalContributed": "Total contribue",
       "contributionCount": "Contributions",
-      "joinedAt": "Rejoint le"
+      "joinedAt": "Rejoint le",
+      "leaveProject": "Quitter",
+      "leaveConfirm": "Voulez-vous vraiment quitter ce projet ? Vous pourrez le rejoindre a nouveau via le lien d'invitation.",
+      "leaveSuccess": "Vous avez quitte le projet."
     },
     "shareLink": {
       "title": "Lien d'invitation",

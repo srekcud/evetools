@@ -113,6 +113,20 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     }
   }
 
+  async function leaveProject(projectId: string): Promise<boolean> {
+    error.value = null
+    try {
+      await apiRequest(
+        `/group-industry/projects/${projectId}/leave`,
+        { method: 'POST' },
+      )
+      return true
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to leave project'
+      return false
+    }
+  }
+
   async function fetchLineRentalRates(): Promise<void> {
     try {
       lineRentalRates.value = await apiRequest<LineRentalRates>(
@@ -156,6 +170,7 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     fetchMembers,
     updateMember,
     kickMember,
+    leaveProject,
     fetchLineRentalRates,
     updateLineRentalRates,
     clearError,

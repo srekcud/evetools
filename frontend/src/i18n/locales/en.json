@@ -1850,7 +1850,10 @@
       "noPending": "No pending membership requests.",
       "totalContributed": "Total Contributed",
       "contributionCount": "Contributions",
-      "joinedAt": "Joined"
+      "joinedAt": "Joined",
+      "leaveProject": "Leave",
+      "leaveConfirm": "Are you sure you want to leave this project? You can rejoin later via the invite link.",
+      "leaveSuccess": "You have left the project."
     },
     "shareLink": {
       "title": "Invite Link",

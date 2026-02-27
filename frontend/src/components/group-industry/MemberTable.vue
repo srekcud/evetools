@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
+import { useAuthStore } from '@/stores/auth'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import type { GroupMember, GroupMemberRole } from '@/stores/group-industry/types'
@@ -12,9 +14,17 @@ const props = defineProps<{
   isAdmin: boolean
 }>()
 
+const emit = defineEmits<{
+  left: []
+}>()
+
+const { t } = useI18n()
 const store = useGroupDistributionStore()
+const authStore = useAuthStore()
 const { formatDate } = useFormatters()
 const { getCharacterPortraitUrl, onImageError } = useEveImages()
+
+const currentCharacterId = computed(() => authStore.user?.mainCharacter?.eveCharacterId ?? null)
 
 // Accepted members only
 const acceptedMembers = computed(() =>
@@ -42,6 +52,14 @@ const ROLE_LABELS: Record<GroupMemberRole, string> = {
   owner: 'Owner',
   admin: 'Admin',
   member: 'Member',
+}
+
+function isCurrentUser(member: GroupMember): boolean {
+  return currentCharacterId.value != null && member.characterId === currentCharacterId.value
+}
+
+function canLeave(member: GroupMember): boolean {
+  return isCurrentUser(member) && member.role !== 'owner' && member.contributionCount === 0
 }
 
 function canManage(member: GroupMember): boolean {
@@ -81,6 +99,23 @@ function confirmKick(member: GroupMember): void {
     confirmColor: 'red',
     icon: 'delete',
     action: () => store.kickMember(props.projectId, member.id),
+  }
+}
+
+function confirmLeave(): void {
+  confirmModal.value = {
+    show: true,
+    title: t('groupIndustry.members.leaveProject'),
+    subtitle: t('groupIndustry.members.leaveConfirm'),
+    confirmLabel: t('groupIndustry.members.leaveProject'),
+    confirmColor: 'red',
+    icon: 'delete',
+    action: async () => {
+      const success = await store.leaveProject(props.projectId)
+      if (success) {
+        emit('left')
+      }
+    },
   }
 }
 
@@ -154,7 +189,7 @@ onMounted(() => {
             <td class="py-3 px-3 text-sm text-slate-400">{{ formatDate(member.joinedAt) }}</td>
             <!-- Actions -->
             <td class="py-3 px-6 text-center">
-              <div v-if="canManage(member)" class="flex items-center justify-center gap-1.5">
+              <div v-if="canManage(member) && !isCurrentUser(member)" class="flex items-center justify-center gap-1.5">
                 <!-- Promote (only for members) -->
                 <button
                   v-if="member.role === 'member'"
@@ -172,6 +207,13 @@ onMounted(() => {
                   class="px-2.5 py-1 rounded bg-red-600/10 text-red-400/70 text-xs font-medium hover:bg-red-600/20 hover:text-red-400 transition-colors border border-red-600/20"
                   @click="confirmKick(member)"
                 >Kick</button>
+              </div>
+              <!-- Leave button for the current user -->
+              <div v-else-if="canLeave(member)" class="flex items-center justify-center">
+                <button
+                  class="px-2.5 py-1 rounded bg-red-600/10 text-red-400/70 text-xs font-medium hover:bg-red-600/20 hover:text-red-400 transition-colors border border-red-600/20"
+                  @click="confirmLeave"
+                >{{ t('groupIndustry.members.leaveProject') }}</button>
               </div>
               <span v-else class="text-xs text-slate-600">--</span>
             </td>

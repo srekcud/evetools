@@ -178,6 +178,11 @@ async function handleDeleteProject(): Promise<void> {
   isDeleting.value = false
 }
 
+function handleLeaveProject(): void {
+  showToast(t('groupIndustry.members.leaveSuccess'), 'success')
+  router.push({ name: 'group-industry' })
+}
+
 function onContributionSubmitted(): void {
   showContributeModal.value = false
   projectStore.fetchBom(projectId.value)
@@ -426,7 +431,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
           </button>
         </div>
 
-        <MemberTable :project-id="projectId" :is-admin="isOwnerOrAdmin" />
+        <MemberTable :project-id="projectId" :is-admin="isOwnerOrAdmin" @left="handleLeaveProject" />
         <PendingRequestsTable :project-id="projectId" :is-admin="isOwnerOrAdmin" />
         <ShareLinkCard v-if="project.shortLinkCode" :short-link-code="project.shortLinkCode" />
       </div>
