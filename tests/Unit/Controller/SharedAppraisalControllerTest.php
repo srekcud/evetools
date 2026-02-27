@@ -222,6 +222,54 @@ class SharedAppraisalControllerTest extends TestCase
         $response = ($this->controller)('any123', $request);
 
         $this->assertStringContainsString('text/html', $response->headers->get('Content-Type'));
+        $this->assertSame('index, follow', $response->headers->get('X-Robots-Tag'));
+    }
+
+    public function testSuccessResponseHeaders(): void
+    {
+        $sharedList = $this->createSharedList([
+            'items' => [],
+            'totals' => ['sellTotal' => 0, 'buyTotal' => 0, 'splitTotal' => 0],
+        ]);
+
+        $this->repository->method('findByToken')->willReturn($sharedList);
+
+        $request = Request::create('https://evetools.example.com/s/headers123');
+        $response = ($this->controller)('headers123', $request);
+
+        $this->assertSame('index, follow', $response->headers->get('X-Robots-Tag'));
+        $this->assertSame('max-age=3600, public', $response->headers->get('Cache-Control'));
+    }
+
+    public function testHtmlContainsTitleAndThemeColor(): void
+    {
+        $sharedList = $this->createSharedList([
+            'items' => [],
+            'totals' => ['sellTotal' => 0, 'buyTotal' => 0, 'splitTotal' => 0],
+        ]);
+
+        $this->repository->method('findByToken')->willReturn($sharedList);
+
+        $request = Request::create('https://evetools.example.com/s/meta123');
+        $response = ($this->controller)('meta123', $request);
+
+        $content = $response->getContent();
+
+        $this->assertStringContainsString('<title>EVE Tools - Appraisal</title>', $content);
+        $this->assertStringContainsString('<meta name="theme-color" content="#22d3ee">', $content);
+    }
+
+    public function testNotFoundHtmlContainsTitleAndThemeColor(): void
+    {
+        $this->repository->method('findByToken')->willReturn(null);
+
+        $request = Request::create('https://evetools.example.com/s/notfound123');
+        $response = ($this->controller)('notfound123', $request);
+
+        $content = $response->getContent();
+
+        $this->assertStringContainsString('<title>EVE Tools - Appraisal Not Found</title>', $content);
+        $this->assertStringContainsString('<meta name="theme-color" content="#22d3ee">', $content);
     }
 
     public function testFiveItemsExactlyNoMoreLine(): void

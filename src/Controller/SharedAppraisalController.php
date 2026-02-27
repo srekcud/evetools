@@ -24,6 +24,7 @@ class SharedAppraisalController
         if ($sharedList === null) {
             return new Response($this->buildNotFoundHtml(), Response::HTTP_NOT_FOUND, [
                 'Content-Type' => 'text/html; charset=UTF-8',
+                'X-Robots-Tag' => 'index, follow',
             ]);
         }
 
@@ -50,6 +51,8 @@ class SharedAppraisalController
 
         return new Response($html, Response::HTTP_OK, [
             'Content-Type' => 'text/html; charset=UTF-8',
+            'Cache-Control' => 'public, max-age=3600',
+            'X-Robots-Tag' => 'index, follow',
         ]);
     }
 
@@ -108,6 +111,8 @@ class SharedAppraisalController
             <html lang="en">
             <head>
                 <meta charset="UTF-8">
+                <title>EVE Tools - Appraisal</title>
+                <meta name="theme-color" content="#22d3ee">
                 <meta property="og:site_name" content="EVE Tools">
                 <meta property="og:title" content="{$escapedTitle}">
                 <meta property="og:description" content="{$escapedDescription}">
@@ -134,6 +139,8 @@ class SharedAppraisalController
             <html lang="en">
             <head>
                 <meta charset="UTF-8">
+                <title>EVE Tools - Appraisal Not Found</title>
+                <meta name="theme-color" content="#22d3ee">
                 <meta property="og:site_name" content="EVE Tools">
                 <meta property="og:title" content="Appraisal Not Found">
                 <meta property="og:type" content="website">
