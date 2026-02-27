@@ -202,16 +202,18 @@ class AssetsService
             }
         }
 
-        // Pre-load cached structures from database
+        // Pre-load cached structures from database (only resolved ones)
         if (!empty($structureIds)) {
             $cachedStructures = $this->cachedStructureRepository->findByStructureIds($structureIds);
             foreach ($cachedStructures as $structureId => $cached) {
-                $this->structureCache[$structureId] = [
-                    'name' => $cached->getName(),
-                    'solar_system_id' => $cached->getSolarSystemId(),
-                    'owner_id' => $cached->getOwnerCorporationId(),
-                    'type_id' => $cached->getTypeId(),
-                ];
+                if (!str_starts_with($cached->getName(), 'Structure #')) {
+                    $this->structureCache[$structureId] = [
+                        'name' => $cached->getName(),
+                        'solar_system_id' => $cached->getSolarSystemId(),
+                        'owner_id' => $cached->getOwnerCorporationId(),
+                        'type_id' => $cached->getTypeId(),
+                    ];
+                }
             }
         }
 
@@ -298,21 +300,23 @@ class AssetsService
      */
     private function resolveStructure(int $structureId, mixed $primaryToken): array
     {
-        // Check memory cache first
+        // Check memory cache first — skip unresolved entries so we retry resolution
         if (isset($this->structureCache[$structureId])) {
             $cached = $this->structureCache[$structureId];
-            return [
-                'name' => $cached['name'],
-                'solar_system_id' => $cached['solar_system_id'],
-                'solar_system_name' => null,
-                'owner_id' => $cached['owner_id'] ?? null,
-                'type_id' => $cached['type_id'] ?? null,
-            ];
+            if (!str_starts_with($cached['name'], 'Structure #')) {
+                return [
+                    'name' => $cached['name'],
+                    'solar_system_id' => $cached['solar_system_id'],
+                    'solar_system_name' => null,
+                    'owner_id' => $cached['owner_id'] ?? null,
+                    'type_id' => $cached['type_id'] ?? null,
+                ];
+            }
         }
 
-        // Check database cache
+        // Check database cache — skip unresolved entries so we retry resolution
         $dbCached = $this->cachedStructureRepository->findByStructureId($structureId);
-        if ($dbCached !== null) {
+        if ($dbCached !== null && !str_starts_with($dbCached->getName(), 'Structure #')) {
             $this->structureCache[$structureId] = [
                 'name' => $dbCached->getName(),
                 'solar_system_id' => $dbCached->getSolarSystemId(),
@@ -335,7 +339,7 @@ class AssetsService
             return [...$result, 'solar_system_name' => null];
         }
 
-        // Could not resolve - cache as "unresolved" to avoid retrying on every sync
+        // Could not resolve — only create a new "unresolved" cache entry if none exists yet
         $this->logger->warning('Could not resolve structure', [
             'structureId' => $structureId,
         ]);
@@ -346,7 +350,10 @@ class AssetsService
             'owner_id' => null,
             'type_id' => null,
         ];
-        $this->cacheStructure($structureId, $unresolvedData);
+
+        if ($dbCached === null) {
+            $this->cacheStructure($structureId, $unresolvedData);
+        }
 
         return [
             'name' => "Structure #{$structureId}",

@@ -97,6 +97,7 @@ export type GroupMember = {
   characterName: string
   characterId: number
   corporationId: number | null
+  corporationName: string | null
   role: GroupMemberRole
   status: GroupMemberStatus
   totalContributionValue: number

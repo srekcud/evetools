@@ -134,7 +134,7 @@ onMounted(() => {
             </td>
             <!-- Corporation -->
             <td class="py-3 px-3">
-              <span class="text-sm text-slate-400">{{ member.corporationId ? `Corp #${member.corporationId}` : '--' }}</span>
+              <span class="text-sm text-slate-400">{{ member.corporationName || '--' }}</span>
             </td>
             <!-- Role -->
             <td class="py-3 px-3">

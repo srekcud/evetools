@@ -97,6 +97,7 @@ class GroupIndustryResourceMapper
         $resource->characterName = $member->getUser()->getMainCharacter()?->getName() ?? 'Unknown';
         $resource->characterId = $member->getUser()->getMainCharacter()?->getEveCharacterId() ?? 0;
         $resource->corporationId = $member->getUser()->getCorporationId();
+        $resource->corporationName = $member->getUser()->getCorporationName();
         $resource->role = $member->getRole()->value;
         $resource->status = $member->getStatus()->value;
         $resource->totalContributionValue = $totalContributionValue;

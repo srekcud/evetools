@@ -77,6 +77,8 @@ class GroupIndustryMemberResource
 
     public ?int $corporationId = null;
 
+    public ?string $corporationName = null;
+
     public string $role;
 
     public string $status;
