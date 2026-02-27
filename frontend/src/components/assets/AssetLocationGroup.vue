@@ -85,7 +85,7 @@ function getDisplayName(asset: Asset): string {
         >
           <div class="flex items-center gap-3">
             <img
-              :src="getTypeIconUrl(asset.typeId, 32)"
+              :src="getTypeIconUrl(asset.typeId, 32, asset.categoryId ?? undefined)"
               :alt="asset.typeName"
               class="w-8 h-8 rounded-sm"
               @error="onImageError"
@@ -126,7 +126,7 @@ function getDisplayName(asset: Asset): string {
           >
             <div class="flex items-center gap-3">
               <img
-                :src="getTypeIconUrl(item.typeId, 32)"
+                :src="getTypeIconUrl(item.typeId, 32, item.categoryId ?? undefined)"
                 :alt="item.typeName"
                 class="w-6 h-6 rounded-sm"
                 @error="onImageError"

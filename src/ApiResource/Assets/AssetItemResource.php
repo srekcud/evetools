@@ -14,6 +14,8 @@ class AssetItemResource
 
     public string $typeName;
 
+    public ?int $categoryId = null;
+
     public int $quantity;
 
     public int $locationId;

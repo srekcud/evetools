@@ -14,11 +14,18 @@ const FALLBACK_ICON_DATA_URI = 'data:image/svg+xml,' + encodeURIComponent(FALLBA
 
 export type ImageSize = 32 | 64 | 128 | 256 | 512
 
+// EVE categories whose types have no icon on images.evetech.net
+const ICONLESS_CATEGORY_IDS = new Set([91]) // 91 = SKINs
+
 export function useEveImages() {
   /**
    * Get type icon URL (items, ships, modules, etc.)
+   * Pass categoryId to skip the network request for types without icons (SKINs).
    */
-  function getTypeIconUrl(typeId: number, size: ImageSize = 32): string {
+  function getTypeIconUrl(typeId: number, size: ImageSize = 32, categoryId?: number): string {
+    if (categoryId != null && ICONLESS_CATEGORY_IDS.has(categoryId)) {
+      return FALLBACK_ICON_DATA_URI
+    }
     return `${EVE_IMAGE_SERVER}/types/${typeId}/icon?size=${size}`
   }
 

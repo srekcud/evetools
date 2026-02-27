@@ -120,11 +120,11 @@ type BlacklistCategory = {
   checked: boolean
 }
 const blacklistCategories = ref<BlacklistCategory[]>([
-  { id: 'advanced_components', label: 'Advanced Components', checked: true },
+  { id: 'advanced_components', label: 'Advanced Components', checked: false },
   { id: 'capital_components', label: 'Capital Components', checked: false },
   { id: 'advanced_capital_components', label: 'Advanced Capital Components', checked: false },
   { id: 'hybrid_components', label: 'Hybrid Components', checked: false },
-  { id: 'fuel_blocks', label: 'Fuel Blocks', checked: true },
+  { id: 'fuel_blocks', label: 'Fuel Blocks', checked: false },
   { id: 'tools', label: 'Tools (R.A.M.)', checked: false },
   { id: 'simple_reactions', label: 'Simple Reactions', checked: false },
   { id: 'complex_reactions', label: 'Complex Reactions', checked: false },
@@ -209,7 +209,7 @@ function resetForm() {
   isCreating.value = false
   errorMsg.value = null
   blacklistCategories.value.forEach(cat => {
-    cat.checked = cat.id === 'advanced_components' || cat.id === 'fuel_blocks'
+    cat.checked = false
   })
 }
 

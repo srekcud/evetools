@@ -12,6 +12,7 @@ use App\Entity\CachedAsset;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CharacterRepository;
+use App\Repository\Sde\InvTypeRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -27,6 +28,7 @@ class CharacterAssetsProvider implements ProviderInterface
         private readonly Security $security,
         private readonly CharacterRepository $characterRepository,
         private readonly CachedAssetRepository $cachedAssetRepository,
+        private readonly InvTypeRepository $invTypeRepository,
         private readonly RequestStack $requestStack,
     ) {
     }
@@ -55,21 +57,28 @@ class CharacterAssetsProvider implements ProviderInterface
             $assets = $this->cachedAssetRepository->findByCharacter($character);
         }
 
+        // Resolve categoryId from SDE for each unique typeId
+        $categoryMap = $this->resolveCategoryIds($assets);
+
         $resource = new CharacterAssetsResource();
         $resource->characterId = $character->getId()?->toRfc4122() ?? '';
         $resource->total = \count($assets);
-        $resource->items = array_map(fn (CachedAsset $asset) => $this->toItemResource($asset), $assets);
+        $resource->items = array_map(fn (CachedAsset $asset) => $this->toItemResource($asset, false, $categoryMap), $assets);
 
         return $resource;
     }
 
-    private function toItemResource(CachedAsset $asset, bool $includeDivision = false): AssetItemResource
+    /**
+     * @param array<int, int> $categoryMap typeId => categoryId
+     */
+    private function toItemResource(CachedAsset $asset, bool $includeDivision, array $categoryMap): AssetItemResource
     {
         $item = new AssetItemResource();
         $item->id = $asset->getId()?->toRfc4122() ?? '';
         $item->itemId = $asset->getItemId();
         $item->typeId = $asset->getTypeId();
         $item->typeName = $asset->getTypeName();
+        $item->categoryId = $categoryMap[$asset->getTypeId()] ?? null;
         $item->quantity = $asset->getQuantity();
         $item->locationId = $asset->getLocationId();
         $item->locationName = $asset->getLocationName();
@@ -85,5 +94,29 @@ class CharacterAssetsProvider implements ProviderInterface
         }
 
         return $item;
+    }
+
+    /**
+     * Build a typeId => categoryId map from SDE data.
+     *
+     * @param CachedAsset[] $assets
+     * @return array<int, int>
+     */
+    private function resolveCategoryIds(array $assets): array
+    {
+        $typeIds = array_unique(array_map(fn (CachedAsset $a) => $a->getTypeId(), $assets));
+
+        if (empty($typeIds)) {
+            return [];
+        }
+
+        $invTypes = $this->invTypeRepository->findByTypeIds($typeIds);
+        $map = [];
+
+        foreach ($invTypes as $typeId => $invType) {
+            $map[$typeId] = $invType->getGroup()->getCategory()->getCategoryId();
+        }
+
+        return $map;
     }
 }

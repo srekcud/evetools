@@ -30,6 +30,10 @@ class InvTypeRepository extends ServiceEntityRepository
     public function findByTypeIds(array $typeIds): array
     {
         $types = $this->createQueryBuilder('t')
+            ->leftJoin('t.group', 'g')
+            ->addSelect('g')
+            ->leftJoin('g.category', 'c')
+            ->addSelect('c')
             ->where('t.typeId IN (:typeIds)')
             ->setParameter('typeIds', $typeIds)
             ->getQuery()
@@ -61,6 +65,22 @@ class InvTypeRepository extends ServiceEntityRepository
             ->delete()
             ->getQuery()
             ->execute();
+    }
+
+    /**
+     * Find a single published type by exact name (case-insensitive).
+     * Returns null if no match is found.
+     */
+    public function findOneByName(string $name): ?InvType
+    {
+        return $this->createQueryBuilder('t')
+            ->where('LOWER(t.typeName) = LOWER(:name)')
+            ->andWhere('t.published = :published')
+            ->setParameter('name', $name)
+            ->setParameter('published', true)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 
     /**
