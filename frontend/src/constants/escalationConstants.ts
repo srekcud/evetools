@@ -7,6 +7,8 @@ export const ESCALATION_SITES: Record<string, { level: string; name: string }[]>
     { level: '7', name: 'Angel Military Operations Complex' },
     { level: '8', name: 'Cartel Prisoner Retention' },
     { level: '10', name: 'Angel Cartel Naval Shipyard' },
+    { level: '10', name: 'Angel Capital Staging' },
+    { level: '10', name: 'Angel Shielded Starbase' },
   ],
   'Blood Raiders': [
     { level: '3', name: 'Blood Raider Intelligence Collection Point' },
