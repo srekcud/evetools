@@ -6,6 +6,7 @@ namespace App\Controller\Auth;
 
 use App\Entity\User;
 use App\Message\SyncCharacterAssets;
+use App\Security\OAuthStateSigner;
 use App\Service\ESI\AuthenticationService;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -20,13 +21,11 @@ use Psr\Cache\CacheItemPoolInterface;
 #[Route('/auth')]
 class EveOAuthController extends AbstractController
 {
-    private const OAUTH_STATE_TTL = 600; // 10 minutes
-
     public function __construct(
         private readonly AuthenticationService $authService,
         private readonly JWTTokenManagerInterface $jwtManager,
         private readonly CacheItemPoolInterface $jwtBlacklist,
-        private readonly CacheItemPoolInterface $oauthStateCache,
+        private readonly OAuthStateSigner $oauthStateSigner,
         private readonly MessageBusInterface $messageBus,
         private readonly Security $security,
         private readonly int $jwtTokenTtl,
@@ -36,14 +35,8 @@ class EveOAuthController extends AbstractController
     #[Route('/eve/redirect', name: 'auth_eve_redirect', methods: ['GET'])]
     public function getRedirectUrl(): JsonResponse
     {
-        $state = bin2hex(random_bytes(16));
+        $state = $this->oauthStateSigner->generate();
         $url = $this->authService->getAuthorizationUrl($state);
-
-        // Store state in cache for verification in callback (single-use, 10 min TTL)
-        $cacheItem = $this->oauthStateCache->getItem('oauth_state_' . $state);
-        $cacheItem->set(true);
-        $cacheItem->expiresAfter(self::OAUTH_STATE_TTL);
-        $this->oauthStateCache->save($cacheItem);
 
         return new JsonResponse([
             'redirect_url' => $url,
@@ -74,17 +67,12 @@ class EveOAuthController extends AbstractController
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        $stateCacheItem = $this->oauthStateCache->getItem('oauth_state_' . $state);
-
-        if (!$stateCacheItem->isHit()) {
+        if (!$this->oauthStateSigner->verify($state)) {
             return new JsonResponse([
                 'error' => 'invalid_state',
                 'message' => 'Invalid or expired OAuth state parameter',
             ], Response::HTTP_BAD_REQUEST);
         }
-
-        // Delete state after verification (single-use)
-        $this->oauthStateCache->deleteItem('oauth_state_' . $state);
 
         if ($code === null) {
             return new JsonResponse([
