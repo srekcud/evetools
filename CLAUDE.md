@@ -10,7 +10,7 @@ Application web d'utilitaires pour EVE Online :
 
 ## Stack Technique
 
-- **Backend**: Symfony 7.4 + API Platform 4.2
+- **Backend**: Symfony 7.4 + API Platform 4.3
 - **Frontend**: Vue.js 3.5 + Vite + Tailwind CSS 4
 - **Runtime**: FrankenPHP 8.5 Alpine
 - **Database**: PostgreSQL 16
@@ -204,48 +204,3 @@ new Patch(
 - [Static Data](https://developers.eveonline.com/static-data)
 - [ESI Documentation](https://docs.esi.evetech.net/)
 
----
-
-## AI Coding Rules — 4 Rules of Simple Design
-
-Follow Kent Beck's 4 Rules of Simple Design in priority order. When rules conflict, higher-priority rules always win.
-
-### Rule 1: Passes the Tests (Highest Priority)
-- Every function written or modified MUST have corresponding tests
-- If modifying existing code, run existing tests first — never break them
-- Write the test BEFORE or alongside the implementation, never as an afterthought
-- Tests must cover: expected behaviour, edge cases, and error paths
-- If unsure whether behaviour is correct, ask — do not guess
-- Never mark a task as complete if tests are failing
-
-### Rule 2: Reveals Intention
-- Use descriptive, specific names. Bad: `data`, `process`, `handle`. Good: `unpaidInvoices`, `calculateShippingCost`
-- Avoid over-descriptive names that repeat context already clear from the module or type signature
-- Extract magic numbers and strings into named constants
-- Use TypeScript types to document data shapes. Prefer `type` over `interface` (use `interface` only for declaration merging)
-- Prefer named functions over inline lambdas for non-trivial logic
-- Each function should do one thing. If you need "and" to describe it, split it
-- Comments explain WHY, never WHAT
-
-### Rule 3: No Duplication
-- Never copy-paste logic — extract shared behaviour into a function, type, or module
-- Duplication includes: repeated business rules, conditionals, data transformations, structural patterns
-- When you spot duplication, refactor it — even if you didn't introduce it
-- Do NOT force an abstraction when two pieces of code only look similar but represent different concepts (Rule 2 takes priority)
-
-### Rule 4: Fewest Elements (Lowest Priority)
-- Do not create abstractions for hypothetical future requirements
-- Prefer functions over classes when no state management is required
-- Prefer module-level functions with namespace imports over classes with methods
-- Remove dead code, unused imports, and unnecessary parameters
-- If an abstraction makes the code harder to follow without reducing real duplication, remove it
-- One file with 3 clear functions is better than 3 files with 1 function each (unless genuinely different domains)
-
-### Conflict Resolution
-1. Working, tested code (Rule 1) > everything
-2. Clarity (Rule 2) > DRY (Rule 3) — a little repetition is OK if the alternative is an unclear abstraction
-3. DRY (Rule 3) > Minimalism (Rule 4) — an extra function to eliminate duplication is justified
-4. Never add complexity to satisfy Rule 4
-
-### Refactoring Loop
-After every change, mentally run: (1) Tests green? Fix if not. (2) Code clearly expresses intent? Rename/restructure if not. (3) Duplication? Extract. (4) Can anything be removed without breaking rules 1-3? Remove.

@@ -10,7 +10,7 @@ Tu es un architecte logiciel senior spécialisé dans la conception de systèmes
 ## Contexte projet
 
 Application EVE Online (EVE Tools) :
-- **Backend** : Symfony 7.4 + API Platform 3.4, PostgreSQL 16, RabbitMQ, Redis
+- **Backend** : Symfony 7.4 + API Platform 4.3, PostgreSQL 16, RabbitMQ, Redis
 - **Frontend** : Vue.js 3.5 + TypeScript + Tailwind CSS + Pinia
 - **Infra** : FrankenPHP, Mercure (SSE), Docker
 - **Auth** : JWT + OAuth2 EVE SSO
