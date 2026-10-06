@@ -60,8 +60,9 @@ final readonly class MercurePublisherService
                 'progress' => $progress,
             ]);
         } catch (\Throwable $e) {
-            $this->logger->warning('Failed to publish Mercure update: ' . $e->getMessage(), [
+            $this->logger->warning('Failed to publish Mercure update', [
                 'topic' => $topic,
+                'error' => $e->getMessage(),
             ]);
         }
     }
@@ -128,8 +129,9 @@ final readonly class MercurePublisherService
                 'alertType' => $alertType,
             ]);
         } catch (\Throwable $e) {
-            $this->logger->warning('Failed to publish alert: ' . $e->getMessage(), [
+            $this->logger->warning('Failed to publish alert', [
                 'topic' => $topic,
+                'error' => $e->getMessage(),
             ]);
         }
     }
@@ -162,8 +164,9 @@ final readonly class MercurePublisherService
                 'category' => $notificationData['category'] ?? 'unknown',
             ]);
         } catch (\Throwable $e) {
-            $this->logger->warning('Failed to publish notification: ' . $e->getMessage(), [
+            $this->logger->warning('Failed to publish notification', [
                 'topic' => $topic,
+                'error' => $e->getMessage(),
             ]);
         }
     }
@@ -203,9 +206,10 @@ final readonly class MercurePublisherService
                 'action' => $action,
             ]);
         } catch (\Throwable $e) {
-            $this->logger->warning('Failed to publish Group Industry Mercure update: ' . $e->getMessage(), [
+            $this->logger->warning('Failed to publish Group Industry Mercure update', [
                 'projectId' => $projectId,
                 'action' => $action,
+                'error' => $e->getMessage(),
             ]);
         }
     }
@@ -257,7 +261,9 @@ final readonly class MercurePublisherService
                 'topics' => $topics,
             ]);
         } catch (\Throwable $e) {
-            $this->logger->warning('Failed to publish escalation event: ' . $e->getMessage());
+            $this->logger->warning('Failed to publish escalation event', [
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 
