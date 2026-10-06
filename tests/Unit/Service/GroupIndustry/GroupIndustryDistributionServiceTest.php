@@ -131,7 +131,7 @@ class GroupIndustryDistributionServiceTest extends TestCase
         // Broker fee: 2,000,000 * 3% = 60,000
         // Sales tax: 2,000,000 * 2% = 40,000
         // Net revenue: 2,000,000 - 60,000 - 40,000 = 1,900,000
-        // Margin%: (1,900,000 - 1,200,000) / 1,200,000 = 0.58333...
+        // Margin%: (1,900,000 - 1,200,000) / 1,200,000 * 100 = 58.333...%
 
         $sales = [
             $this->stubSale(1_200_000.0),
@@ -147,7 +147,7 @@ class GroupIndustryDistributionServiceTest extends TestCase
         self::assertSame(40_000.0, $result->salesTax);
         self::assertSame(1_900_000.0, $result->netRevenue);
         self::assertSame(1_200_000.0, $result->totalProjectCost);
-        self::assertEqualsWithDelta(0.58333, $result->marginPercent, 0.001);
+        self::assertEqualsWithDelta(58.3333, $result->marginPercent, 0.001);
 
         self::assertCount(3, $result->members);
 
@@ -209,7 +209,7 @@ class GroupIndustryDistributionServiceTest extends TestCase
         // Broker fee: 500,000 * 3% = 15,000
         // Sales tax: 500,000 * 2% = 10,000
         // Net revenue: 500,000 - 15,000 - 10,000 = 475,000
-        // Margin%: (475,000 - 1,000,000) / 1,000,000 = -0.525
+        // Margin%: (475,000 - 1,000,000) / 1,000,000 * 100 = -52.5%
         $sales = [$this->stubSale(500_000.0)];
 
         $this->configureRepositories($project, $sales, $contributions);
@@ -219,7 +219,7 @@ class GroupIndustryDistributionServiceTest extends TestCase
         self::assertSame(500_000.0, $result->totalRevenue);
         self::assertSame(475_000.0, $result->netRevenue);
         self::assertSame(1_000_000.0, $result->totalProjectCost);
-        self::assertEqualsWithDelta(-0.525, $result->marginPercent, 0.001);
+        self::assertEqualsWithDelta(-52.5, $result->marginPercent, 0.001);
 
         // Alice: 600k costs, 60% share, loses proportionally
         $aliceDist = $this->findMember($result, '00000000-0000-0000-0000-000000000001');
@@ -331,13 +331,13 @@ class GroupIndustryDistributionServiceTest extends TestCase
         $result = $this->service->calculateDistribution($project);
 
         // Revenue = 0, Net = 0, Cost = 1,000,000
-        // Margin = (0 - 1,000,000) / 1,000,000 = -1.0
+        // Margin = (0 - 1,000,000) / 1,000,000 * 100 = -100%
         self::assertSame(0.0, $result->totalRevenue);
         self::assertSame(0.0, $result->netRevenue);
         self::assertSame(0.0, $result->brokerFee);
         self::assertSame(0.0, $result->salesTax);
         self::assertSame(1_000_000.0, $result->totalProjectCost);
-        self::assertEqualsWithDelta(-1.0, $result->marginPercent, 0.001);
+        self::assertEqualsWithDelta(-100.0, $result->marginPercent, 0.001);
 
         // Each member loses 100% => payout = 0
         $aliceDist = $this->findMember($result, '00000000-0000-0000-0000-000000000001');
@@ -406,12 +406,37 @@ class GroupIndustryDistributionServiceTest extends TestCase
         self::assertSame(80_000.0, $result->salesTax);
         self::assertSame(870_000.0, $result->netRevenue);
 
-        // Margin: (870,000 - 500,000) / 500,000 = 0.74
-        self::assertEqualsWithDelta(0.74, $result->marginPercent, 0.001);
+        // Margin: (870,000 - 500,000) / 500,000 * 100 = 74%
+        self::assertEqualsWithDelta(74.0, $result->marginPercent, 0.001);
 
         $aliceDist = $result->members[0];
         // Payout = 500,000 * (1 + 0.74) = 870,000 = net revenue
         self::assertEqualsWithDelta(870_000.0, $aliceDist->payoutTotal, 1.0);
+    }
+
+    public function testMarginPercentIsExpressedAsPercentage(): void
+    {
+        $project = $this->stubProject(0.0, 0.0);
+
+        $alice = $this->stubMember('Alice', '00000000-0000-0000-0000-000000000001');
+
+        $contributions = [
+            $this->stubContribution($alice, ContributionType::Material, 500.0),
+        ];
+
+        // Net revenue 1000, total project cost 500 => margin 100 % (not the 1.0 ratio)
+        $sales = [$this->stubSale(1_000.0)];
+
+        $this->configureRepositories($project, $sales, $contributions);
+
+        $result = $this->service->calculateDistribution($project);
+
+        self::assertSame(100.0, $result->marginPercent);
+
+        // Payout still uses the ratio: 500 * (1 + 1.0) = 1000
+        $aliceDist = $result->members[0];
+        self::assertSame(500.0, $aliceDist->profitPart);
+        self::assertSame(1_000.0, $aliceDist->payoutTotal);
     }
 
     public function testMemberWithNoMainCharacterShowsUnknown(): void

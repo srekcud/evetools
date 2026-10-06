@@ -35,11 +35,11 @@ class GroupIndustryDistributionService
             $approvedContributions,
         ));
 
-        $marginPercent = $totalProjectCost > 0
+        $marginRatio = $totalProjectCost > 0
             ? ($netRevenue - $totalProjectCost) / $totalProjectCost
             : 0.0;
 
-        $members = $this->buildMemberDistributions($approvedContributions, $totalProjectCost, $marginPercent);
+        $members = $this->buildMemberDistributions($approvedContributions, $totalProjectCost, $marginRatio);
 
         return new DistributionResult(
             totalRevenue: $totalRevenue,
@@ -47,7 +47,7 @@ class GroupIndustryDistributionService
             salesTax: $salesTax,
             netRevenue: $netRevenue,
             totalProjectCost: $totalProjectCost,
-            marginPercent: $marginPercent,
+            marginPercent: $marginRatio * 100.0,
             members: $members,
         );
     }
@@ -56,7 +56,7 @@ class GroupIndustryDistributionService
      * @param GroupIndustryContribution[] $contributions
      * @return MemberDistribution[]
      */
-    private function buildMemberDistributions(array $contributions, float $totalProjectCost, float $marginPercent): array
+    private function buildMemberDistributions(array $contributions, float $totalProjectCost, float $marginRatio): array
     {
         /** @var array<string, array{contributions: GroupIndustryContribution[], member: \App\Entity\GroupIndustryProjectMember}> $grouped */
         $grouped = [];
@@ -103,7 +103,7 @@ class GroupIndustryDistributionService
                 ? $totalCosts / $totalProjectCost * 100
                 : 0.0;
 
-            $profitPart = $totalCosts * $marginPercent;
+            $profitPart = $totalCosts * $marginRatio;
             $payoutTotal = $totalCosts + $profitPart;
 
             $characterName = $member->getUser()->getMainCharacter()?->getName() ?? 'Unknown';
