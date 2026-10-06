@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Service\Sync;
 use App\Entity\CachedIndustryJob;
 use App\Entity\Character;
 use App\Entity\EveToken;
+use App\Entity\Notification;
 use App\Entity\User;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryStepJobMatchRepository;
@@ -285,8 +286,149 @@ class IndustryJobSyncServiceTest extends TestCase
     }
 
     // ===========================================
+    // syncCharacterJobs — stale job cleanup scoped to the synced character (issue #5)
+    // ===========================================
+
+    public function testSyncOfCharacterDoesNotMarkAltActiveJobAsDelivered(): void
+    {
+        [$characterA, $characterB] = $this->createCharactersOfSameUser(12345, 67890);
+
+        // ESI response for A only contains A's job, not B's
+        $this->esiClient->method('get')->willReturn([
+            $this->makeJobData(7001, 12345, 'active'),
+        ]);
+        $this->jobRepository->method('findByJobId')->willReturn(null);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+
+        $altJob = $this->makeCachedJob(7002, $characterB, 'active', '-1 hour');
+        $this->stubActiveJobsByCharacter([$altJob]);
+
+        $this->service->syncCharacterJobs($characterA);
+
+        $this->assertSame('active', $altJob->getStatus());
+        $this->assertNull($altJob->getCompletedDate());
+    }
+
+    public function testSyncOfCharacterStillMarksItsOwnStaleJobAsDeliveredWhenUserHasAlts(): void
+    {
+        [$characterA] = $this->createCharactersOfSameUser(12345, 67890);
+
+        $this->esiClient->method('get')->willReturn([]);
+        $this->jobRepository->method('findByJobId')->willReturn(null);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+
+        $ownStaleJob = $this->makeCachedJob(7003, $characterA, 'active', '-2 days');
+        $this->stubActiveJobsByCharacter([$ownStaleJob]);
+
+        $this->service->syncCharacterJobs($characterA);
+
+        $this->assertSame('delivered', $ownStaleJob->getStatus());
+        $this->assertSame(
+            $ownStaleJob->getEndDate()->format('c'),
+            $ownStaleJob->getCompletedDate()?->format('c'),
+        );
+    }
+
+    public function testAltJobCompletionNotificationSentWhenAltSyncedAfterMainCharacter(): void
+    {
+        [$characterA, $characterB] = $this->createCharactersOfSameUser(12345, 67890);
+        $user = $characterB->getUser();
+
+        // A's ESI response is empty; B's ESI response reports B's job as ready
+        $this->esiClient->method('get')->willReturnCallback(
+            fn (string $endpoint): array => str_starts_with($endpoint, '/characters/67890/')
+                ? [$this->makeJobData(7002, 67890, 'ready')]
+                : [],
+        );
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+
+        $altJob = $this->makeCachedJob(7002, $characterB, 'active', '-1 hour');
+        $this->jobRepository->method('findByJobId')
+            ->willReturnCallback(fn (int $jobId): ?CachedIndustryJob => $jobId === 7002 ? $altJob : null);
+        $this->stubActiveJobsByCharacter([$altJob]);
+
+        $this->notificationDispatcher->expects($this->once())
+            ->method('dispatch')
+            ->with(
+                $user,
+                Notification::CATEGORY_INDUSTRY,
+                Notification::LEVEL_SUCCESS,
+                'Job completed: Type #1000',
+                'Type #1000 Manufacturing (5x) ready to deliver',
+                [
+                    'jobId' => 7002,
+                    'productTypeId' => 1000,
+                    'productName' => 'Type #1000',
+                    'runs' => 5,
+                    'activityId' => 1,
+                ],
+                '/industry',
+            );
+
+        $this->service->syncCharacterJobs($characterA);
+        $this->service->syncCharacterJobs($characterB);
+
+        $this->assertSame('ready', $altJob->getStatus());
+    }
+
+    public function testCorporationJobSeenDuringOtherCharacterSyncIsNotMarkedDelivered(): void
+    {
+        [$characterA, $characterB] = $this->createCharactersOfSameUser(12345, 67890);
+
+        // Personal endpoints of A and B return nothing; the corporation endpoint (called once,
+        // during A's sync) returns a job installed by B
+        $this->esiClient->method('get')->willReturn([]);
+        $this->esiClient->expects($this->once())->method('getPaginated')->willReturn([
+            $this->makeJobData(8001, 67890, 'active'),
+        ]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+
+        $corporationJobOfB = $this->makeCachedJob(8001, $characterB, 'active', '-1 hour');
+        // Listed after the corporation job: proves the loop keeps going past a skipped job
+        $personalStaleJobOfB = $this->makeCachedJob(8002, $characterB, 'active', '-2 days');
+        $this->jobRepository->method('findByJobId')
+            ->willReturnCallback(fn (int $jobId): ?CachedIndustryJob => $jobId === 8001 ? $corporationJobOfB : null);
+        $this->stubActiveJobsByCharacter([$corporationJobOfB, $personalStaleJobOfB]);
+
+        $this->service->syncCharacterJobs($characterA);
+        $this->service->syncCharacterJobs($characterB);
+
+        $this->assertSame('active', $corporationJobOfB->getStatus());
+        $this->assertNull($corporationJobOfB->getCompletedDate());
+        $this->assertSame('delivered', $personalStaleJobOfB->getStatus());
+    }
+
+    // ===========================================
     // resetCorporationTracking
     // ===========================================
+
+    public function testResetCorporationTrackingForgetsSeenCorporationJobs(): void
+    {
+        [$characterA, $characterB] = $this->createCharactersOfSameUser(12345, 67890);
+
+        // Corporation endpoint returns B's job during A's sync, then nothing after the reset
+        $this->esiClient->method('get')->willReturn([]);
+        $this->esiClient->method('getPaginated')->willReturnOnConsecutiveCalls(
+            [$this->makeJobData(8001, 67890, 'active')],
+            [],
+        );
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+
+        $corporationJobOfB = $this->makeCachedJob(8001, $characterB, 'active', '-1 hour');
+        $this->jobRepository->method('findByJobId')
+            ->willReturnCallback(fn (int $jobId): ?CachedIndustryJob => $jobId === 8001 ? $corporationJobOfB : null);
+        $this->stubActiveJobsByCharacter([$corporationJobOfB]);
+
+        $this->service->syncCharacterJobs($characterA);
+        $this->service->resetCorporationTracking();
+        $this->service->syncCharacterJobs($characterB);
+
+        $this->assertSame('delivered', $corporationJobOfB->getStatus());
+        $this->assertSame(
+            $corporationJobOfB->getEndDate()->format('c'),
+            $corporationJobOfB->getCompletedDate()?->format('c'),
+        );
+    }
 
     public function testResetCorporationTrackingDoesNotThrow(): void
     {
@@ -319,6 +461,61 @@ class IndustryJobSyncServiceTest extends TestCase
         $user->method('getCharacters')->willReturn(new ArrayCollection([$character]));
 
         return $character;
+    }
+
+    /**
+     * @return list<Character> characters sharing one user, in the given order
+     */
+    private function createCharactersOfSameUser(int ...$eveCharacterIds): array
+    {
+        $user = $this->createStub(User::class);
+        $user->method('getId')->willReturn(Uuid::v4());
+
+        $token = $this->createStub(EveToken::class);
+        $token->method('isExpiringSoon')->willReturn(false);
+        $token->method('hasScope')->willReturn(true);
+
+        $characters = [];
+        foreach ($eveCharacterIds as $eveCharacterId) {
+            $character = $this->createStub(Character::class);
+            $character->method('getEveCharacterId')->willReturn($eveCharacterId);
+            $character->method('getEveToken')->willReturn($token);
+            $character->method('getName')->willReturn("Char{$eveCharacterId}");
+            $character->method('getUser')->willReturn($user);
+            $character->method('getCorporationId')->willReturn(98000001);
+            $characters[] = $character;
+        }
+
+        $user->method('getCharacters')->willReturn(new ArrayCollection($characters));
+
+        return $characters;
+    }
+
+    private function makeCachedJob(int $jobId, Character $character, string $status, string $endDate): CachedIndustryJob
+    {
+        $job = new CachedIndustryJob();
+        $job->setJobId($jobId);
+        $job->setCharacter($character);
+        $job->setStatus($status);
+        $job->setEndDate(new \DateTimeImmutable($endDate));
+
+        return $job;
+    }
+
+    /**
+     * Mimics the real query: jobs of the given character whose status is active or ready.
+     *
+     * @param list<CachedIndustryJob> $jobs
+     */
+    private function stubActiveJobsByCharacter(array $jobs): void
+    {
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturnCallback(
+            fn (Character $character): array => array_values(array_filter(
+                $jobs,
+                fn (CachedIndustryJob $job): bool => $job->getCharacter() === $character
+                    && in_array($job->getStatus(), ['active', 'ready'], true),
+            )),
+        );
     }
 
     /**

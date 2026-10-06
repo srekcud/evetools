@@ -21,6 +21,9 @@ class IndustryJobSyncService
     /** @var array<int, bool> Track which corporations we've already synced */
     private array $syncedCorporations = [];
 
+    /** @var array<int, bool> Corporation job IDs returned by ESI during the current sync run */
+    private array $corporationJobIdsSeenThisRun = [];
+
     public function __construct(
         private readonly EsiClient $esiClient,
         private readonly CachedIndustryJobRepository $jobRepository,
@@ -78,6 +81,9 @@ class IndustryJobSyncService
                     );
                     $allJobs = array_merge($allJobs, $corpJobs);
                     $this->syncedCorporations[$corporationId] = true;
+                    foreach ($corpJobs as $corpJob) {
+                        $this->corporationJobIdsSeenThisRun[$corpJob['job_id']] = true;
+                    }
                 } catch (\Throwable $e) {
                     // May fail if character doesn't have the required corp roles
                     $this->logger->debug('Could not fetch corporation jobs', [
@@ -165,27 +171,27 @@ class IndustryJobSyncService
                 $this->entityManager->persist($job);
             }
 
-            // Mark stale jobs as delivered: jobs in DB that disappeared from ESI
-            // with an end_date in the past are effectively delivered/expired
+            // Mark stale jobs of the synced character as delivered: jobs in DB that disappeared
+            // from ESI with an end_date in the past are effectively delivered/expired.
+            // Alts' jobs are left to their own sync; corporation jobs fetched earlier in this
+            // run (corp endpoint is not called again) are still present in ESI.
             $now = new \DateTimeImmutable();
-            foreach ($installerLookup as $userCharacter) {
-                $activeDbJobs = $this->jobRepository->findActiveJobsByCharacter($userCharacter);
-                foreach ($activeDbJobs as $dbJob) {
-                    if (in_array($dbJob->getJobId(), $ownedEsiJobIds, true)) {
-                        continue;
-                    }
-                    if ($dbJob->getEndDate() > $now) {
-                        continue;
-                    }
-                    $dbJob->setStatus('delivered');
-                    $dbJob->setCompletedDate($dbJob->getEndDate());
-                    $dbJob->setCachedAt($now);
-                    $this->logger->info('Stale industry job marked as delivered', [
-                        'jobId' => $dbJob->getJobId(),
-                        'characterName' => $userCharacter->getName(),
-                        'endDate' => $dbJob->getEndDate()->format('c'),
-                    ]);
+            foreach ($this->jobRepository->findActiveJobsByCharacter($character) as $dbJob) {
+                $jobId = $dbJob->getJobId();
+                if (in_array($jobId, $ownedEsiJobIds, true) || isset($this->corporationJobIdsSeenThisRun[$jobId])) {
+                    continue;
                 }
+                if ($dbJob->getEndDate() > $now) {
+                    continue;
+                }
+                $dbJob->setStatus('delivered');
+                $dbJob->setCompletedDate($dbJob->getEndDate());
+                $dbJob->setCachedAt($now);
+                $this->logger->info('Stale industry job marked as delivered', [
+                    'jobId' => $jobId,
+                    'characterName' => $character->getName(),
+                    'endDate' => $dbJob->getEndDate()->format('c'),
+                ]);
             }
 
             $this->entityManager->flush();
@@ -287,6 +293,7 @@ class IndustryJobSyncService
     public function resetCorporationTracking(): void
     {
         $this->syncedCorporations = [];
+        $this->corporationJobIdsSeenThisRun = [];
     }
 
     /** @param list<array<string, mixed>> $completedJobs */
