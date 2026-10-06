@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Sync;
 
 use App\Dto\AssetDto;
+use App\Entity\CachedAsset;
 use App\Entity\Character;
 use App\Entity\CorpAssetVisibility;
 use App\Entity\EveToken;
 use App\Entity\User;
+use App\Exception\EsiApiException;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CharacterRepository;
 use App\Repository\CorpAssetVisibilityRepository;
@@ -38,6 +40,9 @@ class AssetsSyncServiceTest extends TestCase
     private CorpAssetVisibilityRepository&Stub $visibilityRepository;
     private EntityManagerInterface&MockObject $em;
     private AssetsSyncService $service;
+
+    /** @var list<CachedAsset> */
+    private array $persistedAssets = [];
 
     protected function setUp(): void
     {
@@ -303,8 +308,166 @@ class AssetsSyncServiceTest extends TestCase
     }
 
     // ===========================================
+    // ESI failure — cached assets are kept (issue #14)
+    // ===========================================
+
+    public function testSyncCharacterAssetsKeepsCachedAssetsWhenEsiFetchFails(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $esiFailure = EsiApiException::fromResponse(502, 'Bad Gateway', '/characters/12345/assets/');
+        $this->assetsService->method('getCharacterAssets')->willThrowException($esiFailure);
+
+        $syncCalls = $this->recordCacheDeletionsAndWrites();
+
+        $caught = $this->catchThrowable(fn () => $this->service->syncCharacterAssets($character));
+
+        $this->assertSame($esiFailure, $caught);
+        $this->assertSame([], $syncCalls->getArrayCopy());
+    }
+
+    public function testSyncCorporationAssetsKeepsCachedAssetsWhenEsiFetchFails(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->corporationService->method('getDivisions')->willReturn([1 => 'Minerals']);
+        $esiFailure = EsiApiException::fromResponse(502, 'Bad Gateway', '/corporations/98000001/assets/');
+        $this->assetsService->method('getCorporationAssets')->willThrowException($esiFailure);
+
+        $syncCalls = $this->recordCacheDeletionsAndWrites();
+
+        $caught = $this->catchThrowable(fn () => $this->service->syncCorporationAssets($character));
+
+        $this->assertSame($esiFailure, $caught);
+        $this->assertSame([], $syncCalls->getArrayCopy());
+    }
+
+    public function testSyncCorporationAssetsFailsAndKeepsCachedAssetsWhenDivisionsFetchFails(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $divisionsFailure = EsiApiException::fromResponse(503, 'Service Unavailable', '/corporations/98000001/divisions/');
+        $this->corporationService->method('getDivisions')->willThrowException($divisionsFailure);
+        $this->assetsService->method('getCorporationAssets')->willReturn([
+            $this->createAsset(itemId: 2001, locationFlag: 'CorpSAG1'),
+        ]);
+
+        $syncCalls = $this->recordCacheDeletionsAndWrites();
+
+        $caught = $this->catchThrowable(fn () => $this->service->syncCorporationAssets($character));
+
+        $this->assertSame($divisionsFailure, $caught);
+        $this->assertSame([], $syncCalls->getArrayCopy());
+    }
+
+    // ===========================================
+    // ESI success — old assets replaced by new ones (guard)
+    // ===========================================
+
+    public function testSyncCharacterAssetsReplacesCachedAssetsOnSuccess(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->assetsService->method('getCharacterAssets')->willReturn([
+            $this->createAsset(itemId: 1001, locationFlag: 'Hangar'),
+        ]);
+
+        $syncCalls = $this->recordCacheDeletionsAndWrites();
+
+        $this->service->syncCharacterAssets($character);
+
+        $this->assertSame(['deleteByCharacter', 'persist:1001', 'flush'], $syncCalls->getArrayCopy());
+    }
+
+    public function testSyncCorporationAssetsReplacesCachedAssetsWithDivisionNamesOnSuccess(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->corporationService->method('getDivisions')->willReturn([1 => 'Minerals', 2 => 'Ships']);
+        $this->assetsService->method('getCorporationAssets')->willReturn([
+            $this->createAsset(itemId: 2001, locationFlag: 'CorpSAG1'),
+            $this->createAsset(itemId: 2002, locationFlag: 'CorpSAG2'),
+        ]);
+
+        $syncCalls = $this->recordCacheDeletionsAndWrites();
+
+        $this->service->syncCorporationAssets($character);
+
+        $this->assertSame(
+            ['deleteByCorporationId:98000001', 'persist:2001', 'persist:2002', 'flush'],
+            $syncCalls->getArrayCopy(),
+        );
+        $this->assertSame(['Minerals', 'Ships'], array_map(
+            static fn (CachedAsset $cachedAsset): ?string => $cachedAsset->getDivisionName(),
+            $this->persistedAssets,
+        ));
+    }
+
+    // ===========================================
     // Helpers
     // ===========================================
+
+    /**
+     * Records, in call order, every cached-asset deletion, persist and flush.
+     *
+     * @return \ArrayObject<int, string>
+     */
+    private function recordCacheDeletionsAndWrites(): \ArrayObject
+    {
+        $syncCalls = new \ArrayObject();
+
+        $this->cachedAssetRepository->method('deleteByCharacter')->willReturnCallback(
+            static function () use ($syncCalls): int {
+                $syncCalls[] = 'deleteByCharacter';
+
+                return 3;
+            },
+        );
+        $this->cachedAssetRepository->method('deleteByCorporationId')->willReturnCallback(
+            static function (int $corporationId) use ($syncCalls): int {
+                $syncCalls[] = 'deleteByCorporationId:' . $corporationId;
+
+                return 3;
+            },
+        );
+        $this->em->method('persist')->willReturnCallback(
+            function (object $entity) use ($syncCalls): void {
+                \assert($entity instanceof CachedAsset);
+                $syncCalls[] = 'persist:' . $entity->getItemId();
+                $this->persistedAssets[] = $entity;
+            },
+        );
+        $this->em->method('flush')->willReturnCallback(
+            static function () use ($syncCalls): void {
+                $syncCalls[] = 'flush';
+            },
+        );
+
+        return $syncCalls;
+    }
+
+    private function catchThrowable(callable $sync): ?\Throwable
+    {
+        try {
+            $sync();
+        } catch (\Throwable $e) {
+            return $e;
+        }
+
+        return null;
+    }
+
+    private function createAsset(int $itemId, string $locationFlag): AssetDto
+    {
+        return new AssetDto(
+            itemId: $itemId,
+            typeId: 34,
+            typeName: 'Tritanium',
+            quantity: 50000,
+            locationId: 60003760,
+            locationName: 'Jita IV - Moon 4',
+            locationType: 'station',
+            locationFlag: $locationFlag,
+            solarSystemId: 30000142,
+            solarSystemName: 'Jita',
+            itemName: null,
+        );
+    }
 
     private function createCharacterWithUser(int $eveCharacterId): Character
     {

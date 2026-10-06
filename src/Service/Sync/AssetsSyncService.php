@@ -41,11 +41,10 @@ class AssetsSyncService
         }
 
         try {
-            // Delete existing cached assets for this character
-            $this->cachedAssetRepository->deleteByCharacter($character);
-
-            // Fetch fresh assets from ESI
+            // Fetch before deleting: an ESI failure must keep the cached assets
             $assets = $this->assetsService->getCharacterAssets($character);
+
+            $this->cachedAssetRepository->deleteByCharacter($character);
 
             // Notify progress
             if ($userId !== null) {
@@ -114,22 +113,11 @@ class AssetsSyncService
         }
 
         try {
-            // Get division names using the same Director character
-            $divisions = [];
-            try {
-                $divisions = $this->corporationService->getDivisions($character);
-            } catch (\Throwable $e) {
-                $this->logger->warning('Failed to get corporation divisions', [
-                    'corporationId' => $corporationId,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-
-            // Delete existing cached corp assets
-            $this->cachedAssetRepository->deleteByCorporationId($corporationId);
-
-            // Fetch fresh assets from ESI
+            // Fetch before deleting: an ESI failure must keep the cached assets
+            $divisions = $this->corporationService->getDivisions($character);
             $assets = $this->assetsService->getCorporationAssets($character);
+
+            $this->cachedAssetRepository->deleteByCorporationId($corporationId);
 
             // Notify progress
             if ($userId !== null) {
