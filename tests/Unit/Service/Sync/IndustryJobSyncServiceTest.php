@@ -26,6 +26,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\Service\ResetInterface;
 
 #[CoversClass(IndustryJobSyncService::class)]
 #[AllowMockObjectsWithoutExpectations]
@@ -430,11 +431,57 @@ class IndustryJobSyncServiceTest extends TestCase
         );
     }
 
-    public function testResetCorporationTrackingDoesNotThrow(): void
+    public function testResetCorporationTrackingMakesNextSyncFetchCorporationJobsAgain(): void
     {
-        // Verify the method is callable without exception
+        $character = $this->createCharacterWithUser(12345);
+
+        $this->esiClient->method('get')->willReturn([]);
+        $this->esiClient->expects($this->exactly(2))
+            ->method('getPaginated')
+            ->with('/corporations/98000001/industry/jobs/?include_completed=true')
+            ->willReturn([]);
+        $this->stubActiveJobsByCharacter([]);
+
+        $this->service->syncCharacterJobs($character);
         $this->service->resetCorporationTracking();
-        $this->addToAssertionCount(1);
+        $this->service->syncCharacterJobs($character);
+    }
+
+    public function testCorporationJobsFetchedOnlyOnceForTwoCharactersOfSameCorporationInOneSyncRun(): void
+    {
+        [$characterA, $characterB] = $this->createCharactersOfSameUser(12345, 67890);
+
+        $this->esiClient->method('get')->willReturn([]);
+        $this->esiClient->expects($this->once())
+            ->method('getPaginated')
+            ->with('/corporations/98000001/industry/jobs/?include_completed=true')
+            ->willReturn([]);
+        $this->stubActiveJobsByCharacter([]);
+
+        $this->service->syncCharacterJobs($characterA);
+        $this->service->syncCharacterJobs($characterB);
+    }
+
+    // ===========================================
+    // ResetInterface — issue #29: corporation tracking must not outlive one scheduled sync
+    // ===========================================
+
+    public function testServiceImplementsResetInterfaceAndResetClearsCorporationTracking(): void
+    {
+        $this->assertInstanceOf(ResetInterface::class, $this->service);
+
+        $character = $this->createCharacterWithUser(12345);
+
+        $this->esiClient->method('get')->willReturn([]);
+        $this->esiClient->expects($this->exactly(2))
+            ->method('getPaginated')
+            ->with('/corporations/98000001/industry/jobs/?include_completed=true')
+            ->willReturn([]);
+        $this->stubActiveJobsByCharacter([]);
+
+        $this->service->syncCharacterJobs($character);
+        $this->service->reset();
+        $this->service->syncCharacterJobs($character);
     }
 
     // ===========================================

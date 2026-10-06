@@ -25,6 +25,7 @@ final readonly class SyncIndustryJobsHandler
     public function __invoke(SyncIndustryJobs $message): void
     {
         $this->syncTracker->start('industry');
+        $this->industryJobSyncService->resetCorporationTracking();
 
         try {
             $characters = $this->characterRepository->findActiveWithValidTokens();

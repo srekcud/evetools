@@ -15,8 +15,9 @@ use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Contracts\Service\ResetInterface;
 
-class IndustryJobSyncService
+class IndustryJobSyncService implements ResetInterface
 {
     /** @var array<int, bool> Track which corporations we've already synced */
     private array $syncedCorporations = [];
@@ -294,6 +295,12 @@ class IndustryJobSyncService
     {
         $this->syncedCorporations = [];
         $this->corporationJobIdsSeenThisRun = [];
+    }
+
+    /** Long-running workers keep this service alive: each handled message must start a new sync run. */
+    public function reset(): void
+    {
+        $this->resetCorporationTracking();
     }
 
     /** @param list<array<string, mixed>> $completedJobs */
