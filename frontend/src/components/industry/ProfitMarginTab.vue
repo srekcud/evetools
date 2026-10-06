@@ -127,17 +127,6 @@ const bestVenue = computed(() => {
       best = { key, ...m, unitPrice: price }
     }
   }
-  // Handle jitaBuy (unitPrice not in sellPrices, derive from original revenue)
-  if (r.margins['jitaBuy'] != null) {
-    const origEntry = r.margins['jitaBuy']!
-    const jitaBuyUnitPrice = r.outputQuantity > 0 ? origEntry.revenue / r.outputQuantity : 0
-    if (jitaBuyUnitPrice > 0) {
-      const m = computeVenueMargin(jitaBuyUnitPrice, r)
-      if (best == null || m.margin > best.margin) {
-        best = { key: 'jitaBuy', ...m, unitPrice: jitaBuyUnitPrice }
-      }
-    }
-  }
   return best
 })
 
@@ -205,11 +194,6 @@ const sellRows = computed((): SellRow[] => {
   }
   if (sp.structureBuy != null && m['structureBuy'] != null) {
     rows.push(buildRow('structureBuy', structureName, t('industry.margins.instantSellTag'), sp.structureBuy, m['structureBuy']!, null))
-  }
-  // Jita instant sell (buy price)
-  if (m['jitaBuy'] != null) {
-    const jitaBuyUnitPrice = r.outputQuantity > 0 ? m['jitaBuy']!.revenue / r.outputQuantity : 0
-    rows.push(buildRow('jitaBuy', 'Jita', t('industry.margins.instantSellTag'), jitaBuyUnitPrice, m['jitaBuy']!, r.dailyVolume))
   }
   // Public contract sell (0% fees)
   if (sp.contractSell != null && m['contractSell'] != null) {
