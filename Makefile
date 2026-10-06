@@ -1,4 +1,4 @@
-.PHONY: help build up down logs shell db-create db-migrate db-diff jwt-keys test install sde-import base-build deploy deploy-full
+.PHONY: help build up down logs shell db-create db-migrate db-diff jwt-keys test install sde-import base-build deploy deploy-full infection deptrac
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -41,6 +41,12 @@ test-unit: ## Run unit tests only
 
 test-coverage: ## Run tests with coverage
 	docker compose exec app php bin/phpunit --coverage-html var/coverage
+
+infection: ## Mutation testing report in var/infection/ (usage: make infection FILTER=src/Service/Industry)
+	docker compose exec app php -d memory_limit=2G vendor/bin/infection --threads=max --with-uncovered $(if $(FILTER),--filter=$(FILTER))
+
+deptrac: ## Architecture layer dependency report (report only, never fails)
+	-docker compose exec app php vendor/bin/deptrac analyse --no-progress
 
 cc: ## Clear cache
 	docker compose exec app php bin/console cache:clear

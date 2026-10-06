@@ -1,3 +1,8 @@
+---
+name: esi-api
+description: Guide d'utilisation de l'ESI d'EVE Online dans evetools (EsiClient, TokenManager, services ESI, sync, pagination, 420, ETag, Mercure). À charger avant toute modification d'un client, service ou sync ESI.
+---
+
 # EVE Online ESI API - Usage Guide
 
 This skill covers how to interact with the EVE Online ESI (EVE Swagger Interface) API within this project. It documents the client architecture, authentication, common patterns, sync services, and Mercure integration.

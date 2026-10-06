@@ -100,6 +100,19 @@ make base-build      # Rebuild image base uniquement
 
 ---
 
+## Documentation de référence
+
+- [`docs/glossary.md`](docs/glossary.md) — langage ubiquitaire (FR + EN)
+- [`docs/adr/`](docs/adr/) — décisions d'architecture
+- [`docs/quality/baseline.md`](docs/quality/baseline.md) — métriques de qualité de référence
+
+### Règles
+
+- **Un symbole métier porte un nom du glossaire.** Si le terme manque, proposer de l'ajouter au glossaire plutôt qu'inventer un synonyme.
+- **Pas de `|| true`, pas de `?? 0` ni de catch silencieux sur une donnée métier.** Une donnée ESI manquante doit remonter une erreur explicite ou un état « inconnu », jamais une valeur par défaut plausible.
+
+---
+
 ## Préférences de développement
 
 - **Toujours utiliser API Platform** pour les endpoints API, jamais de contrôleurs Symfony classiques
@@ -184,7 +197,7 @@ new Patch(
 
 ### Upgrades infrastructure
 - PostgreSQL 18 (Q3 2026)
-- Symfony 8 LTS (quand disponible)
+- Symfony 8.4 LTS (fin 2027) — rester sur 7.4 LTS d'ici là (ADR-0007)
 
 ---
 

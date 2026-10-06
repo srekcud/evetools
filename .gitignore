@@ -40,3 +40,6 @@ Thumbs.db
 /frontend/*.tsbuildinfo
 /frontend/vite.config.js
 /frontend/vite.config.d.ts
+
+# Claude Code runtime state (TDD phase lock)
+.claude/state/

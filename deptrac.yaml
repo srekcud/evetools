@@ -1,0 +1,99 @@
+# Architecture report for src/ — one layer per top-level directory.
+# Report only: the ruleset describes the intended dependency direction but is not
+# wired into CI. Run with `make deptrac`.
+deptrac:
+  paths:
+    - ./src
+  exclude_files:
+    - '#src/Kernel\.php$#'
+  cache_file: var/deptrac.cache
+
+  layers:
+    # Shared kernel: value types usable by every layer
+    - name: Enum
+      collectors:
+        - { type: directory, value: src/Enum/.* }
+    - name: Constant
+      collectors:
+        - { type: directory, value: src/Constant/.* }
+    - name: Exception
+      collectors:
+        - { type: directory, value: src/Exception/.* }
+    - name: Dto
+      collectors:
+        - { type: directory, value: src/Dto/.* }
+
+    # Persistence
+    - name: Entity
+      collectors:
+        - { type: directory, value: src/Entity/.* }
+    - name: Repository
+      collectors:
+        - { type: directory, value: src/Repository/.* }
+
+    # Domain / application services
+    - name: Service
+      collectors:
+        - { type: directory, value: src/Service/.* }
+
+    # API Platform
+    - name: ApiResource
+      collectors:
+        - { type: directory, value: src/ApiResource/.* }
+    - name: StateProvider
+      collectors:
+        - { type: directory, value: src/State/Provider/.* }
+    - name: StateProcessor
+      collectors:
+        - { type: directory, value: src/State/Processor/.* }
+
+    # Async
+    - name: Message
+      collectors:
+        - { type: directory, value: src/Message/.* }
+    - name: MessageHandler
+      collectors:
+        - { type: directory, value: src/MessageHandler/.* }
+    - name: Scheduler
+      collectors:
+        - { type: directory, value: src/Scheduler/.* }
+
+    # Entry points / framework glue
+    - name: Controller
+      collectors:
+        - { type: directory, value: src/Controller/.* }
+    - name: Command
+      collectors:
+        - { type: directory, value: src/Command/.* }
+    - name: Security
+      collectors:
+        - { type: directory, value: src/Security/.* }
+    - name: EventListener
+      collectors:
+        - { type: directory, value: src/EventListener/.* }
+    - name: DataFixtures
+      collectors:
+        - { type: directory, value: src/DataFixtures/.* }
+
+  # Permissive: dependencies point from entry points towards persistence.
+  # Entity -> Repository is allowed because of #[ORM\Entity(repositoryClass: ...)].
+  # ApiResource -> State* is allowed because of provider:/processor: attributes.
+  ruleset:
+    Enum: [Constant]
+    Constant: ~
+    Exception: [Enum, Constant]
+    Dto: [Enum, Constant]
+    Entity: [Repository, Enum, Constant, Exception, Dto]
+    Repository: [Entity, Enum, Constant, Exception, Dto]
+    Service: [Entity, Repository, Message, Enum, Constant, Exception, Dto]
+    ApiResource: [StateProvider, StateProcessor, Entity, Enum, Constant, Exception, Dto]
+    StateProvider: [ApiResource, Service, Repository, Entity, Security, Enum, Constant, Exception, Dto]
+    StateProcessor: [ApiResource, Service, Repository, Entity, Message, Security, Enum, Constant, Exception, Dto]
+    Message: [Enum, Constant, Dto]
+    MessageHandler: [Message, Service, Repository, Entity, Enum, Constant, Exception, Dto]
+    Scheduler: [Message, Enum, Constant]
+    Controller: [Service, Repository, Entity, Security, Enum, Constant, Exception, Dto]
+    Command: [Service, Repository, Entity, Message, Enum, Constant, Exception, Dto]
+    Security: [Service, Repository, Entity, Enum, Constant, Exception, Dto]
+    EventListener: [Service, Repository, Entity, Security, Enum, Constant, Exception, Dto]
+    DataFixtures: [Entity, Repository, Enum, Constant, Dto]

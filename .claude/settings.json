@@ -1,0 +1,51 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker compose exec app php vendor/bin/phpunit:*)",
+      "Bash(docker compose exec app php vendor/bin/phpstan:*)",
+      "Bash(docker compose exec app php vendor/bin/infection:*)",
+      "Bash(docker compose exec app php vendor/bin/deptrac:*)",
+      "Bash(docker compose exec app php bin/console debug:*)",
+      "Bash(npm --prefix frontend run lint)",
+      "Bash(npm --prefix frontend run test)",
+      "Bash(npm --prefix frontend run build)",
+      "Bash(gh issue list:*)",
+      "Bash(gh issue view:*)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)"
+    ],
+    "ask": [
+      "Bash(gh issue create:*)",
+      "Bash(gh issue comment:*)",
+      "Bash(gh pr create:*)",
+      "Bash(git push:*)",
+      "Bash(docker compose exec app php bin/console doctrine:migrations:*)",
+      "Bash(docker compose exec app composer require:*)",
+      "Bash(composer require:*)",
+      "Bash(npm install:*)"
+    ],
+    "deny": [
+      "Bash(make deploy:*)",
+      "Bash(make deploy-full:*)",
+      "Bash(docker compose -f docker-compose.yaml -f docker-compose.prod.yml:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Read(.env.local)",
+      "Read(config/jwt/*.pem)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/tdd-guard.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

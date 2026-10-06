@@ -1,0 +1,8 @@
+# Dev image — adds code coverage tooling on top of the application image.
+# Requires evetools-app (built from Dockerfile: docker compose -f docker-compose.yaml build app)
+FROM evetools-app
+
+# pcov is installed but DISABLED by default (zero overhead at runtime).
+# Enable per command: php -d pcov.enabled=1 vendor/bin/phpunit --coverage-text
+RUN install-php-extensions pcov && \
+    printf 'pcov.enabled=0\npcov.directory=/app/src\n' > /usr/local/etc/php/conf.d/zz-pcov.ini

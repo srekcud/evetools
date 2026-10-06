@@ -4,12 +4,14 @@ Application web d'utilitaires pour le jeu EVE Online permettant de gérer des fl
 
 ## Stack Technique
 
-- **Backend**: Symfony 7.2 + API Platform 3.x
-- **Runtime PHP**: FrankenPHP (PHP 8.4 Alpine)
+- **Backend**: Symfony 7.4 LTS + API Platform 4.x
+- **Frontend**: Vue.js 3.5 + Vite + Tailwind CSS 4
+- **Runtime PHP**: FrankenPHP (PHP 8.5 Alpine)
 - **Base de données**: PostgreSQL 16
-- **Queue**: RabbitMQ
+- **Queue**: RabbitMQ (Symfony Messenger)
 - **Cache**: Redis
-- **Auth**: JWT (lexik/jwt-authentication-bundle) + OAuth2 EVE ESI
+- **Temps réel**: Mercure (intégré à FrankenPHP)
+- **Auth**: JWT (lexik/jwt-authentication-bundle) + OAuth2 EVE SSO
 
 ## Prérequis
 
@@ -118,9 +120,13 @@ make test-coverage # Tests avec couverture
 ```
 src/
 ├── ApiResource/     # Resources API Platform
+├── Command/         # Commandes console
+├── Constant/        # Constantes métier
 ├── Controller/      # Controllers Symfony
+├── DataFixtures/    # Fixtures Doctrine
 ├── Dto/             # Data Transfer Objects
-├── Entity/          # Entities Doctrine
+├── Entity/          # Entities Doctrine (dont Sde/)
+├── Enum/            # Enums
 ├── EventListener/   # Event Listeners
 ├── Exception/       # Exceptions personnalisées
 ├── Message/         # Messages Messenger
@@ -129,7 +135,14 @@ src/
 ├── Scheduler/       # Scheduler Symfony
 ├── Security/        # Voters et listeners sécurité
 ├── Service/         # Services métier
+│   ├── Admin/
 │   ├── ESI/         # Services ESI (API EVE)
+│   ├── GroupIndustry/
+│   ├── Industry/
+│   ├── Mercure/
+│   ├── Notification/
+│   ├── Planetary/
+│   ├── Sde/
 │   └── Sync/        # Services de synchronisation
 └── State/           # Providers et Processors API Platform
 ```

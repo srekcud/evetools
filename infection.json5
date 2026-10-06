@@ -1,0 +1,23 @@
+{
+    "$schema": "vendor/infection/infection/resources/schema.json",
+    // Report-only: no minMsi / minCoveredMsi, the run never fails on score.
+    "source": {
+        "directories": ["src"],
+        "excludes": ["Kernel.php"]
+    },
+    "testFramework": "phpunit",
+    // pcov is installed but disabled by default in the dev image (Dockerfile.dev)
+    "initialTestsPhpOptions": "-d pcov.enabled=1",
+    // Infection aborts if the initial run is red: skip the 4 Mercure tests known to fail on main.
+    // Remove this line once MercurePublisherServiceTest is green again.
+    "testFrameworkOptions": "--exclude-filter=MercurePublisherServiceTest::testPublish.+CatchesExceptionAndLogsWarning",
+    "tmpDir": "var/infection/tmp",
+    "logs": {
+        "text": "var/infection/infection.log",
+        "html": "var/infection/infection.html",
+        "summary": "var/infection/summary.log"
+    },
+    "mutators": {
+        "@default": true
+    }
+}

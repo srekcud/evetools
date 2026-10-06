@@ -39,6 +39,10 @@ services:
       start_period: 60s
 
   app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: evetools-app-dev
     volumes:
       - .:/app
       - caddy_data:/data
