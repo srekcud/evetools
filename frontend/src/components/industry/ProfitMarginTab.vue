@@ -10,6 +10,7 @@ import CostSummaryCards from '@/components/industry/profit/CostSummaryCards.vue'
 import VenueComparisonTable from '@/components/industry/profit/VenueComparisonTable.vue'
 import type { SellRow } from '@/components/industry/profit/VenueComparisonTable.vue'
 import InventionOptionsPanel from '@/components/industry/profit/InventionOptionsPanel.vue'
+import { venueLabel } from '@/components/industry/venueLabel'
 
 const { t } = useI18n()
 const store = useIndustryStore()
@@ -137,11 +138,7 @@ const bestUnitPrice = computed(() => bestVenue.value?.unitPrice ?? 0)
 
 const bestVenueLabel = computed(() => {
   if (!bestVenue.value || !result.value) return ''
-  const key = bestVenue.value.key
-  if (key === 'jitaSell') return 'Jita sell'
-  if (key === 'structureSell') return result.value.sellPrices.structureName
-  if (key === 'contractSell') return 'Contract'
-  return 'Jita'
+  return venueLabel(bestVenue.value.key, result.value.sellPrices.structureName, t)
 })
 
 const profitPerRun = computed(() => {
