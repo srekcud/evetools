@@ -195,7 +195,7 @@ class PveSyncService
                     $this->tokenManager->refreshAccessToken($token);
                 }
 
-                $journal = $this->esiClient->get(
+                $journal = $this->esiClient->getPaginated(
                     "/characters/{$character->getEveCharacterId()}/wallet/journal/",
                     $token
                 );
@@ -368,7 +368,7 @@ class PveSyncService
                 }
 
                 $characterId = $character->getEveCharacterId();
-                $contracts = $this->esiClient->get(
+                $contracts = $this->esiClient->getPaginated(
                     "/characters/{$characterId}/contracts/",
                     $token
                 );

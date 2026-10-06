@@ -672,7 +672,7 @@ https://esi.evetech.net/latest
 | `GET` | `/characters/{id}/planets/` | Yes | No | PI colony list |
 | `GET` | `/characters/{id}/planets/{planet_id}/` | Yes | No | PI colony detail |
 | `GET` | `/characters/{id}/industry/jobs/` | Yes | No | Industry jobs |
-| `GET` | `/characters/{id}/mining/` | Yes | No | Mining ledger |
+| `GET` | `/characters/{id}/mining/` | Yes | Yes | Mining ledger |
 | `GET` | `/characters/{id}/wallet/` | Yes | No | Wallet balance (scalar) |
 | `GET` | `/characters/{id}/wallet/journal/` | Yes | Yes | Wallet journal |
 | `GET` | `/characters/{id}/wallet/transactions/` | Yes | No | Wallet transactions |

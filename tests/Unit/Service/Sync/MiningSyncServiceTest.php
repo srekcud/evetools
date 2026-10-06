@@ -163,6 +163,52 @@ class MiningSyncServiceTest extends TestCase
     }
 
     // ===========================================
+    // syncAll — mining ledger pagination (issue #11)
+    // ===========================================
+
+    public function testSyncAllImportsMiningLedgerEntriesFromSecondPage(): void
+    {
+        $user = $this->createUserWithCharacter(12345);
+
+        $ledgerPage1 = [[
+            'date' => '2026-02-20',
+            'type_id' => 17459,
+            'solar_system_id' => 30004759,
+            'quantity' => 50000,
+        ]];
+        $ledgerPage2 = [[
+            'date' => '2026-01-15',
+            'type_id' => 17460,
+            'solar_system_id' => 30004759,
+            'quantity' => 30000,
+        ]];
+        // get() only ever sees page 1 (no X-Pages handling); getPaginated() merges all pages
+        $this->esiClient->method('get')->willReturn($ledgerPage1);
+        $this->esiClient->method('getPaginated')->willReturn([...$ledgerPage1, ...$ledgerPage2]);
+
+        $this->miningEntryRepository->method('findByUniqueKey')->willReturn(null);
+        $this->miningEntryRepository->method('getTypeIdsWithoutPrice')->willReturn([]);
+        $this->typeNameResolver->method('resolve')->willReturn('Scordite');
+        $this->solarSystemRepository->method('find')->willReturn(null);
+        $this->settingsRepository->method('findByUser')->willReturn(null);
+        $this->settingsRepository->method('getOrCreate')->willReturn(new UserLedgerSettings());
+
+        $persistedQuantities = [];
+        $this->em->method('persist')->willReturnCallback(
+            function (object $entry) use (&$persistedQuantities): void {
+                if ($entry instanceof MiningEntry) {
+                    $persistedQuantities[$entry->getTypeId()] = $entry->getQuantity();
+                }
+            }
+        );
+
+        $result = $this->service->syncAll($user);
+
+        $this->assertSame([17459 => 50000, 17460 => 30000], $persistedQuantities);
+        $this->assertSame(2, $result['imported']);
+    }
+
+    // ===========================================
     // syncAll — new entries created
     // ===========================================
 
@@ -170,7 +216,7 @@ class MiningSyncServiceTest extends TestCase
     {
         $user = $this->createUserWithCharacter(12345);
 
-        $this->esiClient->method('get')->willReturn([
+        $this->esiClient->method('getPaginated')->willReturn([
             [
                 'date' => '2026-02-20',
                 'type_id' => 17459,
@@ -208,7 +254,7 @@ class MiningSyncServiceTest extends TestCase
     {
         $user = $this->createUserWithCharacter(12345);
 
-        $this->esiClient->method('get')->willReturn([
+        $this->esiClient->method('getPaginated')->willReturn([
             [
                 'date' => '2026-02-20',
                 'type_id' => 17459,
@@ -247,7 +293,7 @@ class MiningSyncServiceTest extends TestCase
     {
         $user = $this->createUserWithCharacter(12345);
 
-        $this->esiClient->method('get')->willReturn([
+        $this->esiClient->method('getPaginated')->willReturn([
             [
                 'date' => '2026-02-20',
                 'type_id' => 17459,
@@ -303,7 +349,7 @@ class MiningSyncServiceTest extends TestCase
         $user->method('getCharacters')->willReturn(new ArrayCollection([$charFail, $charOk]));
 
         $callCount = 0;
-        $this->esiClient->method('get')->willReturnCallback(
+        $this->esiClient->method('getPaginated')->willReturnCallback(
             function (string $url) use (&$callCount): array {
                 $callCount++;
                 if (str_contains($url, '22222')) {
@@ -354,7 +400,7 @@ class MiningSyncServiceTest extends TestCase
 
         $user->method('getCharacters')->willReturn(new ArrayCollection([$character]));
 
-        $this->esiClient->method('get')->willReturn([]);
+        $this->esiClient->method('getPaginated')->willReturn([]);
         $this->miningEntryRepository->method('getTypeIdsWithoutPrice')->willReturn([]);
         $this->settingsRepository->method('getOrCreate')->willReturn(new UserLedgerSettings());
 
@@ -414,7 +460,7 @@ class MiningSyncServiceTest extends TestCase
     {
         $user = $this->createUserWithCharacter(12345);
 
-        $this->esiClient->method('get')->willReturn([]);
+        $this->esiClient->method('getPaginated')->willReturn([]);
 
         $this->miningEntryRepository->method('getTypeIdsWithoutPrice')->willReturn([17459, 17460]);
         $this->marketService->method('getJitaPrices')->willReturn([
@@ -445,7 +491,7 @@ class MiningSyncServiceTest extends TestCase
     {
         $user = $this->createUserWithCharacter(12345);
 
-        $this->esiClient->method('get')->willReturn([]);
+        $this->esiClient->method('getPaginated')->willReturn([]);
         $this->miningEntryRepository->method('getTypeIdsWithoutPrice')->willReturn([]);
 
         $settings = new UserLedgerSettings();
@@ -466,7 +512,7 @@ class MiningSyncServiceTest extends TestCase
     {
         $user = $this->createUserWithCharacter(12345);
 
-        $this->esiClient->method('get')->willReturn([
+        $this->esiClient->method('getPaginated')->willReturn([
             [
                 'date' => '2026-02-20',
                 'type_id' => 17459,
@@ -502,7 +548,7 @@ class MiningSyncServiceTest extends TestCase
     {
         $user = $this->createUserWithCharacter(12345);
 
-        $this->esiClient->method('get')->willReturn([
+        $this->esiClient->method('getPaginated')->willReturn([
             [
                 'date' => '2026-02-20',
                 'type_id' => 17459,
@@ -543,7 +589,7 @@ class MiningSyncServiceTest extends TestCase
     {
         $user = $this->createUserWithCharacter(12345);
 
-        $this->esiClient->method('get')->willReturn([
+        $this->esiClient->method('getPaginated')->willReturn([
             [
                 'date' => '2026-02-20',
                 'type_id' => 17459,

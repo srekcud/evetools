@@ -73,7 +73,7 @@ class ScanLootContractsProcessor implements ProcessorInterface
 
                 $characterId = $character->getEveCharacterId();
 
-                $contracts = $this->esiClient->get(
+                $contracts = $this->esiClient->getPaginated(
                     "/characters/{$characterId}/contracts/",
                     $token
                 );

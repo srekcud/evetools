@@ -77,7 +77,7 @@ class PveSyncServiceTest extends TestCase
         $user = $this->createUserWithCharacter(12345);
 
         $this->incomeRepository->method('getImportedJournalEntryIds')->willReturn([]);
-        $this->esiClient->method('get')->willReturn([
+        $this->esiClient->method('getPaginated')->willReturn([
             [
                 'id' => 100001,
                 'ref_type' => 'bounty_prizes',
@@ -100,7 +100,7 @@ class PveSyncServiceTest extends TestCase
 
         // Entry 100001 already imported
         $this->incomeRepository->method('getImportedJournalEntryIds')->willReturn([100001]);
-        $this->esiClient->method('get')->willReturn([
+        $this->esiClient->method('getPaginated')->willReturn([
             [
                 'id' => 100001,
                 'ref_type' => 'bounty_prizes',
@@ -122,7 +122,7 @@ class PveSyncServiceTest extends TestCase
         $user = $this->createUserWithCharacter(12345);
 
         $this->incomeRepository->method('getImportedJournalEntryIds')->willReturn([]);
-        $this->esiClient->method('get')->willReturn([
+        $this->esiClient->method('getPaginated')->willReturn([
             [
                 'id' => 100002,
                 'ref_type' => 'ess_escrow_transfer',
@@ -150,7 +150,7 @@ class PveSyncServiceTest extends TestCase
         $user = $this->createUserWithCharacter(12345);
 
         $this->incomeRepository->method('getImportedJournalEntryIds')->willReturn([]);
-        $this->esiClient->method('get')->willReturn([
+        $this->esiClient->method('getPaginated')->willReturn([
             [
                 'id' => 100003,
                 'ref_type' => 'agent_mission_reward',
@@ -177,7 +177,7 @@ class PveSyncServiceTest extends TestCase
         $user = $this->createUserWithCharacter(12345);
 
         $this->incomeRepository->method('getImportedJournalEntryIds')->willReturn([]);
-        $this->esiClient->method('get')->willReturn([
+        $this->esiClient->method('getPaginated')->willReturn([
             [
                 'id' => 100004,
                 'ref_type' => 'market_escrow',
@@ -198,7 +198,7 @@ class PveSyncServiceTest extends TestCase
         $user = $this->createUserWithCharacter(12345);
 
         $this->incomeRepository->method('getImportedJournalEntryIds')->willReturn([]);
-        $this->esiClient->method('get')->willReturn([
+        $this->esiClient->method('getPaginated')->willReturn([
             [
                 'id' => 100005,
                 'ref_type' => 'bounty_prizes',
@@ -219,7 +219,7 @@ class PveSyncServiceTest extends TestCase
         $user = $this->createUserWithCharacter(12345);
 
         $this->incomeRepository->method('getImportedJournalEntryIds')->willReturn([]);
-        $this->esiClient->method('get')->willReturn([
+        $this->esiClient->method('getPaginated')->willReturn([
             [
                 'id' => 100006,
                 'ref_type' => 'bounty_prizes',
@@ -240,7 +240,7 @@ class PveSyncServiceTest extends TestCase
         $user = $this->createUserWithCharacter(12345);
 
         $this->incomeRepository->method('getImportedJournalEntryIds')->willReturn([]);
-        $this->esiClient->method('get')->willReturn([
+        $this->esiClient->method('getPaginated')->willReturn([
             [
                 'id' => 200001,
                 'ref_type' => 'bounty_prizes',
@@ -269,7 +269,7 @@ class PveSyncServiceTest extends TestCase
 
         $this->incomeRepository->method('getImportedJournalEntryIds')->willReturn([]);
         // ESI returns the same entry ID twice (edge case with multiple characters)
-        $this->esiClient->method('get')->willReturn([
+        $this->esiClient->method('getPaginated')->willReturn([
             [
                 'id' => 300001,
                 'ref_type' => 'bounty_prizes',
@@ -309,6 +309,86 @@ class PveSyncServiceTest extends TestCase
         $imported = $this->service->syncWalletJournal($user);
 
         $this->assertSame(0, $imported);
+    }
+
+    // ===========================================
+    // syncWalletJournal — pagination (issue #11)
+    // ===========================================
+
+    public function testBountyOnSecondWalletJournalPageImported(): void
+    {
+        $user = $this->createUserWithCharacter(12345);
+        $this->incomeRepository->method('getImportedJournalEntryIds')->willReturn([]);
+
+        $journalPage1 = [[
+            'id' => 400001,
+            'ref_type' => 'bounty_prizes',
+            'amount' => 4_000_000.0,
+            'date' => (new \DateTimeImmutable('-1 day'))->format('c'),
+        ]];
+        $journalPage2 = [[
+            'id' => 400002,
+            'ref_type' => 'bounty_prizes',
+            'amount' => 6_000_000.0,
+            'date' => (new \DateTimeImmutable('-3 days'))->format('c'),
+        ]];
+        // get() only ever sees page 1 (no X-Pages handling); getPaginated() merges all pages
+        $this->esiClient->method('get')->willReturn($journalPage1);
+        $this->esiClient->method('getPaginated')->willReturn([...$journalPage1, ...$journalPage2]);
+
+        $persistedJournalEntryIds = [];
+        $this->em->method('persist')->willReturnCallback(
+            function (object $income) use (&$persistedJournalEntryIds): void {
+                $persistedJournalEntryIds[] = $income->getJournalEntryId();
+            }
+        );
+
+        $imported = $this->service->syncWalletJournal($user);
+
+        $this->assertSame([400001, 400002], $persistedJournalEntryIds);
+        $this->assertSame(2, $imported);
+    }
+
+    // ===========================================
+    // syncLootFromContracts — pagination (issue #11)
+    // ===========================================
+
+    public function testLootContractOnSecondContractsPageImported(): void
+    {
+        $eveCharacterId = 12345;
+        $user = $this->createUserWithCharacter($eveCharacterId);
+        $this->incomeRepository->method('getImportedContractIds')->willReturn([]);
+        $this->settingsRepository->method('findByUser')->willReturn(null);
+
+        $lootTypeId = \App\Entity\UserPveSettings::PVE_LOOT_TYPE_IDS[0];
+        $contractsPage1 = [$this->finishedLootContract(500001, $eveCharacterId, 10_000_000.0)];
+        $contractsPage2 = [$this->finishedLootContract(500002, $eveCharacterId, 20_000_000.0)];
+
+        $this->esiClient->method('get')->willReturnCallback(
+            function (string $endpoint) use ($eveCharacterId, $contractsPage1, $lootTypeId): array {
+                if (str_ends_with($endpoint, '/items/')) {
+                    return [['type_id' => $lootTypeId, 'quantity' => 3, 'is_included' => true]];
+                }
+                if ($endpoint === "/characters/{$eveCharacterId}/contracts/") {
+                    // ESI without page param returns page 1 only
+                    return $contractsPage1;
+                }
+                return [];
+            }
+        );
+        $this->esiClient->method('getPaginated')->willReturn([...$contractsPage1, ...$contractsPage2]);
+
+        $persistedContractIds = [];
+        $this->em->method('persist')->willReturnCallback(
+            function (object $income) use (&$persistedContractIds): void {
+                $persistedContractIds[] = $income->getContractId();
+            }
+        );
+
+        $imported = $this->service->syncLootFromContracts($user);
+
+        $this->assertSame([500001, 500002], $persistedContractIds);
+        $this->assertSame(2, $imported);
     }
 
     // ===========================================
@@ -411,5 +491,19 @@ class PveSyncServiceTest extends TestCase
         $user->method('getCharacters')->willReturn(new ArrayCollection([$character]));
 
         return $user;
+    }
+
+    /** @return array<string, mixed> */
+    private function finishedLootContract(int $contractId, int $issuerId, float $price): array
+    {
+        return [
+            'contract_id' => $contractId,
+            'type' => 'item_exchange',
+            'status' => 'finished',
+            'issuer_id' => $issuerId,
+            'price' => $price,
+            'date_issued' => (new \DateTimeImmutable('-3 days'))->format('c'),
+            'date_completed' => (new \DateTimeImmutable('-2 days'))->format('c'),
+        ];
     }
 }

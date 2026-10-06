@@ -115,7 +115,7 @@ class MiningSyncService
                         $characterName = $character->getName();
 
                         // Get mining ledger from ESI
-                        $entries = $this->esiClient->get(
+                        $entries = $this->esiClient->getPaginated(
                             "/characters/{$characterId}/mining/",
                             $token
                         );
