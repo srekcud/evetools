@@ -12,6 +12,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\NullLogger;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -239,13 +240,81 @@ final class EsiClientTest extends TestCase
     }
 
     // ---------------------------------------------------------------
+    // getWithCache(): conditional GET with ETag
+    // ---------------------------------------------------------------
+
+    public function testGetWithCacheStoresFreshResponseAndRevalidatesWithItsEtag(): void
+    {
+        $esiCache = new ArrayAdapter();
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]], 200, ['ETag' => '"etag-v1"']),
+            $this->notModifiedResponse(),
+        ], $esiCache);
+
+        $firstResult = $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+        $secondResult = $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+
+        $this->assertSame([['type_id' => 34, 'quantity' => 1000]], $firstResult);
+        $this->assertSame([['type_id' => 34, 'quantity' => 1000]], $secondResult);
+        $this->assertCount(2, $this->recordedRequests);
+        $this->assertArrayNotHasKey('if-none-match', $this->recordedRequests[0]['headers']);
+        $this->assertSame(['If-None-Match: "etag-v1"'], $this->recordedRequests[1]['headers']['if-none-match'] ?? null);
+    }
+
+    public function testGetWithCacheReturnsCachedDataOnFirstTry304WithSingleRequest(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]], 200, ['ETag' => '"etag-v1"']),
+            $this->notModifiedResponse(),
+        ], new ArrayAdapter());
+        $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+        $conditionalRequestsStart = count($this->recordedRequests);
+
+        $result = $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+
+        $this->assertSame([['type_id' => 34, 'quantity' => 1000]], $result);
+        $conditionalRequests = array_slice($this->recordedRequests, $conditionalRequestsStart);
+        $this->assertCount(1, $conditionalRequests);
+        $this->assertSame('GET', $conditionalRequests[0]['method']);
+        $this->assertSame(['If-None-Match: "etag-v1"'], $conditionalRequests[0]['headers']['if-none-match'] ?? null);
+        $this->assertSame(
+            ['Authorization: Bearer ' . self::ACCESS_TOKEN],
+            $conditionalRequests[0]['headers']['authorization'] ?? null,
+        );
+    }
+
+    public function testGetWithCacheRetriesConditionalRequestOnceAfter420KeepingEtagAndToken(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]], 200, ['ETag' => '"etag-v1"']),
+            $this->errorLimitedResponse(),
+            $this->notModifiedResponse(),
+        ], new ArrayAdapter());
+        $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+        $conditionalRequestsStart = count($this->recordedRequests);
+
+        $result = $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+
+        $this->assertSame([['type_id' => 34, 'quantity' => 1000]], $result);
+        $conditionalRequests = array_slice($this->recordedRequests, $conditionalRequestsStart);
+        $this->assertSame(['GET', 'GET'], array_column($conditionalRequests, 'method'));
+        foreach ($conditionalRequests as $conditionalRequest) {
+            $this->assertSame(['If-None-Match: "etag-v1"'], $conditionalRequest['headers']['if-none-match'] ?? null);
+            $this->assertSame(
+                ['Authorization: Bearer ' . self::ACCESS_TOKEN],
+                $conditionalRequest['headers']['authorization'] ?? null,
+            );
+        }
+    }
+
+    // ---------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------
 
     /**
      * @param list<MockResponse> $responses served in order; each request is recorded
      */
-    private function createEsiClient(array $responses): EsiClient
+    private function createEsiClient(array $responses, ?CacheItemPoolInterface $esiCache = null): EsiClient
     {
         $this->recordedRequests = [];
 
@@ -270,7 +339,7 @@ final class EsiClientTest extends TestCase
 
         return new EsiClient(
             $httpClient,
-            $this->createStub(CacheItemPoolInterface::class),
+            $esiCache ?? $this->createStub(CacheItemPoolInterface::class),
             $tokenManager,
             self::BASE_URL,
             new NullLogger(),
@@ -313,6 +382,17 @@ final class EsiClientTest extends TestCase
                 'X-Esi-Error-Limit-Remain' => '100',
                 'X-Esi-Error-Limit-Reset' => '0',
                 ...$headers,
+            ],
+        ]);
+    }
+
+    private function notModifiedResponse(): MockResponse
+    {
+        return new MockResponse('', [
+            'http_code' => 304,
+            'response_headers' => [
+                'X-Esi-Error-Limit-Remain' => '100',
+                'X-Esi-Error-Limit-Reset' => '0',
             ],
         ]);
     }

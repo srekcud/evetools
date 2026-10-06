@@ -255,8 +255,11 @@ class EsiClient
         array $extraHeaders = [],
         ?array $jsonBody = null,
         int $timeout = self::REQUEST_TIMEOUT,
+        bool $throttle = true,
     ): ResponseInterface {
-        $this->throttleIfNeeded();
+        if ($throttle) {
+            $this->throttleIfNeeded();
+        }
 
         $options = [
             'headers' => $this->buildHeaders($token, $extraHeaders),
@@ -304,7 +307,8 @@ class EsiClient
         ]);
         sleep($sleepSeconds);
 
-        return $this->request($method, $endpoint, $token, $extraHeaders, $jsonBody);
+        // The error-limit window has just been waited out: throttling again would double the pause.
+        return $this->request($method, $endpoint, $token, $extraHeaders, $jsonBody, throttle: false);
     }
 
     /**
@@ -327,7 +331,7 @@ class EsiClient
 
     private function conditionalGet(string $endpoint, ?EveToken $token, string $etag): ?ResponseInterface
     {
-        $response = $this->request('GET', $endpoint, $token, ['If-None-Match' => $etag]);
+        $response = $this->requestWithRetry('GET', $endpoint, $token, ['If-None-Match' => $etag]);
 
         $this->processRateLimitHeaders($response);
 
