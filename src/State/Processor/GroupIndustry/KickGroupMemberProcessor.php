@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
+use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
 use App\Service\Mercure\MercurePublisherService;
@@ -31,6 +32,7 @@ class KickGroupMemberProcessor implements ProcessorInterface
         private readonly EntityManagerInterface $entityManager,
         private readonly GroupProjectAccessChecker $accessChecker,
         private readonly MercurePublisherService $mercurePublisher,
+        private readonly GroupIndustryContributionRepository $contributionRepository,
     ) {
     }
 
@@ -69,6 +71,10 @@ class KickGroupMemberProcessor implements ProcessorInterface
         // Cannot kick yourself
         if ($member->getUser() === $user) {
             throw new BadRequestHttpException('Cannot kick yourself, use leave instead');
+        }
+
+        if ($this->contributionRepository->countByMember($member) > 0) {
+            throw new BadRequestHttpException('Cannot kick: member has contributions in this project');
         }
 
         // Publish before remove so we still have access to member data
