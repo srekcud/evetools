@@ -11,7 +11,6 @@ use App\Message\SyncAdjustedPrices;
 use App\Message\SyncCostIndices;
 use App\Message\SyncPublicContracts;
 use App\Message\TriggerAnsiblexSync;
-use App\Message\TriggerAssetsSync;
 use App\Message\SyncIndustryJobs;
 use App\Message\TriggerJitaMarketSync;
 use App\Message\TriggerMiningSync;

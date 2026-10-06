@@ -260,52 +260,6 @@ class IndustryBonusServiceTest extends TestCase
     }
 
     // ===========================================
-    // calculateAllBonusesForStructure Tests
-    // ===========================================
-
-    public function testCalculateAllBonusesForECWithMultipleRigs(): void
-    {
-        $structure = $this->createStructure(
-            'Test EC',
-            'engineering_complex',
-            'nullsec',
-            [
-                'Standup XL-Set Structure and Component Manufacturing Efficiency II',
-                'Standup XL-Set Ship Manufacturing Efficiency II',
-            ]
-        );
-
-        $bonuses = $this->bonusService->calculateAllBonusesForStructure($structure);
-
-        // Component categories: base 1%, rig (2.4% × 2.1) = 5.04%
-        // Multiplicative: 1 - (0.99 × 0.9496) = 5.99%
-        $this->assertSame(5.99, $bonuses['basic_capital_component'] ?? 0);
-        $this->assertSame(5.99, $bonuses['advanced_component'] ?? 0);
-
-        // Ship categories: base 1%, rig (2.4% × 2.1) = 5.04%
-        // Same: 5.99%
-        $this->assertSame(5.99, $bonuses['capital_ship'] ?? 0);
-    }
-
-    public function testCalculateAllBonusesForRefineryWithReactorRig(): void
-    {
-        $structure = $this->createStructure(
-            'Test Refinery',
-            'refinery',
-            'nullsec',
-            ['Standup L-Set Reactor Efficiency II']
-        );
-
-        $bonuses = $this->bonusService->calculateAllBonusesForStructure($structure);
-
-        // Reactor rigs: 2.4% × 1.1 (nullsec) = 2.64%
-        // Refineries have NO base material bonus, so total = rig only = 2.64%
-        $this->assertSame(2.64, $bonuses['composite_reaction'] ?? 0);
-        $this->assertSame(2.64, $bonuses['biochemical_reaction'] ?? 0);
-        $this->assertSame(2.64, $bonuses['hybrid_reaction'] ?? 0);
-    }
-
-    // ===========================================
     // Time Bonus Tests
     // ===========================================
 
@@ -445,10 +399,5 @@ class IndustryBonusServiceTest extends TestCase
         // 3601 × 0.80 = 2880.8 → ceil to 2881
         $adjusted = $this->bonusService->calculateAdjustedTimePerRun(3601, 20, 0.0);
         $this->assertSame(2881, $adjusted);
-    }
-
-    public function testDefaultIntermediateTE(): void
-    {
-        $this->assertSame(20, $this->bonusService->getDefaultIntermediateTE());
     }
 }

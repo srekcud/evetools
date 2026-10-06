@@ -215,7 +215,7 @@ class StockpileServiceTest extends TestCase
         $this->entityManager->expects($this->atLeastOnce())->method('persist');
         $this->entityManager->expects($this->atLeastOnce())->method('flush');
 
-        $this->service->importFromBlueprint($this->user, 100, 1, 0, 0, 'replace');
+        $this->service->importFromBlueprint($this->user, 100, 1, 0, 'replace');
     }
 
     public function testImportMergeAddsQuantities(): void
@@ -244,7 +244,7 @@ class StockpileServiceTest extends TestCase
 
         $this->entityManager->expects($this->atLeastOnce())->method('flush');
 
-        $this->service->importFromBlueprint($this->user, 100, 1, 0, 0, 'merge');
+        $this->service->importFromBlueprint($this->user, 100, 1, 0, 'merge');
     }
 
     public function testKpiPipelineHealth(): void
@@ -356,7 +356,7 @@ class StockpileServiceTest extends TestCase
             4 => 50.0,         // Raw Metal
         ]);
 
-        $result = $this->service->previewImport($this->user, 100, 1, 0, 0);
+        $result = $this->service->previewImport($this->user, 100, 1, 0);
 
         // Verify structure
         $this->assertArrayHasKey('stages', $result);

@@ -34,17 +34,6 @@ class IndustryStructureConfigRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    public function findDefaultForUser(User $user): ?IndustryStructureConfig
-    {
-        return $this->createQueryBuilder('s')
-            ->where('s.user = :user')
-            ->andWhere('s.isDefault = true')
-            ->setParameter('user', $user)
-            ->setMaxResults(1)
-            ->getQuery()
-            ->getOneOrNullResult();
-    }
-
     public function findByUserAndLocationId(User $user, int $locationId): ?IndustryStructureConfig
     {
         return $this->createQueryBuilder('s')
@@ -81,41 +70,6 @@ class IndustryStructureConfigRepository extends ServiceEntityRepository
     }
 
     /**
-     * Find configurations shared by corporation members for specific locations.
-     * Returns the most recent configuration for each locationId.
-     *
-     * @param int $corporationId
-     * @param int[] $locationIds
-     * @return array<int, IndustryStructureConfig> Indexed by locationId
-     */
-    public function findSharedByCorporationAndLocations(int $corporationId, array $locationIds): array
-    {
-        if (empty($locationIds)) {
-            return [];
-        }
-
-        $configs = $this->createQueryBuilder('s')
-            ->where('s.corporationId = :corporationId')
-            ->andWhere('s.locationId IN (:locationIds)')
-            ->setParameter('corporationId', $corporationId)
-            ->setParameter('locationIds', $locationIds)
-            ->orderBy('s.createdAt', 'DESC')
-            ->getQuery()
-            ->getResult();
-
-        // Group by locationId, keeping only the most recent
-        $result = [];
-        foreach ($configs as $config) {
-            $locId = $config->getLocationId();
-            if ($locId !== null && !isset($result[$locId])) {
-                $result[$locId] = $config;
-            }
-        }
-
-        return $result;
-    }
-
-    /**
      * Find all corporation structures marked as shared (isCorporationStructure = true).
      * Excludes structures actively configured by the given user (but includes their soft-deleted ones).
      *
@@ -147,24 +101,5 @@ class IndustryStructureConfigRepository extends ServiceEntityRepository
         }
 
         return $result;
-    }
-
-    /**
-     * Check if a structure is shared by another corporation member.
-     */
-    public function findSharedByLocationId(int $corporationId, int $locationId, User $excludeUser): ?IndustryStructureConfig
-    {
-        return $this->createQueryBuilder('s')
-            ->where('s.corporationId = :corporationId')
-            ->andWhere('s.locationId = :locationId')
-            ->andWhere('s.isCorporationStructure = true')
-            ->andWhere('s.user != :excludeUser')
-            ->setParameter('corporationId', $corporationId)
-            ->setParameter('locationId', $locationId)
-            ->setParameter('excludeUser', $excludeUser)
-            ->orderBy('s.createdAt', 'DESC')
-            ->setMaxResults(1)
-            ->getQuery()
-            ->getOneOrNullResult();
     }
 }

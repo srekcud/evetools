@@ -31,69 +31,6 @@ class OreValueService
     }
 
     /**
-     * Get enriched price data for an ore type.
-     *
-     * @return array{
-     *   rawUnitPrice: float|null,
-     *   compressedTypeId: int|null,
-     *   compressedTypeName: string|null,
-     *   compressedUnitPrice: float|null,
-     *   compressedEquivalentPrice: float|null,
-     *   structureUnitPrice: float|null,
-     *   structureCompressedUnitPrice: float|null,
-     * }
-     */
-    public function getOrePrices(int $typeId, ?int $structureId = null): array
-    {
-        $result = [
-            'rawUnitPrice' => null,
-            'compressedTypeId' => null,
-            'compressedTypeName' => null,
-            'compressedUnitPrice' => null,
-            'compressedEquivalentPrice' => null, // Price per raw unit based on compressed price
-            'structureUnitPrice' => null,
-            'structureCompressedUnitPrice' => null,
-        ];
-
-        // Get Jita price for raw ore
-        $jitaPrices = $this->jitaMarketService->getPrices([$typeId]);
-        $result['rawUnitPrice'] = $jitaPrices[$typeId] ?? null;
-
-        // Find compressed variant
-        $compressedType = $this->findCompressedVariant($typeId);
-        if ($compressedType !== null) {
-            $result['compressedTypeId'] = $compressedType['typeId'];
-            $result['compressedTypeName'] = $compressedType['typeName'];
-
-            // Get Jita price for compressed ore
-            $compressedPrices = $this->jitaMarketService->getPrices([$compressedType['typeId']]);
-            $result['compressedUnitPrice'] = $compressedPrices[$compressedType['typeId']] ?? null;
-
-            // Calculate equivalent price per raw unit
-            // If 1 compressed = 500 ISK, then 100 raw = 500 ISK, so 1 raw = 5 ISK
-            if ($result['compressedUnitPrice'] !== null) {
-                $result['compressedEquivalentPrice'] = $result['compressedUnitPrice'] / self::COMPRESSION_RATIO;
-            }
-        }
-
-        // Get structure prices if structure ID provided
-        if ($structureId !== null && $this->structureMarketService !== null) {
-            $structurePrices = $this->structureMarketService->getLowestSellPrices($structureId, [$typeId]);
-            $result['structureUnitPrice'] = $structurePrices[$typeId] ?? null;
-
-            if ($compressedType !== null) {
-                $structureCompressedPrices = $this->structureMarketService->getLowestSellPrices(
-                    $structureId,
-                    [$compressedType['typeId']]
-                );
-                $result['structureCompressedUnitPrice'] = $structureCompressedPrices[$compressedType['typeId']] ?? null;
-            }
-        }
-
-        return $result;
-    }
-
-    /**
      * Get prices for multiple ore types in batch.
      *
      * @param int[] $typeIds

@@ -34,7 +34,7 @@ class StockpileImportPreviewProcessor implements ProcessorInterface
 
         assert($data instanceof StockpileImportInput);
 
-        $preview = $this->stockpileService->previewImport($user, $data->typeId, $data->runs, $data->me, $data->te);
+        $preview = $this->stockpileService->previewImport($user, $data->typeId, $data->runs, $data->me);
 
         $resource = new StockpileImportPreviewResource();
         $resource->stages = $preview['stages'];

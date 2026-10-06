@@ -19,37 +19,6 @@ class IndustryRigCategoryRepository extends ServiceEntityRepository
     }
 
     /**
-     * Find the category for a given SDE group ID.
-     */
-    public function findCategoryByGroupId(int $groupId): ?string
-    {
-        $result = $this->createQueryBuilder('c')
-            ->select('c.category')
-            ->where('c.groupId = :groupId')
-            ->setParameter('groupId', $groupId)
-            ->getQuery()
-            ->getOneOrNullResult();
-
-        return $result['category'] ?? null;
-    }
-
-    /**
-     * Get all group IDs for a category.
-     * @return int[]
-     */
-    public function findGroupIdsByCategory(string $category): array
-    {
-        $results = $this->createQueryBuilder('c')
-            ->select('c.groupId')
-            ->where('c.category = :category')
-            ->setParameter('category', $category)
-            ->getQuery()
-            ->getArrayResult();
-
-        return array_column($results, 'groupId');
-    }
-
-    /**
      * Build a map of groupId => category for fast lookups.
      * @return array<int, string>
      */

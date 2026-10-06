@@ -34,7 +34,7 @@ class StockpileService
      *
      * @return array{stages: array<string, list<array{typeId: int, typeName: string, quantity: int, unitPrice: float|null}>>, totalItems: int, estimatedCost: float}
      */
-    public function previewImport(User $user, int $typeId, int $runs, int $me, int $te): array
+    public function previewImport(User $user, int $typeId, int $runs, int $me): array
     {
         $tree = $this->treeService->buildProductionTree($typeId, $runs, $me, [], $user);
 
@@ -80,7 +80,7 @@ class StockpileService
      *
      * @param string $mode 'replace' or 'merge'
      */
-    public function importFromBlueprint(User $user, int $typeId, int $runs, int $me, int $te, string $mode): void
+    public function importFromBlueprint(User $user, int $typeId, int $runs, int $me, string $mode): void
     {
         $tree = $this->treeService->buildProductionTree($typeId, $runs, $me, [], $user);
         $flatTargets = $this->flattenTree($tree, $typeId);

@@ -219,23 +219,6 @@ class JitaMarketService
     }
 
     /**
-     * Get the highest buy price for a type from cached Jita prices.
-     * Returns the best (first) price from the order book.
-     */
-    public function getBuyPrice(int $typeId): ?float
-    {
-        $orderBook = $this->getOrderBook(self::CACHE_KEY_BUY);
-
-        if ($orderBook === null) {
-            return null;
-        }
-
-        $orders = $orderBook[$typeId] ?? [];
-
-        return $orders[0]['price'] ?? null;
-    }
-
-    /**
      * Get buy prices for multiple types at once.
      *
      * @param int[] $typeIds
@@ -690,25 +673,6 @@ class JitaMarketService
     public function getWeightedSellPrice(int $typeId, int $quantity): ?array
     {
         $orderBook = $this->getOrderBook(self::CACHE_KEY);
-
-        if ($orderBook === null) {
-            return null;
-        }
-
-        $orders = $orderBook[$typeId] ?? [];
-
-        return $this->calculateWeightedPrice($orders, $quantity);
-    }
-
-    /**
-     * Calculate weighted average buy price for a given quantity.
-     * Stacks orders from best (highest) to worst until the quantity is covered.
-     *
-     * @return array{weightedPrice: float, coverage: float, ordersUsed: int}|null
-     */
-    public function getWeightedBuyPrice(int $typeId, int $quantity): ?array
-    {
-        $orderBook = $this->getOrderBook(self::CACHE_KEY_BUY);
 
         if ($orderBook === null) {
             return null;

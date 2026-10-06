@@ -6,7 +6,6 @@ namespace App\Repository;
 
 use App\Entity\CachedIndustryJob;
 use App\Entity\Character;
-use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -36,24 +35,6 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
             ->where('j.character = :character')
             ->andWhere('j.status IN (:statuses)')
             ->setParameter('character', $character)
-            ->setParameter('statuses', ['active', 'ready'])
-            ->orderBy('j.endDate', 'ASC')
-            ->getQuery()
-            ->getResult();
-    }
-
-    /**
-     * Find active jobs for all characters of a user.
-     *
-     * @return CachedIndustryJob[]
-     */
-    public function findActiveJobsByUser(User $user): array
-    {
-        return $this->createQueryBuilder('j')
-            ->join('j.character', 'c')
-            ->where('c.user = :user')
-            ->andWhere('j.status IN (:statuses)')
-            ->setParameter('user', $user)
             ->setParameter('statuses', ['active', 'ready'])
             ->orderBy('j.endDate', 'ASC')
             ->getQuery()
@@ -106,41 +87,6 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
         }
 
         $qb->orderBy('j.startDate', 'ASC');
-
-        return $qb->getQuery()->getResult();
-    }
-
-    /**
-     * Find jobs with same blueprint but DIFFERENT run count (for warning).
-     *
-     * @param int                     $blueprintTypeId Blueprint to match
-     * @param list<\Symfony\Component\Uid\Uuid|int|null> $characterIds Characters to search
-     * @param int                     $targetRuns      Run count to exclude (we want different runs)
-     * @param \DateTimeImmutable|null $startedAfter    Only match jobs started after this date
-     *
-     * @return CachedIndustryJob[]
-     */
-    public function findSimilarJobsWithDifferentRuns(
-        int $blueprintTypeId,
-        array $characterIds,
-        int $targetRuns,
-        ?\DateTimeImmutable $startedAfter = null,
-    ): array {
-        $qb = $this->createQueryBuilder('j')
-            ->where('j.blueprintTypeId = :bpId')
-            ->andWhere('j.activityId IN (1, 9, 11)')
-            ->andWhere('j.character IN (:chars)')
-            ->andWhere('j.runs != :targetRuns')
-            ->setParameter('bpId', $blueprintTypeId)
-            ->setParameter('chars', $characterIds)
-            ->setParameter('targetRuns', $targetRuns);
-
-        if ($startedAfter !== null) {
-            $qb->andWhere('j.startDate >= :startedAfter')
-                ->setParameter('startedAfter', $startedAfter);
-        }
-
-        $qb->orderBy('j.startDate', 'DESC');
 
         return $qb->getQuery()->getResult();
     }

@@ -287,25 +287,4 @@ class PveIncomeRepository extends ServiceEntityRepository
 
         return $dailyTotals;
     }
-
-    /**
-     * Get total loot contracts for a user in date range
-     */
-    public function getTotalLootContractsByUserAndDateRange(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to): float
-    {
-        $result = $this->createQueryBuilder('i')
-            ->select('SUM(i.amount)')
-            ->where('i.user = :user')
-            ->andWhere('i.date >= :from')
-            ->andWhere('i.date <= :to')
-            ->andWhere('i.type = :type')
-            ->setParameter('user', $user)
-            ->setParameter('from', $from)
-            ->setParameter('to', $to)
-            ->setParameter('type', PveIncomeType::LootContract->value)
-            ->getQuery()
-            ->getSingleScalarResult();
-
-        return (float) ($result ?? 0);
-    }
 }

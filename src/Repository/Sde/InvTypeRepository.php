@@ -48,26 +48,6 @@ class InvTypeRepository extends ServiceEntityRepository
     }
 
     /**
-     * @return InvType[]
-     */
-    public function findPublished(): array
-    {
-        return $this->createQueryBuilder('t')
-            ->where('t.published = :published')
-            ->setParameter('published', true)
-            ->getQuery()
-            ->getResult();
-    }
-
-    public function truncate(): void
-    {
-        $this->createQueryBuilder('t')
-            ->delete()
-            ->getQuery()
-            ->execute();
-    }
-
-    /**
      * Find a single published type by exact name (case-insensitive).
      * Returns null if no match is found.
      */

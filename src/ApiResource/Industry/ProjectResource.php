@@ -21,7 +21,6 @@ use App\State\Processor\Industry\ApplyStockProcessor;
 use App\State\Processor\Industry\CreateProjectProcessor;
 use App\State\Processor\Industry\DeleteProjectProcessor;
 use App\State\Processor\Industry\MatchJobsProcessor;
-use App\State\Processor\Industry\RegenerateStepsProcessor;
 use App\State\Processor\Industry\UpdateProjectProcessor;
 use App\State\Provider\Industry\ProjectCollectionProvider;
 use App\State\Provider\Industry\ProjectDeleteProvider;
@@ -67,12 +66,6 @@ use App\State\Provider\Industry\ShoppingListProvider;
             provider: ShoppingListProvider::class,
             output: ShoppingListResource::class,
             openapi: new Model\Operation(summary: 'Get shopping list', description: 'Returns materials needed with price comparison', tags: ['Industry - Projects']),
-        ),
-        new Post(
-            uriTemplate: '/industry/projects/{id}/regenerate-steps',
-            processor: RegenerateStepsProcessor::class,
-            input: EmptyInput::class,
-            openapi: new Model\Operation(summary: 'Regenerate steps', description: 'Regenerates all project steps from scratch', tags: ['Industry - Projects']),
         ),
         new Post(
             uriTemplate: '/industry/projects/{id}/match-jobs',

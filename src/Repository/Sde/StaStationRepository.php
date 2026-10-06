@@ -24,26 +24,6 @@ class StaStationRepository extends ServiceEntityRepository
     }
 
     /**
-     * @param int[] $stationIds
-     * @return array<int, StaStation>
-     */
-    public function findByStationIds(array $stationIds): array
-    {
-        $stations = $this->createQueryBuilder('s')
-            ->where('s.stationId IN (:stationIds)')
-            ->setParameter('stationIds', $stationIds)
-            ->getQuery()
-            ->getResult();
-
-        $indexed = [];
-        foreach ($stations as $station) {
-            $indexed[$station->getStationId()] = $station;
-        }
-
-        return $indexed;
-    }
-
-    /**
      * @return StaStation[]
      */
     public function findBySolarSystemId(int $solarSystemId): array
@@ -55,13 +35,5 @@ class StaStationRepository extends ServiceEntityRepository
             ->orderBy('s.stationName', 'ASC')
             ->getQuery()
             ->getResult();
-    }
-
-    public function truncate(): void
-    {
-        $this->createQueryBuilder('s')
-            ->delete()
-            ->getQuery()
-            ->execute();
     }
 }

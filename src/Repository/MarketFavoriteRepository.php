@@ -42,20 +42,4 @@ class MarketFavoriteRepository extends ServiceEntityRepository
             ->getQuery()
             ->getOneOrNullResult();
     }
-
-    /**
-     * @return int[]
-     */
-    public function findTypeIdsByUser(User $user): array
-    {
-        /** @var list<int|string> $results */
-        $results = $this->createQueryBuilder('f')
-            ->select('f.typeId')
-            ->where('f.user = :user')
-            ->setParameter('user', $user)
-            ->getQuery()
-            ->getSingleColumnResult();
-
-        return array_map('intval', $results);
-    }
 }

@@ -17,9 +17,4 @@ class DgmAttributeTypeRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, DgmAttributeType::class);
     }
-
-    public function findByName(string $name): ?DgmAttributeType
-    {
-        return $this->findOneBy(['attributeName' => $name]);
-    }
 }

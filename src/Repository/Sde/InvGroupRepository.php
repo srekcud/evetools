@@ -17,12 +17,4 @@ class InvGroupRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, InvGroup::class);
     }
-
-    public function truncate(): void
-    {
-        $this->createQueryBuilder('g')
-            ->delete()
-            ->getQuery()
-            ->execute();
-    }
 }

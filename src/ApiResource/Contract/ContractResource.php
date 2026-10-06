@@ -9,7 +9,6 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Contract\ContractCollectionProvider;
-use App\State\Provider\Contract\ContractItemsProvider;
 
 #[ApiResource(
     shortName: 'Contract',
@@ -27,12 +26,6 @@ use App\State\Provider\Contract\ContractItemsProvider;
                     new Model\Parameter(name: 'availability', in: 'query', schema: ['type' => 'string']),
                 ],
             ),
-        ),
-        new Get(
-            uriTemplate: '/contracts/{contractId}/items',
-            provider: ContractItemsProvider::class,
-            output: ContractItemsResource::class,
-            openapi: new Model\Operation(summary: 'Get contract items with Jita prices', tags: ['Inventory']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

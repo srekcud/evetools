@@ -33,7 +33,7 @@ class IndustryTreeService
      */
     public function buildProductionTree(int $productTypeId, int $runs = 1, int $finalMe = 0, array $excludedTypeIds = [], ?User $user = null, array $structureBonusOverrides = []): array
     {
-        return $this->buildNode($productTypeId, $runs, $finalMe, 0, $excludedTypeIds, $user, true, $structureBonusOverrides);
+        return $this->buildNode($productTypeId, $runs, $finalMe, 0, $excludedTypeIds, $user, $structureBonusOverrides);
     }
 
     /**
@@ -41,7 +41,7 @@ class IndustryTreeService
      * @param array<int, float> $structureBonusOverrides
      * @return array<string, mixed>
      */
-    private function buildNode(int $productTypeId, int $quantity, int $meLevel, int $depth, array $excludedTypeIds, ?User $user, bool $isRoot = false, array $structureBonusOverrides = []): array
+    private function buildNode(int $productTypeId, int $quantity, int $meLevel, int $depth, array $excludedTypeIds, ?User $user, array $structureBonusOverrides = []): array
     {
         // Find the blueprint/formula that produces this type (manufacturing or reaction)
         $product = $this->findProducerFor($productTypeId);
@@ -161,7 +161,7 @@ class IndustryTreeService
             if ($isBuildable) {
                 // Intermediate manufacturing uses ME 10, reactions have no ME
                 $childMe = ($matProducer->getActivityId() === IndustryActivityType::Manufacturing->value) ? 10 : 0;
-                $node['blueprint'] = $this->buildNode($matTypeId, $adjustedQuantity, $childMe, $depth + 1, $excludedTypeIds, $user, false, $structureBonusOverrides);
+                $node['blueprint'] = $this->buildNode($matTypeId, $adjustedQuantity, $childMe, $depth + 1, $excludedTypeIds, $user, $structureBonusOverrides);
             }
 
             $materialNodes[] = $node;

@@ -8,7 +8,6 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\OpenApi\Model;
-use App\State\Provider\Pve\StatsByTypeProvider;
 use App\State\Provider\Pve\StatsDailyProvider;
 use App\State\Provider\Pve\StatsProvider;
 
@@ -33,18 +32,6 @@ use App\State\Provider\Pve\StatsProvider;
             output: StatsDailyResource::class,
             openapi: new Model\Operation(
                 summary: 'Get daily PVE statistics',
-                tags: ['Revenue - PVE'],
-                parameters: [
-                    new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),
-                ],
-            ),
-        ),
-        new Get(
-            uriTemplate: '/pve/stats/by-type',
-            provider: StatsByTypeProvider::class,
-            output: StatsByTypeResource::class,
-            openapi: new Model\Operation(
-                summary: 'Get PVE statistics by type',
                 tags: ['Revenue - PVE'],
                 parameters: [
                     new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),

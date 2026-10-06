@@ -65,9 +65,6 @@ class IndustryBonusService
         'refinery' => 'refinery',
     ];
 
-    // Default TE for intermediate blueprints (like ME 10)
-    private const DEFAULT_INTERMEDIATE_TE = 20;
-
     public function __construct(
         private readonly IndustryRigCategoryRepository $categoryRepository,
         private readonly IndustryStructureConfigRepository $structureRepository,
@@ -312,37 +309,6 @@ class IndustryBonusService
     }
 
     /**
-     * Get all bonuses a structure provides, grouped by category.
-     * Includes base structure bonuses (1% for EC manufacturing).
-     * Returns the multiplicative total for each category.
-     *
-     * @return array<string, float> category => total bonus (multiplicative)
-     */
-    public function calculateAllBonusesForStructure(IndustryStructureConfig $structure): array
-    {
-        $result = [];
-
-        // Collect all categories affected by this structure's rigs
-        $categories = [];
-        foreach ($structure->getRigs() as $rigName) {
-            if (!isset($this->rigBonusMap[$rigName])) {
-                continue;
-            }
-            foreach ($this->rigBonusMap[$rigName] as $category => $bonus) {
-                $categories[$category] = true;
-            }
-        }
-
-        // Calculate multiplicative bonus for each category
-        foreach (array_keys($categories) as $category) {
-            $bonusData = $this->calculateStructureBonusForCategory($structure, $category);
-            $result[$category] = $bonusData['total'];
-        }
-
-        return $result;
-    }
-
-    /**
      * Get the security multiplier for rig bonuses.
      * Manufacturing rigs and Reaction rigs have different multipliers.
      *
@@ -488,14 +454,6 @@ class IndustryBonusService
         $structureMultiplier = 1 - $structureTimeBonus / 100;
 
         return (int) ceil($baseTimePerRun * $teMultiplier * $structureMultiplier);
-    }
-
-    /**
-     * Get the default TE level for intermediate blueprints.
-     */
-    public function getDefaultIntermediateTE(): int
-    {
-        return self::DEFAULT_INTERMEDIATE_TE;
     }
 
     /**

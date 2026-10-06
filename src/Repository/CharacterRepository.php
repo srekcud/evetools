@@ -76,21 +76,6 @@ class CharacterRepository extends ServiceEntityRepository
     /**
      * @return Character[]
      */
-    public function findNeedingSync(\DateTimeImmutable $threshold): array
-    {
-        return $this->createQueryBuilder('c')
-            ->leftJoin('c.eveToken', 't')
-            ->addSelect('t')
-            ->where('c.lastSyncAt IS NULL OR c.lastSyncAt < :threshold')
-            ->andWhere('t.id IS NOT NULL')
-            ->setParameter('threshold', $threshold)
-            ->getQuery()
-            ->getResult();
-    }
-
-    /**
-     * @return Character[]
-     */
     public function findWithValidTokens(): array
     {
         return $this->createQueryBuilder('c')
@@ -127,14 +112,6 @@ class CharacterRepository extends ServiceEntityRepository
     public function findWithCorpAssetsAccess(int $corporationId): ?Character
     {
         return $this->findWithCorpScope($corporationId, 'esi-assets.read_corporation_assets.v1');
-    }
-
-    /**
-     * Find a character that can access corporation divisions for a given corporation.
-     */
-    public function findWithCorpDivisionsAccess(int $corporationId): ?Character
-    {
-        return $this->findWithCorpScope($corporationId, 'esi-corporations.read_divisions.v1');
     }
 
     /**

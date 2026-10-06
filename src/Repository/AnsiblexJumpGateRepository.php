@@ -69,22 +69,6 @@ class AnsiblexJumpGateRepository extends ServiceEntityRepository
     }
 
     /**
-     * Get gates connected to a specific system.
-     *
-     * @return AnsiblexJumpGate[]
-     */
-    public function findBySourceSystem(int $solarSystemId): array
-    {
-        return $this->createQueryBuilder('a')
-            ->where('a.sourceSolarSystemId = :systemId')
-            ->andWhere('a.isActive = :active')
-            ->setParameter('systemId', $solarSystemId)
-            ->setParameter('active', true)
-            ->getQuery()
-            ->getResult();
-    }
-
-    /**
      * Get the adjacency list for pathfinding (active gates only).
      *
      * @return array<int, int[]> Map of solarSystemId => [connectedSystemIds]
@@ -116,20 +100,6 @@ class AnsiblexJumpGateRepository extends ServiceEntityRepository
         }
 
         return $graph;
-    }
-
-    /**
-     * Find gate by source and destination.
-     */
-    public function findByRoute(int $sourceSystemId, int $destinationSystemId): ?AnsiblexJumpGate
-    {
-        return $this->createQueryBuilder('a')
-            ->where('a.sourceSolarSystemId = :source AND a.destinationSolarSystemId = :dest')
-            ->orWhere('a.sourceSolarSystemId = :dest AND a.destinationSolarSystemId = :source')
-            ->setParameter('source', $sourceSystemId)
-            ->setParameter('dest', $destinationSystemId)
-            ->getQuery()
-            ->getOneOrNullResult();
     }
 
     /**

@@ -42,19 +42,6 @@ class CharacterService
         );
     }
 
-    public function refreshCharacterInfo(Character $character): CharacterInfoDto
-    {
-        $info = $this->getCharacterInfo($character->getEveCharacterId());
-
-        $character->setName($info->characterName);
-        $character->setCorporationId($info->corporationId);
-        $character->setCorporationName($info->corporationName);
-        $character->setAllianceId($info->allianceId);
-        $character->setAllianceName($info->allianceName);
-
-        return $info;
-    }
-
     /**
      * @return array<string>
      */
@@ -82,13 +69,5 @@ class CharacterService
     public function canReadCorporationAssets(Character $character): bool
     {
         return $this->hasRole($character, 'Director');
-    }
-
-    public function canReadCorporationContracts(Character $character): bool
-    {
-        $roles = $this->getCharacterRoles($character);
-        return in_array('Director', $roles, true)
-            || in_array('Accountant', $roles, true)
-            || in_array('Junior_Accountant', $roles, true);
     }
 }

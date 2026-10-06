@@ -36,7 +36,7 @@ class StockpileImportProcessor implements ProcessorInterface
 
         assert($data instanceof StockpileImportInput);
 
-        $this->stockpileService->importFromBlueprint($user, $data->typeId, $data->runs, $data->me, $data->te, $data->mode);
+        $this->stockpileService->importFromBlueprint($user, $data->typeId, $data->runs, $data->me, $data->mode);
 
         $resource = new StockpileImportResource();
         $resource->status = 'success';

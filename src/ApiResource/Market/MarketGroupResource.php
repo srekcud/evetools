@@ -6,10 +6,8 @@ namespace App\ApiResource\Market;
 
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
-use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\OpenApi\Model;
-use App\State\Provider\Market\MarketGroupChildrenProvider;
 use App\State\Provider\Market\MarketGroupProvider;
 
 #[ApiResource(
@@ -20,11 +18,6 @@ use App\State\Provider\Market\MarketGroupProvider;
             uriTemplate: '/market/groups',
             provider: MarketGroupProvider::class,
             openapi: new Model\Operation(summary: 'List root market groups', tags: ['Market']),
-        ),
-        new Get(
-            uriTemplate: '/market/groups/{id}',
-            provider: MarketGroupChildrenProvider::class,
-            openapi: new Model\Operation(summary: 'Get children of a market group', tags: ['Market']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

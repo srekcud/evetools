@@ -26,15 +26,4 @@ class DgmTypeAttributeRepository extends ServiceEntityRepository
     {
         return $this->findBy(['typeId' => $typeId]);
     }
-
-    /**
-     * Get a specific attribute value for a type
-     */
-    public function findAttribute(int $typeId, int $attributeId): ?DgmTypeAttribute
-    {
-        return $this->findOneBy([
-            'typeId' => $typeId,
-            'attributeId' => $attributeId,
-        ]);
-    }
 }

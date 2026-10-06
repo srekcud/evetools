@@ -41,34 +41,4 @@ class EveTokenRepository extends ServiceEntityRepository
     {
         return $this->findOneBy(['character' => $character]);
     }
-
-    /**
-     * @return EveToken[]
-     */
-    public function findExpiringSoon(int $seconds = 300): array
-    {
-        $threshold = new \DateTimeImmutable("+{$seconds} seconds");
-
-        return $this->createQueryBuilder('t')
-            ->where('t.accessTokenExpiresAt <= :threshold')
-            ->setParameter('threshold', $threshold)
-            ->getQuery()
-            ->getResult();
-    }
-
-    /**
-     * @param string[] $requiredScopes
-     * @return EveToken[]
-     */
-    public function findWithScopes(array $requiredScopes): array
-    {
-        $qb = $this->createQueryBuilder('t');
-
-        foreach ($requiredScopes as $i => $scope) {
-            $qb->andWhere("JSON_CONTAINS(t.scopes, :scope{$i}) = 1")
-               ->setParameter("scope{$i}", json_encode($scope));
-        }
-
-        return $qb->getQuery()->getResult();
-    }
 }

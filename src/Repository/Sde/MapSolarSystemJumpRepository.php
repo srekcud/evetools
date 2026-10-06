@@ -19,23 +19,6 @@ class MapSolarSystemJumpRepository extends ServiceEntityRepository
     }
 
     /**
-     * Get all systems directly connected to a given system.
-     *
-     * @return int[] Array of connected solar system IDs
-     */
-    public function findConnectedSystems(int $solarSystemId): array
-    {
-        $result = $this->createQueryBuilder('j')
-            ->select('j.toSolarSystemId')
-            ->where('j.fromSolarSystemId = :systemId')
-            ->setParameter('systemId', $solarSystemId)
-            ->getQuery()
-            ->getArrayResult();
-
-        return array_column($result, 'toSolarSystemId');
-    }
-
-    /**
      * Get the full graph as an adjacency list for pathfinding.
      *
      * @return array<int, int[]> Map of solarSystemId => [connectedSystemIds]
@@ -59,13 +42,5 @@ class MapSolarSystemJumpRepository extends ServiceEntityRepository
         }
 
         return $graph;
-    }
-
-    public function truncate(): void
-    {
-        $this->createQueryBuilder('j')
-            ->delete()
-            ->getQuery()
-            ->execute();
     }
 }

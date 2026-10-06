@@ -4,26 +4,8 @@ declare(strict_types=1);
 
 namespace App\State\Provider\Industry;
 
-use ApiPlatform\Metadata\Operation;
-use ApiPlatform\State\ProviderInterface;
-use App\ApiResource\Industry\RigOptionsResource;
-
-/**
- * @implements ProviderInterface<RigOptionsResource>
- */
-class RigOptionsProvider implements ProviderInterface
+class RigOptionsProvider
 {
-    public function provide(Operation $operation, array $uriVariables = [], array $context = []): RigOptionsResource
-    {
-        $options = $this->getRigOptionsArray();
-
-        $resource = new RigOptionsResource();
-        $resource->manufacturing = $options['manufacturing'];
-        $resource->reaction = $options['reaction'];
-
-        return $resource;
-    }
-
     /** @return array<string, list<array<string, mixed>>> */
     public function getRigOptionsArray(): array
     {

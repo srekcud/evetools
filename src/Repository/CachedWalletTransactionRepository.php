@@ -42,11 +42,6 @@ class CachedWalletTransactionRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    public function findByTransactionId(int $transactionId): ?CachedWalletTransaction
-    {
-        return $this->findOneBy(['transactionId' => $transactionId]);
-    }
-
     /**
      * Check which transaction IDs already exist in the database.
      *

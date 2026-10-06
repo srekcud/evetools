@@ -17,17 +17,4 @@ class MapRegionRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, MapRegion::class);
     }
-
-    public function findByRegionId(int $regionId): ?MapRegion
-    {
-        return $this->find($regionId);
-    }
-
-    public function truncate(): void
-    {
-        $this->createQueryBuilder('r')
-            ->delete()
-            ->getQuery()
-            ->execute();
-    }
 }

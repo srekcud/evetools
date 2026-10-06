@@ -29,12 +29,4 @@ class InvMarketGroupRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
-
-    public function truncate(): void
-    {
-        $this->createQueryBuilder('mg')
-            ->delete()
-            ->getQuery()
-            ->execute();
-    }
 }

@@ -26,32 +26,6 @@ class MapSolarSystemRepository extends ServiceEntityRepository
     /**
      * @return MapSolarSystem[]
      */
-    public function findByRegionId(int $regionId): array
-    {
-        return $this->createQueryBuilder('s')
-            ->where('s.regionId = :regionId')
-            ->setParameter('regionId', $regionId)
-            ->orderBy('s.solarSystemName', 'ASC')
-            ->getQuery()
-            ->getResult();
-    }
-
-    /**
-     * @return MapSolarSystem[]
-     */
-    public function findHighSec(): array
-    {
-        return $this->createQueryBuilder('s')
-            ->where('s.security >= :security')
-            ->setParameter('security', 0.5)
-            ->orderBy('s.solarSystemName', 'ASC')
-            ->getQuery()
-            ->getResult();
-    }
-
-    /**
-     * @return MapSolarSystem[]
-     */
     /**
      * @return list<array<string, mixed>>
      */
@@ -86,13 +60,5 @@ class MapSolarSystemRepository extends ServiceEntityRepository
         ], [
             'lim' => \Doctrine\DBAL\ParameterType::INTEGER,
         ]);
-    }
-
-    public function truncate(): void
-    {
-        $this->createQueryBuilder('s')
-            ->delete()
-            ->getQuery()
-            ->execute();
     }
 }

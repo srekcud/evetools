@@ -17,9 +17,4 @@ class DgmEffectRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, DgmEffect::class);
     }
-
-    public function findByName(string $name): ?DgmEffect
-    {
-        return $this->findOneBy(['effectName' => $name]);
-    }
 }

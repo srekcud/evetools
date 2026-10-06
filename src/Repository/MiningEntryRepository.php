@@ -72,36 +72,6 @@ class MiningEntryRepository extends ServiceEntityRepository
     }
 
     /**
-     * Get total value by user in date range.
-     * @param list<string>|null $excludeUsages
-     */
-    public function getTotalValueByUserAndDateRange(
-        User $user,
-        \DateTimeImmutable $from,
-        \DateTimeImmutable $to,
-        ?array $excludeUsages = null
-    ): float {
-        $qb = $this->createQueryBuilder('m')
-            ->select('SUM(m.totalValue)')
-            ->where('m.user = :user')
-            ->andWhere('m.date >= :from')
-            ->andWhere('m.date <= :to')
-            ->andWhere('m.totalValue IS NOT NULL')
-            ->setParameter('user', $user)
-            ->setParameter('from', $from)
-            ->setParameter('to', $to);
-
-        if ($excludeUsages !== null && !empty($excludeUsages)) {
-            $qb->andWhere('m.usage NOT IN (:excludeUsages)')
-               ->setParameter('excludeUsages', $excludeUsages);
-        }
-
-        $result = $qb->getQuery()->getSingleScalarResult();
-
-        return (float) ($result ?? 0);
-    }
-
-    /**
      * Get total quantity by user in date range.
      * @param list<string>|null $excludeUsages
      */
@@ -215,39 +185,6 @@ class MiningEntryRepository extends ServiceEntityRepository
     }
 
     /**
-     * Get totals by usage type.
-     * @return array<string, array{usage: string, totalValue: float, totalQuantity: int}>
-     */
-    public function getTotalsByUsage(
-        User $user,
-        \DateTimeImmutable $from,
-        \DateTimeImmutable $to
-    ): array {
-        $results = $this->createQueryBuilder('m')
-            ->select('m.usage, SUM(m.totalValue) as totalValue, SUM(m.quantity) as totalQuantity')
-            ->where('m.user = :user')
-            ->andWhere('m.date >= :from')
-            ->andWhere('m.date <= :to')
-            ->setParameter('user', $user)
-            ->setParameter('from', $from)
-            ->setParameter('to', $to)
-            ->groupBy('m.usage')
-            ->getQuery()
-            ->getResult();
-
-        $totals = [];
-        foreach ($results as $row) {
-            $totals[$row['usage']] = [
-                'usage' => $row['usage'],
-                'totalValue' => (float) ($row['totalValue'] ?? 0),
-                'totalQuantity' => (int) ($row['totalQuantity'] ?? 0),
-            ];
-        }
-
-        return $totals;
-    }
-
-    /**
      * Get all unique type IDs for a user without a price set.
      * @return int[]
      */
@@ -281,48 +218,6 @@ class MiningEntryRepository extends ServiceEntityRepository
                 'typeId' => $typeId,
             ]
         );
-    }
-
-    /**
-     * Get totals by solar system.
-     * @param list<string>|null $excludeUsages
-     * @return array<int, array{solarSystemId: int, solarSystemName: string, totalValue: float, totalQuantity: int}>
-     */
-    public function getTotalsBySolarSystem(
-        User $user,
-        \DateTimeImmutable $from,
-        \DateTimeImmutable $to,
-        ?array $excludeUsages = null
-    ): array {
-        $qb = $this->createQueryBuilder('m')
-            ->select('m.solarSystemId, m.solarSystemName, SUM(m.totalValue) as totalValue, SUM(m.quantity) as totalQuantity')
-            ->where('m.user = :user')
-            ->andWhere('m.date >= :from')
-            ->andWhere('m.date <= :to')
-            ->setParameter('user', $user)
-            ->setParameter('from', $from)
-            ->setParameter('to', $to)
-            ->groupBy('m.solarSystemId, m.solarSystemName')
-            ->orderBy('totalValue', 'DESC');
-
-        if ($excludeUsages !== null && !empty($excludeUsages)) {
-            $qb->andWhere('m.usage NOT IN (:excludeUsages)')
-               ->setParameter('excludeUsages', $excludeUsages);
-        }
-
-        $results = $qb->getQuery()->getResult();
-
-        $totals = [];
-        foreach ($results as $row) {
-            $totals[$row['solarSystemId']] = [
-                'solarSystemId' => (int) $row['solarSystemId'],
-                'solarSystemName' => $row['solarSystemName'],
-                'totalValue' => (float) ($row['totalValue'] ?? 0),
-                'totalQuantity' => (int) ($row['totalQuantity'] ?? 0),
-            ];
-        }
-
-        return $totals;
     }
 
     /**
@@ -438,47 +333,5 @@ class MiningEntryRepository extends ServiceEntityRepository
         }
 
         return $byUsageAndType;
-    }
-
-    /**
-     * Get totals by character.
-     * @param list<string>|null $excludeUsages
-     * @return array<int, array{characterId: int, characterName: string, totalValue: float, totalQuantity: int}>
-     */
-    public function getTotalsByCharacter(
-        User $user,
-        \DateTimeImmutable $from,
-        \DateTimeImmutable $to,
-        ?array $excludeUsages = null
-    ): array {
-        $qb = $this->createQueryBuilder('m')
-            ->select('m.characterId, m.characterName, SUM(m.totalValue) as totalValue, SUM(m.quantity) as totalQuantity')
-            ->where('m.user = :user')
-            ->andWhere('m.date >= :from')
-            ->andWhere('m.date <= :to')
-            ->setParameter('user', $user)
-            ->setParameter('from', $from)
-            ->setParameter('to', $to)
-            ->groupBy('m.characterId, m.characterName')
-            ->orderBy('totalValue', 'DESC');
-
-        if ($excludeUsages !== null && !empty($excludeUsages)) {
-            $qb->andWhere('m.usage NOT IN (:excludeUsages)')
-               ->setParameter('excludeUsages', $excludeUsages);
-        }
-
-        $results = $qb->getQuery()->getResult();
-
-        $totals = [];
-        foreach ($results as $row) {
-            $totals[$row['characterId']] = [
-                'characterId' => (int) $row['characterId'],
-                'characterName' => $row['characterName'],
-                'totalValue' => (float) ($row['totalValue'] ?? 0),
-                'totalQuantity' => (int) ($row['totalQuantity'] ?? 0),
-            ];
-        }
-
-        return $totals;
     }
 }

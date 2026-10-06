@@ -187,29 +187,6 @@ class CachedAssetRepository extends ServiceEntityRepository
         return $divisions;
     }
 
-    /**
-     * @return array<int, string>
-     */
-    public function findDistinctLocationsForCharacter(Character $character): array
-    {
-        $results = $this->createQueryBuilder('a')
-            ->select('a.locationId, a.locationName')
-            ->where('a.character = :character')
-            ->andWhere('a.isCorporationAsset = false')
-            ->setParameter('character', $character)
-            ->distinct()
-            ->orderBy('a.locationName', 'ASC')
-            ->getQuery()
-            ->getResult();
-
-        $locations = [];
-        foreach ($results as $row) {
-            $locations[(int) $row['locationId']] = $row['locationName'];
-        }
-
-        return $locations;
-    }
-
     public function deleteByCharacter(Character $character): int
     {
         return $this->createQueryBuilder('a')

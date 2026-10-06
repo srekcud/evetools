@@ -17,17 +17,4 @@ class MapConstellationRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, MapConstellation::class);
     }
-
-    public function findByConstellationId(int $constellationId): ?MapConstellation
-    {
-        return $this->find($constellationId);
-    }
-
-    public function truncate(): void
-    {
-        $this->createQueryBuilder('c')
-            ->delete()
-            ->getQuery()
-            ->execute();
-    }
 }

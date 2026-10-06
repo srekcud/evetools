@@ -8,7 +8,6 @@ use App\Entity\User;
 use App\Enum\AuthStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @extends ServiceEntityRepository<User>
@@ -36,42 +35,6 @@ class UserRepository extends ServiceEntityRepository
         if ($flush) {
             $this->getEntityManager()->flush();
         }
-    }
-
-    public function findByMainCharacterId(int $eveCharacterId): ?User
-    {
-        return $this->createQueryBuilder('u')
-            ->join('u.mainCharacter', 'c')
-            ->where('c.eveCharacterId = :eveCharacterId')
-            ->setParameter('eveCharacterId', $eveCharacterId)
-            ->getQuery()
-            ->getOneOrNullResult();
-    }
-
-    /**
-     * @return User[]
-     */
-    public function findWithInvalidAuth(): array
-    {
-        return $this->createQueryBuilder('u')
-            ->where('u.authStatus = :status')
-            ->setParameter('status', AuthStatus::Invalid)
-            ->getQuery()
-            ->getResult();
-    }
-
-    /**
-     * @return User[]
-     */
-    public function findAllWithCharacters(): array
-    {
-        return $this->createQueryBuilder('u')
-            ->leftJoin('u.characters', 'c')
-            ->addSelect('c')
-            ->leftJoin('c.eveToken', 't')
-            ->addSelect('t')
-            ->getQuery()
-            ->getResult();
     }
 
     /**

@@ -246,23 +246,6 @@ class JitaMarketServiceTest extends TestCase
     }
 
     // ===========================================
-    // getBuyPrice Tests
-    // ===========================================
-
-    public function testGetBuyPriceReturnsBestPriceFromOrderBook(): void
-    {
-        $cacheItem = $this->createStub(CacheItemInterface::class);
-        $cacheItem->method('isHit')->willReturn(true);
-        $cacheItem->method('get')->willReturn([
-            34 => [['price' => 4.00, 'volume' => 1000], ['price' => 3.50, 'volume' => 500]],
-        ]);
-
-        $this->cache->method('getItem')->willReturn($cacheItem);
-
-        $this->assertSame(4.00, $this->service->getBuyPrice(34));
-    }
-
-    // ===========================================
     // Weighted Price Tests
     // ===========================================
 
@@ -361,29 +344,6 @@ class JitaMarketServiceTest extends TestCase
         $this->cache->method('getItem')->willReturn($cacheItem);
 
         $this->assertNull($this->service->getWeightedSellPrice(34, 100));
-    }
-
-    public function testGetWeightedBuyPriceWithMultipleOrders(): void
-    {
-        $cacheItem = $this->createStub(CacheItemInterface::class);
-        $cacheItem->method('isHit')->willReturn(true);
-        $cacheItem->method('get')->willReturn([
-            34 => [
-                ['price' => 4.50, 'volume' => 100], // Best buy (highest)
-                ['price' => 4.00, 'volume' => 200],
-                ['price' => 3.50, 'volume' => 300],
-            ],
-        ]);
-
-        $this->cache->method('getItem')->willReturn($cacheItem);
-
-        // Request 150: 100 @ 4.50 + 50 @ 4.00 = 450 + 200 = 650 / 150 = 4.333...
-        $result = $this->service->getWeightedBuyPrice(34, 150);
-
-        $this->assertNotNull($result);
-        $this->assertEqualsWithDelta(4.333, $result['weightedPrice'], 0.001);
-        $this->assertSame(1.0, $result['coverage']);
-        $this->assertSame(2, $result['ordersUsed']);
     }
 
     public function testGetWeightedSellPricesBatch(): void

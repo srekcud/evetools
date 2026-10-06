@@ -299,35 +299,4 @@ class MiningSyncService
         }
         return $this->solarSystemNameCache[$solarSystemId];
     }
-
-    /**
-     * Refresh prices for all entries (not just those without prices).
-     */
-    public function refreshAllPrices(User $user): int
-    {
-        // Get all unique type IDs
-        $results = $this->entityManager->createQuery(
-            'SELECT DISTINCT m.typeId FROM App\Entity\MiningEntry m WHERE m.user = :user'
-        )
-            ->setParameter('user', $user)
-            ->getScalarResult();
-
-        $typeIds = array_map(fn($r) => (int) $r['typeId'], $results);
-
-        if (empty($typeIds)) {
-            return 0;
-        }
-
-        $prices = $this->marketService->getJitaPrices($typeIds);
-        $updated = 0;
-
-        foreach ($prices as $typeId => $price) {
-            if ($price !== null && $price > 0) {
-                $count = $this->miningEntryRepository->updatePriceByTypeId($user, $typeId, $price);
-                $updated += $count;
-            }
-        }
-
-        return $updated;
-    }
 }
