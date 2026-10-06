@@ -57,9 +57,6 @@ class KickGroupMemberProcessorTest extends TestCase
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->hub = $this->createMock(HubInterface::class);
 
-        // The contribution repository is passed as an extra trailing argument:
-        // the processor does not depend on it yet (issue #10), PHP ignores the
-        // surplus positional argument until the guard is implemented.
         $this->processor = new KickGroupMemberProcessor(
             $this->security,
             $this->projectRepository,
@@ -250,7 +247,7 @@ class KickGroupMemberProcessorTest extends TestCase
         $this->kick($memberId);
     }
 
-    // --- Issue #10: a member with contributions cannot be kicked (RED) ---
+    // --- Issue #10: a member with contributions cannot be kicked ---
 
     public function testCannotKickMemberWithOneContribution(): void
     {
