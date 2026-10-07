@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\ESI;
 
+use App\Entity\Character;
 use App\Entity\EveToken;
 use App\Exception\EsiApiException;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\AbstractLogger;
@@ -19,6 +21,7 @@ use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Note on sleeping: EsiClient calls sleep() directly. A 420 retry sleeps
@@ -34,7 +37,7 @@ final class EsiClientTest extends TestCase
     private const ACCESS_TOKEN = 'access-token-abc';
     private const EXPIRES_AFTER_SECONDS = 300;
 
-    /** @var list<array{method: string, url: string, body: string, headers: array<string, list<string>>}> */
+    /** @var list<array{method: string, url: string, body: string, headers: array<string, list<string>>, timeout?: float|null}> */
     private array $recordedRequests = [];
 
     /** @var list<string> "request <path>" when a request is launched, "read <path>" when its body is consumed */
@@ -94,14 +97,21 @@ final class EsiClientTest extends TestCase
 
     public function testGetRetriesOnceAsGetAfterErrorLimited420(): void
     {
+        $logRecords = [];
         $esiClient = $this->createEsiClient([
             $this->errorLimitedResponse(),
             $this->jsonResponse(['name' => 'Jita']),
-        ]);
+        ], logger: $this->createRecordingLogger($logRecords));
 
         $result = $esiClient->get('/universe/systems/30000142/');
 
         $this->assertSame(['name' => 'Jita'], $result);
+        // Error-limit reset 0 s: the retry still waits at least 1 s.
+        $this->assertSame([[
+            'level' => 'warning',
+            'message' => 'ESI {status} received, sleeping {seconds}s before retry',
+            'context' => ['status' => 420, 'seconds' => 1, 'endpoint' => '/universe/systems/30000142/'],
+        ]], $logRecords);
         $this->assertSame(['GET', 'GET'], array_column($this->recordedRequests, 'method'));
         $this->assertSame(
             [self::BASE_URL . '/universe/systems/30000142/', self::BASE_URL . '/universe/systems/30000142/'],
@@ -121,6 +131,7 @@ final class EsiClientTest extends TestCase
             $this->fail('Expected EsiApiException');
         } catch (EsiApiException $exception) {
             $this->assertSame(420, $exception->statusCode);
+            $this->assertSame('Error limited', $exception->getMessage());
         }
         $this->assertCount(2, $this->recordedRequests);
     }
@@ -707,6 +718,690 @@ final class EsiClientTest extends TestCase
     }
 
     // ---------------------------------------------------------------
+    // Issue #43 -- getPaginated(): X-Pages, query string, failing page
+    // ---------------------------------------------------------------
+
+    public function testGetPaginatedWithoutXPagesHeaderRequestsOnlyTheFirstPage(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]]),
+        ]);
+
+        $result = $esiClient->getPaginated('/characters/2112000001/assets/');
+
+        $this->assertSame([['type_id' => 34, 'quantity' => 1000]], $result);
+        $this->assertSame(
+            [self::BASE_URL . '/characters/2112000001/assets/?page=1'],
+            array_column($this->recordedRequests, 'url'),
+        );
+    }
+
+    public function testGetPaginatedAppendsPageWithAmpersandWhenEndpointHasQueryString(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['order_id' => 6000000001, 'volume_remain' => 10]], 200, ['X-Pages' => '2']),
+            $this->jsonResponse([['order_id' => 6000000002, 'volume_remain' => 20]], 200, ['X-Pages' => '2']),
+        ]);
+
+        $result = $esiClient->getPaginated('/markets/10000002/orders/?order_type=sell');
+
+        $this->assertSame([
+            ['order_id' => 6000000001, 'volume_remain' => 10],
+            ['order_id' => 6000000002, 'volume_remain' => 20],
+        ], $result);
+        $this->assertSame([
+            self::BASE_URL . '/markets/10000002/orders/?order_type=sell&page=1',
+            self::BASE_URL . '/markets/10000002/orders/?order_type=sell&page=2',
+        ], array_column($this->recordedRequests, 'url'));
+    }
+
+    public function testGetPaginatedThrowsForTheFailingPageWithoutRequestingTheNextOnes(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]], 200, ['X-Pages' => '3']),
+            $this->errorResponse(404, ['X-Pages' => '3']),
+        ]);
+
+        try {
+            $esiClient->getPaginated('/characters/2112000001/assets/');
+            $this->fail('Expected EsiApiException');
+        } catch (EsiApiException $exception) {
+            $this->assertSame(404, $exception->statusCode);
+            $this->assertSame('ESI request failed', $exception->getMessage());
+            $this->assertSame('/characters/2112000001/assets/?page=2', $exception->endpoint);
+        }
+        $this->assertCount(2, $this->recordedRequests);
+    }
+
+    public function testGetPaginatedThrowsEsiApiExceptionOnA300Page(): void
+    {
+        $esiClient = $this->createEsiClient([$this->errorResponse(300)]);
+
+        try {
+            $esiClient->getPaginated('/characters/2112000001/assets/');
+            $this->fail('Expected EsiApiException');
+        } catch (EsiApiException $exception) {
+            $this->assertSame(300, $exception->statusCode);
+            $this->assertSame('ESI request failed', $exception->getMessage());
+        }
+    }
+
+    public function testGetPaginatedThrowsNetworkErrorWithStatusZero(): void
+    {
+        $esiClient = $this->createEsiClient([$this->networkErrorResponse()]);
+
+        try {
+            $esiClient->getPaginated('/characters/2112000001/assets/');
+            $this->fail('Expected EsiApiException');
+        } catch (EsiApiException $exception) {
+            $this->assertSame(0, $exception->statusCode);
+            $this->assertSame('Network error: Connection reset by peer', $exception->getMessage());
+            $this->assertSame('/characters/2112000001/assets/?page=1', $exception->endpoint);
+        }
+    }
+
+    public function testGetPaginatedThrottlesTwiceBetweenPagesWhenErrorLimitRemainIsLowSuspectedDoublePause(): void
+    {
+        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #43.
+        // getPaginated() throttles after each page, then request() throttles again before
+        // the next one: with 19 errors left the pause between two pages is 2 x 100 ms.
+        $logRecords = [];
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]], 200, ['X-Pages' => '2', 'X-Esi-Error-Limit-Remain' => '19']),
+            $this->jsonResponse([['type_id' => 35, 'quantity' => 500]], 200, ['X-Pages' => '2']),
+        ], logger: $this->createRecordingLogger($logRecords));
+
+        $esiClient->getPaginated('/characters/2112000001/assets/');
+
+        $this->assertSame([
+            ['remain' => 19, 'delay' => 100],
+            ['remain' => 19, 'delay' => 100],
+        ], array_column($logRecords, 'context'));
+    }
+
+    public function testGetPaginatedThrottlesAfterTheLastPageWhenErrorLimitRemainIsLowSuspectedUselessPause(): void
+    {
+        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #43.
+        // The "throttle between pages" guard ($page <= $pages) is always true, so a pause
+        // happens after the last page although no further request follows.
+        $logRecords = [];
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]], 200, ['X-Esi-Error-Limit-Remain' => '19']),
+        ], logger: $this->createRecordingLogger($logRecords));
+
+        $esiClient->getPaginated('/characters/2112000001/assets/');
+
+        $this->assertSame([['remain' => 19, 'delay' => 100]], array_column($logRecords, 'context'));
+    }
+
+    // ---------------------------------------------------------------
+    // Issue #43 -- post() and postEmpty()
+    // ---------------------------------------------------------------
+
+    public function testPostSendsJsonBodyWithAcceptAndContentTypeHeaders(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['id' => 34, 'name' => 'Tritanium', 'category' => 'inventory_type']]),
+        ]);
+
+        $result = $esiClient->post('/universe/names/', [34]);
+
+        $this->assertSame([['id' => 34, 'name' => 'Tritanium', 'category' => 'inventory_type']], $result);
+        $this->assertSame('POST', $this->recordedRequests[0]['method']);
+        $this->assertSame(self::BASE_URL . '/universe/names/', $this->recordedRequests[0]['url']);
+        $this->assertSame('[34]', $this->recordedRequests[0]['body']);
+        $this->assertSame(['Accept: application/json'], $this->recordedRequests[0]['headers']['accept'] ?? null);
+        $this->assertSame(['Content-Type: application/json'], $this->recordedRequests[0]['headers']['content-type'] ?? null);
+    }
+
+    public function testPostThrowsEsiApiExceptionWithStatusMessageAndEndpointOnClientError(): void
+    {
+        $esiClient = $this->createEsiClient([$this->errorResponse(403)]);
+
+        try {
+            $esiClient->post('/characters/2112000001/assets/names/', [1000000001], $this->createEveToken());
+            $this->fail('Expected EsiApiException');
+        } catch (EsiApiException $exception) {
+            $this->assertSame(403, $exception->statusCode);
+            $this->assertSame('Access forbidden', $exception->getMessage());
+            $this->assertSame('/characters/2112000001/assets/names/', $exception->endpoint);
+        }
+    }
+
+    public function testPostThrowsNetworkErrorWithStatusZero(): void
+    {
+        $esiClient = $this->createEsiClient([$this->networkErrorResponse()]);
+
+        try {
+            $esiClient->post('/universe/names/', [34]);
+            $this->fail('Expected EsiApiException');
+        } catch (EsiApiException $exception) {
+            $this->assertSame(0, $exception->statusCode);
+            $this->assertSame('Network error: Connection reset by peer', $exception->getMessage());
+        }
+    }
+
+    public function testPostEmptySendsPostWithoutBodyWithBearerAuthorization(): void
+    {
+        $esiClient = $this->createEsiClient([
+            new MockResponse('', ['http_code' => 204, 'response_headers' => ['X-Esi-Error-Limit-Remain' => '100']]),
+        ]);
+
+        $esiClient->postEmpty('/ui/openwindow/marketdetails/?type_id=34', $this->createEveToken());
+
+        $this->assertCount(1, $this->recordedRequests);
+        $this->assertSame('POST', $this->recordedRequests[0]['method']);
+        $this->assertSame(self::BASE_URL . '/ui/openwindow/marketdetails/?type_id=34', $this->recordedRequests[0]['url']);
+        $this->assertSame('', $this->recordedRequests[0]['body']);
+        $this->assertSame(['Authorization: Bearer ' . self::ACCESS_TOKEN], $this->recordedRequests[0]['headers']['authorization'] ?? null);
+    }
+
+    public function testPostEmptyAcceptsA200Response(): void
+    {
+        $esiClient = $this->createEsiClient([$this->rawJsonResponse('')]);
+
+        $esiClient->postEmpty('/ui/autopilot/waypoint/?destination_id=30000142', $this->createEveToken());
+
+        $this->assertCount(1, $this->recordedRequests);
+    }
+
+    /**
+     * postEmpty() does not replay a 420/429, unlike get()/post(): a single request is sent.
+     */
+    #[DataProvider('esiErrorStatusProvider')]
+    public function testPostEmptyThrowsEsiApiExceptionWithStatusAndMessageWithoutRetry(int $statusCode, string $expectedMessage): void
+    {
+        $esiClient = $this->createEsiClient([$this->errorResponse($statusCode)]);
+
+        try {
+            $esiClient->postEmpty('/ui/openwindow/marketdetails/?type_id=34', $this->createEveToken());
+            $this->fail('Expected EsiApiException');
+        } catch (EsiApiException $exception) {
+            $this->assertSame($statusCode, $exception->statusCode);
+            $this->assertSame($expectedMessage, $exception->getMessage());
+            $this->assertSame('/ui/openwindow/marketdetails/?type_id=34', $exception->endpoint);
+        }
+        $this->assertCount(1, $this->recordedRequests);
+    }
+
+    public function testPostEmptyThrowsNetworkErrorWithStatusZero(): void
+    {
+        $esiClient = $this->createEsiClient([$this->networkErrorResponse()]);
+
+        try {
+            $esiClient->postEmpty('/ui/openwindow/marketdetails/?type_id=34', $this->createEveToken());
+            $this->fail('Expected EsiApiException');
+        } catch (EsiApiException $exception) {
+            $this->assertSame(0, $exception->statusCode);
+            $this->assertSame('Network error: Connection reset by peer', $exception->getMessage());
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // Issue #43 -- handleResponse(): 4xx/5xx mapped to EsiApiException
+    // ---------------------------------------------------------------
+
+    /**
+     * 429 is replayed once (Retry-After: 0), so it reaches the exception after a second 429.
+     * 420 is left out: its replay always sleeps 1 s; testGetThrowsAfterSecondConsecutive420 covers it.
+     */
+    #[DataProvider('esiErrorStatusWithoutErrorLimitedProvider')]
+    public function testGetThrowsEsiApiExceptionWithStatusMessageAndEndpointOfTheFailedResponse(int $statusCode, string $expectedMessage): void
+    {
+        $esiClient = $this->createEsiClient($statusCode === 429
+            ? [$this->rateLimitedResponse(retryAfterSeconds: 0), $this->rateLimitedResponse(retryAfterSeconds: 0)]
+            : [$this->errorResponse($statusCode)]);
+
+        try {
+            $esiClient->get('/characters/2112000001/wallet/journal/', $this->createEveToken());
+            $this->fail('Expected EsiApiException');
+        } catch (EsiApiException $exception) {
+            $this->assertSame($statusCode, $exception->statusCode);
+            $this->assertSame($expectedMessage, $exception->getMessage());
+            $this->assertSame('/characters/2112000001/wallet/journal/', $exception->endpoint);
+        }
+    }
+
+    /**
+     * @return iterable<string, array{int, string}>
+     */
+    public static function esiErrorStatusProvider(): iterable
+    {
+        yield '300 multiple choices' => [300, 'ESI request failed'];
+        yield '400 bad request' => [400, 'ESI request failed'];
+        yield '401 unauthorized' => [401, 'Authentication failed'];
+        yield '403 forbidden' => [403, 'Access forbidden'];
+        yield '404 not found' => [404, 'Resource not found'];
+        yield '420 error limited' => [420, 'Error limited'];
+        yield '429 rate limited' => [429, 'Rate limit exceeded'];
+        yield '500 internal server error' => [500, 'ESI server error'];
+        yield '502 bad gateway' => [502, 'ESI server error'];
+        yield '503 service unavailable' => [503, 'ESI server error'];
+        yield '504 gateway timeout' => [504, 'ESI server error'];
+    }
+
+    /**
+     * @return iterable<string, array{int, string}>
+     */
+    public static function esiErrorStatusWithoutErrorLimitedProvider(): iterable
+    {
+        foreach (self::esiErrorStatusProvider() as $label => $statusAndMessage) {
+            if ($statusAndMessage[0] !== 420) {
+                yield $label => $statusAndMessage;
+            }
+        }
+    }
+
+    public function testGetThrowsNetworkErrorWithStatusZero(): void
+    {
+        $esiClient = $this->createEsiClient([$this->networkErrorResponse()]);
+
+        try {
+            $esiClient->get('/universe/systems/30000142/');
+            $this->fail('Expected EsiApiException');
+        } catch (EsiApiException $exception) {
+            $this->assertSame(0, $exception->statusCode);
+            $this->assertSame('Network error: Connection reset by peer', $exception->getMessage());
+            $this->assertSame('/universe/systems/30000142/', $exception->endpoint);
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // Issue #43 -- getScalar() and getScalarBatch()
+    // ---------------------------------------------------------------
+
+    public function testGetScalarReturnsDecodedScalarWithBearerAuthorizationAndDefaultTimeout(): void
+    {
+        $esiClient = $this->createEsiClient([$this->rawJsonResponse('1234567.89')]);
+
+        $walletBalance = $esiClient->getScalar('/characters/2112000001/wallet/', $this->createEveToken());
+
+        $this->assertSame(1234567.89, $walletBalance);
+        $this->assertSame('GET', $this->recordedRequests[0]['method']);
+        $this->assertSame(self::BASE_URL . '/characters/2112000001/wallet/', $this->recordedRequests[0]['url']);
+        $this->assertSame(['Authorization: Bearer ' . self::ACCESS_TOKEN], $this->recordedRequests[0]['headers']['authorization'] ?? null);
+        $this->assertSame(30.0, $this->recordedRequests[0]['timeout']);
+    }
+
+    public function testGetScalarSendsTheGivenTimeout(): void
+    {
+        $esiClient = $this->createEsiClient([$this->rawJsonResponse('1234567.89')]);
+
+        $esiClient->getScalar('/characters/2112000001/wallet/', $this->createEveToken(), 5);
+
+        $this->assertSame(5.0, $this->recordedRequests[0]['timeout']);
+    }
+
+    public function testGetScalarThrowsGenericEsiApiExceptionOn420WithoutRetrySuspected(): void
+    {
+        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #43.
+        // Unlike get()/post()/getPaginated()/getBatch(), getScalar() does not replay a 420/429
+        // and reports every failure as "ESI request failed".
+        $esiClient = $this->createEsiClient([$this->errorLimitedResponse()]);
+
+        try {
+            $esiClient->getScalar('/characters/2112000001/wallet/', $this->createEveToken());
+            $this->fail('Expected EsiApiException');
+        } catch (EsiApiException $exception) {
+            $this->assertSame(420, $exception->statusCode);
+            $this->assertSame('ESI request failed', $exception->getMessage());
+            $this->assertSame('/characters/2112000001/wallet/', $exception->endpoint);
+        }
+        $this->assertCount(1, $this->recordedRequests);
+    }
+
+    public function testGetScalarThrowsEsiApiExceptionOnA300Response(): void
+    {
+        $esiClient = $this->createEsiClient([$this->errorResponse(300)]);
+
+        try {
+            $esiClient->getScalar('/characters/2112000001/wallet/', $this->createEveToken());
+            $this->fail('Expected EsiApiException');
+        } catch (EsiApiException $exception) {
+            $this->assertSame(300, $exception->statusCode);
+            $this->assertSame('ESI request failed', $exception->getMessage());
+        }
+    }
+
+    public function testGetScalarReturnsJsonObjectAsStdClass(): void
+    {
+        $esiClient = $this->createEsiClient([$this->rawJsonResponse('{"total_sp":5000000}')]);
+
+        $skills = $esiClient->getScalar('/characters/2112000001/skills/', $this->createEveToken());
+
+        $this->assertEquals((object) ['total_sp' => 5000000], $skills);
+    }
+
+    public function testGetScalarThrowsNetworkErrorWithStatusZero(): void
+    {
+        $esiClient = $this->createEsiClient([$this->networkErrorResponse()]);
+
+        try {
+            $esiClient->getScalar('/characters/2112000001/wallet/', $this->createEveToken());
+            $this->fail('Expected EsiApiException');
+        } catch (EsiApiException $exception) {
+            $this->assertSame(0, $exception->statusCode);
+            $this->assertSame('Network error: Connection reset by peer', $exception->getMessage());
+        }
+    }
+
+    public function testGetScalarBatchReturnsScalarsUnderTheirKeysAndNullForFailedRequests(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->rawJsonResponse('1500000.5'),
+            $this->errorResponse(404),
+            $this->networkErrorResponse(),
+            $this->errorLimitedResponse(),
+            $this->rawJsonResponse('42'),
+            $this->errorResponse(300),
+            $this->rawJsonResponse('{"total_sp":5000000}'),
+        ]);
+
+        $result = $esiClient->getScalarBatch([
+            'pilot_one' => ['endpoint' => '/characters/2112000001/wallet/', 'token' => $this->createEveToken()],
+            'pilot_two' => ['endpoint' => '/characters/2112000002/wallet/', 'token' => $this->createEveToken()],
+            'pilot_three' => ['endpoint' => '/characters/2112000003/wallet/', 'token' => $this->createEveToken()],
+            'pilot_four' => ['endpoint' => '/characters/2112000004/wallet/', 'token' => $this->createEveToken()],
+            'public' => ['endpoint' => '/universe/system_kills/', 'token' => null],
+            'redirected' => ['endpoint' => '/characters/2112000005/wallet/', 'token' => $this->createEveToken()],
+            'skills' => ['endpoint' => '/characters/2112000001/skills/', 'token' => $this->createEveToken()],
+        ]);
+
+        $this->assertSame([
+            'pilot_one' => 1500000.5,
+            'pilot_two' => null,
+            'pilot_three' => null,
+            'pilot_four' => null,
+            'public' => 42,
+            'redirected' => null,
+            'skills' => $result['skills'],
+        ], $result);
+        $this->assertEquals((object) ['total_sp' => 5000000], $result['skills']);
+        // No retry on 420: one request per key.
+        $this->assertSame([
+            self::BASE_URL . '/characters/2112000001/wallet/',
+            self::BASE_URL . '/characters/2112000002/wallet/',
+            self::BASE_URL . '/characters/2112000003/wallet/',
+            self::BASE_URL . '/characters/2112000004/wallet/',
+            self::BASE_URL . '/universe/system_kills/',
+            self::BASE_URL . '/characters/2112000005/wallet/',
+            self::BASE_URL . '/characters/2112000001/skills/',
+        ], array_column($this->recordedRequests, 'url'));
+        $this->assertSame([10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0], array_column($this->recordedRequests, 'timeout'));
+        $this->assertSame(['Authorization: Bearer ' . self::ACCESS_TOKEN], $this->recordedRequests[0]['headers']['authorization'] ?? null);
+        $this->assertArrayNotHasKey('authorization', $this->recordedRequests[4]['headers']);
+    }
+
+    public function testGetScalarBatchSendsTheGivenTimeout(): void
+    {
+        $esiClient = $this->createEsiClient([$this->rawJsonResponse('1500000.5')]);
+
+        $esiClient->getScalarBatch(
+            ['pilot_one' => ['endpoint' => '/characters/2112000001/wallet/', 'token' => $this->createEveToken()]],
+            3,
+        );
+
+        $this->assertSame(3.0, $this->recordedRequests[0]['timeout']);
+    }
+
+    public function testGetScalarBatchGetScalarAndPostEmptyRecordErrorLimitHeadersSoTheNextRequestIsThrottled(): void
+    {
+        $logRecords = [];
+        $esiClient = $this->createEsiClient([
+            $this->rawJsonResponse('1500000.5', ['X-Esi-Error-Limit-Remain' => '19']),
+            $this->rawJsonResponse('1500000.5', ['X-Esi-Error-Limit-Remain' => '18']),
+            new MockResponse('', ['http_code' => 204, 'response_headers' => ['X-Esi-Error-Limit-Remain' => '17']]),
+            $this->jsonResponse(['name' => 'Jita']),
+        ], logger: $this->createRecordingLogger($logRecords));
+
+        $esiClient->getScalarBatch([
+            'pilot_one' => ['endpoint' => '/characters/2112000001/wallet/', 'token' => $this->createEveToken()],
+        ]);
+        $esiClient->getScalar('/characters/2112000001/wallet/', $this->createEveToken());
+        $esiClient->postEmpty('/ui/openwindow/marketdetails/?type_id=34', $this->createEveToken());
+        $esiClient->get('/universe/systems/30000142/');
+
+        // Each request is throttled with the error limit of the previous response.
+        $this->assertSame([
+            ['remain' => 19, 'delay' => 100],
+            ['remain' => 18, 'delay' => 200],
+            ['remain' => 17, 'delay' => 300],
+        ], array_column($logRecords, 'context'));
+    }
+
+    // ---------------------------------------------------------------
+
+    public function testRequestIsNotThrottledWhenErrorLimitRemainIsTwenty(): void
+    {
+        $logRecords = [];
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse(['name' => 'Jita'], 200, ['X-Esi-Error-Limit-Remain' => '20']),
+            $this->jsonResponse(['name' => 'Amarr']),
+        ], logger: $this->createRecordingLogger($logRecords));
+
+        $esiClient->get('/universe/systems/30000142/');
+        $esiClient->get('/universe/systems/30002187/');
+
+        $this->assertSame([], $logRecords);
+    }
+
+    public function testGetRecordsErrorLimitHeadersSoTheNextRequestIsThrottledByTheMissingErrors(): void
+    {
+        $logRecords = [];
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse(['name' => 'Jita'], 200, ['X-Esi-Error-Limit-Remain' => '19']),
+            $this->jsonResponse(['name' => 'Amarr']),
+        ], logger: $this->createRecordingLogger($logRecords));
+
+        $esiClient->get('/universe/systems/30000142/');
+        $esiClient->get('/universe/systems/30002187/');
+
+        // 19 errors left: (20 - 19) * 100 ms.
+        $this->assertSame([[
+            'level' => 'info',
+            'message' => 'ESI error limit low ({remain} remaining), throttling {delay}ms',
+            'context' => ['remain' => 19, 'delay' => 100],
+        ]], $logRecords);
+    }
+
+    public function testGetRetryAfter429IsNotThrottledAndKeepsTheErrorLimitOfThe429(): void
+    {
+        $logRecords = [];
+        $esiClient = $this->createEsiClient([
+            $this->rateLimitedResponse(retryAfterSeconds: 0, headers: ['X-Esi-Error-Limit-Remain' => '19']),
+            $this->jsonResponseWithoutErrorLimitHeaders(['name' => 'Jita']),
+            $this->jsonResponse(['name' => 'Amarr']),
+        ], logger: $this->createRecordingLogger($logRecords));
+
+        $esiClient->get('/universe/systems/30000142/');
+        $esiClient->get('/universe/systems/30002187/');
+
+        $this->assertSame([
+            [
+                'level' => 'warning',
+                'message' => 'ESI {status} received, sleeping {seconds}s before retry',
+                'context' => ['status' => 429, 'seconds' => 0, 'endpoint' => '/universe/systems/30000142/'],
+            ],
+            // The replay itself is not throttled; the next request is, with the 429's error limit.
+            [
+                'level' => 'info',
+                'message' => 'ESI error limit low ({remain} remaining), throttling {delay}ms',
+                'context' => ['remain' => 19, 'delay' => 100],
+            ],
+        ], $logRecords);
+    }
+
+    public function testGetWithCacheRecordsErrorLimitHeadersOf304SoTheNextRequestIsThrottled(): void
+    {
+        $clock = new MockClock();
+        $issuedAt = $clock->now()->getTimestamp();
+        $logRecords = [];
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]], 200, [
+                'ETag' => '"etag-v1"',
+                'Expires' => $this->httpDate($issuedAt + self::EXPIRES_AFTER_SECONDS),
+            ]),
+            $this->notModifiedResponse([
+                'ETag' => '"etag-v1"',
+                'X-Esi-Error-Limit-Remain' => '19',
+            ]),
+            $this->jsonResponse(['name' => 'Jita']),
+        ], new ArrayAdapter(clock: $clock), $this->createRecordingLogger($logRecords));
+        $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+        $clock->sleep(self::EXPIRES_AFTER_SECONDS + 1);
+
+        $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+        $esiClient->get('/universe/systems/30000142/');
+
+        $this->assertSame([['remain' => 19, 'delay' => 100]], array_column($logRecords, 'context'));
+    }
+
+    // ---------------------------------------------------------------
+    // Issue #43 -- getBatch(): throttling and retry log
+    // ---------------------------------------------------------------
+
+    public function testGetBatchThrottlesOnceBeforeLaunchingAllRequestsWhenErrorLimitRemainIsLow(): void
+    {
+        $logRecords = [];
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse(['name' => 'Jita'], 200, ['X-Esi-Error-Limit-Remain' => '19']),
+            $this->jsonResponse(['name' => 'Amarr']),
+            $this->jsonResponse(['name' => 'Dodixie']),
+        ], logger: $this->createRecordingLogger($logRecords));
+        $esiClient->get('/universe/systems/30000142/');
+
+        $result = $esiClient->getBatch([
+            'amarr' => '/universe/systems/30002187/',
+            'dodixie' => '/universe/systems/30002659/',
+        ]);
+
+        $this->assertSame(['amarr' => ['name' => 'Amarr'], 'dodixie' => ['name' => 'Dodixie']], $result);
+        $this->assertSame([['remain' => 19, 'delay' => 100]], array_column($logRecords, 'context'));
+    }
+
+    public function testGetBatchWithoutEndpointsIsNotThrottled(): void
+    {
+        $logRecords = [];
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse(['name' => 'Jita'], 200, ['X-Esi-Error-Limit-Remain' => '19']),
+        ], logger: $this->createRecordingLogger($logRecords));
+        $esiClient->get('/universe/systems/30000142/');
+
+        $this->assertSame([], $esiClient->getBatch([]));
+        $this->assertSame([], $logRecords);
+    }
+
+    public function testGetBatchLogsRateLimitedKeyCountAndWaitBeforeReplaying(): void
+    {
+        $logRecords = [];
+        $esiClient = $this->createEsiClientServingByPath([
+            '/universe/systems/30000142/' => [$this->rateLimitedResponse(retryAfterSeconds: 0), $this->jsonResponse(['name' => 'Jita'])],
+            '/universe/systems/30002187/' => [$this->rateLimitedResponse(retryAfterSeconds: 0), $this->jsonResponse(['name' => 'Amarr'])],
+        ], $this->createRecordingLogger($logRecords));
+
+        $esiClient->getBatch([
+            'jita' => '/universe/systems/30000142/',
+            'amarr' => '/universe/systems/30002187/',
+        ]);
+
+        $this->assertSame([[
+            'level' => 'warning',
+            'message' => 'ESI 420/429 received on {count} batched requests, sleeping {seconds}s before retry',
+            'context' => ['count' => 2, 'seconds' => 0],
+        ]], $logRecords);
+    }
+
+    public function testGetBatchReturnsNullForA300ResponseKey(): void
+    {
+        $esiClient = $this->createEsiClientServingByPath([
+            '/universe/systems/30000142/' => [$this->errorResponse(300)],
+        ]);
+
+        $this->assertSame(['jita' => null], $esiClient->getBatch(['jita' => '/universe/systems/30000142/']));
+    }
+
+    // ---------------------------------------------------------------
+    // Issue #43 -- getWithCache(): one cached copy per endpoint and character
+    // ---------------------------------------------------------------
+
+    public function testGetWithCacheForgetsTheStoredEtagWhenRevalidationReturns200WithoutEtag(): void
+    {
+        $clock = new MockClock();
+        $issuedAt = $clock->now()->getTimestamp();
+        $replacedAt = $issuedAt + self::EXPIRES_AFTER_SECONDS + 1;
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]], 200, [
+                'ETag' => '"etag-v1"',
+                'Expires' => $this->httpDate($issuedAt + self::EXPIRES_AFTER_SECONDS),
+            ]),
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 750]], 200, [
+                'Expires' => $this->httpDate($replacedAt + self::EXPIRES_AFTER_SECONDS),
+            ]),
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 500]]),
+        ], new ArrayAdapter(clock: $clock));
+        $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+        $clock->sleep(self::EXPIRES_AFTER_SECONDS + 1);
+        $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+        $clock->sleep(self::EXPIRES_AFTER_SECONDS + 1);
+
+        $result = $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+
+        $this->assertSame([['type_id' => 34, 'quantity' => 500]], $result);
+        $this->assertCount(3, $this->recordedRequests);
+        $this->assertArrayNotHasKey('if-none-match', $this->recordedRequests[2]['headers']);
+    }
+
+    public function testGetWithCacheKeepsOneCopyPerCharacter(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]]),
+            $this->jsonResponse([['type_id' => 35, 'quantity' => 2]]),
+        ], new ArrayAdapter());
+        $firstPilotToken = $this->createEveTokenForCharacter('0190a6f0-0000-7000-8000-000000000001');
+        $secondPilotToken = $this->createEveTokenForCharacter('0190a6f0-0000-7000-8000-000000000002');
+
+        $firstPilotAssets = $esiClient->getWithCache('/characters/2112000001/assets/', $firstPilotToken);
+        $secondPilotAssets = $esiClient->getWithCache('/characters/2112000001/assets/', $secondPilotToken);
+        $firstPilotCachedAssets = $esiClient->getWithCache('/characters/2112000001/assets/', $firstPilotToken);
+
+        $this->assertSame([['type_id' => 34, 'quantity' => 1000]], $firstPilotAssets);
+        $this->assertSame([['type_id' => 35, 'quantity' => 2]], $secondPilotAssets);
+        $this->assertSame([['type_id' => 34, 'quantity' => 1000]], $firstPilotCachedAssets);
+        $this->assertCount(2, $this->recordedRequests);
+    }
+
+    public function testGetWithCacheKeepsOneCopyPerEndpointForTheSameCharacter(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]]),
+            $this->jsonResponse([['blueprint_id' => 1000000001, 'runs' => 10]]),
+        ], new ArrayAdapter());
+        $pilotToken = $this->createEveTokenForCharacter('0190a6f0-0000-7000-8000-000000000001');
+
+        $assets = $esiClient->getWithCache('/characters/2112000001/assets/', $pilotToken);
+        $blueprints = $esiClient->getWithCache('/characters/2112000001/blueprints/', $pilotToken);
+
+        $this->assertSame([['type_id' => 34, 'quantity' => 1000]], $assets);
+        $this->assertSame([['blueprint_id' => 1000000001, 'runs' => 10]], $blueprints);
+        $this->assertCount(2, $this->recordedRequests);
+    }
+
+    public function testGetWithCacheKeepsOneCopyPerPublicEndpoint(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse(['name' => 'Jita']),
+            $this->jsonResponse(['name' => 'Amarr']),
+        ], new ArrayAdapter());
+
+        $jita = $esiClient->getWithCache('/universe/systems/30000142/');
+        $amarr = $esiClient->getWithCache('/universe/systems/30002187/');
+
+        $this->assertSame(['name' => 'Jita'], $jita);
+        $this->assertSame(['name' => 'Amarr'], $amarr);
+        $this->assertCount(2, $this->recordedRequests);
+    }
+
+    // ---------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------
 
@@ -794,8 +1489,11 @@ final class EsiClientTest extends TestCase
     /**
      * @param list<MockResponse> $responses served in order; each request is recorded
      */
-    private function createEsiClient(array $responses, ?CacheItemPoolInterface $esiCache = null): EsiClient
-    {
+    private function createEsiClient(
+        array $responses,
+        ?CacheItemPoolInterface $esiCache = null,
+        ?LoggerInterface $logger = null,
+    ): EsiClient {
         $this->recordedRequests = [];
 
         $httpClient = new MockHttpClient(function (string $method, string $url, array $options) use (&$responses): MockResponse {
@@ -804,6 +1502,7 @@ final class EsiClientTest extends TestCase
                 'url' => $url,
                 'body' => is_string($options['body'] ?? null) ? $options['body'] : '',
                 'headers' => $options['normalized_headers'] ?? [],
+                'timeout' => $options['timeout'] ?? null,
             ];
 
             $response = array_shift($responses);
@@ -822,7 +1521,7 @@ final class EsiClientTest extends TestCase
             $esiCache ?? $this->createStub(CacheItemPoolInterface::class),
             $tokenManager,
             self::BASE_URL,
-            new NullLogger(),
+            $logger ?? new NullLogger(),
         );
     }
 
@@ -901,7 +1600,10 @@ final class EsiClientTest extends TestCase
         return gmdate('D, d M Y H:i:s', $timestamp) . ' GMT';
     }
 
-    private function rateLimitedResponse(int $retryAfterSeconds): MockResponse
+    /**
+     * @param array<string, string> $headers
+     */
+    private function rateLimitedResponse(int $retryAfterSeconds, array $headers = []): MockResponse
     {
         return new MockResponse('{"error":"rate limited"}', [
             'http_code' => 429,
@@ -914,7 +1616,67 @@ final class EsiClientTest extends TestCase
                 'X-Ratelimit-Used' => '150',
                 'X-Esi-Error-Limit-Remain' => '100',
                 'X-Esi-Error-Limit-Reset' => '0',
+                ...$headers,
             ],
         ]);
+    }
+
+    /**
+     * @param array<string, string> $headers
+     */
+    private function errorResponse(int $statusCode, array $headers = []): MockResponse
+    {
+        return new MockResponse('{"error":"ESI error"}', [
+            'http_code' => $statusCode,
+            'response_headers' => [
+                'Content-Type' => 'application/json',
+                'X-Esi-Error-Limit-Remain' => '100',
+                'X-Esi-Error-Limit-Reset' => '0',
+                ...$headers,
+            ],
+        ]);
+    }
+
+    private function networkErrorResponse(): MockResponse
+    {
+        return new MockResponse('', ['error' => 'Connection reset by peer']);
+    }
+
+    /**
+     * @param array<string, string> $headers
+     */
+    private function rawJsonResponse(string $json, array $headers = []): MockResponse
+    {
+        return new MockResponse($json, [
+            'http_code' => 200,
+            'response_headers' => [
+                'Content-Type' => 'application/json',
+                'X-Esi-Error-Limit-Remain' => '100',
+                'X-Esi-Error-Limit-Reset' => '0',
+                ...$headers,
+            ],
+        ]);
+    }
+
+    /**
+     * @param array<mixed> $body
+     */
+    private function jsonResponseWithoutErrorLimitHeaders(array $body): MockResponse
+    {
+        return new MockResponse(json_encode($body, JSON_THROW_ON_ERROR), [
+            'http_code' => 200,
+            'response_headers' => ['Content-Type' => 'application/json'],
+        ]);
+    }
+
+    /**
+     * The character id is assigned by Doctrine on persist; set it as the database would.
+     */
+    private function createEveTokenForCharacter(string $characterId): EveToken
+    {
+        $character = new Character();
+        (new \ReflectionProperty(Character::class, 'id'))->setValue($character, Uuid::fromString($characterId));
+
+        return $this->createEveToken()->setCharacter($character);
     }
 }
