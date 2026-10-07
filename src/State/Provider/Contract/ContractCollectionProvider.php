@@ -131,6 +131,7 @@ class ContractCollectionProvider implements ProviderInterface
             $resource = new ContractListResource();
             $resource->contracts = $result;
             $resource->total = count($result);
+            $resource->publicComparisonAvailable = $publicContracts !== null;
 
             return $resource;
         } catch (\Throwable $e) {
@@ -142,8 +143,10 @@ class ContractCollectionProvider implements ProviderInterface
         }
     }
 
-    /** @return array<int, array{price: float, volume: float}> */
-    private function getPublicContractsForComparison(): array
+    /**
+     * @return array<int, array{price: float, volume: float}>|null null when the public contracts could not be fetched (comparison unavailable)
+     */
+    private function getPublicContractsForComparison(): ?array
     {
         try {
             $publicContracts = $this->esiClient->getPaginated(
@@ -171,7 +174,7 @@ class ContractCollectionProvider implements ProviderInterface
                 'error' => $e->getMessage(),
             ]);
 
-            return [];
+            return null;
         }
     }
 
@@ -179,9 +182,9 @@ class ContractCollectionProvider implements ProviderInterface
      * @param array<string, mixed> $contract
      * @param list<array<string, mixed>> $items
      * @param array<int, float|null> $jitaPrices
-     * @param array<int, array{price: float, volume: float}> $publicContracts
+     * @param array<int, array{price: float, volume: float}>|null $publicContracts null when the comparison is unavailable
      */
-    private function processContract(array $contract, int $characterId, array $items, array $jitaPrices, array $publicContracts): ?ContractResource
+    private function processContract(array $contract, int $characterId, array $items, array $jitaPrices, ?array $publicContracts): ?ContractResource
     {
         try {
             $includedItems = array_filter($items, fn($item) => ($item['is_included'] ?? true));
@@ -230,16 +233,19 @@ class ContractCollectionProvider implements ProviderInterface
             $contractPrice = $contract['price'] ?? 0;
             $contractVolume = $contract['volume'] ?? 0;
 
-            $similarContracts = $this->findSimilarPublicContracts($contractVolume, $publicContracts);
-
             $lowestSimilar = null;
             $avgSimilar = null;
-            $similarCount = count($similarContracts);
+            $similarCount = null;
 
-            if ($similarCount > 0) {
-                $prices = array_column($similarContracts, 'price');
-                $lowestSimilar = min($prices);
-                $avgSimilar = array_sum($prices) / $similarCount;
+            if ($publicContracts !== null) {
+                $similarContracts = $this->findSimilarPublicContracts($contractVolume, $publicContracts);
+                $similarCount = count($similarContracts);
+
+                if ($similarCount > 0) {
+                    $prices = array_column($similarContracts, 'price');
+                    $lowestSimilar = min($prices);
+                    $avgSimilar = array_sum($prices) / $similarCount;
+                }
             }
 
             $isSeller = $contract['issuer_id'] === $characterId;

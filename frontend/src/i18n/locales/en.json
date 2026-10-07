@@ -1422,6 +1422,7 @@
     }
   },
   "contracts": {
+    "publicComparisonUnavailable": "Public contracts comparison unavailable (ESI) — verdict based on Jita",
     "title": "Contracts",
     "filters": {
       "outstanding": "Outstanding",

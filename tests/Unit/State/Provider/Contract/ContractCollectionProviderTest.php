@@ -156,7 +156,6 @@ class ContractCollectionProviderTest extends TestCase
         $contract = $this->provideSingleContract();
 
         $this->assertSame('Tritanium', $contract->items[0]->typeName);
-        $this->assertSame(0, $contract->similarCount);
         $this->assertSame(1_000_000.0, $contract->jitaValue);
     }
 
@@ -230,6 +229,83 @@ class ContractCollectionProviderTest extends TestCase
         $this->assertSame(100_000.0, $contract->jitaDiff);
         $this->assertSame(10.0, $contract->jitaDiffPercent);
         $this->assertTrue($contract->isCompetitive);
+    }
+
+    // ===========================================
+    // Public contracts comparison (availability, issue #78)
+    // ===========================================
+
+    public function testListFlagsPublicComparisonUnavailableWhenPublicContractsEsiCallFails(): void
+    {
+        $this->stubEsi(
+            publicContractsFirstPage: [],
+            publicContractsAllPages: [],
+            publicContractsError: new \RuntimeException('ESI 503 on public contracts'),
+        );
+
+        $result = $this->provider->provide(new GetCollection());
+
+        $this->assertFalse($result->publicComparisonAvailable);
+        $this->assertSame(1, $result->total);
+    }
+
+    public function testContractSimilarComparisonIsUnknownNotZeroWhenPublicContractsEsiCallFails(): void
+    {
+        $this->stubEsi(
+            publicContractsFirstPage: [],
+            publicContractsAllPages: [],
+            publicContractsError: new \RuntimeException('ESI 503 on public contracts'),
+        );
+
+        $contract = $this->provideSingleContract();
+
+        // Unknown, not "no similar public contract".
+        $this->assertNull($contract->similarCount);
+        $this->assertNull($contract->lowestSimilar);
+        $this->assertNull($contract->avgSimilar);
+        $this->assertNull($contract->similarDiff);
+        $this->assertNull($contract->similarDiffPercent);
+    }
+
+    public function testJitaComparisonStillComputedWhenPublicComparisonUnavailable(): void
+    {
+        $this->stubEsi(
+            publicContractsFirstPage: [],
+            publicContractsAllPages: [],
+            publicContractsError: new \RuntimeException('ESI 503 on public contracts'),
+        );
+
+        $contract = $this->provideSingleContract();
+
+        $this->assertSame(1_000_000.0, $contract->jitaValue);
+        $this->assertSame(100_000.0, $contract->jitaDiff);
+        $this->assertSame(10.0, $contract->jitaDiffPercent);
+        // Jita-based verdict (+10 % <= 10 %), the list flag tells which reference was used.
+        $this->assertTrue($contract->isCompetitive);
+    }
+
+    public function testListFlagsPublicComparisonAvailableWhenNoSimilarPublicContract(): void
+    {
+        $this->stubEsi(publicContractsFirstPage: [], publicContractsAllPages: []);
+
+        $result = $this->provider->provide(new GetCollection());
+
+        $this->assertTrue($result->publicComparisonAvailable);
+        $this->assertCount(1, $result->contracts);
+        $this->assertSame(0, $result->contracts[0]->similarCount);
+    }
+
+    public function testListFlagsPublicComparisonAvailableWhenSimilarPublicContractFound(): void
+    {
+        $publicContracts = [$this->publicContract(5001, 1_050_000.0, 100.0)];
+        $this->stubEsi(publicContractsFirstPage: $publicContracts, publicContractsAllPages: $publicContracts);
+
+        $result = $this->provider->provide(new GetCollection());
+
+        $this->assertTrue($result->publicComparisonAvailable);
+        $this->assertCount(1, $result->contracts);
+        $this->assertSame(1, $result->contracts[0]->similarCount);
+        $this->assertSame(1_050_000.0, $result->contracts[0]->lowestSimilar);
     }
 
     // ===========================================

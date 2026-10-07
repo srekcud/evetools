@@ -50,7 +50,7 @@ interface Contract {
   delveDiff: number | null
   delveDiffPercent: number | null
   // Similar contracts comparison
-  similarCount: number
+  similarCount: number | null
   lowestSimilar: number | null
   avgSimilar: number | null
   similarDiff: number | null
@@ -61,6 +61,7 @@ interface Contract {
 
 // State
 const contracts = ref<Contract[]>([])
+const publicComparisonAvailable = ref(true)
 const isLoading = ref(false)
 const error = ref('')
 const selectedStatus = ref('outstanding')
@@ -115,8 +116,9 @@ async function fetchContracts() {
       throw new Error(data.error || 'Failed to fetch contracts')
     }
 
-    const data = await safeJsonParse<{ contracts: Contract[] }>(response)
+    const data = await safeJsonParse<{ contracts: Contract[]; publicComparisonAvailable: boolean }>(response)
     contracts.value = data.contracts
+    publicComparisonAvailable.value = data.publicComparisonAvailable
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : t('common.errors.loadFailed')
     console.error(e)
@@ -279,6 +281,14 @@ function onAvailabilityChange() {
       </div>
     </div>
 
+    <!-- Public contracts comparison unavailable -->
+    <div
+      v-if="!publicComparisonAvailable"
+      class="mb-4 px-4 py-3 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 text-sm"
+    >
+      {{ t('contracts.publicComparisonUnavailable') }}
+    </div>
+
     <!-- Contracts list -->
     <div v-if="contracts.length > 0" class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
       <div class="px-5 py-4 border-b border-slate-800">
@@ -364,7 +374,7 @@ function onAvailabilityChange() {
                   </div>
 
                   <!-- Similar contracts -->
-                  <div v-if="contract.similarCount > 0" class="min-w-24">
+                  <div v-if="contract.similarCount != null && contract.similarCount > 0" class="min-w-24">
                     <p class="text-xs text-slate-500 uppercase">{{ t('contracts.similar') }} ({{ contract.similarCount }})</p>
                     <p class="text-sm font-medium text-slate-400">{{ formatIsk(contract.lowestSimilar!) }}</p>
                     <p v-if="contract.similarDiffPercent !== null" :class="['text-xs', getDiffColor(contract.similarDiff, contract.isSeller)]">

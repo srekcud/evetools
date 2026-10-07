@@ -10,4 +10,6 @@ class ContractListResource
     public array $contracts = [];
 
     public int $total = 0;
+
+    public bool $publicComparisonAvailable = true;
 }

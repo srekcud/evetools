@@ -82,7 +82,7 @@ class ContractResource
 
     public ?float $delveDiffPercent = null;
 
-    public int $similarCount = 0;
+    public ?int $similarCount = null;
 
     public ?float $lowestSimilar = null;
 

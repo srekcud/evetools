@@ -1422,6 +1422,7 @@
     }
   },
   "contracts": {
+    "publicComparisonUnavailable": "Comparaison aux contrats publics indisponible (ESI) — verdict basé sur Jita",
     "title": "Contrats",
     "filters": {
       "outstanding": "En cours",
