@@ -18,6 +18,7 @@ use App\Message\TriggerPlanetarySync;
 use App\Message\TriggerPveSync;
 use App\Message\SyncWalletTransactions;
 use App\Message\TriggerStructureMarketSync;
+use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Scheduler\Attribute\AsSchedule;
 use Symfony\Component\Scheduler\RecurringMessage;
 use Symfony\Component\Scheduler\Schedule;
@@ -27,8 +28,13 @@ use Symfony\Contracts\Cache\CacheInterface;
 #[AsSchedule('default')]
 class SyncScheduler implements ScheduleProviderInterface
 {
+    // Shared across every consumer of `scheduler_default` (worker, `make scheduler`, replicas)
+    // so that a due recurring message is emitted only once.
+    private const LOCK_NAME = 'scheduler_default';
+
     public function __construct(
         private readonly CacheInterface $cache,
+        private readonly LockFactory $lockFactory,
     ) {
     }
 
@@ -36,6 +42,7 @@ class SyncScheduler implements ScheduleProviderInterface
     {
         return (new Schedule())
             ->stateful($this->cache)
+            ->lock($this->lockFactory->createLock(self::LOCK_NAME))
             ->processOnlyLastMissedRun(true)
             // Ansiblex sync every 12 hours
             ->add(

@@ -29,6 +29,7 @@
         "symfony/flex": "^2.4",
         "symfony/framework-bundle": "^7.4",
         "symfony/http-client": "^7.4",
+        "symfony/lock": "^7.4",
         "symfony/mercure-bundle": "^0.4.2",
         "symfony/messenger": "^7.4",
         "symfony/property-access": "^7.4",

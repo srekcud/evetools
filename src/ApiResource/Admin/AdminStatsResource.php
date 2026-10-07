@@ -176,7 +176,9 @@ class SchedulerHealthEntryDto
     public ?string $startedAt = null;
     public ?string $completedAt = null;
     public ?string $message = null;
-    public int $expectedInterval;
+    /** Null for on-demand syncs, which are not scheduled. */
+    public ?int $expectedInterval;
+    public bool $onDemand;
 
     public function __construct(
         string $type = '',
@@ -186,7 +188,8 @@ class SchedulerHealthEntryDto
         ?string $startedAt = null,
         ?string $completedAt = null,
         ?string $message = null,
-        int $expectedInterval = 0,
+        ?int $expectedInterval = null,
+        bool $onDemand = false,
     ) {
         $this->type = $type;
         $this->label = $label;
@@ -196,5 +199,6 @@ class SchedulerHealthEntryDto
         $this->completedAt = $completedAt;
         $this->message = $message;
         $this->expectedInterval = $expectedInterval;
+        $this->onDemand = $onDemand;
     }
 }

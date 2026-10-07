@@ -66,11 +66,13 @@ export interface SchedulerHealthEntry {
   type: string
   label: string
   status: 'running' | 'ok' | 'error' | 'unknown'
-  health: 'healthy' | 'late' | 'stale' | 'running' | 'unknown'
+  health: 'healthy' | 'late' | 'stale' | 'running' | 'unknown' | 'on-demand'
   startedAt: string | null
   completedAt: string | null
   message: string | null
-  expectedInterval: number
+  // null for on-demand syncs: not scheduled, so no health is computed
+  expectedInterval: number | null
+  onDemand: boolean
 }
 
 export interface AdminNotificationStats {

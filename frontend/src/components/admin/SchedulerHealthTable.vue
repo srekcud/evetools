@@ -41,7 +41,7 @@ function formatInterval(seconds: number): string {
           <tr v-for="entry in entries" :key="entry.type" class="hover:bg-slate-800/30">
             <td class="py-2.5 pr-3">
               <span class="text-slate-200 font-medium">{{ entry.label }}</span>
-              <span class="text-slate-600 text-xs ml-1">({{ formatInterval(entry.expectedInterval) }})</span>
+              <span class="text-slate-600 text-xs ml-1">({{ entry.expectedInterval === null ? t('admin.health.onDemand') : formatInterval(entry.expectedInterval) }})</span>
             </td>
             <td class="py-2.5 pr-3">
               <span class="text-slate-300 font-mono text-xs">{{ entry.completedAt ? formatTimeSince(entry.completedAt) : '--' }}</span>
@@ -63,7 +63,9 @@ function formatInterval(seconds: number): string {
               </span>
             </td>
             <td class="py-2.5 text-center">
+              <span v-if="entry.onDemand" class="text-slate-600 text-xs" :title="t('admin.health.onDemandHint')">--</span>
               <span
+                v-else
                 :class="[
                   'inline-block w-2.5 h-2.5 rounded-full',
                   entry.health === 'healthy' ? 'bg-emerald-400' :
@@ -103,6 +105,7 @@ function formatInterval(seconds: number): string {
       <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span> {{ t('admin.health.lateShort') }}</div>
       <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-400"></span> {{ t('admin.health.staleShort') }}</div>
       <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-slate-600"></span> {{ t('admin.health.neverRun') }}</div>
+      <div class="flex items-center gap-1.5"><span class="text-slate-600">--</span> {{ t('admin.health.onDemandHint') }}</div>
     </div>
   </div>
 </template>

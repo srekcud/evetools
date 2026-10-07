@@ -1638,7 +1638,9 @@
       "stale": "Inactif (>3x intervalle)",
       "staleShort": "Inactif",
       "unknown": "Inconnu",
-      "neverRun": "Jamais lance"
+      "neverRun": "Jamais lance",
+      "onDemand": "A la demande",
+      "onDemandHint": "A la demande (non planifie)"
     },
     "scheduler": {
       "title": "Scheduler & Rate Limiting",
