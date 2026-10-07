@@ -13,6 +13,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -27,6 +28,7 @@ final class EsiClientTest extends TestCase
 {
     private const BASE_URL = 'https://esi.test/latest';
     private const ACCESS_TOKEN = 'access-token-abc';
+    private const EXPIRES_AFTER_SECONDS = 300;
 
     /** @var list<array{method: string, url: string, body: string, headers: array<string, list<string>>}> */
     private array $recordedRequests = [];
@@ -245,13 +247,18 @@ final class EsiClientTest extends TestCase
 
     public function testGetWithCacheStoresFreshResponseAndRevalidatesWithItsEtag(): void
     {
-        $esiCache = new ArrayAdapter();
+        $clock = new MockClock();
+        $issuedAt = $clock->now()->getTimestamp();
         $esiClient = $this->createEsiClient([
-            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]], 200, ['ETag' => '"etag-v1"']),
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]], 200, [
+                'ETag' => '"etag-v1"',
+                'Expires' => $this->httpDate($issuedAt + self::EXPIRES_AFTER_SECONDS),
+            ]),
             $this->notModifiedResponse(),
-        ], $esiCache);
+        ], new ArrayAdapter(clock: $clock));
 
         $firstResult = $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+        $clock->sleep(self::EXPIRES_AFTER_SECONDS + 1);
         $secondResult = $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
 
         $this->assertSame([['type_id' => 34, 'quantity' => 1000]], $firstResult);
@@ -263,11 +270,17 @@ final class EsiClientTest extends TestCase
 
     public function testGetWithCacheReturnsCachedDataOnFirstTry304WithSingleRequest(): void
     {
+        $clock = new MockClock();
+        $issuedAt = $clock->now()->getTimestamp();
         $esiClient = $this->createEsiClient([
-            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]], 200, ['ETag' => '"etag-v1"']),
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]], 200, [
+                'ETag' => '"etag-v1"',
+                'Expires' => $this->httpDate($issuedAt + self::EXPIRES_AFTER_SECONDS),
+            ]),
             $this->notModifiedResponse(),
-        ], new ArrayAdapter());
+        ], new ArrayAdapter(clock: $clock));
         $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+        $clock->sleep(self::EXPIRES_AFTER_SECONDS + 1);
         $conditionalRequestsStart = count($this->recordedRequests);
 
         $result = $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
@@ -285,12 +298,18 @@ final class EsiClientTest extends TestCase
 
     public function testGetWithCacheRetriesConditionalRequestOnceAfter420KeepingEtagAndToken(): void
     {
+        $clock = new MockClock();
+        $issuedAt = $clock->now()->getTimestamp();
         $esiClient = $this->createEsiClient([
-            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]], 200, ['ETag' => '"etag-v1"']),
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]], 200, [
+                'ETag' => '"etag-v1"',
+                'Expires' => $this->httpDate($issuedAt + self::EXPIRES_AFTER_SECONDS),
+            ]),
             $this->errorLimitedResponse(),
             $this->notModifiedResponse(),
-        ], new ArrayAdapter());
+        ], new ArrayAdapter(clock: $clock));
         $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+        $clock->sleep(self::EXPIRES_AFTER_SECONDS + 1);
         $conditionalRequestsStart = count($this->recordedRequests);
 
         $result = $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
@@ -305,6 +324,124 @@ final class EsiClientTest extends TestCase
                 $conditionalRequest['headers']['authorization'] ?? null,
             );
         }
+    }
+
+    // ---------------------------------------------------------------
+    // RED: issue #41 -- getWithCache() honours ESI Expires and keeps the ETag
+    //
+    // Clock note: the MockClock starts at the real current time because
+    // CacheItem::expiresAfter() uses microtime(true), not the pool clock;
+    // only ArrayAdapter freshness checks follow the MockClock. Expires
+    // headers are whole seconds, so "+299 s" stays before Expires and
+    // "+301 s" is past it.
+    // ---------------------------------------------------------------
+
+    public function testGetWithCacheServesCachedDataWithoutHttpRequestBeforeExpires(): void
+    {
+        $clock = new MockClock();
+        $issuedAt = $clock->now()->getTimestamp();
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]], 200, [
+                'ETag' => '"etag-v1"',
+                'Expires' => $this->httpDate($issuedAt + self::EXPIRES_AFTER_SECONDS),
+            ]),
+        ], new ArrayAdapter(clock: $clock));
+        $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+
+        $clock->sleep(self::EXPIRES_AFTER_SECONDS - 1);
+        $result = $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+
+        $this->assertSame([['type_id' => 34, 'quantity' => 1000]], $result);
+        $this->assertCount(1, $this->recordedRequests);
+    }
+
+    public function testGetWithCacheRevalidatesWithStoredEtagAfterExpiresAndReturnsCachedDataOn304(): void
+    {
+        $clock = new MockClock();
+        $issuedAt = $clock->now()->getTimestamp();
+        $revalidatedAt = $issuedAt + self::EXPIRES_AFTER_SECONDS + 1;
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]], 200, [
+                'ETag' => '"etag-v1"',
+                'Expires' => $this->httpDate($issuedAt + self::EXPIRES_AFTER_SECONDS),
+            ]),
+            $this->notModifiedResponse([
+                'ETag' => '"etag-v1"',
+                'Expires' => $this->httpDate($revalidatedAt + self::EXPIRES_AFTER_SECONDS),
+            ]),
+        ], new ArrayAdapter(clock: $clock));
+        $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+
+        $clock->sleep(self::EXPIRES_AFTER_SECONDS + 1);
+        $result = $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+
+        $this->assertSame([['type_id' => 34, 'quantity' => 1000]], $result);
+        $this->assertCount(2, $this->recordedRequests);
+        $this->assertSame(['If-None-Match: "etag-v1"'], $this->recordedRequests[1]['headers']['if-none-match'] ?? null);
+        $this->assertSame(
+            ['Authorization: Bearer ' . self::ACCESS_TOKEN],
+            $this->recordedRequests[1]['headers']['authorization'] ?? null,
+        );
+    }
+
+    public function testGetWithCacheRefreshesFreshnessFromExpiresOf304(): void
+    {
+        $clock = new MockClock();
+        $issuedAt = $clock->now()->getTimestamp();
+        $revalidatedAt = $issuedAt + self::EXPIRES_AFTER_SECONDS + 1;
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]], 200, [
+                'ETag' => '"etag-v1"',
+                'Expires' => $this->httpDate($issuedAt + self::EXPIRES_AFTER_SECONDS),
+            ]),
+            $this->notModifiedResponse([
+                'ETag' => '"etag-v1"',
+                'Expires' => $this->httpDate($revalidatedAt + self::EXPIRES_AFTER_SECONDS),
+            ]),
+        ], new ArrayAdapter(clock: $clock));
+        $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+        $clock->sleep(self::EXPIRES_AFTER_SECONDS + 1);
+        $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+
+        $clock->sleep(self::EXPIRES_AFTER_SECONDS - 1);
+        $result = $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+
+        $this->assertSame([['type_id' => 34, 'quantity' => 1000]], $result);
+        $this->assertCount(2, $this->recordedRequests);
+    }
+
+    public function testGetWithCacheReplacesDataAndEtagWhenRevalidationReturns200(): void
+    {
+        $clock = new MockClock();
+        $issuedAt = $clock->now()->getTimestamp();
+        $replacedAt = $issuedAt + self::EXPIRES_AFTER_SECONDS + 1;
+        $revalidatedAt = $replacedAt + self::EXPIRES_AFTER_SECONDS + 1;
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]], 200, [
+                'ETag' => '"etag-v1"',
+                'Expires' => $this->httpDate($issuedAt + self::EXPIRES_AFTER_SECONDS),
+            ]),
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 750]], 200, [
+                'ETag' => '"etag-v2"',
+                'Expires' => $this->httpDate($replacedAt + self::EXPIRES_AFTER_SECONDS),
+            ]),
+            $this->notModifiedResponse([
+                'ETag' => '"etag-v2"',
+                'Expires' => $this->httpDate($revalidatedAt + self::EXPIRES_AFTER_SECONDS),
+            ]),
+        ], new ArrayAdapter(clock: $clock));
+        $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+
+        $clock->sleep(self::EXPIRES_AFTER_SECONDS + 1);
+        $replacedResult = $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+        $clock->sleep(self::EXPIRES_AFTER_SECONDS + 1);
+        $revalidatedResult = $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
+
+        $this->assertSame([['type_id' => 34, 'quantity' => 750]], $replacedResult);
+        $this->assertSame([['type_id' => 34, 'quantity' => 750]], $revalidatedResult);
+        $this->assertCount(3, $this->recordedRequests);
+        $this->assertSame(['If-None-Match: "etag-v1"'], $this->recordedRequests[1]['headers']['if-none-match'] ?? null);
+        $this->assertSame(['If-None-Match: "etag-v2"'], $this->recordedRequests[2]['headers']['if-none-match'] ?? null);
     }
 
     // ---------------------------------------------------------------
@@ -386,15 +523,24 @@ final class EsiClientTest extends TestCase
         ]);
     }
 
-    private function notModifiedResponse(): MockResponse
+    /**
+     * @param array<string, string> $headers
+     */
+    private function notModifiedResponse(array $headers = []): MockResponse
     {
         return new MockResponse('', [
             'http_code' => 304,
             'response_headers' => [
                 'X-Esi-Error-Limit-Remain' => '100',
                 'X-Esi-Error-Limit-Reset' => '0',
+                ...$headers,
             ],
         ]);
+    }
+
+    private function httpDate(int $timestamp): string
+    {
+        return gmdate('D, d M Y H:i:s', $timestamp) . ' GMT';
     }
 
     private function rateLimitedResponse(int $retryAfterSeconds): MockResponse
