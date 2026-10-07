@@ -4,22 +4,27 @@ declare(strict_types=1);
 
 namespace App\MessageHandler;
 
-use App\Message\SyncStructureMarket;
 use App\Message\TriggerStructureMarketSync;
 use App\Repository\CharacterRepository;
 use App\Repository\UserRepository;
 use App\Service\Admin\SyncTracker;
+use App\Service\StructureMarketService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use Symfony\Component\Messenger\MessageBusInterface;
 
+/**
+ * Syncs every requested structure market synchronously, each one with the token of a user who requested it,
+ * so that the sync tracker reflects the actual results.
+ */
 #[AsMessageHandler]
 final readonly class TriggerStructureMarketSyncHandler
 {
+    private const string SYNC_TYPE = 'market-structure';
+
     public function __construct(
         private CharacterRepository $characterRepository,
         private UserRepository $userRepository,
-        private MessageBusInterface $messageBus,
+        private StructureMarketService $structureMarketService,
         private LoggerInterface $logger,
         private SyncTracker $syncTracker,
         private int $defaultMarketStructureId,
@@ -29,44 +34,55 @@ final readonly class TriggerStructureMarketSyncHandler
 
     public function __invoke(TriggerStructureMarketSync $message): void
     {
-        $this->syncTracker->start('market-structure');
-        $this->logger->info('Triggering structure market sync');
+        $this->syncTracker->start(self::SYNC_TYPE);
+        $this->logger->info('Starting structure market sync');
 
         try {
-            $characters = $this->characterRepository->findWithValidTokens();
+            $synced = [];
+            $skipped = [];
+            $failed = [];
 
-            if (empty($characters)) {
-                $this->logger->warning('No characters with valid tokens for structure market sync');
-                $this->syncTracker->complete('market-structure', 'No valid tokens');
-                return;
-            }
-
-            $character = $characters[0];
-            $charUuid = $character->getId();
-            if ($charUuid === null) {
-                $this->logger->warning('Character has no ID for structure market sync');
-                $this->syncTracker->complete('market-structure', 'Character has no ID');
-                return;
-            }
-            $characterId = $charUuid->toRfc4122();
-
-            // Build the list of structures to sync: default + user preferences
-            $structures = $this->getStructuresToSync();
-
-            foreach ($structures as $structureId => $structureName) {
-                $this->messageBus->dispatch(
-                    new SyncStructureMarket($structureId, $structureName, $characterId)
+            foreach ($this->getStructuresToSync() as $structureId => $structureName) {
+                $requester = $this->characterRepository->findStructureMarketRequester(
+                    $structureId,
+                    $structureId === $this->defaultMarketStructureId,
                 );
-                $this->logger->info('Queued structure market sync', [
-                    'structureId' => $structureId,
-                    'structureName' => $structureName,
-                ]);
-            }
+                $token = $requester?->getEveToken();
 
-            $this->syncTracker->complete('market-structure', count($structures) . ' structures queued');
+                if ($requester === null || $token === null) {
+                    // A structure nobody can read is not a sync failure: it must not keep the tracker red.
+                    $this->logger->warning('No requester with the structure market scope, structure market sync skipped', [
+                        'structureId' => $structureId,
+                        'structureName' => $structureName,
+                    ]);
+                    $skipped[] = $structureId;
+                    continue;
+                }
+
+                $result = $this->structureMarketService->syncStructureMarket(
+                    $structureId,
+                    $structureName,
+                    $token,
+                    $requester->getUser()?->getId()?->toRfc4122(),
+                );
+
+                if ($result['success']) {
+                    $synced[] = $structureId;
+                } else {
+                    $failed[] = $structureId;
+                }
+            }
         } catch (\Throwable $e) {
-            $this->syncTracker->fail('market-structure', $e->getMessage());
+            $this->syncTracker->fail(self::SYNC_TYPE, $e->getMessage());
             throw $e;
+        }
+
+        $summary = $this->summarize($synced, $skipped, $failed);
+
+        if ($failed !== []) {
+            $this->syncTracker->fail(self::SYNC_TYPE, $summary);
+        } else {
+            $this->syncTracker->complete(self::SYNC_TYPE, $summary);
         }
     }
 
@@ -90,5 +106,25 @@ final readonly class TriggerStructureMarketSyncHandler
         }
 
         return $structures;
+    }
+
+    /**
+     * @param list<int> $synced
+     * @param list<int> $skipped
+     * @param list<int> $failed
+     */
+    private function summarize(array $synced, array $skipped, array $failed): string
+    {
+        $parts = [count($synced) . ' synced'];
+
+        if ($skipped !== []) {
+            $parts[] = 'skipped (no requester with scope): ' . implode(', ', $skipped);
+        }
+
+        if ($failed !== []) {
+            $parts[] = 'failed: ' . implode(', ', $failed);
+        }
+
+        return implode('; ', $parts);
     }
 }
