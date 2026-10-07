@@ -13,7 +13,10 @@ use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Psr\Cache\CacheItemPoolInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
+use Symfony\Component\ErrorHandler\BufferingLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -246,6 +249,87 @@ final class MarketServiceTest extends TestCase
     }
 
     // ===========================================
+    // getJitaPrices() — lowest sell price selection, whatever the order of the ESI orders
+    // ===========================================
+
+    public function testCheapestJitaSellOrderListedBeforeAPricierOneIsTheJitaPrice(): void
+    {
+        $service = $this->createService([
+            $this->sellOrdersPath(self::TRITANIUM) => [$this->jsonResponse([
+                $this->order(self::JITA_STATION_ID, 5.12, isBuyOrder: false),
+                $this->order(self::JITA_STATION_ID, 5.40, isBuyOrder: false),
+                $this->order(self::JITA_STATION_ID, 5.25, isBuyOrder: false),
+            ])],
+        ]);
+
+        $this->assertSame([self::TRITANIUM => 5.12], $service->getJitaPrices([self::TRITANIUM]));
+    }
+
+    public function testCheapestRegionSellOrderListedBeforeAPricierOneIsTheFallbackPrice(): void
+    {
+        $service = $this->createService([
+            $this->sellOrdersPath(self::PYERITE) => [$this->jsonResponse([
+                $this->order(self::PERIMETER_STATION_ID, 11.20, isBuyOrder: false),
+                $this->order(self::PERIMETER_STATION_ID, 11.75, isBuyOrder: false),
+                $this->order(self::PERIMETER_STATION_ID, 11.50, isBuyOrder: false),
+            ])],
+        ]);
+
+        $this->assertSame([self::PYERITE => 11.2], $service->getJitaPrices([self::PYERITE]));
+    }
+
+    public function testJitaPricesAllServedFromCacheAreAllReturned(): void
+    {
+        $marketCache = new ArrayAdapter();
+        foreach ([self::TRITANIUM => 5.12, self::PYERITE => 11.75, self::MEXALLON => 60.4] as $typeId => $price) {
+            $cachedPrice = $marketCache->getItem("market_jita_{$typeId}");
+            $cachedPrice->set($price);
+            $marketCache->save($cachedPrice);
+        }
+        $service = $this->createService([], marketCache: $marketCache);
+
+        $prices = $service->getJitaPrices([self::TRITANIUM, self::PYERITE, self::MEXALLON]);
+
+        $this->assertSame([self::TRITANIUM => 5.12, self::PYERITE => 11.75, self::MEXALLON => 60.4], $prices);
+        $this->assertSame([], $this->requestedUrls);
+    }
+
+    public function testJitaPriceIsStillCachedHalfASecondBeforeFiveMinutes(): void
+    {
+        // CacheItem::expiresAfter() stamps the expiry with the real microtime(): the clock starts at the real now.
+        $clock = new MockClock();
+        $marketCache = new ArrayAdapter(clock: $clock);
+        $service = $this->createService([
+            $this->sellOrdersPath(self::TRITANIUM) => [$this->jsonResponse([$this->order(self::JITA_STATION_ID, 5.12, isBuyOrder: false)])],
+        ], marketCache: $marketCache);
+
+        $service->getJitaPrices([self::TRITANIUM]);
+        $clock->sleep(self::JITA_PRICE_CACHE_SECONDS - 0.5);
+
+        $this->assertTrue($marketCache->getItem('market_jita_34')->isHit());
+        $this->assertSame([self::TRITANIUM => 5.12], $service->getJitaPrices([self::TRITANIUM]));
+        $this->assertCount(1, $this->requestedUrls);
+    }
+
+    public function testFailedJitaPriceFetchIsReportedWithItsTypeId(): void
+    {
+        // A failed fetch leaves a null price, like a type without sell order: the warning is the only trace of the ESI failure.
+        $logger = new BufferingLogger();
+        $service = $this->createService([
+            $this->sellOrdersPath(self::TRITANIUM) => [new MockResponse('{"error":"Internal server error"}', ['http_code' => 500])],
+            $this->sellOrdersPath(self::PYERITE) => [$this->jsonResponse([$this->order(self::JITA_STATION_ID, 11.75, isBuyOrder: false)])],
+        ], logger: $logger);
+
+        $service->getJitaPrices([self::TRITANIUM, self::PYERITE]);
+
+        $warnings = array_values(array_filter(
+            $logger->cleanLogs(),
+            static fn (array $log): bool => $log[0] === LogLevel::WARNING,
+        ));
+        $this->assertSame([[LogLevel::WARNING, 'Failed to fetch Jita price', ['typeId' => self::TRITANIUM]]], $warnings);
+    }
+
+    // ===========================================
     // RED — issue #26: ESI must be read through EsiClient::getBatch()
     // ===========================================
 
@@ -310,6 +394,7 @@ final class MarketServiceTest extends TestCase
         string $esiBaseUrl = self::PRODUCTION_ESI_BASE_URL,
         ?CacheItemPoolInterface $marketCache = null,
         ?JitaMarketService $jitaMarketService = null,
+        ?LoggerInterface $logger = null,
     ): MarketService {
         $esiHttpClient = $this->createSimulatedEsi($esiResponsesByPath, $esiBaseUrl);
         $esiClient = new EsiClient(
@@ -330,7 +415,7 @@ final class MarketServiceTest extends TestCase
                 esiClient: $esiClient,
                 httpClient: $esiHttpClient,
                 marketCache: $marketCache ?? new ArrayAdapter(),
-                logger: new NullLogger(),
+                logger: $logger ?? new NullLogger(),
                 structureMarketService: $this->createStub(StructureMarketService::class),
                 jitaMarketService: $jitaMarketService,
                 defaultMarketStructureId: 1035466617946,
@@ -341,7 +426,7 @@ final class MarketServiceTest extends TestCase
         return new MarketService(
             esiClient: $esiClient,
             marketCache: $marketCache ?? new ArrayAdapter(),
-            logger: new NullLogger(),
+            logger: $logger ?? new NullLogger(),
             structureMarketService: $this->createStub(StructureMarketService::class),
             jitaMarketService: $jitaMarketService,
             defaultMarketStructureId: 1035466617946,
