@@ -59,7 +59,10 @@ class WalletProviderTest extends TestCase
         ]);
         $this->expireTokenOf($user, 'Failing Pilot');
         $tokenManager = $this->createStub(TokenManager::class);
-        $tokenManager->method('refreshAccessToken')->willThrowException(new \RuntimeException('invalid_grant'));
+        // Only a token due for refresh reaches EVE SSO, which refuses it here
+        $tokenManager->method('getValidAccessToken')->willReturnCallback(
+            static fn (EveToken $token): string => $token->isExpiringSoon() ? throw new \RuntimeException('invalid_grant') : 'valid-access-token',
+        );
 
         $wallet = $this->provideWallet($user, [
             (string) self::MAIN_EVE_CHARACTER_ID => 1500000000.5,

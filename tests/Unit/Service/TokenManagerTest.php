@@ -17,6 +17,9 @@ use PHPUnit\Framework\TestCase;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
+use Symfony\Component\Lock\LockFactory;
+use Symfony\Component\Lock\SharedLockInterface;
+use Symfony\Component\Lock\Store\InMemoryStore;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
@@ -29,6 +32,9 @@ class TokenManagerTest extends TestCase
     private const int EVE_CHARACTER_ID = 2_112_000_001;
     private const string STORED_REFRESH_TOKEN = 'stored-refresh-token';
     private const string STORED_ACCESS_TOKEN = 'stored-access-token';
+    /** One refresh lock per character, shared by the app and the worker through LOCK_DSN */
+    private const string REFRESH_LOCK_KEY = 'eve_token_refresh_2112000001';
+    private const string ACCESS_TOKEN_REFRESHED_BY_ANOTHER_PROCESS = 'access-token-refreshed-by-the-worker';
     /** Body EVE SSO returns when the refresh token was revoked by the player or has expired */
     private const string INVALID_GRANT_BODY = '{"error":"invalid_grant","error_description":"Invalid refresh token. Character grant missing/expired."}';
 
@@ -45,6 +51,7 @@ class TokenManagerTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             'test_client_id',
             'test_client_secret',
+            new LockFactory(new InMemoryStore()),
         );
     }
 
@@ -116,7 +123,7 @@ class TokenManagerTest extends TestCase
         );
 
         try {
-            $tokenManager->refreshAccessToken($this->storedTokenOf(new User()));
+            $tokenManager->getValidAccessToken($this->storedTokenOf(new User()));
             self::fail('A revoked refresh token must raise EveAuthRequiredException');
         } catch (EveAuthRequiredException $e) {
             self::assertSame('2112000001', $e->characterId);
@@ -138,7 +145,7 @@ class TokenManagerTest extends TestCase
         );
 
         try {
-            $tokenManager->refreshAccessToken($this->storedTokenOf($user));
+            $tokenManager->getValidAccessToken($this->storedTokenOf($user));
         } catch (\Throwable) {
             // the exception type is covered by the previous test
         }
@@ -205,9 +212,9 @@ class TokenManagerTest extends TestCase
         $tokenManager = $this->tokenManagerWith($httpClient, $entityManager);
         $token = $this->storedTokenOf($user);
 
-        $refreshed = $tokenManager->refreshAccessToken($token);
+        $accessToken = $tokenManager->getValidAccessToken($token);
 
-        self::assertSame($token, $refreshed);
+        self::assertSame('new-access-token', $accessToken);
         self::assertSame([['POST', self::SSO_TOKEN_URL, 'grant_type=refresh_token&refresh_token=' . self::STORED_REFRESH_TOKEN]], $requests);
         self::assertSame('new-access-token', $token->getAccessToken());
         self::assertSame('rotated-refresh-token', $tokenManager->decryptRefreshToken($token->getRefreshTokenEncrypted()));
@@ -269,7 +276,7 @@ class TokenManagerTest extends TestCase
         });
         $tokenManager = $this->tokenManagerWith($httpClient, $this->createStub(EntityManagerInterface::class));
 
-        $tokenManager->refreshAccessToken($this->storedTokenOf(new User()));
+        $tokenManager->getValidAccessToken($this->storedTokenOf(new User()));
 
         self::assertSame(['Content-Type: application/x-www-form-urlencoded'], $headers['content-type']);
         self::assertSame(
@@ -286,7 +293,7 @@ class TokenManagerTest extends TestCase
         );
         $token = $this->storedTokenOf(new User());
 
-        $tokenManager->refreshAccessToken($token);
+        $tokenManager->getValidAccessToken($token);
 
         self::assertSame(self::STORED_REFRESH_TOKEN, $tokenManager->decryptRefreshToken($token->getRefreshTokenEncrypted()));
     }
@@ -300,7 +307,7 @@ class TokenManagerTest extends TestCase
         );
         $token = $this->storedTokenOf(new User())->setScopes(['esi-assets.read_assets.v1']);
 
-        $tokenManager->refreshAccessToken($token);
+        $tokenManager->getValidAccessToken($token);
 
         self::assertSame(['esi-industry.read_character_jobs.v1', 'esi-skills.read_skills.v1'], $token->getScopes());
     }
@@ -313,7 +320,7 @@ class TokenManagerTest extends TestCase
         );
         $token = $this->storedTokenOf(new User())->setScopes(['esi-assets.read_assets.v1']);
 
-        $tokenManager->refreshAccessToken($token);
+        $tokenManager->getValidAccessToken($token);
 
         self::assertSame(['esi-assets.read_assets.v1'], $token->getScopes());
     }
@@ -349,7 +356,7 @@ class TokenManagerTest extends TestCase
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage('Revoked EVE token is not attached to any character');
 
-        $tokenManager->refreshAccessToken($token);
+        $tokenManager->getValidAccessToken($token);
     }
 
     public function testDecryptWithAnotherEncryptionKeyThrowsException(): void
@@ -360,6 +367,7 @@ class TokenManagerTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             'test_client_id',
             'test_client_secret',
+            new LockFactory(new InMemoryStore()),
         ))->encryptRefreshToken(self::STORED_REFRESH_TOKEN);
 
         $this->expectException(\RuntimeException::class);
@@ -376,6 +384,7 @@ class TokenManagerTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             'test_client_id',
             'test_client_secret',
+            new LockFactory(new InMemoryStore()),
         );
 
         $this->expectException(\RuntimeException::class);
@@ -438,6 +447,187 @@ class TokenManagerTest extends TestCase
         self::assertSame('new-access-token', $tokenManager->getValidAccessToken($this->storedTokenOf(new User())));
     }
 
+    public function testGetValidAccessTokenCallsSsoWhileHoldingTheRefreshLockOfTheCharacter(): void
+    {
+        $lockStore = new InMemoryStore();
+        $lockHeldDuringSsoCall = [];
+        $httpClient = new MockHttpClient(function () use ($lockStore, &$lockHeldDuringSsoCall): MockResponse {
+            $lockHeldDuringSsoCall[] = $this->refreshLockIsHeldIn($lockStore);
+
+            return $this->ssoTokenResponse(['scope' => 'esi-assets.read_assets.v1']);
+        });
+        $tokenManager = $this->tokenManagerWith($httpClient, $this->createStub(EntityManagerInterface::class), new LockFactory($lockStore));
+
+        $tokenManager->getValidAccessToken($this->storedTokenOf(new User()));
+
+        self::assertSame([true], $lockHeldDuringSsoCall, 'the SSO refresh must run under the lock eve_token_refresh_<eveCharacterId>');
+    }
+
+    public function testGetValidAccessTokenReleasesTheRefreshLockOnceTheTokenIsRefreshed(): void
+    {
+        $lockStore = new InMemoryStore();
+        $tokenManager = $this->tokenManagerWith(
+            new MockHttpClient($this->ssoTokenResponse(['scope' => 'esi-assets.read_assets.v1'])),
+            $this->createStub(EntityManagerInterface::class),
+            new LockFactory($lockStore),
+        );
+
+        $tokenManager->getValidAccessToken($this->storedTokenOf(new User()));
+
+        self::assertFalse($this->refreshLockIsHeldIn($lockStore));
+    }
+
+    public function testGetValidAccessTokenReleasesTheRefreshLockWhenTheAuthorizationIsRevoked(): void
+    {
+        $lockStore = new InMemoryStore();
+        $tokenManager = $this->tokenManagerWith(
+            new MockHttpClient(new MockResponse(self::INVALID_GRANT_BODY, ['http_code' => 400])),
+            $this->createStub(EntityManagerInterface::class),
+            new LockFactory($lockStore),
+        );
+
+        $exception = $this->refreshFailure($tokenManager, $this->storedTokenOf(new User()));
+
+        self::assertInstanceOf(EveAuthRequiredException::class, $exception);
+        self::assertFalse($this->refreshLockIsHeldIn($lockStore));
+    }
+
+    /** A non-blocking acquire would let a second process go on to the SSO with a refresh token already rotated */
+    public function testGetValidAccessTokenWaitsForTheRefreshLockAndReleasesItExplicitly(): void
+    {
+        $tokenManager = $this->tokenManagerWith(
+            new MockHttpClient($this->ssoTokenResponse(['scope' => 'esi-assets.read_assets.v1'])),
+            $this->createStub(EntityManagerInterface::class),
+            $this->lockFactoryExpectingABlockingAcquireAndOneExplicitRelease(),
+        );
+
+        self::assertSame('new-access-token', $tokenManager->getValidAccessToken($this->storedTokenOf(new User())));
+    }
+
+    public function testGetValidAccessTokenReleasesTheRefreshLockExplicitlyWhenTheAuthorizationIsRevoked(): void
+    {
+        $tokenManager = $this->tokenManagerWith(
+            new MockHttpClient(new MockResponse(self::INVALID_GRANT_BODY, ['http_code' => 400])),
+            $this->createStub(EntityManagerInterface::class),
+            $this->lockFactoryExpectingABlockingAcquireAndOneExplicitRelease(),
+        );
+
+        $exception = $this->refreshFailure($tokenManager, $this->storedTokenOf(new User()));
+
+        self::assertInstanceOf(EveAuthRequiredException::class, $exception);
+    }
+
+    public function testForceRefreshCallsSsoEvenWhenTheAccessTokenIsStillValid(): void
+    {
+        $httpClient = new MockHttpClient($this->ssoTokenResponse(['scope' => 'esi-assets.read_assets.v1 esi-wallet.read_character_wallet.v1']));
+        $validToken = $this->storedTokenOf(new User())->setAccessTokenExpiresAt(new \DateTimeImmutable('+1 hour'));
+
+        $this->tokenManagerWith($httpClient, $this->createStub(EntityManagerInterface::class))->forceRefresh($validToken);
+
+        self::assertSame(1, $httpClient->getRequestsCount());
+        self::assertSame('new-access-token', $validToken->getAccessToken());
+        self::assertSame(['esi-assets.read_assets.v1', 'esi-wallet.read_character_wallet.v1'], $validToken->getScopes());
+    }
+
+    public function testForceRefreshCallsSsoWhileHoldingTheRefreshLockOfTheCharacterThenReleasesIt(): void
+    {
+        $lockStore = new InMemoryStore();
+        $lockHeldDuringSsoCall = [];
+        $httpClient = new MockHttpClient(function () use ($lockStore, &$lockHeldDuringSsoCall): MockResponse {
+            $lockHeldDuringSsoCall[] = $this->refreshLockIsHeldIn($lockStore);
+
+            return $this->ssoTokenResponse(['scope' => 'esi-assets.read_assets.v1']);
+        });
+        $validToken = $this->storedTokenOf(new User())->setAccessTokenExpiresAt(new \DateTimeImmutable('+1 hour'));
+
+        $this->tokenManagerWith($httpClient, $this->createStub(EntityManagerInterface::class), new LockFactory($lockStore))->forceRefresh($validToken);
+
+        self::assertSame([true], $lockHeldDuringSsoCall);
+        self::assertFalse($this->refreshLockIsHeldIn($lockStore));
+    }
+
+    public function testForceRefreshWaitsForTheRefreshLockAndReleasesItExplicitly(): void
+    {
+        $validToken = $this->storedTokenOf(new User())->setAccessTokenExpiresAt(new \DateTimeImmutable('+1 hour'));
+        $tokenManager = $this->tokenManagerWith(
+            new MockHttpClient($this->ssoTokenResponse(['scope' => 'esi-assets.read_assets.v1'])),
+            $this->createStub(EntityManagerInterface::class),
+            $this->lockFactoryExpectingABlockingAcquireAndOneExplicitRelease(),
+        );
+
+        $tokenManager->forceRefresh($validToken);
+
+        self::assertSame('new-access-token', $validToken->getAccessToken());
+    }
+
+    /** The worker refreshed the token while this process was waiting for the lock: the SSO must not be called twice */
+    public function testGetValidAccessTokenRereadsTheTokenUnderTheLockAndKeepsTheOneAnotherProcessAlreadyRefreshed(): void
+    {
+        $lockStore = new InMemoryStore();
+        $ssoCallCount = 0;
+        $httpClient = new MockHttpClient(function () use (&$ssoCallCount): MockResponse {
+            ++$ssoCallCount;
+
+            return $this->ssoTokenResponse(['scope' => 'esi-assets.read_assets.v1']);
+        });
+        $lockHeldWhenTokenReread = [];
+        $entityManager = $this->createStub(EntityManagerInterface::class);
+        $entityManager->method('refresh')->willReturnCallback(function (object $token) use ($lockStore, &$lockHeldWhenTokenReread): void {
+            \assert($token instanceof EveToken);
+            $lockHeldWhenTokenReread[] = $this->refreshLockIsHeldIn($lockStore);
+            $token->setAccessToken(self::ACCESS_TOKEN_REFRESHED_BY_ANOTHER_PROCESS)
+                ->setAccessTokenExpiresAt(new \DateTimeImmutable('+1199 seconds'));
+        });
+        $staleToken = $this->storedTokenOf(new User());
+
+        $accessToken = $this->tokenManagerWith($httpClient, $entityManager, new LockFactory($lockStore))->getValidAccessToken($staleToken);
+
+        self::assertSame(0, $ssoCallCount);
+        self::assertSame(self::ACCESS_TOKEN_REFRESHED_BY_ANOTHER_PROCESS, $accessToken);
+        self::assertSame([true], $lockHeldWhenTokenReread, 'the token must be reread once, after acquiring the refresh lock');
+    }
+
+    /** Issue #27: the app and the worker both hold a stale copy of the same token */
+    public function testTwoProcessesHoldingTheSameStaleTokenCallSsoOnlyOnce(): void
+    {
+        $lockStore = new InMemoryStore();
+        $ssoRequestBodies = [];
+        $httpClient = new MockHttpClient(function (string $method, string $url, array $options) use (&$ssoRequestBodies): MockResponse {
+            $ssoRequestBodies[] = $options['body'];
+
+            return $this->ssoTokenResponse(['refresh_token' => 'rotated-refresh-token', 'scope' => 'esi-assets.read_assets.v1']);
+        });
+        $appTokenCopy = $this->storedTokenOf(new User());
+        $workerTokenCopy = $this->storedTokenOf(new User())->setRefreshTokenEncrypted($appTokenCopy->getRefreshTokenEncrypted());
+        $databaseRow = [
+            'accessToken' => self::STORED_ACCESS_TOKEN,
+            'refreshTokenEncrypted' => $appTokenCopy->getRefreshTokenEncrypted(),
+            'accessTokenExpiresAt' => $appTokenCopy->getAccessTokenExpiresAt(),
+        ];
+        $app = $this->processSharingTheTokenRow($databaseRow, $appTokenCopy, $httpClient, $lockStore);
+        $worker = $this->processSharingTheTokenRow($databaseRow, $workerTokenCopy, $httpClient, $lockStore);
+
+        $appAccessToken = $app->getValidAccessToken($appTokenCopy);
+        $workerAccessToken = $worker->getValidAccessToken($workerTokenCopy);
+
+        self::assertSame(['grant_type=refresh_token&refresh_token=' . self::STORED_REFRESH_TOKEN], $ssoRequestBodies);
+        self::assertSame('new-access-token', $appAccessToken);
+        self::assertSame('new-access-token', $workerAccessToken);
+        self::assertSame('rotated-refresh-token', $worker->decryptRefreshToken($workerTokenCopy->getRefreshTokenEncrypted()));
+    }
+
+    /** Callers go through getValidAccessToken(), the only path that takes the refresh lock */
+    public function testTheTokenRefreshIsOnlyReachableThroughGetValidAccessToken(): void
+    {
+        $publicMethods = array_map(
+            static fn (\ReflectionMethod $method): string => $method->getName(),
+            (new \ReflectionClass(TokenManager::class))->getMethods(\ReflectionMethod::IS_PUBLIC),
+        );
+
+        self::assertContains('getValidAccessToken', $publicMethods);
+        self::assertNotContains('refreshAccessToken', $publicMethods);
+    }
+
     public function testCreateTokenFromDtoEncryptsTheRefreshTokenAndKeepsAccessTokenExpiryAndScopes(): void
     {
         $token = $this->tokenManager->createTokenFromDto(new EveTokenDto(
@@ -497,9 +687,81 @@ class TokenManagerTest extends TestCase
         return $this->tokenManagerWith(new MockHttpClient($ssoResponse), $entityManager);
     }
 
-    private function tokenManagerWith(HttpClientInterface $httpClient, EntityManagerInterface $entityManager): TokenManager
+    /**
+     * The 6th constructor argument is the `LockFactory $lockFactory` that serializes the refresh per character.
+     * Processes sharing the same lock store (app and worker, through LOCK_DSN) share the same locks.
+     */
+    private function tokenManagerWith(
+        HttpClientInterface $httpClient,
+        EntityManagerInterface $entityManager,
+        ?LockFactory $lockFactory = null,
+    ): TokenManager {
+        return new TokenManager(
+            $this->encryptionKey,
+            $httpClient,
+            $entityManager,
+            'test_client_id',
+            'test_client_secret',
+            $lockFactory ?? new LockFactory(new InMemoryStore()),
+        );
+    }
+
+    /**
+     * A real Symfony lock releases itself when destroyed, which hides a missing release():
+     * this lock has no destructor, so only an explicit release() frees it.
+     */
+    private function lockFactoryExpectingABlockingAcquireAndOneExplicitRelease(): LockFactory
     {
-        return new TokenManager($this->encryptionKey, $httpClient, $entityManager, 'test_client_id', 'test_client_secret');
+        $refreshLock = $this->createMock(SharedLockInterface::class);
+        $refreshLock->expects(self::once())->method('acquire')->with(true)->willReturn(true);
+        $refreshLock->expects(self::once())->method('release');
+
+        $lockFactory = $this->createMock(LockFactory::class);
+        $lockFactory->expects(self::once())->method('createLock')->with(self::REFRESH_LOCK_KEY)->willReturn($refreshLock);
+
+        return $lockFactory;
+    }
+
+    /** True when another process cannot take the refresh lock of the character right now. */
+    private function refreshLockIsHeldIn(InMemoryStore $lockStore): bool
+    {
+        $otherProcessLock = (new LockFactory($lockStore))->createLock(self::REFRESH_LOCK_KEY);
+        if (!$otherProcessLock->acquire(false)) {
+            return true;
+        }
+        $otherProcessLock->release();
+
+        return false;
+    }
+
+    /**
+     * A process with its own in-memory copy of the token (its own Doctrine identity map),
+     * reading and writing the same database row and the same lock store as the other processes.
+     *
+     * @param array{accessToken: string, refreshTokenEncrypted: string, accessTokenExpiresAt: \DateTimeImmutable} $databaseRow
+     */
+    private function processSharingTheTokenRow(
+        array &$databaseRow,
+        EveToken $ownTokenCopy,
+        HttpClientInterface $httpClient,
+        InMemoryStore $lockStore,
+    ): TokenManager {
+        $entityManager = $this->createStub(EntityManagerInterface::class);
+        $entityManager->method('refresh')->willReturnCallback(static function (object $token) use (&$databaseRow): void {
+            \assert($token instanceof EveToken);
+            $token->setAccessToken($databaseRow['accessToken'])
+                ->setRefreshTokenEncrypted($databaseRow['refreshTokenEncrypted'])
+                ->setAccessTokenExpiresAt($databaseRow['accessTokenExpiresAt']);
+        });
+        $entityManager->method('flush')->willReturnCallback(static function () use (&$databaseRow, $ownTokenCopy): void {
+            $databaseRow = [
+                'accessToken' => $ownTokenCopy->getAccessToken(),
+                'refreshTokenEncrypted' => $ownTokenCopy->getRefreshTokenEncrypted(),
+                'accessTokenExpiresAt' => $ownTokenCopy->getAccessTokenExpiresAt(),
+            ];
+        });
+
+        return $this->tokenManagerWith($httpClient, $entityManager, new LockFactory($lockStore));
     }
 
     /** A token whose access token has expired, owned by a character of the given user. */
@@ -522,7 +784,7 @@ class TokenManagerTest extends TestCase
     private function refreshFailure(TokenManager $tokenManager, EveToken $token): \Throwable
     {
         try {
-            $tokenManager->refreshAccessToken($token);
+            $tokenManager->getValidAccessToken($token);
         } catch (\Throwable $e) {
             return $e;
         }

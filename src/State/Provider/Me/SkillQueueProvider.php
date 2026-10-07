@@ -46,9 +46,7 @@ class SkillQueueProvider implements ProviderInterface
             }
 
             try {
-                if ($token->isExpiringSoon()) {
-                    $this->tokenManager->refreshAccessToken($token);
-                }
+                $this->tokenManager->getValidAccessToken($token);
 
                 $queue = $this->esiClient->get(
                     "/characters/{$character->getEveCharacterId()}/skillqueue/",

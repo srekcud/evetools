@@ -67,9 +67,7 @@ class ScanLootContractsProcessor implements ProcessorInterface
             }
 
             try {
-                if ($token->isExpiringSoon()) {
-                    $this->tokenManager->refreshAccessToken($token);
-                }
+                $this->tokenManager->getValidAccessToken($token);
 
                 $characterId = $character->getEveCharacterId();
 

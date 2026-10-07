@@ -61,7 +61,7 @@ class FixTokenScopesCommand extends Command
                 }
 
                 // If that fails, try refreshing the token
-                $this->tokenManager->refreshAccessToken($token);
+                $this->tokenManager->forceRefresh($token);
                 $newScopes = $token->getScopes();
 
                 if (!empty($newScopes) && $newScopes !== ['']) {

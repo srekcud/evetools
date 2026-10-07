@@ -53,9 +53,7 @@ class WalletProvider implements ProviderInterface
 
             try {
                 // Refresh token if needed (do this sequentially before batch)
-                if ($token->isExpiringSoon()) {
-                    $this->tokenManager->refreshAccessToken($token);
-                }
+                $this->tokenManager->getValidAccessToken($token);
             } catch (\Throwable) {
                 // No request: the character is reported below with an unknown balance
                 continue;

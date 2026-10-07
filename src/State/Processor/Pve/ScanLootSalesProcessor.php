@@ -87,9 +87,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
             }
 
             try {
-                if ($token->isExpiringSoon()) {
-                    $this->tokenManager->refreshAccessToken($token);
-                }
+                $this->tokenManager->getValidAccessToken($token);
 
                 $transactions = $this->esiClient->get(
                     "/characters/{$character->getEveCharacterId()}/wallet/transactions/",
@@ -157,9 +155,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
             }
 
             try {
-                if ($token->isExpiringSoon()) {
-                    $this->tokenManager->refreshAccessToken($token);
-                }
+                $this->tokenManager->getValidAccessToken($token);
 
                 $contracts = $this->esiClient->getPaginated(
                     "/characters/{$character->getEveCharacterId()}/contracts/",
@@ -296,9 +292,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
             $scannedCorporations[] = $corporationId;
 
             try {
-                if ($token->isExpiringSoon()) {
-                    $this->tokenManager->refreshAccessToken($token);
-                }
+                $this->tokenManager->getValidAccessToken($token);
 
                 // Get corporation projects (cached)
                 $projects = $this->getCachedCorpProjects($corporationId, $token, $compatHeaders);

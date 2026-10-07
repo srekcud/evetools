@@ -29,6 +29,8 @@ use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
+use Symfony\Component\Lock\LockFactory;
+use Symfony\Component\Lock\Store\InMemoryStore;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -90,7 +92,7 @@ final class SyncCharacterAssetsHandlerTest extends TestCase
                 ? new MockResponse(self::INVALID_GRANT_BODY, ['http_code' => 400])
                 : new MockResponse('[]', ['http_code' => 200]);
         });
-        $tokenManager = new TokenManager(self::encryptionKey(), $httpClient, $entityManager, 'test_client_id', 'test_client_secret');
+        $tokenManager = new TokenManager(self::encryptionKey(), $httpClient, $entityManager, 'test_client_id', 'test_client_secret', new LockFactory(new InMemoryStore()));
         $character->getEveToken()->setRefreshTokenEncrypted($tokenManager->encryptRefreshToken('revoked-refresh-token'));
 
         $esiClient = new EsiClient($httpClient, new ArrayAdapter(), $tokenManager, 'https://esi.evetech.net/latest', new NullLogger());

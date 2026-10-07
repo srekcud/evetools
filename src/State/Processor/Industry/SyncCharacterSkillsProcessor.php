@@ -93,9 +93,7 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
             return;
         }
 
-        if ($token->isExpiringSoon()) {
-            $this->tokenManager->refreshAccessToken($token);
-        }
+        $this->tokenManager->getValidAccessToken($token);
 
         $characterId = $character->getEveCharacterId();
         $skillsData = $this->esiClient->get(

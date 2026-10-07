@@ -222,9 +222,7 @@ class PveSyncService
             }
 
             try {
-                if ($token->isExpiringSoon()) {
-                    $this->tokenManager->refreshAccessToken($token);
-                }
+                $this->tokenManager->getValidAccessToken($token);
 
                 $journal = $this->esiClient->getPaginated(
                     "/characters/{$character->getEveCharacterId()}/wallet/journal/",
@@ -303,9 +301,7 @@ class PveSyncService
             }
 
             try {
-                if ($token->isExpiringSoon()) {
-                    $this->tokenManager->refreshAccessToken($token);
-                }
+                $this->tokenManager->getValidAccessToken($token);
 
                 $transactions = $this->esiClient->get(
                     "/characters/{$character->getEveCharacterId()}/wallet/transactions/",
@@ -388,9 +384,7 @@ class PveSyncService
             }
 
             try {
-                if ($token->isExpiringSoon()) {
-                    $this->tokenManager->refreshAccessToken($token);
-                }
+                $this->tokenManager->getValidAccessToken($token);
 
                 $characterId = $character->getEveCharacterId();
                 $contracts = $this->esiClient->getPaginated(
@@ -520,9 +514,7 @@ class PveSyncService
             }
 
             try {
-                if ($token->isExpiringSoon()) {
-                    $this->tokenManager->refreshAccessToken($token);
-                }
+                $this->tokenManager->getValidAccessToken($token);
 
                 $transactions = $this->esiClient->get(
                     "/characters/{$character->getEveCharacterId()}/wallet/transactions/",

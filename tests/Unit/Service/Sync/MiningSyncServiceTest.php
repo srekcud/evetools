@@ -416,7 +416,7 @@ class MiningSyncServiceTest extends TestCase
         // TokenManager should be called to refresh
         $tokenManager = $this->createMock(TokenManager::class);
         $tokenManager->expects($this->once())
-            ->method('refreshAccessToken')
+            ->method('getValidAccessToken')
             ->with($token);
 
         // Rebuild the service with mock instead of stub for tokenManager
@@ -695,7 +695,10 @@ class MiningSyncServiceTest extends TestCase
     public function testSyncAllCountsRevokedCharacterAsFailedAndSyncsTheOthers(): void
     {
         $user = $this->createUserWithOkAndFailingCharacters(failingTokenExpiringSoon: true);
-        $this->tokenManager->method('refreshAccessToken')->willThrowException(new EveAuthRequiredException('22222'));
+        // Only a token due for refresh reaches EVE SSO, which reports the authorization as revoked
+        $this->tokenManager->method('getValidAccessToken')->willReturnCallback(
+            static fn (EveToken $token): string => $token->isExpiringSoon() ? throw new EveAuthRequiredException('22222') : 'valid-access-token',
+        );
         $this->esiClient->method('getPaginated')->willReturn([$this->scorditeLedgerEntry()]);
         $this->stubNewMiningEntryResolution();
         $settings = $this->settingsSyncedAt(self::PREVIOUS_MINING_SYNC_AT);

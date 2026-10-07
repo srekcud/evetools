@@ -528,8 +528,12 @@ class PveSyncServiceTest extends TestCase
     public function testSyncAllCountsRevokedCharacterAsFailedAndSyncsTheOthers(): void
     {
         $user = $this->createUserWithOkAndFailingCharacters(failingTokenExpiringSoon: true);
-        $this->tokenManager->method('refreshAccessToken')
-            ->willThrowException(new EveAuthRequiredException((string) self::FAILING_CHARACTER_ID));
+        // Only a token due for refresh reaches EVE SSO, which reports the authorization as revoked
+        $this->tokenManager->method('getValidAccessToken')->willReturnCallback(
+            static fn (EveToken $token): string => $token->isExpiringSoon()
+                ? throw new EveAuthRequiredException((string) self::FAILING_CHARACTER_ID)
+                : 'valid-access-token',
+        );
         $this->stubEsiFailingFor(null);
         $settings = $this->settingsSyncedAt(self::PREVIOUS_PVE_SYNC_AT);
         $syncStartedAt = new \DateTimeImmutable();

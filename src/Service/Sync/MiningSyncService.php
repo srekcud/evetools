@@ -111,9 +111,7 @@ class MiningSyncService
                     $tokenizedCharacters++;
 
                     try {
-                        if ($token->isExpiringSoon()) {
-                            $this->tokenManager->refreshAccessToken($token);
-                        }
+                        $this->tokenManager->getValidAccessToken($token);
 
                         $characterId = $character->getEveCharacterId();
                         $characterName = $character->getName();

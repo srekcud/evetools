@@ -9,6 +9,7 @@ use App\Entity\EveToken;
 use App\Exception\EsiApiException;
 use App\Exception\EveAuthRequiredException;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Lock\LockFactory;
 use Symfony\Contracts\HttpClient\Exception\HttpExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -21,6 +22,8 @@ class TokenManager
     private const HTTP_BAD_REQUEST = 400;
     /** Same convention as EsiClient: no HTTP response at all */
     private const NO_HTTP_RESPONSE = 0;
+    /** EVE SSO rotates the refresh token: the app and the worker must never refresh the same character concurrently */
+    private const REFRESH_LOCK_PREFIX = 'eve_token_refresh_';
 
     public function __construct(
         private readonly string $encryptionKey,
@@ -28,6 +31,7 @@ class TokenManager
         private readonly EntityManagerInterface $entityManager,
         private readonly string $clientId,
         private readonly string $clientSecret,
+        private readonly LockFactory $lockFactory,
     ) {
     }
 
@@ -61,7 +65,38 @@ class TokenManager
         return $plaintext;
     }
 
-    public function refreshAccessToken(EveToken $token): EveToken
+    /** Refreshes even a still valid access token, e.g. to read the scopes granted by EVE SSO */
+    public function forceRefresh(EveToken $token): void
+    {
+        $this->underRefreshLock($token, fn () => $this->requestNewAccessToken($token));
+    }
+
+    /**
+     * Rereads the token once the lock is held: another process may have refreshed it meanwhile,
+     * and the refresh token it holds in memory may already have been rotated.
+     */
+    private function underRefreshLock(EveToken $token, callable $refresh): void
+    {
+        $character = $token->getCharacter();
+        if ($character === null) {
+            // EveToken.character is not nullable: a token without character was never persisted, no other process can share it
+            $refresh();
+
+            return;
+        }
+
+        $lock = $this->lockFactory->createLock(self::REFRESH_LOCK_PREFIX . $character->getEveCharacterId());
+        $lock->acquire(true);
+
+        try {
+            $this->entityManager->refresh($token);
+            $refresh();
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function requestNewAccessToken(EveToken $token): void
     {
         $refreshToken = $this->decryptRefreshToken($token->getRefreshTokenEncrypted());
 
@@ -107,8 +142,6 @@ class TokenManager
         }
 
         $this->entityManager->flush();
-
-        return $token;
     }
 
     /** EVE SSO answers `invalid_grant` when the player revoked the application or the refresh token expired */
@@ -171,7 +204,11 @@ class TokenManager
     public function getValidAccessToken(EveToken $token): string
     {
         if ($this->isAccessTokenExpiringSoon($token)) {
-            $token = $this->refreshAccessToken($token);
+            $this->underRefreshLock($token, function () use ($token): void {
+                if ($this->isAccessTokenExpiringSoon($token)) {
+                    $this->requestNewAccessToken($token);
+                }
+            });
         }
 
         return $token->getAccessToken();
