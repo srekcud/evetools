@@ -1,0 +1,1477 @@
+{
+ "provenance": {
+  "source": "SDE, base de dev evetools au 2026-10-07 (tables sde_industry_activity_products, sde_industry_activity_materials, sde_industry_activities, sde_industry_blueprints, sde_inv_types), lecture seule",
+  "selection": "Recette (blueprint ou formule de reaction publies) de chaque item fabricable de l arbre complet des produits finaux des goldens : Nomad, Machariel, Marshal, Nestor, Widow, Hail L, Fernite Carbide, Nitrogen Fuel Block. Un item sans recette est une matiere premiere. Aucun item n a plus d un blueprint publie.",
+  "attribution": "Donnees EVE : propriete de CCP Games.",
+  "why": "Entree du port BlueprintCatalog pour reproduire les plans de reference (R3, R9, R12, R13) sans base de donnees."
+ },
+ "recipes": {
+  "640": {
+   "name": "Scorpion",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 10,
+   "baseTimeSeconds": 18000,
+   "materials": {
+    "34": 3900000,
+    "35": 1950000,
+    "36": 292500,
+    "37": 97500,
+    "38": 11700,
+    "39": 2925,
+    "40": 1463,
+    "57478": 112,
+    "57479": 1,
+    "57486": 56
+   }
+  },
+  "4051": {
+   "name": "Nitrogen Fuel Block",
+   "activity": "manufacturing",
+   "outputPerRun": 40,
+   "maxProductionLimit": 200,
+   "baseTimeSeconds": 900,
+   "materials": {
+    "44": 4,
+    "3683": 22,
+    "3689": 4,
+    "9832": 9,
+    "9848": 1,
+    "16272": 170,
+    "16273": 350,
+    "16275": 20,
+    "17888": 450
+   }
+  },
+  "4246": {
+   "name": "Hydrogen Fuel Block",
+   "activity": "manufacturing",
+   "outputPerRun": 40,
+   "maxProductionLimit": 200,
+   "baseTimeSeconds": 900,
+   "materials": {
+    "44": 4,
+    "3683": 22,
+    "3689": 4,
+    "9832": 9,
+    "9848": 1,
+    "16272": 170,
+    "16273": 350,
+    "16275": 20,
+    "17889": 450
+   }
+  },
+  "4247": {
+   "name": "Helium Fuel Block",
+   "activity": "manufacturing",
+   "outputPerRun": 40,
+   "maxProductionLimit": 200,
+   "baseTimeSeconds": 900,
+   "materials": {
+    "44": 4,
+    "3683": 22,
+    "3689": 4,
+    "9832": 9,
+    "9848": 1,
+    "16272": 170,
+    "16273": 350,
+    "16274": 450,
+    "16275": 20
+   }
+  },
+  "4312": {
+   "name": "Oxygen Fuel Block",
+   "activity": "manufacturing",
+   "outputPerRun": 40,
+   "maxProductionLimit": 200,
+   "baseTimeSeconds": 900,
+   "materials": {
+    "44": 4,
+    "3683": 22,
+    "3689": 4,
+    "9832": 9,
+    "9848": 1,
+    "16272": 170,
+    "16273": 350,
+    "16275": 20,
+    "17887": 450
+   }
+  },
+  "11476": {
+   "name": "R.A.M.- Ammunition Tech",
+   "activity": "manufacturing",
+   "outputPerRun": 100,
+   "maxProductionLimit": 200,
+   "baseTimeSeconds": 2500,
+   "materials": {
+    "34": 556,
+    "35": 444,
+    "36": 222,
+    "37": 82,
+    "38": 36
+   }
+  },
+  "11478": {
+   "name": "R.A.M.- Starship Tech",
+   "activity": "manufacturing",
+   "outputPerRun": 100,
+   "maxProductionLimit": 200,
+   "baseTimeSeconds": 2500,
+   "materials": {
+    "34": 556,
+    "35": 444,
+    "36": 222,
+    "37": 82,
+    "38": 36
+   }
+  },
+  "11530": {
+   "name": "Plasma Thruster",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 4000,
+   "baseTimeSeconds": 150,
+   "materials": {
+    "16673": 13,
+    "16680": 3,
+    "16683": 1
+   }
+  },
+  "11533": {
+   "name": "Magpulse Thruster",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 4000,
+   "baseTimeSeconds": 150,
+   "materials": {
+    "16671": 13,
+    "16680": 3,
+    "16683": 1
+   }
+  },
+  "11534": {
+   "name": "Gravimetric Sensor Cluster",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 4000,
+   "baseTimeSeconds": 150,
+   "materials": {
+    "16671": 22,
+    "16681": 1,
+    "16682": 2
+   }
+  },
+  "11540": {
+   "name": "Quantum Microprocessor",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 8000,
+   "baseTimeSeconds": 75,
+   "materials": {
+    "16671": 17,
+    "16680": 6,
+    "16681": 2,
+    "33362": 2
+   }
+  },
+  "11541": {
+   "name": "Photon Microprocessor",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 8000,
+   "baseTimeSeconds": 75,
+   "materials": {
+    "16670": 17,
+    "16680": 6,
+    "16681": 2,
+    "33359": 2
+   }
+  },
+  "11543": {
+   "name": "Tungsten Carbide Armor Plate",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 20000,
+   "baseTimeSeconds": 25,
+   "materials": {
+    "16672": 44,
+    "16678": 11
+   }
+  },
+  "11544": {
+   "name": "Titanium Diborite Armor Plate",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 20000,
+   "baseTimeSeconds": 25,
+   "materials": {
+    "16671": 44,
+    "16678": 11
+   }
+  },
+  "11547": {
+   "name": "Fusion Reactor Unit",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 2000,
+   "baseTimeSeconds": 300,
+   "materials": {
+    "16670": 9,
+    "17317": 2
+   }
+  },
+  "11550": {
+   "name": "Graviton Reactor Unit",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 2000,
+   "baseTimeSeconds": 300,
+   "materials": {
+    "16671": 9,
+    "17317": 2
+   }
+  },
+  "11552": {
+   "name": "Scalar Capacitor Unit",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 4000,
+   "baseTimeSeconds": 150,
+   "materials": {
+    "16671": 27,
+    "16679": 11,
+    "16681": 1,
+    "33362": 2
+   }
+  },
+  "11554": {
+   "name": "Tesseract Capacitor Unit",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 4000,
+   "baseTimeSeconds": 150,
+   "materials": {
+    "16672": 27,
+    "16679": 11,
+    "16681": 1,
+    "33360": 2
+   }
+  },
+  "11558": {
+   "name": "Sustained Shield Emitter",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 4000,
+   "baseTimeSeconds": 150,
+   "materials": {
+    "16671": 22,
+    "16678": 9,
+    "16683": 1
+   }
+  },
+  "12779": {
+   "name": "Hail L",
+   "activity": "manufacturing",
+   "outputPerRun": 5000,
+   "maxProductionLimit": 10,
+   "baseTimeSeconds": 14400,
+   "materials": {
+    "11399": 15,
+    "11476": 1,
+    "16673": 3000,
+    "16679": 1200
+   }
+  },
+  "16654": {
+   "name": "Titanium Chromide",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4312": 5,
+    "16638": 100,
+    "16641": 100
+   }
+  },
+  "16655": {
+   "name": "Crystallite Alloy",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4247": 5,
+    "16640": 100,
+    "16643": 100
+   }
+  },
+  "16656": {
+   "name": "Fernite Alloy",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4246": 5,
+    "16639": 100,
+    "16642": 100
+   }
+  },
+  "16657": {
+   "name": "Rolled Tungsten Alloy",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4051": 5,
+    "16637": 100,
+    "16644": 100
+   }
+  },
+  "16658": {
+   "name": "Silicon Diborite",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4312": 5,
+    "16635": 100,
+    "16636": 100
+   }
+  },
+  "16659": {
+   "name": "Carbon Polymers",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4247": 5,
+    "16633": 100,
+    "16636": 100
+   }
+  },
+  "16660": {
+   "name": "Ceramic Powder",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4246": 5,
+    "16635": 100,
+    "16636": 100
+   }
+  },
+  "16661": {
+   "name": "Sulfuric Acid",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4051": 5,
+    "16634": 100,
+    "16635": 100
+   }
+  },
+  "16662": {
+   "name": "Platinum Technite",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4051": 5,
+    "16644": 100,
+    "16649": 100
+   }
+  },
+  "16663": {
+   "name": "Caesarium Cadmide",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4312": 5,
+    "16643": 100,
+    "16647": 100
+   }
+  },
+  "16664": {
+   "name": "Solerium",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4312": 5,
+    "16641": 100,
+    "16647": 100
+   }
+  },
+  "16665": {
+   "name": "Hexite",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4051": 5,
+    "16641": 100,
+    "16644": 100
+   }
+  },
+  "16666": {
+   "name": "Hyperflurite",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4051": 5,
+    "16642": 100,
+    "16652": 100
+   }
+  },
+  "16667": {
+   "name": "Neo Mercurite",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4247": 5,
+    "16646": 100,
+    "16651": 100
+   }
+  },
+  "16668": {
+   "name": "Dysporite",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4247": 5,
+    "16646": 100,
+    "16650": 100
+   }
+  },
+  "16669": {
+   "name": "Ferrofluid",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4246": 5,
+    "16648": 100,
+    "16650": 100
+   }
+  },
+  "16670": {
+   "name": "Crystalline Carbonide",
+   "activity": "reaction",
+   "outputPerRun": 10000,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4247": 5,
+    "16655": 100,
+    "16659": 100
+   }
+  },
+  "16671": {
+   "name": "Titanium Carbide",
+   "activity": "reaction",
+   "outputPerRun": 10000,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4312": 5,
+    "16654": 100,
+    "16658": 100
+   }
+  },
+  "16672": {
+   "name": "Tungsten Carbide",
+   "activity": "reaction",
+   "outputPerRun": 10000,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4051": 5,
+    "16657": 100,
+    "16661": 100
+   }
+  },
+  "16673": {
+   "name": "Fernite Carbide",
+   "activity": "reaction",
+   "outputPerRun": 10000,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4246": 5,
+    "16656": 100,
+    "16660": 100
+   }
+  },
+  "16678": {
+   "name": "Sylramic Fibers",
+   "activity": "reaction",
+   "outputPerRun": 6000,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4247": 5,
+    "16660": 100,
+    "16665": 100
+   }
+  },
+  "16679": {
+   "name": "Fullerides",
+   "activity": "reaction",
+   "outputPerRun": 3000,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4051": 5,
+    "16659": 100,
+    "16662": 100
+   }
+  },
+  "16680": {
+   "name": "Phenolic Composites",
+   "activity": "reaction",
+   "outputPerRun": 2200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4312": 5,
+    "16658": 100,
+    "16663": 100,
+    "17959": 100
+   }
+  },
+  "16681": {
+   "name": "Nanotransistors",
+   "activity": "reaction",
+   "outputPerRun": 1500,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4051": 5,
+    "16661": 100,
+    "16662": 100,
+    "16667": 100
+   }
+  },
+  "16682": {
+   "name": "Hypersynaptic Fibers",
+   "activity": "reaction",
+   "outputPerRun": 750,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4312": 5,
+    "16664": 100,
+    "16668": 100,
+    "17959": 100
+   }
+  },
+  "16683": {
+   "name": "Ferrogel",
+   "activity": "reaction",
+   "outputPerRun": 400,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4246": 5,
+    "16665": 100,
+    "16666": 100,
+    "16669": 100,
+    "17960": 100
+   }
+  },
+  "17317": {
+   "name": "Fermionic Condensates",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4247": 5,
+    "16663": 100,
+    "16668": 100,
+    "17769": 100,
+    "17960": 100
+   }
+  },
+  "17738": {
+   "name": "Machariel",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 10,
+   "baseTimeSeconds": 18000,
+   "materials": {
+    "34": 9600000,
+    "35": 4800000,
+    "36": 720000,
+    "37": 480000,
+    "38": 36000,
+    "39": 9600,
+    "40": 4800,
+    "57478": 240,
+    "57479": 1,
+    "57486": 120,
+    "83467": 160
+   }
+  },
+  "17769": {
+   "name": "Fluxed Condensates",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4312": 5,
+    "16651": 100,
+    "16653": 100
+   }
+  },
+  "17959": {
+   "name": "Vanadium Hafnite",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4246": 5,
+    "16642": 100,
+    "16648": 100
+   }
+  },
+  "17960": {
+   "name": "Prometium",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4312": 5,
+    "16643": 100,
+    "16652": 100
+   }
+  },
+  "20189": {
+   "name": "Fenrir",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 1,
+   "baseTimeSeconds": 1500000,
+   "materials": {
+    "21009": 20,
+    "21017": 5,
+    "21027": 35,
+    "21037": 5,
+    "57473": 16,
+    "57477": 1,
+    "57478": 400,
+    "57486": 200,
+    "57487": 1
+   }
+  },
+  "21009": {
+   "name": "Capital Propulsion Engine",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 40,
+   "baseTimeSeconds": 16000,
+   "materials": {
+    "34": 40500,
+    "35": 146250,
+    "36": 40500,
+    "37": 11250,
+    "38": 1125,
+    "39": 570,
+    "40": 285,
+    "2872": 1,
+    "57457": 100
+   }
+  },
+  "21017": {
+   "name": "Capital Armor Plates",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 40,
+   "baseTimeSeconds": 16000,
+   "materials": {
+    "34": 45000,
+    "35": 157500,
+    "36": 45000,
+    "37": 12000,
+    "38": 1200,
+    "39": 615,
+    "40": 308,
+    "2870": 5,
+    "57457": 100
+   }
+  },
+  "21025": {
+   "name": "Capital Jump Drive",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 40,
+   "baseTimeSeconds": 16000,
+   "materials": {
+    "34": 60000,
+    "35": 216000,
+    "36": 60000,
+    "37": 16875,
+    "38": 1688,
+    "39": 900,
+    "40": 420,
+    "2876": 1,
+    "57457": 100
+   }
+  },
+  "21027": {
+   "name": "Capital Cargo Bay",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 40,
+   "baseTimeSeconds": 16000,
+   "materials": {
+    "34": 54000,
+    "35": 195000,
+    "36": 54000,
+    "37": 15000,
+    "38": 1500,
+    "39": 760,
+    "40": 380,
+    "57457": 100
+   }
+  },
+  "21037": {
+   "name": "Capital Construction Parts",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 40,
+   "baseTimeSeconds": 16000,
+   "materials": {
+    "34": 30000,
+    "35": 105000,
+    "36": 30000,
+    "37": 9000,
+    "38": 750,
+    "39": 413,
+    "40": 210,
+    "57457": 100
+   }
+  },
+  "22436": {
+   "name": "Widow",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 1,
+   "baseTimeSeconds": 360000,
+   "materials": {
+    "640": 1,
+    "3828": 450,
+    "11399": 900,
+    "11478": 30,
+    "11533": 225,
+    "11534": 900,
+    "11540": 6300,
+    "11544": 18750,
+    "11550": 450,
+    "11552": 2250,
+    "11558": 1634,
+    "21025": 3
+   }
+  },
+  "28846": {
+   "name": "Nomad",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 1,
+   "baseTimeSeconds": 3600000,
+   "materials": {
+    "3828": 2250,
+    "11399": 3750,
+    "11478": 60,
+    "20189": 1,
+    "21025": 30,
+    "29043": 674,
+    "29045": 1056,
+    "29049": 1520,
+    "29065": 665,
+    "29075": 1056,
+    "29079": 777,
+    "29089": 633
+   }
+  },
+  "29043": {
+   "name": "Capital Deflection Shield Emitter",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 800,
+   "baseTimeSeconds": 750,
+   "materials": {
+    "16673": 2222,
+    "16678": 889,
+    "16683": 11
+   }
+  },
+  "29045": {
+   "name": "Capital Electrolytic Capacitor Unit",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 800,
+   "baseTimeSeconds": 750,
+   "materials": {
+    "16673": 2222,
+    "16679": 1111,
+    "16681": 11,
+    "33361": 22
+   }
+  },
+  "29049": {
+   "name": "Capital Fernite Carbide Composite Armor Plate",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 800,
+   "baseTimeSeconds": 750,
+   "materials": {
+    "16673": 2222,
+    "16678": 1667
+   }
+  },
+  "29065": {
+   "name": "Capital Ladar Sensor Cluster",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 800,
+   "baseTimeSeconds": 750,
+   "materials": {
+    "16673": 2222,
+    "16681": 11,
+    "16682": 22
+   }
+  },
+  "29075": {
+   "name": "Capital Nanomechanical Microprocessor",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 800,
+   "baseTimeSeconds": 750,
+   "materials": {
+    "16673": 1667,
+    "16680": 56,
+    "16681": 22,
+    "33361": 22
+   }
+  },
+  "29079": {
+   "name": "Capital Nuclear Reactor Unit",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 400,
+   "baseTimeSeconds": 1500,
+   "materials": {
+    "16673": 889,
+    "17317": 22
+   }
+  },
+  "29089": {
+   "name": "Capital Plasma Thruster",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 800,
+   "baseTimeSeconds": 750,
+   "materials": {
+    "16673": 1333,
+    "16680": 33,
+    "16683": 11
+   }
+  },
+  "30303": {
+   "name": "Fulleroferrocene",
+   "activity": "reaction",
+   "outputPerRun": 1000,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "34": 1000,
+    "4312": 5,
+    "30370": 200,
+    "30371": 100
+   }
+  },
+  "30304": {
+   "name": "PPD Fullerene Fibers",
+   "activity": "reaction",
+   "outputPerRun": 250,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "35": 800,
+    "4246": 5,
+    "30370": 300,
+    "30371": 100
+   }
+  },
+  "30305": {
+   "name": "Fullerene Intercalated Graphite",
+   "activity": "reaction",
+   "outputPerRun": 120,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "36": 600,
+    "4246": 5,
+    "30371": 100,
+    "30372": 100
+   }
+  },
+  "30306": {
+   "name": "Methanofullerene",
+   "activity": "reaction",
+   "outputPerRun": 160,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "37": 300,
+    "4246": 5,
+    "30372": 100,
+    "30373": 100
+   }
+  },
+  "30307": {
+   "name": "Lanthanum Metallofullerene",
+   "activity": "reaction",
+   "outputPerRun": 120,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "38": 200,
+    "4312": 5,
+    "30372": 100,
+    "30374": 100
+   }
+  },
+  "30308": {
+   "name": "Scandium Metallofullerene",
+   "activity": "reaction",
+   "outputPerRun": 160,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "39": 25,
+    "4247": 5,
+    "30373": 100,
+    "30375": 100
+   }
+  },
+  "30309": {
+   "name": "Graphene Nanoribbons",
+   "activity": "reaction",
+   "outputPerRun": 120,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "38": 400,
+    "4051": 5,
+    "30375": 100,
+    "30376": 100
+   }
+  },
+  "30310": {
+   "name": "Carbon-86 Epoxy Resin",
+   "activity": "reaction",
+   "outputPerRun": 160,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "39": 30,
+    "4051": 5,
+    "30376": 100,
+    "30377": 100
+   }
+  },
+  "30311": {
+   "name": "C3-FTM Acid",
+   "activity": "reaction",
+   "outputPerRun": 100,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "40": 80,
+    "4247": 5,
+    "30374": 100,
+    "30378": 100
+   }
+  },
+  "33336": {
+   "name": "Thulium Hafnite",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4246": 5,
+    "16648": 100,
+    "16653": 100
+   }
+  },
+  "33337": {
+   "name": "Promethium Mercurite",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4247": 5,
+    "16646": 100,
+    "16652": 100
+   }
+  },
+  "33359": {
+   "name": "Photonic Metamaterials",
+   "activity": "reaction",
+   "outputPerRun": 300,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4312": 5,
+    "16655": 100,
+    "33336": 100
+   }
+  },
+  "33360": {
+   "name": "Terahertz Metamaterials",
+   "activity": "reaction",
+   "outputPerRun": 300,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4247": 5,
+    "16657": 100,
+    "33337": 100
+   }
+  },
+  "33361": {
+   "name": "Plasmonic Metamaterials",
+   "activity": "reaction",
+   "outputPerRun": 300,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4246": 5,
+    "16656": 100,
+    "16667": 100
+   }
+  },
+  "33362": {
+   "name": "Nonlinear Metamaterials",
+   "activity": "reaction",
+   "outputPerRun": 300,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4051": 5,
+    "16654": 100,
+    "16669": 100
+   }
+  },
+  "33472": {
+   "name": "Nestor",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 10,
+   "baseTimeSeconds": 18000,
+   "materials": {
+    "34": 10560000,
+    "35": 5280000,
+    "36": 792000,
+    "37": 528000,
+    "38": 39600,
+    "39": 10560,
+    "40": 5280,
+    "57478": 264,
+    "57479": 1,
+    "57486": 132,
+    "83473": 160
+   }
+  },
+  "44996": {
+   "name": "Marshal",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 1,
+   "baseTimeSeconds": 18000,
+   "materials": {
+    "34": 11000000,
+    "35": 2500000,
+    "36": 680000,
+    "37": 180000,
+    "38": 40000,
+    "39": 19000,
+    "40": 7300,
+    "3828": 450,
+    "11399": 1500,
+    "11530": 225,
+    "11534": 900,
+    "11541": 6300,
+    "11543": 18750,
+    "11547": 450,
+    "11554": 2250,
+    "11558": 1634,
+    "21025": 3
+   }
+  },
+  "57453": {
+   "name": "Carbon Fiber",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4246": 5,
+    "16633": 100,
+    "16635": 100
+   }
+  },
+  "57454": {
+   "name": "Oxy-Organic Solvents",
+   "activity": "reaction",
+   "outputPerRun": 10,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4312": 5,
+    "16633": 2000,
+    "16634": 2000
+   }
+  },
+  "57455": {
+   "name": "Thermosetting Polymer",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4312": 5,
+    "16634": 100,
+    "16636": 100
+   }
+  },
+  "57456": {
+   "name": "Pressurized Oxidizers",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "16659": 200,
+    "16661": 200,
+    "57454": 1
+   }
+  },
+  "57457": {
+   "name": "Reinforced Carbon Fiber",
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "maxProductionLimit": 1000,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "57453": 200,
+    "57454": 1,
+    "57455": 200
+   }
+  },
+  "57462": {
+   "name": "Sense-Heuristic Neurolink Enhancer",
+   "activity": "reaction",
+   "outputPerRun": 20,
+   "maxProductionLimit": 100,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4246": 5,
+    "28695": 40,
+    "28700": 40,
+    "57448": 1
+   }
+  },
+  "57469": {
+   "name": "Goal-Orienting Neurolink Stabilizer",
+   "activity": "reaction",
+   "outputPerRun": 10,
+   "maxProductionLimit": 100,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "4246": 5,
+    "25278": 10,
+    "25279": 10,
+    "57448": 1
+   }
+  },
+  "57473": {
+   "name": "G-O Trigger Neurolink Conduit",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 200,
+   "baseTimeSeconds": 10800,
+   "materials": {
+    "57456": 10,
+    "57457": 10,
+    "57462": 40,
+    "57469": 1
+   }
+  },
+  "57477": {
+   "name": "Ladar-FTL Interlink Communicator",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 40,
+   "baseTimeSeconds": 16000,
+   "materials": {
+    "2867": 2,
+    "2872": 1,
+    "2876": 1,
+    "17317": 40,
+    "30303": 660,
+    "30304": 190,
+    "30305": 390,
+    "30306": 190,
+    "30307": 190,
+    "30308": 130,
+    "30309": 560,
+    "30310": 380,
+    "30311": 260,
+    "33361": 560
+   }
+  },
+  "57478": {
+   "name": "Auto-Integrity Preservation Seal",
+   "activity": "manufacturing",
+   "outputPerRun": 3,
+   "maxProductionLimit": 200,
+   "baseTimeSeconds": 1800,
+   "materials": {
+    "2312": 4,
+    "2463": 4,
+    "57457": 10
+   }
+  },
+  "57479": {
+   "name": "Core Temperature Regulator",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 40,
+   "baseTimeSeconds": 8000,
+   "materials": {
+    "2401": 100,
+    "3645": 100,
+    "57456": 500,
+    "57457": 500
+   }
+  },
+  "57486": {
+   "name": "Life Support Backup Unit",
+   "activity": "manufacturing",
+   "outputPerRun": 3,
+   "maxProductionLimit": 200,
+   "baseTimeSeconds": 1800,
+   "materials": {
+    "2319": 8,
+    "3775": 8,
+    "57457": 10
+   }
+  },
+  "57487": {
+   "name": "Capital Core Temperature Regulator",
+   "activity": "manufacturing",
+   "outputPerRun": 1,
+   "maxProductionLimit": 40,
+   "baseTimeSeconds": 16000,
+   "materials": {
+    "2868": 20,
+    "2872": 20,
+    "57479": 35
+   }
+  }
+ },
+ "typeNames": {
+  "34": "Tritanium",
+  "35": "Pyerite",
+  "36": "Mexallon",
+  "37": "Isogen",
+  "38": "Nocxium",
+  "39": "Zydrine",
+  "40": "Megacyte",
+  "44": "Enriched Uranium",
+  "640": "Scorpion",
+  "2312": "Supertensile Plastics",
+  "2319": "Test Cultures",
+  "2401": "Chiral Structures",
+  "2463": "Nanites",
+  "2867": "Broadcast Node",
+  "2868": "Integrity Response Drones",
+  "2870": "Organic Mortar Applicators",
+  "2872": "Self-Harmonizing Power Core",
+  "2876": "Wetware Mainframe",
+  "3645": "Water",
+  "3683": "Oxygen",
+  "3689": "Mechanical Parts",
+  "3775": "Viral Agent",
+  "3828": "Construction Blocks",
+  "4051": "Nitrogen Fuel Block",
+  "4246": "Hydrogen Fuel Block",
+  "4247": "Helium Fuel Block",
+  "4312": "Oxygen Fuel Block",
+  "9832": "Coolant",
+  "9848": "Robotics",
+  "11399": "Morphite",
+  "11476": "R.A.M.- Ammunition Tech",
+  "11478": "R.A.M.- Starship Tech",
+  "11530": "Plasma Thruster",
+  "11533": "Magpulse Thruster",
+  "11534": "Gravimetric Sensor Cluster",
+  "11540": "Quantum Microprocessor",
+  "11541": "Photon Microprocessor",
+  "11543": "Tungsten Carbide Armor Plate",
+  "11544": "Titanium Diborite Armor Plate",
+  "11547": "Fusion Reactor Unit",
+  "11550": "Graviton Reactor Unit",
+  "11552": "Scalar Capacitor Unit",
+  "11554": "Tesseract Capacitor Unit",
+  "11558": "Sustained Shield Emitter",
+  "12779": "Hail L",
+  "16272": "Heavy Water",
+  "16273": "Liquid Ozone",
+  "16274": "Helium Isotopes",
+  "16275": "Strontium Clathrates",
+  "16633": "Hydrocarbons",
+  "16634": "Atmospheric Gases",
+  "16635": "Evaporite Deposits",
+  "16636": "Silicates",
+  "16637": "Tungsten",
+  "16638": "Titanium",
+  "16639": "Scandium",
+  "16640": "Cobalt",
+  "16641": "Chromium",
+  "16642": "Vanadium",
+  "16643": "Cadmium",
+  "16644": "Platinum",
+  "16646": "Mercury",
+  "16647": "Caesium",
+  "16648": "Hafnium",
+  "16649": "Technetium",
+  "16650": "Dysprosium",
+  "16651": "Neodymium",
+  "16652": "Promethium",
+  "16653": "Thulium",
+  "16654": "Titanium Chromide",
+  "16655": "Crystallite Alloy",
+  "16656": "Fernite Alloy",
+  "16657": "Rolled Tungsten Alloy",
+  "16658": "Silicon Diborite",
+  "16659": "Carbon Polymers",
+  "16660": "Ceramic Powder",
+  "16661": "Sulfuric Acid",
+  "16662": "Platinum Technite",
+  "16663": "Caesarium Cadmide",
+  "16664": "Solerium",
+  "16665": "Hexite",
+  "16666": "Hyperflurite",
+  "16667": "Neo Mercurite",
+  "16668": "Dysporite",
+  "16669": "Ferrofluid",
+  "16670": "Crystalline Carbonide",
+  "16671": "Titanium Carbide",
+  "16672": "Tungsten Carbide",
+  "16673": "Fernite Carbide",
+  "16678": "Sylramic Fibers",
+  "16679": "Fullerides",
+  "16680": "Phenolic Composites",
+  "16681": "Nanotransistors",
+  "16682": "Hypersynaptic Fibers",
+  "16683": "Ferrogel",
+  "17317": "Fermionic Condensates",
+  "17738": "Machariel",
+  "17769": "Fluxed Condensates",
+  "17887": "Oxygen Isotopes",
+  "17888": "Nitrogen Isotopes",
+  "17889": "Hydrogen Isotopes",
+  "17959": "Vanadium Hafnite",
+  "17960": "Prometium",
+  "20189": "Fenrir",
+  "21009": "Capital Propulsion Engine",
+  "21017": "Capital Armor Plates",
+  "21025": "Capital Jump Drive",
+  "21027": "Capital Cargo Bay",
+  "21037": "Capital Construction Parts",
+  "22436": "Widow",
+  "25278": "Vermillion Cytoserocin",
+  "25279": "Azure Cytoserocin",
+  "28695": "Azure Mykoserocin",
+  "28700": "Vermillion Mykoserocin",
+  "28846": "Nomad",
+  "29043": "Capital Deflection Shield Emitter",
+  "29045": "Capital Electrolytic Capacitor Unit",
+  "29049": "Capital Fernite Carbide Composite Armor Plate",
+  "29065": "Capital Ladar Sensor Cluster",
+  "29075": "Capital Nanomechanical Microprocessor",
+  "29079": "Capital Nuclear Reactor Unit",
+  "29089": "Capital Plasma Thruster",
+  "30303": "Fulleroferrocene",
+  "30304": "PPD Fullerene Fibers",
+  "30305": "Fullerene Intercalated Graphite",
+  "30306": "Methanofullerene",
+  "30307": "Lanthanum Metallofullerene",
+  "30308": "Scandium Metallofullerene",
+  "30309": "Graphene Nanoribbons",
+  "30310": "Carbon-86 Epoxy Resin",
+  "30311": "C3-FTM Acid",
+  "30370": "Fullerite-C50",
+  "30371": "Fullerite-C60",
+  "30372": "Fullerite-C70",
+  "30373": "Fullerite-C72",
+  "30374": "Fullerite-C84",
+  "30375": "Fullerite-C28",
+  "30376": "Fullerite-C32",
+  "30377": "Fullerite-C320",
+  "30378": "Fullerite-C540",
+  "33336": "Thulium Hafnite",
+  "33337": "Promethium Mercurite",
+  "33359": "Photonic Metamaterials",
+  "33360": "Terahertz Metamaterials",
+  "33361": "Plasmonic Metamaterials",
+  "33362": "Nonlinear Metamaterials",
+  "33472": "Nestor",
+  "44996": "Marshal",
+  "57448": "AV-Composite Molecular Condenser",
+  "57453": "Carbon Fiber",
+  "57454": "Oxy-Organic Solvents",
+  "57455": "Thermosetting Polymer",
+  "57456": "Pressurized Oxidizers",
+  "57457": "Reinforced Carbon Fiber",
+  "57462": "Sense-Heuristic Neurolink Enhancer",
+  "57469": "Goal-Orienting Neurolink Stabilizer",
+  "57473": "G-O Trigger Neurolink Conduit",
+  "57477": "Ladar-FTL Interlink Communicator",
+  "57478": "Auto-Integrity Preservation Seal",
+  "57479": "Core Temperature Regulator",
+  "57486": "Life Support Backup Unit",
+  "57487": "Capital Core Temperature Regulator",
+  "83467": "Angel NET Resonator",
+  "83473": "SoE NET Resonator"
+ }
+}

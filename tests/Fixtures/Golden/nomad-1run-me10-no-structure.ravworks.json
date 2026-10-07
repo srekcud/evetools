@@ -1,0 +1,1653 @@
+{
+ "id": "nomad-1run-me10-no-structure",
+ "provenance": {
+  "source": "Ravworks",
+  "url": "https://ravworks.com/plan/CBevjGf",
+  "retrievedAt": "2026-10-07",
+  "method": "Lecture unique de la page publique du plan (tables \"Stocks and Materials\", \"Produced Parts\", \"Jobs to Run\"). Aucune donnee de joueur conservee.",
+  "crossCheck": "Recalcul independant depuis le SDE local (formule de reference benchmark.md F1, demande agregee) : 63/63 feuilles et 65/65 jobs intermediaires identiques. inputs par job = recalcul (non affiche par Ravworks).",
+  "attribution": "Donnees de plan publiees par Ravworks (ravworks.com). Materiaux EVE : propriete de CCP Games.",
+  "knownDeviation": "Surplus (End Amount) de Nitrogen Fuel Block : Ravworks 14, recalcul 15 (runs et feuilles identiques). Ne pas asserter les surplus a l unite."
+ },
+ "input": {
+  "product": "Nomad",
+  "typeId": 28846,
+  "runs": 1,
+  "me": 10,
+  "te": null,
+  "intermediates": {
+   "manufacturingMe": 10,
+   "manufacturingTe": 20,
+   "reactionMe": 0
+  },
+  "structures": "Aucun bonus de structure ni de rig (config Ravworks par defaut \"No Structure Bonus\") pour toutes les activites",
+  "security": null,
+  "buy": [],
+  "stock": []
+ },
+ "expected": {
+  "root": {
+   "product": "Nomad",
+   "runs": 1,
+   "quantityProduced": 1,
+   "inputs": {
+    "Capital Deflection Shield Emitter": 607,
+    "Capital Electrolytic Capacitor Unit": 951,
+    "Capital Fernite Carbide Composite Armor Plate": 1368,
+    "Capital Jump Drive": 27,
+    "Capital Ladar Sensor Cluster": 599,
+    "Capital Nanomechanical Microprocessor": 951,
+    "Capital Nuclear Reactor Unit": 700,
+    "Capital Plasma Thruster": 570,
+    "Construction Blocks": 2025,
+    "Fenrir": 1,
+    "Morphite": 3375,
+    "R.A.M.- Starship Tech": 54
+   }
+  },
+  "leaves": [
+   {
+    "name": "AV-Composite Molecular Condenser",
+    "typeId": 57448,
+    "quantity": 29
+   },
+   {
+    "name": "Atmospheric Gases",
+    "typeId": 16634,
+    "quantity": 60500
+   },
+   {
+    "name": "Azure Cytoserocin",
+    "typeId": 25279,
+    "quantity": 20
+   },
+   {
+    "name": "Azure Mykoserocin",
+    "typeId": 28695,
+    "quantity": 1080
+   },
+   {
+    "name": "Broadcast Node",
+    "typeId": 2867,
+    "quantity": 2
+   },
+   {
+    "name": "Cadmium",
+    "typeId": 16643,
+    "quantity": 10000
+   },
+   {
+    "name": "Caesium",
+    "typeId": 16647,
+    "quantity": 5800
+   },
+   {
+    "name": "Chiral Structures",
+    "typeId": 2401,
+    "quantity": 2880
+   },
+   {
+    "name": "Chromium",
+    "typeId": 16641,
+    "quantity": 23500
+   },
+   {
+    "name": "Construction Blocks",
+    "typeId": 3828,
+    "quantity": 2025
+   },
+   {
+    "name": "Coolant",
+    "typeId": 9832,
+    "quantity": 4692
+   },
+   {
+    "name": "Dysprosium",
+    "typeId": 16650,
+    "quantity": 5800
+   },
+   {
+    "name": "Enriched Uranium",
+    "typeId": 44,
+    "quantity": 2087
+   },
+   {
+    "name": "Evaporite Deposits",
+    "typeId": 16635,
+    "quantity": 91800
+   },
+   {
+    "name": "Fullerite-C28",
+    "typeId": 30375,
+    "quantity": 600
+   },
+   {
+    "name": "Fullerite-C32",
+    "typeId": 30376,
+    "quantity": 800
+   },
+   {
+    "name": "Fullerite-C320",
+    "typeId": 30377,
+    "quantity": 300
+   },
+   {
+    "name": "Fullerite-C50",
+    "typeId": 30370,
+    "quantity": 500
+   },
+   {
+    "name": "Fullerite-C540",
+    "typeId": 30378,
+    "quantity": 300
+   },
+   {
+    "name": "Fullerite-C60",
+    "typeId": 30371,
+    "quantity": 500
+   },
+   {
+    "name": "Fullerite-C70",
+    "typeId": 30372,
+    "quantity": 700
+   },
+   {
+    "name": "Fullerite-C72",
+    "typeId": 30373,
+    "quantity": 300
+   },
+   {
+    "name": "Fullerite-C84",
+    "typeId": 30374,
+    "quantity": 500
+   },
+   {
+    "name": "Hafnium",
+    "typeId": 16648,
+    "quantity": 3800
+   },
+   {
+    "name": "Heavy Water",
+    "typeId": 16272,
+    "quantity": 88587
+   },
+   {
+    "name": "Helium Isotopes",
+    "typeId": 16274,
+    "quantity": 43335
+   },
+   {
+    "name": "Hydrocarbons",
+    "typeId": 16633,
+    "quantity": 75200
+   },
+   {
+    "name": "Hydrogen Isotopes",
+    "typeId": 17889,
+    "quantity": 130410
+   },
+   {
+    "name": "Integrity Response Drones",
+    "typeId": 2868,
+    "quantity": 18
+   },
+   {
+    "name": "Isogen",
+    "typeId": 37,
+    "quantity": 1119487
+   },
+   {
+    "name": "Liquid Ozone",
+    "typeId": 16273,
+    "quantity": 182385
+   },
+   {
+    "name": "Mechanical Parts",
+    "typeId": 3689,
+    "quantity": 2087
+   },
+   {
+    "name": "Megacyte",
+    "typeId": 40,
+    "quantity": 28338
+   },
+   {
+    "name": "Mercury",
+    "typeId": 16646,
+    "quantity": 11900
+   },
+   {
+    "name": "Mexallon",
+    "typeId": 36,
+    "quantity": 4008800
+   },
+   {
+    "name": "Morphite",
+    "typeId": 11399,
+    "quantity": 3375
+   },
+   {
+    "name": "Nanites",
+    "typeId": 2463,
+    "quantity": 432
+   },
+   {
+    "name": "Neodymium",
+    "typeId": 16651,
+    "quantity": 11100
+   },
+   {
+    "name": "Nitrogen Isotopes",
+    "typeId": 17888,
+    "quantity": 42930
+   },
+   {
+    "name": "Nocxium",
+    "typeId": 38,
+    "quantity": 113652
+   },
+   {
+    "name": "Organic Mortar Applicators",
+    "typeId": 2870,
+    "quantity": 23
+   },
+   {
+    "name": "Oxygen Isotopes",
+    "typeId": 17887,
+    "quantity": 17820
+   },
+   {
+    "name": "Oxygen",
+    "typeId": 3683,
+    "quantity": 11466
+   },
+   {
+    "name": "Platinum",
+    "typeId": 16644,
+    "quantity": 39700
+   },
+   {
+    "name": "Promethium",
+    "typeId": 16652,
+    "quantity": 6500
+   },
+   {
+    "name": "Pyerite",
+    "typeId": 35,
+    "quantity": 14416500
+   },
+   {
+    "name": "Robotics",
+    "typeId": 9848,
+    "quantity": 579
+   },
+   {
+    "name": "Scandium",
+    "typeId": 16639,
+    "quantity": 55000
+   },
+   {
+    "name": "Self-Harmonizing Power Core",
+    "typeId": 2872,
+    "quantity": 37
+   },
+   {
+    "name": "Silicates",
+    "typeId": 16636,
+    "quantity": 106500
+   },
+   {
+    "name": "Strontium Clathrates",
+    "typeId": 16275,
+    "quantity": 10422
+   },
+   {
+    "name": "Supertensile Plastics",
+    "typeId": 2312,
+    "quantity": 432
+   },
+   {
+    "name": "Technetium",
+    "typeId": 16649,
+    "quantity": 17000
+   },
+   {
+    "name": "Test Cultures",
+    "typeId": 2319,
+    "quantity": 432
+   },
+   {
+    "name": "Thulium",
+    "typeId": 16653,
+    "quantity": 3500
+   },
+   {
+    "name": "Tritanium",
+    "typeId": 34,
+    "quantity": 4008301
+   },
+   {
+    "name": "Vanadium",
+    "typeId": 16642,
+    "quantity": 58800
+   },
+   {
+    "name": "Vermillion Cytoserocin",
+    "typeId": 25278,
+    "quantity": 20
+   },
+   {
+    "name": "Vermillion Mykoserocin",
+    "typeId": 28700,
+    "quantity": 1080
+   },
+   {
+    "name": "Viral Agent",
+    "typeId": 3775,
+    "quantity": 432
+   },
+   {
+    "name": "Water",
+    "typeId": 3645,
+    "quantity": 2880
+   },
+   {
+    "name": "Wetware Mainframe",
+    "typeId": 2876,
+    "quantity": 28
+   },
+   {
+    "name": "Zydrine",
+    "typeId": 39,
+    "quantity": 57734
+   }
+  ],
+  "intermediates": [
+   {
+    "product": "Auto-Integrity Preservation Seal",
+    "typeId": 57478,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 120,
+    "outputPerRun": 3,
+    "quantityProduced": 360,
+    "quantityNeeded": 360,
+    "surplus": 0,
+    "inputs": {
+     "Nanites": 432,
+     "Reinforced Carbon Fiber": 1080,
+     "Supertensile Plastics": 432
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "C3-FTM Acid",
+    "typeId": 30311,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 3,
+    "outputPerRun": 100,
+    "quantityProduced": 300,
+    "quantityNeeded": 234,
+    "surplus": 66,
+    "inputs": {
+     "Fullerite-C540": 300,
+     "Fullerite-C84": 300,
+     "Helium Fuel Block": 15,
+     "Megacyte": 240
+    },
+    "ravworksEndStock": 66
+   },
+   {
+    "product": "Caesarium Cadmide",
+    "typeId": 16663,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 50,
+    "outputPerRun": 200,
+    "quantityProduced": 10000,
+    "quantityNeeded": 10000,
+    "surplus": 0,
+    "inputs": {
+     "Cadmium": 5000,
+     "Caesium": 5000,
+     "Oxygen Fuel Block": 250
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Capital Armor Plates",
+    "typeId": 21017,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 5,
+    "outputPerRun": 1,
+    "quantityProduced": 5,
+    "quantityNeeded": 5,
+    "surplus": 0,
+    "inputs": {
+     "Isogen": 54000,
+     "Megacyte": 1386,
+     "Mexallon": 202500,
+     "Nocxium": 5400,
+     "Organic Mortar Applicators": 23,
+     "Pyerite": 708750,
+     "Reinforced Carbon Fiber": 450,
+     "Tritanium": 202500,
+     "Zydrine": 2768
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Capital Cargo Bay",
+    "typeId": 21027,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 32,
+    "outputPerRun": 1,
+    "quantityProduced": 32,
+    "quantityNeeded": 32,
+    "surplus": 0,
+    "inputs": {
+     "Isogen": 432000,
+     "Megacyte": 10944,
+     "Mexallon": 1555200,
+     "Nocxium": 43200,
+     "Pyerite": 5616000,
+     "Reinforced Carbon Fiber": 2880,
+     "Tritanium": 1555200,
+     "Zydrine": 21888
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Capital Construction Parts",
+    "typeId": 21037,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 5,
+    "outputPerRun": 1,
+    "quantityProduced": 5,
+    "quantityNeeded": 5,
+    "surplus": 0,
+    "inputs": {
+     "Isogen": 40500,
+     "Megacyte": 945,
+     "Mexallon": 135000,
+     "Nocxium": 3375,
+     "Pyerite": 472500,
+     "Reinforced Carbon Fiber": 450,
+     "Tritanium": 135000,
+     "Zydrine": 1859
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Capital Core Temperature Regulator",
+    "typeId": 57487,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 1,
+    "outputPerRun": 1,
+    "quantityProduced": 1,
+    "quantityNeeded": 1,
+    "surplus": 0,
+    "inputs": {
+     "Core Temperature Regulator": 32,
+     "Integrity Response Drones": 18,
+     "Self-Harmonizing Power Core": 18
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Capital Deflection Shield Emitter",
+    "typeId": 29043,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 607,
+    "outputPerRun": 1,
+    "quantityProduced": 607,
+    "quantityNeeded": 607,
+    "surplus": 0,
+    "inputs": {
+     "Fernite Carbide": 1213879,
+     "Ferrogel": 6010,
+     "Sylramic Fibers": 485661
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Capital Electrolytic Capacitor Unit",
+    "typeId": 29045,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 951,
+    "outputPerRun": 1,
+    "quantityProduced": 951,
+    "quantityNeeded": 951,
+    "surplus": 0,
+    "inputs": {
+     "Fernite Carbide": 1901810,
+     "Fullerides": 950905,
+     "Nanotransistors": 9415,
+     "Plasmonic Metamaterials": 18830
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Capital Fernite Carbide Composite Armor Plate",
+    "typeId": 29049,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 1368,
+    "outputPerRun": 1,
+    "quantityProduced": 1368,
+    "quantityNeeded": 1368,
+    "surplus": 0,
+    "inputs": {
+     "Fernite Carbide": 2735727,
+     "Sylramic Fibers": 2052411
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Capital Jump Drive",
+    "typeId": 21025,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 27,
+    "outputPerRun": 1,
+    "quantityProduced": 27,
+    "quantityNeeded": 27,
+    "surplus": 0,
+    "inputs": {
+     "Isogen": 410063,
+     "Megacyte": 10206,
+     "Mexallon": 1458000,
+     "Nocxium": 41019,
+     "Pyerite": 5248800,
+     "Reinforced Carbon Fiber": 2430,
+     "Tritanium": 1458000,
+     "Wetware Mainframe": 27,
+     "Zydrine": 21870
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Capital Ladar Sensor Cluster",
+    "typeId": 29065,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 599,
+    "outputPerRun": 1,
+    "quantityProduced": 599,
+    "quantityNeeded": 599,
+    "surplus": 0,
+    "inputs": {
+     "Fernite Carbide": 1197881,
+     "Hypersynaptic Fibers": 11861,
+     "Nanotransistors": 5931
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Capital Nanomechanical Microprocessor",
+    "typeId": 29075,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 951,
+    "outputPerRun": 1,
+    "quantityProduced": 951,
+    "quantityNeeded": 951,
+    "surplus": 0,
+    "inputs": {
+     "Fernite Carbide": 1426786,
+     "Nanotransistors": 18830,
+     "Phenolic Composites": 47931,
+     "Plasmonic Metamaterials": 18830
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Capital Nuclear Reactor Unit",
+    "typeId": 29079,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 700,
+    "outputPerRun": 1,
+    "quantityProduced": 700,
+    "quantityNeeded": 700,
+    "surplus": 0,
+    "inputs": {
+     "Fermionic Condensates": 13860,
+     "Fernite Carbide": 560070
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Capital Plasma Thruster",
+    "typeId": 29089,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 570,
+    "outputPerRun": 1,
+    "quantityProduced": 570,
+    "quantityNeeded": 570,
+    "surplus": 0,
+    "inputs": {
+     "Fernite Carbide": 683829,
+     "Ferrogel": 5643,
+     "Phenolic Composites": 16929
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Capital Propulsion Engine",
+    "typeId": 21009,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 18,
+    "outputPerRun": 1,
+    "quantityProduced": 18,
+    "quantityNeeded": 18,
+    "surplus": 0,
+    "inputs": {
+     "Isogen": 182250,
+     "Megacyte": 4617,
+     "Mexallon": 656100,
+     "Nocxium": 18225,
+     "Pyerite": 2369250,
+     "Reinforced Carbon Fiber": 1620,
+     "Self-Harmonizing Power Core": 18,
+     "Tritanium": 656100,
+     "Zydrine": 9234
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Carbon Fiber",
+    "typeId": 57453,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 120,
+    "outputPerRun": 200,
+    "quantityProduced": 24000,
+    "quantityNeeded": 24000,
+    "surplus": 0,
+    "inputs": {
+     "Evaporite Deposits": 12000,
+     "Hydrocarbons": 12000,
+     "Hydrogen Fuel Block": 600
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Carbon Polymers",
+    "typeId": 16659,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 232,
+    "outputPerRun": 200,
+    "quantityProduced": 46400,
+    "quantityNeeded": 46300,
+    "surplus": 100,
+    "inputs": {
+     "Helium Fuel Block": 1160,
+     "Hydrocarbons": 23200,
+     "Silicates": 23200
+    },
+    "ravworksEndStock": 100
+   },
+   {
+    "product": "Carbon-86 Epoxy Resin",
+    "typeId": 30310,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 3,
+    "outputPerRun": 160,
+    "quantityProduced": 480,
+    "quantityNeeded": 342,
+    "surplus": 138,
+    "inputs": {
+     "Fullerite-C32": 300,
+     "Fullerite-C320": 300,
+     "Nitrogen Fuel Block": 15,
+     "Zydrine": 90
+    },
+    "ravworksEndStock": 138
+   },
+   {
+    "product": "Ceramic Powder",
+    "typeId": 16660,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 698,
+    "outputPerRun": 200,
+    "quantityProduced": 139600,
+    "quantityNeeded": 139600,
+    "surplus": 0,
+    "inputs": {
+     "Evaporite Deposits": 69800,
+     "Hydrogen Fuel Block": 3490,
+     "Silicates": 69800
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Core Temperature Regulator",
+    "typeId": 57479,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 32,
+    "outputPerRun": 1,
+    "quantityProduced": 32,
+    "quantityNeeded": 32,
+    "surplus": 0,
+    "inputs": {
+     "Chiral Structures": 2880,
+     "Pressurized Oxidizers": 14400,
+     "Reinforced Carbon Fiber": 14400,
+     "Water": 2880
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Dysporite",
+    "typeId": 16668,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 43,
+    "outputPerRun": 200,
+    "quantityProduced": 8600,
+    "quantityNeeded": 8600,
+    "surplus": 0,
+    "inputs": {
+     "Dysprosium": 4300,
+     "Helium Fuel Block": 215,
+     "Mercury": 4300
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Fenrir",
+    "typeId": 20189,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 1,
+    "outputPerRun": 1,
+    "quantityProduced": 1,
+    "quantityNeeded": 1,
+    "surplus": 0,
+    "inputs": {
+     "Auto-Integrity Preservation Seal": 360,
+     "Capital Armor Plates": 5,
+     "Capital Cargo Bay": 32,
+     "Capital Construction Parts": 5,
+     "Capital Core Temperature Regulator": 1,
+     "Capital Propulsion Engine": 18,
+     "G-O Trigger Neurolink Conduit": 15,
+     "Ladar-FTL Interlink Communicator": 1,
+     "Life Support Backup Unit": 180
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Fermionic Condensates",
+    "typeId": 17317,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 70,
+    "outputPerRun": 200,
+    "quantityProduced": 14000,
+    "quantityNeeded": 13896,
+    "surplus": 104,
+    "inputs": {
+     "Caesarium Cadmide": 7000,
+     "Dysporite": 7000,
+     "Fluxed Condensates": 7000,
+     "Helium Fuel Block": 350,
+     "Prometium": 7000
+    },
+    "ravworksEndStock": 104
+   },
+   {
+    "product": "Fernite Alloy",
+    "typeId": 16656,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 550,
+    "outputPerRun": 200,
+    "quantityProduced": 110000,
+    "quantityNeeded": 110000,
+    "surplus": 0,
+    "inputs": {
+     "Hydrogen Fuel Block": 2750,
+     "Scandium": 55000,
+     "Vanadium": 55000
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Fernite Carbide",
+    "typeId": 16673,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 972,
+    "outputPerRun": 10000,
+    "quantityProduced": 9720000,
+    "quantityNeeded": 9719982,
+    "surplus": 18,
+    "inputs": {
+     "Ceramic Powder": 97200,
+     "Fernite Alloy": 97200,
+     "Hydrogen Fuel Block": 4860
+    },
+    "ravworksEndStock": 18
+   },
+   {
+    "product": "Ferrofluid",
+    "typeId": 16669,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 15,
+    "outputPerRun": 200,
+    "quantityProduced": 3000,
+    "quantityNeeded": 3000,
+    "surplus": 0,
+    "inputs": {
+     "Dysprosium": 1500,
+     "Hafnium": 1500,
+     "Hydrogen Fuel Block": 75
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Ferrogel",
+    "typeId": 16683,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 30,
+    "outputPerRun": 400,
+    "quantityProduced": 12000,
+    "quantityNeeded": 11653,
+    "surplus": 347,
+    "inputs": {
+     "Ferrofluid": 3000,
+     "Hexite": 3000,
+     "Hydrogen Fuel Block": 150,
+     "Hyperflurite": 3000,
+     "Prometium": 3000
+    },
+    "ravworksEndStock": 347
+   },
+   {
+    "product": "Fluxed Condensates",
+    "typeId": 17769,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 35,
+    "outputPerRun": 200,
+    "quantityProduced": 7000,
+    "quantityNeeded": 7000,
+    "surplus": 0,
+    "inputs": {
+     "Neodymium": 3500,
+     "Oxygen Fuel Block": 175,
+     "Thulium": 3500
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Fullerene Intercalated Graphite",
+    "typeId": 30305,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 3,
+    "outputPerRun": 120,
+    "quantityProduced": 360,
+    "quantityNeeded": 351,
+    "surplus": 9,
+    "inputs": {
+     "Fullerite-C60": 300,
+     "Fullerite-C70": 300,
+     "Hydrogen Fuel Block": 15,
+     "Mexallon": 1800
+    },
+    "ravworksEndStock": 9
+   },
+   {
+    "product": "Fullerides",
+    "typeId": 16679,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 317,
+    "outputPerRun": 3000,
+    "quantityProduced": 951000,
+    "quantityNeeded": 950905,
+    "surplus": 95,
+    "inputs": {
+     "Carbon Polymers": 31700,
+     "Nitrogen Fuel Block": 1585,
+     "Platinum Technite": 31700
+    },
+    "ravworksEndStock": 95
+   },
+   {
+    "product": "Fulleroferrocene",
+    "typeId": 30303,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 1,
+    "outputPerRun": 1000,
+    "quantityProduced": 1000,
+    "quantityNeeded": 594,
+    "surplus": 406,
+    "inputs": {
+     "Fullerite-C50": 200,
+     "Fullerite-C60": 100,
+     "Oxygen Fuel Block": 5,
+     "Tritanium": 1000
+    },
+    "ravworksEndStock": 406
+   },
+   {
+    "product": "G-O Trigger Neurolink Conduit",
+    "typeId": 57473,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 15,
+    "outputPerRun": 1,
+    "quantityProduced": 15,
+    "quantityNeeded": 15,
+    "surplus": 0,
+    "inputs": {
+     "Goal-Orienting Neurolink Stabilizer": 15,
+     "Pressurized Oxidizers": 135,
+     "Reinforced Carbon Fiber": 135,
+     "Sense-Heuristic Neurolink Enhancer": 540
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Goal-Orienting Neurolink Stabilizer",
+    "typeId": 57469,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 2,
+    "outputPerRun": 10,
+    "quantityProduced": 20,
+    "quantityNeeded": 15,
+    "surplus": 5,
+    "inputs": {
+     "AV-Composite Molecular Condenser": 2,
+     "Azure Cytoserocin": 20,
+     "Hydrogen Fuel Block": 10,
+     "Vermillion Cytoserocin": 20
+    },
+    "ravworksEndStock": 5
+   },
+   {
+    "product": "Graphene Nanoribbons",
+    "typeId": 30309,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 5,
+    "outputPerRun": 120,
+    "quantityProduced": 600,
+    "quantityNeeded": 504,
+    "surplus": 96,
+    "inputs": {
+     "Fullerite-C28": 500,
+     "Fullerite-C32": 500,
+     "Nitrogen Fuel Block": 25,
+     "Nocxium": 2000
+    },
+    "ravworksEndStock": 96
+   },
+   {
+    "product": "Helium Fuel Block",
+    "typeId": 4247,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 107,
+    "outputPerRun": 40,
+    "quantityProduced": 4280,
+    "quantityNeeded": 4245,
+    "surplus": 35,
+    "inputs": {
+     "Coolant": 867,
+     "Enriched Uranium": 386,
+     "Heavy Water": 16371,
+     "Helium Isotopes": 43335,
+     "Liquid Ozone": 33705,
+     "Mechanical Parts": 386,
+     "Oxygen": 2119,
+     "Robotics": 107,
+     "Strontium Clathrates": 1926
+    },
+    "ravworksEndStock": 35
+   },
+   {
+    "product": "Hexite",
+    "typeId": 16665,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 227,
+    "outputPerRun": 200,
+    "quantityProduced": 45400,
+    "quantityNeeded": 45400,
+    "surplus": 0,
+    "inputs": {
+     "Chromium": 22700,
+     "Nitrogen Fuel Block": 1135,
+     "Platinum": 22700
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Hydrogen Fuel Block",
+    "typeId": 4246,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 322,
+    "outputPerRun": 40,
+    "quantityProduced": 12880,
+    "quantityNeeded": 12855,
+    "surplus": 25,
+    "inputs": {
+     "Coolant": 2609,
+     "Enriched Uranium": 1160,
+     "Heavy Water": 49266,
+     "Hydrogen Isotopes": 130410,
+     "Liquid Ozone": 101430,
+     "Mechanical Parts": 1160,
+     "Oxygen": 6376,
+     "Robotics": 322,
+     "Strontium Clathrates": 5796
+    },
+    "ravworksEndStock": 25
+   },
+   {
+    "product": "Hyperflurite",
+    "typeId": 16666,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 15,
+    "outputPerRun": 200,
+    "quantityProduced": 3000,
+    "quantityNeeded": 3000,
+    "surplus": 0,
+    "inputs": {
+     "Nitrogen Fuel Block": 75,
+     "Promethium": 1500,
+     "Vanadium": 1500
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Hypersynaptic Fibers",
+    "typeId": 16682,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 16,
+    "outputPerRun": 750,
+    "quantityProduced": 12000,
+    "quantityNeeded": 11861,
+    "surplus": 139,
+    "inputs": {
+     "Dysporite": 1600,
+     "Oxygen Fuel Block": 80,
+     "Solerium": 1600,
+     "Vanadium Hafnite": 1600
+    },
+    "ravworksEndStock": 139
+   },
+   {
+    "product": "Ladar-FTL Interlink Communicator",
+    "typeId": 57477,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 1,
+    "outputPerRun": 1,
+    "quantityProduced": 1,
+    "quantityNeeded": 1,
+    "surplus": 0,
+    "inputs": {
+     "Broadcast Node": 2,
+     "C3-FTM Acid": 234,
+     "Carbon-86 Epoxy Resin": 342,
+     "Fermionic Condensates": 36,
+     "Fullerene Intercalated Graphite": 351,
+     "Fulleroferrocene": 594,
+     "Graphene Nanoribbons": 504,
+     "Lanthanum Metallofullerene": 171,
+     "Methanofullerene": 171,
+     "PPD Fullerene Fibers": 171,
+     "Plasmonic Metamaterials": 504,
+     "Scandium Metallofullerene": 117,
+     "Self-Harmonizing Power Core": 1,
+     "Wetware Mainframe": 1
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Lanthanum Metallofullerene",
+    "typeId": 30307,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 2,
+    "outputPerRun": 120,
+    "quantityProduced": 240,
+    "quantityNeeded": 171,
+    "surplus": 69,
+    "inputs": {
+     "Fullerite-C70": 200,
+     "Fullerite-C84": 200,
+     "Nocxium": 400,
+     "Oxygen Fuel Block": 10
+    },
+    "ravworksEndStock": 69
+   },
+   {
+    "product": "Life Support Backup Unit",
+    "typeId": 57486,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 60,
+    "outputPerRun": 3,
+    "quantityProduced": 180,
+    "quantityNeeded": 180,
+    "surplus": 0,
+    "inputs": {
+     "Reinforced Carbon Fiber": 540,
+     "Test Cultures": 432,
+     "Viral Agent": 432
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Methanofullerene",
+    "typeId": 30306,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 2,
+    "outputPerRun": 160,
+    "quantityProduced": 320,
+    "quantityNeeded": 171,
+    "surplus": 149,
+    "inputs": {
+     "Fullerite-C70": 200,
+     "Fullerite-C72": 200,
+     "Hydrogen Fuel Block": 10,
+     "Isogen": 600
+    },
+    "ravworksEndStock": 149
+   },
+   {
+    "product": "Nanotransistors",
+    "typeId": 16681,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 23,
+    "outputPerRun": 1500,
+    "quantityProduced": 34500,
+    "quantityNeeded": 34176,
+    "surplus": 324,
+    "inputs": {
+     "Neo Mercurite": 2300,
+     "Nitrogen Fuel Block": 115,
+     "Platinum Technite": 2300,
+     "Sulfuric Acid": 2300
+    },
+    "ravworksEndStock": 324
+   },
+   {
+    "product": "Neo Mercurite",
+    "typeId": 16667,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 76,
+    "outputPerRun": 200,
+    "quantityProduced": 15200,
+    "quantityNeeded": 15100,
+    "surplus": 100,
+    "inputs": {
+     "Helium Fuel Block": 380,
+     "Mercury": 7600,
+     "Neodymium": 7600
+    },
+    "ravworksEndStock": 100
+   },
+   {
+    "product": "Nitrogen Fuel Block",
+    "typeId": 4051,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 106,
+    "outputPerRun": 40,
+    "quantityProduced": 4240,
+    "quantityNeeded": 4225,
+    "surplus": 15,
+    "inputs": {
+     "Coolant": 859,
+     "Enriched Uranium": 382,
+     "Heavy Water": 16218,
+     "Liquid Ozone": 33390,
+     "Mechanical Parts": 382,
+     "Nitrogen Isotopes": 42930,
+     "Oxygen": 2099,
+     "Robotics": 106,
+     "Strontium Clathrates": 1908
+    },
+    "ravworksEndStock": 14
+   },
+   {
+    "product": "Oxy-Organic Solvents",
+    "typeId": 57454,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 20,
+    "outputPerRun": 10,
+    "quantityProduced": 200,
+    "quantityNeeded": 193,
+    "surplus": 7,
+    "inputs": {
+     "Atmospheric Gases": 40000,
+     "Hydrocarbons": 40000,
+     "Oxygen Fuel Block": 100
+    },
+    "ravworksEndStock": 7
+   },
+   {
+    "product": "Oxygen Fuel Block",
+    "typeId": 4312,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 44,
+    "outputPerRun": 40,
+    "quantityProduced": 1760,
+    "quantityNeeded": 1735,
+    "surplus": 25,
+    "inputs": {
+     "Coolant": 357,
+     "Enriched Uranium": 159,
+     "Heavy Water": 6732,
+     "Liquid Ozone": 13860,
+     "Mechanical Parts": 159,
+     "Oxygen Isotopes": 17820,
+     "Oxygen": 872,
+     "Robotics": 44,
+     "Strontium Clathrates": 792
+    },
+    "ravworksEndStock": 25
+   },
+   {
+    "product": "Phenolic Composites",
+    "typeId": 16680,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 30,
+    "outputPerRun": 2200,
+    "quantityProduced": 66000,
+    "quantityNeeded": 64860,
+    "surplus": 1140,
+    "inputs": {
+     "Caesarium Cadmide": 3000,
+     "Oxygen Fuel Block": 150,
+     "Silicon Diborite": 3000,
+     "Vanadium Hafnite": 3000
+    },
+    "ravworksEndStock": 1140
+   },
+   {
+    "product": "Plasmonic Metamaterials",
+    "typeId": 33361,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 128,
+    "outputPerRun": 300,
+    "quantityProduced": 38400,
+    "quantityNeeded": 38164,
+    "surplus": 236,
+    "inputs": {
+     "Fernite Alloy": 12800,
+     "Hydrogen Fuel Block": 640,
+     "Neo Mercurite": 12800
+    },
+    "ravworksEndStock": 236
+   },
+   {
+    "product": "Platinum Technite",
+    "typeId": 16662,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 170,
+    "outputPerRun": 200,
+    "quantityProduced": 34000,
+    "quantityNeeded": 34000,
+    "surplus": 0,
+    "inputs": {
+     "Nitrogen Fuel Block": 850,
+     "Platinum": 17000,
+     "Technetium": 17000
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "PPD Fullerene Fibers",
+    "typeId": 30304,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 1,
+    "outputPerRun": 250,
+    "quantityProduced": 250,
+    "quantityNeeded": 171,
+    "surplus": 79,
+    "inputs": {
+     "Fullerite-C50": 300,
+     "Fullerite-C60": 100,
+     "Hydrogen Fuel Block": 5,
+     "Pyerite": 800
+    },
+    "ravworksEndStock": 79
+   },
+   {
+    "product": "Pressurized Oxidizers",
+    "typeId": 57456,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 73,
+    "outputPerRun": 200,
+    "quantityProduced": 14600,
+    "quantityNeeded": 14535,
+    "surplus": 65,
+    "inputs": {
+     "Carbon Polymers": 14600,
+     "Oxy-Organic Solvents": 73,
+     "Sulfuric Acid": 14600
+    },
+    "ravworksEndStock": 65
+   },
+   {
+    "product": "Prometium",
+    "typeId": 17960,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 50,
+    "outputPerRun": 200,
+    "quantityProduced": 10000,
+    "quantityNeeded": 10000,
+    "surplus": 0,
+    "inputs": {
+     "Cadmium": 5000,
+     "Oxygen Fuel Block": 250,
+     "Promethium": 5000
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "R.A.M.- Starship Tech",
+    "typeId": 11478,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [],
+    "runs": 1,
+    "outputPerRun": 100,
+    "quantityProduced": 100,
+    "quantityNeeded": 54,
+    "surplus": 46,
+    "inputs": {
+     "Isogen": 74,
+     "Mexallon": 200,
+     "Nocxium": 33,
+     "Pyerite": 400,
+     "Tritanium": 501
+    },
+    "ravworksEndStock": 46
+   },
+   {
+    "product": "Reinforced Carbon Fiber",
+    "typeId": 57457,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 120,
+    "outputPerRun": 200,
+    "quantityProduced": 24000,
+    "quantityNeeded": 23985,
+    "surplus": 15,
+    "inputs": {
+     "Carbon Fiber": 24000,
+     "Oxy-Organic Solvents": 120,
+     "Thermosetting Polymer": 24000
+    },
+    "ravworksEndStock": 15
+   },
+   {
+    "product": "Scandium Metallofullerene",
+    "typeId": 30308,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 1,
+    "outputPerRun": 160,
+    "quantityProduced": 160,
+    "quantityNeeded": 117,
+    "surplus": 43,
+    "inputs": {
+     "Fullerite-C28": 100,
+     "Fullerite-C72": 100,
+     "Helium Fuel Block": 5,
+     "Zydrine": 25
+    },
+    "ravworksEndStock": 43
+   },
+   {
+    "product": "Sense-Heuristic Neurolink Enhancer",
+    "typeId": 57462,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 27,
+    "outputPerRun": 20,
+    "quantityProduced": 540,
+    "quantityNeeded": 540,
+    "surplus": 0,
+    "inputs": {
+     "AV-Composite Molecular Condenser": 27,
+     "Azure Mykoserocin": 1080,
+     "Hydrogen Fuel Block": 135,
+     "Vermillion Mykoserocin": 1080
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Silicon Diborite",
+    "typeId": 16658,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 15,
+    "outputPerRun": 200,
+    "quantityProduced": 3000,
+    "quantityNeeded": 3000,
+    "surplus": 0,
+    "inputs": {
+     "Evaporite Deposits": 1500,
+     "Oxygen Fuel Block": 75,
+     "Silicates": 1500
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Solerium",
+    "typeId": 16664,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 8,
+    "outputPerRun": 200,
+    "quantityProduced": 1600,
+    "quantityNeeded": 1600,
+    "surplus": 0,
+    "inputs": {
+     "Caesium": 800,
+     "Chromium": 800,
+     "Oxygen Fuel Block": 40
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Sulfuric Acid",
+    "typeId": 16661,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 85,
+    "outputPerRun": 200,
+    "quantityProduced": 17000,
+    "quantityNeeded": 16900,
+    "surplus": 100,
+    "inputs": {
+     "Atmospheric Gases": 8500,
+     "Evaporite Deposits": 8500,
+     "Nitrogen Fuel Block": 425
+    },
+    "ravworksEndStock": 100
+   },
+   {
+    "product": "Sylramic Fibers",
+    "typeId": 16678,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 424,
+    "outputPerRun": 6000,
+    "quantityProduced": 2544000,
+    "quantityNeeded": 2538072,
+    "surplus": 5928,
+    "inputs": {
+     "Ceramic Powder": 42400,
+     "Helium Fuel Block": 2120,
+     "Hexite": 42400
+    },
+    "ravworksEndStock": 5928
+   },
+   {
+    "product": "Thermosetting Polymer",
+    "typeId": 57455,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 120,
+    "outputPerRun": 200,
+    "quantityProduced": 24000,
+    "quantityNeeded": 24000,
+    "surplus": 0,
+    "inputs": {
+     "Atmospheric Gases": 12000,
+     "Oxygen Fuel Block": 600,
+     "Silicates": 12000
+    },
+    "ravworksEndStock": 0
+   },
+   {
+    "product": "Vanadium Hafnite",
+    "typeId": 17959,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [],
+    "runs": 23,
+    "outputPerRun": 200,
+    "quantityProduced": 4600,
+    "quantityNeeded": 4600,
+    "surplus": 0,
+    "inputs": {
+     "Hafnium": 2300,
+     "Hydrogen Fuel Block": 115,
+     "Vanadium": 2300
+    },
+    "ravworksEndStock": 0
+   }
+  ],
+  "informative": {
+   "ravworksJobSplits": {
+    "Capital Jump Drive": [
+     14,
+     13
+    ],
+    "Capital Cargo Bay": [
+     16,
+     16
+    ]
+   },
+   "ravworksJobTimeSecondsByCategory": {
+    "End products": 2880000,
+    "First Stage Composite Reactions": 22049280,
+    "Second Stage Composite Reactions": 19033920,
+    "Hybrid Reactions": 181440,
+    "Capital Components": 901120,
+    "Advanced Components": 474880,
+    "Advanced Capital Components": 3104320,
+    "Gas-Phase Reactions": 250560,
+    "Others": 1295104
+   },
+   "note": "Couts (ISK) et temps Ravworks non assertables : indices de cout et adjusted prices du jour du plan inconnus."
+  }
+ }
+}

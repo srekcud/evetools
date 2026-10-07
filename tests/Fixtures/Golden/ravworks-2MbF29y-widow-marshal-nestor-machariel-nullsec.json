@@ -1,0 +1,1954 @@
+{
+ "id": "ravworks-2MbF29y-widow-marshal-nestor-machariel-nullsec",
+ "provenance": {
+  "source": "Ravworks",
+  "url": "https://ravworks.com/plan/2MbF29y",
+  "retrievedAt": "2026-10-07",
+  "method": "Lecture unique de la page publique du plan partage par Sylvain (tables Stocks and Materials, Produced Parts, Jobs to Run). La configuration de structures n est pas affichee par la page (mention \"Plan Uses Different Industry Config\") : elle est deduite des quantites, puis verifiee par recalcul complet.",
+  "crossCheck": "Recalcul independant depuis le SDE local, formule F1 appliquee job par job sur les decoupages Ravworks : 100/100 quantites de materiaux consommees (feuilles et intermediaires) et 57/57 runs d intermediaires identiques. Sans decoupage (runs fusionnes par blueprint) : 67/100 quantites differentes.",
+  "attribution": "Donnees de plan publiees par Ravworks (ravworks.com). Materiaux EVE : propriete de CCP Games.",
+  "anonymisation": "Aucun nom de structure, de personnage ni de corporation n est repris (la page n en affiche pas dans les tableaux lus)."
+ },
+ "input": {
+  "endProductJobs": [
+   {
+    "product": "Machariel",
+    "typeId": 17738,
+    "me": 0,
+    "jobs": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "product": "Marshal",
+    "typeId": 44996,
+    "me": 0,
+    "jobs": [
+     1
+    ]
+   },
+   {
+    "product": "Nestor",
+    "typeId": 33472,
+    "me": 0,
+    "jobs": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "product": "Widow",
+    "typeId": 22436,
+    "me": 3,
+    "jobs": [
+     3,
+     3,
+     3,
+     3,
+     3,
+     3
+    ]
+   }
+  ],
+  "intermediates": {
+   "manufacturingMe": 10,
+   "reactionMe": 0
+  },
+  "structures": {
+   "manufacturing": {
+    "appliesTo": [
+     "endProducts",
+     "advancedComponents",
+     "capitalComponents",
+     "others"
+    ],
+    "structureMaterialModifier": 0.99,
+    "structureClass": "Engineering Complex (Raitaru/Azbel/Sotiyo, non distinguable)",
+    "rigBaseBonusPercent": 2.0,
+    "rigTier": "T1",
+    "security": "nullsec",
+    "rigSecurityModifier": 2.1,
+    "rigMaterialModifier": 0.958,
+    "combinedModifier": 0.94842,
+    "inferred": true
+   },
+   "reactions": {
+    "structureMaterialModifier": 1,
+    "structureClass": "Refinery (Athanor/Tatara, non distinguable)",
+    "rigBaseBonusPercent": 2.4,
+    "rigTier": "T2",
+    "security": "nullsec",
+    "rigSecurityModifier": 1.1,
+    "rigMaterialModifier": 0.9736,
+    "inferred": true
+   }
+  },
+  "jobSplitting": "Mode Ravworks par defaut : jobs de materiaux de plus de 2,0 jours decoupes. Les decoupages sont des entrees (champ jobs), pas une sortie a reproduire.",
+  "buy": "Tout ce qui figure dans leaves est achete (fuel blocks, R.A.M., Construction Blocks, produits PI, NET Resonators ne sont pas produits).",
+  "skills": "Non affiches ; sans effet sur les quantites.",
+  "stock": []
+ },
+ "expected": {
+  "roots": [
+   {
+    "product": "Machariel",
+    "typeId": 17738,
+    "activity": "manufacturing",
+    "ravworksSection": "endProducts",
+    "me": 0,
+    "modifier": 0.94842,
+    "runs": 6,
+    "jobs": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "outputPerRun": 1,
+    "quantityProduced": 6,
+    "inputs": {
+     "Angel NET Resonator": 912,
+     "Auto-Integrity Preservation Seal": 1368,
+     "Core Temperature Regulator": 6,
+     "Isogen": 2731452,
+     "Life Support Backup Unit": 684,
+     "Megacyte": 27318,
+     "Mexallon": 4097178,
+     "Nocxium": 204864,
+     "Pyerite": 27314496,
+     "Tritanium": 54628992,
+     "Zydrine": 54630
+    }
+   },
+   {
+    "product": "Marshal",
+    "typeId": 44996,
+    "activity": "manufacturing",
+    "ravworksSection": "endProducts",
+    "me": 0,
+    "modifier": 0.94842,
+    "runs": 1,
+    "jobs": [
+     1
+    ],
+    "outputPerRun": 1,
+    "quantityProduced": 1,
+    "inputs": {
+     "Capital Jump Drive": 3,
+     "Construction Blocks": 427,
+     "Fusion Reactor Unit": 427,
+     "Gravimetric Sensor Cluster": 854,
+     "Isogen": 170716,
+     "Megacyte": 6924,
+     "Mexallon": 644926,
+     "Morphite": 1423,
+     "Nocxium": 37937,
+     "Photon Microprocessor": 5976,
+     "Plasma Thruster": 214,
+     "Pyerite": 2371050,
+     "Sustained Shield Emitter": 1550,
+     "Tesseract Capacitor Unit": 2134,
+     "Tritanium": 10432620,
+     "Tungsten Carbide Armor Plate": 17783,
+     "Zydrine": 18020
+    }
+   },
+   {
+    "product": "Nestor",
+    "typeId": 33472,
+    "activity": "manufacturing",
+    "ravworksSection": "endProducts",
+    "me": 0,
+    "modifier": 0.94842,
+    "runs": 10,
+    "jobs": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "outputPerRun": 1,
+    "quantityProduced": 10,
+    "inputs": {
+     "Auto-Integrity Preservation Seal": 2510,
+     "Core Temperature Regulator": 10,
+     "Isogen": 5007660,
+     "Life Support Backup Unit": 1260,
+     "Megacyte": 50080,
+     "Mexallon": 7511490,
+     "Nocxium": 375580,
+     "Pyerite": 50076580,
+     "SoE NET Resonator": 1520,
+     "Tritanium": 100153160,
+     "Zydrine": 100160
+    }
+   },
+   {
+    "product": "Widow",
+    "typeId": 22436,
+    "activity": "manufacturing",
+    "ravworksSection": "endProducts",
+    "me": 3,
+    "modifier": 0.94842,
+    "runs": 18,
+    "jobs": [
+     3,
+     3,
+     3,
+     3,
+     3,
+     3
+    ],
+    "outputPerRun": 1,
+    "quantityProduced": 18,
+    "inputs": {
+     "Capital Jump Drive": 54,
+     "Construction Blocks": 7452,
+     "Gravimetric Sensor Cluster": 14904,
+     "Graviton Reactor Unit": 7452,
+     "Magpulse Thruster": 3726,
+     "Morphite": 14904,
+     "Quantum Microprocessor": 104328,
+     "R.A.M.- Starship Tech": 498,
+     "Scalar Capacitor Unit": 37260,
+     "Scorpion": 18,
+     "Sustained Shield Emitter": 27060,
+     "Titanium Diborite Armor Plate": 310494
+    }
+   }
+  ],
+  "leaves": [
+   {
+    "name": "Angel NET Resonator",
+    "typeId": 83467,
+    "quantity": 912
+   },
+   {
+    "name": "Atmospheric Gases",
+    "typeId": 16634,
+    "quantity": 95225
+   },
+   {
+    "name": "Cadmium",
+    "typeId": 16643,
+    "quantity": 25024
+   },
+   {
+    "name": "Caesium",
+    "typeId": 16647,
+    "quantity": 17430
+   },
+   {
+    "name": "Chiral Structures",
+    "typeId": 2401,
+    "quantity": 2903
+   },
+   {
+    "name": "Chromium",
+    "typeId": 16641,
+    "quantity": 141093
+   },
+   {
+    "name": "Cobalt",
+    "typeId": 16640,
+    "quantity": 2142
+   },
+   {
+    "name": "Construction Blocks",
+    "typeId": 3828,
+    "quantity": 7879
+   },
+   {
+    "name": "Dysprosium",
+    "typeId": 16650,
+    "quantity": 47127
+   },
+   {
+    "name": "Evaporite Deposits",
+    "typeId": 16635,
+    "quantity": 148391
+   },
+   {
+    "name": "Hafnium",
+    "typeId": 16648,
+    "quantity": 58131
+   },
+   {
+    "name": "Helium Fuel Block",
+    "typeId": 4247,
+    "quantity": 4578
+   },
+   {
+    "name": "Hydrocarbons",
+    "typeId": 16633,
+    "quantity": 90355
+   },
+   {
+    "name": "Hydrogen Fuel Block",
+    "typeId": 4246,
+    "quantity": 5676
+   },
+   {
+    "name": "Isogen",
+    "typeId": 37,
+    "quantity": 10228894
+   },
+   {
+    "name": "Megacyte",
+    "typeId": 40,
+    "quantity": 127237
+   },
+   {
+    "name": "Mercury",
+    "typeId": 16646,
+    "quantity": 13438
+   },
+   {
+    "name": "Mexallon",
+    "typeId": 36,
+    "quantity": 19666921
+   },
+   {
+    "name": "Morphite",
+    "typeId": 11399,
+    "quantity": 16327
+   },
+   {
+    "name": "Nanites",
+    "typeId": 2463,
+    "quantity": 6376
+   },
+   {
+    "name": "Neodymium",
+    "typeId": 16651,
+    "quantity": 11101
+   },
+   {
+    "name": "Nitrogen Fuel Block",
+    "typeId": 4051,
+    "quantity": 9190
+   },
+   {
+    "name": "Nocxium",
+    "typeId": 38,
+    "quantity": 880274
+   },
+   {
+    "name": "Oxygen Fuel Block",
+    "typeId": 4312,
+    "quantity": 21191
+   },
+   {
+    "name": "Platinum",
+    "typeId": 16644,
+    "quantity": 47812
+   },
+   {
+    "name": "Promethium",
+    "typeId": 16652,
+    "quantity": 11783
+   },
+   {
+    "name": "Pyerite",
+    "typeId": 35,
+    "quantity": 120231967
+   },
+   {
+    "name": "R.A.M.- Starship Tech",
+    "typeId": 11478,
+    "quantity": 498
+   },
+   {
+    "name": "Scandium",
+    "typeId": 16639,
+    "quantity": 98
+   },
+   {
+    "name": "Silicates",
+    "typeId": 16636,
+    "quantity": 143521
+   },
+   {
+    "name": "SoE NET Resonator",
+    "typeId": 83473,
+    "quantity": 1520
+   },
+   {
+    "name": "Supertensile Plastics",
+    "typeId": 2312,
+    "quantity": 6376
+   },
+   {
+    "name": "Technetium",
+    "typeId": 16649,
+    "quantity": 13632
+   },
+   {
+    "name": "Test Cultures",
+    "typeId": 2319,
+    "quantity": 6386
+   },
+   {
+    "name": "Thulium",
+    "typeId": 16653,
+    "quantity": 5064
+   },
+   {
+    "name": "Titanium",
+    "typeId": 16638,
+    "quantity": 109250
+   },
+   {
+    "name": "Tritanium",
+    "typeId": 34,
+    "quantity": 228055186
+   },
+   {
+    "name": "Tungsten",
+    "typeId": 16637,
+    "quantity": 4090
+   },
+   {
+    "name": "Vanadium",
+    "typeId": 16642,
+    "quantity": 18211
+   },
+   {
+    "name": "Viral Agent",
+    "typeId": 3775,
+    "quantity": 6386
+   },
+   {
+    "name": "Water",
+    "typeId": 3645,
+    "quantity": 2903
+   },
+   {
+    "name": "Wetware Mainframe",
+    "typeId": 2876,
+    "quantity": 57
+   },
+   {
+    "name": "Zydrine",
+    "typeId": 39,
+    "quantity": 261541
+   }
+  ],
+  "intermediates": [
+   {
+    "product": "Auto-Integrity Preservation Seal",
+    "typeId": 57478,
+    "activity": "manufacturing",
+    "ravworksSection": "advancedComponents",
+    "me": 10,
+    "modifier": 0.94842,
+    "runs": 1867,
+    "jobs": [
+     312,
+     311,
+     311,
+     311,
+     311,
+     311
+    ],
+    "outputPerRun": 3,
+    "quantityProduced": 5601,
+    "quantityNeeded": 5599,
+    "surplus": 2,
+    "inputs": {
+     "Nanites": 6376,
+     "Reinforced Carbon Fiber": 15939,
+     "Supertensile Plastics": 6376
+    }
+   },
+   {
+    "product": "Caesarium Cadmide",
+    "typeId": 16663,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 161,
+    "jobs": [
+     33,
+     32,
+     32,
+     32,
+     32
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 32200,
+    "quantityNeeded": 32132,
+    "surplus": 68,
+    "inputs": {
+     "Cadmium": 15677,
+     "Caesium": 15677,
+     "Oxygen Fuel Block": 785
+    }
+   },
+   {
+    "product": "Capital Jump Drive",
+    "typeId": 21025,
+    "activity": "manufacturing",
+    "ravworksSection": "capitalComponents",
+    "me": 10,
+    "modifier": 0.94842,
+    "runs": 57,
+    "jobs": [
+     29,
+     28
+    ],
+    "outputPerRun": 1,
+    "quantityProduced": 57,
+    "quantityNeeded": 57,
+    "surplus": 0,
+    "inputs": {
+     "Isogen": 821036,
+     "Megacyte": 20436,
+     "Mexallon": 2919238,
+     "Nocxium": 82129,
+     "Pyerite": 10509253,
+     "Reinforced Carbon Fiber": 4867,
+     "Tritanium": 2919238,
+     "Wetware Mainframe": 57,
+     "Zydrine": 43790
+    }
+   },
+   {
+    "product": "Carbon Fiber",
+    "typeId": 57453,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 212,
+    "jobs": [
+     36,
+     36,
+     35,
+     35,
+     35,
+     35
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 42400,
+    "quantityNeeded": 42259,
+    "surplus": 141,
+    "inputs": {
+     "Evaporite Deposits": 20642,
+     "Hydrocarbons": 20642,
+     "Hydrogen Fuel Block": 1036
+    }
+   },
+   {
+    "product": "Carbon Polymers",
+    "typeId": 16659,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 136,
+    "jobs": [
+     34,
+     34,
+     34,
+     34
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 27200,
+    "quantityNeeded": 27169,
+    "surplus": 31,
+    "inputs": {
+     "Helium Fuel Block": 664,
+     "Hydrocarbons": 13244,
+     "Silicates": 13244
+    }
+   },
+   {
+    "product": "Ceramic Powder",
+    "typeId": 16660,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 269,
+    "jobs": [
+     34,
+     34,
+     34,
+     34,
+     34,
+     33,
+     33,
+     33
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 53800,
+    "quantityNeeded": 53753,
+    "surplus": 47,
+    "inputs": {
+     "Evaporite Deposits": 26194,
+     "Hydrogen Fuel Block": 1313,
+     "Silicates": 26194
+    }
+   },
+   {
+    "product": "Core Temperature Regulator",
+    "typeId": 57479,
+    "activity": "manufacturing",
+    "ravworksSection": "advancedComponents",
+    "me": 10,
+    "modifier": 0.94842,
+    "runs": 34,
+    "jobs": [
+     34
+    ],
+    "outputPerRun": 1,
+    "quantityProduced": 34,
+    "quantityNeeded": 34,
+    "surplus": 0,
+    "inputs": {
+     "Chiral Structures": 2903,
+     "Pressurized Oxidizers": 14511,
+     "Reinforced Carbon Fiber": 14511,
+     "Water": 2903
+    }
+   },
+   {
+    "product": "Crystalline Carbonide",
+    "typeId": 16670,
+    "activity": "reaction",
+    "ravworksSection": "compositeReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 9,
+    "jobs": [
+     9
+    ],
+    "outputPerRun": 10000,
+    "quantityProduced": 90000,
+    "quantityNeeded": 89998,
+    "surplus": 2,
+    "inputs": {
+     "Carbon Polymers": 877,
+     "Crystallite Alloy": 877,
+     "Helium Fuel Block": 44
+    }
+   },
+   {
+    "product": "Crystallite Alloy",
+    "typeId": 16655,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 22,
+    "jobs": [
+     22
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 4400,
+    "quantityNeeded": 4285,
+    "surplus": 115,
+    "inputs": {
+     "Cadmium": 2142,
+     "Cobalt": 2142,
+     "Helium Fuel Block": 108
+    }
+   },
+   {
+    "product": "Dysporite",
+    "typeId": 16668,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 51,
+    "jobs": [
+     26,
+     25
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 10200,
+    "quantityNeeded": 10127,
+    "surplus": 73,
+    "inputs": {
+     "Dysprosium": 4966,
+     "Helium Fuel Block": 249,
+     "Mercury": 4966
+    }
+   },
+   {
+    "product": "Fermionic Condensates",
+    "typeId": 17317,
+    "activity": "reaction",
+    "ravworksSection": "compositeReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 68,
+    "jobs": [
+     34,
+     34
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 13600,
+    "quantityNeeded": 13453,
+    "surplus": 147,
+    "inputs": {
+     "Caesarium Cadmide": 6622,
+     "Dysporite": 6622,
+     "Fluxed Condensates": 6622,
+     "Helium Fuel Block": 332,
+     "Prometium": 6622
+    }
+   },
+   {
+    "product": "Fernite Alloy",
+    "typeId": 16656,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 1,
+    "jobs": [
+     1
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 200,
+    "quantityNeeded": 98,
+    "surplus": 102,
+    "inputs": {
+     "Hydrogen Fuel Block": 5,
+     "Scandium": 98,
+     "Vanadium": 98
+    }
+   },
+   {
+    "product": "Fernite Carbide",
+    "typeId": 16673,
+    "activity": "reaction",
+    "ravworksSection": "compositeReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 1,
+    "jobs": [
+     1
+    ],
+    "outputPerRun": 10000,
+    "quantityProduced": 10000,
+    "quantityNeeded": 2375,
+    "surplus": 7625,
+    "inputs": {
+     "Ceramic Powder": 98,
+     "Fernite Alloy": 98,
+     "Hydrogen Fuel Block": 5
+    }
+   },
+   {
+    "product": "Ferrofluid",
+    "typeId": 16669,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 433,
+    "jobs": [
+     34,
+     34,
+     34,
+     34,
+     33,
+     33,
+     33,
+     33,
+     33,
+     33,
+     33,
+     33,
+     33
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 86600,
+    "quantityNeeded": 86466,
+    "surplus": 134,
+    "inputs": {
+     "Dysprosium": 42161,
+     "Hafnium": 42161,
+     "Hydrogen Fuel Block": 2113
+    }
+   },
+   {
+    "product": "Ferrogel",
+    "typeId": 16683,
+    "activity": "reaction",
+    "ravworksSection": "compositeReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 82,
+    "jobs": [
+     28,
+     27,
+     27
+    ],
+    "outputPerRun": 400,
+    "quantityProduced": 32800,
+    "quantityNeeded": 32550,
+    "surplus": 250,
+    "inputs": {
+     "Ferrofluid": 7985,
+     "Hexite": 7985,
+     "Hydrogen Fuel Block": 401,
+     "Hyperflurite": 7985,
+     "Prometium": 7985
+    }
+   },
+   {
+    "product": "Fluxed Condensates",
+    "typeId": 17769,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 34,
+    "jobs": [
+     34
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 6800,
+    "quantityNeeded": 6622,
+    "surplus": 178,
+    "inputs": {
+     "Neodymium": 3311,
+     "Oxygen Fuel Block": 166,
+     "Thulium": 3311
+    }
+   },
+   {
+    "product": "Fullerides",
+    "typeId": 16679,
+    "activity": "reaction",
+    "ravworksSection": "compositeReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 124,
+    "jobs": [
+     31,
+     31,
+     31,
+     31
+    ],
+    "outputPerRun": 3000,
+    "quantityProduced": 372000,
+    "quantityNeeded": 369887,
+    "surplus": 2113,
+    "inputs": {
+     "Carbon Polymers": 12076,
+     "Nitrogen Fuel Block": 604,
+     "Platinum Technite": 12076
+    }
+   },
+   {
+    "product": "Fusion Reactor Unit",
+    "typeId": 11547,
+    "activity": "manufacturing",
+    "ravworksSection": "advancedComponents",
+    "me": 10,
+    "modifier": 0.94842,
+    "runs": 427,
+    "jobs": [
+     427
+    ],
+    "outputPerRun": 1,
+    "quantityProduced": 427,
+    "quantityNeeded": 427,
+    "surplus": 0,
+    "inputs": {
+     "Crystalline Carbonide": 3281,
+     "Fermionic Condensates": 729
+    }
+   },
+   {
+    "product": "Gravimetric Sensor Cluster",
+    "typeId": 11534,
+    "activity": "manufacturing",
+    "ravworksSection": "advancedComponents",
+    "me": 10,
+    "modifier": 0.94842,
+    "runs": 15758,
+    "jobs": [
+     3940,
+     3940,
+     3939,
+     3939
+    ],
+    "outputPerRun": 1,
+    "quantityProduced": 15758,
+    "quantityNeeded": 15758,
+    "surplus": 0,
+    "inputs": {
+     "Hypersynaptic Fibers": 26904,
+     "Nanotransistors": 15758,
+     "Titanium Carbide": 295918
+    }
+   },
+   {
+    "product": "Graviton Reactor Unit",
+    "typeId": 11550,
+    "activity": "manufacturing",
+    "ravworksSection": "advancedComponents",
+    "me": 10,
+    "modifier": 0.94842,
+    "runs": 7452,
+    "jobs": [
+     1863,
+     1863,
+     1863,
+     1863
+    ],
+    "outputPerRun": 1,
+    "quantityProduced": 7452,
+    "quantityNeeded": 7452,
+    "surplus": 0,
+    "inputs": {
+     "Fermionic Condensates": 12724,
+     "Titanium Carbide": 57248
+    }
+   },
+   {
+    "product": "Hexite",
+    "typeId": 16665,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 309,
+    "jobs": [
+     35,
+     35,
+     35,
+     34,
+     34,
+     34,
+     34,
+     34,
+     34
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 61800,
+    "quantityNeeded": 61640,
+    "surplus": 160,
+    "inputs": {
+     "Chromium": 30090,
+     "Nitrogen Fuel Block": 1509,
+     "Platinum": 30090
+    }
+   },
+   {
+    "product": "Hyperflurite",
+    "typeId": 16666,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 40,
+    "jobs": [
+     20,
+     20
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 8000,
+    "quantityNeeded": 7985,
+    "surplus": 15,
+    "inputs": {
+     "Nitrogen Fuel Block": 196,
+     "Promethium": 3896,
+     "Vanadium": 3896
+    }
+   },
+   {
+    "product": "Hypersynaptic Fibers",
+    "typeId": 16682,
+    "activity": "reaction",
+    "ravworksSection": "compositeReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 36,
+    "jobs": [
+     36
+    ],
+    "outputPerRun": 750,
+    "quantityProduced": 27000,
+    "quantityNeeded": 26904,
+    "surplus": 96,
+    "inputs": {
+     "Dysporite": 3505,
+     "Oxygen Fuel Block": 176,
+     "Solerium": 3505,
+     "Vanadium Hafnite": 3505
+    }
+   },
+   {
+    "product": "Life Support Backup Unit",
+    "typeId": 57486,
+    "activity": "manufacturing",
+    "ravworksSection": "advancedComponents",
+    "me": 10,
+    "modifier": 0.94842,
+    "runs": 935,
+    "jobs": [
+     312,
+     312,
+     311
+    ],
+    "outputPerRun": 3,
+    "quantityProduced": 2805,
+    "quantityNeeded": 2805,
+    "surplus": 0,
+    "inputs": {
+     "Reinforced Carbon Fiber": 7983,
+     "Test Cultures": 6386,
+     "Viral Agent": 6386
+    }
+   },
+   {
+    "product": "Magpulse Thruster",
+    "typeId": 11533,
+    "activity": "manufacturing",
+    "ravworksSection": "advancedComponents",
+    "me": 10,
+    "modifier": 0.94842,
+    "runs": 3726,
+    "jobs": [
+     3726
+    ],
+    "outputPerRun": 1,
+    "quantityProduced": 3726,
+    "quantityNeeded": 3726,
+    "surplus": 0,
+    "inputs": {
+     "Ferrogel": 3726,
+     "Phenolic Composites": 9542,
+     "Titanium Carbide": 41346
+    }
+   },
+   {
+    "product": "Nanotransistors",
+    "typeId": 16681,
+    "activity": "reaction",
+    "ravworksSection": "compositeReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 163,
+    "jobs": [
+     33,
+     33,
+     33,
+     32,
+     32
+    ],
+    "outputPerRun": 1500,
+    "quantityProduced": 244500,
+    "quantityNeeded": 243460,
+    "surplus": 1040,
+    "inputs": {
+     "Neo Mercurite": 15871,
+     "Nitrogen Fuel Block": 795,
+     "Platinum Technite": 15871,
+     "Sulfuric Acid": 15871
+    }
+   },
+   {
+    "product": "Neo Mercurite",
+    "typeId": 16667,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 80,
+    "jobs": [
+     27,
+     27,
+     26
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 16000,
+    "quantityNeeded": 15871,
+    "surplus": 129,
+    "inputs": {
+     "Helium Fuel Block": 391,
+     "Mercury": 7790,
+     "Neodymium": 7790
+    }
+   },
+   {
+    "product": "Nonlinear Metamaterials",
+    "typeId": 33362,
+    "activity": "reaction",
+    "ravworksSection": "compositeReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 806,
+    "jobs": [
+     36,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35
+    ],
+    "outputPerRun": 300,
+    "quantityProduced": 241800,
+    "quantityNeeded": 241716,
+    "surplus": 84,
+    "inputs": {
+     "Ferrofluid": 78481,
+     "Nitrogen Fuel Block": 3938,
+     "Titanium Chromide": 78481
+    }
+   },
+   {
+    "product": "Oxy-Organic Solvents",
+    "typeId": 57454,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 29,
+    "jobs": [
+     29
+    ],
+    "outputPerRun": 10,
+    "quantityProduced": 290,
+    "quantityNeeded": 290,
+    "surplus": 0,
+    "inputs": {
+     "Atmospheric Gases": 56469,
+     "Hydrocarbons": 56469,
+     "Oxygen Fuel Block": 142
+    }
+   },
+   {
+    "product": "Phenolic Composites",
+    "typeId": 16680,
+    "activity": "reaction",
+    "ravworksSection": "compositeReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 262,
+    "jobs": [
+     33,
+     33,
+     33,
+     33,
+     33,
+     33,
+     32,
+     32
+    ],
+    "outputPerRun": 2200,
+    "quantityProduced": 576400,
+    "quantityNeeded": 575011,
+    "surplus": 1389,
+    "inputs": {
+     "Caesarium Cadmide": 25510,
+     "Oxygen Fuel Block": 1278,
+     "Silicon Diborite": 25510,
+     "Vanadium Hafnite": 25510
+    }
+   },
+   {
+    "product": "Photon Microprocessor",
+    "typeId": 11541,
+    "activity": "manufacturing",
+    "ravworksSection": "advancedComponents",
+    "me": 10,
+    "modifier": 0.94842,
+    "runs": 5976,
+    "jobs": [
+     5976
+    ],
+    "outputPerRun": 1,
+    "quantityProduced": 5976,
+    "quantityNeeded": 5976,
+    "surplus": 0,
+    "inputs": {
+     "Crystalline Carbonide": 86717,
+     "Nanotransistors": 10202,
+     "Phenolic Composites": 30606,
+     "Photonic Metamaterials": 10202
+    }
+   },
+   {
+    "product": "Photonic Metamaterials",
+    "typeId": 33359,
+    "activity": "reaction",
+    "ravworksSection": "compositeReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 35,
+    "jobs": [
+     35
+    ],
+    "outputPerRun": 300,
+    "quantityProduced": 10500,
+    "quantityNeeded": 10202,
+    "surplus": 298,
+    "inputs": {
+     "Crystallite Alloy": 3408,
+     "Oxygen Fuel Block": 171,
+     "Thulium Hafnite": 3408
+    }
+   },
+   {
+    "product": "Plasma Thruster",
+    "typeId": 11530,
+    "activity": "manufacturing",
+    "ravworksSection": "advancedComponents",
+    "me": 10,
+    "modifier": 0.94842,
+    "runs": 214,
+    "jobs": [
+     214
+    ],
+    "outputPerRun": 1,
+    "quantityProduced": 214,
+    "quantityNeeded": 214,
+    "surplus": 0,
+    "inputs": {
+     "Fernite Carbide": 2375,
+     "Ferrogel": 214,
+     "Phenolic Composites": 548
+    }
+   },
+   {
+    "product": "Platinum Technite",
+    "typeId": 16662,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 140,
+    "jobs": [
+     35,
+     35,
+     35,
+     35
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 28000,
+    "quantityNeeded": 27947,
+    "surplus": 53,
+    "inputs": {
+     "Nitrogen Fuel Block": 684,
+     "Platinum": 13632,
+     "Technetium": 13632
+    }
+   },
+   {
+    "product": "Pressurized Oxidizers",
+    "typeId": 57456,
+    "activity": "reaction",
+    "ravworksSection": "compositeReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 73,
+    "jobs": [
+     25,
+     24,
+     24
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 14600,
+    "quantityNeeded": 14511,
+    "surplus": 89,
+    "inputs": {
+     "Carbon Polymers": 14216,
+     "Oxy-Organic Solvents": 73,
+     "Sulfuric Acid": 14216
+    }
+   },
+   {
+    "product": "Promethium Mercurite",
+    "typeId": 33337,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 7,
+    "jobs": [
+     7
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 1400,
+    "quantityNeeded": 1266,
+    "surplus": 134,
+    "inputs": {
+     "Helium Fuel Block": 35,
+     "Mercury": 682,
+     "Promethium": 682
+    }
+   },
+   {
+    "product": "Prometium",
+    "typeId": 17960,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 74,
+    "jobs": [
+     25,
+     25,
+     24
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 14800,
+    "quantityNeeded": 14607,
+    "surplus": 193,
+    "inputs": {
+     "Cadmium": 7205,
+     "Oxygen Fuel Block": 361,
+     "Promethium": 7205
+    }
+   },
+   {
+    "product": "Quantum Microprocessor",
+    "typeId": 11540,
+    "activity": "manufacturing",
+    "ravworksSection": "advancedComponents",
+    "me": 10,
+    "modifier": 0.94842,
+    "runs": 104328,
+    "jobs": [
+     8026,
+     8026,
+     8026,
+     8025,
+     8025,
+     8025,
+     8025,
+     8025,
+     8025,
+     8025,
+     8025,
+     8025,
+     8025
+    ],
+    "outputPerRun": 1,
+    "quantityProduced": 104328,
+    "quantityNeeded": 104328,
+    "surplus": 0,
+    "inputs": {
+     "Nanotransistors": 178106,
+     "Nonlinear Metamaterials": 178106,
+     "Phenolic Composites": 534315,
+     "Titanium Carbide": 1513892
+    }
+   },
+   {
+    "product": "Reinforced Carbon Fiber",
+    "typeId": 57457,
+    "activity": "reaction",
+    "ravworksSection": "compositeReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 217,
+    "jobs": [
+     31,
+     31,
+     31,
+     31,
+     31,
+     31,
+     31
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 43400,
+    "quantityNeeded": 43300,
+    "surplus": 100,
+    "inputs": {
+     "Carbon Fiber": 42259,
+     "Oxy-Organic Solvents": 217,
+     "Thermosetting Polymer": 42259
+    }
+   },
+   {
+    "product": "Rolled Tungsten Alloy",
+    "typeId": 16657,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 42,
+    "jobs": [
+     21,
+     21
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 8400,
+    "quantityNeeded": 8276,
+    "surplus": 124,
+    "inputs": {
+     "Nitrogen Fuel Block": 206,
+     "Platinum": 4090,
+     "Tungsten": 4090
+    }
+   },
+   {
+    "product": "Scalar Capacitor Unit",
+    "typeId": 11552,
+    "activity": "manufacturing",
+    "ravworksSection": "advancedComponents",
+    "me": 10,
+    "modifier": 0.94842,
+    "runs": 37260,
+    "jobs": [
+     3726,
+     3726,
+     3726,
+     3726,
+     3726,
+     3726,
+     3726,
+     3726,
+     3726,
+     3726
+    ],
+    "outputPerRun": 1,
+    "quantityProduced": 37260,
+    "quantityNeeded": 37260,
+    "surplus": 0,
+    "inputs": {
+     "Fullerides": 349850,
+     "Nanotransistors": 37260,
+     "Nonlinear Metamaterials": 63610,
+     "Titanium Carbide": 858720
+    }
+   },
+   {
+    "product": "Scorpion",
+    "typeId": 640,
+    "activity": "manufacturing",
+    "ravworksSection": "others",
+    "me": 10,
+    "modifier": 0.94842,
+    "runs": 18,
+    "jobs": [
+     18
+    ],
+    "outputPerRun": 1,
+    "quantityProduced": 18,
+    "quantityNeeded": 18,
+    "surplus": 0,
+    "inputs": {
+     "Auto-Integrity Preservation Seal": 1721,
+     "Core Temperature Regulator": 18,
+     "Isogen": 1498030,
+     "Life Support Backup Unit": 861,
+     "Megacyte": 22479,
+     "Mexallon": 4494089,
+     "Nocxium": 179764,
+     "Pyerite": 29960588,
+     "Tritanium": 59921176,
+     "Zydrine": 44941
+    }
+   },
+   {
+    "product": "Silicon Diborite",
+    "typeId": 16658,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 857,
+    "jobs": [
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 171400,
+    "quantityNeeded": 171265,
+    "surplus": 135,
+    "inputs": {
+     "Evaporite Deposits": 83441,
+     "Oxygen Fuel Block": 4189,
+     "Silicates": 83441
+    }
+   },
+   {
+    "product": "Solerium",
+    "typeId": 16664,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 18,
+    "jobs": [
+     18
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 3600,
+    "quantityNeeded": 3505,
+    "surplus": 95,
+    "inputs": {
+     "Caesium": 1753,
+     "Chromium": 1753,
+     "Oxygen Fuel Block": 88
+    }
+   },
+   {
+    "product": "Sulfuric Acid",
+    "typeId": 16661,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 186,
+    "jobs": [
+     31,
+     31,
+     31,
+     31,
+     31,
+     31
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 37200,
+    "quantityNeeded": 37097,
+    "surplus": 103,
+    "inputs": {
+     "Atmospheric Gases": 18114,
+     "Evaporite Deposits": 18114,
+     "Nitrogen Fuel Block": 906
+    }
+   },
+   {
+    "product": "Sustained Shield Emitter",
+    "typeId": 11558,
+    "activity": "manufacturing",
+    "ravworksSection": "advancedComponents",
+    "me": 10,
+    "modifier": 0.94842,
+    "runs": 28610,
+    "jobs": [
+     4088,
+     4087,
+     4087,
+     4087,
+     4087,
+     4087,
+     4087
+    ],
+    "outputPerRun": 1,
+    "quantityProduced": 28610,
+    "quantityNeeded": 28610,
+    "surplus": 0,
+    "inputs": {
+     "Ferrogel": 28610,
+     "Sylramic Fibers": 219793,
+     "Titanium Carbide": 537262
+    }
+   },
+   {
+    "product": "Sylramic Fibers",
+    "typeId": 16678,
+    "activity": "reaction",
+    "ravworksSection": "compositeReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 551,
+    "jobs": [
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     34,
+     34,
+     34,
+     34,
+     34,
+     34,
+     34,
+     34,
+     34
+    ],
+    "outputPerRun": 6000,
+    "quantityProduced": 3306000,
+    "quantityNeeded": 3302110,
+    "surplus": 3890,
+    "inputs": {
+     "Ceramic Powder": 53655,
+     "Helium Fuel Block": 2691,
+     "Hexite": 53655
+    }
+   },
+   {
+    "product": "Terahertz Metamaterials",
+    "typeId": 33360,
+    "activity": "reaction",
+    "ravworksSection": "compositeReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 13,
+    "jobs": [
+     13
+    ],
+    "outputPerRun": 300,
+    "quantityProduced": 3900,
+    "quantityNeeded": 3644,
+    "surplus": 256,
+    "inputs": {
+     "Helium Fuel Block": 64,
+     "Promethium Mercurite": 1266,
+     "Rolled Tungsten Alloy": 1266
+    }
+   },
+   {
+    "product": "Tesseract Capacitor Unit",
+    "typeId": 11554,
+    "activity": "manufacturing",
+    "ravworksSection": "advancedComponents",
+    "me": 10,
+    "modifier": 0.94842,
+    "runs": 2134,
+    "jobs": [
+     2134
+    ],
+    "outputPerRun": 1,
+    "quantityProduced": 2134,
+    "quantityNeeded": 2134,
+    "surplus": 0,
+    "inputs": {
+     "Fullerides": 20037,
+     "Nanotransistors": 2134,
+     "Terahertz Metamaterials": 3644,
+     "Tungsten Carbide": 49182
+    }
+   },
+   {
+    "product": "Thermosetting Polymer",
+    "typeId": 57455,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 212,
+    "jobs": [
+     36,
+     36,
+     35,
+     35,
+     35,
+     35
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 42400,
+    "quantityNeeded": 42259,
+    "surplus": 141,
+    "inputs": {
+     "Atmospheric Gases": 20642,
+     "Oxygen Fuel Block": 1036,
+     "Silicates": 20642
+    }
+   },
+   {
+    "product": "Thulium Hafnite",
+    "typeId": 33336,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 18,
+    "jobs": [
+     18
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 3600,
+    "quantityNeeded": 3408,
+    "surplus": 192,
+    "inputs": {
+     "Hafnium": 1753,
+     "Hydrogen Fuel Block": 88,
+     "Thulium": 1753
+    }
+   },
+   {
+    "product": "Titanium Carbide",
+    "typeId": 16671,
+    "activity": "reaction",
+    "ravworksSection": "compositeReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 1497,
+    "jobs": [
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     36,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35
+    ],
+    "outputPerRun": 10000,
+    "quantityProduced": 14970000,
+    "quantityNeeded": 14965748,
+    "surplus": 4252,
+    "inputs": {
+     "Oxygen Fuel Block": 7317,
+     "Silicon Diborite": 145755,
+     "Titanium Chromide": 145755
+    }
+   },
+   {
+    "product": "Titanium Chromide",
+    "typeId": 16654,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 1122,
+    "jobs": [
+     36,
+     36,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35,
+     35
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 224400,
+    "quantityNeeded": 224236,
+    "surplus": 164,
+    "inputs": {
+     "Chromium": 109250,
+     "Oxygen Fuel Block": 5482,
+     "Titanium": 109250
+    }
+   },
+   {
+    "product": "Titanium Diborite Armor Plate",
+    "typeId": 11544,
+    "activity": "manufacturing",
+    "ravworksSection": "advancedComponents",
+    "me": 10,
+    "modifier": 0.94842,
+    "runs": 310494,
+    "jobs": [
+     23885,
+     23885,
+     23884,
+     23884,
+     23884,
+     23884,
+     23884,
+     23884,
+     23884,
+     23884,
+     23884,
+     23884,
+     23884
+    ],
+    "outputPerRun": 1,
+    "quantityProduced": 310494,
+    "quantityNeeded": 310494,
+    "surplus": 0,
+    "inputs": {
+     "Sylramic Fibers": 2915346,
+     "Titanium Carbide": 11661362
+    }
+   },
+   {
+    "product": "Tungsten Carbide",
+    "typeId": 16672,
+    "activity": "reaction",
+    "ravworksSection": "compositeReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 72,
+    "jobs": [
+     36,
+     36
+    ],
+    "outputPerRun": 10000,
+    "quantityProduced": 720000,
+    "quantityNeeded": 717066,
+    "surplus": 2934,
+    "inputs": {
+     "Nitrogen Fuel Block": 352,
+     "Rolled Tungsten Alloy": 7010,
+     "Sulfuric Acid": 7010
+    }
+   },
+   {
+    "product": "Tungsten Carbide Armor Plate",
+    "typeId": 11543,
+    "activity": "manufacturing",
+    "ravworksSection": "advancedComponents",
+    "me": 10,
+    "modifier": 0.94842,
+    "runs": 17783,
+    "jobs": [
+     17783
+    ],
+    "outputPerRun": 1,
+    "quantityProduced": 17783,
+    "quantityNeeded": 17783,
+    "surplus": 0,
+    "inputs": {
+     "Sylramic Fibers": 166971,
+     "Tungsten Carbide": 667884
+    }
+   },
+   {
+    "product": "Vanadium Hafnite",
+    "typeId": 17959,
+    "activity": "reaction",
+    "ravworksSection": "intermediateReactions",
+    "me": 0,
+    "modifier": 0.9736,
+    "runs": 146,
+    "jobs": [
+     30,
+     29,
+     29,
+     29,
+     29
+    ],
+    "outputPerRun": 200,
+    "quantityProduced": 29200,
+    "quantityNeeded": 29015,
+    "surplus": 185,
+    "inputs": {
+     "Hafnium": 14217,
+     "Hydrogen Fuel Block": 715,
+     "Vanadium": 14217
+    }
+   }
+  ]
+ },
+ "knownDeviation": "Les quantites ne se reproduisent qu en appliquant F1 a chaque job decoupe (D11b). Les couts de job Ravworks ne sont pas repris : indices de cout et systeme inconnus."
+}
