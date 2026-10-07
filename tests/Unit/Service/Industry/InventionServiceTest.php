@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Industry;
 
+use App\Entity\IndustryProject;
 use App\Entity\Sde\IndustryActivity;
 use App\Entity\Sde\IndustryActivityMaterial;
 use App\Entity\Sde\IndustryActivityProduct;
@@ -107,7 +108,7 @@ class InventionServiceTest extends TestCase
     /**
      * Set up a standard T2 invention chain for the Sabre (used by most tests).
      */
-    private function setupSabreInventionChain(float $baseProbability = 0.30, int $baseRuns = 10): void
+    private function setupSabreInventionChain(?float $baseProbability = 0.30, int $baseRuns = 10): void
     {
         // Step 1: T2 Blueprint manufactures the Sabre
         $t2Manufacturing = $this->createProduct(
@@ -676,5 +677,140 @@ class InventionServiceTest extends TestCase
         }
 
         $this->fail(sprintf('No decryptor option for typeId %d', $decryptorTypeId));
+    }
+
+    // ===========================================
+    // Missing invention probability in the SDE (issue #74)
+    // The success probability is business data: when the SDE does not carry it,
+    // the invention cost is unknown. It must never become 0 (division by zero)
+    // nor a plausible-looking cost.
+    // ===========================================
+
+    private const MISSING_INVENTION_PROBABILITY = 'missing_invention_probability';
+
+    /**
+     * Datacores 2 x 50 000 + 2 x 80 000 = 260 000 ISK per attempt, decryptors at 500 000 ISK,
+     * no cost index (copy and invention install cost 0), so the cost per attempt stays exact.
+     */
+    private function stubKnownCostsPerAttempt(): void
+    {
+        $this->jitaMarketService
+            ->method('getPricesWithFallback')
+            ->willReturn([
+                self::DATACORE_1_TYPE_ID => 50000.0,
+                self::DATACORE_2_TYPE_ID => 80000.0,
+            ]);
+        $this->jitaMarketService->method('getPrice')->willReturn(500000.0);
+        $this->activityProductRepository->method('findBy')->willReturn([]);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+        $this->typeNameResolver->method('resolve')->willReturn('Sabre');
+    }
+
+    public function testGetInventionDataKeepsMissingProbabilityUnknownInsteadOfZero(): void
+    {
+        $this->setupSabreInventionChain(null, 10);
+
+        $inventionData = $this->service->getInventionData(self::SABRE_TYPE_ID);
+
+        $this->assertNotNull($inventionData);
+        $this->assertNull($inventionData['probability']);
+        $this->assertSame(10, $inventionData['baseRuns']);
+    }
+
+    public function testIsT2StaysTrueWhenInventionProbabilityIsMissing(): void
+    {
+        $this->setupSabreInventionChain(null, 10);
+
+        $this->assertTrue($this->service->isT2(self::SABRE_TYPE_ID));
+    }
+
+    public function testCalculateInventionCostWithMissingProbabilityReturnsUnknownCostWithoutDivisionByZero(): void
+    {
+        $this->setupSabreInventionChain(null, 10);
+        $this->stubKnownCostsPerAttempt();
+
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510);
+
+        $this->assertNotNull($result);
+        $this->assertNull($result['baseProbability']);
+        $this->assertNull($result['effectiveProbability']);
+        $this->assertNull($result['expectedAttempts']);
+        $this->assertNull($result['totalCost']);
+        $this->assertSame(self::MISSING_INVENTION_PROBABILITY, $result['unknownReason']);
+        // Known parts of the partial result are still exposed
+        $this->assertSame(260000.0, $result['costPerAttempt']);
+        $this->assertSame(260000.0, $result['costBreakdown']['datacores']);
+        $this->assertSame(2, $result['me']);
+        $this->assertSame(4, $result['te']);
+        $this->assertSame(10, $result['runs']);
+    }
+
+    public function testCalculateInventionCostWithMissingProbabilityAndDecryptorReturnsUnknownCost(): void
+    {
+        $this->setupSabreInventionChain(null, 10);
+        $this->stubKnownCostsPerAttempt();
+
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510, self::ACCELERANT_DECRYPTOR_ID);
+
+        $this->assertNotNull($result);
+        $this->assertNull($result['effectiveProbability']);
+        $this->assertNull($result['expectedAttempts']);
+        $this->assertNull($result['totalCost']);
+        $this->assertSame(self::MISSING_INVENTION_PROBABILITY, $result['unknownReason']);
+        // 260 000 datacores + 500 000 decryptor
+        $this->assertSame(760000.0, $result['costPerAttempt']);
+        $this->assertSame(11, $result['runs']); // 10 base runs + 1 (Accelerant)
+    }
+
+    public function testCalculateInventionCostWithKnownProbabilityHasNoUnknownReason(): void
+    {
+        $this->setupSabreInventionChain(0.30, 10);
+        $this->stubKnownCostsPerAttempt();
+
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510);
+
+        $this->assertNotNull($result);
+        $this->assertArrayHasKey('unknownReason', $result);
+        $this->assertNull($result['unknownReason']);
+        $this->assertSame(4, $result['expectedAttempts']); // ceil(1 / 0.30)
+        $this->assertSame(1040000.0, $result['totalCost']); // 4 attempts x 260 000
+    }
+
+    public function testBuildDecryptorOptionsWithMissingProbabilityExposesUnknownCostForEveryOption(): void
+    {
+        $this->setupSabreInventionChain(null, 10);
+        $this->stubKnownCostsPerAttempt();
+
+        $options = $this->service->buildDecryptorOptions(self::SABRE_TYPE_ID, 30002510);
+
+        $this->assertCount(9, $options); // No Decryptor + 8 decryptors
+        foreach ($options as $option) {
+            $this->assertNull($option['probability'], $option['decryptorName']);
+            $this->assertNull($option['expectedAttempts'], $option['decryptorName']);
+            $this->assertNull($option['totalCost'], $option['decryptorName']);
+        }
+        $this->assertSame(260000.0, $options[0]['costPerAttempt']);
+        $this->assertSame(760000.0, $this->findOptionByDecryptorTypeId($options, self::ACCELERANT_DECRYPTOR_ID)['costPerAttempt']);
+    }
+
+    public function testBpcKitBreakdownWithMissingProbabilityReportsUnknownInventionCostInsteadOfZero(): void
+    {
+        $this->setupSabreInventionChain(null, 10);
+        $this->stubKnownCostsPerAttempt();
+
+        $project = new IndustryProject();
+        $project->setProductTypeId(self::SABRE_TYPE_ID);
+
+        $breakdown = $this->service->getBpcKitBreakdown($project, 2);
+
+        $this->assertTrue($breakdown['isT2']);
+        $this->assertCount(1, $breakdown['inventions']);
+        $this->assertNull($breakdown['inventions'][0]['baseProbability']);
+        $this->assertSame(self::MISSING_INVENTION_PROBABILITY, $breakdown['inventions'][0]['unknownReason']);
+        $this->assertSame(2, $breakdown['inventions'][0]['desiredSuccesses']);
+        // Not 0.0 and not PHP_FLOAT_MAX: the cheapest option cannot be known
+        $this->assertNull($breakdown['summary']['totalInventionCost']);
+        $this->assertNull($breakdown['summary']['bestDecryptorTypeId']);
+        $this->assertNull($breakdown['summary']['totalBpcKitCost']);
     }
 }

@@ -59,24 +59,31 @@ const favoriteSystems = computed(() => {
   return systems
 })
 
-// Effective total cost: use selected decryptor option if available, otherwise API result
-const effectiveTotalCost = computed(() => {
+// Set when the backend cannot compute the invention cost (e.g. missing SDE probability)
+const inventionUnknownReason = computed(() => result.value?.invention?.unknownReason ?? null)
+
+// Effective total cost: use selected decryptor option if available, otherwise API result.
+// Null when the production cost is unknown.
+const effectiveTotalCost = computed((): number | null => {
   if (selectedOption.value != null) return selectedOption.value.totalProductionCost
-  return result.value?.totalCost ?? 0
+  if (!result.value) return 0
+  return result.value.totalCost
 })
 
-const effectiveCostPerUnit = computed(() => {
+const effectiveCostPerUnit = computed((): number | null => {
   if (!result.value) return 0
+  if (effectiveTotalCost.value == null) return null
   const outputQty = result.value.outputQuantity || 1
   return effectiveTotalCost.value / outputQty
 })
 
-const effectiveInventionCost = computed(() => {
+const effectiveInventionCost = computed((): number | null => {
   if (selectedOption.value != null && result.value != null) {
     // inventionCost from the option includes datacores + decryptor + install, amortized
     return selectedOption.value.inventionCost
   }
-  return result.value?.inventionCost ?? 0
+  if (!result.value) return 0
+  return result.value.inventionCost
 })
 
 // Summary cards
@@ -84,10 +91,10 @@ const totalCost = computed(() => effectiveTotalCost.value)
 const costPerUnit = computed(() => effectiveCostPerUnit.value)
 
 // Recompute margins per venue using the effective total cost
-function computeVenueMargin(unitPrice: number, r: ProfitMarginResult, isContract: boolean = false): { revenue: number; fees: number; profit: number; margin: number } {
+function computeVenueMargin(unitPrice: number, r: ProfitMarginResult, totalCost: number, isContract: boolean = false): { revenue: number; fees: number; profit: number; margin: number } {
   const revenue = unitPrice * r.outputQuantity
   const fees = isContract ? 0 : revenue * (r.brokerFeeRate + r.salesTaxRate)
-  const profit = revenue - effectiveTotalCost.value - fees
+  const profit = revenue - totalCost - fees
   const margin = revenue > 0 ? (profit / revenue) * 100 : 0
   return { revenue, fees, profit, margin }
 }
@@ -95,6 +102,9 @@ function computeVenueMargin(unitPrice: number, r: ProfitMarginResult, isContract
 const bestVenue = computed(() => {
   if (!result.value) return null
   const r = result.value
+  const totalCost = effectiveTotalCost.value
+  // No margin can be computed against an unknown production cost
+  if (totalCost == null) return null
   const useOverride = selectedOption.value != null
 
   if (!useOverride) {
@@ -123,7 +133,7 @@ const bestVenue = computed(() => {
   for (const [key, price] of prices) {
     if (price == null || r.margins[key] == null) continue
     const isContract = key === 'contractSell'
-    const m = computeVenueMargin(price, r, isContract)
+    const m = computeVenueMargin(price, r, totalCost, isContract)
     if (best == null || m.margin > best.margin) {
       best = { key, ...m, unitPrice: price }
     }
@@ -131,9 +141,11 @@ const bestVenue = computed(() => {
   return best
 })
 
+const productionCostUnknown = computed(() => result.value != null && effectiveTotalCost.value == null)
+
 const bestSellRevenue = computed(() => bestVenue.value?.revenue ?? 0)
-const bestProfit = computed(() => bestVenue.value?.profit ?? 0)
-const bestMargin = computed(() => bestVenue.value?.margin ?? 0)
+const bestProfit = computed((): number | null => productionCostUnknown.value ? null : (bestVenue.value?.profit ?? 0))
+const bestMargin = computed((): number | null => productionCostUnknown.value ? null : (bestVenue.value?.margin ?? 0))
 const bestUnitPrice = computed(() => bestVenue.value?.unitPrice ?? 0)
 
 const bestVenueLabel = computed(() => {
@@ -141,8 +153,9 @@ const bestVenueLabel = computed(() => {
   return venueLabel(bestVenue.value.key, result.value.sellPrices.structureName, t)
 })
 
-const profitPerRun = computed(() => {
+const profitPerRun = computed((): number | null => {
   if (!result.value || result.value.runs === 0) return 0
+  if (bestProfit.value == null) return null
   return bestProfit.value / result.value.runs
 })
 
@@ -154,12 +167,12 @@ const sellRows = computed((): SellRow[] => {
   const m = r.margins
   const structureName = sp.structureName || 'Structure'
   const bestKey = bestVenue.value?.key ?? null
-  const useOverride = selectedOption.value != null
+  const overrideTotalCost = selectedOption.value != null ? effectiveTotalCost.value : null
 
   function buildRow(key: string, venue: string, tag: string, unitPrice: number, origEntry: MarginEntry, dailyVolume: number | null, contractCount: number | null = null): SellRow {
     const isContract = key === 'contractSell'
-    if (useOverride) {
-      const recomputed = computeVenueMargin(unitPrice, r, isContract)
+    if (overrideTotalCost != null) {
+      const recomputed = computeVenueMargin(unitPrice, r, overrideTotalCost, isContract)
       return {
         key, venue, tag, unitPrice,
         revenue: recomputed.revenue,
@@ -222,29 +235,44 @@ const hiddenMaterialsTotal = computed(() => {
     .reduce((sum, m) => sum + m.totalPrice, 0)
 })
 
-// Cost breakdown percentages (use effective values for invention)
-const materialPercent = computed(() => {
+// Cost breakdown percentages (use effective values for invention); null when the total cost is unknown
+const materialPercent = computed((): number | null => {
   if (!result.value || effectiveTotalCost.value === 0) return 0
+  if (effectiveTotalCost.value == null) return null
   return (result.value.materialCost / effectiveTotalCost.value) * 100
 })
 
-const jobInstallPercent = computed(() => {
+const jobInstallPercent = computed((): number | null => {
   if (!result.value || effectiveTotalCost.value === 0) return 0
+  if (effectiveTotalCost.value == null) return null
   return (result.value.jobInstallCost / effectiveTotalCost.value) * 100
 })
 
-const effectiveInventionPlusCopy = computed(() => {
+const effectiveInventionPlusCopy = computed((): number | null => {
   if (selectedOption.value != null) {
     // The option's inventionCost already includes copy cost amortized
     return selectedOption.value.inventionCost
   }
-  return (result.value?.inventionCost ?? 0) + (result.value?.copyCost ?? 0)
+  if (!result.value) return 0
+  if (result.value.inventionCost == null) return null
+  return result.value.inventionCost + result.value.copyCost
 })
 
-const inventionPercent = computed(() => {
+const inventionPercent = computed((): number | null => {
   if (!result.value || effectiveTotalCost.value === 0) return 0
+  if (effectiveTotalCost.value == null || effectiveInventionPlusCopy.value == null) return null
   return (effectiveInventionPlusCopy.value / effectiveTotalCost.value) * 100
 })
+
+function formatPercent(percent: number | null): string {
+  if (percent == null) return t('industry.inventionUnknown.label')
+  return `${percent.toFixed(1)}%`
+}
+
+function formatCost(cost: number | null): string {
+  if (cost == null) return t('industry.inventionUnknown.label')
+  return formatIsk(cost)
+}
 
 // Invention
 const inventionData = computed(() => result.value?.invention ?? null)
@@ -253,16 +281,16 @@ const inventionOptions = computed((): ProfitMarginInventionOption[] => {
   return inventionData.value?.options ?? []
 })
 
+// Options with an unknown margin cannot be ranked; -1 when none is known
 const bestDecryptorIndex = computed(() => {
-  if (inventionOptions.value.length === 0) return -1
-  let bestIdx = 0
-  let bestMarginVal = inventionOptions.value[0].bestMargin
-  for (let i = 1; i < inventionOptions.value.length; i++) {
-    if (inventionOptions.value[i].bestMargin > bestMarginVal) {
-      bestMarginVal = inventionOptions.value[i].bestMargin
+  let bestIdx = -1
+  let bestMarginVal: number | null = null
+  inventionOptions.value.forEach((option, i) => {
+    if (option.bestMargin != null && (bestMarginVal == null || option.bestMargin > bestMarginVal)) {
+      bestMarginVal = option.bestMargin
       bestIdx = i
     }
-  }
+  })
   return bestIdx
 })
 
@@ -482,6 +510,11 @@ store.fetchUserSettings()
         :broker-fee-rate="result.brokerFeeRate"
       />
 
+      <!-- Unknown production cost: margins cannot be computed even if sell prices exist -->
+      <div v-else-if="!loading && inventionUnknownReason != null" class="eve-card p-6 text-center">
+        <p class="text-sm text-amber-400">{{ t(`industry.inventionUnknown.${inventionUnknownReason}`) }}</p>
+      </div>
+
       <!-- No market data -->
       <div v-else-if="!loading" class="eve-card p-6 text-center">
         <p class="text-sm text-slate-500">{{ t('industry.margins.noData') }}</p>
@@ -491,6 +524,7 @@ store.fetchUserSettings()
       <InventionOptionsPanel
         v-if="result.isT2 && inventionData && inventionOptions.length > 0"
         :base-probability="inventionData.baseProbability"
+        :unknown-reason="inventionData.unknownReason"
         :datacores="inventionData.datacores"
         :options="inventionOptions"
         :best-decryptor-index="bestDecryptorIndex"
@@ -662,7 +696,7 @@ store.fetchUserSettings()
       </div>
 
       <!-- SECTION E3: Invention Cost (T2 only) -->
-      <div v-if="result.isT2 && effectiveInventionCost > 0" class="eve-card p-4">
+      <div v-if="result.isT2 && (effectiveInventionCost == null || effectiveInventionCost > 0)" class="eve-card p-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
             <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -673,7 +707,7 @@ store.fetchUserSettings()
               <p class="text-xs text-slate-500">{{ selectedOption?.decryptorName ?? inventionData?.selectedDecryptorName ?? t('industry.bpcKitTab.none') }}</p>
             </div>
           </div>
-          <span class="font-mono text-lg text-slate-100 font-semibold">{{ formatIskFull(effectiveInventionCost) }}</span>
+          <span class="font-mono text-lg text-slate-100 font-semibold">{{ effectiveInventionCost != null ? formatIskFull(effectiveInventionCost) : t('industry.inventionUnknown.label') }}</span>
         </div>
       </div>
 
@@ -690,46 +724,46 @@ store.fetchUserSettings()
             <div>
               <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costEstimation.materials') }}</div>
               <div class="font-mono text-slate-200 text-lg">{{ formatIsk(result.materialCost) }}</div>
-              <div class="text-xs text-slate-600 font-mono">{{ materialPercent.toFixed(1) }}%</div>
+              <div class="text-xs text-slate-600 font-mono">{{ formatPercent(materialPercent) }}</div>
             </div>
             <div>
               <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costEstimation.jobInstall') }}</div>
               <div class="font-mono text-slate-200 text-lg">{{ formatIsk(result.jobInstallCost) }}</div>
-              <div class="text-xs text-slate-600 font-mono">{{ jobInstallPercent.toFixed(1) }}%</div>
+              <div class="text-xs text-slate-600 font-mono">{{ formatPercent(jobInstallPercent) }}</div>
             </div>
             <div v-if="result.isT2">
               <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.margins.inventionCostLabel') }}</div>
-              <div class="font-mono text-slate-200 text-lg">{{ formatIsk(effectiveInventionPlusCopy) }}</div>
-              <div class="text-xs text-slate-600 font-mono">{{ inventionPercent.toFixed(1) }}%</div>
+              <div class="font-mono text-slate-200 text-lg">{{ formatCost(effectiveInventionPlusCopy) }}</div>
+              <div class="text-xs text-slate-600 font-mono">{{ formatPercent(inventionPercent) }}</div>
             </div>
             <div>
               <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.margins.totalProductionCost') }}</div>
-              <div class="font-mono text-cyan-400 text-xl font-bold">{{ formatIsk(effectiveTotalCost) }}</div>
-              <div class="text-xs text-slate-500 font-mono">{{ formatIsk(effectiveCostPerUnit) }} / unit</div>
+              <div class="font-mono text-cyan-400 text-xl font-bold">{{ formatCost(effectiveTotalCost) }}</div>
+              <div class="text-xs text-slate-500 font-mono">{{ formatCost(effectiveCostPerUnit) }} / unit</div>
             </div>
           </div>
 
-          <!-- Breakdown bar -->
-          <div class="h-3 rounded-full overflow-hidden flex bg-slate-800">
+          <!-- Breakdown bar (only meaningful when the total cost is known) -->
+          <div v-if="materialPercent != null && jobInstallPercent != null && inventionPercent != null" class="h-3 rounded-full overflow-hidden flex bg-slate-800">
             <div class="bg-blue-500/60" :style="{ width: materialPercent + '%' }" :title="`Materials: ${formatIsk(result.materialCost)} (${materialPercent.toFixed(1)}%)`"></div>
             <div class="bg-amber-500/60" :style="{ width: jobInstallPercent + '%' }" :title="`Job Install: ${formatIsk(result.jobInstallCost)} (${jobInstallPercent.toFixed(1)}%)`"></div>
-            <div v-if="result.isT2" class="bg-purple-500/60" :style="{ width: inventionPercent + '%' }" :title="`Invention: ${formatIsk(effectiveInventionPlusCopy)} (${inventionPercent.toFixed(1)}%)`"></div>
+            <div v-if="result.isT2" class="bg-purple-500/60" :style="{ width: inventionPercent + '%' }" :title="`Invention: ${formatCost(effectiveInventionPlusCopy)} (${inventionPercent.toFixed(1)}%)`"></div>
           </div>
           <div class="flex items-center gap-4 mt-2 text-xs">
             <span class="flex items-center gap-1.5">
               <span class="w-2 h-2 rounded-full bg-blue-500/60"></span>
               <span class="text-slate-500">{{ t('industry.costEstimation.materials') }}</span>
-              <span class="font-mono text-slate-400">{{ materialPercent.toFixed(1) }}%</span>
+              <span class="font-mono text-slate-400">{{ formatPercent(materialPercent) }}</span>
             </span>
             <span class="flex items-center gap-1.5">
               <span class="w-2 h-2 rounded-full bg-amber-500/60"></span>
               <span class="text-slate-500">{{ t('industry.costEstimation.jobInstall') }}</span>
-              <span class="font-mono text-slate-400">{{ jobInstallPercent.toFixed(1) }}%</span>
+              <span class="font-mono text-slate-400">{{ formatPercent(jobInstallPercent) }}</span>
             </span>
             <span v-if="result.isT2" class="flex items-center gap-1.5">
               <span class="w-2 h-2 rounded-full bg-purple-500/60"></span>
               <span class="text-slate-500">{{ t('industry.margins.inventionCostLabel') }}</span>
-              <span class="font-mono text-slate-400">{{ inventionPercent.toFixed(1) }}%</span>
+              <span class="font-mono text-slate-400">{{ formatPercent(inventionPercent) }}</span>
             </span>
           </div>
         </div>

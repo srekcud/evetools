@@ -347,11 +347,13 @@ export interface ProfitMarginInventionOption {
   me: number
   te: number
   runs: number
-  probability: number
-  inventionCost: number
-  totalProductionCost: number
-  bestMargin: number
+  probability: number | null
+  inventionCost: number | null
+  totalProductionCost: number | null
+  bestMargin: number | null
 }
+
+export type InventionUnknownReason = 'missing_invention_probability'
 
 export interface ProfitMarginResult {
   typeId: number
@@ -364,12 +366,13 @@ export interface ProfitMarginResult {
   materials: ProfitMarginMaterial[]
   jobInstallCost: number
   jobInstallSteps: ProfitMarginJobStep[]
-  inventionCost: number
+  inventionCost: number | null
   copyCost: number
-  totalCost: number
-  costPerUnit: number
+  totalCost: number | null
+  costPerUnit: number | null
   invention: {
-    baseProbability: number
+    baseProbability: number | null
+    unknownReason: InventionUnknownReason | null
     datacores: string[]
     selectedDecryptorTypeId: number | null
     selectedDecryptorName: string
@@ -475,10 +478,10 @@ export interface BpcKitDecryptorOption {
   me: number
   te: number
   runs: number
-  probability: number
+  probability: number | null
   costPerAttempt: number
-  expectedAttempts: number
-  totalCost: number
+  expectedAttempts: number | null
+  totalCost: number | null
   costBreakdown: {
     datacores: number
     decryptor: number
@@ -490,16 +493,17 @@ export interface BpcKitDecryptorOption {
 export interface BpcKitInvention {
   productTypeId: number
   productName: string
-  baseProbability: number
+  baseProbability: number | null
+  unknownReason: InventionUnknownReason | null
   desiredSuccesses: number
   datacores: BpcKitDatacore[]
   decryptorOptions: BpcKitDecryptorOption[]
 }
 
 export interface BpcKitSummary {
-  totalInventionCost: number
+  totalInventionCost: number | null
   bestDecryptorTypeId: number | null
-  totalBpcKitCost: number
+  totalBpcKitCost: number | null
 }
 
 export interface BpcKit {

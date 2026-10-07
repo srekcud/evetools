@@ -47,18 +47,23 @@ const summaryInventionLabel = computed(() => {
   if (!selectedDecryptorOption.value) return ''
   const name = selectedDecryptorOption.value.decryptorName
   const attempts = selectedDecryptorOption.value.expectedAttempts
+  if (attempts == null) return `${name} \u00b7 ${t('industry.inventionUnknown.label')}`
   return `${name} \u00b7 ${attempts} ${attempts === 1 ? t('industry.bpcKitTab.attempt', 1) : t('industry.bpcKitTab.attempt', 2)}`
 })
 
-const totalInventionCost = computed(() => {
-  if (!selectedDecryptorOption.value) return bpcKit.value?.summary.totalInventionCost ?? 0
+// Null when the invention cost is unknown (e.g. missing invention probability in the SDE)
+const totalInventionCost = computed((): number | null => {
+  if (!selectedDecryptorOption.value) return bpcKit.value?.summary.totalInventionCost ?? null
   return selectedDecryptorOption.value.totalCost
 })
 
-// Materials needed for the selected decryptor option
+const appliedCost = computed((): number | null => costOverride.value ?? totalInventionCost.value)
+
+// Materials needed for the selected decryptor option (unknown attempts: quantities cannot be computed)
 const inventionMaterials = computed(() => {
   if (!selectedInvention.value || !selectedDecryptorOption.value) return []
   const attempts = selectedDecryptorOption.value.expectedAttempts
+  if (attempts == null) return []
   const materials: { typeId: number; name: string; quantity: number }[] = []
 
   for (const dc of selectedInvention.value.datacores) {
@@ -94,7 +99,14 @@ function formatMeTe(value: number): string {
 }
 
 function isBestOption(option: BpcKitDecryptorOption): boolean {
-  return option.decryptorTypeId === (bpcKit.value?.summary.bestDecryptorTypeId ?? null)
+  // Without any known total cost there is no best option
+  if (bpcKit.value?.summary.totalInventionCost == null) return false
+  return option.decryptorTypeId === (bpcKit.value.summary.bestDecryptorTypeId ?? null)
+}
+
+function formatProbability(probability: number | null): string {
+  if (probability == null) return t('industry.inventionUnknown.label')
+  return `${(probability * 100).toFixed(1)}%`
 }
 
 function isSelected(option: BpcKitDecryptorOption): boolean {
@@ -135,11 +147,12 @@ async function markBpcStepsPurchased() {
 }
 
 async function applyToProject() {
+  if (appliedCost.value == null) return
   applying.value = true
   try {
     await markBpcStepsPurchased()
 
-    const patchData: Record<string, unknown> = { bpoCost: costOverride.value ?? totalInventionCost.value }
+    const patchData: Record<string, unknown> = { bpoCost: appliedCost.value }
 
     // For T2 items, also update ME/TE based on selected decryptor
     if (bpcKit.value?.isT2 && selectedDecryptorOption.value) {
@@ -166,7 +179,7 @@ async function applyToProject() {
 }
 
 function startEditCost() {
-  costEditValue.value = String(Math.round(costOverride.value ?? totalInventionCost.value))
+  costEditValue.value = appliedCost.value != null ? String(Math.round(appliedCost.value)) : ''
   editingCost.value = true
   nextTick(() => {
     costInputRef.value?.select()
@@ -238,7 +251,7 @@ onMounted(() => {
             <div class="flex items-center gap-4 text-xs text-slate-500">
               <span>
                 {{ t('industry.bpcKitTab.baseProbability') }}:
-                <span class="text-cyan-400 font-mono">{{ (selectedInvention.baseProbability * 100).toFixed(1) }}%</span>
+                <span class="text-cyan-400 font-mono">{{ formatProbability(selectedInvention.baseProbability) }}</span>
               </span>
               <span class="text-slate-700">|</span>
               <span>
@@ -249,6 +262,9 @@ onMounted(() => {
               </span>
             </div>
           </div>
+          <p v-if="selectedInvention.unknownReason != null" class="mt-2 text-xs text-amber-400">
+            {{ t(`industry.inventionUnknown.${selectedInvention.unknownReason}`) }}
+          </p>
         </div>
 
         <div>
@@ -328,7 +344,7 @@ onMounted(() => {
 
                 <!-- Adj. Probability -->
                 <td class="py-2.5 px-3 text-right font-mono" :class="isBestOption(option) ? 'text-slate-100 font-semibold' : 'text-slate-300'">
-                  {{ (option.probability * 100).toFixed(1) }}%
+                  {{ formatProbability(option.probability) }}
                 </td>
 
                 <!-- Cost per attempt (with tooltip) -->
@@ -365,7 +381,7 @@ onMounted(() => {
 
                 <!-- Expected attempts -->
                 <td class="py-2.5 px-3 text-right font-mono" :class="isBestOption(option) ? 'text-slate-100 font-semibold' : 'text-slate-300'">
-                  {{ option.expectedAttempts }}
+                  {{ option.expectedAttempts ?? t('industry.inventionUnknown.label') }}
                 </td>
 
                 <!-- Total cost -->
@@ -373,7 +389,7 @@ onMounted(() => {
                   isBestOption(option) ? 'text-emerald-400 font-bold' : 'text-slate-200',
                   isSelected(option) && !isBestOption(option) ? 'text-cyan-400 font-semibold' : '',
                 ]">
-                  {{ formatIsk(option.totalCost) }}
+                  {{ option.totalCost != null ? formatIsk(option.totalCost) : t('industry.inventionUnknown.label') }}
                 </td>
               </tr>
             </tbody>
@@ -391,7 +407,7 @@ onMounted(() => {
               :title="t('industry.bpcKitTab.doubleClickOverride')"
               @dblclick="startEditCost"
             >
-              {{ formatIskFull(costOverride ?? totalInventionCost) }}
+              {{ appliedCost != null ? formatIskFull(appliedCost) : t('industry.inventionUnknown.label') }}
             </span>
             <input
               v-else
@@ -413,7 +429,7 @@ onMounted(() => {
             </div>
             <button
               @click="applyToProject"
-              :disabled="applying || store.currentProject?.status === 'completed'"
+              :disabled="applying || appliedCost == null || store.currentProject?.status === 'completed'"
               class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-cyan-800 disabled:cursor-not-allowed rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap"
             >
               <LoadingSpinner v-if="applying" size="sm" />

@@ -24,6 +24,8 @@ class InventionService
     public const BASE_INVENTION_ME = 2;
     public const BASE_INVENTION_TE = 4;
 
+    public const UNKNOWN_REASON_MISSING_PROBABILITY = 'missing_invention_probability';
+
     /**
      * Standard decryptors with their modifiers.
      * These are static SDE data (group 1304) that rarely changes.
@@ -131,7 +133,10 @@ class InventionService
      * 2. Find the T1 blueprint that invents into that T2 blueprint
      * 3. Get invention materials and probability
      *
-     * @return array{t1BlueprintTypeId: int, t2BlueprintTypeId: int, probability: float, baseRuns: int, materials: list<array{typeId: int, typeName: string, quantity: int}>, inventionTime: int}|null
+     * The probability is null when the SDE does not carry it: the invention chain still exists,
+     * but its success rate (and therefore its cost) is unknown.
+     *
+     * @return array{t1BlueprintTypeId: int, t2BlueprintTypeId: int, probability: ?float, baseRuns: int, materials: list<array{typeId: int, typeName: string, quantity: int}>, inventionTime: int}|null
      */
     public function getInventionData(int $t2TypeId): ?array
     {
@@ -158,7 +163,7 @@ class InventionService
         }
 
         $t1BlueprintTypeId = $inventionProduct->getTypeId();
-        $baseProbability = $inventionProduct->getProbability() ?? 0.0;
+        $baseProbability = $inventionProduct->getProbability();
         $baseRuns = $inventionProduct->getQuantity();
 
         // Step 3: Get invention materials for the T1 blueprint
@@ -213,18 +218,22 @@ class InventionService
     /**
      * Calculate the full invention cost for producing T2 BPCs.
      *
+     * When the SDE carries no success probability, the probability-derived fields
+     * (probabilities, expected attempts, total cost) are null and unknownReason says why.
+     *
      * @return array{
-     *     baseProbability: float,
-     *     effectiveProbability: float,
-     *     expectedAttempts: int,
+     *     baseProbability: ?float,
+     *     effectiveProbability: ?float,
+     *     expectedAttempts: ?int,
      *     me: int,
      *     te: int,
      *     runs: int,
      *     costPerAttempt: float,
-     *     totalCost: float,
+     *     totalCost: ?float,
      *     costBreakdown: array{datacores: float, decryptor: float, copyCost: float, inventionInstall: float},
      *     datacores: list<array{typeId: int, typeName: string, quantity: int, unitPrice: float, totalPrice: float}>,
-     *     decryptorName: ?string
+     *     decryptorName: ?string,
+     *     unknownReason: ?string
      * }|null
      */
     public function calculateInventionCost(
@@ -263,11 +272,9 @@ class InventionService
             $decryptorPrice = $this->jitaMarketService->getPrice($decryptorTypeId) ?? 0.0;
         }
 
-        $effectiveProbability = $baseProbability * $probabilityMultiplier;
         $me = self::BASE_INVENTION_ME + $meModifier;
         $te = self::BASE_INVENTION_TE + $teModifier;
         $runs = $baseRuns + $runModifier;
-        $expectedAttempts = (int) ceil($desiredSuccesses / $effectiveProbability);
 
         // Cost per attempt: datacores + decryptor + T1 BPC copy cost + invention install
         $datacoreTypeIds = array_map(fn (array $m) => $m['typeId'], $inventionData['materials']);
@@ -299,7 +306,17 @@ class InventionService
             : 0.0;
 
         $costPerAttempt = $datacoreTotalCost + $decryptorPrice + $copyCost + $inventionInstallCost;
-        $totalCost = $expectedAttempts * $costPerAttempt;
+
+        $effectiveProbability = null;
+        $expectedAttempts = null;
+        $totalCost = null;
+        $unknownReason = self::UNKNOWN_REASON_MISSING_PROBABILITY;
+        if ($baseProbability !== null) {
+            $effectiveProbability = $baseProbability * $probabilityMultiplier;
+            $expectedAttempts = (int) ceil($desiredSuccesses / $effectiveProbability);
+            $totalCost = $expectedAttempts * $costPerAttempt;
+            $unknownReason = null;
+        }
 
         return [
             'baseProbability' => $baseProbability,
@@ -318,6 +335,7 @@ class InventionService
             ],
             'datacores' => $datacores,
             'decryptorName' => $decryptorName,
+            'unknownReason' => $unknownReason,
         ];
     }
 
@@ -332,7 +350,8 @@ class InventionService
      *     inventions: list<array{
      *         productTypeId: int,
      *         productName: string,
-     *         baseProbability: float,
+     *         baseProbability: ?float,
+     *         unknownReason: ?string,
      *         desiredSuccesses: int,
      *         datacores: list<array{typeId: int, typeName: string, quantity: int, unitPrice: float, totalPrice: float}>,
      *         decryptorOptions: list<array{
@@ -341,14 +360,14 @@ class InventionService
      *             me: int,
      *             te: int,
      *             runs: int,
-     *             probability: float,
+     *             probability: ?float,
      *             costPerAttempt: float,
-     *             expectedAttempts: int,
-     *             totalCost: float,
+     *             expectedAttempts: ?int,
+     *             totalCost: ?float,
      *             costBreakdown: array{datacores: float, decryptor: float, copyCost: float, inventionInstall: float}
      *         }>
      *     }>,
-     *     summary: array{totalInventionCost: float, bestDecryptorTypeId: ?int, totalBpcKitCost: float}
+     *     summary: array{totalInventionCost: ?float, bestDecryptorTypeId: ?int, totalBpcKitCost: ?float}
      * }
      */
     public function getBpcKitBreakdown(IndustryProject $project, int $desiredBpcCount = 1): array
@@ -361,7 +380,7 @@ class InventionService
         $isT2 = $inventionData !== null;
 
         $inventions = [];
-        $totalInventionCost = 0.0;
+        $totalInventionCost = $isT2 ? null : 0.0;
         $bestDecryptorTypeId = null;
 
         $facilityTaxRate = $this->resolveFacilityTaxRate($project);
@@ -390,20 +409,19 @@ class InventionService
                 'productTypeId' => $productTypeId,
                 'productName' => $productName,
                 'baseProbability' => $inventionData['probability'],
+                'unknownReason' => $inventionData['probability'] === null ? self::UNKNOWN_REASON_MISSING_PROBABILITY : null,
                 'desiredSuccesses' => $desiredBpcCount,
                 'datacores' => $noDecryptorResult['datacores'] ?? [],
                 'decryptorOptions' => $decryptorOptions,
             ];
 
-            // Find cheapest option for the summary
-            $cheapestCost = PHP_FLOAT_MAX;
+            // Find cheapest option for the summary; options with an unknown cost cannot be compared
             foreach ($decryptorOptions as $option) {
-                if ($option['totalCost'] < $cheapestCost) {
-                    $cheapestCost = $option['totalCost'];
+                if ($option['totalCost'] !== null && ($totalInventionCost === null || $option['totalCost'] < $totalInventionCost)) {
+                    $totalInventionCost = $option['totalCost'];
                     $bestDecryptorTypeId = $option['decryptorTypeId'];
                 }
             }
-            $totalInventionCost = $cheapestCost < PHP_FLOAT_MAX ? $cheapestCost : 0.0;
         }
 
         return [
@@ -468,7 +486,7 @@ class InventionService
     /**
      * Build all decryptor options (including "no decryptor") for a T2 item.
      *
-     * @return list<array{decryptorTypeId: ?int, decryptorName: string, me: int, te: int, runs: int, probability: float, costPerAttempt: float, expectedAttempts: int, totalCost: float, costBreakdown: array{datacores: float, decryptor: float, copyCost: float, inventionInstall: float}}>
+     * @return list<array{decryptorTypeId: ?int, decryptorName: string, me: int, te: int, runs: int, probability: ?float, costPerAttempt: float, expectedAttempts: ?int, totalCost: ?float, costBreakdown: array{datacores: float, decryptor: float, copyCost: float, inventionInstall: float}}>
      */
     public function buildDecryptorOptions(
         int $t2TypeId,

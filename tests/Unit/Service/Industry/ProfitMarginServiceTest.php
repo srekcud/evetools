@@ -745,4 +745,90 @@ class ProfitMarginServiceTest extends TestCase
 
         $this->assertSame(0.0, $result['jobInstallCost']);
     }
+
+    // ===========================================
+    // T2 item whose invention probability is missing in the SDE (issue #74)
+    // ===========================================
+
+    public function testT2WithUnknownInventionCostKeepsTotalCostAndMarginsUnknownInsteadOfZero(): void
+    {
+        $this->setupDefaultMocks();
+        $this->inventionService->method('isT2')->willReturn(true);
+
+        // Sabre, 10 runs, 100 000 Tritanium at 5 ISK = 500 000 ISK of materials
+        $tree = $this->buildFlatTree(self::SABRE_TYPE_ID, 'Sabre', 10, 1, [
+            ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 100000],
+        ]);
+        $tree['hasCopy'] = true;
+        $this->treeService->method('buildProductionTree')->willReturn($tree);
+
+        $this->jitaMarketService
+            ->method('getWeightedSellPricesWithFallback')
+            ->willReturn([34 => ['weightedPrice' => 5.0, 'coverage' => 1.0, 'ordersUsed' => 1]]);
+        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(50000.0);
+        $this->inventionService->method('getCopyJobCost')->willReturn(10000.0);
+
+        // Invention result when the SDE carries no success probability
+        $this->inventionService
+            ->method('calculateInventionCost')
+            ->willReturn([
+                'baseProbability' => null,
+                'effectiveProbability' => null,
+                'expectedAttempts' => null,
+                'me' => 2,
+                'te' => 4,
+                'runs' => 10,
+                'costPerAttempt' => 260000.0,
+                'totalCost' => null,
+                'costBreakdown' => ['datacores' => 260000.0, 'decryptor' => 0.0, 'copyCost' => 0.0, 'inventionInstall' => 0.0],
+                'datacores' => [['typeId' => 20424, 'typeName' => 'Datacore - Mechanical Engineering', 'quantity' => 2, 'unitPrice' => 50000.0, 'totalPrice' => 100000.0]],
+                'decryptorName' => null,
+                'unknownReason' => 'missing_invention_probability',
+            ]);
+        $this->inventionService
+            ->method('buildDecryptorOptions')
+            ->willReturn([
+                ['decryptorTypeId' => null, 'decryptorName' => 'No Decryptor', 'me' => 2, 'te' => 4, 'runs' => 10, 'probability' => null, 'costPerAttempt' => 260000.0, 'expectedAttempts' => null, 'totalCost' => null, 'costBreakdown' => []],
+            ]);
+
+        // Sell prices exist: only the production cost is unknown
+        $this->jitaMarketService
+            ->method('getWeightedSellPrice')
+            ->willReturn(['weightedPrice' => 300000.0, 'coverage' => 1.0, 'ordersUsed' => 1]);
+        $this->structureMarketService->method('getLowestSellPrice')->willReturn(310000.0);
+        $this->structureMarketService->method('getHighestBuyPrice')->willReturn(250000.0);
+
+        $result = $this->service->analyze(
+            self::SABRE_TYPE_ID, 10, 2, 4,
+            self::SELL_STRUCTURE_ID, self::SOLAR_SYSTEM_ID, null,
+            0.036, 0.036, null,
+        );
+
+        // Known parts of the partial result
+        $this->assertTrue($result['isT2']);
+        $this->assertSame(500000.0, $result['materialCost']);
+        $this->assertSame(50000.0, $result['jobInstallCost']);
+        $this->assertSame(10000.0, $result['copyCost']);
+        $this->assertSame(['jitaSell' => 300000.0, 'structureSell' => 310000.0, 'structureBuy' => 250000.0, 'contractSell' => null], [
+            'jitaSell' => $result['sellPrices']['jitaSell'],
+            'structureSell' => $result['sellPrices']['structureSell'],
+            'structureBuy' => $result['sellPrices']['structureBuy'],
+            'contractSell' => $result['sellPrices']['contractSell'],
+        ]);
+
+        // The unknown invention cost is not summed as 0
+        $this->assertNull($result['inventionCost']);
+        $this->assertNull($result['totalCost']);
+        $this->assertNull($result['costPerUnit']);
+        $this->assertSame(['jitaSell' => null, 'structureSell' => null, 'structureBuy' => null, 'contractSell' => null], $result['margins']);
+
+        $this->assertNotNull($result['invention']);
+        $this->assertNull($result['invention']['baseProbability']);
+        $this->assertSame('missing_invention_probability', $result['invention']['unknownReason']);
+        $this->assertCount(1, $result['invention']['options']);
+        $this->assertNull($result['invention']['options'][0]['probability']);
+        $this->assertNull($result['invention']['options'][0]['inventionCost']);
+        $this->assertNull($result['invention']['options'][0]['totalProductionCost']);
+        $this->assertNull($result['invention']['options'][0]['bestMargin']);
+    }
 }

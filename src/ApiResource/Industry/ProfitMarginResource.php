@@ -60,13 +60,14 @@ class ProfitMarginResource
     /** @var list<array{productTypeId: int, productName: string, activityType: string, runs: int, installCost: float}> */
     public array $jobInstallSteps = [];
 
-    public float $inventionCost = 0;
+    /** Null when the invention success probability is unknown (see invention.unknownReason). */
+    public ?float $inventionCost = 0;
 
     public float $copyCost = 0;
 
-    public float $totalCost = 0;
+    public ?float $totalCost = 0;
 
-    public float $costPerUnit = 0;
+    public ?float $costPerUnit = 0;
 
     /** @var array<string, mixed>|null */
     public ?array $invention = null;

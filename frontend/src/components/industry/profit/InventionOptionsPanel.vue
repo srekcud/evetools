@@ -1,18 +1,19 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
-import type { ProfitMarginInventionOption } from '@/stores/industry/types'
+import type { InventionUnknownReason, ProfitMarginInventionOption } from '@/stores/industry/types'
 
 const props = defineProps<{
-  baseProbability: number
+  baseProbability: number | null
+  unknownReason: InventionUnknownReason | null
   datacores: string[]
   options: ProfitMarginInventionOption[]
   bestDecryptorIndex: number
   selectedOption: ProfitMarginInventionOption | null
   selectedDecryptorTypeId: number | null | undefined
-  effectiveInventionCost: number
-  effectiveTotalCost: number
-  bestMargin: number
+  effectiveInventionCost: number | null
+  effectiveTotalCost: number | null
+  bestMargin: number | null
 }>()
 
 const emit = defineEmits<{
@@ -49,6 +50,26 @@ function formatMeTe(value: number): string {
   return String(value)
 }
 
+function formatProbability(probability: number | null): string {
+  if (probability == null) return t('industry.inventionUnknown.label')
+  return `${(probability * 100).toFixed(1)}%`
+}
+
+function formatCost(cost: number | null): string {
+  if (cost == null) return t('industry.inventionUnknown.label')
+  return formatIsk(cost)
+}
+
+function formatMargin(margin: number | null): string {
+  if (margin == null) return t('industry.inventionUnknown.label')
+  return `${margin >= 0 ? '+' : ''}${margin.toFixed(1)}%`
+}
+
+function marginColor(margin: number | null): string {
+  if (margin == null) return 'text-slate-500'
+  return margin >= 0 ? 'text-emerald-400' : 'text-red-400'
+}
+
 function selectedDecryptorName(): string {
   if (props.selectedOption != null) return props.selectedOption.decryptorName
   if (props.bestDecryptorIndex >= 0 && props.bestDecryptorIndex < props.options.length) {
@@ -69,11 +90,14 @@ function selectedDecryptorName(): string {
           <h4 class="text-sm font-semibold text-slate-200">{{ t('industry.margins.inventionTitle') }}</h4>
         </div>
         <div class="flex items-center gap-4 text-xs text-slate-500">
-          <span>{{ t('industry.bpcKitTab.baseProbability') }}: <span class="text-cyan-400 font-mono">{{ (props.baseProbability * 100).toFixed(1) }}%</span></span>
+          <span>{{ t('industry.bpcKitTab.baseProbability') }}: <span class="text-cyan-400 font-mono">{{ formatProbability(props.baseProbability) }}</span></span>
           <span class="text-slate-700">|</span>
           <span>{{ t('industry.bpcKitTab.datacoresLabel') }}: <span class="text-slate-400">{{ props.datacores.join(' + ') }}</span></span>
         </div>
       </div>
+      <p v-if="props.unknownReason != null" class="mt-2 text-xs text-amber-400">
+        {{ t(`industry.inventionUnknown.${props.unknownReason}`) }}
+      </p>
     </div>
 
     <div class="overflow-x-auto">
@@ -151,12 +175,12 @@ function selectedDecryptorName(): string {
 
             <!-- Probability -->
             <td class="py-2.5 px-3 text-right font-mono" :class="isInventionBest(index) ? 'text-slate-100 font-semibold' : 'text-slate-300'">
-              {{ (option.probability * 100).toFixed(1) }}%
+              {{ formatProbability(option.probability) }}
             </td>
 
             <!-- Invention Cost -->
             <td class="py-2.5 px-3 text-right font-mono" :class="isInventionBest(index) ? 'text-slate-100 font-semibold' : 'text-slate-300'">
-              {{ formatIsk(option.inventionCost) }}
+              {{ formatCost(option.inventionCost) }}
             </td>
 
             <!-- Total Production Cost -->
@@ -165,15 +189,15 @@ function selectedDecryptorName(): string {
               isInventionSelected(option) && !isInventionBest(index) ? 'text-cyan-400 font-semibold' : '',
               !isInventionSelected(option) && !isInventionBest(index) ? 'text-slate-300' : '',
             ]">
-              {{ formatIsk(option.totalProductionCost) }}
+              {{ formatCost(option.totalProductionCost) }}
             </td>
 
             <!-- Best Margin -->
             <td class="py-2.5 px-3 text-right font-mono" :class="[
-              option.bestMargin >= 0 ? 'text-emerald-400' : 'text-red-400',
+              marginColor(option.bestMargin),
               isInventionBest(index) ? 'font-bold' : '',
             ]">
-              {{ option.bestMargin >= 0 ? '+' : '' }}{{ option.bestMargin.toFixed(1) }}%
+              {{ formatMargin(option.bestMargin) }}
             </td>
           </tr>
         </tbody>
@@ -204,18 +228,18 @@ function selectedDecryptorName(): string {
         <div class="flex items-center gap-6">
           <div class="text-right">
             <span class="text-xs text-slate-500 uppercase tracking-wider block">{{ t('industry.margins.inventionCostCol') }}</span>
-            <span class="font-mono text-slate-200 font-semibold">{{ formatIsk(props.effectiveInventionCost) }}</span>
+            <span class="font-mono text-slate-200 font-semibold">{{ formatCost(props.effectiveInventionCost) }}</span>
           </div>
           <div class="text-right">
             <span class="text-xs text-slate-500 uppercase tracking-wider block">{{ t('industry.margins.totalProdCost') }}</span>
-            <span class="font-mono text-cyan-400 font-bold">{{ formatIsk(props.effectiveTotalCost) }}</span>
+            <span class="font-mono text-cyan-400 font-bold">{{ formatCost(props.effectiveTotalCost) }}</span>
           </div>
           <div class="text-right">
             <span class="text-xs text-slate-500 uppercase tracking-wider block">{{ t('industry.margins.bestMarginCol') }}</span>
             <span
               class="font-mono font-bold"
-              :class="props.bestMargin >= 0 ? 'text-emerald-400' : 'text-red-400'"
-            >{{ props.bestMargin >= 0 ? '+' : '' }}{{ props.bestMargin.toFixed(1) }}%</span>
+              :class="marginColor(props.bestMargin)"
+            >{{ formatMargin(props.bestMargin) }}</span>
           </div>
         </div>
       </div>

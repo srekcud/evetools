@@ -471,6 +471,10 @@
     }
   },
   "industry": {
+    "inventionUnknown": {
+      "label": "Inconnu",
+      "missing_invention_probability": "Probabilite de succes de l'invention absente des donnees statiques (SDE) : cout d'invention inconnu."
+    },
     "title": "Industrie",
     "subtitle": "Projets de fabrication et reactions",
     "tabs": {

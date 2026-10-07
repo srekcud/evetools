@@ -117,7 +117,7 @@ class ProfitMarginService
 
         $structureName = $this->resolveStructureName($sellStructureId);
 
-        // 8. Invention cost (T2 only)
+        // 8. Invention cost (T2 only); null when the invention success probability is unknown
         $inventionCost = 0.0;
         $copyCost = 0.0;
         $inventionDetails = null;
@@ -153,19 +153,24 @@ class ProfitMarginService
                 $options = [];
                 foreach ($decryptorOptions as $option) {
                     $optionInventionCost = $option['totalCost'];
-                    $optionTotalProductionCost = $materialCost + $jobInstallCost + $optionInventionCost + $copyCost;
+                    $optionTotalProductionCost = null;
+                    $optionBestMargin = null;
 
-                    // Find best margin across all sell venues for this option
-                    $optionBestMargin = $this->findBestMarginForCost(
-                        $jitaSellPrice,
-                        $structureSellPrice,
-                        $structureBuyPrice,
-                        $contractSellPrice,
-                        $outputQuantity,
-                        $optionTotalProductionCost,
-                        $brokerFeeRate,
-                        $salesTaxRate,
-                    );
+                    if ($optionInventionCost !== null) {
+                        $optionTotalProductionCost = $materialCost + $jobInstallCost + $optionInventionCost + $copyCost;
+
+                        // Find best margin across all sell venues for this option
+                        $optionBestMargin = $this->findBestMarginForCost(
+                            $jitaSellPrice,
+                            $structureSellPrice,
+                            $structureBuyPrice,
+                            $contractSellPrice,
+                            $outputQuantity,
+                            $optionTotalProductionCost,
+                            $brokerFeeRate,
+                            $salesTaxRate,
+                        );
+                    }
 
                     $options[] = [
                         'decryptorTypeId' => $option['decryptorTypeId'],
@@ -182,6 +187,7 @@ class ProfitMarginService
 
                 $inventionDetails = [
                     'baseProbability' => $inventionResult['baseProbability'],
+                    'unknownReason' => $inventionResult['unknownReason'] ?? null,
                     'datacores' => array_map(fn (array $d) => $d['typeName'], $inventionResult['datacores']),
                     'selectedDecryptorTypeId' => $decryptorTypeId,
                     'selectedDecryptorName' => $selectedDecryptorName,
@@ -193,21 +199,27 @@ class ProfitMarginService
             }
         }
 
-        // 9. Total cost
-        $totalCost = $materialCost + $jobInstallCost + $inventionCost + $copyCost;
-        $costPerUnit = $outputQuantity > 0 ? $totalCost / $outputQuantity : 0.0;
+        // 9. Total cost (unknown as soon as the invention cost is unknown)
+        $totalCost = null;
+        $costPerUnit = null;
+        $margins = ['jitaSell' => null, 'structureSell' => null, 'structureBuy' => null, 'contractSell' => null];
 
-        // 10. Calculate margins
-        $margins = $this->calculateMargins(
-            $jitaSellPrice,
-            $structureSellPrice,
-            $structureBuyPrice,
-            $contractSellPrice,
-            $outputQuantity,
-            $totalCost,
-            $brokerFeeRate,
-            $salesTaxRate,
-        );
+        if ($inventionCost !== null) {
+            $totalCost = $materialCost + $jobInstallCost + $inventionCost + $copyCost;
+            $costPerUnit = $outputQuantity > 0 ? $totalCost / $outputQuantity : 0.0;
+
+            // 10. Calculate margins
+            $margins = $this->calculateMargins(
+                $jitaSellPrice,
+                $structureSellPrice,
+                $structureBuyPrice,
+                $contractSellPrice,
+                $outputQuantity,
+                $totalCost,
+                $brokerFeeRate,
+                $salesTaxRate,
+            );
+        }
 
         // 11. Daily volume
         $volumes = $this->jitaMarketService->getAverageDailyVolumes([$typeId]);
