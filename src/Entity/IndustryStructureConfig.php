@@ -284,8 +284,7 @@ class IndustryStructureConfig
             $bonus += $this->getRigBonus($rig, 'reaction_material');
         }
 
-        // Apply security multiplier
-        $bonus *= $this->getSecurityMultiplier();
+        $bonus *= $this->getReactionSecurityMultiplier();
 
         return round($bonus, 2);
     }
