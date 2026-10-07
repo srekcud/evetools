@@ -44,6 +44,8 @@ class BatchProfitScannerService
         'reactions' => ['activityId' => 11],
     ];
 
+    public const UNKNOWN_REASON_MISSING_MATERIAL_PRICE = 'missing_material_price';
+
     private const CAPITAL_GROUP_IDS = [
         30,   // Titan
         485,  // Dreadnought
@@ -132,7 +134,11 @@ class BatchProfitScannerService
     /**
      * Scan all manufacturable products and return ranked profit data.
      *
-     * @return list<array{typeId: int, typeName: string, groupName: string, categoryLabel: string, marginPercent: float, profitPerUnit: float, dailyVolume: float, iskPerDay: float, materialCost: float, importCost: float, exportCost: float, sellPrice: float, meUsed: int, activityType: string, isFactionBlueprint: bool, bpcCostPerRun: float|null, hasAllSkills: bool, missingSkillCount: int}>
+     * A product with a material lacking a Jita price has an unknown cost: materialCost, marginPercent,
+     * profitPerUnit and iskPerDay are null, unknownReason and missingPriceTypeIds explain why.
+     * Products with a known cost are ranked first, by iskPerDay descending.
+     *
+     * @return list<array{typeId: int, typeName: string, groupName: string, categoryLabel: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float, iskPerDay: float|null, materialCost: float|null, importCost: float, exportCost: float, sellPrice: float, meUsed: int, activityType: string, isFactionBlueprint: bool, bpcCostPerRun: float|null, hasAllSkills: bool, missingSkillCount: int, unknownReason: string|null, missingPriceTypeIds: list<int>}>
      */
     public function scan(
         ?string $category,
@@ -292,13 +298,18 @@ class BatchProfitScannerService
             $materials = $materialsByBlueprint[$blueprintTypeId] ?? [];
             $materialCost = 0.0;
             $materialVolume = 0.0;
+            $missingPriceTypeIds = [];
             foreach ($materials as $mat) {
                 $baseQty = $mat['quantity'];
                 // Apply ME reduction (only for manufacturing, not reactions)
                 $meMultiplier = !$isReaction && $me > 0 ? (1 - $me / 100) : 1.0;
                 $adjustedQty = max(1, (int) ceil($baseQty * $meMultiplier));
-                $unitPrice = $jitaPrices[$mat['materialTypeId']] ?? 0.0;
-                $materialCost += $adjustedQty * $unitPrice;
+                $unitPrice = $jitaPrices[$mat['materialTypeId']] ?? null;
+                if ($unitPrice === null) {
+                    $missingPriceTypeIds[$mat['materialTypeId']] = true;
+                } else {
+                    $materialCost += $adjustedQty * $unitPrice;
+                }
                 $materialVolume += $adjustedQty * ($materialVolumes[$mat['materialTypeId']] ?? 0.0);
             }
 
@@ -331,22 +342,29 @@ class BatchProfitScannerService
                 default => $jitaPrices[$typeId] ?? null,
             };
 
-            if ($sellPrice === null || $sellPrice <= 0.0 || $totalCost <= 0.0) {
+            $isCostUnknown = $missingPriceTypeIds !== [];
+
+            if ($sellPrice === null || $sellPrice <= 0.0 || (!$isCostUnknown && $totalCost <= 0.0)) {
                 continue;
             }
 
-            $profitPerUnit = ($sellPrice * $outputPerRun - $totalCost) / $outputPerRun;
-            // Apply broker + sales tax to sell price
-            $fees = $sellPrice * ($brokerFeeRate + $salesTaxRate);
-            $netSellPrice = $sellPrice - $fees;
-            $netProfitPerUnit = ($netSellPrice * $outputPerRun - $totalCost) / $outputPerRun;
-            $marginPercent = $totalCost > 0 ? ($netProfitPerUnit * $outputPerRun / $totalCost) * 100 : 0.0;
-
             $dailyVolume = $dailyVolumes[$typeId] ?? 0.0;
-            $iskPerDay = $netProfitPerUnit * $dailyVolume;
 
-            // Apply filters
-            if ($minMarginPercent !== null && $marginPercent < $minMarginPercent) {
+            // A cost summing an unknown material price is unknown: so are the margins derived from it
+            $netProfitPerUnit = null;
+            $marginPercent = null;
+            $iskPerDay = null;
+            if (!$isCostUnknown) {
+                // Apply broker + sales tax to sell price
+                $fees = $sellPrice * ($brokerFeeRate + $salesTaxRate);
+                $netSellPrice = $sellPrice - $fees;
+                $netProfitPerUnit = ($netSellPrice * $outputPerRun - $totalCost) / $outputPerRun;
+                $marginPercent = ($netProfitPerUnit * $outputPerRun / $totalCost) * 100;
+                $iskPerDay = $netProfitPerUnit * $dailyVolume;
+            }
+
+            // Apply filters — an unknown margin never satisfies a minimum margin
+            if ($minMarginPercent !== null && ($marginPercent === null || $marginPercent < $minMarginPercent)) {
                 continue;
             }
             if ($minDailyVolume !== null && $dailyVolume < $minDailyVolume) {
@@ -361,11 +379,11 @@ class BatchProfitScannerService
                 'typeName' => $typeNames[$typeId] ?? "Type #{$typeId}",
                 'groupName' => $meta['groupName'] ?? '',
                 'categoryLabel' => $categoryLabel,
-                'marginPercent' => round($marginPercent, 2),
-                'profitPerUnit' => round($netProfitPerUnit, 2),
+                'marginPercent' => $marginPercent !== null ? round($marginPercent, 2) : null,
+                'profitPerUnit' => $netProfitPerUnit !== null ? round($netProfitPerUnit, 2) : null,
                 'dailyVolume' => $dailyVolume,
-                'iskPerDay' => round($iskPerDay, 2),
-                'materialCost' => round($materialCost, 2),
+                'iskPerDay' => $iskPerDay !== null ? round($iskPerDay, 2) : null,
+                'materialCost' => $isCostUnknown ? null : round($materialCost, 2),
                 'importCost' => round($importCost, 2),
                 'exportCost' => round($exportCost, 2),
                 'sellPrice' => round($sellPrice, 2),
@@ -375,11 +393,13 @@ class BatchProfitScannerService
                 'bpcCostPerRun' => $bpcCostPerRun,
                 'hasAllSkills' => $this->checkSkills($blueprintTypeId, $requiredSkillsByBlueprint, $userSkillsByCharacter),
                 'missingSkillCount' => $this->countMissingSkills($blueprintTypeId, $requiredSkillsByBlueprint, $userSkillsByCharacter),
+                'unknownReason' => $isCostUnknown ? self::UNKNOWN_REASON_MISSING_MATERIAL_PRICE : null,
+                'missingPriceTypeIds' => array_keys($missingPriceTypeIds),
             ];
         }
 
-        // Sort by iskPerDay descending
-        usort($results, static fn (array $a, array $b) => $b['iskPerDay'] <=> $a['iskPerDay']);
+        // Known cost first, then by iskPerDay descending
+        usort($results, static fn (array $a, array $b) => [$a['iskPerDay'] === null, $b['iskPerDay']] <=> [$b['iskPerDay'] === null, $a['iskPerDay']]);
 
         return $results;
     }

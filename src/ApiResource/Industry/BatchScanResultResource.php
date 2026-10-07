@@ -45,15 +45,15 @@ class BatchScanResultResource
     /** "T1", "T2", "Capital", "Reaction" */
     public string $categoryLabel = '';
 
-    public float $marginPercent = 0;
+    public ?float $marginPercent = null;
 
-    public float $profitPerUnit = 0;
+    public ?float $profitPerUnit = null;
 
     public float $dailyVolume = 0;
 
-    public float $iskPerDay = 0;
+    public ?float $iskPerDay = null;
 
-    public float $materialCost = 0;
+    public ?float $materialCost = null;
 
     public float $importCost = 0;
 
@@ -77,4 +77,10 @@ class BatchScanResultResource
 
     /** Number of missing skills (best character) */
     public int $missingSkillCount = 0;
+
+    /** Why the cost and margins are unknown ("missing_material_price"), null when they are known */
+    public ?string $unknownReason = null;
+
+    /** @var list<int> Material typeIds without a Jita price */
+    public array $missingPriceTypeIds = [];
 }

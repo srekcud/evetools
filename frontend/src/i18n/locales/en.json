@@ -476,7 +476,9 @@
   "industry": {
     "inventionUnknown": {
       "label": "Unknown",
-      "missing_invention_probability": "Invention success probability missing from the static data (SDE): the invention cost is unknown."
+      "missing_invention_probability": "Invention success probability missing from the static data (SDE): the invention cost is unknown.",
+      "missing_material_price": "A material has no Jita price: the manufacturing cost and margins are unknown.",
+      "missingPriceTypes": "Materials without a price: {types}"
     },
     "title": "Industry",
     "subtitle": "Manufacturing and reaction projects",

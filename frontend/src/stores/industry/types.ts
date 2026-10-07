@@ -519,11 +519,11 @@ export type BatchScanItem = {
   typeName: string
   groupName: string
   categoryLabel: string
-  marginPercent: number
-  profitPerUnit: number
+  marginPercent: number | null
+  profitPerUnit: number | null
   dailyVolume: number
-  iskPerDay: number
-  materialCost: number
+  iskPerDay: number | null
+  materialCost: number | null
   exportCost: number
   importCost: number
   sellPrice: number
@@ -533,6 +533,8 @@ export type BatchScanItem = {
   bpcCostPerRun: number | null
   hasAllSkills: boolean
   missingSkillCount: number
+  unknownReason: string | null
+  missingPriceTypeIds: number[]
 }
 
 export type BpcPrice = {

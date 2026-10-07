@@ -476,7 +476,9 @@
   "industry": {
     "inventionUnknown": {
       "label": "Inconnu",
-      "missing_invention_probability": "Probabilite de succes de l'invention absente des donnees statiques (SDE) : cout d'invention inconnu."
+      "missing_invention_probability": "Probabilite de succes de l'invention absente des donnees statiques (SDE) : cout d'invention inconnu.",
+      "missing_material_price": "Un materiau n'a aucun prix a Jita : cout de fabrication et marges inconnus.",
+      "missingPriceTypes": "Materiaux sans prix : {types}"
     },
     "title": "Industrie",
     "subtitle": "Projets de fabrication et reactions",

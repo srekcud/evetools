@@ -73,8 +73,10 @@ const filteredResults = computed((): BatchScanItem[] => {
     const label = CATEGORY_LABEL_MAP[categoryFilter.value]
     items = items.filter(i => i.categoryLabel === label)
   }
-  if (minMarginFilter.value != null) {
-    items = items.filter(i => i.marginPercent >= minMarginFilter.value!)
+  const minMargin = minMarginFilter.value
+  if (minMargin != null) {
+    // An unknown margin never satisfies a minimum margin
+    items = items.filter(i => i.marginPercent != null && i.marginPercent >= minMargin)
   }
   if (minDailyVolFilter.value != null) {
     items = items.filter(i => i.dailyVolume >= minDailyVolFilter.value!)
@@ -83,6 +85,10 @@ const filteredResults = computed((): BatchScanItem[] => {
   items.sort((a, b) => {
     const aVal = a[sortKey.value]
     const bVal = b[sortKey.value]
+    // Unknown amounts stay last whatever the sort direction
+    if (aVal == null || bVal == null) {
+      return Number(aVal == null) - Number(bVal == null)
+    }
     if (typeof aVal === 'string' && typeof bVal === 'string') {
       return sortAsc.value ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal)
     }
@@ -101,24 +107,30 @@ const paginatedResults = computed(() => {
 })
 
 // KPI computations
-const profitableCount = computed(() => filteredResults.value.filter(i => i.marginPercent > 0).length)
+const profitableCount = computed(() => filteredResults.value.filter(i => i.marginPercent != null && i.marginPercent > 0).length)
 const profitablePercent = computed(() => {
   if (filteredResults.value.length === 0) return 0
   return Math.round((profitableCount.value / filteredResults.value.length) * 100)
 })
 
 const bestMarginItem = computed(() => {
-  if (filteredResults.value.length === 0) return null
-  return filteredResults.value.reduce((best, item) =>
-    item.marginPercent > best.marginPercent ? item : best,
-  )
+  let best: { item: BatchScanItem; marginPercent: number } | null = null
+  for (const item of filteredResults.value) {
+    if (item.marginPercent != null && (best === null || item.marginPercent > best.marginPercent)) {
+      best = { item, marginPercent: item.marginPercent }
+    }
+  }
+  return best
 })
 
 const bestIskDayItem = computed(() => {
-  if (filteredResults.value.length === 0) return null
-  return filteredResults.value.reduce((best, item) =>
-    item.iskPerDay > best.iskPerDay ? item : best,
-  )
+  let best: { item: BatchScanItem; iskPerDay: number } | null = null
+  for (const item of filteredResults.value) {
+    if (item.iskPerDay != null && (best === null || item.iskPerDay > best.iskPerDay)) {
+      best = { item, iskPerDay: item.iskPerDay }
+    }
+  }
+  return best
 })
 
 // Visible pagination buttons
@@ -164,7 +176,7 @@ function onScan(): void {
 
 async function copyToMultibuy(): Promise<void> {
   const lines = filteredResults.value
-    .filter(item => item.marginPercent > 0)
+    .filter(item => item.marginPercent != null && item.marginPercent > 0)
     .map(item => `${item.typeName}\t1`)
     .join('\n')
 
@@ -179,6 +191,14 @@ async function copyToMultibuy(): Promise<void> {
 
 function onRowClick(item: BatchScanItem): void {
   industryStore.navigationIntent = { target: 'margins', typeId: item.typeId }
+}
+
+// The scan does not return material names: the unpriced materials are identified by typeId
+function unknownCostTooltip(item: BatchScanItem): string {
+  const reason = t(`industry.inventionUnknown.${item.unknownReason}`)
+  if (item.missingPriceTypeIds.length === 0) return reason
+  const types = item.missingPriceTypeIds.map(typeId => `Type #${typeId}`).join(', ')
+  return `${reason}\n${t('industry.inventionUnknown.missingPriceTypes', { types })}`
 }
 
 function formatMargin(percent: number): string {
@@ -466,12 +486,12 @@ onBeforeUnmount(() => {
           </p>
           <div v-if="bestMarginItem" class="flex items-center gap-1.5 mt-1">
             <img
-              :src="getTypeIconUrl(bestMarginItem.typeId, 32)"
-              :alt="bestMarginItem.typeName"
+              :src="getTypeIconUrl(bestMarginItem.item.typeId, 32)"
+              :alt="bestMarginItem.item.typeName"
               class="w-4 h-4 rounded-sm"
               @error="onImageError"
             />
-            <p class="text-xs text-slate-400">{{ bestMarginItem.typeName }}</p>
+            <p class="text-xs text-slate-400">{{ bestMarginItem.item.typeName }}</p>
           </div>
         </div>
 
@@ -488,12 +508,12 @@ onBeforeUnmount(() => {
           </p>
           <div v-if="bestIskDayItem" class="flex items-center gap-1.5 mt-1">
             <img
-              :src="getTypeIconUrl(bestIskDayItem.typeId, 32)"
-              :alt="bestIskDayItem.typeName"
+              :src="getTypeIconUrl(bestIskDayItem.item.typeId, 32)"
+              :alt="bestIskDayItem.item.typeName"
               class="w-4 h-4 rounded-sm"
               @error="onImageError"
             />
-            <p class="text-xs text-slate-400">{{ bestIskDayItem.typeName }}</p>
+            <p class="text-xs text-slate-400">{{ bestIskDayItem.item.typeName }}</p>
           </div>
         </div>
       </div>
@@ -591,7 +611,7 @@ onBeforeUnmount(() => {
                   'cursor-pointer transition-colors',
                   idx === 0 && currentPage === 1
                     ? 'hover:bg-emerald-500/5 bg-emerald-500/[0.03]'
-                    : item.marginPercent < 0
+                    : item.marginPercent != null && item.marginPercent < 0
                       ? 'hover:bg-slate-800/50 opacity-70'
                       : 'hover:bg-slate-800/50',
                 ]"
@@ -621,7 +641,7 @@ onBeforeUnmount(() => {
                     </button>
                     <span :class="[
                       'font-semibold',
-                      idx === 0 && currentPage === 1 ? 'text-slate-100' : item.marginPercent < 0 ? 'text-slate-300' : 'text-slate-200',
+                      idx === 0 && currentPage === 1 ? 'text-slate-100' : item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-300' : 'text-slate-200',
                     ]">{{ item.typeName }}</span>
                     <span class="text-[10px] text-slate-500">{{ item.groupName }}</span>
                     <!-- Skills warning -->
@@ -693,25 +713,39 @@ onBeforeUnmount(() => {
                   </span>
                 </td>
                 <td class="py-3 px-3 text-right">
-                  <span :class="[
+                  <span
+                    v-if="item.marginPercent == null"
+                    class="font-mono text-amber-400 cursor-help"
+                    :title="unknownCostTooltip(item)"
+                  >{{ t('industry.inventionUnknown.label') }}</span>
+                  <span v-else :class="[
                     'font-mono',
                     item.marginPercent >= 10 ? 'text-emerald-400 font-bold' : item.marginPercent > 0 ? 'text-amber-400' : 'text-red-400',
                   ]">
                     {{ formatMargin(item.marginPercent) }}
                   </span>
                 </td>
-                <td class="py-3 px-3 text-right font-mono" :class="item.profitPerUnit < 0 ? 'text-red-400/70' : 'text-slate-200'">
+                <td v-if="item.profitPerUnit == null" class="py-3 px-3 text-right font-mono text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
+                  {{ t('industry.inventionUnknown.label') }}
+                </td>
+                <td v-else class="py-3 px-3 text-right font-mono" :class="item.profitPerUnit < 0 ? 'text-red-400/70' : 'text-slate-200'">
                   {{ formatIsk(item.profitPerUnit) }}
                 </td>
-                <td class="py-3 px-3 text-right font-mono" :class="item.marginPercent < 0 ? 'text-slate-400' : 'text-slate-300'">
+                <td class="py-3 px-3 text-right font-mono" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-400' : 'text-slate-300'">
                   {{ formatNumber(item.dailyVolume, 0) }}
                 </td>
-                <td class="py-3 px-3 text-right font-mono" :class="[
+                <td v-if="item.iskPerDay == null" class="py-3 px-3 text-right font-mono text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
+                  {{ t('industry.inventionUnknown.label') }}
+                </td>
+                <td v-else class="py-3 px-3 text-right font-mono" :class="[
                   item.iskPerDay < 0 ? 'text-red-400/60' : idx === 0 && currentPage === 1 ? 'text-cyan-400 font-bold' : 'text-cyan-400 font-semibold',
                 ]">
                   {{ formatIsk(item.iskPerDay) }}
                 </td>
-                <td class="py-3 px-3 text-right font-mono" :class="item.marginPercent < 0 ? 'text-slate-500' : 'text-slate-400'">
+                <td v-if="item.materialCost == null" class="py-3 px-3 text-right font-mono text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
+                  {{ t('industry.inventionUnknown.label') }}
+                </td>
+                <td v-else class="py-3 px-3 text-right font-mono" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-500' : 'text-slate-400'">
                   {{ formatIsk(item.materialCost) }}
                 </td>
                 <td class="py-3 px-3 text-right font-mono text-slate-400">
@@ -720,10 +754,10 @@ onBeforeUnmount(() => {
                 <td class="py-3 px-3 text-right font-mono text-slate-400">
                   {{ formatIsk(item.importCost) }}
                 </td>
-                <td class="py-3 px-3 text-right font-mono" :class="item.marginPercent < 0 ? 'text-slate-400' : 'text-slate-200'">
+                <td class="py-3 px-3 text-right font-mono" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-400' : 'text-slate-200'">
                   {{ formatIsk(item.sellPrice) }}
                 </td>
-                <td class="py-3 px-2 text-center font-mono text-xs" :class="item.marginPercent < 0 ? 'text-slate-500' : 'text-slate-400'">
+                <td class="py-3 px-2 text-center font-mono text-xs" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-500' : 'text-slate-400'">
                   {{ item.meUsed > 0 ? item.meUsed : '--' }}
                 </td>
                 <td class="py-3 px-3 text-center">
