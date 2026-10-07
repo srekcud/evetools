@@ -4,19 +4,24 @@ declare(strict_types=1);
 
 namespace App\MessageHandler;
 
+use App\Message\SyncCharacterPlanetaryColonies;
 use App\Message\SyncPlanetaryColonies;
 use App\Repository\CharacterRepository;
 use App\Service\Admin\SyncTracker;
-use App\Service\Sync\PlanetarySyncService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Messenger\MessageBusInterface;
 
+/**
+ * Fans the scheduled sync out to one async message per character, so the worker never
+ * holds a long ESI loop inside a single message.
+ */
 #[AsMessageHandler]
 final readonly class SyncPlanetaryColoniesHandler
 {
     public function __construct(
         private CharacterRepository $characterRepository,
-        private PlanetarySyncService $planetarySyncService,
+        private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
         private SyncTracker $syncTracker,
     ) {
@@ -28,33 +33,25 @@ final readonly class SyncPlanetaryColoniesHandler
 
         try {
             $characters = $this->characterRepository->findActiveWithValidTokens();
-            $synced = 0;
+            $queued = 0;
 
             foreach ($characters as $character) {
+                $characterId = $character->getId()?->toRfc4122();
                 $token = $character->getEveToken();
-                if ($token === null || !$token->hasScope('esi-planets.manage_planets.v1')) {
+                if ($characterId === null || $token === null || !$token->hasScope('esi-planets.manage_planets.v1')) {
                     continue;
                 }
 
-                try {
-                    $this->planetarySyncService->syncCharacterColonies($character);
-                    $synced++;
-                } catch (\Throwable $e) {
-                    $this->logger->error('Failed to sync planetary colonies', [
-                        'characterName' => $character->getName(),
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-
-                usleep(500_000);
+                $this->messageBus->dispatch(new SyncCharacterPlanetaryColonies($characterId));
+                $queued++;
             }
 
-            $this->logger->info('Planetary colonies sync completed', [
-                'synced' => $synced,
+            $this->logger->info('Planetary colonies sync queued', [
+                'charactersQueued' => $queued,
                 'totalCharacters' => count($characters),
             ]);
 
-            $this->syncTracker->complete('planetary', "{$synced}/" . count($characters) . ' chars synced');
+            $this->syncTracker->complete('planetary', "{$queued}/" . count($characters) . ' chars queued');
         } catch (\Throwable $e) {
             $this->syncTracker->fail('planetary', $e->getMessage());
             throw $e;

@@ -19,9 +19,11 @@ framework:
             App\Message\TriggerAssetsSync: async
             App\Message\TriggerPlanetarySync: async
             App\Message\SyncPlanetaryColonies: async
+            App\Message\SyncCharacterPlanetaryColonies: async
             App\Message\SyncIndustryJobs: async
             App\Message\TriggerPveSync: async
             App\Message\SyncWalletTransactions: async
+            App\Message\SyncCharacterWalletTransactions: async
             App\Message\TriggerMiningSync: async
             App\Message\TriggerAnsiblexSync: async
             App\Message\TriggerJitaMarketSync: async
