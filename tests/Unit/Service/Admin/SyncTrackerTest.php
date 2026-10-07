@@ -36,12 +36,6 @@ class SyncTrackerTest extends TestCase
     /** @var list<Update> */
     private array $publishedUpdates = [];
 
-    public static function setUpBeforeClass(): void
-    {
-        // computeHealth() utilise time() : on le fige via ClockMock (namespace App\Service\Admin).
-        ClockMock::register(SyncTracker::class);
-    }
-
     protected function setUp(): void
     {
         $this->publishedUpdates = [];
@@ -59,6 +53,10 @@ class SyncTrackerTest extends TestCase
         );
     }
 
+    /**
+     * computeHealth() utilise time() : on le fige via ClockMock (namespace App\Service\Admin),
+     * enregistré dans tests/bootstrap.php pour ne pas dépendre de l'ordre d'exécution des tests.
+     */
     protected function tearDown(): void
     {
         ClockMock::withClockMock(false);
