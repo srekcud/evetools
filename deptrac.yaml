@@ -75,25 +75,52 @@ deptrac:
       collectors:
         - { type: directory, value: src/DataFixtures/.* }
 
+    # Industry bounded context (ADR-0009), built next to the flat folders above (strangler)
+    - name: IndustryDomain
+      collectors:
+        - { type: directory, value: src/Industry/Domain/.* }
+    - name: IndustryApplication
+      collectors:
+        - { type: directory, value: src/Industry/Application/.* }
+    - name: IndustryInfrastructure
+      collectors:
+        - { type: directory, value: src/Industry/Infrastructure/.* }
+
+    # Third-party code (Symfony, Doctrine, API Platform...), PHP built-ins excluded.
+    # Declared so that a layer which must stay framework-free (IndustryDomain) is checked.
+    - name: Vendor
+      collectors:
+        - type: bool
+          must:
+            - { type: classNameRegex, value: '#^(?!App\\)#' }
+          must_not:
+            - { type: php_internal, value: '.*' }
+
   # Permissive: dependencies point from entry points towards persistence.
+  # The flat folders never import the Industry layers: none of them lists an Industry* layer.
   # Entity -> Repository is allowed because of #[ORM\Entity(repositoryClass: ...)].
   # ApiResource -> State* is allowed because of provider:/processor: attributes.
   ruleset:
-    Enum: [Constant]
-    Constant: ~
-    Exception: [Enum, Constant]
-    Dto: [Enum, Constant]
-    Entity: [Repository, Enum, Constant, Exception, Dto]
-    Repository: [Entity, Enum, Constant, Exception, Dto]
-    Service: [Entity, Repository, Message, Enum, Constant, Exception, Dto]
-    ApiResource: [StateProvider, StateProcessor, Entity, Enum, Constant, Exception, Dto]
-    StateProvider: [ApiResource, Service, Repository, Entity, Security, Enum, Constant, Exception, Dto]
-    StateProcessor: [ApiResource, Service, Repository, Entity, Message, Security, Enum, Constant, Exception, Dto]
-    Message: [Enum, Constant, Dto]
-    MessageHandler: [Message, Service, Repository, Entity, Enum, Constant, Exception, Dto]
-    Scheduler: [Message, Enum, Constant]
-    Controller: [Service, Repository, Entity, Security, Enum, Constant, Exception, Dto]
-    Command: [Service, Repository, Entity, Message, Enum, Constant, Exception, Dto]
-    Security: [Service, Repository, Entity, Enum, Constant, Exception, Dto]
-    EventListener: [Service, Repository, Entity, Security, Enum, Constant, Exception, Dto]
-    DataFixtures: [Entity, Repository, Enum, Constant, Dto]
+    Enum: [Constant, Vendor]
+    Constant: [Vendor]
+    Exception: [Enum, Constant, Vendor]
+    Dto: [Enum, Constant, Vendor]
+    Entity: [Repository, Enum, Constant, Exception, Dto, Vendor]
+    Repository: [Entity, Enum, Constant, Exception, Dto, Vendor]
+    Service: [Entity, Repository, Message, Enum, Constant, Exception, Dto, Vendor]
+    ApiResource: [StateProvider, StateProcessor, Entity, Enum, Constant, Exception, Dto, Vendor]
+    StateProvider: [ApiResource, Service, Repository, Entity, Security, Enum, Constant, Exception, Dto, Vendor]
+    StateProcessor: [ApiResource, Service, Repository, Entity, Message, Security, Enum, Constant, Exception, Dto, Vendor]
+    Message: [Enum, Constant, Dto, Vendor]
+    MessageHandler: [Message, Service, Repository, Entity, Enum, Constant, Exception, Dto, Vendor]
+    Scheduler: [Message, Enum, Constant, Vendor]
+    Controller: [Service, Repository, Entity, Security, Enum, Constant, Exception, Dto, Vendor]
+    Command: [Service, Repository, Entity, Message, Enum, Constant, Exception, Dto, Vendor]
+    Security: [Service, Repository, Entity, Enum, Constant, Exception, Dto, Vendor]
+    EventListener: [Service, Repository, Entity, Security, Enum, Constant, Exception, Dto, Vendor]
+    DataFixtures: [Entity, Repository, Enum, Constant, Dto, Vendor]
+    # Pure PHP: no framework, no persistence, no other layer.
+    IndustryDomain: ~
+    IndustryApplication: [IndustryDomain]
+    # Adapters of the Domain ports over the SDE / ESI persistence.
+    IndustryInfrastructure: [IndustryDomain, IndustryApplication, Entity, Repository, Vendor]

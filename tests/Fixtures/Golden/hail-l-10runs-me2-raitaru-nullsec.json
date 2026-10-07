@@ -1,0 +1,125 @@
+{
+ "id": "hail-l-10runs-me2-raitaru-nullsec",
+ "provenance": {
+  "source": "recalcule",
+  "method": "Recalcul depuis le SDE local (tables sde_industry_activity_*) avec la formule de reference F1 de benchmark.md (identique a EVE Ref ManufactureCalculator, MIT-0) et une demande agregee sur tout le plan (comportement Ravworks). Script : golden/tools/reference-bom.js.",
+  "sdeSnapshot": "base de dev evetools au 2026-10-07",
+  "attribution": "Donnees EVE : propriete de CCP Games.",
+  "why": "Produit a 5000 unites par run (B1, #2) + bonus structure et rig en nullsec + intermediaire multi-unites (R.A.M., 100/run, 90 en surplus). Valeur actuelle evetools attendue fausse : runs racine = ceil(10/5000) = 1."
+ },
+ "input": {
+  "product": "Hail L",
+  "typeId": 12779,
+  "runs": 10,
+  "me": 2,
+  "te": 4,
+  "structures": {
+   "root": {
+    "structure": "Raitaru",
+    "structureMaterialModifier": 0.99,
+    "rig": "Standup M-Set Ammunition Manufacturing Material Efficiency II",
+    "rigBaseBonusPercent": 2.4,
+    "security": "nullsec",
+    "rigSecurityModifier": 2.1,
+    "rigMaterialModifier": 0.9496
+   },
+   "intermediates": {
+    "structure": "Raitaru",
+    "structureMaterialModifier": 0.99,
+    "rig": null
+   }
+  },
+  "intermediates": {
+   "manufacturingMe": 10,
+   "reactionMe": 0
+  },
+  "buy": [
+   "Fernite Carbide",
+   "Fullerides"
+  ],
+  "stock": []
+ },
+ "expected": {
+  "root": {
+   "product": "Hail L",
+   "runs": 10,
+   "outputPerRun": 5000,
+   "quantityProduced": 50000,
+   "inputs": {
+    "Fernite Carbide": 27640,
+    "Fullerides": 11056,
+    "Morphite": 139,
+    "R.A.M.- Ammunition Tech": 10
+   }
+  },
+  "leaves": [
+   {
+    "name": "Fernite Carbide",
+    "typeId": 16673,
+    "quantity": 27640
+   },
+   {
+    "name": "Fullerides",
+    "typeId": 16679,
+    "quantity": 11056
+   },
+   {
+    "name": "Isogen",
+    "typeId": 37,
+    "quantity": 74
+   },
+   {
+    "name": "Mexallon",
+    "typeId": 36,
+    "quantity": 198
+   },
+   {
+    "name": "Morphite",
+    "typeId": 11399,
+    "quantity": 139
+   },
+   {
+    "name": "Nocxium",
+    "typeId": 38,
+    "quantity": 33
+   },
+   {
+    "name": "Pyerite",
+    "typeId": 35,
+    "quantity": 396
+   },
+   {
+    "name": "Tritanium",
+    "typeId": 34,
+    "quantity": 496
+   }
+  ],
+  "intermediates": [
+   {
+    "product": "R.A.M.- Ammunition Tech",
+    "typeId": 11476,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [
+     0.99
+    ],
+    "runs": 1,
+    "outputPerRun": 100,
+    "quantityProduced": 100,
+    "quantityNeeded": 10,
+    "surplus": 90,
+    "inputs": {
+     "Isogen": 74,
+     "Mexallon": 198,
+     "Nocxium": 33,
+     "Pyerite": 396,
+     "Tritanium": 496
+    }
+   }
+  ]
+ },
+ "currentEvetoolsSimulated": {
+  "rootRuns": 1,
+  "note": "Simulation hors ligne de IndustryTreeService::buildNode (IndustryTreeService.php:56) ; a confirmer par le test."
+ }
+}

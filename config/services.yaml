@@ -21,6 +21,8 @@ services:
         exclude:
             - '../src/DependencyInjection/'
             - '../src/Entity/'
+            # Pure value objects and rules: built with `new`, never injected (ADR-0009)
+            - '../src/Industry/Domain/'
             - '../src/Kernel.php'
 
     App\Security\AdminChecker:

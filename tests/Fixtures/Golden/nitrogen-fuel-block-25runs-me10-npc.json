@@ -1,0 +1,96 @@
+{
+ "id": "nitrogen-fuel-block-25runs-me10-npc",
+ "provenance": {
+  "source": "recalcule",
+  "method": "Recalcul depuis le SDE local (tables sde_industry_activity_*) avec la formule de reference F1 de benchmark.md (identique a EVE Ref ManufactureCalculator, MIT-0) et une demande agregee sur tout le plan (comportement Ravworks). Script : golden/tools/reference-bom.js.",
+  "sdeSnapshot": "base de dev evetools au 2026-10-07",
+  "attribution": "Donnees EVE : propriete de CCP Games.",
+  "why": "Produit a 40 unites par run (B1, #2) et regle du minimum d un par run : Robotics 1/run x 25 runs x 0.9 = 22.5 -> 23, mais max(runs, ...) = 25."
+ },
+ "input": {
+  "product": "Nitrogen Fuel Block",
+  "typeId": 4051,
+  "runs": 25,
+  "me": 10,
+  "te": 20,
+  "structures": "Aucun bonus (station NPC)",
+  "security": "highsec",
+  "buy": [],
+  "stock": []
+ },
+ "expected": {
+  "root": {
+   "product": "Nitrogen Fuel Block",
+   "runs": 25,
+   "outputPerRun": 40,
+   "quantityProduced": 1000,
+   "inputs": {
+    "Coolant": 203,
+    "Enriched Uranium": 90,
+    "Heavy Water": 3825,
+    "Liquid Ozone": 7875,
+    "Mechanical Parts": 90,
+    "Nitrogen Isotopes": 10125,
+    "Oxygen": 495,
+    "Robotics": 25,
+    "Strontium Clathrates": 450
+   }
+  },
+  "leaves": [
+   {
+    "name": "Coolant",
+    "typeId": 9832,
+    "quantity": 203
+   },
+   {
+    "name": "Enriched Uranium",
+    "typeId": 44,
+    "quantity": 90
+   },
+   {
+    "name": "Heavy Water",
+    "typeId": 16272,
+    "quantity": 3825
+   },
+   {
+    "name": "Liquid Ozone",
+    "typeId": 16273,
+    "quantity": 7875
+   },
+   {
+    "name": "Mechanical Parts",
+    "typeId": 3689,
+    "quantity": 90
+   },
+   {
+    "name": "Nitrogen Isotopes",
+    "typeId": 17888,
+    "quantity": 10125
+   },
+   {
+    "name": "Oxygen",
+    "typeId": 3683,
+    "quantity": 495
+   },
+   {
+    "name": "Robotics",
+    "typeId": 9848,
+    "quantity": 25
+   },
+   {
+    "name": "Strontium Clathrates",
+    "typeId": 16275,
+    "quantity": 450
+   }
+  ],
+  "intermediates": []
+ },
+ "currentEvetoolsSimulated": {
+  "rootRuns": 1,
+  "leaves": {
+   "Nitrogen Isotopes": 405,
+   "Robotics": 1
+  },
+  "note": "Simulation hors ligne de IndustryTreeService (B1) ; a confirmer par le test."
+ }
+}

@@ -1,0 +1,94 @@
+{
+ "provenance": {
+  "source": "SDE (tables sde_industry_activity_products et sde_industry_activity_materials), base de dev evetools au 2026-10-07",
+  "attribution": "Donnees EVE : propriete de CCP Games.",
+  "why": "Les goldens donnent les quantites attendues par job, pas les quantites de base par run. Cet extrait fournit les entrees de R1 pour les produits des goldens copies ici."
+ },
+ "products": {
+  "Nitrogen Fuel Block": {
+   "typeId": 4051,
+   "activity": "manufacturing",
+   "outputPerRun": 40,
+   "materials": {
+    "Coolant": 9,
+    "Enriched Uranium": 4,
+    "Heavy Water": 170,
+    "Liquid Ozone": 350,
+    "Mechanical Parts": 4,
+    "Nitrogen Isotopes": 450,
+    "Oxygen": 22,
+    "Robotics": 1,
+    "Strontium Clathrates": 20
+   }
+  },
+  "Hydrogen Fuel Block": {
+   "typeId": 4246,
+   "activity": "manufacturing",
+   "outputPerRun": 40,
+   "materials": {
+    "Coolant": 9,
+    "Enriched Uranium": 4,
+    "Heavy Water": 170,
+    "Hydrogen Isotopes": 450,
+    "Liquid Ozone": 350,
+    "Mechanical Parts": 4,
+    "Oxygen": 22,
+    "Robotics": 1,
+    "Strontium Clathrates": 20
+   }
+  },
+  "Hail L": {
+   "typeId": 12779,
+   "activity": "manufacturing",
+   "outputPerRun": 5000,
+   "materials": {
+    "Fernite Carbide": 3000,
+    "Fullerides": 1200,
+    "Morphite": 15,
+    "R.A.M.- Ammunition Tech": 1
+   }
+  },
+  "R.A.M.- Ammunition Tech": {
+   "typeId": 11476,
+   "activity": "manufacturing",
+   "outputPerRun": 100,
+   "materials": {
+    "Isogen": 82,
+    "Mexallon": 222,
+    "Nocxium": 36,
+    "Pyerite": 444,
+    "Tritanium": 556
+   }
+  },
+  "Fernite Carbide": {
+   "typeId": 16673,
+   "activity": "reaction",
+   "outputPerRun": 10000,
+   "materials": {
+    "Ceramic Powder": 100,
+    "Fernite Alloy": 100,
+    "Hydrogen Fuel Block": 5
+   }
+  },
+  "Ceramic Powder": {
+   "typeId": 16660,
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "materials": {
+    "Evaporite Deposits": 100,
+    "Hydrogen Fuel Block": 5,
+    "Silicates": 100
+   }
+  },
+  "Fernite Alloy": {
+   "typeId": 16656,
+   "activity": "reaction",
+   "outputPerRun": 200,
+   "materials": {
+    "Hydrogen Fuel Block": 5,
+    "Scandium": 100,
+    "Vanadium": 100
+   }
+  }
+ }
+}

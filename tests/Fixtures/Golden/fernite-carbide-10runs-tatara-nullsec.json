@@ -1,0 +1,185 @@
+{
+ "id": "fernite-carbide-10runs-tatara-nullsec",
+ "provenance": {
+  "source": "recalcule",
+  "method": "Recalcul depuis le SDE local (tables sde_industry_activity_*) avec la formule de reference F1 de benchmark.md (identique a EVE Ref ManufactureCalculator, MIT-0) et une demande agregee sur tout le plan (comportement Ravworks). Script : golden/tools/reference-bom.js.",
+  "sdeSnapshot": "base de dev evetools au 2026-10-07",
+  "attribution": "Donnees EVE : propriete de CCP Games.",
+  "why": "Chaine de reactions a 2 niveaux : pas de ME ni de bonus de role de structure sur les reactions, rig de reaction module par 1.1 en nullsec (et non 2.1), intermediaire partage (Hydrogen Fuel Block consomme a 2 profondeurs, #16) et agrege avant arrondi."
+ },
+ "input": {
+  "product": "Fernite Carbide",
+  "typeId": 16673,
+  "runs": 10,
+  "me": 0,
+  "te": 0,
+  "structures": {
+   "reactions": {
+    "structure": "Tatara",
+    "structureMaterialModifier": 1,
+    "rig": "Standup L-Set Reactor Efficiency II",
+    "rigBaseBonusPercent": 2.4,
+    "security": "nullsec",
+    "rigSecurityModifier": 1.1,
+    "rigMaterialModifier": 0.9736
+   },
+   "manufacturing": {
+    "structure": "Raitaru",
+    "structureMaterialModifier": 0.99,
+    "rig": null,
+    "security": "nullsec"
+   }
+  },
+  "intermediates": {
+   "manufacturingMe": 10,
+   "reactionMe": 0
+  },
+  "buy": [],
+  "stock": []
+ },
+ "expected": {
+  "root": {
+   "product": "Fernite Carbide",
+   "runs": 10,
+   "outputPerRun": 10000,
+   "quantityProduced": 100000,
+   "inputs": {
+    "Ceramic Powder": 974,
+    "Fernite Alloy": 974,
+    "Hydrogen Fuel Block": 49
+   }
+  },
+  "leaves": [
+   {
+    "name": "Coolant",
+    "typeId": 9832,
+    "quantity": 25
+   },
+   {
+    "name": "Enriched Uranium",
+    "typeId": 44,
+    "quantity": 11
+   },
+   {
+    "name": "Evaporite Deposits",
+    "typeId": 16635,
+    "quantity": 487
+   },
+   {
+    "name": "Heavy Water",
+    "typeId": 16272,
+    "quantity": 455
+   },
+   {
+    "name": "Hydrogen Isotopes",
+    "typeId": 17889,
+    "quantity": 1203
+   },
+   {
+    "name": "Liquid Ozone",
+    "typeId": 16273,
+    "quantity": 936
+   },
+   {
+    "name": "Mechanical Parts",
+    "typeId": 3689,
+    "quantity": 11
+   },
+   {
+    "name": "Oxygen",
+    "typeId": 3683,
+    "quantity": 59
+   },
+   {
+    "name": "Robotics",
+    "typeId": 9848,
+    "quantity": 3
+   },
+   {
+    "name": "Scandium",
+    "typeId": 16639,
+    "quantity": 487
+   },
+   {
+    "name": "Silicates",
+    "typeId": 16636,
+    "quantity": 487
+   },
+   {
+    "name": "Strontium Clathrates",
+    "typeId": 16275,
+    "quantity": 54
+   },
+   {
+    "name": "Vanadium",
+    "typeId": 16642,
+    "quantity": 487
+   }
+  ],
+  "intermediates": [
+   {
+    "product": "Ceramic Powder",
+    "typeId": 16660,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [
+     0.9736
+    ],
+    "runs": 5,
+    "outputPerRun": 200,
+    "quantityProduced": 1000,
+    "quantityNeeded": 974,
+    "surplus": 26,
+    "inputs": {
+     "Evaporite Deposits": 487,
+     "Hydrogen Fuel Block": 25,
+     "Silicates": 487
+    }
+   },
+   {
+    "product": "Fernite Alloy",
+    "typeId": 16656,
+    "activity": "reaction",
+    "me": 0,
+    "modifiers": [
+     0.9736
+    ],
+    "runs": 5,
+    "outputPerRun": 200,
+    "quantityProduced": 1000,
+    "quantityNeeded": 974,
+    "surplus": 26,
+    "inputs": {
+     "Hydrogen Fuel Block": 25,
+     "Scandium": 487,
+     "Vanadium": 487
+    }
+   },
+   {
+    "product": "Hydrogen Fuel Block",
+    "typeId": 4246,
+    "activity": "manufacturing",
+    "me": 10,
+    "modifiers": [
+     0.99
+    ],
+    "runs": 3,
+    "outputPerRun": 40,
+    "quantityProduced": 120,
+    "quantityNeeded": 99,
+    "surplus": 21,
+    "inputs": {
+     "Coolant": 25,
+     "Enriched Uranium": 11,
+     "Heavy Water": 455,
+     "Hydrogen Isotopes": 1203,
+     "Liquid Ozone": 936,
+     "Mechanical Parts": 11,
+     "Oxygen": 59,
+     "Robotics": 3,
+     "Strontium Clathrates": 54
+    }
+   }
+  ]
+ }
+}
