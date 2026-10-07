@@ -93,6 +93,9 @@ class MiningSyncService
             $this->mercurePublisher->syncStarted($userId, 'mining', 'Syncing mining ledger...');
         }
 
+        $tokenizedCharacters = 0;
+        $failedCharacters = 0;
+
         try {
             try {
                 if ($userId !== null) {
@@ -105,6 +108,7 @@ class MiningSyncService
                     if ($token === null) {
                         continue;
                     }
+                    $tokenizedCharacters++;
 
                     try {
                         if ($token->isExpiringSoon()) {
@@ -129,6 +133,7 @@ class MiningSyncService
                             }
                         }
                     } catch (\Throwable $e) {
+                        $failedCharacters++;
                         $results['errors'][] = "Character {$character->getName()}: " . $e->getMessage();
                         $this->logger->warning('Failed to sync mining for character', [
                             'character' => $character->getName(),
@@ -149,6 +154,13 @@ class MiningSyncService
             } catch (\Throwable $e) {
                 $results['errors'][] = 'Global: ' . $e->getMessage();
                 $this->logger->error('Failed to sync mining', ['error' => $e->getMessage()]);
+
+                // Not rethrown: the next scheduled run retries, a Messenger retry would not do better
+                return $this->failSync($userId, $e->getMessage(), $results);
+            }
+
+            if ($failedCharacters > 0 && $failedCharacters === $tokenizedCharacters) {
+                return $this->failSync($userId, sprintf('Sync failed for all %d characters', $tokenizedCharacters), $results);
             }
 
             // Update last sync time
@@ -164,11 +176,15 @@ class MiningSyncService
                     $results['updated'],
                     $results['pricesUpdated']
                 );
+                if ($failedCharacters > 0) {
+                    $message .= sprintf(' (%d of %d characters failed)', $failedCharacters, $tokenizedCharacters);
+                }
                 $this->mercurePublisher->syncCompleted($userId, 'mining', $message, [
                     'imported' => $results['imported'],
                     'updated' => $results['updated'],
                     'pricesUpdated' => $results['pricesUpdated'],
                     'errors' => count($results['errors']),
+                    'failedCharacters' => $failedCharacters,
                 ]);
             }
 
@@ -187,6 +203,21 @@ class MiningSyncService
             }
             throw $e;
         }
+    }
+
+    /**
+     * Reports the failure without touching the last sync time, so the next scheduled run retries.
+     *
+     * @param array{imported: int, updated: int, pricesUpdated: int, errors: string[]} $results
+     * @return array{imported: int, updated: int, pricesUpdated: int, errors: string[]}
+     */
+    private function failSync(?string $userId, string $errorMessage, array $results): array
+    {
+        if ($userId !== null) {
+            $this->mercurePublisher->syncError($userId, 'mining', $errorMessage);
+        }
+
+        return $results;
     }
 
     /**

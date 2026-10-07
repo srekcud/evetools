@@ -7,7 +7,9 @@ namespace App\Tests\Unit\Service\Sync;
 use App\Entity\Character;
 use App\Entity\EveToken;
 use App\Entity\User;
+use App\Entity\UserPveSettings;
 use App\Enum\PveIncomeType;
+use App\Exception\EveAuthRequiredException;
 use App\Repository\PveExpenseRepository;
 use App\Repository\PveIncomeRepository;
 use App\Repository\UserPveSettingsRepository;
@@ -20,11 +22,13 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Mercure\HubInterface;
+use Symfony\Component\Mercure\Update;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(PveSyncService::class)]
@@ -40,6 +44,9 @@ class PveSyncServiceTest extends TestCase
     private EntityManagerInterface&MockObject $em;
     private PveSyncService $service;
 
+    /** @var list<array<string, mixed>> Mercure sync payloads, in publication order */
+    private array $publishedSyncEvents = [];
+
     protected function setUp(): void
     {
         $this->esiClient = $this->createStub(EsiClient::class);
@@ -50,10 +57,14 @@ class PveSyncServiceTest extends TestCase
         $this->invTypeRepository = $this->createStub(InvTypeRepository::class);
         $this->em = $this->createMock(EntityManagerInterface::class);
 
-        $mercurePublisher = new MercurePublisherService(
-            $this->createStub(HubInterface::class),
-            new NullLogger(),
-        );
+        $this->publishedSyncEvents = [];
+        $hub = $this->createStub(HubInterface::class);
+        $hub->method('publish')->willReturnCallback(function (Update $update): string {
+            $this->publishedSyncEvents[] = json_decode($update->getData(), true, 512, JSON_THROW_ON_ERROR);
+            return 'urn:uuid:test';
+        });
+
+        $mercurePublisher = new MercurePublisherService($hub, new NullLogger());
 
         $this->service = new PveSyncService(
             $this->esiClient,
@@ -472,6 +483,140 @@ class PveSyncServiceTest extends TestCase
     }
 
     // ===========================================
+    // syncAll — failure reporting (issue #12)
+    // ===========================================
+
+    private const PREVIOUS_PVE_SYNC_AT = '2026-01-01 00:00:00';
+    private const FAILING_CHARACTER_ID = 22222;
+    private const STEP_JOURNAL = 'journal';
+    private const STEP_LOOT_SALES = 'lootSales';
+    private const STEP_LOOT_CONTRACTS = 'lootContracts';
+    private const STEP_EXPENSES = 'expenses';
+
+    public function testSyncAllPublishesSyncErrorAndKeepsLastSyncWhenEveryCharacterFails(): void
+    {
+        $user = $this->createUserWithOkAndFailingCharacters();
+        $this->esiClient->method('get')->willThrowException(new \RuntimeException('ESI 502 Bad Gateway'));
+        $this->esiClient->method('getPaginated')->willThrowException(new \RuntimeException('ESI 502 Bad Gateway'));
+        $settings = $this->settingsSyncedAt(self::PREVIOUS_PVE_SYNC_AT);
+
+        $this->syncAllIgnoringException($user);
+
+        $this->assertNotContains('completed', $this->publishedStatuses());
+        $this->assertSame('error', $this->lastSyncEvent()['status']);
+        $this->assertSame('Sync failed for all 2 characters', $this->lastSyncEvent()['message']);
+        $this->assertEquals(new \DateTimeImmutable(self::PREVIOUS_PVE_SYNC_AT), $settings->getLastSyncAt());
+    }
+
+    public function testSyncAllReportsFailedCharacterCountWhenOneCharacterFails(): void
+    {
+        $user = $this->createUserWithOkAndFailingCharacters();
+        $this->stubEsiFailingFor(self::FAILING_CHARACTER_ID);
+        $settings = $this->settingsSyncedAt(self::PREVIOUS_PVE_SYNC_AT);
+        $syncStartedAt = new \DateTimeImmutable();
+
+        $this->service->syncAll($user);
+
+        $this->assertSame(['started', 'in_progress', 'in_progress', 'in_progress', 'in_progress', 'completed'], $this->publishedStatuses());
+        $completed = $this->lastSyncEvent();
+        $this->assertSame('1 bounties, 0 sales, 0 contracts, 0 expenses (1 of 2 characters failed)', $completed['message']);
+        $this->assertSame(1, $completed['data']['bounties']);
+        $this->assertSame(1, $completed['data']['failedCharacters']);
+        $this->assertGreaterThanOrEqual($syncStartedAt, $settings->getLastSyncAt());
+    }
+
+    public function testSyncAllCountsRevokedCharacterAsFailedAndSyncsTheOthers(): void
+    {
+        $user = $this->createUserWithOkAndFailingCharacters(failingTokenExpiringSoon: true);
+        $this->tokenManager->method('refreshAccessToken')
+            ->willThrowException(new EveAuthRequiredException((string) self::FAILING_CHARACTER_ID));
+        $this->stubEsiFailingFor(null);
+        $settings = $this->settingsSyncedAt(self::PREVIOUS_PVE_SYNC_AT);
+        $syncStartedAt = new \DateTimeImmutable();
+
+        $result = $this->service->syncAll($user);
+
+        $this->assertSame(1, $result['bounties']);
+        $this->assertSame(['started', 'in_progress', 'in_progress', 'in_progress', 'in_progress', 'completed'], $this->publishedStatuses());
+        $completed = $this->lastSyncEvent();
+        $this->assertSame('1 bounties, 0 sales, 0 contracts, 0 expenses (1 of 2 characters failed)', $completed['message']);
+        $this->assertSame(1, $completed['data']['failedCharacters']);
+        $this->assertGreaterThanOrEqual($syncStartedAt, $settings->getLastSyncAt());
+    }
+
+    public function testSyncAllPublishesPlainCompletedMessageWhenEveryCharacterSucceeds(): void
+    {
+        $user = $this->createUserWithCharacter(11111);
+        $this->stubEsiFailingFor(null);
+        $settings = $this->settingsSyncedAt(self::PREVIOUS_PVE_SYNC_AT);
+        $syncStartedAt = new \DateTimeImmutable();
+
+        $this->service->syncAll($user);
+
+        $this->assertSame(['started', 'in_progress', 'in_progress', 'in_progress', 'in_progress', 'completed'], $this->publishedStatuses());
+        $completed = $this->lastSyncEvent();
+        $this->assertSame('1 bounties, 0 sales, 0 contracts, 0 expenses', $completed['message']);
+        $this->assertSame(1, $completed['data']['bounties']);
+        $this->assertGreaterThanOrEqual($syncStartedAt, $settings->getLastSyncAt());
+    }
+
+    public function testSyncAllPublishesCompletedWithoutFailureWhenNoCharacterHasToken(): void
+    {
+        $user = $this->createStub(User::class);
+        $user->method('getId')->willReturn(Uuid::v4());
+        $characterWithoutToken = $this->createStub(Character::class);
+        $characterWithoutToken->method('getEveToken')->willReturn(null);
+        $user->method('getCharacters')->willReturn(new ArrayCollection([$characterWithoutToken]));
+        $settings = $this->settingsSyncedAt(self::PREVIOUS_PVE_SYNC_AT);
+        $syncStartedAt = new \DateTimeImmutable();
+
+        $this->service->syncAll($user);
+
+        $this->assertSame(['started', 'in_progress', 'in_progress', 'in_progress', 'in_progress', 'completed'], $this->publishedStatuses());
+        $completed = $this->lastSyncEvent();
+        $this->assertSame('0 bounties, 0 sales, 0 contracts, 0 expenses', $completed['message']);
+        $this->assertSame(0, $completed['data']['failedCharacters']);
+        $this->assertGreaterThanOrEqual($syncStartedAt, $settings->getLastSyncAt());
+    }
+
+    public static function pveSyncSteps(): iterable
+    {
+        yield 'wallet journal (bounties)' => [[self::STEP_JOURNAL]];
+        yield 'loot sales' => [[self::STEP_LOOT_SALES]];
+        yield 'loot contracts' => [[self::STEP_LOOT_CONTRACTS]];
+        yield 'expenses' => [[self::STEP_EXPENSES]];
+    }
+
+    /** @param list<string> $failingSteps */
+    #[DataProvider('pveSyncSteps')]
+    public function testSyncAllCountsCharacterFailingOnASingleStepAsFailed(array $failingSteps): void
+    {
+        $this->assertCharacterFailingOnStepsCountedOnce($failingSteps);
+    }
+
+    public function testSyncAllCountsCharacterFailingOnSeveralStepsOnlyOnce(): void
+    {
+        $this->assertCharacterFailingOnStepsCountedOnce([self::STEP_JOURNAL, self::STEP_LOOT_CONTRACTS, self::STEP_EXPENSES]);
+    }
+
+    /** @param list<string> $failingSteps */
+    private function assertCharacterFailingOnStepsCountedOnce(array $failingSteps): void
+    {
+        $user = $this->createUserWithOkAndFailingCharacters();
+        $this->stubEsiFailingOnStepsFor(self::FAILING_CHARACTER_ID, $failingSteps);
+        $settings = $this->settingsSyncedAt(self::PREVIOUS_PVE_SYNC_AT);
+        $syncStartedAt = new \DateTimeImmutable();
+
+        $this->service->syncAll($user);
+
+        $this->assertSame(['started', 'in_progress', 'in_progress', 'in_progress', 'in_progress', 'completed'], $this->publishedStatuses());
+        $completed = $this->lastSyncEvent();
+        $this->assertSame('1 bounties, 0 sales, 0 contracts, 0 expenses (1 of 2 characters failed)', $completed['message']);
+        $this->assertSame(1, $completed['data']['failedCharacters']);
+        $this->assertGreaterThanOrEqual($syncStartedAt, $settings->getLastSyncAt());
+    }
+
+    // ===========================================
     // Helpers
     // ===========================================
 
@@ -505,5 +650,122 @@ class PveSyncServiceTest extends TestCase
             'date_issued' => (new \DateTimeImmutable('-3 days'))->format('c'),
             'date_completed' => (new \DateTimeImmutable('-2 days'))->format('c'),
         ];
+    }
+
+    private function createUserWithOkAndFailingCharacters(bool $failingTokenExpiringSoon = false): User
+    {
+        $user = $this->createStub(User::class);
+        $user->method('getId')->willReturn(Uuid::v4());
+
+        $okToken = $this->createStub(EveToken::class);
+        $okToken->method('isExpiringSoon')->willReturn(false);
+        $failingToken = $this->createStub(EveToken::class);
+        $failingToken->method('isExpiringSoon')->willReturn($failingTokenExpiringSoon);
+
+        $charOk = $this->createStub(Character::class);
+        $charOk->method('getEveCharacterId')->willReturn(11111);
+        $charOk->method('getEveToken')->willReturn($okToken);
+        $charOk->method('getName')->willReturn('CharOk');
+
+        $charFail = $this->createStub(Character::class);
+        $charFail->method('getEveCharacterId')->willReturn(self::FAILING_CHARACTER_ID);
+        $charFail->method('getEveToken')->willReturn($failingToken);
+        $charFail->method('getName')->willReturn('CharFail');
+
+        $user->method('getCharacters')->willReturn(new ArrayCollection([$charFail, $charOk]));
+
+        return $user;
+    }
+
+    /** Settings with loot and ammo types, so that every sync step calls ESI for every character */
+    private function settingsSyncedAt(string $lastSyncAt): UserPveSettings
+    {
+        $settings = new UserPveSettings();
+        $settings->setLootTypeIds([UserPveSettings::PVE_LOOT_TYPE_IDS[0]]);
+        $settings->setAmmoTypeIds([21898]);
+        $settings->setLastSyncAt(new \DateTimeImmutable($lastSyncAt));
+        $this->settingsRepository->method('findByUser')->willReturn($settings);
+        $this->settingsRepository->method('getOrCreate')->willReturn($settings);
+
+        return $settings;
+    }
+
+    /** Every endpoint of $failingEveCharacterId throws; the others return one bounty and nothing else */
+    private function stubEsiFailingFor(?int $failingEveCharacterId): void
+    {
+        $respond = function (string $endpoint) use ($failingEveCharacterId): array {
+            if ($failingEveCharacterId !== null && str_contains($endpoint, "/characters/{$failingEveCharacterId}/")) {
+                throw new \RuntimeException('ESI 502 Bad Gateway');
+            }
+            if (str_ends_with($endpoint, '/wallet/journal/')) {
+                return [[
+                    'id' => 600001,
+                    'ref_type' => 'bounty_prizes',
+                    'amount' => 5_000_000.0,
+                    'date' => (new \DateTimeImmutable('-1 day'))->format('c'),
+                ]];
+            }
+            return [];
+        };
+        $this->esiClient->method('get')->willReturnCallback($respond);
+        $this->esiClient->method('getPaginated')->willReturnCallback($respond);
+    }
+
+    /**
+     * Only the given steps throw for $failingEveCharacterId; every other call answers like stubEsiFailingFor(null).
+     * Loot sales and expenses share the wallet transactions endpoint: the first call is loot sales, the second expenses.
+     *
+     * @param list<string> $failingSteps
+     */
+    private function stubEsiFailingOnStepsFor(int $failingEveCharacterId, array $failingSteps): void
+    {
+        $failingCharacterTransactionCalls = 0;
+        $respond = function (string $endpoint) use ($failingEveCharacterId, $failingSteps, &$failingCharacterTransactionCalls): array {
+            $failingCharacterPrefix = "/characters/{$failingEveCharacterId}/";
+            $step = match (true) {
+                str_ends_with($endpoint, '/wallet/journal/') => self::STEP_JOURNAL,
+                str_ends_with($endpoint, '/contracts/') => self::STEP_LOOT_CONTRACTS,
+                str_ends_with($endpoint, '/wallet/transactions/') && str_starts_with($endpoint, $failingCharacterPrefix)
+                    => ++$failingCharacterTransactionCalls === 1 ? self::STEP_LOOT_SALES : self::STEP_EXPENSES,
+                default => null,
+            };
+            if (str_starts_with($endpoint, $failingCharacterPrefix) && in_array($step, $failingSteps, true)) {
+                throw new \RuntimeException('ESI 502 Bad Gateway');
+            }
+            if ($step === self::STEP_JOURNAL) {
+                return [[
+                    'id' => 600001,
+                    'ref_type' => 'bounty_prizes',
+                    'amount' => 5_000_000.0,
+                    'date' => (new \DateTimeImmutable('-1 day'))->format('c'),
+                ]];
+            }
+            return [];
+        };
+        $this->esiClient->method('get')->willReturnCallback($respond);
+        $this->esiClient->method('getPaginated')->willReturnCallback($respond);
+    }
+
+    /** The outcome is asserted through Mercure and settings; whether syncAll rethrows is left open */
+    private function syncAllIgnoringException(User $user): void
+    {
+        try {
+            $this->service->syncAll($user);
+        } catch (\Throwable) {
+        }
+    }
+
+    /** @return list<string> */
+    private function publishedStatuses(): array
+    {
+        return array_column($this->publishedSyncEvents, 'status');
+    }
+
+    /** @return array<string, mixed> */
+    private function lastSyncEvent(): array
+    {
+        $this->assertNotEmpty($this->publishedSyncEvents);
+
+        return $this->publishedSyncEvents[array_key_last($this->publishedSyncEvents)];
     }
 }

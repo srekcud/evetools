@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Sync;
 
+use App\Entity\Character;
 use App\Entity\PveIncome;
 use App\Entity\PveExpense;
 use App\Entity\User;
@@ -33,6 +34,13 @@ class PveSyncService
 
     /** @var array<int, string> */
     private array $typeNameCache = [];
+
+    /**
+     * EVE character IDs that failed at least one step of the current syncAll.
+     *
+     * @var array<int, true>
+     */
+    private array $failedCharacterIds = [];
 
     public function __construct(
         private readonly EsiClient $esiClient,
@@ -96,6 +104,14 @@ class PveSyncService
             'errors' => [],
         ];
 
+        $this->failedCharacterIds = [];
+        $tokenizedCharacters = 0;
+        foreach ($user->getCharacters() as $character) {
+            if ($character->getEveToken() !== null) {
+                $tokenizedCharacters++;
+            }
+        }
+
         // Notify sync started
         if ($userId !== null) {
             $this->mercurePublisher->syncStarted($userId, 'pve', 'Syncing PVE data...');
@@ -142,6 +158,17 @@ class PveSyncService
                 $this->logger->error('Failed to sync expenses', ['error' => $e->getMessage()]);
             }
 
+            $failedCharacters = $this->countFailedCharacters();
+
+            if ($failedCharacters > 0 && $failedCharacters === $tokenizedCharacters) {
+                // Not rethrown and last sync time untouched: the next scheduled run retries
+                if ($userId !== null) {
+                    $this->mercurePublisher->syncError($userId, 'pve', sprintf('Sync failed for all %d characters', $tokenizedCharacters));
+                }
+
+                return $results;
+            }
+
             // Update last sync time
             $settings = $this->settingsRepository->getOrCreate($user);
             $settings->setLastSyncAt(new \DateTimeImmutable());
@@ -157,6 +184,9 @@ class PveSyncService
                     $results['lootContracts'],
                     $results['expenses']
                 );
+                if ($failedCharacters > 0) {
+                    $message .= sprintf(' (%d of %d characters failed)', $failedCharacters, $tokenizedCharacters);
+                }
                 $this->mercurePublisher->syncCompleted($userId, 'pve', $message, [
                     'bounties' => $results['bounties'],
                     'lootSales' => $results['lootSales'],
@@ -164,6 +194,7 @@ class PveSyncService
                     'expenses' => $results['expenses'],
                     'totalImported' => $totalImported,
                     'errors' => count($results['errors']),
+                    'failedCharacters' => $failedCharacters,
                 ]);
             }
 
@@ -234,10 +265,7 @@ class PveSyncService
                     $imported++;
                 }
             } catch (\Throwable $e) {
-                $this->logger->warning('Failed to sync journal for character', [
-                    'character' => $character->getName(),
-                    'error' => $e->getMessage(),
-                ]);
+                $this->recordCharacterFailure($character, 'Failed to sync journal for character', $e);
             }
         }
 
@@ -326,10 +354,7 @@ class PveSyncService
                     $imported++;
                 }
             } catch (\Throwable $e) {
-                $this->logger->warning('Failed to sync transactions for character', [
-                    'character' => $character->getName(),
-                    'error' => $e->getMessage(),
-                ]);
+                $this->recordCharacterFailure($character, 'Failed to sync transactions for character', $e);
             }
         }
 
@@ -457,10 +482,7 @@ class PveSyncService
                     $imported++;
                 }
             } catch (\Throwable $e) {
-                $this->logger->warning('Failed to sync loot contracts for character', [
-                    'character' => $character->getName(),
-                    'error' => $e->getMessage(),
-                ]);
+                $this->recordCharacterFailure($character, 'Failed to sync loot contracts for character', $e);
             }
         }
 
@@ -549,10 +571,7 @@ class PveSyncService
                     $imported++;
                 }
             } catch (\Throwable $e) {
-                $this->logger->warning('Failed to sync expense transactions for character', [
-                    'character' => $character->getName(),
-                    'error' => $e->getMessage(),
-                ]);
+                $this->recordCharacterFailure($character, 'Failed to sync expense transactions for character', $e);
             }
         }
 
@@ -562,6 +581,22 @@ class PveSyncService
 
         $this->logger->info('Synced expenses', ['user' => $user->getId(), 'imported' => $imported]);
         return $imported;
+    }
+
+    /** Read through a method: the step calls fill the property, which static analysis would otherwise see as still empty */
+    private function countFailedCharacters(): int
+    {
+        return count($this->failedCharacterIds);
+    }
+
+    private function recordCharacterFailure(Character $character, string $logMessage, \Throwable $e): void
+    {
+        $this->logger->warning($logMessage, [
+            'character' => $character->getName(),
+            'error' => $e->getMessage(),
+        ]);
+
+        $this->failedCharacterIds[$character->getEveCharacterId()] = true;
     }
 
     /** @param array<string, mixed> $entry */

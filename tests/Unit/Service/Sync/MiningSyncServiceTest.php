@@ -9,6 +9,7 @@ use App\Entity\EveToken;
 use App\Entity\MiningEntry;
 use App\Entity\User;
 use App\Entity\UserLedgerSettings;
+use App\Exception\EveAuthRequiredException;
 use App\Repository\MiningEntryRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Repository\UserLedgerSettingsRepository;
@@ -27,6 +28,7 @@ use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Mercure\HubInterface;
+use Symfony\Component\Mercure\Update;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(MiningSyncService::class)]
@@ -44,6 +46,9 @@ class MiningSyncServiceTest extends TestCase
     private MercurePublisherService $mercurePublisher;
     private MiningSyncService $service;
 
+    /** @var list<array<string, mixed>> Mercure sync payloads, in publication order */
+    private array $publishedSyncEvents = [];
+
     protected function setUp(): void
     {
         $this->esiClient = $this->createStub(EsiClient::class);
@@ -55,10 +60,14 @@ class MiningSyncServiceTest extends TestCase
         $this->solarSystemRepository = $this->createStub(MapSolarSystemRepository::class);
         $this->em = $this->createMock(EntityManagerInterface::class);
 
-        $this->mercurePublisher = new MercurePublisherService(
-            $this->createStub(HubInterface::class),
-            new NullLogger(),
-        );
+        $this->publishedSyncEvents = [];
+        $hub = $this->createStub(HubInterface::class);
+        $hub->method('publish')->willReturnCallback(function (Update $update): string {
+            $this->publishedSyncEvents[] = json_decode($update->getData(), true, 512, JSON_THROW_ON_ERROR);
+            return 'urn:uuid:test';
+        });
+
+        $this->mercurePublisher = new MercurePublisherService($hub, new NullLogger());
 
         $this->service = new MiningSyncService(
             $this->esiClient,
@@ -622,6 +631,125 @@ class MiningSyncServiceTest extends TestCase
     }
 
     // ===========================================
+    // syncAll — failure reporting (issue #12)
+    // ===========================================
+
+    private const PREVIOUS_MINING_SYNC_AT = '2026-01-01 00:00:00';
+
+    public function testSyncAllPublishesSyncErrorAndKeepsLastSyncWhenEveryCharacterFails(): void
+    {
+        $user = $this->createUserWithOkAndFailingCharacters();
+        $this->esiClient->method('getPaginated')->willThrowException(new \RuntimeException('ESI 502 Bad Gateway'));
+        $this->miningEntryRepository->method('getTypeIdsWithoutPrice')->willReturn([]);
+        $settings = $this->settingsSyncedAt(self::PREVIOUS_MINING_SYNC_AT);
+
+        $this->syncAllIgnoringException($user);
+
+        $this->assertNotContains('completed', $this->publishedStatuses());
+        $this->assertSame('error', $this->lastSyncEvent()['status']);
+        $this->assertSame('Sync failed for all 2 characters', $this->lastSyncEvent()['message']);
+        $this->assertEquals(new \DateTimeImmutable(self::PREVIOUS_MINING_SYNC_AT), $settings->getLastMiningSyncAt());
+    }
+
+    public function testSyncAllPublishesSyncErrorAndKeepsLastSyncOnGlobalError(): void
+    {
+        $user = $this->createUserWithCharacter(12345);
+        $this->esiClient->method('getPaginated')->willReturn([]);
+        $this->miningEntryRepository->method('getTypeIdsWithoutPrice')->willReturn([17459]);
+        $this->marketService->method('getJitaPrices')->willThrowException(new \RuntimeException('Jita prices unavailable'));
+        $settings = $this->settingsSyncedAt(self::PREVIOUS_MINING_SYNC_AT);
+
+        $this->syncAllIgnoringException($user);
+
+        $this->assertNotContains('completed', $this->publishedStatuses());
+        $this->assertSame('error', $this->lastSyncEvent()['status']);
+        $this->assertSame('Jita prices unavailable', $this->lastSyncEvent()['message']);
+        $this->assertEquals(new \DateTimeImmutable(self::PREVIOUS_MINING_SYNC_AT), $settings->getLastMiningSyncAt());
+    }
+
+    public function testSyncAllReportsFailedCharacterCountWhenOneCharacterFails(): void
+    {
+        $user = $this->createUserWithOkAndFailingCharacters();
+        $this->esiClient->method('getPaginated')->willReturnCallback(
+            function (string $endpoint): array {
+                if (str_contains($endpoint, '22222')) {
+                    throw new \RuntimeException('ESI 502 Bad Gateway');
+                }
+                return [$this->scorditeLedgerEntry()];
+            }
+        );
+        $this->stubNewMiningEntryResolution();
+        $settings = $this->settingsSyncedAt(self::PREVIOUS_MINING_SYNC_AT);
+        $syncStartedAt = new \DateTimeImmutable();
+
+        $this->service->syncAll($user);
+
+        $this->assertSame(['started', 'in_progress', 'in_progress', 'completed'], $this->publishedStatuses());
+        $completed = $this->lastSyncEvent();
+        $this->assertSame('1 imported, 0 updated, 0 prices refreshed (1 of 2 characters failed)', $completed['message']);
+        $this->assertSame(1, $completed['data']['imported']);
+        $this->assertSame(1, $completed['data']['failedCharacters']);
+        $this->assertGreaterThanOrEqual($syncStartedAt, $settings->getLastMiningSyncAt());
+    }
+
+    public function testSyncAllCountsRevokedCharacterAsFailedAndSyncsTheOthers(): void
+    {
+        $user = $this->createUserWithOkAndFailingCharacters(failingTokenExpiringSoon: true);
+        $this->tokenManager->method('refreshAccessToken')->willThrowException(new EveAuthRequiredException('22222'));
+        $this->esiClient->method('getPaginated')->willReturn([$this->scorditeLedgerEntry()]);
+        $this->stubNewMiningEntryResolution();
+        $settings = $this->settingsSyncedAt(self::PREVIOUS_MINING_SYNC_AT);
+        $syncStartedAt = new \DateTimeImmutable();
+
+        $result = $this->service->syncAll($user);
+
+        $this->assertSame(1, $result['imported']);
+        $this->assertSame(['started', 'in_progress', 'in_progress', 'completed'], $this->publishedStatuses());
+        $completed = $this->lastSyncEvent();
+        $this->assertSame('1 imported, 0 updated, 0 prices refreshed (1 of 2 characters failed)', $completed['message']);
+        $this->assertSame(1, $completed['data']['failedCharacters']);
+        $this->assertGreaterThanOrEqual($syncStartedAt, $settings->getLastMiningSyncAt());
+    }
+
+    public function testSyncAllPublishesPlainCompletedMessageWhenEveryCharacterSucceeds(): void
+    {
+        $user = $this->createUserWithCharacter(12345);
+        $this->esiClient->method('getPaginated')->willReturn([$this->scorditeLedgerEntry()]);
+        $this->stubNewMiningEntryResolution();
+        $settings = $this->settingsSyncedAt(self::PREVIOUS_MINING_SYNC_AT);
+        $syncStartedAt = new \DateTimeImmutable();
+
+        $this->service->syncAll($user);
+
+        $this->assertSame(['started', 'in_progress', 'in_progress', 'completed'], $this->publishedStatuses());
+        $completed = $this->lastSyncEvent();
+        $this->assertSame('1 imported, 0 updated, 0 prices refreshed', $completed['message']);
+        $this->assertSame(1, $completed['data']['imported']);
+        $this->assertGreaterThanOrEqual($syncStartedAt, $settings->getLastMiningSyncAt());
+    }
+
+    public function testSyncAllPublishesCompletedWithoutFailureWhenNoCharacterHasToken(): void
+    {
+        $user = $this->createStub(User::class);
+        $user->method('getId')->willReturn(Uuid::v4());
+        $characterWithoutToken = $this->createStub(Character::class);
+        $characterWithoutToken->method('getEveToken')->willReturn(null);
+        $characterWithoutToken->method('getName')->willReturn('NoTokenChar');
+        $user->method('getCharacters')->willReturn(new ArrayCollection([$characterWithoutToken]));
+        $this->miningEntryRepository->method('getTypeIdsWithoutPrice')->willReturn([]);
+        $settings = $this->settingsSyncedAt(self::PREVIOUS_MINING_SYNC_AT);
+        $syncStartedAt = new \DateTimeImmutable();
+
+        $this->service->syncAll($user);
+
+        $this->assertSame(['started', 'in_progress', 'in_progress', 'completed'], $this->publishedStatuses());
+        $completed = $this->lastSyncEvent();
+        $this->assertSame('0 imported, 0 updated, 0 prices refreshed', $completed['message']);
+        $this->assertSame(0, $completed['data']['failedCharacters']);
+        $this->assertGreaterThanOrEqual($syncStartedAt, $settings->getLastMiningSyncAt());
+    }
+
+    // ===========================================
     // Helpers
     // ===========================================
 
@@ -641,5 +769,77 @@ class MiningSyncServiceTest extends TestCase
         $user->method('getCharacters')->willReturn(new ArrayCollection([$character]));
 
         return $user;
+    }
+
+    private function createUserWithOkAndFailingCharacters(bool $failingTokenExpiringSoon = false): User
+    {
+        $user = $this->createStub(User::class);
+        $user->method('getId')->willReturn(Uuid::v4());
+
+        $okToken = $this->createStub(EveToken::class);
+        $okToken->method('isExpiringSoon')->willReturn(false);
+        $failingToken = $this->createStub(EveToken::class);
+        $failingToken->method('isExpiringSoon')->willReturn($failingTokenExpiringSoon);
+
+        $charOk = $this->createStub(Character::class);
+        $charOk->method('getEveCharacterId')->willReturn(11111);
+        $charOk->method('getEveToken')->willReturn($okToken);
+        $charOk->method('getName')->willReturn('CharOk');
+
+        $charFail = $this->createStub(Character::class);
+        $charFail->method('getEveCharacterId')->willReturn(22222);
+        $charFail->method('getEveToken')->willReturn($failingToken);
+        $charFail->method('getName')->willReturn('CharFail');
+
+        $user->method('getCharacters')->willReturn(new ArrayCollection([$charFail, $charOk]));
+
+        return $user;
+    }
+
+    private function settingsSyncedAt(string $lastMiningSyncAt): UserLedgerSettings
+    {
+        $settings = new UserLedgerSettings();
+        $settings->setLastMiningSyncAt(new \DateTimeImmutable($lastMiningSyncAt));
+        $this->settingsRepository->method('findByUser')->willReturn($settings);
+        $this->settingsRepository->method('getOrCreate')->willReturn($settings);
+
+        return $settings;
+    }
+
+    private function stubNewMiningEntryResolution(): void
+    {
+        $this->miningEntryRepository->method('findByUniqueKey')->willReturn(null);
+        $this->miningEntryRepository->method('getTypeIdsWithoutPrice')->willReturn([]);
+        $this->typeNameResolver->method('resolve')->willReturn('Scordite');
+        $this->solarSystemRepository->method('find')->willReturn(null);
+    }
+
+    /** @return array{date: string, type_id: int, solar_system_id: int, quantity: int} */
+    private function scorditeLedgerEntry(): array
+    {
+        return ['date' => '2026-02-20', 'type_id' => 17459, 'solar_system_id' => 30004759, 'quantity' => 10000];
+    }
+
+    /** The outcome is asserted through Mercure and settings; whether syncAll rethrows is left open */
+    private function syncAllIgnoringException(User $user): void
+    {
+        try {
+            $this->service->syncAll($user);
+        } catch (\Throwable) {
+        }
+    }
+
+    /** @return list<string> */
+    private function publishedStatuses(): array
+    {
+        return array_column($this->publishedSyncEvents, 'status');
+    }
+
+    /** @return array<string, mixed> */
+    private function lastSyncEvent(): array
+    {
+        $this->assertNotEmpty($this->publishedSyncEvents);
+
+        return $this->publishedSyncEvents[array_key_last($this->publishedSyncEvents)];
     }
 }
