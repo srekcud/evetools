@@ -2,7 +2,7 @@
 
 Un symbole métier dans le code porte un nom de ce glossaire. Si un terme manque, on l'ajoute ici avant de l'utiliser, au lieu d'inventer un synonyme.
 
-Colonnes : **Terme FR**, **Term EN**, **Définition**, **Symbole(s) dans le code** (vérifiés au 2026-10-06).
+Colonnes : **Terme FR**, **Term EN**, **Définition**, **Symbole(s) dans le code** (vérifiés au 2026-10-07).
 
 ## Quantités et production
 
@@ -51,6 +51,12 @@ runs nécessaires  = ceil(quantité demandée / unités par run)
 | **Contribution** | Contribution | Apport d'un membre à un projet collaboratif : matériaux, installation de job, BPC ou location de ligne. Elle est soumise à approbation (pending, approved, rejected). Une fois approuvée, elle ne diminue plus. | `GroupIndustryContribution`, `ContributionType`, `ContributionStatus` |
 | **Location de ligne** | Line rental | Contribution qui rémunère l'usage d'un slot de production d'un membre, selon un barème (défaut sur l'utilisateur, override possible par projet). | `ContributionType::LineRental`, `User::getLineRentalRates()`, `GroupIndustryProject::getLineRentalRatesOverride()` |
 | **Payout** (rétribution) | Payout | Montant reversé à un membre : `coûts apportés × (1 + marge %)`. | `GroupIndustryDistributionService` (`payoutTotal`) |
+
+## Comptes et ESI
+
+| Terme FR | Term EN | Définition | Symbole(s) |
+|---|---|---|---|
+| **Autorisation révoquée** | Revoked authorization | Le refresh token d'un personnage est refusé par EVE SSO (`invalid_grant`) : le joueur a révoqué l'application ou le token a expiré. L'utilisateur passe en auth invalide, ses personnages sortent des syncs planifiées, et il doit se reconnecter par EVE SSO. | `AuthStatus::Invalid`, `User::markAuthInvalid()`, `EveAuthRequiredException` |
 
 ## Ambiguïtés connues
 

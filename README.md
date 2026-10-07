@@ -4,7 +4,7 @@ Application web d'utilitaires pour le jeu EVE Online permettant de gérer des fl
 
 ## Stack Technique
 
-- **Backend**: Symfony 7.4 LTS + API Platform 4.x
+- **Backend**: Symfony 7.4 LTS + API Platform 4.2
 - **Frontend**: Vue.js 3.5 + Vite + Tailwind CSS 4
 - **Runtime PHP**: FrankenPHP (PHP 8.5 Alpine)
 - **Base de données**: PostgreSQL 16
@@ -57,11 +57,7 @@ make db-migrate
 ## Configuration EVE ESI
 
 1. Créer une application sur https://developers.eveonline.com/
-2. Configurer les scopes requis:
-   - `esi-assets.read_assets.v1`
-   - `esi-assets.read_corporation_assets.v1`
-   - `esi-characters.read_corporation_roles.v1`
-   - `esi-corporations.read_divisions.v1`
+2. Configurer les scopes requis : les 27 scopes listés dans `AuthenticationService::REQUIRED_SCOPES` (`src/Service/ESI/AuthenticationService.php`). L'application les demande tous à la connexion ; un scope absent de l'application EVE fait échouer l'autorisation.
 3. Copier le Client ID et Client Secret dans `.env.local`
 4. Générer une clé de chiffrement pour les tokens:
 ```bash
@@ -76,9 +72,11 @@ make up            # Démarrer les containers
 make down          # Arrêter les containers
 make logs          # Voir les logs
 make shell         # Shell dans le container app
-make test          # Lancer les tests
 make db-migrate    # Lancer les migrations
-make messenger     # Démarrer le consumer messenger
+make db-diff       # Générer une migration depuis les entités
+make sde-import    # Importer le Static Data Export d'EVE
+make messenger     # Démarrer le consumer messenger (transport async)
+make scheduler     # Démarrer le consumer du scheduler
 ```
 
 ## API Endpoints
@@ -94,26 +92,33 @@ make messenger     # Démarrer le consumer messenger
 
 ### Characters
 - `GET /api/me/characters` - Liste des characters
-- `POST /api/me/characters/add` - Ajouter un alt
 - `DELETE /api/me/characters/{id}` - Supprimer un alt
 - `POST /api/me/characters/{id}/set-main` - Définir le main
 
+Un alt s'ajoute en repassant par le flux OAuth (`/auth/eve/redirect` puis `/auth/eve/callback`) avec un utilisateur déjà connecté.
+
 ### Assets
-- `GET /api/me/characters/{id}/assets` - Assets personnels
-- `POST /api/me/characters/{id}/assets/refresh` - Forcer refresh
+- `GET /api/me/characters/{characterId}/assets` - Assets personnels
+- `POST /api/me/characters/{characterId}/assets/refresh` - Forcer refresh
 - `GET /api/me/corporation/assets` - Assets corporation
 - `POST /api/me/corporation/assets/refresh` - Forcer refresh corp
+- `GET|PUT /api/me/corporation/assets/visibility` - Divisions corporation visibles par les membres (modification réservée aux Directors)
 
-### Corporation
-- `GET /api/me/corporation` - Infos corporation + divisions
+La liste complète des endpoints est dans la documentation OpenAPI générée par API Platform (`/api/docs`).
 
 ## Tests
 
 ```bash
-make test          # Tous les tests
-make test-unit     # Tests unitaires uniquement
-make test-coverage # Tests avec couverture
+make test             # Toutes les suites (Unit, Integration, Functional), sans couverture
+make test-unit        # Suite Unit uniquement
+make test-db          # (Re)crée la base de test eve_app_test et son schéma
+make test-integration # Suite Integration (nécessite make test-db)
+make test-coverage    # Tests avec couverture HTML dans var/coverage
+make infection        # Mutation testing, rapport dans var/infection/ (FILTER=src/... pour restreindre)
+make deptrac          # Rapport de dépendances entre couches (n'échoue jamais)
 ```
+
+`make test` lance aussi la suite Integration : créez d'abord la base de test avec `make test-db`. Le schéma de test est construit depuis le mapping des entités, car les migrations ne se rejouent pas sur une base vide.
 
 ## Architecture
 

@@ -49,8 +49,10 @@ Defined in `config/services.yaml`:
 App\Service\ESI\EsiClient:
     arguments:
         $esiCache: '@esi.cache'
-        $baseUrl: '%esi_base_url%'  # https://esi.evetech.net/latest
+        $baseUrl: '%esi_base_url%'  # env ESI_BASE_URL = https://esi.evetech.net/latest
 ```
+
+`ESI_BASE_URL` is set in `docker-compose.yaml` (app and worker) and `.env.test`, not in `.env`.
 
 ### Available Methods
 
@@ -97,7 +99,9 @@ Cache key format: `esi_<md5(endpoint)>[_<characterUuid>]`
 Cache TTL: derived from `Expires` header, defaults to 5 minutes.
 
 #### `getPaginated(string $endpoint, ?EveToken $token = null): array`
-Handles paginated ESI endpoints automatically. Reads `X-Pages` header, fetches all pages, and merges results into a single array. Throttles between pages.
+Handles paginated ESI endpoints automatically. Reads `X-Pages` header, fetches all pages, and merges results into a single array. Each request goes through the error-budget throttle (see below).
+
+**No 420 retry here**: the first non-2xx page throws `EsiApiException`, and the pages already read are discarded. A plain `get()` on a paginated endpoint silently returns page 1 only — always use `getPaginated()` for endpoints that send `X-Pages`.
 
 ```php
 // Returns ALL assets across all pages
@@ -122,7 +126,11 @@ The client automatically handles ESI error budget via `x-esi-error-limit-remain`
 | < 20 | **Soft throttle**: `usleep((20 - remain) * 100ms)` |
 | >= 20 | No throttle |
 
-**420 Error Limited**: Automatically retried once after sleeping for the reset period.
+**420 Error Limited**: retried once, after sleeping `max(x-esi-error-limit-reset, 1)` seconds, **only** by `get()`, `getWithCache()` and `post()` (shared `handleResponse()`). `getPaginated()`, `getScalar()`, `getScalarBatch()` and `postEmpty()` do not retry: they throw (or return `null` for `getScalarBatch()`).
+
+> Known bug: the 420 retry of `post()` re-sends the request as a **GET** without body (`handleResponse()` calls `rawGet()`).
+
+**429 Rate Limited**: no retry and no `Retry-After` handling. The client throws `EsiApiException` with status 429 (`'Rate limit exceeded'`).
 
 ### Error Handling
 
@@ -133,12 +141,16 @@ All methods throw `EsiApiException` with:
 
 Static factory methods available:
 ```php
-EsiApiException::fromResponse(int $statusCode, string $message, ?string $endpoint)
-EsiApiException::unauthorized(string $message)
-EsiApiException::forbidden(string $message)
-EsiApiException::notFound(string $message)
-EsiApiException::rateLimited(string $message)
+EsiApiException::fromResponse(int $statusCode, string $message, ?string $endpoint = null)
+EsiApiException::unauthorized(string $message = ..., ?string $endpoint = null)  // 401
+EsiApiException::forbidden(string $message = ..., ?string $endpoint = null)     // 403
+EsiApiException::notFound(string $message = ..., ?string $endpoint = null)      // 404
+EsiApiException::rateLimited(string $message = ..., ?string $endpoint = null)   // 429
 ```
+
+Any call made with a token can also throw `EveAuthRequiredException` (raised by `TokenManager` when the refresh token is revoked, see section 3).
+
+In an HTTP request, `EsiAuthFailureListener` turns `EveAuthRequiredException` into a 401 `{"error": "EVE_AUTH_REQUIRED", "character_id": ...}`, and `EsiApiException` into `{"error": "ESI_API_ERROR"}` with the ESI status code (502 when the status is 0, i.e. network error).
 
 ---
 
@@ -182,6 +194,20 @@ $accessToken = $this->tokenManager->getValidAccessToken($token);
 ```
 
 **You never need to manually refresh tokens.** Just pass the `EveToken` entity to `EsiClient` methods.
+
+The refresh is **proactive only**: it happens before the request when the access token expires within 300 seconds (`EveToken::isExpiringSoon()`). A 401 returned by ESI is **not** retried with a fresh token: it throws `EsiApiException` (401).
+
+### Refresh failures
+
+`TokenManager::refreshAccessToken()` distinguishes three cases:
+
+| EVE SSO answer | Result |
+|---|---|
+| HTTP 400 with `{"error": "invalid_grant"}` (application revoked by the player, or refresh token expired) | The token's user is marked invalid (`User::markAuthInvalid()`, `authStatus = Invalid`), then `EveAuthRequiredException` is thrown |
+| Any other HTTP error | `EsiApiException` with the SSO status code |
+| Network error | `EsiApiException` with status 0 |
+
+`EveAuthRequiredException` implements `UnrecoverableExceptionInterface`: Messenger does not retry the message. Scheduled syncs then skip that user, because `CharacterRepository::findActiveWithValidTokens()` only returns characters whose user has `authStatus = Valid` (and logged in within the last 7 days). The user becomes valid again by logging in through EVE SSO.
 
 ### Checking Scopes
 
@@ -551,17 +577,25 @@ Add to `src/Scheduler/SyncScheduler.php`:
 )
 ```
 
-Current schedule intervals:
-| Task | Interval |
-|---|---|
-| Ansiblex sync | 12 hours |
-| Structure market | 2 hours |
-| Jita market | 2 hours |
-| PVE data | 1 hour |
-| Industry jobs | 30 minutes |
-| Mining ledger | 1 hour |
-| Wallet transactions | 1 hour |
-| Planetary colonies | 30 minutes |
+Current schedule intervals (`src/Scheduler/SyncScheduler.php`):
+| Task | Message | Interval |
+|---|---|---|
+| Ansiblex sync | `TriggerAnsiblexSync` | 12 hours |
+| Structure market | `TriggerStructureMarketSync` | 1 hour |
+| Jita market | `TriggerJitaMarketSync` | 1 hour |
+| PVE data | `TriggerPveSync` | 1 hour |
+| Industry jobs | `SyncIndustryJobs` | 30 minutes |
+| Mining ledger | `TriggerMiningSync` | 1 hour |
+| Wallet transactions | `SyncWalletTransactions` | 1 hour |
+| Planetary colonies | `TriggerPlanetarySync` | 30 minutes |
+| Alert prices | `CheckAlertPrices` | 30 minutes |
+| Adjusted prices | `SyncAdjustedPrices` | 24 hours |
+| System cost indices | `SyncCostIndices` | 2 hours |
+| Public contracts (The Forge) | `SyncPublicContracts` | 30 minutes |
+| Purge old notifications | `PurgeOldNotifications` | 1 day |
+| Purge old market history | `PurgeOldMarketHistory` | 1 day |
+
+Assets are **not** scheduled: they are synced on demand (refresh endpoints, admin trigger via `TriggerAssetsSync`).
 
 ---
 
@@ -675,7 +709,7 @@ https://esi.evetech.net/latest
 | `GET` | `/characters/{id}/mining/` | Yes | Yes | Mining ledger |
 | `GET` | `/characters/{id}/wallet/` | Yes | No | Wallet balance (scalar) |
 | `GET` | `/characters/{id}/wallet/journal/` | Yes | Yes | Wallet journal |
-| `GET` | `/characters/{id}/wallet/transactions/` | Yes | No | Wallet transactions |
+| `GET` | `/characters/{id}/wallet/transactions/` | Yes | No (`from_id` cursor) | Wallet transactions |
 | `GET` | `/characters/{id}/blueprints/` | Yes | Yes | Blueprints |
 | `GET` | `/characters/{id}/contracts/` | Yes | Yes | Contracts |
 | `GET` | `/characters/{id}/killmails/recent/` | Yes | No | Recent killmails |
@@ -693,6 +727,7 @@ https://esi.evetech.net/latest
 | `GET` | `/alliances/{id}/` | No | No | Alliance public info |
 | `GET` | `/markets/{region_id}/orders/` | No | Yes | Regional market orders |
 | `GET` | `/markets/structures/{id}/` | Yes | Yes | Structure market orders |
+| `GET` | `/contracts/public/{region_id}/` | No | Yes | Public contracts of a region |
 | `GET` | `/universe/stations/{id}/` | No | No | NPC station info |
 | `GET` | `/universe/structures/{id}/` | Yes | No | Player structure info |
 | `GET` | `/universe/planets/{id}/` | No | No | Planet info |
@@ -716,11 +751,11 @@ https://esi.evetech.net/latest
 |---|---|---|
 | 304 | Not Modified | Use cached data (handled by `getWithCache`) |
 | 400 | Bad Request | Check parameters |
-| 401 | Unauthorized | Token invalid/expired (auto-refreshed by EsiClient) |
+| 401 | Unauthorized | Token invalid/expired. Not retried: `EsiApiException` (401). Refresh happens only before the request (see section 3) |
 | 403 | Forbidden | Missing scope or missing in-game role |
 | 404 | Not Found | Entity does not exist |
-| 420 | Error Limited | Sleep and retry (handled by EsiClient, 1 retry) |
-| 429 | Rate Limited | Too many requests (different from 420) |
+| 420 | Error Limited | Sleep and retry once in `get()`/`getWithCache()`/`post()` only (see section 2) |
+| 429 | Rate Limited | Too many requests (different from 420). No retry: `EsiApiException` (429) |
 | 500 | Internal Server Error | ESI bug |
 | 502 | Bad Gateway | ESI proxy issue |
 | 503 | Service Unavailable | ESI down for maintenance |
