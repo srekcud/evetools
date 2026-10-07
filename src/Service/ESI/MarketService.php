@@ -12,7 +12,6 @@ use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class MarketService
 {
@@ -24,14 +23,12 @@ class MarketService
 
     public function __construct(
         private readonly EsiClient $esiClient,
-        private readonly HttpClientInterface $httpClient,
         private readonly CacheItemPoolInterface $marketCache,
         private readonly LoggerInterface $logger,
         private readonly StructureMarketService $structureMarketService,
         private readonly JitaMarketService $jitaMarketService,
         private readonly int $defaultMarketStructureId,
         private readonly string $defaultMarketStructureName,
-        private readonly string $esiBaseUrl = 'https://esi.evetech.net/latest',
     ) {
     }
 
@@ -88,72 +85,66 @@ class MarketService
         $batches = array_chunk($uncachedTypeIds, self::MAX_CONCURRENT_REQUESTS);
 
         foreach ($batches as $batch) {
-            $responses = [];
-
-            // Start all requests in parallel
+            $endpoints = [];
             foreach ($batch as $typeId) {
-                $url = sprintf(
-                    '%s/markets/%d/orders/?order_type=sell&type_id=%d',
-                    $this->esiBaseUrl,
+                $endpoints[$typeId] = sprintf(
+                    '/markets/%d/orders/?order_type=sell&type_id=%d',
                     self::THE_FORGE_REGION_ID,
                     $typeId
                 );
-                $responses[$typeId] = $this->httpClient->request('GET', $url, [
-                    'timeout' => 10,
-                    'headers' => ['Accept' => 'application/json'],
-                ]);
             }
 
-            // Process responses
-            foreach ($responses as $typeId => $response) {
-                try {
-                    $statusCode = $response->getStatusCode();
-                    if ($statusCode >= 200 && $statusCode < 300) {
-                        $orders = $response->toArray();
-
-                        // Find minimum sell price in Jita station
-                        $minPrice = null;
-                        foreach ($orders as $order) {
-                            if (
-                                $order['location_id'] === self::JITA_STATION_ID
-                                && $order['is_buy_order'] === false
-                            ) {
-                                if ($minPrice === null || $order['price'] < $minPrice) {
-                                    $minPrice = (float) $order['price'];
-                                }
-                            }
-                        }
-
-                        // If no Jita orders, use region minimum
-                        if ($minPrice === null) {
-                            foreach ($orders as $order) {
-                                if ($order['is_buy_order'] === false) {
-                                    if ($minPrice === null || $order['price'] < $minPrice) {
-                                        $minPrice = (float) $order['price'];
-                                    }
-                                }
-                            }
-                        }
-
-                        $prices[$typeId] = $minPrice;
-
-                        // Cache for 5 minutes
-                        $cacheKey = "market_jita_{$typeId}";
-                        $cacheItem = $this->marketCache->getItem($cacheKey);
-                        $cacheItem->set($minPrice);
-                        $cacheItem->expiresAfter(300);
-                        $this->marketCache->save($cacheItem);
-                    }
-                } catch (\Throwable $e) {
-                    $this->logger->warning('Failed to fetch Jita price', [
-                        'typeId' => $typeId,
-                        'error' => $e->getMessage(),
-                    ]);
+            foreach ($this->esiClient->getBatch($endpoints) as $typeId => $orders) {
+                if ($orders === null) {
+                    $this->logger->warning('Failed to fetch Jita price', ['typeId' => $typeId]);
+                    continue;
                 }
+
+                $minPrice = $this->findLowestSellPrice($orders);
+                $prices[$typeId] = $minPrice;
+
+                // Cache for 5 minutes
+                $cacheItem = $this->marketCache->getItem("market_jita_{$typeId}");
+                $cacheItem->set($minPrice);
+                $cacheItem->expiresAfter(300);
+                $this->marketCache->save($cacheItem);
             }
         }
 
         return $prices;
+    }
+
+    /**
+     * Lowest sell price at the Jita station, or the region-wide lowest when Jita has no sell order.
+     *
+     * @param array<mixed> $orders
+     */
+    private function findLowestSellPrice(array $orders): ?float
+    {
+        $minPrice = null;
+        foreach ($orders as $order) {
+            if (
+                $order['location_id'] === self::JITA_STATION_ID
+                && $order['is_buy_order'] === false
+            ) {
+                if ($minPrice === null || $order['price'] < $minPrice) {
+                    $minPrice = (float) $order['price'];
+                }
+            }
+        }
+
+        // If no Jita orders, use region minimum
+        if ($minPrice === null) {
+            foreach ($orders as $order) {
+                if ($order['is_buy_order'] === false) {
+                    if ($minPrice === null || $order['price'] < $minPrice) {
+                        $minPrice = (float) $order['price'];
+                    }
+                }
+            }
+        }
+
+        return $minPrice;
     }
 
     /**
