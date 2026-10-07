@@ -1,3 +1,9 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   app:
     build:
@@ -5,6 +11,7 @@ services:
       dockerfile: Dockerfile
     image: evetools-app
     restart: unless-stopped
+    logging: *default-logging
     volumes:
       - caddy_data:/data
       - caddy_config:/config
@@ -51,8 +58,9 @@ services:
   worker:
     image: evetools-app
     entrypoint: ["php"]
-    command: ["bin/console", "messenger:consume", "async", "scheduler_default", "--time-limit=3600", "--memory-limit=256M", "-vv"]
+    command: ["bin/console", "messenger:consume", "async", "scheduler_default", "--time-limit=3600", "--memory-limit=256M"]
     restart: unless-stopped
+    logging: *default-logging
     networks:
       evetools_net:
         ipv4_address: 10.169.0.6
@@ -87,6 +95,7 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-eve_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eve_pass}
@@ -105,6 +114,7 @@ services:
   rabbitmq:
     image: rabbitmq:4-alpine
     restart: unless-stopped
+    logging: *default-logging
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-eve_user}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-eve_pass}
@@ -122,6 +132,7 @@ services:
   redis:
     image: redis:8-alpine
     restart: unless-stopped
+    logging: *default-logging
     volumes:
       - redis_data:/data
     networks:
