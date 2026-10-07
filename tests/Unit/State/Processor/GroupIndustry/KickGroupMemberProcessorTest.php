@@ -10,6 +10,7 @@ use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
+use App\Enum\GroupMemberStatus;
 use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
@@ -199,15 +200,17 @@ class KickGroupMemberProcessorTest extends TestCase
         $this->kick(Uuid::v4());
     }
 
-    // --- Kick without contribution (current behavior, guard) ---
+    // --- Issue #10: kicking is a soft removal, contributions are kept ---
+    // Decision: a kick always soft-removes (status "removed", row kept), whether or not
+    // the member has contributions. Contributions keep their status and stay in the payout.
 
-    public function testOwnerKicksMemberWithoutContribution(): void
+    public function testOwnerSoftRemovesMemberWithoutContribution(): void
     {
         $this->security->method('getUser')->willReturn($this->owner);
         $this->projectRepository->method('find')->willReturn($this->project);
 
         $memberId = Uuid::v4();
-        $member = $this->kickableMember($memberId, 'Kicked Pilot');
+        $member = $this->acceptedMember($memberId, 'Kicked Pilot');
         $this->memberRepository->method('find')->willReturn($member);
         $this->contributionRepository->method('countByMember')->willReturn(0);
 
@@ -222,86 +225,108 @@ class KickGroupMemberProcessorTest extends TestCase
                     && $payload['data']['memberId'] === $memberId->toRfc4122()
                     && $payload['data']['characterName'] === 'Kicked Pilot';
             }));
-        $this->entityManager->expects($this->once())->method('remove')->with($member);
+        $this->entityManager->expects($this->never())->method('remove');
         $this->entityManager->expects($this->once())->method('flush');
 
         $this->kick($memberId);
+
+        self::assertSame('removed', $member->getStatus()->value);
     }
 
-    public function testAdminKicksMemberWithoutContribution(): void
+    public function testAdminSoftRemovesMemberWithoutContribution(): void
     {
-        $adminUser = $this->createStub(User::class);
-        $this->security->method('getUser')->willReturn($adminUser);
-        $this->projectRepository->method('find')->willReturn($this->project);
-        $this->memberRepository->method('findOneBy')->willReturn($this->createStub(GroupIndustryProjectMember::class));
+        $this->actAsAdmin();
 
         $memberId = Uuid::v4();
-        $member = $this->kickableMember($memberId, 'Kicked Pilot');
+        $member = $this->acceptedMember($memberId, 'Kicked Pilot');
         $this->memberRepository->method('find')->willReturn($member);
         $this->contributionRepository->method('countByMember')->willReturn(0);
 
         $this->hub->expects($this->once())->method('publish');
-        $this->entityManager->expects($this->once())->method('remove')->with($member);
+        $this->entityManager->expects($this->never())->method('remove');
         $this->entityManager->expects($this->once())->method('flush');
 
         $this->kick($memberId);
+
+        self::assertSame('removed', $member->getStatus()->value);
     }
 
-    // --- Issue #10: a member with contributions cannot be kicked ---
-
-    public function testCannotKickMemberWithOneContribution(): void
+    public function testOwnerSoftRemovesMemberWithOneContribution(): void
     {
         $this->security->method('getUser')->willReturn($this->owner);
         $this->projectRepository->method('find')->willReturn($this->project);
 
         $memberId = Uuid::v4();
-        $member = $this->kickableMember($memberId, 'Contributor Pilot');
+        $member = $this->acceptedMember($memberId, 'Contributor Pilot');
         $this->memberRepository->method('find')->willReturn($member);
+        $this->contributionRepository->method('countByMember')->willReturn(1);
 
-        $this->contributionRepository
+        $this->hub
             ->expects($this->once())
-            ->method('countByMember')
-            ->with($member)
-            ->willReturn(1);
+            ->method('publish')
+            ->with($this->callback(function (Update $update) use ($memberId): bool {
+                $payload = json_decode($update->getData(), true);
 
-        $this->hub->expects($this->never())->method('publish');
+                return $payload['action'] === 'member_left'
+                    && $payload['data']['memberId'] === $memberId->toRfc4122()
+                    && $payload['data']['characterName'] === 'Contributor Pilot';
+            }));
+        // Never remove(): the member row (and its contributions via CASCADE) must survive
         $this->entityManager->expects($this->never())->method('remove');
-        $this->entityManager->expects($this->never())->method('flush');
-
-        $this->expectException(BadRequestHttpException::class);
-        $this->expectExceptionMessage('Cannot kick: member has contributions in this project');
+        $this->entityManager->expects($this->once())->method('flush');
 
         $this->kick($memberId);
+
+        self::assertSame('removed', $member->getStatus()->value);
+        self::assertSame('member', $member->getRole()->value);
     }
 
-    public function testAdminCannotKickMemberWithContributions(): void
+    public function testAdminSoftRemovesMemberWithContributions(): void
+    {
+        $this->actAsAdmin();
+
+        $memberId = Uuid::v4();
+        $member = $this->acceptedMember($memberId, 'Contributor Pilot');
+        $this->memberRepository->method('find')->willReturn($member);
+        $this->contributionRepository->method('countByMember')->willReturn(3);
+
+        $this->hub->expects($this->once())->method('publish');
+        $this->entityManager->expects($this->never())->method('remove');
+        $this->entityManager->expects($this->once())->method('flush');
+
+        $this->kick($memberId);
+
+        self::assertSame('removed', $member->getStatus()->value);
+    }
+
+    public function testOwnerSoftRemovesPendingMember(): void
+    {
+        $this->security->method('getUser')->willReturn($this->owner);
+        $this->projectRepository->method('find')->willReturn($this->project);
+
+        $memberId = Uuid::v4();
+        $member = $this->acceptedMember($memberId, 'Pending Pilot');
+        $member->setStatus(GroupMemberStatus::Pending);
+        $this->memberRepository->method('find')->willReturn($member);
+
+        $this->entityManager->expects($this->never())->method('remove');
+        $this->entityManager->expects($this->once())->method('flush');
+
+        $this->kick($memberId);
+
+        self::assertSame('removed', $member->getStatus()->value);
+    }
+
+    private function actAsAdmin(): void
     {
         $adminUser = $this->createStub(User::class);
         $this->security->method('getUser')->willReturn($adminUser);
         $this->projectRepository->method('find')->willReturn($this->project);
+        // Accepted Admin membership found for the acting user
         $this->memberRepository->method('findOneBy')->willReturn($this->createStub(GroupIndustryProjectMember::class));
-
-        $memberId = Uuid::v4();
-        $member = $this->kickableMember($memberId, 'Contributor Pilot');
-        $this->memberRepository->method('find')->willReturn($member);
-
-        $this->contributionRepository
-            ->expects($this->once())
-            ->method('countByMember')
-            ->with($member)
-            ->willReturn(3);
-
-        $this->hub->expects($this->never())->method('publish');
-        $this->entityManager->expects($this->never())->method('remove');
-        $this->entityManager->expects($this->never())->method('flush');
-
-        $this->expectException(BadRequestHttpException::class);
-        $this->expectExceptionMessage('Cannot kick: member has contributions in this project');
-
-        $this->kick($memberId);
     }
 
-    private function kickableMember(Uuid $memberId, string $characterName): GroupIndustryProjectMember&Stub
+    private function acceptedMember(Uuid $memberId, string $characterName): GroupIndustryProjectMember
     {
         $character = $this->createStub(Character::class);
         $character->method('getName')->willReturn($characterName);
@@ -309,11 +334,12 @@ class KickGroupMemberProcessorTest extends TestCase
         $memberUser = $this->createStub(User::class);
         $memberUser->method('getMainCharacter')->willReturn($character);
 
-        $member = $this->createStub(GroupIndustryProjectMember::class);
-        $member->method('getId')->willReturn($memberId);
-        $member->method('getProject')->willReturn($this->project);
-        $member->method('getRole')->willReturn(GroupMemberRole::Member);
-        $member->method('getUser')->willReturn($memberUser);
+        $member = new GroupIndustryProjectMember();
+        $member->setProject($this->project);
+        $member->setUser($memberUser);
+        $member->setRole(GroupMemberRole::Member);
+        $member->setStatus(GroupMemberStatus::Accepted);
+        (new \ReflectionProperty(GroupIndustryProjectMember::class, 'id'))->setValue($member, $memberId);
 
         return $member;
     }

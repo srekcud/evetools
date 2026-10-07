@@ -7,6 +7,7 @@ namespace App\State\Processor\GroupIndustry;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
+use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\GroupMemberStatus;
@@ -67,20 +68,13 @@ class JoinGroupProjectProcessor implements ProcessorInterface
             'user' => $user,
         ]);
 
-        if ($existingMembership !== null) {
+        if ($existingMembership !== null && $existingMembership->getStatus() !== GroupMemberStatus::Removed) {
             throw new ConflictHttpException('You are already a member of this project');
         }
 
-        // Create membership with status depending on corporation match
-        $member = new GroupIndustryProjectMember();
-        $member->setUser($user);
-
-        $userCorpId = $user->getCorporationId();
-        $ownerCorpId = $project->getOwner()->getCorporationId();
-        $isSameCorp = $userCorpId !== null && $ownerCorpId !== null && $userCorpId === $ownerCorpId;
-
-        $member->setStatus($isSameCorp ? GroupMemberStatus::Accepted : GroupMemberStatus::Pending);
-        $project->addMember($member);
+        $member = $existingMembership === null
+            ? $this->createMembership($project, $user)
+            : $existingMembership->requestRejoin();
 
         $this->entityManager->flush();
 
@@ -96,5 +90,21 @@ class JoinGroupProjectProcessor implements ProcessorInterface
         );
 
         return $this->mapper->projectToResource($project, $member);
+    }
+
+    /** New membership: auto-accepted for the owner's corporation, pending otherwise. */
+    private function createMembership(GroupIndustryProject $project, User $user): GroupIndustryProjectMember
+    {
+        $member = new GroupIndustryProjectMember();
+        $member->setUser($user);
+
+        $userCorpId = $user->getCorporationId();
+        $ownerCorpId = $project->getOwner()->getCorporationId();
+        $isSameCorp = $userCorpId !== null && $ownerCorpId !== null && $userCorpId === $ownerCorpId;
+
+        $member->setStatus($isSameCorp ? GroupMemberStatus::Accepted : GroupMemberStatus::Pending);
+        $project->addMember($member);
+
+        return $member;
     }
 }

@@ -99,4 +99,14 @@ class GroupIndustryProjectMember
     {
         return $this->joinedAt;
     }
+
+    /** A removed member asking to join again goes back to a pending plain membership. */
+    public function requestRejoin(): static
+    {
+        $this->status = GroupMemberStatus::Pending;
+        $this->role = GroupMemberRole::Member;
+        $this->joinedAt = new \DateTimeImmutable();
+
+        return $this;
+    }
 }

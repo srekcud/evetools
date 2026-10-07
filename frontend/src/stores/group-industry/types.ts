@@ -7,7 +7,7 @@ export type GroupProjectStatus = 'draft' | 'published' | 'in_progress' | 'sellin
 
 export type GroupMemberRole = 'owner' | 'admin' | 'member'
 
-export type GroupMemberStatus = 'pending' | 'accepted'
+export type GroupMemberStatus = 'pending' | 'accepted' | 'removed'
 
 export type ContributionType = 'material' | 'job_install' | 'bpc' | 'line_rental'
 
