@@ -10,6 +10,7 @@ use App\Entity\Character;
 use App\Entity\CorpAssetVisibility;
 use App\Entity\User;
 use App\Entity\EveToken;
+use App\Exception\EsiApiException;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Service\ESI\CorporationService;
@@ -140,6 +141,35 @@ class CorpAssetVisibilityProviderTest extends TestCase
 
         $this->assertSame([1, 2], $result->visibleDivisions);
         $this->assertSame($esiDivisions, $result->allDivisions);
+    }
+
+    public function testEsiFallbackFailurePropagatesInsteadOfShowingEmptyDivisionList(): void
+    {
+        $user = $this->createUserWithCharacter();
+        $this->security->method('getUser')->willReturn($user);
+
+        $directorCharacter = $this->createStub(Character::class);
+        $directorCharacter->method('getCorporationId')->willReturn(98000001);
+        $directorCharacter->method('getEveToken')->willReturn($this->createStub(EveToken::class));
+
+        $directorUser = $this->createStub(User::class);
+        $directorUser->method('getCharacters')->willReturn(new ArrayCollection([$directorCharacter]));
+
+        $visibility = new CorpAssetVisibility();
+        $visibility->setCorporationId(98000001);
+        $visibility->setVisibleDivisions([1, 2]);
+        $visibility->setConfiguredBy($directorUser);
+
+        $this->visibilityRepository->method('findByCorporationId')->willReturn($visibility);
+        $this->cachedAssetRepository->method('findDistinctDivisions')->willReturn([]);
+
+        $esiFailure = EsiApiException::fromResponse(503, 'ESI request failed', '/corporations/98000001/divisions/');
+        $this->corporationService->expects($this->once())->method('getDivisions')->willThrowException($esiFailure);
+
+        // EsiAuthFailureListener turns this exception into an HTTP 503 ESI_API_ERROR response
+        $this->expectExceptionObject($esiFailure);
+
+        $this->provider->provide(new Get());
     }
 
     public function testNoFallbackWhenCachedAssetsExist(): void

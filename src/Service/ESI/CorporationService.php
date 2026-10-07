@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Service\ESI;
 
 use App\Entity\Character;
-use Psr\Log\LoggerInterface;
+use App\Exception\EsiApiException;
+use App\Exception\EveAuthRequiredException;
 
 class CorporationService
 {
     public function __construct(
         private readonly EsiClient $esiClient,
-        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -25,26 +25,20 @@ class CorporationService
 
     /**
      * @return array<int, string>
+     *
+     * @throws EveAuthRequiredException when the character has no ESI token
+     * @throws EsiApiException
      */
     public function getDivisions(Character $character): array
     {
         $token = $character->getEveToken();
 
         if ($token === null) {
-            return [];
+            throw new EveAuthRequiredException((string) $character->getEveCharacterId());
         }
 
         $corporationId = $character->getCorporationId();
-
-        try {
-            $data = $this->esiClient->get("/corporations/{$corporationId}/divisions/", $token);
-        } catch (\Throwable $e) {
-            $this->logger->warning('Failed to get corporation divisions', [
-                'corporationId' => $corporationId,
-                'error' => $e->getMessage(),
-            ]);
-            return [];
-        }
+        $data = $this->esiClient->get("/corporations/{$corporationId}/divisions/", $token);
 
         $divisions = [];
 

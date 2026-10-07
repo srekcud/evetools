@@ -15,6 +15,9 @@ use Symfony\Component\HttpKernel\KernelEvents;
 #[AsEventListener(event: KernelEvents::EXCEPTION, priority: 10)]
 class EsiAuthFailureListener
 {
+    /** EsiClient reports network errors (no HTTP response from ESI) with status code 0 */
+    private const int LOWEST_HTTP_STATUS_CODE = 100;
+
     public function onKernelException(ExceptionEvent $event): void
     {
         $exception = $event->getThrowable();
@@ -35,7 +38,7 @@ class EsiAuthFailureListener
                 'error' => 'ESI_API_ERROR',
                 'message' => $exception->getMessage(),
                 'endpoint' => $exception->endpoint,
-            ], $exception->statusCode);
+            ], $exception->statusCode < self::LOWEST_HTTP_STATUS_CODE ? Response::HTTP_BAD_GATEWAY : $exception->statusCode);
 
             $event->setResponse($response);
         }

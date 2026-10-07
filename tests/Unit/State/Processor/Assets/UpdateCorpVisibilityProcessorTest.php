@@ -10,6 +10,8 @@ use App\ApiResource\Input\Assets\UpdateCorpVisibilityInput;
 use App\Entity\Character;
 use App\Entity\CorpAssetVisibility;
 use App\Entity\User;
+use App\Exception\EsiApiException;
+use App\Exception\EveAuthRequiredException;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Service\ESI\CharacterService;
 use App\Service\ESI\CorporationService;
@@ -145,6 +147,48 @@ class UpdateCorpVisibilityProcessorTest extends TestCase
     }
 
     // ===========================================
+    // Division names fetch errors (issue #14 follow-up)
+    // ===========================================
+
+    public function testDivisionsFetchFailurePropagatesAndSavesNothing(): void
+    {
+        $user = $this->createDirectorUser();
+        $this->security->method('getUser')->willReturn($user);
+        $this->characterService->method('canReadCorporationAssets')->willReturn(true);
+        $this->visibilityRepository->method('findByCorporationId')->willReturn(null);
+
+        $esiFailure = EsiApiException::fromResponse(503, 'ESI request failed', '/corporations/98000001/divisions/');
+        $this->corporationService->method('getDivisions')->willThrowException($esiFailure);
+
+        $input = new UpdateCorpVisibilityInput();
+        $input->visibleDivisions = [1, 3];
+
+        // EsiAuthFailureListener turns this exception into an HTTP 503 ESI_API_ERROR response
+        $this->expectExceptionObject($esiFailure);
+
+        $this->createProcessorThatMustNotSave()->process($input, new Put());
+    }
+
+    public function testMissingDirectorTokenPropagatesEveAuthRequiredAndSavesNothing(): void
+    {
+        $user = $this->createDirectorUser();
+        $this->security->method('getUser')->willReturn($user);
+        $this->characterService->method('canReadCorporationAssets')->willReturn(true);
+        $this->visibilityRepository->method('findByCorporationId')->willReturn(null);
+
+        $authRequired = new EveAuthRequiredException('2112000001');
+        $this->corporationService->method('getDivisions')->willThrowException($authRequired);
+
+        $input = new UpdateCorpVisibilityInput();
+        $input->visibleDivisions = [1];
+
+        // EsiAuthFailureListener turns this exception into an HTTP 401 EVE_AUTH_REQUIRED response
+        $this->expectExceptionObject($authRequired);
+
+        $this->createProcessorThatMustNotSave()->process($input, new Put());
+    }
+
+    // ===========================================
     // Authorization errors
     // ===========================================
 
@@ -242,6 +286,17 @@ class UpdateCorpVisibilityProcessorTest extends TestCase
     // ===========================================
     // Helpers
     // ===========================================
+
+    /**
+     * Division names are fetched before saving: an ESI failure must leave the visibility config untouched.
+     */
+    private function createProcessorThatMustNotSave(): UpdateCorpVisibilityProcessor
+    {
+        $this->em->expects($this->never())->method('persist');
+        $this->em->expects($this->never())->method('flush');
+
+        return $this->processor;
+    }
 
     private function createDirectorUser(): User&Stub
     {

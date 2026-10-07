@@ -59,6 +59,9 @@ class UpdateCorpVisibilityProcessor implements ProcessorInterface
             }
         }
 
+        // Fetched before saving: an ESI or auth failure must leave the visibility config untouched
+        $allDivisions = $this->corporationService->getDivisions($mainCharacter);
+
         $corporationId = $mainCharacter->getCorporationId();
         $visibility = $this->visibilityRepository->findByCorporationId($corporationId);
 
@@ -73,8 +76,6 @@ class UpdateCorpVisibilityProcessor implements ProcessorInterface
 
         $this->em->persist($visibility);
         $this->em->flush();
-
-        $allDivisions = $this->corporationService->getDivisions($mainCharacter);
 
         $resource = new CorpAssetVisibilityResource();
         $resource->visibleDivisions = $visibility->getVisibleDivisions();
