@@ -47,6 +47,20 @@ class IndustryStructureConfigRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    public function findDeletedByUserAndLocationId(User $user, int $locationId): ?IndustryStructureConfig
+    {
+        return $this->createQueryBuilder('s')
+            ->where('s.user = :user')
+            ->andWhere('s.locationId = :locationId')
+            ->andWhere('s.isDeleted = true')
+            ->setParameter('user', $user)
+            ->setParameter('locationId', $locationId)
+            ->orderBy('s.createdAt', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     public function findByLocationId(int $locationId): ?IndustryStructureConfig
     {
         return $this->createQueryBuilder('s')
@@ -70,21 +84,18 @@ class IndustryStructureConfigRepository extends ServiceEntityRepository
     }
 
     /**
-     * Find all corporation structures marked as shared (isCorporationStructure = true).
-     * Excludes structures actively configured by the given user (but includes their soft-deleted ones).
+     * Find the corporation structures shared by the OTHER members of the corporation.
+     * Rows soft-deleted by their owner stay shared; the given user's own rows (deleted or not) are never listed.
      *
      * @return IndustryStructureConfig[] Indexed by locationId
      */
     public function findCorporationSharedStructures(int $corporationId, User $excludeUser): array
     {
-        // Get:
-        // - Active (non-deleted) structures from OTHER users
-        // - Soft-deleted structures from CURRENT user (so they can re-import)
         $configs = $this->createQueryBuilder('s')
             ->where('s.corporationId = :corporationId')
             ->andWhere('s.isCorporationStructure = true')
             ->andWhere('s.locationId IS NOT NULL')
-            ->andWhere('((s.user != :excludeUser AND s.isDeleted = false) OR (s.user = :excludeUser AND s.isDeleted = true))')
+            ->andWhere('s.user != :excludeUser')
             ->setParameter('corporationId', $corporationId)
             ->setParameter('excludeUser', $excludeUser)
             ->orderBy('s.createdAt', 'DESC')

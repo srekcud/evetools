@@ -45,8 +45,7 @@ class CreateStructureProcessor implements ProcessorInterface
             $this->structureConfigRepository->clearDefaultForUser($user);
         }
 
-        $structure = new IndustryStructureConfig();
-        $structure->setUser($user);
+        $structure = $this->restoreOwnDeletedStructure($user, $data->locationId) ?? (new IndustryStructureConfig())->setUser($user);
         $structure->setName($data->name);
         $structure->setSecurityType($data->securityType);
         $structure->setStructureType($data->structureType);
@@ -64,9 +63,9 @@ class CreateStructureProcessor implements ProcessorInterface
                 $structure->setCorporationId($corporationId);
 
                 $cachedStructure = $this->cachedStructureRepository->findByStructureId($data->locationId);
-                if ($cachedStructure !== null && $cachedStructure->getOwnerCorporationId() === $corporationId) {
-                    $structure->setIsCorporationStructure(true);
-                }
+                $structure->setIsCorporationStructure(
+                    $cachedStructure !== null && $cachedStructure->getOwnerCorporationId() === $corporationId,
+                );
             }
         }
 
@@ -74,5 +73,28 @@ class CreateStructureProcessor implements ProcessorInterface
         $this->entityManager->flush();
 
         return $this->mapper->structureToResource($structure);
+    }
+
+    /**
+     * Re-importing a structure the user soft-deleted brings back their own row (same id)
+     * instead of creating a duplicate; the submitted form values are then applied to it.
+     */
+    private function restoreOwnDeletedStructure(User $user, ?int $locationId): ?IndustryStructureConfig
+    {
+        if ($locationId === null || $locationId <= 0) {
+            return null;
+        }
+
+        $structure = $this->structureConfigRepository->findDeletedByUserAndLocationId($user, $locationId);
+        if ($structure === null) {
+            return null;
+        }
+
+        $userId = $user->getId()?->toRfc4122();
+        if ($userId === null) {
+            throw new \LogicException('A user owning a stored structure must have an id.');
+        }
+
+        return $structure->unhideForUser($userId)->setIsDeleted(false);
     }
 }
