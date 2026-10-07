@@ -11,6 +11,8 @@ use App\Service\ESI\TokenManager;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Psr\Cache\CacheItemPoolInterface;
+use Psr\Log\AbstractLogger;
+use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
@@ -21,7 +23,8 @@ use Symfony\Component\HttpClient\Response\MockResponse;
  * Note on sleeping: EsiClient calls sleep() directly. A 420 retry sleeps
  * max(X-Esi-Error-Limit-Reset, 1) = 1 s, so each 420 scenario costs 1 s.
  * 429 scenarios use Retry-After: 0. Error-limit-remain is kept at 100 so
- * throttleIfNeeded() never sleeps.
+ * throttleIfNeeded() never sleeps, except in the getBatch() error-limit test
+ * which sets it to 19 on purpose (one 100 ms pause).
  */
 #[CoversClass(EsiClient::class)]
 final class EsiClientTest extends TestCase
@@ -32,6 +35,9 @@ final class EsiClientTest extends TestCase
 
     /** @var list<array{method: string, url: string, body: string, headers: array<string, list<string>>}> */
     private array $recordedRequests = [];
+
+    /** @var list<string> "request <path>" when a request is launched, "read <path>" when its body is consumed */
+    private array $esiEvents = [];
 
     // ---------------------------------------------------------------
     // GREEN guards: current correct behavior
@@ -327,6 +333,191 @@ final class EsiClientTest extends TestCase
     }
 
     // ---------------------------------------------------------------
+    // RED: issue #26, getBatch(): concurrent GETs, per-key failure, 420/429 retry
+    // ---------------------------------------------------------------
+
+    public function testGetBatchReturnsDecodedArraysUnderTheirOwnKeysFromTheConfiguredBaseUrl(): void
+    {
+        $esiClient = $this->createEsiClientServingByPath([
+            '/contracts/public/items/20001/' => [$this->jsonResponse([['type_id' => 34, 'quantity' => 50, 'is_included' => true]])],
+            '/contracts/public/items/20003/' => [$this->jsonResponse([['type_id' => 35, 'quantity' => 60, 'is_included' => true]])],
+        ]);
+
+        $result = $esiClient->getBatch([
+            20001 => '/contracts/public/items/20001/',
+            20003 => '/contracts/public/items/20003/',
+        ]);
+
+        // Integer keys are kept as is (no renumbering), bodies are associative arrays.
+        $this->assertSame([
+            20001 => [['type_id' => 34, 'quantity' => 50, 'is_included' => true]],
+            20003 => [['type_id' => 35, 'quantity' => 60, 'is_included' => true]],
+        ], $result);
+        $this->assertSame([
+            self::BASE_URL . '/contracts/public/items/20001/',
+            self::BASE_URL . '/contracts/public/items/20003/',
+        ], array_column($this->recordedRequests, 'url'));
+        $this->assertSame(['GET', 'GET'], array_column($this->recordedRequests, 'method'));
+    }
+
+    public function testGetBatchLaunchesEveryRequestBeforeReadingAnyResponse(): void
+    {
+        $esiClient = $this->createEsiClientServingByPath([
+            '/universe/systems/30000142/' => [$this->readTrackedJsonResponse('/universe/systems/30000142/', ['name' => 'Jita'])],
+            '/universe/systems/30002187/' => [$this->readTrackedJsonResponse('/universe/systems/30002187/', ['name' => 'Amarr'])],
+            '/universe/systems/30002659/' => [$this->readTrackedJsonResponse('/universe/systems/30002659/', ['name' => 'Dodixie'])],
+        ]);
+
+        $result = $esiClient->getBatch([
+            'jita' => '/universe/systems/30000142/',
+            'amarr' => '/universe/systems/30002187/',
+            'dodixie' => '/universe/systems/30002659/',
+        ]);
+
+        $this->assertSame(['jita' => ['name' => 'Jita'], 'amarr' => ['name' => 'Amarr'], 'dodixie' => ['name' => 'Dodixie']], $result);
+        // Concurrent: the three requests are all in flight before the first response is read.
+        $this->assertSame([
+            'request /universe/systems/30000142/',
+            'request /universe/systems/30002187/',
+            'request /universe/systems/30002659/',
+        ], array_slice($this->esiEvents, 0, 3));
+        $this->assertCount(6, $this->esiEvents);
+    }
+
+    public function testGetBatchReturnsNullForFailedKeysWithoutFailingTheOthers(): void
+    {
+        $esiClient = $this->createEsiClientServingByPath([
+            '/contracts/public/items/30001/' => [new MockResponse('{"error":"Contract not found"}', ['http_code' => 404])],
+            '/contracts/public/items/30002/' => [$this->jsonResponse([['type_id' => 34, 'quantity' => 100, 'is_included' => true]])],
+            '/contracts/public/items/30003/' => [new MockResponse('{"error":"Internal server error"}', ['http_code' => 500])],
+            '/contracts/public/items/30004/' => [new MockResponse('', ['error' => 'Connection reset by peer'])],
+        ]);
+
+        $result = $esiClient->getBatch([
+            30001 => '/contracts/public/items/30001/',
+            30002 => '/contracts/public/items/30002/',
+            30003 => '/contracts/public/items/30003/',
+            30004 => '/contracts/public/items/30004/',
+        ]);
+
+        $this->assertSame([
+            30001 => null,
+            30002 => [['type_id' => 34, 'quantity' => 100, 'is_included' => true]],
+            30003 => null,
+            30004 => null,
+        ], $result);
+        // 404, 5xx and network errors are not retried: one request per key.
+        $this->assertCount(4, $this->recordedRequests);
+    }
+
+    public function testGetBatchSendsBearerAuthorizationOnEveryRequestWhenTokenGiven(): void
+    {
+        $esiClient = $this->createEsiClientServingByPath([
+            '/characters/2112000001/' => [$this->jsonResponse(['name' => 'Pilot One'])],
+            '/characters/2112000002/' => [$this->jsonResponse(['name' => 'Pilot Two'])],
+        ]);
+
+        $esiClient->getBatch([
+            'one' => '/characters/2112000001/',
+            'two' => '/characters/2112000002/',
+        ], $this->createEveToken());
+
+        $this->assertCount(2, $this->recordedRequests);
+        foreach ($this->recordedRequests as $recordedRequest) {
+            $this->assertSame(['Authorization: Bearer ' . self::ACCESS_TOKEN], $recordedRequest['headers']['authorization'] ?? null);
+        }
+    }
+
+    public function testGetBatchRetriesRateLimited429KeyOnceAndReturnsItsResult(): void
+    {
+        $esiClient = $this->createEsiClientServingByPath([
+            '/universe/systems/30000142/' => [
+                $this->rateLimitedResponse(retryAfterSeconds: 0),
+                $this->jsonResponse(['name' => 'Jita']),
+            ],
+            '/universe/systems/30002187/' => [$this->jsonResponse(['name' => 'Amarr'])],
+        ]);
+
+        $result = $esiClient->getBatch([
+            'jita' => '/universe/systems/30000142/',
+            'amarr' => '/universe/systems/30002187/',
+        ]);
+
+        $this->assertSame(['jita' => ['name' => 'Jita'], 'amarr' => ['name' => 'Amarr']], $result);
+        // Only the rate-limited key is replayed.
+        $this->assertSame([
+            self::BASE_URL . '/universe/systems/30000142/',
+            self::BASE_URL . '/universe/systems/30002187/',
+            self::BASE_URL . '/universe/systems/30000142/',
+        ], array_column($this->recordedRequests, 'url'));
+    }
+
+    public function testGetBatchRetriesErrorLimited420KeyOnceAndReturnsItsResult(): void
+    {
+        $esiClient = $this->createEsiClientServingByPath([
+            '/universe/systems/30000142/' => [
+                $this->errorLimitedResponse(),
+                $this->jsonResponse(['name' => 'Jita']),
+            ],
+        ]);
+
+        $result = $esiClient->getBatch(['jita' => '/universe/systems/30000142/']);
+
+        $this->assertSame(['jita' => ['name' => 'Jita']], $result);
+        $this->assertSame(['GET', 'GET'], array_column($this->recordedRequests, 'method'));
+    }
+
+    public function testGetBatchReturnsNullAfterSecondConsecutive429ForThatKeyOnly(): void
+    {
+        $esiClient = $this->createEsiClientServingByPath([
+            '/universe/systems/30000142/' => [
+                $this->rateLimitedResponse(retryAfterSeconds: 0),
+                $this->rateLimitedResponse(retryAfterSeconds: 0),
+            ],
+            '/universe/systems/30002187/' => [$this->jsonResponse(['name' => 'Amarr'])],
+        ]);
+
+        $result = $esiClient->getBatch([
+            'jita' => '/universe/systems/30000142/',
+            'amarr' => '/universe/systems/30002187/',
+        ]);
+
+        $this->assertSame(['jita' => null, 'amarr' => ['name' => 'Amarr']], $result);
+        // Exactly one retry, no loop
+        $this->assertCount(3, $this->recordedRequests);
+    }
+
+    public function testGetBatchRecordsErrorLimitHeadersSoTheNextRequestIsThrottled(): void
+    {
+        $logRecords = [];
+        $esiClient = $this->createEsiClientServingByPath([
+            '/universe/systems/30000142/' => [$this->jsonResponse(['name' => 'Jita'], 200, ['X-Esi-Error-Limit-Remain' => '19'])],
+            '/universe/systems/30002187/' => [$this->jsonResponse(['name' => 'Amarr'], 200, ['X-Esi-Error-Limit-Remain' => '19'])],
+        ], $this->createRecordingLogger($logRecords));
+
+        $esiClient->getBatch(['jita' => '/universe/systems/30000142/']);
+        $this->assertSame([], $logRecords);
+
+        // 19 errors left (< 20): the next request waits (20 - 19) * 100 ms.
+        $esiClient->get('/universe/systems/30002187/');
+
+        $throttleRecords = array_values(array_filter(
+            $logRecords,
+            static fn (array $logRecord): bool => ($logRecord['context']['remain'] ?? null) === 19,
+        ));
+        $this->assertCount(1, $throttleRecords);
+        $this->assertSame(100, $throttleRecords[0]['context']['delay'] ?? null);
+    }
+
+    public function testGetBatchWithoutEndpointsSendsNoRequest(): void
+    {
+        $esiClient = $this->createEsiClientServingByPath([]);
+
+        $this->assertSame([], $esiClient->getBatch([]));
+        $this->assertSame([], $this->recordedRequests);
+    }
+
+    // ---------------------------------------------------------------
     // RED: issue #41 -- getWithCache() honours ESI Expires and keeps the ETag
     //
     // Clock note: the MockClock starts at the real current time because
@@ -447,6 +638,87 @@ final class EsiClientTest extends TestCase
     // ---------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------
+
+    /**
+     * Serves each ESI path its own responses, in order, whatever the order of the requests.
+     * Records every request and logs "request <path>" in $esiEvents when it is launched.
+     *
+     * @param array<string, list<MockResponse>> $responsesByPath
+     */
+    private function createEsiClientServingByPath(array $responsesByPath, ?LoggerInterface $logger = null): EsiClient
+    {
+        $this->recordedRequests = [];
+        $this->esiEvents = [];
+
+        $httpClient = new MockHttpClient(function (string $method, string $url, array $options) use (&$responsesByPath): MockResponse {
+            $this->recordedRequests[] = [
+                'method' => $method,
+                'url' => $url,
+                'body' => is_string($options['body'] ?? null) ? $options['body'] : '',
+                'headers' => $options['normalized_headers'] ?? [],
+            ];
+            $path = substr($url, strlen(self::BASE_URL));
+            $this->esiEvents[] = 'request ' . $path;
+
+            $response = isset($responsesByPath[$path]) ? array_shift($responsesByPath[$path]) : null;
+            if ($response === null) {
+                $this->fail(sprintf('Unexpected extra request: %s %s', $method, $url));
+            }
+
+            return $response;
+        });
+
+        $tokenManager = $this->createStub(TokenManager::class);
+        $tokenManager->method('getValidAccessToken')->willReturn(self::ACCESS_TOKEN);
+
+        return new EsiClient(
+            $httpClient,
+            $this->createStub(CacheItemPoolInterface::class),
+            $tokenManager,
+            self::BASE_URL,
+            $logger ?? new NullLogger(),
+        );
+    }
+
+    /**
+     * A 200 JSON response that logs "read <path>" in $esiEvents when its body is consumed.
+     *
+     * @param array<mixed> $body
+     */
+    private function readTrackedJsonResponse(string $path, array $body): MockResponse
+    {
+        $bodyChunks = (function () use ($path, $body): \Generator {
+            $this->esiEvents[] = 'read ' . $path;
+            yield json_encode($body, JSON_THROW_ON_ERROR);
+        })();
+
+        return new MockResponse($bodyChunks, [
+            'http_code' => 200,
+            'response_headers' => [
+                'Content-Type' => 'application/json',
+                'X-Esi-Error-Limit-Remain' => '100',
+                'X-Esi-Error-Limit-Reset' => '0',
+            ],
+        ]);
+    }
+
+    /**
+     * @param list<array{level: mixed, message: string, context: array<mixed>}> $logRecords
+     */
+    private function createRecordingLogger(array &$logRecords): LoggerInterface
+    {
+        return new class ($logRecords) extends AbstractLogger {
+            /** @param list<array{level: mixed, message: string, context: array<mixed>}> $logRecords */
+            public function __construct(private array &$logRecords)
+            {
+            }
+
+            public function log($level, string|\Stringable $message, array $context = []): void
+            {
+                $this->logRecords[] = ['level' => $level, 'message' => (string) $message, 'context' => $context];
+            }
+        };
+    }
 
     /**
      * @param list<MockResponse> $responses served in order; each request is recorded

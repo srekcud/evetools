@@ -114,6 +114,43 @@ class EsiClient
     }
 
     /**
+     * GETs several endpoints concurrently: every request is launched before any response is read.
+     * Each result keeps its endpoint's key; a key whose request fails (4xx, 5xx, network error,
+     * or a second consecutive 420/429) maps to null. 420/429 keys are replayed once, together,
+     * after a single wait.
+     *
+     * @template TKey of array-key
+     * @param array<TKey, string> $endpoints
+     * @return array<TKey, array<mixed>|null>
+     */
+    public function getBatch(array $endpoints, ?EveToken $token = null): array
+    {
+        if ($endpoints === []) {
+            return [];
+        }
+
+        $this->throttleIfNeeded();
+        $results = $this->collectBatch($this->launchBatch($endpoints, $token), $retryDelays);
+
+        if ($retryDelays !== []) {
+            $sleepSeconds = max($retryDelays);
+            $this->logger->warning('ESI 420/429 received on {count} batched requests, sleeping {seconds}s before retry', [
+                'count' => count($retryDelays),
+                'seconds' => $sleepSeconds,
+            ]);
+            sleep($sleepSeconds);
+
+            // The error-limit window has just been waited out: the replay is not throttled again.
+            $retryEndpoints = array_intersect_key($endpoints, $retryDelays);
+            // A second consecutive 420/429 is not replayed again: that key stays null.
+            $retryResults = $this->collectBatch($this->launchBatch($retryEndpoints, $token), $unreplayedDelays);
+            $results = array_replace($results, $retryResults);
+        }
+
+        return $results;
+    }
+
+    /**
      * Serves the cached copy until ESI's Expires, then revalidates it with the stored ETag.
      *
      * @return array<mixed>
@@ -245,6 +282,59 @@ class EsiClient
     }
 
     /**
+     * @template TKey of array-key
+     * @param array<TKey, string> $endpoints
+     * @return array<TKey, ResponseInterface>
+     */
+    private function launchBatch(array $endpoints, ?EveToken $token): array
+    {
+        $responses = [];
+        foreach ($endpoints as $key => $endpoint) {
+            $responses[$key] = $this->request('GET', $endpoint, $token, throttle: false);
+        }
+
+        return $responses;
+    }
+
+    /**
+     * Reads every response of a batch. 420/429 keys map to null and their retry delay is
+     * reported in $retryDelays.
+     *
+     * @template TKey of array-key
+     * @param array<TKey, ResponseInterface> $responses
+     * @param array<TKey, int>|null $retryDelays
+     * @param-out array<TKey, int> $retryDelays
+     * @return array<TKey, array<mixed>|null>
+     */
+    private function collectBatch(array $responses, ?array &$retryDelays): array
+    {
+        $retryDelays = [];
+        $results = [];
+        foreach ($responses as $key => $response) {
+            $results[$key] = null;
+            try {
+                $statusCode = $response->getStatusCode();
+                if ($statusCode === 420 || $statusCode === 429) {
+                    $retryDelays[$key] = $this->retryDelaySeconds($response, $statusCode);
+                    continue;
+                }
+
+                $this->processRateLimitHeaders($response);
+                if ($statusCode >= 200 && $statusCode < 300) {
+                    $results[$key] = $response->toArray();
+                } else {
+                    // Consume response body to prevent curl handle issues
+                    $response->getContent(false);
+                }
+            } catch (TransportExceptionInterface) {
+                // A network error leaves this key null; the other keys of the batch are unaffected.
+            }
+        }
+
+        return $results;
+    }
+
+    /**
      * @param array<string, string> $extraHeaders
      * @param array<int|string, mixed>|null $jsonBody
      */
@@ -293,13 +383,7 @@ class EsiClient
             return $response;
         }
 
-        $this->processRateLimitHeaders($response);
-        // Consume response body to prevent curl handle issues
-        $response->getContent(false);
-
-        $sleepSeconds = $statusCode === 429
-            ? $this->retryAfterSeconds($response) ?? $this->errorLimitWaitSeconds()
-            : $this->errorLimitWaitSeconds();
+        $sleepSeconds = $this->retryDelaySeconds($response, $statusCode);
         $this->logger->warning('ESI {status} received, sleeping {seconds}s before retry', [
             'status' => $statusCode,
             'seconds' => $sleepSeconds,
@@ -309,6 +393,21 @@ class EsiClient
 
         // The error-limit window has just been waited out: throttling again would double the pause.
         return $this->request($method, $endpoint, $token, $extraHeaders, $jsonBody, throttle: false);
+    }
+
+    /**
+     * Records the error-limit headers of a 420/429 response, releases its body and returns
+     * how long to wait before replaying it: Retry-After for a 429, else the error-limit reset.
+     */
+    private function retryDelaySeconds(ResponseInterface $response, int $statusCode): int
+    {
+        $this->processRateLimitHeaders($response);
+        // Consume response body to prevent curl handle issues
+        $response->getContent(false);
+
+        return $statusCode === 429
+            ? $this->retryAfterSeconds($response) ?? $this->errorLimitWaitSeconds()
+            : $this->errorLimitWaitSeconds();
     }
 
     /**

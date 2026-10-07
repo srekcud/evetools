@@ -7,24 +7,22 @@ namespace App\MessageHandler;
 use App\Constant\EveConstants;
 use App\Message\SyncPublicContracts;
 use App\Service\Admin\SyncTracker;
+use App\Service\ESI\EsiClient;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
-use Symfony\Contracts\HttpClient\ResponseInterface;
 
 #[AsMessageHandler]
 final readonly class SyncPublicContractsHandler
 {
-    private const ESI_BASE_URL = 'https://esi.evetech.net/latest';
     private const CACHE_PREFIX = 'public_contract_prices_';
     private const CACHE_TTL = 3600; // 1 hour
     private const META_KEY = 'public_contract_prices_meta';
     private const ITEMS_BATCH_SIZE = 50;
 
     public function __construct(
-        private HttpClientInterface $httpClient,
+        private EsiClient $esiClient,
         #[Autowire(service: 'public_contracts.cache')]
         private CacheItemPoolInterface $cache,
         private LoggerInterface $logger,
@@ -53,7 +51,8 @@ final readonly class SyncPublicContractsHandler
     private function sync(): int
     {
         // 1. Fetch all pages of public contracts for The Forge
-        $contracts = $this->fetchAllPublicContracts();
+        /** @var list<array<string, mixed>> $contracts */
+        $contracts = $this->esiClient->getPaginated('/contracts/public/' . EveConstants::THE_FORGE_REGION_ID . '/');
         $this->logger->info('Fetched public contracts', ['count' => count($contracts)]);
 
         // 2. Filter: item_exchange only, not expired
@@ -81,8 +80,8 @@ final readonly class SyncPublicContractsHandler
 
         $this->logger->info('Filtered item_exchange contracts', ['count' => count($itemExchangeContracts)]);
 
-        // 3. Fetch items for each contract in concurrent batches
-        $contractItems = $this->fetchContractItemsBatched($itemExchangeContracts);
+        // 3. Fetch items for each contract
+        $contractItems = $this->fetchContractItems($itemExchangeContracts);
 
         // 4. Filter for mono-item contracts and compute unit prices
         // Index: typeId => list<{unitPrice, quantity, contractId}>
@@ -157,108 +156,33 @@ final readonly class SyncPublicContractsHandler
     }
 
     /**
-     * Fetch all pages of public contracts for The Forge region.
-     *
-     * @return list<array<string, mixed>>
-     */
-    private function fetchAllPublicContracts(): array
-    {
-        $allContracts = [];
-        $page = 1;
-        $totalPages = 1;
-
-        do {
-            $response = $this->httpClient->request('GET', self::ESI_BASE_URL . '/contracts/public/' . EveConstants::THE_FORGE_REGION_ID . '/', [
-                'query' => ['page' => $page],
-                'headers' => ['Accept' => 'application/json'],
-                'timeout' => 30,
-            ]);
-
-            $statusCode = $response->getStatusCode();
-            if ($statusCode < 200 || $statusCode >= 300) {
-                throw new \RuntimeException(sprintf(
-                    'ESI /contracts/public/%d/ page %d returned HTTP %d',
-                    EveConstants::THE_FORGE_REGION_ID,
-                    $page,
-                    $statusCode,
-                ));
-            }
-
-            $headers = $response->getHeaders(false);
-            $totalPages = (int) ($headers['x-pages'][0] ?? 1);
-
-            /** @var list<array<string, mixed>> $contracts */
-            $contracts = $response->toArray();
-            $allContracts = array_merge($allContracts, $contracts);
-
-            $this->logger->debug('Fetched public contracts page', [
-                'page' => $page,
-                'totalPages' => $totalPages,
-                'count' => count($contracts),
-            ]);
-
-            $page++;
-
-            // Small throttle between pages
-            if ($page <= $totalPages) {
-                usleep(50_000); // 50ms
-            }
-        } while ($page <= $totalPages);
-
-        return $allContracts;
-    }
-
-    /**
-     * Fetch contract items for multiple contracts using concurrent HTTP requests.
+     * Fetch items for each contract in concurrent ESI batches. A contract whose items
+     * cannot be fetched (expired or accepted since the listing, ESI error) is skipped.
      *
      * @param list<array<string, mixed>> $contracts
      * @return array<int, list<array<string, mixed>>> Keyed by contract_id
      */
-    private function fetchContractItemsBatched(array $contracts): array
+    private function fetchContractItems(array $contracts): array
     {
         $result = [];
-        $batches = array_chunk($contracts, self::ITEMS_BATCH_SIZE);
 
-        foreach ($batches as $batchIndex => $batch) {
-            /** @var array<int, ResponseInterface> $responses */
-            $responses = [];
-
-            // Fire all requests in the batch concurrently
+        foreach (array_chunk($contracts, self::ITEMS_BATCH_SIZE) as $batch) {
+            $endpoints = [];
             foreach ($batch as $contract) {
                 $contractId = (int) $contract['contract_id'];
-                try {
-                    $responses[$contractId] = $this->httpClient->request(
-                        'GET',
-                        self::ESI_BASE_URL . '/contracts/public/items/' . $contractId . '/',
-                        [
-                            'headers' => ['Accept' => 'application/json'],
-                            'timeout' => 15,
-                        ],
-                    );
-                } catch (\Throwable) {
-                    // Skip contracts where request creation fails
-                }
+                $endpoints[$contractId] = '/contracts/public/items/' . $contractId . '/';
             }
 
-            // Collect responses
-            foreach ($responses as $contractId => $response) {
-                try {
-                    $statusCode = $response->getStatusCode();
-                    if ($statusCode >= 200 && $statusCode < 300) {
-                        /** @var list<array<string, mixed>> $items */
-                        $items = $response->toArray();
-                        $result[$contractId] = $items;
-                    } else {
-                        // Consume body to release connection
-                        $response->getContent(false);
-                    }
-                } catch (\Throwable) {
-                    // Individual contract item fetch failure is non-fatal
+            foreach ($this->esiClient->getBatch($endpoints) as $contractId => $items) {
+                if ($items === null) {
+                    $this->logger->debug('Skipping public contract whose items could not be fetched', [
+                        'contractId' => $contractId,
+                    ]);
+                    continue;
                 }
-            }
 
-            if ($batchIndex < count($batches) - 1) {
-                usleep(50_000); // 50ms between batches
+                /** @var list<array<string, mixed>> $items */
+                $result[$contractId] = $items;
             }
         }
 
