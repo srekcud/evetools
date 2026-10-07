@@ -564,7 +564,7 @@ class InventionService
             }
         }
 
-        return EveConstants::PERIMETER_SOLAR_SYSTEM_ID;
+        return EveConstants::JITA_SOLAR_SYSTEM_ID;
     }
 
     /**

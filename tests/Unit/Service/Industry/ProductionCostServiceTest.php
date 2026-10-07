@@ -281,7 +281,7 @@ class ProductionCostServiceTest extends TestCase
         $this->assertSame(30003, $result['steps'][0]['productTypeId']);
     }
 
-    public function testEstimateJobInstallCostsFallsBackToPerimeterSolarSystem(): void
+    public function testEstimateJobInstallCostsFallsBackToJitaSolarSystem(): void
     {
         // Step with no structure config
         $step = $this->createStep('manufacturing', 587, 1, null, 586);
@@ -296,11 +296,11 @@ class ProductionCostServiceTest extends TestCase
         ]);
         $this->esiCostIndexService->method('calculateEiv')->willReturn(500000.0);
 
-        // Should use PERIMETER_SOLAR_SYSTEM_ID as fallback
+        // Should use JITA_SOLAR_SYSTEM_ID (30000142 = Jita) as fallback
         $this->esiCostIndexService
             ->expects($this->once())
             ->method('calculateJobInstallCost')
-            ->with(500000.0, 1, EveConstants::PERIMETER_SOLAR_SYSTEM_ID, 'manufacturing', null)
+            ->with(500000.0, 1, EveConstants::JITA_SOLAR_SYSTEM_ID, 'manufacturing', null)
             ->willReturn(1000.0);
 
         $this->esiCostIndexService->method('getCostIndex')->willReturn(0.01);
@@ -310,7 +310,7 @@ class ProductionCostServiceTest extends TestCase
         $result = $this->service->estimateJobInstallCosts($project);
 
         $this->assertSame(1000.0, $result['total']);
-        $this->assertSame(EveConstants::PERIMETER_SOLAR_SYSTEM_ID, $result['steps'][0]['solarSystemId']);
+        $this->assertSame(EveConstants::JITA_SOLAR_SYSTEM_ID, $result['steps'][0]['solarSystemId']);
     }
 
     // ===========================================

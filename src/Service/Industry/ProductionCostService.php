@@ -161,7 +161,7 @@ class ProductionCostService
      * Resolve the solar system for a given step, with fallback chain:
      * 1. Step's structure config solarSystemId
      * 2. User's favorite system (manufacturing or reaction)
-     * 3. Default: Perimeter (30000142)
+     * 3. Default: Jita (30000142)
      */
     private function resolveSolarSystemForStep(IndustryProjectStep $step, IndustryProject $project): int
     {
@@ -186,7 +186,7 @@ class ProductionCostService
         }
 
         // 3. Default fallback
-        return EveConstants::PERIMETER_SOLAR_SYSTEM_ID;
+        return EveConstants::JITA_SOLAR_SYSTEM_ID;
     }
 
     /**

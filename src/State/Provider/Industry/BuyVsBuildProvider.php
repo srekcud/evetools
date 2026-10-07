@@ -64,7 +64,7 @@ class BuyVsBuildProvider implements ProviderInterface
         // Resolve solar system ID
         $solarSystemId = $solarSystemIdParam !== null
             ? (int) $solarSystemIdParam
-            : ($settings?->getFavoriteManufacturingSystemId() ?? EveConstants::PERIMETER_SOLAR_SYSTEM_ID);
+            : ($settings?->getFavoriteManufacturingSystemId() ?? EveConstants::JITA_SOLAR_SYSTEM_ID);
 
         $result = $this->buyVsBuildService->analyze(
             $typeId,

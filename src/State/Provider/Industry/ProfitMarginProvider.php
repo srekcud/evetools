@@ -68,7 +68,7 @@ class ProfitMarginProvider implements ProviderInterface
         // Resolve solar system ID: query param > user's favorite manufacturing system
         $solarSystemId = $solarSystemIdParam !== null ? (int) $solarSystemIdParam : null;
         if ($solarSystemId === null) {
-            $solarSystemId = $settings?->getFavoriteManufacturingSystemId() ?? EveConstants::PERIMETER_SOLAR_SYSTEM_ID;
+            $solarSystemId = $settings?->getFavoriteManufacturingSystemId() ?? EveConstants::JITA_SOLAR_SYSTEM_ID;
         }
 
         // Decryptor
