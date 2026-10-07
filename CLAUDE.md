@@ -10,7 +10,7 @@ Application web d'utilitaires pour EVE Online :
 
 ## Stack Technique
 
-- **Backend**: Symfony 7.4 + API Platform 4.3
+- **Backend**: Symfony 7.4 LTS + API Platform 4.2
 - **Frontend**: Vue.js 3.5 + Vite + Tailwind CSS 4
 - **Runtime**: FrankenPHP 8.5 Alpine
 - **Database**: PostgreSQL 16
@@ -35,9 +35,9 @@ docker compose exec app php bin/console <commande>
 
 - **Base URL**: `https://esi.evetech.net/latest`
 - **Auth**: OAuth 2.0 via EVE SSO, `Authorization: Bearer <token>`
-- **Rate Limit**: Code **420** = rate limit dépassé. Support ETag / Cache-Control.
-- **Pagination**: `page` param (max ~1000 items/page)
-- **24 scopes** en lecture seule (assets, wallet, industry, mining, skills, blueprints, market, fleet, PI, notifications, UI, corp)
+- **Rate Limit**: **420** = budget d'erreurs épuisé (`x-esi-error-limit-*`), **429** = rate limit. Support ETag / Cache-Control. Comportement du client : `.claude/skills/esi-api/SKILL.md`.
+- **Pagination**: `page` param + header `X-Pages` → toujours `EsiClient::getPaginated()` (un `get()` ne lit que la page 1)
+- **27 scopes** (`AuthenticationService::REQUIRED_SCOPES`) : assets, wallet, contracts, industry, mining, blueprints, skills, location, fleet, structures, search, notifications, killmails, market, UI, corp projects, PI
 
 ---
 
@@ -67,8 +67,12 @@ make db-migrate / make db-create
 make sde-import
 
 # Tests
-make test
-docker compose exec app php vendor/bin/phpunit --no-coverage
+make test               # toutes les suites, sans couverture (Integration nécessite make test-db)
+make test-unit
+make test-db            # (re)crée la base de test eve_app_test
+make test-integration
+make infection          # mutation testing (FILTER=src/...)
+make deptrac            # rapport de couches (n'échoue jamais)
 
 # Messenger
 make messenger
@@ -155,25 +159,34 @@ new Patch(
 
 - Hub : `/.well-known/mercure` (intégré dans FrankenPHP/Caddy)
 - Backend : `MercurePublisherService` (syncStarted → syncProgress → syncCompleted/syncError)
-- Frontend : `stores/sync.ts` + `composables/useMercure.ts`
+- Frontend : `stores/sync.ts` (EventSource + token via `/api/mercure/token`)
 - Topics : `/user/{userId}/sync/{syncType}`
-- Types sync : character-assets, corporation-assets, ansiblex, industry-jobs, pve, market-jita, market-structure, mining-ledger, planetary-colonies, wallet-transactions, alert-prices, cost-indices, adjusted-prices
+- Types sync (`MercurePublisherService::getTopicsForUser()`) : character-assets, corporation-assets, ansiblex, industry-jobs, industry-job-completed, industry-project, pve, mining, wallet-transactions, market-structure, planetary, public-contracts, admin-sync
+- Autres topics utilisateur : `/user/{userId}/alerts/planetary-expiry`, `/user/{userId}/alerts/market-price`, `/user/{userId}/notifications`
+- Les syncs globales (market-jita, alert-prices, cost-indices, adjusted-prices…) n'ont pas de topic dédié : `SyncTracker` les suit et notifie via `admin-sync`
 
 ---
 
 ## Scheduler
 
+Source : `src/Scheduler/SyncScheduler.php`.
+
 | Tâche | Intervalle |
 |-------|------------|
-| Assets sync | 30 min |
-| Industry jobs sync | 15 min |
-| PVE data sync | 20 min |
-| Mining ledger sync | 30 min |
-| Wallet transactions sync | 20 min |
-| Market sync (Jita + Structure) | 2h |
+| Industry jobs sync | 30 min |
+| PVE data sync | 1h |
+| Mining ledger sync | 1h |
+| Wallet transactions sync | 1h |
+| Market sync (Jita + Structure) | 1h |
 | Planetary colonies sync | 30 min |
 | Alert prices check | 30 min |
+| Public contracts (The Forge) | 30 min |
+| Cost indices | 2h |
+| Adjusted prices | 24h |
 | Ansiblex sync | 12h |
+| Purge notifications + historique marché | 1 jour |
+
+Les assets ne sont pas planifiés : sync à la demande (refresh, ou admin via `TriggerAssetsSync`).
 
 ---
 
@@ -184,10 +197,14 @@ new Patch(
 - V0.7 : i18n bilingue
 - V0.8 : Stack upgrade, Valuator/Appraisal, PHPStan 8, GDPR
 - V0.9 : Weighted Price + Open In-Game Window
-- V0.10 (en cours) : Market Browser, Profit Margins, Cost Estimation, BPC Kit
+- V0.10 : Market Browser, Notifications
+- V0.11 : Cost Estimation, Profit Margins, BPC Kit, Public Contracts
+- V0.12 : Industry Scanner, Slot Tracker, Stockpile
+- V0.13 : Group Industry, BPC Prices, Corp Assets Sharing, Scanner Favorites
+- Notifications Hub (partiel) : notifications in-app, push Web (Service Worker), alertes PI, jobs terminés, alertes prix
 
 ### Planifié
-- **Notifications Hub** : timers PI, jobs terminés, alertes prix, notifications ESI. Push via Service Workers.
+- **Notifications Hub — reste** : notifications ESI in-game (scope demandé, non consommé)
 - **Intel Map** : Carte 2D (pixi.js/d3.js), pathfinding Dijkstra (stargates + Ansiblex), overlays PI/industry/escalations
 - **Corp Projects Dashboard** : ESI `GET /corporations/{id}/projects/`, cursor-based pagination
 - **Simulateur PI** : Ranking profitabilité → Builder visuel → Templates importables JSON natif EVE
@@ -203,10 +220,8 @@ new Patch(
 
 ## Points en suspens
 
-- **Ansiblex** : `syncViaSearch()` implémenté. TODO : scheduler quotidien.
-- **Sessions PVE** : Feature supprimée. Ne pas implémenter `/api/pve/sessions/*`.
-- **Corp assets partagés** : Director sync les assets corpo, choisit les divisions visibles aux membres.
-- **Profit Tracker (legacy)** : Backend files conservés mais déconnectés de l'UI. Remplacé par Profit Margins.
+- **Ansiblex** : la sync planifiée (12h) passe par `syncFromCharacter()` (structures corpo du main). `syncViaSearch()` reste à la demande uniquement (`POST /api/me/ansiblex/discover`).
+- **Sessions PVE** : Feature supprimée (table `pve_sessions` supprimée). Ne pas implémenter `/api/pve/sessions/*`.
 
 ---
 
