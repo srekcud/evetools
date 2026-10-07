@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\ProjectStepResource;
 use App\ApiResource\Input\Industry\LinkJobInput;
+use App\Entity\CachedIndustryJob;
 use App\Entity\IndustryStepJobMatch;
 use App\Entity\User;
 use App\Repository\CachedIndustryJobRepository;
@@ -63,9 +64,9 @@ class LinkJobProcessor implements ProcessorInterface
         /** @var LinkJobInput $data */
         $esiJobId = $data->esiJobId;
 
-        // Validate that the job exists
+        // A job installed by another user's character is answered like an unknown job
         $job = $this->jobRepository->findByJobId($esiJobId);
-        if ($job === null) {
+        if ($job === null || !$this->isOwnedBy($job, $user)) {
             throw new BadRequestHttpException("ESI job {$esiJobId} not found");
         }
 
@@ -141,5 +142,10 @@ class LinkJobProcessor implements ProcessorInterface
         }
 
         return $this->mapper->stepToResource($step);
+    }
+
+    private function isOwnedBy(CachedIndustryJob $job, User $user): bool
+    {
+        return $job->getCharacter()->getUser() === $user;
     }
 }
