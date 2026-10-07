@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Constant\EveConstants;
+use App\Service\ESI\EsiClient;
 use Doctrine\DBAL\Connection;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
  * Service for syncing and caching Jita (The Forge) market prices.
@@ -25,8 +25,9 @@ class JitaMarketService
     private const CACHE_KEY_BUY = 'jita_market_buy_prices';
     private const CACHE_META_KEY = 'jita_market_meta';
     private const CACHE_TTL = 7200; // 2 hours
-    private const ESI_BASE_URL = 'https://esi.evetech.net/latest';
     private const MAX_ORDERS_PER_TYPE = 20;
+    private const SYNC_BATCH_SIZE = 20;
+    private const ON_DEMAND_BATCH_SIZE = 10;
     private const VOLUME_CACHE_PREFIX = 'jita_volume_';
     private const REGIONAL_VOLUME_CACHE_FORMAT = 'volume_%d_%d';
     private const REGIONAL_VOLUME_CACHE_FORMAT_PREFIX = 'volume_%d_';
@@ -36,7 +37,7 @@ class JitaMarketService
     private const ON_DEMAND_CACHE_TTL = 300; // 5 minutes
 
     public function __construct(
-        private readonly HttpClientInterface $httpClient,
+        private readonly EsiClient $esiClient,
         #[Autowire(service: 'structure_market.cache')]
         private readonly CacheItemPoolInterface $cache,
         private readonly Connection $connection,
@@ -409,66 +410,24 @@ class JitaMarketService
             'typeCount' => count($uncachedTypeIds),
         ]);
 
-        // Fetch from ESI in batches
-        $batchSize = 10;
-        $batches = array_chunk($uncachedTypeIds, $batchSize);
+        foreach (array_chunk($uncachedTypeIds, self::ON_DEMAND_BATCH_SIZE) as $batch) {
+            foreach ($this->fetchSuccessfulResponses($this->orderEndpoints($batch)) as $typeId => $orders) {
+                /** @var list<array<string, mixed>> $orders */
+                $orderBooks = $this->collectOrderBooks($orders);
 
-        foreach ($batches as $batch) {
-            $responses = [];
-
-            foreach ($batch as $typeId) {
-                $url = sprintf(
-                    '%s/markets/%d/orders/?order_type=all&type_id=%d',
-                    self::ESI_BASE_URL,
-                    self::THE_FORGE_REGION_ID,
-                    $typeId
-                );
-
-                try {
-                    $responses[$typeId] = $this->httpClient->request('GET', $url, [
-                        'timeout' => 15,
-                        'headers' => ['Accept' => 'application/json'],
-                    ]);
-                } catch (\Throwable $e) {
-                    $this->logger->debug('Failed to start on-demand market request', [
-                        'typeId' => $typeId,
-                        'error' => $e->getMessage(),
-                    ]);
+                if (!empty($orderBooks['sell'])) {
+                    $sellBooks[$typeId] = $orderBooks['sell'];
                 }
-            }
-
-            foreach ($responses as $typeId => $response) {
-                try {
-                    if ($response->getStatusCode() === 200) {
-                        /** @var list<array<string, mixed>> $orders */
-                        $orders = $response->toArray();
-                        $orderBooks = $this->collectOrderBooks($orders);
-
-                        if (!empty($orderBooks['sell'])) {
-                            $sellBooks[$typeId] = $orderBooks['sell'];
-                        }
-                        if (!empty($orderBooks['buy'])) {
-                            $buyBooks[$typeId] = $orderBooks['buy'];
-                        }
-
-                        // Cache per-type with short TTL
-                        $cacheItem = $this->cache->getItem(self::ON_DEMAND_CACHE_PREFIX . $typeId);
-                        $cacheItem->set($orderBooks);
-                        $cacheItem->expiresAfter(self::ON_DEMAND_CACHE_TTL);
-                        $this->cache->save($cacheItem);
-                    }
-                } catch (\Throwable $e) {
-                    $this->logger->debug('Failed to fetch on-demand price for type', [
-                        'typeId' => $typeId,
-                        'error' => $e->getMessage(),
-                    ]);
+                if (!empty($orderBooks['buy'])) {
+                    $buyBooks[$typeId] = $orderBooks['buy'];
                 }
+
+                // Cache per-type with short TTL
+                $cacheItem = $this->cache->getItem(self::ON_DEMAND_CACHE_PREFIX . $typeId);
+                $cacheItem->set($orderBooks);
+                $cacheItem->expiresAfter(self::ON_DEMAND_CACHE_TTL);
+                $this->cache->save($cacheItem);
             }
-
-            unset($responses);
-
-            // Small delay between batches to avoid rate limiting
-            usleep(50000); // 50ms
         }
 
         return ['sell' => $sellBooks, 'buy' => $buyBooks];
@@ -577,61 +536,24 @@ class JitaMarketService
             'typeCount' => count($uncachedTypeIds),
         ]);
 
-        // Fetch uncached types from ESI in batches
-        $batchSize = 10;
-        $batches = array_chunk($uncachedTypeIds, $batchSize);
-
-        foreach ($batches as $batch) {
-            $responses = [];
-
+        foreach (array_chunk($uncachedTypeIds, self::ON_DEMAND_BATCH_SIZE) as $batch) {
+            $endpoints = [];
             foreach ($batch as $typeId) {
-                $url = sprintf(
-                    '%s/markets/%d/history/?type_id=%d',
-                    self::ESI_BASE_URL,
-                    $regionId,
-                    $typeId
-                );
-
-                try {
-                    $responses[$typeId] = $this->httpClient->request('GET', $url, [
-                        'timeout' => 15,
-                        'headers' => ['Accept' => 'application/json'],
-                    ]);
-                } catch (\Throwable $e) {
-                    $this->logger->debug('Failed to start market history request', [
-                        'typeId' => $typeId,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
+                $endpoints[$typeId] = sprintf('/markets/%d/history/?type_id=%d', $regionId, $typeId);
             }
 
-            foreach ($responses as $typeId => $response) {
-                try {
-                    if ($response->getStatusCode() === 200) {
-                        /** @var list<array{date: string, order_count: int, volume: int, lowest: float, highest: float, average: float}> $history */
-                        $history = $response->toArray();
-                        $avgVolume = $this->computeAverageDailyVolume($history);
+            foreach ($this->fetchSuccessfulResponses($endpoints) as $typeId => $history) {
+                /** @var list<array{date: string, order_count: int, volume: int, lowest: float, highest: float, average: float}> $history */
+                $avgVolume = $this->computeAverageDailyVolume($history);
 
-                        $result[$typeId] = $avgVolume;
+                $result[$typeId] = $avgVolume;
 
-                        // Cache the result
-                        $cacheItem = $this->cache->getItem($cachePrefix . $typeId);
-                        $cacheItem->set($avgVolume);
-                        $cacheItem->expiresAfter(self::VOLUME_CACHE_TTL);
-                        $this->cache->save($cacheItem);
-                    }
-                } catch (\Throwable $e) {
-                    $this->logger->debug('Failed to fetch market history for type', [
-                        'typeId' => $typeId,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
+                // Cache the result
+                $cacheItem = $this->cache->getItem($cachePrefix . $typeId);
+                $cacheItem->set($avgVolume);
+                $cacheItem->expiresAfter(self::VOLUME_CACHE_TTL);
+                $this->cache->save($cacheItem);
             }
-
-            unset($responses);
-
-            // Small delay between batches to avoid rate limiting
-            usleep(50000); // 50ms
         }
 
         return $result;
@@ -1060,53 +982,20 @@ class JitaMarketService
     {
         $sellOrderBooks = [];
         $buyOrderBooks = [];
-        $batchSize = 20; // Concurrent requests
-        $batches = array_chunk($typeIds, $batchSize);
+        $batches = array_chunk($typeIds, self::SYNC_BATCH_SIZE);
         $totalBatches = count($batches);
 
         foreach ($batches as $batchIndex => $batch) {
-            $responses = [];
-
-            // Start parallel requests for this batch
-            foreach ($batch as $typeId) {
-                $url = sprintf(
-                    '%s/markets/%d/orders/?order_type=all&type_id=%d',
-                    self::ESI_BASE_URL,
-                    self::THE_FORGE_REGION_ID,
-                    $typeId
-                );
-                $responses[$typeId] = $this->httpClient->request('GET', $url, [
-                    'timeout' => 15,
-                    'headers' => ['Accept' => 'application/json'],
-                ]);
-            }
-
-            // Process responses
-            foreach ($responses as $typeId => $response) {
-                try {
-                    $statusCode = $response->getStatusCode();
-                    if ($statusCode === 200) {
-                        /** @var list<array<string, mixed>> $orders */
-                        $orders = $response->toArray();
-                        $orderBooks = $this->collectOrderBooks($orders);
-                        if (!empty($orderBooks['sell'])) {
-                            $sellOrderBooks[$typeId] = $orderBooks['sell'];
-                        }
-                        if (!empty($orderBooks['buy'])) {
-                            $buyOrderBooks[$typeId] = $orderBooks['buy'];
-                        }
-                    }
-                } catch (\Throwable $e) {
-                    // Skip failed requests
-                    $this->logger->debug('Failed to fetch price for type', [
-                        'typeId' => $typeId,
-                        'error' => $e->getMessage(),
-                    ]);
+            foreach ($this->fetchSuccessfulResponses($this->orderEndpoints($batch)) as $typeId => $orders) {
+                /** @var list<array<string, mixed>> $orders */
+                $orderBooks = $this->collectOrderBooks($orders);
+                if (!empty($orderBooks['sell'])) {
+                    $sellOrderBooks[$typeId] = $orderBooks['sell'];
+                }
+                if (!empty($orderBooks['buy'])) {
+                    $buyOrderBooks[$typeId] = $orderBooks['buy'];
                 }
             }
-
-            // Free memory
-            unset($responses);
 
             // Log progress every 10 batches
             if (($batchIndex + 1) % 10 === 0) {
@@ -1117,9 +1006,6 @@ class JitaMarketService
                     'buyTypesFound' => count($buyOrderBooks),
                 ]);
             }
-
-            // Small delay between batches to avoid rate limiting
-            usleep(100000); // 100ms
         }
 
         $this->logger->info('Jita price fetch completed', [
@@ -1129,6 +1015,36 @@ class JitaMarketService
         ]);
 
         return ['sell' => $sellOrderBooks, 'buy' => $buyOrderBooks];
+    }
+
+    /**
+     * Reads the endpoints concurrently; a type whose request failed is left out.
+     *
+     * @param array<int, string> $endpoints
+     * @return array<int, array<mixed>>
+     */
+    private function fetchSuccessfulResponses(array $endpoints): array
+    {
+        return array_filter(
+            $this->esiClient->getBatch($endpoints),
+            static fn (?array $responseBody): bool => $responseBody !== null,
+        );
+    }
+
+    /**
+     * The Forge order endpoints, keyed by type ID.
+     *
+     * @param int[] $typeIds
+     * @return array<int, string>
+     */
+    private function orderEndpoints(array $typeIds): array
+    {
+        $endpoints = [];
+        foreach ($typeIds as $typeId) {
+            $endpoints[$typeId] = sprintf('/markets/%d/orders/?order_type=all&type_id=%d', self::THE_FORGE_REGION_ID, $typeId);
+        }
+
+        return $endpoints;
     }
 
     /**

@@ -5,18 +5,18 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service;
 
 use App\Service\JitaMarketService;
-use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Cache\CacheItemInterface;
 use Psr\Cache\CacheItemPoolInterface;
-use Psr\Log\NullLogger;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Component\HttpClient\MockHttpClient;
 
 #[CoversClass(JitaMarketService::class)]
 class JitaMarketServiceTest extends TestCase
 {
+    use CreatesJitaMarketService;
+
     private CacheItemPoolInterface $cache;
     private JitaMarketService $service;
 
@@ -24,12 +24,8 @@ class JitaMarketServiceTest extends TestCase
     {
         $this->cache = $this->createStub(CacheItemPoolInterface::class);
 
-        $this->service = new JitaMarketService(
-            $this->createStub(HttpClientInterface::class),
-            $this->cache,
-            $this->createStub(Connection::class),
-            new NullLogger(),
-        );
+        // Cache-only tests: ESI is never called.
+        $this->service = $this->createJitaMarketService(new MockHttpClient(), 'https://esi.evetech.net/latest', $this->cache);
     }
 
     // ===========================================
