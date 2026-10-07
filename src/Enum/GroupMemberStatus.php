@@ -8,4 +8,5 @@ enum GroupMemberStatus: string
 {
     case Pending = 'pending';
     case Accepted = 'accepted';
+    case Removed = 'removed';
 }

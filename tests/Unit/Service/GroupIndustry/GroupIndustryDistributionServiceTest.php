@@ -11,6 +11,7 @@ use App\Entity\GroupIndustryProjectMember;
 use App\Entity\GroupIndustrySale;
 use App\Entity\User;
 use App\Enum\ContributionType;
+use App\Enum\GroupMemberStatus;
 use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustrySaleRepository;
 use App\Service\GroupIndustry\DistributionResult;
@@ -437,6 +438,48 @@ class GroupIndustryDistributionServiceTest extends TestCase
         $aliceDist = $result->members[0];
         self::assertSame(500.0, $aliceDist->profitPart);
         self::assertSame(1_000.0, $aliceDist->payoutTotal);
+    }
+
+    // Issue #10: a kicked member keeps the payout of his approved contributions
+    public function testRemovedMemberApprovedContributionStillProducesPayout(): void
+    {
+        $project = $this->stubProject(0.0, 0.0);
+
+        $alice = $this->stubMember('Alice', '00000000-0000-0000-0000-000000000001');
+        $alice->method('getStatus')->willReturn(GroupMemberStatus::Accepted);
+        $removedBob = $this->stubMember('Bob', '00000000-0000-0000-0000-000000000002');
+        $removedBob->method('getStatus')->willReturn(GroupMemberStatus::Removed);
+
+        $contributions = [
+            $this->stubContribution($alice, ContributionType::Material, 600_000.0),
+            $this->stubContribution($removedBob, ContributionType::Material, 300_000.0),
+            $this->stubContribution($removedBob, ContributionType::JobInstall, 100_000.0),
+        ];
+
+        // Revenue 1,500,000, no fees -> net 1,500,000
+        // Total cost 1,000,000 -> margin 50%
+        // Bob (removed): 400,000 x 1.5 = 600,000 ; Alice: 600,000 x 1.5 = 900,000
+        $sales = [$this->stubSale(1_500_000.0)];
+
+        $this->configureRepositories($project, $sales, $contributions);
+
+        $result = $this->service->calculateDistribution($project);
+
+        self::assertSame(1_000_000.0, $result->totalProjectCost);
+        self::assertEqualsWithDelta(50.0, $result->marginPercent, 0.0001);
+        self::assertCount(2, $result->members);
+
+        $bobDist = $this->findMember($result, '00000000-0000-0000-0000-000000000002');
+        self::assertSame('Bob', $bobDist->characterName);
+        self::assertSame(400_000.0, $bobDist->totalCostsEngaged);
+        self::assertSame(300_000.0, $bobDist->materialCosts);
+        self::assertSame(100_000.0, $bobDist->jobInstallCosts);
+        self::assertEqualsWithDelta(40.0, $bobDist->sharePercent, 0.0001);
+        self::assertEqualsWithDelta(200_000.0, $bobDist->profitPart, 0.01);
+        self::assertEqualsWithDelta(600_000.0, $bobDist->payoutTotal, 0.01);
+
+        $aliceDist = $this->findMember($result, '00000000-0000-0000-0000-000000000001');
+        self::assertEqualsWithDelta(900_000.0, $aliceDist->payoutTotal, 0.01);
     }
 
     public function testMemberWithNoMainCharacterShowsUnknown(): void

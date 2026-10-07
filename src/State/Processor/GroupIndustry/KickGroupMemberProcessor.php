@@ -8,7 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
-use App\Repository\GroupIndustryContributionRepository;
+use App\Enum\GroupMemberStatus;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
 use App\Service\Mercure\MercurePublisherService;
@@ -32,7 +32,6 @@ class KickGroupMemberProcessor implements ProcessorInterface
         private readonly EntityManagerInterface $entityManager,
         private readonly GroupProjectAccessChecker $accessChecker,
         private readonly MercurePublisherService $mercurePublisher,
-        private readonly GroupIndustryContributionRepository $contributionRepository,
     ) {
     }
 
@@ -73,11 +72,10 @@ class KickGroupMemberProcessor implements ProcessorInterface
             throw new BadRequestHttpException('Cannot kick yourself, use leave instead');
         }
 
-        if ($this->contributionRepository->countByMember($member) > 0) {
-            throw new BadRequestHttpException('Cannot kick: member has contributions in this project');
-        }
+        // Soft removal: the row is kept so the member's contributions (CASCADE on member) survive
+        $member->setStatus(GroupMemberStatus::Removed);
+        $this->entityManager->flush();
 
-        // Publish before remove so we still have access to member data
         $this->mercurePublisher->publishGroupProjectEvent(
             $project->getId()->toRfc4122(),
             'member_left',
@@ -86,8 +84,5 @@ class KickGroupMemberProcessor implements ProcessorInterface
                 'characterName' => $member->getUser()->getMainCharacter()?->getName() ?? 'Unknown',
             ],
         );
-
-        $this->entityManager->remove($member);
-        $this->entityManager->flush();
     }
 }

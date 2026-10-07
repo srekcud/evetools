@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\Entity\User;
+use App\Enum\GroupMemberStatus;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -43,10 +44,11 @@ class GroupProjectProvider implements ProviderInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        // Check access: must be a member OR same corporation as owner
+        // Check access: must be an accepted member OR same corporation as owner
         $membership = $this->memberRepository->findOneBy([
             'project' => $project,
             'user' => $user,
+            'status' => GroupMemberStatus::Accepted,
         ]);
 
         if ($membership === null) {

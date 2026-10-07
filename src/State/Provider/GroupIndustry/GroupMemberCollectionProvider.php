@@ -10,6 +10,7 @@ use App\ApiResource\GroupIndustry\GroupIndustryMemberResource;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
+use App\Enum\GroupMemberStatus;
 use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
@@ -56,7 +57,10 @@ class GroupMemberCollectionProvider implements ProviderInterface
 
         $this->accessChecker->assertAcceptedMember($user, $project);
 
-        $members = $this->memberRepository->findBy(['project' => $project]);
+        $members = $this->memberRepository->findBy([
+            'project' => $project,
+            'status' => [GroupMemberStatus::Accepted, GroupMemberStatus::Pending],
+        ]);
 
         // Pre-load approved contributions for all members in one query
         $approvedContributions = $this->contributionRepository->findBy([
