@@ -14,9 +14,15 @@ final class CachedIndustryJobRepositoryTest extends IntegrationTestCase
     private const int BLUEPRINT_TYPE_ID = 1_000_001;
     private const int OTHER_BLUEPRINT_TYPE_ID = 1_000_002;
     private const int ACTIVITY_MANUFACTURING = 1;
+    private const int ACTIVITY_RESEARCH_TIME = 3;
+    private const int ACTIVITY_RESEARCH_MATERIAL = 4;
+    private const int ACTIVITY_COPYING = 5;
+    private const int ACTIVITY_REVERSE_ENGINEERING = 7;
     private const int ACTIVITY_INVENTION = 8;
-    private const int ACTIVITY_REACTION = 9;
-    private const int ACTIVITY_REVERSE_ENGINEERING = 11;
+    // ESI /characters/{id}/industry/jobs/ reports reactions as activity 9 (observed on every
+    // cached reaction job), while the SDE stores the same blueprints under activity 11.
+    private const int ACTIVITY_REACTION_ESI = 9;
+    private const int ACTIVITY_REACTION_SDE = 11;
 
     private CachedIndustryJobRepository $repository;
     private Character $character;
@@ -48,21 +54,27 @@ final class CachedIndustryJobRepositoryTest extends IntegrationTestCase
         self::assertSame([1], $this->runsOf($this->find()));
     }
 
-    public function testKeepsManufacturingReactionAndReverseEngineeringActivities(): void
+    public function testKeepsManufacturingAndReactionActivities(): void
     {
         $this->createJob(startDate: '2026-03-01', activityId: self::ACTIVITY_MANUFACTURING);
-        $this->createJob(startDate: '2026-03-02', activityId: self::ACTIVITY_REACTION);
-        $this->createJob(startDate: '2026-03-03', activityId: self::ACTIVITY_REVERSE_ENGINEERING);
+        $this->createJob(startDate: '2026-03-02', activityId: self::ACTIVITY_REACTION_ESI);
+        $this->createJob(startDate: '2026-03-03', activityId: self::ACTIVITY_REACTION_SDE);
         $this->flushAndClear();
 
-        $activities = array_map(static fn (CachedIndustryJob $job) => $job->getActivityId(), $this->find());
-
-        self::assertSame([self::ACTIVITY_MANUFACTURING, self::ACTIVITY_REACTION, self::ACTIVITY_REVERSE_ENGINEERING], $activities);
+        self::assertSame(
+            [self::ACTIVITY_MANUFACTURING, self::ACTIVITY_REACTION_ESI, self::ACTIVITY_REACTION_SDE],
+            $this->activitiesOf($this->find()),
+        );
     }
 
-    public function testExcludesInventionJobs(): void
+    public function testExcludesResearchCopyingInventionAndReverseEngineeringJobsOfTheSameBlueprint(): void
     {
-        // CARACTÉRISATION : comportement actuel, l'invention (activité 8) n'est pas matchée, cf. issue #60
+        // Invention and copy jobs are installed on the T1 blueprint the manufacturing step uses:
+        // they must not cover manufacturing runs. Projects have no invention step (cf. issue #60).
+        $this->createJob(activityId: self::ACTIVITY_RESEARCH_TIME);
+        $this->createJob(activityId: self::ACTIVITY_RESEARCH_MATERIAL);
+        $this->createJob(activityId: self::ACTIVITY_COPYING);
+        $this->createJob(activityId: self::ACTIVITY_REVERSE_ENGINEERING);
         $this->createJob(activityId: self::ACTIVITY_INVENTION);
         $this->flushAndClear();
 
@@ -102,16 +114,24 @@ final class CachedIndustryJobRepositoryTest extends IntegrationTestCase
         self::assertSame([10], $this->runsOf($this->find(targetRuns: 10)));
     }
 
-    public function testReturnsCancelledJobs(): void
+    public function testExcludesCancelledJobs(): void
     {
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #4
-        $this->createJob(status: 'cancelled');
+        // A cancelled job never produced anything, cf. issue #4
+        $this->createJob(runs: 4, status: 'cancelled');
+        $this->createJob(runs: 6, status: 'active');
         $this->flushAndClear();
 
-        $jobs = $this->find();
+        self::assertSame([6], $this->runsOf($this->find()));
+    }
 
-        self::assertCount(1, $jobs);
-        self::assertSame('cancelled', $jobs[0]->getStatus());
+    public function testKeepsActiveReadyAndDeliveredJobs(): void
+    {
+        $this->createJob(startDate: '2026-03-01', runs: 1, status: 'active');
+        $this->createJob(startDate: '2026-03-02', runs: 2, status: 'ready');
+        $this->createJob(startDate: '2026-03-03', runs: 3, status: 'delivered');
+        $this->flushAndClear();
+
+        self::assertSame([1, 2, 3], $this->runsOf($this->find()));
     }
 
     /**
@@ -135,6 +155,16 @@ final class CachedIndustryJobRepositoryTest extends IntegrationTestCase
     private function runsOf(array $jobs): array
     {
         return array_values(array_map(static fn (CachedIndustryJob $job) => $job->getRuns(), $jobs));
+    }
+
+    /**
+     * @param CachedIndustryJob[] $jobs
+     *
+     * @return list<int>
+     */
+    private function activitiesOf(array $jobs): array
+    {
+        return array_values(array_map(static fn (CachedIndustryJob $job) => $job->getActivityId(), $jobs));
     }
 
     private function createJob(

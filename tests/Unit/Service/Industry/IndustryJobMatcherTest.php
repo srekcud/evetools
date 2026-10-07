@@ -670,11 +670,9 @@ class IndustryJobMatcherTest extends TestCase
     // Job status (issue #4)
     // ===========================================
 
-    public function testCancelledJobIsMatchedAndCoversStepRunsInsteadOfActiveJob(): void
+    public function testCancelledJobIsIgnoredAndActiveJobIsMatched(): void
     {
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #4
-        // The matcher does not look at the status: a cancelled job returned by the repository
-        // is matched, consumes the step runs, and the later active job is left out.
+        // A cancelled job never produced anything: it must not cover the step runs.
         $step = $this->createStep(runs: 10, quantity: 10);
         $project = $this->createProject($step);
         $this->givenJobsForBlueprint(
@@ -685,15 +683,32 @@ class IndustryJobMatcherTest extends TestCase
 
         $this->matcher->matchEsiJobs($project);
 
-        $this->assertSame([5001], $this->matchedJobIds($step));
-        $this->assertSame('cancelled', $step->getJobMatches()->first()->getStatus());
+        $this->assertSame([5002], $this->matchedJobIds($step));
+        $this->assertSame('active', $step->getJobMatches()->first()->getStatus());
         $this->assertSame(10, $step->getRuns());
     }
 
-    public function testCancelledJobInAnotherStructureStillSwitchesStepStructure(): void
+    public function testCancelledOversizedJobIsNotUsedAsFallback(): void
     {
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #4
-        // A cancelled job never ran, yet its facility drives the step structure auto-correction.
+        $step = $this->createStep(runs: 10, quantity: 10);
+        $project = $this->createProject($step);
+        $this->givenJobsForBlueprint(
+            self::BLUEPRINT_TYPE_ID,
+            $this->createJob(jobId: 5001, runs: 20, status: 'cancelled'),
+        );
+
+        $this->stepCalculator->expects($this->never())->method('recalculateStepQuantities');
+
+        $this->matcher->matchEsiJobs($project);
+
+        $this->assertSame([], $this->matchedJobIds($step));
+        $this->assertSame(10, $step->getRuns());
+        $this->assertSame(10, $step->getQuantity());
+    }
+
+    public function testCancelledJobInAnotherStructureDoesNotSwitchStepStructure(): void
+    {
+        // A cancelled job never ran: its facility must not drive the step structure auto-correction.
         $plannedStructure = $this->createStructureConfig('Planned Raitaru', self::STRUCTURE_LOCATION_ID);
         $actualStructure = $this->createStructureConfig('Actual Azbel', self::OTHER_STRUCTURE_LOCATION_ID);
         $step = $this->createStep(runs: 10, quantity: 10);
@@ -702,18 +717,19 @@ class IndustryJobMatcherTest extends TestCase
         $this->givenJobsForBlueprint(
             self::BLUEPRINT_TYPE_ID,
             $this->createJob(jobId: 5001, runs: 10, status: 'cancelled', stationId: self::OTHER_STRUCTURE_LOCATION_ID),
+            $this->createJob(jobId: 5002, runs: 10, status: 'active', stationId: self::STRUCTURE_LOCATION_ID),
         );
         $this->structureConfigRepository->method('findByUserAndLocationId')->willReturn($actualStructure);
         $this->calculationService->method('getStructureBonusForStep')
             ->willReturn(['materialBonus' => ['total' => 2.4]]);
 
-        $this->stepCalculator->expects($this->once())->method('recalculateStepQuantities')->with($project);
+        $this->stepCalculator->expects($this->never())->method('recalculateStepQuantities');
 
         $this->matcher->matchEsiJobs($project);
 
-        $this->assertSame([5001], $this->matchedJobIds($step));
-        $this->assertSame($actualStructure, $step->getStructureConfig());
-        $this->assertSame('Planned Raitaru', $step->getJobMatches()->first()->getPlannedStructureName());
+        $this->assertSame([5002], $this->matchedJobIds($step));
+        $this->assertSame($plannedStructure, $step->getStructureConfig());
+        $this->assertNull($step->getJobMatches()->first()->getPlannedStructureName());
     }
 
     // ===========================================
@@ -776,11 +792,9 @@ class IndustryJobMatcherTest extends TestCase
         $this->assertSame([], $this->matchedJobIds($step));
     }
 
-    public function testStepWithJobMatchModeManualIsAutoMatchedAndLosesItsManualLink(): void
+    public function testStepWithJobMatchModeManualKeepsItsManualLinkAndGetsNoAutomaticMatch(): void
     {
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #58
-        // 'manual' is not skipped: the manually linked job (LinkJobProcessor) is removed and
-        // replaced by whatever the automatic matching finds.
+        // The job linked by hand (LinkJobProcessor) survives a re-match; no automatic job is added.
         $step = $this->createStep(runs: 10, quantity: 10);
         $step->setJobMatchMode('manual');
         $manualLink = $this->createExistingMatch(esiJobId: 7777, runs: 10);
@@ -788,11 +802,35 @@ class IndustryJobMatcherTest extends TestCase
         $project = $this->createProject($step);
         $this->givenJobsForBlueprint(self::BLUEPRINT_TYPE_ID, $this->createJob(jobId: 5001, runs: 10));
 
-        $this->entityManager->expects($this->once())->method('remove')->with($manualLink);
+        $this->entityManager->expects($this->never())->method('remove');
+        $this->stepCalculator->expects($this->never())->method('recalculateStepQuantities');
 
         $this->matcher->matchEsiJobs($project);
 
-        $this->assertSame([5001], $this->matchedJobIds($step));
+        $this->assertSame([7777], $this->matchedJobIds($step));
+        $this->assertSame(10, $step->getRuns());
+        $this->assertSame(10, $step->getQuantity());
+    }
+
+    public function testJobManuallyLinkedToManualStepIsNotAutoMatchedToAnotherStepOfTheProject(): void
+    {
+        // Split steps share a blueprint: the job kept on the manual step must not be matched twice,
+        // even when the auto step comes first in the project.
+        $manualStep = $this->createStep(runs: 10, quantity: 10);
+        $manualStep->setJobMatchMode('manual');
+        $manualStep->addJobMatch($this->createExistingMatch(esiJobId: 5001, runs: 10));
+        $autoStep = $this->createStep(runs: 10, quantity: 10);
+        $project = $this->createProject($autoStep, $manualStep);
+        $this->givenJobsForBlueprint(
+            self::BLUEPRINT_TYPE_ID,
+            $this->createJob(jobId: 5001, runs: 10),
+            $this->createJob(jobId: 5002, runs: 10),
+        );
+
+        $this->matcher->matchEsiJobs($project);
+
+        $this->assertSame([5001], $this->matchedJobIds($manualStep));
+        $this->assertSame([5002], $this->matchedJobIds($autoStep));
     }
 
     /**
@@ -804,6 +842,7 @@ class IndustryJobMatcherTest extends TestCase
             'purchased step' => ['purchased'],
             'copy step' => ['copy'],
             'jobMatchMode none' => ['none'],
+            'jobMatchMode manual' => ['manual'],
         ];
     }
 
@@ -818,8 +857,8 @@ class IndustryJobMatcherTest extends TestCase
         if ($skipReason === 'purchased') {
             $skippedStep->setPurchased(true);
         }
-        if ($skipReason === 'none') {
-            $skippedStep->setJobMatchMode('none');
+        if ($skipReason === 'none' || $skipReason === 'manual') {
+            $skippedStep->setJobMatchMode($skipReason);
         }
         $followingStep = $this->createStep(runs: 3, quantity: 3, blueprintTypeId: self::OTHER_BLUEPRINT_TYPE_ID);
         $project = $this->createProject($skippedStep, $followingStep);

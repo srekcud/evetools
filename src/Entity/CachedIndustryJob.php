@@ -18,6 +18,8 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(columns: ['status'])]
 class CachedIndustryJob
 {
+    public const string STATUS_CANCELLED = 'cancelled';
+
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     #[ORM\GeneratedValue(strategy: 'CUSTOM')]
@@ -160,6 +162,11 @@ class CachedIndustryJob
     {
         $this->status = $status;
         return $this;
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->status === self::STATUS_CANCELLED;
     }
 
     public function getStartDate(): \DateTimeImmutable

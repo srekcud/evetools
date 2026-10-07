@@ -72,8 +72,10 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
             ->where('j.blueprintTypeId = :bpId')
             ->andWhere('j.activityId IN (1, 9, 11)')
             ->andWhere('j.character IN (:chars)')
+            ->andWhere('j.status != :cancelled')
             ->setParameter('bpId', $blueprintTypeId)
-            ->setParameter('chars', $characterIds);
+            ->setParameter('chars', $characterIds)
+            ->setParameter('cancelled', CachedIndustryJob::STATUS_CANCELLED);
 
         if ($startedAfter !== null) {
             $qb->andWhere('j.startDate >= :startedAfter')

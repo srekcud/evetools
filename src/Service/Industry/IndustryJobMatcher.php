@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Industry;
 
+use App\Entity\CachedIndustryJob;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStepJobMatch;
@@ -18,10 +19,14 @@ use Doctrine\ORM\EntityManagerInterface;
  *
  * Uses a greedy approach: for each step, finds all jobs for that blueprint
  * and assigns them until the step's runs are covered. Jobs already assigned
- * to another step are skipped to avoid double-matching.
+ * to another step are skipped to avoid double-matching. Cancelled jobs are ignored,
+ * and steps in 'manual' mode keep their hand-linked jobs, which no other step may take.
  */
 class IndustryJobMatcher
 {
+    private const string JOB_MATCH_MODE_MANUAL = 'manual';
+    private const string JOB_MATCH_MODE_NONE = 'none';
+
     public function __construct(
         private readonly IndustryStepCalculator $stepCalculator,
         private readonly IndustryCalculationService $calculationService,
@@ -46,47 +51,29 @@ class IndustryJobMatcher
 
         $projectStartDate = $project->getEffectiveJobsStartDate();
 
-        // Clear all previous matches first
-        foreach ($project->getSteps() as $step) {
-            foreach ($step->getJobMatches()->toArray() as $match) {
-                $step->getJobMatches()->removeElement($match);
-                $this->entityManager->remove($match);
-            }
-        }
+        $this->clearAutomaticMatches($project);
         $this->entityManager->flush();
 
-        // Collect ESI job IDs already matched to OTHER projects (avoid double-matching)
-        $assignedJobIds = [];
-        $otherMatches = $this->entityManager->createQuery(
-            'SELECT m.esiJobId FROM App\Entity\IndustryStepJobMatch m
-             JOIN m.step s
-             WHERE s.project != :project'
-        )->setParameter('project', $project)->getScalarResult();
-
-        foreach ($otherMatches as $row) {
-            $assignedJobIds[$row['esiJobId']] = true;
-        }
+        // Jobs matched to other projects or reserved by a manual link must not be matched again
+        $assignedJobIds = array_flip([
+            ...$this->jobIdsMatchedToOtherProjects($project),
+            ...$this->jobIdsReservedByManualSteps($project),
+        ]);
 
         $stepsToRecalculate = false;
 
         foreach ($project->getSteps() as $step) {
-            if ($step->isPurchased()) {
-                continue;
-            }
-            if ($step->getActivityType() === 'copy') {
-                continue;
-            }
-            if ($step->getJobMatchMode() === 'none') {
+            if (!$this->isAutoMatchable($step)) {
                 continue;
             }
 
             // Find all jobs for this blueprint (no run count filter)
-            $jobs = $this->jobRepository->findManufacturingJobsByBlueprint(
+            $jobs = $this->withoutCancelledJobs($this->jobRepository->findManufacturingJobsByBlueprint(
                 $step->getBlueprintTypeId(),
                 $characterIds,
                 null,
                 $projectStartDate,
-            );
+            ));
 
             if (empty($jobs)) {
                 continue;
@@ -112,7 +99,7 @@ class IndustryJobMatcher
                 $assignedJobIds[$jobId] = true;
                 $remainingRuns -= $job->getRuns();
 
-                $match = $this->createJobMatch($job, $step, $project, $assignedJobIds, $stepsToRecalculate);
+                $match = $this->createJobMatch($job, $step, $project, $stepsToRecalculate);
                 $step->addJobMatch($match);
             }
 
@@ -129,7 +116,7 @@ class IndustryJobMatcher
 
                     $assignedJobIds[$jobId] = true;
 
-                    $match = $this->createJobMatch($job, $step, $project, $assignedJobIds, $stepsToRecalculate);
+                    $match = $this->createJobMatch($job, $step, $project, $stepsToRecalculate);
                     $step->addJobMatch($match);
                     break; // Only one fallback job
                 }
@@ -154,6 +141,73 @@ class IndustryJobMatcher
     }
 
     /**
+     * Manual steps keep the jobs linked by hand: only automatic matches are recomputed.
+     */
+    private function clearAutomaticMatches(IndustryProject $project): void
+    {
+        $automaticSteps = $project->getSteps()->filter(
+            fn (IndustryProjectStep $step): bool => !$this->isManuallyMatched($step),
+        );
+        foreach ($automaticSteps as $step) {
+            foreach ($step->getJobMatches()->toArray() as $match) {
+                $step->getJobMatches()->removeElement($match);
+                $this->entityManager->remove($match);
+            }
+        }
+    }
+
+    /**
+     * @return iterable<int>
+     */
+    private function jobIdsMatchedToOtherProjects(IndustryProject $project): iterable
+    {
+        $otherMatches = $this->entityManager->createQuery(
+            'SELECT m.esiJobId FROM App\Entity\IndustryStepJobMatch m
+             JOIN m.step s
+             WHERE s.project != :project'
+        )->setParameter('project', $project)->getScalarResult();
+
+        return array_column($otherMatches, 'esiJobId');
+    }
+
+    /**
+     * @return iterable<int>
+     */
+    private function jobIdsReservedByManualSteps(IndustryProject $project): iterable
+    {
+        foreach ($project->getSteps()->filter($this->isManuallyMatched(...)) as $step) {
+            foreach ($step->getJobMatches() as $match) {
+                yield $match->getEsiJobId();
+            }
+        }
+    }
+
+    private function isManuallyMatched(IndustryProjectStep $step): bool
+    {
+        return $step->getJobMatchMode() === self::JOB_MATCH_MODE_MANUAL;
+    }
+
+    private function isAutoMatchable(IndustryProjectStep $step): bool
+    {
+        return !$step->isPurchased()
+            && $step->getActivityType() !== 'copy'
+            && $step->getJobMatchMode() !== self::JOB_MATCH_MODE_NONE
+            && !$this->isManuallyMatched($step);
+    }
+
+    /**
+     * A cancelled job never produced anything: it can neither cover runs nor drive the structure.
+     *
+     * @param CachedIndustryJob[] $jobs
+     *
+     * @return CachedIndustryJob[]
+     */
+    private function withoutCancelledJobs(array $jobs): array
+    {
+        return array_filter($jobs, static fn (CachedIndustryJob $job): bool => !$job->isCancelled());
+    }
+
+    /**
      * Adapt a step's runs and quantity to match the total runs from linked jobs.
      */
     private function adaptStepRuns(IndustryProjectStep $step, int $newRuns): void
@@ -174,14 +228,11 @@ class IndustryJobMatcher
 
     /**
      * Create a job match entity from a cached ESI job, with facility auto-correction.
-     *
-     * @param array<int, bool> $assignedJobIds
      */
     private function createJobMatch(
-        \App\Entity\CachedIndustryJob $job,
+        CachedIndustryJob $job,
         IndustryProjectStep $step,
         IndustryProject $project,
-        array &$assignedJobIds,
         bool &$stepsToRecalculate,
     ): IndustryStepJobMatch {
         $match = new IndustryStepJobMatch();
