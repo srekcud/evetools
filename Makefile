@@ -43,11 +43,13 @@ test-integration: ## Run integration tests (requires: make test-db)
 	docker compose exec app php bin/phpunit --no-coverage --testsuite=Integration
 
 # Migrations cannot replay on an empty database (Version20260223100944 drops a
-# missing index), so the test schema is built from the entity mapping.
+# missing index), so the test schema is built from the entity mapping. Functional
+# indexes cannot be mapped: they are copied from their migration (Version20261007120000).
 test-db: ## (Re)create the test database (eve_app_test) and its schema
 	docker compose exec app php bin/console doctrine:database:drop --env=test --if-exists --force
 	docker compose exec app php bin/console doctrine:database:create --env=test
 	docker compose exec app php bin/console doctrine:schema:create --env=test
+	docker compose exec app php bin/console dbal:run-sql --env=test "CREATE INDEX IF NOT EXISTS idx_sde_inv_types_lower_type_name ON sde_inv_types (LOWER(type_name))"
 
 test-coverage: ## Run tests with coverage
 	docker compose exec app php bin/phpunit --coverage-html var/coverage
