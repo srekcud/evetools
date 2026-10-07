@@ -15,8 +15,8 @@ class SyncTracker
     private const CACHE_TTL = 86400 * 7; // 7 days
     private const TRIGGERED_TTL = 3600; // 1h max
 
+    /** Must match the recurring messages of App\Scheduler\SyncScheduler. */
     public const EXPECTED_INTERVALS = [
-        'assets' => 1800,           // 30 min
         'industry' => 1800,         // 30 min
         'pve' => 3600,              // 1h
         'wallet' => 3600,           // 1h
@@ -25,10 +25,19 @@ class SyncTracker
         'planetary' => 1800,        // 30 min
         'market-jita' => 3600,      // 1h
         'market-structure' => 3600, // 1h
-        'market-alerts' => 7200,    // 2h
         'alert-prices' => 1800,     // 30 min
+        'adjusted-prices' => 86400, // 24h
+        'cost-indices' => 7200,     // 2h
         'public-contracts' => 1800, // 30 min
     ];
+
+    /** Not scheduled, only triggered manually: their last run is shown but no health is computed. */
+    public const ON_DEMAND = [
+        'assets',
+        'market-alerts',
+    ];
+
+    private const ON_DEMAND_HEALTH = 'on-demand';
 
     private const LABELS = [
         'assets' => 'Assets',
@@ -42,6 +51,8 @@ class SyncTracker
         'market-structure' => 'Market Structure',
         'market-alerts' => 'Market Alerts',
         'alert-prices' => 'Alert Price Refresh',
+        'adjusted-prices' => 'Adjusted Prices',
+        'cost-indices' => 'Cost Indices',
         'public-contracts' => 'Public Contracts',
     ];
 
@@ -114,21 +125,34 @@ class SyncTracker
 
         foreach (self::EXPECTED_INTERVALS as $type => $interval) {
             $state = $this->getState($type);
-            $health = $this->computeHealth($state, $interval);
+            $result[] = $this->buildEntry($type, $state, $this->computeHealth($state, $interval), $interval);
+        }
 
-            $result[] = [
-                'type' => $type,
-                'label' => self::LABELS[$type],
-                'status' => $state['status'] ?? 'unknown',
-                'health' => $health,
-                'started_at' => $state['started_at'] ?? null,
-                'completed_at' => $state['completed_at'] ?? null,
-                'message' => $state['message'] ?? null,
-                'expected_interval' => $interval,
-            ];
+        foreach (self::ON_DEMAND as $type) {
+            $result[] = $this->buildEntry($type, $this->getState($type), self::ON_DEMAND_HEALTH, null);
         }
 
         return $result;
+    }
+
+    /**
+     * @param array<string, mixed> $state
+     *
+     * @return array<string, mixed>
+     */
+    private function buildEntry(string $type, array $state, string $health, ?int $expectedInterval): array
+    {
+        return [
+            'type' => $type,
+            'label' => self::LABELS[$type],
+            'status' => $state['status'] ?? 'unknown',
+            'health' => $health,
+            'started_at' => $state['started_at'] ?? null,
+            'completed_at' => $state['completed_at'] ?? null,
+            'message' => $state['message'] ?? null,
+            'expected_interval' => $expectedInterval,
+            'on_demand' => $expectedInterval === null,
+        ];
     }
 
     /** @param array<string, mixed> $state */

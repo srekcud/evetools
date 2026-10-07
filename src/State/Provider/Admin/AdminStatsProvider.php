@@ -118,7 +118,8 @@ class AdminStatsProvider implements ProviderInterface
                 $entry['started_at'] ?? null,
                 $entry['completed_at'] ?? null,
                 $entry['message'] ?? null,
-                $entry['expected_interval'] ?? 0,
+                $entry['expected_interval'],
+                $entry['on_demand'],
             ),
             $stats['schedulerHealth'] ?? []
         );

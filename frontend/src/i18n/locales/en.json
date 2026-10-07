@@ -1638,7 +1638,9 @@
       "stale": "Stale (>3x interval)",
       "staleShort": "Stale",
       "unknown": "Unknown",
-      "neverRun": "Never run"
+      "neverRun": "Never run",
+      "onDemand": "On demand",
+      "onDemandHint": "On demand (not scheduled)"
     },
     "scheduler": {
       "title": "Scheduler & Rate Limiting",

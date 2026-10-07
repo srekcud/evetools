@@ -23,6 +23,7 @@ services:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-eve_user}:${POSTGRES_PASSWORD:-eve_pass}@postgres:5432/${POSTGRES_DB:-eve_app}?serverVersion=16&charset=utf8
       - MESSENGER_TRANSPORT_DSN=amqp://${RABBITMQ_USER:-eve_user}:${RABBITMQ_PASSWORD:-eve_pass}@rabbitmq:5672/%2f/messages
       - REDIS_URL=redis://redis:6379
+      - LOCK_DSN=redis://redis:6379
       - JWT_SECRET_KEY=%kernel.project_dir%/config/jwt/private.pem
       - JWT_PUBLIC_KEY=%kernel.project_dir%/config/jwt/public.pem
       - JWT_PASSPHRASE=${JWT_PASSPHRASE:-!ChangeMe!}
@@ -61,6 +62,7 @@ services:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-eve_user}:${POSTGRES_PASSWORD:-eve_pass}@postgres:5432/${POSTGRES_DB:-eve_app}?serverVersion=16&charset=utf8
       - MESSENGER_TRANSPORT_DSN=amqp://${RABBITMQ_USER:-eve_user}:${RABBITMQ_PASSWORD:-eve_pass}@rabbitmq:5672/%2f/messages
       - REDIS_URL=redis://redis:6379
+      - LOCK_DSN=redis://redis:6379
       - EVE_CLIENT_ID=${EVE_CLIENT_ID:-}
       - EVE_CLIENT_SECRET=${EVE_CLIENT_SECRET:-}
       - ESI_BASE_URL=https://esi.evetech.net/latest
