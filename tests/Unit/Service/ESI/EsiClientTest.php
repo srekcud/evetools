@@ -24,11 +24,9 @@ use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Note on sleeping: EsiClient calls sleep() directly. A 420 retry sleeps
- * max(X-Esi-Error-Limit-Reset, 1) = 1 s, so each 420 scenario costs 1 s.
- * 429 scenarios use Retry-After: 0. Error-limit-remain is kept at 100 so
- * throttleIfNeeded() never sleeps, except in the getBatch() error-limit test
- * which sets it to 19 on purpose (one 100 ms pause).
+ * Note on waiting (issue #83): every EsiClient is built with a MockClock, so a wait
+ * advances that clock instead of pausing the suite; waitedMicroseconds() measures it.
+ * Error-limit-remain is kept at 100 by default so requests are not throttled.
  */
 #[CoversClass(EsiClient::class)]
 final class EsiClientTest extends TestCase
@@ -42,6 +40,10 @@ final class EsiClientTest extends TestCase
 
     /** @var list<string> "request <path>" when a request is launched, "read <path>" when its body is consumed */
     private array $esiEvents = [];
+
+    private MockClock $esiClock;
+
+    private \DateTimeImmutable $esiClockStart;
 
     // ---------------------------------------------------------------
     // GREEN guards: current correct behavior
@@ -117,6 +119,8 @@ final class EsiClientTest extends TestCase
             [self::BASE_URL . '/universe/systems/30000142/', self::BASE_URL . '/universe/systems/30000142/'],
             array_column($this->recordedRequests, 'url'),
         );
+        // Error-limit reset 0 s: one wait of the 1 s floor, on the clock.
+        $this->assertSame(1_000_000, $this->waitedMicroseconds());
     }
 
     public function testGetThrowsAfterSecondConsecutive420(): void
@@ -134,6 +138,8 @@ final class EsiClientTest extends TestCase
             $this->assertSame('Error limited', $exception->getMessage());
         }
         $this->assertCount(2, $this->recordedRequests);
+        // A single wait: the second 420 is not waited for.
+        $this->assertSame(1_000_000, $this->waitedMicroseconds());
     }
 
     // ---------------------------------------------------------------
@@ -156,6 +162,7 @@ final class EsiClientTest extends TestCase
             ['Content-Type: application/json'],
             $this->recordedRequests[1]['headers']['content-type'] ?? null,
         );
+        $this->assertSame(1_000_000, $this->waitedMicroseconds());
     }
 
     public function testPostRetryAfter420KeepsAuthorizationHeader(): void
@@ -172,6 +179,7 @@ final class EsiClientTest extends TestCase
             ['Authorization: Bearer ' . self::ACCESS_TOKEN],
             $this->recordedRequests[1]['headers']['authorization'] ?? null,
         );
+        $this->assertSame(1_000_000, $this->waitedMicroseconds());
     }
 
     public function testGetRetryAfter420KeepsExtraHeaders(): void
@@ -192,6 +200,7 @@ final class EsiClientTest extends TestCase
             ['X-Compatibility-Date: 2025-12-16'],
             $this->recordedRequests[1]['headers']['x-compatibility-date'] ?? null,
         );
+        $this->assertSame(1_000_000, $this->waitedMicroseconds());
     }
 
     public function testGetPaginatedRetriesErrorLimitedPageOnceAndReturnsCompleteResult(): void
@@ -213,6 +222,7 @@ final class EsiClientTest extends TestCase
             self::BASE_URL . '/characters/2112000001/assets/?page=2',
             self::BASE_URL . '/characters/2112000001/assets/?page=2',
         ], array_column($this->recordedRequests, 'url'));
+        $this->assertSame(1_000_000, $this->waitedMicroseconds());
     }
 
     public function testGetRetriesOnceAfterRateLimited429WithRetryAfter(): void
@@ -342,6 +352,7 @@ final class EsiClientTest extends TestCase
                 $conditionalRequest['headers']['authorization'] ?? null,
             );
         }
+        $this->assertSame(1_000_000, $this->waitedMicroseconds());
     }
 
     // ---------------------------------------------------------------
@@ -477,6 +488,7 @@ final class EsiClientTest extends TestCase
 
         $this->assertSame(['jita' => ['name' => 'Jita']], $result);
         $this->assertSame(['GET', 'GET'], array_column($this->recordedRequests, 'method'));
+        $this->assertSame(1_000_000, $this->waitedMicroseconds());
     }
 
     public function testGetBatchReturnsNullAfterSecondConsecutive429ForThatKeyOnly(): void
@@ -821,6 +833,7 @@ final class EsiClientTest extends TestCase
             ['remain' => 19, 'delay' => 100],
             ['remain' => 19, 'delay' => 100],
         ], array_column($logRecords, 'context'));
+        $this->assertSame(200_000, $this->waitedMicroseconds());
     }
 
     public function testGetPaginatedDoesNotThrottleAfterItsOnlyPageWhenErrorLimitRemainIsLow(): void
@@ -944,15 +957,16 @@ final class EsiClientTest extends TestCase
     // ---------------------------------------------------------------
 
     /**
-     * 429 is replayed once (Retry-After: 0), so it reaches the exception after a second 429.
-     * 420 is left out: its replay always sleeps 1 s; testGetThrowsAfterSecondConsecutive420 covers it.
+     * 420 and 429 are replayed once, so they reach the exception after a second identical response.
      */
-    #[DataProvider('esiErrorStatusWithoutErrorLimitedProvider')]
+    #[DataProvider('esiErrorStatusProvider')]
     public function testGetThrowsEsiApiExceptionWithStatusMessageAndEndpointOfTheFailedResponse(int $statusCode, string $expectedMessage): void
     {
-        $esiClient = $this->createEsiClient($statusCode === 429
-            ? [$this->rateLimitedResponse(retryAfterSeconds: 0), $this->rateLimitedResponse(retryAfterSeconds: 0)]
-            : [$this->errorResponse($statusCode)]);
+        $esiClient = $this->createEsiClient(match ($statusCode) {
+            420 => [$this->errorLimitedResponse(), $this->errorLimitedResponse()],
+            429 => [$this->rateLimitedResponse(retryAfterSeconds: 0), $this->rateLimitedResponse(retryAfterSeconds: 0)],
+            default => [$this->errorResponse($statusCode)],
+        });
 
         try {
             $esiClient->get('/characters/2112000001/wallet/journal/', $this->createEveToken());
@@ -980,18 +994,6 @@ final class EsiClientTest extends TestCase
         yield '502 bad gateway' => [502, 'ESI server error'];
         yield '503 service unavailable' => [503, 'ESI server error'];
         yield '504 gateway timeout' => [504, 'ESI server error'];
-    }
-
-    /**
-     * @return iterable<string, array{int, string}>
-     */
-    public static function esiErrorStatusWithoutErrorLimitedProvider(): iterable
-    {
-        foreach (self::esiErrorStatusProvider() as $label => $statusAndMessage) {
-            if ($statusAndMessage[0] !== 420) {
-                yield $label => $statusAndMessage;
-            }
-        }
     }
 
     public function testGetThrowsNetworkErrorWithStatusZero(): void
@@ -1253,6 +1255,8 @@ final class EsiClientTest extends TestCase
             ['remain' => 18, 'delay' => 200],
             ['remain' => 17, 'delay' => 300],
         ], array_column($logRecords, 'context'));
+        // 100 + 200 + 300 ms.
+        $this->assertSame(600_000, $this->waitedMicroseconds());
     }
 
     // ---------------------------------------------------------------
@@ -1269,6 +1273,7 @@ final class EsiClientTest extends TestCase
         $esiClient->get('/universe/systems/30002187/');
 
         $this->assertSame([], $logRecords);
+        $this->assertSame(0, $this->waitedMicroseconds());
     }
 
     public function testGetRecordsErrorLimitHeadersSoTheNextRequestIsThrottledByTheMissingErrors(): void
@@ -1288,6 +1293,7 @@ final class EsiClientTest extends TestCase
             'message' => 'ESI error limit low ({remain} remaining), throttling {delay}ms',
             'context' => ['remain' => 19, 'delay' => 100],
         ]], $logRecords);
+        $this->assertSame(100_000, $this->waitedMicroseconds());
     }
 
     public function testGetRetryAfter429IsNotThrottledAndKeepsTheErrorLimitOfThe429(): void
@@ -1363,6 +1369,7 @@ final class EsiClientTest extends TestCase
 
         $this->assertSame(['amarr' => ['name' => 'Amarr'], 'dodixie' => ['name' => 'Dodixie']], $result);
         $this->assertSame([['remain' => 19, 'delay' => 100]], array_column($logRecords, 'context'));
+        $this->assertSame(100_000, $this->waitedMicroseconds());
     }
 
     public function testGetBatchWithoutEndpointsIsNotThrottled(): void
@@ -1551,6 +1558,7 @@ final class EsiClientTest extends TestCase
 
         $this->assertSame(['projects' => []], $result);
         $this->assertCount(2, $this->recordedRequests);
+        $this->assertSame(1_000_000, $this->waitedMicroseconds());
     }
 
     public function testGetUnversionedThrows429AfterSecondConsecutiveRateLimit(): void
@@ -1634,6 +1642,122 @@ final class EsiClientTest extends TestCase
     }
 
     // ---------------------------------------------------------------
+    // RED: issue #83 -- waits measured on the injected clock, without real pause
+    // ---------------------------------------------------------------
+
+    public function testGetWaitsTheErrorLimitResetBeforeReplayingAnErrorLimited420(): void
+    {
+        $this->assertEsiClientWaitsOnItsClock();
+        $esiClient = $this->createEsiClient([
+            $this->errorLimitedResponse(['X-Esi-Error-Limit-Reset' => '7']),
+            $this->jsonResponse(['name' => 'Jita']),
+        ]);
+
+        $esiClient->get('/universe/systems/30000142/');
+
+        $this->assertSame(7_000_000, $this->waitedMicroseconds());
+    }
+
+    public function testGetWaitsTheRetryAfterSecondsBeforeReplayingARateLimited429(): void
+    {
+        $this->assertEsiClientWaitsOnItsClock();
+        $esiClient = $this->createEsiClient([
+            $this->rateLimitedResponse(retryAfterSeconds: 30),
+            $this->jsonResponse(['name' => 'Jita']),
+        ]);
+
+        $esiClient->get('/universe/systems/30000142/');
+
+        $this->assertSame(30_000_000, $this->waitedMicroseconds());
+    }
+
+    public function testGetCapsARetryAfterOf120SecondsToSixtySeconds(): void
+    {
+        $this->assertEsiClientWaitsOnItsClock();
+        $logRecords = [];
+        $esiClient = $this->createEsiClient([
+            $this->rateLimitedResponse(retryAfterSeconds: 120),
+            $this->jsonResponse(['name' => 'Jita']),
+        ], logger: $this->createRecordingLogger($logRecords));
+
+        $esiClient->get('/universe/systems/30000142/');
+
+        $this->assertSame(60_000_000, $this->waitedMicroseconds());
+        $this->assertSame(
+            [['status' => 429, 'seconds' => 60, 'endpoint' => '/universe/systems/30000142/']],
+            array_column($logRecords, 'context'),
+        );
+    }
+
+    public function testGetWaitsTheErrorLimitResetWhenRetryAfterIsAnHttpDate(): void
+    {
+        $this->assertEsiClientWaitsOnItsClock();
+        $esiClient = $this->createEsiClient([
+            $this->rateLimitedResponse(retryAfterSeconds: 0, headers: [
+                'Retry-After' => 'Wed, 07 Oct 2026 12:00:00 GMT',
+                'X-Esi-Error-Limit-Reset' => '3',
+            ]),
+            $this->jsonResponse(['name' => 'Jita']),
+        ]);
+
+        $esiClient->get('/universe/systems/30000142/');
+
+        $this->assertSame(3_000_000, $this->waitedMicroseconds());
+    }
+
+    public function testRequestWaitsTheErrorLimitResetWhenFewerThanFiveErrorsRemain(): void
+    {
+        $this->assertEsiClientWaitsOnItsClock();
+        $logRecords = [];
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse(['name' => 'Jita'], 200, ['X-Esi-Error-Limit-Remain' => '4', 'X-Esi-Error-Limit-Reset' => '7']),
+            $this->jsonResponse(['name' => 'Amarr']),
+        ], logger: $this->createRecordingLogger($logRecords));
+
+        $esiClient->get('/universe/systems/30000142/');
+        $esiClient->get('/universe/systems/30002187/');
+
+        $this->assertSame(7_000_000, $this->waitedMicroseconds());
+        $this->assertSame([[
+            'level' => 'warning',
+            'message' => 'ESI error limit critical ({remain} remaining), pausing {seconds}s',
+            'context' => ['remain' => 4, 'seconds' => 7],
+        ]], $logRecords);
+    }
+
+    public function testRequestIsThrottledProgressivelyWhenExactlyFiveErrorsRemain(): void
+    {
+        $this->assertEsiClientWaitsOnItsClock();
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse(['name' => 'Jita'], 200, ['X-Esi-Error-Limit-Remain' => '5', 'X-Esi-Error-Limit-Reset' => '7']),
+            $this->jsonResponse(['name' => 'Amarr']),
+        ]);
+
+        $esiClient->get('/universe/systems/30000142/');
+        $esiClient->get('/universe/systems/30002187/');
+
+        // Not critical yet: (20 - 5) * 100 ms, not the 7 s reset.
+        $this->assertSame(1_500_000, $this->waitedMicroseconds());
+    }
+
+    public function testGetBatchWaitsOnceTheLongestRetryAfterBeforeReplayingRateLimitedKeys(): void
+    {
+        $this->assertEsiClientWaitsOnItsClock();
+        $esiClient = $this->createEsiClientServingByPath([
+            '/universe/systems/30000142/' => [$this->rateLimitedResponse(retryAfterSeconds: 5), $this->jsonResponse(['name' => 'Jita'])],
+            '/universe/systems/30002187/' => [$this->rateLimitedResponse(retryAfterSeconds: 12), $this->jsonResponse(['name' => 'Amarr'])],
+        ]);
+
+        $esiClient->getBatch([
+            'jita' => '/universe/systems/30000142/',
+            'amarr' => '/universe/systems/30002187/',
+        ]);
+
+        // One wait of the longest delay, not one wait per key.
+        $this->assertSame(12_000_000, $this->waitedMicroseconds());
+    }
+
+    // ---------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------
 
@@ -1666,16 +1790,7 @@ final class EsiClientTest extends TestCase
             return $response;
         });
 
-        $tokenManager = $this->createStub(TokenManager::class);
-        $tokenManager->method('getValidAccessToken')->willReturn(self::ACCESS_TOKEN);
-
-        return new EsiClient(
-            $httpClient,
-            $this->createStub(CacheItemPoolInterface::class),
-            $tokenManager,
-            self::BASE_URL,
-            $logger ?? new NullLogger(),
-        );
+        return $this->newEsiClient($httpClient, $this->createStub(CacheItemPoolInterface::class), $logger);
     }
 
     /**
@@ -1745,16 +1860,67 @@ final class EsiClientTest extends TestCase
             return $response;
         });
 
+        return $this->newEsiClient($httpClient, $esiCache ?? $this->createStub(CacheItemPoolInterface::class), $logger);
+    }
+
+    /**
+     * Builds the client with a fresh MockClock. The clock goes in by named argument only when
+     * the constructor takes one, so the tests that do not measure a wait also run against an
+     * EsiClient without clock (red phase of issue #83).
+     */
+    private function newEsiClient(MockHttpClient $httpClient, CacheItemPoolInterface $esiCache, ?LoggerInterface $logger): EsiClient
+    {
         $tokenManager = $this->createStub(TokenManager::class);
         $tokenManager->method('getValidAccessToken')->willReturn(self::ACCESS_TOKEN);
 
-        return new EsiClient(
-            $httpClient,
-            $esiCache ?? $this->createStub(CacheItemPoolInterface::class),
-            $tokenManager,
-            self::BASE_URL,
-            $logger ?? new NullLogger(),
+        $this->esiClock = new MockClock();
+        $this->esiClockStart = $this->esiClock->now();
+        $namedArguments = [
+            'httpClient' => $httpClient,
+            'esiCache' => $esiCache,
+            'tokenManager' => $tokenManager,
+            'baseUrl' => self::BASE_URL,
+            'logger' => $logger ?? new NullLogger(),
+        ];
+        if ($this->esiClientTakesAClock()) {
+            $namedArguments['clock'] = $this->esiClock;
+        }
+
+        return new EsiClient(...$namedArguments);
+    }
+
+    private function esiClientTakesAClock(): bool
+    {
+        foreach ((new \ReflectionMethod(EsiClient::class, '__construct'))->getParameters() as $parameter) {
+            if ($parameter->getName() === 'clock') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Fails fast, before a scenario whose wait would really pause the suite for several seconds
+     * on an EsiClient that does not take a clock yet.
+     */
+    private function assertEsiClientWaitsOnItsClock(): void
+    {
+        $this->assertTrue(
+            $this->esiClientTakesAClock(),
+            'EsiClient::__construct() takes no "clock" argument: its waits would really pause (issue #83).',
         );
+    }
+
+    /**
+     * Time the EsiClient waited on its MockClock since it was built, in exact microseconds.
+     */
+    private function waitedMicroseconds(): int
+    {
+        $now = $this->esiClock->now();
+
+        return ((int) $now->format('U') - (int) $this->esiClockStart->format('U')) * 1_000_000
+            + (int) $now->format('u') - (int) $this->esiClockStart->format('u');
     }
 
     private function createEveToken(): EveToken

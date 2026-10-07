@@ -8,6 +8,8 @@ use App\Entity\EveToken;
 use App\Exception\EsiApiException;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Clock\ClockInterface;
+use Symfony\Component\Clock\NativeClock;
 use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -30,6 +32,7 @@ class EsiClient
         private readonly TokenManager $tokenManager,
         private readonly string $baseUrl,
         private readonly LoggerInterface $logger,
+        private readonly ClockInterface $clock = new NativeClock(),
     ) {
     }
 
@@ -276,7 +279,7 @@ class EsiClient
                 'count' => count($retryDelays),
                 'seconds' => $sleepSeconds,
             ]);
-            sleep($sleepSeconds);
+            $this->clock->sleep($sleepSeconds);
 
             // The error-limit window has just been waited out: the replay is not throttled again.
             $retryRequests = array_intersect_key($requests, $retryDelays);
@@ -407,7 +410,7 @@ class EsiClient
             'seconds' => $sleepSeconds,
             'endpoint' => $endpoint,
         ]);
-        sleep($sleepSeconds);
+        $this->clock->sleep($sleepSeconds);
 
         // The error-limit window has just been waited out: throttling again would double the pause.
         return $this->request($method, $endpoint, $token, $extraHeaders, $jsonBody, $timeout, throttle: false, baseUrl: $baseUrl);
@@ -546,14 +549,14 @@ class EsiClient
                 'remain' => $this->errorLimitRemain,
                 'seconds' => $sleepSeconds,
             ]);
-            sleep($sleepSeconds);
+            $this->clock->sleep($sleepSeconds);
         } elseif ($this->errorLimitRemain < 20) {
             $delayMs = (20 - $this->errorLimitRemain) * 100;
             $this->logger->info('ESI error limit low ({remain} remaining), throttling {delay}ms', [
                 'remain' => $this->errorLimitRemain,
                 'delay' => $delayMs,
             ]);
-            usleep($delayMs * 1000);
+            $this->clock->sleep($delayMs / 1000);
         }
     }
 
