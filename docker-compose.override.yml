@@ -1,8 +1,15 @@
 # Dev overrides — loaded automatically by `docker compose up`
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   proxy:
     image: caddy:2-alpine
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "80:80"
       - "443:443"
@@ -23,6 +30,7 @@ services:
   frontend:
     image: node:22-alpine
     restart: unless-stopped
+    logging: *default-logging
     working_dir: /app
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 80"
     volumes:
@@ -51,6 +59,8 @@ services:
       - APP_ENV=dev
 
   worker:
+    # -vv logs every consumed message; kept for local debugging only
+    command: ["bin/console", "messenger:consume", "async", "scheduler_default", "--time-limit=3600", "--memory-limit=256M", "-vv"]
     volumes:
       - .:/app
     environment:
