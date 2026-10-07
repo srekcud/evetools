@@ -7,8 +7,6 @@ namespace App\Tests\Unit\Service;
 use App\Entity\Sde\InvType;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\ItemParserService;
-use Doctrine\ORM\Query;
-use Doctrine\ORM\QueryBuilder;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\MockObject\Stub;
@@ -40,18 +38,22 @@ class ItemParserServiceTest extends TestCase
         return $type;
     }
 
-    private function configureQueryBuilderForCaseInsensitiveLookup(InvType ...$results): void
+    /**
+     * Replaces the repository with a mock expecting a single batched lookup.
+     *
+     * @param list<string>            $requestedNames names after space normalization
+     * @param array<string, InvType>  $typesByRequestedName
+     */
+    private function expectSingleFindByNamesCall(array $requestedNames, array $typesByRequestedName): void
     {
-        $query = $this->createStub(Query::class);
-        $query->method('getResult')->willReturn($results);
+        $invTypeRepository = $this->createMock(InvTypeRepository::class);
+        $invTypeRepository
+            ->expects($this->once())
+            ->method('findByNames')
+            ->with($requestedNames)
+            ->willReturn($typesByRequestedName);
 
-        $queryBuilder = $this->createStub(QueryBuilder::class);
-        $queryBuilder->method('where')->willReturnSelf();
-        $queryBuilder->method('setParameter')->willReturnSelf();
-        $queryBuilder->method('setMaxResults')->willReturnSelf();
-        $queryBuilder->method('getQuery')->willReturn($query);
-
-        $this->invTypeRepository->method('createQueryBuilder')->willReturn($queryBuilder);
+        $this->service = new ItemParserService($invTypeRepository);
     }
 
     // ===========================================
@@ -240,120 +242,91 @@ class ItemParserServiceTest extends TestCase
     public function resolveItemNamesFindsExactMatch(): void
     {
         $tritanium = $this->createInvTypeStub(34, 'Tritanium');
-
-        $this->invTypeRepository
-            ->method('findOneBy')
-            ->willReturn($tritanium);
+        $this->expectSingleFindByNamesCall(['Tritanium'], ['Tritanium' => $tritanium]);
 
         $result = $this->service->resolveItemNames([
             ['name' => 'Tritanium', 'quantity' => 100],
         ]);
 
-        $this->assertCount(1, $result['found']);
-        $this->assertCount(0, $result['notFound']);
-        $this->assertSame(34, $result['found'][0]['typeId']);
-        $this->assertSame('Tritanium', $result['found'][0]['typeName']);
-        $this->assertSame(100, $result['found'][0]['quantity']);
+        $this->assertSame([
+            'found' => [['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 100]],
+            'notFound' => [],
+        ], $result);
     }
 
     #[Test]
-    public function resolveItemNamesFallsBackToCaseInsensitive(): void
+    public function resolveItemNamesFindsTypeWrittenInAnotherCase(): void
     {
         $tritanium = $this->createInvTypeStub(34, 'Tritanium');
-
-        $this->invTypeRepository
-            ->method('findOneBy')
-            ->willReturn(null);
-
-        $this->configureQueryBuilderForCaseInsensitiveLookup($tritanium);
+        // The repository keys by the requested name; the canonical SDE name comes from the type.
+        $this->expectSingleFindByNamesCall(['tritanium'], ['tritanium' => $tritanium]);
 
         $result = $this->service->resolveItemNames([
             ['name' => 'tritanium', 'quantity' => 50],
         ]);
 
-        $this->assertCount(1, $result['found']);
-        $this->assertCount(0, $result['notFound']);
-        $this->assertSame(34, $result['found'][0]['typeId']);
-        $this->assertSame('Tritanium', $result['found'][0]['typeName']);
+        $this->assertSame([
+            'found' => [['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 50]],
+            'notFound' => [],
+        ], $result);
     }
 
     #[Test]
     public function resolveItemNamesReturnsNotFoundForUnknownItems(): void
     {
-        $this->invTypeRepository
-            ->method('findOneBy')
-            ->willReturn(null);
-
-        $this->configureQueryBuilderForCaseInsensitiveLookup();
+        $this->expectSingleFindByNamesCall(['NonExistentItem'], []);
 
         $result = $this->service->resolveItemNames([
             ['name' => 'NonExistentItem', 'quantity' => 1],
         ]);
 
-        $this->assertCount(0, $result['found']);
-        $this->assertCount(1, $result['notFound']);
-        $this->assertSame('NonExistentItem', $result['notFound'][0]);
+        $this->assertSame(['found' => [], 'notFound' => ['NonExistentItem']], $result);
     }
 
     #[Test]
     public function resolveItemNamesExcludesUnpublishedTypes(): void
     {
         $unpublished = $this->createInvTypeStub(99999, 'Hidden Item', published: false);
-
-        $this->invTypeRepository
-            ->method('findOneBy')
-            ->willReturn($unpublished);
+        $this->expectSingleFindByNamesCall(['Hidden Item'], ['Hidden Item' => $unpublished]);
 
         $result = $this->service->resolveItemNames([
             ['name' => 'Hidden Item', 'quantity' => 1],
         ]);
 
-        $this->assertCount(0, $result['found']);
-        $this->assertCount(1, $result['notFound']);
-        $this->assertSame('Hidden Item', $result['notFound'][0]);
+        $this->assertSame(['found' => [], 'notFound' => ['Hidden Item']], $result);
     }
 
     #[Test]
     public function resolveItemNamesHandlesMixedFoundAndNotFound(): void
     {
         $tritanium = $this->createInvTypeStub(34, 'Tritanium');
-
-        $this->invTypeRepository
-            ->method('findOneBy')
-            ->willReturnCallback(fn (array $criteria) => match ($criteria['typeName']) {
-                'Tritanium' => $tritanium,
-                default => null,
-            });
-
-        $this->configureQueryBuilderForCaseInsensitiveLookup();
+        $this->expectSingleFindByNamesCall(['Tritanium', 'FakeOre'], ['Tritanium' => $tritanium]);
 
         $result = $this->service->resolveItemNames([
             ['name' => 'Tritanium', 'quantity' => 100],
             ['name' => 'FakeOre', 'quantity' => 50],
         ]);
 
-        $this->assertCount(1, $result['found']);
-        $this->assertCount(1, $result['notFound']);
-        $this->assertSame(34, $result['found'][0]['typeId']);
-        $this->assertSame('FakeOre', $result['notFound'][0]);
+        $this->assertSame([
+            'found' => [['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 100]],
+            'notFound' => ['FakeOre'],
+        ], $result);
     }
 
     #[Test]
     public function resolveItemNamesNormalizesMultipleSpacesInName(): void
     {
         $hammerhead = $this->createInvTypeStub(2185, 'Hammerhead II');
-
-        // Name with extra spaces should be normalized to single space before lookup
-        $this->invTypeRepository
-            ->method('findOneBy')
-            ->willReturn($hammerhead);
+        // 'Hammerhead  II' (two spaces) must be looked up as 'Hammerhead II'.
+        $this->expectSingleFindByNamesCall(['Hammerhead II'], ['Hammerhead II' => $hammerhead]);
 
         $result = $this->service->resolveItemNames([
             ['name' => 'Hammerhead  II', 'quantity' => 5],
         ]);
 
-        $this->assertCount(1, $result['found']);
-        $this->assertSame(2185, $result['found'][0]['typeId']);
-        $this->assertSame('Hammerhead II', $result['found'][0]['typeName']);
+        $this->assertSame([
+            'found' => [['typeId' => 2185, 'typeName' => 'Hammerhead II', 'quantity' => 5]],
+            'notFound' => [],
+        ], $result);
     }
 }

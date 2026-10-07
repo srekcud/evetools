@@ -72,24 +72,17 @@ class ItemParserService
         $found = [];
         $notFound = [];
 
-        foreach ($items as $item) {
-            // Normalize multiple spaces to single space
-            $name = (string) preg_replace('/\s+/', ' ', trim($item['name']));
+        // Normalize multiple spaces to single space
+        $names = array_map(
+            static fn (array $item): string => (string) preg_replace('/\s+/', ' ', trim($item['name'])),
+            $items,
+        );
+        $typesByName = $this->invTypeRepository->findByNames($names);
+
+        foreach ($items as $index => $item) {
+            $name = $names[$index];
             $quantity = $item['quantity'];
-
-            $type = $this->invTypeRepository->findOneBy(['typeName' => $name]);
-
-            if ($type === null) {
-                /** @var list<\App\Entity\Sde\InvType> $types */
-                $types = $this->invTypeRepository->createQueryBuilder('t')
-                    ->where('LOWER(t.typeName) = LOWER(:name)')
-                    ->setParameter('name', $name)
-                    ->setMaxResults(1)
-                    ->getQuery()
-                    ->getResult();
-
-                $type = $types[0] ?? null;
-            }
+            $type = $typesByName[$name] ?? null;
 
             if ($type !== null && $type->isPublished()) {
                 $found[] = [
