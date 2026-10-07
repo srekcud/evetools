@@ -388,6 +388,24 @@ class MercurePublisherServiceTest extends TestCase
     }
 
     // ===========================================
+    // publishGroupProjectEvent() tests
+    // ===========================================
+
+    public function testPublishGroupProjectEventIsPrivateSoOnlyAuthorizedSubscribersReceiveIt(): void
+    {
+        $publishedUpdates = $this->capturePublishedUpdates();
+
+        $this->service->publishGroupProjectEvent('project-uuid-1', 'contribution_approved', ['contributionId' => 'c-1']);
+
+        $this->assertCount(1, $publishedUpdates);
+        $this->assertSame(['/group-project/project-uuid-1/events'], $publishedUpdates[0]->getTopics());
+        $payload = json_decode($publishedUpdates[0]->getData(), true);
+        $this->assertSame('contribution_approved', $payload['action']);
+        $this->assertSame(['contributionId' => 'c-1'], $payload['data']);
+        $this->assertTrue($publishedUpdates[0]->isPrivate());
+    }
+
+    // ===========================================
     // publishEscalationEvent() tests
     // ===========================================
 
@@ -408,8 +426,7 @@ class MercurePublisherServiceTest extends TestCase
 
                 return $payload['action'] === 'created'
                     && $payload['escalation'] === $escalationData
-                    && isset($payload['timestamp'])
-                    && !$update->isPrivate();
+                    && isset($payload['timestamp']);
             }));
 
         $this->service->publishEscalationEvent('created', $escalationData, 98000001, null, 'corp');
@@ -421,8 +438,7 @@ class MercurePublisherServiceTest extends TestCase
             ->expects($this->once())
             ->method('publish')
             ->with($this->callback(function (Update $update): bool {
-                return $update->getTopics()[0] === '/alliance/99000001/escalations'
-                    && !$update->isPrivate();
+                return $update->getTopics()[0] === '/alliance/99000001/escalations';
             }));
 
         $this->service->publishEscalationEvent('updated', ['id' => 'esc-2'], null, 99000001, 'alliance');
@@ -438,6 +454,42 @@ class MercurePublisherServiceTest extends TestCase
             }));
 
         $this->service->publishEscalationEvent('deleted', ['id' => 'esc-3'], null, null, 'public');
+    }
+
+    // Shared updates are private: only subscribers authorized by their JWT
+    // (corp/alliance members, approved group project members) receive them.
+
+    public function testPublishEscalationEventToCorpIsPrivateSoOnlyAuthorizedSubscribersReceiveIt(): void
+    {
+        $publishedUpdates = $this->capturePublishedUpdates();
+
+        $this->service->publishEscalationEvent('created', ['id' => 'esc-1'], 98000001, 99000001, 'corp');
+
+        $this->assertCount(1, $publishedUpdates);
+        $this->assertSame(['/corp/98000001/escalations'], $publishedUpdates[0]->getTopics());
+        $this->assertTrue($publishedUpdates[0]->isPrivate());
+    }
+
+    public function testPublishEscalationEventToAllianceIsPrivateSoOnlyAuthorizedSubscribersReceiveIt(): void
+    {
+        $publishedUpdates = $this->capturePublishedUpdates();
+
+        $this->service->publishEscalationEvent('updated', ['id' => 'esc-2'], 98000001, 99000001, 'alliance');
+
+        $this->assertCount(1, $publishedUpdates);
+        $this->assertSame(['/alliance/99000001/escalations'], $publishedUpdates[0]->getTopics());
+        $this->assertTrue($publishedUpdates[0]->isPrivate());
+    }
+
+    public function testPublishEscalationEventWithPublicVisibilityStaysPublic(): void
+    {
+        $publishedUpdates = $this->capturePublishedUpdates();
+
+        $this->service->publishEscalationEvent('deleted', ['id' => 'esc-3'], 98000001, 99000001, 'public');
+
+        $this->assertCount(1, $publishedUpdates);
+        $this->assertSame(['/public/escalations'], $publishedUpdates[0]->getTopics());
+        $this->assertFalse($publishedUpdates[0]->isPrivate());
     }
 
     public function testPublishEscalationEventDoesNothingWhenCorpVisibilityButNoCorporationId(): void
@@ -544,6 +596,21 @@ class MercurePublisherServiceTest extends TestCase
         $this->assertCount(2, $topics);
     }
 
+    public function testGetGroupTopicsGrantsOwnCorpAllianceAndApprovedGroupProjectTopicsOnly(): void
+    {
+        $topics = MercurePublisherService::getGroupTopics(98000001, 99000001, ['project-uuid-1', 'project-uuid-2']);
+
+        $this->assertSame([
+            '/public/escalations',
+            '/corp/98000001/escalations',
+            '/alliance/99000001/escalations',
+            '/group-project/project-uuid-1/events',
+            '/group-project/project-uuid-2/events',
+        ], $topics);
+        $this->assertNotContains('/corp/98000002/escalations', $topics);
+        $this->assertNotContains('/alliance/99000002/escalations', $topics);
+    }
+
     public function testGetGroupTopicsIncludesBothCorpAndAllianceTopics(): void
     {
         $topics = MercurePublisherService::getGroupTopics(98000001, 99000001);
@@ -552,5 +619,22 @@ class MercurePublisherServiceTest extends TestCase
         $this->assertContains('/corp/98000001/escalations', $topics);
         $this->assertContains('/alliance/99000001/escalations', $topics);
         $this->assertCount(3, $topics);
+    }
+
+    /**
+     * @return \ArrayObject<int, Update>
+     */
+    private function capturePublishedUpdates(): \ArrayObject
+    {
+        $publishedUpdates = new \ArrayObject();
+        $this->hub
+            ->method('publish')
+            ->willReturnCallback(static function (Update $update) use ($publishedUpdates): string {
+                $publishedUpdates[] = $update;
+
+                return 'urn:uuid:published';
+            });
+
+        return $publishedUpdates;
     }
 }

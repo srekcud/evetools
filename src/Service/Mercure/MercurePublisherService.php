@@ -197,6 +197,7 @@ final readonly class MercurePublisherService
             $update = new Update(
                 $topic,
                 json_encode($payload, JSON_THROW_ON_ERROR),
+                private: true,
             );
 
             $this->hub->publish($update);
@@ -251,7 +252,7 @@ final readonly class MercurePublisherService
                 $update = new Update(
                     $topic,
                     json_encode($payload, JSON_THROW_ON_ERROR),
-                    private: false,
+                    private: $visibility !== 'public',
                 );
                 $this->hub->publish($update);
             }
@@ -296,7 +297,7 @@ final readonly class MercurePublisherService
 
     /**
      * Get group topics for a user (corp/alliance escalations + group industry projects).
-     * These are non-private topics for shared data.
+     * Shared updates are private (except /public/escalations); subscribers are authorized by their JWT.
      *
      * @param string[] $groupProjectIds UUIDs of group industry projects the user is a member of
      * @return list<string>
