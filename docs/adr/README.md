@@ -12,6 +12,7 @@ Une ADR consigne une décision d'architecture : son contexte, la décision et se
 | [0006](0006-image-php-sans-multi-stage.md) | Pas de multi-stage pour l'image PHP pour l'instant | Acceptée (révisable) |
 | [0007](0007-symfony-lts.md) | Rester sur Symfony 7.4 LTS, cible suivante 8.4 LTS | Acceptée |
 | 0008 | Structure de code | En attente (Phase 3) |
+| [0009](0009-noyau-calcul-industrie.md) | Noyau de calcul Industrie | Acceptée |
 
 ## Gabarit
 

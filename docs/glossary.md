@@ -13,12 +13,15 @@ Colonnes : **Terme FR**, **Term EN**, **Définition**, **Symbole(s) dans le code
 | **Unités par run** | Output per run | Nombre d'unités produites par un run (SDE, `quantity` du produit d'une activité). Vaut 1 pour un vaisseau, et souvent 100 ou plus pour des munitions, missiles ou fuel blocks. | `outputPerRun` (`IndustryTreeService`) |
 | **BOM** (nomenclature) | Bill of materials | Liste des matériaux et quantités nécessaires pour produire une quantité donnée d'un produit, ME et bonus appliqués. Une BOM « feuilles » ne contient que les matériaux à acheter (non fabriqués). | `GroupIndustryBomItem`, `IndustryTreeService::buildProductionTree()` |
 | **Stockpile** | Stockpile | Quantité cible d'un type d'item à garder en stock. On mesure l'écart entre le stock réel et la cible. | `IndustryStockpileTarget::$targetQuantity`, `StockpileService` |
+| **Demande** | Demand | Quantité totale d'un item requise par tous les jobs consommateurs d'un plan, avant déduction du stock. Elle est agrégée sur tout le plan avant d'être arrondie en runs entiers. | aucun pour l'instant (cible : [spec du noyau](specs/industry-engine.md), R3) |
+| **Surplus** | Surplus | Unités produites au-delà de la demande, parce que les runs sont entiers : `runs × unités par run − demande` (après déduction du stock). | aucun pour l'instant (cible : spec du noyau, R3) |
 
 **Relations :**
 
 ```
 quantité produite = runs × unités par run
-runs nécessaires  = ceil(quantité demandée / unités par run)
+runs nécessaires  = ceil((demande − stock) / unités par run)
+surplus           = quantité produite − (demande − stock)
 ```
 
 ## Blueprints et efficacité
@@ -37,11 +40,17 @@ runs nécessaires  = ceil(quantité demandée / unités par run)
 
 | Terme FR | Term EN | Définition | Symbole(s) |
 |---|---|---|---|
-| **EIV** | Estimated Item Value | Valeur de base d'un job : la somme, sur les matériaux de base (avant ME) d'un run, de `quantité × adjusted price` ESI. | `EsiCostIndexService::calculateEiv()`, `calculateEivFromPrices()` |
+| **EIV** | Estimated Item Value | Valeur de base d'un job : `runs × Σ (quantité de base × adjusted price ESI)`. Les quantités sont celles du SDE, **avant ME et avant tout bonus** de structure ou de rig. Pour la copie et l'invention, on prend les matériaux de fabrication du blueprint concerné, jamais l'adjusted price du produit. | `EsiCostIndexService::calculateEiv()`, `calculateEivFromPrices()` |
 | **Cost index** | System cost index | Indice par système solaire et par activité, publié par l'ESI (`/industry/systems/`). Il augmente avec l'activité industrielle du système. | `EsiCostIndexService::getCostIndex()` |
-| **Coût d'installation** | Job install cost | Montant payé au lancement d'un job. Implémentation actuelle : `EIV × runs × cost index × (1 + taxe structure %)`. | `EsiCostIndexService::calculateJobInstallCost()`, `IndustryProject::$estimatedJobCost` |
+| **Coût d'installation** | Job install cost | Montant payé au lancement d'un job : `base × cost index × bonus de rôle de coût + base × taxe d'installation + surcharge SCC [+ base × 0,25 % pour un clone alpha]`. La base est l'EIV (fabrication, réaction) ou la base de coût de job (copie, invention). Le bonus de rôle ne porte que sur le terme du cost index. L'implémentation actuelle diffère (voir Ambiguïtés). | `EsiCostIndexService::calculateJobInstallCost()`, `IndustryProject::$estimatedJobCost` |
+| **Base de coût de job** | Job cost base | Base du coût d'installation de la copie et de l'invention : 2 % de l'EIV de fabrication du blueprint concerné (copié ou inventé), multipliée par les runs. | aucun pour l'instant (aujourd'hui `0.02 * …` dans `InventionService`) |
+| **Surcharge SCC** | SCC surcharge | Taxe fixe sur la base du coût d'installation : 4 % en fabrication, réaction et invention. Pour la copie, 4 % en attente de vérification en jeu. Elle ne dépend ni du cost index ni de la structure. | aucun pour l'instant |
+| **Coût inconnu** | Unknown cost | Résultat d'un calcul où manque au moins un prix, un adjusted price, un cost index ou une probabilité. Il porte la liste des typeId en cause. Il n'est jamais remplacé par 0, et une somme qui en contient un est inconnue. | aucun pour l'instant (cible : spec du noyau, R10) |
 | **Bonus de structure** | Structure bonus | Réduction de matériaux ou de temps apportée par le type de structure (Engineering Complex, Refinery…). | `IndustryBonusService`, `IndustryStructureConfig` |
 | **Bonus de rig** | Rig bonus | Réduction de matériaux ou de temps apportée par un rig installé sur la structure, pour une catégorie de produits. Modulée par la sécurité du système. | `IndustryStructureConfig::getRigBonus()`, `IndustryBonusService` (rig bonus map) |
+| **Structure de production** | Production structure | Structure (ou station NPC) déclarée par un utilisateur avec son type, la sécurité de son système et au plus 3 rigs. Elle porte les bonus de structure et de rig appliqués aux étapes. À ne pas confondre avec la **structure de marché préférée**. | `IndustryStructureConfig`, `StructureConfigResource` |
+| **Structure corpo partagée** | Corporation shared structure | Structure de production importée (identifiant ESI connu) dont la corporation de l'utilisateur est propriétaire. Sa configuration est proposée aux autres membres ; chaque membre en garde sa propre copie. | `IndustryStructureConfig::$isCorporationStructure`, `IndustryStructureConfigRepository::findCorporationSharedStructures()`, `CorporationStructureProvider` |
+| **Système favori** | Favorite system | Système solaire choisi par l'utilisateur pour une activité (fabrication, réaction). Il fournit le cost index d'une étape quand le système de sa structure est inconnu, et le système par défaut des analyses. | `IndustryUserSettings::$favoriteManufacturingSystemId`, `$favoriteReactionSystemId` |
 | **Blacklist** | Blacklist | Liste de groupes ou de types que l'on ne fabrique pas (achetés à la place). Ils sont traités comme des feuilles de la BOM. | `IndustryBlacklistService`, `User::getIndustryBlacklist*()`, `GroupIndustryProject::getBlacklist*()` |
 
 ## Industrie collaborative (Group / Corp Industry)
@@ -78,8 +87,9 @@ runs nécessaires  = ceil(quantité demandée / unités par run)
 ## Ambiguïtés connues
 
 - **B1 — runs passés comme une quantité.** `IndustryTreeService::buildProductionTree(int $productTypeId, int $runs, …)` (`src/Service/Industry/IndustryTreeService.php:34`) transmet `$runs` à `buildNode(int $productTypeId, int $quantity, …)` (`:44`). Celui-ci calcule `runs = ceil($quantity / $outputPerRun)` (`:56`). Pour un produit à 100 unités par run demandé sur 10 runs, on obtient `ceil(10 / 100) = 1` run au lieu de 10. Les vaisseaux (1 unité par run) masquent le bug. Correction en Phase 1, en rendant la sémantique explicite (`Runs` / `Quantity`).
-- **EIV avec prix manquant.** `calculateEivFromPrices()` remplace un adjusted price manquant par `0.0`, et `calculateEiv()` ignore le matériau. Dans les deux cas, l'EIV est sous-estimée en silence. À traiter par `/audit` en Phase 1.
-- **Coût d'installation.** La formule actuelle n'inclut ni la surcharge SCC ni les bonus de rôle de structure. À confronter aux golden tests en Phase 1.
+- **EIV avec prix manquant.** `calculateEivFromPrices()` remplace un adjusted price manquant par `0.0`, et `calculateEiv()` ignore le matériau. Dans les deux cas, l'EIV est sous-estimée en silence. Règle cible : **Coût inconnu** (spec du noyau, R5 et R10).
+- **EIV avant ME** (levée). Les services qui calculent un coût d'installation chargent bien les quantités ME 0 du SDE (`ProfitMarginService.php:300-304`, `ProductionCostService.php:96-100`, `BuyVsBuildService.php:280-284`) : c'est conforme. Seule l'EIV de copie et d'invention (`InventionService::calculateBlueprintEiv()`) prend à tort l'adjusted price du produit (issue #7).
+- **Coût d'installation.** L'implémentation actuelle calcule `EIV × runs × cost index × (1 + taxe %)` (`EsiCostIndexService.php:264-266`) : la taxe multiplie le cost index au lieu de s'ajouter, la surcharge SCC, le bonus de rôle et la taxe alpha manquent, et un cost index absent donne 0. Copie et invention reprennent la même forme (`InventionService.php:79`, `:298`). La règle cible est celle de la définition ci-dessus (issue #7, [spec du noyau](specs/industry-engine.md), R6).
 - **Carnet Jita limité à la première page ESI.** `/markets/{region}/orders/` est paginé (`X-Pages`), mais la sync Jita et le prix à la demande n'en lisent que la page 1 (`JitaMarketService::orderEndpoints()`, sans paramètre `page`). Quand The Forge a plus d'une page d'ordres pour un type, les ordres suivants sont ignorés : le meilleur prix et le carnet peuvent être faux. Comportement figé par le test de caractérisation `testCharacterizationOnlyTheFirstPageOfOrdersIsReadEvenWhenEsiAnnouncesMorePages` (issue #26). La sync structure, elle, lit toutes les pages.
 - **Prix pondéré et prix percentile bornés à 20 ordres.** Le carnet ne garde que 20 ordres par côté. Le prix pondéré d'une grosse quantité est donc calculé sur une couverture partielle, et le « volume total » du prix percentile est celui des 20 meilleurs ordres, pas celui du marché.
 - **Volume journalier moyen.** La moyenne porte sur les 30 dernières *entrées* de l'historique ESI, pas sur 30 jours calendaires. Un type sans volume en cache vaut `0.0` dans `getCachedDailyVolumes()`, ce qui ne se distingue pas d'un marché réellement inactif.
