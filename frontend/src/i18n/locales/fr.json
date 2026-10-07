@@ -139,7 +139,8 @@
       "characters": "Personnages",
       "linkedAccounts": "comptes lies",
       "wallet": "Portefeuille",
-      "iskTotal": "ISK total"
+      "iskTotal": "ISK total",
+      "partialTotal": "Total partiel : {count} solde inconnu | Total partiel : {count} solde inconnu | Total partiel : {count} soldes inconnus"
     },
     "addCharacter": "Ajouter un personnage",
     "yourCharacters": "Vos personnages",
@@ -154,6 +155,7 @@
   "characters": {
     "title": "Personnages",
     "subtitle": "Gerez vos personnages EVE Online et leurs autorisations",
+    "walletUnknown": "Inconnu",
     "mainCharacter": "Personnage principal",
     "altCharacters": "Personnages alternatifs",
     "sameCorp": "Meme corporation",

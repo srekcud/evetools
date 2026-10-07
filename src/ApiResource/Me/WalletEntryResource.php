@@ -12,5 +12,6 @@ class WalletEntryResource
 
     public bool $isMain = false;
 
-    public float $balance;
+    /** Null when the balance could not be read from ESI. */
+    public ?float $balance = null;
 }

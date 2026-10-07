@@ -27,7 +27,7 @@ interface SkillQueue {
 
 const props = defineProps<{
   character: Character
-  wallet: number | undefined
+  wallet: number | null | undefined
   skillQueue: SkillQueue | undefined
   isLoading: boolean
   variant: 'corp' | 'other'
@@ -120,7 +120,7 @@ const isCorp = props.variant === 'corp'
           <p :class="[
             'text-sm font-semibold font-mono transition-colors',
             isCorp ? 'text-cyan-400 group-hover:text-cyan-300' : 'text-cyan-400/80 group-hover:text-cyan-400'
-          ]">{{ formatIsk(props.wallet, 1) }} ISK</p>
+          ]">{{ props.wallet === null ? t('characters.walletUnknown') : `${formatIsk(props.wallet, 1)} ISK` }}</p>
         </div>
 
         <!-- Skill training -->

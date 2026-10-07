@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Me\WalletEntryResource;
 use App\ApiResource\Me\WalletResource;
+use App\Entity\Character;
 use App\Entity\EveToken;
 use App\Entity\User;
 use App\Service\ESI\EsiClient;
@@ -38,7 +39,8 @@ class WalletProvider implements ProviderInterface
         // Prepare batch requests for concurrent execution
         /** @var array<string, array{endpoint: string, token: ?EveToken}> $requests */
         $requests = [];
-        $characterMap = [];
+        /** @var array<string, Character> $charactersByEveId */
+        $charactersByEveId = [];
 
         foreach ($user->getCharacters() as $character) {
             $token = $character->getEveToken();
@@ -46,54 +48,51 @@ class WalletProvider implements ProviderInterface
                 continue;
             }
 
+            $key = (string) $character->getEveCharacterId();
+            $charactersByEveId[$key] = $character;
+
             try {
                 // Refresh token if needed (do this sequentially before batch)
                 if ($token->isExpiringSoon()) {
                     $this->tokenManager->refreshAccessToken($token);
                 }
-
-                $key = (string) $character->getEveCharacterId();
-                $requests[$key] = [
-                    'endpoint' => "/characters/{$key}/wallet/",
-                    'token' => $token,
-                ];
-                $characterMap[$key] = $character;
             } catch (\Throwable) {
-                // Skip characters with token issues
+                // No request: the character is reported below with an unknown balance
                 continue;
             }
+
+            $requests[$key] = [
+                'endpoint' => "/characters/{$key}/wallet/",
+                'token' => $token,
+            ];
         }
 
         // Execute all wallet requests concurrently with 10s timeout per request
         /** @phpstan-var array<string, array{endpoint: string, token: ?EveToken}> $requests */
         $balances = $this->esiClient->getScalarBatch($requests, 10);
 
-        $wallets = [];
-        $totalBalance = 0.0;
+        $resource = new WalletResource();
 
-        foreach ($balances as $characterId => $balance) {
-            if ($balance === null || !isset($characterMap[$characterId])) {
-                continue;
-            }
-
-            $character = $characterMap[$characterId];
+        foreach ($charactersByEveId as $eveCharacterId => $character) {
+            $balance = $balances[$eveCharacterId] ?? null;
 
             $entry = new WalletEntryResource();
             $entry->characterId = $character->getId()?->toRfc4122() ?? '';
             $entry->characterName = $character->getName();
             $entry->isMain = $character->isMain();
-            $entry->balance = (float) $balance;
+            $entry->balance = $balance === null ? null : (float) $balance;
 
-            $wallets[] = $entry;
-            $totalBalance += $entry->balance;
+            $resource->wallets[] = $entry;
+
+            if ($entry->balance === null) {
+                $resource->incomplete = true;
+            } else {
+                $resource->totalBalance += $entry->balance;
+            }
         }
 
         // Sort: main first
-        usort($wallets, fn ($a, $b) => $b->isMain <=> $a->isMain);
-
-        $resource = new WalletResource();
-        $resource->wallets = $wallets;
-        $resource->totalBalance = $totalBalance;
+        usort($resource->wallets, fn ($a, $b) => $b->isMain <=> $a->isMain);
 
         return $resource;
     }

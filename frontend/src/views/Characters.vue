@@ -36,7 +36,7 @@ interface SkillQueue {
 const authStore = useAuthStore()
 
 const characters = ref<Character[]>([])
-const wallets = ref<Map<string, number>>(new Map())
+const wallets = ref<Map<string, number | null>>(new Map())
 const skillQueues = ref<Map<string, SkillQueue>>(new Map())
 const isPageLoading = ref(true)
 const isLoading = ref(false)
@@ -82,8 +82,8 @@ async function fetchWallets() {
       headers: { 'Authorization': `Bearer ${authStore.token}` },
     })
     if (!response.ok) return
-    const data = await safeJsonParse<{ wallets?: { characterId: string; balance: number }[] }>(response)
-    const map = new Map<string, number>()
+    const data = await safeJsonParse<{ wallets?: { characterId: string; balance: number | null }[] }>(response)
+    const map = new Map<string, number | null>()
     for (const w of data.wallets || []) {
       map.set(w.characterId, w.balance)
     }

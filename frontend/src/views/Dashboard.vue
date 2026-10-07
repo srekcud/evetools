@@ -18,6 +18,7 @@ const { notifications, unreadCount, clearAll, removeNotification } = useNotifica
 const user = computed(() => authStore.user)
 
 const totalBalance = ref<number | null>(null)
+const unknownBalanceCount = ref(0)
 const isLoadingWallet = ref(false)
 const isAddingCharacter = ref(false)
 
@@ -28,8 +29,11 @@ async function fetchWallets() {
       headers: { 'Authorization': `Bearer ${authStore.token}` }
     })
     if (response.ok) {
-      const data = await safeJsonParse<{ totalBalance?: number }>(response)
+      const data = await safeJsonParse<{ totalBalance?: number; incomplete?: boolean; wallets?: { balance: number | null }[] }>(response)
       totalBalance.value = data.totalBalance ?? null
+      unknownBalanceCount.value = data.incomplete
+        ? (data.wallets ?? []).filter((wallet) => wallet.balance === null).length
+        : 0
     }
   } catch (e) {
     console.error('Failed to fetch wallets:', e)
@@ -119,6 +123,9 @@ onMounted(() => {
             </p>
             <p v-else class="text-4xl font-bold text-amber-400 mb-1">{{ totalBalance !== null ? formatIsk(totalBalance) : '\u2014' }}</p>
             <p class="text-sm text-slate-500">{{ t('dashboard.kpi.iskTotal') }}</p>
+            <p v-if="!isLoadingWallet && unknownBalanceCount > 0" class="text-xs text-amber-500/80 mt-1">
+              {{ t('dashboard.kpi.partialTotal', unknownBalanceCount) }}
+            </p>
           </div>
         </div>
 

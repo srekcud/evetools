@@ -30,5 +30,9 @@ class WalletResource
     /** @var WalletEntryResource[] */
     public array $wallets = [];
 
+    /** Sum of the known balances only. */
     public float $totalBalance = 0.0;
+
+    /** True when at least one balance is unknown, so totalBalance is a lower bound. */
+    public bool $incomplete = false;
 }

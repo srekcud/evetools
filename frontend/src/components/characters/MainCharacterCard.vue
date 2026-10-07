@@ -27,7 +27,7 @@ interface SkillQueue {
 
 const props = defineProps<{
   character: Character
-  wallet: number | undefined
+  wallet: number | null | undefined
   skillQueue: SkillQueue | undefined
   isLoading: boolean
 }>()
@@ -98,7 +98,7 @@ function romanLevel(level: number | null): string {
           <div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-800">
             <div>
               <p class="text-xs text-slate-500 uppercase tracking-wide">Wallet</p>
-              <p class="text-lg font-semibold text-cyan-400 font-mono">{{ formatIsk(props.wallet, 1) }} ISK</p>
+              <p class="text-lg font-semibold text-cyan-400 font-mono">{{ props.wallet === null ? t('characters.walletUnknown') : `${formatIsk(props.wallet, 1)} ISK` }}</p>
             </div>
             <div>
               <p class="text-xs text-slate-500 uppercase tracking-wide">{{ t('characters.skillTraining') }}</p>
