@@ -13,6 +13,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
+use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
@@ -518,6 +519,76 @@ final class EsiClientTest extends TestCase
     }
 
     // ---------------------------------------------------------------
+    // RED: issue #26 follow-up -- a 200 with an unusable JSON body only nulls its own key
+    // ---------------------------------------------------------------
+
+    public function testGetBatchReturnsNullForKeyWithInvalidJsonBodyWithoutFailingTheOthers(): void
+    {
+        $esiClient = $this->createEsiClientServingByPath([
+            '/contracts/public/items/30001/' => [$this->rawBodyResponse('[{"type_id": 34, "quantity": 1')],
+            '/contracts/public/items/30002/' => [$this->jsonResponse([['type_id' => 35, 'quantity' => 250, 'is_included' => true]])],
+        ]);
+
+        $result = $esiClient->getBatch([
+            30001 => '/contracts/public/items/30001/',
+            30002 => '/contracts/public/items/30002/',
+        ]);
+
+        $this->assertSame([
+            30001 => null,
+            30002 => [['type_id' => 35, 'quantity' => 250, 'is_included' => true]],
+        ], $result);
+        // An unusable body is not retried: one request per key.
+        $this->assertCount(2, $this->recordedRequests);
+    }
+
+    public function testGetBatchReturnsNullForKeyWhoseJsonBodyIsAScalar(): void
+    {
+        $esiClient = $this->createEsiClientServingByPath([
+            '/contracts/public/items/30001/' => [$this->rawBodyResponse('42')],
+            '/contracts/public/items/30002/' => [$this->jsonResponse([['type_id' => 36, 'quantity' => 1000, 'is_included' => true]])],
+        ]);
+
+        $result = $esiClient->getBatch([
+            30001 => '/contracts/public/items/30001/',
+            30002 => '/contracts/public/items/30002/',
+        ]);
+
+        $this->assertSame([
+            30001 => null,
+            30002 => [['type_id' => 36, 'quantity' => 1000, 'is_included' => true]],
+        ], $result);
+    }
+
+    public function testGetBatchLogsOneWarningWithTheEndpointForEachKeyWithUnusableJsonBody(): void
+    {
+        $logRecords = [];
+        $esiClient = $this->createEsiClientServingByPath([
+            '/contracts/public/items/30001/' => [$this->rawBodyResponse('not json at all')],
+            '/contracts/public/items/30002/' => [$this->jsonResponse([['type_id' => 34, 'quantity' => 100, 'is_included' => true]])],
+            '/contracts/public/items/30003/' => [$this->rawBodyResponse('42')],
+        ], $this->createRecordingLogger($logRecords));
+
+        $esiClient->getBatch([
+            30001 => '/contracts/public/items/30001/',
+            30002 => '/contracts/public/items/30002/',
+            30003 => '/contracts/public/items/30003/',
+        ]);
+
+        $warningEndpoints = array_map(
+            static fn (array $logRecord): mixed => $logRecord['context']['endpoint'] ?? null,
+            array_values(array_filter(
+                $logRecords,
+                static fn (array $logRecord): bool => $logRecord['level'] === LogLevel::WARNING,
+            )),
+        );
+        $this->assertSame([
+            '/contracts/public/items/30001/',
+            '/contracts/public/items/30003/',
+        ], $warningEndpoints);
+    }
+
+    // ---------------------------------------------------------------
     // RED: issue #41 -- getWithCache() honours ESI Expires and keeps the ETag
     //
     // Clock note: the MockClock starts at the real current time because
@@ -775,6 +846,21 @@ final class EsiClientTest extends TestCase
                 'X-Esi-Error-Limit-Remain' => '100',
                 'X-Esi-Error-Limit-Reset' => '0',
                 ...$headers,
+            ],
+        ]);
+    }
+
+    /**
+     * A 200 response announced as JSON whose body is served verbatim (possibly invalid or non-array).
+     */
+    private function rawBodyResponse(string $body): MockResponse
+    {
+        return new MockResponse($body, [
+            'http_code' => 200,
+            'response_headers' => [
+                'Content-Type' => 'application/json',
+                'X-Esi-Error-Limit-Remain' => '100',
+                'X-Esi-Error-Limit-Reset' => '0',
             ],
         ]);
     }

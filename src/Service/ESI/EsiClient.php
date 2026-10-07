@@ -8,6 +8,7 @@ use App\Entity\EveToken;
 use App\Exception\EsiApiException;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
@@ -130,7 +131,7 @@ class EsiClient
         }
 
         $this->throttleIfNeeded();
-        $results = $this->collectBatch($this->launchBatch($endpoints, $token), $retryDelays);
+        $results = $this->collectBatch($endpoints, $this->launchBatch($endpoints, $token), $retryDelays);
 
         if ($retryDelays !== []) {
             $sleepSeconds = max($retryDelays);
@@ -143,7 +144,7 @@ class EsiClient
             // The error-limit window has just been waited out: the replay is not throttled again.
             $retryEndpoints = array_intersect_key($endpoints, $retryDelays);
             // A second consecutive 420/429 is not replayed again: that key stays null.
-            $retryResults = $this->collectBatch($this->launchBatch($retryEndpoints, $token), $unreplayedDelays);
+            $retryResults = $this->collectBatch($retryEndpoints, $this->launchBatch($retryEndpoints, $token), $unreplayedDelays);
             $results = array_replace($results, $retryResults);
         }
 
@@ -298,15 +299,16 @@ class EsiClient
 
     /**
      * Reads every response of a batch. 420/429 keys map to null and their retry delay is
-     * reported in $retryDelays.
+     * reported in $retryDelays. A 2xx with an unusable JSON body maps to null without replay.
      *
      * @template TKey of array-key
+     * @param array<TKey, string> $endpoints
      * @param array<TKey, ResponseInterface> $responses
      * @param array<TKey, int>|null $retryDelays
      * @param-out array<TKey, int> $retryDelays
      * @return array<TKey, array<mixed>|null>
      */
-    private function collectBatch(array $responses, ?array &$retryDelays): array
+    private function collectBatch(array $endpoints, array $responses, ?array &$retryDelays): array
     {
         $retryDelays = [];
         $results = [];
@@ -326,6 +328,11 @@ class EsiClient
                     // Consume response body to prevent curl handle issues
                     $response->getContent(false);
                 }
+            } catch (DecodingExceptionInterface $e) {
+                $this->logger->warning('ESI batched response for {endpoint} has an unusable JSON body, key ignored: {message}', [
+                    'endpoint' => $endpoints[$key],
+                    'message' => $e->getMessage(),
+                ]);
             } catch (TransportExceptionInterface) {
                 // A network error leaves this key null; the other keys of the batch are unaffected.
             }
