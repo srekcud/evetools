@@ -75,7 +75,7 @@ class EsiClient
     public function getScalar(string $endpoint, ?EveToken $token = null, int $timeout = self::REQUEST_TIMEOUT): mixed
     {
         try {
-            $response = $this->request('GET', $endpoint, $token, timeout: $timeout);
+            $response = $this->requestWithRetry('GET', $endpoint, $token, timeout: $timeout);
             $statusCode = $response->getStatusCode();
             $this->processRateLimitHeaders($response);
 
@@ -83,14 +83,14 @@ class EsiClient
                 return json_decode($response->getContent(), false);
             }
 
-            throw EsiApiException::fromResponse($statusCode, 'ESI request failed', $endpoint);
+            throw $this->failedResponseException($response, $statusCode, $endpoint);
         } catch (TransportExceptionInterface $e) {
             throw EsiApiException::fromResponse(0, 'Network error: ' . $e->getMessage(), $endpoint);
         }
     }
 
     /**
-     * Get multiple scalar values concurrently.
+     * Get multiple scalar values concurrently, with the replay mechanism of getBatch().
      * Returns an array keyed by the request key, with null for failed requests.
      *
      * @param array<string, array{endpoint: string, token: ?EveToken}> $requests
@@ -98,43 +98,11 @@ class EsiClient
      */
     public function getScalarBatch(array $requests, int $timeout = 10): array
     {
-        $responses = [];
-
-        // Start all requests (non-blocking)
-        foreach ($requests as $key => $request) {
-            try {
-                $responses[$key] = $this->httpClient->request('GET', $this->baseUrl . $request['endpoint'], [
-                    'headers' => $this->buildHeaders($request['token']),
-                    'timeout' => $timeout,
-                    'user_data' => $key,
-                ]);
-            } catch (\Throwable) {
-                $responses[$key] = null;
-            }
-        }
-
-        // Collect all responses (concurrent processing)
-        $results = [];
-        foreach ($responses as $key => $response) {
-            if ($response === null) {
-                $results[$key] = null;
-                continue;
-            }
-
-            try {
-                $statusCode = $response->getStatusCode();
-                $this->processRateLimitHeaders($response);
-                if ($statusCode >= 200 && $statusCode < 300) {
-                    $results[$key] = json_decode($response->getContent(), false);
-                } else {
-                    $results[$key] = null;
-                }
-            } catch (\Throwable) {
-                $results[$key] = null;
-            }
-        }
-
-        return $results;
+        return $this->fetchBatch(
+            $requests,
+            $timeout,
+            static fn (ResponseInterface $response): mixed => json_decode($response->getContent(), false),
+        );
     }
 
     /**
@@ -154,24 +122,12 @@ class EsiClient
         }
 
         $this->throttleIfNeeded();
-        $results = $this->collectBatch($endpoints, $this->launchBatch($endpoints, $token), $retryDelays);
 
-        if ($retryDelays !== []) {
-            $sleepSeconds = max($retryDelays);
-            $this->logger->warning('ESI 420/429 received on {count} batched requests, sleeping {seconds}s before retry', [
-                'count' => count($retryDelays),
-                'seconds' => $sleepSeconds,
-            ]);
-            sleep($sleepSeconds);
-
-            // The error-limit window has just been waited out: the replay is not throttled again.
-            $retryEndpoints = array_intersect_key($endpoints, $retryDelays);
-            // A second consecutive 420/429 is not replayed again: that key stays null.
-            $retryResults = $this->collectBatch($retryEndpoints, $this->launchBatch($retryEndpoints, $token), $unreplayedDelays);
-            $results = array_replace($results, $retryResults);
-        }
-
-        return $results;
+        return $this->fetchBatch(
+            array_map(static fn (string $endpoint): array => ['endpoint' => $endpoint, 'token' => $token], $endpoints),
+            self::REQUEST_TIMEOUT,
+            static fn (ResponseInterface $response): array => $response->toArray(),
+        );
     }
 
     /**
@@ -247,11 +203,6 @@ class EsiClient
                 throw EsiApiException::fromResponse(0, 'Network error: ' . $e->getMessage(), $paginatedEndpoint);
             }
 
-            // Throttle between pages
-            if ($page <= $pages) {
-                $this->throttleIfNeeded();
-            }
-
             $page++;
         } while ($page <= $pages);
 
@@ -306,15 +257,47 @@ class EsiClient
     }
 
     /**
+     * Launches every request before reading any response, then replays the 420/429 keys once,
+     * together, after a single wait. A key whose request fails maps to null.
+     *
      * @template TKey of array-key
-     * @param array<TKey, string> $endpoints
+     * @template TValue
+     * @param array<TKey, array{endpoint: string, token: ?EveToken}> $requests
+     * @param \Closure(ResponseInterface): TValue $decode
+     * @return array<TKey, TValue|null>
+     */
+    private function fetchBatch(array $requests, int $timeout, \Closure $decode): array
+    {
+        $results = $this->collectBatch($requests, $this->launchBatch($requests, $timeout), $decode, $retryDelays);
+
+        if ($retryDelays !== []) {
+            $sleepSeconds = max($retryDelays);
+            $this->logger->warning('ESI 420/429 received on {count} batched requests, sleeping {seconds}s before retry', [
+                'count' => count($retryDelays),
+                'seconds' => $sleepSeconds,
+            ]);
+            sleep($sleepSeconds);
+
+            // The error-limit window has just been waited out: the replay is not throttled again.
+            $retryRequests = array_intersect_key($requests, $retryDelays);
+            // A second consecutive 420/429 is not replayed again: that key stays null.
+            $retryResults = $this->collectBatch($retryRequests, $this->launchBatch($retryRequests, $timeout), $decode, $unreplayedDelays);
+            $results = array_replace($results, $retryResults);
+        }
+
+        return $results;
+    }
+
+    /**
+     * @template TKey of array-key
+     * @param array<TKey, array{endpoint: string, token: ?EveToken}> $requests
      * @return array<TKey, ResponseInterface>
      */
-    private function launchBatch(array $endpoints, ?EveToken $token): array
+    private function launchBatch(array $requests, int $timeout): array
     {
         $responses = [];
-        foreach ($endpoints as $key => $endpoint) {
-            $responses[$key] = $this->request('GET', $endpoint, $token, throttle: false);
+        foreach ($requests as $key => $request) {
+            $responses[$key] = $this->request('GET', $request['endpoint'], $request['token'], timeout: $timeout, throttle: false);
         }
 
         return $responses;
@@ -325,13 +308,15 @@ class EsiClient
      * reported in $retryDelays. A 2xx with an unusable JSON body maps to null without replay.
      *
      * @template TKey of array-key
-     * @param array<TKey, string> $endpoints
+     * @template TValue
+     * @param array<TKey, array{endpoint: string, token: ?EveToken}> $requests
      * @param array<TKey, ResponseInterface> $responses
+     * @param \Closure(ResponseInterface): TValue $decode
      * @param array<TKey, int>|null $retryDelays
      * @param-out array<TKey, int> $retryDelays
-     * @return array<TKey, array<mixed>|null>
+     * @return array<TKey, TValue|null>
      */
-    private function collectBatch(array $endpoints, array $responses, ?array &$retryDelays): array
+    private function collectBatch(array $requests, array $responses, \Closure $decode, ?array &$retryDelays): array
     {
         $retryDelays = [];
         $results = [];
@@ -346,14 +331,14 @@ class EsiClient
 
                 $this->processRateLimitHeaders($response);
                 if ($statusCode >= 200 && $statusCode < 300) {
-                    $results[$key] = $response->toArray();
+                    $results[$key] = $decode($response);
                 } else {
                     // Consume response body to prevent curl handle issues
                     $response->getContent(false);
                 }
             } catch (DecodingExceptionInterface $e) {
                 $this->logger->warning('ESI batched response for {endpoint} has an unusable JSON body, key ignored: {message}', [
-                    'endpoint' => $endpoints[$key],
+                    'endpoint' => $requests[$key]['endpoint'],
                     'message' => $e->getMessage(),
                 ]);
             } catch (TransportExceptionInterface) {
@@ -407,8 +392,9 @@ class EsiClient
         array $extraHeaders = [],
         ?array $jsonBody = null,
         ?string $baseUrl = null,
+        int $timeout = self::REQUEST_TIMEOUT,
     ): ResponseInterface {
-        $response = $this->request($method, $endpoint, $token, $extraHeaders, $jsonBody, baseUrl: $baseUrl);
+        $response = $this->request($method, $endpoint, $token, $extraHeaders, $jsonBody, $timeout, baseUrl: $baseUrl);
         $statusCode = $response->getStatusCode();
 
         if ($statusCode !== 420 && $statusCode !== 429) {
@@ -424,7 +410,7 @@ class EsiClient
         sleep($sleepSeconds);
 
         // The error-limit window has just been waited out: throttling again would double the pause.
-        return $this->request($method, $endpoint, $token, $extraHeaders, $jsonBody, throttle: false, baseUrl: $baseUrl);
+        return $this->request($method, $endpoint, $token, $extraHeaders, $jsonBody, $timeout, throttle: false, baseUrl: $baseUrl);
     }
 
     private function unversionedBaseUrl(): string
@@ -509,23 +495,31 @@ class EsiClient
                 return $response->toArray();
             }
 
-            // Consume response body to prevent curl handle issues
-            $response->getContent(false);
-
-            $message = match ($statusCode) {
-                401 => 'Authentication failed',
-                403 => 'Access forbidden',
-                404 => 'Resource not found',
-                420 => 'Error limited',
-                429 => 'Rate limit exceeded',
-                500, 502, 503, 504 => 'ESI server error',
-                default => 'ESI request failed',
-            };
-
-            throw EsiApiException::fromResponse($statusCode, $message, $endpoint);
+            throw $this->failedResponseException($response, $statusCode, $endpoint);
         } catch (TransportExceptionInterface $e) {
             throw EsiApiException::fromResponse(0, 'Network error: ' . $e->getMessage(), $endpoint);
         }
+    }
+
+    /**
+     * @throws TransportExceptionInterface
+     */
+    private function failedResponseException(ResponseInterface $response, int $statusCode, string $endpoint): EsiApiException
+    {
+        // Consume response body to prevent curl handle issues
+        $response->getContent(false);
+
+        $message = match ($statusCode) {
+            401 => 'Authentication failed',
+            403 => 'Access forbidden',
+            404 => 'Resource not found',
+            420 => 'Error limited',
+            429 => 'Rate limit exceeded',
+            500, 502, 503, 504 => 'ESI server error',
+            default => 'ESI request failed',
+        };
+
+        return EsiApiException::fromResponse($statusCode, $message, $endpoint);
     }
 
     private function processRateLimitHeaders(ResponseInterface $response): void

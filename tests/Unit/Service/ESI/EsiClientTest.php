@@ -800,30 +800,32 @@ final class EsiClientTest extends TestCase
         }
     }
 
-    public function testGetPaginatedThrottlesTwiceBetweenPagesWhenErrorLimitRemainIsLowSuspectedDoublePause(): void
+    public function testGetPaginatedThrottlesOnceBeforeEachFollowingPageAndNotAfterTheLastWhenErrorLimitRemainIsLow(): void
     {
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #43.
-        // getPaginated() throttles after each page, then request() throttles again before
-        // the next one: with 19 errors left the pause between two pages is 2 x 100 ms.
+        // Issue #84: 19 errors left -> one 100 ms pause before page 2, one before page 3, none after page 3.
         $logRecords = [];
         $esiClient = $this->createEsiClient([
-            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]], 200, ['X-Pages' => '2', 'X-Esi-Error-Limit-Remain' => '19']),
-            $this->jsonResponse([['type_id' => 35, 'quantity' => 500]], 200, ['X-Pages' => '2']),
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]], 200, ['X-Pages' => '3', 'X-Esi-Error-Limit-Remain' => '19']),
+            $this->jsonResponse([['type_id' => 35, 'quantity' => 500]], 200, ['X-Pages' => '3', 'X-Esi-Error-Limit-Remain' => '19']),
+            $this->jsonResponse([['type_id' => 36, 'quantity' => 250]], 200, ['X-Pages' => '3', 'X-Esi-Error-Limit-Remain' => '19']),
         ], logger: $this->createRecordingLogger($logRecords));
 
-        $esiClient->getPaginated('/characters/2112000001/assets/');
+        $result = $esiClient->getPaginated('/characters/2112000001/assets/');
 
+        $this->assertSame([
+            ['type_id' => 34, 'quantity' => 1000],
+            ['type_id' => 35, 'quantity' => 500],
+            ['type_id' => 36, 'quantity' => 250],
+        ], $result);
         $this->assertSame([
             ['remain' => 19, 'delay' => 100],
             ['remain' => 19, 'delay' => 100],
         ], array_column($logRecords, 'context'));
     }
 
-    public function testGetPaginatedThrottlesAfterTheLastPageWhenErrorLimitRemainIsLowSuspectedUselessPause(): void
+    public function testGetPaginatedDoesNotThrottleAfterItsOnlyPageWhenErrorLimitRemainIsLow(): void
     {
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #43.
-        // The "throttle between pages" guard ($page <= $pages) is always true, so a pause
-        // happens after the last page although no further request follows.
+        // Issue #84: no request follows the last page, so no pause either.
         $logRecords = [];
         $esiClient = $this->createEsiClient([
             $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]], 200, ['X-Esi-Error-Limit-Remain' => '19']),
@@ -831,7 +833,7 @@ final class EsiClientTest extends TestCase
 
         $esiClient->getPaginated('/characters/2112000001/assets/');
 
-        $this->assertSame([['remain' => 19, 'delay' => 100]], array_column($logRecords, 'context'));
+        $this->assertSame([], $logRecords);
     }
 
     // ---------------------------------------------------------------
@@ -1032,22 +1034,44 @@ final class EsiClientTest extends TestCase
         $this->assertSame(5.0, $this->recordedRequests[0]['timeout']);
     }
 
-    public function testGetScalarThrowsGenericEsiApiExceptionOn420WithoutRetrySuspected(): void
+    public function testGetScalarRetriesOnceAfterRateLimited429KeepingTokenAndTimeout(): void
     {
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #43.
-        // Unlike get()/post()/getPaginated()/getBatch(), getScalar() does not replay a 420/429
-        // and reports every failure as "ESI request failed".
-        $esiClient = $this->createEsiClient([$this->errorLimitedResponse()]);
+        // Issue #85: getScalar() replays a 429 once, like get()/post().
+        $esiClient = $this->createEsiClient([
+            $this->rateLimitedResponse(retryAfterSeconds: 0),
+            $this->rawJsonResponse('1234567.89'),
+        ]);
+
+        $walletBalance = $esiClient->getScalar('/characters/2112000001/wallet/', $this->createEveToken(), 5);
+
+        $this->assertSame(1234567.89, $walletBalance);
+        $this->assertSame(['GET', 'GET'], array_column($this->recordedRequests, 'method'));
+        $this->assertSame([
+            self::BASE_URL . '/characters/2112000001/wallet/',
+            self::BASE_URL . '/characters/2112000001/wallet/',
+        ], array_column($this->recordedRequests, 'url'));
+        $this->assertSame(['Authorization: Bearer ' . self::ACCESS_TOKEN], $this->recordedRequests[1]['headers']['authorization'] ?? null);
+        $this->assertSame([5.0, 5.0], array_column($this->recordedRequests, 'timeout'));
+    }
+
+    public function testGetScalarThrows429WithExplicitMessageAfterSecondConsecutiveRateLimit(): void
+    {
+        // Issue #85: a second consecutive 429 is not replayed again and is reported as such.
+        $esiClient = $this->createEsiClient([
+            $this->rateLimitedResponse(retryAfterSeconds: 0),
+            $this->rateLimitedResponse(retryAfterSeconds: 0),
+        ]);
 
         try {
             $esiClient->getScalar('/characters/2112000001/wallet/', $this->createEveToken());
             $this->fail('Expected EsiApiException');
         } catch (EsiApiException $exception) {
-            $this->assertSame(420, $exception->statusCode);
-            $this->assertSame('ESI request failed', $exception->getMessage());
+            $this->assertSame(429, $exception->statusCode);
+            $this->assertSame('Rate limit exceeded', $exception->getMessage());
             $this->assertSame('/characters/2112000001/wallet/', $exception->endpoint);
         }
-        $this->assertCount(1, $this->recordedRequests);
+        // Exactly one retry, no loop
+        $this->assertCount(2, $this->recordedRequests);
     }
 
     public function testGetScalarThrowsEsiApiExceptionOnA300Response(): void
@@ -1091,7 +1115,6 @@ final class EsiClientTest extends TestCase
             $this->rawJsonResponse('1500000.5'),
             $this->errorResponse(404),
             $this->networkErrorResponse(),
-            $this->errorLimitedResponse(),
             $this->rawJsonResponse('42'),
             $this->errorResponse(300),
             $this->rawJsonResponse('{"total_sp":5000000}'),
@@ -1101,7 +1124,6 @@ final class EsiClientTest extends TestCase
             'pilot_one' => ['endpoint' => '/characters/2112000001/wallet/', 'token' => $this->createEveToken()],
             'pilot_two' => ['endpoint' => '/characters/2112000002/wallet/', 'token' => $this->createEveToken()],
             'pilot_three' => ['endpoint' => '/characters/2112000003/wallet/', 'token' => $this->createEveToken()],
-            'pilot_four' => ['endpoint' => '/characters/2112000004/wallet/', 'token' => $this->createEveToken()],
             'public' => ['endpoint' => '/universe/system_kills/', 'token' => null],
             'redirected' => ['endpoint' => '/characters/2112000005/wallet/', 'token' => $this->createEveToken()],
             'skills' => ['endpoint' => '/characters/2112000001/skills/', 'token' => $this->createEveToken()],
@@ -1111,25 +1133,23 @@ final class EsiClientTest extends TestCase
             'pilot_one' => 1500000.5,
             'pilot_two' => null,
             'pilot_three' => null,
-            'pilot_four' => null,
             'public' => 42,
             'redirected' => null,
             'skills' => $result['skills'],
         ], $result);
         $this->assertEquals((object) ['total_sp' => 5000000], $result['skills']);
-        // No retry on 420: one request per key.
+        // No retry on 4xx, 3xx or network error: one request per key.
         $this->assertSame([
             self::BASE_URL . '/characters/2112000001/wallet/',
             self::BASE_URL . '/characters/2112000002/wallet/',
             self::BASE_URL . '/characters/2112000003/wallet/',
-            self::BASE_URL . '/characters/2112000004/wallet/',
             self::BASE_URL . '/universe/system_kills/',
             self::BASE_URL . '/characters/2112000005/wallet/',
             self::BASE_URL . '/characters/2112000001/skills/',
         ], array_column($this->recordedRequests, 'url'));
-        $this->assertSame([10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0], array_column($this->recordedRequests, 'timeout'));
+        $this->assertSame([10.0, 10.0, 10.0, 10.0, 10.0, 10.0], array_column($this->recordedRequests, 'timeout'));
         $this->assertSame(['Authorization: Bearer ' . self::ACCESS_TOKEN], $this->recordedRequests[0]['headers']['authorization'] ?? null);
-        $this->assertArrayNotHasKey('authorization', $this->recordedRequests[4]['headers']);
+        $this->assertArrayNotHasKey('authorization', $this->recordedRequests[3]['headers']);
     }
 
     public function testGetScalarBatchSendsTheGivenTimeout(): void
@@ -1142,6 +1162,72 @@ final class EsiClientTest extends TestCase
         );
 
         $this->assertSame(3.0, $this->recordedRequests[0]['timeout']);
+    }
+
+    public function testGetScalarBatchRetriesRateLimited429KeyOnceAndReturnsItsValue(): void
+    {
+        // Issue #85: same mechanism as getBatch(), only the rate-limited key is replayed.
+        $esiClient = $this->createEsiClientServingByPath([
+            '/characters/2112000001/wallet/' => [
+                $this->rateLimitedResponse(retryAfterSeconds: 0),
+                $this->rawJsonResponse('1500000.5'),
+            ],
+            '/characters/2112000002/wallet/' => [$this->rawJsonResponse('42')],
+        ]);
+
+        $result = $esiClient->getScalarBatch([
+            'pilot_one' => ['endpoint' => '/characters/2112000001/wallet/', 'token' => $this->createEveToken()],
+            'pilot_two' => ['endpoint' => '/characters/2112000002/wallet/', 'token' => $this->createEveToken()],
+        ]);
+
+        $this->assertSame(['pilot_one' => 1500000.5, 'pilot_two' => 42], $result);
+        $this->assertSame([
+            self::BASE_URL . '/characters/2112000001/wallet/',
+            self::BASE_URL . '/characters/2112000002/wallet/',
+            self::BASE_URL . '/characters/2112000001/wallet/',
+        ], array_column($this->recordedRequests, 'url'));
+        $this->assertSame(['Authorization: Bearer ' . self::ACCESS_TOKEN], $this->recordedRequests[2]['headers']['authorization'] ?? null);
+    }
+
+    public function testGetScalarBatchReturnsNullAfterSecondConsecutive429ForThatKeyOnly(): void
+    {
+        $esiClient = $this->createEsiClientServingByPath([
+            '/characters/2112000001/wallet/' => [
+                $this->rateLimitedResponse(retryAfterSeconds: 0),
+                $this->rateLimitedResponse(retryAfterSeconds: 0),
+            ],
+            '/characters/2112000002/wallet/' => [$this->rawJsonResponse('42')],
+        ]);
+
+        $result = $esiClient->getScalarBatch([
+            'pilot_one' => ['endpoint' => '/characters/2112000001/wallet/', 'token' => $this->createEveToken()],
+            'pilot_two' => ['endpoint' => '/characters/2112000002/wallet/', 'token' => $this->createEveToken()],
+        ]);
+
+        $this->assertSame(['pilot_one' => null, 'pilot_two' => 42], $result);
+        // Exactly one retry, no loop
+        $this->assertCount(3, $this->recordedRequests);
+    }
+
+    public function testGetScalarBatchWaitsOnceForAllRateLimitedKeysBeforeReplayingThem(): void
+    {
+        $logRecords = [];
+        $esiClient = $this->createEsiClientServingByPath([
+            '/characters/2112000001/wallet/' => [$this->rateLimitedResponse(retryAfterSeconds: 0), $this->rawJsonResponse('1500000.5')],
+            '/characters/2112000002/wallet/' => [$this->rateLimitedResponse(retryAfterSeconds: 0), $this->rawJsonResponse('42')],
+        ], $this->createRecordingLogger($logRecords));
+
+        $result = $esiClient->getScalarBatch([
+            'pilot_one' => ['endpoint' => '/characters/2112000001/wallet/', 'token' => $this->createEveToken()],
+            'pilot_two' => ['endpoint' => '/characters/2112000002/wallet/', 'token' => $this->createEveToken()],
+        ]);
+
+        $this->assertSame(['pilot_one' => 1500000.5, 'pilot_two' => 42], $result);
+        $this->assertSame([[
+            'level' => 'warning',
+            'message' => 'ESI 420/429 received on {count} batched requests, sleeping {seconds}s before retry',
+            'context' => ['count' => 2, 'seconds' => 0],
+        ]], $logRecords);
     }
 
     public function testGetScalarBatchGetScalarAndPostEmptyRecordErrorLimitHeadersSoTheNextRequestIsThrottled(): void
