@@ -18,6 +18,7 @@ use App\Service\Industry\InventionService;
 use App\Service\JitaMarketService;
 use App\Service\TypeNameResolver;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -541,5 +542,139 @@ class InventionServiceTest extends TestCase
         $this->assertArrayHasKey(self::ACCELERANT_DECRYPTOR_ID, $options);
         $this->assertSame('Accelerant Decryptor', $options[self::ACCELERANT_DECRYPTOR_ID]['name']);
         $this->assertSame(1.2, $options[self::ACCELERANT_DECRYPTOR_ID]['probabilityMultiplier']);
+    }
+
+    // ===========================================
+    // Decryptor modifiers per typeId (issue #70)
+    // Reference: SDE dgmTypeAttributes 1112 (probability), 1113 (ME), 1114 (TE), 1124 (max runs)
+    // ===========================================
+
+    /**
+     * @return iterable<string, array{int, string, float, int, int, int}>
+     */
+    public static function decryptorModifiersFromSde(): iterable
+    {
+        yield 'Accelerant' => [34201, 'Accelerant Decryptor', 1.2, 2, 10, 1];
+        yield 'Attainment' => [34202, 'Attainment Decryptor', 1.8, -1, 4, 4];
+        yield 'Augmentation' => [34203, 'Augmentation Decryptor', 0.6, -2, 2, 9];
+        yield 'Parity' => [34204, 'Parity Decryptor', 1.5, 1, -2, 3];
+        yield 'Process' => [34205, 'Process Decryptor', 1.1, 3, 6, 0];
+        yield 'Symmetry' => [34206, 'Symmetry Decryptor', 1.0, 1, 8, 2];
+        yield 'Optimized Attainment' => [34207, 'Optimized Attainment Decryptor', 1.9, 1, -2, 2];
+        yield 'Optimized Augmentation' => [34208, 'Optimized Augmentation Decryptor', 0.9, 2, 0, 7];
+    }
+
+    #[DataProvider('decryptorModifiersFromSde')]
+    public function testGetDecryptorOptionsMatchesSdeModifiersForEachTypeId(
+        int $decryptorTypeId,
+        string $decryptorName,
+        float $probabilityMultiplier,
+        int $meModifier,
+        int $teModifier,
+        int $runModifier,
+    ): void {
+        $decryptors = $this->service->getDecryptorOptions();
+
+        $this->assertSame([
+            'name' => $decryptorName,
+            'probabilityMultiplier' => $probabilityMultiplier,
+            'meModifier' => $meModifier,
+            'teModifier' => $teModifier,
+            'runModifier' => $runModifier,
+        ], $decryptors[$decryptorTypeId]);
+    }
+
+    #[DataProvider('decryptorModifiersFromSde')]
+    public function testBuildDecryptorOptionsAppliesSdeModifiersOfEachTypeId(
+        int $decryptorTypeId,
+        string $decryptorName,
+        float $probabilityMultiplier,
+        int $meModifier,
+        int $teModifier,
+        int $runModifier,
+    ): void {
+        $baseProbability = 0.30;
+        $baseRuns = 10;
+        $this->setupSabreInventionChain($baseProbability, $baseRuns);
+        $this->stubZeroCostsExceptDecryptorPrices([]);
+
+        $option = $this->findOptionByDecryptorTypeId(
+            $this->service->buildDecryptorOptions(self::SABRE_TYPE_ID, 30002510),
+            $decryptorTypeId,
+        );
+
+        $this->assertSame($decryptorName, $option['decryptorName']);
+        $this->assertSame(InventionService::BASE_INVENTION_ME + $meModifier, $option['me']);
+        $this->assertSame(InventionService::BASE_INVENTION_TE + $teModifier, $option['te']);
+        $this->assertSame($baseRuns + $runModifier, $option['runs']);
+        $this->assertEqualsWithDelta($baseProbability * $probabilityMultiplier, $option['probability'], 1e-12);
+    }
+
+    /**
+     * @return iterable<string, array{int}>
+     */
+    public static function decryptorTypeIds(): iterable
+    {
+        foreach (self::decryptorModifiersFromSde() as $label => $row) {
+            yield $label => [$row[0]];
+        }
+    }
+
+    #[DataProvider('decryptorTypeIds')]
+    public function testBuildDecryptorOptionsChargesThePriceOfItsOwnTypeId(int $decryptorTypeId): void
+    {
+        $this->setupSabreInventionChain(0.30, 10);
+        // Distinct Jita price per decryptor typeId, so a mix-up between rows shows up
+        $decryptorPrices = [
+            34201 => 1_100_000.0,
+            34202 => 1_200_000.0,
+            34203 => 1_300_000.0,
+            34204 => 1_400_000.0,
+            34205 => 1_500_000.0,
+            34206 => 1_600_000.0,
+            34207 => 1_700_000.0,
+            34208 => 1_800_000.0,
+        ];
+        $this->stubZeroCostsExceptDecryptorPrices($decryptorPrices);
+
+        $option = $this->findOptionByDecryptorTypeId(
+            $this->service->buildDecryptorOptions(self::SABRE_TYPE_ID, 30002510),
+            $decryptorTypeId,
+        );
+
+        $this->assertSame($decryptorPrices[$decryptorTypeId], $option['costBreakdown']['decryptor']);
+        $this->assertSame($decryptorPrices[$decryptorTypeId], $option['costPerAttempt']);
+    }
+
+    /**
+     * @param array<int, float> $decryptorPrices
+     */
+    private function stubZeroCostsExceptDecryptorPrices(array $decryptorPrices): void
+    {
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
+            self::DATACORE_1_TYPE_ID => 0.0,
+            self::DATACORE_2_TYPE_ID => 0.0,
+        ]);
+        $this->jitaMarketService->method('getPrice')
+            ->willReturnCallback(fn (int $typeId): float => $decryptorPrices[$typeId] ?? 0.0);
+        $this->activityProductRepository->method('findBy')->willReturn([]);
+        $this->esiCostIndexService->method('getAdjustedPrice')->willReturn(0.0);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(0.0);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $options
+     *
+     * @return array<string, mixed>
+     */
+    private function findOptionByDecryptorTypeId(array $options, int $decryptorTypeId): array
+    {
+        foreach ($options as $option) {
+            if ($option['decryptorTypeId'] === $decryptorTypeId) {
+                return $option;
+            }
+        }
+
+        $this->fail(sprintf('No decryptor option for typeId %d', $decryptorTypeId));
     }
 }

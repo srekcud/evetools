@@ -34,11 +34,11 @@ class InventionService
         34201 => ['name' => 'Accelerant Decryptor', 'probabilityMultiplier' => 1.2, 'meModifier' => 2, 'teModifier' => 10, 'runModifier' => 1],
         34202 => ['name' => 'Attainment Decryptor', 'probabilityMultiplier' => 1.8, 'meModifier' => -1, 'teModifier' => 4, 'runModifier' => 4],
         34203 => ['name' => 'Augmentation Decryptor', 'probabilityMultiplier' => 0.6, 'meModifier' => -2, 'teModifier' => 2, 'runModifier' => 9],
-        34204 => ['name' => 'Optimized Attainment Decryptor', 'probabilityMultiplier' => 1.0, 'meModifier' => 1, 'teModifier' => -2, 'runModifier' => 2],
-        34205 => ['name' => 'Parity Decryptor', 'probabilityMultiplier' => 1.5, 'meModifier' => 1, 'teModifier' => -2, 'runModifier' => 3],
-        34206 => ['name' => 'Process Decryptor', 'probabilityMultiplier' => 1.1, 'meModifier' => 3, 'teModifier' => 6, 'runModifier' => 0],
-        34207 => ['name' => 'Symmetry Decryptor', 'probabilityMultiplier' => 1.0, 'meModifier' => 1, 'teModifier' => 8, 'runModifier' => 2],
-        34208 => ['name' => 'Optimized Augmentation Decryptor', 'probabilityMultiplier' => 0.9, 'meModifier' => -2, 'teModifier' => 0, 'runModifier' => 7],
+        34204 => ['name' => 'Parity Decryptor', 'probabilityMultiplier' => 1.5, 'meModifier' => 1, 'teModifier' => -2, 'runModifier' => 3],
+        34205 => ['name' => 'Process Decryptor', 'probabilityMultiplier' => 1.1, 'meModifier' => 3, 'teModifier' => 6, 'runModifier' => 0],
+        34206 => ['name' => 'Symmetry Decryptor', 'probabilityMultiplier' => 1.0, 'meModifier' => 1, 'teModifier' => 8, 'runModifier' => 2],
+        34207 => ['name' => 'Optimized Attainment Decryptor', 'probabilityMultiplier' => 1.9, 'meModifier' => 1, 'teModifier' => -2, 'runModifier' => 2],
+        34208 => ['name' => 'Optimized Augmentation Decryptor', 'probabilityMultiplier' => 0.9, 'meModifier' => 2, 'teModifier' => 0, 'runModifier' => 7],
     ];
 
     public function __construct(
