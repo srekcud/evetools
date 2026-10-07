@@ -62,6 +62,16 @@ export function isValidationError(error: unknown): error is ValidationError {
 }
 
 /**
+ * Non-validation API error carrying the HTTP status, so callers can react to a specific code (e.g. 409)
+ */
+export class ApiError extends Error {
+  constructor(message: string, public readonly status: number) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
+/**
  * Endpoints that make ESI API calls and should be blocked when rate limited
  */
 const ESI_ENDPOINTS = [
@@ -205,7 +215,7 @@ export async function apiRequest<T>(
       rateLimitStore.setRateLimited()
     }
 
-    throw new Error(errorData?.error || errorData?.description || errorData?.detail || `API error: ${response.status}`)
+    throw new ApiError(errorData?.error || errorData?.description || errorData?.detail || `API error: ${response.status}`, response.status)
   }
 
   if (response.status === 204) return null as T

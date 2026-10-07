@@ -15,6 +15,7 @@ use App\Repository\IndustryStructureConfigRepository;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
@@ -40,6 +41,9 @@ class CreateStructureProcessor implements ProcessorInterface
         }
 
         assert($data instanceof CreateStructureInput);
+
+        // Checked before anything is written: clearDefaultForUser() runs an immediate UPDATE.
+        $this->refuseAlreadyImportedStructure($user, $data->locationId);
 
         if ($data->isDefault) {
             $this->structureConfigRepository->clearDefaultForUser($user);
@@ -78,6 +82,18 @@ class CreateStructureProcessor implements ProcessorInterface
         $this->entityManager->flush();
 
         return $this->mapper->structureToResource($structure);
+    }
+
+    private function refuseAlreadyImportedStructure(User $user, ?int $locationId): void
+    {
+        if ($locationId === null || $locationId <= 0) {
+            return;
+        }
+
+        $existing = $this->structureConfigRepository->findByUserAndLocationId($user, $locationId);
+        if ($existing !== null) {
+            throw new ConflictHttpException(sprintf('Structure "%s" is already imported.', $existing->getName()));
+        }
     }
 
     /**

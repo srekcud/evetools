@@ -5,6 +5,7 @@ import { useIndustryStore } from '@/stores/industry'
 import type { StructureConfig, RigOption, CorporationStructure, StructureSearchResult } from '@/stores/industry'
 import FavoriteSystemsConfig from './FavoriteSystemsConfig.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import { ApiError } from '@/services/api'
 
 const { t } = useI18n()
 const store = useIndustryStore()
@@ -32,6 +33,17 @@ const isSearchingEsi = ref(false)
 const showEsiSearchDropdown = ref(false)
 
 const corporationStructuresLoaded = ref(false)
+
+const HTTP_CONFLICT = 409
+const saveError = ref<string | null>(null)
+
+const importedLocationIds = computed(() => new Set(
+  store.structures.flatMap(s => (s.locationId ? [s.locationId] : [])),
+))
+
+function isAlreadyImported(locationId: number): boolean {
+  return importedLocationIds.value.has(locationId)
+}
 
 onMounted(async () => {
   store.fetchStructures()
@@ -219,6 +231,7 @@ function resetForm() {
   esiSearchQuery.value = ''
   esiSearchResults.value = []
   showEsiSearchDropdown.value = false
+  saveError.value = null
 }
 
 const isRefinery = computed(() => ['athanor', 'tatara', 'refinery'].includes(formStructureType.value))
@@ -279,6 +292,7 @@ async function saveStructure() {
     return
   }
 
+  saveError.value = null
   try {
     if (editingStructure.value) {
       await store.updateStructure(editingStructure.value.id, {
@@ -296,13 +310,19 @@ async function saveStructure() {
         structureType: formStructureType.value,
         rigs: formRigs.value,
       })
+      // The new structure changes the shared corp configs and the "already imported" marks
+      await store.fetchCorporationStructures()
     }
     showAddForm.value = false
     resetForm()
     pendingSave.value = false
   } catch (e) {
     pendingSave.value = false
-    // Error is handled by store
+    if (e instanceof ApiError && e.status === HTTP_CONFLICT) {
+      const existing = store.structures.find(s => s.locationId === formLocationId.value)
+      saveError.value = t('industry.structures.alreadyImported', { name: existing?.name ?? formName.value })
+    }
+    // Other errors are handled by the store
   }
 }
 
@@ -540,10 +560,12 @@ const previewReactionTimeBonus = computed(() => {
                 v-for="struct in store.corporationStructures"
                 :key="struct.locationId"
                 :value="struct"
+                :class="{ 'text-slate-500': isAlreadyImported(struct.locationId) }"
               >
                 {{ struct.locationName }}
                 ({{ struct.solarSystemName || t('industry.structures.unknownSystem') }})
                 {{ struct.sharedConfig ? ` - ${t('industry.structures.rigsConfigured')}` : '' }}
+                {{ isAlreadyImported(struct.locationId) ? ` - ${t('industry.structures.alreadyImportedTag')}` : '' }}
               </option>
             </select>
             <p class="text-xs text-slate-500 mt-1">
@@ -577,10 +599,12 @@ const previewReactionTimeBonus = computed(() => {
                 :key="result.locationId"
                 @mousedown.prevent="selectEsiSearchResult(result)"
                 class="w-full px-3 py-2 hover:bg-slate-700 text-left"
+                :class="{ 'opacity-50': isAlreadyImported(result.locationId) }"
               >
                 <div class="text-sm text-slate-200">
                   {{ result.isCorporationOwned ? '★ ' : '' }}{{ result.locationName }}
                   <span v-if="result.solarSystemName" class="text-slate-400">({{ result.solarSystemName }})</span>
+                  <span v-if="isAlreadyImported(result.locationId)" class="text-xs text-slate-400">- {{ t('industry.structures.alreadyImportedTag') }}</span>
                 </div>
                 <div class="text-xs text-slate-500">
                   {{ result.structureType ? result.structureType.charAt(0).toUpperCase() + result.structureType.slice(1) : 'Structure' }}
@@ -791,6 +815,8 @@ const previewReactionTimeBonus = computed(() => {
             </div>
           </div>
         </div>
+
+        <p v-if="saveError" class="text-sm text-amber-400">{{ saveError }}</p>
 
         <!-- Actions -->
         <div class="flex gap-3 pt-2">

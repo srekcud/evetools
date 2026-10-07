@@ -1060,6 +1060,8 @@
       "searchByNameEsi": "Or search by name (ESI)",
       "searchStructure": "Search a structure...",
       "corpStructure": "Corp structure",
+      "alreadyImported": "This structure is already imported ({name}). Edit it from the list instead.",
+      "alreadyImportedTag": "already imported",
       "switchToCustom": "Switch to custom mode",
       "rigsSharedWithCorp": "Configured rigs will be shared with other members of your corporation.",
       "name": "Name",
