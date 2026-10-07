@@ -34,6 +34,7 @@ class GroupIndustryResourceMapper
         $resource->blacklistTypeIds = $project->getBlacklistTypeIds();
         $resource->createdAt = $project->getCreatedAt()->format(\DateTimeInterface::ATOM);
         $resource->myRole = $myMembership?->getRole()->value;
+        $resource->myStatus = $myMembership?->getStatus()->value;
 
         // Map project items
         $resource->items = [];

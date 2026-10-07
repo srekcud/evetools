@@ -46,6 +46,7 @@ export type GroupProject = {
   blacklistTypeIds: number[]
   createdAt: string
   myRole: GroupMemberRole | null
+  myStatus: 'accepted' | 'pending' | null
 }
 
 // --- BOM ---

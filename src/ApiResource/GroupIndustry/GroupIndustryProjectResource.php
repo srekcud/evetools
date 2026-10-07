@@ -150,4 +150,7 @@ class GroupIndustryProjectResource
 
     /** Current user's role in the project, null if not a member */
     public ?string $myRole = null;
+
+    /** Current user's membership status (accepted/pending), null if not a member */
+    public ?string $myStatus = null;
 }
