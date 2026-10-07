@@ -144,7 +144,7 @@ class ContractCollectionProvider implements ProviderInterface
     private function getPublicContractsForComparison(): array
     {
         try {
-            $publicContracts = $this->esiClient->get(
+            $publicContracts = $this->esiClient->getPaginated(
                 "/contracts/public/" . self::FORGE_REGION_ID . "/"
             );
 
