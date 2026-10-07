@@ -14,7 +14,10 @@ use App\Enum\GroupMemberStatus;
 
 class GroupIndustryResourceMapper
 {
-    public function projectToResource(GroupIndustryProject $project, ?GroupIndustryProjectMember $myMembership): GroupIndustryProjectResource
+    /**
+     * @param int|null $acceptedMembersCount precomputed by collection providers; counted from the members otherwise
+     */
+    public function projectToResource(GroupIndustryProject $project, ?GroupIndustryProjectMember $myMembership, ?int $acceptedMembersCount = null): GroupIndustryProjectResource
     {
         $resource = new GroupIndustryProjectResource();
         $resource->id = $project->getId()->toString();
@@ -45,7 +48,7 @@ class GroupIndustryResourceMapper
         }
 
         // Count accepted members only
-        $resource->membersCount = $project->getMembers()
+        $resource->membersCount = $acceptedMembersCount ?? $project->getMembers()
             ->filter(fn (GroupIndustryProjectMember $m) => $m->getStatus() === GroupMemberStatus::Accepted)
             ->count();
 

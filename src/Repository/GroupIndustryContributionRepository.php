@@ -72,4 +72,30 @@ class GroupIndustryContributionRepository extends ServiceEntityRepository
             ->getQuery()
             ->getOneOrNullResult();
     }
+
+    /**
+     * Contributions of a project, most recent first, with the contributing member, its user and main character,
+     * the BOM item and the reviewer with its main character fetch-joined.
+     *
+     * @return GroupIndustryContribution[]
+     */
+    public function findByProjectForListing(GroupIndustryProject $project): array
+    {
+        return $this->createQueryBuilder('c')
+            ->addSelect('contributor', 'contributorUser', 'contributorCharacter', 'contributorToken', 'bomItem', 'reviewer', 'reviewerCharacter', 'reviewerToken')
+            ->join('c.member', 'contributor')
+            ->join('contributor.user', 'contributorUser')
+            // Character::eveToken is an inverse OneToOne: not joined, Doctrine would load it row by row
+            ->leftJoin('contributorUser.mainCharacter', 'contributorCharacter')
+            ->leftJoin('contributorCharacter.eveToken', 'contributorToken')
+            ->leftJoin('c.bomItem', 'bomItem')
+            ->leftJoin('c.reviewedBy', 'reviewer')
+            ->leftJoin('reviewer.mainCharacter', 'reviewerCharacter')
+            ->leftJoin('reviewerCharacter.eveToken', 'reviewerToken')
+            ->andWhere('c.project = :project')
+            ->setParameter('project', $project)
+            ->orderBy('c.createdAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
 }

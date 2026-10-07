@@ -53,10 +53,7 @@ class GroupContributionCollectionProvider implements ProviderInterface
 
         $this->accessChecker->assertAcceptedMember($user, $project);
 
-        $contributions = $this->contributionRepository->findBy(
-            ['project' => $project],
-            ['createdAt' => 'DESC'],
-        );
+        $contributions = $this->contributionRepository->findByProjectForListing($project);
 
         return array_map(
             fn (GroupIndustryContribution $contribution) => $this->mapper->contributionToResource($contribution),
