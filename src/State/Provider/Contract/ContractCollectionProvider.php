@@ -11,6 +11,7 @@ use App\ApiResource\Contract\ContractListResource;
 use App\ApiResource\Contract\ContractResource;
 use App\Constant\EveConstants;
 use App\Entity\User;
+use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
@@ -35,6 +36,7 @@ class ContractCollectionProvider implements ProviderInterface
         private readonly RequestStack $requestStack,
         private readonly LoggerInterface $logger,
         private readonly int $defaultMarketStructureId,
+        private readonly InvTypeRepository $invTypeRepository,
     ) {
     }
 
@@ -338,16 +340,11 @@ class ContractCollectionProvider implements ProviderInterface
             return [];
         }
 
-        try {
-            $response = $this->esiClient->post('/universe/names/', $typeIds);
-            $names = [];
-            foreach ($response as $item) {
-                $names[$item['id']] = $item['name'];
-            }
-
-            return $names;
-        } catch (\Throwable) {
-            return [];
+        $names = [];
+        foreach ($this->invTypeRepository->findByTypeIds(array_values($typeIds)) as $typeId => $type) {
+            $names[$typeId] = $type->getTypeName();
         }
+
+        return $names;
     }
 }
