@@ -7,11 +7,11 @@ namespace App\State\Provider\Escalation;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Escalation\EscalationResource;
+use App\Entity\Escalation;
 use App\Entity\User;
 use App\Enum\EscalationVisibility;
 use App\Repository\EscalationRepository;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Uid\Uuid;
@@ -41,17 +41,26 @@ class EscalationProvider implements ProviderInterface
         }
 
         $escalation = $this->escalationRepository->find(Uuid::fromString($id));
-        if ($escalation === null) {
+        // Hors audience, on répond comme pour un id inconnu pour ne pas révéler l'existence de l'escalation.
+        if ($escalation === null || !$this->isVisibleTo($escalation, $user)) {
             throw new NotFoundHttpException('Escalation not found');
         }
 
-        $isOwner = $escalation->isOwnedBy($user);
+        return EscalationResourceMapper::toResource($escalation, $escalation->isOwnedBy($user));
+    }
 
-        // Non-owners can only see corp/public escalations
-        if (!$isOwner && $escalation->getVisibility() === EscalationVisibility::Perso) {
-            throw new AccessDeniedHttpException('Access denied');
+    private function isVisibleTo(Escalation $escalation, User $reader): bool
+    {
+        if ($escalation->isOwnedBy($reader)) {
+            return true;
         }
 
-        return EscalationResourceMapper::toResource($escalation, $isOwner);
+        return match ($escalation->getVisibility()) {
+            EscalationVisibility::Perso => false,
+            EscalationVisibility::Corp => $reader->getCorporationId() === $escalation->getCorporationId(),
+            EscalationVisibility::Alliance => $escalation->getAllianceId() !== null
+                && $reader->getAllianceId() === $escalation->getAllianceId(),
+            EscalationVisibility::Public => true,
+        };
     }
 }
