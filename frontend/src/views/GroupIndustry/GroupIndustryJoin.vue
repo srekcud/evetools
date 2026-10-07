@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import MainLayout from '@/layouts/MainLayout.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import { joinOutcome } from '@/views/GroupIndustry/joinOutcome'
 
 const route = useRoute()
 const router = useRouter()
@@ -25,13 +26,10 @@ onMounted(async () => {
   try {
     const project = await store.joinProject(code)
 
-    if (project) {
-      // Check if we were auto-accepted (we have a role set)
-      if (project.myRole != null) {
-        // Auto-accepted: redirect to project detail
-        router.replace({ name: 'group-industry-detail', params: { id: project.id } })
-        return
-      }
+    // Pending members also have a role: only an accepted membership can open the detail page
+    if (project && joinOutcome(project) === 'redirect') {
+      router.replace({ name: 'group-industry-detail', params: { id: project.id } })
+      return
     }
 
     // Request is pending approval

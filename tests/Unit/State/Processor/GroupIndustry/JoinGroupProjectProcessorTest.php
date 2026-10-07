@@ -187,6 +187,45 @@ class JoinGroupProjectProcessorTest extends TestCase
         self::assertSame('member', $resource->myRole);
     }
 
+    // --- Join outcome: the returned resource tells whether the membership is accepted or pending ---
+    // The role alone cannot tell: a pending member also has a role ("member"), so the join
+    // view redirected pending users to the detail page, which answers 403 to them.
+
+    public function testSameCorporationJoinReturnsAcceptedStatus(): void
+    {
+        $this->actAs('Corp Mate', self::OWNER_CORPORATION_ID);
+        $this->assignIdsOnFlush();
+
+        $resource = $this->join();
+
+        self::assertTrue(property_exists($resource, 'myStatus'), 'GroupIndustryProjectResource::$myStatus is missing');
+        self::assertSame('accepted', $resource->myStatus);
+    }
+
+    public function testOtherCorporationJoinReturnsPendingStatus(): void
+    {
+        $this->actAs('Stranger', self::OTHER_CORPORATION_ID);
+        $this->assignIdsOnFlush();
+
+        $resource = $this->join();
+
+        self::assertTrue(property_exists($resource, 'myStatus'), 'GroupIndustryProjectResource::$myStatus is missing');
+        self::assertSame('pending', $resource->myStatus);
+        self::assertSame('member', $resource->myRole);
+    }
+
+    public function testRemovedMemberRejoiningReturnsPendingStatus(): void
+    {
+        $user = $this->actAs('Corp Mate', self::OWNER_CORPORATION_ID);
+        $this->addMembership($user, GroupMemberRole::Member, GroupMemberStatus::Removed);
+
+        $resource = $this->join();
+
+        self::assertTrue(property_exists($resource, 'myStatus'), 'GroupIndustryProjectResource::$myStatus is missing');
+        self::assertSame('pending', $resource->myStatus);
+        self::assertSame('member', $resource->myRole);
+    }
+
     private function join(): GroupIndustryProjectResource
     {
         return $this->processor->process(null, new Post(), ['shortLinkCode' => self::SHORT_LINK_CODE]);

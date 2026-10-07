@@ -107,6 +107,30 @@ class GroupProjectProviderTest extends TestCase
         self::assertNull($resource->myRole);
     }
 
+    // --- myStatus: lets the front tell an accepted membership from a pending one ---
+
+    public function testAcceptedMemberSeesAcceptedStatus(): void
+    {
+        $user = $this->userOfCorporation(self::OTHER_CORPORATION_ID);
+        $this->addMembership($user, GroupMemberRole::Member, GroupMemberStatus::Accepted);
+
+        $resource = $this->provider->provide(new Get(), ['id' => $this->project->getId()->toRfc4122()]);
+
+        self::assertTrue(property_exists($resource, 'myStatus'), 'GroupIndustryProjectResource::$myStatus is missing');
+        self::assertSame('accepted', $resource->myStatus);
+    }
+
+    public function testSameCorporationNonMemberHasNoStatus(): void
+    {
+        $this->userOfCorporation(self::OWNER_CORPORATION_ID);
+
+        $resource = $this->provider->provide(new Get(), ['id' => $this->project->getId()->toRfc4122()]);
+
+        self::assertTrue(property_exists($resource, 'myStatus'), 'GroupIndustryProjectResource::$myStatus is missing');
+        self::assertNull($resource->myStatus);
+        self::assertNull($resource->myRole);
+    }
+
     private function userOfCorporation(int $corporationId): User&Stub
     {
         $user = $this->createStub(User::class);
