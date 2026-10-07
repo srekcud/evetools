@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Admin\ActionResultResource;
 use App\Entity\User;
+use App\Security\AdminChecker;
 use App\Message\SyncIndustryJobs;
 use App\Message\TriggerAnsiblexSync;
 use App\Message\CheckAlertPrices;
@@ -40,8 +41,7 @@ class TriggerSyncProcessor implements ProcessorInterface
         private readonly MarketAlertService $marketAlertService,
         private readonly NotificationRepository $notificationRepository,
         private readonly MarketPriceHistoryRepository $marketPriceHistoryRepository,
-        /** @var list<string> */
-        private readonly array $adminCharacterNames,
+        private readonly AdminChecker $adminChecker,
     ) {
     }
 
@@ -177,21 +177,7 @@ class TriggerSyncProcessor implements ProcessorInterface
 
     private function checkAdminAccess(User $user): void
     {
-        $mainChar = $user->getMainCharacter();
-        if (!$mainChar) {
-            throw new AccessDeniedHttpException('Forbidden');
-        }
-
-        $mainCharName = strtolower($mainChar->getName());
-        $isAdmin = false;
-        foreach ($this->adminCharacterNames as $adminName) {
-            if (strtolower($adminName) === $mainCharName) {
-                $isAdmin = true;
-                break;
-            }
-        }
-
-        if (!$isAdmin) {
+        if (!$this->adminChecker->isAdmin($user)) {
             throw new AccessDeniedHttpException('Forbidden');
         }
     }

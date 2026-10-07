@@ -1,8 +1,6 @@
 # config/services.yaml
 parameters:
     esi_base_url: '%env(ESI_BASE_URL)%'
-    admin_character_names:
-        - 'srekcud alpha'
     esi_token_encryption_key: '%env(ESI_TOKEN_ENCRYPTION_KEY)%'
     eve_client_id: '%env(EVE_CLIENT_ID)%'
     eve_client_secret: '%env(EVE_CLIENT_SECRET)%'
@@ -15,7 +13,6 @@ services:
         autowire: true
         autoconfigure: true
         bind:
-            $adminCharacterNames: '%admin_character_names%'
             $defaultMarketStructureId: '%app.default_market_structure_id%'
             $defaultMarketStructureName: '%app.default_market_structure_name%'
 
@@ -25,6 +22,10 @@ services:
             - '../src/DependencyInjection/'
             - '../src/Entity/'
             - '../src/Kernel.php'
+
+    App\Security\AdminChecker:
+        arguments:
+            $adminCharacterIds: '%env(ADMIN_CHARACTER_IDS)%'
 
     # ESI Services
     App\Service\ESI\TokenManager:

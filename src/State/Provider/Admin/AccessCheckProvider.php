@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Admin\AccessCheckResource;
 use App\Entity\User;
+use App\Security\AdminChecker;
 use Symfony\Bundle\SecurityBundle\Security;
 
 /**
@@ -17,8 +18,7 @@ class AccessCheckProvider implements ProviderInterface
 {
     public function __construct(
         private readonly Security $security,
-        /** @var list<string> */
-        private readonly array $adminCharacterNames,
+        private readonly AdminChecker $adminChecker,
     ) {
     }
 
@@ -34,18 +34,8 @@ class AccessCheckProvider implements ProviderInterface
             return $resource;
         }
 
-        $mainChar = $user->getMainCharacter();
-        if ($mainChar) {
-            $resource->characterName = $mainChar->getName();
-            $mainCharName = strtolower($mainChar->getName());
-
-            foreach ($this->adminCharacterNames as $adminName) {
-                if (strtolower($adminName) === $mainCharName) {
-                    $resource->hasAccess = true;
-                    break;
-                }
-            }
-        }
+        $resource->characterName = $user->getMainCharacter()?->getName();
+        $resource->hasAccess = $this->adminChecker->isAdmin($user);
 
         return $resource;
     }

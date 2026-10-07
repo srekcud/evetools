@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Admin\ChartResource;
 use App\Entity\User;
+use App\Security\AdminChecker;
 use App\Service\Admin\AdminService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -21,8 +22,7 @@ class ChartDataProvider implements ProviderInterface
     public function __construct(
         private readonly Security $security,
         private readonly AdminService $adminService,
-        /** @var list<string> */
-        private readonly array $adminCharacterNames,
+        private readonly AdminChecker $adminChecker,
     ) {
     }
 
@@ -48,21 +48,7 @@ class ChartDataProvider implements ProviderInterface
 
     private function checkAdminAccess(User $user): void
     {
-        $mainChar = $user->getMainCharacter();
-        if (!$mainChar) {
-            throw new AccessDeniedHttpException('Forbidden');
-        }
-
-        $mainCharName = strtolower($mainChar->getName());
-        $isAdmin = false;
-        foreach ($this->adminCharacterNames as $adminName) {
-            if (strtolower($adminName) === $mainCharName) {
-                $isAdmin = true;
-                break;
-            }
-        }
-
-        if (!$isAdmin) {
+        if (!$this->adminChecker->isAdmin($user)) {
             throw new AccessDeniedHttpException('Forbidden');
         }
     }
