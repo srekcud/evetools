@@ -44,12 +44,7 @@ Entrée du planificateur : une liste de cibles (produit, runs, ME, TE), un stock
 
 ### Vocabulaire local
 
-Termes utilisés ici et absents du glossaire, proposés à l'ajout :
-
-- **Job** : un lancement d'activité sur un blueprint, pour un nombre de runs, dans une structure.
-- **Intermédiaire** : item fabriqué ou réagi dans le plan pour être consommé par un autre job.
-- **Feuille** : matériau acheté (non fabriqué, blacklisté ou acheté de force).
-- **Plan** : ensemble des jobs, feuilles et surplus calculés pour une liste de cibles.
+**Job**, **Plan**, **Intermédiaire**, **Feuille**, **Classe de sécurité** et **Donnée manquante** sont désormais définis dans le [glossaire](../glossary.md).
 
 ## 3. Règles métier
 
@@ -203,7 +198,7 @@ tentatives      = runs T2 voulus / (P × runs par BPC)
 | **Plan** | entiers par lot (R3), plafond BPC | explicite | projets, liste d'achats, stockpile, Group Industry |
 | **Coût marginal** | fractionnaires : `demande / unités par run` | aucun | Profit Margins, scanner, pivot |
 
-En mode coût marginal, un intermédiaire n'est payé qu'au prorata de la demande. Exemple Hail L (§4.2) : le R.A.M. demandé à 10 unités sur 100 par run compte pour 0,1 run, sans surplus de 90.
+En mode coût marginal, un intermédiaire n'est payé qu'au prorata de la demande. Exemple Hail L (§4.2) : la demande racine en R.A.M. n'est pas arrondie non plus (D4b), soit `10 × 1 × 0,98 × 0,99 × 0,9496 = 9,2130192` unités ; à 100 unités par run, elle compte pour 0,092130192 run, sans surplus (le mode plan, lui, demande 10 unités et produit 1 run de 100, soit 90 de surplus).
 
 ### R13 — Découpage d'un job (D11b)
 

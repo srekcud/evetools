@@ -33,6 +33,8 @@ Form fields:
 
 The **Calculated bonus (base structure + rigs x security)** box gives a preview before saving. Confirm with **Add**.
 
+An imported structure can only be added once. If it is already in your list, saving is refused with the message "This structure is already imported (*name*). Edit it from the list instead.": edit the existing entry. In the corporation list and in the ESI search, a structure already imported shows the "already imported" mention.
+
 The icons on the right of each structure let you edit or delete it.
 
 ## Corporation shared structures
@@ -53,14 +55,15 @@ These systems are used for:
 - **step job install costs**: the cost index used is the one of the favorite system for the activity. Without a favorite system, Jita's is used;
 - **the analysis tabs** **Margins**, **Batch Scan**, **Buy vs Build** and **Pivot**: the favorite manufacturing system is the default system. Without one, Jita is used.
 
-The code also intends to prefer a structure located in the favorite system. This currently has no effect: structures added through this form do not record their system.
+They are also used to choose the structure of a step (see below). Only imported structures know their system: a structure entered by hand is never picked as the favorite system's structure.
 
 ## What these settings are used for
 
 For each step of a project, the calculation picks a structure:
 
 1. **The structure attached to the step**, if any. Attachment is automatic: when an ESI job linked to the step ran in an **imported** structure from your list, the step takes that structure. The interface does not let you choose it by hand.
-2. **Otherwise, your best structure**: among Engineering Complexes for manufacturing, or refineries for reactions, the one giving the best material bonus for the product category.
+2. **Otherwise, your best structure located in the favorite system** for the activity (manufacturing or reaction): the one giving the best material bonus for the product category. It takes precedence over a better structure located elsewhere.
+3. **Without a favorite system, or without any structure in that system, your best structure overall**: among Engineering Complexes for manufacturing, or refineries for reactions, the one giving the best material bonus for the product category.
 
 The material bonus combines the structure base bonus (1% for an Engineering Complex in manufacturing) with the rig bonus multiplied by security. The time bonus combines the base bonus (Raitaru 15%, Azbel 20%, Sotiyo 30% in manufacturing; 25% in reactions for refineries) with the time rigs. A rig only applies to the product categories it targets.
 
@@ -71,7 +74,8 @@ In a project tree:
 
 ## Known pitfalls
 
-- **Duplicate on import**: adding the same structure twice creates two entries. This happens, for instance, if you pick a structure from the corporation list right after adding it: the list is only refreshed when the section is reopened. Delete the extra entry. Known, being fixed.
+- **Structure type in the favorite system**: in the favorite system, the structure type is not checked. A refinery alone in your favorite manufacturing system can be picked for a manufacturing step, with no bonus, instead of your best Engineering Complex located elsewhere (and the other way round for reactions). Known.
+- **Duplicates created before the fix**: refusing a second import does not remove duplicates that already exist. Delete the extra entry.
 - **Athanor and Thukker rigs**: the Athanor wrongly gets a 25% time bonus in reactions, and the Thukker rig bonus is mis-evaluated (#71). Known, being fixed.
 - **Displayed reaction material bonus**: the "ME Reactions" value in the list and in the preview uses the manufacturing security multiplier. Project calculations are not affected, only the display is wrong (#72). Known, being fixed.
 - **"ME Manuf" bonus in the list**: it is the sum of all manufacturing rigs, across all categories, without the 1% base bonus. It therefore matches no specific product. The bonus actually applied is shown in the project.

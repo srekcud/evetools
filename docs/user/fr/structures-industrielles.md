@@ -33,6 +33,8 @@ Les champs du formulaire :
 
 Le cadre **Bonus calcule (base structure + rigs x securite)** donne un aperçu avant d'enregistrer. Validez avec **Ajouter**.
 
+Une structure importée ne peut être ajoutée qu'une fois. Si elle est déjà dans votre liste, l'enregistrement est refusé avec le message « Cette structure est déjà importée (*nom*). Modifie-la depuis la liste. » : modifiez l'entrée existante. Dans la liste corporation et dans la recherche ESI, une structure déjà importée porte la mention « déjà importée ».
+
 Les icônes à droite de chaque structure servent à la modifier ou à la supprimer.
 
 ## Structures de corporation partagées
@@ -53,14 +55,15 @@ Ces systèmes servent à :
 - **le coût d'installation des étapes** : le cost index utilisé est celui du système favori de l'activité. Sans système favori, c'est celui de Jita ;
 - **les onglets d'analyse** **Marges**, **Scan**, **Achat vs Prod** et **Pivot** : le système de fabrication favori est le système par défaut. Sans système favori, c'est Jita.
 
-Le code prévoit aussi de choisir en priorité une structure située dans le système favori. Ce choix n'a pas d'effet aujourd'hui : les structures ajoutées depuis ce formulaire n'enregistrent pas leur système.
+Ils servent enfin à choisir la structure d'une étape (voir ci-dessous). Seules les structures importées connaissent leur système : une structure saisie à la main n'est jamais retenue comme structure du système favori.
 
 ## À quoi servent ces réglages
 
 Pour chaque étape d'un projet, le calcul retient une structure :
 
 1. **La structure associée à l'étape**, s'il y en a une. L'association est automatique : quand un job ESI lié à l'étape a tourné dans une structure de votre liste **importée**, l'étape prend cette structure. L'interface ne permet pas de la choisir à la main.
-2. **Sinon, la meilleure de vos structures** : parmi les Engineering Complex pour la fabrication, ou les raffineries pour les réactions, celle qui donne le meilleur bonus matériaux pour la catégorie du produit.
+2. **Sinon, la meilleure de vos structures situées dans le système favori** de l'activité (fabrication ou réaction) : celle qui donne le meilleur bonus matériaux pour la catégorie du produit. Elle passe avant une structure plus avantageuse située ailleurs.
+3. **Sans système favori, ou sans aucune structure dans ce système, la meilleure de toutes vos structures** : parmi les Engineering Complex pour la fabrication, ou les raffineries pour les réactions, celle qui donne le meilleur bonus matériaux pour la catégorie du produit.
 
 Le bonus matériaux combine le bonus de base de la structure (1 % pour un Engineering Complex en fabrication) et celui des rigs multiplié par la sécurité. Le bonus de temps combine le bonus de base (Raitaru 15 %, Azbel 20 %, Sotiyo 30 % en fabrication ; 25 % en réaction pour les raffineries) et celui des rigs de temps. Un rig ne s'applique qu'aux catégories de produits qu'il cible.
 
@@ -71,7 +74,8 @@ Dans l'arbre d'un projet :
 
 ## Pièges connus
 
-- **Doublon à l'import** : ajouter deux fois la même structure crée deux entrées. C'est le cas, par exemple, si vous reprenez une structure dans la liste corporation juste après l'avoir ajoutée : la liste n'est rafraîchie qu'à la réouverture de la section. Supprimez l'entrée en trop. Connu, en cours de correction.
+- **Type de structure dans le système favori** : dans le système favori, le type de structure n'est pas vérifié. Une raffinerie seule dans votre système favori de fabrication peut être retenue pour une étape de fabrication, sans bonus, au lieu de votre meilleur Engineering Complex situé ailleurs (et inversement pour les réactions). Connu.
+- **Doublons créés avant la correction** : le refus d'un second import ne supprime pas les doublons déjà présents. Supprimez l'entrée en trop.
 - **Athanor et rigs Thukker** : l'Athanor reçoit à tort un bonus de temps de 25 % en réaction, et le bonus des rigs Thukker est mal évalué (#71). Connu, en cours de correction.
 - **Bonus matériaux de réaction affiché** : la valeur « ME Reactions » de la liste et de l'aperçu utilise le multiplicateur de sécurité de la fabrication. Le calcul des projets n'est pas touché, seul l'affichage est faux (#72). Connu, en cours de correction.
 - **Bonus « ME Manuf » de la liste** : c'est la somme de tous les rigs de fabrication, toutes catégories confondues, sans le bonus de base de 1 %. Il ne correspond donc à aucun produit en particulier. Le bonus réellement appliqué apparaît dans le projet.
