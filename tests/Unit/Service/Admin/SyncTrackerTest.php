@@ -300,6 +300,56 @@ class SyncTrackerTest extends TestCase
         $this->assertSame('ESI 502', $payload['message']);
     }
 
+    /**
+     * Issue #80: a handler always calls start() before complete(). The admin who clicked
+     * must receive both, otherwise the admin page spinner never stops.
+     */
+    public function testManuallyTriggeredSyncNotifiesTheTriggeringAdminOfStartThenCompletion(): void
+    {
+        $this->syncTracker->setTriggeredBy('public-contracts', 'admin-uuid');
+
+        $this->syncTracker->start('public-contracts');
+        $this->syncTracker->complete('public-contracts', '3 types indexed');
+
+        $this->assertSame([
+            ['/user/admin-uuid/sync/admin-sync', 'started', 'Sync in progress...', ['syncType' => 'public-contracts']],
+            ['/user/admin-uuid/sync/admin-sync', 'completed', '3 types indexed', ['syncType' => 'public-contracts']],
+        ], $this->publishedAdminSyncUpdates());
+    }
+
+    /**
+     * Issue #80: same lifecycle when the sync fails after it started.
+     */
+    public function testManuallyTriggeredSyncNotifiesTheTriggeringAdminOfStartThenError(): void
+    {
+        $this->syncTracker->setTriggeredBy('public-contracts', 'admin-uuid');
+
+        $this->syncTracker->start('public-contracts');
+        $this->syncTracker->fail('public-contracts', 'ESI 502');
+
+        $this->assertSame([
+            ['/user/admin-uuid/sync/admin-sync', 'started', 'Sync in progress...', ['syncType' => 'public-contracts']],
+            ['/user/admin-uuid/sync/admin-sync', 'error', 'ESI 502', ['syncType' => 'public-contracts']],
+        ], $this->publishedAdminSyncUpdates());
+    }
+
+    /**
+     * @return list<array{string, string, ?string, mixed}> topic, status, message, data
+     */
+    private function publishedAdminSyncUpdates(): array
+    {
+        return array_map(static function (Update $update): array {
+            $payload = json_decode($update->getData(), true, flags: JSON_THROW_ON_ERROR);
+
+            return [
+                implode(',', $update->getTopics()),
+                $payload['status'],
+                $payload['message'],
+                $payload['data'],
+            ];
+        }, $this->publishedUpdates);
+    }
+
     public function testLatestTriggeringAdminIsTheOneNotified(): void
     {
         $this->syncTracker->setTriggeredBy('pve', 'first-admin');

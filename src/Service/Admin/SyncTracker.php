@@ -217,8 +217,10 @@ class SyncTracker
             return;
         }
 
-        // Clean up the trigger
-        $this->cache->delete($key);
+        // Keep the trigger while the sync runs: the admin must also receive its completion or error.
+        if ($status !== 'started') {
+            $this->cache->delete($key);
+        }
 
         $this->mercurePublisher->publishSyncProgress(
             $userId,

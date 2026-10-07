@@ -550,7 +550,6 @@ class MercurePublisherServiceTest extends TestCase
             '/user/user-uuid-123/sync/wallet-transactions',
             '/user/user-uuid-123/sync/market-structure',
             '/user/user-uuid-123/sync/planetary',
-            '/user/user-uuid-123/sync/public-contracts',
             '/user/user-uuid-123/sync/admin-sync',
             '/user/user-uuid-123/alerts/planetary-expiry',
             '/user/user-uuid-123/alerts/market-price',
@@ -564,7 +563,19 @@ class MercurePublisherServiceTest extends TestCase
     {
         $topics = MercurePublisherService::getTopicsForUser('any-user');
 
-        $this->assertCount(16, $topics);
+        $this->assertCount(15, $topics);
+    }
+
+    /**
+     * Issue #80: the public contracts sync is global and reports to the admin who triggered it
+     * through admin-sync (SyncTracker). Nothing publishes on a dedicated topic, so none is granted.
+     */
+    public function testGetTopicsForUserNoLongerGrantsTheDeadPublicContractsTopic(): void
+    {
+        $topics = MercurePublisherService::getTopicsForUser('user-uuid-123');
+
+        $this->assertNotContains('/user/user-uuid-123/sync/public-contracts', $topics);
+        $this->assertContains('/user/user-uuid-123/sync/admin-sync', $topics);
     }
 
     // ===========================================
