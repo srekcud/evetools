@@ -45,6 +45,8 @@ class TriggerSyncProcessor implements ProcessorInterface
     ) {
     }
 
+    private const MARKET_ALERTS_SYNC_TYPE = 'market-alerts';
+
     private const ACTION_TO_SYNC_TYPE = [
         'sync_assets' => 'assets',
         'sync_market' => 'market-jita',
@@ -141,8 +143,7 @@ class TriggerSyncProcessor implements ProcessorInterface
                 break;
 
             case 'check_market_alerts':
-                $triggered = $this->marketAlertService->checkAlerts();
-                $resource->message = sprintf('Market alerts checked: %d triggered', $triggered);
+                $this->checkMarketAlerts($resource, $userId);
                 break;
 
             case 'purge_notifications':
@@ -173,6 +174,27 @@ class TriggerSyncProcessor implements ProcessorInterface
         }
 
         return $resource;
+    }
+
+    private function checkMarketAlerts(ActionResultResource $resource, ?string $userId): void
+    {
+        if ($userId !== null) {
+            $this->syncTracker->setTriggeredBy(self::MARKET_ALERTS_SYNC_TYPE, $userId);
+        }
+        $this->syncTracker->start(self::MARKET_ALERTS_SYNC_TYPE);
+
+        try {
+            $triggered = $this->marketAlertService->checkAlerts();
+        } catch (\Throwable $e) {
+            $this->syncTracker->fail(self::MARKET_ALERTS_SYNC_TYPE, $e->getMessage());
+            $resource->success = false;
+            $resource->message = 'Error: ' . $e->getMessage();
+
+            return;
+        }
+
+        $resource->message = sprintf('Market alerts checked: %d triggered', $triggered);
+        $this->syncTracker->complete(self::MARKET_ALERTS_SYNC_TYPE, $resource->message);
     }
 
     private function checkAdminAccess(User $user): void
