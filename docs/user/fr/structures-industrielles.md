@@ -12,13 +12,13 @@ Ne confondez pas avec la **Structure de marche** des paramètres (clic sur votre
 2. À droite de la barre d'onglets, cliquez sur l'icône d'engrenage (infobulle **Configuration**). L'icône est masquée quand un projet est ouvert : revenez d'abord à la liste.
 3. Le panneau **Configuration** s'ouvre sur la section **Frais**. Dépliez la section **Structures**.
 
-La section contient deux blocs : **Systemes favoris** en haut, puis la liste **Structures de production**.
+La section contient deux blocs : **Systèmes favoris** en haut, puis la liste **Structures de production**.
 
 ## Ajouter une structure
 
 Cliquez sur **Ajouter** : le formulaire **Nouvelle structure** s'ouvre. Il y a trois façons de le remplir.
 
-- **Structures partagees par la corporation** : cette liste propose les structures que d'autres membres de votre corporation ont déjà importées et qui ne sont pas encore dans votre liste. La mention « Rigs configures » indique qu'une configuration existe. Choisir une structure remplit le nom, le type, la sécurité et les rigs.
+- **Structures partagées par la corporation** : cette liste propose les structures que d'autres membres de votre corporation ont déjà importées et qui ne sont pas encore dans votre liste. La mention « Rigs configurés » indique qu'une configuration existe. Choisir une structure remplit le nom, le type, la sécurité et les rigs.
 - **Ou rechercher par nom (ESI)** : tapez au moins 3 caractères. La recherche passe par votre personnage principal et renvoie 10 résultats au plus. Les structures déjà présentes dans votre liste ne sont pas proposées, et celles dont votre personnage ne peut pas lire les détails sont ignorées. Une étoile ★ signale une structure de votre corporation. Le nom et le type sont remplis (Raitaru, Azbel, Sotiyo, Athanor, Tatara), **mais pas la sécurité** : choisissez-la vous-même.
 - **Saisie manuelle** : renseignez seulement le nom. Une telle structure n'est pas partagée et n'est pas reconnue quand un job ESI y a tourné (voir plus bas). Préférez l'import quand c'est possible.
 
@@ -28,12 +28,12 @@ Les champs du formulaire :
 |---|---|
 | **Nom** | Obligatoire. |
 | **Type de structure** | **Station NPC (aucun bonus)**, Raitaru, Azbel, Sotiyo (Engineering Complex, pour la fabrication), Athanor, Tatara (raffineries, pour les réactions). |
-| **Securite** | **High-Sec (x1.0)**, **Low-Sec (x1.9)**, **Null-Sec (x2.1)**. Le multiplicateur s'applique au bonus des rigs. Les valeurs affichées sont celles de la fabrication ; pour les rigs de réaction, le calcul des projets applique ×1,0, ×1,0 et ×1,1. Valeur par défaut : Null-Sec. |
-| **Rigs (bonus materiaux)** | 3 rigs au plus. Tapez au moins 2 caractères. La liste ne propose que les rigs de la taille de la structure : rigs de fabrication pour un Engineering Complex, rigs de réaction pour une raffinerie. Chaque rig affiche son bonus ME (et TE s'il en a) et les catégories de produits qu'il cible. |
+| **Sécurité** | **High-Sec (x1.0)**, **Low-Sec (x1.9)**, **Null-Sec (x2.1)**. Le multiplicateur s'applique au bonus des rigs. Les valeurs affichées sont celles de la fabrication ; pour les rigs de réaction, le calcul des projets applique ×1,0, ×1,0 et ×1,1. Valeur par défaut : Null-Sec. |
+| **Rigs (bonus matériaux)** | 3 rigs au plus. Tapez au moins 2 caractères. La liste ne propose que les rigs de la taille de la structure : rigs de fabrication pour un Engineering Complex, rigs de réaction pour une raffinerie. Chaque rig affiche son bonus ME (et TE s'il en a) et les catégories de produits qu'il cible. |
 
-Le cadre **Bonus calcule (base structure + rigs x securite)** donne un aperçu avant d'enregistrer. Validez avec **Ajouter**.
+Le cadre **Bonus calculé (base structure + rigs x sécurité)** donne un aperçu avant d'enregistrer. Validez avec **Ajouter**.
 
-Une structure importée ne peut être ajoutée qu'une fois. Si elle est déjà dans votre liste, l'enregistrement est refusé avec le message « Cette structure est déjà importée (*nom*). Modifie-la depuis la liste. » : modifiez l'entrée existante. Dans la liste corporation et dans la recherche ESI, une structure déjà importée porte la mention « déjà importée ».
+Une structure importée ne peut être ajoutée qu'une fois. Si elle est déjà dans votre liste, l'enregistrement est refusé avec le message « Cette structure est déjà importée (*nom*). Modifiez-la depuis la liste. » : modifiez l'entrée existante. Dans la liste corporation et dans la recherche ESI, une structure déjà importée porte la mention « déjà importée ».
 
 Les icônes à droite de chaque structure servent à la modifier ou à la supprimer.
 
@@ -44,11 +44,11 @@ Une structure est partagée avec votre corporation quand elle a été importée 
 - Sa configuration (type, sécurité, rigs) est proposée aux autres membres quand ils ajoutent cette structure. C'est la configuration la plus récemment créée qui est proposée.
 - Chaque membre garde **sa propre copie**. Si vous modifiez la vôtre, les copies déjà importées par les autres ne changent pas. Une confirmation (**Modifier une structure corpo**) vous est demandée si vous changez les rigs, le type ou la sécurité.
 - Supprimer une structure corpo la retire de votre liste, mais sa configuration reste disponible pour les autres. Si vous l'importez à nouveau, vous retrouvez votre ancienne entrée, mise à jour avec les valeurs saisies.
-- Le message « Aucune structure trouvee. Verifiez que les assets de corporation sont synchronises. » signifie en pratique qu'aucun autre membre n'a encore partagé de structure que vous n'avez pas déjà.
+- Le message « Aucune structure partagée. Cette liste reprend les structures de la corporation configurées par les autres membres. » signifie qu'aucun autre membre n'a encore partagé de structure que vous n'avez pas déjà.
 
 ## Systèmes favoris
 
-Le bloc **Systemes favoris** propose un système pour la **Fabrication** et un pour les **Reactions**. Tapez au moins 2 caractères, choisissez le système ; la croix le retire.
+Le bloc **Systèmes favoris** propose un système pour la **Fabrication** et un pour les **Réactions**. Tapez au moins 2 caractères, choisissez le système ; la croix le retire.
 
 Ces systèmes servent à :
 

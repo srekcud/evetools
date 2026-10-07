@@ -44,7 +44,7 @@ A structure is shared with your corporation when it was imported (corporation li
 - Its configuration (type, security, rigs) is offered to other members when they add that structure. The most recently created configuration is the one offered.
 - Each member keeps **their own copy**. If you edit yours, the copies other members already imported do not change. A confirmation (**Edit corp structure**) is requested if you change the rigs, type or security.
 - Deleting a corp structure removes it from your list, but its configuration stays available to others. If you import it again, you get your previous entry back, updated with the values you entered.
-- The message "No structures found. Check that corporation assets are synced." in practice means that no other member has shared a structure you do not already have.
+- The message "No shared structures. This list shows the corporation structures configured by other members." means that no other member has shared a structure you do not already have.
 
 ## Favorite systems
 

@@ -522,7 +522,7 @@ function mergeGroup(stepId: string) {
                   v-if="splitGroup.facilityInfoType === 'suboptimal'"
                   class="text-xs text-amber-400 flex items-center gap-1"
                 >
-                  ← Meilleure : {{ splitGroup.bestStructureName }}
+                  {{ t('industry.stepTree.bestStructure', { name: splitGroup.bestStructureName }) }}
                   ({{ splitGroup.bestMaterialBonus?.toFixed(1) }}%)
                   <template v-if="materialImpactText(splitGroup)">· {{ materialImpactText(splitGroup) }}</template>
                 </span>

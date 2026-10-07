@@ -62,10 +62,7 @@ function onCorpStructureSelected() {
     formLocationId.value = struct.locationId
     formSolarSystemId.value = struct.solarSystemId
 
-    // If this is a known corporation structure, mark it
-    if (struct.isCorporationOwned) {
-      isKnownCorpStructure.value = true
-    }
+    isKnownCorpStructure.value = struct.isCorporationOwned === true
 
     // If there's a shared config from another corp member, use it
     if (struct.sharedConfig) {
@@ -118,10 +115,7 @@ function selectEsiSearchResult(result: StructureSearchResult) {
   if (result.structureType) {
     formStructureType.value = result.structureType
   }
-  // Mark as known corp structure if it's corporation-owned
-  if (result.isCorporationOwned) {
-    isKnownCorpStructure.value = true
-  }
+  isKnownCorpStructure.value = result.isCorporationOwned === true
   esiSearchQuery.value = ''
   esiSearchResults.value = []
   showEsiSearchDropdown.value = false
@@ -248,6 +242,7 @@ function openEditForm(structure: StructureConfig) {
   formSecurityType.value = structure.securityType
   formStructureType.value = structure.structureType
   formRigs.value = [...structure.rigs]
+  isKnownCorpStructure.value = structure.isCorporationStructure
   editingStructure.value = structure
   rigSearchQuery.value = ''
   showRigDropdown.value = false
@@ -620,14 +615,14 @@ const previewReactionTimeBonus = computed(() => {
           </div>
         </div>
 
-        <!-- Selected corporation structure info -->
+        <!-- Selected structure info: corporation sharing only applies to structures owned by the user's corporation -->
         <div v-if="formLocationId" class="bg-cyan-900/20 border border-cyan-700/50 rounded-lg p-3">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
-              <span class="text-sm text-cyan-300">{{ t('industry.structures.corpStructure') }}</span>
+              <span class="text-sm text-cyan-300">{{ isKnownCorpStructure ? t('industry.structures.corpStructure') : t('industry.structures.linkedStructure') }}</span>
             </div>
             <button
               @click="clearCorpStructure"
@@ -636,7 +631,7 @@ const previewReactionTimeBonus = computed(() => {
               {{ t('industry.structures.switchToCustom') }}
             </button>
           </div>
-          <p class="text-xs text-slate-400 mt-1">
+          <p v-if="isKnownCorpStructure" class="text-xs text-slate-400 mt-1">
             {{ t('industry.structures.rigsSharedWithCorp') }}
           </p>
         </div>
@@ -647,7 +642,7 @@ const previewReactionTimeBonus = computed(() => {
           <input
             v-model="formName"
             type="text"
-            placeholder="Ex: Tatara C-J6MT"
+            :placeholder="t('industry.structures.namePlaceholder')"
             class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 text-sm focus:outline-hidden focus:border-cyan-500"
           />
         </div>
