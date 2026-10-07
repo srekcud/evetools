@@ -348,6 +348,9 @@
       "addLootSaleFailed": "Failed to add loot sale",
       "ignoreFailed": "Failed to add to ignore list"
     },
+    "warnings": {
+      "syncPartial": "Some characters could not be synced: {details}"
+    },
     "validation": {
       "descriptionRequired": "Description is required",
       "amountRequired": "Amount is required"

@@ -42,6 +42,7 @@ const expenses = ref<Expense[]>([])
 const isLoading = ref(false)
 const isSyncing = ref(false)
 const error = ref('')
+const syncWarning = ref('')
 
 // Dialog visibility
 const showAddForm = ref(false)
@@ -114,6 +115,7 @@ async function fetchExpenses() {
 async function syncPveData() {
   isSyncing.value = true
   error.value = ''
+  syncWarning.value = ''
 
   try {
     const response = await authFetch('/api/pve/sync', {
@@ -128,6 +130,15 @@ async function syncPveData() {
     if (!response.ok) {
       const data = await safeJsonParse<{ error?: string }>(response)
       throw new Error(data.error || 'Failed to sync')
+    }
+
+    const result = await safeJsonParse<{ status: 'success' | 'partial' | 'error'; message: string }>(response)
+    if (result.status === 'error') {
+      error.value = result.message
+      return
+    }
+    if (result.status === 'partial') {
+      syncWarning.value = t('pve.warnings.syncPartial', { details: result.message })
     }
 
     await Promise.all([fetchPveData(), fetchExpenses()])
@@ -333,6 +344,16 @@ defineExpose({
 
     <!-- Error -->
     <ErrorBanner v-if="error" :message="error" @dismiss="error = ''" />
+
+    <!-- Partial sync warning -->
+    <div v-if="syncWarning" class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-center gap-3">
+      <p class="text-sm text-amber-400 flex-1">{{ syncWarning }}</p>
+      <button @click="syncWarning = ''" class="p-1 hover:bg-amber-500/20 rounded-lg transition-colors text-amber-400">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
 
     <!-- Loading -->
     <div v-if="isLoading" class="flex flex-col items-center justify-center py-20">

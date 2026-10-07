@@ -41,16 +41,29 @@ class SyncPveProcessor implements ProcessorInterface
         $results = $this->pveSyncService->syncAll($user);
         $settings = $this->settingsRepository->findByUser($user);
 
+        $failedCharacters = $results['failedCharacters'];
+        $tokenizedCharacters = $results['tokenizedCharacters'];
+
         $resource = new PveSyncResource();
-        $resource->status = 'success';
-        $resource->message = sprintf(
-            'Synced %d bounties, %d loot sales, %d loot contracts, %d expenses',
-            $results['bounties'],
-            $results['lootSales'],
-            $results['lootContracts'],
-            $results['expenses']
-        );
-        $resource->imported = $results;
+        if (PveSyncService::allCharactersFailed($failedCharacters, $tokenizedCharacters)) {
+            $resource->status = 'error';
+            $resource->message = PveSyncService::allCharactersFailedMessage($tokenizedCharacters);
+        } else {
+            $resource->status = $failedCharacters > 0 ? 'partial' : 'success';
+            $resource->message = sprintf(
+                'Synced %d bounties, %d loot sales, %d loot contracts, %d expenses',
+                $results['bounties'],
+                $results['lootSales'],
+                $results['lootContracts'],
+                $results['expenses']
+            ) . PveSyncService::failedCharactersSuffix($failedCharacters, $tokenizedCharacters);
+        }
+        $resource->imported = [
+            'bounties' => $results['bounties'],
+            'lootSales' => $results['lootSales'],
+            'lootContracts' => $results['lootContracts'],
+            'expenses' => $results['expenses'],
+        ];
         $resource->lastSyncAt = $settings?->getLastSyncAt()?->format('c');
         $resource->errors = $results['errors'];
 

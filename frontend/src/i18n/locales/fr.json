@@ -348,6 +348,9 @@
       "addLootSaleFailed": "Erreur lors de l'ajout de la vente de loot",
       "ignoreFailed": "Erreur lors de l'ajout a la liste des ignores"
     },
+    "warnings": {
+      "syncPartial": "Certains personnages n'ont pas pu être synchronisés : {details}"
+    },
     "validation": {
       "descriptionRequired": "La description est requise",
       "amountRequired": "Le montant est requis"

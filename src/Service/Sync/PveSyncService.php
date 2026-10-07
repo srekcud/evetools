@@ -92,17 +92,33 @@ class PveSyncService
         return false;
     }
 
-    /** @return array<string, mixed> */
+    /** The sync is a failure, not a partial success, when no character with a token could be synced */
+    public static function allCharactersFailed(int $failedCharacters, int $tokenizedCharacters): bool
+    {
+        return $failedCharacters > 0 && $failedCharacters === $tokenizedCharacters;
+    }
+
+    public static function allCharactersFailedMessage(int $tokenizedCharacters): string
+    {
+        return sprintf('Sync failed for all %d characters', $tokenizedCharacters);
+    }
+
+    /** Appended to the success message when some, but not all, characters failed; empty otherwise */
+    public static function failedCharactersSuffix(int $failedCharacters, int $tokenizedCharacters): string
+    {
+        if ($failedCharacters === 0) {
+            return '';
+        }
+
+        return sprintf(' (%d of %d characters failed)', $failedCharacters, $tokenizedCharacters);
+    }
+
+    /**
+     * @return array{bounties: int, lootSales: int, lootContracts: int, expenses: int, errors: list<string>, failedCharacters: int, tokenizedCharacters: int}
+     */
     public function syncAll(User $user): array
     {
         $userId = $user->getId()?->toRfc4122();
-        $results = [
-            'bounties' => 0,
-            'lootSales' => 0,
-            'lootContracts' => 0,
-            'expenses' => 0,
-            'errors' => [],
-        ];
 
         $this->failedCharacterIds = [];
         $tokenizedCharacters = 0;
@@ -111,6 +127,16 @@ class PveSyncService
                 $tokenizedCharacters++;
             }
         }
+
+        $results = [
+            'bounties' => 0,
+            'lootSales' => 0,
+            'lootContracts' => 0,
+            'expenses' => 0,
+            'errors' => [],
+            'failedCharacters' => 0,
+            'tokenizedCharacters' => $tokenizedCharacters,
+        ];
 
         // Notify sync started
         if ($userId !== null) {
@@ -159,11 +185,12 @@ class PveSyncService
             }
 
             $failedCharacters = $this->countFailedCharacters();
+            $results['failedCharacters'] = $failedCharacters;
 
-            if ($failedCharacters > 0 && $failedCharacters === $tokenizedCharacters) {
+            if (self::allCharactersFailed($failedCharacters, $tokenizedCharacters)) {
                 // Not rethrown and last sync time untouched: the next scheduled run retries
                 if ($userId !== null) {
-                    $this->mercurePublisher->syncError($userId, 'pve', sprintf('Sync failed for all %d characters', $tokenizedCharacters));
+                    $this->mercurePublisher->syncError($userId, 'pve', self::allCharactersFailedMessage($tokenizedCharacters));
                 }
 
                 return $results;
@@ -183,10 +210,7 @@ class PveSyncService
                     $results['lootSales'],
                     $results['lootContracts'],
                     $results['expenses']
-                );
-                if ($failedCharacters > 0) {
-                    $message .= sprintf(' (%d of %d characters failed)', $failedCharacters, $tokenizedCharacters);
-                }
+                ) . self::failedCharactersSuffix($failedCharacters, $tokenizedCharacters);
                 $this->mercurePublisher->syncCompleted($userId, 'pve', $message, [
                     'bounties' => $results['bounties'],
                     'lootSales' => $results['lootSales'],
