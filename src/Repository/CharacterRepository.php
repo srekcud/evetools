@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
+use App\Constant\EveConstants;
 use App\Entity\Character;
 use App\Entity\User;
 use App\Enum\AuthStatus;
@@ -103,6 +104,40 @@ class CharacterRepository extends ServiceEntityRepository
             ->setParameter('threshold', $threshold)
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * The character whose token syncs a structure market: it belongs to a user who requested the structure
+     * (preferred market structure, or no preference at all for the default structure) and carries the
+     * structure market scope. The most recently logged-in user wins.
+     */
+    public function findStructureMarketRequester(int $structureId, bool $isDefaultStructure): ?Character
+    {
+        $requestedStructure = $isDefaultStructure
+            ? '(u.preferredMarketStructureId = :structureId OR u.preferredMarketStructureId IS NULL)'
+            : 'u.preferredMarketStructureId = :structureId';
+
+        /** @var Character[] $candidates */
+        $candidates = $this->createQueryBuilder('c')
+            ->join('c.eveToken', 't')
+            ->join('c.user', 'u')
+            ->addSelect('CASE WHEN u.lastLoginAt IS NULL THEN 1 ELSE 0 END AS HIDDEN neverLoggedIn')
+            ->where('u.authStatus = :validStatus')
+            ->andWhere($requestedStructure)
+            ->setParameter('validStatus', AuthStatus::Valid)
+            ->setParameter('structureId', $structureId)
+            ->orderBy('neverLoggedIn', 'ASC')
+            ->addOrderBy('u.lastLoginAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        foreach ($candidates as $character) {
+            if ($character->getEveToken()?->hasScope(EveConstants::STRUCTURE_MARKET_SCOPE) === true) {
+                return $character;
+            }
+        }
+
+        return null;
     }
 
     /**
