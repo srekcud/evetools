@@ -48,6 +48,48 @@ class InvTypeRepository extends ServiceEntityRepository
     }
 
     /**
+     * Resolves type names in one query (served by the LOWER(type_name) functional index).
+     * For each requested name, a type with exactly that name wins over a type whose name
+     * differs only by case. Unpublished types are returned: filtering them is up to the caller.
+     *
+     * @param list<string> $names
+     * @return array<string, InvType> keyed by the requested name; unknown names are absent
+     */
+    public function findByNames(array $names): array
+    {
+        if ($names === []) {
+            return [];
+        }
+
+        $lowerNames = array_values(array_unique(array_map(mb_strtolower(...), $names)));
+
+        /** @var list<InvType> $candidates */
+        $candidates = $this->createQueryBuilder('t')
+            ->where('LOWER(t.typeName) IN (:lowerNames)')
+            ->setParameter('lowerNames', $lowerNames)
+            ->orderBy('t.typeId', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        $candidatesByLowerName = [];
+        foreach ($candidates as $candidate) {
+            $candidatesByLowerName[mb_strtolower($candidate->getTypeName())][] = $candidate;
+        }
+
+        $resolved = [];
+        foreach ($names as $name) {
+            $sameLowerName = $candidatesByLowerName[mb_strtolower($name)] ?? [];
+            if ($sameLowerName === []) {
+                continue;
+            }
+            $exactMatches = array_filter($sameLowerName, static fn (InvType $type): bool => $type->getTypeName() === $name);
+            $resolved[$name] = $exactMatches === [] ? $sameLowerName[0] : reset($exactMatches);
+        }
+
+        return $resolved;
+    }
+
+    /**
      * Find a single published type by exact name (case-insensitive).
      * Returns null if no match is found.
      */

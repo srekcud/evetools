@@ -118,7 +118,7 @@ make infection        # Mutation testing, rapport dans var/infection/ (FILTER=sr
 make deptrac          # Rapport de dépendances entre couches (n'échoue jamais)
 ```
 
-`make test` lance aussi la suite Integration : créez d'abord la base de test avec `make test-db`. Le schéma de test est construit depuis le mapping des entités, car les migrations ne se rejouent pas sur une base vide.
+`make test` lance aussi la suite Integration : créez d'abord la base de test avec `make test-db`. Le schéma de test est construit depuis le mapping des entités, car les migrations ne se rejouent pas sur une base vide. Les index fonctionnels (ex. `LOWER(type_name)` sur `sde_inv_types`), que le mapping ne sait pas décrire, sont ajoutés ensuite par `make test-db` ; DBAL les ignore à l'introspection, donc `doctrine:migrations:diff` ne propose jamais de les supprimer.
 
 ## Architecture
 
