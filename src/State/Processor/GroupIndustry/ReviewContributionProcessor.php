@@ -8,7 +8,10 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryContributionResource;
 use App\ApiResource\Input\GroupIndustry\ReviewContributionInput;
+use App\Entity\GroupIndustryProject;
 use App\Entity\User;
+use App\Enum\GroupMemberRole;
+use App\Enum\GroupMemberStatus;
 use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustryProjectRepository;
 use App\Service\GroupIndustry\GroupIndustryContributionService;
@@ -66,6 +69,12 @@ class ReviewContributionProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Contribution not found');
         }
 
+        // The owner may review his own contribution only when nobody else could ever review it.
+        $isSoleReviewingOwner = $project->getOwner() === $user && !$this->hasAnotherAcceptedReviewer($user, $project);
+        if ($contribution->getMember()->getUser() === $user && !$isSoleReviewingOwner) {
+            throw new BadRequestHttpException('You cannot review your own contribution');
+        }
+
         try {
             if ($data->status === 'approved') {
                 $this->contributionService->approve($contribution, $user);
@@ -87,5 +96,18 @@ class ReviewContributionProcessor implements ProcessorInterface
         );
 
         return $this->mapper->contributionToResource($contribution);
+    }
+
+    private function hasAnotherAcceptedReviewer(User $user, GroupIndustryProject $project): bool
+    {
+        foreach ($project->getMembers() as $member) {
+            $canReview = $member->getStatus() === GroupMemberStatus::Accepted
+                && \in_array($member->getRole(), [GroupMemberRole::Owner, GroupMemberRole::Admin], true);
+            if ($canReview && $member->getUser() !== $user) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
