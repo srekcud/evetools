@@ -1402,6 +1402,152 @@ final class EsiClientTest extends TestCase
     }
 
     // ---------------------------------------------------------------
+    // RED: issue #26, getUnversioned(): unversioned ESI routes (corp projects)
+    // URL = origin of the configured base URL without its "/latest" segment,
+    // dated by X-Compatibility-Date instead of a version prefix.
+    // ---------------------------------------------------------------
+
+    public function testGetUnversionedTargetsConfiguredOriginWithoutLatestSegment(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse(['projects' => [['id' => 'a1b2c3d4-project', 'state' => 'Active']]]),
+        ]);
+
+        $result = $esiClient->getUnversioned('/corporations/98000001/projects', $this->createEveToken(), '2025-12-16');
+
+        $this->assertSame(['projects' => [['id' => 'a1b2c3d4-project', 'state' => 'Active']]], $result);
+        $this->assertSame(['GET'], array_column($this->recordedRequests, 'method'));
+        $this->assertSame(['https://esi.test/corporations/98000001/projects'], array_column($this->recordedRequests, 'url'));
+    }
+
+    public function testGetUnversionedSendsCompatibilityDateAndBearerAuthorization(): void
+    {
+        $esiClient = $this->createEsiClient([$this->jsonResponse(['contributors' => []])]);
+
+        $esiClient->getUnversioned('/corporations/98000001/projects/a1b2c3d4-project/contributors', $this->createEveToken(), '2025-12-16');
+
+        $this->assertSame(['X-Compatibility-Date: 2025-12-16'], $this->recordedRequests[0]['headers']['x-compatibility-date'] ?? null);
+        $this->assertSame(['Authorization: Bearer ' . self::ACCESS_TOKEN], $this->recordedRequests[0]['headers']['authorization'] ?? null);
+        $this->assertSame(['Accept: application/json'], $this->recordedRequests[0]['headers']['accept'] ?? null);
+    }
+
+    public function testGetUnversionedRetriesOnceAfterRateLimited429KeepingUrlAndHeaders(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->rateLimitedResponse(retryAfterSeconds: 0),
+            $this->jsonResponse(['contributed' => 1000]),
+        ]);
+
+        $result = $esiClient->getUnversioned(
+            '/corporations/98000001/projects/a1b2c3d4-project/contribution/2112000001',
+            $this->createEveToken(),
+            '2025-12-16',
+        );
+
+        $this->assertSame(['contributed' => 1000], $result);
+        $this->assertSame(['GET', 'GET'], array_column($this->recordedRequests, 'method'));
+        $this->assertSame([
+            'https://esi.test/corporations/98000001/projects/a1b2c3d4-project/contribution/2112000001',
+            'https://esi.test/corporations/98000001/projects/a1b2c3d4-project/contribution/2112000001',
+        ], array_column($this->recordedRequests, 'url'));
+        $this->assertSame(['X-Compatibility-Date: 2025-12-16'], $this->recordedRequests[1]['headers']['x-compatibility-date'] ?? null);
+        $this->assertSame(['Authorization: Bearer ' . self::ACCESS_TOKEN], $this->recordedRequests[1]['headers']['authorization'] ?? null);
+    }
+
+    public function testGetUnversionedRetriesOnceAfterErrorLimited420(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->errorLimitedResponse(),
+            $this->jsonResponse(['projects' => []]),
+        ]);
+
+        $result = $esiClient->getUnversioned('/corporations/98000001/projects', $this->createEveToken(), '2025-12-16');
+
+        $this->assertSame(['projects' => []], $result);
+        $this->assertCount(2, $this->recordedRequests);
+    }
+
+    public function testGetUnversionedThrows429AfterSecondConsecutiveRateLimit(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->rateLimitedResponse(retryAfterSeconds: 0),
+            $this->rateLimitedResponse(retryAfterSeconds: 0),
+        ]);
+
+        try {
+            $esiClient->getUnversioned('/corporations/98000001/projects', $this->createEveToken(), '2025-12-16');
+            $this->fail('Expected EsiApiException');
+        } catch (EsiApiException $exception) {
+            $this->assertSame(429, $exception->statusCode);
+        }
+        // Exactly one retry, no loop
+        $this->assertCount(2, $this->recordedRequests);
+    }
+
+    public function testGetUnversionedThrowsEsiApiExceptionWithStatusOnClientError(): void
+    {
+        $esiClient = $this->createEsiClient([$this->jsonResponse(['error' => 'Not found'], 404)]);
+
+        try {
+            $esiClient->getUnversioned('/corporations/98000001/projects/unknown-project', $this->createEveToken(), '2025-12-16');
+            $this->fail('Expected EsiApiException');
+        } catch (EsiApiException $exception) {
+            $this->assertSame(404, $exception->statusCode);
+        }
+        $this->assertCount(1, $this->recordedRequests);
+    }
+
+    public function testGetUnversionedThrowsEsiApiExceptionWithStatusOnServerError(): void
+    {
+        $esiClient = $this->createEsiClient([$this->jsonResponse(['error' => 'Internal error'], 500)]);
+
+        try {
+            $esiClient->getUnversioned('/corporations/98000001/projects', $this->createEveToken(), '2025-12-16');
+            $this->fail('Expected EsiApiException');
+        } catch (EsiApiException $exception) {
+            $this->assertSame(500, $exception->statusCode);
+        }
+    }
+
+    public function testGetUnversionedRecordsErrorLimitHeadersSoTheNextRequestIsThrottled(): void
+    {
+        $logRecords = [];
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse(['projects' => []], 200, ['X-Esi-Error-Limit-Remain' => '19']),
+            $this->jsonResponse(['name' => 'Jita']),
+        ], logger: $this->createRecordingLogger($logRecords));
+
+        $esiClient->getUnversioned('/corporations/98000001/projects', $this->createEveToken(), '2025-12-16');
+        $this->assertSame([], $logRecords);
+
+        // 19 errors left (< 20): the next request waits (20 - 19) * 100 ms.
+        $esiClient->get('/universe/systems/30000142/');
+
+        $throttleRecords = array_values(array_filter(
+            $logRecords,
+            static fn (array $logRecord): bool => ($logRecord['context']['remain'] ?? null) === 19,
+        ));
+        $this->assertCount(1, $throttleRecords);
+        $this->assertSame(100, $throttleRecords[0]['context']['delay'] ?? null);
+    }
+
+    public function testGetKeepsLatestSegmentAfterAnUnversionedRequest(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse(['projects' => []]),
+            $this->jsonResponse(['name' => 'Jita']),
+        ]);
+
+        $esiClient->getUnversioned('/corporations/98000001/projects', $this->createEveToken(), '2025-12-16');
+        $esiClient->get('/universe/systems/30000142/');
+
+        $this->assertSame([
+            'https://esi.test/corporations/98000001/projects',
+            self::BASE_URL . '/universe/systems/30000142/',
+        ], array_column($this->recordedRequests, 'url'));
+    }
+
+    // ---------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------
 

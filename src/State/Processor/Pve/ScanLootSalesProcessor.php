@@ -22,7 +22,6 @@ use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
  * @implements ProcessorInterface<mixed, ScanLootSalesResultResource>
@@ -31,6 +30,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
 {
     private const CACHE_TTL_PROJECTS = 900; // 15 minutes
     private const CACHE_TTL_CONTRIBUTORS = 300; // 5 minutes
+    private const CORP_PROJECTS_COMPATIBILITY_DATE = '2025-12-16';
 
     public function __construct(
         private readonly Security $security,
@@ -41,7 +41,6 @@ class ScanLootSalesProcessor implements ProcessorInterface
         private readonly InvTypeRepository $invTypeRepository,
         private readonly RequestStack $requestStack,
         private readonly LoggerInterface $logger,
-        private readonly HttpClientInterface $httpClient,
         private readonly CacheItemPoolInterface $cache,
     ) {
     }
@@ -270,7 +269,6 @@ class ScanLootSalesProcessor implements ProcessorInterface
         // Scan corporation projects contributions
         $scannedProjects = 0;
         $scannedCorporations = [];
-        $compatHeaders = ['X-Compatibility-Date' => '2025-12-16'];
 
         foreach ($user->getCharacters() as $character) {
             $token = $character->getEveToken();
@@ -295,7 +293,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
                 $this->tokenManager->getValidAccessToken($token);
 
                 // Get corporation projects (cached)
-                $projects = $this->getCachedCorpProjects($corporationId, $token, $compatHeaders);
+                $projects = $this->getCachedCorpProjects($corporationId, $token);
 
                 $this->logger->info('Corp projects: Found ' . count($projects) . ' projects for corp ' . $corporationId);
 
@@ -333,7 +331,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
 
                     // First get list of contributors (cached)
                     try {
-                        $contributorIds = $this->getCachedContributors($corporationId, $projectId, $token, $compatHeaders);
+                        $contributorIds = $this->getCachedContributors($corporationId, $projectId, $token);
 
                         // Check if any of user's characters contributed
                         $matchingCharIds = array_intersect($userCharacterIds, $contributorIds);
@@ -345,7 +343,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
                         $this->logger->info("Corp projects: Found " . count($matchingCharIds) . " contributors in project {$projectName}");
 
                         // Get project details (cached) to find type_id and reward per unit
-                        $projectDetails = $this->getCachedProjectDetails($corporationId, $projectId, $token, $compatHeaders);
+                        $projectDetails = $this->getCachedProjectDetails($corporationId, $projectId, $token);
 
                         // Get the type_id from configuration.deliver_item.items
                         $deliverItems = $projectDetails['configuration']['deliver_item']['items'] ?? [];
@@ -363,8 +361,11 @@ class ScanLootSalesProcessor implements ProcessorInterface
                             }
 
                             try {
-                                $contributionUrl = "https://esi.evetech.net/corporations/{$corporationId}/projects/{$projectId}/contribution/{$characterId}";
-                                $contribution = $this->fetchFromEsi($contributionUrl, $charToken, $compatHeaders);
+                                $contribution = $this->esiClient->getUnversioned(
+                                    "/corporations/{$corporationId}/projects/{$projectId}/contribution/{$characterId}",
+                                    $charToken,
+                                    self::CORP_PROJECTS_COMPATIBILITY_DATE,
+                                );
 
                                 $this->logger->info('Corp projects: Contribution for ' . $charToCheck->getName() . ': ' . json_encode($contribution));
 
@@ -445,42 +446,11 @@ class ScanLootSalesProcessor implements ProcessorInterface
     }
 
     /**
-     * Fetch from a full ESI URL (bypasses EsiClient base URL for Data Hub endpoints).
-     *
-     * @param array<string, string> $headers
-     * @return array<mixed>
-     */
-    private function fetchFromEsi(string $fullUrl, EveToken $token, array $headers = [], int $timeout = 10): array
-    {
-        $accessToken = $this->tokenManager->getValidAccessToken($token);
-
-        $requestHeaders = [
-            'Accept' => 'application/json',
-            'Authorization' => "Bearer {$accessToken}",
-            ...$headers,
-        ];
-
-        $response = $this->httpClient->request('GET', $fullUrl, [
-            'headers' => $requestHeaders,
-            'timeout' => $timeout,
-        ]);
-
-        $statusCode = $response->getStatusCode();
-
-        if ($statusCode >= 200 && $statusCode < 300) {
-            return $response->toArray();
-        }
-
-        throw new \RuntimeException("ESI request failed with status {$statusCode}");
-    }
-
-    /**
      * Get corporation projects with caching.
      *
-     * @param array<string, string> $headers
      * @return array<mixed>
      */
-    private function getCachedCorpProjects(int $corporationId, EveToken $token, array $headers): array
+    private function getCachedCorpProjects(int $corporationId, EveToken $token): array
     {
         $cacheKey = "corp_projects_{$corporationId}";
         $cacheItem = $this->cache->getItem($cacheKey);
@@ -490,8 +460,11 @@ class ScanLootSalesProcessor implements ProcessorInterface
             return $cacheItem->get();
         }
 
-        $projectsUrl = "https://esi.evetech.net/corporations/{$corporationId}/projects";
-        $response = $this->fetchFromEsi($projectsUrl, $token, $headers);
+        $response = $this->esiClient->getUnversioned(
+            "/corporations/{$corporationId}/projects",
+            $token,
+            self::CORP_PROJECTS_COMPATIBILITY_DATE,
+        );
         $projects = $response['projects'] ?? [];
 
         $cacheItem->set($projects);
@@ -504,10 +477,9 @@ class ScanLootSalesProcessor implements ProcessorInterface
     /**
      * Get project contributors with caching.
      *
-     * @param array<string, string> $headers
      * @return array<int>
      */
-    private function getCachedContributors(int $corporationId, string $projectId, EveToken $token, array $headers): array
+    private function getCachedContributors(int $corporationId, string $projectId, EveToken $token): array
     {
         $cacheKey = "corp_project_contributors_{$corporationId}_{$projectId}";
         $cacheItem = $this->cache->getItem($cacheKey);
@@ -517,8 +489,11 @@ class ScanLootSalesProcessor implements ProcessorInterface
             return $cacheItem->get();
         }
 
-        $contributorsUrl = "https://esi.evetech.net/corporations/{$corporationId}/projects/{$projectId}/contributors";
-        $contributorsResponse = $this->fetchFromEsi($contributorsUrl, $token, $headers);
+        $contributorsResponse = $this->esiClient->getUnversioned(
+            "/corporations/{$corporationId}/projects/{$projectId}/contributors",
+            $token,
+            self::CORP_PROJECTS_COMPATIBILITY_DATE,
+        );
         $contributors = $contributorsResponse['contributors'] ?? [];
 
         $contributorIds = array_map(fn($c) => $c['character_id'] ?? $c['id'] ?? 0, $contributors);
@@ -533,10 +508,9 @@ class ScanLootSalesProcessor implements ProcessorInterface
     /**
      * Get project details with caching.
      *
-     * @param array<string, string> $headers
      * @return array<mixed>
      */
-    private function getCachedProjectDetails(int $corporationId, string $projectId, EveToken $token, array $headers): array
+    private function getCachedProjectDetails(int $corporationId, string $projectId, EveToken $token): array
     {
         $cacheKey = "corp_project_details_{$corporationId}_{$projectId}";
         $cacheItem = $this->cache->getItem($cacheKey);
@@ -546,8 +520,11 @@ class ScanLootSalesProcessor implements ProcessorInterface
             return $cacheItem->get();
         }
 
-        $projectDetailsUrl = "https://esi.evetech.net/corporations/{$corporationId}/projects/{$projectId}";
-        $projectDetails = $this->fetchFromEsi($projectDetailsUrl, $token, $headers);
+        $projectDetails = $this->esiClient->getUnversioned(
+            "/corporations/{$corporationId}/projects/{$projectId}",
+            $token,
+            self::CORP_PROJECTS_COMPATIBILITY_DATE,
+        );
 
         $cacheItem->set($projectDetails);
         $cacheItem->expiresAfter(self::CACHE_TTL_PROJECTS);

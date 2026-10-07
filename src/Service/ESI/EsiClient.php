@@ -19,6 +19,7 @@ class EsiClient
     private const MAX_RETRY_AFTER_SECONDS = 60;
     private const DEFAULT_CACHE_TTL_SECONDS = 300;
     private const REVALIDATION_TTL_SECONDS = 7 * 24 * 3600;
+    private const VERSION_SEGMENT = '/latest';
 
     private int $errorLimitRemain = 100;
     private int $errorLimitReset = 0;
@@ -40,6 +41,28 @@ class EsiClient
     {
         try {
             $response = $this->requestWithRetry('GET', $endpoint, $token, $extraHeaders);
+            return $this->handleResponse($response, $endpoint);
+        } catch (TransportExceptionInterface $e) {
+            throw EsiApiException::fromResponse(0, 'Network error: ' . $e->getMessage(), $endpoint);
+        }
+    }
+
+    /**
+     * GETs an unversioned ESI route (e.g. corporation projects): served from the origin of the
+     * configured base URL, without its version segment, and dated by X-Compatibility-Date.
+     *
+     * @return array<mixed>
+     */
+    public function getUnversioned(string $endpoint, ?EveToken $token, string $compatibilityDate): array
+    {
+        try {
+            $response = $this->requestWithRetry(
+                'GET',
+                $endpoint,
+                $token,
+                ['X-Compatibility-Date' => $compatibilityDate],
+                baseUrl: $this->unversionedBaseUrl(),
+            );
             return $this->handleResponse($response, $endpoint);
         } catch (TransportExceptionInterface $e) {
             throw EsiApiException::fromResponse(0, 'Network error: ' . $e->getMessage(), $endpoint);
@@ -353,6 +376,7 @@ class EsiClient
         ?array $jsonBody = null,
         int $timeout = self::REQUEST_TIMEOUT,
         bool $throttle = true,
+        ?string $baseUrl = null,
     ): ResponseInterface {
         if ($throttle) {
             $this->throttleIfNeeded();
@@ -366,7 +390,7 @@ class EsiClient
             $options['json'] = $jsonBody;
         }
 
-        return $this->httpClient->request($method, $this->baseUrl . $endpoint, $options);
+        return $this->httpClient->request($method, ($baseUrl ?? $this->baseUrl) . $endpoint, $options);
     }
 
     /**
@@ -382,8 +406,9 @@ class EsiClient
         ?EveToken $token,
         array $extraHeaders = [],
         ?array $jsonBody = null,
+        ?string $baseUrl = null,
     ): ResponseInterface {
-        $response = $this->request($method, $endpoint, $token, $extraHeaders, $jsonBody);
+        $response = $this->request($method, $endpoint, $token, $extraHeaders, $jsonBody, baseUrl: $baseUrl);
         $statusCode = $response->getStatusCode();
 
         if ($statusCode !== 420 && $statusCode !== 429) {
@@ -399,7 +424,14 @@ class EsiClient
         sleep($sleepSeconds);
 
         // The error-limit window has just been waited out: throttling again would double the pause.
-        return $this->request($method, $endpoint, $token, $extraHeaders, $jsonBody, throttle: false);
+        return $this->request($method, $endpoint, $token, $extraHeaders, $jsonBody, throttle: false, baseUrl: $baseUrl);
+    }
+
+    private function unversionedBaseUrl(): string
+    {
+        return str_ends_with($this->baseUrl, self::VERSION_SEGMENT)
+            ? substr($this->baseUrl, 0, -strlen(self::VERSION_SEGMENT))
+            : $this->baseUrl;
     }
 
     /**

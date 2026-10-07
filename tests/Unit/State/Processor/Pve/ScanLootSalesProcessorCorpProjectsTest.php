@@ -28,6 +28,7 @@ use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
  * Guard rails for the corporation projects part of the loot sales scan (issue #26).
@@ -99,6 +100,68 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
         }
     }
 
+    // ---------------------------------------------------------------
+    // RED: issue #26, corporation projects go through EsiClient::getUnversioned()
+    // ---------------------------------------------------------------
+
+    public function testConstructorNoLongerTakesAnHttpClient(): void
+    {
+        $constructor = (new \ReflectionClass(ScanLootSalesProcessor::class))->getConstructor();
+        $this->assertNotNull($constructor);
+
+        $httpClientParameters = array_filter(
+            $constructor->getParameters(),
+            static fn (\ReflectionParameter $parameter): bool => (string) $parameter->getType() === HttpClientInterface::class,
+        );
+        $this->assertSame([], array_values(array_map(
+            static fn (\ReflectionParameter $parameter): string => $parameter->getName(),
+            $httpClientParameters,
+        )));
+    }
+
+    public function testCorpProjectRequestsTargetUnversionedOriginOfConfiguredEsiBaseUrl(): void
+    {
+        $processor = $this->createProcessor($this->corpProjectResponses(new \DateTimeImmutable('-2 days')));
+
+        $processor->process(null, new Post());
+
+        // EsiClient is configured with https://esi.test/latest: same host, no /latest prefix.
+        $this->assertSame([
+            'https://esi.test/corporations/98000001/projects',
+            'https://esi.test/corporations/98000001/projects/a1b2c3d4-project/contributors',
+            'https://esi.test/corporations/98000001/projects/a1b2c3d4-project',
+            'https://esi.test/corporations/98000001/projects/a1b2c3d4-project/contribution/2112000001',
+        ], array_column($this->corporationProjectRequests, 'url'));
+    }
+
+    public function testRateLimitedCorpProjectsListIsReplayedOnceAndContributionStillDetected(): void
+    {
+        $responses = $this->corpProjectResponses(new \DateTimeImmutable('-2 days'));
+        $responses['/corporations/98000001/projects'] = [
+            $this->rateLimitedResponse(),
+            $responses['/corporations/98000001/projects'],
+        ];
+        $processor = $this->createProcessor($responses);
+
+        $result = $processor->process(null, new Post());
+
+        $this->assertSame(1, $result->scannedProjects);
+        $this->assertCount(1, $result->detectedSales);
+        $this->assertSame(12500.0, $result->detectedSales[0]->price);
+        $this->assertSame(1000, $result->detectedSales[0]->quantity);
+        $requestedPaths = array_map(
+            static fn (array $request): string => (string) preg_replace('#^https://[^/]+(/latest)?#', '', $request['url']),
+            $this->corporationProjectRequests,
+        );
+        $this->assertSame([
+            '/corporations/98000001/projects',
+            '/corporations/98000001/projects',
+            '/corporations/98000001/projects/a1b2c3d4-project/contributors',
+            '/corporations/98000001/projects/a1b2c3d4-project',
+            '/corporations/98000001/projects/a1b2c3d4-project/contribution/2112000001',
+        ], $requestedPaths);
+    }
+
     public function testUnavailableCorpProjectsListYieldsNoProjectSaleAndNoScannedProject(): void
     {
         $processor = $this->createProcessor([
@@ -137,7 +200,7 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
     }
 
     /**
-     * @param array<string, MockResponse> $corpProjectResponsesByPath
+     * @param array<string, MockResponse|list<MockResponse>> $corpProjectResponsesByPath
      */
     private function createProcessor(array $corpProjectResponsesByPath): ScanLootSalesProcessor
     {
@@ -187,18 +250,22 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
     }
 
     /**
-     * Wallet transactions and contracts answer empty; corporation project paths answer from the map.
+     * Wallet transactions and contracts answer empty; corporation project paths answer from the map,
+     * a list of responses being served in order, one per request.
      *
-     * @param array<string, MockResponse> $corpProjectResponsesByPath
+     * @param array<string, MockResponse|list<MockResponse>> $corpProjectResponsesByPath
      */
     private function createSimulatedEsi(array $corpProjectResponsesByPath): MockHttpClient
     {
-        return new MockHttpClient(function (string $method, string $url, array $options) use ($corpProjectResponsesByPath): MockResponse {
+        return new MockHttpClient(function (string $method, string $url, array $options) use (&$corpProjectResponsesByPath): MockResponse {
             $path = (string) preg_replace('#^https://[^/]+(/latest)?#', '', (string) strtok($url, '?'));
 
             if (str_starts_with($path, '/corporations/')) {
                 $this->corporationProjectRequests[] = ['url' => $url, 'headers' => $options['normalized_headers'] ?? []];
                 $response = $corpProjectResponsesByPath[$path] ?? null;
+                if (is_array($response)) {
+                    $response = array_shift($corpProjectResponsesByPath[$path]);
+                }
                 if ($response === null) {
                     $this->fail(sprintf('Unexpected ESI request: %s %s', $method, $url));
                 }
@@ -222,6 +289,19 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
         return new MockResponse(json_encode($body, JSON_THROW_ON_ERROR), [
             'http_code' => 200,
             'response_headers' => ['Content-Type' => 'application/json'],
+        ]);
+    }
+
+    private function rateLimitedResponse(): MockResponse
+    {
+        return new MockResponse('{"error":"rate limited"}', [
+            'http_code' => 429,
+            'response_headers' => [
+                'Content-Type' => 'application/json',
+                'Retry-After' => '0',
+                'X-Esi-Error-Limit-Remain' => '100',
+                'X-Esi-Error-Limit-Reset' => '0',
+            ],
         ]);
     }
 
