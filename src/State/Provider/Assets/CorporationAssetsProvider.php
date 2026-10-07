@@ -49,23 +49,11 @@ class CorporationAssetsProvider implements ProviderInterface
         $request = $this->requestStack->getCurrentRequest();
         $divisionName = $request?->query->get('divisionName');
 
-        $visibility = $this->visibilityRepository->findByCorporationId($corporationId);
-        $visibleDivisions = $visibility?->getVisibleDivisions();
-
-        if ($divisionName !== null && $visibleDivisions !== null) {
-            // Both division name filter and visibility config: apply both constraints
-            $assets = $this->cachedAssetRepository->findByCorporationDivisionNameAndFlags(
-                $corporationId,
-                $divisionName,
-                $visibleDivisions,
-            );
-        } elseif ($divisionName !== null) {
-            $assets = $this->cachedAssetRepository->findByCorporationAndDivision($corporationId, $divisionName);
-        } elseif ($visibleDivisions !== null) {
-            $assets = $this->cachedAssetRepository->findByCorporationAndDivisions($corporationId, $visibleDivisions);
-        } else {
-            $assets = $this->cachedAssetRepository->findByCorporationId($corporationId);
-        }
+        // Divisions are a whitelist: until a director allows some, members see nothing
+        $allowedDivisions = $this->visibilityRepository->findByCorporationId($corporationId)?->getVisibleDivisions() ?? [];
+        $assets = $allowedDivisions === []
+            ? []
+            : $this->findVisibleAssets($corporationId, $allowedDivisions, $divisionName);
 
         // Resolve categoryId from SDE for each unique typeId
         $categoryMap = $this->resolveCategoryIds($assets);
@@ -75,6 +63,27 @@ class CorporationAssetsProvider implements ProviderInterface
         $resource->items = array_map(fn (CachedAsset $asset) => $this->toItemResource($asset, $categoryMap), $assets);
 
         return $resource;
+    }
+
+    /**
+     * Hangar rows of the allowed CorpSAG divisions, plus what sits inside their containers
+     * (contents carry the container's flag, not the hangar's).
+     *
+     * @param int[] $allowedDivisions
+     * @return CachedAsset[]
+     */
+    private function findVisibleAssets(int $corporationId, array $allowedDivisions, ?string $divisionName): array
+    {
+        $hangarAssets = $divisionName === null
+            ? $this->cachedAssetRepository->findByCorporationAndDivisions($corporationId, $allowedDivisions)
+            : $this->cachedAssetRepository->findByCorporationDivisionNameAndFlags($corporationId, $divisionName, $allowedDivisions);
+
+        $containerContents = $this->cachedAssetRepository->findContentsOfContainers(
+            $corporationId,
+            array_map(static fn (CachedAsset $asset): int => $asset->getItemId(), $hangarAssets),
+        );
+
+        return [...$hangarAssets, ...$containerContents];
     }
 
     /**

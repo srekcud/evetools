@@ -15,6 +15,9 @@ use Doctrine\Persistence\ManagerRegistry;
  */
 class CachedAssetRepository extends ServiceEntityRepository
 {
+    /** EVE nesting is shallow (hangar > ship > container); the bound also stops on cycles in cached data. */
+    private const int MAX_CONTAINER_DEPTH = 5;
+
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, CachedAsset::class);
@@ -143,6 +146,39 @@ class CachedAssetRepository extends ServiceEntityRepository
             ->addOrderBy('a.typeName', 'ASC')
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * Items stored inside the given containers, and inside containers nested in them.
+     * ESI points a contained item's location_id at its container's item_id and does not
+     * repeat the hangar flag, so contents can only be found through that parent chain.
+     *
+     * @param int[] $containerItemIds
+     * @return CachedAsset[]
+     */
+    public function findContentsOfContainers(int $corporationId, array $containerItemIds): array
+    {
+        $contents = [];
+
+        for ($depth = 0; $depth < self::MAX_CONTAINER_DEPTH && $containerItemIds !== []; ++$depth) {
+            /** @var CachedAsset[] $level */
+            $level = $this->createQueryBuilder('a')
+                ->where('a.corporationId = :corporationId')
+                ->andWhere('a.isCorporationAsset = true')
+                ->andWhere('a.locationType = :itemLocation')
+                ->andWhere('a.locationId IN (:containerItemIds)')
+                ->setParameter('corporationId', $corporationId)
+                ->setParameter('itemLocation', 'item')
+                ->setParameter('containerItemIds', $containerItemIds)
+                ->orderBy('a.typeName', 'ASC')
+                ->getQuery()
+                ->getResult();
+
+            $contents = [...$contents, ...$level];
+            $containerItemIds = array_map(static fn (CachedAsset $asset): int => $asset->getItemId(), $level);
+        }
+
+        return $contents;
     }
 
     /**
