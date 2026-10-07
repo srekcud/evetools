@@ -4,32 +4,200 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Industry;
 
+use App\Service\ESI\EsiClient;
+use App\Service\ESI\TokenManager;
 use App\Service\Industry\EsiCostIndexService;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Cache\CacheItemInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\NullLogger;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\HttpClient\MockHttpClient;
+use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
+/**
+ * Issue #25: adjusted prices and cost indices must be read through EsiClient
+ * (ESI_BASE_URL, error-limit tracking, 420/429 retry) instead of a private HttpClientInterface.
+ *
+ * ESI is simulated at the HTTP boundary (MockHttpClient). createService() wires the service on
+ * whatever constructor it currently has, so the behavior guards stay green before and after the switch.
+ */
 #[CoversClass(EsiCostIndexService::class)]
+#[AllowMockObjectsWithoutExpectations]
 class EsiCostIndexServiceTest extends TestCase
 {
-    private HttpClientInterface&MockObject $httpClient;
+    private const PRODUCTION_ESI_BASE_URL = 'https://esi.evetech.net/latest';
+    private const CONFIGURED_ESI_BASE_URL = 'https://esi.test/latest';
+    private const ADJUSTED_PRICES_PATH = '/markets/prices/';
+    private const COST_INDICES_PATH = '/industry/systems/';
+
+    private const TRITANIUM = 34;
+    private const PYERITE = 35;
+    private const MEXALLON = 36;
+    private const JITA = 30000142;
+    private const PERIMETER = 30000144;
+
     private CacheItemPoolInterface&MockObject $cache;
     private EsiCostIndexService $service;
 
+    /** @var list<string> */
+    private array $requestedUrls = [];
+
     protected function setUp(): void
     {
-        $this->httpClient = $this->createMock(HttpClientInterface::class);
         $this->cache = $this->createMock(CacheItemPoolInterface::class);
+        $this->requestedUrls = [];
 
-        $this->service = new EsiCostIndexService(
-            $this->httpClient,
-            $this->cache,
-            new NullLogger(),
+        // Formula tests never reach ESI.
+        $this->service = $this->createService([], self::PRODUCTION_ESI_BASE_URL, $this->cache);
+    }
+
+    // ===========================================
+    // syncAdjustedPrices() / syncCostIndices() — GREEN guards (stored cache content)
+    // ===========================================
+
+    public function testSyncAdjustedPricesStoresEachAdjustedPriceByTypeId(): void
+    {
+        $esiCostIndexCache = new ArrayAdapter();
+        $service = $this->createService([
+            self::ADJUSTED_PRICES_PATH => [$this->jsonResponse($this->threeAdjustedPrices())],
+        ], self::PRODUCTION_ESI_BASE_URL, $esiCostIndexCache);
+
+        $count = $service->syncAdjustedPrices();
+
+        $this->assertSame(3, $count);
+        $this->assertSame(5.12, $esiCostIndexCache->getItem('esi_adjusted_price_' . self::TRITANIUM)->get());
+        $this->assertSame(11.75, $esiCostIndexCache->getItem('esi_adjusted_price_' . self::PYERITE)->get());
+        // No adjusted_price in the ESI entry: stored as 0.0.
+        $this->assertSame(0.0, $esiCostIndexCache->getItem('esi_adjusted_price_' . self::MEXALLON)->get());
+        $this->assertSame([self::TRITANIUM => 5.12, self::PYERITE => 11.75, self::MEXALLON => 0.0], $service->getAdjustedPrices([self::TRITANIUM, self::PYERITE, self::MEXALLON]));
+
+        $meta = $esiCostIndexCache->getItem('esi_adjusted_prices_meta')->get();
+        $this->assertSame(3, $meta['count']);
+        $this->assertInstanceOf(\DateTimeImmutable::class, $service->getAdjustedPricesLastSync());
+    }
+
+    public function testSyncCostIndicesStoresOneCostIndexPerSystemAndActivity(): void
+    {
+        $esiCostIndexCache = new ArrayAdapter();
+        $service = $this->createService([
+            self::COST_INDICES_PATH => [$this->jsonResponse($this->twoSystemsCostIndices())],
+        ], self::PRODUCTION_ESI_BASE_URL, $esiCostIndexCache);
+
+        $count = $service->syncCostIndices();
+
+        $this->assertSame(2, $count);
+        $this->assertSame(0.0512, $service->getCostIndex(self::JITA, 'manufacturing'));
+        $this->assertSame(0.0213, $service->getCostIndex(self::JITA, 'reaction'));
+        $this->assertSame(0.0734, $service->getCostIndex(self::PERIMETER, 'manufacturing'));
+        $this->assertSame(0.0021, $service->getCostIndex(self::PERIMETER, 'invention'));
+        $this->assertNull($service->getCostIndex(self::PERIMETER, 'reaction'));
+
+        $meta = $esiCostIndexCache->getItem('esi_cost_indices_meta')->get();
+        $this->assertSame(2, $meta['count']);
+        $this->assertInstanceOf(\DateTimeImmutable::class, $service->getCostIndicesLastSync());
+    }
+
+    public function testSyncAdjustedPricesServerErrorThrowsAndStoresNothing(): void
+    {
+        $esiCostIndexCache = new ArrayAdapter();
+        $service = $this->createService([
+            self::ADJUSTED_PRICES_PATH => [new MockResponse('{"error":"Internal server error"}', ['http_code' => 500])],
+        ], self::PRODUCTION_ESI_BASE_URL, $esiCostIndexCache);
+
+        try {
+            $service->syncAdjustedPrices();
+            $this->fail('A 500 on /markets/prices/ must abort the sync.');
+        } catch (\RuntimeException) {
+            // RuntimeException today, EsiApiException (a RuntimeException) through EsiClient.
+        }
+
+        $this->assertFalse($esiCostIndexCache->getItem('esi_adjusted_price_' . self::TRITANIUM)->isHit());
+        $this->assertNull($service->getAdjustedPricesLastSync());
+    }
+
+    // ===========================================
+    // RED — issue #25: ESI must be read through EsiClient
+    // ===========================================
+
+    public function testConstructorTakesEsiClientInsteadOfHttpClient(): void
+    {
+        $parameterTypes = $this->constructorParameterTypes();
+
+        $this->assertNotContains(HttpClientInterface::class, $parameterTypes);
+        $this->assertContains(EsiClient::class, $parameterTypes);
+    }
+
+    public function testAdjustedPricesAndCostIndicesAreReadFromTheConfiguredEsiBaseUrl(): void
+    {
+        $esiCostIndexCache = new ArrayAdapter();
+        $service = $this->createService([
+            self::ADJUSTED_PRICES_PATH => [$this->jsonResponse($this->threeAdjustedPrices())],
+            self::COST_INDICES_PATH => [$this->jsonResponse($this->twoSystemsCostIndices())],
+        ], self::CONFIGURED_ESI_BASE_URL, $esiCostIndexCache);
+
+        $this->assertSame(3, $service->syncAdjustedPrices());
+        $this->assertSame(2, $service->syncCostIndices());
+
+        $this->assertSame(5.12, $service->getAdjustedPrice(self::TRITANIUM));
+        $this->assertSame(0.0512, $service->getCostIndex(self::JITA, 'manufacturing'));
+        $this->assertSame([
+            self::CONFIGURED_ESI_BASE_URL . self::ADJUSTED_PRICES_PATH,
+            self::CONFIGURED_ESI_BASE_URL . self::COST_INDICES_PATH,
+        ], $this->requestedUrls);
+    }
+
+    public function testRateLimitedAdjustedPricesRequestIsRetriedOnceAndStored(): void
+    {
+        $esiCostIndexCache = new ArrayAdapter();
+        $service = $this->createService([
+            self::ADJUSTED_PRICES_PATH => [
+                new MockResponse('{"error":"Too many requests"}', ['http_code' => 429, 'response_headers' => ['Retry-After' => '0']]),
+                $this->jsonResponse($this->threeAdjustedPrices()),
+            ],
+        ], self::PRODUCTION_ESI_BASE_URL, $esiCostIndexCache);
+
+        $count = $service->syncAdjustedPrices();
+
+        $this->assertSame(3, $count);
+        $this->assertSame(5.12, $service->getAdjustedPrice(self::TRITANIUM));
+        $this->assertSame(11.75, $service->getAdjustedPrice(self::PYERITE));
+        $this->assertCount(2, $this->requestedUrls);
+    }
+
+    public function testAdjustedPricesAndCostIndicesAreReadWithEsiClientGetWithoutToken(): void
+    {
+        /** @var list<array{string, mixed}> $esiGetCalls */
+        $esiGetCalls = [];
+        $esiClient = $this->createStub(EsiClient::class);
+        $esiClient->method('get')
+            ->willReturnCallback(function (string $endpoint, mixed $token = null) use (&$esiGetCalls): array {
+                $esiGetCalls[] = [$endpoint, $token];
+
+                return match ($endpoint) {
+                    self::ADJUSTED_PRICES_PATH => $this->threeAdjustedPrices(),
+                    self::COST_INDICES_PATH => $this->twoSystemsCostIndices(),
+                    default => throw new \LogicException('Unexpected ESI endpoint: ' . $endpoint),
+                };
+            });
+
+        $service = new EsiCostIndexService(
+            esiClient: $esiClient,
+            cache: new ArrayAdapter(),
+            logger: new NullLogger(),
         );
+
+        $this->assertSame(3, $service->syncAdjustedPrices());
+        $this->assertSame(2, $service->syncCostIndices());
+        $this->assertSame([
+            [self::ADJUSTED_PRICES_PATH, null],
+            [self::COST_INDICES_PATH, null],
+        ], $esiGetCalls);
+        $this->assertSame(0.0734, $service->getCostIndex(self::PERIMETER, 'manufacturing'));
     }
 
     // ===========================================
@@ -324,5 +492,116 @@ class EsiCostIndexServiceTest extends TestCase
         );
 
         $this->assertSame(40000.0, $result);
+    }
+
+    // ===========================================
+    // Helpers
+    // ===========================================
+
+    /**
+     * @param array<string, list<MockResponse>> $esiResponsesByPath responses consumed in order, per path
+     */
+    private function createService(array $esiResponsesByPath, string $esiBaseUrl, CacheItemPoolInterface $esiCostIndexCache): EsiCostIndexService
+    {
+        $esiHttpClient = $this->createSimulatedEsi($esiResponsesByPath, $esiBaseUrl);
+
+        if (in_array(HttpClientInterface::class, $this->constructorParameterTypes(), true)) {
+            return new EsiCostIndexService($esiHttpClient, $esiCostIndexCache, new NullLogger());
+        }
+
+        $esiClient = new EsiClient(
+            $esiHttpClient,
+            $this->createStub(CacheItemPoolInterface::class),
+            $this->createStub(TokenManager::class),
+            $esiBaseUrl,
+            new NullLogger(),
+        );
+
+        return new EsiCostIndexService(
+            esiClient: $esiClient,
+            cache: $esiCostIndexCache,
+            logger: new NullLogger(),
+        );
+    }
+
+    /**
+     * @param array<string, list<MockResponse>> $esiResponsesByPath
+     */
+    private function createSimulatedEsi(array $esiResponsesByPath, string $esiBaseUrl): MockHttpClient
+    {
+        $callsByPath = [];
+
+        return new MockHttpClient(function (string $method, string $url) use ($esiResponsesByPath, $esiBaseUrl, &$callsByPath): MockResponse {
+            $this->requestedUrls[] = $url;
+
+            $urlWithoutQuery = (string) strtok($url, '?');
+            if (!str_starts_with($urlWithoutQuery, $esiBaseUrl . '/')) {
+                return new MockResponse('{"error":"Unknown host"}', ['http_code' => 404]);
+            }
+            $path = substr($urlWithoutQuery, strlen($esiBaseUrl));
+
+            $callIndex = $callsByPath[$path] ?? 0;
+            $callsByPath[$path] = $callIndex + 1;
+            $response = $esiResponsesByPath[$path][$callIndex] ?? null;
+            if ($response === null) {
+                $this->fail(sprintf('Unexpected ESI request: %s %s', $method, $url));
+            }
+
+            return $response;
+        });
+    }
+
+    /**
+     * @param array<int|string, mixed> $body
+     */
+    private function jsonResponse(array $body): MockResponse
+    {
+        return new MockResponse(json_encode($body, JSON_THROW_ON_ERROR), [
+            'http_code' => 200,
+            'response_headers' => ['Content-Type' => 'application/json'],
+        ]);
+    }
+
+    /**
+     * @return list<array{type_id: int, adjusted_price?: float, average_price?: float}>
+     */
+    private function threeAdjustedPrices(): array
+    {
+        return [
+            ['type_id' => self::TRITANIUM, 'adjusted_price' => 5.12, 'average_price' => 4.98],
+            ['type_id' => self::PYERITE, 'adjusted_price' => 11.75],
+            ['type_id' => self::MEXALLON, 'average_price' => 60.4],
+        ];
+    }
+
+    /**
+     * @return list<array{solar_system_id: int, cost_indices: list<array{activity: string, cost_index: float}>}>
+     */
+    private function twoSystemsCostIndices(): array
+    {
+        return [
+            ['solar_system_id' => self::JITA, 'cost_indices' => [
+                ['activity' => 'manufacturing', 'cost_index' => 0.0512],
+                ['activity' => 'reaction', 'cost_index' => 0.0213],
+            ]],
+            ['solar_system_id' => self::PERIMETER, 'cost_indices' => [
+                ['activity' => 'manufacturing', 'cost_index' => 0.0734],
+                ['activity' => 'invention', 'cost_index' => 0.0021],
+            ]],
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function constructorParameterTypes(): array
+    {
+        $constructor = (new \ReflectionClass(EsiCostIndexService::class))->getConstructor();
+        $this->assertNotNull($constructor);
+
+        return array_map(
+            static fn (\ReflectionParameter $parameter): string => (string) $parameter->getType(),
+            $constructor->getParameters(),
+        );
     }
 }

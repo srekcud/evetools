@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Service\Industry;
 
+use App\Exception\EsiApiException;
+use App\Service\ESI\EsiClient;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
  * Service for caching ESI adjusted prices and system cost indices.
@@ -21,8 +22,6 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  */
 class EsiCostIndexService
 {
-    private const ESI_BASE_URL = 'https://esi.evetech.net/latest';
-
     private const ADJUSTED_PRICE_PREFIX = 'esi_adjusted_price_';
     private const ADJUSTED_PRICE_TTL = 86400; // 24 hours
     private const ADJUSTED_PRICE_META_KEY = 'esi_adjusted_prices_meta';
@@ -32,7 +31,7 @@ class EsiCostIndexService
     private const COST_INDEX_META_KEY = 'esi_cost_indices_meta';
 
     public function __construct(
-        private readonly HttpClientInterface $httpClient,
+        private readonly EsiClient $esiClient,
         #[Autowire(service: 'esi_cost_index.cache')]
         private readonly CacheItemPoolInterface $cache,
         private readonly LoggerInterface $logger,
@@ -51,18 +50,8 @@ class EsiCostIndexService
     {
         $this->logger->info('Fetching ESI adjusted prices');
 
-        $response = $this->httpClient->request('GET', self::ESI_BASE_URL . '/markets/prices/', [
-            'timeout' => 30,
-            'headers' => ['Accept' => 'application/json'],
-        ]);
-
-        $statusCode = $response->getStatusCode();
-        if ($statusCode < 200 || $statusCode >= 300) {
-            throw new \RuntimeException(sprintf('ESI /markets/prices/ returned HTTP %d', $statusCode));
-        }
-
         /** @var list<array{type_id: int, adjusted_price?: float, average_price?: float}> $prices */
-        $prices = $response->toArray();
+        $prices = $this->fetchPublicEsi('/markets/prices/');
 
         $count = 0;
         foreach ($prices as $entry) {
@@ -103,18 +92,8 @@ class EsiCostIndexService
     {
         $this->logger->info('Fetching ESI system cost indices');
 
-        $response = $this->httpClient->request('GET', self::ESI_BASE_URL . '/industry/systems/', [
-            'timeout' => 30,
-            'headers' => ['Accept' => 'application/json'],
-        ]);
-
-        $statusCode = $response->getStatusCode();
-        if ($statusCode < 200 || $statusCode >= 300) {
-            throw new \RuntimeException(sprintf('ESI /industry/systems/ returned HTTP %d', $statusCode));
-        }
-
         /** @var list<array{solar_system_id: int, cost_indices: list<array{activity: string, cost_index: float}>}> $systems */
-        $systems = $response->toArray();
+        $systems = $this->fetchPublicEsi('/industry/systems/');
 
         $count = 0;
         foreach ($systems as $system) {
@@ -146,6 +125,20 @@ class EsiCostIndexService
         $this->logger->info('ESI system cost indices cached', ['count' => $count]);
 
         return $count;
+    }
+
+    /**
+     * EsiApiException extends \Exception: rethrown as RuntimeException to keep this service's error contract.
+     *
+     * @return array<mixed>
+     */
+    private function fetchPublicEsi(string $endpoint): array
+    {
+        try {
+            return $this->esiClient->get($endpoint, null);
+        } catch (EsiApiException $e) {
+            throw new \RuntimeException(sprintf('ESI %s failed (HTTP %d): %s', $endpoint, $e->statusCode, $e->getMessage()), previous: $e);
+        }
     }
 
     /**
