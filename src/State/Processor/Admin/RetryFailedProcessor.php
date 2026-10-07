@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Admin\ActionResultResource;
 use App\Entity\User;
+use App\Security\AdminChecker;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Console\Input\ArrayInput;
@@ -24,8 +25,7 @@ class RetryFailedProcessor implements ProcessorInterface
     public function __construct(
         private readonly Security $security,
         private readonly KernelInterface $kernel,
-        /** @var list<string> */
-        private readonly array $adminCharacterNames,
+        private readonly AdminChecker $adminChecker,
     ) {
     }
 
@@ -72,21 +72,7 @@ class RetryFailedProcessor implements ProcessorInterface
 
     private function checkAdminAccess(User $user): void
     {
-        $mainChar = $user->getMainCharacter();
-        if (!$mainChar) {
-            throw new AccessDeniedHttpException('Forbidden');
-        }
-
-        $mainCharName = strtolower($mainChar->getName());
-        $isAdmin = false;
-        foreach ($this->adminCharacterNames as $adminName) {
-            if (strtolower($adminName) === $mainCharName) {
-                $isAdmin = true;
-                break;
-            }
-        }
-
-        if (!$isAdmin) {
+        if (!$this->adminChecker->isAdmin($user)) {
             throw new AccessDeniedHttpException('Forbidden');
         }
     }

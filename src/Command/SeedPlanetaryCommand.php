@@ -75,7 +75,7 @@ class SeedPlanetaryCommand extends Command
 
     // Colonies definition
     private const COLONIES = [
-        // Character 1: srekcud alpha — 3 colonies
+        // Character 1 — 3 colonies
         [
             'charIndex' => 0,
             'planetId' => 40009081,
