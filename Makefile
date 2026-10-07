@@ -42,12 +42,10 @@ test-unit: ## Run unit tests only
 test-integration: ## Run integration tests (requires: make test-db)
 	docker compose exec app php bin/phpunit --no-coverage --testsuite=Integration
 
-# Migrations cannot replay on an empty database (Version20260223100944 drops a
-# missing index), so the test schema is built from the entity mapping.
 test-db: ## (Re)create the test database (eve_app_test) and its schema
 	docker compose exec app php bin/console doctrine:database:drop --env=test --if-exists --force
 	docker compose exec app php bin/console doctrine:database:create --env=test
-	docker compose exec app php bin/console doctrine:schema:create --env=test
+	docker compose exec app php bin/console doctrine:migrations:migrate --env=test --no-interaction
 
 test-coverage: ## Run tests with coverage
 	docker compose exec app php bin/phpunit --coverage-html var/coverage
