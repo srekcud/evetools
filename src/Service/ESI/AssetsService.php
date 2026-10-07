@@ -94,13 +94,17 @@ class AssetsService
         // Get item names (custom names for containers, ships, etc.)
         $itemNames = $this->resolveItemNames($itemIds, $token, $characterId, $corporationId);
 
+        $rawAssetsByItemId = array_column($rawAssets, null, 'item_id');
+
         $assets = [];
 
         foreach ($rawAssets as $raw) {
             $typeId = $raw['type_id'];
             $locationId = $raw['location_id'];
             $itemId = $raw['item_id'];
-            $info = $locationInfo[$locationId] ?? null;
+            $info = ($raw['location_type'] ?? '') === 'item'
+                ? $this->resolveContainerLocation($locationId, $rawAssetsByItemId, $locationInfo, $typeNames, $itemNames)
+                : $locationInfo[$locationId] ?? null;
 
             $assets[] = new AssetDto(
                 itemId: $itemId,
@@ -118,6 +122,51 @@ class AssetsService
         }
 
         return $assets;
+    }
+
+    /**
+     * Locates an item stored inside a container or ship by walking the parent chain
+     * up to the root station/structure, labelled "<container> — <root location>".
+     * Returns null when the chain is broken or cyclic, so the caller keeps its generic fallback.
+     *
+     * @param array<int, array<string, mixed>> $rawAssetsByItemId
+     * @param array<int, array{name: string, solar_system_id: ?int, solar_system_name: ?string}> $locationInfo
+     * @param array<int, string> $typeNames
+     * @param array<int, string> $itemNames
+     * @return array{name: string, solar_system_id: ?int, solar_system_name: ?string}|null
+     */
+    private function resolveContainerLocation(
+        int $containerId,
+        array $rawAssetsByItemId,
+        array $locationInfo,
+        array $typeNames,
+        array $itemNames,
+    ): ?array {
+        $container = $rawAssetsByItemId[$containerId] ?? null;
+        if ($container === null) {
+            return null;
+        }
+
+        $current = $container;
+        $visited = [$containerId => true];
+        while (($current['location_type'] ?? '') === 'item') {
+            $parentId = $current['location_id'];
+            if (isset($visited[$parentId]) || !isset($rawAssetsByItemId[$parentId])) {
+                return null;
+            }
+            $visited[$parentId] = true;
+            $current = $rawAssetsByItemId[$parentId];
+        }
+
+        $root = $locationInfo[$current['location_id']] ?? null;
+        if ($root === null) {
+            return null;
+        }
+
+        $containerTypeId = $container['type_id'];
+        $containerName = $itemNames[$containerId] ?? $typeNames[$containerTypeId] ?? "Type #{$containerTypeId}";
+
+        return [...$root, 'name' => "{$containerName} — {$root['name']}"];
     }
 
     /**
