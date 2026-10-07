@@ -1,0 +1,55 @@
+name: Dette technique
+description: Du code qui fonctionne mais qui est fragile, dupliqué, mal testé ou difficile à faire évoluer.
+labels: ["tech-debt"]
+body:
+  - type: dropdown
+    id: module
+    attributes:
+      label: Module
+      description: Le mainteneur ajoute le label correspondant au module choisi.
+      options:
+        - industry
+        - corp-industry
+        - pi
+        - market
+        - mining
+        - pve
+        - intel
+        - infra
+    validations:
+      required: true
+  - type: textarea
+    id: constat
+    attributes:
+      label: Constat
+      description: Le problème de code et pourquoi il pose problème.
+    validations:
+      required: true
+  - type: textarea
+    id: preuve
+    attributes:
+      label: Preuve
+      description: "Fichier:ligne, sortie PHPStan ou deptrac, mutants échappés… Laissez vide si inconnu."
+    validations:
+      required: false
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Le risque concret (régression probable, modification coûteuse, bug masqué).
+    validations:
+      required: true
+  - type: textarea
+    id: test
+    attributes:
+      label: Test qui le prouverait
+      description: Le test qui manque aujourd'hui, ou celui qui doit rester vert pendant le refactoring.
+    validations:
+      required: false
+  - type: checkboxes
+    id: anonymisation
+    attributes:
+      label: Anonymisation
+      options:
+        - label: "Cette issue ne contient aucun pseudo, nom de personnage, de corporation, d'alliance ou de structure, ni citation de message privé (le dépôt est public)."
+          required: true

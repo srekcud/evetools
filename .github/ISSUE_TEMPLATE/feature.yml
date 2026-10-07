@@ -1,0 +1,48 @@
+name: Fonctionnalité
+description: Proposer une nouvelle fonctionnalité ou l'extension d'une fonctionnalité existante.
+labels: ["feature"]
+body:
+  - type: dropdown
+    id: module
+    attributes:
+      label: Module
+      description: Le mainteneur ajoute le label correspondant au module choisi.
+      options:
+        - industry
+        - corp-industry
+        - pi
+        - market
+        - mining
+        - pve
+        - intel
+        - infra
+    validations:
+      required: true
+  - type: textarea
+    id: besoin
+    attributes:
+      label: Besoin
+      description: Le problème à résoudre en jeu, pas la solution. Qui en a besoin, et dans quelle situation ?
+    validations:
+      required: true
+  - type: textarea
+    id: comportement
+    attributes:
+      label: Comportement attendu
+      description: Ce que l'outil devrait faire, avec un exemple concret (entrées, résultat attendu).
+    validations:
+      required: true
+  - type: textarea
+    id: hors-perimetre
+    attributes:
+      label: Hors périmètre
+      description: Ce que la demande ne couvre pas, pour garder une première version petite.
+    validations:
+      required: false
+  - type: checkboxes
+    id: anonymisation
+    attributes:
+      label: Anonymisation
+      options:
+        - label: "Cette issue ne contient aucun pseudo, nom de personnage, de corporation, d'alliance ou de structure, ni citation de message privé (le dépôt est public)."
+          required: true

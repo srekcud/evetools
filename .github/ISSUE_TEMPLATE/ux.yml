@@ -1,0 +1,55 @@
+name: UX
+description: L'outil fonctionne, mais il est difficile à comprendre, à trouver ou à utiliser.
+labels: ["ux"]
+body:
+  - type: dropdown
+    id: module
+    attributes:
+      label: Module
+      description: Le mainteneur ajoute le label correspondant au module choisi.
+      options:
+        - industry
+        - corp-industry
+        - pi
+        - market
+        - mining
+        - pve
+        - intel
+        - infra
+    validations:
+      required: true
+  - type: textarea
+    id: constat
+    attributes:
+      label: Constat
+      description: Ce que vous cherchiez à faire, et ce qui vous a gêné ou induit en erreur.
+    validations:
+      required: true
+  - type: textarea
+    id: preuve
+    attributes:
+      label: Preuve
+      description: "Écran concerné, capture, fichier:ligne du composant si vous le connaissez. Laissez vide si inconnu."
+    validations:
+      required: false
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Ce que la gêne fait perdre (temps, erreur de saisie, fonctionnalité jamais découverte…).
+    validations:
+      required: true
+  - type: textarea
+    id: test
+    attributes:
+      label: Test qui le prouverait
+      description: Comment vérifier que la gêne a disparu (test de composant, scénario à rejouer).
+    validations:
+      required: false
+  - type: checkboxes
+    id: anonymisation
+    attributes:
+      label: Anonymisation
+      options:
+        - label: "Cette issue ne contient aucun pseudo, nom de personnage, de corporation, d'alliance ou de structure, ni citation de message privé (le dépôt est public)."
+          required: true

@@ -1,0 +1,55 @@
+name: Investigation
+description: Un résultat paraît suspect, mais on ne sait pas encore si c'est un bug.
+labels: ["investigation"]
+body:
+  - type: dropdown
+    id: module
+    attributes:
+      label: Module
+      description: Le mainteneur ajoute le label correspondant au module choisi.
+      options:
+        - industry
+        - corp-industry
+        - pi
+        - market
+        - mining
+        - pve
+        - intel
+        - infra
+    validations:
+      required: true
+  - type: textarea
+    id: constat
+    attributes:
+      label: Constat
+      description: Ce qui paraît anormal, et la valeur à laquelle vous vous attendiez (en jeu, sur un autre outil…).
+    validations:
+      required: true
+  - type: textarea
+    id: preuve
+    attributes:
+      label: Preuve
+      description: "Fichier:ligne si vous l'avez localisé, valeurs observées, captures. Laissez vide si inconnu."
+    validations:
+      required: false
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Ce que l'écart fausserait s'il est confirmé.
+    validations:
+      required: true
+  - type: textarea
+    id: test
+    attributes:
+      label: Test qui le prouverait
+      description: Le test ou la vérification qui trancherait entre bug et comportement normal.
+    validations:
+      required: false
+  - type: checkboxes
+    id: anonymisation
+    attributes:
+      label: Anonymisation
+      options:
+        - label: "Cette issue ne contient aucun pseudo, nom de personnage, de corporation, d'alliance ou de structure, ni citation de message privé (le dépôt est public)."
+          required: true
