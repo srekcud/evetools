@@ -60,8 +60,6 @@ final readonly class SyncCharacterAssetsHandler
                 'characterId' => $message->characterId,
                 'error' => $e->getMessage(),
             ]);
-            // Mark user auth as invalid
-            $character->getUser()?->markAuthInvalid();
         } catch (\Throwable $e) {
             $this->logger->error('Failed to sync character assets', [
                 'characterId' => $message->characterId,

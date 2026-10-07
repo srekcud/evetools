@@ -7,14 +7,20 @@ namespace App\Service\ESI;
 use App\Dto\EveTokenDto;
 use App\Entity\EveToken;
 use App\Exception\EsiApiException;
+use App\Exception\EveAuthRequiredException;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Contracts\HttpClient\Exception\HttpExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Contracts\HttpClient\ResponseInterface;
 
 class TokenManager
 {
     private const EVE_TOKEN_URL = 'https://login.eveonline.com/v2/oauth/token';
     private const REQUEST_TIMEOUT = 15;
+    private const HTTP_BAD_REQUEST = 400;
+    /** Same convention as EsiClient: no HTTP response at all */
+    private const NO_HTTP_RESPONSE = 0;
 
     public function __construct(
         private readonly string $encryptionKey,
@@ -73,31 +79,55 @@ class TokenManager
             ]);
 
             $data = $response->toArray();
-
-            $token->setAccessToken($data['access_token']);
-            $token->setAccessTokenExpiresAt(new \DateTimeImmutable("+{$data['expires_in']} seconds"));
-
-            if (isset($data['refresh_token'])) {
-                $token->setRefreshTokenEncrypted($this->encryptRefreshToken($data['refresh_token']));
+        } catch (HttpExceptionInterface $e) {
+            $statusCode = $e->getResponse()->getStatusCode();
+            if ($statusCode === self::HTTP_BAD_REQUEST && $this->isInvalidGrant($e->getResponse())) {
+                throw $this->invalidateAuthOf($token);
             }
 
-            // Update scopes from response or JWT
-            $scopes = array_filter(explode(' ', $data['scope'] ?? ''), fn($s) => $s !== '');
-            if (empty($scopes)) {
-                $scopes = $this->extractScopesFromJwt($data['access_token']);
-            }
-            if (!empty($scopes)) {
-                $token->setScopes($scopes);
-            }
-
-            $this->entityManager->flush();
-
-            return $token;
+            throw new EsiApiException('EVE SSO rejected the token refresh: ' . $e->getMessage(), $statusCode, previous: $e);
         } catch (TransportExceptionInterface $e) {
-            throw EsiApiException::unauthorized('Network error while refreshing token: ' . $e->getMessage());
-        } catch (\Throwable $e) {
-            throw EsiApiException::unauthorized('Failed to refresh access token: ' . $e->getMessage());
+            throw new EsiApiException('Network error while refreshing token: ' . $e->getMessage(), self::NO_HTTP_RESPONSE, previous: $e);
         }
+
+        $token->setAccessToken($data['access_token']);
+        $token->setAccessTokenExpiresAt(new \DateTimeImmutable("+{$data['expires_in']} seconds"));
+
+        if (isset($data['refresh_token'])) {
+            $token->setRefreshTokenEncrypted($this->encryptRefreshToken($data['refresh_token']));
+        }
+
+        // Update scopes from response or JWT
+        $scopes = array_filter(explode(' ', $data['scope'] ?? ''), fn($s) => $s !== '');
+        if (empty($scopes)) {
+            $scopes = $this->extractScopesFromJwt($data['access_token']);
+        }
+        if (!empty($scopes)) {
+            $token->setScopes($scopes);
+        }
+
+        $this->entityManager->flush();
+
+        return $token;
+    }
+
+    /** EVE SSO answers `invalid_grant` when the player revoked the application or the refresh token expired */
+    private function isInvalidGrant(ResponseInterface $response): bool
+    {
+        $body = json_decode($response->getContent(false), true);
+
+        return is_array($body) && ($body['error'] ?? null) === 'invalid_grant';
+    }
+
+    private function invalidateAuthOf(EveToken $token): EveAuthRequiredException
+    {
+        $character = $token->getCharacter()
+            ?? throw new \LogicException('Revoked EVE token is not attached to any character');
+
+        $character->getUser()?->markAuthInvalid();
+        $this->entityManager->flush();
+
+        return new EveAuthRequiredException((string) $character->getEveCharacterId());
     }
 
     /**
