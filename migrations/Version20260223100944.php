@@ -25,10 +25,10 @@ final class Version20260223100944 extends AbstractMigration
         $this->addSql('ALTER TABLE profit_matches DROP CONSTRAINT fk_942a3a822fc0cb0f');
         $this->addSql('ALTER TABLE profit_settings DROP CONSTRAINT fk_cdd51474a76ed395');
         $this->addSql('ALTER TABLE pve_expenses DROP CONSTRAINT fk_pve_expenses_session');
-        $this->addSql('DROP INDEX idx_9299b28a613fecdf');
+        $this->addSql('DROP INDEX IF EXISTS idx_9299b28a613fecdf');
         $this->addSql('ALTER TABLE pve_expenses DROP session_id');
         $this->addSql('ALTER TABLE pve_income DROP CONSTRAINT fk_pve_income_session');
-        $this->addSql('DROP INDEX idx_5586a343613fecdf');
+        $this->addSql('DROP INDEX IF EXISTS idx_5586a343613fecdf');
         $this->addSql('ALTER TABLE pve_income DROP session_id');
         $this->addSql('ALTER TABLE pve_sessions DROP CONSTRAINT fk_pve_sessions_user');
         $this->addSql('DROP TABLE profit_matches');
