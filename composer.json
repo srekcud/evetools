@@ -43,6 +43,7 @@
         "symfony/yaml": "^7.4"
     },
     "require-dev": {
+        "dama/doctrine-test-bundle": "^8.6",
         "deptrac/deptrac": "^4.7",
         "doctrine/doctrine-fixtures-bundle": "^4.0",
         "infection/infection": "^0.35.6",

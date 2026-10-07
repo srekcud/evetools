@@ -43,3 +43,4 @@ when@test:
         messenger:
             transports:
                 async: 'in-memory://'
+                failed: 'in-memory://'

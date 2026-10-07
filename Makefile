@@ -1,4 +1,4 @@
-.PHONY: help build up down logs shell db-create db-migrate db-diff jwt-keys test install sde-import base-build deploy deploy-full infection deptrac
+.PHONY: help build up down logs shell db-create db-migrate db-diff jwt-keys test test-unit test-integration test-db install sde-import base-build deploy deploy-full infection deptrac
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -34,10 +34,20 @@ jwt-keys: ## Generate JWT keypair
 	docker compose exec app php bin/console lexik:jwt:generate-keypair --overwrite
 
 test: ## Run tests
-	docker compose exec app php bin/phpunit
+	docker compose exec app php bin/phpunit --no-coverage
 
 test-unit: ## Run unit tests only
-	docker compose exec app php bin/phpunit --testsuite=Unit
+	docker compose exec app php bin/phpunit --no-coverage --testsuite=Unit
+
+test-integration: ## Run integration tests (requires: make test-db)
+	docker compose exec app php bin/phpunit --no-coverage --testsuite=Integration
+
+# Migrations cannot replay on an empty database (Version20260223100944 drops a
+# missing index), so the test schema is built from the entity mapping.
+test-db: ## (Re)create the test database (eve_app_test) and its schema
+	docker compose exec app php bin/console doctrine:database:drop --env=test --if-exists --force
+	docker compose exec app php bin/console doctrine:database:create --env=test
+	docker compose exec app php bin/console doctrine:schema:create --env=test
 
 test-coverage: ## Run tests with coverage
 	docker compose exec app php bin/phpunit --coverage-html var/coverage

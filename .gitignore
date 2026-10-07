@@ -2,6 +2,7 @@
 /.env
 /.env.*
 !/.env.local.example
+!/.env.test
 /.env.local.php
 /config/secrets/prod/prod.decrypt.private.php
 /public/bundles/
