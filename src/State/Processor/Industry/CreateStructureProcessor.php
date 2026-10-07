@@ -52,8 +52,14 @@ class CreateStructureProcessor implements ProcessorInterface
         $structure->setRigs($data->rigs);
         $structure->setIsDefault($data->isDefault);
 
-        if ($data->solarSystemId !== null && $data->solarSystemId > 0) {
-            $structure->setSolarSystemId($data->solarSystemId);
+        $cachedStructure = $data->locationId !== null && $data->locationId > 0
+            ? $this->cachedStructureRepository->findByStructureId($data->locationId)
+            : null;
+
+        // The ESI cache knows where an imported structure stands; the submitted system is only a fallback.
+        $solarSystemId = $cachedStructure?->getSolarSystemId() ?? $data->solarSystemId;
+        if ($solarSystemId !== null && $solarSystemId > 0) {
+            $structure->setSolarSystemId($solarSystemId);
         }
 
         if ($data->locationId !== null && $data->locationId > 0) {
@@ -62,7 +68,6 @@ class CreateStructureProcessor implements ProcessorInterface
             if ($corporationId !== null) {
                 $structure->setCorporationId($corporationId);
 
-                $cachedStructure = $this->cachedStructureRepository->findByStructureId($data->locationId);
                 $structure->setIsCorporationStructure(
                     $cachedStructure !== null && $cachedStructure->getOwnerCorporationId() === $corporationId,
                 );

@@ -15,6 +15,8 @@ const editingStructure = ref<StructureConfig | null>(null)
 // Form state
 const formName = ref('')
 const formLocationId = ref<number | null>(null)
+// Fallback when the server has not cached the structure yet: it prefers its own cached system
+const formSolarSystemId = ref<number | null>(null)
 const formSecurityType = ref<'highsec' | 'lowsec' | 'nullsec'>('nullsec')
 const formStructureType = ref<string>('raitaru')
 const formRigs = ref<string[]>([])
@@ -46,6 +48,7 @@ function onCorpStructureSelected() {
     const struct = selectedCorpStructure.value
     formName.value = struct.locationName
     formLocationId.value = struct.locationId
+    formSolarSystemId.value = struct.solarSystemId
 
     // If this is a known corporation structure, mark it
     if (struct.isCorporationOwned) {
@@ -70,6 +73,7 @@ function onCorpStructureSelected() {
 
 function clearCorpStructure() {
   formLocationId.value = null
+  formSolarSystemId.value = null
   isKnownCorpStructure.value = false
 }
 
@@ -98,6 +102,7 @@ function onEsiSearchInput() {
 function selectEsiSearchResult(result: StructureSearchResult) {
   formName.value = result.locationName
   formLocationId.value = result.locationId
+  formSolarSystemId.value = result.solarSystemId
   if (result.structureType) {
     formStructureType.value = result.structureType
   }
@@ -202,6 +207,7 @@ watch(formStructureType, () => {
 function resetForm() {
   formName.value = ''
   formLocationId.value = null
+  formSolarSystemId.value = null
   formSecurityType.value = 'nullsec'
   formStructureType.value = 'raitaru'
   formRigs.value = []
@@ -285,6 +291,7 @@ async function saveStructure() {
       await store.createStructure({
         name: formName.value,
         locationId: formLocationId.value,
+        solarSystemId: formSolarSystemId.value,
         securityType: formSecurityType.value,
         structureType: formStructureType.value,
         rigs: formRigs.value,

@@ -9,6 +9,7 @@ use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\StructureConfigResource;
 use App\ApiResource\Input\Industry\UpdateStructureInput;
 use App\Entity\User;
+use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,6 +27,7 @@ class UpdateStructureProcessor implements ProcessorInterface
     public function __construct(
         private readonly Security $security,
         private readonly IndustryStructureConfigRepository $structureConfigRepository,
+        private readonly CachedStructureRepository $cachedStructureRepository,
         private readonly IndustryResourceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,
     ) {
@@ -80,6 +82,12 @@ class UpdateStructureProcessor implements ProcessorInterface
 
         if ($data->solarSystemId !== null) {
             $structure->setSolarSystemId($data->solarSystemId > 0 ? $data->solarSystemId : null);
+        }
+
+        // Structures imported before the solar system was recorded get it from the ESI structure cache.
+        $locationId = $structure->getLocationId();
+        if ($locationId !== null && $structure->getSolarSystemId() === null) {
+            $structure->setSolarSystemId($this->cachedStructureRepository->findByStructureId($locationId)?->getSolarSystemId());
         }
 
         $this->entityManager->flush();
