@@ -1,0 +1,100 @@
+{
+ "id": "install-cost-vectors",
+ "provenance": {
+  "source": "recalcule (vecteurs synthetiques)",
+  "method": "Formule de reference F3 de benchmark.md : cout = EIV x SCI x modificateur_cout_structure x modificateur_cout_rig + EIV x taxe_installation + EIV x 0.04 (SCC) [+ EIV x 0.0025 si alpha]. Pour copie et invention, EIV remplace par la base 2 % (jobCostBase). Implementation de reference : EVE Ref IndustryMath / ManufactureCalculator / InventionCalculator (licence MIT-0).",
+  "attribution": "Donnees EVE : propriete de CCP Games.",
+  "tolerance": "1 ISK (EVE Ref arrondit chaque composante ; l'ESI ne donne que 4 decimales sur les indices)."
+ },
+ "vectors": [
+  {
+   "name": "manufacturing-npc-like-no-structure",
+   "activity": "manufacturing",
+   "eiv": 1000000,
+   "systemCostIndex": 0.05,
+   "structureCostModifier": 1.0,
+   "facilityTax": 0.10,
+   "alpha": false,
+   "expected": { "systemCost": 50000, "facilityTax": 100000, "sccSurcharge": 40000, "alphaTax": 0, "total": 190000 },
+   "currentEvetools": { "total": 55000, "formula": "eiv * runs * index * (1 + tax/100)", "ref": "src/Service/Industry/EsiCostIndexService.php:264-266" }
+  },
+  {
+   "name": "manufacturing-raitaru-role-bonus",
+   "activity": "manufacturing",
+   "eiv": 1000000,
+   "systemCostIndex": 0.05,
+   "structureCostModifier": 0.97,
+   "facilityTax": 0.10,
+   "alpha": false,
+   "expected": { "systemCost": 48500, "facilityTax": 100000, "sccSurcharge": 40000, "alphaTax": 0, "total": 188500 },
+   "currentEvetools": { "total": 55000 }
+  },
+  {
+   "name": "manufacturing-sotiyo-alpha-no-tax",
+   "activity": "manufacturing",
+   "eiv": 1000000,
+   "systemCostIndex": 0.05,
+   "structureCostModifier": 0.95,
+   "facilityTax": 0.0,
+   "alpha": true,
+   "expected": { "systemCost": 47500, "facilityTax": 0, "sccSurcharge": 40000, "alphaTax": 2500, "total": 90000 },
+   "currentEvetools": { "total": 50000 }
+  },
+  {
+   "name": "reaction-tatara-no-role-cost-bonus",
+   "activity": "reaction",
+   "eiv": 2000000,
+   "systemCostIndex": 0.03,
+   "structureCostModifier": 1.0,
+   "facilityTax": 0.05,
+   "alpha": false,
+   "expected": { "systemCost": 60000, "facilityTax": 100000, "sccSurcharge": 80000, "alphaTax": 0, "total": 240000 },
+   "note": "Tatara et Athanor n'ont pas d'attribut strEngCostBonus dans le SDE (verifie sur la base dev).",
+   "currentEvetools": { "total": 63000 }
+  },
+  {
+   "name": "invention-one-attempt",
+   "activity": "invention",
+   "eivOfInventedBlueprintManufacturingMaterialsPerRun": 10000000,
+   "inventionRuns": 1,
+   "jobCostBase": 200000,
+   "systemCostIndex": 0.08,
+   "structureCostModifier": 1.0,
+   "facilityTax": 0.05,
+   "alpha": false,
+   "expected": { "systemCost": 16000, "facilityTax": 10000, "sccSurcharge": 8000, "alphaTax": 0, "total": 34000 },
+   "currentEvetools": { "total": 16800, "formula": "0.02 * eiv * index * (1 + tax/100), eiv = adjusted price du produit x quantite produite (et non des materiaux)", "ref": "src/Service/Industry/InventionService.php:293-298, :570-583" }
+  },
+  {
+   "name": "copying-ten-runs",
+   "activity": "copying",
+   "eivOfBlueprintManufacturingMaterialsPerRun": 5000000,
+   "copyRunsTotal": 10,
+   "jobCostBase": 1000000,
+   "systemCostIndex": 0.02,
+   "structureCostModifier": 1.0,
+   "facilityTax": 0.0,
+   "alpha": false,
+   "expected": { "systemCost": 20000, "facilityTax": 0, "sccSurcharge": 40000, "alphaTax": 0, "total": 60000 },
+   "openQuestion": "SCC de 4 % sur la copie : applique par EVE Ref ; la baisse a 2 % de juillet 2025 ne vise que la recherche ME/TE. A confirmer en jeu avant de figer.",
+   "currentEvetools": { "total": 20000, "ref": "src/Service/Industry/InventionService.php:61-80" }
+  },
+  {
+   "name": "missing-cost-index",
+   "activity": "manufacturing",
+   "eiv": 1000000,
+   "systemCostIndex": null,
+   "facilityTax": 0.10,
+   "expected": { "total": "UNKNOWN", "rule": "Cout inconnu signale explicitement (pas 0 ISK)" },
+   "currentEvetools": { "total": 0, "ref": "src/Service/Industry/EsiCostIndexService.php:259-262" }
+  },
+  {
+   "name": "missing-adjusted-price",
+   "activity": "manufacturing",
+   "materials": [ { "typeId": 34, "baseQuantity": 1000, "adjustedPrice": 4.0 }, { "typeId": 35, "baseQuantity": 500, "adjustedPrice": null } ],
+   "runs": 1,
+   "expected": { "eiv": "UNKNOWN", "rule": "EIV incomplete signalee (liste des typeId sans adjusted price), jamais 4000 en silence" },
+   "currentEvetools": { "eiv": 4000, "ref": "src/Service/Industry/EsiCostIndexService.php:59, :174, :229" }
+  }
+ ]
+}
