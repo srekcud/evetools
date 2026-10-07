@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Scheduler;
 
 use App\Message\CheckAlertPrices;
+use App\Message\PurgeExpiredSharedLists;
 use App\Message\PurgeOldMarketHistory;
 use App\Message\PurgeOldNotifications;
 use App\Message\SyncAdjustedPrices;
@@ -58,7 +59,10 @@ class SyncSchedulerIntervalsTest extends TestCase
     private const UNTRACKED_HOUSEKEEPING_MESSAGES = [
         PurgeOldNotifications::class,
         PurgeOldMarketHistory::class,
+        PurgeExpiredSharedLists::class,
     ];
+
+    private const ONE_DAY_IN_SECONDS = 86400;
 
     public function testEveryScheduledSyncIsTrackedWithTheSameIntervalAndNothingElseIsTracked(): void
     {
@@ -88,6 +92,47 @@ class SyncSchedulerIntervalsTest extends TestCase
             'pve' => 3600,
             'wallet' => 3600,
         ], $this->scheduledIntervalsBySyncTrackerKey());
+    }
+
+    public function testHousekeepingPurgesAreScheduledDaily(): void
+    {
+        // Issue #34 : la purge des listes partagées expirées rejoint les purges quotidiennes.
+        $expectedDailyPurges = array_fill_keys(self::UNTRACKED_HOUSEKEEPING_MESSAGES, self::ONE_DAY_IN_SECONDS);
+        ksort($expectedDailyPurges);
+
+        $scheduledPurges = array_intersect_key(
+            $this->scheduledIntervalsByMessageClass(),
+            $expectedDailyPurges,
+        );
+
+        $this->assertSame($expectedDailyPurges, $scheduledPurges);
+    }
+
+    /** @return array<class-string, int> */
+    private function scheduledIntervalsByMessageClass(): array
+    {
+        $referenceRun = new \DateTimeImmutable('2026-10-07 12:00:00');
+        $intervals = [];
+
+        foreach ($this->buildSyncScheduler()->getSchedule()->getRecurringMessages() as $recurringMessage) {
+            $context = new MessageContext(
+                'default',
+                $recurringMessage->getId(),
+                $recurringMessage->getTrigger(),
+                $referenceRun,
+            );
+
+            foreach ($recurringMessage->getMessages($context) as $message) {
+                $nextRun = $recurringMessage->getTrigger()->getNextRunDate($referenceRun);
+                $this->assertNotNull($nextRun);
+
+                $intervals[$message::class] = $nextRun->getTimestamp() - $referenceRun->getTimestamp();
+            }
+        }
+
+        ksort($intervals);
+
+        return $intervals;
     }
 
     /** @return array<string, int> */

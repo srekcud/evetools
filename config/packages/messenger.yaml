@@ -36,6 +36,7 @@ framework:
             App\Message\CheckAlertPrices: async
             App\Message\PurgeOldMarketHistory: async
             App\Message\PurgeOldNotifications: async
+            App\Message\PurgeExpiredSharedLists: async
             App\Message\WarmupStructureOwnersMessage: async
 
 when@test:

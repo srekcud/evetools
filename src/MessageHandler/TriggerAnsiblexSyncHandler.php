@@ -6,6 +6,7 @@ namespace App\MessageHandler;
 
 use App\Message\SyncAnsiblexGates;
 use App\Message\TriggerAnsiblexSync;
+use App\Repository\AnsiblexJumpGateRepository;
 use App\Repository\UserRepository;
 use App\Service\Admin\SyncTracker;
 use App\Service\Sync\AnsiblexSyncService;
@@ -16,12 +17,15 @@ use Symfony\Component\Messenger\MessageBusInterface;
 #[AsMessageHandler]
 final readonly class TriggerAnsiblexSyncHandler
 {
+    private const STALE_GATE_THRESHOLD_DAYS = 7;
+
     public function __construct(
         private UserRepository $userRepository,
         private AnsiblexSyncService $ansiblexSyncService,
         private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
         private SyncTracker $syncTracker,
+        private AnsiblexJumpGateRepository $ansiblexJumpGateRepository,
     ) {
     }
 
@@ -31,6 +35,10 @@ final readonly class TriggerAnsiblexSyncHandler
         $this->logger->info('Triggering scheduled Ansiblex sync');
 
         try {
+            $deactivated = $this->ansiblexJumpGateRepository->deactivateStaleGates(
+                new \DateTimeImmutable(sprintf('-%d days', self::STALE_GATE_THRESHOLD_DAYS)),
+            );
+
             $users = $this->userRepository->findActiveWithCharacters();
             $dispatched = 0;
 
@@ -60,6 +68,7 @@ final readonly class TriggerAnsiblexSyncHandler
 
             $this->logger->info('Ansiblex sync trigger completed', [
                 'dispatched' => $dispatched,
+                'deactivated_stale_gates' => $deactivated,
             ]);
 
             $this->syncTracker->complete('ansiblex', "{$dispatched} chars dispatched");

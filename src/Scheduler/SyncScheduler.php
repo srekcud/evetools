@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Scheduler;
 
 use App\Message\CheckAlertPrices;
+use App\Message\PurgeExpiredSharedLists;
 use App\Message\PurgeOldMarketHistory;
 use App\Message\PurgeOldNotifications;
 use App\Message\SyncAdjustedPrices;
@@ -99,6 +100,10 @@ class SyncScheduler implements ScheduleProviderInterface
             // Purge old market history daily
             ->add(
                 RecurringMessage::every('1 day', new PurgeOldMarketHistory())
+            )
+            // Purge expired shared shopping lists daily
+            ->add(
+                RecurringMessage::every('1 day', new PurgeExpiredSharedLists())
             );
     }
 }
