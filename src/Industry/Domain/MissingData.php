@@ -11,6 +11,7 @@ final readonly class MissingData
 {
     private const string ADJUSTED_PRICE = 'adjusted_price';
     private const string COST_INDEX = 'cost_index';
+    private const string INVENTION_PROBABILITY = 'invention_probability';
 
     private function __construct(public string $reason, public ?int $typeId)
     {
@@ -24,5 +25,13 @@ final readonly class MissingData
     public static function costIndex(): self
     {
         return new self(self::COST_INDEX, null);
+    }
+
+    /**
+     * @param int $blueprintTypeId the T1 blueprint the invention starts from, the SDE row that lacks the probability
+     */
+    public static function inventionProbability(int $blueprintTypeId): self
+    {
+        return new self(self::INVENTION_PROBABILITY, $blueprintTypeId);
     }
 }

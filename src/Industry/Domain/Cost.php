@@ -53,6 +53,18 @@ final readonly class Cost
     }
 
     /**
+     * A share of an unknown cost stays unknown, with the same missing data.
+     */
+    public function times(float $factor): self
+    {
+        if (null === $this->knownAmount) {
+            return $this;
+        }
+
+        return self::known(new Isk($this->knownAmount->amount * $factor));
+    }
+
+    /**
      * @param array<MissingData> $missingData
      *
      * @return list<MissingData>

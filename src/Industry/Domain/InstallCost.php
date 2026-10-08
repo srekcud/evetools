@@ -44,16 +44,16 @@ final readonly class InstallCost
 
         $base = match ($activity) {
             ActivityKind::Manufacturing, ActivityKind::Reaction => $estimatedItemValue,
-            ActivityKind::Copying, ActivityKind::Invention => self::share($estimatedItemValue, self::JOB_COST_BASE_RATE),
+            ActivityKind::Copying, ActivityKind::Invention => $estimatedItemValue->times(self::JOB_COST_BASE_RATE),
         };
 
         // The structure cost role bonus applies to the cost index term only, never to the taxes.
         $systemCost = null === $systemCostIndex
             ? $base->plus(Cost::unknown(MissingData::costIndex()))
-            : self::share($base, $systemCostIndex * $structureCostModifier->value);
-        $facilityTax = self::share($base, $facilityTaxRate);
-        $sccSurcharge = self::share($base, self::SCC_SURCHARGE_RATE);
-        $alphaCloneTax = self::share($base, $alphaClone ? self::ALPHA_CLONE_TAX_RATE : 0.0);
+            : $base->times($systemCostIndex * $structureCostModifier->value);
+        $facilityTax = $base->times($facilityTaxRate);
+        $sccSurcharge = $base->times(self::SCC_SURCHARGE_RATE);
+        $alphaCloneTax = $base->times($alphaClone ? self::ALPHA_CLONE_TAX_RATE : 0.0);
 
         return new self(
             $systemCost,
@@ -62,15 +62,6 @@ final readonly class InstallCost
             $alphaCloneTax,
             $systemCost->plus($facilityTax)->plus($sccSurcharge)->plus($alphaCloneTax),
         );
-    }
-
-    private static function share(Cost $base, float $rate): Cost
-    {
-        if (!$base->isKnown()) {
-            return $base;
-        }
-
-        return Cost::known(new Isk($base->amount()->amount * $rate));
     }
 
     private static function assertRate(float $rate, string $name): void
