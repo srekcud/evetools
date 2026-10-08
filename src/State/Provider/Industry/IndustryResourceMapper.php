@@ -242,6 +242,7 @@ class IndustryResourceMapper
         $resource->structureConfigName = $structureData['name'];
         $resource->structureMaterialBonus = $structureData['materialBonus']['total'];
         $resource->structureTimeBonus = $structureData['timeBonus'];
+        $resource->favoriteSystemWithoutSuitableStructure = $structureData['favoriteSystemWithoutSuitableStructure'];
 
         // Calculate time with best character's skills
         $bestChar = $this->findBestCharacterForStep($step);

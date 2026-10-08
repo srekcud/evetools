@@ -94,14 +94,15 @@ class IndustryCalculationService
      * Get the structure bonus for a step, using the step's assigned structure or finding the best one.
      *
      * Returns materialBonus as an array with separate base/rig values for multiplicative stacking.
+     * favoriteSystemWithoutSuitableStructure is true when a favorite system is configured for the
+     * activity but holds no structure able to run it, so the best of all structures was taken.
      *
-     * @return array{structure: IndustryStructureConfig|null, materialBonus: array{total: float, base: float, rig: float}, timeBonus: float, name: string|null}
+     * @return array{structure: IndustryStructureConfig|null, materialBonus: array{total: float, base: float, rig: float}, timeBonus: float, name: string|null, favoriteSystemWithoutSuitableStructure: bool}
      */
     public function getStructureBonusForStep(IndustryProjectStep $step): array
     {
         $structureConfig = $step->getStructureConfig();
         $isReaction = $step->getActivityType() === 'reaction';
-        $zeroBonus = ['total' => 0.0, 'base' => 0.0, 'rig' => 0.0];
 
         if ($structureConfig !== null) {
             $category = $this->bonusService->getCategoryForProduct($step->getProductTypeId(), $isReaction);
@@ -120,15 +121,19 @@ class IndustryCalculationService
                 'materialBonus' => $materialBonus,
                 'timeBonus' => $timeBonus,
                 'name' => $structureConfig->getName(),
+                'favoriteSystemWithoutSuitableStructure' => false,
             ];
         }
 
         // No assigned structure — try favorite system first, then fallback to global best
         $user = $step->getProject()->getUser();
-        $favoriteResult = $this->findBestInFavoriteSystem($user, $step->getProductTypeId(), $isReaction);
+        $favoriteSystemId = $this->findFavoriteSystemId($user, $isReaction);
 
-        if ($favoriteResult !== null) {
-            return $favoriteResult;
+        if ($favoriteSystemId !== null) {
+            $favoriteResult = $this->findBestInFavoriteSystem($user, $favoriteSystemId, $step->getProductTypeId(), $isReaction);
+            if ($favoriteResult !== null) {
+                return $favoriteResult;
+            }
         }
 
         // Fallback: find the global best structure
@@ -152,68 +157,52 @@ class IndustryCalculationService
             'materialBonus' => $materialBonus,
             'timeBonus' => $timeBonus,
             'name' => $structure?->getName(),
+            'favoriteSystemWithoutSuitableStructure' => $favoriteSystemId !== null,
         ];
     }
 
-    /**
-     * Find the best structure in the user's favorite solar system for the given activity.
-     *
-     * @return array{structure: IndustryStructureConfig, materialBonus: array{total: float, base: float, rig: float}, timeBonus: float, name: string}|null
-     */
-    private function findBestInFavoriteSystem(User $user, int $productTypeId, bool $isReaction): ?array
+    private function findFavoriteSystemId(User $user, bool $isReaction): ?int
     {
         $settings = $this->settingsRepository->findOneBy(['user' => $user]);
         if ($settings === null) {
             return null;
         }
 
-        $favoriteSystemId = $isReaction
+        return $isReaction
             ? $settings->getFavoriteReactionSystemId()
             : $settings->getFavoriteManufacturingSystemId();
+    }
 
-        if ($favoriteSystemId === null) {
-            return null;
-        }
-
-        // Get all user structures in the favorite system
-        $structures = $this->structureConfigRepository->findByUser($user);
-        $inSystem = array_filter(
-            $structures,
-            fn (IndustryStructureConfig $s) => $s->getSolarSystemId() === $favoriteSystemId,
+    /**
+     * Find the best structure able to run the activity in the user's favorite solar system.
+     * Among equal bonuses, the most recently configured structure wins.
+     *
+     * @return array{structure: IndustryStructureConfig, materialBonus: array{total: float, base: float, rig: float}, timeBonus: float, name: string, favoriteSystemWithoutSuitableStructure: false}|null
+     */
+    private function findBestInFavoriteSystem(User $user, int $favoriteSystemId, int $productTypeId, bool $isReaction): ?array
+    {
+        $suitableInSystem = array_filter(
+            $this->structureConfigRepository->findByUser($user),
+            fn (IndustryStructureConfig $s) => $s->getSolarSystemId() === $favoriteSystemId
+                && $this->bonusService->isSuitableForActivity($s, $isReaction),
+        );
+        usort(
+            $suitableInSystem,
+            static fn (IndustryStructureConfig $a, IndustryStructureConfig $b) => $b->getCreatedAt() <=> $a->getCreatedAt(),
         );
 
-        if (empty($inSystem)) {
-            return null;
-        }
-
-        // Find the best bonus among structures in the favorite system
         $category = $this->bonusService->getCategoryForProduct($productTypeId, $isReaction);
 
         $bestStructure = null;
-        /** @var array{total: float, base: float, rig: float} $bestBonus */
-        $bestBonus = ['total' => -1.0, 'base' => 0.0, 'rig' => 0.0];
-
-        if ($category !== null) {
-            foreach ($inSystem as $structure) {
-                $bonus = $this->bonusService->calculateStructureBonusForCategory($structure, $category);
-                if ($bonus['total'] > $bestBonus['total']) {
-                    $bestBonus = $bonus;
-                    $bestStructure = $structure;
-                }
-            }
-        } else {
-            // No rig category — pick the structure with the best base time bonus
-            $bestBaseTime = 0.0;
-            foreach ($inSystem as $structure) {
-                $baseTime = $this->bonusService->getBaseTimeBonus($structure, $isReaction);
-                if ($baseTime > $bestBaseTime) {
-                    $bestBaseTime = $baseTime;
-                    $bestStructure = $structure;
-                }
-            }
-            if ($bestStructure !== null) {
-                $baseMat = $this->bonusService->getBaseMaterialBonus($bestStructure, $isReaction);
-                $bestBonus = ['total' => $baseMat, 'base' => $baseMat, 'rig' => 0.0];
+        $bestScore = null;
+        foreach ($suitableInSystem as $structure) {
+            // Without a rig category, only the base time bonus tells structures apart
+            $score = $category !== null
+                ? $this->bonusService->calculateStructureBonusForCategory($structure, $category)['total']
+                : $this->bonusService->getBaseTimeBonus($structure, $isReaction);
+            if ($bestScore === null || $score > $bestScore) {
+                $bestScore = $score;
+                $bestStructure = $structure;
             }
         }
 
@@ -221,15 +210,21 @@ class IndustryCalculationService
             return null;
         }
 
-        $timeBonus = $category !== null
-            ? $this->bonusService->calculateStructureTimeBonusForCategory($bestStructure, $category)
-            : $this->bonusService->getBaseTimeBonus($bestStructure, $isReaction);
+        if ($category !== null) {
+            $materialBonus = $this->bonusService->calculateStructureBonusForCategory($bestStructure, $category);
+            $timeBonus = $this->bonusService->calculateStructureTimeBonusForCategory($bestStructure, $category);
+        } else {
+            $baseMat = $this->bonusService->getBaseMaterialBonus($bestStructure, $isReaction);
+            $materialBonus = ['total' => $baseMat, 'base' => $baseMat, 'rig' => 0.0];
+            $timeBonus = $this->bonusService->getBaseTimeBonus($bestStructure, $isReaction);
+        }
 
         return [
             'structure' => $bestStructure,
-            'materialBonus' => $bestBonus,
+            'materialBonus' => $materialBonus,
             'timeBonus' => $timeBonus,
             'name' => $bestStructure->getName(),
+            'favoriteSystemWithoutSuitableStructure' => false,
         ];
     }
 

@@ -104,6 +104,7 @@ interface SplitGroup {
   // Structure info
   recommendedStructureName: string | null
   structureBonus: number | null
+  favoriteSystemWithoutSuitableStructure: boolean
   // Facility delta info (propagated from children)
   facilityInfoType: 'suboptimal' | 'unconfigured' | null
   bestStructureName: string | null
@@ -202,6 +203,7 @@ const groupedSteps = computed<StepGroup[]>(() => {
         runsCompleted: 0,
         recommendedStructureName: step.recommendedStructureName,
         structureBonus: step.structureBonus,
+        favoriteSystemWithoutSuitableStructure: false,
         facilityInfoType: null,
         bestStructureName: null,
         bestMaterialBonus: null,
@@ -223,6 +225,7 @@ const groupedSteps = computed<StepGroup[]>(() => {
     splitGroup.runsToLaunch = breakdown.toLaunch
     splitGroup.runsInProgress = breakdown.inProgress
     splitGroup.runsCompleted = breakdown.completed
+    splitGroup.favoriteSystemWithoutSuitableStructure = splitGroup.children.some(c => c.favoriteSystemWithoutSuitableStructure)
 
     // Propagate facility info from first child with facility delta
     const deltaChild = splitGroup.children.find(c => c.facilityInfoType !== null)
@@ -516,6 +519,14 @@ function mergeGroup(stepId: string) {
                   </svg>
                   {{ splitGroup.recommendedStructureName }}
                   <span class="text-emerald-400">({{ splitGroup.structureBonus }}%)</span>
+                </span>
+                <!-- Favorite system holds no structure able to run the activity -->
+                <span
+                  v-if="splitGroup.favoriteSystemWithoutSuitableStructure"
+                  class="text-xs px-1.5 py-0.5 rounded-sm bg-amber-500/10 text-amber-400 border border-amber-500/20 cursor-help"
+                  :title="t('industry.stepTree.favoriteSystemWithoutSuitableStructureHint')"
+                >
+                  {{ t('industry.stepTree.favoriteSystemWithoutSuitableStructure') }}
                 </span>
                 <!-- Facility delta: suboptimal structure -->
                 <span

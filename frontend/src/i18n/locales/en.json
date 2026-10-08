@@ -1042,6 +1042,8 @@
       "suboptimal": "Suboptimal",
       "better": "Better",
       "bestStructure": "← Best: {name}",
+      "favoriteSystemWithoutSuitableStructure": "Outside favorite system",
+      "favoriteSystemWithoutSuitableStructureHint": "Your favorite system has no structure suited to this activity: the best of all your structures is used.",
       "unconfigured": "Unconfigured",
       "similarJobs": "Similar jobs",
       "addJob": "Add job",

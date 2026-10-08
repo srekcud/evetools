@@ -154,16 +154,11 @@ class IndustryBonusService
         $bestBaseTime = 0.0;
 
         foreach ($structures as $structure) {
+            if (!$this->isSuitableForActivity($structure, $isReaction)) {
+                continue;
+            }
+
             $structureType = $structure->getStructureType();
-            $structureCategory = self::STRUCTURE_CATEGORIES[$structureType] ?? $structureType;
-
-            if ($isReaction && $structureCategory !== 'refinery') {
-                continue;
-            }
-            if (!$isReaction && $structureCategory === 'refinery') {
-                continue;
-            }
-
             $baseTime = self::STRUCTURE_TIME_BONUSES[$structureType] ?? 0.0;
             if ($baseTime > $bestBaseTime) {
                 $bestBaseTime = $baseTime;
@@ -219,6 +214,18 @@ class IndustryBonusService
     }
 
     /**
+     * Whether a structure can run the activity: reactions need a refinery,
+     * manufacturing runs anywhere but in a refinery.
+     */
+    public function isSuitableForActivity(IndustryStructureConfig $structure, bool $isReaction): bool
+    {
+        $structureType = $structure->getStructureType();
+        $isRefinery = (self::STRUCTURE_CATEGORIES[$structureType] ?? $structureType) === 'refinery';
+
+        return $isReaction === $isRefinery;
+    }
+
+    /**
      * Find the best structure and its bonus for a given category.
      *
      * @return array{structure: IndustryStructureConfig|null, bonus: array{total: float, base: float, rig: float}, category: string|null}
@@ -236,14 +243,7 @@ class IndustryBonusService
         $bestBonus = $zeroBonus;
 
         foreach ($structures as $structure) {
-            $structureType = $structure->getStructureType();
-            $structureCategory = self::STRUCTURE_CATEGORIES[$structureType] ?? $structureType;
-
-            // Skip refineries for manufacturing, skip engineering complexes for reactions
-            if ($isReaction && $structureCategory !== 'refinery') {
-                continue;
-            }
-            if (!$isReaction && $structureCategory === 'refinery') {
+            if (!$this->isSuitableForActivity($structure, $isReaction)) {
                 continue;
             }
 
@@ -369,14 +369,7 @@ class IndustryBonusService
         $bestBonus = 0.0;
 
         foreach ($structures as $structure) {
-            $structureType = $structure->getStructureType();
-            $structureCategory = self::STRUCTURE_CATEGORIES[$structureType] ?? $structureType;
-
-            // Skip refineries for manufacturing, skip engineering complexes for reactions
-            if ($isReaction && $structureCategory !== 'refinery') {
-                continue;
-            }
-            if (!$isReaction && $structureCategory === 'refinery') {
+            if (!$this->isSuitableForActivity($structure, $isReaction)) {
                 continue;
             }
 

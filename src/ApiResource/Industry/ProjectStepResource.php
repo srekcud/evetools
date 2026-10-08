@@ -126,6 +126,9 @@ class ProjectStepResource
     /** Calculated dynamically */
     public ?float $structureTimeBonus = null;
 
+    /** True when the favorite system holds no structure able to run the activity, so the best of all structures is used */
+    public bool $favoriteSystemWithoutSuitableStructure;
+
     /** Calculated dynamically (seconds per run) */
     public ?int $timePerRun = null;
 

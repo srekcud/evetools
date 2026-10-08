@@ -64,6 +64,7 @@ export interface IndustryProjectStep {
   structureConfigName: string | null
   structureMaterialBonus: number | null
   structureTimeBonus: number | null
+  favoriteSystemWithoutSuitableStructure: boolean
   timePerRun: number | null
   recommendedCharacterName: string | null
   splitGroupId: string | null
