@@ -15,11 +15,20 @@ use App\Industry\Domain\SecurityClass;
 /**
  * Production structures as the Application receives them: plain inputs, values of the SDE dogma attributes
  * (SDE of 2026-10-07, spec R4), rig → category targeting as in IndustryRigCategory. No entity.
+ *
+ * Constructor order: id, type, security, solar system, configuredAt, material role bonus, rigs, cost role bonus
+ * (strEngCostBonus, spec R6: applies to the cost index term only), facility tax rate (fraction).
  */
 final class ProductionStructures
 {
     /** strEngMatBonus of the Engineering Complexes (Raitaru / Azbel / Sotiyo). */
     public const float ENGINEERING_COMPLEX_MATERIAL_ROLE_BONUS = 0.99;
+
+    /** strEngCostBonus of the Raitaru (spec R4: Raitaru ×0.97 / Azbel ×0.96 / Sotiyo ×0.95). */
+    public const float RAITARU_COST_ROLE_BONUS = 0.97;
+
+    /** Facility tax of the structures whose tax plays no part in the test. */
+    public const float NO_FACILITY_TAX = 0.0;
 
     public static function raitaru(
         string $id,
@@ -36,6 +45,31 @@ final class ProductionStructures
             new \DateTimeImmutable($configuredAt),
             new Multiplier(self::ENGINEERING_COMPLEX_MATERIAL_ROLE_BONUS),
             array_values($rigs),
+            new Multiplier(self::RAITARU_COST_ROLE_BONUS),
+            self::NO_FACILITY_TAX,
+        );
+    }
+
+    /**
+     * Raitaru with the facility tax set by its owner, for the install cost (spec R6).
+     */
+    public static function raitaruWithFacilityTax(
+        string $id,
+        SecurityClass $security,
+        ?int $solarSystemId,
+        float $facilityTaxRate,
+        StructureRig ...$rigs,
+    ): ProductionStructure {
+        return new ProductionStructure(
+            $id,
+            StructureType::EngineeringComplex,
+            $security,
+            $solarSystemId,
+            new \DateTimeImmutable('2026-01-01 00:00:00'),
+            new Multiplier(self::ENGINEERING_COMPLEX_MATERIAL_ROLE_BONUS),
+            array_values($rigs),
+            new Multiplier(self::RAITARU_COST_ROLE_BONUS),
+            $facilityTaxRate,
         );
     }
 
@@ -55,6 +89,8 @@ final class ProductionStructures
             new \DateTimeImmutable($configuredAt),
             Multiplier::one(),
             array_values($rigs),
+            Multiplier::one(),
+            self::NO_FACILITY_TAX,
         );
     }
 

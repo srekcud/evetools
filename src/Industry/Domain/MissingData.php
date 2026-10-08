@@ -12,6 +12,7 @@ final readonly class MissingData
     private const string ADJUSTED_PRICE = 'adjusted_price';
     private const string COST_INDEX = 'cost_index';
     private const string INVENTION_PROBABILITY = 'invention_probability';
+    private const string MARKET_PRICE = 'market_price';
 
     private function __construct(public string $reason, public ?int $typeId)
     {
@@ -20,6 +21,11 @@ final readonly class MissingData
     public static function adjustedPrice(int $typeId): self
     {
         return new self(self::ADJUSTED_PRICE, $typeId);
+    }
+
+    public static function marketPrice(int $typeId): self
+    {
+        return new self(self::MARKET_PRICE, $typeId);
     }
 
     public static function costIndex(): self

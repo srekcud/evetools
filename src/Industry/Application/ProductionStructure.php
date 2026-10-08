@@ -10,6 +10,8 @@ use App\Industry\Domain\SecurityClass;
 
 /**
  * A production structure configured by the user. The solar system is only known for imported structures.
+ * The cost role bonus (strEngCostBonus) applies to the cost index term of the install cost only (spec R6); the facility
+ * tax rate is a fraction set by the owner.
  */
 final readonly class ProductionStructure
 {
@@ -24,6 +26,8 @@ final readonly class ProductionStructure
         public \DateTimeImmutable $configuredAt,
         public Multiplier $manufacturingMaterialRoleBonus,
         public array $rigs,
+        public Multiplier $costRoleBonus,
+        public float $facilityTaxRate,
     ) {
     }
 
