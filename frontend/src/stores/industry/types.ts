@@ -259,9 +259,17 @@ export interface RigOption {
   name: string
   bonus: number
   timeBonus?: number
+  categoryBonuses?: Record<string, number>
   category: string
   size: 'M' | 'L' | 'XL'
   targetCategories: string[]
+}
+
+export interface StructureBonusPreview {
+  manufacturingMaterialBonus: number
+  reactionMaterialBonus: number
+  manufacturingTimeBonus: number
+  reactionTimeBonus: number
 }
 
 export interface RigOptions {

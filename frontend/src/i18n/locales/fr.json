@@ -1081,6 +1081,7 @@
       "removeRig": "Retirer",
       "noRigsSelected": "Aucun rig sélectionné. Recherchez et ajoutez des rigs pour appliquer des bonus.",
       "bonusPreview": "Bonus calculé (base structure + rigs x sécurité)",
+      "bonusPreviewUnavailable": "Bonus indisponibles, réessayez en modifiant la configuration",
       "npcNoBonus": "Les stations NPC n'ont pas de bonus",
       "npcStationOption": "Station NPC (aucun bonus)",
       "noStructures": "Aucune structure configurée",

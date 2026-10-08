@@ -500,7 +500,6 @@ class IndustryBonusService
 
             foreach ($rigOptions[$type] as $rig) {
                 $rigName = $rig['name'];
-                $materialBonus = $rig['bonus'];
                 $targetCategories = $rig['targetCategories'] ?? [];
                 $explicitTimeBonus = $rig['timeBonus'] ?? null;
 
@@ -520,7 +519,8 @@ class IndustryBonusService
                 // Check if this is an "Efficiency" rig (not "Material Efficiency")
                 $timeBonus = null;
 
-                // L-Set and XL-Set Manufacturing Efficiency rigs (not "Material Efficiency"), shared with the entity
+                // L-Set and XL-Set Manufacturing Efficiency rigs (not "Material Efficiency") and L-Set Reactor
+                // Efficiency rigs, time bonus shared with the entity
                 if (
                     (str_contains($rigName, 'L-Set') || str_contains($rigName, 'XL-Set'))
                     && str_contains($rigName, 'Efficiency')
@@ -530,12 +530,6 @@ class IndustryBonusService
                     $timeBonus = str_ends_with($rigName, ' II')
                         ? IndustryStructureConfig::STANDARD_RIG_TIME_BONUS_T2
                         : IndustryStructureConfig::STANDARD_RIG_TIME_BONUS_T1;
-                }
-
-                // Reactor Efficiency rigs (L-Set only in current EVE): time bonus is 10× the material bonus
-                // E.g., 2.4% ME → 24% TE for L-Set Reactor Efficiency II
-                if (str_contains($rigName, 'Reactor Efficiency')) {
-                    $timeBonus = $materialBonus * 10.0;
                 }
 
                 if ($timeBonus === null) {

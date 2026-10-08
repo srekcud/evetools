@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useIndustryStore } from '@/stores/industry'
-import type { StructureConfig, RigOption, CorporationStructure, StructureSearchResult } from '@/stores/industry'
+import type { StructureConfig, RigOption, CorporationStructure, StructureSearchResult, StructureBonusPreview } from '@/stores/industry'
 import FavoriteSystemsConfig from './FavoriteSystemsConfig.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { ApiError } from '@/services/api'
@@ -127,25 +127,20 @@ function hideEsiDropdownDelayed() {
   }, 200)
 }
 
-const securityMultipliers = {
-  highsec: 1.0,
-  lowsec: 1.9,
-  nullsec: 2.1,
-}
-
+// The security modifiers depend on the rig (manufacturing, reaction, Thukker): the backend applies them
 const securityLabels = {
-  highsec: 'High-Sec (x1.0)',
-  lowsec: 'Low-Sec (x1.9)',
-  nullsec: 'Null-Sec (x2.1)',
+  highsec: 'High-Sec',
+  lowsec: 'Low-Sec',
+  nullsec: 'Null-Sec',
 }
 
 const structureTypeLabels = computed<Record<string, string>>(() => ({
   station: t('industry.structures.npcStationOption'),
-  raitaru: 'Raitaru (EC Medium) - 1% ME',
-  azbel: 'Azbel (EC Large) - 1% ME, 20% TE',
-  sotiyo: 'Sotiyo (EC X-Large) - 1% ME, 30% TE',
-  athanor: 'Athanor (Refinery Medium) - 25% TE',
-  tatara: 'Tatara (Refinery Large) - 25% TE',
+  raitaru: 'Raitaru (EC Medium)',
+  azbel: 'Azbel (EC Large)',
+  sotiyo: 'Sotiyo (EC X-Large)',
+  athanor: 'Athanor (Refinery Medium)',
+  tatara: 'Tatara (Refinery Large)',
   // Legacy support
   engineering_complex: 'Engineering Complex (legacy)',
   refinery: 'Refinery (legacy)',
@@ -422,87 +417,51 @@ function formatTargetCategories(categories: string[]): string {
   return categories.map(c => categoryLabels[c] || c).join(', ')
 }
 
-// Check if a rig provides time bonus (L-Set/XL-Set "Efficiency" or "Reactor Efficiency")
-function hasTimeBonus(rigName: string): boolean {
-  const isEfficiencyRig = rigName.includes('Efficiency') && !rigName.includes('Material Efficiency')
-  const isLargeOrXL = rigName.includes('L-Set') || rigName.includes('XL-Set')
-  const isReactorEfficiency = rigName.includes('Reactor Efficiency')
-  return (isEfficiencyRig && isLargeOrXL) || isReactorEfficiency
+function formatCategoryBonuses(categoryBonuses: Record<string, number>): string {
+  return Object.entries(categoryBonuses)
+    .map(([category, bonus]) => `${categoryLabels[category] || category}: -${bonus}%`)
+    .join(', ')
 }
 
-function calculateBonus(rigs: string[], type: 'manufacturing' | 'reaction', security: string): number {
-  if (!store.rigOptions) return 0
-  const options = type === 'reaction' ? store.rigOptions.reaction : store.rigOptions.manufacturing
-  let bonus = 0
-  for (const rigName of rigs) {
-    const rig = options.find((r) => r.name === rigName)
-    if (rig) bonus += rig.bonus
+// Bonuses of the configuration being edited, computed by the backend like those of a saved structure
+const PREVIEW_DEBOUNCE_MS = 300
+const bonusPreview = ref<StructureBonusPreview | null>(null)
+const bonusPreviewFailed = ref(false)
+let previewTimeout: number | undefined
+let previewRequestId = 0
+
+async function refreshBonusPreview() {
+  const requestId = ++previewRequestId
+  try {
+    const preview = await store.previewStructureBonuses({
+      securityType: formSecurityType.value,
+      structureType: formStructureType.value,
+      rigs: [...formRigs.value],
+    })
+    if (requestId !== previewRequestId) return
+    bonusPreview.value = preview
+    bonusPreviewFailed.value = false
+  } catch (e) {
+    if (requestId !== previewRequestId) return
+    console.error('Failed to preview structure bonuses:', e)
+    bonusPreview.value = null
+    bonusPreviewFailed.value = true
   }
-  const multiplier = securityMultipliers[security as keyof typeof securityMultipliers] ?? 1
-  return Math.round(bonus * multiplier * 100) / 100
 }
 
-// Reaction security multipliers are different
-const reactionSecurityMultipliers = {
-  highsec: 1.0,
-  lowsec: 1.0,
-  nullsec: 1.1,
-}
-
-// Calculate time bonus (base structure + rig, multiplicative)
-function calculateTimeBonus(structureType: string, rigs: string[], type: 'manufacturing' | 'reaction', security: string): number {
-  // Base structure time bonus
-  const baseBonus = type === 'manufacturing'
-    ? ({ raitaru: 15, azbel: 20, sotiyo: 30 }[structureType] ?? 0)
-    : ({ athanor: 25, tatara: 25 }[structureType] ?? 0)
-
-  // Rig time bonus (only L-Set/XL-Set "Efficiency" rigs, not "Material Efficiency")
-  if (!store.rigOptions) return baseBonus
-  const options = type === 'reaction' ? store.rigOptions.reaction : store.rigOptions.manufacturing
-  let rigBonus = 0
-  for (const rigName of rigs) {
-    const rig = options.find((r) => r.name === rigName)
-    if (!rig) continue
-    // Only "Efficiency" rigs provide time bonus, not "Material Efficiency"
-    const isEfficiencyRig = rigName.includes('Efficiency') && !rigName.includes('Material Efficiency')
-    const isLargeOrXL = rigName.includes('L-Set') || rigName.includes('XL-Set')
-    const isReactorEfficiency = rigName.includes('Reactor Efficiency')
-    if (type === 'manufacturing' && isEfficiencyRig && isLargeOrXL) {
-      rigBonus += rig.bonus
-    } else if (type === 'reaction' && isReactorEfficiency) {
-      rigBonus += rig.bonus
-    }
-  }
-
-  // Apply security multiplier to rig bonus
-  const multiplier = type === 'reaction'
-    ? reactionSecurityMultipliers[security as keyof typeof reactionSecurityMultipliers] ?? 1
-    : securityMultipliers[security as keyof typeof securityMultipliers] ?? 1
-  rigBonus *= multiplier
-
-  // Multiplicative stacking: 1 - (1 - base) × (1 - rig)
-  if (baseBonus > 0 || rigBonus > 0) {
-    const totalBonus = 1 - (1 - baseBonus / 100) * (1 - rigBonus / 100)
-    return Math.round(totalBonus * 10000) / 100
-  }
-  return 0
-}
-
-const previewManufacturingBonus = computed(() => {
-  return calculateBonus(formRigs.value, 'manufacturing', formSecurityType.value)
-})
-
-const previewReactionBonus = computed(() => {
-  return calculateBonus(formRigs.value, 'reaction', formSecurityType.value)
-})
-
-const previewManufacturingTimeBonus = computed(() => {
-  return calculateTimeBonus(formStructureType.value, formRigs.value, 'manufacturing', formSecurityType.value)
-})
-
-const previewReactionTimeBonus = computed(() => {
-  return calculateTimeBonus(formStructureType.value, formRigs.value, 'reaction', formSecurityType.value)
-})
+watch(
+  [showAddForm, formStructureType, formSecurityType, formRigs],
+  () => {
+    clearTimeout(previewTimeout)
+    // A response to an earlier configuration must not be shown for this one
+    previewRequestId++
+    bonusPreview.value = null
+    bonusPreviewFailed.value = false
+    if (!showAddForm.value) return
+    previewTimeout = window.setTimeout(refreshBonusPreview, PREVIEW_DEBOUNCE_MS)
+  },
+  { deep: true },
+)
 </script>
 
 <template>
@@ -722,15 +681,13 @@ const previewReactionTimeBonus = computed(() => {
                 <div class="flex items-center justify-between">
                   <span class="text-sm text-slate-200">{{ formatRigName(rig.name) }}</span>
                   <span class="text-xs ml-2">
-                    <template v-if="hasTimeBonus(rig.name)">
-                      <span class="text-emerald-400">ME: -{{ rig.bonus }}%</span>
-                      <span class="text-amber-400 ml-1">TE: -{{ rig.bonus }}%</span>
-                    </template>
-                    <span v-else class="text-emerald-400">ME: -{{ rig.bonus }}%</span>
+                    <span v-if="rig.bonus > 0" class="text-emerald-400">ME: -{{ rig.bonus }}%</span>
+                    <span v-if="rig.timeBonus !== undefined" class="text-amber-400 ml-1">TE: -{{ rig.timeBonus }}%</span>
                     <span class="text-slate-500 ml-1">({{ rig.size }})</span>
                   </span>
                 </div>
                 <div class="text-xs text-slate-500 mt-0.5">{{ formatTargetCategories(rig.targetCategories) }}</div>
+                <div v-if="rig.categoryBonuses" class="text-xs text-emerald-400/80 mt-0.5">ME {{ formatCategoryBonuses(rig.categoryBonuses) }}</div>
               </button>
             </div>
 
@@ -754,11 +711,8 @@ const previewReactionTimeBonus = computed(() => {
                 <div class="flex items-center gap-2 flex-1 min-w-0">
                   <span class="text-sm text-slate-300 truncate">{{ formatRigName(rigInfo.name) }}</span>
                   <span class="text-xs shrink-0">
-                    <template v-if="hasTimeBonus(rigInfo.name)">
-                      <span class="text-emerald-400">ME: -{{ rigInfo.bonus }}%</span>
-                      <span class="text-amber-400 ml-1">TE: -{{ rigInfo.bonus }}%</span>
-                    </template>
-                    <span v-else class="text-emerald-400">ME: -{{ rigInfo.bonus }}%</span>
+                    <span v-if="rigInfo.bonus > 0" class="text-emerald-400">ME: -{{ rigInfo.bonus }}%</span>
+                    <span v-if="rigInfo.timeBonus !== undefined" class="text-amber-400 ml-1">TE: -{{ rigInfo.timeBonus }}%</span>
                     <span class="text-slate-500 ml-1">({{ rigInfo.size }})</span>
                   </span>
                 </div>
@@ -773,6 +727,7 @@ const previewReactionTimeBonus = computed(() => {
                 </button>
               </div>
               <div class="text-xs text-slate-500 mt-0.5">{{ formatTargetCategories(rigInfo.targetCategories) }}</div>
+                <div v-if="rigInfo.categoryBonuses" class="text-xs text-emerald-400/80 mt-0.5">ME {{ formatCategoryBonuses(rigInfo.categoryBonuses) }}</div>
             </div>
           </div>
 
@@ -788,26 +743,29 @@ const previewReactionTimeBonus = computed(() => {
             <div v-if="isEngineeringComplex" class="flex flex-wrap gap-4">
               <div>
                 <span class="text-xs text-slate-500">ME Manufacturing:</span>
-                <span class="text-sm text-emerald-400 ml-1">-{{ previewManufacturingBonus }}%</span>
+                <span class="text-sm text-emerald-400 ml-1">{{ bonusPreview ? `-${bonusPreview.manufacturingMaterialBonus}%` : '…' }}</span>
               </div>
               <div>
                 <span class="text-xs text-slate-500">TE Manufacturing:</span>
-                <span class="text-sm text-amber-400 ml-1">-{{ previewManufacturingTimeBonus }}%</span>
+                <span class="text-sm text-amber-400 ml-1">{{ bonusPreview ? `-${bonusPreview.manufacturingTimeBonus}%` : '…' }}</span>
               </div>
             </div>
             <div v-if="isRefinery" class="flex flex-wrap gap-4">
               <div>
                 <span class="text-xs text-slate-500">ME Reactions:</span>
-                <span class="text-sm text-emerald-400 ml-1">-{{ previewReactionBonus }}%</span>
+                <span class="text-sm text-emerald-400 ml-1">{{ bonusPreview ? `-${bonusPreview.reactionMaterialBonus}%` : '…' }}</span>
               </div>
               <div>
                 <span class="text-xs text-slate-500">TE Reactions:</span>
-                <span class="text-sm text-amber-400 ml-1">-{{ previewReactionTimeBonus }}%</span>
+                <span class="text-sm text-amber-400 ml-1">{{ bonusPreview ? `-${bonusPreview.reactionTimeBonus}%` : '…' }}</span>
               </div>
             </div>
             <div v-if="formStructureType === 'station'" class="text-slate-500 text-sm">
               {{ t('industry.structures.npcNoBonus') }}
             </div>
+            <p v-if="bonusPreviewFailed" class="text-sm text-amber-400">
+              {{ t('industry.structures.bonusPreviewUnavailable') }}
+            </p>
           </div>
         </div>
 

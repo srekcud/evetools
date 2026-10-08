@@ -31,6 +31,7 @@ export type {
   StructureSearchResult,
   RigOption,
   RigOptions,
+  StructureBonusPreview,
   CorporationStructureSharedConfig,
   CorporationStructure,
   CharacterSkill,

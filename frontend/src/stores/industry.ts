@@ -34,6 +34,7 @@ export type {
   StructureSearchResult,
   RigOption,
   RigOptions,
+  StructureBonusPreview,
   CorporationStructureSharedConfig,
   CorporationStructure,
   JobMatch,
@@ -142,6 +143,7 @@ export function useIndustryStore() {
     updateStructure: structuresStore.updateStructure,
     deleteStructure: structuresStore.deleteStructure,
     searchStructures: structuresStore.searchStructures,
+    previewStructureBonuses: structuresStore.previewStructureBonuses,
 
     // Blacklist store - reactive state via getter
     get blacklist() { return blacklistStore.blacklist },

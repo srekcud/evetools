@@ -4,6 +4,7 @@ import { apiRequest } from '@/services/api'
 import type {
   StructureConfig,
   RigOptions,
+  StructureBonusPreview,
   CorporationStructure,
   StructureSearchResult,
   UserSettings,
@@ -106,6 +107,17 @@ export const useStructuresStore = defineStore('industry-structures', () => {
     }
   }
 
+  async function previewStructureBonuses(data: {
+    securityType: string
+    structureType: string
+    rigs: string[]
+  }): Promise<StructureBonusPreview> {
+    return apiRequest<StructureBonusPreview>('/industry/structures/bonus-preview', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
   // User settings (favorite systems)
   async function fetchUserSettings() {
     try {
@@ -185,6 +197,7 @@ export const useStructuresStore = defineStore('industry-structures', () => {
     updateStructure,
     deleteStructure,
     searchStructures,
+    previewStructureBonuses,
     fetchUserSettings,
     updateUserSettings,
     fetchCharacterSkills,

@@ -24,10 +24,17 @@ class IndustryStructureConfig
     /** Thukker L-Set and XL-Set rig time bonus (SDE attributeEngRigTimeBonus); the M-Set ones have none */
     public const float THUKKER_RIG_TIME_BONUS = 20.0;
 
-    /** Standard L-Set and XL-Set T1 rig manufacturing time bonus (SDE attributeEngRigTimeBonus), ten times its material bonus */
+    /** Standard T1 / T2 rig material bonus (SDE attributeEngRigMatBonus) */
+    private const float STANDARD_RIG_MATERIAL_BONUS_T1 = 2.0;
+    private const float STANDARD_RIG_MATERIAL_BONUS_T2 = 2.4;
+
+    /**
+     * Standard T1 rig time bonus (SDE attributeEngRigTimeBonus), ten times its material bonus: L-Set/XL-Set
+     * "Efficiency" rigs, M-Set "Time Efficiency" rigs and L-Set Reactor Efficiency rigs
+     */
     public const float STANDARD_RIG_TIME_BONUS_T1 = 20.0;
 
-    /** Standard L-Set and XL-Set T2 rig manufacturing time bonus (SDE attributeEngRigTimeBonus), ten times its material bonus */
+    /** Standard T2 rig time bonus (SDE attributeEngRigTimeBonus), ten times its material bonus */
     public const float STANDARD_RIG_TIME_BONUS_T2 = 24.0;
 
     /** Thukker rigs have their own security modifiers, unlike the standard x1.0 / x1.9 / x2.1 */
@@ -324,7 +331,7 @@ class IndustryStructureConfig
             default => 0.0,
         };
 
-        // Rig time bonus (only L-Set and XL-Set "Efficiency" rigs, not "Material Efficiency")
+        // Rig time bonus (L-Set/XL-Set "Efficiency" rigs and M-Set "Time Efficiency" rigs)
         $rigBonus = 0.0;
         foreach ($this->rigs as $rig) {
             $rigBonus += $this->getRigBonus($rig, 'manufacturing_time') * $this->getManufacturingRigSecurityMultiplier($rig);
@@ -413,59 +420,49 @@ class IndustryStructureConfig
      */
     private function getRigBonus(string $rigName, string $bonusType): float
     {
-        // Check if this is a manufacturing or reaction rig
         $isManufacturing = str_contains($rigName, 'Manufacturing');
         $isReaction = str_contains($rigName, 'Reactor');
+        $isTimeEfficiencyRig = str_contains($rigName, 'Time Efficiency');
+        $isMaterialEfficiencyRig = str_contains($rigName, 'Material Efficiency');
+        // L-Set/XL-Set "Efficiency" rigs reduce both material and time; M-Set rigs reduce one of them only
+        $isEfficiencyRig = str_contains($rigName, 'Efficiency') && !$isMaterialEfficiencyRig && !$isTimeEfficiencyRig;
 
-        // Check if this is an "Efficiency" rig (provides time bonus) vs "Material Efficiency" rig (ME only)
-        // L-Set and XL-Set "Efficiency" rigs have time bonuses
-        // M-Set "Material Efficiency" rigs do NOT have time bonuses
-        $isEfficiencyRig = str_contains($rigName, 'Efficiency') && !str_contains($rigName, 'Material Efficiency');
-        $isLargeOrXL = str_contains($rigName, 'L-Set') || str_contains($rigName, 'XL-Set');
-
-        // Material bonuses
-        if ($bonusType === 'manufacturing_material' && !$isManufacturing) {
+        $appliesToBonus = match ($bonusType) {
+            'manufacturing_material' => $isManufacturing && !$isTimeEfficiencyRig,
+            'reaction_material' => $isReaction,
+            'manufacturing_time' => $isManufacturing && ($isTimeEfficiencyRig || $isEfficiencyRig),
+            'reaction_time' => $isReaction && $isEfficiencyRig,
+            default => false,
+        };
+        if (!$appliesToBonus) {
             return 0.0;
-        }
-        if ($bonusType === 'reaction_material' && !$isReaction) {
-            return 0.0;
-        }
-
-        // Time bonuses - only for L-Set/XL-Set "Efficiency" rigs (not "Material Efficiency")
-        if ($bonusType === 'manufacturing_time') {
-            if (!$isManufacturing || !$isLargeOrXL || !$isEfficiencyRig) {
-                return 0.0;
-            }
-        }
-        if ($bonusType === 'reaction_time') {
-            // Reactor Efficiency rigs provide time bonuses
-            if (!$isReaction || !str_contains($rigName, 'Reactor Efficiency')) {
-                return 0.0;
-            }
         }
 
         if (str_contains($rigName, 'Thukker')) {
             return $this->getThukkerRigBonus($rigName, $bonusType);
         }
 
-        if ($bonusType === 'manufacturing_time') {
-            return $this->getStandardRigManufacturingTimeBonus($rigName);
+        if ($bonusType === 'manufacturing_time' || $bonusType === 'reaction_time') {
+            return $this->getStandardRigTimeBonus($rigName);
         }
 
-        // T2 rigs end with "II"
+        return $this->getStandardRigMaterialBonus($rigName);
+    }
+
+    private function getStandardRigMaterialBonus(string $rigName): float
+    {
         if (str_ends_with($rigName, ' II')) {
-            return 2.4;
+            return self::STANDARD_RIG_MATERIAL_BONUS_T2;
         }
 
-        // T1 rigs end with "I"
         if (str_ends_with($rigName, ' I')) {
-            return 2.0;
+            return self::STANDARD_RIG_MATERIAL_BONUS_T1;
         }
 
         return 0.0;
     }
 
-    private function getStandardRigManufacturingTimeBonus(string $rigName): float
+    private function getStandardRigTimeBonus(string $rigName): float
     {
         if (str_ends_with($rigName, ' II')) {
             return self::STANDARD_RIG_TIME_BONUS_T2;
