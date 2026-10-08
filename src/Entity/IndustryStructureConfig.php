@@ -24,6 +24,12 @@ class IndustryStructureConfig
     /** Thukker L-Set and XL-Set rig time bonus (SDE attributeEngRigTimeBonus); the M-Set ones have none */
     public const float THUKKER_RIG_TIME_BONUS = 20.0;
 
+    /** Standard L-Set and XL-Set T1 rig manufacturing time bonus (SDE attributeEngRigTimeBonus), ten times its material bonus */
+    public const float STANDARD_RIG_TIME_BONUS_T1 = 20.0;
+
+    /** Standard L-Set and XL-Set T2 rig manufacturing time bonus (SDE attributeEngRigTimeBonus), ten times its material bonus */
+    public const float STANDARD_RIG_TIME_BONUS_T2 = 24.0;
+
     /** Thukker rigs have their own security modifiers, unlike the standard x1.0 / x1.9 / x2.1 */
     public const array THUKKER_RIG_SECURITY_MULTIPLIERS = [
         'highsec' => 0.1,
@@ -442,6 +448,10 @@ class IndustryStructureConfig
             return $this->getThukkerRigBonus($rigName, $bonusType);
         }
 
+        if ($bonusType === 'manufacturing_time') {
+            return $this->getStandardRigManufacturingTimeBonus($rigName);
+        }
+
         // T2 rigs end with "II"
         if (str_ends_with($rigName, ' II')) {
             return 2.4;
@@ -450,6 +460,19 @@ class IndustryStructureConfig
         // T1 rigs end with "I"
         if (str_ends_with($rigName, ' I')) {
             return 2.0;
+        }
+
+        return 0.0;
+    }
+
+    private function getStandardRigManufacturingTimeBonus(string $rigName): float
+    {
+        if (str_ends_with($rigName, ' II')) {
+            return self::STANDARD_RIG_TIME_BONUS_T2;
+        }
+
+        if (str_ends_with($rigName, ' I')) {
+            return self::STANDARD_RIG_TIME_BONUS_T1;
         }
 
         return 0.0;

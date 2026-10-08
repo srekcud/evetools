@@ -37,4 +37,25 @@ class IndustryResourceMapperTest extends TestCase
         $this->assertSame(2.64, $resource->reactionMaterialBonus);
         $this->assertSame(0.0, $resource->manufacturingMaterialBonus);
     }
+
+    public function testStructureResourceExposesStandardLargeRigTimeBonusAtTheSdeScale(): void
+    {
+        $mapper = new IndustryResourceMapper(
+            $this->createStub(IndustryCalculationService::class),
+            $this->createStub(CachedCharacterSkillRepository::class),
+            $this->createStub(CachedIndustryJobRepository::class),
+            $this->createStub(InventionService::class),
+        );
+
+        $azbel = new IndustryStructureConfig();
+        $azbel->setName('Nullsec Azbel');
+        $azbel->setStructureType('azbel');
+        $azbel->setSecurityType('nullsec');
+        $azbel->setRigs(['Standup L-Set Basic Large Ship Manufacturing Efficiency II']);
+
+        $resource = $mapper->structureToResource($azbel);
+
+        // Issue #94: rig 24 % x 2.1 = 50.4 %, stacked with the Azbel 20 %: 1 - 0.80 x (1 - 0.504)
+        $this->assertSame(60.32, $resource->manufacturingTimeBonus);
+    }
 }

@@ -518,34 +518,33 @@ class IndustryBonusService
                 // Only L-Set, XL-Set, and Reactor "Efficiency" rigs have time bonuses
                 // M-Set "Material Efficiency" rigs do NOT have time bonuses
                 // Check if this is an "Efficiency" rig (not "Material Efficiency")
-                $hasTimeBonus = false;
+                $timeBonus = null;
 
-                // L-Set and XL-Set Manufacturing Efficiency rigs (not "Material Efficiency")
+                // L-Set and XL-Set Manufacturing Efficiency rigs (not "Material Efficiency"), shared with the entity
                 if (
                     (str_contains($rigName, 'L-Set') || str_contains($rigName, 'XL-Set'))
                     && str_contains($rigName, 'Efficiency')
                     && !str_contains($rigName, 'Material Efficiency')
                     && !str_contains($rigName, 'Time Efficiency')
                 ) {
-                    $hasTimeBonus = true;
+                    $timeBonus = str_ends_with($rigName, ' II')
+                        ? IndustryStructureConfig::STANDARD_RIG_TIME_BONUS_T2
+                        : IndustryStructureConfig::STANDARD_RIG_TIME_BONUS_T1;
                 }
 
-                // Reactor Efficiency rigs (L-Set only in current EVE)
+                // Reactor Efficiency rigs (L-Set only in current EVE): time bonus is 10× the material bonus
+                // E.g., 2.4% ME → 24% TE for L-Set Reactor Efficiency II
                 if (str_contains($rigName, 'Reactor Efficiency')) {
-                    $hasTimeBonus = true;
+                    $timeBonus = $materialBonus * 10.0;
                 }
 
-                if (!$hasTimeBonus) {
+                if ($timeBonus === null) {
                     continue;
                 }
 
                 if (!isset($this->rigTimeBonusMap[$rigName])) {
                     $this->rigTimeBonusMap[$rigName] = [];
                 }
-
-                // Time bonus is 10× the material bonus in EVE Online
-                // E.g., 2.4% ME → 24% TE for L-Set Reactor Efficiency II
-                $timeBonus = $materialBonus * 10.0;
 
                 foreach ($targetCategories as $category) {
                     $this->rigTimeBonusMap[$rigName][$category] = $timeBonus;
