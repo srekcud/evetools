@@ -66,3 +66,21 @@ services:
     App\Service\Sde\SdeImportService:
         arguments:
             $projectDir: '%kernel.project_dir%'
+
+    # Industry engine: SDE adapters of the Domain ports (ADR-0009)
+    App\Industry\Domain\BlueprintCatalog: '@App\Industry\Infrastructure\Sde\SdeBlueprintCatalog'
+
+when@test:
+    services:
+        _defaults:
+            autowire: true
+            autoconfigure: true
+            public: true
+
+        # Fetched by the integration tests, which the test container cannot reach once unused private services are removed
+        App\Industry\Infrastructure\Sde\SdeBlueprintCatalog: ~
+        App\Industry\Infrastructure\Sde\SdeRigBonusReader: ~
+        App\Industry\Infrastructure\Sde\SdeStructureBonusReader: ~
+        App\Industry\Domain\BlueprintCatalog:
+            alias: App\Industry\Infrastructure\Sde\SdeBlueprintCatalog
+            public: true
