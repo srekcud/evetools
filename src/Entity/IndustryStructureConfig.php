@@ -15,6 +15,22 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(columns: ['corporation_id', 'location_id'])]
 class IndustryStructureConfig
 {
+    /** Thukker rig material bonus (SDE attributeEngRigMatBonus) */
+    public const float THUKKER_RIG_MATERIAL_BONUS = 2.0;
+
+    /** Thukker rig material bonus on basic capital components (SDE attributeThukkerEngRigMatBonus) */
+    public const float THUKKER_RIG_CAPITAL_COMPONENT_MATERIAL_BONUS = 3.7;
+
+    /** Thukker L-Set and XL-Set rig time bonus (SDE attributeEngRigTimeBonus); the M-Set ones have none */
+    public const float THUKKER_RIG_TIME_BONUS = 20.0;
+
+    /** Thukker rigs have their own security modifiers, unlike the standard x1.0 / x1.9 / x2.1 */
+    public const array THUKKER_RIG_SECURITY_MULTIPLIERS = [
+        'highsec' => 0.1,
+        'lowsec' => 1.9,
+        'nullsec' => 0.1,
+    ];
+
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME)]
     private Uuid $id;
@@ -263,11 +279,8 @@ class IndustryStructureConfig
         $bonus = 0.0;
 
         foreach ($this->rigs as $rig) {
-            $bonus += $this->getRigBonus($rig, 'manufacturing_material');
+            $bonus += $this->getRigBonus($rig, 'manufacturing_material') * $this->getManufacturingRigSecurityMultiplier($rig);
         }
-
-        // Apply security multiplier
-        $bonus *= $this->getSecurityMultiplier();
 
         return round($bonus, 2);
     }
@@ -308,11 +321,8 @@ class IndustryStructureConfig
         // Rig time bonus (only L-Set and XL-Set "Efficiency" rigs, not "Material Efficiency")
         $rigBonus = 0.0;
         foreach ($this->rigs as $rig) {
-            $rigBonus += $this->getRigBonus($rig, 'manufacturing_time');
+            $rigBonus += $this->getRigBonus($rig, 'manufacturing_time') * $this->getManufacturingRigSecurityMultiplier($rig);
         }
-
-        // Apply security multiplier to rig bonus only
-        $rigBonus *= $this->getSecurityMultiplier();
 
         // Time bonuses stack multiplicatively: 1 - (1 - base) × (1 - rig)
         if ($baseBonus > 0 || $rigBonus > 0) {
@@ -330,9 +340,8 @@ class IndustryStructureConfig
      */
     public function getReactionTimeBonus(): float
     {
-        // Base structure time bonus (only for refineries)
+        // Base structure time bonus: only the Tatara has one (SDE strReactionTimeMultiplier 0.75), not the Athanor
         $baseBonus = match ($this->structureType) {
-            'athanor' => 25.0,
             'tatara' => 25.0,
             'refinery' => 25.0, // Legacy
             default => 0.0,
@@ -354,6 +363,19 @@ class IndustryStructureConfig
         }
 
         return 0.0;
+    }
+
+    /**
+     * Thukker rigs use their own security modifiers; a structure mixing Thukker and standard rigs
+     * applies each rig's own modifier.
+     */
+    private function getManufacturingRigSecurityMultiplier(string $rigName): float
+    {
+        if (str_contains($rigName, 'Thukker')) {
+            return self::THUKKER_RIG_SECURITY_MULTIPLIERS[$this->securityType] ?? self::THUKKER_RIG_SECURITY_MULTIPLIERS['highsec'];
+        }
+
+        return $this->getSecurityMultiplier();
     }
 
     private function getSecurityMultiplier(): float
@@ -416,9 +438,8 @@ class IndustryStructureConfig
             }
         }
 
-        // Thukker rigs (faction) are equivalent to T2
         if (str_contains($rigName, 'Thukker')) {
-            return 2.4;
+            return $this->getThukkerRigBonus($rigName, $bonusType);
         }
 
         // T2 rigs end with "II"
@@ -432,5 +453,22 @@ class IndustryStructureConfig
         }
 
         return 0.0;
+    }
+
+    /**
+     * Without a product category, an XL-Set Thukker rig is counted at its generic value, not the
+     * capital component one.
+     */
+    private function getThukkerRigBonus(string $rigName, string $bonusType): float
+    {
+        if ($bonusType === 'manufacturing_time') {
+            return self::THUKKER_RIG_TIME_BONUS;
+        }
+
+        if (str_contains($rigName, 'Basic Capital Component')) {
+            return self::THUKKER_RIG_CAPITAL_COMPONENT_MATERIAL_BONUS;
+        }
+
+        return self::THUKKER_RIG_MATERIAL_BONUS;
     }
 }

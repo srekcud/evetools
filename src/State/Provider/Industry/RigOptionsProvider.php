@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\State\Provider\Industry;
 
+use App\Entity\IndustryStructureConfig;
+
 class RigOptionsProvider
 {
     /** @return array<string, list<array<string, mixed>>> */
@@ -45,8 +47,8 @@ class RigOptionsProvider
                 ['name' => 'Standup M-Set Basic Capital Component Manufacturing Material Efficiency II', 'bonus' => 2.4, 'category' => 'M-Set Components ME', 'size' => 'M', 'targetCategories' => ['basic_capital_component']],
                 ['name' => 'Standup M-Set Advanced Component Manufacturing Material Efficiency I', 'bonus' => 2.0, 'category' => 'M-Set Components ME', 'size' => 'M', 'targetCategories' => ['advanced_component']],
                 ['name' => 'Standup M-Set Advanced Component Manufacturing Material Efficiency II', 'bonus' => 2.4, 'category' => 'M-Set Components ME', 'size' => 'M', 'targetCategories' => ['advanced_component']],
-                ['name' => 'Standup M-Set Thukker Basic Capital Component Manufacturing Material Efficiency', 'bonus' => 2.4, 'category' => 'M-Set Components ME', 'size' => 'M', 'targetCategories' => ['basic_capital_component']],
-                ['name' => 'Standup M-Set Thukker Advanced Component Manufacturing Material Efficiency', 'bonus' => 2.4, 'category' => 'M-Set Components ME', 'size' => 'M', 'targetCategories' => ['advanced_component']],
+                ['name' => 'Standup M-Set Thukker Basic Capital Component Manufacturing Material Efficiency', 'bonus' => IndustryStructureConfig::THUKKER_RIG_CAPITAL_COMPONENT_MATERIAL_BONUS, 'category' => 'M-Set Components ME', 'size' => 'M', 'targetCategories' => ['basic_capital_component']],
+                ['name' => 'Standup M-Set Thukker Advanced Component Manufacturing Material Efficiency', 'bonus' => IndustryStructureConfig::THUKKER_RIG_MATERIAL_BONUS, 'category' => 'M-Set Components ME', 'size' => 'M', 'targetCategories' => ['advanced_component']],
                 // Components TE
                 ['name' => 'Standup M-Set Basic Capital Component Manufacturing Time Efficiency I', 'bonus' => 0, 'timeBonus' => 20.0, 'category' => 'M-Set Components TE', 'size' => 'M', 'targetCategories' => ['basic_capital_component']],
                 ['name' => 'Standup M-Set Basic Capital Component Manufacturing Time Efficiency II', 'bonus' => 0, 'timeBonus' => 24.0, 'category' => 'M-Set Components TE', 'size' => 'M', 'targetCategories' => ['basic_capital_component']],
@@ -97,8 +99,8 @@ class RigOptionsProvider
                 ['name' => 'Standup L-Set Basic Capital Component Manufacturing Efficiency II', 'bonus' => 2.4, 'category' => 'L-Set Components', 'size' => 'L', 'targetCategories' => ['basic_capital_component']],
                 ['name' => 'Standup L-Set Advanced Component Manufacturing Efficiency I', 'bonus' => 2.0, 'category' => 'L-Set Components', 'size' => 'L', 'targetCategories' => ['advanced_component']],
                 ['name' => 'Standup L-Set Advanced Component Manufacturing Efficiency II', 'bonus' => 2.4, 'category' => 'L-Set Components', 'size' => 'L', 'targetCategories' => ['advanced_component']],
-                ['name' => 'Standup L-Set Thukker Basic Capital Component Manufacturing Efficiency', 'bonus' => 2.4, 'category' => 'L-Set Components', 'size' => 'L', 'targetCategories' => ['basic_capital_component']],
-                ['name' => 'Standup L-Set Thukker Advanced Component Manufacturing Efficiency', 'bonus' => 2.4, 'category' => 'L-Set Components', 'size' => 'L', 'targetCategories' => ['advanced_component']],
+                ['name' => 'Standup L-Set Thukker Basic Capital Component Manufacturing Efficiency', 'bonus' => IndustryStructureConfig::THUKKER_RIG_CAPITAL_COMPONENT_MATERIAL_BONUS, 'timeBonus' => IndustryStructureConfig::THUKKER_RIG_TIME_BONUS, 'category' => 'L-Set Components', 'size' => 'L', 'targetCategories' => ['basic_capital_component']],
+                ['name' => 'Standup L-Set Thukker Advanced Component Manufacturing Efficiency', 'bonus' => IndustryStructureConfig::THUKKER_RIG_MATERIAL_BONUS, 'timeBonus' => IndustryStructureConfig::THUKKER_RIG_TIME_BONUS, 'category' => 'L-Set Components', 'size' => 'L', 'targetCategories' => ['advanced_component']],
                 // Equipment
                 ['name' => 'Standup L-Set Equipment Manufacturing Efficiency I', 'bonus' => 2.0, 'category' => 'L-Set Equipment', 'size' => 'L', 'targetCategories' => ['equipment']],
                 ['name' => 'Standup L-Set Equipment Manufacturing Efficiency II', 'bonus' => 2.4, 'category' => 'L-Set Equipment', 'size' => 'L', 'targetCategories' => ['equipment']],
@@ -118,7 +120,7 @@ class RigOptionsProvider
                 ['name' => 'Standup XL-Set Equipment and Consumable Manufacturing Efficiency II', 'bonus' => 2.4, 'category' => 'XL-Set Equipment', 'size' => 'XL', 'targetCategories' => ['equipment', 'ammunition', 'drone', 'fighter']],
                 ['name' => 'Standup XL-Set Structure and Component Manufacturing Efficiency I', 'bonus' => 2.0, 'category' => 'XL-Set Structures', 'size' => 'XL', 'targetCategories' => ['structure', 'structure_component', 'basic_capital_component', 'advanced_component']],
                 ['name' => 'Standup XL-Set Structure and Component Manufacturing Efficiency II', 'bonus' => 2.4, 'category' => 'XL-Set Structures', 'size' => 'XL', 'targetCategories' => ['structure', 'structure_component', 'basic_capital_component', 'advanced_component']],
-                ['name' => 'Standup XL-Set Thukker Structure and Component Manufacturing Efficiency', 'bonus' => 2.4, 'category' => 'XL-Set Structures', 'size' => 'XL', 'targetCategories' => ['structure', 'structure_component', 'basic_capital_component', 'advanced_component']],
+                ['name' => 'Standup XL-Set Thukker Structure and Component Manufacturing Efficiency', 'bonus' => IndustryStructureConfig::THUKKER_RIG_MATERIAL_BONUS, 'timeBonus' => IndustryStructureConfig::THUKKER_RIG_TIME_BONUS, 'categoryBonuses' => ['basic_capital_component' => IndustryStructureConfig::THUKKER_RIG_CAPITAL_COMPONENT_MATERIAL_BONUS], 'category' => 'XL-Set Structures', 'size' => 'XL', 'targetCategories' => ['structure', 'structure_component', 'basic_capital_component', 'advanced_component']],
 
                 // === Laboratory (Research/Invention/Copy) ===
 

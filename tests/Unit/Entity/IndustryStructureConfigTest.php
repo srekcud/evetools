@@ -26,6 +26,8 @@ class IndustryStructureConfigTest extends TestCase
     private const string COMPOSITE_REACTOR_ME_RIG_T2 = 'Standup M-Set Composite Reactor Material Efficiency II';
     private const string BASIC_LARGE_SHIP_ME_RIG_T1 = 'Standup M-Set Basic Large Ship Manufacturing Material Efficiency I';
     private const string BASIC_LARGE_SHIP_ME_RIG_T2 = 'Standup M-Set Basic Large Ship Manufacturing Material Efficiency II';
+    private const string THUKKER_BASIC_CAPITAL_COMPONENT_ME_RIG = 'Standup M-Set Thukker Basic Capital Component Manufacturing Material Efficiency';
+    private const string THUKKER_ADVANCED_COMPONENT_ME_RIG = 'Standup M-Set Thukker Advanced Component Manufacturing Material Efficiency';
 
     private IndustryBonusService $bonusService;
 
@@ -95,6 +97,46 @@ class IndustryStructureConfigTest extends TestCase
 
         $this->assertSame($expectedManufacturingMaterialBonus, $raitaru->getManufacturingMaterialBonus());
         $this->assertSame($appliedBonus['rig'], $raitaru->getManufacturingMaterialBonus());
+    }
+
+    // Issue #71: Athanor has no reaction time bonus, Tatara 0.75 (SDE strReactionTimeMultiplier)
+
+    public function testAthanorHasNoReactionTimeBonus(): void
+    {
+        $athanor = $this->createStructure('athanor', 'nullsec', []);
+
+        $this->assertSame(0.0, $athanor->getReactionTimeBonus());
+    }
+
+    public function testTataraReactionTimeBonusIsTwentyFivePercent(): void
+    {
+        $tatara = $this->createStructure('tatara', 'nullsec', []);
+
+        $this->assertSame(25.0, $tatara->getReactionTimeBonus());
+    }
+
+    // Issue #71: Thukker rigs, 3.7 % on basic capital components, 2.0 % otherwise, x0.1 highsec / x1.9 lowsec / x0.1 nullsec
+
+    /** @return iterable<string, array{string, string, float}> */
+    public static function thukkerManufacturingRigProvider(): iterable
+    {
+        yield 'M-Set basic capital, highsec: 3.7 x 0.1' => [self::THUKKER_BASIC_CAPITAL_COMPONENT_ME_RIG, 'highsec', 0.37];
+        yield 'M-Set basic capital, lowsec: 3.7 x 1.9' => [self::THUKKER_BASIC_CAPITAL_COMPONENT_ME_RIG, 'lowsec', 7.03];
+        yield 'M-Set basic capital, nullsec: 3.7 x 0.1' => [self::THUKKER_BASIC_CAPITAL_COMPONENT_ME_RIG, 'nullsec', 0.37];
+        yield 'M-Set advanced component, highsec: 2.0 x 0.1' => [self::THUKKER_ADVANCED_COMPONENT_ME_RIG, 'highsec', 0.2];
+        yield 'M-Set advanced component, lowsec: 2.0 x 1.9' => [self::THUKKER_ADVANCED_COMPONENT_ME_RIG, 'lowsec', 3.8];
+        yield 'M-Set advanced component, nullsec: 2.0 x 0.1' => [self::THUKKER_ADVANCED_COMPONENT_ME_RIG, 'nullsec', 0.2];
+    }
+
+    #[DataProvider('thukkerManufacturingRigProvider')]
+    public function testThukkerRigMaterialBonusUsesTheThukkerSecurityModifiers(
+        string $thukkerRig,
+        string $securityType,
+        float $expectedManufacturingMaterialBonus,
+    ): void {
+        $raitaru = $this->createStructure('raitaru', $securityType, [$thukkerRig]);
+
+        $this->assertSame($expectedManufacturingMaterialBonus, $raitaru->getManufacturingMaterialBonus());
     }
 
     /** @param string[] $rigs */

@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\IndustryStructureConfig;
+use App\Entity\User;
 use App\Service\Industry\IndustryBonusService;
 use App\Repository\IndustryRigCategoryRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(IndustryBonusService::class)]
@@ -399,5 +401,184 @@ class IndustryBonusServiceTest extends TestCase
         // 3601 × 0.80 = 2880.8 → ceil to 2881
         $adjusted = $this->bonusService->calculateAdjustedTimePerRun(3601, 20, 0.0);
         $this->assertSame(2881, $adjusted);
+    }
+
+    // ===========================================
+    // Issue #71: reaction time bonus of the refineries (SDE strReactionTimeMultiplier)
+    // Athanor: no reaction time bonus. Tatara: 0.75, i.e. 25 %.
+    // ===========================================
+
+    public function testAthanorHasNoReactionTimeBonus(): void
+    {
+        $athanor = $this->createStructure('Test Athanor', 'athanor', 'nullsec', []);
+
+        $this->assertSame(0.0, $this->bonusService->calculateStructureTimeBonusForCategory($athanor, 'composite_reaction'));
+        $this->assertSame(0.0, $this->bonusService->getBaseTimeBonus($athanor, true));
+    }
+
+    public function testTataraReactionTimeBonusIsTwentyFivePercent(): void
+    {
+        $tatara = $this->createStructure('Test Tatara', 'tatara', 'nullsec', []);
+
+        $this->assertSame(25.0, $this->bonusService->calculateStructureTimeBonusForCategory($tatara, 'composite_reaction'));
+        $this->assertSame(25.0, $this->bonusService->getBaseTimeBonus($tatara, true));
+    }
+
+    public function testAthanorReactionTimeBonusComesFromTheReactorRigOnly(): void
+    {
+        $athanor = $this->createStructure('Test Athanor', 'athanor', 'nullsec', ['Standup L-Set Reactor Efficiency II']);
+
+        // No structure base, rig 24 % x 1.1 (reaction rig, nullsec) = 26.4 %
+        $this->assertSame(26.4, $this->bonusService->calculateStructureTimeBonusForCategory($athanor, 'composite_reaction'));
+    }
+
+    public function testTataraReactionTimeBonusStacksWithTheReactorRig(): void
+    {
+        $tatara = $this->createStructure('Test Tatara', 'tatara', 'nullsec', ['Standup L-Set Reactor Efficiency II']);
+
+        // 1 - 0.75 x (1 - 0.264) = 44.8 %
+        $this->assertSame(44.8, $this->bonusService->calculateStructureTimeBonusForCategory($tatara, 'composite_reaction'));
+    }
+
+    public function testBestReactionTimeStructureIsTheTataraOverTheAthanor(): void
+    {
+        $athanor = $this->createStructure('Test Athanor', 'athanor', 'nullsec', []);
+        $tatara = $this->createStructure('Test Tatara', 'tatara', 'nullsec', []);
+        $bonusService = $this->bonusServiceForStructures([$athanor, $tatara]);
+
+        $best = $bonusService->findBestStructureForCategoryTimeBonus(new User(), 'composite_reaction', true);
+
+        $this->assertSame($tatara, $best['structure']);
+        $this->assertSame(25.0, $best['bonus']);
+    }
+
+    public function testAthanorRemainsTheReactionStructureForAReactionWithoutRigCategory(): void
+    {
+        // Guard: losing its time bonus must not make the Athanor unusable for reactions
+        $athanor = $this->createStructure('Test Athanor', 'athanor', 'nullsec', []);
+        $bonusService = $this->bonusServiceForStructures([$athanor]);
+
+        $best = $bonusService->findBestStructureForProduct(new User(), 16670, true);
+
+        $this->assertSame($athanor, $best['structure']);
+        $this->assertNull($best['category']);
+    }
+
+    // ===========================================
+    // Issue #71: Thukker rigs (SDE: attributeEngRigMatBonus 2.0, attributeThukkerEngRigMatBonus 3.7
+    // for capital components, attributeEngRigTimeBonus 20, security modifiers x0.1 / x1.9 / x0.1)
+    // ===========================================
+
+    /** @return iterable<string, array{string, string, string, float, float}> */
+    public static function thukkerRigMaterialBonusProvider(): iterable
+    {
+        $mSetBasicCapital = 'Standup M-Set Thukker Basic Capital Component Manufacturing Material Efficiency';
+        $lSetBasicCapital = 'Standup L-Set Thukker Basic Capital Component Manufacturing Efficiency';
+        $mSetAdvanced = 'Standup M-Set Thukker Advanced Component Manufacturing Material Efficiency';
+        $lSetAdvanced = 'Standup L-Set Thukker Advanced Component Manufacturing Efficiency';
+        $xlSet = 'Standup XL-Set Thukker Structure and Component Manufacturing Efficiency';
+
+        // [rig, security, category, rig bonus, total with the Raitaru 1 % base: 1 - 0.99 x (1 - rig)]
+        yield 'M-Set basic capital, highsec: 3.7 x 0.1' => [$mSetBasicCapital, 'highsec', 'basic_capital_component', 0.37, 1.37];
+        yield 'M-Set basic capital, lowsec: 3.7 x 1.9' => [$mSetBasicCapital, 'lowsec', 'basic_capital_component', 7.03, 7.96];
+        yield 'M-Set basic capital, nullsec: 3.7 x 0.1' => [$mSetBasicCapital, 'nullsec', 'basic_capital_component', 0.37, 1.37];
+        yield 'L-Set basic capital, lowsec: 3.7 x 1.9' => [$lSetBasicCapital, 'lowsec', 'basic_capital_component', 7.03, 7.96];
+        yield 'L-Set basic capital, nullsec: 3.7 x 0.1' => [$lSetBasicCapital, 'nullsec', 'basic_capital_component', 0.37, 1.37];
+        yield 'XL-Set on basic capital component, lowsec: 3.7 x 1.9' => [$xlSet, 'lowsec', 'basic_capital_component', 7.03, 7.96];
+        yield 'XL-Set on structure component, highsec: 2.0 x 0.1' => [$xlSet, 'highsec', 'structure_component', 0.2, 1.2];
+        yield 'XL-Set on structure component, lowsec: 2.0 x 1.9' => [$xlSet, 'lowsec', 'structure_component', 3.8, 4.76];
+        yield 'XL-Set on structure component, nullsec: 2.0 x 0.1' => [$xlSet, 'nullsec', 'structure_component', 0.2, 1.2];
+        yield 'M-Set advanced component, highsec: 2.0 x 0.1' => [$mSetAdvanced, 'highsec', 'advanced_component', 0.2, 1.2];
+        yield 'M-Set advanced component, lowsec: 2.0 x 1.9' => [$mSetAdvanced, 'lowsec', 'advanced_component', 3.8, 4.76];
+        yield 'L-Set advanced component, nullsec: 2.0 x 0.1' => [$lSetAdvanced, 'nullsec', 'advanced_component', 0.2, 1.2];
+    }
+
+    #[DataProvider('thukkerRigMaterialBonusProvider')]
+    public function testThukkerRigMaterialBonusUsesTheThukkerSecurityModifiers(
+        string $thukkerRig,
+        string $securityType,
+        string $category,
+        float $expectedRigBonus,
+        float $expectedTotalBonus,
+    ): void {
+        $raitaru = $this->createStructure('Test Raitaru', 'raitaru', $securityType, [$thukkerRig]);
+
+        $bonus = $this->bonusService->calculateStructureBonusForCategory($raitaru, $category);
+
+        $this->assertSame(1.0, $bonus['base']);
+        $this->assertSame($expectedRigBonus, $bonus['rig']);
+        $this->assertSame($expectedTotalBonus, $bonus['total']);
+    }
+
+    /** @return iterable<string, array{string, float}> */
+    public static function thukkerRigTimeBonusProvider(): iterable
+    {
+        // Sotiyo 30 % base, rig 20 % x security modifier: 1 - 0.70 x (1 - rig)
+        yield 'highsec: 20 x 0.1 = 2 %' => ['highsec', 31.4];
+        yield 'lowsec: 20 x 1.9 = 38 %' => ['lowsec', 56.6];
+        yield 'nullsec: 20 x 0.1 = 2 %' => ['nullsec', 31.4];
+    }
+
+    #[DataProvider('thukkerRigTimeBonusProvider')]
+    public function testThukkerRigTimeBonusUsesTheThukkerSecurityModifiers(string $securityType, float $expectedTimeBonus): void
+    {
+        $sotiyo = $this->createStructure(
+            'Test Sotiyo',
+            'sotiyo',
+            $securityType,
+            ['Standup XL-Set Thukker Structure and Component Manufacturing Efficiency'],
+        );
+
+        $this->assertSame($expectedTimeBonus, $this->bonusService->calculateStructureTimeBonusForCategory($sotiyo, 'structure_component'));
+    }
+
+    public function testThukkerMSetMaterialEfficiencyRigHasNoTimeBonus(): void
+    {
+        $raitaru = $this->createStructure(
+            'Test Raitaru',
+            'raitaru',
+            'lowsec',
+            ['Standup M-Set Thukker Basic Capital Component Manufacturing Material Efficiency'],
+        );
+
+        $this->assertSame(15.0, $this->bonusService->calculateStructureTimeBonusForCategory($raitaru, 'basic_capital_component'));
+    }
+
+    /** @return iterable<string, array{string, string, string, float}> */
+    public static function standardRigMaterialBonusProvider(): iterable
+    {
+        // Guard: the non-Thukker rigs keep 2.0 / 2.4 % with x1.0 / x1.9 / x2.1
+        yield 'M-Set basic capital T2, highsec' => ['Standup M-Set Basic Capital Component Manufacturing Material Efficiency II', 'highsec', 'basic_capital_component', 2.4];
+        yield 'M-Set basic capital T2, lowsec' => ['Standup M-Set Basic Capital Component Manufacturing Material Efficiency II', 'lowsec', 'basic_capital_component', 4.56];
+        yield 'M-Set basic capital T2, nullsec' => ['Standup M-Set Basic Capital Component Manufacturing Material Efficiency II', 'nullsec', 'basic_capital_component', 5.04];
+        yield 'L-Set advanced component T1, nullsec' => ['Standup L-Set Advanced Component Manufacturing Efficiency I', 'nullsec', 'advanced_component', 4.2];
+        yield 'XL-Set structure and component T2, lowsec' => ['Standup XL-Set Structure and Component Manufacturing Efficiency II', 'lowsec', 'structure_component', 4.56];
+        yield 'XL-Set structure and component T1, highsec' => ['Standup XL-Set Structure and Component Manufacturing Efficiency I', 'highsec', 'basic_capital_component', 2.0];
+    }
+
+    #[DataProvider('standardRigMaterialBonusProvider')]
+    public function testStandardRigMaterialBonusIsUnchanged(
+        string $rig,
+        string $securityType,
+        string $category,
+        float $expectedRigBonus,
+    ): void {
+        $raitaru = $this->createStructure('Test Raitaru', 'raitaru', $securityType, [$rig]);
+
+        $this->assertSame($expectedRigBonus, $this->bonusService->calculateStructureBonusForCategory($raitaru, $category)['rig']);
+    }
+
+    /** @param IndustryStructureConfig[] $structures */
+    private function bonusServiceForStructures(array $structures): IndustryBonusService
+    {
+        $structureRepository = $this->createStub(IndustryStructureConfigRepository::class);
+        $structureRepository->method('findByUser')->willReturn($structures);
+
+        return new IndustryBonusService(
+            $this->createStub(IndustryRigCategoryRepository::class),
+            $structureRepository,
+            $this->createStub(InvTypeRepository::class),
+            $this->createStub(IndustryActivityProductRepository::class),
+        );
     }
 }

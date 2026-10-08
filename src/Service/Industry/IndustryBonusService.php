@@ -32,7 +32,8 @@ class IndustryBonusService
         'raitaru' => 15.0,
         'azbel' => 20.0,
         'sotiyo' => 30.0,
-        'athanor' => 25.0,
+        // SDE strReactionTimeMultiplier: the Athanor has none, the Tatara 0.75
+        'athanor' => 0.0,
         'tatara' => 25.0,
         'station' => 0.0,
         // Legacy support
@@ -159,8 +160,10 @@ class IndustryBonusService
             }
 
             $structureType = $structure->getStructureType();
+            // A refinery without base time bonus (Athanor) still runs reactions: retain it when none is better
+            $isFirstReactionStructure = $isReaction && $bestStructure === null;
             $baseTime = self::STRUCTURE_TIME_BONUSES[$structureType] ?? 0.0;
-            if ($baseTime > $bestBaseTime) {
+            if ($baseTime > $bestBaseTime || $isFirstReactionStructure) {
                 $bestBaseTime = $baseTime;
                 $bestStructure = $structure;
             }
@@ -282,21 +285,17 @@ class IndustryBonusService
         }
 
         $rigBonus = 0.0;
-        $securityMultiplier = $this->getSecurityMultiplier($structure->getSecurityType(), $isReactionCategory);
 
         foreach ($structure->getRigs() as $rigName) {
-            if (!isset($this->rigBonusMap[$rigName])) {
+            if (!isset($this->rigBonusMap[$rigName][$category])) {
                 continue;
             }
 
-            $rigBonuses = $this->rigBonusMap[$rigName];
-
-            if (isset($rigBonuses[$category])) {
-                $rigBonus += $rigBonuses[$category];
-            }
+            $securityMultiplier = $this->getSecurityMultiplier($structure->getSecurityType(), $isReactionCategory, $rigName);
+            $rigBonus += $this->rigBonusMap[$rigName][$category] * $securityMultiplier;
         }
 
-        $effectiveRigBonus = round($rigBonus * $securityMultiplier, 2);
+        $effectiveRigBonus = round($rigBonus, 2);
 
         // Multiplicative total: 1 - (1 - base/100) * (1 - rig/100)
         $total = 1 - (1 - $baseBonus / 100) * (1 - $effectiveRigBonus / 100);
@@ -309,14 +308,20 @@ class IndustryBonusService
     }
 
     /**
-     * Get the security multiplier for rig bonuses.
-     * Manufacturing rigs and Reaction rigs have different multipliers.
+     * Get the security multiplier of one rig.
+     * Manufacturing rigs, Thukker rigs and Reaction rigs have different multipliers.
      *
      * Manufacturing rigs: highsec 1.0, lowsec 1.9, nullsec 2.1
+     * Thukker rigs: highsec 0.1, lowsec 1.9, nullsec 0.1
      * Reaction rigs: highsec 1.0, lowsec 1.0, nullsec 1.1
      */
-    private function getSecurityMultiplier(string $securityType, bool $isReaction = false): float
+    private function getSecurityMultiplier(string $securityType, bool $isReaction, string $rigName): float
     {
+        if (str_contains($rigName, 'Thukker')) {
+            return IndustryStructureConfig::THUKKER_RIG_SECURITY_MULTIPLIERS[$securityType]
+                ?? IndustryStructureConfig::THUKKER_RIG_SECURITY_MULTIPLIERS['highsec'];
+        }
+
         if ($isReaction) {
             // Reactor rigs have lower multipliers than manufacturing rigs
             return match ($securityType) {
@@ -388,7 +393,7 @@ class IndustryBonusService
      * Calculate the TIME bonus a structure provides for a specific category.
      * Includes base structure time bonuses:
      * - Raitaru: 15%, Azbel: 20%, Sotiyo: 30% for manufacturing
-     * - Athanor/Tatara: 25% for reactions
+     * - Tatara: 25% for reactions, Athanor: none
      *
      * Time bonuses are multiplicative, not additive:
      * totalReduction = 1 - (1 - baseBonus/100) × (1 - rigBonus/100)
@@ -408,22 +413,15 @@ class IndustryBonusService
         }
 
         $rigBonus = 0.0;
-        $securityMultiplier = $this->getSecurityMultiplier($structure->getSecurityType(), $isReactionCategory);
 
         foreach ($structure->getRigs() as $rigName) {
-            if (!isset($this->rigTimeBonusMap[$rigName])) {
+            if (!isset($this->rigTimeBonusMap[$rigName][$category])) {
                 continue;
             }
 
-            $rigBonuses = $this->rigTimeBonusMap[$rigName];
-
-            if (isset($rigBonuses[$category])) {
-                $rigBonus += $rigBonuses[$category];
-            }
+            $securityMultiplier = $this->getSecurityMultiplier($structure->getSecurityType(), $isReactionCategory, $rigName);
+            $rigBonus += $this->rigTimeBonusMap[$rigName][$category] * $securityMultiplier;
         }
-
-        // Apply security multiplier to rig bonus
-        $rigBonus *= $securityMultiplier;
 
         // Time bonuses stack multiplicatively
         // totalReduction = 1 - (1 - base) × (1 - rig)
@@ -466,13 +464,14 @@ class IndustryBonusService
                 $rigName = $rig['name'];
                 $baseBonus = $rig['bonus'];
                 $targetCategories = $rig['targetCategories'] ?? [];
+                $categoryBonuses = $rig['categoryBonuses'] ?? [];
 
                 if (!isset($this->rigBonusMap[$rigName])) {
                     $this->rigBonusMap[$rigName] = [];
                 }
 
                 foreach ($targetCategories as $category) {
-                    $this->rigBonusMap[$rigName][$category] = $baseBonus;
+                    $this->rigBonusMap[$rigName][$category] = $categoryBonuses[$category] ?? $baseBonus;
                 }
             }
         }
@@ -488,7 +487,7 @@ class IndustryBonusService
      * - L-Set Reactor Efficiency II: 2.4% ME, but 24% TE
      * - XL-Set Ship Manufacturing Efficiency I: 2.0% ME, but 20% TE
      *
-     * M-Set "Time Efficiency" rigs have their timeBonus specified directly in the rig definition.
+     * M-Set "Time Efficiency" rigs and L-Set/XL-Set Thukker rigs have their timeBonus specified directly in the rig definition.
      */
     private function initializeRigTimeBonusMap(): void
     {
@@ -533,11 +532,6 @@ class IndustryBonusService
 
                 // Reactor Efficiency rigs (L-Set only in current EVE)
                 if (str_contains($rigName, 'Reactor Efficiency')) {
-                    $hasTimeBonus = true;
-                }
-
-                // Thukker versions also have time bonuses
-                if (str_contains($rigName, 'Thukker') && !str_contains($rigName, 'Material Efficiency')) {
                     $hasTimeBonus = true;
                 }
 
@@ -599,8 +593,9 @@ class IndustryBonusService
                 ['name' => 'Standup M-Set Basic Capital Component Manufacturing Material Efficiency II', 'bonus' => 2.4, 'targetCategories' => ['basic_capital_component']],
                 ['name' => 'Standup M-Set Advanced Component Manufacturing Material Efficiency I', 'bonus' => 2.0, 'targetCategories' => ['advanced_component']],
                 ['name' => 'Standup M-Set Advanced Component Manufacturing Material Efficiency II', 'bonus' => 2.4, 'targetCategories' => ['advanced_component']],
-                ['name' => 'Standup M-Set Thukker Basic Capital Component Manufacturing Material Efficiency', 'bonus' => 2.4, 'targetCategories' => ['basic_capital_component']],
-                ['name' => 'Standup M-Set Thukker Advanced Component Manufacturing Material Efficiency', 'bonus' => 2.4, 'targetCategories' => ['advanced_component']],
+                ['name' => 'Standup M-Set Thukker Basic Capital Component Manufacturing Material Efficiency', 'bonus' => IndustryStructureConfig::THUKKER_RIG_CAPITAL_COMPONENT_MATERIAL_BONUS, 'targetCategories' => ['basic_capital_component']],
+                // advanced_component stays at the generic Thukker value: whether the capital bonus applies is left to the new engine
+                ['name' => 'Standup M-Set Thukker Advanced Component Manufacturing Material Efficiency', 'bonus' => IndustryStructureConfig::THUKKER_RIG_MATERIAL_BONUS, 'targetCategories' => ['advanced_component']],
                 // M-Set Components - Time Efficiency
                 ['name' => 'Standup M-Set Basic Capital Component Manufacturing Time Efficiency I', 'bonus' => 0, 'timeBonus' => 20.0, 'targetCategories' => ['basic_capital_component']],
                 ['name' => 'Standup M-Set Basic Capital Component Manufacturing Time Efficiency II', 'bonus' => 0, 'timeBonus' => 24.0, 'targetCategories' => ['basic_capital_component']],
@@ -647,8 +642,8 @@ class IndustryBonusService
                 ['name' => 'Standup L-Set Basic Capital Component Manufacturing Efficiency II', 'bonus' => 2.4, 'targetCategories' => ['basic_capital_component']],
                 ['name' => 'Standup L-Set Advanced Component Manufacturing Efficiency I', 'bonus' => 2.0, 'targetCategories' => ['advanced_component']],
                 ['name' => 'Standup L-Set Advanced Component Manufacturing Efficiency II', 'bonus' => 2.4, 'targetCategories' => ['advanced_component']],
-                ['name' => 'Standup L-Set Thukker Basic Capital Component Manufacturing Efficiency', 'bonus' => 2.4, 'targetCategories' => ['basic_capital_component']],
-                ['name' => 'Standup L-Set Thukker Advanced Component Manufacturing Efficiency', 'bonus' => 2.4, 'targetCategories' => ['advanced_component']],
+                ['name' => 'Standup L-Set Thukker Basic Capital Component Manufacturing Efficiency', 'bonus' => IndustryStructureConfig::THUKKER_RIG_CAPITAL_COMPONENT_MATERIAL_BONUS, 'timeBonus' => IndustryStructureConfig::THUKKER_RIG_TIME_BONUS, 'targetCategories' => ['basic_capital_component']],
+                ['name' => 'Standup L-Set Thukker Advanced Component Manufacturing Efficiency', 'bonus' => IndustryStructureConfig::THUKKER_RIG_MATERIAL_BONUS, 'timeBonus' => IndustryStructureConfig::THUKKER_RIG_TIME_BONUS, 'targetCategories' => ['advanced_component']],
                 // L-Set Equipment
                 ['name' => 'Standup L-Set Equipment Manufacturing Efficiency I', 'bonus' => 2.0, 'targetCategories' => ['equipment']],
                 ['name' => 'Standup L-Set Equipment Manufacturing Efficiency II', 'bonus' => 2.4, 'targetCategories' => ['equipment']],
@@ -667,7 +662,7 @@ class IndustryBonusService
                 ['name' => 'Standup XL-Set Equipment and Consumable Manufacturing Efficiency II', 'bonus' => 2.4, 'targetCategories' => ['equipment', 'ammunition', 'drone', 'fighter']],
                 ['name' => 'Standup XL-Set Structure and Component Manufacturing Efficiency I', 'bonus' => 2.0, 'targetCategories' => ['structure', 'structure_component', 'basic_capital_component', 'advanced_component']],
                 ['name' => 'Standup XL-Set Structure and Component Manufacturing Efficiency II', 'bonus' => 2.4, 'targetCategories' => ['structure', 'structure_component', 'basic_capital_component', 'advanced_component']],
-                ['name' => 'Standup XL-Set Thukker Structure and Component Manufacturing Efficiency', 'bonus' => 2.4, 'targetCategories' => ['structure', 'structure_component', 'basic_capital_component', 'advanced_component']],
+                ['name' => 'Standup XL-Set Thukker Structure and Component Manufacturing Efficiency', 'bonus' => IndustryStructureConfig::THUKKER_RIG_MATERIAL_BONUS, 'timeBonus' => IndustryStructureConfig::THUKKER_RIG_TIME_BONUS, 'categoryBonuses' => ['basic_capital_component' => IndustryStructureConfig::THUKKER_RIG_CAPITAL_COMPONENT_MATERIAL_BONUS], 'targetCategories' => ['structure', 'structure_component', 'basic_capital_component', 'advanced_component']],
             ],
             'reaction' => [
                 // M-Set Reactions
