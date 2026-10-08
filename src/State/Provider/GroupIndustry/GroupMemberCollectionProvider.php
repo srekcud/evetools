@@ -61,6 +61,7 @@ class GroupMemberCollectionProvider implements ProviderInterface
             'project' => $project,
             'status' => [GroupMemberStatus::Accepted, GroupMemberStatus::Pending],
         ]);
+        $this->memberRepository->loadUsersWithMainCharacter($members);
 
         // Pre-load approved contributions for all members in one query
         $approvedContributions = $this->contributionRepository->findBy([

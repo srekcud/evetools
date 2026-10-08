@@ -89,6 +89,49 @@ final class GroupProjectCollectionProviderTest extends IntegrationTestCase
         );
     }
 
+    /** Issue #39: the same queries with 2 projects x 2 members x 2 BOM items as with 10 x 10 x 10. */
+    public function testQueryCountDoesNotGrowWithProjectsMembersAndBomItems(): void
+    {
+        $pilotInTwoProjectsId = $this->createPilotAcceptedInProjects('Lyra Sato', projectsCount: 2, membersPerProject: 2, bomItemsPerProject: 2);
+        $pilotInTenProjectsId = $this->createPilotAcceptedInProjects('Orin Vahl', projectsCount: 10, membersPerProject: 10, bomItemsPerProject: 10);
+
+        $twoProjectsQueries = $this->queriesListingProjectsAs($pilotInTwoProjectsId);
+        $tenProjectsQueries = $this->queriesListingProjectsAs($pilotInTenProjectsId);
+
+        self::assertCount(
+            \count($twoProjectsQueries),
+            $tenProjectsQueries,
+            sprintf(
+                "2 projects: %d queries, 10 projects: %d queries:\n%s",
+                \count($twoProjectsQueries),
+                \count($tenProjectsQueries),
+                implode("\n", $tenProjectsQueries),
+            ),
+        );
+    }
+
+    public function testTenProjectsAreListedWithTheirTenMembersAndTenBomItems(): void
+    {
+        $pilotInTenProjectsId = $this->createPilotAcceptedInProjects('Orin Vahl', projectsCount: 10, membersPerProject: 10, bomItemsPerProject: 10);
+        $this->em->clear();
+        $pilot = $this->em->find(User::class, $pilotInTenProjectsId);
+        \assert($pilot instanceof User);
+
+        $projects = $this->listProjectsAs($pilot);
+
+        self::assertCount(10, $projects);
+        foreach ($projects as $project) {
+            self::assertSame(10, $project->membersCount);
+            self::assertCount(10, $project->items);
+            // 10 BOM items x 1 000 units x 5.0 ISK
+            self::assertSame(50_000.0, $project->totalBomValue);
+            // 10 x 250 fulfilled / 10 x 1 000 required
+            self::assertSame(25.0, $project->fulfillmentPercent);
+            self::assertSame('member', $project->myRole);
+            self::assertStringStartsWith('Owner of Orin Vahl ', $project->ownerCharacterName);
+        }
+    }
+
     public function testListingReturnsOnlyProjectsWhereTheUserIsAnAcceptedMember(): void
     {
         $projects = $this->listedProjectsById();
@@ -180,6 +223,48 @@ final class GroupProjectCollectionProviderTest extends IntegrationTestCase
         }
 
         return $byId;
+    }
+
+    /** @return list<string> every SQL query issued while listing the projects of the user */
+    private function queriesListingProjectsAs(string $userId): array
+    {
+        $this->em->clear();
+        $user = $this->em->find(User::class, $userId);
+        \assert($user instanceof User);
+
+        return $this->sqlExecutedDuring(fn () => $this->listProjectsAs($user));
+    }
+
+    /**
+     * Each project has its own owner, the pilot and other accepted members (each with a main
+     * character), one item per BOM item, and BOM items 25 % fulfilled.
+     */
+    private function createPilotAcceptedInProjects(string $pilotName, int $projectsCount, int $membersPerProject, int $bomItemsPerProject): string
+    {
+        $pilot = $this->createUserWithMainCharacter($pilotName);
+
+        for ($projectIndex = 1; $projectIndex <= $projectsCount; ++$projectIndex) {
+            $owner = $this->createUserWithMainCharacter(sprintf('Owner of %s %d', $pilotName, $projectIndex));
+            $project = $this->createProject($owner, sprintf('%s project %d', $pilotName, $projectIndex));
+            $this->addMember($project, $owner, GroupMemberRole::Owner, GroupMemberStatus::Accepted);
+            $this->addMember($project, $pilot, GroupMemberRole::Member, GroupMemberStatus::Accepted);
+            for ($memberIndex = 3; $memberIndex <= $membersPerProject; ++$memberIndex) {
+                $this->addMember(
+                    $project,
+                    $this->createUserWithMainCharacter(sprintf('Member %d of %s %d', $memberIndex, $pilotName, $projectIndex)),
+                    GroupMemberRole::Member,
+                    GroupMemberStatus::Accepted,
+                );
+            }
+            for ($bomIndex = 0; $bomIndex < $bomItemsPerProject; ++$bomIndex) {
+                $this->addItem($project, self::SABRE_TYPE_ID + $bomIndex, sprintf('Product %d', $bomIndex), meLevel: 10, teLevel: 20, runs: 1);
+                $this->addBomItem($project, self::TRITANIUM_TYPE_ID + $bomIndex, sprintf('Material %d', $bomIndex), requiredQuantity: 1_000, fulfilledQuantity: 250, estimatedPrice: 5.0);
+            }
+        }
+
+        $this->em->flush();
+
+        return (string) $pilot->getId();
     }
 
     /**

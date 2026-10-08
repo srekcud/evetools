@@ -28,8 +28,11 @@ class GroupIndustryProjectRepository extends ServiceEntityRepository
     public function findByOwnerCorporation(int $corporationId, array $statuses): array
     {
         $qb = $this->createQueryBuilder('p')
+            ->addSelect('owner', 'mc', 'ownerToken')
             ->join('p.owner', 'owner')
             ->join('owner.mainCharacter', 'mc')
+            // Character::eveToken is an inverse OneToOne: not joined, Doctrine would load it row by row
+            ->leftJoin('mc.eveToken', 'ownerToken')
             ->where('mc.corporationId = :corpId')
             ->setParameter('corpId', $corporationId);
 

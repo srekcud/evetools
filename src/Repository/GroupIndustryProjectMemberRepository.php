@@ -65,17 +65,54 @@ class GroupIndustryProjectMemberRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
 
-        $projects = array_map(static fn (GroupIndustryProjectMember $m): GroupIndustryProject => $m->getProject(), $memberships);
-        if ($projects !== []) {
-            $this->loadProjectCollection($projects, 'items');
-            $this->loadProjectCollection($projects, 'bomItems');
-        }
+        $this->loadItemsAndBomItems(
+            array_map(static fn (GroupIndustryProjectMember $m): GroupIndustryProject => $m->getProject(), $memberships),
+        );
 
         return $memberships;
     }
 
     /**
-     * Number of accepted members per project, keyed by project UUID (RFC 4122).
+     * Initializes the items and the BOM items of the given projects: one query per collection,
+     * whatever the number of projects (a single fetch join would multiply the rows).
+     *
+     * @param GroupIndustryProject[] $projects
+     */
+    public function loadItemsAndBomItems(array $projects): void
+    {
+        if ($projects === []) {
+            return;
+        }
+
+        $this->loadProjectCollection($projects, 'items');
+        $this->loadProjectCollection($projects, 'bomItems');
+    }
+
+    /**
+     * Initializes, in a single query, the user of each given membership and the user's main character.
+     *
+     * @param GroupIndustryProjectMember[] $memberships
+     */
+    public function loadUsersWithMainCharacter(array $memberships): void
+    {
+        if ($memberships === []) {
+            return;
+        }
+
+        $this->createQueryBuilder('m')
+            ->addSelect('u', 'mainCharacter', 'mainCharacterToken')
+            ->join('m.user', 'u')
+            // Character::eveToken is an inverse OneToOne: not joined, Doctrine would load it row by row
+            ->leftJoin('u.mainCharacter', 'mainCharacter')
+            ->leftJoin('mainCharacter.eveToken', 'mainCharacterToken')
+            ->andWhere('m IN (:memberships)')
+            ->setParameter('memberships', $memberships)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Number of accepted members per project, keyed by project UUID (RFC 4122); 0 for a project without any.
      *
      * @param GroupIndustryProject[] $projects
      *
@@ -98,6 +135,9 @@ class GroupIndustryProjectMemberRepository extends ServiceEntityRepository
             ->getScalarResult();
 
         $counts = [];
+        foreach ($projects as $project) {
+            $counts[(string) $project->getId()] = 0;
+        }
         foreach ($rows as $row) {
             $counts[(string) $row['projectId']] = (int) $row['membersCount'];
         }

@@ -7,6 +7,8 @@ namespace App\State\Provider\GroupIndustry;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
+use App\Entity\GroupIndustryProject;
+use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\GroupProjectStatus;
 use App\Repository\GroupIndustryProjectMemberRepository;
@@ -48,24 +50,30 @@ class AvailableGroupProjectsProvider implements ProviderInterface
             [GroupProjectStatus::Published, GroupProjectStatus::InProgress],
         );
 
-        // Filter out projects where user is already a member
+        // Own projects and projects the user already has a membership in (whatever its status) are not available
+        $ownProjectsExcluded = array_values(array_filter(
+            $corpProjects,
+            static fn (GroupIndustryProject $project): bool => $project->getOwner() !== $user,
+        ));
+        if ($ownProjectsExcluded === []) {
+            return [];
+        }
+
+        $joinedProjectIds = array_map(
+            static fn (GroupIndustryProjectMember $membership): string => (string) $membership->getProject()->getId(),
+            $this->memberRepository->findBy(['project' => $ownProjectsExcluded, 'user' => $user]),
+        );
+        $availableProjects = array_values(array_filter(
+            $ownProjectsExcluded,
+            static fn (GroupIndustryProject $project): bool => !\in_array((string) $project->getId(), $joinedProjectIds, true),
+        ));
+
+        $this->memberRepository->loadItemsAndBomItems($availableProjects);
+        $membersCountByProject = $this->memberRepository->countAcceptedByProject($availableProjects);
+
         $resources = [];
-        foreach ($corpProjects as $project) {
-            // Skip own projects
-            if ($project->getOwner() === $user) {
-                continue;
-            }
-
-            $existingMembership = $this->memberRepository->findOneBy([
-                'project' => $project,
-                'user' => $user,
-            ]);
-
-            if ($existingMembership !== null) {
-                continue;
-            }
-
-            $resources[] = $this->mapper->projectToResource($project, null);
+        foreach ($availableProjects as $project) {
+            $resources[] = $this->mapper->projectToResource($project, null, $membersCountByProject[(string) $project->getId()]);
         }
 
         return $resources;

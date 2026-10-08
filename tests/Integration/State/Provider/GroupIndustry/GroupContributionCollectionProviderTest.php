@@ -116,6 +116,46 @@ final class GroupContributionCollectionProviderTest extends IntegrationTestCase
         );
     }
 
+    /** Issue #39: the same queries with 2 contributions from 2 members as with 10 from 10 members. */
+    public function testQueryCountDoesNotGrowWithContributionsAndMembers(): void
+    {
+        [$twoContributionsViewerId, $twoContributionsProjectId] = $this->createProjectWithContributions('Lyra Sato', contributionsCount: 2);
+        [$tenContributionsViewerId, $tenContributionsProjectId] = $this->createProjectWithContributions('Orin Vahl', contributionsCount: 10);
+
+        $twoContributionsQueries = $this->queriesListingContributions($twoContributionsViewerId, $twoContributionsProjectId);
+        $tenContributionsQueries = $this->queriesListingContributions($tenContributionsViewerId, $tenContributionsProjectId);
+
+        self::assertCount(
+            \count($twoContributionsQueries),
+            $tenContributionsQueries,
+            sprintf(
+                "2 contributions: %d queries, 10 contributions: %d queries:\n%s",
+                \count($twoContributionsQueries),
+                \count($tenContributionsQueries),
+                implode("\n", $tenContributionsQueries),
+            ),
+        );
+    }
+
+    public function testTenContributionsAreListedWithTheirMemberBomItemAndReviewer(): void
+    {
+        [$viewerId, $projectId] = $this->createProjectWithContributions('Orin Vahl', contributionsCount: 10);
+        $this->em->clear();
+        $viewer = $this->em->find(User::class, $viewerId);
+        \assert($viewer instanceof User);
+
+        $contributions = $this->listContributionsOf($projectId, $viewer);
+
+        self::assertCount(10, $contributions);
+        $byMember = [];
+        foreach ($contributions as $contribution) {
+            $byMember[$contribution->memberCharacterName] = [$contribution->bomItemTypeName, $contribution->reviewedByCharacterName, $contribution->quantity];
+        }
+        self::assertSame(['Material 1', 'Reviewer 1 of Orin Vahl', 1_000], $byMember['Member 1 of Orin Vahl']);
+        self::assertSame(['Material 10', 'Reviewer 10 of Orin Vahl', 10_000], $byMember['Member 10 of Orin Vahl']);
+        self::assertCount(10, $byMember);
+    }
+
     public function testListingReturnsOnlyTheProjectContributions(): void
     {
         $contributions = $this->listedContributionsByLabel();
@@ -202,6 +242,58 @@ final class GroupContributionCollectionProviderTest extends IntegrationTestCase
     /** @return GroupIndustryContributionResource[] */
     private function listContributionsAs(User $user): array
     {
+        return $this->listContributionsOf($this->projectId, $user);
+    }
+
+    /** @return list<string> every SQL query issued while listing the contributions of the project */
+    private function queriesListingContributions(string $viewerId, string $projectId): array
+    {
+        $this->em->clear();
+        $viewer = $this->em->find(User::class, $viewerId);
+        \assert($viewer instanceof User);
+
+        return $this->sqlExecutedDuring(fn () => $this->listContributionsOf($projectId, $viewer));
+    }
+
+    /**
+     * One approved material contribution per member, each member with its own BOM item and its own
+     * reviewer, all with a main character. The viewer is an accepted member without contribution.
+     *
+     * @return array{string, string} viewer id and project id
+     */
+    private function createProjectWithContributions(string $prefix, int $contributionsCount): array
+    {
+        $owner = $this->createUserWithMainCharacter(sprintf('Owner of %s', $prefix));
+        $viewer = $this->createUserWithMainCharacter(sprintf('Viewer of %s', $prefix));
+        $project = (new GroupIndustryProject())->setOwner($owner)->setName(sprintf('%s project', $prefix));
+        $this->em->persist($project);
+        $this->addMember($project, $owner, GroupMemberRole::Owner);
+        $this->addMember($project, $viewer, GroupMemberRole::Member);
+
+        for ($index = 1; $index <= $contributionsCount; ++$index) {
+            $member = $this->addMember($project, $this->createUserWithMainCharacter(sprintf('Member %d of %s', $index, $prefix)), GroupMemberRole::Member);
+            $bomItem = $this->addBomItem($project, self::TRITANIUM_TYPE_ID + $index, sprintf('Material %d', $index));
+            $this->addContribution(
+                sprintf('%s %d', $prefix, $index),
+                $project,
+                $member,
+                $bomItem,
+                ContributionType::Material,
+                quantity: $index * 1_000,
+                estimatedValue: $index * 5_000.0,
+                status: ContributionStatus::Approved,
+                reviewedBy: $this->createUserWithMainCharacter(sprintf('Reviewer %d of %s', $index, $prefix)),
+            );
+        }
+
+        $this->em->flush();
+
+        return [(string) $viewer->getId(), (string) $project->getId()];
+    }
+
+    /** @return GroupIndustryContributionResource[] */
+    private function listContributionsOf(string $projectId, User $user): array
+    {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($user);
 
@@ -213,7 +305,7 @@ final class GroupContributionCollectionProviderTest extends IntegrationTestCase
             self::getContainer()->get(GroupIndustryResourceMapper::class),
         );
 
-        return $provider->provide(new GetCollection(), ['projectId' => $this->projectId]);
+        return $provider->provide(new GetCollection(), ['projectId' => $projectId]);
     }
 
     /** @return array<string, GroupIndustryContributionResource> */
