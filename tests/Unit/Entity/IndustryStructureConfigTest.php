@@ -115,6 +115,53 @@ class IndustryStructureConfigTest extends TestCase
         $this->assertSame(25.0, $tatara->getReactionTimeBonus());
     }
 
+    /** @return iterable<string, array{string, string, float, float}> */
+    public static function refineryWithReactionMaterialRigProvider(): iterable
+    {
+        // [refinery, security, reaction time bonus, reaction material bonus]
+        // An M-Set Material Efficiency rig adds no time: the time bonus is the refinery base alone
+        yield 'Tatara, lowsec: 2.4 x 1.0' => ['tatara', 'lowsec', 25.0, 2.4];
+        yield 'Tatara, nullsec: 2.4 x 1.1' => ['tatara', 'nullsec', 25.0, 2.64];
+        yield 'Athanor, lowsec: 2.4 x 1.0' => ['athanor', 'lowsec', 0.0, 2.4];
+        yield 'Athanor, nullsec: 2.4 x 1.1' => ['athanor', 'nullsec', 0.0, 2.64];
+    }
+
+    #[DataProvider('refineryWithReactionMaterialRigProvider')]
+    public function testRefineryWithAReactionMaterialRigKeepsItsBaseTimeBonus(
+        string $refineryType,
+        string $securityType,
+        float $expectedReactionTimeBonus,
+        float $expectedReactionMaterialBonus,
+    ): void {
+        $refinery = $this->createStructure($refineryType, $securityType, [self::COMPOSITE_REACTOR_ME_RIG_T2]);
+
+        $this->assertSame($expectedReactionTimeBonus, $refinery->getReactionTimeBonus());
+        $this->assertSame($expectedReactionMaterialBonus, $refinery->getReactionMaterialBonus());
+    }
+
+    /** @return iterable<string, array{string, string, float}> */
+    public static function refineryWithReactorEfficiencyRigProvider(): iterable
+    {
+        yield 'Tatara, lowsec: 2.4 x 1.0' => ['tatara', 'lowsec', 2.4];
+        yield 'Tatara, nullsec: 2.4 x 1.1' => ['tatara', 'nullsec', 2.64];
+        yield 'Athanor, lowsec: 2.4 x 1.0' => ['athanor', 'lowsec', 2.4];
+        yield 'Athanor, nullsec: 2.4 x 1.1' => ['athanor', 'nullsec', 2.64];
+    }
+
+    /**
+     * Material side only: the time side of the L-Set rig carries the scale bug tracked in #94.
+     */
+    #[DataProvider('refineryWithReactorEfficiencyRigProvider')]
+    public function testRefineryWithAReactorEfficiencyRigGetsItsReactionMaterialBonus(
+        string $refineryType,
+        string $securityType,
+        float $expectedReactionMaterialBonus,
+    ): void {
+        $refinery = $this->createStructure($refineryType, $securityType, ['Standup L-Set Reactor Efficiency II']);
+
+        $this->assertSame($expectedReactionMaterialBonus, $refinery->getReactionMaterialBonus());
+    }
+
     // Issue #71: Thukker rigs, 3.7 % on basic capital components, 2.0 % otherwise, x0.1 highsec / x1.9 lowsec / x0.1 nullsec
 
     /** @return iterable<string, array{string, string, float}> */

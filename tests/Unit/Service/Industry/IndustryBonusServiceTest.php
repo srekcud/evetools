@@ -568,6 +568,200 @@ class IndustryBonusServiceTest extends TestCase
         $this->assertSame($expectedRigBonus, $this->bonusService->calculateStructureBonusForCategory($raitaru, $category)['rig']);
     }
 
+    public function testMaterialBonusSkipsANonMatchingRigAndStillCountsTheNextOne(): void
+    {
+        $raitaru = $this->createStructure('Test Raitaru', 'raitaru', 'nullsec', [
+            'Standup M-Set Basic Large Ship Manufacturing Material Efficiency II',
+            'Standup M-Set Basic Capital Component Manufacturing Material Efficiency II',
+        ]);
+
+        // Only the capital component rig applies: 2.4 x 2.1 = 5.04 ; 1 - 0.99 x 0.9496 = 5.99
+        $this->assertSame(
+            ['total' => 5.99, 'base' => 1.0, 'rig' => 5.04],
+            $this->bonusService->calculateStructureBonusForCategory($raitaru, 'basic_capital_component'),
+        );
+    }
+
+    public function testTimeBonusAddsUpTheTimeRigsOfTheSameCategory(): void
+    {
+        $raitaru = $this->createStructure('Test Raitaru', 'raitaru', 'highsec', [
+            'Standup M-Set Basic Capital Component Manufacturing Time Efficiency I',
+            'Standup M-Set Basic Capital Component Manufacturing Time Efficiency II',
+        ]);
+
+        // Rigs 20 + 24 = 44 % (x1.0 highsec) ; 1 - 0.85 x 0.56 = 52.4 %
+        $this->assertSame(52.4, $this->bonusService->calculateStructureTimeBonusForCategory($raitaru, 'basic_capital_component'));
+    }
+
+    // ===========================================
+    // getBaseTimeBonus: the base applies only to the activity of the structure
+    // ===========================================
+
+    public function testAthanorBaseTimeBonusIsZeroForManufacturingAndForReactions(): void
+    {
+        $athanor = $this->createStructure('Test Athanor', 'athanor', 'nullsec', []);
+
+        $this->assertSame(0.0, $this->bonusService->getBaseTimeBonus($athanor, false));
+        $this->assertSame(0.0, $this->bonusService->getBaseTimeBonus($athanor, true));
+    }
+
+    public function testTataraBaseTimeBonusDoesNotApplyToManufacturing(): void
+    {
+        $tatara = $this->createStructure('Test Tatara', 'tatara', 'nullsec', []);
+
+        $this->assertSame(0.0, $this->bonusService->getBaseTimeBonus($tatara, false));
+    }
+
+    public function testRaitaruBaseTimeBonusAppliesToManufacturingOnly(): void
+    {
+        $raitaru = $this->createStructure('Test Raitaru', 'raitaru', 'nullsec', []);
+
+        $this->assertSame(15.0, $this->bonusService->getBaseTimeBonus($raitaru, false));
+        $this->assertSame(0.0, $this->bonusService->getBaseTimeBonus($raitaru, true));
+    }
+
+    // ===========================================
+    // Best structure on base bonuses only (product without rig category)
+    // ===========================================
+
+    public function testBaseOnlyWithoutAnyStructureReturnsNoStructureAndZeroBonus(): void
+    {
+        $best = $this->bonusServiceForStructures([])->findBestStructureForProduct(new User(), 16670, false);
+
+        $this->assertSame(
+            ['structure' => null, 'bonus' => ['total' => 0.0, 'base' => 0.0, 'rig' => 0.0], 'category' => null],
+            $best,
+        );
+    }
+
+    public function testBaseOnlyManufacturingNeverRetainsAStationWithoutBaseBonus(): void
+    {
+        $station = $this->createStructure('Test Station', 'station', 'highsec', []);
+
+        $best = $this->bonusServiceForStructures([$station])->findBestStructureForProduct(new User(), 16670, false);
+
+        $this->assertSame(
+            ['structure' => null, 'bonus' => ['total' => 0.0, 'base' => 0.0, 'rig' => 0.0], 'category' => null],
+            $best,
+        );
+    }
+
+    public function testBaseOnlyManufacturingRetainsTheEngineeringComplexWithTheBestBaseTimeBonus(): void
+    {
+        $raitaru = $this->createStructure('Test Raitaru', 'raitaru', 'nullsec', []);
+        $sotiyo = $this->createStructure('Test Sotiyo', 'sotiyo', 'nullsec', []);
+        $azbel = $this->createStructure('Test Azbel', 'azbel', 'nullsec', []);
+
+        $best = $this->bonusServiceForStructures([$raitaru, $sotiyo, $azbel])->findBestStructureForProduct(new User(), 16670, false);
+
+        // Sotiyo 30 % > Azbel 20 % > Raitaru 15 % ; Engineering Complex base material bonus 1 %
+        $this->assertSame($sotiyo, $best['structure']);
+        $this->assertSame(['total' => 1.0, 'base' => 1.0, 'rig' => 0.0], $best['bonus']);
+        $this->assertNull($best['category']);
+    }
+
+    public function testBaseOnlyReactionWithTheAthanorAloneRetainsItWithoutMaterialBonus(): void
+    {
+        $athanor = $this->createStructure('Test Athanor', 'athanor', 'nullsec', []);
+        $raitaru = $this->createStructure('Test Raitaru', 'raitaru', 'nullsec', []);
+
+        $best = $this->bonusServiceForStructures([$raitaru, $athanor])->findBestStructureForProduct(new User(), 16670, true);
+
+        $this->assertSame($athanor, $best['structure']);
+        $this->assertSame(['total' => 0.0, 'base' => 0.0, 'rig' => 0.0], $best['bonus']);
+    }
+
+    /** @return iterable<string, array{list<string>}> */
+    public static function athanorAndTataraOrderProvider(): iterable
+    {
+        yield 'Athanor first' => [['athanor', 'tatara']];
+        yield 'Tatara first' => [['tatara', 'athanor']];
+    }
+
+    /** @param list<string> $structureTypes */
+    #[DataProvider('athanorAndTataraOrderProvider')]
+    public function testBaseOnlyReactionPrefersTheTataraOverTheAthanor(array $structureTypes): void
+    {
+        $structures = array_map(
+            fn (string $structureType) => $this->createStructure('Test '.$structureType, $structureType, 'nullsec', []),
+            $structureTypes,
+        );
+
+        $best = $this->bonusServiceForStructures($structures)->findBestStructureForProduct(new User(), 16670, true);
+
+        $this->assertSame('tatara', $best['structure']->getStructureType());
+        $this->assertSame(['total' => 0.0, 'base' => 0.0, 'rig' => 0.0], $best['bonus']);
+    }
+
+    // ===========================================
+    // Best structure on time bonus for a category
+    // ===========================================
+
+    public function testBestTimeStructureWithoutAnyStructureKeepsTheCategory(): void
+    {
+        $best = $this->bonusServiceForStructures([])->findBestStructureForCategoryTimeBonus(new User(), 'basic_capital_component');
+
+        $this->assertSame(['structure' => null, 'bonus' => 0.0, 'category' => 'basic_capital_component'], $best);
+    }
+
+    public function testBestTimeStructureDefaultsToManufacturing(): void
+    {
+        $raitaru = $this->createStructure('Test Raitaru', 'raitaru', 'nullsec', []);
+        $tatara = $this->createStructure('Test Tatara', 'tatara', 'nullsec', []);
+
+        $best = $this->bonusServiceForStructures([$tatara, $raitaru])->findBestStructureForCategoryTimeBonus(new User(), 'basic_capital_component');
+
+        $this->assertSame(['structure' => $raitaru, 'bonus' => 15.0, 'category' => 'basic_capital_component'], $best);
+    }
+
+    public function testBestTimeStructureNeverRetainsAStructureWithoutTimeBonus(): void
+    {
+        $station = $this->createStructure('Test Station', 'station', 'highsec', []);
+
+        $best = $this->bonusServiceForStructures([$station])->findBestStructureForCategoryTimeBonus(new User(), 'basic_capital_component', false);
+
+        $this->assertSame(['structure' => null, 'bonus' => 0.0, 'category' => 'basic_capital_component'], $best);
+    }
+
+    public function testBestTimeStructureKeepsTheFirstOfTwoEqualStructures(): void
+    {
+        $firstAzbel = $this->createStructure('First Azbel', 'azbel', 'nullsec', []);
+        $secondAzbel = $this->createStructure('Second Azbel', 'azbel', 'nullsec', []);
+
+        $best = $this->bonusServiceForStructures([$firstAzbel, $secondAzbel])->findBestStructureForCategoryTimeBonus(new User(), 'equipment', false);
+
+        $this->assertSame($firstAzbel, $best['structure']);
+        $this->assertSame(20.0, $best['bonus']);
+    }
+
+    public function testBestTimeStructureRetainsTheBestManufacturingStructureAndSkipsTheRefineries(): void
+    {
+        $raitaruWithTimeRig = $this->createStructure('Test Raitaru', 'raitaru', 'lowsec', ['Standup M-Set Equipment Manufacturing Time Efficiency II']);
+        $sotiyo = $this->createStructure('Test Sotiyo', 'sotiyo', 'lowsec', []);
+        $tatara = $this->createStructure('Test Tatara', 'tatara', 'lowsec', []);
+
+        $best = $this->bonusServiceForStructures([$sotiyo, $tatara, $raitaruWithTimeRig])
+            ->findBestStructureForCategoryTimeBonus(new User(), 'equipment', false);
+
+        // Raitaru: rig 24 x 1.9 = 45.6 % ; 1 - 0.85 x 0.544 = 53.76 % > Sotiyo 30 %
+        $this->assertSame(['structure' => $raitaruWithTimeRig, 'bonus' => 53.76, 'category' => 'equipment'], $best);
+    }
+
+    // ===========================================
+    // Adjusted time per run: default arguments and rounding up
+    // ===========================================
+
+    public function testAdjustedTimeWithoutTeNorStructureBonusIsTheBaseTime(): void
+    {
+        $this->assertSame(3600, $this->bonusService->calculateAdjustedTimePerRun(3600));
+    }
+
+    public function testAdjustedTimeRoundsUpEvenBelowHalfASecond(): void
+    {
+        // 3603 x 0.80 = 2882.4 -> 2883
+        $this->assertSame(2883, $this->bonusService->calculateAdjustedTimePerRun(3603, 20, 0.0));
+    }
+
     /** @param IndustryStructureConfig[] $structures */
     private function bonusServiceForStructures(array $structures): IndustryBonusService
     {
