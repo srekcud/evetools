@@ -1,0 +1,348 @@
+{
+    "blueprintTypeId": 1016673,
+    "productTypeId": 16673,
+    "productTypeName": "Fernite Carbide",
+    "quantity": 10,
+    "runs": 1,
+    "outputPerRun": 10000,
+    "depth": 0,
+    "activityType": "reaction",
+    "hasCopy": false,
+    "materials": [
+        {
+            "typeId": 4246,
+            "typeName": "Hydrogen Fuel Block",
+            "quantity": 5,
+            "isBuildable": true,
+            "activityType": "manufacturing",
+            "blueprint": {
+                "blueprintTypeId": 1004246,
+                "productTypeId": 4246,
+                "productTypeName": "Hydrogen Fuel Block",
+                "quantity": 5,
+                "runs": 1,
+                "outputPerRun": 40,
+                "depth": 1,
+                "activityType": "manufacturing",
+                "hasCopy": false,
+                "materials": [
+                    {
+                        "typeId": 44,
+                        "typeName": "Enriched Uranium",
+                        "quantity": 4,
+                        "isBuildable": false,
+                        "activityType": null
+                    },
+                    {
+                        "typeId": 3683,
+                        "typeName": "Oxygen",
+                        "quantity": 20,
+                        "isBuildable": false,
+                        "activityType": null
+                    },
+                    {
+                        "typeId": 3689,
+                        "typeName": "Mechanical Parts",
+                        "quantity": 4,
+                        "isBuildable": false,
+                        "activityType": null
+                    },
+                    {
+                        "typeId": 9832,
+                        "typeName": "Coolant",
+                        "quantity": 9,
+                        "isBuildable": false,
+                        "activityType": null
+                    },
+                    {
+                        "typeId": 9848,
+                        "typeName": "Robotics",
+                        "quantity": 1,
+                        "isBuildable": false,
+                        "activityType": null
+                    },
+                    {
+                        "typeId": 16272,
+                        "typeName": "Heavy Water",
+                        "quantity": 152,
+                        "isBuildable": false,
+                        "activityType": null
+                    },
+                    {
+                        "typeId": 16273,
+                        "typeName": "Liquid Ozone",
+                        "quantity": 312,
+                        "isBuildable": false,
+                        "activityType": null
+                    },
+                    {
+                        "typeId": 16275,
+                        "typeName": "Strontium Clathrates",
+                        "quantity": 18,
+                        "isBuildable": false,
+                        "activityType": null
+                    },
+                    {
+                        "typeId": 17889,
+                        "typeName": "Hydrogen Isotopes",
+                        "quantity": 401,
+                        "isBuildable": false,
+                        "activityType": null
+                    }
+                ],
+                "structureBonus": 1.0,
+                "structureName": "Raitaru",
+                "productCategory": "ammunition"
+            }
+        },
+        {
+            "typeId": 16656,
+            "typeName": "Fernite Alloy",
+            "quantity": 98,
+            "isBuildable": true,
+            "activityType": "reaction",
+            "blueprint": {
+                "blueprintTypeId": 1016656,
+                "productTypeId": 16656,
+                "productTypeName": "Fernite Alloy",
+                "quantity": 98,
+                "runs": 1,
+                "outputPerRun": 200,
+                "depth": 1,
+                "activityType": "reaction",
+                "hasCopy": false,
+                "materials": [
+                    {
+                        "typeId": 4246,
+                        "typeName": "Hydrogen Fuel Block",
+                        "quantity": 5,
+                        "isBuildable": true,
+                        "activityType": "manufacturing",
+                        "blueprint": {
+                            "blueprintTypeId": 1004246,
+                            "productTypeId": 4246,
+                            "productTypeName": "Hydrogen Fuel Block",
+                            "quantity": 5,
+                            "runs": 1,
+                            "outputPerRun": 40,
+                            "depth": 2,
+                            "activityType": "manufacturing",
+                            "hasCopy": false,
+                            "materials": [
+                                {
+                                    "typeId": 44,
+                                    "typeName": "Enriched Uranium",
+                                    "quantity": 4,
+                                    "isBuildable": false,
+                                    "activityType": null
+                                },
+                                {
+                                    "typeId": 3683,
+                                    "typeName": "Oxygen",
+                                    "quantity": 20,
+                                    "isBuildable": false,
+                                    "activityType": null
+                                },
+                                {
+                                    "typeId": 3689,
+                                    "typeName": "Mechanical Parts",
+                                    "quantity": 4,
+                                    "isBuildable": false,
+                                    "activityType": null
+                                },
+                                {
+                                    "typeId": 9832,
+                                    "typeName": "Coolant",
+                                    "quantity": 9,
+                                    "isBuildable": false,
+                                    "activityType": null
+                                },
+                                {
+                                    "typeId": 9848,
+                                    "typeName": "Robotics",
+                                    "quantity": 1,
+                                    "isBuildable": false,
+                                    "activityType": null
+                                },
+                                {
+                                    "typeId": 16272,
+                                    "typeName": "Heavy Water",
+                                    "quantity": 152,
+                                    "isBuildable": false,
+                                    "activityType": null
+                                },
+                                {
+                                    "typeId": 16273,
+                                    "typeName": "Liquid Ozone",
+                                    "quantity": 312,
+                                    "isBuildable": false,
+                                    "activityType": null
+                                },
+                                {
+                                    "typeId": 16275,
+                                    "typeName": "Strontium Clathrates",
+                                    "quantity": 18,
+                                    "isBuildable": false,
+                                    "activityType": null
+                                },
+                                {
+                                    "typeId": 17889,
+                                    "typeName": "Hydrogen Isotopes",
+                                    "quantity": 401,
+                                    "isBuildable": false,
+                                    "activityType": null
+                                }
+                            ],
+                            "structureBonus": 1.0,
+                            "structureName": "Raitaru",
+                            "productCategory": "ammunition"
+                        }
+                    },
+                    {
+                        "typeId": 16639,
+                        "typeName": "Scandium",
+                        "quantity": 98,
+                        "isBuildable": false,
+                        "activityType": null
+                    },
+                    {
+                        "typeId": 16642,
+                        "typeName": "Vanadium",
+                        "quantity": 98,
+                        "isBuildable": false,
+                        "activityType": null
+                    }
+                ],
+                "structureBonus": 2.64,
+                "structureName": "Tatara",
+                "productCategory": "composite_reaction"
+            }
+        },
+        {
+            "typeId": 16660,
+            "typeName": "Ceramic Powder",
+            "quantity": 98,
+            "isBuildable": true,
+            "activityType": "reaction",
+            "blueprint": {
+                "blueprintTypeId": 1016660,
+                "productTypeId": 16660,
+                "productTypeName": "Ceramic Powder",
+                "quantity": 98,
+                "runs": 1,
+                "outputPerRun": 200,
+                "depth": 1,
+                "activityType": "reaction",
+                "hasCopy": false,
+                "materials": [
+                    {
+                        "typeId": 4246,
+                        "typeName": "Hydrogen Fuel Block",
+                        "quantity": 5,
+                        "isBuildable": true,
+                        "activityType": "manufacturing",
+                        "blueprint": {
+                            "blueprintTypeId": 1004246,
+                            "productTypeId": 4246,
+                            "productTypeName": "Hydrogen Fuel Block",
+                            "quantity": 5,
+                            "runs": 1,
+                            "outputPerRun": 40,
+                            "depth": 2,
+                            "activityType": "manufacturing",
+                            "hasCopy": false,
+                            "materials": [
+                                {
+                                    "typeId": 44,
+                                    "typeName": "Enriched Uranium",
+                                    "quantity": 4,
+                                    "isBuildable": false,
+                                    "activityType": null
+                                },
+                                {
+                                    "typeId": 3683,
+                                    "typeName": "Oxygen",
+                                    "quantity": 20,
+                                    "isBuildable": false,
+                                    "activityType": null
+                                },
+                                {
+                                    "typeId": 3689,
+                                    "typeName": "Mechanical Parts",
+                                    "quantity": 4,
+                                    "isBuildable": false,
+                                    "activityType": null
+                                },
+                                {
+                                    "typeId": 9832,
+                                    "typeName": "Coolant",
+                                    "quantity": 9,
+                                    "isBuildable": false,
+                                    "activityType": null
+                                },
+                                {
+                                    "typeId": 9848,
+                                    "typeName": "Robotics",
+                                    "quantity": 1,
+                                    "isBuildable": false,
+                                    "activityType": null
+                                },
+                                {
+                                    "typeId": 16272,
+                                    "typeName": "Heavy Water",
+                                    "quantity": 152,
+                                    "isBuildable": false,
+                                    "activityType": null
+                                },
+                                {
+                                    "typeId": 16273,
+                                    "typeName": "Liquid Ozone",
+                                    "quantity": 312,
+                                    "isBuildable": false,
+                                    "activityType": null
+                                },
+                                {
+                                    "typeId": 16275,
+                                    "typeName": "Strontium Clathrates",
+                                    "quantity": 18,
+                                    "isBuildable": false,
+                                    "activityType": null
+                                },
+                                {
+                                    "typeId": 17889,
+                                    "typeName": "Hydrogen Isotopes",
+                                    "quantity": 401,
+                                    "isBuildable": false,
+                                    "activityType": null
+                                }
+                            ],
+                            "structureBonus": 1.0,
+                            "structureName": "Raitaru",
+                            "productCategory": "ammunition"
+                        }
+                    },
+                    {
+                        "typeId": 16635,
+                        "typeName": "Evaporite Deposits",
+                        "quantity": 98,
+                        "isBuildable": false,
+                        "activityType": null
+                    },
+                    {
+                        "typeId": 16636,
+                        "typeName": "Silicates",
+                        "quantity": 98,
+                        "isBuildable": false,
+                        "activityType": null
+                    }
+                ],
+                "structureBonus": 2.64,
+                "structureName": "Tatara",
+                "productCategory": "composite_reaction"
+            }
+        }
+    ],
+    "structureBonus": 2.64,
+    "structureName": "Tatara",
+    "productCategory": "composite_reaction"
+}

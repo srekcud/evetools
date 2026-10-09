@@ -1,0 +1,79 @@
+{
+    "blueprintTypeId": 1004051,
+    "productTypeId": 4051,
+    "productTypeName": "Nitrogen Fuel Block",
+    "quantity": 25,
+    "runs": 1,
+    "outputPerRun": 40,
+    "depth": 0,
+    "activityType": "manufacturing",
+    "hasCopy": false,
+    "materials": [
+        {
+            "typeId": 44,
+            "typeName": "Enriched Uranium",
+            "quantity": 4,
+            "isBuildable": false,
+            "activityType": null
+        },
+        {
+            "typeId": 3683,
+            "typeName": "Oxygen",
+            "quantity": 20,
+            "isBuildable": false,
+            "activityType": null
+        },
+        {
+            "typeId": 3689,
+            "typeName": "Mechanical Parts",
+            "quantity": 4,
+            "isBuildable": false,
+            "activityType": null
+        },
+        {
+            "typeId": 9832,
+            "typeName": "Coolant",
+            "quantity": 9,
+            "isBuildable": false,
+            "activityType": null
+        },
+        {
+            "typeId": 9848,
+            "typeName": "Robotics",
+            "quantity": 1,
+            "isBuildable": false,
+            "activityType": null
+        },
+        {
+            "typeId": 16272,
+            "typeName": "Heavy Water",
+            "quantity": 153,
+            "isBuildable": false,
+            "activityType": null
+        },
+        {
+            "typeId": 16273,
+            "typeName": "Liquid Ozone",
+            "quantity": 315,
+            "isBuildable": false,
+            "activityType": null
+        },
+        {
+            "typeId": 16275,
+            "typeName": "Strontium Clathrates",
+            "quantity": 18,
+            "isBuildable": false,
+            "activityType": null
+        },
+        {
+            "typeId": 17888,
+            "typeName": "Nitrogen Isotopes",
+            "quantity": 405,
+            "isBuildable": false,
+            "activityType": null
+        }
+    ],
+    "structureBonus": 0.0,
+    "structureName": null,
+    "productCategory": null
+}
