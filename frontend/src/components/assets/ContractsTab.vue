@@ -62,6 +62,7 @@ interface Contract {
 // State
 const contracts = ref<Contract[]>([])
 const publicComparisonAvailable = ref(true)
+const unknownContractCount = ref(0)
 const isLoading = ref(false)
 const error = ref('')
 const selectedStatus = ref('outstanding')
@@ -116,9 +117,10 @@ async function fetchContracts() {
       throw new Error(data.error || 'Failed to fetch contracts')
     }
 
-    const data = await safeJsonParse<{ contracts: Contract[]; publicComparisonAvailable: boolean }>(response)
+    const data = await safeJsonParse<{ contracts: Contract[]; publicComparisonAvailable: boolean; incomplete: boolean; unknownContractIds: number[] }>(response)
     contracts.value = data.contracts
     publicComparisonAvailable.value = data.publicComparisonAvailable
+    unknownContractCount.value = data.incomplete ? data.unknownContractIds.length : 0
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : t('common.errors.loadFailed')
     console.error(e)
@@ -287,6 +289,13 @@ function onAvailabilityChange() {
       class="mb-4 px-4 py-3 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 text-sm"
     >
       {{ t('contracts.publicComparisonUnavailable') }}
+    </div>
+
+    <div
+      v-if="unknownContractCount > 0"
+      class="mb-4 px-4 py-3 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 text-sm"
+    >
+      {{ t('contracts.partialList', unknownContractCount) }}
     </div>
 
     <!-- Contracts list -->

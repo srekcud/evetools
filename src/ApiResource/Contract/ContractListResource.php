@@ -12,4 +12,9 @@ class ContractListResource
     public int $total = 0;
 
     public bool $publicComparisonAvailable = true;
+
+    public bool $incomplete = false;
+
+    /** @var int[] */
+    public array $unknownContractIds = [];
 }

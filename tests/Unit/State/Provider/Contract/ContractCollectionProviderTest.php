@@ -29,6 +29,7 @@ class ContractCollectionProviderTest extends TestCase
 {
     private const CHARACTER_ID = 90000001;
     private const MY_CONTRACT_ID = 1001;
+    private const MY_UNREADABLE_CONTRACT_ID = 1002;
     private const TRITANIUM_TYPE_ID = 34;
     private const PYERITE_TYPE_ID = 35;
     private const TYPE_ID_ABSENT_FROM_SDE = 999_999_999;
@@ -309,6 +310,63 @@ class ContractCollectionProviderTest extends TestCase
     }
 
     // ===========================================
+    // Contracts whose detail is unknown (partial list)
+    // ===========================================
+
+    public function testContractWhoseItemsCannotBeReadIsReportedUnknownInsteadOfDropped(): void
+    {
+        $this->stubEsi(
+            publicContractsFirstPage: [],
+            publicContractsAllPages: [],
+            unreadableItemsContractIds: [self::MY_UNREADABLE_CONTRACT_ID],
+        );
+
+        $result = $this->provider->provide(new GetCollection());
+
+        $this->assertCount(1, $result->contracts);
+        $this->assertSame(self::MY_CONTRACT_ID, $result->contracts[0]->contractId);
+        $this->assertSame(1, $result->total);
+        $this->assertTrue($result->incomplete);
+        $this->assertSame([self::MY_UNREADABLE_CONTRACT_ID], $result->unknownContractIds);
+    }
+
+    public function testContractThatFailsToBeProcessedIsReportedUnknownInsteadOfDropped(): void
+    {
+        $this->invTypeRepository = $this->createStub(InvTypeRepository::class);
+        $this->invTypeRepository->method('findByTypeIds')->willThrowException(new \RuntimeException('SDE database unavailable'));
+        $this->provider = $this->createProvider();
+        $this->stubEsi(publicContractsFirstPage: [], publicContractsAllPages: []);
+
+        $result = $this->provider->provide(new GetCollection());
+
+        $this->assertSame([], $result->contracts);
+        $this->assertSame(0, $result->total);
+        $this->assertTrue($result->incomplete);
+        $this->assertSame([self::MY_CONTRACT_ID], $result->unknownContractIds);
+    }
+
+    public function testListIsCompleteWhenEveryContractIsRead(): void
+    {
+        $this->stubEsi(publicContractsFirstPage: [], publicContractsAllPages: []);
+
+        $result = $this->provider->provide(new GetCollection());
+
+        $this->assertSame(1, $result->total);
+        $this->assertFalse($result->incomplete);
+        $this->assertSame([], $result->unknownContractIds);
+    }
+
+    public function testCharacterContractsEsiCallFailureStillFailsTheWholeList(): void
+    {
+        $this->esiClient->method('getPaginated')->willThrowException(new \RuntimeException('ESI 503 on character contracts'));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('ESI 503 on character contracts');
+
+        $this->provider->provide(new GetCollection());
+    }
+
+    // ===========================================
     // Helpers
     // ===========================================
 
@@ -363,12 +421,14 @@ class ContractCollectionProviderTest extends TestCase
      * @param list<array<string, mixed>> $publicContractsFirstPage
      * @param list<array<string, mixed>> $publicContractsAllPages
      * @param list<array<string, mixed>>|null $contractItems defaults to 1000 Tritanium
+     * @param list<int> $unreadableItemsContractIds extra character contracts whose items endpoint fails
      */
     private function stubEsi(
         array $publicContractsFirstPage,
         array $publicContractsAllPages,
         ?array $contractItems = null,
         ?\Throwable $publicContractsError = null,
+        array $unreadableItemsContractIds = [],
     ): void {
         $myContract = [
             'contract_id' => self::MY_CONTRACT_ID,
@@ -391,18 +451,31 @@ class ContractCollectionProviderTest extends TestCase
             return $page;
         };
 
+        $myContracts = [$myContract];
+        $unreadableItemsEndpoints = [];
+        foreach ($unreadableItemsContractIds as $contractId) {
+            $myContracts[] = ['contract_id' => $contractId, 'date_issued' => '2026-09-30T12:00:00Z'] + $myContract;
+            $unreadableItemsEndpoints[] = self::CHARACTER_CONTRACTS_ENDPOINT . $contractId . '/items/';
+        }
+
         $this->esiClient->method('getPaginated')->willReturnCallback(
             static fn (string $endpoint): array => match ($endpoint) {
-                self::CHARACTER_CONTRACTS_ENDPOINT => [$myContract],
+                self::CHARACTER_CONTRACTS_ENDPOINT => $myContracts,
                 self::PUBLIC_CONTRACTS_ENDPOINT => $publicContracts($publicContractsAllPages),
                 default => throw new \LogicException("Unexpected paginated ESI call: {$endpoint}"),
             },
         );
         $this->esiClient->method('get')->willReturnCallback(
-            static fn (string $endpoint): array => match ($endpoint) {
-                self::CHARACTER_CONTRACTS_ENDPOINT . self::MY_CONTRACT_ID . '/items/' => $myContractItems,
-                self::PUBLIC_CONTRACTS_ENDPOINT => $publicContracts($publicContractsFirstPage),
-                default => throw new \LogicException("Unexpected ESI call: {$endpoint}"),
+            static function (string $endpoint) use ($unreadableItemsEndpoints, $myContractItems, $publicContracts, $publicContractsFirstPage): array {
+                if (in_array($endpoint, $unreadableItemsEndpoints, true)) {
+                    throw new \RuntimeException("ESI 502 on {$endpoint}");
+                }
+
+                return match ($endpoint) {
+                    self::CHARACTER_CONTRACTS_ENDPOINT . self::MY_CONTRACT_ID . '/items/' => $myContractItems,
+                    self::PUBLIC_CONTRACTS_ENDPOINT => $publicContracts($publicContractsFirstPage),
+                    default => throw new \LogicException("Unexpected ESI call: {$endpoint}"),
+                };
             },
         );
     }

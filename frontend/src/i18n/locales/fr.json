@@ -1432,6 +1432,7 @@
     }
   },
   "contracts": {
+    "partialList": "Liste partielle : {count} contrat illisible | Liste partielle : {count} contrat illisible | Liste partielle : {count} contrats illisibles",
     "publicComparisonUnavailable": "Comparaison aux contrats publics indisponible (ESI) — verdict basé sur Jita",
     "title": "Contrats",
     "filters": {

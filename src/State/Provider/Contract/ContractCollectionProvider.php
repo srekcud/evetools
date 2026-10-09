@@ -85,6 +85,7 @@ class ContractCollectionProvider implements ProviderInterface
             // Pre-fetch all contract items to collect type IDs for batch price lookup
             $contractItems = [];
             $allTypeIds = [];
+            $unknownContractIds = [];
 
             foreach ($itemExchangeContracts as $contract) {
                 try {
@@ -104,6 +105,7 @@ class ContractCollectionProvider implements ProviderInterface
                         'contractId' => $contract['contract_id'],
                         'error' => $e->getMessage(),
                     ]);
+                    $unknownContractIds[] = $contract['contract_id'];
                 }
             }
 
@@ -120,7 +122,17 @@ class ContractCollectionProvider implements ProviderInterface
                     continue;
                 }
 
-                $contractData = $this->processContract($contract, $characterId, $items, $jitaPrices, $publicContracts);
+                try {
+                    $contractData = $this->processContract($contract, $characterId, $items, $jitaPrices, $publicContracts);
+                } catch (\Throwable $e) {
+                    $this->logger->warning('Failed to process contract', [
+                        'contractId' => $contract['contract_id'],
+                        'error' => $e->getMessage(),
+                    ]);
+                    $unknownContractIds[] = $contract['contract_id'];
+                    continue;
+                }
+
                 if ($contractData !== null) {
                     $result[] = $contractData;
                 }
@@ -132,6 +144,8 @@ class ContractCollectionProvider implements ProviderInterface
             $resource->contracts = $result;
             $resource->total = count($result);
             $resource->publicComparisonAvailable = $publicContracts !== null;
+            $resource->incomplete = $unknownContractIds !== [];
+            $resource->unknownContractIds = $unknownContractIds;
 
             return $resource;
         } catch (\Throwable $e) {
@@ -186,129 +200,120 @@ class ContractCollectionProvider implements ProviderInterface
      */
     private function processContract(array $contract, int $characterId, array $items, array $jitaPrices, ?array $publicContracts): ?ContractResource
     {
-        try {
-            $includedItems = array_filter($items, fn($item) => ($item['is_included'] ?? true));
+        $includedItems = array_filter($items, fn($item) => ($item['is_included'] ?? true));
 
-            if (empty($includedItems)) {
-                return null;
-            }
-
-            $typeIds = array_unique(array_column($includedItems, 'type_id'));
-            $typeNames = $this->resolveTypeNames($typeIds);
-
-            $itemsWithPrices = [];
-            $jitaValue = 0;
-            $delveValue = 0;
-
-            foreach ($includedItems as $item) {
-                $typeId = $item['type_id'];
-                $quantity = $item['quantity'];
-                $typeName = $typeNames[$typeId] ?? 'Unknown';
-
-                $jitaPrice = $jitaPrices[$typeId] ?? null;
-                $itemJitaValue = $jitaPrice !== null ? $jitaPrice * $quantity : null;
-
-                $delvePrice = $this->structureMarketService->getLowestSellPrice($this->defaultMarketStructureId, $typeId);
-                $itemDelveValue = $delvePrice !== null ? $delvePrice * $quantity : null;
-
-                if ($itemJitaValue !== null) {
-                    $jitaValue += $itemJitaValue;
-                }
-                if ($itemDelveValue !== null) {
-                    $delveValue += $itemDelveValue;
-                }
-
-                $itemResource = new ContractItemResource();
-                $itemResource->typeId = $typeId;
-                $itemResource->typeName = $typeName;
-                $itemResource->quantity = $quantity;
-                $itemResource->jitaPrice = $jitaPrice;
-                $itemResource->jitaValue = $itemJitaValue;
-                $itemResource->delvePrice = $delvePrice;
-                $itemResource->delveValue = $itemDelveValue;
-
-                $itemsWithPrices[] = $itemResource;
-            }
-
-            $contractPrice = $contract['price'] ?? 0;
-            $contractVolume = $contract['volume'] ?? 0;
-
-            $lowestSimilar = null;
-            $avgSimilar = null;
-            $similarCount = null;
-
-            if ($publicContracts !== null) {
-                $similarContracts = $this->findSimilarPublicContracts($contractVolume, $publicContracts);
-                $similarCount = count($similarContracts);
-
-                if ($similarCount > 0) {
-                    $prices = array_column($similarContracts, 'price');
-                    $lowestSimilar = min($prices);
-                    $avgSimilar = array_sum($prices) / $similarCount;
-                }
-            }
-
-            $isSeller = $contract['issuer_id'] === $characterId;
-
-            $jitaDiff = $jitaValue > 0 ? $contractPrice - $jitaValue : null;
-            $jitaDiffPercent = $jitaValue > 0 ? (($contractPrice - $jitaValue) / $jitaValue) * 100 : null;
-
-            $delveDiff = $delveValue > 0 ? $contractPrice - $delveValue : null;
-            $delveDiffPercent = $delveValue > 0 ? (($contractPrice - $delveValue) / $delveValue) * 100 : null;
-
-            $similarDiff = $lowestSimilar !== null ? $contractPrice - $lowestSimilar : null;
-            $similarDiffPercent = $lowestSimilar !== null && $lowestSimilar > 0
-                ? (($contractPrice - $lowestSimilar) / $lowestSimilar) * 100
-                : null;
-
-            $isCompetitive = null;
-            if ($similarDiffPercent !== null) {
-                $isCompetitive = $similarDiffPercent <= 5;
-            } elseif ($jitaDiffPercent !== null) {
-                $isCompetitive = $jitaDiffPercent <= 10;
-            }
-
-            $resource = new ContractResource();
-            $resource->contractId = $contract['contract_id'];
-            $resource->type = $contract['type'];
-            $resource->status = $contract['status'] ?? 'unknown';
-            $resource->availability = $contract['availability'] ?? 'personal';
-            $resource->title = $contract['title'] ?? '';
-            $resource->price = $contractPrice;
-            $resource->reward = $contract['reward'] ?? 0;
-            $resource->volume = $contractVolume;
-            $resource->dateIssued = $contract['date_issued'];
-            $resource->dateExpired = $contract['date_expired'] ?? null;
-            $resource->dateCompleted = $contract['date_completed'] ?? null;
-            $resource->issuerId = $contract['issuer_id'];
-            $resource->assigneeId = $contract['assignee_id'] ?? null;
-            $resource->acceptorId = $contract['acceptor_id'] ?? 0;
-            $resource->forCorporation = $contract['for_corporation'] ?? false;
-            $resource->isSeller = $isSeller;
-            $resource->items = $itemsWithPrices;
-            $resource->itemCount = count($itemsWithPrices);
-            $resource->jitaValue = $jitaValue > 0 ? $jitaValue : null;
-            $resource->jitaDiff = $jitaDiff;
-            $resource->jitaDiffPercent = $jitaDiffPercent;
-            $resource->delveValue = $delveValue > 0 ? $delveValue : null;
-            $resource->delveDiff = $delveDiff;
-            $resource->delveDiffPercent = $delveDiffPercent;
-            $resource->similarCount = $similarCount;
-            $resource->lowestSimilar = $lowestSimilar;
-            $resource->avgSimilar = $avgSimilar;
-            $resource->similarDiff = $similarDiff;
-            $resource->similarDiffPercent = $similarDiffPercent;
-            $resource->isCompetitive = $isCompetitive;
-
-            return $resource;
-        } catch (\Throwable $e) {
-            $this->logger->warning('Failed to process contract', [
-                'contractId' => $contract['contract_id'],
-                'error' => $e->getMessage(),
-            ]);
-
+        if (empty($includedItems)) {
             return null;
         }
+
+        $typeIds = array_unique(array_column($includedItems, 'type_id'));
+        $typeNames = $this->resolveTypeNames($typeIds);
+
+        $itemsWithPrices = [];
+        $jitaValue = 0;
+        $delveValue = 0;
+
+        foreach ($includedItems as $item) {
+            $typeId = $item['type_id'];
+            $quantity = $item['quantity'];
+            $typeName = $typeNames[$typeId] ?? 'Unknown';
+
+            $jitaPrice = $jitaPrices[$typeId] ?? null;
+            $itemJitaValue = $jitaPrice !== null ? $jitaPrice * $quantity : null;
+
+            $delvePrice = $this->structureMarketService->getLowestSellPrice($this->defaultMarketStructureId, $typeId);
+            $itemDelveValue = $delvePrice !== null ? $delvePrice * $quantity : null;
+
+            if ($itemJitaValue !== null) {
+                $jitaValue += $itemJitaValue;
+            }
+            if ($itemDelveValue !== null) {
+                $delveValue += $itemDelveValue;
+            }
+
+            $itemResource = new ContractItemResource();
+            $itemResource->typeId = $typeId;
+            $itemResource->typeName = $typeName;
+            $itemResource->quantity = $quantity;
+            $itemResource->jitaPrice = $jitaPrice;
+            $itemResource->jitaValue = $itemJitaValue;
+            $itemResource->delvePrice = $delvePrice;
+            $itemResource->delveValue = $itemDelveValue;
+
+            $itemsWithPrices[] = $itemResource;
+        }
+
+        $contractPrice = $contract['price'] ?? 0;
+        $contractVolume = $contract['volume'] ?? 0;
+
+        $lowestSimilar = null;
+        $avgSimilar = null;
+        $similarCount = null;
+
+        if ($publicContracts !== null) {
+            $similarContracts = $this->findSimilarPublicContracts($contractVolume, $publicContracts);
+            $similarCount = count($similarContracts);
+
+            if ($similarCount > 0) {
+                $prices = array_column($similarContracts, 'price');
+                $lowestSimilar = min($prices);
+                $avgSimilar = array_sum($prices) / $similarCount;
+            }
+        }
+
+        $isSeller = $contract['issuer_id'] === $characterId;
+
+        $jitaDiff = $jitaValue > 0 ? $contractPrice - $jitaValue : null;
+        $jitaDiffPercent = $jitaValue > 0 ? (($contractPrice - $jitaValue) / $jitaValue) * 100 : null;
+
+        $delveDiff = $delveValue > 0 ? $contractPrice - $delveValue : null;
+        $delveDiffPercent = $delveValue > 0 ? (($contractPrice - $delveValue) / $delveValue) * 100 : null;
+
+        $similarDiff = $lowestSimilar !== null ? $contractPrice - $lowestSimilar : null;
+        $similarDiffPercent = $lowestSimilar !== null && $lowestSimilar > 0
+            ? (($contractPrice - $lowestSimilar) / $lowestSimilar) * 100
+            : null;
+
+        $isCompetitive = null;
+        if ($similarDiffPercent !== null) {
+            $isCompetitive = $similarDiffPercent <= 5;
+        } elseif ($jitaDiffPercent !== null) {
+            $isCompetitive = $jitaDiffPercent <= 10;
+        }
+
+        $resource = new ContractResource();
+        $resource->contractId = $contract['contract_id'];
+        $resource->type = $contract['type'];
+        $resource->status = $contract['status'] ?? 'unknown';
+        $resource->availability = $contract['availability'] ?? 'personal';
+        $resource->title = $contract['title'] ?? '';
+        $resource->price = $contractPrice;
+        $resource->reward = $contract['reward'] ?? 0;
+        $resource->volume = $contractVolume;
+        $resource->dateIssued = $contract['date_issued'];
+        $resource->dateExpired = $contract['date_expired'] ?? null;
+        $resource->dateCompleted = $contract['date_completed'] ?? null;
+        $resource->issuerId = $contract['issuer_id'];
+        $resource->assigneeId = $contract['assignee_id'] ?? null;
+        $resource->acceptorId = $contract['acceptor_id'] ?? 0;
+        $resource->forCorporation = $contract['for_corporation'] ?? false;
+        $resource->isSeller = $isSeller;
+        $resource->items = $itemsWithPrices;
+        $resource->itemCount = count($itemsWithPrices);
+        $resource->jitaValue = $jitaValue > 0 ? $jitaValue : null;
+        $resource->jitaDiff = $jitaDiff;
+        $resource->jitaDiffPercent = $jitaDiffPercent;
+        $resource->delveValue = $delveValue > 0 ? $delveValue : null;
+        $resource->delveDiff = $delveDiff;
+        $resource->delveDiffPercent = $delveDiffPercent;
+        $resource->similarCount = $similarCount;
+        $resource->lowestSimilar = $lowestSimilar;
+        $resource->avgSimilar = $avgSimilar;
+        $resource->similarDiff = $similarDiff;
+        $resource->similarDiffPercent = $similarDiffPercent;
+        $resource->isCompetitive = $isCompetitive;
+
+        return $resource;
     }
 
     /**

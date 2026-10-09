@@ -1432,6 +1432,7 @@
     }
   },
   "contracts": {
+    "partialList": "Partial list: {count} contract could not be read | Partial list: {count} contract could not be read | Partial list: {count} contracts could not be read",
     "publicComparisonUnavailable": "Public contracts comparison unavailable (ESI) — verdict based on Jita",
     "title": "Contracts",
     "filters": {
