@@ -1,0 +1,596 @@
+{
+    "Auto-Integrity Preservation Seal": {
+        "runs": 120,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "C3-FTM Acid": {
+        "runs": 3,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Caesarium Cadmide": {
+        "runs": 50,
+        "jobs": 4,
+        "totalGroupRuns": [
+            50
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Capital Armor Plates": {
+        "runs": 5,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "Capital Cargo Bay": {
+        "runs": 32,
+        "jobs": 3,
+        "totalGroupRuns": [
+            32
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "Capital Construction Parts": {
+        "runs": 5,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "Capital Core Temperature Regulator": {
+        "runs": 1,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "Capital Deflection Shield Emitter": {
+        "runs": 607,
+        "jobs": 3,
+        "totalGroupRuns": [
+            607
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "Capital Electrolytic Capacitor Unit": {
+        "runs": 951,
+        "jobs": 4,
+        "totalGroupRuns": [
+            951
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "Capital Fernite Carbide Composite Armor Plate": {
+        "runs": 1368,
+        "jobs": 5,
+        "totalGroupRuns": [
+            1368
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "Capital Jump Drive": {
+        "runs": 27,
+        "jobs": 3,
+        "totalGroupRuns": [
+            27
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "Capital Ladar Sensor Cluster": {
+        "runs": 599,
+        "jobs": 3,
+        "totalGroupRuns": [
+            599
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "Capital Nanomechanical Microprocessor": {
+        "runs": 951,
+        "jobs": 4,
+        "totalGroupRuns": [
+            951
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "Capital Nuclear Reactor Unit": {
+        "runs": 700,
+        "jobs": 5,
+        "totalGroupRuns": [
+            700
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "Capital Plasma Thruster": {
+        "runs": 570,
+        "jobs": 2,
+        "totalGroupRuns": [
+            570
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "Capital Propulsion Engine": {
+        "runs": 18,
+        "jobs": 2,
+        "totalGroupRuns": [
+            18
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "Carbon Fiber": {
+        "runs": 120,
+        "jobs": 8,
+        "totalGroupRuns": [
+            120
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Carbon Polymers": {
+        "runs": 232,
+        "jobs": 15,
+        "totalGroupRuns": [
+            232
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Carbon-86 Epoxy Resin": {
+        "runs": 3,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Ceramic Powder": {
+        "runs": 698,
+        "jobs": 44,
+        "totalGroupRuns": [
+            698
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Core Temperature Regulator": {
+        "runs": 32,
+        "jobs": 2,
+        "totalGroupRuns": [
+            32
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "Dysporite": {
+        "runs": 43,
+        "jobs": 3,
+        "totalGroupRuns": [
+            43
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Fenrir": {
+        "runs": 1,
+        "jobs": 1,
+        "totalGroupRuns": [
+            1
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "Fermionic Condensates": {
+        "runs": 70,
+        "jobs": 5,
+        "totalGroupRuns": [
+            70
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Fernite Alloy": {
+        "runs": 550,
+        "jobs": 35,
+        "totalGroupRuns": [
+            550
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Fernite Carbide": {
+        "runs": 972,
+        "jobs": 61,
+        "totalGroupRuns": [
+            972
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Ferrofluid": {
+        "runs": 15,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Ferrogel": {
+        "runs": 30,
+        "jobs": 2,
+        "totalGroupRuns": [
+            30
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Fluxed Condensates": {
+        "runs": 35,
+        "jobs": 3,
+        "totalGroupRuns": [
+            35
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Fullerene Intercalated Graphite": {
+        "runs": 3,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Fullerides": {
+        "runs": 317,
+        "jobs": 20,
+        "totalGroupRuns": [
+            317
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Fulleroferrocene": {
+        "runs": 1,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "G-O Trigger Neurolink Conduit": {
+        "runs": 15,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "Goal-Orienting Neurolink Stabilizer": {
+        "runs": 2,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Graphene Nanoribbons": {
+        "runs": 5,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Helium Fuel Block": {
+        "runs": 107,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "Hexite": {
+        "runs": 227,
+        "jobs": 15,
+        "totalGroupRuns": [
+            227
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Hydrogen Fuel Block": {
+        "runs": 324,
+        "jobs": 2,
+        "totalGroupRuns": [
+            324
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "Hyperflurite": {
+        "runs": 15,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Hypersynaptic Fibers": {
+        "runs": 16,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Ladar-FTL Interlink Communicator": {
+        "runs": 1,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "Lanthanum Metallofullerene": {
+        "runs": 2,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Life Support Backup Unit": {
+        "runs": 60,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "Methanofullerene": {
+        "runs": 2,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Nanotransistors": {
+        "runs": 23,
+        "jobs": 2,
+        "totalGroupRuns": [
+            23
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Neo Mercurite": {
+        "runs": 76,
+        "jobs": 5,
+        "totalGroupRuns": [
+            76
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Nitrogen Fuel Block": {
+        "runs": 107,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "Nomad": {
+        "runs": 1,
+        "jobs": 1,
+        "totalGroupRuns": [
+            1
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "Oxy-Organic Solvents": {
+        "runs": 20,
+        "jobs": 2,
+        "totalGroupRuns": [
+            20
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Oxygen Fuel Block": {
+        "runs": 46,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "PPD Fullerene Fibers": {
+        "runs": 1,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Phenolic Composites": {
+        "runs": 30,
+        "jobs": 2,
+        "totalGroupRuns": [
+            30
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Plasmonic Metamaterials": {
+        "runs": 128,
+        "jobs": 8,
+        "totalGroupRuns": [
+            128
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Platinum Technite": {
+        "runs": 170,
+        "jobs": 11,
+        "totalGroupRuns": [
+            170
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Pressurized Oxidizers": {
+        "runs": 73,
+        "jobs": 5,
+        "totalGroupRuns": [
+            73
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Prometium": {
+        "runs": 50,
+        "jobs": 4,
+        "totalGroupRuns": [
+            50
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "R.A.M.- Starship Tech": {
+        "runs": 1,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 10,
+        "teLevel": 20
+    },
+    "Reinforced Carbon Fiber": {
+        "runs": 120,
+        "jobs": 8,
+        "totalGroupRuns": [
+            120
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Scandium Metallofullerene": {
+        "runs": 1,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Sense-Heuristic Neurolink Enhancer": {
+        "runs": 27,
+        "jobs": 2,
+        "totalGroupRuns": [
+            27
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Silicon Diborite": {
+        "runs": 15,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Solerium": {
+        "runs": 8,
+        "jobs": 1,
+        "totalGroupRuns": [
+            null
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Sulfuric Acid": {
+        "runs": 85,
+        "jobs": 6,
+        "totalGroupRuns": [
+            85
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Sylramic Fibers": {
+        "runs": 424,
+        "jobs": 27,
+        "totalGroupRuns": [
+            424
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Thermosetting Polymer": {
+        "runs": 120,
+        "jobs": 8,
+        "totalGroupRuns": [
+            120
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    },
+    "Vanadium Hafnite": {
+        "runs": 23,
+        "jobs": 2,
+        "totalGroupRuns": [
+            23
+        ],
+        "meLevel": 0,
+        "teLevel": 0
+    }
+}

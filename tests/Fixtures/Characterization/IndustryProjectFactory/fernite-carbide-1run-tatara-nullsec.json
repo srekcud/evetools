@@ -1,0 +1,58 @@
+[
+    {
+        "product": "Hydrogen Fuel Block",
+        "productTypeId": 4246,
+        "blueprintTypeId": 1004246,
+        "activityType": "manufacturing",
+        "depth": 1,
+        "runs": 1,
+        "quantity": 15,
+        "meLevel": 10,
+        "teLevel": 20,
+        "splitGroup": null,
+        "splitIndex": 0,
+        "totalGroupRuns": null
+    },
+    {
+        "product": "Ceramic Powder",
+        "productTypeId": 16660,
+        "blueprintTypeId": 1016660,
+        "activityType": "reaction",
+        "depth": 1,
+        "runs": 1,
+        "quantity": 98,
+        "meLevel": 0,
+        "teLevel": 0,
+        "splitGroup": null,
+        "splitIndex": 0,
+        "totalGroupRuns": null
+    },
+    {
+        "product": "Fernite Alloy",
+        "productTypeId": 16656,
+        "blueprintTypeId": 1016656,
+        "activityType": "reaction",
+        "depth": 1,
+        "runs": 1,
+        "quantity": 98,
+        "meLevel": 0,
+        "teLevel": 0,
+        "splitGroup": null,
+        "splitIndex": 0,
+        "totalGroupRuns": null
+    },
+    {
+        "product": "Fernite Carbide",
+        "productTypeId": 16673,
+        "blueprintTypeId": 1016673,
+        "activityType": "reaction",
+        "depth": 0,
+        "runs": 1,
+        "quantity": 1,
+        "meLevel": 0,
+        "teLevel": 0,
+        "splitGroup": null,
+        "splitIndex": 0,
+        "totalGroupRuns": null
+    }
+]
