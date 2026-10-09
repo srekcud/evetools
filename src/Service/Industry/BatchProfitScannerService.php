@@ -45,6 +45,7 @@ class BatchProfitScannerService
     ];
 
     public const UNKNOWN_REASON_MISSING_MATERIAL_PRICE = 'missing_material_price';
+    public const UNKNOWN_REASON_MISSING_SALE_PRICE = 'missing_sale_price';
 
     private const CAPITAL_GROUP_IDS = [
         30,   // Titan
@@ -138,7 +139,7 @@ class BatchProfitScannerService
      * profitPerUnit and iskPerDay are null, unknownReason and missingPriceTypeIds explain why.
      * Products with a known cost are ranked first, by iskPerDay descending.
      *
-     * @return list<array{typeId: int, typeName: string, groupName: string, categoryLabel: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float, iskPerDay: float|null, materialCost: float|null, importCost: float, exportCost: float, sellPrice: float, meUsed: int, activityType: string, isFactionBlueprint: bool, bpcCostPerRun: float|null, hasAllSkills: bool, missingSkillCount: int, unknownReason: string|null, missingPriceTypeIds: list<int>}>
+     * @return list<array{typeId: int, typeName: string, groupName: string, categoryLabel: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float, iskPerDay: float|null, materialCost: float|null, importCost: float, exportCost: float, sellPrice: float|null, meUsed: int, activityType: string, isFactionBlueprint: bool, bpcCostPerRun: float|null, hasAllSkills: bool, missingSkillCount: int, unknownReason: string|null, missingPriceTypeIds: list<int>}>
      */
     public function scan(
         ?string $category,
@@ -344,7 +345,9 @@ class BatchProfitScannerService
 
             $isCostUnknown = $missingPriceTypeIds !== [];
 
-            if ($sellPrice === null || $sellPrice <= 0.0 || (!$isCostUnknown && $totalCost <= 0.0)) {
+            $isSalePriceUnknown = $sellPrice === null;
+
+            if (($sellPrice !== null && $sellPrice <= 0.0) || (!$isCostUnknown && $totalCost <= 0.0)) {
                 continue;
             }
 
@@ -354,7 +357,7 @@ class BatchProfitScannerService
             $netProfitPerUnit = null;
             $marginPercent = null;
             $iskPerDay = null;
-            if (!$isCostUnknown) {
+            if ($sellPrice !== null && !$isCostUnknown) {
                 // Apply broker + sales tax to sell price
                 $fees = $sellPrice * ($brokerFeeRate + $salesTaxRate);
                 $netSellPrice = $sellPrice - $fees;
@@ -386,14 +389,18 @@ class BatchProfitScannerService
                 'materialCost' => $isCostUnknown ? null : round($materialCost, 2),
                 'importCost' => round($importCost, 2),
                 'exportCost' => round($exportCost, 2),
-                'sellPrice' => round($sellPrice, 2),
+                'sellPrice' => $sellPrice !== null ? round($sellPrice, 2) : null,
                 'meUsed' => $me,
                 'activityType' => $activityType,
                 'isFactionBlueprint' => isset($factionBlueprintIds[$blueprintTypeId]),
                 'bpcCostPerRun' => $bpcCostPerRun,
                 'hasAllSkills' => $this->checkSkills($blueprintTypeId, $requiredSkillsByBlueprint, $userSkillsByCharacter),
                 'missingSkillCount' => $this->countMissingSkills($blueprintTypeId, $requiredSkillsByBlueprint, $userSkillsByCharacter),
-                'unknownReason' => $isCostUnknown ? self::UNKNOWN_REASON_MISSING_MATERIAL_PRICE : null,
+                'unknownReason' => match (true) {
+                    $isSalePriceUnknown => self::UNKNOWN_REASON_MISSING_SALE_PRICE,
+                    $isCostUnknown => self::UNKNOWN_REASON_MISSING_MATERIAL_PRICE,
+                    default => null,
+                },
                 'missingPriceTypeIds' => array_keys($missingPriceTypeIds),
             ];
         }

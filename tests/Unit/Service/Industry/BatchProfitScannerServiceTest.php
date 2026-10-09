@@ -285,36 +285,6 @@ class BatchProfitScannerServiceTest extends TestCase
         }
     }
 
-    public function testScanSkipsProductsWithNoSellPrice(): void
-    {
-        $this->productRepository->method('findAllManufacturableProducts')->willReturn([
-            ['blueprintTypeId' => 586, 'productTypeId' => 587, 'outputPerRun' => 1, 'activityId' => 1],
-        ]);
-
-        $this->connection->method('fetchFirstColumn')->willReturn([]);
-        $this->connection->method('fetchAllAssociative')->willReturnCallback(
-            fn (string $sql): array => str_contains($sql, 'group_id')
-                ? [['type_id' => 587, 'group_id' => 25, 'group_name' => 'Frigate', 'category_id' => 6, 'volume' => 28100.0]]
-                : [['type_id' => 34, 'volume' => 0.01]]
-        );
-
-        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
-            586 => [['materialTypeId' => 34, 'quantity' => 100]],
-        ]);
-
-        // No sell price for the product
-        $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => null]);
-        $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
-        $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
-        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
-        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
-
-        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
-
-        $this->assertCount(0, $result);
-    }
-
     public function testScanIncludesExportCost(): void
     {
         // Product with known volume (28100 m3) and export cost per m3 = 10.0
@@ -941,6 +911,100 @@ class BatchProfitScannerServiceTest extends TestCase
 
         $this->assertContains(self::RIFTER_TYPE_ID, array_column($result, 'typeId'));
         $this->assertSame(85.19, $this->rowOf(self::RIFTER_TYPE_ID, $result)['marginPercent']);
+    }
+
+    // ---------------------------------------------------------------------
+    // Issue #22: a product outside the Jita sync has no sale price; it stays in the
+    // scan as unknown instead of disappearing from the ranking.
+    // ---------------------------------------------------------------------
+
+    private const string UNKNOWN_REASON_MISSING_SALE_PRICE = 'missing_sale_price';
+
+    public function testProductWithoutJitaSalePriceIsReportedAsUnknownInsteadOfDropped(): void
+    {
+        $this->givenFrigates([
+            self::RIFTER_BLUEPRINT_ID => [self::RIFTER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 100, self::PYERITE_TYPE_ID => 10]],
+        ]);
+        $this->jitaMarketService->method('getPrices')->willReturn([
+            self::TRITANIUM_TYPE_ID => 5.0,
+            self::PYERITE_TYPE_ID => 10.0,
+            self::RIFTER_TYPE_ID => null, // product outside the background Jita sync
+        ]);
+        $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([self::RIFTER_TYPE_ID => 10.0]);
+
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+
+        $this->assertCount(1, $result);
+        $rifter = $result[0];
+        $this->assertSame(self::RIFTER_TYPE_ID, $rifter['typeId']);
+
+        // No sale price, so no profit and no margin, never a plausible 0
+        $this->assertNull($rifter['sellPrice']);
+        $this->assertNull($rifter['profitPerUnit']);
+        $this->assertNull($rifter['marginPercent']);
+        $this->assertNull($rifter['iskPerDay']);
+        $this->assertSame(self::UNKNOWN_REASON_MISSING_SALE_PRICE, $rifter['unknownReason']);
+
+        // The material cost does not depend on the sale price and stays known:
+        // ME10: ceil(100 * 0.9) = 90 Tritanium * 5 + ceil(10 * 0.9) = 9 Pyerite * 10 = 540
+        $this->assertSame(540.0, $rifter['materialCost']);
+        $this->assertSame([], $rifter['missingPriceTypeIds']);
+        $this->assertSame(10.0, $rifter['dailyVolume']);
+    }
+
+    public function testProductWithoutSalePriceIsRankedAfterEveryPricedProduct(): void
+    {
+        // Rifter: profitable. Breacher: loss-making. Slasher: no Jita sale price.
+        $this->givenFrigates([
+            self::RIFTER_BLUEPRINT_ID => [self::RIFTER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 100, self::PYERITE_TYPE_ID => 10]],
+            self::BREACHER_BLUEPRINT_ID => [self::BREACHER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 1000]],
+            self::SLASHER_BLUEPRINT_ID => [self::SLASHER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 100]],
+        ]);
+        $this->jitaMarketService->method('getPrices')->willReturn([
+            self::TRITANIUM_TYPE_ID => 5.0,
+            self::PYERITE_TYPE_ID => 10.0,
+            self::RIFTER_TYPE_ID => 1000.0,
+            self::BREACHER_TYPE_ID => 1000.0,
+            self::SLASHER_TYPE_ID => null,
+        ]);
+        $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([
+            self::RIFTER_TYPE_ID => 10.0,
+            self::BREACHER_TYPE_ID => 10.0,
+            self::SLASHER_TYPE_ID => 50.0,
+        ]);
+
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+
+        // Rifter iskPerDay = 4600, Breacher iskPerDay = (1000 - 900 * 5) * 10 = -35000, Slasher unknown: last
+        $this->assertSame(
+            [self::RIFTER_TYPE_ID, self::BREACHER_TYPE_ID, self::SLASHER_TYPE_ID],
+            array_column($result, 'typeId'),
+        );
+    }
+
+    public function testMinMarginFilterExcludesProductWithoutSalePrice(): void
+    {
+        $this->givenFrigates([
+            self::RIFTER_BLUEPRINT_ID => [self::RIFTER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 100, self::PYERITE_TYPE_ID => 10]],
+            self::SLASHER_BLUEPRINT_ID => [self::SLASHER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 100]],
+        ]);
+        $this->jitaMarketService->method('getPrices')->willReturn([
+            self::TRITANIUM_TYPE_ID => 5.0,
+            self::PYERITE_TYPE_ID => 10.0,
+            self::RIFTER_TYPE_ID => 1000.0,
+            self::SLASHER_TYPE_ID => null,
+        ]);
+        $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([
+            self::RIFTER_TYPE_ID => 10.0,
+            self::SLASHER_TYPE_ID => 50.0,
+        ]);
+
+        $withoutFilter = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+        $withMinMargin = $this->service->scan('all', 10.0, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+
+        // Without filter the unpriced Slasher is listed; an unknown margin never satisfies a minimum margin
+        $this->assertSame([self::RIFTER_TYPE_ID, self::SLASHER_TYPE_ID], array_column($withoutFilter, 'typeId'));
+        $this->assertSame([self::RIFTER_TYPE_ID], array_column($withMinMargin, 'typeId'));
     }
 
     private function givenRifterFullyPricedAndSlasherWithUnpricedMorphite(): void

@@ -754,7 +754,10 @@ onBeforeUnmount(() => {
                 <td class="py-3 px-3 text-right font-mono text-slate-400">
                   {{ formatIsk(item.importCost) }}
                 </td>
-                <td class="py-3 px-3 text-right font-mono" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-400' : 'text-slate-200'">
+                <td v-if="item.sellPrice == null" class="py-3 px-3 text-right font-mono text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
+                  {{ t('industry.inventionUnknown.label') }}
+                </td>
+                <td v-else class="py-3 px-3 text-right font-mono" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-400' : 'text-slate-200'">
                   {{ formatIsk(item.sellPrice) }}
                 </td>
                 <td class="py-3 px-2 text-center font-mono text-xs" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-500' : 'text-slate-400'">

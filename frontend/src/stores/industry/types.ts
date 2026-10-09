@@ -535,7 +535,7 @@ export type BatchScanItem = {
   materialCost: number | null
   exportCost: number
   importCost: number
-  sellPrice: number
+  sellPrice: number | null
   meUsed: number
   activityType: string
   isFactionBlueprint: boolean
