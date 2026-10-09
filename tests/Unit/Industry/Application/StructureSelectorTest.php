@@ -272,6 +272,36 @@ final class StructureSelectorTest extends TestCase
         $this->assertSame(StructureChoiceStatus::BestConfigured, $choice->status);
     }
 
+    /*
+     * The two cases below list the best structure first: a comparator ignoring one of the criteria would keep the
+     * second one.
+     */
+    public function testEqualBonusPicksTheMostRecentlyConfiguredStructureListedFirst(): void
+    {
+        $selector = new StructureSelector([
+            ProductionStructures::raitaru('configured-in-june', SecurityClass::NullSec, null, '2026-06-01 00:00:00'),
+            ProductionStructures::raitaru('configured-in-january', SecurityClass::NullSec, null, '2026-01-01 00:00:00'),
+        ], FavoriteSystems::none());
+
+        $choice = $selector->select(ActivityKind::Manufacturing, 'ammunition');
+
+        $this->assertSame('configured-in-june', $choice->structure?->id);
+        $this->assertEqualsWithDelta(0.99, $choice->materialMultiplier->value, 1e-12);
+    }
+
+    public function testLargerReductionWinsOverAMoreRecentStructureListedSecond(): void
+    {
+        $selector = new StructureSelector([
+            ProductionStructures::raitaru('january-with-rig', SecurityClass::NullSec, null, '2026-01-01 00:00:00', ProductionStructures::manufacturingRig(2.4, 'ammunition')),
+            ProductionStructures::raitaru('june-without-rig', SecurityClass::NullSec, null, '2026-06-01 00:00:00'),
+        ], FavoriteSystems::none());
+
+        $choice = $selector->select(ActivityKind::Manufacturing, 'ammunition');
+
+        $this->assertSame('january-with-rig', $choice->structure?->id);
+        $this->assertEqualsWithDelta(0.940104, $choice->materialMultiplier->value, 1e-12);
+    }
+
     public function testEqualBonusPrefersTheFavoriteSystemOverAMoreRecentStructure(): void
     {
         $selector = new StructureSelector([

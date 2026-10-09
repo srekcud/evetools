@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Industry\Domain;
 
+use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\BlueprintEfficiency;
 use App\Industry\Domain\MarginalCostPlan;
 use App\Industry\Domain\MaterialEfficiency;
@@ -11,6 +12,9 @@ use App\Industry\Domain\Multiplier;
 use App\Industry\Domain\PlanRequest;
 use App\Industry\Domain\PlanTarget;
 use App\Industry\Domain\ProductionPlanner;
+use App\Industry\Domain\Quantity;
+use App\Industry\Domain\Recipe;
+use App\Industry\Domain\RecipeMaterial;
 use App\Industry\Domain\Runs;
 use App\Industry\Domain\TimeEfficiency;
 use App\Tests\Unit\Industry\Domain\Double\ActivityMaterialModifiers;
@@ -31,6 +35,20 @@ final class ProductionPlannerMarginalCostTest extends TestCase
 {
     private const int HAIL_L = 12779;
     private const int RAM_AMMUNITION_TECH = 11476;
+
+    /*
+     * Synthetic catalog, no structure bonus (every modifier is 1); mineral A is consumed by two recipes:
+     *   ship      (manufacturing, 1 / run)   : 10 component + 50 polymer + 100 mineral A
+     *   component (manufacturing, 2 / run)   : 5 mineral A
+     *   polymer   (reaction, 200 / run)      : 100 gas
+     * Target: 2 ship runs at ME 0 → demand 20 component, 100 polymer, 200 mineral A.
+     */
+    private const int SHIP = 1001;
+    private const int COMPONENT = 2001;
+    private const int POLYMER = 2002;
+    private const int MINERAL_A = 3001;
+    private const int GAS = 3004;
+    private const int BPO_MAX_PRODUCTION_LIMIT = 300;
 
     private const float FLOAT_TOLERANCE = 1e-6;
 
@@ -66,6 +84,80 @@ final class ProductionPlannerMarginalCostTest extends TestCase
                 $leafName,
             );
         }
+    }
+
+    public function testStockOfAnIntermediateReducesItsFractionalRunsAndItsSubtree(): void
+    {
+        $marginalCostPlan = self::syntheticMarginalCostPlan(startingStock: [self::COMPONENT => new Quantity(7)]);
+
+        // Component: demand 20 − 7 in stock = 13, 2 per run → 6.5 runs (no ceil);
+        // mineral A: 200 + 6.5 × 5 × 0.9 (ME 10 by default) = 229.25.
+        $this->assertEqualsWithDelta(6.5, $marginalCostPlan->fractionalRuns[self::COMPONENT], self::FLOAT_TOLERANCE);
+        $this->assertEqualsWithDelta(229.25, $marginalCostPlan->leaves[self::MINERAL_A], self::FLOAT_TOLERANCE);
+    }
+
+    public function testMaterialSharedByTwoRecipesAddsUpBothDemands(): void
+    {
+        $marginalCostPlan = self::syntheticMarginalCostPlan();
+
+        // Mineral A: 2 × 100 for the ship + 10 component runs × 5 × 0.9 = 245.
+        $this->assertEqualsWithDelta(10.0, $marginalCostPlan->fractionalRuns[self::COMPONENT], self::FLOAT_TOLERANCE);
+        $this->assertEqualsWithDelta(245.0, $marginalCostPlan->leaves[self::MINERAL_A], self::FLOAT_TOLERANCE);
+    }
+
+    public function testStockOfALeafReducesTheFractionalQuantityToBuy(): void
+    {
+        $marginalCostPlan = self::syntheticMarginalCostPlan(startingStock: [self::MINERAL_A => new Quantity(50)]);
+
+        // 245 − 50 = 195.
+        $this->assertEqualsWithDelta(195.0, $marginalCostPlan->leaves[self::MINERAL_A], self::FLOAT_TOLERANCE);
+    }
+
+    public function testLeafFullyCoveredByStockIsNotBought(): void
+    {
+        $marginalCostPlan = self::syntheticMarginalCostPlan(startingStock: [self::GAS => new Quantity(50)]);
+
+        // Polymer: 100 / 200 = 0.5 run → 50 gas, all in stock: nothing to buy, not even a zero line.
+        $this->assertEqualsWithDelta(0.5, $marginalCostPlan->fractionalRuns[self::POLYMER], self::FLOAT_TOLERANCE);
+        $this->assertSame([self::MINERAL_A], array_keys($marginalCostPlan->leaves));
+    }
+
+    /**
+     * @param array<int, Quantity> $startingStock
+     */
+    private static function syntheticMarginalCostPlan(array $startingStock = []): MarginalCostPlan
+    {
+        $planner = new ProductionPlanner(new InMemoryBlueprintCatalog(
+            self::recipe(self::SHIP, ActivityKind::Manufacturing, 1, [self::COMPONENT => 10, self::POLYMER => 50, self::MINERAL_A => 100]),
+            self::recipe(self::COMPONENT, ActivityKind::Manufacturing, 2, [self::MINERAL_A => 5]),
+            self::recipe(self::POLYMER, ActivityKind::Reaction, 200, [self::GAS => 100]),
+        ));
+
+        return $planner->marginalCost(new PlanRequest(
+            targets: [new PlanTarget(self::SHIP, new Runs(2), new BlueprintEfficiency(new MaterialEfficiency(0), new TimeEfficiency(0)))],
+            materialModifiers: ActivityMaterialModifiers::none(),
+            startingStock: $startingStock,
+        ));
+    }
+
+    /**
+     * @param array<int, int> $baseQuantitiesPerRun by material typeId
+     */
+    private static function recipe(int $productTypeId, ActivityKind $activity, int $outputPerRun, array $baseQuantitiesPerRun): Recipe
+    {
+        $materials = [];
+        foreach ($baseQuantitiesPerRun as $materialTypeId => $baseQuantityPerRun) {
+            $materials[] = new RecipeMaterial($materialTypeId, new Quantity($baseQuantityPerRun));
+        }
+
+        return new Recipe(
+            productTypeId: $productTypeId,
+            activity: $activity,
+            outputPerRun: new Quantity($outputPerRun),
+            materials: $materials,
+            maxProductionLimit: new Runs(self::BPO_MAX_PRODUCTION_LIMIT),
+            baseTimeSeconds: 600,
+        );
     }
 
     private static function hailLMarginalCostPlan(): MarginalCostPlan

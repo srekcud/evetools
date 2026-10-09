@@ -60,6 +60,14 @@ final class InventionChanceTest extends TestCase
         $this->assertSame(1.0, $chance->value);
     }
 
+    public function testBaseProbabilityOfExactlyOneIsAccepted(): void
+    {
+        // ]0, 1]: certainty is a valid base probability.
+        $chance = InventionChance::of(1.0, 0, 0, 0, null);
+
+        $this->assertSame(1.0, $chance->value);
+    }
+
     /**
      * A missing probability is not a 0 probability: the caller passes no chance at all (see InventionExpectationTest).
      */

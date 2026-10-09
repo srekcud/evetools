@@ -220,6 +220,32 @@ final class ProductionPlannerTest extends TestCase
         $this->assertArrayNotHasKey(self::MINERAL_B, $plan->leaves);
     }
 
+    public function testTargetWithoutBlueprintNorReactionCannotBePlanned(): void
+    {
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Target 3001 has no blueprint nor reaction: it cannot be built.');
+
+        $this->plan([new PlanTarget(self::MINERAL_A, new Runs(1), self::efficiency(0, 0))]);
+    }
+
+    public function testProductNeededToBuildItselfIsRefused(): void
+    {
+        // ship → component → polymer → component: the cycle is below the target.
+        $planner = new ProductionPlanner(new InMemoryBlueprintCatalog(
+            self::recipe(self::SHIP, ActivityKind::Manufacturing, 1, [self::COMPONENT => 10]),
+            self::recipe(self::COMPONENT, ActivityKind::Manufacturing, 2, [self::POLYMER => 5]),
+            self::recipe(self::POLYMER, ActivityKind::Reaction, 200, [self::COMPONENT => 1]),
+        ));
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Product 2001 is needed to build itself: the production graph has a cycle.');
+
+        $planner->plan(new PlanRequest(
+            targets: [new PlanTarget(self::SHIP, new Runs(1), self::efficiency(0, 0))],
+            materialModifiers: ActivityMaterialModifiers::none(),
+        ));
+    }
+
     /**
      * @param list<PlanTarget>                $targets
      * @param array<int, Quantity>            $startingStock
