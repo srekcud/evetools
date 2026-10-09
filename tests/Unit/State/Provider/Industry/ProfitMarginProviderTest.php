@@ -1,0 +1,190 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Unit\State\Provider\Industry;
+
+use ApiPlatform\Metadata\Get;
+use App\Constant\EveConstants;
+use App\Entity\IndustryUserSettings;
+use App\Entity\User;
+use App\Repository\IndustryUserSettingsRepository;
+use App\Service\Industry\ProfitMarginService;
+use App\State\Provider\Industry\ProfitMarginProvider;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\TestCase;
+use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
+
+/**
+ * Characterization of the /industry/profit-margin/{typeId} defaults, before ProfitMarginService moves to the industry engine (spec §7, rank 1).
+ * The computation itself is covered by ProfitMarginServiceTest and ProfitMarginGoldenCharacterizationTest.
+ */
+#[CoversClass(ProfitMarginProvider::class)]
+class ProfitMarginProviderTest extends TestCase
+{
+    private const int HAIL_L_TYPE_ID = 12779;
+    private const int PREFERRED_MARKET_STRUCTURE_ID = 1035466617946;
+    private const int FAVORITE_MANUFACTURING_SYSTEM_ID = 30002510;
+
+    public function testWithoutQueryNorSettingsCurrentlyAnalyzesOneRunAtMeTenInJitaSoldAtJitaStation(): void
+    {
+        $user = new User();
+        $profitMarginService = $this->createMock(ProfitMarginService::class);
+
+        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #18 (ME 10 by default, even for a T2 whose invented BPC is ME 2)
+        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. glossaire « Structure de marché par défaut » (the Jita station id is sent as a structure id)
+        $profitMarginService->expects($this->once())
+            ->method('analyze')
+            ->with(
+                self::HAIL_L_TYPE_ID,
+                1,
+                10,
+                20,
+                EveConstants::JITA_STATION_ID,
+                EveConstants::JITA_SOLAR_SYSTEM_ID,
+                null,
+                0.036,
+                0.036,
+                $user,
+            )
+            ->willReturn($this->analysis());
+
+        $resource = $this->provider($user, new Request(), $profitMarginService)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+
+        $this->assertSame(self::HAIL_L_TYPE_ID, $resource->typeId);
+        $this->assertSame(10, $resource->runs);
+        $this->assertSame(50000, $resource->outputQuantity);
+        $this->assertSame(526232.3, $resource->totalCost);
+        $this->assertNull($resource->margins['jitaSell']);
+    }
+
+    public function testRunsBelowOneAreCurrentlyRaisedToOneRun(): void
+    {
+        $profitMarginService = $this->createMock(ProfitMarginService::class);
+        $profitMarginService->expects($this->once())
+            ->method('analyze')
+            ->with(self::HAIL_L_TYPE_ID, 1, 2, 4, 1035466617946, 30002510, 34205)
+            ->willReturn($this->analysis());
+
+        $request = new Request([
+            'runs' => '0',
+            'me' => '2',
+            'te' => '4',
+            'structureId' => '1035466617946',
+            'solarSystemId' => '30002510',
+            'decryptorTypeId' => '34205',
+        ]);
+
+        $this->provider(new User(), $request, $profitMarginService)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+    }
+
+    public function testUserSettingsAndPreferredMarketStructureReplaceTheDefaults(): void
+    {
+        $user = (new User())->setPreferredMarketStructureId(self::PREFERRED_MARKET_STRUCTURE_ID);
+        $settings = $this->settings($user);
+        $profitMarginService = $this->createMock(ProfitMarginService::class);
+        $profitMarginService->expects($this->once())
+            ->method('analyze')
+            ->with(
+                self::HAIL_L_TYPE_ID,
+                1,
+                10,
+                20,
+                self::PREFERRED_MARKET_STRUCTURE_ID,
+                self::FAVORITE_MANUFACTURING_SYSTEM_ID,
+                null,
+                0.015,
+                0.0225,
+                $user,
+            )
+            ->willReturn($this->analysis());
+
+        $this->provider($user, new Request(), $profitMarginService, $settings)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+    }
+
+    public function testQueryStructureAndSystemTakePrecedenceOverSettingsAndPreferredMarketStructure(): void
+    {
+        $user = (new User())->setPreferredMarketStructureId(self::PREFERRED_MARKET_STRUCTURE_ID);
+        $settings = $this->settings($user);
+        $profitMarginService = $this->createMock(ProfitMarginService::class);
+        $profitMarginService->expects($this->once())
+            ->method('analyze')
+            ->with(
+                self::HAIL_L_TYPE_ID,
+                3,
+                10,
+                20,
+                1046664001931,
+                EveConstants::JITA_SOLAR_SYSTEM_ID,
+                null,
+                0.015,
+                0.0225,
+                $user,
+            )
+            ->willReturn($this->analysis());
+
+        $request = new Request([
+            'runs' => '3',
+            'structureId' => '1046664001931',
+            'solarSystemId' => (string) EveConstants::JITA_SOLAR_SYSTEM_ID,
+        ]);
+
+        $this->provider($user, $request, $profitMarginService, $settings)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+    }
+
+    private function settings(User $user): IndustryUserSettings
+    {
+        return (new IndustryUserSettings())
+            ->setUser($user)
+            ->setBrokerFeeRate(0.015)
+            ->setSalesTaxRate(0.0225)
+            ->setFavoriteManufacturingSystemId(self::FAVORITE_MANUFACTURING_SYSTEM_ID);
+    }
+
+    private function provider(User $user, Request $request, ProfitMarginService $profitMarginService, ?IndustryUserSettings $settings = null): ProfitMarginProvider
+    {
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn($user);
+        $requestStack = new RequestStack();
+        $requestStack->push($request);
+        $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
+        $settingsRepository->method('findOneBy')->willReturn($settings);
+
+        return new ProfitMarginProvider($security, $requestStack, $profitMarginService, $settingsRepository);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function analysis(): array
+    {
+        return [
+            'typeId' => self::HAIL_L_TYPE_ID,
+            'typeName' => 'Hail L',
+            'isT2' => true,
+            'runs' => 10,
+            'outputQuantity' => 50000,
+            'outputPerRun' => 5000,
+            'materialCost' => 508100.0,
+            'materials' => [],
+            'jobInstallCost' => 15279.0,
+            'jobInstallSteps' => [],
+            'inventionCost' => 2685.0,
+            'copyCost' => 168.3,
+            'totalCost' => 526232.3,
+            'costPerUnit' => 10.524646,
+            'invention' => null,
+            'sellPrices' => [],
+            'brokerFeeRate' => 0.036,
+            'salesTaxRate' => 0.036,
+            'margins' => ['jitaSell' => null, 'structureSell' => null, 'structureBuy' => null, 'contractSell' => null],
+            'dailyVolume' => 0.0,
+        ];
+    }
+}
