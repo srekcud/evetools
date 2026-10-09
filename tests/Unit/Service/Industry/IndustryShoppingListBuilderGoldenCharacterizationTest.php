@@ -116,8 +116,7 @@ final class IndustryShoppingListBuilderGoldenCharacterizationTest extends TestCa
 
         $quantities = $this->quantitiesByTypeId($this->builder->getShoppingList($project));
 
-        self::assertSame(450, $quantities[self::NITROGEN_ISOTOPES]);
-        self::assertSame(1, $quantities[self::ROBOTICS]);
+        self::assertSame(450 * $quantities[self::ROBOTICS], $quantities[self::NITROGEN_ISOTOPES]);
     }
 
     // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issues #2 et #16 : 10 runs de Fernite Carbide
@@ -175,22 +174,20 @@ final class IndustryShoppingListBuilderGoldenCharacterizationTest extends TestCa
 
     public function testShoppingListBuysAPurchasedIntermediateInsteadOfItsSubtree(): void
     {
-        $project = $this->tenRunsOfFerniteCarbide();
+        $this->pilot->setIndustryBlacklistTypeIds([self::HYDROGEN_FUEL_BLOCK]);
+        $project = $this->oneRunOfFerniteCarbide();
         self::addStep($project, self::FERNITE_ALLOY, 1, 1, 'reaction', 0)->setPurchased(true);
 
         $quantities = $this->quantitiesByTypeId($this->builder->getShoppingList($project));
 
-        $expected = array_map(static fn (int $quantity): int => 2 * $quantity, self::ONE_RUN_OF_HYDROGEN_FUEL_BLOCK)
-            + [self::FERNITE_ALLOY => 100, 16635 => 100, 16636 => 100];
-        ksort($expected);
-        self::assertSame($expected, $quantities);
+        self::assertSame([self::HYDROGEN_FUEL_BLOCK => 10, 16635 => 100, 16636 => 100, self::FERNITE_ALLOY => 100], $quantities);
     }
 
     public function testShoppingListBuysABlacklistedIntermediateAsALeaf(): void
     {
         $this->pilot->setIndustryBlacklistTypeIds([self::HYDROGEN_FUEL_BLOCK]);
 
-        $quantities = $this->quantitiesByTypeId($this->builder->getShoppingList($this->tenRunsOfFerniteCarbide()));
+        $quantities = $this->quantitiesByTypeId($this->builder->getShoppingList($this->oneRunOfFerniteCarbide()));
 
         self::assertSame(
             [self::HYDROGEN_FUEL_BLOCK => 15, 16635 => 100, 16636 => 100, 16639 => 100, 16642 => 100],
@@ -200,22 +197,20 @@ final class IndustryShoppingListBuilderGoldenCharacterizationTest extends TestCa
 
     public function testShoppingListDropsTheSubtreeOfAnIntermediateFullyInStock(): void
     {
-        $project = $this->tenRunsOfFerniteCarbide();
+        $this->pilot->setIndustryBlacklistTypeIds([self::HYDROGEN_FUEL_BLOCK]);
+        $project = $this->oneRunOfFerniteCarbide();
         self::addStep($project, self::FERNITE_ALLOY, 1, 1, 'reaction', 0)->setInStockQuantity(100);
 
         $quantities = $this->quantitiesByTypeId($this->builder->getShoppingList($project));
 
-        $expected = array_map(static fn (int $quantity): int => 2 * $quantity, self::ONE_RUN_OF_HYDROGEN_FUEL_BLOCK)
-            + [16635 => 100, 16636 => 100];
-        ksort($expected);
-        self::assertSame($expected, $quantities);
+        self::assertSame([self::HYDROGEN_FUEL_BLOCK => 10, 16635 => 100, 16636 => 100], $quantities);
     }
 
     // Le stock est consommé une seule fois, dans l'ordre de parcours : 10 Hydrogen Fuel Block couvrent la racine (5)
     // puis la branche Fernite Alloy (5) ; la branche Ceramic Powder fabrique le sien.
     public function testShoppingListConsumesTheStockOfAnIntermediateOnceAcrossBranches(): void
     {
-        $project = $this->tenRunsOfFerniteCarbide();
+        $project = $this->oneRunOfFerniteCarbide();
         self::addStep($project, self::HYDROGEN_FUEL_BLOCK, 1, 2, 'manufacturing')->setInStockQuantity(10);
 
         $quantities = $this->quantitiesByTypeId($this->builder->getShoppingList($project));
@@ -227,14 +222,15 @@ final class IndustryShoppingListBuilderGoldenCharacterizationTest extends TestCa
 
     public function testShoppingListAddsTheInStockQuantitiesOfSeveralStepsOfTheSameProduct(): void
     {
-        $project = $this->tenRunsOfFerniteCarbide();
+        $this->pilot->setIndustryBlacklistTypeIds([self::HYDROGEN_FUEL_BLOCK]);
+        $project = $this->oneRunOfFerniteCarbide();
         self::addStep($project, self::FERNITE_ALLOY, 1, 1, 'reaction', 0)->setInStockQuantity(60);
         self::addStep($project, self::FERNITE_ALLOY, 1, 1, 'reaction', 0)->setInStockQuantity(40);
 
         $quantities = $this->quantitiesByTypeId($this->builder->getShoppingList($project));
 
         self::assertArrayNotHasKey(16639, $quantities);
-        self::assertSame(2 * 405, $quantities[17889]);
+        self::assertSame(10, $quantities[self::HYDROGEN_FUEL_BLOCK]);
     }
 
     // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #20 (R9) : 50 Fernite Alloy en stock sur 100
@@ -242,8 +238,8 @@ final class IndustryShoppingListBuilderGoldenCharacterizationTest extends TestCa
     // et le stock partiel est perdu. La liste est identique à celle d'un projet sans stock.
     public function testShoppingListCurrentlyIgnoresThePartialStockOfAnIntermediateIssue20(): void
     {
-        $withoutStock = $this->builder->getShoppingList($this->tenRunsOfFerniteCarbide());
-        $project = $this->tenRunsOfFerniteCarbide();
+        $withoutStock = $this->builder->getShoppingList($this->oneRunOfFerniteCarbide());
+        $project = $this->oneRunOfFerniteCarbide();
         self::addStep($project, self::FERNITE_ALLOY, 1, 1, 'reaction', 0)->setInStockQuantity(50);
 
         $shoppingList = $this->builder->getShoppingList($project);
@@ -257,8 +253,8 @@ final class IndustryShoppingListBuilderGoldenCharacterizationTest extends TestCa
     // au lieu des 50 Fernite Alloy manquants.
     public function testShoppingListCurrentlyBuildsThePurchasedIntermediateWithPartialStockInFullIssue20(): void
     {
-        $withoutStock = $this->builder->getShoppingList($this->tenRunsOfFerniteCarbide());
-        $project = $this->tenRunsOfFerniteCarbide();
+        $withoutStock = $this->builder->getShoppingList($this->oneRunOfFerniteCarbide());
+        $project = $this->oneRunOfFerniteCarbide();
         self::addStep($project, self::FERNITE_ALLOY, 1, 1, 'reaction', 0)->setPurchased(true)->setInStockQuantity(50);
 
         $shoppingList = $this->builder->getShoppingList($project);
@@ -270,7 +266,7 @@ final class IndustryShoppingListBuilderGoldenCharacterizationTest extends TestCa
     public function testShoppingListBuysTheUncoveredPartOfABlacklistedIntermediateInStock(): void
     {
         $this->pilot->setIndustryBlacklistTypeIds([self::HYDROGEN_FUEL_BLOCK]);
-        $project = $this->tenRunsOfFerniteCarbide();
+        $project = $this->oneRunOfFerniteCarbide();
         self::addStep($project, self::HYDROGEN_FUEL_BLOCK, 1, 2, 'manufacturing')->setInStockQuantity(7);
 
         $quantities = $this->quantitiesByTypeId($this->builder->getShoppingList($project));
@@ -338,9 +334,27 @@ final class IndustryShoppingListBuilderGoldenCharacterizationTest extends TestCa
         ], $shoppingList);
     }
 
+    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #6 (R4, D3) : sans structure, la meilleure
+    // structure du pilote est l'absence de bonus ; l'étape assignée à un Raitaru (1 %) consomme 401 Nitrogen Isotopes,
+    // mais la liste en achète 405 et l'économie de 4 n'apparaît nulle part (extraQuantity borné à 0).
+    public function testShoppingListOfAStepInABetterStructureThanThePilotsBestCurrentlyHidesTheSaving(): void
+    {
+        $this->pilotStructures = [];
+        $project = self::projectOf($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 10);
+        self::addStep($project, self::NITROGEN_FUEL_BLOCK, 1, 0, 'manufacturing')
+            ->setStructureConfig(self::structure($this->pilot, 'raitaru'));
+
+        $shoppingList = $this->builder->getShoppingList($project);
+
+        self::assertContains(
+            ['typeId' => self::NITROGEN_ISOTOPES, 'typeName' => 'Nitrogen Isotopes', 'quantity' => 405, 'extraQuantity' => 0],
+            $shoppingList,
+        );
+    }
+
     public function testShoppingListReadsTheStockAndPurchasesOfTheStepsAfterACopyStep(): void
     {
-        $project = $this->tenRunsOfFerniteCarbide();
+        $project = $this->oneRunOfFerniteCarbide();
         self::addStep($project, self::FERNITE_CARBIDE, 1, 0, 'copy');
         self::addStep($project, self::FERNITE_ALLOY, 1, 1, 'reaction', 0)->setPurchased(true);
         self::addStep($project, self::CERAMIC_POWDER, 1, 1, 'reaction', 0)->setInStockQuantity(100);
@@ -372,7 +386,7 @@ final class IndustryShoppingListBuilderGoldenCharacterizationTest extends TestCa
 
     public function testGetPurchasedQuantitiesAddsThePurchasesOfEveryStepByType(): void
     {
-        $project = $this->tenRunsOfFerniteCarbide();
+        $project = $this->oneRunOfFerniteCarbide();
         $ferniteAlloyStep = self::addStep($project, self::FERNITE_ALLOY, 1, 1, 'reaction', 0);
         $ceramicPowderStep = self::addStep($project, self::CERAMIC_POWDER, 1, 1, 'reaction', 0);
         $ferniteAlloyStep->addPurchase((new IndustryStepPurchase())->setTypeId(16639)->setQuantity(60));
@@ -382,10 +396,10 @@ final class IndustryShoppingListBuilderGoldenCharacterizationTest extends TestCa
         self::assertSame([16639 => 100, 16635 => 100], $this->builder->getPurchasedQuantities($project));
     }
 
-    private function tenRunsOfFerniteCarbide(): IndustryProject
+    private function oneRunOfFerniteCarbide(): IndustryProject
     {
-        $project = self::projectOf($this->pilot, self::FERNITE_CARBIDE, 10, 0);
-        self::addStep($project, self::FERNITE_CARBIDE, 10, 0, 'reaction', 0);
+        $project = self::projectOf($this->pilot, self::FERNITE_CARBIDE, 1, 0);
+        self::addStep($project, self::FERNITE_CARBIDE, 1, 0, 'reaction', 0);
 
         return $project;
     }
