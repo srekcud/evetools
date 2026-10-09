@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Sync;
 
+use App\Dto\AssetDto;
 use App\Entity\CachedAsset;
 use App\Entity\Character;
 use App\Repository\CachedAssetRepository;
@@ -129,6 +130,11 @@ class AssetsSyncService
                 );
             }
 
+            $assetsByItemId = [];
+            foreach ($assets as $assetDto) {
+                $assetsByItemId[$assetDto->itemId] = $assetDto;
+            }
+
             // Cache the assets with division names
             foreach ($assets as $assetDto) {
                 $cachedAsset = new CachedAsset();
@@ -146,13 +152,9 @@ class AssetsSyncService
                 $cachedAsset->setCorporationId($corporationId);
                 $cachedAsset->setIsCorporationAsset(true);
 
-                // Map location flag to division name
-                if ($assetDto->locationFlag !== null) {
-                    $divisionNumber = $this->extractDivisionNumber($assetDto->locationFlag);
-
-                    if ($divisionNumber !== null && isset($divisions[$divisionNumber])) {
-                        $cachedAsset->setDivisionName($divisions[$divisionNumber]);
-                    }
+                $divisionNumber = $this->resolveDivisionNumber($assetDto, $assetsByItemId);
+                if ($divisionNumber !== null && isset($divisions[$divisionNumber])) {
+                    $cachedAsset->setDivisionName($divisions[$divisionNumber]);
                 }
 
                 $this->entityManager->persist($cachedAsset);
@@ -269,6 +271,32 @@ class AssetsSyncService
 
         // Fallback: any character in the corp with the scope
         return $this->characterRepository->findWithCorpAssetsAccess($corporationId);
+    }
+
+    /**
+     * @param array<int, AssetDto> $assetsByItemId
+     */
+    private function resolveDivisionNumber(AssetDto $assetDto, array $assetsByItemId): ?int
+    {
+        $visitedItemIds = [];
+        $current = $assetDto;
+        while (!isset($visitedItemIds[$current->itemId])) {
+            if ($current->locationFlag !== null) {
+                $divisionNumber = $this->extractDivisionNumber($current->locationFlag);
+                if ($divisionNumber !== null) {
+                    return $divisionNumber;
+                }
+            }
+
+            if (!isset($assetsByItemId[$current->locationId])) {
+                return null;
+            }
+
+            $visitedItemIds[$current->itemId] = true;
+            $current = $assetsByItemId[$current->locationId];
+        }
+
+        return null;
     }
 
     private function extractDivisionNumber(string $locationFlag): ?int

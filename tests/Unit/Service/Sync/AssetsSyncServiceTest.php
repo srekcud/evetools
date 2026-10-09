@@ -399,8 +399,73 @@ class AssetsSyncServiceTest extends TestCase
     }
 
     // ===========================================
+    // Container contents — division of the root container (issue #54)
+    // ===========================================
+
+    public function testSyncCorporationAssetsGivesContainerContentsTheDivisionNameOfTheirRootContainer(): void
+    {
+        $officeItemId = 1_040_000_000_001;
+        $rootContainerItemId = 1_040_000_000_201;
+        $nestedContainerItemId = 1_040_000_000_202;
+        $tritaniumInRootContainerItemId = 1_040_000_000_211;
+        $pyeriteInNestedContainerItemId = 1_040_000_000_221;
+
+        $character = $this->createCharacterWithUser(12345);
+        $this->corporationService->method('getDivisions')->willReturn([1 => 'Minerals', 2 => 'Production Stock']);
+        $this->assetsService->method('getCorporationAssets')->willReturn([
+            $this->createAssetInLocation($pyeriteInNestedContainerItemId, $nestedContainerItemId, 'item', 'Unlocked'),
+            $this->createAssetInLocation($tritaniumInRootContainerItemId, $rootContainerItemId, 'item', 'Unlocked'),
+            $this->createAssetInLocation($nestedContainerItemId, $rootContainerItemId, 'item', 'Locked'),
+            $this->createAssetInLocation($rootContainerItemId, $officeItemId, 'item', 'CorpSAG2'),
+        ]);
+        $this->recordCacheDeletionsAndWrites();
+
+        $this->service->syncCorporationAssets($character);
+
+        $this->assertSame(
+            [
+                $pyeriteInNestedContainerItemId => 'Production Stock',
+                $tritaniumInRootContainerItemId => 'Production Stock',
+                $nestedContainerItemId => 'Production Stock',
+                $rootContainerItemId => 'Production Stock',
+            ],
+            $this->divisionNamesByItemId(),
+        );
+    }
+
+    // ===========================================
     // Helpers
     // ===========================================
+
+    /**
+     * @return array<int, ?string>
+     */
+    private function divisionNamesByItemId(): array
+    {
+        $divisionNames = [];
+        foreach ($this->persistedAssets as $cachedAsset) {
+            $divisionNames[$cachedAsset->getItemId()] = $cachedAsset->getDivisionName();
+        }
+
+        return $divisionNames;
+    }
+
+    private function createAssetInLocation(int $itemId, int $locationId, string $locationType, string $locationFlag): AssetDto
+    {
+        return new AssetDto(
+            itemId: $itemId,
+            typeId: 34,
+            typeName: 'Tritanium',
+            quantity: 1,
+            locationId: $locationId,
+            locationName: 'Jita IV - Moon 4',
+            locationType: $locationType,
+            locationFlag: $locationFlag,
+            solarSystemId: 30000142,
+            solarSystemName: 'Jita',
+            itemName: null,
+        );
+    }
 
     /**
      * Records, in call order, every cached-asset deletion, persist and flush.

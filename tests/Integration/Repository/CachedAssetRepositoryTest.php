@@ -26,6 +26,10 @@ final class CachedAssetRepositoryTest extends IntegrationTestCase
     private const int CORP_DELIVERIES_MEXALLON_ITEM_ID = 1_040_000_000_901;
     private const int IMPOUNDED_ISOGEN_ITEM_ID = 1_040_000_000_902;
     private const int OTHER_CORPORATION_TRITANIUM_ITEM_ID = 1_040_000_009_101;
+    private const int PRODUCTION_STOCK_CONTAINER_ITEM_ID = 1_040_000_000_201;
+    private const int PRODUCTION_STOCK_NESTED_CONTAINER_ITEM_ID = 1_040_000_000_202;
+    private const int PRODUCTION_STOCK_TRITANIUM_ITEM_ID = 1_040_000_000_211;
+    private const int PRODUCTION_STOCK_NESTED_PYERITE_ITEM_ID = 1_040_000_000_221;
 
     private CachedAssetRepository $repository;
 
@@ -42,6 +46,10 @@ final class CachedAssetRepositoryTest extends IntegrationTestCase
         $this->createCorporationAsset(self::CORP_DELIVERIES_MEXALLON_ITEM_ID, 36, 'Mexallon', 20_000, self::JITA_STATION_ID, 'station', 'CorpDeliveries', null);
         $this->createCorporationAsset(self::IMPOUNDED_ISOGEN_ITEM_ID, 37, 'Isogen', 8_000, self::JITA_STATION_ID, 'station', 'Impounded', null);
         $this->createCorporationAsset(self::OTHER_CORPORATION_TRITANIUM_ITEM_ID, 34, 'Tritanium', 999, self::JITA_STATION_ID, 'item', 'CorpSAG1', 'Materials', self::OTHER_CORPORATION_ID);
+        $this->createCorporationAsset(self::PRODUCTION_STOCK_CONTAINER_ITEM_ID, 17366, 'Station Container', 1, self::OFFICE_ITEM_ID, 'item', 'CorpSAG2', 'Production Stock');
+        $this->createCorporationAsset(self::PRODUCTION_STOCK_NESTED_CONTAINER_ITEM_ID, 3467, 'Small Secure Container', 1, self::PRODUCTION_STOCK_CONTAINER_ITEM_ID, 'item', 'Locked', 'Production Stock');
+        $this->createCorporationAsset(self::PRODUCTION_STOCK_TRITANIUM_ITEM_ID, 34, 'Tritanium', 400_000, self::PRODUCTION_STOCK_CONTAINER_ITEM_ID, 'item', 'Unlocked', 'Production Stock');
+        $this->createCorporationAsset(self::PRODUCTION_STOCK_NESTED_PYERITE_ITEM_ID, 35, 'Pyerite', 120_000, self::PRODUCTION_STOCK_NESTED_CONTAINER_ITEM_ID, 'item', 'Unlocked', 'Production Stock');
         $this->flushAndClear();
     }
 
@@ -66,6 +74,7 @@ final class CachedAssetRepositoryTest extends IntegrationTestCase
                 self::MATERIALS_PYERITE_ITEM_ID,
                 self::SHIPS_RIFTER_ITEM_ID,
                 self::DIRECTOR_STASH_PLEX_ITEM_ID,
+                self::PRODUCTION_STOCK_CONTAINER_ITEM_ID,
             ],
             $this->itemIdsOf($assets),
         );
@@ -91,6 +100,48 @@ final class CachedAssetRepositoryTest extends IntegrationTestCase
         self::assertSame([], $this->repository->findByCorporationDivisionNameAndFlags(self::CORPORATION_ID, 'Director Stash', [1, 3]));
     }
 
+    public function testContainerContentsOfAnAllowedDivisionAreReturnedWithTheirQuantities(): void
+    {
+        $assets = $this->visibleAssetsOfDivisions([2]);
+
+        self::assertEqualsCanonicalizing(
+            [
+                self::PRODUCTION_STOCK_CONTAINER_ITEM_ID,
+                self::PRODUCTION_STOCK_NESTED_CONTAINER_ITEM_ID,
+                self::PRODUCTION_STOCK_TRITANIUM_ITEM_ID,
+                self::PRODUCTION_STOCK_NESTED_PYERITE_ITEM_ID,
+            ],
+            $this->itemIdsOf($assets),
+        );
+        self::assertSame(520_002, array_sum(array_map(static fn (CachedAsset $a): int => $a->getQuantity(), $assets)));
+    }
+
+    public function testContainerContentsOfANamedAllowedDivisionAreReturned(): void
+    {
+        $hangarAssets = $this->repository->findByCorporationDivisionNameAndFlags(self::CORPORATION_ID, 'Production Stock', [1, 2]);
+        $assets = [...$hangarAssets, ...$this->repository->findContentsOfContainers(self::CORPORATION_ID, $this->itemIdsOf($hangarAssets))];
+
+        self::assertEqualsCanonicalizing(
+            [
+                self::PRODUCTION_STOCK_CONTAINER_ITEM_ID,
+                self::PRODUCTION_STOCK_NESTED_CONTAINER_ITEM_ID,
+                self::PRODUCTION_STOCK_TRITANIUM_ITEM_ID,
+                self::PRODUCTION_STOCK_NESTED_PYERITE_ITEM_ID,
+            ],
+            $this->itemIdsOf($assets),
+        );
+    }
+
+    public function testContainerContentsOfADivisionThatIsNotAllowedAreNotReturned(): void
+    {
+        $assets = $this->visibleAssetsOfDivisions([1, 3]);
+
+        self::assertEqualsCanonicalizing(
+            [self::MATERIALS_TRITANIUM_ITEM_ID, self::MATERIALS_PYERITE_ITEM_ID, self::SHIPS_RIFTER_ITEM_ID],
+            $this->itemIdsOf($assets),
+        );
+    }
+
     /**
      * Guard: GroupIndustryContainerService reads every corporation asset (container
      * verification by name). Restricting what members see must not go through this finder.
@@ -106,6 +157,10 @@ final class CachedAssetRepositoryTest extends IntegrationTestCase
                 self::DIRECTOR_STASH_PLEX_ITEM_ID,
                 self::CORP_DELIVERIES_MEXALLON_ITEM_ID,
                 self::IMPOUNDED_ISOGEN_ITEM_ID,
+                self::PRODUCTION_STOCK_CONTAINER_ITEM_ID,
+                self::PRODUCTION_STOCK_NESTED_CONTAINER_ITEM_ID,
+                self::PRODUCTION_STOCK_TRITANIUM_ITEM_ID,
+                self::PRODUCTION_STOCK_NESTED_PYERITE_ITEM_ID,
             ],
             $this->itemIdsOf($this->repository->findByCorporationId(self::CORPORATION_ID)),
         );
@@ -136,6 +191,19 @@ final class CachedAssetRepositoryTest extends IntegrationTestCase
             ->setSolarSystemName('Jita')
             ->setCorporationId($corporationId)
             ->setIsCorporationAsset(true));
+    }
+
+    /**
+     * Same chaining as CorporationAssetsProvider: allowed hangar rows, then the contents of their containers.
+     *
+     * @param int[] $allowedDivisions
+     * @return CachedAsset[]
+     */
+    private function visibleAssetsOfDivisions(array $allowedDivisions): array
+    {
+        $hangarAssets = $this->repository->findByCorporationAndDivisions(self::CORPORATION_ID, $allowedDivisions);
+
+        return [...$hangarAssets, ...$this->repository->findContentsOfContainers(self::CORPORATION_ID, $this->itemIdsOf($hangarAssets))];
     }
 
     /**

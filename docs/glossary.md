@@ -89,6 +89,8 @@ surplus           = quantité produite − (demande − stock)
 | Terme FR | Term EN | Définition | Symbole(s) |
 |---|---|---|---|
 | **Autorisation révoquée** | Revoked authorization | Le refresh token d'un personnage est refusé par EVE SSO (`invalid_grant`) : le joueur a révoqué l'application ou le token a expiré. L'utilisateur passe en auth invalide, ses personnages sortent des syncs planifiées, et il doit se reconnecter par EVE SSO. | `AuthStatus::Invalid`, `User::markAuthInvalid()`, `EveAuthRequiredException` |
+| **Division** | Division | Hangar numéroté d'une corporation, dont le nom vient de l'ESI (`/corporations/{id}/divisions/`, partie `hangar` ; « Division N » si l'ESI ne donne pas de nom). Un asset rangé directement dans une division porte le flag `CorpSAG{N}`. À la sync, le nom de division d'un asset vient du premier flag `CorpSAG{N}` trouvé en remontant ses containers : le contenu d'un container, même imbriqué, porte le nom de division de son container racine, mais garde son propre flag. Les divisions visibles des membres sont une liste blanche fixée par un directeur. | `CorporationService::getDivisions()`, `CachedAsset::$divisionName`, `AssetsSyncService::resolveDivisionNumber()`, `CorpAssetVisibility::getVisibleDivisions()` |
+| **Container** | Container | Asset qui en contient d'autres. L'ESI pointe le `location_id` d'un item contenu sur l'`item_id` de son container et ne répète pas le flag du hangar : on ne retrouve le contenu qu'en suivant cette chaîne de parents. Un container peut être imbriqué dans un autre ; le container racine est celui rangé directement dans une division. | `CachedAssetRepository::findContentsOfContainers()`, `CorporationAssetsProvider::findVisibleAssets()` |
 
 ## Ambiguïtés connues
 
