@@ -119,7 +119,10 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         self::assertSame(40, $preview['stages']['final_product'][0]['quantity']);
     }
 
-    public function testPreviewOfFortyUnitsOfNitrogenFuelBlockAtMeTenRoundsEachMaterialUpWithAMinimumOfOnePerRun(): void
+    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #2 (R3, B1) : les 41 runs saisis sont lus
+    // comme 41 unités, soit 2 runs de 40 unités : cible 80 au lieu de 1640. Chaque matériau est arrondi au supérieur
+    // avec un minimum d'une unité par run.
+    public function testPreviewOfNitrogenFuelBlockAtMeTenCurrentlyReadsFortyOneRunsAsUnitsIssue2(): void
     {
         $preview = $this->service->previewImport($this->pilot, self::NITROGEN_FUEL_BLOCK, 41, 10);
 
@@ -194,6 +197,19 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         self::assertSame([], $preview['stages']['intermediate']);
     }
 
+    public function testPreviewOfFerniteCarbideIgnoresTheMe(): void
+    {
+        $previewAtMeZero = $this->service->previewImport($this->pilot, self::FERNITE_CARBIDE, 1, 0);
+        $previewAtMeTen = $this->service->previewImport($this->pilot, self::FERNITE_CARBIDE, 1, 10);
+
+        self::assertSame($previewAtMeZero['stages'], $previewAtMeTen['stages']);
+        self::assertSame(
+            [44 => 12, 3683 => 60, 3689 => 12, 9832 => 27, 9848 => 3, 16272 => 459, 16273 => 945, 16275 => 54, 17889 => 1215, 16639 => 100, 16642 => 100, 16635 => 100, 16636 => 100],
+            $this->quantitiesByTypeId($previewAtMeTen['stages']['raw_material']),
+        );
+        self::assertSame(17, $previewAtMeTen['totalItems']);
+    }
+
     // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #69 (R3) : la demande d'un intermédiaire n'est
     // pas agrégée entre branches avant l'arrondi en runs. Sur le golden Nomad (Ravworks, fait foi), 29 feuilles sur 63
     // et 19 intermédiaires sur 65 sont surestimés dans les cibles du stockpile (Oxygen Isotopes +50 %).
@@ -248,7 +264,7 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
             $persisted[] = $target;
         });
 
-        $this->service->importFromBlueprint($this->pilot, self::NITROGEN_FUEL_BLOCK, 25, 10, 'merge');
+        $this->service->importFromBlueprint($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 10, 'merge');
 
         self::assertSame(1009, $existingCoolant->getTargetQuantity());
         self::assertNotNull($existingCoolant->getUpdatedAt());

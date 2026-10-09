@@ -38,6 +38,8 @@ final class StockpileStatusCharacterizationTest extends TestCase
     /** @var array<int, float> */
     private array $jitaPrices = [];
 
+    private int $jitaPriceRequests = 0;
+
     private StockpileService $service;
     private User $pilot;
 
@@ -49,7 +51,11 @@ final class StockpileStatusCharacterizationTest extends TestCase
         $assetRepository->method('getQuantitiesByUserWithLocations')->willReturnCallback(fn (): array => $this->stockByTypeId);
         $jitaMarketService = $this->createMock(JitaMarketService::class);
         $jitaMarketService->method('getPrices')->willReturnCallback(
-            fn (array $typeIds): array => array_intersect_key($this->jitaPrices, array_flip($typeIds)),
+            function (array $typeIds): array {
+                ++$this->jitaPriceRequests;
+
+                return array_intersect_key($this->jitaPrices, array_flip($typeIds));
+            },
         );
 
         $this->service = new StockpileService(
@@ -133,6 +139,37 @@ final class StockpileStatusCharacterizationTest extends TestCase
         );
     }
 
+    public function testBottleneckIsNullWhenEveryTargetIsMet(): void
+    {
+        $this->addTarget(1, 'Exactly Met', 10, 'raw_material', stock: 10);
+        $this->addTarget(2, 'Overstocked', 10, 'component', stock: 20);
+
+        $status = $this->service->getStockpileStatus($this->pilot);
+
+        self::assertNull($status['kpis']['bottleneck']);
+    }
+
+    public function testStatusWithoutTargetsReturnsEmptyStagesAndFullHealth(): void
+    {
+        $emptyStage = ['items' => [], 'totalValue' => 0.0, 'healthPercent' => 100.0];
+
+        self::assertSame(
+            [
+                'targetCount' => 0,
+                'stages' => ['raw_material' => $emptyStage, 'intermediate' => $emptyStage, 'component' => $emptyStage, 'final_product' => $emptyStage],
+                'kpis' => [
+                    'pipelineHealth' => 100.0,
+                    'totalInvested' => 0.0,
+                    'bottleneck' => null,
+                    'estOutput' => ['ready' => 0, 'total' => 0, 'readyNames' => []],
+                ],
+                'shoppingList' => [],
+            ],
+            $this->service->getStockpileStatus($this->pilot),
+        );
+        self::assertSame(0, $this->jitaPriceRequests);
+    }
+
     public function testItemCarriesTheStockValueAndTheDeficitCostAtTheJitaPriceRoundedToTwoDecimals(): void
     {
         $this->addTarget(34, 'Tritanium', 120, 'intermediate', stock: 45, unitPrice: 0.125, source: self::WIDGET_SOURCE);
@@ -174,16 +211,17 @@ final class StockpileStatusCharacterizationTest extends TestCase
     public function testStageTotalValueSumsTheRoundedStockValuesWhileTotalInvestedRoundsTheRawSum(): void
     {
         $this->addTarget(34, 'Tritanium', 120, 'intermediate', stock: 45, unitPrice: 0.125);
-        $this->addTarget(35, 'Pyerite', 120, 'intermediate', stock: 45, unitPrice: 0.125);
+        $this->addTarget(35, 'Pyerite', 120, 'intermediate', stock: 45, unitPrice: 0.375);
         $this->addTarget(36, 'Mexallon', 10, 'component', stock: 3, unitPrice: 0.0625);
 
         $status = $this->service->getStockpileStatus($this->pilot);
 
-        self::assertSame(11.26, $status['stages']['intermediate']['totalValue']);
+        // 5.63 + 16.88 (5.625 and 16.875 rounded per item)
+        self::assertSame(22.51, $status['stages']['intermediate']['totalValue']);
         self::assertSame(0.19, $status['stages']['component']['totalValue']);
         self::assertSame(0.0, $status['stages']['raw_material']['totalValue']);
-        // 5.625 + 5.625 + 0.1875 = 11.4375
-        self::assertSame(11.44, $status['kpis']['totalInvested']);
+        // 5.625 + 16.875 + 0.1875 = 22.6875, whereas the rounded stock values add up to 22.70
+        self::assertSame(22.69, $status['kpis']['totalInvested']);
     }
 
     // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #8 (R10) : un item sans prix Jita vaut 0 ISK
