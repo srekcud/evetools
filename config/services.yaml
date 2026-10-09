@@ -69,6 +69,10 @@ services:
 
     # Industry engine: SDE adapters of the Domain ports (ADR-0009)
     App\Industry\Domain\BlueprintCatalog: '@App\Industry\Infrastructure\Sde\SdeBlueprintCatalog'
+    App\Industry\Application\InventionCatalog: '@App\Industry\Infrastructure\Sde\SdeInventionCatalog'
+    App\Industry\Application\MarketPrices: '@App\Industry\Infrastructure\Market\JitaMarketPrices'
+    App\Industry\Application\AdjustedPrices: '@App\Industry\Infrastructure\Esi\EsiAdjustedPrices'
+    App\Industry\Application\SystemCostIndices: '@App\Industry\Infrastructure\Esi\EsiSystemCostIndices'
 
 when@test:
     services:
@@ -81,6 +85,19 @@ when@test:
         App\Industry\Infrastructure\Sde\SdeBlueprintCatalog: ~
         App\Industry\Infrastructure\Sde\SdeRigBonusReader: ~
         App\Industry\Infrastructure\Sde\SdeStructureBonusReader: ~
+        App\Industry\Infrastructure\Sde\SdeInventionCatalog: ~
         App\Industry\Domain\BlueprintCatalog:
             alias: App\Industry\Infrastructure\Sde\SdeBlueprintCatalog
+            public: true
+        App\Industry\Application\InventionCatalog:
+            alias: App\Industry\Infrastructure\Sde\SdeInventionCatalog
+            public: true
+        App\Industry\Application\MarketPrices:
+            alias: App\Industry\Infrastructure\Market\JitaMarketPrices
+            public: true
+        App\Industry\Application\AdjustedPrices:
+            alias: App\Industry\Infrastructure\Esi\EsiAdjustedPrices
+            public: true
+        App\Industry\Application\SystemCostIndices:
+            alias: App\Industry\Infrastructure\Esi\EsiSystemCostIndices
             public: true

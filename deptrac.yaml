@@ -123,4 +123,4 @@ deptrac:
     IndustryDomain: ~
     IndustryApplication: [IndustryDomain]
     # Adapters of the Domain ports over the SDE / ESI persistence.
-    IndustryInfrastructure: [IndustryDomain, IndustryApplication, Entity, Repository, Vendor]
+    IndustryInfrastructure: [IndustryDomain, IndustryApplication, Entity, Repository, Service, Vendor]
