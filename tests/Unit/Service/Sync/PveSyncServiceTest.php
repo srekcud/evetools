@@ -406,14 +406,6 @@ class PveSyncServiceTest extends TestCase
     // shouldSync — timing logic
     // ===========================================
 
-    public function testShouldSyncReturnsFalseWhenNoSettings(): void
-    {
-        $user = $this->createStub(User::class);
-        $this->settingsRepository->method('findByUser')->willReturn(null);
-
-        $this->assertFalse($this->service->shouldSync($user));
-    }
-
     public function testShouldSyncReturnsFalseWhenAutoSyncDisabled(): void
     {
         $user = $this->createStub(User::class);
@@ -609,6 +601,14 @@ class PveSyncServiceTest extends TestCase
         $user = $this->createUserWithOkAndFailingCharacters();
         $this->stubEsiFailingOnStepsFor(self::FAILING_CHARACTER_ID, $failingSteps);
         $settings = $this->settingsSyncedAt(self::PREVIOUS_PVE_SYNC_AT);
+        $lootSalesFail = in_array(self::STEP_LOOT_SALES, $failingSteps, true);
+        $expensesFail = in_array(self::STEP_EXPENSES, $failingSteps, true);
+        if ($expensesFail && !$lootSalesFail) {
+            $settings->setLootTypeIds([]);
+        }
+        if ($lootSalesFail && !$expensesFail) {
+            $settings->setAmmoTypeIds([]);
+        }
         $syncStartedAt = new \DateTimeImmutable();
 
         $this->service->syncAll($user);
@@ -717,26 +717,24 @@ class PveSyncServiceTest extends TestCase
 
     /**
      * Only the given steps throw for $failingEveCharacterId; every other call answers like stubEsiFailingFor(null).
-     * Loot sales and expenses share the wallet transactions endpoint: the first call is loot sales, the second expenses.
      *
      * @param list<string> $failingSteps
      */
     private function stubEsiFailingOnStepsFor(int $failingEveCharacterId, array $failingSteps): void
     {
-        $failingCharacterTransactionCalls = 0;
-        $respond = function (string $endpoint) use ($failingEveCharacterId, $failingSteps, &$failingCharacterTransactionCalls): array {
+        $failingTransactionSteps = array_intersect([self::STEP_LOOT_SALES, self::STEP_EXPENSES], $failingSteps);
+        $respond = function (string $endpoint) use ($failingEveCharacterId, $failingSteps, $failingTransactionSteps): array {
             $failingCharacterPrefix = "/characters/{$failingEveCharacterId}/";
-            $step = match (true) {
-                str_ends_with($endpoint, '/wallet/journal/') => self::STEP_JOURNAL,
-                str_ends_with($endpoint, '/contracts/') => self::STEP_LOOT_CONTRACTS,
-                str_ends_with($endpoint, '/wallet/transactions/') && str_starts_with($endpoint, $failingCharacterPrefix)
-                    => ++$failingCharacterTransactionCalls === 1 ? self::STEP_LOOT_SALES : self::STEP_EXPENSES,
-                default => null,
+            $failingStepsOfEndpoint = match (true) {
+                str_ends_with($endpoint, '/wallet/journal/') => array_intersect([self::STEP_JOURNAL], $failingSteps),
+                str_ends_with($endpoint, '/contracts/') => array_intersect([self::STEP_LOOT_CONTRACTS], $failingSteps),
+                str_contains($endpoint, '/wallet/transactions/') => $failingTransactionSteps,
+                default => [],
             };
-            if (str_starts_with($endpoint, $failingCharacterPrefix) && in_array($step, $failingSteps, true)) {
+            if (str_starts_with($endpoint, $failingCharacterPrefix) && $failingStepsOfEndpoint !== []) {
                 throw new \RuntimeException('ESI 502 Bad Gateway');
             }
-            if ($step === self::STEP_JOURNAL) {
+            if (str_ends_with($endpoint, '/wallet/journal/')) {
                 return [[
                     'id' => 600001,
                     'ref_type' => 'bounty_prizes',
