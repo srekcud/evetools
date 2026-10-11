@@ -8,6 +8,7 @@ use App\Service\ESI\EsiClient;
 use App\Service\JitaMarketService;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
@@ -33,6 +34,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 final class JitaMarketServiceEsiClientTest extends TestCase
 {
     use CreatesJitaMarketService;
+    use SimulatesJitaMarketEsi;
 
     private const PRODUCTION_ESI_BASE_URL = 'https://esi.evetech.net/latest';
     private const CONFIGURED_ESI_BASE_URL = 'https://esi.test/latest';
@@ -70,10 +72,10 @@ final class JitaMarketServiceEsiClientTest extends TestCase
 
     public function testRefreshPricesForTypesStoresJitaOrderBooksAndFallsBackToTheRegion(): void
     {
+        $this->seedMainJitaOrderBooks($this->marketCache);
         $service = $this->createService([
             $this->ordersRoute(self::TRITANIUM) => [$this->tritaniumOrders()],
             $this->ordersRoute(self::PYERITE) => [[
-                // No order in Jita station: the region orders are kept.
                 $this->sellOrder(10.0, 300, self::PERIMETER_STATION),
                 $this->sellOrder(9.5, 700, self::PERIMETER_STATION),
             ]],
@@ -83,11 +85,11 @@ final class JitaMarketServiceEsiClientTest extends TestCase
 
         $this->assertTrue($result['success']);
         $this->assertSame(2, $result['typeCount']);
-        $this->assertSame([
+        $this->assertSame($this->seededSellOrderBooks() + [
             self::TRITANIUM => [['price' => 4.95, 'volume' => 500], ['price' => 5.1, 'volume' => 1000]],
             self::PYERITE => [['price' => 9.5, 'volume' => 700], ['price' => 10.0, 'volume' => 300]],
         ], $this->marketCache->getItem(self::SELL_ORDER_BOOK_KEY)->get());
-        $this->assertSame([
+        $this->assertSame($this->seededBuyOrderBooks() + [
             self::TRITANIUM => [['price' => 4.7, 'volume' => 100], ['price' => 4.5, 'volume' => 2000]],
         ], $this->marketCache->getItem(self::BUY_ORDER_BOOK_KEY)->get());
         $this->assertSame([self::TRITANIUM => 4.95, self::PYERITE => 9.5], $service->getPrices([self::TRITANIUM, self::PYERITE]));
@@ -111,7 +113,9 @@ final class JitaMarketServiceEsiClientTest extends TestCase
         ], $this->marketCache->getItem(self::SELL_ORDER_BOOK_KEY)->get());
     }
 
-    public function testRefreshPricesForTypesSkipsATypeWhoseOrdersFailWithoutFailingTheRefresh(): void
+    #[Group('market-audit-3')]
+    #[Group('market-audit-6')]
+    public function testRefreshPricesForTypesSkipsATypeWhoseOrdersFailWithoutFailingTheRefreshCurrentlyMarketAudit3And6(): void
     {
         $service = $this->createService([
             $this->ordersRoute(self::TRITANIUM) => [$this->tritaniumOrders()],
@@ -126,6 +130,7 @@ final class JitaMarketServiceEsiClientTest extends TestCase
 
     public function testOrdersOfARefreshAreAllRequestedBeforeTheFirstOrdersResponseIsRead(): void
     {
+        $this->seedMainJitaOrderBooks($this->marketCache);
         $service = $this->createService([
             $this->ordersRoute(self::TRITANIUM) => [[$this->sellOrder(5.0, 100, self::JITA_STATION)]],
             $this->ordersRoute(self::PYERITE) => [[$this->sellOrder(10.0, 100, self::JITA_STATION)]],
@@ -146,11 +151,10 @@ final class JitaMarketServiceEsiClientTest extends TestCase
         );
     }
 
-    public function testCharacterizationOnlyTheFirstPageOfOrdersIsReadEvenWhenEsiAnnouncesMorePages(): void
+    #[Group('market-audit-5')]
+    public function testCharacterizationOnlyTheFirstPageOfOrdersIsReadEvenWhenEsiAnnouncesMorePagesCurrentlyMarketAudit5(): void
     {
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #26.
-        // /markets/{region}/orders/ is paginated (X-Pages) but only page 1 is read; orders of
-        // later pages are ignored. Switching to getBatch() keeps this; getPaginated() would change it.
+        $this->seedMainJitaOrderBooks($this->marketCache);
         $service = $this->createService([
             $this->ordersRoute(self::TRITANIUM) => [
                 $this->jsonResponse([$this->sellOrder(5.0, 100, self::JITA_STATION)], ['X-Pages' => '2']),
@@ -161,7 +165,7 @@ final class JitaMarketServiceEsiClientTest extends TestCase
 
         $this->assertCount(1, $this->requestedUrls);
         $this->assertStringNotContainsString('page=', $this->requestedUrls[0]);
-        $this->assertSame([self::TRITANIUM => [['price' => 5.0, 'volume' => 100]]], $this->marketCache->getItem(self::SELL_ORDER_BOOK_KEY)->get());
+        $this->assertSame($this->seededSellOrderBooks() + [self::TRITANIUM => [['price' => 5.0, 'volume' => 100]]], $this->marketCache->getItem(self::SELL_ORDER_BOOK_KEY)->get());
     }
 
     // ===========================================
@@ -174,12 +178,11 @@ final class JitaMarketServiceEsiClientTest extends TestCase
         $service = $this->createService([
             $this->ordersRoute(self::PYERITE) => [[
                 $this->sellOrder(10.0, 300, self::JITA_STATION),
-                $this->buyOrder(9.0, 800, self::JITA_STATION),
+                $this->esiBuyOrder(self::PYERITE, 9.0, 800, self::JITA_STATION),
             ]],
         ], self::PRODUCTION_ESI_BASE_URL);
 
         $prices = $service->getPricesWithFallback([self::TRITANIUM, self::PYERITE]);
-        // Second call: served from the on-demand cache, no new ESI request.
         $pricesAgain = $service->getPricesWithFallback([self::TRITANIUM, self::PYERITE]);
 
         $this->assertSame([self::TRITANIUM => 4.95, self::PYERITE => 10.0], $prices);
@@ -188,7 +191,7 @@ final class JitaMarketServiceEsiClientTest extends TestCase
             'sell' => [['price' => 10.0, 'volume' => 300]],
             'buy' => [['price' => 9.0, 'volume' => 800]],
         ], $this->marketCache->getItem('jita_ondemand_' . self::PYERITE)->get());
-        $this->assertSame([self::PRODUCTION_ESI_BASE_URL . '/markets/10000002/orders/?order_type=all&type_id=35'], $this->requestedUrls);
+        $this->assertSame([self::PRODUCTION_ESI_BASE_URL . '/markets/10000002/orders/?order_type=all&type_id=35'], $this->esiUrlsWithoutPage($this->requestedUrls));
     }
 
     public function testGetWeightedSellPricesWithFallbackComputesTheWeightedPriceFromOnDemandOrders(): void
@@ -281,6 +284,7 @@ final class JitaMarketServiceEsiClientTest extends TestCase
 
     public function testOrdersAndHistoryAreReadFromTheConfiguredEsiBaseUrl(): void
     {
+        $this->seedMainJitaOrderBooks($this->marketCache);
         $service = $this->createService([
             $this->ordersRoute(self::TRITANIUM) => [$this->tritaniumOrders()],
             $this->ordersRoute(self::PYERITE) => [[$this->sellOrder(10.0, 300, self::JITA_STATION)]],
@@ -298,11 +302,12 @@ final class JitaMarketServiceEsiClientTest extends TestCase
             self::CONFIGURED_ESI_BASE_URL . '/markets/10000002/orders/?order_type=all&type_id=34',
             self::CONFIGURED_ESI_BASE_URL . '/markets/10000002/orders/?order_type=all&type_id=35',
             self::CONFIGURED_ESI_BASE_URL . '/markets/10000002/history/?type_id=36',
-        ], $this->requestedUrls);
+        ], $this->esiUrlsWithoutPage($this->requestedUrls));
     }
 
     public function testRateLimitedOrdersOfARefreshAreRetriedOnceAndStored(): void
     {
+        $this->seedMainJitaOrderBooks($this->marketCache);
         $service = $this->createService([
             $this->ordersRoute(self::TRITANIUM) => [$this->rateLimitedResponse(), $this->tritaniumOrders()],
             $this->ordersRoute(self::PYERITE) => [[$this->sellOrder(10.0, 300, self::JITA_STATION)]],
@@ -344,9 +349,10 @@ final class JitaMarketServiceEsiClientTest extends TestCase
         $this->assertCount(2, $this->requestedUrls);
     }
 
-    public function testOrdersAndHistoryAreReadWithEsiClientGetBatchKeyedByTypeIdInChunks(): void
+    #[Group('market-audit-5')]
+    public function testOrdersAndHistoryAreReadWithEsiClientGetBatchKeyedByTypeIdInChunksCurrentlyMarketAudit5(): void
     {
-        /** @var list<array{array<int|string, string>, mixed}> $esiBatches */
+        $this->seedMainJitaOrderBooks($this->marketCache);
         $esiBatches = [];
         $esiClient = $this->createStub(EsiClient::class);
         $esiClient->method('getBatch')
@@ -355,7 +361,6 @@ final class JitaMarketServiceEsiClientTest extends TestCase
                 $results = [];
                 foreach ($endpoints as $typeId => $endpoint) {
                     $results[$typeId] = match (true) {
-                        // A failed key comes back null from getBatch(): that type is skipped.
                         $typeId === self::PYERITE => null,
                         str_contains($endpoint, '/history/') => [['volume' => 90], ['volume' => 110]],
                         default => [$this->sellOrder((float) $typeId, 100, self::JITA_STATION)],
@@ -374,9 +379,9 @@ final class JitaMarketServiceEsiClientTest extends TestCase
             logger: new NullLogger(),
         );
 
-        $refreshedTypeIds = range(self::TRITANIUM, self::TRITANIUM + 20); // 21 types: chunks of 20 + 1
+        $refreshedTypeIds = range(self::TRITANIUM, self::TRITANIUM + 20);
         $service->refreshPricesForTypes($refreshedTypeIds);
-        $onDemandTypeIds = range(1000, 1010); // 11 types: chunks of 10 + 1
+        $onDemandTypeIds = range(1000, 1010);
         $onDemandPrices = $service->getPricesWithFallback($onDemandTypeIds);
         $dailyVolumes = $service->getAverageDailyVolumes([self::TRITANIUM, self::PYERITE]);
 
@@ -468,9 +473,9 @@ final class JitaMarketServiceEsiClientTest extends TestCase
         return [
             $this->sellOrder(5.10, 1000, self::JITA_STATION),
             $this->sellOrder(4.00, 9999, self::PERIMETER_STATION),
-            $this->buyOrder(4.50, 2000, self::JITA_STATION),
+            $this->esiBuyOrder(self::TRITANIUM, 4.50, 2000, self::JITA_STATION),
             $this->sellOrder(4.95, 500, self::JITA_STATION),
-            $this->buyOrder(4.70, 100, self::JITA_STATION),
+            $this->esiBuyOrder(self::TRITANIUM, 4.70, 100, self::JITA_STATION),
         ];
     }
 
@@ -505,13 +510,6 @@ final class JitaMarketServiceEsiClientTest extends TestCase
         return ['price' => $price, 'volume_remain' => $volumeRemain, 'is_buy_order' => false, 'location_id' => $locationId, 'type_id' => self::TRITANIUM];
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function buyOrder(float $price, int $volumeRemain, int $locationId): array
-    {
-        return ['price' => $price, 'volume_remain' => $volumeRemain, 'is_buy_order' => true, 'location_id' => $locationId, 'type_id' => self::TRITANIUM];
-    }
 
     private function rateLimitedResponse(): MockResponse
     {

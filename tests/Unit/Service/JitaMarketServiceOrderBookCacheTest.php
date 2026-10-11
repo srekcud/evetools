@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Service;
 
 use App\Service\JitaMarketService;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
@@ -24,6 +25,7 @@ use Symfony\Component\HttpClient\Response\MockResponse;
 final class JitaMarketServiceOrderBookCacheTest extends TestCase
 {
     use CreatesJitaMarketService;
+    use SimulatesJitaMarketEsi;
 
     private const ESI_BASE_URL = 'https://esi.evetech.net/latest';
 
@@ -59,31 +61,34 @@ final class JitaMarketServiceOrderBookCacheTest extends TestCase
     // Order book selection
     // ===========================================
 
-    public function testBuyOrderBookKeepsOnlyJitaStationBuyOrdersWhenJitaHasSome(): void
+    #[Group('market-audit-15')]
+    public function testBuyOrderBookKeepsOnlyJitaStationBuyOrdersWhenJitaHasSomeCurrentlyMarketAudit15(): void
     {
+        $this->seedMainJitaOrderBooks($this->marketCache);
         $service = $this->createService([
             $this->ordersRoute(self::TRITANIUM) => [[
-                $this->buyOrder(4.50, 2000, self::JITA_STATION),
-                // Higher bid, but outside Jita station: ignored while Jita has buy orders.
-                $this->buyOrder(4.90, 9999, self::PERIMETER_STATION),
-                $this->buyOrder(4.70, 100, self::JITA_STATION),
+                $this->esiBuyOrder(self::TRITANIUM, 4.50, 2000, self::JITA_STATION),
+                $this->esiBuyOrder(self::TRITANIUM, 4.90, 9999, self::PERIMETER_STATION, 'region'),
+                $this->esiBuyOrder(self::TRITANIUM, 4.70, 100, self::JITA_STATION),
             ]],
         ]);
 
         $service->refreshPricesForTypes([self::TRITANIUM]);
 
         $this->assertSame(
-            [self::TRITANIUM => [['price' => 4.7, 'volume' => 100], ['price' => 4.5, 'volume' => 2000]]],
+            $this->seededBuyOrderBooks() + [self::TRITANIUM => [['price' => 4.7, 'volume' => 100], ['price' => 4.5, 'volume' => 2000]]],
             $this->marketCache->getItem(self::BUY_ORDER_BOOK_KEY)->get(),
         );
     }
 
-    public function testBuyOrderBookFallsBackToRegionBuyOrdersWhenJitaHasNone(): void
+    #[Group('market-audit-15')]
+    public function testBuyOrderBookFallsBackToRegionBuyOrdersWhenJitaHasNoneCurrentlyMarketAudit15(): void
     {
+        $this->seedMainJitaOrderBooks($this->marketCache);
         $service = $this->createService([
             $this->ordersRoute(self::PYERITE) => [[
-                $this->buyOrder(9.00, 800, self::PERIMETER_STATION),
-                $this->buyOrder(9.40, 300, self::PERIMETER_STATION),
+                $this->esiBuyOrder(self::PYERITE, 9.00, 800, self::PERIMETER_STATION),
+                $this->esiBuyOrder(self::PYERITE, 9.40, 300, self::PERIMETER_STATION),
                 $this->sellOrder(10.0, 300, self::JITA_STATION),
             ]],
         ]);
@@ -91,17 +96,18 @@ final class JitaMarketServiceOrderBookCacheTest extends TestCase
         $service->refreshPricesForTypes([self::PYERITE]);
 
         $this->assertSame(
-            [self::PYERITE => [['price' => 9.4, 'volume' => 300], ['price' => 9.0, 'volume' => 800]]],
+            $this->seededBuyOrderBooks() + [self::PYERITE => [['price' => 9.4, 'volume' => 300], ['price' => 9.0, 'volume' => 800]]],
             $this->marketCache->getItem(self::BUY_ORDER_BOOK_KEY)->get(),
         );
     }
 
     public function testOrderBookKeepsTheTwentyBestOrdersOfEachSide(): void
     {
+        $this->seedMainJitaOrderBooks($this->marketCache);
         $orders = [];
         for ($rank = 1; $rank <= 25; ++$rank) {
             $orders[] = $this->sellOrder(5.0 + $rank, 10 * $rank, self::JITA_STATION);
-            $orders[] = $this->buyOrder(5.0 - $rank / 10, 10 * $rank, self::JITA_STATION);
+            $orders[] = $this->esiBuyOrder(self::TRITANIUM, 5.0 - $rank / 10, 10 * $rank, self::JITA_STATION);
         }
         $service = $this->createService([$this->ordersRoute(self::TRITANIUM) => [$orders]]);
 
@@ -128,7 +134,7 @@ final class JitaMarketServiceOrderBookCacheTest extends TestCase
             self::MEXALLON => [['price' => 50.0, 'volume' => 42]],
         ]);
         $service = $this->createService([
-            $this->ordersRoute(self::TRITANIUM) => [[$this->buyOrder(4.70, 100, self::JITA_STATION)]],
+            $this->ordersRoute(self::TRITANIUM) => [[$this->esiBuyOrder(self::TRITANIUM, 4.70, 100, self::JITA_STATION)]],
         ]);
 
         $service->refreshPricesForTypes([self::TRITANIUM]);
@@ -141,10 +147,11 @@ final class JitaMarketServiceOrderBookCacheTest extends TestCase
 
     public function testRefreshedSellAndBuyOrderBooksExpireAfterTwoHours(): void
     {
+        $this->seedMainJitaOrderBooks($this->marketCache);
         $service = $this->createService([
             $this->ordersRoute(self::TRITANIUM) => [[
                 $this->sellOrder(4.95, 500, self::JITA_STATION),
-                $this->buyOrder(4.70, 100, self::JITA_STATION),
+                $this->esiBuyOrder(self::TRITANIUM, 4.70, 100, self::JITA_STATION),
             ]],
         ]);
 
@@ -162,6 +169,7 @@ final class JitaMarketServiceOrderBookCacheTest extends TestCase
 
     public function testRefreshReportsADurationInSecondsBelowOneSecondForAQuickRefresh(): void
     {
+        $this->seedMainJitaOrderBooks($this->marketCache);
         $service = $this->createService([
             $this->ordersRoute(self::TRITANIUM) => [[$this->sellOrder(4.95, 500, self::JITA_STATION)]],
         ]);
@@ -253,10 +261,10 @@ final class JitaMarketServiceOrderBookCacheTest extends TestCase
     public function testOnDemandBuyPricesAreFetchedThenServedFromTheOnDemandCache(): void
     {
         $service = $this->createService([
-            $this->ordersRoute(self::TRITANIUM) => [[$this->buyOrder(4.70, 100, self::JITA_STATION)]],
+            $this->ordersRoute(self::TRITANIUM) => [[$this->esiBuyOrder(self::TRITANIUM, 4.70, 100, self::JITA_STATION)]],
             $this->ordersRoute(self::PYERITE) => [[
                 $this->sellOrder(10.0, 300, self::JITA_STATION),
-                $this->buyOrder(9.0, 800, self::JITA_STATION),
+                $this->esiBuyOrder(self::PYERITE, 9.0, 800, self::JITA_STATION),
             ]],
         ]);
 
@@ -399,13 +407,6 @@ final class JitaMarketServiceOrderBookCacheTest extends TestCase
         return ['price' => $price, 'volume_remain' => $volumeRemain, 'is_buy_order' => false, 'location_id' => $locationId];
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function buyOrder(float $price, int $volumeRemain, int $locationId): array
-    {
-        return ['price' => $price, 'volume_remain' => $volumeRemain, 'is_buy_order' => true, 'location_id' => $locationId];
-    }
 
     /**
      * @return array<string, mixed>
