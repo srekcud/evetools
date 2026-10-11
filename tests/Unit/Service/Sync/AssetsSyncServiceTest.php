@@ -22,11 +22,13 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Mercure\HubInterface;
+use Symfony\Component\Mercure\Update;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(AssetsSyncService::class)]
@@ -44,6 +46,8 @@ class AssetsSyncServiceTest extends TestCase
     /** @var list<CachedAsset> */
     private array $persistedAssets = [];
 
+    private array $publishedSyncEvents = [];
+
     protected function setUp(): void
     {
         $this->assetsService = $this->createStub(AssetsService::class);
@@ -53,10 +57,23 @@ class AssetsSyncServiceTest extends TestCase
         $this->visibilityRepository = $this->createStub(CorpAssetVisibilityRepository::class);
         $this->em = $this->createMock(EntityManagerInterface::class);
 
-        $mercurePublisher = new MercurePublisherService(
-            $this->createStub(HubInterface::class),
-            new NullLogger(),
+        $mercureHub = $this->createStub(HubInterface::class);
+        $mercureHub->method('publish')->willReturnCallback(
+            function (Update $update): string {
+                $payload = json_decode($update->getData(), true, 512, JSON_THROW_ON_ERROR);
+                $this->publishedSyncEvents[] = [
+                    $update->getTopics()[0],
+                    $payload['status'],
+                    $payload['progress'],
+                    $payload['message'],
+                    $payload['data'],
+                ];
+
+                return 'published';
+            },
         );
+
+        $mercurePublisher = new MercurePublisherService($mercureHub, new NullLogger());
 
         $this->service = new AssetsSyncService(
             $this->assetsService,
@@ -433,6 +450,201 @@ class AssetsSyncServiceTest extends TestCase
         );
     }
 
+    public function testSyncCharacterAssetsCachesEveryEsiFieldAsAPersonalAsset(): void
+    {
+        $character = new Character();
+        $this->assetsService->method('getCharacterAssets')->willReturn([$this->isogenCanInJita()]);
+        $this->recordCacheDeletionsAndWrites();
+
+        $this->service->syncCharacterAssets($character);
+
+        $this->assertSame([$this->isogenCanInJitaFields()], array_map($this->cachedAssetFields(...), $this->persistedAssets));
+        $this->assertSame($character, $this->persistedAssets[0]->getCharacter());
+        $this->assertFalse($this->persistedAssets[0]->isCorporationAsset());
+        $this->assertNull($this->persistedAssets[0]->getCorporationId());
+        $this->assertNotNull($character->getLastSyncAt());
+        $this->assertSame([], $this->publishedSyncEvents);
+    }
+
+    public function testSyncCorporationAssetsCachesEveryEsiFieldAsACorporationAsset(): void
+    {
+        $character = new Character();
+        $character->setCorporationId(98000777);
+        $this->corporationService->method('getDivisions')->willReturn([3 => 'Moon Goo']);
+        $this->assetsService->method('getCorporationAssets')->willReturn([$this->isogenCanInJita()]);
+        $this->recordCacheDeletionsAndWrites();
+
+        $this->service->syncCorporationAssets($character);
+
+        $this->assertSame([$this->isogenCanInJitaFields()], array_map($this->cachedAssetFields(...), $this->persistedAssets));
+        $this->assertNull($this->persistedAssets[0]->getCharacter());
+        $this->assertTrue($this->persistedAssets[0]->isCorporationAsset());
+        $this->assertSame(98000777, $this->persistedAssets[0]->getCorporationId());
+        $this->assertSame('Moon Goo', $this->persistedAssets[0]->getDivisionName());
+        $this->assertSame([], $this->publishedSyncEvents);
+    }
+
+    public function testSyncOfACharacterWhoseUserHasNoIdPublishesNoSyncEvent(): void
+    {
+        $userWithoutId = $this->createStub(User::class);
+        $userWithoutId->method('getId')->willReturn(null);
+        $character = new Character();
+        $character->setUser($userWithoutId);
+        $character->setCorporationId(98000777);
+        $this->assetsService->method('getCharacterAssets')->willReturn([$this->isogenCanInJita()]);
+        $this->assetsService->method('getCorporationAssets')->willReturn([$this->isogenCanInJita()]);
+        $this->recordCacheDeletionsAndWrites();
+
+        $this->service->syncCharacterAssets($character);
+        $this->service->syncCorporationAssets($character);
+
+        $this->assertCount(2, $this->persistedAssets);
+        $this->assertSame([], $this->publishedSyncEvents);
+    }
+
+    public function testSyncCharacterAssetsPublishesStartProgressAndCompletionToTheUser(): void
+    {
+        $userId = Uuid::fromString('0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b');
+        $character = $this->createCharacterOfUser($userId);
+        $this->assetsService->method('getCharacterAssets')->willReturn([
+            $this->createAsset(itemId: 1001, locationFlag: 'Hangar'),
+            $this->createAsset(itemId: 1002, locationFlag: 'Hangar'),
+            $this->createAsset(itemId: 1003, locationFlag: 'Cargo'),
+        ]);
+        $this->recordCacheDeletionsAndWrites();
+
+        $this->service->syncCharacterAssets($character);
+
+        $topic = '/user/0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b/sync/character-assets';
+        $this->assertSame([
+            [$topic, 'started', 0, 'Fetching character assets...', null],
+            [$topic, 'in_progress', 50, 'Processing 3 assets...', null],
+            [$topic, 'completed', 100, 'Sync completed', ['count' => 3]],
+        ], $this->publishedSyncEvents);
+    }
+
+    public function testSyncCorporationAssetsPublishesStartProgressAndCompletionToTheUser(): void
+    {
+        $userId = Uuid::fromString('0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6c');
+        $character = $this->createCharacterOfUser($userId);
+        $this->assetsService->method('getCorporationAssets')->willReturn([
+            $this->createAsset(itemId: 2001, locationFlag: 'CorpSAG1'),
+            $this->createAsset(itemId: 2002, locationFlag: 'CorpSAG2'),
+        ]);
+        $this->recordCacheDeletionsAndWrites();
+
+        $this->service->syncCorporationAssets($character);
+
+        $topic = '/user/0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6c/sync/corporation-assets';
+        $this->assertSame([
+            [$topic, 'started', 0, 'Fetching corporation assets...', null],
+            [$topic, 'in_progress', 50, 'Processing 2 assets...', null],
+            [$topic, 'completed', 100, 'Sync completed', ['count' => 2]],
+        ], $this->publishedSyncEvents);
+    }
+
+    public function testFailedCharacterAssetsSyncPublishesTheErrorToTheUser(): void
+    {
+        $character = $this->createCharacterOfUser(Uuid::fromString('0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6d'));
+        $this->assetsService->method('getCharacterAssets')->willThrowException(EsiApiException::fromResponse(502, 'Bad Gateway'));
+
+        $this->catchThrowable(fn () => $this->service->syncCharacterAssets($character));
+
+        $topic = '/user/0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6d/sync/character-assets';
+        $this->assertSame([
+            [$topic, 'started', 0, 'Fetching character assets...', null],
+            [$topic, 'error', null, 'Bad Gateway', null],
+        ], $this->publishedSyncEvents);
+    }
+
+    public function testFailedCorporationAssetsSyncPublishesTheErrorToTheUser(): void
+    {
+        $character = $this->createCharacterOfUser(Uuid::fromString('0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6e'));
+        $this->assetsService->method('getCorporationAssets')->willThrowException(EsiApiException::fromResponse(503, 'Service Unavailable'));
+
+        $this->catchThrowable(fn () => $this->service->syncCorporationAssets($character));
+
+        $topic = '/user/0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6e/sync/corporation-assets';
+        $this->assertSame([
+            [$topic, 'started', 0, 'Fetching corporation assets...', null],
+            [$topic, 'error', null, 'Service Unavailable', null],
+        ], $this->publishedSyncEvents);
+    }
+
+    #[DataProvider('locationFlagsWithoutDivision')]
+    public function testCorporationAssetOutsideAnyCorporationHangarHasNoDivisionName(string $locationFlag): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->corporationService->method('getDivisions')->willReturn([1 => 'Minerals', 2 => 'Ships']);
+        $this->assetsService->method('getCorporationAssets')->willReturn([
+            $this->createAsset(itemId: 2101, locationFlag: $locationFlag),
+        ]);
+        $this->recordCacheDeletionsAndWrites();
+
+        $this->service->syncCorporationAssets($character);
+
+        $this->assertSame([2101 => null], $this->divisionNamesByItemId());
+    }
+
+    public static function locationFlagsWithoutDivision(): iterable
+    {
+        yield 'deliveries hangar' => ['CorpDeliveries'];
+        yield 'flag with a prefix before the hangar' => ['XCorpSAG1'];
+        yield 'flag with a suffix after the hangar' => ['CorpSAG2Old'];
+        yield 'hangar of a division the corporation does not name' => ['CorpSAG7'];
+    }
+
+    public function testCorporationAssetsInAContainerLoopWithoutHangarHaveNoDivisionName(): void
+    {
+        $firstContainerItemId = 1_040_000_000_301;
+        $secondContainerItemId = 1_040_000_000_302;
+        $character = $this->createCharacterWithUser(12345);
+        $this->corporationService->method('getDivisions')->willReturn([1 => 'Minerals']);
+        $this->assetsService->method('getCorporationAssets')->willReturn([
+            $this->createAssetInLocation($firstContainerItemId, $secondContainerItemId, 'item', 'Unlocked'),
+            $this->createAssetInLocation($secondContainerItemId, $firstContainerItemId, 'item', 'Locked'),
+        ]);
+        $this->recordCacheDeletionsAndWrites();
+
+        $this->service->syncCorporationAssets($character);
+
+        $this->assertSame([$firstContainerItemId => null, $secondContainerItemId => null], $this->divisionNamesByItemId());
+    }
+
+    public function testSyncCorporationAssetsForCorpReportsSuccessWithTheCharacterHavingAccess(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->characterRepository->method('findWithCorpAssetsAccess')->willReturn($character);
+        $this->corporationService->method('getDivisions')->willReturn([1 => 'Minerals']);
+        $this->assetsService->method('getCorporationAssets')->willReturn([
+            $this->createAsset(itemId: 2201, locationFlag: 'CorpSAG1'),
+        ]);
+        $syncCalls = $this->recordCacheDeletionsAndWrites();
+
+        $this->assertTrue($this->service->syncCorporationAssetsForCorp(98000001));
+        $this->assertSame(['deleteByCorporationId:98000001', 'persist:2201', 'flush'], $syncCalls->getArrayCopy());
+    }
+
+    public function testSyncCorporationAssetsForCorpReportsFailureWhenEsiFails(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->characterRepository->method('findWithCorpAssetsAccess')->willReturn($character);
+        $this->assetsService->method('getCorporationAssets')->willThrowException(EsiApiException::fromResponse(502, 'Bad Gateway'));
+
+        $this->assertFalse($this->service->syncCorporationAssetsForCorp(98000001));
+    }
+
+    public function testCanSyncReturnsFalseWhenNoTokenEvenWithValidUserAuth(): void
+    {
+        $user = $this->createStub(User::class);
+        $user->method('isAuthValid')->willReturn(true);
+        $character = $this->createStub(Character::class);
+        $character->method('getEveToken')->willReturn(null);
+        $character->method('getUser')->willReturn($user);
+
+        $this->assertFalse($this->service->canSync($character));
+    }
+
     // ===========================================
     // Helpers
     // ===========================================
@@ -532,6 +744,69 @@ class AssetsSyncServiceTest extends TestCase
             solarSystemName: 'Jita',
             itemName: null,
         );
+    }
+
+    private function isogenCanInJita(): AssetDto
+    {
+        return new AssetDto(
+            itemId: 1_050_000_000_401,
+            typeId: 37,
+            typeName: 'Isogen',
+            quantity: 12750,
+            locationId: 1_050_000_000_400,
+            locationName: 'Jita IV - Moon 4 - Caldari Navy Assembly Plant',
+            locationType: 'item',
+            locationFlag: 'CorpSAG3',
+            solarSystemId: 30000142,
+            solarSystemName: 'Jita',
+            itemName: 'Isogen stock',
+        );
+    }
+
+    private function isogenCanInJitaFields(): array
+    {
+        return [
+            'itemId' => 1_050_000_000_401,
+            'typeId' => 37,
+            'typeName' => 'Isogen',
+            'quantity' => 12750,
+            'locationId' => 1_050_000_000_400,
+            'locationName' => 'Jita IV - Moon 4 - Caldari Navy Assembly Plant',
+            'locationType' => 'item',
+            'locationFlag' => 'CorpSAG3',
+            'solarSystemId' => 30000142,
+            'solarSystemName' => 'Jita',
+            'itemName' => 'Isogen stock',
+        ];
+    }
+
+    private function cachedAssetFields(CachedAsset $cachedAsset): array
+    {
+        return [
+            'itemId' => $cachedAsset->getItemId(),
+            'typeId' => $cachedAsset->getTypeId(),
+            'typeName' => $cachedAsset->getTypeName(),
+            'quantity' => $cachedAsset->getQuantity(),
+            'locationId' => $cachedAsset->getLocationId(),
+            'locationName' => $cachedAsset->getLocationName(),
+            'locationType' => $cachedAsset->getLocationType(),
+            'locationFlag' => $cachedAsset->getLocationFlag(),
+            'solarSystemId' => $cachedAsset->getSolarSystemId(),
+            'solarSystemName' => $cachedAsset->getSolarSystemName(),
+            'itemName' => $cachedAsset->getItemName(),
+        ];
+    }
+
+    private function createCharacterOfUser(Uuid $userId): Character
+    {
+        $user = $this->createStub(User::class);
+        $user->method('getId')->willReturn($userId);
+
+        $character = $this->createStub(Character::class);
+        $character->method('getUser')->willReturn($user);
+        $character->method('getCorporationId')->willReturn(98000001);
+
+        return $character;
     }
 
     private function createCharacterWithUser(int $eveCharacterId): Character
