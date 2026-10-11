@@ -91,15 +91,15 @@ export const useStructuresStore = defineStore('industry-structures', () => {
     }
   }
 
-  async function searchStructures(query: string): Promise<{ structures: StructureSearchResult[], error?: string }> {
+  async function searchStructures(query: string): Promise<{ structures: StructureSearchResult[], incomplete?: boolean, error?: string }> {
     if (query.length < 3) {
       return { structures: [] }
     }
     try {
-      const data = await apiRequest<{ structures: StructureSearchResult[] }>(
+      const data = await apiRequest<{ structures: StructureSearchResult[], incomplete: boolean }>(
         `/industry/search-structure?q=${encodeURIComponent(query)}`,
       )
-      return { structures: data.structures }
+      return { structures: data.structures, incomplete: data.incomplete }
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Erreur de recherche'
       console.error('Failed to search structures:', e)

@@ -13,4 +13,6 @@ class StructureSearchListResource
 
     /** @var StructureSearchResource[] */
     public array $structures = [];
+
+    public bool $incomplete = false;
 }

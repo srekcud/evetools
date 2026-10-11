@@ -1064,6 +1064,7 @@
       "rigsConfigured": "Rigs configured",
       "selectOrCustom": "Select a structure or leave empty for custom configuration",
       "searchByNameEsi": "Or search by name (ESI)",
+      "searchIncomplete": "Partial results: ESI did not respond for some structures, try again in a few moments",
       "searchStructure": "Search a structure...",
       "corpStructure": "Corp structure",
       "linkedStructure": "Linked structure",

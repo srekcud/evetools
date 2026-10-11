@@ -21,6 +21,7 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
@@ -28,6 +29,10 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
  */
 class StructureSearchProvider implements ProviderInterface
 {
+    private const int FORBIDDEN_STATUS_CODE = 403;
+    private const int NETWORK_ERROR_STATUS_CODE = 0;
+    private const int SERVER_ERROR_STATUS_CODE = 500;
+
     public function __construct(
         private readonly Security $security,
         private readonly EsiClient $esiClient,
@@ -130,6 +135,9 @@ class StructureSearchProvider implements ProviderInterface
 
                     $structures[] = $resource;
                 } catch (EsiApiException $e) {
+                    if ($e->statusCode !== self::FORBIDDEN_STATUS_CODE) {
+                        $result->incomplete = true;
+                    }
                     $this->logger->debug('Cannot access structure', [
                         'structureId' => $structureId,
                         'error' => $e->getMessage(),
@@ -147,6 +155,10 @@ class StructureSearchProvider implements ProviderInterface
                     null,
                     'ESI rate limit atteint. Réessayez dans quelques secondes.'
                 );
+            }
+
+            if ($e->statusCode === self::NETWORK_ERROR_STATUS_CODE || $e->statusCode >= self::SERVER_ERROR_STATUS_CODE) {
+                throw new ServiceUnavailableHttpException(null, $message, $e);
             }
 
             throw new \Symfony\Component\HttpFoundation\Exception\BadRequestException($message);

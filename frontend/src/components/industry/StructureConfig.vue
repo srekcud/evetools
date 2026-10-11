@@ -89,10 +89,12 @@ function clearCorpStructure() {
 // ESI structure search functions
 let searchTimeout: number | undefined
 const esiSearchError = ref<string | null>(null)
+const esiSearchIncomplete = ref(false)
 
 function onEsiSearchInput() {
   clearTimeout(searchTimeout)
   esiSearchError.value = null
+  esiSearchIncomplete.value = false
   if (esiSearchQuery.value.length < 3) {
     esiSearchResults.value = []
     showEsiSearchDropdown.value = false
@@ -103,6 +105,7 @@ function onEsiSearchInput() {
     const result = await store.searchStructures(esiSearchQuery.value)
     esiSearchResults.value = result.structures
     esiSearchError.value = result.error || null
+    esiSearchIncomplete.value = result.incomplete === true
     showEsiSearchDropdown.value = result.structures.length > 0
     isSearchingEsi.value = false
   }, 500) // Increased debounce to reduce API calls
@@ -570,6 +573,9 @@ watch(
             <!-- ESI Search Error -->
             <div v-if="esiSearchError" class="mt-1 text-xs text-amber-400">
               {{ esiSearchError }}
+            </div>
+            <div v-else-if="esiSearchIncomplete" class="mt-1 text-xs text-amber-400">
+              {{ t('industry.structures.searchIncomplete') }}
             </div>
           </div>
         </div>
