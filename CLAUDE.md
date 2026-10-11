@@ -114,6 +114,8 @@ make base-build      # Rebuild image base uniquement
 
 - **Un symbole métier porte un nom du glossaire.** Si le terme manque, proposer de l'ajouter au glossaire plutôt qu'inventer un synonyme.
 - **Pas de `|| true`, pas de `?? 0` ni de catch silencieux sur une donnée métier.** Une donnée ESI manquante doit remonter une erreur explicite ou un état « inconnu », jamais une valeur par défaut plausible.
+- **Langue** : rapports d'agents, documents de `.claude/tasks/` et échanges avec Sylvain en français. Code, noms de tests, identifiants, messages de commit et descriptions de PR en anglais.
+- **Pas de commentaire dans le code, tests compris.** Le pourquoi va dans le commit ou la PR. Un test de caractérisation qui fige un bug porte `Currently…IssueN` dans son nom et `#[Group('issue-N')]`.
 
 ---
 

@@ -60,6 +60,13 @@ Invoque le skill via l'outil `Skill` avec `skill: "frontend-design"` en décriva
 
 ## Format de sortie
 
+En mode câblage (appelé par `/tdd-red`, étape 1b), ne produis que la note `.claude/tasks/<lot>-wiring.md` :
+- les dépendances de l'implémentation cible ;
+- pour chacune, comment le harnais de test la fournit ;
+- les tests existants appelés à casser, avec leur raison ;
+- les questions de spec ouvertes.
+Pas de maquette, pas de plan d'implémentation.
+
 Structure tes réponses avec :
 - **Analyse** : état actuel, code existant pertinent
 - **Proposition** : architecture cible, schéma DB, endpoints API

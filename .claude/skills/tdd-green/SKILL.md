@@ -16,6 +16,7 @@ Précondition : `.claude/state/tdd-phase` contient `green`. Sinon, arrête-toi :
    - deptrac ;
    - Infection sur le périmètre touché : le MSI ne doit pas baisser par rapport à `docs/quality/baseline.md` ni au seuil d'`infection.json5`.
 3. Si un test paraît faux : **arrête-toi et explique pourquoi**. Ne contourne pas le verrou, et ne supprime pas le fichier de phase pour débloquer.
+   Même règle si une dépendance manque au harnais : arrête-toi et renvoie le lot à `/tdd-red` (étape 1b) avec la liste des dépendances manquantes.
 4. Budget : au-delà de 8 itérations sans progrès, arrête-toi et présente l'état.
 5. Phase refactor : nettoie le code, avec les tests verts comme garde-fou.
 6. Supprime `.claude/state/tdd-phase`, puis lance `/review`.

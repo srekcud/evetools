@@ -21,4 +21,14 @@ Cherche :
 - les assertions faibles (`assertNotNull`, `assertIsArray`, `assertCount` seul) là où une valeur exacte est connue ;
 - les mutants survivants d'Infection : pour chacun, dis si c'est un vrai trou de test ou un mutant équivalent (avec justification), et quel test le tuerait.
 
-Sortie : une liste priorisée. Chaque point donne `fichier:ligne`, le problème et le test manquant proposé (nom et assertion clé).
+En caractérisation, vérifie point par point la grille a-e de `/characterize` :
+- a. un bug connu (ex. B1/#2) présent dans les attendus d'un test qui ne le vise pas ;
+- b. des prix, quantités ou bonus identiques entre types, qui masqueraient une valeur attachée au mauvais type ;
+- c. une sortie lue par un appelant mais non assertée, ou une affirmation (nom, rapport) qu'aucune assertion ne prouve ;
+- d. un snapshot qui s'écrit sans `UPDATE_SNAPSHOTS=1`, ou `markTestIncomplete` / `markTestSkipped` sur une donnée absente (`grep` les deux) ;
+- e. un comportement figé et suspecté faux sans `Currently`, sans numéro d'issue ou sans `#[Group('issue-N')]`.
+
+Sortie, en français :
+1. **Verdict** : `suffisant` ou `insuffisant`. `insuffisant` dès qu'un point a, b, d ou e est trouvé, ou qu'une sortie clé (c) n'est pas assertée ;
+2. la grille a-e, avec ok ou ko et la preuve ;
+3. une liste priorisée. Chaque point donne `fichier:ligne`, le problème et le test manquant proposé (nom et assertion clé).
