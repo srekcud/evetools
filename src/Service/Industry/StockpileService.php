@@ -13,6 +13,9 @@ use Doctrine\ORM\EntityManagerInterface;
 
 class StockpileService
 {
+    private const int FULL_PERMILLE = 1000;
+    private const float PERMILLE_PER_PERCENT = 10.0;
+
     private const array EMPTY_STAGES = [
         'raw_material' => ['items' => [], 'totalValue' => 0.0, 'healthPercent' => 100.0],
         'intermediate' => ['items' => [], 'totalValue' => 0.0, 'healthPercent' => 100.0],
@@ -154,7 +157,7 @@ class StockpileService
             $stock = $assetQuantities[$tid] ?? 0;
             $targetQty = $target->getTargetQuantity();
             $percent = $targetQty > 0
-                ? min(100.0, ($stock / $targetQty) * 100)
+                ? min(self::FULL_PERMILLE, intdiv($stock * self::FULL_PERMILLE, $targetQty)) / self::PERMILLE_PER_PERCENT
                 : 100.0;
 
             if ($percent >= 100) {
@@ -177,7 +180,7 @@ class StockpileService
                 'typeName' => $target->getTypeName(),
                 'targetQuantity' => $targetQty,
                 'stock' => $stock,
-                'percent' => round($percent, 1),
+                'percent' => $percent,
                 'status' => $status,
                 'unitPrice' => $unitPrice,
                 'stockValue' => round($stockValue, 2),

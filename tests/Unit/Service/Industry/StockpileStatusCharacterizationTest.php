@@ -103,26 +103,29 @@ final class StockpileStatusCharacterizationTest extends TestCase
         self::assertSame(0.0, $status['stages']['component']['healthPercent']);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue à créer : le statut est calculé sur le
-    // pourcentage brut, l'étape et l'affichage sur le pourcentage arrondi. 49,96 % s'affiche 50.0 en « critical » ;
-    // 99,96 % s'affiche 100.0 en « partial », compte comme rempli dans healthPercent de l'étape mais pas dans
-    // pipelineHealth, et reste le goulot (bottleneck) et une ligne de la liste d'achats.
-    public function testPercentRoundedToABoundKeepsTheStatusOfTheRawPercentButCountsAsMetInTheStageHealth(): void
+    public function testPercentJustBelowABoundIsTruncatedSoThatTheStatusAndTheStageHealthFollowTheDisplayedPercent(): void
     {
-        $this->addTarget(1, 'Rounded Up To Half', 10000, 'raw_material', stock: 4996);
-        $this->addTarget(2, 'Rounded Up To Met', 10000, 'component', stock: 9996);
-        $this->addTarget(3, 'Met', 10, 'raw_material', stock: 10);
+        $this->addTarget(1, 'Just Under Half', 10000, 'raw_material', stock: 4996);
+        $this->addTarget(2, 'Just Under Met', 25000, 'component', stock: 24990);
+        $this->addTarget(3, 'Exactly Met', 20000, 'component', stock: 20000);
+        $this->addTarget(4, 'Met', 10, 'raw_material', stock: 10);
 
         $status = $this->service->getStockpileStatus($this->pilot);
 
-        $roundedToHalf = $status['stages']['raw_material']['items'][0];
-        self::assertSame([50.0, 'critical'], [$roundedToHalf['percent'], $roundedToHalf['status']]);
-        $roundedToMet = $status['stages']['component']['items'][0];
-        self::assertSame([100.0, 'partial'], [$roundedToMet['percent'], $roundedToMet['status']]);
-        self::assertSame(100.0, $status['stages']['component']['healthPercent']);
+        $justUnderHalf = $status['stages']['raw_material']['items'][0];
+        self::assertSame([49.9, 'critical'], [$justUnderHalf['percent'], $justUnderHalf['status']]);
+        $justUnderMet = $status['stages']['component']['items'][0];
+        self::assertSame([99.9, 'partial'], [$justUnderMet['percent'], $justUnderMet['status']]);
+        $exactlyMet = $status['stages']['component']['items'][1];
+        self::assertSame([100.0, 'met'], [$exactlyMet['percent'], $exactlyMet['status']]);
+        self::assertSame(50.0, $status['stages']['component']['healthPercent']);
         self::assertSame(50.0, $status['stages']['raw_material']['healthPercent']);
-        self::assertSame(33.3, $status['kpis']['pipelineHealth']);
+        self::assertSame(50.0, $status['kpis']['pipelineHealth']);
         self::assertSame([1, 2], array_column($status['shoppingList'], 'typeId'));
+        self::assertSame(
+            ['typeId' => 1, 'typeName' => 'Just Under Half', 'percent' => 49.9, 'blocksProducts' => 0],
+            $status['kpis']['bottleneck'],
+        );
     }
 
     public function testBottleneckIsTheFirstTargetWithTheLowestRoundedPercent(): void
