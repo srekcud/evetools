@@ -41,9 +41,8 @@ class IndustryShoppingListBuilder
                 continue;
             }
             $typeId = $step->getProductTypeId();
-            if ($step->getInStockQuantity() > 0) {
-                $inStockQuantities[$typeId] = ($inStockQuantities[$typeId] ?? 0) + $step->getInStockQuantity();
-            } elseif ($step->isPurchased()) {
+            $inStockQuantities[$typeId] = ($inStockQuantities[$typeId] ?? 0) + $step->getInStockQuantity();
+            if ($step->isPurchased()) {
                 $purchasedTypeIds[] = $typeId;
             }
         }

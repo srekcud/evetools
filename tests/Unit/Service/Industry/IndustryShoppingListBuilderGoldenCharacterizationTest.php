@@ -248,19 +248,26 @@ final class IndustryShoppingListBuilderGoldenCharacterizationTest extends TestCa
         self::assertSame(100, $this->quantitiesByTypeId($shoppingList)[16639]);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #20 : une étape achetée qui porte un stock
-    // partiel n'est plus traitée comme achetée (le stock prend le pas sur l'achat) ; son sous-arbre complet est acheté
-    // au lieu des 50 Fernite Alloy manquants.
-    public function testShoppingListCurrentlyBuildsThePurchasedIntermediateWithPartialStockInFullIssue20(): void
+    public function testShoppingListBuysTheUncoveredPartOfAPurchasedIntermediateInStockInsteadOfItsSubtree(): void
     {
-        $withoutStock = $this->builder->getShoppingList($this->oneRunOfFerniteCarbide());
+        $this->pilot->setIndustryBlacklistTypeIds([self::HYDROGEN_FUEL_BLOCK]);
         $project = $this->oneRunOfFerniteCarbide();
-        self::addStep($project, self::FERNITE_ALLOY, 1, 1, 'reaction', 0)->setPurchased(true)->setInStockQuantity(50);
+        self::addStep($project, self::FERNITE_ALLOY, 1, 1, 'reaction', 0)->setPurchased(true)->setInStockQuantity(30);
 
-        $shoppingList = $this->builder->getShoppingList($project);
+        $quantities = $this->quantitiesByTypeId($this->builder->getShoppingList($project));
 
-        self::assertSame($withoutStock, $shoppingList);
-        self::assertArrayNotHasKey(self::FERNITE_ALLOY, $this->quantitiesByTypeId($shoppingList));
+        self::assertSame([self::HYDROGEN_FUEL_BLOCK => 10, 16635 => 100, 16636 => 100, self::FERNITE_ALLOY => 70], $quantities);
+    }
+
+    public function testShoppingListBuysNothingForAPurchasedIntermediateFullyInStock(): void
+    {
+        $this->pilot->setIndustryBlacklistTypeIds([self::HYDROGEN_FUEL_BLOCK]);
+        $project = $this->oneRunOfFerniteCarbide();
+        self::addStep($project, self::FERNITE_ALLOY, 1, 1, 'reaction', 0)->setPurchased(true)->setInStockQuantity(100);
+
+        $quantities = $this->quantitiesByTypeId($this->builder->getShoppingList($project));
+
+        self::assertSame([self::HYDROGEN_FUEL_BLOCK => 10, 16635 => 100, 16636 => 100], $quantities);
     }
 
     public function testShoppingListBuysTheUncoveredPartOfABlacklistedIntermediateInStock(): void
