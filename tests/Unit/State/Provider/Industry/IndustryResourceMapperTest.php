@@ -58,4 +58,25 @@ class IndustryResourceMapperTest extends TestCase
         // Issue #94: rig 24 % x 2.1 = 50.4 %, stacked with the Azbel 20 %: 1 - 0.80 x (1 - 0.504)
         $this->assertSame(60.32, $resource->manufacturingTimeBonus);
     }
+
+    public function testStructureResourceExposesTheGameFacilityTaxForAnNpcStationStoredWithAnotherTax(): void
+    {
+        $mapper = new IndustryResourceMapper(
+            $this->createStub(IndustryCalculationService::class),
+            $this->createStub(CachedCharacterSkillRepository::class),
+            $this->createStub(CachedIndustryJobRepository::class),
+            $this->createStub(InventionService::class),
+        );
+
+        $station = new IndustryStructureConfig();
+        $station->setName('Hek VIII');
+        $station->setStructureType('station');
+        $station->setSecurityType('lowsec');
+        $station->setFacilityTaxRate(10.0);
+
+        $exposed = get_object_vars($mapper->structureToResource($station));
+
+        $this->assertArrayHasKey('facilityTaxRate', $exposed);
+        $this->assertSame(0.25, $exposed['facilityTaxRate']);
+    }
 }

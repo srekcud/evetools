@@ -90,6 +90,44 @@ class CorporationStructureProviderTest extends TestCase
         $this->assertSame([], $this->locationIdsOf($result->structures));
     }
 
+    public function testSharedConfigCarriesTheFacilityTaxEnteredByAnotherMember(): void
+    {
+        $sharedConfig = $this->sharedConfigOfStructureTaxedAt(4.0);
+
+        $this->assertArrayHasKey('facilityTaxRate', $sharedConfig);
+        $this->assertSame(4.0, $sharedConfig['facilityTaxRate']);
+    }
+
+    public function testSharedConfigOfAStructureWithoutFacilityTaxHasNoFacilityTax(): void
+    {
+        $sharedConfig = $this->sharedConfigOfStructureTaxedAt(null);
+
+        $this->assertArrayHasKey('facilityTaxRate', $sharedConfig);
+        $this->assertNull($sharedConfig['facilityTaxRate']);
+    }
+
+    private function sharedConfigOfStructureTaxedAt(?float $facilityTaxRate): array
+    {
+        $currentUser = $this->createUser();
+        $this->security->method('getUser')->willReturn($currentUser);
+
+        $sharedStructure = $this->createCorporationStructure($this->createUser(), self::VISIBLE_LOCATION_ID, 'Corp Raitaru');
+        $sharedStructure->setFacilityTaxRate($facilityTaxRate);
+
+        $this->structureConfigRepository->method('findCorporationSharedStructures')
+            ->willReturn([self::VISIBLE_LOCATION_ID => $sharedStructure]);
+        $this->structureConfigRepository->method('findByUser')->willReturn([]);
+
+        $result = $this->provider->provide(new GetCollection());
+
+        $this->assertCount(1, $result->structures);
+
+        $sharedConfig = $result->structures[0]->sharedConfig;
+        $this->assertIsArray($sharedConfig);
+
+        return $sharedConfig;
+    }
+
     private function createUser(): User&Stub
     {
         $user = $this->createStub(User::class);
