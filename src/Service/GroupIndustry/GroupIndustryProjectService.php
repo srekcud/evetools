@@ -11,6 +11,7 @@ use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
+use App\Industry\Application\InventionCatalog;
 use App\Repository\Sde\IndustryBlueprintRepository;
 use App\Service\Industry\IndustryTreeService;
 use App\Service\JitaMarketService;
@@ -23,6 +24,7 @@ class GroupIndustryProjectService
         private readonly JitaMarketService $jitaMarketService,
         private readonly EntityManagerInterface $entityManager,
         private readonly IndustryBlueprintRepository $blueprintRepository,
+        private readonly InventionCatalog $inventionCatalog,
     ) {
     }
 

@@ -14,6 +14,7 @@ use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
+use App\Industry\Application\InventionCatalog;
 use App\Repository\Sde\IndustryBlueprintRepository;
 use App\Service\GroupIndustry\CreateProjectData;
 use App\Service\GroupIndustry\GroupIndustryProjectService;
@@ -84,6 +85,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
             $jitaMarketService,
             $this->em,
             self::getContainer()->get(IndustryBlueprintRepository::class),
+            self::getContainer()->get(InventionCatalog::class),
         );
     }
 

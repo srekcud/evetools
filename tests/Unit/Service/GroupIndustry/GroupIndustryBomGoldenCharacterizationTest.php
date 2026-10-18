@@ -20,6 +20,11 @@ use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\IndustryActivityType;
 use App\Exception\TypeMissingFromSdeException;
+use App\Industry\Application\InventionCatalog;
+use App\Industry\Application\InventionRecipe;
+use App\Industry\Domain\Quantity;
+use App\Industry\Domain\RecipeMaterial;
+use App\Industry\Domain\Runs;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryBlueprintRepository;
@@ -29,6 +34,7 @@ use App\Service\GroupIndustry\GroupIndustryProjectService;
 use App\Service\Industry\IndustryBonusService;
 use App\Service\Industry\IndustryTreeService;
 use App\Service\JitaMarketService;
+use App\Tests\Unit\Industry\Application\Double\InMemoryInventionCatalog;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -70,6 +76,20 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     private const int TITANIUM_DIBORITE_ARMOR_PLATE = 11544;
     private const int NITROGEN_ISOTOPES = 17888;
     private const int COMPOSITE_GROUP_ID = 429;
+    private const int DEPLETED_URANIUM_L = 197;
+    private const int DEPLETED_URANIUM_L_BLUEPRINT = 898;
+    private const int DATACORE_NUCLEAR_PHYSICS = 20423;
+    private const int DATACORE_MECHANICAL_ENGINEERING = 20424;
+    private const float HAIL_L_BASE_PROBABILITY = 0.34;
+    private const int HAIL_L_INVENTED_BPC_RUNS = 10;
+    private const int NUCLEAR_PHYSICS_PER_ATTEMPT = 1;
+    private const int MECHANICAL_ENGINEERING_PER_ATTEMPT = 2;
+
+    private const array INVENTION_TYPE_NAMES = [
+        self::DEPLETED_URANIUM_L => 'Depleted Uranium L',
+        self::DATACORE_NUCLEAR_PHYSICS => 'Datacore - Nuclear Physics',
+        self::DATACORE_MECHANICAL_ENGINEERING => 'Datacore - Mechanical Engineering',
+    ];
 
     /** @var array{recipes: array<string, array{name: string, activity: string, outputPerRun: int, materials: array<string, int>}>, typeNames: array<string, string>} */
     private array $sde;
@@ -90,20 +110,29 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
 
     private Connection $connection;
     private EntityManagerInterface $entityManager;
+    private IndustryBlueprintRepository $blueprintRepository;
+    private JitaMarketService $jitaMarketService;
     private GroupIndustryProjectService $service;
     private User $owner;
 
     protected function setUp(): void
     {
         $this->sde = json_decode((string) file_get_contents(self::SDE_RECIPES_FIXTURE), true, flags: \JSON_THROW_ON_ERROR);
+        foreach (self::INVENTION_TYPE_NAMES as $typeId => $typeName) {
+            $this->sde['typeNames'][(string) $typeId] = $typeName;
+        }
 
         $this->connection = $this->createMock(Connection::class);
         $this->connection->method('fetchOne')->willReturnCallback(fn (string $sql, array $params): int => $this->hasCopyActivity($params[0]) ? 1 : 0);
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->entityManager->method('getConnection')->willReturn($this->connection);
+        $typeRepository = $this->typeRepositoryOnGoldenSde();
+        $this->entityManager->method('getRepository')->willReturnCallback(
+            static fn (string $className): ?InvTypeRepository => $className === InvType::class ? $typeRepository : null,
+        );
 
-        $blueprintRepository = $this->createMock(IndustryBlueprintRepository::class);
-        $blueprintRepository->method('findBy')->willReturnCallback(fn (array $criteria): array => array_values(array_map(
+        $this->blueprintRepository = $this->createMock(IndustryBlueprintRepository::class);
+        $this->blueprintRepository->method('findBy')->willReturnCallback(fn (array $criteria): array => array_values(array_map(
             static fn (int $blueprintTypeId, int $maxProductionLimit): IndustryBlueprint => (new IndustryBlueprint())
                 ->setTypeId($blueprintTypeId)
                 ->setMaxProductionLimit($maxProductionLimit),
@@ -111,8 +140,8 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
             array_intersect_key($this->maxProductionLimits, array_flip($criteria['typeId'])),
         )));
 
-        $jitaMarketService = $this->createMock(JitaMarketService::class);
-        $jitaMarketService->method('getCheapestPercentilePrices')->willReturnCallback(function (array $typeIds): array {
+        $this->jitaMarketService = $this->createMock(JitaMarketService::class);
+        $this->jitaMarketService->method('getCheapestPercentilePrices')->willReturnCallback(function (array $typeIds): array {
             $this->pricedTypeIds[] = $typeIds;
             $prices = [];
             foreach ($typeIds as $typeId) {
@@ -122,12 +151,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
             return $prices;
         });
 
-        $this->service = new GroupIndustryProjectService(
-            $this->treeServiceOnGoldenSde($this->entityManager),
-            $jitaMarketService,
-            $this->entityManager,
-            $blueprintRepository,
-        );
+        $this->service = $this->serviceInventing(self::HAIL_L_BASE_PROBABILITY);
         $this->owner = $this->createMock(User::class);
     }
 
@@ -343,20 +367,23 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
 
     #[Group('issue-2')]
     #[Group('issue-23')]
-    public function testTenRunsOfHailLCurrentlyBecomeOneRunWithACopyOfTheT2BlueprintAndNoInventionIssue2(): void
+    #[Group('issue-105')]
+    public function testTenRunsOfHailLCurrentlyBecomeOneRunInventedFromACopyOfTheT1BlueprintIssue2(): void
     {
         $project = $this->projectOf([[self::HAIL_L, 10, 2, 4]]);
 
         $this->service->buildBom($project, $this->owner);
 
+        $materials = $this->materials($project);
+        ksort($materials);
         self::assertSame(
             [
-                11399 => 15, 34 => 501, 35 => 400, 36 => 200, 37 => 74, 38 => 33,
-                44 => 24, 3683 => 120, 3689 => 24, 9832 => 54, 9848 => 6, 16272 => 918, 16273 => 1890, 16275 => 108,
-                17889 => 1215, 16639 => 100, 16642 => 100, 16635 => 100, 16636 => 200, 17888 => 810, 16274 => 405,
-                16633 => 100, 16644 => 100, 16649 => 100,
+                34 => 501, 35 => 400, 36 => 200, 37 => 74, 38 => 33, 44 => 24, 3683 => 120, 3689 => 24, 9832 => 54, 9848 => 6,
+                11399 => 15, 16272 => 918, 16273 => 1890, 16274 => 405, 16275 => 108, 16633 => 100, 16635 => 100,
+                16636 => 200, 16639 => 100, 16642 => 100, 16644 => 100, 16649 => 100, 17888 => 810, 17889 => 1215,
+                self::DATACORE_NUCLEAR_PHYSICS => 1, self::DATACORE_MECHANICAL_ENGINEERING => 2,
             ],
-            $this->materials($project),
+            $materials,
         );
         self::assertSame(
             [
@@ -371,13 +398,205 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
                 [self::CARBON_POLYMERS, 'reaction', 'component', 1, 0, 0, 200, self::FULLERIDES],
                 [self::HELIUM_FUEL_BLOCK, 'manufacturing', 'component', 1, 10, 20, 40, self::CARBON_POLYMERS],
                 [self::PLATINUM_TECHNITE, 'reaction', 'component', 1, 0, 0, 200, self::FULLERIDES],
-                [self::HAIL_L, 'copy', 'blueprint', 1, 0, 0, 1, null],
                 [self::RAM_AMMUNITION_TECH, 'copy', 'blueprint', 1, 0, 0, 1, self::HAIL_L],
                 [self::HYDROGEN_FUEL_BLOCK, 'copy', 'blueprint', 3, 0, 0, 3, self::FERNITE_CARBIDE],
                 [self::NITROGEN_FUEL_BLOCK, 'copy', 'blueprint', 2, 0, 0, 2, self::FULLERIDES],
                 [self::HELIUM_FUEL_BLOCK, 'copy', 'blueprint', 1, 0, 0, 1, self::CARBON_POLYMERS],
             ],
+            array_values(array_filter($this->jobs($project), static fn (array $job): bool => !in_array($job[0], [self::HAIL_L, self::DEPLETED_URANIUM_L], true) || $job[1] === 'manufacturing')),
+        );
+        self::assertSame($this->hailLInventionJobs(1), $this->inventionJobs($project));
+    }
+
+    #[Group('issue-105')]
+    public function testOneManufacturingRunOfHailLIsInventedInOneAttemptFromOneCopyOfTheT1BlueprintWithItsDatacores(): void
+    {
+        $project = $this->projectOf([[self::HAIL_L, 1, 2, 4]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame([], array_values(array_filter($this->jobsOfType($project, self::HAIL_L), static fn (array $job): bool => $job[1] === 'copy')));
+        self::assertSame($this->hailLInventionJobs(1), $this->inventionJobs($project));
+        self::assertSame(
+            [[self::DATACORE_NUCLEAR_PHYSICS, 'Datacore - Nuclear Physics', 1], [self::DATACORE_MECHANICAL_ENGINEERING, 'Datacore - Mechanical Engineering', 2]],
+            $this->datacoreLines($project),
+        );
+    }
+
+    #[Group('issue-105')]
+    public function testInventionNamesTheT2ProductAndTheCopyNamesTheT1Product(): void
+    {
+        $project = $this->projectOf([[self::HAIL_L, 1, 2, 4]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [['Hail L'], ['Depleted Uranium L']],
+            [
+                array_map(static fn (GroupIndustryBomItem $bomItem): string => $bomItem->getTypeName(), $this->jobsOf($project, self::HAIL_L, 'invention')),
+                array_map(static fn (GroupIndustryBomItem $bomItem): string => $bomItem->getTypeName(), $this->jobsOf($project, self::DEPLETED_URANIUM_L, 'copy')),
+            ],
+        );
+    }
+
+    #[Group('issue-105')]
+    public function testDatacoresArePricedFromJitaLikeTheOtherMaterials(): void
+    {
+        $this->jitaPrices = [self::DATACORE_NUCLEAR_PHYSICS => 68_500.0, self::DATACORE_MECHANICAL_ENGINEERING => 91_200.0, 11399 => 7_350.0];
+        $project = $this->projectOf([[self::HAIL_L, 1, 2, 4]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        $estimatedPrices = [];
+        foreach ($this->materialBomItems($project) as $bomItem) {
+            $estimatedPrices[$bomItem->getTypeId()] = $bomItem->getEstimatedPrice();
+        }
+        $estimatedPrices = array_intersect_key($estimatedPrices, array_flip([11399, self::DATACORE_NUCLEAR_PHYSICS, self::DATACORE_MECHANICAL_ENGINEERING]));
+        ksort($estimatedPrices);
+        self::assertSame(
+            [11399 => 7_350.0, self::DATACORE_NUCLEAR_PHYSICS => 68_500.0, self::DATACORE_MECHANICAL_ENGINEERING => 91_200.0],
+            $estimatedPrices,
+        );
+        self::assertCount(1, $this->pricedTypeIds);
+        self::assertContains(self::DATACORE_NUCLEAR_PHYSICS, $this->pricedTypeIds[0]);
+        self::assertContains(self::DATACORE_MECHANICAL_ENGINEERING, $this->pricedTypeIds[0]);
+    }
+
+    #[Group('issue-2')]
+    #[Group('issue-105')]
+    public function testTenRunsOfHailLCurrentlyInventForTheOneManufacturingRunOfTheBomIssue2(): void
+    {
+        $project = $this->projectOf([[self::HAIL_L, 10, 2, 4]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [[1], [1], [1]],
+            [
+                array_map(static fn (GroupIndustryBomItem $bomItem): ?int => $bomItem->getRuns(), $this->jobsOf($project, self::HAIL_L, 'manufacturing')),
+                array_map(static fn (GroupIndustryBomItem $bomItem): ?int => $bomItem->getRuns(), $this->jobsOf($project, self::HAIL_L, 'invention')),
+                array_map(static fn (GroupIndustryBomItem $bomItem): ?int => $bomItem->getRuns(), $this->jobsOf($project, self::DEPLETED_URANIUM_L, 'copy')),
+            ],
+        );
+    }
+
+    #[Group('issue-2')]
+    #[Group('issue-105')]
+    public function testSevenManufacturingRunsOfHailLNeedThreeInventionAttemptsAndThreeCopiesOfTheT1Blueprint(): void
+    {
+        $project = $this->projectOf([[self::HAIL_L, 35_000, 2, 4]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame([7], array_map(static fn (GroupIndustryBomItem $bomItem): ?int => $bomItem->getRuns(), $this->jobsOf($project, self::HAIL_L, 'manufacturing')));
+        self::assertSame($this->hailLInventionJobs(3), $this->inventionJobs($project));
+        self::assertSame(
+            [[self::DATACORE_NUCLEAR_PHYSICS, 'Datacore - Nuclear Physics', 3], [self::DATACORE_MECHANICAL_ENGINEERING, 'Datacore - Mechanical Engineering', 6]],
+            $this->datacoreLines($project),
+        );
+    }
+
+    #[Group('issue-105')]
+    public function testNotInventedProductKeepsTheCopyOfItsBlueprintAndGetsNoInventionNorDatacore(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 10, 20]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [
+                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 10, 20, 40, null],
+                [self::NITROGEN_FUEL_BLOCK, 'copy', 'blueprint', 1, 0, 0, 1, null],
+            ],
             $this->jobs($project),
+        );
+        self::assertSame(
+            [44 => 4, 3683 => 20, 3689 => 4, 9832 => 9, 9848 => 1, 16272 => 153, 16273 => 315, 16275 => 18, 17888 => 405],
+            $this->materials($project),
+        );
+    }
+
+    #[Group('issue-105')]
+    public function testIntermediatesOfAnInventedProductKeepTheCopyOfTheirBlueprint(): void
+    {
+        $project = $this->projectOf([[self::HAIL_L, 1, 2, 4]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [
+                [self::NITROGEN_FUEL_BLOCK, 'copy', 'blueprint', 2, 0, 0, 2, self::FULLERIDES],
+                [self::HYDROGEN_FUEL_BLOCK, 'copy', 'blueprint', 3, 0, 0, 3, self::FERNITE_CARBIDE],
+                [self::HELIUM_FUEL_BLOCK, 'copy', 'blueprint', 1, 0, 0, 1, self::CARBON_POLYMERS],
+                [self::RAM_AMMUNITION_TECH, 'copy', 'blueprint', 1, 0, 0, 1, self::HAIL_L],
+            ],
+            $this->sortedJobs(array_values(array_filter(
+                $this->jobs($project),
+                static fn (array $job): bool => $job[1] === 'copy' && !in_array($job[0], [self::HAIL_L, self::DEPLETED_URANIUM_L], true),
+            ))),
+        );
+    }
+
+    #[Group('issue-105')]
+    public function testInventionWithoutProbabilityThrowsNamingTheT2ProductAndTheT1BlueprintAndLeavesTheBomEmpty(): void
+    {
+        $service = $this->serviceInventing(null);
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 10, 20], [self::HAIL_L, 1, 2, 4]]);
+
+        $missingProbability = null;
+        try {
+            $service->buildBom($project, $this->owner);
+        } catch (\RuntimeException $exception) {
+            $missingProbability = $exception;
+        }
+
+        self::assertInstanceOf(\RuntimeException::class, $missingProbability, 'Expected a RuntimeException for the missing invention probability');
+        self::assertMatchesRegularExpression('/\b'.self::HAIL_L.'\b/', $missingProbability->getMessage());
+        self::assertMatchesRegularExpression('/\b'.self::DEPLETED_URANIUM_L_BLUEPRINT.'\b/', $missingProbability->getMessage());
+        self::assertCount(0, $project->getBomItems());
+    }
+
+    #[Group('issue-105')]
+    public function testInventionWithoutProbabilityPersistsNoProject(): void
+    {
+        $service = $this->serviceInventing(null);
+        $persisted = [];
+        $this->entityManager->method('persist')->willReturnCallback(static function (object $entity) use (&$persisted): void {
+            $persisted[] = $entity;
+        });
+
+        $missingProbability = null;
+        try {
+            $service->createProject($this->owner, new CreateProjectData(
+                name: 'Hail run',
+                items: [['typeId' => self::HAIL_L, 'typeName' => 'Hail L', 'meLevel' => 2, 'teLevel' => 4, 'runs' => 1]],
+            ));
+        } catch (\RuntimeException $exception) {
+            $missingProbability = $exception;
+        }
+
+        self::assertInstanceOf(\RuntimeException::class, $missingProbability, 'Expected a RuntimeException for the missing invention probability');
+        self::assertSame([], $persisted);
+    }
+
+    #[Group('issue-105')]
+    public function testTwoHailLItemsShareOneInventionAndOneT1CopySizedOnTheSumOfTheirManufacturingRuns(): void
+    {
+        $project = $this->projectOf([[self::HAIL_L, 1, 2, 4], [self::HAIL_L, 35_000, 0, 0]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [[1, 2, 4], [7, 0, 0]],
+            $this->sortedJobs(array_map(
+                static fn (GroupIndustryBomItem $bomItem): array => [$bomItem->getRuns(), $bomItem->getMeLevel(), $bomItem->getTeLevel()],
+                $this->jobsOf($project, self::HAIL_L, 'manufacturing'),
+            )),
+        );
+        self::assertSame($this->hailLInventionJobs(3), $this->inventionJobs($project));
+        self::assertSame(
+            [[self::DATACORE_NUCLEAR_PHYSICS, 'Datacore - Nuclear Physics', 3], [self::DATACORE_MECHANICAL_ENGINEERING, 'Datacore - Mechanical Engineering', 6]],
+            $this->datacoreLines($project),
         );
     }
 
@@ -446,6 +665,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     }
 
     #[Group('issue-106')]
+    #[Group('issue-105')]
     public function testProjectItemAlsoNeededAsAnIntermediateKeepsTheMaterialsOfBothTrees(): void
     {
         $project = $this->projectOf([[self::HAIL_L, 1, 2, 4], [self::FERNITE_CARBIDE, 1, 0, 0]]);
@@ -459,6 +679,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
                 34 => 501, 35 => 400, 36 => 200, 37 => 74, 38 => 33, 44 => 36, 3683 => 180, 3689 => 36, 9832 => 81, 9848 => 9,
                 11399 => 15, 16272 => 1377, 16273 => 2835, 16274 => 405, 16275 => 162, 16633 => 100, 16635 => 200,
                 16636 => 300, 16639 => 200, 16642 => 200, 16644 => 100, 16649 => 100, 17888 => 810, 17889 => 2430,
+                self::DATACORE_NUCLEAR_PHYSICS => 1, self::DATACORE_MECHANICAL_ENGINEERING => 2,
             ],
             $materials,
         );
@@ -891,6 +1112,38 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         ));
     }
 
+    private function hailLInventionJobs(int $attempts): array
+    {
+        return [
+            [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', $attempts, 0, 0, $attempts, null],
+            [self::HAIL_L, 'invention', 'blueprint', $attempts, 0, 0, $attempts, null],
+        ];
+    }
+
+    private function inventionJobs(GroupIndustryProject $project): array
+    {
+        return $this->sortedJobs(array_values(array_filter(
+            $this->jobs($project),
+            static fn (array $job): bool => $job[1] === 'invention' || ($job[1] === 'copy' && in_array($job[0], [self::HAIL_L, self::DEPLETED_URANIUM_L], true)),
+        )));
+    }
+
+    private function datacoreLines(GroupIndustryProject $project): array
+    {
+        return array_map(
+            static fn (GroupIndustryBomItem $bomItem): array => [$bomItem->getTypeId(), $bomItem->getTypeName(), $bomItem->getRequiredQuantity()],
+            [
+                ...$this->materialBomItemsOf($project, self::DATACORE_NUCLEAR_PHYSICS),
+                ...$this->materialBomItemsOf($project, self::DATACORE_MECHANICAL_ENGINEERING),
+            ],
+        );
+    }
+
+    private function materialBomItemsOf(GroupIndustryProject $project, int $typeId): array
+    {
+        return array_values(array_filter($this->materialBomItems($project), static fn (GroupIndustryBomItem $bomItem): bool => $bomItem->getTypeId() === $typeId));
+    }
+
     /** @return list<GroupIndustryBomItem> */
     private function bomItemsOf(GroupIndustryProject $project, int $typeId): array
     {
@@ -961,12 +1214,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
             },
         );
 
-        $typeRepository = $this->createMock(InvTypeRepository::class);
-        $typeRepository->method('find')->willReturnCallback(
-            fn (int $typeId): ?InvType => !in_array($typeId, $this->typeIdsWithoutSdeName, true) && isset($this->sde['typeNames'][(string) $typeId])
-                ? (new InvType())->setTypeId($typeId)->setTypeName($this->sde['typeNames'][(string) $typeId])
-                : null,
-        );
+        $typeRepository = $this->typeRepositoryOnGoldenSde();
 
         $noStructure = ['structure' => null, 'bonus' => ['total' => 0.0, 'base' => 0.0, 'rig' => 0.0], 'category' => null];
         $bonusService = $this->createMock(IndustryBonusService::class);
@@ -976,6 +1224,43 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         $bonusService->method('getCategoryForProduct')->willReturn(null);
 
         return new IndustryTreeService($productRepository, $materialRepository, $typeRepository, $entityManager, $bonusService);
+    }
+
+    private function serviceInventing(?float $hailLBaseProbability): GroupIndustryProjectService
+    {
+        return new GroupIndustryProjectService(
+            $this->treeServiceOnGoldenSde($this->entityManager),
+            $this->jitaMarketService,
+            $this->entityManager,
+            $this->blueprintRepository,
+            new InMemoryInventionCatalog([
+                self::HAIL_L => new InventionRecipe(
+                    t1BlueprintTypeId: self::DEPLETED_URANIUM_L_BLUEPRINT,
+                    t1ProductTypeId: self::DEPLETED_URANIUM_L,
+                    baseProbability: $hailLBaseProbability,
+                    baseRuns: new Runs(self::HAIL_L_INVENTED_BPC_RUNS),
+                    datacores: [
+                        new RecipeMaterial(self::DATACORE_NUCLEAR_PHYSICS, new Quantity(self::NUCLEAR_PHYSICS_PER_ATTEMPT)),
+                        new RecipeMaterial(self::DATACORE_MECHANICAL_ENGINEERING, new Quantity(self::MECHANICAL_ENGINEERING_PER_ATTEMPT)),
+                    ],
+                ),
+            ]),
+        );
+    }
+
+    private function typeRepositoryOnGoldenSde(): InvTypeRepository
+    {
+        $typeOf = fn (int $typeId): ?InvType => !in_array($typeId, $this->typeIdsWithoutSdeName, true) && isset($this->sde['typeNames'][(string) $typeId])
+            ? (new InvType())->setTypeId($typeId)->setTypeName($this->sde['typeNames'][(string) $typeId])
+            : null;
+
+        $typeRepository = $this->createMock(InvTypeRepository::class);
+        $typeRepository->method('find')->willReturnCallback($typeOf);
+        $typeRepository->method('findBy')->willReturnCallback(
+            static fn (array $criteria): array => array_values(array_filter(array_map($typeOf, (array) $criteria['typeId']))),
+        );
+
+        return $typeRepository;
     }
 
     private static function activityIdOf(string $activity): int
