@@ -138,15 +138,11 @@ class IndustryProjectFactory
             if ($aOrder !== $bOrder) {
                 return $aOrder <=> $bOrder;
             }
-            $aGroup = $a['splitGroupId'] ?? '';
-            $bGroup = $b['splitGroupId'] ?? '';
-            if ($aGroup !== $bGroup) {
-                return strcmp($aGroup, $bGroup);
+            $nameComparison = strcasecmp($a['productTypeName'], $b['productTypeName']);
+            if ($nameComparison !== 0) {
+                return $nameComparison;
             }
-            if (($a['splitIndex'] ?? 0) !== ($b['splitIndex'] ?? 0)) {
-                return ($a['splitIndex'] ?? 0) <=> ($b['splitIndex'] ?? 0);
-            }
-            return strcasecmp($a['productTypeName'], $b['productTypeName']);
+            return ($a['splitIndex'] ?? 0) <=> ($b['splitIndex'] ?? 0);
         });
 
         foreach ($rawSteps as $index => $data) {
