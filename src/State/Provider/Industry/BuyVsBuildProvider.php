@@ -57,9 +57,6 @@ class BuyVsBuildProvider implements ProviderInterface
         if ($structureId === null) {
             $structureId = $user->getPreferredMarketStructureId();
         }
-        if ($structureId === null) {
-            $structureId = EveConstants::JITA_STATION_ID;
-        }
 
         // Resolve solar system ID
         $solarSystemId = $solarSystemIdParam !== null
@@ -77,7 +74,10 @@ class BuyVsBuildProvider implements ProviderInterface
             $user,
         );
 
-        return $this->mapToResource($result);
+        $resource = $this->mapToResource($result);
+        $resource->sellStructureId = $structureId;
+
+        return $resource;
     }
 
     /**

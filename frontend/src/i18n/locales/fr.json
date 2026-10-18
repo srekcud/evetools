@@ -620,6 +620,7 @@
         "stages": "etapes intermediaires",
         "totalProductionCost": "Cout de Production Total",
         "sellPriceLabel": "Prix de Vente (C-J6MT)",
+        "noSellStructure": "Aucune structure de marché choisie : prix Jita uniquement",
         "margin": "Marge",
         "allStages": "Toutes les Etapes",
         "t2Components": "Composants T2",

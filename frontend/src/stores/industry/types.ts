@@ -600,6 +600,7 @@ export type BuyVsBuildResult = {
   optimalMixCost: number
   buildTypeIds: number[]
   buyTypeIds: number[]
+  sellStructureId: number | null
 }
 
 // Pivot Advisor types

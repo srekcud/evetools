@@ -85,7 +85,9 @@ class BuyVsBuildService
         $jitaPrices = $this->jitaMarketService->getPricesWithFallback($allTypeIds);
 
         // Sell price for the final product
-        $structureSellPrice = $this->structureMarketService->getLowestSellPrice($sellStructureId, $typeId);
+        $structureSellPrice = $sellStructureId !== null
+            ? $this->structureMarketService->getLowestSellPrice($sellStructureId, $typeId)
+            : null;
         $sellPrice = $structureSellPrice ?? ($jitaPrices[$typeId] ?? null);
 
         // Analyze each buildable component
@@ -98,7 +100,7 @@ class BuyVsBuildService
 
         // Batch structure prices for all component type IDs
         $componentTypeIds = array_map(static fn (array $c) => $c['typeId'], $components);
-        $structurePrices = $componentTypeIds !== []
+        $structurePrices = $sellStructureId !== null && $componentTypeIds !== []
             ? $this->structureMarketService->getLowestSellPrices($sellStructureId, $componentTypeIds)
             : [];
 

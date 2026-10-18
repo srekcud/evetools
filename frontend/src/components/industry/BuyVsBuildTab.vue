@@ -368,6 +368,7 @@ const SUMMARY_LIST_LIMIT = 5
             <div class="text-right">
               <p class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.scanner.buyVsBuild.sellPriceLabel') }}</p>
               <p class="text-lg font-mono text-slate-100 font-semibold">{{ formatIsk(result.sellPrice) }}</p>
+              <p v-if="result.sellStructureId === null" class="text-xs text-slate-500 mt-0.5">{{ t('industry.scanner.buyVsBuild.noSellStructure') }}</p>
             </div>
             <div class="w-px h-10 bg-slate-700"></div>
             <div class="text-right">
