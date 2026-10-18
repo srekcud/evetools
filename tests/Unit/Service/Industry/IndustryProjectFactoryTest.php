@@ -502,6 +502,40 @@ class IndustryProjectFactoryTest extends TestCase
         }
     }
 
+    public function testCopyStepLongerThanTheMaximumDurationIsNeverSplit(): void
+    {
+        $user = $this->createUser();
+        $this->invTypeRepository->method('find')->willReturn($this->createMock(InvType::class));
+        $this->treeService->method('buildProductionTree')->willReturn(
+            $this->buildFlatTreeNode(22457, 22456, 'Sabre', 12, 1, [], 0, 'manufacturing', true),
+        );
+        $this->blacklistService->method('resolveBlacklistedTypeIds')->willReturn([]);
+        $this->calculationService->method('getBlueprintScienceSkillIds')->willReturn([]);
+        $copyActivity = $this->createMock(IndustryActivity::class);
+        $copyActivity->method('getTime')->willReturn(48_000);
+        $manufacturingActivity = $this->createMock(IndustryActivity::class);
+        $manufacturingActivity->method('getTime')->willReturn(1_200);
+        $this->activityRepository->method('findByTypeIdsAndActivityIds')->willReturn([
+            '22457-5' => $copyActivity,
+            '22457-1' => $manufacturingActivity,
+        ]);
+        $this->bonusService->method('findBestStructureForProductTimeBonus')->willReturn(['bonus' => 0.0, 'structure' => null]);
+        $this->bonusService->method('calculateAdjustedTimePerRun')->willReturnCallback(
+            fn (int $base, int $te, float $structureBonus) => $base,
+        );
+
+        $project = $this->factory->createProject($user, 22456, 12, 10, 1.0, 20);
+
+        $stepsByActivity = [];
+        foreach ($project->getSteps() as $step) {
+            $stepsByActivity[$step->getActivityType()][] = [$step->getRuns(), $step->getQuantity(), $step->getSplitGroupId(), $step->getSplitIndex(), $step->getTotalGroupRuns()];
+        }
+        $this->assertSame(
+            ['copy' => [[12, 12, null, 0, null]], 'manufacturing' => [[12, 12, null, 0, null]]],
+            $stepsByActivity,
+        );
+    }
+
     // ===========================================
     // Skill multiplier calculation
     // ===========================================

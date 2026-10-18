@@ -34,6 +34,7 @@ use App\Service\TypeNameResolver;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Mercure\HubInterface;
@@ -196,14 +197,13 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     // au golden Ravworks (fait foi) : les intermédiaires sont fusionnés par blueprint, mais leur quantité est la somme
     // des quantités déjà arrondies de chaque branche de l'arbre. Hydrogen Fuel Block 324 runs au lieu de 322, Nitrogen
     // Fuel Block 107 au lieu de 106 ; Fernite Alloy (550) et Capital Electrolytic Capacitor Unit (951) suivent le golden.
-    // Le job racine de 1 run, plus long que la durée maximale, forme à lui seul un groupe de découpage d'un job.
     public function testStepsOfOneNomadCurrentlyOverplanTheFuelBlocksSummedAcrossBranchesIssue69(): void
     {
         $project = $this->createProject(self::NOMAD, runs: 1, meLevel: 10, teLevel: 20);
 
         $steps = $this->stepsOf($project);
-        self::assertSame([[1, 1, 0, 10, 20, 0, 1]], $this->jobsOf($steps, self::NOMAD));
-        self::assertNotNull($this->stepsOfProduct($steps, self::NOMAD)[0]['splitGroup']);
+        self::assertSame([[1, 1, 0, 10, 20, 0, null]], $this->jobsOf($steps, self::NOMAD));
+        self::assertNull($this->stepsOfProduct($steps, self::NOMAD)[0]['splitGroup']);
         self::assertSame(
             [[162, 6480, 5, 10, 20, 0, 324], [162, 6480, 5, 10, 20, 1, 324]],
             $this->jobsOf($steps, self::HYDROGEN_FUEL_BLOCK),
@@ -320,7 +320,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         }
 
         self::assertSame([], $unsplitAfterSplit);
-        self::assertCount(8, $splitGroupIdsInStepOrder);
+        self::assertCount(7, $splitGroupIdsInStepOrder);
         foreach ($splitGroupIdsInStepOrder as $splitGroupIds) {
             $sorted = array_keys($splitGroupIds);
             sort($sorted, \SORT_STRING);
@@ -363,22 +363,28 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     {
         $project = $this->createProject(self::QUANTUM_MICROPROCESSOR, runs: 25, meLevel: 10, teLevel: 20, maxJobDurationDays: 0.0001);
 
+        $steps = $this->stepsOf($project);
         self::assertSame(
             array_map(static fn (int $splitIndex): array => [1, 1, 0, 10, 20, $splitIndex, 25], range(0, 24)),
-            $this->jobsOf($this->stepsOf($project), self::QUANTUM_MICROPROCESSOR),
+            $this->jobsOf($steps, self::QUANTUM_MICROPROCESSOR),
         );
+        $splitGroups = array_unique(array_column($this->stepsOfProduct($steps, self::QUANTUM_MICROPROCESSOR), 'splitGroup'));
+        self::assertCount(1, $splitGroups);
+        self::assertNotNull(reset($splitGroups));
     }
 
-    // An unsplit step keeps the need of its consumer (490 Titanium Carbide for 32 Quantum Microprocessors), a split
-    // job holds runs × units per run: one run of 10800 s does not fit in 0.1 day (8640 s), so the single job of
-    // Titanium Carbide holds the 10000 units of its run.
-    public function testSplitJobHoldsTheProducedUnitsWhileAnUnsplitStepKeepsTheNeed(): void
+    public function testOneRunLongerThanTheMaximumDurationStaysAnUnsplitStepThatKeepsTheNeed(): void
     {
-        $unsplit = $this->createProject(self::QUANTUM_MICROPROCESSOR, runs: 32, meLevel: 10, teLevel: 20);
-        $split = $this->createProject(self::QUANTUM_MICROPROCESSOR, runs: 32, meLevel: 10, teLevel: 20, maxJobDurationDays: 0.1);
+        $atDefaultMaximumDuration = $this->createProject(self::QUANTUM_MICROPROCESSOR, runs: 32, meLevel: 10, teLevel: 20);
+        $atShortMaximumDuration = $this->createProject(self::QUANTUM_MICROPROCESSOR, runs: 32, meLevel: 10, teLevel: 20, maxJobDurationDays: 0.1);
 
-        self::assertSame([[1, 490, 1, 0, 0, 0, null]], $this->jobsOf($this->stepsOf($unsplit), self::TITANIUM_CARBIDE));
-        self::assertSame([[1, 10_000, 1, 0, 0, 0, 1]], $this->jobsOf($this->stepsOf($split), self::TITANIUM_CARBIDE));
+        $titaniumCarbideSteps = $this->stepsOfProduct($this->stepsOf($atShortMaximumDuration), self::TITANIUM_CARBIDE);
+        self::assertSame([[1, 490, 1, 0, 0, 0, null]], $this->jobsOf($this->stepsOf($atShortMaximumDuration), self::TITANIUM_CARBIDE));
+        self::assertSame([null], array_column($titaniumCarbideSteps, 'splitGroup'));
+        self::assertSame(
+            $this->jobsOf($this->stepsOf($atDefaultMaximumDuration), self::TITANIUM_CARBIDE),
+            $this->jobsOf($this->stepsOf($atShortMaximumDuration), self::TITANIUM_CARBIDE),
+        );
     }
 
     // TE 0 at the root: 75 s per run, 25 runs = 1875 s; at 0.02 day (1728 s) a job holds 23 runs, so 2 jobs.
@@ -392,20 +398,18 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         self::assertSame([[25, 25, 0, 10, 20, 0, null]], $this->jobsOf($this->stepsOf($atTeTwenty), self::QUANTUM_MICROPROCESSOR));
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, sans issue. La durée d'un intermédiaire fabriqué prend TE 20
-    // en dur au lieu du TE de son étape (identiques aujourd'hui) ; la racine prend le TE du projet. Projet Quantum
-    // Microprocessor à TE 0 : l'Oxygen Fuel Block (1 run, 900 s de base) dure 720 s ; il tient dans 0,00834 jour
-    // (720,58 s) mais pas dans 0,00828 jour (715,39 s). La racine dure 75 s par run : 9 runs par job au plus, soit
-    // 4 jobs de 8.
-    public function testDurationOfAnIntermediateCurrentlyUsesTeTwentyWhateverTheProjectTe(): void
+    #[Group('issue-116')]
+    #[Group('issue-112')]
+    public function testDurationOfAnIntermediateCurrentlyUsesTeTwentyWhateverTheProjectTeIssue116(): void
     {
-        $justLongEnough = $this->createProject(self::QUANTUM_MICROPROCESSOR, runs: 32, meLevel: 10, teLevel: 0, maxJobDurationDays: 0.00834);
-        $justTooShort = $this->createProject(self::QUANTUM_MICROPROCESSOR, runs: 32, meLevel: 10, teLevel: 0, maxJobDurationDays: 0.00828);
+        $justLongEnough = $this->createProject(self::QUANTUM_MICROPROCESSOR, runs: 700, meLevel: 10, teLevel: 0, maxJobDurationDays: 0.01667);
+        $justTooShort = $this->createProject(self::QUANTUM_MICROPROCESSOR, runs: 700, meLevel: 10, teLevel: 0, maxJobDurationDays: 0.01666);
 
-        self::assertSame([[1, 35, 2, 10, 20, 0, null]], $this->jobsOf($this->stepsOf($justLongEnough), self::OXYGEN_FUEL_BLOCK));
-        self::assertSame([[1, 40, 2, 10, 20, 0, 1]], $this->jobsOf($this->stepsOf($justTooShort), self::OXYGEN_FUEL_BLOCK));
-        self::assertSame([8, 8, 8, 8], array_column($this->stepsOfProduct($this->stepsOf($justLongEnough), self::QUANTUM_MICROPROCESSOR), 'runs'));
-        self::assertSame([8, 8, 8, 8], array_column($this->stepsOfProduct($this->stepsOf($justTooShort), self::QUANTUM_MICROPROCESSOR), 'runs'));
+        $rootRunsPerJob = [...array_fill(0, 34, 19), ...array_fill(0, 3, 18)];
+        self::assertSame([[2, 55, 2, 10, 20, 0, null]], $this->jobsOf($this->stepsOf($justLongEnough), self::OXYGEN_FUEL_BLOCK));
+        self::assertSame([[1, 40, 2, 10, 20, 0, 2], [1, 40, 2, 10, 20, 1, 2]], $this->jobsOf($this->stepsOf($justTooShort), self::OXYGEN_FUEL_BLOCK));
+        self::assertSame($rootRunsPerJob, array_column($this->stepsOfProduct($this->stepsOf($justLongEnough), self::QUANTUM_MICROPROCESSOR), 'runs'));
+        self::assertSame($rootRunsPerJob, array_column($this->stepsOfProduct($this->stepsOf($justTooShort), self::QUANTUM_MICROPROCESSOR), 'runs'));
     }
 
     public function testStepWithoutBaseTimeInTheSdeIsNeverSplit(): void
@@ -434,7 +438,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         }
         ksort($isSplitByProduct);
         self::assertSame(
-            ['Nanotransistors' => true, 'Nonlinear Metamaterials' => true, 'Phenolic Composites' => true, 'Quantum Microprocessor' => true, 'Titanium Carbide' => false],
+            ['Nanotransistors' => false, 'Nonlinear Metamaterials' => false, 'Phenolic Composites' => false, 'Quantum Microprocessor' => true, 'Titanium Carbide' => false],
             $isSplitByProduct,
         );
         self::assertCount(19, $steps);
@@ -469,6 +473,18 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         $created = $this->createProject(self::QUANTUM_MICROPROCESSOR, runs: 25, meLevel: 10, teLevel: 20, maxJobDurationDays: 0.008);
         self::assertSame([9, 8, 8], array_column($this->stepsOfProduct($this->stepsOf($regenerated), self::QUANTUM_MICROPROCESSOR), 'runs'));
         self::assertSame($this->canonicalStepsOf($created), $this->canonicalStepsOf($regenerated));
+    }
+
+    public function testRegenerationKeepsAnUnsplitStepForOneRunLongerThanTheNewMaximumDuration(): void
+    {
+        $project = $this->createProject(self::QUANTUM_MICROPROCESSOR, runs: 32, meLevel: 10, teLevel: 20);
+        $project->setMaxJobDurationDays(0.1);
+
+        $this->factory->regenerateSteps($project);
+
+        $steps = $this->stepsOf($project);
+        self::assertSame([[1, 490, 1, 0, 0, 0, null]], $this->jobsOf($steps, self::TITANIUM_CARBIDE));
+        self::assertSame([null], array_column($this->stepsOfProduct($steps, self::TITANIUM_CARBIDE), 'splitGroup'));
     }
 
     public function testRegeneratedStepsOfANomadInATataraAreTheStepsOfANewProject(): void
