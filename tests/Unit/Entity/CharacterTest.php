@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Entity;
 use App\Entity\Character;
 use App\Entity\EveToken;
 use App\Entity\User;
+use App\Enum\AuthStatus;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
@@ -84,5 +85,44 @@ class CharacterTest extends TestCase
 
         $this->assertSame(99000001, $character->getAllianceId());
         $this->assertSame('Test Alliance', $character->getAllianceName());
+    }
+
+    public function testNewCharacterHasAValidAuthStatus(): void
+    {
+        $character = new Character();
+
+        self::assertSame(AuthStatus::Valid, $character->getAuthStatus());
+        self::assertTrue($character->isAuthValid());
+    }
+
+    public function testMarkAuthInvalidMakesTheCharacterAuthInvalid(): void
+    {
+        $character = (new Character())->markAuthInvalid();
+
+        self::assertSame(AuthStatus::Invalid, $character->getAuthStatus());
+        self::assertFalse($character->isAuthValid());
+    }
+
+    public function testMarkAuthValidRestoresAnInvalidCharacterAuth(): void
+    {
+        $character = (new Character())->markAuthInvalid()->markAuthValid();
+
+        self::assertSame(AuthStatus::Valid, $character->getAuthStatus());
+        self::assertTrue($character->isAuthValid());
+    }
+
+    public function testRevokingTheAuthOfAnAltLeavesTheMainCharacterValid(): void
+    {
+        $user = new User();
+        $mainCharacter = new Character();
+        $altCharacter = new Character();
+        $user->addCharacter($mainCharacter);
+        $user->addCharacter($altCharacter);
+        $user->setMainCharacter($mainCharacter);
+
+        $altCharacter->markAuthInvalid();
+
+        self::assertTrue($mainCharacter->isAuthValid());
+        self::assertFalse($altCharacter->isAuthValid());
     }
 }

@@ -193,28 +193,29 @@ class AssetsSyncServiceTest extends TestCase
         $this->assertFalse($this->service->canSync($character));
     }
 
-    public function testCanSyncReturnsFalseWhenUserAuthInvalid(): void
+    public function testCanSyncRefusesTheRevokedAltOfAUserWhoseMainIsValid(): void
     {
-        $user = $this->createStub(User::class);
-        $user->method('isAuthValid')->willReturn(false);
+        $user = new User();
+        $mainCharacter = $this->characterOfWithToken($user, 2_112_000_002, 'Main Pilot');
+        $user->setMainCharacter($mainCharacter);
+        $revokedAlt = $this->characterOfWithToken($user, 2_112_000_001, 'Alt Pilot')->markAuthInvalid();
 
-        $character = $this->createStub(Character::class);
-        $token = $this->createStub(\App\Entity\EveToken::class);
-        $character->method('getEveToken')->willReturn($token);
-        $character->method('getUser')->willReturn($user);
-
-        $this->assertFalse($this->service->canSync($character));
+        $this->assertFalse($this->service->canSync($revokedAlt));
     }
 
-    public function testCanSyncReturnsTrueWhenTokenAndAuthValid(): void
+    public function testCanSyncAcceptsTheValidMainOfAUserWhoseAltIsRevoked(): void
     {
-        $user = $this->createStub(User::class);
-        $user->method('isAuthValid')->willReturn(true);
+        $user = new User();
+        $mainCharacter = $this->characterOfWithToken($user, 2_112_000_002, 'Main Pilot');
+        $user->setMainCharacter($mainCharacter);
+        $this->characterOfWithToken($user, 2_112_000_001, 'Alt Pilot')->markAuthInvalid();
 
-        $character = $this->createStub(Character::class);
-        $token = $this->createStub(\App\Entity\EveToken::class);
-        $character->method('getEveToken')->willReturn($token);
-        $character->method('getUser')->willReturn($user);
+        $this->assertTrue($this->service->canSync($mainCharacter));
+    }
+
+    public function testCanSyncReturnsTrueWhenTheCharacterHasATokenAndAValidAuth(): void
+    {
+        $character = $this->characterOfWithToken(new User(), 2_112_000_003, 'Solo Pilot');
 
         $this->assertTrue($this->service->canSync($character));
     }
@@ -634,14 +635,12 @@ class AssetsSyncServiceTest extends TestCase
         $this->assertFalse($this->service->syncCorporationAssetsForCorp(98000001));
     }
 
-    public function testCanSyncReturnsFalseWhenNoTokenEvenWithValidUserAuth(): void
+    public function testCanSyncReturnsFalseWhenNoTokenEvenWithAValidCharacterAuth(): void
     {
-        $user = $this->createStub(User::class);
-        $user->method('isAuthValid')->willReturn(true);
-        $character = $this->createStub(Character::class);
-        $character->method('getEveToken')->willReturn(null);
-        $character->method('getUser')->willReturn($user);
+        $character = (new Character())->setEveCharacterId(2_112_000_004)->setName('Tokenless Pilot');
+        (new User())->addCharacter($character);
 
+        $this->assertTrue($character->isAuthValid());
         $this->assertFalse($this->service->canSync($character));
     }
 
@@ -819,6 +818,19 @@ class AssetsSyncServiceTest extends TestCase
         $character->method('getUser')->willReturn($user);
         $character->method('getCorporationId')->willReturn(98000001);
         $character->method('getName')->willReturn('TestChar');
+
+        return $character;
+    }
+
+    private function characterOfWithToken(User $user, int $eveCharacterId, string $name): Character
+    {
+        $character = (new Character())->setEveCharacterId($eveCharacterId)->setName($name);
+        $character->setEveToken((new EveToken())
+            ->setAccessToken('access-token-' . $eveCharacterId)
+            ->setRefreshTokenEncrypted('refresh-token-' . $eveCharacterId)
+            ->setAccessTokenExpiresAt(new \DateTimeImmutable('+20 minutes'))
+            ->setScopes(['esi-assets.read_assets.v1']));
+        $user->addCharacter($character);
 
         return $character;
     }

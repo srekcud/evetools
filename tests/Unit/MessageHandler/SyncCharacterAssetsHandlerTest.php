@@ -44,6 +44,7 @@ final class SyncCharacterAssetsHandlerTest extends TestCase
     private const string SSO_TOKEN_URL = 'https://login.eveonline.com/v2/oauth/token';
     private const string CHARACTER_UUID = '0199a1f0-0000-7000-8000-000000000001';
     private const int EVE_CHARACTER_ID = 2_112_000_001;
+    private const int MAIN_EVE_CHARACTER_ID = 2_112_000_002;
     private const string INVALID_GRANT_BODY = '{"error":"invalid_grant","error_description":"Invalid refresh token. Character grant missing/expired."}';
 
     /** @var list<string> */
@@ -67,22 +68,37 @@ final class SyncCharacterAssetsHandlerTest extends TestCase
         }
     }
 
-    public function testRevokedEveGrantDuringSyncPersistsTheUserAuthStatusAsInvalid(): void
+    public function testRevokedEveGrantDuringSyncPersistsTheCharacterAuthStatusAsInvalidAndKeepsTheMainValid(): void
     {
         $user = new User();
+        $mainCharacter = (new Character())->setEveCharacterId(self::MAIN_EVE_CHARACTER_ID)->setName('Main Pilot');
+        $user->addCharacter($mainCharacter);
+        $user->setMainCharacter($mainCharacter);
+        $revokedCharacter = $this->characterWithExpiredAccessToken($user);
 
-        $this->handle(new SyncCharacterAssets(self::CHARACTER_UUID), $this->characterWithExpiredAccessToken($user));
+        $this->handle(new SyncCharacterAssets(self::CHARACTER_UUID), $revokedCharacter);
 
-        self::assertSame(AuthStatus::Invalid, $user->getAuthStatus());
-        self::assertSame(AuthStatus::Invalid, end($this->authStatusesAtFlush), 'the invalid auth status must be flushed');
+        self::assertSame(AuthStatus::Invalid, $revokedCharacter->getAuthStatus());
+        self::assertSame(AuthStatus::Invalid, end($this->authStatusesAtFlush), 'the invalid character auth status must be flushed');
+        self::assertSame(AuthStatus::Valid, $mainCharacter->getAuthStatus());
+    }
+
+    public function testSyncOfACharacterAlreadyKnownAsRevokedRequestsNeitherSsoNorEsiAndIsNotRetried(): void
+    {
+        $revokedCharacter = $this->characterWithExpiredAccessToken(new User())->markAuthInvalid();
+        $message = new SyncCharacterAssets(self::CHARACTER_UUID);
+
+        $failure = $this->handle($message, $revokedCharacter);
+
+        self::assertSame([], $this->requestedUrls);
+        self::assertTrue($failure === null || !MessengerRetryProbe::wouldRetry($message, $failure));
     }
 
     private function handle(SyncCharacterAssets $message, Character $character): ?\Throwable
     {
-        $user = $character->getUser();
         $entityManager = $this->createStub(EntityManagerInterface::class);
-        $entityManager->method('flush')->willReturnCallback(function () use ($user): void {
-            $this->authStatusesAtFlush[] = $user->getAuthStatus();
+        $entityManager->method('flush')->willReturnCallback(function () use ($character): void {
+            $this->authStatusesAtFlush[] = $character->getAuthStatus();
         });
 
         $httpClient = new MockHttpClient(function (string $method, string $url): MockResponse {

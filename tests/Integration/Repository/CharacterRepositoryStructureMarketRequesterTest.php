@@ -7,7 +7,6 @@ namespace App\Tests\Integration\Repository;
 use App\Entity\Character;
 use App\Entity\EveToken;
 use App\Entity\User;
-use App\Enum\AuthStatus;
 use App\Repository\CharacterRepository;
 use App\Tests\Integration\IntegrationTestCase;
 
@@ -78,13 +77,32 @@ final class CharacterRepositoryStructureMarketRequesterTest extends IntegrationT
         self::assertNull($this->requesterNameFor(self::PREFERRED_STRUCTURE_ID));
     }
 
-    public function testIgnoresUsersWhoseAuthenticationIsInvalid(): void
+    public function testIgnoresACharacterWhoseAuthorizationIsRevoked(): void
     {
-        $requester = $this->createRequester(self::PREFERRED_STRUCTURE_ID)->setAuthStatus(AuthStatus::Invalid);
-        $this->createPilot('Invalid Auth Pilot', $requester);
+        $this->createPilot('Revoked Pilot', $this->createRequester(self::PREFERRED_STRUCTURE_ID))->markAuthInvalid();
         $this->flushAndClear();
 
         self::assertNull($this->requesterNameFor(self::PREFERRED_STRUCTURE_ID));
+    }
+
+    public function testReturnsNullWhenOnlyTheRevokedAltCarriesTheStructureMarketScope(): void
+    {
+        $requester = $this->createRequester(self::PREFERRED_STRUCTURE_ID);
+        $requester->setMainCharacter($this->createPilot('Main Without Scope', $requester, [self::UNRELATED_SCOPE]));
+        $this->createPilot('Revoked Alt With Scope', $requester)->markAuthInvalid();
+        $this->flushAndClear();
+
+        self::assertNull($this->requesterNameFor(self::PREFERRED_STRUCTURE_ID));
+    }
+
+    public function testPicksTheValidMainWhenTheRevokedAltAlsoCarriesTheStructureMarketScope(): void
+    {
+        $requester = $this->createRequester(self::PREFERRED_STRUCTURE_ID);
+        $this->createPilot('Revoked Alt With Scope', $requester)->markAuthInvalid();
+        $requester->setMainCharacter($this->createPilot('Main With Scope', $requester));
+        $this->flushAndClear();
+
+        self::assertSame('Main With Scope', $this->requesterNameFor(self::PREFERRED_STRUCTURE_ID));
     }
 
     public function testUsersWithoutPreferenceRequestTheDefaultStructure(): void

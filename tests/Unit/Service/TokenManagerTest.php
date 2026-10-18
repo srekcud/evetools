@@ -30,6 +30,7 @@ class TokenManagerTest extends TestCase
 {
     private const string SSO_TOKEN_URL = 'https://login.eveonline.com/v2/oauth/token';
     private const int EVE_CHARACTER_ID = 2_112_000_001;
+    private const int MAIN_EVE_CHARACTER_ID = 2_112_000_002;
     private const string STORED_REFRESH_TOKEN = 'stored-refresh-token';
     private const string STORED_ACCESS_TOKEN = 'stored-access-token';
     /** One refresh lock per character, shared by the app and the worker through LOCK_DSN */
@@ -130,28 +131,78 @@ class TokenManagerTest extends TestCase
         }
     }
 
-    public function testRefreshWithRevokedRefreshTokenPersistsTheUserAuthStatusAsInvalid(): void
+    public function testRefreshWithRevokedRefreshTokenPersistsOnlyTheRevokedCharacterAsInvalid(): void
     {
         $user = new User();
-        $authStatusesAtFlush = [];
+        $mainCharacter = $this->mainCharacterOf($user);
+        $revokedToken = $this->storedTokenOf($user);
+        $revokedCharacter = $revokedToken->getCharacter();
+        $revokedCharacterStatusesAtFlush = [];
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->expects(self::atLeastOnce())->method('flush')
-            ->willReturnCallback(function () use ($user, &$authStatusesAtFlush): void {
-                $authStatusesAtFlush[] = $user->getAuthStatus();
+            ->willReturnCallback(function () use ($revokedCharacter, &$revokedCharacterStatusesAtFlush): void {
+                $revokedCharacterStatusesAtFlush[] = $revokedCharacter->getAuthStatus();
             });
         $tokenManager = $this->tokenManagerAnsweringWith(
             new MockResponse(self::INVALID_GRANT_BODY, ['http_code' => 400]),
             $entityManager,
         );
 
+        $exception = $this->refreshFailure($tokenManager, $revokedToken);
+
+        self::assertInstanceOf(EveAuthRequiredException::class, $exception);
+        self::assertSame(AuthStatus::Invalid, $revokedCharacter->getAuthStatus(), 'the revoked character must be marked invalid');
+        self::assertSame(AuthStatus::Invalid, end($revokedCharacterStatusesAtFlush), 'the invalid character auth status must be flushed');
+        self::assertSame(AuthStatus::Valid, $mainCharacter->getAuthStatus(), 'the main character of the same user must stay valid');
+        self::assertSame(AuthStatus::Invalid, $user->getAuthStatus());
+    }
+
+    public function testRevokedCharacterGetsEveAuthRequiredWithoutAnySsoRequestWhileItsAccessTokenIsStillValid(): void
+    {
+        $ssoRequests = [];
+        $tokenManager = $this->tokenManagerRecordingSsoRequests($ssoRequests, $this->ssoTokenResponse(['scope' => 'esi-assets.read_assets.v1']));
+        $token = $this->storedTokenOf(new User())->setAccessTokenExpiresAt(new \DateTimeImmutable('+1 hour'));
+        $token->getCharacter()->markAuthInvalid();
+
         try {
-            $tokenManager->getValidAccessToken($this->storedTokenOf($user));
-        } catch (\Throwable) {
-            // the exception type is covered by the previous test
+            $accessToken = $tokenManager->getValidAccessToken($token);
+            self::fail('A revoked character must not get an access token, got ' . $accessToken);
+        } catch (EveAuthRequiredException $e) {
+            self::assertSame('2112000001', $e->characterId);
         }
 
-        self::assertSame(AuthStatus::Invalid, $user->getAuthStatus());
-        self::assertSame(AuthStatus::Invalid, end($authStatusesAtFlush), 'the invalid auth status must be flushed');
+        self::assertSame([], $ssoRequests);
+    }
+
+    public function testRevokedCharacterGetsEveAuthRequiredWithoutAnySsoRequestOnceItsAccessTokenHasExpired(): void
+    {
+        $ssoRequests = [];
+        $tokenManager = $this->tokenManagerRecordingSsoRequests($ssoRequests, new MockResponse(self::INVALID_GRANT_BODY, ['http_code' => 400]));
+        $token = $this->storedTokenOf(new User());
+        $token->getCharacter()->markAuthInvalid();
+
+        $exception = $this->refreshFailure($tokenManager, $token);
+
+        self::assertInstanceOf(EveAuthRequiredException::class, $exception);
+        self::assertSame('2112000001', $exception->characterId);
+        self::assertSame([], $ssoRequests, 'a character known as revoked must not call EVE SSO again');
+    }
+
+    public function testForceRefreshOfARevokedCharacterThrowsEveAuthRequiredWithoutAnySsoRequest(): void
+    {
+        $ssoRequests = [];
+        $tokenManager = $this->tokenManagerRecordingSsoRequests($ssoRequests, $this->ssoTokenResponse(['scope' => 'esi-assets.read_assets.v1']));
+        $token = $this->storedTokenOf(new User())->setAccessTokenExpiresAt(new \DateTimeImmutable('+1 hour'));
+        $token->getCharacter()->markAuthInvalid();
+
+        try {
+            $tokenManager->forceRefresh($token);
+            self::fail('Forcing the refresh of a revoked character must raise EveAuthRequiredException');
+        } catch (EveAuthRequiredException $e) {
+            self::assertSame('2112000001', $e->characterId);
+        }
+
+        self::assertSame([], $ssoRequests);
     }
 
     public function testRefreshWhenSsoAnswers503IsNotAnAuthErrorAndChainsTheOriginalException(): void
@@ -164,13 +215,15 @@ class TokenManagerTest extends TestCase
             $entityManager,
         );
 
-        $exception = $this->refreshFailure($tokenManager, $this->storedTokenOf($user));
+        $token = $this->storedTokenOf($user);
+
+        $exception = $this->refreshFailure($tokenManager, $token);
 
         self::assertInstanceOf(EsiApiException::class, $exception);
         // 401 is what EsiAuthFailureListener/front treat as "re-login required": an SSO outage is not that
         self::assertSame(503, $exception->statusCode);
         self::assertInstanceOf(ServerExceptionInterface::class, $exception->getPrevious());
-        self::assertSame(AuthStatus::Valid, $user->getAuthStatus());
+        self::assertSame(AuthStatus::Valid, $token->getCharacter()->getAuthStatus());
     }
 
     public function testRefreshOnNetworkErrorIsNotAnAuthErrorAndChainsTheOriginalException(): void
@@ -183,13 +236,15 @@ class TokenManagerTest extends TestCase
             $entityManager,
         );
 
-        $exception = $this->refreshFailure($tokenManager, $this->storedTokenOf($user));
+        $token = $this->storedTokenOf($user);
+
+        $exception = $this->refreshFailure($tokenManager, $token);
 
         self::assertInstanceOf(EsiApiException::class, $exception);
         // 0 = "no HTTP response", same convention as EsiClient network errors (EsiAuthFailureListener maps it to 502)
         self::assertSame(0, $exception->statusCode);
         self::assertInstanceOf(TransportExceptionInterface::class, $exception->getPrevious());
-        self::assertSame(AuthStatus::Valid, $user->getAuthStatus());
+        self::assertSame(AuthStatus::Valid, $token->getCharacter()->getAuthStatus());
     }
 
     public function testSuccessfulRefreshStoresTheNewAccessTokenAndReEncryptsTheRotatedRefreshToken(): void
@@ -220,30 +275,30 @@ class TokenManagerTest extends TestCase
         self::assertSame('rotated-refresh-token', $tokenManager->decryptRefreshToken($token->getRefreshTokenEncrypted()));
         self::assertSame(['esi-assets.read_assets.v1', 'esi-wallet.read_character_wallet.v1'], $token->getScopes());
         self::assertEqualsWithDelta((new \DateTimeImmutable('+1199 seconds'))->getTimestamp(), $token->getAccessTokenExpiresAt()->getTimestamp(), 5);
-        self::assertSame(AuthStatus::Valid, $user->getAuthStatus());
+        self::assertSame(AuthStatus::Valid, $token->getCharacter()->getAuthStatus());
     }
 
     /** invalid_client = our app credentials are wrong: a configuration error, not a revoked grant of this player */
-    public function testRefreshWhenSsoAnswers400InvalidClientIsNotAnAuthErrorAndKeepsTheUserValid(): void
+    public function testRefreshWhenSsoAnswers400InvalidClientIsNotAnAuthErrorAndKeepsTheCharacterValid(): void
     {
-        $this->assertRefreshFailureLeavesTheUserValid(
+        $this->assertRefreshFailureLeavesTheCharacterValid(
             new MockResponse('{"error":"invalid_client","error_description":"Client could not be authenticated."}', ['http_code' => 400]),
             400,
         );
     }
 
     /** Even with an invalid_grant body, only a 400 means "grant revoked" */
-    public function testRefreshWhenSsoAnswers401IsNotAnAuthErrorAndKeepsTheUserValid(): void
+    public function testRefreshWhenSsoAnswers401IsNotAnAuthErrorAndKeepsTheCharacterValid(): void
     {
-        $this->assertRefreshFailureLeavesTheUserValid(
+        $this->assertRefreshFailureLeavesTheCharacterValid(
             new MockResponse(self::INVALID_GRANT_BODY, ['http_code' => 401]),
             401,
         );
     }
 
-    public function testRefreshWhenSsoAnswers400WithANonJsonBodyIsNotAnAuthErrorAndKeepsTheUserValid(): void
+    public function testRefreshWhenSsoAnswers400WithANonJsonBodyIsNotAnAuthErrorAndKeepsTheCharacterValid(): void
     {
-        $this->assertRefreshFailureLeavesTheUserValid(
+        $this->assertRefreshFailureLeavesTheCharacterValid(
             new MockResponse('<html>Bad Request</html>', ['http_code' => 400]),
             400,
         );
@@ -643,19 +698,21 @@ class TokenManagerTest extends TestCase
         self::assertSame(['esi-assets.read_assets.v1'], $token->getScopes());
     }
 
-    private function assertRefreshFailureLeavesTheUserValid(MockResponse $ssoResponse, int $expectedStatusCode): void
+    private function assertRefreshFailureLeavesTheCharacterValid(MockResponse $ssoResponse, int $expectedStatusCode): void
     {
         $user = new User();
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->expects(self::never())->method('flush');
         $tokenManager = $this->tokenManagerAnsweringWith($ssoResponse, $entityManager);
 
-        $exception = $this->refreshFailure($tokenManager, $this->storedTokenOf($user));
+        $token = $this->storedTokenOf($user);
+
+        $exception = $this->refreshFailure($tokenManager, $token);
 
         self::assertInstanceOf(EsiApiException::class, $exception);
         self::assertSame($expectedStatusCode, $exception->statusCode);
         self::assertInstanceOf(ClientExceptionInterface::class, $exception->getPrevious());
-        self::assertSame(AuthStatus::Valid, $user->getAuthStatus());
+        self::assertSame(AuthStatus::Valid, $token->getCharacter()->getAuthStatus());
     }
 
     /** @param array<string, string> $overrides */
@@ -779,6 +836,28 @@ class TokenManagerTest extends TestCase
         $character->setEveToken($token);
 
         return $token;
+    }
+
+    private function mainCharacterOf(User $user): Character
+    {
+        $mainCharacter = (new Character())
+            ->setEveCharacterId(self::MAIN_EVE_CHARACTER_ID)
+            ->setName('Main Pilot');
+        $user->addCharacter($mainCharacter);
+        $user->setMainCharacter($mainCharacter);
+
+        return $mainCharacter;
+    }
+
+    private function tokenManagerRecordingSsoRequests(array &$ssoRequests, MockResponse $ssoResponse): TokenManager
+    {
+        $httpClient = new MockHttpClient(function (string $method, string $url) use (&$ssoRequests, $ssoResponse): MockResponse {
+            $ssoRequests[] = $method . ' ' . $url;
+
+            return $ssoResponse;
+        });
+
+        return $this->tokenManagerWith($httpClient, $this->createStub(EntityManagerInterface::class));
     }
 
     private function refreshFailure(TokenManager $tokenManager, EveToken $token): \Throwable

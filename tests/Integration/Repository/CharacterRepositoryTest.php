@@ -6,16 +6,15 @@ namespace App\Tests\Integration\Repository;
 
 use App\Entity\Character;
 use App\Entity\EveToken;
+use App\Entity\User;
 use App\Repository\CharacterRepository;
 use App\Tests\Integration\IntegrationTestCase;
 
-/**
- * Scheduled syncs (TriggerAssetsSyncHandler, TriggerStructureMarketSyncHandler, and SyncIndustryJobs /
- * SyncWalletTransactions / SyncPlanetaryColonies via findActiveWithValidTokens) only process the characters
- * returned here: a user whose EVE auth was marked invalid must drop out of them (issue #13).
- */
 final class CharacterRepositoryTest extends IntegrationTestCase
 {
+    private const string CORP_ASSETS_SCOPE = 'esi-assets.read_corporation_assets.v1';
+    private const int REVOKED_DIRECTOR_CORPORATION_ID = 98_086_086;
+
     private CharacterRepository $repository;
 
     protected function setUp(): void
@@ -32,14 +31,14 @@ final class CharacterRepositoryTest extends IntegrationTestCase
         self::assertSame(['Valid Pilot'], $this->namesOf($this->repository->findWithValidTokens()));
     }
 
-    public function testFindWithValidTokensSkipsCharactersOfUsersWhoseAuthIsInvalid(): void
+    public function testFindWithValidTokensSkipsTheRevokedAltAndKeepsTheMainOfTheSameUser(): void
     {
-        $this->createCharacterWithToken('Valid Pilot');
-        $revoked = $this->createCharacterWithToken('Revoked Pilot');
-        $revoked->getUser()->markAuthInvalid();
+        $user = $this->createUser()->setLastLoginAt(new \DateTimeImmutable('-2 days'));
+        $user->setMainCharacter($this->createCharacterWithToken('Main Pilot', $user));
+        $this->createCharacterWithToken('Revoked Alt Pilot', $user)->markAuthInvalid();
         $this->flushAndClear();
 
-        self::assertSame(['Valid Pilot'], $this->namesOf($this->repository->findWithValidTokens()));
+        self::assertSame(['Main Pilot'], $this->namesOf($this->repository->findWithValidTokens()));
     }
 
     public function testFindWithValidTokensSkipsCharactersWithoutToken(): void
@@ -51,23 +50,57 @@ final class CharacterRepositoryTest extends IntegrationTestCase
         self::assertSame(['Valid Pilot'], $this->namesOf($this->repository->findWithValidTokens()));
     }
 
-    public function testFindActiveWithValidTokensSkipsRecentlyActiveUsersWhoseAuthIsInvalid(): void
+    public function testFindActiveWithValidTokensSkipsTheRevokedAltAndKeepsTheMainOfTheSameUser(): void
     {
-        $this->createCharacterWithToken('Valid Pilot')->getUser()->updateLastLogin();
-        $revoked = $this->createCharacterWithToken('Revoked Pilot');
-        $revoked->getUser()->updateLastLogin()->markAuthInvalid();
+        $user = $this->createUser()->setLastLoginAt(new \DateTimeImmutable('-2 days'));
+        $user->setMainCharacter($this->createCharacterWithToken('Main Pilot', $user));
+        $this->createCharacterWithToken('Revoked Alt Pilot', $user)->markAuthInvalid();
+        $this->flushAndClear();
+
+        self::assertSame(['Main Pilot'], $this->namesOf($this->repository->findActiveWithValidTokens()));
+    }
+
+    public function testFindActiveWithValidTokensSkipsEveryCharacterOfAUserWhoseCharactersAreAllRevoked(): void
+    {
+        $this->createCharacterWithToken('Valid Pilot')->getUser()->setLastLoginAt(new \DateTimeImmutable('-2 days'));
+        $user = $this->createUser()->setLastLoginAt(new \DateTimeImmutable('-1 day'));
+        $user->setMainCharacter($this->createCharacterWithToken('Revoked Main Pilot', $user)->markAuthInvalid());
+        $this->createCharacterWithToken('Revoked Alt Pilot', $user)->markAuthInvalid();
         $this->flushAndClear();
 
         self::assertSame(['Valid Pilot'], $this->namesOf($this->repository->findActiveWithValidTokens()));
     }
 
-    private function createCharacterWithToken(string $name): Character
+    public function testFindWithCorpAssetsAccessSkipsTheRevokedDirectorAndPicksTheValidCorpMember(): void
     {
-        $character = $this->createCharacter(name: $name);
+        $directorUser = $this->createUser();
+        $this->createCharacterWithToken('Revoked Director Pilot', $directorUser, [self::CORP_ASSETS_SCOPE], self::REVOKED_DIRECTOR_CORPORATION_ID)->markAuthInvalid();
+        $this->createCharacterWithToken('Member Pilot', null, [self::CORP_ASSETS_SCOPE], self::REVOKED_DIRECTOR_CORPORATION_ID);
+        $this->flushAndClear();
+
+        self::assertSame('Member Pilot', $this->repository->findWithCorpAssetsAccess(self::REVOKED_DIRECTOR_CORPORATION_ID)?->getName());
+    }
+
+    public function testFindWithCorpAssetsAccessReturnsNullWhenTheOnlyScopedCharacterIsRevoked(): void
+    {
+        $this->createCharacterWithToken('Revoked Director Pilot', null, [self::CORP_ASSETS_SCOPE], self::REVOKED_DIRECTOR_CORPORATION_ID)->markAuthInvalid();
+        $this->createCharacterWithToken('Unscoped Member Pilot', null, ['esi-assets.read_assets.v1'], self::REVOKED_DIRECTOR_CORPORATION_ID);
+        $this->flushAndClear();
+
+        self::assertNull($this->repository->findWithCorpAssetsAccess(self::REVOKED_DIRECTOR_CORPORATION_ID)?->getName());
+    }
+
+    private function createCharacterWithToken(string $name, ?User $user = null, array $scopes = [], ?int $corporationId = null): Character
+    {
+        $character = $this->createCharacter($user, $name);
+        if ($corporationId !== null) {
+            $character->setCorporationId($corporationId);
+        }
         $token = (new EveToken())
             ->setAccessToken('access-token')
             ->setRefreshTokenEncrypted('encrypted-refresh-token')
-            ->setAccessTokenExpiresAt(new \DateTimeImmutable('+20 minutes'));
+            ->setAccessTokenExpiresAt(new \DateTimeImmutable('+20 minutes'))
+            ->setScopes($scopes);
         $character->setEveToken($token);
         $this->em->persist($token);
 

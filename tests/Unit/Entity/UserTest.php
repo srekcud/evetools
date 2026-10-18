@@ -13,30 +13,45 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(User::class)]
 class UserTest extends TestCase
 {
-    public function testNewUserHasValidAuthStatus(): void
+    public function testUserWithoutCharacterHasAValidAuthStatus(): void
     {
-        $user = new User();
-
-        $this->assertSame(AuthStatus::Valid, $user->getAuthStatus());
-        $this->assertTrue($user->isAuthValid());
+        self::assertSame(AuthStatus::Valid, (new User())->getAuthStatus());
     }
 
-    public function testMarkAuthInvalid(): void
+    public function testUserWhoseCharactersAreAllValidHasAValidAuthStatus(): void
     {
         $user = new User();
-        $user->markAuthInvalid();
+        $user->addCharacter(new Character());
+        $user->addCharacter(new Character());
 
-        $this->assertSame(AuthStatus::Invalid, $user->getAuthStatus());
-        $this->assertFalse($user->isAuthValid());
+        self::assertSame(AuthStatus::Valid, $user->getAuthStatus());
     }
 
-    public function testMarkAuthValid(): void
+    public function testUserWithOneRevokedAltHasAnInvalidAuthStatus(): void
     {
         $user = new User();
-        $user->markAuthInvalid();
-        $user->markAuthValid();
+        $mainCharacter = new Character();
+        $altCharacter = new Character();
+        $user->addCharacter($mainCharacter);
+        $user->addCharacter($altCharacter);
+        $user->setMainCharacter($mainCharacter);
 
-        $this->assertTrue($user->isAuthValid());
+        $altCharacter->markAuthInvalid();
+
+        self::assertSame(AuthStatus::Invalid, $user->getAuthStatus());
+    }
+
+    public function testUserBecomesValidAgainOnceItsRevokedCharacterIsReconnected(): void
+    {
+        $user = new User();
+        $altCharacter = new Character();
+        $user->addCharacter(new Character());
+        $user->addCharacter($altCharacter);
+
+        $altCharacter->markAuthInvalid();
+        $altCharacter->markAuthValid();
+
+        self::assertSame(AuthStatus::Valid, $user->getAuthStatus());
     }
 
     public function testAddCharacter(): void

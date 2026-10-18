@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Enum\AuthStatus;
 use App\Repository\CharacterRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -44,6 +45,9 @@ class Character
 
     #[ORM\OneToOne(targetEntity: EveToken::class, mappedBy: 'character', cascade: ['persist', 'remove'])]
     private ?EveToken $eveToken = null;
+
+    #[ORM\Column(type: 'string', length: 20, enumType: AuthStatus::class)]
+    private AuthStatus $authStatus = AuthStatus::Valid;
 
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
@@ -163,6 +167,30 @@ class Character
         }
 
         $this->eveToken = $eveToken;
+
+        return $this;
+    }
+
+    public function getAuthStatus(): AuthStatus
+    {
+        return $this->authStatus;
+    }
+
+    public function isAuthValid(): bool
+    {
+        return $this->authStatus === AuthStatus::Valid;
+    }
+
+    public function markAuthInvalid(): static
+    {
+        $this->authStatus = AuthStatus::Invalid;
+
+        return $this;
+    }
+
+    public function markAuthValid(): static
+    {
+        $this->authStatus = AuthStatus::Valid;
 
         return $this;
     }
