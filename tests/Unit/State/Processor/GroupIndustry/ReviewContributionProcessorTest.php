@@ -239,6 +239,23 @@ class ReviewContributionProcessorTest extends TestCase
         self::assertSame($admin, $contribution->getReviewedBy());
     }
 
+    public function testOwnerCanApproveThePendingContributionOfARemovedMember(): void
+    {
+        $removedMember = $this->addMember($this->createStub(User::class), GroupMemberRole::Member, GroupMemberStatus::Removed);
+        $contribution = $this->pendingContributionOf($removedMember);
+
+        $this->entityManager->expects($this->once())->method('flush');
+        $this->expectOneMercureEvent('contribution_approved');
+
+        $resource = $this->review($this->owner, $contribution, 'approved');
+
+        self::assertSame('approved', $resource->status);
+        self::assertSame(ContributionStatus::Approved, $contribution->getStatus());
+        self::assertSame($this->owner, $contribution->getReviewedBy());
+        self::assertSame(GroupMemberStatus::Removed, $removedMember->getStatus());
+        self::assertSame(3500, $this->bomItem->getFulfilledQuantity());
+    }
+
     public function testOwnerCanRejectAnotherMembersContribution(): void
     {
         $contributor = $this->addMember($this->createStub(User::class), GroupMemberRole::Member);

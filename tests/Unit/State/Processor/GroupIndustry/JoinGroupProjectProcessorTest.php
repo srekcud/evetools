@@ -175,6 +175,25 @@ class JoinGroupProjectProcessorTest extends TestCase
         self::assertSame('pending', $membership->getStatus()->value);
     }
 
+    public function testMemberWhoLeftFromOwnerCorporationRejoinsAsPendingMemberOnTheSameMembership(): void
+    {
+        $user = $this->actAs('Returning Pilot', self::OWNER_CORPORATION_ID);
+        $membership = $this->addMembership($user, GroupMemberRole::Member, GroupMemberStatus::Accepted);
+        $membership->setStatus(GroupMemberStatus::Removed);
+
+        $this->entityManager->expects($this->never())->method('persist');
+        $this->entityManager->expects($this->once())->method('flush');
+
+        $resource = $this->join();
+
+        self::assertCount(1, $this->project->getMembers());
+        self::assertSame($membership, $this->project->getMembers()->first());
+        self::assertSame(GroupMemberStatus::Pending, $membership->getStatus());
+        self::assertSame(GroupMemberRole::Member, $membership->getRole());
+        self::assertSame('pending', $resource->myStatus);
+        self::assertSame('member', $resource->myRole);
+    }
+
     public function testRemovedAdminRejoinsAsPlainMember(): void
     {
         $user = $this->actAs('Former Admin', self::OTHER_CORPORATION_ID);

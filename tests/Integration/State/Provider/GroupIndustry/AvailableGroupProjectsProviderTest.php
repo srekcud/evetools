@@ -43,6 +43,7 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
     private string $viewerId;
     private string $sabreProjectId;
     private string $jackdawProjectId;
+    private string $leftProjectId;
 
     protected function setUp(): void
     {
@@ -73,6 +74,9 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
         $alreadyJoined = $this->createProject($cyra, 'Already joined', GroupProjectStatus::Published);
         $this->addMember($alreadyJoined, $cyra, GroupMemberRole::Owner, GroupMemberStatus::Accepted);
         $this->addMember($alreadyJoined, $viewer, GroupMemberRole::Member, GroupMemberStatus::Pending);
+        $leftProject = $this->createProject($brann, 'Left project', GroupProjectStatus::Published);
+        $this->addMember($leftProject, $brann, GroupMemberRole::Owner, GroupMemberStatus::Accepted);
+        $this->addMember($leftProject, $viewer, GroupMemberRole::Member, GroupMemberStatus::Removed);
         $ownProject = $this->createProject($viewer, 'Own project', GroupProjectStatus::Published);
         $this->addMember($ownProject, $viewer, GroupMemberRole::Owner, GroupMemberStatus::Accepted);
         $otherCorporation = $this->createProject($nyx, 'Other corporation', GroupProjectStatus::Published);
@@ -82,6 +86,7 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
         $this->viewerId = (string) $viewer->getId();
         $this->sabreProjectId = (string) $sabre->getId();
         $this->jackdawProjectId = (string) $jackdaw->getId();
+        $this->leftProjectId = (string) $leftProject->getId();
         $this->em->clear();
     }
 
@@ -129,6 +134,13 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
         $projects = $this->availableProjectsById();
 
         self::assertEqualsCanonicalizing([$this->sabreProjectId, $this->jackdawProjectId], array_keys($projects));
+    }
+
+    public function testPublishedProjectOfTheCorporationTheUserWasRemovedFromIsNotListed(): void
+    {
+        $projects = $this->availableProjectsById();
+
+        self::assertArrayNotHasKey($this->leftProjectId, $projects);
     }
 
     public function testPublishedProjectCountsAcceptedMembersAndCapsFulfilledQuantity(): void
