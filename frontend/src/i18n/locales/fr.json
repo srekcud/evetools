@@ -1120,6 +1120,7 @@
       "duplicateHint": "Les achats lies sont peut-etre deja dans votre inventaire.",
       "unknown": "Inconnu",
       "missingVolumeWarning": "Volume inconnu dans le SDE pour : {types}. Leur cout d'import, le volume a acheter et les totaux Jita + import sont inconnus.",
+      "failedProductsWarning": "Ces produits sont absents de la liste d'achats : leur arbre de production n'a pas pu etre construit.",
       "volumeToBuy": "Volume a acheter",
       "jitaImport": "Jita + Import",
       "structure": "Structure",

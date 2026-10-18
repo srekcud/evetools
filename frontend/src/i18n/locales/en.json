@@ -1120,6 +1120,7 @@
       "duplicateHint": "Linked purchases may already be in your inventory.",
       "unknown": "Unknown",
       "missingVolumeWarning": "Unknown volume in the SDE for: {types}. Their import cost, the volume to buy and the Jita + import totals are unknown.",
+      "failedProductsWarning": "These products are missing from the shopping list: their production tree could not be built.",
       "volumeToBuy": "Volume to buy",
       "jitaImport": "Jita + Import",
       "structure": "Structure",

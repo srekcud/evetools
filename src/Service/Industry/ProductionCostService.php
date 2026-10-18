@@ -40,7 +40,7 @@ class ProductionCostService
      */
     public function estimateMaterialCost(IndustryProject $project): array
     {
-        $shoppingList = $this->shoppingListBuilder->getShoppingList($project);
+        $shoppingList = $this->shoppingListBuilder->getShoppingList($project)['materials'];
 
         $typeIds = array_map(fn (array $mat) => $mat['typeId'], $shoppingList);
         $prices = $this->jitaMarketService->getPricesWithFallback($typeIds);

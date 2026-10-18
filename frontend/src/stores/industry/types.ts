@@ -170,6 +170,11 @@ export interface ShoppingListTotals {
   savingsVsStructure: number
 }
 
+export interface ShoppingListFailedProduct {
+  typeId: number
+  reason: string
+}
+
 export interface ShoppingListResponse {
   materials: ShoppingListItem[]
   structureId: number
@@ -181,6 +186,7 @@ export interface ShoppingListResponse {
   totals: ShoppingListTotals
   priceError: string | null
   missingVolumeTypeIds: number[]
+  failedProducts: ShoppingListFailedProduct[]
 }
 
 export interface ProductionTreeNode {

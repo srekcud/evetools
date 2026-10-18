@@ -14,6 +14,7 @@ use Doctrine\ORM\EntityManagerInterface;
 
 class IndustryTreeService
 {
+    public const int INTERMEDIATE_MANUFACTURING_ME = 10;
 
     public function __construct(
         private readonly IndustryActivityProductRepository $activityProductRepository,
@@ -167,7 +168,7 @@ class IndustryTreeService
 
             if ($isBuildable) {
                 // Intermediate manufacturing uses ME 10, reactions have no ME
-                $childMe = ($matProducer->getActivityId() === IndustryActivityType::Manufacturing->value) ? 10 : 0;
+                $childMe = ($matProducer->getActivityId() === IndustryActivityType::Manufacturing->value) ? self::INTERMEDIATE_MANUFACTURING_ME : 0;
                 $node['blueprint'] = $this->buildNode($matTypeId, $adjustedQuantity, $childMe, $depth + 1, $excludedTypeIds, $user, $missingTypeIds, $structureBonusOverrides);
             }
 

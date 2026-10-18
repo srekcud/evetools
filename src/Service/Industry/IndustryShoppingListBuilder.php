@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Industry;
 
 use App\Entity\IndustryProject;
+use App\Entity\User;
 
 /**
  * Builds the raw-material shopping list for an industry project.
@@ -27,7 +28,7 @@ class IndustryShoppingListBuilder
      * Get a shopping list of raw materials from the production tree.
      * Includes extraQuantity per material when steps use suboptimal structures.
      *
-     * @return list<array<string, mixed>>
+     * @return array{materials: list<array<string, mixed>>, failedProducts: list<array{typeId: int, reason: string}>}
      */
     public function getShoppingList(IndustryProject $project): array
     {
@@ -96,9 +97,10 @@ class IndustryShoppingListBuilder
         }
 
         $rawMaterials = [];
+        $failedProducts = [];
         $optimalStockQty = $inStockQuantities;
 
-        foreach ($rootProducts as $product) {
+        foreach ($rootProducts as $typeId => $product) {
             try {
                 $tree = $this->treeService->buildProductionTree(
                     $product['typeId'],
@@ -107,31 +109,28 @@ class IndustryShoppingListBuilder
                     $excludedTypeIds,
                     $user,
                 );
-                $this->collectRawMaterials($rawMaterials, $tree, $purchasedTypeIds, $optimalStockQty);
-            } catch (\RuntimeException) {
-                continue;
+                $this->collectRawMaterials($rawMaterials, $tree, $purchasedTypeIds, $optimalStockQty, $excludedTypeIds, $user, []);
+            } catch (\RuntimeException $exception) {
+                $failedProducts[$typeId] = ['typeId' => $product['typeId'], 'reason' => $exception->getMessage()];
             }
         }
+        ksort($failedProducts);
 
         // If any step uses a suboptimal structure, compute actual quantities and delta
         if ($hasSuboptimal) {
             $actualRawMaterials = [];
             $actualStockQty = $inStockQuantities;
 
-            foreach ($rootProducts as $product) {
-                try {
-                    $actualTree = $this->treeService->buildProductionTree(
-                        $product['typeId'],
-                        $product['runs'],
-                        $product['meLevel'],
-                        $excludedTypeIds,
-                        $user,
-                        $structureBonusOverrides,
-                    );
-                    $this->collectRawMaterials($actualRawMaterials, $actualTree, $purchasedTypeIds, $actualStockQty);
-                } catch (\RuntimeException) {
-                    continue;
-                }
+            foreach (array_diff_key($rootProducts, $failedProducts) as $product) {
+                $actualTree = $this->treeService->buildProductionTree(
+                    $product['typeId'],
+                    $product['runs'],
+                    $product['meLevel'],
+                    $excludedTypeIds,
+                    $user,
+                    $structureBonusOverrides,
+                );
+                $this->collectRawMaterials($actualRawMaterials, $actualTree, $purchasedTypeIds, $actualStockQty, $excludedTypeIds, $user, $structureBonusOverrides);
             }
 
             // Build lookup: typeId => actual quantity
@@ -150,7 +149,7 @@ class IndustryShoppingListBuilder
 
         usort($rawMaterials, fn (array $a, array $b) => strcasecmp($a['typeName'], $b['typeName']));
 
-        return $rawMaterials;
+        return ['materials' => $rawMaterials, 'failedProducts' => array_values($failedProducts)];
     }
 
     /**
@@ -174,14 +173,17 @@ class IndustryShoppingListBuilder
      * @param array<string, mixed> $node
      * @param list<int> $purchasedTypeIds
      * @param array<int, int> $inStockQuantities
+     * @param list<int> $excludedTypeIds
+     * @param array<int, float> $structureBonusOverrides
      */
-    private function collectRawMaterials(array &$materials, array $node, array $purchasedTypeIds, array &$inStockQuantities): void
+    private function collectRawMaterials(array &$materials, array $node, array $purchasedTypeIds, array &$inStockQuantities, array $excludedTypeIds, User $user, array $structureBonusOverrides): void
     {
         foreach ($node['materials'] as $material) {
             $typeId = (int) $material['typeId'];
             $neededQuantity = (int) $material['quantity'];
 
             $availableStock = $inStockQuantities[$typeId] ?? 0;
+            $isPartlyInStock = false;
             if ($availableStock > 0) {
                 if ($availableStock >= $neededQuantity) {
                     $inStockQuantities[$typeId] -= $neededQuantity;
@@ -189,6 +191,7 @@ class IndustryShoppingListBuilder
                 }
                 $neededQuantity -= $availableStock;
                 $inStockQuantities[$typeId] = 0;
+                $isPartlyInStock = true;
             }
 
             if (in_array($typeId, $purchasedTypeIds, true)) {
@@ -197,7 +200,17 @@ class IndustryShoppingListBuilder
             }
 
             if (($material['isBuildable'] ?? false) && isset($material['blueprint'])) {
-                $this->collectRawMaterials($materials, $material['blueprint'], $purchasedTypeIds, $inStockQuantities);
+                $subtree = $isPartlyInStock
+                    ? $this->treeService->buildProductionTree(
+                        $typeId,
+                        $neededQuantity,
+                        $material['activityType'] === 'manufacturing' ? IndustryTreeService::INTERMEDIATE_MANUFACTURING_ME : 0,
+                        $excludedTypeIds,
+                        $user,
+                        $structureBonusOverrides,
+                    )
+                    : $material['blueprint'];
+                $this->collectRawMaterials($materials, $subtree, $purchasedTypeIds, $inStockQuantities, $excludedTypeIds, $user, $structureBonusOverrides);
             } else {
                 $this->addToMaterialList($materials, $typeId, $material['typeName'], $neededQuantity);
             }

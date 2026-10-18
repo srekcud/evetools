@@ -13,9 +13,10 @@ import ShoppingConfigPanel from './shopping/ShoppingConfigPanel.vue'
 import ShoppingTotalsSummary from './shopping/ShoppingTotalsSummary.vue'
 import ShoppingMaterialsTable from './shopping/ShoppingMaterialsTable.vue'
 import ShoppingPurchasesPanel from './shopping/ShoppingPurchasesPanel.vue'
+import ShoppingFailedProductsWarning from './shopping/ShoppingFailedProductsWarning.vue'
 import MissingVolumeWarning from '@/components/shopping/MissingVolumeWarning.vue'
 import { missingVolumeTypeNames } from '@/components/shopping/missingVolume'
-import type { ShoppingListItem, ShoppingListTotals } from '@/stores/industry/types'
+import type { ShoppingListFailedProduct, ShoppingListItem, ShoppingListTotals } from '@/stores/industry/types'
 
 export interface EnrichedShoppingItem extends ShoppingListItem {
   inStock: number
@@ -63,6 +64,7 @@ const shoppingStructureLastSync = ref<string | null>(null)
 const shoppingTotals = ref<ShoppingListTotals | null>(null)
 const shoppingPriceError = ref<string | null>(null)
 const missingVolumeTypeIds = ref<number[]>([])
+const failedProducts = ref<ShoppingListFailedProduct[]>([])
 const shoppingLoading = ref(false)
 const shoppingSyncing = ref(false)
 const transportCostPerM3 = ref(1200)
@@ -71,6 +73,14 @@ const transportCostPerM3 = ref(1200)
 const projectIdRef = computed(() => props.projectId)
 const treeRef = computed(() => store.currentProject?.tree)
 const stepsRef = computed(() => store.currentProject?.steps ?? [])
+
+const productNamesByTypeId = computed(() => {
+  const names = new Map<number, string>()
+  for (const step of stepsRef.value) {
+    if (step.productTypeName) names.set(step.productTypeId, step.productTypeName)
+  }
+  return names
+})
 
 // Stock analysis composable
 const stock = useShoppingStockAnalysis(
@@ -293,6 +303,7 @@ async function loadShoppingList() {
       shoppingTotals.value = response.totals
       shoppingPriceError.value = response.priceError
       missingVolumeTypeIds.value = response.missingVolumeTypeIds
+      failedProducts.value = response.failedProducts
 
       if (
         store.currentProject &&
@@ -306,6 +317,7 @@ async function loadShoppingList() {
       shoppingList.value = []
       shoppingTotals.value = null
       missingVolumeTypeIds.value = []
+      failedProducts.value = []
       shoppingStructureAccessible.value = false
       shoppingPriceError.value = store.error
     }
@@ -313,6 +325,7 @@ async function loadShoppingList() {
     shoppingList.value = []
     shoppingTotals.value = null
     missingVolumeTypeIds.value = []
+    failedProducts.value = []
     shoppingStructureAccessible.value = false
     shoppingPriceError.value = e instanceof Error ? e.message : t('common.errors.loadFailed')
   } finally {
@@ -528,6 +541,11 @@ defineExpose({
           </div>
         </div>
       </div>
+
+      <ShoppingFailedProductsWarning
+        :failed-products="failedProducts"
+        :product-names-by-type-id="productNamesByTypeId"
+      />
 
       <MissingVolumeWarning
         v-if="missingVolumeTypeNamesText"

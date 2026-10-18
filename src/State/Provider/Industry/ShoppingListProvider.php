@@ -53,7 +53,8 @@ class ShoppingListProvider implements ProviderInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $materials = $this->shoppingListBuilder->getShoppingList($project);
+        $shoppingList = $this->shoppingListBuilder->getShoppingList($project);
+        $materials = $shoppingList['materials'];
 
         // Append invention materials stored on the project (datacores, decryptors)
         $inventionMaterials = $project->getInventionMaterials();
@@ -246,6 +247,7 @@ class ShoppingListProvider implements ProviderInterface
         $resource->priceError = $priceError;
         ksort($missingVolumeTypeIds);
         $resource->missingVolumeTypeIds = array_values($missingVolumeTypeIds);
+        $resource->failedProducts = $shoppingList['failedProducts'];
 
         return $resource;
     }
