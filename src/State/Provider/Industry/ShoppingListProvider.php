@@ -88,7 +88,7 @@ class ShoppingListProvider implements ProviderInterface
 
         $volumes = [];
         foreach ($this->invTypeRepository->findBy(['typeId' => $typeIds]) as $type) {
-            $volumes[$type->getTypeId()] = $type->getVolume() ?? 0.0;
+            $volumes[$type->getTypeId()] = $type->getVolume();
         }
 
         $priceData = null;
@@ -121,12 +121,23 @@ class ShoppingListProvider implements ProviderInterface
 
         $enrichedMaterials = [];
         $totals = new ShoppingListTotalsResource();
+        $importTotal = 0.0;
+        $jitaWithImportTotal = 0.0;
+        $volumeTotal = 0.0;
+        $missingVolumeTypeIds = [];
 
         foreach ($materials as $mat) {
             $typeId = $mat['typeId'];
             $quantity = $mat['quantity'];
-            $volume = $volumes[$typeId] ?? 0.0;
-            $totalItemVolume = $volume * $quantity;
+            $volume = $volumes[$typeId] ?? null;
+            $totalItemVolume = null;
+            $importCost = null;
+            if ($volume === null) {
+                $missingVolumeTypeIds[$typeId] = $typeId;
+            } else {
+                $totalItemVolume = $volume * $quantity;
+                $importCost = $totalItemVolume * $transportCostPerM3;
+            }
 
             $jitaPrice = $priceData !== null ? ($priceData['jita'][$typeId] ?? null) : null;
             $structurePrice = $priceData !== null ? ($priceData['structure'][$typeId] ?? null) : null;
@@ -134,8 +145,7 @@ class ShoppingListProvider implements ProviderInterface
             $jitaTotal = $jitaPrice !== null ? $jitaPrice * $quantity : null;
             $structureTotal = $structurePrice !== null ? $structurePrice * $quantity : null;
 
-            $importCost = $totalItemVolume * $transportCostPerM3;
-            $jitaWithImport = $jitaTotal !== null ? $jitaTotal + $importCost : null;
+            $jitaWithImport = $jitaTotal !== null && $importCost !== null ? $jitaTotal + $importCost : null;
 
             $bestLocation = null;
             $bestPrice = null;
@@ -161,8 +171,10 @@ class ShoppingListProvider implements ProviderInterface
 
             if ($jitaTotal !== null) {
                 $totals->jita += $jitaTotal;
-                $totals->import += $importCost;
-                $totals->jitaWithImport += $jitaWithImport;
+            }
+            if ($importCost !== null && $jitaWithImport !== null) {
+                $importTotal += $importCost;
+                $jitaWithImportTotal += $jitaWithImport;
             }
             if ($structureTotal !== null) {
                 $totals->structure += $structureTotal;
@@ -170,7 +182,9 @@ class ShoppingListProvider implements ProviderInterface
             if ($bestPrice !== null) {
                 $totals->best += $bestPrice;
             }
-            $totals->volume += $totalItemVolume;
+            if ($totalItemVolume !== null) {
+                $volumeTotal += $totalItemVolume;
+            }
 
             // Weighted Jita prices
             $weightedData = $weightedJitaPrices[$typeId] ?? null;
@@ -203,7 +217,15 @@ class ShoppingListProvider implements ProviderInterface
             $enrichedMaterials[] = $material;
         }
 
-        $totals->savingsVsJitaWithImport = $totals->jitaWithImport > 0 ? $totals->jitaWithImport - $totals->best : 0;
+        $everyVolumeIsKnown = $missingVolumeTypeIds === [];
+        $totals->import = $everyVolumeIsKnown ? $importTotal : null;
+        $totals->jitaWithImport = $everyVolumeIsKnown ? $jitaWithImportTotal : null;
+        $totals->volume = $everyVolumeIsKnown ? $volumeTotal : null;
+        $totals->savingsVsJitaWithImport = match (true) {
+            !$everyVolumeIsKnown => null,
+            $jitaWithImportTotal > 0 => $jitaWithImportTotal - $totals->best,
+            default => 0.0,
+        };
         $totals->savingsVsStructure = $totals->structure > 0 ? $totals->structure - $totals->best : 0;
 
         $structureLastSync = null;
@@ -222,6 +244,8 @@ class ShoppingListProvider implements ProviderInterface
         $resource->transportCostPerM3 = $transportCostPerM3;
         $resource->totals = $totals;
         $resource->priceError = $priceError;
+        ksort($missingVolumeTypeIds);
+        $resource->missingVolumeTypeIds = array_values($missingVolumeTypeIds);
 
         return $resource;
     }

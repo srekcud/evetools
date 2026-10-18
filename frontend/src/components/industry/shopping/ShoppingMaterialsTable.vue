@@ -115,10 +115,11 @@ function cancelEditStock() {
             {{ item.missing > 0 ? item.missing.toLocaleString() : '0' }}
           </td>
           <!-- Volume -->
-          <td class="py-3 px-2 text-right font-mono text-slate-400">{{ item.missingVolume.toLocaleString() }} m3</td>
+          <td class="py-3 px-2 text-right font-mono text-slate-400">{{ item.missingVolume !== null ? `${item.missingVolume.toLocaleString()} m3` : t('industry.shoppingTab.unknown') }}</td>
           <!-- Jita -->
           <td class="py-3 px-2 text-right font-mono">
-            <div v-if="item.missingJitaWeighted !== null || item.missingJita !== null">
+            <span v-if="item.volume === null" class="text-slate-400">{{ t('industry.shoppingTab.unknown') }}</span>
+            <div v-else-if="item.missingJitaWeighted !== null || item.missingJita !== null">
               <div class="flex items-center justify-end gap-1">
                 <span
                   v-if="item.missingJitaCoverage !== null && item.missingJitaCoverage < 1.0"

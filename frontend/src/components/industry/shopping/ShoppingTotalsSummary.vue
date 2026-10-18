@@ -1,19 +1,19 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import type { ShoppingListTotals } from '@/stores/industry/types'
 
 type MissingTotals = {
   price: number
-  volume: number
-  jita: number
+  volume: number | null
+  jita: number | null
   jitaWeighted: number | null
   structure: number
   savings: number
 }
 
-defineProps<{
+const props = defineProps<{
   shoppingTotals: ShoppingListTotals
   missingTotals: MissingTotals
   hasAnyStock: boolean
@@ -25,6 +25,12 @@ defineProps<{
 
 const { t } = useI18n()
 const { formatIsk } = useFormatters()
+
+const displayedJitaWithImport = computed<number | null>(() =>
+  props.hasAnyStock
+    ? props.missingTotals.jitaWeighted ?? props.missingTotals.jita
+    : props.shoppingTotals.jitaWithImport,
+)
 
 const copiedJita = ref(false)
 const copiedStructure = ref(false)
@@ -47,11 +53,11 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
     <div class="grid grid-cols-5 gap-6 text-center">
       <div>
         <div class="text-xs text-slate-500 uppercase mb-1">{{ t('industry.shoppingTab.volumeToBuy') }}</div>
-        <div class="font-mono text-slate-200">{{ missingTotals.volume.toLocaleString() }} m3</div>
+        <div class="font-mono text-slate-200">{{ missingTotals.volume !== null ? `${missingTotals.volume.toLocaleString()} m3` : t('industry.shoppingTab.unknown') }}</div>
       </div>
       <div>
         <div class="text-xs text-slate-500 uppercase mb-1">{{ t('industry.shoppingTab.jitaImport') }}</div>
-        <div class="font-mono text-slate-200">{{ formatIsk(hasAnyStock ? (missingTotals.jitaWeighted ?? missingTotals.jita) : shoppingTotals.jitaWithImport) }}</div>
+        <div class="font-mono text-slate-200">{{ displayedJitaWithImport !== null ? formatIsk(displayedJitaWithImport) : t('industry.shoppingTab.unknown') }}</div>
         <div v-if="hasAnyStock && missingTotals.jitaWeighted !== null" class="text-[10px] text-slate-600 font-mono mt-0.5">
           {{ formatIsk(missingTotals.jita) }}
         </div>

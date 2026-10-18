@@ -1114,6 +1114,8 @@
       "structureNotSynced": "Les donnees de marche pour {name} n'ont pas ete synchronisees. Utilisez le bouton \"Synchroniser\" ci-dessus.",
       "duplicateWarning": "Attention doublons potentiels : certains materiaux colles ont aussi des achats lies.",
       "duplicateHint": "Les achats lies sont peut-etre deja dans votre inventaire.",
+      "unknown": "Inconnu",
+      "missingVolumeWarning": "Volume inconnu dans le SDE pour : {types}. Leur cout d'import, le volume a acheter et les totaux Jita + import sont inconnus.",
       "volumeToBuy": "Volume a acheter",
       "jitaImport": "Jita + Import",
       "structure": "Structure",

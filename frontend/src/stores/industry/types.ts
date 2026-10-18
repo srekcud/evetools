@@ -140,11 +140,11 @@ export interface ShoppingListItem {
   typeId: number
   typeName: string
   quantity: number
-  volume: number
-  totalVolume: number
+  volume: number | null
+  totalVolume: number | null
   jitaUnitPrice: number | null
   jitaTotal: number | null
-  importCost: number
+  importCost: number | null
   jitaWithImport: number | null
   structureUnitPrice: number | null
   structureTotal: number | null
@@ -161,12 +161,12 @@ export interface ShoppingListItem {
 
 export interface ShoppingListTotals {
   jita: number
-  import: number
-  jitaWithImport: number
+  import: number | null
+  jitaWithImport: number | null
   structure: number
-  volume: number
+  volume: number | null
   best: number
-  savingsVsJitaWithImport: number
+  savingsVsJitaWithImport: number | null
   savingsVsStructure: number
 }
 
@@ -180,6 +180,7 @@ export interface ShoppingListResponse {
   transportCostPerM3: number
   totals: ShoppingListTotals
   priceError: string | null
+  missingVolumeTypeIds: number[]
 }
 
 export interface ProductionTreeNode {

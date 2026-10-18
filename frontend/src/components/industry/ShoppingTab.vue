@@ -18,7 +18,7 @@ export interface EnrichedShoppingItem extends ShoppingListItem {
   inStock: number
   missing: number
   missingPrice: number | null
-  missingVolume: number
+  missingVolume: number | null
   missingJita: number | null
   missingJitaWeighted: number | null
   missingJitaCoverage: number | null
@@ -58,6 +58,7 @@ const shoppingStructureFromCache = ref(false)
 const shoppingStructureLastSync = ref<string | null>(null)
 const shoppingTotals = ref<ShoppingListTotals | null>(null)
 const shoppingPriceError = ref<string | null>(null)
+const missingVolumeTypeIds = ref<number[]>([])
 const shoppingLoading = ref(false)
 const shoppingSyncing = ref(false)
 const transportCostPerM3 = ref(1200)
@@ -146,7 +147,7 @@ const enrichedShoppingList = computed<EnrichedShoppingItem[]>(() => {
       missingPrice = (missing / item.quantity) * item.jitaWithImport
     }
     const ratio = item.quantity > 0 ? missing / item.quantity : 0
-    const missingVolume = item.volume * missing
+    const missingVolume = item.volume !== null ? item.volume * missing : null
     const missingJita = item.jitaWithImport !== null ? item.jitaWithImport * ratio : null
     const missingJitaWeighted = item.jitaWeightedTotal !== null ? item.jitaWeightedTotal * ratio : null
     const missingJitaCoverage = item.jitaCoverage
@@ -160,6 +161,7 @@ const enrichedShoppingList = computed<EnrichedShoppingItem[]>(() => {
 const missingTotals = computed(() => {
   let totalMissingPrice = 0
   let totalMissingVolume = 0
+  let hasUnknownMissingVolume = false
   let totalMissingJita = 0
   let totalMissingJitaWeighted = 0
   let hasAnyJitaWeighted = false
@@ -168,7 +170,11 @@ const missingTotals = computed(() => {
   for (const item of enrichedShoppingList.value) {
     if (item.missing > 0) {
       if (item.missingPrice !== null) totalMissingPrice += item.missingPrice
-      totalMissingVolume += item.volume * item.missing
+      if (item.missingVolume === null) {
+        hasUnknownMissingVolume = true
+      } else {
+        totalMissingVolume += item.missingVolume
+      }
       if (item.missingJita !== null) totalMissingJita += item.missingJita
       if (item.missingJitaWeighted !== null) {
         totalMissingJitaWeighted += item.missingJitaWeighted
@@ -182,12 +188,18 @@ const missingTotals = computed(() => {
   }
   return {
     price: totalMissingPrice,
-    volume: totalMissingVolume,
-    jita: totalMissingJita,
-    jitaWeighted: hasAnyJitaWeighted ? totalMissingJitaWeighted : null,
+    volume: hasUnknownMissingVolume ? null : totalMissingVolume,
+    jita: hasUnknownMissingVolume ? null : totalMissingJita,
+    jitaWeighted: hasAnyJitaWeighted && !hasUnknownMissingVolume ? totalMissingJitaWeighted : null,
     structure: totalMissingStructure,
     savings: totalMissingSavings,
   }
+})
+
+const missingVolumeTypeNames = computed(() => {
+  const missingIds = new Set(missingVolumeTypeIds.value)
+  const names = new Set(shoppingList.value.filter(item => missingIds.has(item.typeId)).map(item => item.typeName))
+  return [...names].join(', ')
 })
 
 const displayStructureName = computed(() => {
@@ -280,6 +292,7 @@ async function loadShoppingList() {
       shoppingStructureLastSync.value = response.structureLastSync
       shoppingTotals.value = response.totals
       shoppingPriceError.value = response.priceError
+      missingVolumeTypeIds.value = response.missingVolumeTypeIds
 
       if (
         store.currentProject &&
@@ -292,12 +305,14 @@ async function loadShoppingList() {
     } else {
       shoppingList.value = []
       shoppingTotals.value = null
+      missingVolumeTypeIds.value = []
       shoppingStructureAccessible.value = false
       shoppingPriceError.value = store.error
     }
   } catch (e) {
     shoppingList.value = []
     shoppingTotals.value = null
+    missingVolumeTypeIds.value = []
     shoppingStructureAccessible.value = false
     shoppingPriceError.value = e instanceof Error ? e.message : t('common.errors.loadFailed')
   } finally {
@@ -512,6 +527,16 @@ defineExpose({
             </p>
           </div>
         </div>
+      </div>
+
+      <div
+        v-if="missingVolumeTypeNames"
+        class="bg-amber-900/30 border border-amber-500/50 rounded-lg p-3 flex items-center gap-3"
+      >
+        <svg class="w-5 h-5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <p class="text-sm text-amber-300">{{ t('industry.shoppingTab.missingVolumeWarning', { types: missingVolumeTypeNames }) }}</p>
       </div>
 
       <!-- Error message -->

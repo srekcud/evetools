@@ -12,15 +12,15 @@ class ShoppingListMaterialResource
 
     public int $quantity;
 
-    public float $volume;
+    public ?float $volume = null;
 
-    public float $totalVolume;
+    public ?float $totalVolume = null;
 
     public ?float $jitaUnitPrice = null;
 
     public ?float $jitaTotal = null;
 
-    public float $importCost;
+    public ?float $importCost = null;
 
     public ?float $jitaWithImport = null;
 
