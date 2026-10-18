@@ -73,6 +73,7 @@ surplus           = quantité produite − (demande − stock)
 |---|---|---|---|
 | **Contribution** | Contribution | Apport d'un membre à un projet collaboratif : matériaux, installation de job, BPC ou location de ligne. Elle est soumise à approbation (pending, approved, rejected). Une fois approuvée, elle ne diminue plus. | `GroupIndustryContribution`, `ContributionType`, `ContributionStatus` |
 | **Location de ligne** | Line rental | Contribution qui rémunère l'usage d'un slot de production d'un membre, selon un barème (défaut sur l'utilisateur, override possible par projet). | `ContributionType::LineRental`, `User::getLineRentalRates()`, `GroupIndustryProject::getLineRentalRatesOverride()` |
+| **Membre retiré** | Removed member | Membre d'un projet collaboratif exclu par un kick ou parti de lui-même. Sa ligne de membership est conservée avec ses contributions et son payout ; il perd son rôle, ne voit plus le projet en découverte et ne peut revenir qu'en demande `pending`. | `GroupMemberStatus::Removed`, `KickGroupMemberProcessor`, `LeaveGroupProjectProcessor`, `GroupIndustryProjectMember::requestRejoin()` |
 | **Payout** (rétribution) | Payout | Montant reversé à un membre : `coûts apportés × (1 + marge %)`. | `GroupIndustryDistributionService` (`payoutTotal`) |
 
 ## Marché
