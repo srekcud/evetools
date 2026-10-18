@@ -19,8 +19,7 @@ use Doctrine\ORM\EntityManagerInterface;
  *
  * Uses a greedy approach: for each step, finds all jobs for that blueprint
  * and assigns them until the step's runs are covered. Jobs already assigned
- * to another step are skipped to avoid double-matching. Cancelled jobs are ignored,
- * and steps in 'manual' mode keep their hand-linked jobs, which no other step may take.
+ * to another step are skipped to avoid double-matching. Cancelled jobs are ignored.
  */
 class IndustryJobMatcher
 {
@@ -51,13 +50,12 @@ class IndustryJobMatcher
 
         $projectStartDate = $project->getEffectiveJobsStartDate();
 
-        $this->clearAutomaticMatches($project);
+        $this->clearRecomputableMatches($project);
         $this->entityManager->flush();
 
-        // Jobs matched to other projects or reserved by a manual link must not be matched again
         $assignedJobIds = array_flip([
             ...$this->jobIdsMatchedToOtherProjects($project),
-            ...$this->jobIdsReservedByManualSteps($project),
+            ...$this->jobIdsKeptBySteps($project),
         ]);
 
         $stepsToRecalculate = false;
@@ -140,15 +138,12 @@ class IndustryJobMatcher
         }
     }
 
-    /**
-     * Manual steps keep the jobs linked by hand: only automatic matches are recomputed.
-     */
-    private function clearAutomaticMatches(IndustryProject $project): void
+    private function clearRecomputableMatches(IndustryProject $project): void
     {
-        $automaticSteps = $project->getSteps()->filter(
-            fn (IndustryProjectStep $step): bool => !$this->isManuallyMatched($step),
+        $recomputableSteps = $project->getSteps()->filter(
+            fn (IndustryProjectStep $step): bool => !$this->keepsItsJobMatches($step),
         );
-        foreach ($automaticSteps as $step) {
+        foreach ($recomputableSteps as $step) {
             foreach ($step->getJobMatches()->toArray() as $match) {
                 $step->getJobMatches()->removeElement($match);
                 $this->entityManager->remove($match);
@@ -173,9 +168,9 @@ class IndustryJobMatcher
     /**
      * @return iterable<int>
      */
-    private function jobIdsReservedByManualSteps(IndustryProject $project): iterable
+    private function jobIdsKeptBySteps(IndustryProject $project): iterable
     {
-        foreach ($project->getSteps()->filter($this->isManuallyMatched(...)) as $step) {
+        foreach ($project->getSteps()->filter($this->keepsItsJobMatches(...)) as $step) {
             foreach ($step->getJobMatches() as $match) {
                 yield $match->getEsiJobId();
             }
@@ -187,12 +182,16 @@ class IndustryJobMatcher
         return $step->getJobMatchMode() === self::JOB_MATCH_MODE_MANUAL;
     }
 
+    private function keepsItsJobMatches(IndustryProjectStep $step): bool
+    {
+        return $step->isPurchased() || $this->isManuallyMatched($step);
+    }
+
     private function isAutoMatchable(IndustryProjectStep $step): bool
     {
-        return !$step->isPurchased()
+        return !$this->keepsItsJobMatches($step)
             && $step->getActivityType() !== 'copy'
-            && $step->getJobMatchMode() !== self::JOB_MATCH_MODE_NONE
-            && !$this->isManuallyMatched($step);
+            && $step->getJobMatchMode() !== self::JOB_MATCH_MODE_NONE;
     }
 
     /**
