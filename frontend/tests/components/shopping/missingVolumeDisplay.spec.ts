@@ -140,3 +140,38 @@ describe('AppraisalResults with a type of unknown volume', () => {
     expect(wrapper.find('tfoot').findAll('td')[2]?.text()).toBe('20 m³')
   })
 })
+
+describe('ShoppingListResults with an item of known volume and no Jita price', () => {
+  it('shows a dash and not unknown for its Jita + import', () => {
+    const unpricedItem = shoppingItem({ jitaPrice: null, jitaTotal: null, importCost: 24000, jitaWithImport: null, bestLocation: null, bestTotal: null })
+    const totals: ShoppingTotals = { jita: 0, import: 24000, jitaWithImport: 24000, structure: 0, best: 0, volume: 20 }
+    const wrapper = mount(ShoppingListResults, {
+      ...mountOptions(),
+      props: { items: [unpricedItem], totals, structureName: 'C-J6MT - 1st Taj Mahgoon', missingVolumeTypeIds: [] },
+    })
+    expect(wrapper.findAll('tbody tr')[0]?.findAll('td')[3]?.text()).toBe('-')
+  })
+})
+
+describe('AppraisalResults table copy with a type of unknown volume', () => {
+  it('copies the item volume and the total volume as unknown, never as 0', async () => {
+    const writeText = vi.fn()
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    const wrapper = mount(AppraisalResults, {
+      ...mountOptions(),
+      props: {
+        items: [appraisalItem({ typeId: UNKNOWN_TYPE_ID, typeName: UNKNOWN_TYPE_NAME, volume: null, totalVolume: null }), appraisalItem({})],
+        totals: { ...APPRAISAL_TOTALS, volume: null },
+        notFound: [],
+        missingVolumeTypeIds: [UNKNOWN_TYPE_ID],
+      },
+    })
+
+    await wrapper.findAll('button').find(button => button.text() === 'Copy')!.trigger('click')
+
+    const rows = (writeText.mock.calls[0]![0] as string).split('\n').map(row => row.split('\t'))
+    expect(rows[1]![2]).toBe('Unknown')
+    expect(rows[2]![2]).toBe('20 m3')
+    expect(rows[3]![2]).toBe('Unknown')
+  })
+})

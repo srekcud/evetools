@@ -78,9 +78,12 @@ final class ParseProcessorPricingTest extends TestCase
         $this->volumes = [self::NITROGEN_ISOTOPES => null];
         $this->jitaPrices = [self::NITROGEN_ISOTOPES => 500.0];
 
+        $expectedBestTotal = 0.0;
+
         $result = $this->parse('100x Nitrogen Isotopes');
 
         $this->assertIsotopesImportIsUnknownWithJitaTotalOnly($result);
+        self::assertSame($expectedBestTotal, $result->totals['best']);
     }
 
     public function testTypeAbsentFromInvTypesLeavesTheImportUnknownLikeANullVolume(): void
@@ -178,6 +181,17 @@ final class ParseProcessorPricingTest extends TestCase
         $expectedMissingVolumeTypeIds = [self::STRONTIUM_CLATHRATES, self::NITROGEN_ISOTOPES];
 
         $result = $this->parse("100x Nitrogen Isotopes\n10x Heavy Water\n7x Strontium Clathrates");
+
+        self::assertSame($expectedMissingVolumeTypeIds, $result->missingVolumeTypeIds);
+    }
+
+    public function testATypeListedTwiceIsReportedOnce(): void
+    {
+        $this->volumes = [self::NITROGEN_ISOTOPES => null];
+        $this->jitaPrices = [self::NITROGEN_ISOTOPES => 500.0];
+        $expectedMissingVolumeTypeIds = [self::NITROGEN_ISOTOPES];
+
+        $result = $this->parse("100x Nitrogen  Isotopes\n50x Nitrogen Isotopes");
 
         self::assertSame($expectedMissingVolumeTypeIds, $result->missingVolumeTypeIds);
     }

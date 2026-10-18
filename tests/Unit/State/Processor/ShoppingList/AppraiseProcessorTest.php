@@ -24,20 +24,24 @@ final class AppraiseProcessorTest extends TestCase
 {
     private const int NITROGEN_ISOTOPES = 17888;
     private const int HEAVY_WATER = 16272;
+    private const int STRONTIUM_CLATHRATES = 16275;
     private const string PRICE_ERROR = 'Unable to fetch market prices. Please try again later.';
     private const array TYPE_NAMES = [
         self::NITROGEN_ISOTOPES => 'Nitrogen Isotopes',
         self::HEAVY_WATER => 'Heavy Water',
+        self::STRONTIUM_CLATHRATES => 'Strontium Clathrates',
     ];
-    private const array SELL_PRICES = [self::NITROGEN_ISOTOPES => 500.0, self::HEAVY_WATER => 1000.0];
-    private const array BUY_PRICES = [self::NITROGEN_ISOTOPES => 450.0, self::HEAVY_WATER => 900.0];
+    private const array SELL_PRICES = [self::NITROGEN_ISOTOPES => 500.0, self::HEAVY_WATER => 1000.0, self::STRONTIUM_CLATHRATES => 800.0];
+    private const array BUY_PRICES = [self::NITROGEN_ISOTOPES => 450.0, self::HEAVY_WATER => 900.0, self::STRONTIUM_CLATHRATES => 760.0];
     private const array WEIGHTED_SELL_PRICES = [
         self::NITROGEN_ISOTOPES => ['weightedPrice' => 510.0, 'coverage' => 1.0, 'ordersUsed' => 2],
         self::HEAVY_WATER => ['weightedPrice' => 1020.0, 'coverage' => 0.8, 'ordersUsed' => 3],
+        self::STRONTIUM_CLATHRATES => ['weightedPrice' => 815.0, 'coverage' => 0.7, 'ordersUsed' => 5],
     ];
     private const array WEIGHTED_BUY_PRICES = [
         self::NITROGEN_ISOTOPES => ['weightedPrice' => 430.0, 'coverage' => 0.9, 'ordersUsed' => 4],
         self::HEAVY_WATER => ['weightedPrice' => 880.0, 'coverage' => 1.0, 'ordersUsed' => 1],
+        self::STRONTIUM_CLATHRATES => ['weightedPrice' => 745.0, 'coverage' => 0.6, 'ordersUsed' => 6],
     ];
 
     /** @var array<int, ?float> */
@@ -77,6 +81,26 @@ final class AppraiseProcessorTest extends TestCase
         $appraisal = $this->appraise("100x Nitrogen Isotopes\n10x Heavy Water");
 
         $this->assertIsotopesVolumeIsUnknownAndPriceTotalsAreKept($appraisal);
+    }
+
+    public function testMissingVolumeTypeIdsAreListedInAscendingOrder(): void
+    {
+        $this->volumes = [self::NITROGEN_ISOTOPES => null, self::HEAVY_WATER => 2.0];
+        $expectedMissingVolumeTypeIds = [self::STRONTIUM_CLATHRATES, self::NITROGEN_ISOTOPES];
+
+        $appraisal = $this->appraise("100x Nitrogen Isotopes\n10x Heavy Water\n7x Strontium Clathrates");
+
+        self::assertSame($expectedMissingVolumeTypeIds, $appraisal->missingVolumeTypeIds);
+    }
+
+    public function testATypeListedTwiceIsReportedOnce(): void
+    {
+        $this->volumes = [self::NITROGEN_ISOTOPES => null];
+        $expectedMissingVolumeTypeIds = [self::NITROGEN_ISOTOPES];
+
+        $appraisal = $this->appraise("100x Nitrogen  Isotopes\n50x Nitrogen Isotopes");
+
+        self::assertSame($expectedMissingVolumeTypeIds, $appraisal->missingVolumeTypeIds);
     }
 
     public function testNoItemFoundGivesZeroTotalsAndNoMissingVolumeTypeIds(): void
