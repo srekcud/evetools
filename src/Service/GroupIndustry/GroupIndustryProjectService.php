@@ -8,9 +8,12 @@ use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustryProjectItem;
 use App\Entity\GroupIndustryProjectMember;
+use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
+use App\Exception\InventionProbabilityMissingException;
+use App\Exception\TypeMissingFromSdeException;
 use App\Industry\Application\InventionCatalog;
 use App\Repository\Sde\IndustryBlueprintRepository;
 use App\Service\Industry\IndustryTreeService;
@@ -104,6 +107,8 @@ class GroupIndustryProjectService
                 itemTeLevel: $item->getTeLevel(),
             );
         }
+
+        $this->replaceT2BlueprintCopiesByInventions($materialAggregation, $jobAggregation);
 
         // Create material BOM items
         $materialTypeIds = array_keys($materialAggregation);
@@ -249,6 +254,118 @@ class GroupIndustryProjectService
     }
 
     /**
+     * @param array<int, array{typeName: string, quantity: int}> $materialAggregation
+     * @param array<string, array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null, blueprintTypeId: int, outputPerRun: int}> $jobAggregation
+     */
+    private function replaceT2BlueprintCopiesByInventions(array &$materialAggregation, array &$jobAggregation): void
+    {
+        $manufacturingRunsByProduct = [];
+        $firstManufacturingJobByProduct = [];
+        foreach ($jobAggregation as $job) {
+            if ($job['activityType'] !== 'manufacturing') {
+                continue;
+            }
+            if (isset($firstManufacturingJobByProduct[$job['typeId']])) {
+                $manufacturingRunsByProduct[$job['typeId']] += $job['runs'];
+            } else {
+                $firstManufacturingJobByProduct[$job['typeId']] = $job;
+                $manufacturingRunsByProduct[$job['typeId']] = $job['runs'];
+            }
+        }
+
+        $inventionsByProduct = [];
+        $inventionTypeIds = [];
+        foreach (array_keys($firstManufacturingJobByProduct) as $productTypeId) {
+            $invention = $this->inventionCatalog->inventionOf($productTypeId);
+            if ($invention === null) {
+                continue;
+            }
+            if ($invention->baseProbability === null) {
+                throw new InventionProbabilityMissingException($productTypeId, $invention->t1BlueprintTypeId);
+            }
+            $inventionsByProduct[$productTypeId] = ['recipe' => $invention, 'baseProbability' => $invention->baseProbability];
+            $inventionTypeIds[] = $invention->t1ProductTypeId;
+            foreach ($invention->datacores as $datacore) {
+                $inventionTypeIds[] = $datacore->typeId;
+            }
+        }
+
+        if ($inventionsByProduct === []) {
+            return;
+        }
+
+        $typeNames = $this->sdeTypeNames($inventionTypeIds);
+
+        foreach ($inventionsByProduct as $productTypeId => ['recipe' => $invention, 'baseProbability' => $baseProbability]) {
+            $firstManufacturingJob = $firstManufacturingJobByProduct[$productTypeId];
+            $attempts = (int) ceil($manufacturingRunsByProduct[$productTypeId] / ($invention->baseRuns->value * $baseProbability));
+
+            unset($jobAggregation[$productTypeId . ':copy']);
+            $jobAggregation[$productTypeId . ':invention'] = [
+                'typeId' => $productTypeId,
+                'typeName' => $firstManufacturingJob['typeName'],
+                'runs' => $attempts,
+                'meLevel' => 0,
+                'teLevel' => 0,
+                'activityType' => 'invention',
+                'jobGroup' => 'blueprint',
+                'parentTypeId' => $firstManufacturingJob['parentTypeId'],
+                'blueprintTypeId' => $invention->t1BlueprintTypeId,
+                'outputPerRun' => 1,
+            ];
+
+            $t1CopyKey = $invention->t1ProductTypeId . ':copy:invention';
+            if (isset($jobAggregation[$t1CopyKey])) {
+                $jobAggregation[$t1CopyKey]['runs'] += $attempts;
+            } else {
+                $jobAggregation[$t1CopyKey] = [
+                    'typeId' => $invention->t1ProductTypeId,
+                    'typeName' => $typeNames[$invention->t1ProductTypeId],
+                    'runs' => $attempts,
+                    'meLevel' => 0,
+                    'teLevel' => 0,
+                    'activityType' => 'copy',
+                    'jobGroup' => 'blueprint',
+                    'parentTypeId' => $firstManufacturingJob['parentTypeId'],
+                    'blueprintTypeId' => $invention->t1BlueprintTypeId,
+                    'outputPerRun' => 1,
+                ];
+            }
+
+            foreach ($invention->datacores as $datacore) {
+                $quantity = $datacore->baseQuantityPerRun->value * $attempts;
+                if (isset($materialAggregation[$datacore->typeId])) {
+                    $materialAggregation[$datacore->typeId]['quantity'] += $quantity;
+                } else {
+                    $materialAggregation[$datacore->typeId] = [
+                        'typeName' => $typeNames[$datacore->typeId],
+                        'quantity' => $quantity,
+                    ];
+                }
+            }
+        }
+    }
+
+    /**
+     * @param list<int> $typeIds
+     * @return array<int, string>
+     */
+    private function sdeTypeNames(array $typeIds): array
+    {
+        $typeNames = [];
+        foreach ($this->entityManager->getRepository(InvType::class)->findBy(['typeId' => $typeIds]) as $type) {
+            $typeNames[$type->getTypeId()] = $type->getTypeName();
+        }
+
+        $missingTypeIds = array_values(array_diff($typeIds, array_keys($typeNames)));
+        if ($missingTypeIds !== []) {
+            throw new TypeMissingFromSdeException($missingTypeIds);
+        }
+
+        return $typeNames;
+    }
+
+    /**
      * Split aggregated jobs that exceed their blueprint's maxProductionLimit into multiple entries.
      *
      * @param array<string, array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null, blueprintTypeId: int, outputPerRun: int}> $jobAggregation
@@ -260,7 +377,7 @@ class GroupIndustryProjectService
         $productionJobs = [];
         $copyJobs = [];
         foreach ($jobAggregation as $job) {
-            if ($job['activityType'] === 'copy') {
+            if (in_array($job['activityType'], ['copy', 'invention'], true)) {
                 $copyJobs[] = $job;
             } else {
                 $productionJobs[] = $job;
