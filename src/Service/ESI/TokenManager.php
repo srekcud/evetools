@@ -68,6 +68,7 @@ class TokenManager
     /** Refreshes even a still valid access token, e.g. to read the scopes granted by EVE SSO */
     public function forceRefresh(EveToken $token): void
     {
+        $this->refuseRevokedCharacter($token);
         $this->underRefreshLock($token, fn () => $this->requestNewAccessToken($token));
     }
 
@@ -157,7 +158,7 @@ class TokenManager
         $character = $token->getCharacter()
             ?? throw new \LogicException('Revoked EVE token is not attached to any character');
 
-        $character->getUser()?->markAuthInvalid();
+        $character->markAuthInvalid();
         $this->entityManager->flush();
 
         return new EveAuthRequiredException((string) $character->getEveCharacterId());
@@ -203,6 +204,8 @@ class TokenManager
 
     public function getValidAccessToken(EveToken $token): string
     {
+        $this->refuseRevokedCharacter($token);
+
         if ($this->isAccessTokenExpiringSoon($token)) {
             $this->underRefreshLock($token, function () use ($token): void {
                 if ($this->isAccessTokenExpiringSoon($token)) {
@@ -212,6 +215,14 @@ class TokenManager
         }
 
         return $token->getAccessToken();
+    }
+
+    private function refuseRevokedCharacter(EveToken $token): void
+    {
+        $character = $token->getCharacter();
+        if ($character !== null && !$character->isAuthValid()) {
+            throw new EveAuthRequiredException((string) $character->getEveCharacterId());
+        }
     }
 
     public function createTokenFromDto(EveTokenDto $dto): EveToken

@@ -38,11 +38,11 @@ class AdminService
     private function getUserStats(): array
     {
         $total = (int) $this->connection->fetchOne('SELECT COUNT(*) FROM users');
-        $valid = (int) $this->connection->fetchOne(
-            'SELECT COUNT(*) FROM users WHERE auth_status = ?',
-            [AuthStatus::Valid->value]
+        $invalid = (int) $this->connection->fetchOne(
+            'SELECT COUNT(DISTINCT user_id) FROM characters WHERE auth_status = ?',
+            [AuthStatus::Invalid->value]
         );
-        $invalid = $total - $valid;
+        $valid = $total - $invalid;
 
         $oneWeekAgo = (new \DateTimeImmutable('-7 days'))->format('Y-m-d H:i:s');
         $oneMonthAgo = (new \DateTimeImmutable('-30 days'))->format('Y-m-d H:i:s');
@@ -72,8 +72,7 @@ class AdminService
         $withValidTokens = (int) $this->connection->fetchOne(
             'SELECT COUNT(DISTINCT c.id) FROM characters c
              JOIN eve_tokens t ON t.character_id = c.id
-             JOIN users u ON c.user_id = u.id
-             WHERE u.auth_status = ?',
+             WHERE c.auth_status = ?',
             [AuthStatus::Valid->value]
         );
 
@@ -91,7 +90,7 @@ class AdminService
             'SELECT COUNT(DISTINCT c.id) FROM characters c
              JOIN eve_tokens t ON t.character_id = c.id
              JOIN users u ON c.user_id = u.id
-             WHERE u.auth_status = ? AND u.last_login_at >= ?',
+             WHERE c.auth_status = ? AND u.last_login_at >= ?',
             [AuthStatus::Valid->value, $activeThreshold]
         );
 

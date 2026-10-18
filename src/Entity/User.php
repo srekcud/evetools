@@ -31,9 +31,6 @@ class User implements UserInterface
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Character $mainCharacter = null;
 
-    #[ORM\Column(type: 'string', length: 20, enumType: AuthStatus::class)]
-    private AuthStatus $authStatus = AuthStatus::Valid;
-
     /** @var int[] SDE group IDs blacklisted from industry production */
     #[ORM\Column(type: 'json')]
     private array $industryBlacklistGroupIds = [];
@@ -118,33 +115,13 @@ class User implements UserInterface
 
     public function getAuthStatus(): AuthStatus
     {
-        return $this->authStatus;
-    }
+        foreach ($this->characters as $character) {
+            if (!$character->isAuthValid()) {
+                return AuthStatus::Invalid;
+            }
+        }
 
-    public function setAuthStatus(AuthStatus $authStatus): static
-    {
-        $this->authStatus = $authStatus;
-
-        return $this;
-    }
-
-    public function isAuthValid(): bool
-    {
-        return $this->authStatus === AuthStatus::Valid;
-    }
-
-    public function markAuthInvalid(): static
-    {
-        $this->authStatus = AuthStatus::Invalid;
-
-        return $this;
-    }
-
-    public function markAuthValid(): static
-    {
-        $this->authStatus = AuthStatus::Valid;
-
-        return $this;
+        return AuthStatus::Valid;
     }
 
     public function getCreatedAt(): \DateTimeImmutable

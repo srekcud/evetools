@@ -234,10 +234,7 @@ class AssetsSyncService
             return false;
         }
 
-        // Check if user auth is valid
-        $user = $character->getUser();
-
-        return $user !== null && $user->isAuthValid();
+        return $character->isAuthValid();
     }
 
     /**

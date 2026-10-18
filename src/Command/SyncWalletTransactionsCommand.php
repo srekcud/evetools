@@ -39,8 +39,7 @@ class SyncWalletTransactionsCommand extends Command
                 continue;
             }
 
-            $user = $character->getUser();
-            if ($user === null || !$user->isAuthValid()) {
+            if (!$character->isAuthValid()) {
                 $io->comment(sprintf('Skipping %s (invalid auth)', $character->getName()));
                 continue;
             }

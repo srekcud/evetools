@@ -622,8 +622,7 @@ class AnsiblexSyncService
             return false;
         }
 
-        $user = $character->getUser();
-        if ($user === null || !$user->isAuthValid()) {
+        if (!$character->isAuthValid()) {
             return false;
         }
 

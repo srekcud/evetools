@@ -195,7 +195,7 @@ class WarmupStructureOwnersHandler
         // First, add tokens from the user's own characters
         foreach ($user->getCharacters() as $character) {
             $token = $character->getEveToken();
-            if ($token !== null) {
+            if ($token !== null && $character->isAuthValid()) {
                 $tokens[] = $token;
             }
         }
@@ -209,7 +209,7 @@ class WarmupStructureOwnersHandler
                     continue;
                 }
                 $token = $character->getEveToken();
-                if ($token !== null) {
+                if ($token !== null && $character->isAuthValid()) {
                     $tokens[] = $token;
                     // Limit to 5 tokens total to avoid complexity
                     if (count($tokens) >= 5) {

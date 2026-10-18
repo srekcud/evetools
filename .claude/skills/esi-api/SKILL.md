@@ -199,15 +199,17 @@ The refresh is **proactive only**: it happens before the request when the access
 
 ### Refresh failures
 
-`TokenManager::refreshAccessToken()` distinguishes three cases:
+`TokenManager::requestNewAccessToken()` distinguishes three cases:
 
 | EVE SSO answer | Result |
 |---|---|
-| HTTP 400 with `{"error": "invalid_grant"}` (application revoked by the player, or refresh token expired) | The token's user is marked invalid (`User::markAuthInvalid()`, `authStatus = Invalid`), then `EveAuthRequiredException` is thrown |
+| HTTP 400 with `{"error": "invalid_grant"}` (application revoked by the player, or refresh token expired) | The token's character alone is marked invalid (`Character::markAuthInvalid()`, `authStatus = Invalid`), then `EveAuthRequiredException` is thrown; the other characters of the same user stay valid |
 | Any other HTTP error | `EsiApiException` with the SSO status code |
 | Network error | `EsiApiException` with status 0 |
 
-`EveAuthRequiredException` implements `UnrecoverableExceptionInterface`: Messenger does not retry the message. Scheduled syncs then skip that user, because `CharacterRepository::findActiveWithValidTokens()` only returns characters whose user has `authStatus = Valid` (and logged in within the last 7 days). The user becomes valid again by logging in through EVE SSO.
+`EveAuthRequiredException` implements `UnrecoverableExceptionInterface`: Messenger does not retry the message.
+
+Once a character is invalid, `getValidAccessToken()` and `forceRefresh()` throw `EveAuthRequiredException` for it without any EVE SSO request, even while its access token is still valid. Scheduled syncs skip that character only: `CharacterRepository::findActiveWithValidTokens()` returns characters with `authStatus = Valid` (whose user logged in within the last 7 days), and `UserRepository::findActiveWithCharacters()` keeps a user with at least one valid character, with all its characters loaded. The character becomes valid again when the player logs in or adds it again through EVE SSO (`AuthenticationService::updateCharacterToken()`); logging in with another character does not revalidate it. `User::getAuthStatus()` (`/me.authStatus`) is `Invalid` while at least one of the user's characters is invalid.
 
 ### Checking Scopes
 

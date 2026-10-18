@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
+use App\Entity\Character;
 use App\Entity\User;
 use App\Enum\AuthStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -65,7 +66,10 @@ class UserRepository extends ServiceEntityRepository
             ->addSelect('c')
             ->leftJoin('c.eveToken', 't')
             ->addSelect('t')
-            ->where('u.authStatus = :status')
+            ->where(sprintf(
+                'EXISTS (SELECT validCharacter.id FROM %s validCharacter WHERE validCharacter.user = u AND validCharacter.authStatus = :status)',
+                Character::class,
+            ))
             ->andWhere('u.lastLoginAt >= :threshold')
             ->setParameter('status', AuthStatus::Valid)
             ->setParameter('threshold', $threshold)

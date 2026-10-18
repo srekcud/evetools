@@ -186,7 +186,6 @@ class AuthenticationService
 
         // Update last login
         $user->updateLastLogin();
-        $user->markAuthValid();
 
         $this->entityManager->flush();
 
@@ -299,5 +298,7 @@ class AuthenticationService
             $character->setEveToken($token);
             $this->entityManager->persist($token);
         }
+
+        $character->markAuthValid();
     }
 }
