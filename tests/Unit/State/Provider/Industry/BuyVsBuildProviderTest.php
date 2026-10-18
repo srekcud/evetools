@@ -41,6 +41,8 @@ final class BuyVsBuildProviderTest extends TestCase
     private const int FERNITE_CARBIDE = 16673;
     private const int RAM_AMMUNITION_TECH = 11476;
     private const int HYDROGEN_FUEL_BLOCK = 4246;
+    private const int FERNITE_ALLOY = 16656;
+    private const int CERAMIC_POWDER = 16660;
 
     #[Group('issue-100')]
     public function testWithoutParametersNorSettingsAnalyzesOneRunAtMe10InJitaWithDefaultFees(): void
@@ -134,7 +136,8 @@ final class BuyVsBuildProviderTest extends TestCase
         );
     }
 
-    public function testReactionProductCurrentlyWrongUsesTheFavoriteManufacturingSystem(): void
+    #[Group('issue-99')]
+    public function testReactionJobsTakeTheFavoriteReactionSystemAndManufacturingJobsTheFavoriteManufacturingSystem(): void
     {
         $user = new User();
         $settings = $this->settingsOf($user, favoriteManufacturingSystemId: self::FACTORY_SYSTEM_ID)
@@ -142,12 +145,71 @@ final class BuyVsBuildProviderTest extends TestCase
 
         $resource = $this->provide(self::FERNITE_CARBIDE, [], $user, $settings);
 
-        // CARACTÉRISATION : comportement actuel, suspecté faux, sans issue dédiée : the favorite reaction system is
-        // ignored, the reaction jobs take the reaction cost index of the favorite manufacturing system (0.1, not 0.04).
-        $this->assertSame(9000.0, $this->componentOf($resource, 16656)['buildJobInstallCost']);
+        $this->assertSame(3600.0, $this->componentOf($resource, self::FERNITE_ALLOY)['buildJobInstallCost']);
+        $this->assertSame(3600.0, $this->componentOf($resource, self::CERAMIC_POWDER)['buildJobInstallCost']);
         $this->assertSame(787.5, $this->componentOf($resource, self::HYDROGEN_FUEL_BLOCK)['buildJobInstallCost']);
         $this->assertNull($resource->sellStructureId);
+        $this->assertResourceIsTheAnalysisOf(
+            $resource,
+            self::FERNITE_CARBIDE, 1, 10, self::FACTORY_SYSTEM_ID, null, 0.01, 0.02,
+            reactionSolarSystemId: EveConstants::JITA_SOLAR_SYSTEM_ID,
+        );
+    }
+
+    #[Group('issue-99')]
+    public function testManufacturingProductKeepsTheFavoriteManufacturingSystemWhenAFavoriteReactionSystemIsSet(): void
+    {
+        $user = new User();
+        $settings = $this->settingsOf($user, favoriteManufacturingSystemId: self::FACTORY_SYSTEM_ID)
+            ->setFavoriteReactionSystemId(EveConstants::JITA_SOLAR_SYSTEM_ID);
+
+        $resource = $this->provide(self::HAIL_L, [], $user, $settings);
+
+        $this->assertSame(111.2, $this->componentOf($resource, self::RAM_AMMUNITION_TECH)['buildJobInstallCost']);
+        $this->assertSame(14250.0, round($resource->totalProductionCost - $resource->optimalMixCost, 2));
+    }
+
+    #[Group('issue-99')]
+    public function testWithoutFavoriteReactionSystemReactionJobsFallBackToTheFavoriteManufacturingSystem(): void
+    {
+        $user = new User();
+        $settings = $this->settingsOf($user, favoriteManufacturingSystemId: self::FACTORY_SYSTEM_ID);
+
+        $resource = $this->provide(self::FERNITE_CARBIDE, [], $user, $settings);
+
+        $this->assertSame(9000.0, $this->componentOf($resource, self::FERNITE_ALLOY)['buildJobInstallCost']);
+        $this->assertSame(787.5, $this->componentOf($resource, self::HYDROGEN_FUEL_BLOCK)['buildJobInstallCost']);
+        $this->assertSame(67587.5, $resource->totalProductionCost);
         $this->assertResourceIsTheAnalysisOf($resource, self::FERNITE_CARBIDE, 1, 10, self::FACTORY_SYSTEM_ID, null, 0.01, 0.02);
+    }
+
+    #[Group('issue-99')]
+    public function testSolarSystemQueryParameterAppliesToReactionJobsOverTheFavoriteReactionSystem(): void
+    {
+        $user = new User();
+        $settings = $this->settingsOf($user, favoriteManufacturingSystemId: EveConstants::JITA_SOLAR_SYSTEM_ID)
+            ->setFavoriteReactionSystemId(EveConstants::JITA_SOLAR_SYSTEM_ID);
+
+        $resource = $this->provide(self::FERNITE_CARBIDE, ['solarSystemId' => (string) self::FACTORY_SYSTEM_ID], $user, $settings);
+
+        $this->assertSame(9000.0, $this->componentOf($resource, self::FERNITE_ALLOY)['buildJobInstallCost']);
+        $this->assertSame(787.5, $this->componentOf($resource, self::HYDROGEN_FUEL_BLOCK)['buildJobInstallCost']);
+        $this->assertSame(67587.5, $resource->totalProductionCost);
+        $this->assertResourceIsTheAnalysisOf($resource, self::FERNITE_CARBIDE, 1, 10, self::FACTORY_SYSTEM_ID, null, 0.01, 0.02);
+    }
+
+    #[Group('issue-99')]
+    public function testFinalReactionJobOfAReactionProductTakesTheFavoriteReactionSystem(): void
+    {
+        $user = new User();
+        $settings = $this->settingsOf($user, favoriteManufacturingSystemId: self::FACTORY_SYSTEM_ID)
+            ->setFavoriteReactionSystemId(EveConstants::JITA_SOLAR_SYSTEM_ID);
+
+        $resource = $this->provide(self::FERNITE_CARBIDE, [], $user, $settings);
+
+        $this->assertSame([self::FERNITE_ALLOY, self::CERAMIC_POWDER], $resource->buyTypeIds);
+        $this->assertSame(55787.5, $resource->optimalMixCost);
+        $this->assertSame(60507.5, $resource->totalProductionCost);
     }
 
     public function testAnonymousRequestIsUnauthorized(): void
@@ -187,8 +249,9 @@ final class BuyVsBuildProviderTest extends TestCase
         ?int $sellStructureId,
         float $brokerFeeRate,
         float $salesTaxRate,
+        ?int $reactionSolarSystemId = null,
     ): void {
-        $analysis = $this->goldenBuyVsBuildService()->analyze($typeId, $runs, $meLevel, $solarSystemId, $sellStructureId, $brokerFeeRate, $salesTaxRate, null);
+        $analysis = $this->goldenBuyVsBuildService()->analyze($typeId, $runs, $meLevel, $solarSystemId, $sellStructureId, $brokerFeeRate, $salesTaxRate, null, $reactionSolarSystemId);
 
         $this->assertSame($analysis, [
             'typeId' => $resource->typeId,
@@ -217,15 +280,15 @@ final class BuyVsBuildProviderTest extends TestCase
                 self::HYDROGEN_FUEL_BLOCK => 20000.0,
                 34 => 5.0,
                 35 => 10.0,
-                16656 => 300.0,
-                16660 => 250.0,
+                self::FERNITE_ALLOY => 300.0,
+                self::CERAMIC_POWDER => 250.0,
             ],
             structurePrices: [
                 self::SELL_STRUCTURE_ID => [self::RAM_AMMUNITION_TECH => 25000.0],
                 self::OTHER_SELL_STRUCTURE_ID => [self::HAIL_L => 480.0, self::RAM_AMMUNITION_TECH => 23000.0],
                 EveConstants::JITA_STATION_ID => [self::HAIL_L => 450.0, self::RAM_AMMUNITION_TECH => 21000.0],
             ],
-            adjustedPrices: [34 => 4.0, 17889 => 35.0, self::HYDROGEN_FUEL_BLOCK => 18000.0, 16656 => 280.0, self::FERNITE_CARBIDE => 50.0, 11399 => 9000.0],
+            adjustedPrices: [34 => 4.0, 17889 => 35.0, self::HYDROGEN_FUEL_BLOCK => 18000.0, self::FERNITE_ALLOY => 280.0, self::FERNITE_CARBIDE => 50.0, 11399 => 9000.0],
             costIndices: [
                 EveConstants::JITA_SOLAR_SYSTEM_ID => ['manufacturing' => 0.02, 'reaction' => 0.04],
                 self::FACTORY_SYSTEM_ID => ['manufacturing' => 0.05, 'reaction' => 0.1],

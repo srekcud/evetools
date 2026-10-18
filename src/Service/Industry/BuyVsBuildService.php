@@ -57,6 +57,7 @@ class BuyVsBuildService
         float $brokerFeeRate,
         float $salesTaxRate,
         ?User $user,
+        ?int $reactionSolarSystemId = null,
     ): array {
         $typeName = $this->typeNameResolver->resolve($typeId);
         $isT2 = $this->inventionService->isT2($typeId);

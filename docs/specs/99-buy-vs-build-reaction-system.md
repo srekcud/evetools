@@ -17,7 +17,7 @@ Indices de coût du harnais : Jita (30000142) fabrication 0,02, réaction 0,04 ;
 | # | Cas | Aujourd'hui | Attendu |
 |---|---|---|---|
 | E1 | Fernite Carbide, favori fabrication = usine, favori réaction = Jita | réactions au taux 0,1 (composant 16656 : 9 000 ISK d'installation) | réactions au taux 0,04 de Jita ; composants de fabrication (Hydrogen Fuel Block) au taux 0,05 de l'usine (787,5 ISK, inchangé) |
-| E2 | Hail L (produit de fabrication), mêmes réglages | fabrication au taux 0,05 | inchangé |
+| E2 | Hail L (produit de fabrication), mêmes réglages | fabrication au taux 0,05 | jobs de fabrication inchangés (R.A.M. 111,2, job final 14 250) ; sa réaction Fernite Carbide suit R1 |
 | E3 | Fernite Carbide, favori fabrication = usine, sans favori réaction | réactions au taux 0,1 | inchangé (R2) |
 | E4 | Fernite Carbide, `solarSystemId` = usine en paramètre, favori réaction = Jita | réactions au taux 0,1 | inchangé (R3) |
 | E5 | Produit final de réaction (Fernite Carbide), favori réaction = Jita | job final au taux 0,1 de l'usine | job final au taux 0,04 de Jita |
