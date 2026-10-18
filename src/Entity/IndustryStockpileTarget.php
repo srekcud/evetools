@@ -101,6 +101,11 @@ class IndustryStockpileTarget
         return $this;
     }
 
+    public function isMetBy(int $stock): bool
+    {
+        return $stock >= $this->targetQuantity;
+    }
+
     public function getStage(): string
     {
         return $this->stage;

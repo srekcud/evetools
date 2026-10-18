@@ -160,7 +160,7 @@ class StockpileService
                 ? min(self::FULL_PERMILLE, intdiv($stock * self::FULL_PERMILLE, $targetQty)) / self::PERMILLE_PER_PERCENT
                 : 100.0;
 
-            if ($percent >= 100) {
+            if ($target->isMetBy($stock)) {
                 $status = 'met';
                 $metCount++;
             } elseif ($percent >= 50) {
@@ -357,8 +357,6 @@ class StockpileService
     }
 
     /**
-     * Compute how many final products have all their upstream targets met.
-     *
      * @param IndustryStockpileTarget[] $targets
      * @param array<int, int> $assetQuantities
      * @return array{ready: int, total: int, readyNames: list<string>}
@@ -371,11 +369,12 @@ class StockpileService
 
         foreach ($targets as $target) {
             $source = $target->getSourceProductTypeId();
-            if ($source !== null) {
-                $bySource[$source][] = $target;
+            if ($source === null) {
+                continue;
             }
+            $bySource[$source][] = $target;
             if ($target->getStage() === 'final_product') {
-                $finalProducts[] = $target;
+                $finalProducts[] = [$target, $source];
             }
         }
 
@@ -383,26 +382,18 @@ class StockpileService
         $ready = 0;
         $readyNames = [];
 
-        foreach ($finalProducts as $fp) {
-            $source = $fp->getSourceProductTypeId();
-            if ($source === null) {
-                continue;
-            }
-
-            $allMet = true;
-            foreach ($bySource[$source] ?? [] as $target) {
-                $stock = $assetQuantities[$target->getTypeId()] ?? 0;
-                $targetQty = $target->getTargetQuantity();
-                $percent = $targetQty > 0 ? ($stock / $targetQty) * 100 : 100;
-                if ($percent < 100) {
-                    $allMet = false;
+        foreach ($finalProducts as [$finalProduct, $source]) {
+            $upstreamMet = true;
+            foreach ($bySource[$source] as $target) {
+                if ($target !== $finalProduct && !$target->isMetBy($assetQuantities[$target->getTypeId()] ?? 0)) {
+                    $upstreamMet = false;
                     break;
                 }
             }
 
-            if ($allMet) {
+            if ($upstreamMet || $finalProduct->isMetBy($assetQuantities[$finalProduct->getTypeId()] ?? 0)) {
                 $ready++;
-                $readyNames[] = $fp->getTypeName();
+                $readyNames[] = $finalProduct->getTypeName();
             }
         }
 
