@@ -11,6 +11,7 @@ use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\AbstractLogger;
@@ -1639,6 +1640,233 @@ final class EsiClientTest extends TestCase
             'https://esi.test/corporations/98000001/projects',
             self::BASE_URL . '/universe/systems/30000142/',
         ], array_column($this->recordedRequests, 'url'));
+    }
+
+    #[Group('issue-114')]
+    public function testGetUnversionedCursorPaginatedWalksBeforeCursorsUntilAnEmptyPageAndMergesRecords(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([
+                'projects' => [
+                    ['id' => 'project-tritanium', 'name' => 'Tritanium Drive', 'state' => 'Active'],
+                    ['id' => 'project-red-loot', 'name' => 'Rogue Drone Sweep', 'state' => 'Completed'],
+                ],
+                'cursor' => ['before' => 'cursor-page-2', 'after' => 'cursor-after-1'],
+            ]),
+            $this->jsonResponse([
+                'projects' => [['id' => 'project-pyerite', 'name' => 'Pyerite Haul', 'state' => 'Expired']],
+                'cursor' => ['before' => 'cursor-page-3', 'after' => 'cursor-after-2'],
+            ]),
+            $this->jsonResponse([
+                'projects' => [],
+                'cursor' => ['before' => 'cursor-page-4', 'after' => 'cursor-after-3'],
+            ]),
+        ]);
+
+        $result = $esiClient->getUnversionedCursorPaginated('/corporations/98000001/projects', $this->createEveToken(), '2025-12-16', 'projects');
+
+        $this->assertSame([
+            ['id' => 'project-tritanium', 'name' => 'Tritanium Drive', 'state' => 'Active'],
+            ['id' => 'project-red-loot', 'name' => 'Rogue Drone Sweep', 'state' => 'Completed'],
+            ['id' => 'project-pyerite', 'name' => 'Pyerite Haul', 'state' => 'Expired'],
+        ], $result);
+        $this->assertSame(['GET', 'GET', 'GET'], array_column($this->recordedRequests, 'method'));
+        $this->assertSame([
+            'https://esi.test/corporations/98000001/projects?limit=100',
+            'https://esi.test/corporations/98000001/projects?limit=100&before=cursor-page-2',
+            'https://esi.test/corporations/98000001/projects?limit=100&before=cursor-page-3',
+        ], array_column($this->recordedRequests, 'url'));
+    }
+
+    #[Group('issue-114')]
+    public function testGetUnversionedCursorPaginatedSendsCompatibilityDateAndBearerAuthorizationOnEveryPage(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([
+                'contributors' => [['id' => 2112000001, 'name' => 'Pilot One', 'contributed' => 1000]],
+                'cursor' => ['before' => 'cursor-page-2'],
+            ]),
+            $this->jsonResponse(['contributors' => [], 'cursor' => ['before' => 'cursor-page-3']]),
+        ]);
+
+        $esiClient->getUnversionedCursorPaginated('/corporations/98000001/projects/project-tritanium/contributors', $this->createEveToken(), '2025-12-16', 'contributors');
+
+        $this->assertCount(2, $this->recordedRequests);
+        foreach ($this->recordedRequests as $request) {
+            $this->assertSame(['X-Compatibility-Date: 2025-12-16'], $request['headers']['x-compatibility-date'] ?? null, $request['url']);
+            $this->assertSame(['Authorization: Bearer ' . self::ACCESS_TOKEN], $request['headers']['authorization'] ?? null, $request['url']);
+        }
+    }
+
+    #[Group('issue-114')]
+    public function testGetUnversionedCursorPaginatedStopsAfterAPageWithoutBeforeCursor(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([
+                'contributors' => [
+                    ['id' => 2112000001, 'name' => 'Pilot One', 'contributed' => 1000],
+                    ['id' => 2112000077, 'name' => 'Pilot Seventy Seven', 'contributed' => 25],
+                ],
+                'cursor' => ['after' => 'cursor-after-1'],
+            ]),
+        ]);
+
+        $result = $esiClient->getUnversionedCursorPaginated('/corporations/98000001/projects/project-tritanium/contributors', $this->createEveToken(), '2025-12-16', 'contributors');
+
+        $this->assertSame([
+            ['id' => 2112000001, 'name' => 'Pilot One', 'contributed' => 1000],
+            ['id' => 2112000077, 'name' => 'Pilot Seventy Seven', 'contributed' => 25],
+        ], $result);
+        $this->assertSame(
+            ['https://esi.test/corporations/98000001/projects/project-tritanium/contributors?limit=100'],
+            array_column($this->recordedRequests, 'url'),
+        );
+    }
+
+    #[Group('issue-114')]
+    public function testGetUnversionedCursorPaginatedReturnsEmptyListWhenTheFirstPageIsEmpty(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse(['projects' => [], 'cursor' => ['before' => 'cursor-page-2']]),
+        ]);
+
+        $result = $esiClient->getUnversionedCursorPaginated('/corporations/98000001/projects', $this->createEveToken(), '2025-12-16', 'projects');
+
+        $this->assertSame([], $result);
+        $this->assertCount(1, $this->recordedRequests);
+    }
+
+    #[Group('issue-114')]
+    public function testGetUnversionedCursorPaginatedKeepsTheFirstSeenRecordWhenAnIdRepeatsOnALaterPage(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([
+                'projects' => [['id' => 'project-red-loot', 'name' => 'Rogue Drone Sweep', 'state' => 'Active']],
+                'cursor' => ['before' => 'cursor-page-2'],
+            ]),
+            $this->jsonResponse([
+                'projects' => [
+                    ['id' => 'project-red-loot', 'name' => 'Rogue Drone Sweep', 'state' => 'Completed'],
+                    ['id' => 'project-pyerite', 'name' => 'Pyerite Haul', 'state' => 'Closed'],
+                ],
+                'cursor' => ['before' => 'cursor-page-3'],
+            ]),
+            $this->jsonResponse(['projects' => [], 'cursor' => ['before' => 'cursor-page-4']]),
+        ]);
+
+        $result = $esiClient->getUnversionedCursorPaginated('/corporations/98000001/projects', $this->createEveToken(), '2025-12-16', 'projects');
+
+        $this->assertSame([
+            ['id' => 'project-red-loot', 'name' => 'Rogue Drone Sweep', 'state' => 'Active'],
+            ['id' => 'project-pyerite', 'name' => 'Pyerite Haul', 'state' => 'Closed'],
+        ], $result);
+    }
+
+    #[Group('issue-114')]
+    public function testGetUnversionedCursorPaginatedAppendsLimitAndCursorWithAmpersandWhenEndpointHasQueryString(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([
+                'projects' => [['id' => 'project-red-loot', 'name' => 'Rogue Drone Sweep', 'state' => 'Completed']],
+                'cursor' => ['before' => 'cursor-page-2'],
+            ]),
+            $this->jsonResponse(['projects' => [], 'cursor' => ['before' => 'cursor-page-3']]),
+        ]);
+
+        $esiClient->getUnversionedCursorPaginated('/corporations/98000001/projects?state=All', $this->createEveToken(), '2025-12-16', 'projects');
+
+        $this->assertSame([
+            'https://esi.test/corporations/98000001/projects?state=All&limit=100',
+            'https://esi.test/corporations/98000001/projects?state=All&limit=100&before=cursor-page-2',
+        ], array_column($this->recordedRequests, 'url'));
+    }
+
+    #[Group('issue-114')]
+    public function testGetUnversionedCursorPaginatedReplaysARateLimitedPageOnceWithTheSameCursor(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([
+                'projects' => [['id' => 'project-tritanium', 'name' => 'Tritanium Drive', 'state' => 'Active']],
+                'cursor' => ['before' => 'cursor-page-2'],
+            ]),
+            $this->rateLimitedResponse(retryAfterSeconds: 0),
+            $this->jsonResponse([
+                'projects' => [['id' => 'project-red-loot', 'name' => 'Rogue Drone Sweep', 'state' => 'Completed']],
+                'cursor' => ['before' => 'cursor-page-3'],
+            ]),
+            $this->jsonResponse(['projects' => [], 'cursor' => ['before' => 'cursor-page-4']]),
+        ]);
+
+        $result = $esiClient->getUnversionedCursorPaginated('/corporations/98000001/projects', $this->createEveToken(), '2025-12-16', 'projects');
+
+        $this->assertSame([
+            ['id' => 'project-tritanium', 'name' => 'Tritanium Drive', 'state' => 'Active'],
+            ['id' => 'project-red-loot', 'name' => 'Rogue Drone Sweep', 'state' => 'Completed'],
+        ], $result);
+        $this->assertSame([
+            'https://esi.test/corporations/98000001/projects?limit=100',
+            'https://esi.test/corporations/98000001/projects?limit=100&before=cursor-page-2',
+            'https://esi.test/corporations/98000001/projects?limit=100&before=cursor-page-2',
+            'https://esi.test/corporations/98000001/projects?limit=100&before=cursor-page-3',
+        ], array_column($this->recordedRequests, 'url'));
+        $this->assertSame(['X-Compatibility-Date: 2025-12-16'], $this->recordedRequests[2]['headers']['x-compatibility-date'] ?? null);
+        $this->assertSame(['Authorization: Bearer ' . self::ACCESS_TOKEN], $this->recordedRequests[2]['headers']['authorization'] ?? null);
+    }
+
+    #[Group('issue-114')]
+    public function testGetUnversionedCursorPaginatedReplaysAnErrorLimitedPageOnceAfterTheErrorLimitReset(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->errorLimitedResponse(),
+            $this->jsonResponse([
+                'contributors' => [['id' => 2112000001, 'name' => 'Pilot One', 'contributed' => 1000]],
+                'cursor' => ['before' => 'cursor-page-2'],
+            ]),
+            $this->jsonResponse(['contributors' => [], 'cursor' => ['before' => 'cursor-page-3']]),
+        ]);
+
+        $result = $esiClient->getUnversionedCursorPaginated('/corporations/98000001/projects/project-tritanium/contributors', $this->createEveToken(), '2025-12-16', 'contributors');
+
+        $this->assertSame([['id' => 2112000001, 'name' => 'Pilot One', 'contributed' => 1000]], $result);
+        $this->assertCount(3, $this->recordedRequests);
+        $this->assertSame(1_000_000, $this->waitedMicroseconds());
+    }
+
+    #[Group('issue-114')]
+    public function testGetUnversionedCursorPaginatedThrowsForTheFailingPageWithoutRequestingFurther(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([
+                'projects' => [['id' => 'project-tritanium', 'name' => 'Tritanium Drive', 'state' => 'Active']],
+                'cursor' => ['before' => 'cursor-page-2'],
+            ]),
+            $this->errorResponse(500),
+        ]);
+
+        try {
+            $esiClient->getUnversionedCursorPaginated('/corporations/98000001/projects', $this->createEveToken(), '2025-12-16', 'projects');
+            $this->fail('Expected EsiApiException');
+        } catch (EsiApiException $exception) {
+            $this->assertSame(500, $exception->statusCode);
+        }
+        $this->assertCount(2, $this->recordedRequests);
+    }
+
+    #[Group('issue-114')]
+    public function testGetUnversionedCursorPaginatedThrows429AfterSecondConsecutiveRateLimitOnAPage(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->rateLimitedResponse(retryAfterSeconds: 0),
+            $this->rateLimitedResponse(retryAfterSeconds: 0),
+        ]);
+
+        try {
+            $esiClient->getUnversionedCursorPaginated('/corporations/98000001/projects', $this->createEveToken(), '2025-12-16', 'projects');
+            $this->fail('Expected EsiApiException');
+        } catch (EsiApiException $exception) {
+            $this->assertSame(429, $exception->statusCode);
+        }
+        $this->assertCount(2, $this->recordedRequests);
     }
 
     // ---------------------------------------------------------------
