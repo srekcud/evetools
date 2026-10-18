@@ -10,9 +10,11 @@ use App\ApiResource\Industry\ProjectStepResource;
 use App\ApiResource\Input\Industry\SplitStepInput;
 use App\Entity\IndustryProjectStep;
 use App\Entity\User;
+use App\Enum\IndustryActivityType;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Service\Industry\SplitGroupQuantities;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -26,6 +28,8 @@ use Symfony\Component\Uid\Uuid;
  */
 class SplitStepProcessor implements ProcessorInterface
 {
+    private const int OUTPUT_PER_COPY_RUN = 1;
+
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
@@ -74,28 +78,29 @@ class SplitStepProcessor implements ProcessorInterface
         }
 
         $splitGroupId = Uuid::v4()->toRfc4122();
-        $baseRunsPerJob = (int) floor($totalRuns / $numberOfJobs);
-        $remainder = $totalRuns - ($baseRunsPerJob * $numberOfJobs);
+        $runsBySplitIndex = SplitGroupQuantities::runsBySplitIndex($totalRuns, $numberOfJobs);
+        $quantitiesBySplitIndex = SplitGroupQuantities::share(
+            $step->getQuantity(),
+            $this->getOutputPerRun($step->getBlueprintTypeId(), $step->getActivityType()),
+            $runsBySplitIndex,
+        );
 
         // Convert the original step into the first split
         $step->setSplitGroupId($splitGroupId);
         $step->setSplitIndex(0);
-        $runsForFirst = $baseRunsPerJob + ($remainder > 0 ? 1 : 0);
-        $step->setRuns($runsForFirst);
-        $step->setQuantity($runsForFirst); // For reactions, quantity may differ from runs
+        $step->setRuns($runsBySplitIndex[0]);
+        $step->setQuantity($quantitiesBySplitIndex[0]);
         $step->setTotalGroupRuns($totalRuns);
 
         $results = [$step];
 
         // Create additional split steps
         for ($i = 1; $i < $numberOfJobs; $i++) {
-            $runsForThisJob = $baseRunsPerJob + ($i < $remainder ? 1 : 0);
-
             $newStep = new IndustryProjectStep();
             $newStep->setBlueprintTypeId($step->getBlueprintTypeId());
             $newStep->setProductTypeId($step->getProductTypeId());
-            $newStep->setQuantity($runsForThisJob);
-            $newStep->setRuns($runsForThisJob);
+            $newStep->setQuantity($quantitiesBySplitIndex[$i]);
+            $newStep->setRuns($runsBySplitIndex[$i]);
             $newStep->setDepth($step->getDepth());
             $newStep->setActivityType($step->getActivityType());
             $newStep->setSortOrder($step->getSortOrder());
@@ -114,5 +119,28 @@ class SplitStepProcessor implements ProcessorInterface
         $this->entityManager->flush();
 
         return array_map(fn ($s) => $this->mapper->stepToResource($s), $results);
+    }
+
+    private function getOutputPerRun(int $blueprintTypeId, string $activityType): int
+    {
+        if ($activityType === 'copy') {
+            return self::OUTPUT_PER_COPY_RUN;
+        }
+
+        $activityId = match ($activityType) {
+            'reaction' => IndustryActivityType::Reaction->value,
+            default => IndustryActivityType::Manufacturing->value,
+        };
+
+        $product = $this->activityProductRepository->findOneBy([
+            'typeId' => $blueprintTypeId,
+            'activityId' => $activityId,
+        ]);
+
+        if ($product === null) {
+            throw new BadRequestHttpException("Product of blueprint {$blueprintTypeId} missing from the SDE");
+        }
+
+        return $product->getQuantity();
     }
 }

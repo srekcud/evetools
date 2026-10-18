@@ -153,6 +153,7 @@ class IndustryStepCalculator
                 }
 
                 $assignedRuns = 0;
+                $runsByChild = [];
                 foreach ($childSteps as $i => $child) {
                     $isLast = ($i === count($childSteps) - 1);
 
@@ -162,8 +163,25 @@ class IndustryStepCalculator
                         $childRuns = (int) round($newTotalRuns * $child->getRuns() / $oldTotalRuns);
                     }
                     $childRuns = max(1, $childRuns);
-                    $childQuantity = $childRuns * $outputPerRun;
+                    $runsByChild[$i] = $childRuns;
                     $assignedRuns += $childRuns;
+                }
+
+                $childIndexesBySplitIndex = array_keys($childSteps);
+                usort(
+                    $childIndexesBySplitIndex,
+                    static fn (int $a, int $b): int => $childSteps[$a]->getSplitIndex() <=> $childSteps[$b]->getSplitIndex(),
+                );
+                $quantitiesBySplitIndex = SplitGroupQuantities::share(
+                    $newTotalQuantity,
+                    $outputPerRun,
+                    array_map(static fn (int $i): int => $runsByChild[$i], $childIndexesBySplitIndex),
+                );
+                $quantityByChild = array_combine($childIndexesBySplitIndex, $quantitiesBySplitIndex);
+
+                foreach ($childSteps as $i => $child) {
+                    $childRuns = $runsByChild[$i];
+                    $childQuantity = $quantityByChild[$i];
 
                     if ($child->getQuantity() !== $childQuantity || $child->getRuns() !== $childRuns) {
                         $child->setQuantity($childQuantity);

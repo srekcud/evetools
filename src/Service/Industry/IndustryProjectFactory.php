@@ -500,19 +500,16 @@ class IndustryProjectFactory
                 continue;
             }
 
-            $baseRunsPerJob = (int) floor($totalRuns / $numJobs);
-            $remainder = $totalRuns - ($baseRunsPerJob * $numJobs);
-
             $splitGroupId = Uuid::v4()->toRfc4122();
             $outputPerRun = $step['outputPerRun'] ?? 1;
 
-            for ($splitIndex = 0; $splitIndex < $numJobs; $splitIndex++) {
-                $runsForThisJob = $baseRunsPerJob + ($splitIndex < $remainder ? 1 : 0);
-                $quantityForThisJob = $runsForThisJob * $outputPerRun;
+            $runsBySplitIndex = SplitGroupQuantities::runsBySplitIndex($totalRuns, $numJobs);
+            $quantitiesBySplitIndex = SplitGroupQuantities::share($step['quantity'], $outputPerRun, $runsBySplitIndex);
 
+            foreach ($runsBySplitIndex as $splitIndex => $runsForThisJob) {
                 $splitStep = $step;
                 $splitStep['runs'] = $runsForThisJob;
-                $splitStep['quantity'] = $quantityForThisJob;
+                $splitStep['quantity'] = $quantitiesBySplitIndex[$splitIndex];
                 $splitStep['splitGroupId'] = $splitGroupId;
                 $splitStep['splitIndex'] = $splitIndex;
                 $splitStep['totalGroupRuns'] = $totalRuns;
