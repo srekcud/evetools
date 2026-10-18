@@ -34,7 +34,7 @@ final class StructureFacilityTaxValidationTest extends TestCase
     #[DataProvider('outOfBoundsFacilityTaxProvider')]
     public function testFacilityTaxOutsideZeroToFiftyPercentIsRejected(string $inputClass, float $facilityTaxRate): void
     {
-        $violations = $this->validator->validatePropertyValue($inputClass, 'facilityTaxRate', $facilityTaxRate);
+        $violations = $this->validator->validatePropertyValue(new $inputClass(), 'facilityTaxRate', $facilityTaxRate);
 
         self::assertCount(1, $violations);
         self::assertSame('facilityTaxRate', $violations[0]->getPropertyPath());
@@ -54,7 +54,7 @@ final class StructureFacilityTaxValidationTest extends TestCase
     #[DataProvider('acceptedFacilityTaxProvider')]
     public function testFacilityTaxFromZeroToFiftyPercentIsAccepted(string $inputClass, ?float $facilityTaxRate): void
     {
-        $violations = $this->validator->validatePropertyValue($inputClass, 'facilityTaxRate', $facilityTaxRate);
+        $violations = $this->validator->validatePropertyValue(new $inputClass(), 'facilityTaxRate', $facilityTaxRate);
 
         self::assertCount(0, $violations);
     }
