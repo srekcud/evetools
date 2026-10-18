@@ -802,6 +802,35 @@ class IndustryJobMatcherTest extends TestCase
         $this->assertSame(1000, $step->getQuantity());
     }
 
+    public function testPurchasedStepInNoneModeKeepsItsJobMatches(): void
+    {
+        $step = $this->createStep(runs: 10, quantity: 10);
+        $step->setPurchased(true);
+        $step->setJobMatchMode('none');
+        $step->addJobMatch($this->createExistingMatch(esiJobId: 4242, runs: 10));
+        $project = $this->createProject($step);
+        $this->givenJobsForBlueprint(self::BLUEPRINT_TYPE_ID, $this->createJob(jobId: 5001, runs: 10));
+
+        $this->matcher->matchEsiJobs($project);
+
+        $this->assertSame([4242], $this->matchedJobIds($step));
+    }
+
+    public function testStepNoLongerPurchasedRecomputesItsJobMatches(): void
+    {
+        $step = $this->createStep(runs: 10, quantity: 10);
+        $step->setPurchased(true);
+        $step->addJobMatch($this->createExistingMatch(esiJobId: 4242, runs: 10));
+        $project = $this->createProject($step);
+        $this->givenJobsForBlueprint(self::BLUEPRINT_TYPE_ID, $this->createJob(jobId: 5001, runs: 10));
+
+        $this->matcher->matchEsiJobs($project);
+        $step->setPurchased(false);
+        $this->matcher->matchEsiJobs($project);
+
+        $this->assertSame([5001], $this->matchedJobIds($step));
+    }
+
     public function testInStockStepIsStillMatched(): void
     {
         $step = $this->createStep(runs: 10, quantity: 10);
