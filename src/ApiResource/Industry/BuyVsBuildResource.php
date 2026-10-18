@@ -50,6 +50,8 @@ class BuyVsBuildResource
 
     public ?float $marginPercent = null;
 
+    public ?int $sellStructureId = null;
+
     /** @var list<array{typeId: int, typeName: string, quantity: int, stage: string, buildCost: float, buildMaterials: list<array{typeId: int, typeName: string, quantity: int, unitPrice: float, totalPrice: float}>, buildJobInstallCost: float, buyCostJita: float|null, buyCostStructure: float|null, verdict: string, savings: float, savingsPercent: float, meUsed: int, runs: int}> */
     public array $components = [];
 

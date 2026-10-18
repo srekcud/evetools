@@ -53,7 +53,7 @@ class BuyVsBuildService
         int $runs,
         int $meLevel,
         int $solarSystemId,
-        int $sellStructureId,
+        ?int $sellStructureId,
         float $brokerFeeRate,
         float $salesTaxRate,
         ?User $user,

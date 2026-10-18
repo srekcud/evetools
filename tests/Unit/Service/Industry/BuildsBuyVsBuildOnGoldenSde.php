@@ -54,6 +54,7 @@ trait BuildsBuyVsBuildOnGoldenSde
         array $adjustedPrices,
         array $costIndices,
         bool $isT2 = false,
+        ?StructureMarketService $structureMarket = null,
     ): BuyVsBuildService {
         $recipes = self::goldenRecipes();
         $typeNames = self::goldenTypeNames();
@@ -155,7 +156,7 @@ trait BuildsBuyVsBuildOnGoldenSde
         return new BuyVsBuildService(
             $treeService,
             $jitaMarketService,
-            $structureMarketService,
+            $structureMarket ?? $structureMarketService,
             $this->esiCostIndexServiceSyncedWith($adjustedPrices, $costIndices),
             $inventionService,
             new TypeNameResolver($invTypeRepository),

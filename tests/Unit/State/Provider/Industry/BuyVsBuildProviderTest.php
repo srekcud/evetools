@@ -14,6 +14,7 @@ use App\Service\Industry\BuyVsBuildService;
 use App\State\Provider\Industry\BuyVsBuildProvider;
 use App\Tests\Unit\Service\Industry\BuildsBuyVsBuildOnGoldenSde;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
@@ -35,34 +36,60 @@ final class BuyVsBuildProviderTest extends TestCase
 
     private const int FACTORY_SYSTEM_ID = 30_002_187;
     private const int SELL_STRUCTURE_ID = 1_035_466_617_946;
+    private const int OTHER_SELL_STRUCTURE_ID = 1_041_204_316_528;
     private const int HAIL_L = 12779;
     private const int FERNITE_CARBIDE = 16673;
     private const int RAM_AMMUNITION_TECH = 11476;
     private const int HYDROGEN_FUEL_BLOCK = 4246;
 
+    #[Group('issue-100')]
     public function testWithoutParametersNorSettingsAnalyzesOneRunAtMe10InJitaWithDefaultFees(): void
     {
         $resource = $this->provide(self::HAIL_L, [], new User(), null);
 
         $this->assertSame(1, $resource->runs);
         $this->assertSame(2700, $this->componentOf($resource, self::FERNITE_CARBIDE)['quantity']);
-        $this->assertSame(450.0, $resource->sellPrice);
+        $this->assertSame(500.0, $resource->sellPrice);
         $this->assertSame(4720.0, $this->componentOf($resource, self::FERNITE_CARBIDE)['buildJobInstallCost']);
         $this->assertResourceIsTheAnalysisOf(
             $resource,
-            self::HAIL_L, 1, 10, EveConstants::JITA_SOLAR_SYSTEM_ID, EveConstants::JITA_STATION_ID,
+            self::HAIL_L, 1, 10, EveConstants::JITA_SOLAR_SYSTEM_ID, null,
             EveConstants::DEFAULT_BROKER_FEE_RATE, EveConstants::DEFAULT_SALES_TAX_RATE,
         );
     }
 
-    public function testCurrentlyWrongWithoutPreferredStructureSellsAtTheJitaStationAsIfItWereAStructure(): void
+    #[Group('issue-100')]
+    public function testWithoutStructureParameterNorPreferredMarketStructureNoStructureIsChosenAndJitaPricesApply(): void
     {
         $resource = $this->provide(self::HAIL_L, [], new User(), null);
 
-        // CARACTÉRISATION : comportement actuel, suspecté faux, sans issue dédiée (glossaire, « Structure de marché
-        // par défaut appliquée inégalement »). The Jita station ID is passed as a structure ID to StructureMarketService.
-        $this->assertSame(450.0, $resource->sellPrice);
-        $this->assertSame(21000.0, $this->componentOf($resource, self::RAM_AMMUNITION_TECH)['buyCostStructure']);
+        $this->assertNull($resource->sellStructureId);
+        $this->assertSame(500.0, $resource->sellPrice);
+        $this->assertNull($this->componentOf($resource, self::RAM_AMMUNITION_TECH)['buyCostStructure']);
+        $this->assertSame(20000.0, $this->componentOf($resource, self::RAM_AMMUNITION_TECH)['buyCostJita']);
+    }
+
+    #[Group('issue-100')]
+    public function testPreferredMarketStructureIsExposedAsTheSellStructure(): void
+    {
+        $user = (new User())->setPreferredMarketStructureId(self::SELL_STRUCTURE_ID);
+
+        $resource = $this->provide(self::HAIL_L, [], $user, null);
+
+        $this->assertSame(self::SELL_STRUCTURE_ID, $resource->sellStructureId);
+        $this->assertSame(25000.0, $this->componentOf($resource, self::RAM_AMMUNITION_TECH)['buyCostStructure']);
+    }
+
+    #[Group('issue-100')]
+    public function testStructureQueryParameterIsExposedAsTheSellStructureOverThePreferredMarketStructure(): void
+    {
+        $user = (new User())->setPreferredMarketStructureId(self::OTHER_SELL_STRUCTURE_ID);
+
+        $resource = $this->provide(self::HAIL_L, ['structureId' => (string) self::SELL_STRUCTURE_ID], $user, null);
+
+        $this->assertSame(self::SELL_STRUCTURE_ID, $resource->sellStructureId);
+        $this->assertSame(500.0, $resource->sellPrice);
+        $this->assertSame(25000.0, $this->componentOf($resource, self::RAM_AMMUNITION_TECH)['buyCostStructure']);
     }
 
     public function testUserSettingsGiveTheFeesTheFavoriteManufacturingSystemAndThePreferredStructure(): void
@@ -93,14 +120,16 @@ final class BuyVsBuildProviderTest extends TestCase
         $this->assertResourceIsTheAnalysisOf($resource, self::HAIL_L, 1, 2, self::FACTORY_SYSTEM_ID, EveConstants::JITA_STATION_ID, 0.01, 0.02);
     }
 
+    #[Group('issue-100')]
     public function testRunsQueryParameterIsForwardedAsRuns(): void
     {
         $resource = $this->provide(self::HAIL_L, ['runs' => '10'], new User(), null);
 
         $this->assertSame(10, $resource->runs);
+        $this->assertSame(500.0, $resource->sellPrice);
         $this->assertResourceIsTheAnalysisOf(
             $resource,
-            self::HAIL_L, 10, 10, EveConstants::JITA_SOLAR_SYSTEM_ID, EveConstants::JITA_STATION_ID,
+            self::HAIL_L, 10, 10, EveConstants::JITA_SOLAR_SYSTEM_ID, null,
             EveConstants::DEFAULT_BROKER_FEE_RATE, EveConstants::DEFAULT_SALES_TAX_RATE,
         );
     }
@@ -117,7 +146,8 @@ final class BuyVsBuildProviderTest extends TestCase
         // ignored, the reaction jobs take the reaction cost index of the favorite manufacturing system (0.1, not 0.04).
         $this->assertSame(9000.0, $this->componentOf($resource, 16656)['buildJobInstallCost']);
         $this->assertSame(787.5, $this->componentOf($resource, self::HYDROGEN_FUEL_BLOCK)['buildJobInstallCost']);
-        $this->assertResourceIsTheAnalysisOf($resource, self::FERNITE_CARBIDE, 1, 10, self::FACTORY_SYSTEM_ID, EveConstants::JITA_STATION_ID, 0.01, 0.02);
+        $this->assertNull($resource->sellStructureId);
+        $this->assertResourceIsTheAnalysisOf($resource, self::FERNITE_CARBIDE, 1, 10, self::FACTORY_SYSTEM_ID, null, 0.01, 0.02);
     }
 
     public function testAnonymousRequestIsUnauthorized(): void
@@ -154,7 +184,7 @@ final class BuyVsBuildProviderTest extends TestCase
         int $runs,
         int $meLevel,
         int $solarSystemId,
-        int $sellStructureId,
+        ?int $sellStructureId,
         float $brokerFeeRate,
         float $salesTaxRate,
     ): void {
@@ -192,6 +222,7 @@ final class BuyVsBuildProviderTest extends TestCase
             ],
             structurePrices: [
                 self::SELL_STRUCTURE_ID => [self::RAM_AMMUNITION_TECH => 25000.0],
+                self::OTHER_SELL_STRUCTURE_ID => [self::HAIL_L => 480.0, self::RAM_AMMUNITION_TECH => 23000.0],
                 EveConstants::JITA_STATION_ID => [self::HAIL_L => 450.0, self::RAM_AMMUNITION_TECH => 21000.0],
             ],
             adjustedPrices: [34 => 4.0, 17889 => 35.0, self::HYDROGEN_FUEL_BLOCK => 18000.0, 16656 => 280.0, self::FERNITE_CARBIDE => 50.0, 11399 => 9000.0],
