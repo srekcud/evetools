@@ -307,24 +307,129 @@ final class StockpileStatusCharacterizationTest extends TestCase
         self::assertSame(0, $this->service->getStockpileStatus($this->pilot)['kpis']['bottleneck']['blocksProducts']);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue à créer : un produit final n'est « prêt »
-    // (estOutput) que si sa propre cible est aussi en stock ; tous ses matériaux en stock ne suffisent pas.
-    // Un produit final sans source compte dans le total sans jamais être prêt.
-    public function testEstOutputCountsAFinalProductReadyOnlyWhenItsOwnTargetIsAlsoInStock(): void
+    public function testEstOutputCountsAFinalProductReadyWhenEveryUpstreamTargetIsMetWithoutTheProductInStock(): void
     {
-        $this->addTarget(self::WIDGET_SOURCE, 'Widget A', 1, 'final_product', stock: 0, source: self::WIDGET_SOURCE);
-        $this->addTarget(1, 'Ore A', 10, 'raw_material', stock: 10, source: self::WIDGET_SOURCE);
+        $this->addTarget(110, 'Widget A', 1, 'final_product', stock: 0, source: 110);
+        $this->addTarget(11, 'Ore A', 10, 'raw_material', stock: 10, source: 110);
+
+        self::assertSame(['ready' => 1, 'total' => 1, 'readyNames' => ['Widget A']], $this->service->getStockpileStatus($this->pilot)['kpis']['estOutput']);
+    }
+
+    public function testEstOutputCountsAFinalProductReadyWhenItsOwnTargetIsMetDespiteAnIncompleteUpstreamTarget(): void
+    {
+        $this->addTarget(140, 'Widget D', 1, 'final_product', stock: 1, source: 140);
+        $this->addTarget(14, 'Ore D', 10000, 'raw_material', stock: 9901, source: 140);
+
+        self::assertSame(['ready' => 1, 'total' => 1, 'readyNames' => ['Widget D']], $this->service->getStockpileStatus($this->pilot)['kpis']['estOutput']);
+    }
+
+    public function testEstOutputCountsAFinalProductInStockReadyWhenItsUpstreamTypeHasNoAssets(): void
+    {
+        $this->addTarget(130, 'Widget C', 1, 'final_product', stock: 1, source: 130);
+        $this->targets[] = $this->target(13, 'Ore C', 1, 'raw_material', 130);
+
+        self::assertSame(['ready' => 1, 'total' => 1, 'readyNames' => ['Widget C']], $this->service->getStockpileStatus($this->pilot)['kpis']['estOutput']);
+    }
+
+    public function testEstOutputCountsAnUpstreamTargetOfZeroQuantityAsMet(): void
+    {
+        $this->addTarget(120, 'Widget B', 2, 'final_product', stock: 2, source: 120);
+        $this->addTarget(12, 'Ore B', 0, 'raw_material', stock: 0, source: 120);
+
+        self::assertSame(['ready' => 1, 'total' => 1, 'readyNames' => ['Widget B']], $this->service->getStockpileStatus($this->pilot)['kpis']['estOutput']);
+    }
+
+    public function testEstOutputExcludesAFinalProductWithoutSourceFromTheTotal(): void
+    {
         $this->addTarget(300, 'Manual Widget', 1, 'final_product', stock: 5);
-        $this->addTarget(200, 'Widget B', 2, 'final_product', stock: 2, source: 200);
-        $this->addTarget(2, 'Ore B', 0, 'raw_material', stock: 0, source: 200);
-        $this->addTarget(400, 'Widget C', 1, 'final_product', stock: 1, source: 400);
-        $this->targets[] = $this->target(3, 'Ore C Without Assets', 1, 'raw_material', 400);
+
+        self::assertSame(['ready' => 0, 'total' => 0, 'readyNames' => []], $this->service->getStockpileStatus($this->pilot)['kpis']['estOutput']);
+    }
+
+    public function testEstOutputCountsAFinalProductNotReadyWhenBothItsOwnStockAndItsUpstreamAreIncomplete(): void
+    {
+        $this->addTarget(150, 'Widget E', 2, 'final_product', stock: 1, source: 150);
+        $this->addTarget(15, 'Ore E', 10, 'raw_material', stock: 9, source: 150);
+
+        self::assertSame(['ready' => 0, 'total' => 1, 'readyNames' => []], $this->service->getStockpileStatus($this->pilot)['kpis']['estOutput']);
+    }
+
+    public function testEstOutputCountsAFinalProductWithASourceButNoUpstreamTargetReady(): void
+    {
+        $this->addTarget(160, 'Widget F', 1, 'final_product', stock: 0, source: 160);
+
+        self::assertSame(['ready' => 1, 'total' => 1, 'readyNames' => ['Widget F']], $this->service->getStockpileStatus($this->pilot)['kpis']['estOutput']);
+    }
+
+    public function testEstOutputCountsAFinalProductNotReadyWhenAnyOfItsUpstreamTargetsIsIncomplete(): void
+    {
+        $this->addTarget(170, 'Widget G', 1, 'final_product', stock: 0, source: 170);
+        $this->addTarget(171, 'Ore G1', 10, 'raw_material', stock: 10, source: 170);
+        $this->addTarget(172, 'Ore G2', 5, 'raw_material', stock: 4, source: 170);
+
+        self::assertSame(['ready' => 0, 'total' => 1, 'readyNames' => []], $this->service->getStockpileStatus($this->pilot)['kpis']['estOutput']);
+    }
+
+    public function testEstOutputCountsEveryImportedFinalProductBuildableOrInStockInTargetOrder(): void
+    {
         $this->addTarget(500, 'Widget D', 1, 'final_product', stock: 1, source: 500);
         $this->addTarget(4, 'Ore D', 10000, 'raw_material', stock: 9901, source: 500);
+        $this->addTarget(200, 'Widget B', 2, 'final_product', stock: 2, source: 200);
+        $this->addTarget(2, 'Ore B', 0, 'raw_material', stock: 0, source: 200);
+        $this->addTarget(300, 'Manual Widget', 1, 'final_product', stock: 5);
+        $this->addTarget(self::WIDGET_SOURCE, 'Widget A', 1, 'final_product', stock: 0, source: self::WIDGET_SOURCE);
+        $this->addTarget(1, 'Ore A', 10, 'raw_material', stock: 10, source: self::WIDGET_SOURCE);
+        $this->addTarget(400, 'Widget C', 1, 'final_product', stock: 1, source: 400);
+        $this->targets[] = $this->target(3, 'Ore C', 1, 'raw_material', 400);
 
         $status = $this->service->getStockpileStatus($this->pilot);
 
-        self::assertSame(['ready' => 1, 'total' => 5, 'readyNames' => ['Widget B']], $status['kpis']['estOutput']);
+        self::assertSame(['ready' => 4, 'total' => 4, 'readyNames' => ['Widget D', 'Widget B', 'Widget A', 'Widget C']], $status['kpis']['estOutput']);
+    }
+
+    public function testEstOutputCountsAFinalProductNotReadyWhenAnUpstreamTypeHasNoAssets(): void
+    {
+        $this->addTarget(190, 'Widget', 1, 'final_product', stock: 0, source: 190);
+        $this->targets[] = $this->target(19, 'Ore', 1, 'raw_material', 190);
+
+        self::assertSame(['ready' => 0, 'total' => 1, 'readyNames' => []], $this->service->getStockpileStatus($this->pilot)['kpis']['estOutput']);
+    }
+
+    public function testEstOutputCountsAFinalProductWithoutAssetsNotReadyWhenItsUpstreamIsIncomplete(): void
+    {
+        $this->targets[] = $this->target(220, 'Widget I', 1, 'final_product', 220);
+        $this->addTarget(22, 'Ore I', 10, 'raw_material', stock: 9, source: 220);
+
+        self::assertSame(['ready' => 0, 'total' => 1, 'readyNames' => []], $this->service->getStockpileStatus($this->pilot)['kpis']['estOutput']);
+    }
+
+    public function testEstOutputCountsAFinalProductOfZeroQuantityWithoutAssetsReadyDespiteAnIncompleteUpstream(): void
+    {
+        $this->targets[] = $this->target(230, 'Widget J', 0, 'final_product', 230);
+        $this->addTarget(23, 'Ore J', 15, 'raw_material', stock: 14, source: 230);
+
+        self::assertSame(['ready' => 1, 'total' => 1, 'readyNames' => ['Widget J']], $this->service->getStockpileStatus($this->pilot)['kpis']['estOutput']);
+    }
+
+    public function testEstOutputCountsAnUpstreamTargetOfZeroQuantityWithoutAssetsAsMet(): void
+    {
+        $this->addTarget(210, 'Widget', 1, 'final_product', stock: 0, source: 210);
+        $this->targets[] = $this->target(21, 'Ore', 0, 'raw_material', 210);
+
+        self::assertSame(['ready' => 1, 'total' => 1, 'readyNames' => ['Widget']], $this->service->getStockpileStatus($this->pilot)['kpis']['estOutput']);
+    }
+
+    public function testEstOutputCountsAFinalProductJustBelowItsTargetNotReadyWhenItsUpstreamIsIncomplete(): void
+    {
+        $this->addTarget(180, 'Widget H', 1000, 'final_product', stock: 999, source: 180);
+        $this->addTarget(18, 'Ore H', 20, 'raw_material', stock: 19, source: 180);
+
+        self::assertSame(['ready' => 0, 'total' => 1, 'readyNames' => []], $this->service->getStockpileStatus($this->pilot)['kpis']['estOutput']);
+    }
+
+    public function testEstOutputWithoutTargetsIsEmpty(): void
+    {
+        self::assertSame(['ready' => 0, 'total' => 0, 'readyNames' => []], $this->service->getStockpileStatus($this->pilot)['kpis']['estOutput']);
     }
 
     private function addTarget(int $typeId, string $typeName, int $targetQuantity, string $stage, int $stock, ?float $unitPrice = null, ?int $source = null): void

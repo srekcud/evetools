@@ -16,6 +16,7 @@ use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(StockpileService::class)]
 #[AllowMockObjectsWithoutExpectations]
@@ -305,11 +306,8 @@ class StockpileServiceTest extends TestCase
         $this->assertSame(5.0, $status['kpis']['bottleneck']['percent']);
     }
 
-    public function testEstOutputCountsFullyBuildable(): void
+    public function testEstOutputCountsBuildableAndInStockFinalProducts(): void
     {
-        // Two final products from source 100 and source 200
-        // Source 100: all upstream targets met
-        // Source 200: some upstream targets NOT met
         $targets = [
             $this->createTarget(100, 'Widget A', 10, 'final_product', 100, 100),
             $this->createTarget(1, 'Ore', 50, 'raw_material', 100, 100),
@@ -336,10 +334,9 @@ class StockpileServiceTest extends TestCase
 
         $status = $this->service->getStockpileStatus($this->user);
 
-        // Widget A (source 100): all targets met -> ready
-        // Widget B (source 200): typeId 3 not met -> NOT ready
-        $this->assertSame(1, $status['kpis']['estOutput']['ready']);
+        $this->assertSame(2, $status['kpis']['estOutput']['ready']);
         $this->assertSame(2, $status['kpis']['estOutput']['total']);
+        $this->assertSame(['Widget A', 'Widget B'], $status['kpis']['estOutput']['readyNames']);
     }
 
     public function testPreviewImportReturnsCorrectStagesAndEstimatedCost(): void
@@ -530,20 +527,17 @@ class StockpileServiceTest extends TestCase
     /**
      * Create a mock IndustryStockpileTarget with predictable values.
      */
-    private function createTarget(int $typeId, string $typeName, int $targetQty, string $stage, int $sourceProductTypeId, int $selfId): IndustryStockpileTarget&MockObject
+    private function createTarget(int $typeId, string $typeName, int $targetQty, string $stage, int $sourceProductTypeId, int $selfId): IndustryStockpileTarget
     {
-        $target = $this->createMock(IndustryStockpileTarget::class);
-        $uuid = $this->createMock(\Symfony\Component\Uid\Uuid::class);
-        $uuid->method('toRfc4122')->willReturn(sprintf('00000000-0000-0000-0000-%012d', $selfId));
-
-        $target->method('getId')->willReturn($uuid);
-        $target->method('getTypeId')->willReturn($typeId);
-        $target->method('getTypeName')->willReturn($typeName);
-        $target->method('getTargetQuantity')->willReturn($targetQty);
-        $target->method('getStage')->willReturn($stage);
-        $target->method('getSourceProductTypeId')->willReturn($sourceProductTypeId);
-        $target->method('getCreatedAt')->willReturn(new \DateTimeImmutable('2026-01-01'));
-        $target->method('getUpdatedAt')->willReturn(null);
+        $target = (new IndustryStockpileTarget())
+            ->setUser($this->user)
+            ->setTypeId($typeId)
+            ->setTypeName($typeName)
+            ->setTargetQuantity($targetQty)
+            ->setStage($stage)
+            ->setSourceProductTypeId($sourceProductTypeId);
+        (new \ReflectionProperty(IndustryStockpileTarget::class, 'id'))
+            ->setValue($target, Uuid::fromString(sprintf('00000000-0000-4000-8000-%012d', $selfId)));
 
         return $target;
     }
