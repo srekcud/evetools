@@ -123,6 +123,8 @@ class ShoppingListProvider implements ProviderInterface
         $totals = new ShoppingListTotalsResource();
         $importTotal = 0.0;
         $jitaWithImportTotal = 0.0;
+        $savingsVsJitaWithImport = 0.0;
+        $savingsVsStructure = 0.0;
         $volumeTotal = 0.0;
         $missingVolumeTypeIds = [];
 
@@ -161,6 +163,8 @@ class ShoppingListProvider implements ProviderInterface
                     $bestPrice = $structureTotal;
                     $savings = $jitaWithImport - $structureTotal;
                 }
+                $savingsVsJitaWithImport += $jitaWithImport - $bestPrice;
+                $savingsVsStructure += $structureTotal - $bestPrice;
             } elseif ($jitaWithImport !== null) {
                 $bestLocation = 'jita';
                 $bestPrice = $jitaWithImport;
@@ -221,12 +225,8 @@ class ShoppingListProvider implements ProviderInterface
         $totals->import = $everyVolumeIsKnown ? $importTotal : null;
         $totals->jitaWithImport = $everyVolumeIsKnown ? $jitaWithImportTotal : null;
         $totals->volume = $everyVolumeIsKnown ? $volumeTotal : null;
-        $totals->savingsVsJitaWithImport = match (true) {
-            !$everyVolumeIsKnown => null,
-            $jitaWithImportTotal > 0 => $jitaWithImportTotal - $totals->best,
-            default => 0.0,
-        };
-        $totals->savingsVsStructure = $totals->structure > 0 ? $totals->structure - $totals->best : 0;
+        $totals->savingsVsJitaWithImport = $everyVolumeIsKnown ? $savingsVsJitaWithImport : null;
+        $totals->savingsVsStructure = $savingsVsStructure;
 
         $structureLastSync = null;
         if ($priceData !== null && $priceData['structureLastSync'] !== null) {
