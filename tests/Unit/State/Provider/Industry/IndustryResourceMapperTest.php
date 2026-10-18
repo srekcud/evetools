@@ -26,6 +26,8 @@ class IndustryResourceMapperTest extends TestCase
 
     private const int NITROGEN_FUEL_BLOCK_BLUEPRINT_TYPE_ID = 4314;
     private const int ROBOTICS_BLUEPRINT_TYPE_ID = 9849;
+    private const int HYDROGEN_FUEL_BLOCK_BLUEPRINT_TYPE_ID = 4316;
+
     public function testStructureResourceExposesReactionMaterialBonusWithReactionSecurityMultiplier(): void
     {
         $mapper = new IndustryResourceMapper(
@@ -235,6 +237,64 @@ class IndustryResourceMapperTest extends TestCase
 
         self::assertSame([], $resource->rootProducts);
         self::assertNull($resource->displayName);
+    }
+
+    #[Group('issue-115')]
+    public function testProjectWhoseOnlyRootProductMissingFromTheSdeIsSplitInTwoStepsHasNoDisplayName(): void
+    {
+        $mapper = $this->mapperOnSdeKnowingOnlyNitrogenFuelBlock();
+        $project = $this->project(self::ROBOTICS_TYPE_ID, null);
+        $this->rootStep($project, self::ROBOTICS_TYPE_ID, self::ROBOTICS_BLUEPRINT_TYPE_ID, 5, 2, 4);
+        $this->rootStep($project, self::ROBOTICS_TYPE_ID, self::ROBOTICS_BLUEPRINT_TYPE_ID, 3, 2, 4);
+
+        $resource = $mapper->projectToResource($project);
+
+        self::assertSame([[
+            'typeId' => self::ROBOTICS_TYPE_ID,
+            'typeName' => null,
+            'runs' => 8,
+            'meLevel' => 2,
+            'teLevel' => 4,
+            'count' => 2,
+        ]], $resource->rootProducts);
+        self::assertNull($resource->displayName);
+    }
+
+    #[Group('issue-115')]
+    public function testProjectWhoseOnlyRootProductIsKnownAndSplitInTwoStepsIsNamedWithItsStepCount(): void
+    {
+        $mapper = $this->mapperOnSdeKnowingOnlyNitrogenFuelBlock();
+        $project = $this->project(self::NITROGEN_FUEL_BLOCK_TYPE_ID, null);
+        $this->rootStep($project, self::NITROGEN_FUEL_BLOCK_TYPE_ID, self::NITROGEN_FUEL_BLOCK_BLUEPRINT_TYPE_ID, 40, 10, 20);
+        $this->rootStep($project, self::NITROGEN_FUEL_BLOCK_TYPE_ID, self::NITROGEN_FUEL_BLOCK_BLUEPRINT_TYPE_ID, 25, 10, 20);
+
+        $resource = $mapper->projectToResource($project);
+
+        self::assertSame(65, $resource->rootProducts[0]['runs']);
+        self::assertSame(2, $resource->rootProducts[0]['count']);
+        self::assertSame('Nitrogen Fuel Block ×2', $resource->displayName);
+    }
+
+    #[Group('issue-115')]
+    public function testProjectWithTwoKnownRootProductsIsNamedAfterBoth(): void
+    {
+        $mapper = new IndustryResourceMapper(
+            $this->calculationServiceOnSdeKnowingNitrogenAndHydrogenFuelBlocks(),
+            $this->createStub(CachedCharacterSkillRepository::class),
+            $this->createStub(CachedIndustryJobRepository::class),
+            $this->createStub(InventionService::class),
+        );
+        $project = $this->project(self::NITROGEN_FUEL_BLOCK_TYPE_ID, null);
+        $this->rootStep($project, self::NITROGEN_FUEL_BLOCK_TYPE_ID, self::NITROGEN_FUEL_BLOCK_BLUEPRINT_TYPE_ID, 40, 10, 20);
+        $this->rootStep($project, self::HYDROGEN_FUEL_BLOCK_TYPE_ID, self::HYDROGEN_FUEL_BLOCK_BLUEPRINT_TYPE_ID, 15, 8, 16);
+
+        $resource = $mapper->projectToResource($project);
+
+        self::assertSame(
+            [self::NITROGEN_FUEL_BLOCK_NAME, self::HYDROGEN_FUEL_BLOCK_NAME],
+            array_column($resource->rootProducts, 'typeName'),
+        );
+        self::assertSame('Nitrogen Fuel Block + Hydrogen Fuel Block', $resource->displayName);
     }
 
     private function mapperOnSdeKnowingOnlyNitrogenFuelBlock(): IndustryResourceMapper

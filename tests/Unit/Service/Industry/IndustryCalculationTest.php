@@ -352,4 +352,16 @@ class IndustryCalculationTest extends TestCase
 
         self::assertSame(self::NITROGEN_FUEL_BLOCK_NAME, $this->calculationServiceOnSdeKnowingOnlyNitrogenFuelBlock()->getProjectDisplayName($project));
     }
+
+    #[Group('issue-115')]
+    public function testProjectDisplayNameIsTheCustomNameEvenWhenItsProductIsKnown(): void
+    {
+        $project = (new IndustryProject())
+            ->setUser(new User())
+            ->setProductTypeId(self::NITROGEN_FUEL_BLOCK_TYPE_ID)
+            ->setName('Fuel for the Keepstar')
+            ->setRuns(40);
+
+        self::assertSame('Fuel for the Keepstar', $this->calculationServiceOnSdeKnowingOnlyNitrogenFuelBlock()->getProjectDisplayName($project));
+    }
 }

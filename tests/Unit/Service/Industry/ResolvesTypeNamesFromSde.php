@@ -19,25 +19,46 @@ trait ResolvesTypeNamesFromSde
 {
     private const int NITROGEN_FUEL_BLOCK_TYPE_ID = 4051;
     private const string NITROGEN_FUEL_BLOCK_NAME = 'Nitrogen Fuel Block';
+    private const int HYDROGEN_FUEL_BLOCK_TYPE_ID = 4246;
+    private const string HYDROGEN_FUEL_BLOCK_NAME = 'Hydrogen Fuel Block';
     private const int ROBOTICS_TYPE_ID = 9848;
 
     private function sdeTypeRepositoryKnowingOnlyNitrogenFuelBlock(): InvTypeRepository
     {
-        $nitrogenFuelBlock = (new InvType())
-            ->setTypeId(self::NITROGEN_FUEL_BLOCK_TYPE_ID)
-            ->setTypeName(self::NITROGEN_FUEL_BLOCK_NAME);
+        return $this->sdeTypeRepositoryKnowing([self::NITROGEN_FUEL_BLOCK_TYPE_ID => self::NITROGEN_FUEL_BLOCK_NAME]);
+    }
+
+    private function calculationServiceOnSdeKnowingOnlyNitrogenFuelBlock(): IndustryCalculationService
+    {
+        return $this->calculationServiceOnSdeKnowing([self::NITROGEN_FUEL_BLOCK_TYPE_ID => self::NITROGEN_FUEL_BLOCK_NAME]);
+    }
+
+    private function calculationServiceOnSdeKnowingNitrogenAndHydrogenFuelBlocks(): IndustryCalculationService
+    {
+        return $this->calculationServiceOnSdeKnowing([
+            self::NITROGEN_FUEL_BLOCK_TYPE_ID => self::NITROGEN_FUEL_BLOCK_NAME,
+            self::HYDROGEN_FUEL_BLOCK_TYPE_ID => self::HYDROGEN_FUEL_BLOCK_NAME,
+        ]);
+    }
+
+    private function sdeTypeRepositoryKnowing(array $typeNamesByTypeId): InvTypeRepository
+    {
+        $knownTypes = [];
+        foreach ($typeNamesByTypeId as $typeId => $typeName) {
+            $knownTypes[$typeId] = (new InvType())->setTypeId($typeId)->setTypeName($typeName);
+        }
 
         $invTypeRepository = $this->createStub(InvTypeRepository::class);
         $invTypeRepository->method('find')->willReturnCallback(
-            static fn (mixed $typeId): ?InvType => $typeId === self::NITROGEN_FUEL_BLOCK_TYPE_ID ? $nitrogenFuelBlock : null,
+            static fn (mixed $typeId): ?InvType => is_int($typeId) ? ($knownTypes[$typeId] ?? null) : null,
         );
 
         return $invTypeRepository;
     }
 
-    private function calculationServiceOnSdeKnowingOnlyNitrogenFuelBlock(): IndustryCalculationService
+    private function calculationServiceOnSdeKnowing(array $typeNamesByTypeId): IndustryCalculationService
     {
-        $invTypeRepository = $this->sdeTypeRepositoryKnowingOnlyNitrogenFuelBlock();
+        $invTypeRepository = $this->sdeTypeRepositoryKnowing($typeNamesByTypeId);
 
         return new IndustryCalculationService(
             $invTypeRepository,

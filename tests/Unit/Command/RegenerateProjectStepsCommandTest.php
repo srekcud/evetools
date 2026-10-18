@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Command;
 
+use App\Command\ConsoleProjectLabel;
 use App\Command\RegenerateProjectStepsCommand;
 use App\Entity\IndustryProject;
 use App\Entity\User;
@@ -17,6 +18,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
 #[CoversClass(RegenerateProjectStepsCommand::class)]
+#[CoversClass(ConsoleProjectLabel::class)]
 #[Group('issue-115')]
 final class RegenerateProjectStepsCommandTest extends TestCase
 {
