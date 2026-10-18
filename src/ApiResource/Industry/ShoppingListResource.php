@@ -29,4 +29,7 @@ class ShoppingListResource
     public ShoppingListTotalsResource $totals;
 
     public ?string $priceError = null;
+
+    /** @var list<int> */
+    public array $missingVolumeTypeIds = [];
 }
