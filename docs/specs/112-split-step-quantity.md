@@ -53,8 +53,8 @@ Colonnes : `[runs, quantity, depth, meLevel, teLevel, splitIndex, totalGroupRuns
 - `testUnchangedJobOfARecalculatedSplitGroupCurrentlyKeepsTheOldTotalGroupRuns` : quantité du job 2 de 400 à 300 (E6), le reste inchangé.
 - `testSplitChildGroupCurrentlyKeepsTwoRunsForANeedOfOne` : quantités 200, 200 → 100, 0 (E7), runs inchangés.
 - `testRecalculatingTheStepsOfOneNomadCurrentlyKeepsOnlyTheNeedOfTheDeepestConsumerIssue16` : job 1 d'Hydrogen Fuel Block 160 → 155 (besoin 355).
-- Snapshots des goldens contenant un groupe découpé d'un produit à plusieurs unités par run (Nomad par produit, Fernite Carbide Tatara) : à régénérer, seule la quantité du dernier job de chaque groupe doit bouger.
-- Tests de `SplitStepProcessor` s'il en existe.
+- Snapshots des goldens : aucun ne change (les snapshots Nomad ne portent pas de quantité, celui de Fernite Carbide Tatara n'a pas de groupe découpé).
+- Aucun test de `SplitStepProcessor` ni de `MergeStepsProcessor` n'existait : créés.
 
 ## Décision prise en autonomie
 
@@ -63,5 +63,8 @@ Colonnes : `[runs, quantity, depth, meLevel, teLevel, splitIndex, totalGroupRuns
 - **R6 — Produit absent du SDE au découpage manuel** : erreur explicite (400, « Product of blueprint <id> missing from the SDE »), aucune étape modifiée, au lieu d'une unité par run par défaut (règle du projet : pas de valeur plausible pour une donnée manquante). Exemple E10.
 
 ## Glossaire
+
+Terme ajouté : **Besoin** (Need).
+
 
 Précision proposée pour **Groupe découpé** dans [`docs/glossary.md`](../glossary.md) : « La somme des quantités des jobs vaut le besoin de l'étape : chaque job, dans l'ordre de `splitIndex`, reçoit sa production jusqu'à épuisement du besoin (spec #112). »

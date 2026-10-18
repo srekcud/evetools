@@ -71,6 +71,16 @@ final class SplitStepProcessorTest extends TestCase
     }
 
     #[Group('issue-112')]
+    public function testManualSplitOfAStepNeedingLessThanOneRunGivesTheNextJobsNothing(): void
+    {
+        $step = $this->stepOfTheProject(self::OXYGEN_FUEL_BLOCK, self::OXYGEN_FUEL_BLOCK_BLUEPRINT, 'manufacturing', runs: 2, quantity: 30);
+
+        $this->split($step, numberOfJobs: 2);
+
+        self::assertSame([[1, 30, 0, 2], [1, 0, 1, 2]], $this->jobsOfTheProject());
+    }
+
+    #[Group('issue-112')]
     public function testManualSplitOfACopyStepGivesEachJobOneUnitPerRun(): void
     {
         $step = $this->stepOfTheProject(self::NOMAD, self::NOMAD_BLUEPRINT, 'copy', runs: 10, quantity: 10);

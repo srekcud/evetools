@@ -609,7 +609,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
 
     // CARACTÉRISATION : comportement actuel, suspecté faux, sans issue. Un groupe découpé reçoit le nouveau total de
     // runs réparti au prorata de ses anciens runs, le dernier job prenant le reste, mais chaque job garde au moins
-    // 1 run : 98 Fernite Alloy à 200 unités par run demandent 1 run, réparti sur 2 jobs de 3 et 2 runs en
+    // 1 run : 100 Fernite Alloy à 200 unités par run demandent 1 run, réparti sur 2 jobs de 3 et 2 runs en
     // round(1 × 3 / 5) = 1 puis max(1, 1 − 1) = 1. Le groupe finit à 2 runs pour un besoin de 1.
     #[Group('issue-112')]
     public function testSplitChildGroupCurrentlyKeepsTwoRunsForANeedOfOne(): void
@@ -656,6 +656,26 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     // CARACTÉRISATION : comportement actuel, suspecté faux, sans issue. Quand le produit de l'étape enfant est absent
     // du SDE (blueprint inconnu), le recalcul suppose 1 unité par run au lieu de signaler la donnée manquante :
     // les 490 Titanium Carbide de 32 Quantum Microprocessors deviennent 490 runs (1 run de 10000 unités en réalité).
+    #[Group('issue-112')]
+    public function testRecalculatedSplitGroupSharesTheNeedBySplitIndexWhateverTheOrderOfTheSteps(): void
+    {
+        $project = $this->projectOfStepsWithoutStructure([
+            $this->step(self::FERNITE_CARBIDE, 'reaction', runs: 11, quantity: 110_000, depth: 0, meLevel: 0),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 1, quantity: 200, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 2, totalGroupRuns: 5),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 2, quantity: 400, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 0, totalGroupRuns: 5),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 2, quantity: 350, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 1, totalGroupRuns: 5),
+        ]);
+
+        $this->stepCalculator->recalculateStepQuantities($project);
+
+        $jobs = $this->jobsOf($this->stepsOf($project), self::FERNITE_ALLOY);
+        usort($jobs, static fn (array $a, array $b): int => $a[5] <=> $b[5]);
+        self::assertSame(
+            [[2, 400, 1, 0, 20, 0, 5], [3, 600, 1, 0, 20, 1, 6], [1, 100, 1, 0, 20, 2, 6]],
+            $jobs,
+        );
+    }
+
     public function testChildWithoutProductInTheSdeIsCurrentlyRecalculatedAtOneUnitPerRun(): void
     {
         $project = $this->projectOfStepsWithoutStructure([
