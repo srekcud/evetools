@@ -79,6 +79,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     private const int UNKNOWN_BLUEPRINT_TYPE_ID = 999_999_999;
 
     private const float DEFAULT_MAX_JOB_DURATION_DAYS = 2.0;
+    private const float MAX_JOB_DURATION_DAYS_THAT_SPLITS_NOTHING = 10_000.0;
 
     private const array ACTIVITY_ORDER = ['reaction' => 0, 'copy' => 1, 'manufacturing' => 2];
 
@@ -427,18 +428,31 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         self::assertSame([[25, 25, 0, 10, 20, 0, null]], $this->jobsOf($this->stepsOf($atTeTwenty), self::QUANTUM_MICROPROCESSOR));
     }
 
-    #[Group('issue-116')]
     #[Group('issue-112')]
-    public function testDurationOfAnIntermediateCurrentlyUsesTeTwentyWhateverTheProjectTeIssue116(): void
+    public function testSplitIntermediateTimedAtTeTwentyGivesItsLastJobTheRestOfTheNeed(): void
     {
         $justLongEnough = $this->createProject(self::QUANTUM_MICROPROCESSOR, runs: 700, meLevel: 10, teLevel: 0, maxJobDurationDays: 0.01667);
         $justTooShort = $this->createProject(self::QUANTUM_MICROPROCESSOR, runs: 700, meLevel: 10, teLevel: 0, maxJobDurationDays: 0.01666);
 
         $rootRunsPerJob = [...array_fill(0, 34, 19), ...array_fill(0, 3, 18)];
         self::assertSame([[2, 55, 2, 10, 20, 0, null]], $this->jobsOf($this->stepsOf($justLongEnough), self::OXYGEN_FUEL_BLOCK));
-        self::assertSame([[1, 40, 2, 10, 20, 0, 2], [1, 40, 2, 10, 20, 1, 2]], $this->jobsOf($this->stepsOf($justTooShort), self::OXYGEN_FUEL_BLOCK));
+        self::assertSame([[1, 40, 2, 10, 20, 0, 2], [1, 15, 2, 10, 20, 1, 2]], $this->jobsOf($this->stepsOf($justTooShort), self::OXYGEN_FUEL_BLOCK));
         self::assertSame($rootRunsPerJob, array_column($this->stepsOfProduct($this->stepsOf($justLongEnough), self::QUANTUM_MICROPROCESSOR), 'runs'));
         self::assertSame($rootRunsPerJob, array_column($this->stepsOfProduct($this->stepsOf($justTooShort), self::QUANTUM_MICROPROCESSOR), 'runs'));
+    }
+
+    #[Group('issue-112')]
+    public function testQuantitiesOfEachSplitGroupOfOneNomadAddUpToTheQuantityOfTheUnsplitStep(): void
+    {
+        $split = $this->stepsOf($this->createProject(self::NOMAD, runs: 1, meLevel: 10, teLevel: 20));
+        $unsplit = $this->stepsOf($this->createProject(self::NOMAD, runs: 1, meLevel: 10, teLevel: 20, maxJobDurationDays: self::MAX_JOB_DURATION_DAYS_THAT_SPLITS_NOTHING));
+
+        $splitProducts = array_unique(array_column(array_filter($split, static fn (array $step): bool => $step['splitGroup'] !== null), 'productTypeId', 'product'));
+        self::assertSame([], array_filter($unsplit, static fn (array $step): bool => $step['splitGroup'] !== null));
+        self::assertSame(
+            array_map(fn (int $productTypeId): int => $this->totalQuantityOf($unsplit, $productTypeId), $splitProducts),
+            array_map(fn (int $productTypeId): int => $this->totalQuantityOf($split, $productTypeId), $splitProducts),
+        );
     }
 
     public function testStepWithoutBaseTimeInTheSdeIsNeverSplit(): void
@@ -555,6 +569,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     // Comportement suspecté faux, sans issue : un groupe découpé ne perd jamais de job ; chaque job garde au moins
     // 1 run, si bien que la somme des runs dépasse totalGroupRuns (Fernite Alloy : 35 jobs de 1 run pour 4 runs,
     // Fermionic Condensates : 5 jobs de 1 run pour 1 run).
+    #[Group('issue-112')]
     public function testRecalculatingTheStepsOfOneNomadCurrentlyKeepsOnlyTheNeedOfTheDeepestConsumerIssue16(): void
     {
         $project = $this->createProject(self::NOMAD, runs: 1, meLevel: 10, teLevel: 20);
@@ -562,7 +577,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         $this->stepCalculator->recalculateStepQuantities($project);
 
         $steps = $this->stepsOf($project);
-        self::assertSame([[5, 200, 5, 10, 20, 0, 9], [4, 160, 5, 10, 20, 1, 9]], $this->jobsOf($steps, self::HYDROGEN_FUEL_BLOCK));
+        self::assertSame([[5, 200, 5, 10, 20, 0, 9], [4, 124, 5, 10, 20, 1, 9]], $this->jobsOf($steps, self::HYDROGEN_FUEL_BLOCK));
         self::assertSame([[1, 30, 5, 10, 20, 0, null]], $this->jobsOf($steps, self::NITROGEN_FUEL_BLOCK));
         self::assertSame([35, 4], [$this->totalRunsOf($steps, self::FERNITE_ALLOY), $this->stepsOfProduct($steps, self::FERNITE_ALLOY)[0]['totalGroupRuns']]);
         self::assertSame([5, 1], [$this->totalRunsOf($steps, self::FERMIONIC_CONDENSATES), $this->stepsOfProduct($steps, self::FERMIONIC_CONDENSATES)[0]['totalGroupRuns']]);
@@ -596,6 +611,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     // runs réparti au prorata de ses anciens runs, le dernier job prenant le reste, mais chaque job garde au moins
     // 1 run : 98 Fernite Alloy à 200 unités par run demandent 1 run, réparti sur 2 jobs de 3 et 2 runs en
     // round(1 × 3 / 5) = 1 puis max(1, 1 − 1) = 1. Le groupe finit à 2 runs pour un besoin de 1.
+    #[Group('issue-112')]
     public function testSplitChildGroupCurrentlyKeepsTwoRunsForANeedOfOne(): void
     {
         $project = $this->projectOfStepsWithoutStructure([
@@ -607,7 +623,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         $changedSteps = $this->stepCalculator->recalculateStepQuantities($project);
 
         self::assertSame(
-            [[1, 200, 1, 0, 20, 0, 1], [1, 200, 1, 0, 20, 1, 1]],
+            [[1, 98, 1, 0, 20, 0, 1], [1, 0, 1, 0, 20, 1, 1]],
             $this->jobsOf($this->stepsOf($project), self::FERNITE_ALLOY),
         );
         self::assertSame([[self::FERNITE_ALLOY, 0], [self::FERNITE_ALLOY, 1]], $this->productAndSplitIndexOf($changedSteps));
@@ -618,6 +634,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     // demandent 1100 Fernite Alloy, soit 6 runs répartis sur 2 + 2 + 1 anciens runs : round(6 × 2 / 5) = 2,
     // round(6 × 2 / 5) = 2, puis 6 − 4 = 2. Le job 0 (2 runs, 400) est inchangé et garde totalGroupRuns 5 ; le job 1
     // ne change que de quantité (350 → 400) ; le job 2 passe de 1 à 2 runs.
+    #[Group('issue-112')]
     public function testUnchangedJobOfARecalculatedSplitGroupCurrentlyKeepsTheOldTotalGroupRuns(): void
     {
         $project = $this->projectOfStepsWithoutStructure([
@@ -630,7 +647,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         $changedSteps = $this->stepCalculator->recalculateStepQuantities($project);
 
         self::assertSame(
-            [[2, 400, 1, 0, 20, 0, 5], [2, 400, 1, 0, 20, 1, 6], [2, 400, 1, 0, 20, 2, 6]],
+            [[2, 400, 1, 0, 20, 0, 5], [2, 400, 1, 0, 20, 1, 6], [2, 300, 1, 0, 20, 2, 6]],
             $this->jobsOf($this->stepsOf($project), self::FERNITE_ALLOY),
         );
         self::assertSame([[self::FERNITE_ALLOY, 1], [self::FERNITE_ALLOY, 2]], $this->productAndSplitIndexOf($changedSteps));
@@ -749,6 +766,11 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     private function totalRunsOf(array $steps, int $productTypeId): int
     {
         return array_sum(array_column($this->stepsOfProduct($steps, $productTypeId), 'runs'));
+    }
+
+    private function totalQuantityOf(array $steps, int $productTypeId): int
+    {
+        return array_sum(array_column($this->stepsOfProduct($steps, $productTypeId), 'quantity'));
     }
 
     /** @return array{int, int} */

@@ -12,6 +12,7 @@ use App\Entity\IndustryProjectStep;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
+use App\Repository\Sde\IndustryActivityProductRepository;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -29,6 +30,7 @@ class SplitStepProcessor implements ProcessorInterface
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
         private readonly IndustryProjectStepRepository $stepRepository,
+        private readonly IndustryActivityProductRepository $activityProductRepository,
         private readonly IndustryResourceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,
     ) {
