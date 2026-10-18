@@ -8,8 +8,8 @@ export type MergedItem = {
   typeId: number
   typeName: string
   quantity: number
-  volume: number
-  totalVolume: number
+  volume: number | null
+  totalVolume: number | null
   sellPrice: number | null
   sellPriceWeighted: number | null
   sellTotal: number | null
@@ -35,7 +35,7 @@ const props = defineProps<{
   itemCount: number
   jitaItemCount: number
   structureItemCount: number
-  totalVolume: number
+  totalVolume: number | null
   sellValue: number
   sellValueBest: number
   buyValue: number
@@ -205,7 +205,8 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
             </td>
             <!-- Volume -->
             <td class="px-4 py-2.5 text-right text-slate-400 font-mono text-xs">
-              {{ formatNumber(item.totalVolume) }} m<sup>3</sup>
+              <template v-if="item.totalVolume !== null">{{ formatNumber(item.totalVolume) }} m<sup>3</sup></template>
+              <span v-else class="text-amber-400">{{ t('shopping.unknown') }}</span>
             </td>
 
             <!-- Unit Price (stacked sell/buy) -->
@@ -286,6 +287,7 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
               <span v-if="item.jitaWithImport != null" class="text-cyan-400 font-medium">
                 {{ formatNumber(item.jitaWithImport) }}
               </span>
+              <span v-else-if="item.totalVolume === null" class="text-amber-400">{{ t('shopping.unknown') }}</span>
               <span v-else class="text-slate-500">-</span>
             </td>
 
@@ -358,7 +360,8 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
             <td class="px-4 py-3 font-semibold text-slate-200 text-[13px]">Total</td>
             <td class="px-4 py-3 text-right text-slate-400 font-mono">--</td>
             <td class="px-4 py-3 text-right text-slate-400 font-mono text-[13px]">
-              {{ formatNumber(props.totalVolume) }} m<sup>3</sup>
+              <template v-if="props.totalVolume !== null">{{ formatNumber(props.totalVolume) }} m<sup>3</sup></template>
+              <span v-else class="text-amber-400">{{ t('shopping.unknown') }}</span>
             </td>
             <!-- Unit Price -->
             <td
@@ -390,7 +393,8 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
               v-if="props.hasStructureResults"
               class="px-4 py-3 text-right font-mono border-r-2 border-cyan-500/8 bg-cyan-500/3"
             >
-              <span class="text-cyan-400 font-bold text-sm">{{ formatIsk(props.jitaPlusTransport) }}</span>
+              <span v-if="props.jitaPlusTransport !== null" class="text-cyan-400 font-bold text-sm">{{ formatIsk(props.jitaPlusTransport) }}</span>
+              <span v-else class="text-amber-400 font-bold text-sm">{{ t('shopping.unknown') }}</span>
             </td>
             <!-- Structure -->
             <td

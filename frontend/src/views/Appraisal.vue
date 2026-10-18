@@ -9,6 +9,8 @@ import AppraisalInputPanel from '@/components/appraisal/AppraisalInputPanel.vue'
 import AppraisalResultsTable from '@/components/appraisal/AppraisalResultsTable.vue'
 import type { MergedItem } from '@/components/appraisal/AppraisalResultsTable.vue'
 import AppraisalActions from '@/components/appraisal/AppraisalActions.vue'
+import MissingVolumeWarning from '@/components/shopping/MissingVolumeWarning.vue'
+import { missingVolumeTypeNames } from '@/components/shopping/missingVolume'
 
 // -- Types --
 
@@ -16,8 +18,8 @@ type AppraisalItem = {
   typeId: number
   typeName: string
   quantity: number
-  volume: number
-  totalVolume: number
+  volume: number | null
+  totalVolume: number | null
   sellPrice: number | null
   sellTotal: number | null
   buyPrice: number | null
@@ -34,7 +36,7 @@ type AppraisalItem = {
 type AppraisalTotals = {
   sellTotal: number
   buyTotal: number
-  volume: number
+  volume: number | null
   sellTotalWeighted: number | null
   buyTotalWeighted: number | null
 }
@@ -44,13 +46,14 @@ type AppraisalResponse = {
   notFound: string[]
   totals: AppraisalTotals
   priceError: string | null
+  missingVolumeTypeIds: number[]
 }
 
 type ShoppingItem = {
   typeId: number
   typeName: string
   quantity: number
-  totalVolume: number
+  totalVolume: number | null
   jitaTotal: number | null
   jitaWithImport: number | null
   structureTotal: number | null
@@ -62,10 +65,10 @@ type ShoppingResponse = {
   items: ShoppingItem[]
   notFound: string[]
   totals: {
-    jitaWithImport: number
+    jitaWithImport: number | null
     structure: number
     best: number
-    volume: number
+    volume: number | null
   }
   transportCostPerM3: number
   structureId: number | null
@@ -178,9 +181,16 @@ const buyValueBest = computed(() => {
   return appraisalResult.value.totals.buyTotal
 })
 
-const totalVolume = computed(() => {
-  if (!appraisalResult.value) return 0
-  return appraisalResult.value.totals.volume
+const totalVolume = computed(() => appraisalResult.value?.totals.volume ?? null)
+
+const missingVolumeTypeNamesText = computed(() => {
+  if (!appraisalResult.value) return ''
+  return missingVolumeTypeNames(appraisalResult.value.items, appraisalResult.value.missingVolumeTypeIds)
+})
+
+const missingVolumeWarningMessage = computed(() => {
+  const messageKey = hasStructureResults.value ? 'shopping.missingVolumeWarning' : 'appraisal.missingVolumeWarning'
+  return t(messageKey, { types: missingVolumeTypeNamesText.value })
 })
 
 const itemCount = computed(() => {
@@ -416,6 +426,11 @@ function formatRelativeTime(isoDate: string | null): string {
         {{ appraisalResult.priceError }}
       </div>
 
+      <MissingVolumeWarning
+        v-if="hasResults && missingVolumeTypeNamesText"
+        :message="missingVolumeWarningMessage"
+      />
+
       <!-- KPI CARDS -->
       <div v-if="hasResults" class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <!-- Sell Value -->
@@ -462,9 +477,10 @@ function formatRelativeTime(isoDate: string | null): string {
             </svg>
             {{ t('appraisal.totalVolume') }}
           </p>
-          <p class="text-[22px] font-bold text-indigo-400 font-mono">
+          <p v-if="totalVolume !== null" class="text-[22px] font-bold text-indigo-400 font-mono">
             {{ formatNumber(totalVolume) }} m<sup class="text-xs">3</sup>
           </p>
+          <p v-else class="text-[22px] font-bold text-amber-400 font-mono">{{ t('shopping.unknown') }}</p>
           <p class="text-[11px] text-slate-500 mt-2">{{ t('appraisal.itemsAppraised', { count: itemCount }) }}</p>
         </div>
       </div>
@@ -558,7 +574,8 @@ function formatRelativeTime(isoDate: string | null): string {
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
               <div class="bg-slate-800 rounded-lg px-4 py-3">
                 <p class="text-[10px] text-slate-500 uppercase tracking-wider mb-1">{{ t('shopping.jitaPlusTransport') }}</p>
-                <p class="text-lg font-semibold text-cyan-400 font-mono">{{ formatIsk(jitaPlusTransport) }}</p>
+                <p v-if="jitaPlusTransport !== null" class="text-lg font-semibold text-cyan-400 font-mono">{{ formatIsk(jitaPlusTransport) }}</p>
+                <p v-else class="text-lg font-semibold text-amber-400 font-mono">{{ t('shopping.unknown') }}</p>
               </div>
               <div class="bg-slate-800 rounded-lg px-4 py-3">
                 <p class="text-[10px] text-slate-500 uppercase tracking-wider mb-1">{{ shortStructureName }} ({{ t('appraisal.weighted') }})</p>

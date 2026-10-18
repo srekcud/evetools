@@ -81,7 +81,7 @@ class ParseProcessor implements ProcessorInterface
 
         $volumes = [];
         foreach ($this->invTypeRepository->findBy(['typeId' => $typeIds]) as $type) {
-            $volumes[$type->getTypeId()] = $type->getVolume() ?? 0.0;
+            $volumes[$type->getTypeId()] = $type->getVolume();
         }
 
         $priceData = null;
@@ -102,12 +102,16 @@ class ParseProcessor implements ProcessorInterface
         $totalStructure = 0.0;
         $totalBest = 0.0;
         $totalVolume = 0.0;
+        $missingVolumeTypeIds = [];
 
         foreach ($resolvedItems['found'] as $item) {
             $typeId = $item['typeId'];
             $quantity = $item['quantity'];
-            $volume = $volumes[$typeId] ?? 0.0;
-            $totalItemVolume = $volume * $quantity;
+            $volume = $volumes[$typeId] ?? null;
+            if ($volume === null) {
+                $missingVolumeTypeIds[] = $typeId;
+            }
+            $totalItemVolume = $volume !== null ? $volume * $quantity : null;
 
             $jitaPrice = $priceData !== null ? ($priceData['jita'][$typeId] ?? null) : null;
             $structurePrice = $priceData !== null ? ($priceData['structure'][$typeId] ?? null) : null;
@@ -115,8 +119,8 @@ class ParseProcessor implements ProcessorInterface
             $jitaTotal = $jitaPrice !== null ? $jitaPrice * $quantity : null;
             $structureTotal = $structurePrice !== null ? $structurePrice * $quantity : null;
 
-            $importCost = $totalItemVolume * $transportCostPerM3;
-            $jitaWithImport = $jitaTotal !== null ? $jitaTotal + $importCost : null;
+            $importCost = $totalItemVolume !== null ? $totalItemVolume * $transportCostPerM3 : null;
+            $jitaWithImport = $jitaTotal !== null && $importCost !== null ? $jitaTotal + $importCost : null;
 
             $bestLocation = null;
             $bestTotal = null;
@@ -141,10 +145,10 @@ class ParseProcessor implements ProcessorInterface
             $itemResource->typeName = $item['typeName'];
             $itemResource->quantity = $quantity;
             $itemResource->volume = $volume;
-            $itemResource->totalVolume = round($totalItemVolume, 2);
+            $itemResource->totalVolume = $totalItemVolume !== null ? round($totalItemVolume, 2) : null;
             $itemResource->jitaPrice = $jitaPrice;
             $itemResource->jitaTotal = $jitaTotal;
-            $itemResource->importCost = round($importCost, 2);
+            $itemResource->importCost = $importCost !== null ? round($importCost, 2) : null;
             $itemResource->jitaWithImport = $jitaWithImport !== null ? round($jitaWithImport, 2) : null;
             $itemResource->structurePrice = $structurePrice;
             $itemResource->structureTotal = $structureTotal;
@@ -156,7 +160,9 @@ class ParseProcessor implements ProcessorInterface
             if ($jitaTotal !== null) {
                 $totalJita += $jitaTotal;
             }
-            $totalImport += $importCost;
+            if ($importCost !== null) {
+                $totalImport += $importCost;
+            }
             if ($jitaWithImport !== null) {
                 $totalJitaWithImport += $jitaWithImport;
             }
@@ -166,8 +172,14 @@ class ParseProcessor implements ProcessorInterface
             if ($bestTotal !== null) {
                 $totalBest += $bestTotal;
             }
-            $totalVolume += $totalItemVolume;
+            if ($totalItemVolume !== null) {
+                $totalVolume += $totalItemVolume;
+            }
         }
+
+        $missingVolumeTypeIds = array_values(array_unique($missingVolumeTypeIds));
+        sort($missingVolumeTypeIds);
+        $volumeIsKnown = $missingVolumeTypeIds === [];
 
         $structureLastSync = null;
         if ($priceData !== null && $priceData['structureLastSync'] !== null) {
@@ -178,12 +190,13 @@ class ParseProcessor implements ProcessorInterface
         $resource->notFound = $resolvedItems['notFound'];
         $resource->totals = [
             'jita' => round($totalJita, 2),
-            'import' => round($totalImport, 2),
-            'jitaWithImport' => round($totalJitaWithImport, 2),
+            'import' => $volumeIsKnown ? round($totalImport, 2) : null,
+            'jitaWithImport' => $volumeIsKnown ? round($totalJitaWithImport, 2) : null,
             'structure' => round($totalStructure, 2),
             'best' => round($totalBest, 2),
-            'volume' => round($totalVolume, 2),
+            'volume' => $volumeIsKnown ? round($totalVolume, 2) : null,
         ];
+        $resource->missingVolumeTypeIds = $missingVolumeTypeIds;
         $resource->structureName = $priceData['structureName'] ?? null;
         $resource->structureAccessible = $priceData !== null && $priceData['structureAccessible'];
         $resource->structureFromCache = $priceData !== null && $priceData['structureFromCache'];

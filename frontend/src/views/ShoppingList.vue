@@ -22,6 +22,7 @@ interface ShoppingListResponse {
   structureAccessible?: boolean
   structureFromCache?: boolean
   structureLastSync?: string | null
+  missingVolumeTypeIds: number[]
 }
 
 interface AppraisalResponse {
@@ -29,6 +30,7 @@ interface AppraisalResponse {
   notFound: string[]
   totals: AppraisalTotals
   priceError: string | null
+  missingVolumeTypeIds: number[]
 }
 
 type FormatType = 'auto' | 'multibuy' | 'cargo_scan' | 'eft' | 'dscan' | 'contract' | 'killmail' | 'inventory'
@@ -546,6 +548,7 @@ Megacyte 100
         :is-syncing="isSyncing"
         :is-sharing="isSharing"
         :share-url="shareUrl"
+        :missing-volume-type-ids="result.missingVolumeTypeIds"
         @sync-structure="syncStructureMarket"
         @share="shareList"
       />
@@ -559,6 +562,7 @@ Megacyte 100
         :price-error="appraisalResult.priceError"
         :structure-id="selectedStructure.id"
         :structure-name="selectedStructure.name || null"
+        :missing-volume-type-ids="appraisalResult.missingVolumeTypeIds"
       />
     </div>
   </MainLayout>

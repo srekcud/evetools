@@ -13,6 +13,8 @@ import ShoppingConfigPanel from './shopping/ShoppingConfigPanel.vue'
 import ShoppingTotalsSummary from './shopping/ShoppingTotalsSummary.vue'
 import ShoppingMaterialsTable from './shopping/ShoppingMaterialsTable.vue'
 import ShoppingPurchasesPanel from './shopping/ShoppingPurchasesPanel.vue'
+import MissingVolumeWarning from '@/components/shopping/MissingVolumeWarning.vue'
+import { missingVolumeTypeNames } from '@/components/shopping/missingVolume'
 import type { ShoppingListItem, ShoppingListTotals } from '@/stores/industry/types'
 
 export interface EnrichedShoppingItem extends ShoppingListItem {
@@ -198,11 +200,7 @@ const missingTotals = computed(() => {
   }
 })
 
-const missingVolumeTypeNames = computed(() => {
-  const missingIds = new Set(missingVolumeTypeIds.value)
-  const names = new Set(shoppingList.value.filter(item => missingIds.has(item.typeId)).map(item => item.typeName))
-  return [...names].join(', ')
-})
+const missingVolumeTypeNamesText = computed(() => missingVolumeTypeNames(shoppingList.value, missingVolumeTypeIds.value))
 
 const displayStructureName = computed(() => {
   return shoppingStructureName.value || selectedStructure.value.name || 'Structure'
@@ -531,15 +529,10 @@ defineExpose({
         </div>
       </div>
 
-      <div
-        v-if="missingVolumeTypeNames"
-        class="bg-amber-900/30 border border-amber-500/50 rounded-lg p-3 flex items-center gap-3"
-      >
-        <svg class="w-5 h-5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
-        <p class="text-sm text-amber-300">{{ t('industry.shoppingTab.missingVolumeWarning', { types: missingVolumeTypeNames }) }}</p>
-      </div>
+      <MissingVolumeWarning
+        v-if="missingVolumeTypeNamesText"
+        :message="t('industry.shoppingTab.missingVolumeWarning', { types: missingVolumeTypeNamesText })"
+      />
 
       <!-- Error message -->
       <div v-if="stock.stockAnalysisError.value" class="p-3 bg-red-900/20 border border-red-500/30 rounded-lg flex items-center gap-2">

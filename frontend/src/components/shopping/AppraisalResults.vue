@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
+import MissingVolumeWarning from '@/components/shopping/MissingVolumeWarning.vue'
+import { missingVolumeTypeNames } from '@/components/shopping/missingVolume'
 
 export interface AppraisalItem {
   typeId: number
   typeName: string
   quantity: number
-  volume: number
-  totalVolume: number
+  volume: number | null
+  totalVolume: number | null
   sellPrice: number | null
   sellTotal: number | null
   buyPrice: number | null
@@ -32,7 +34,7 @@ export interface AppraisalTotals {
   sellTotal: number
   buyTotal: number
   splitTotal: number
-  volume: number
+  volume: number | null
   sellTotalWeighted: number | null
   buyTotalWeighted: number | null
   splitTotalWeighted: number | null
@@ -45,6 +47,7 @@ const props = defineProps<{
   priceError?: string | null
   structureId?: number | null
   structureName?: string | null
+  missingVolumeTypeIds: number[]
 }>()
 
 const { t } = useI18n()
@@ -52,6 +55,12 @@ const { formatIsk, formatNumber } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
 
 const copied = ref(false)
+
+const missingVolumeTypeNamesText = computed(() => missingVolumeTypeNames(props.items, props.missingVolumeTypeIds))
+
+function formatVolumeForCopy(volume: number | null): string {
+  return volume !== null ? formatNumber(volume) + ' m3' : t('shopping.unknown')
+}
 
 function coverageClass(coverage: number | null): string {
   if (coverage === null || coverage >= 1.0) return ''
@@ -68,7 +77,7 @@ function copyTable() {
   const rows = props.items.map(item => [
     item.typeName,
     item.quantity,
-    formatNumber(item.totalVolume) + ' m3',
+    formatVolumeForCopy(item.totalVolume),
     displayPrice(item.sellPriceWeighted, item.sellPrice) !== null ? formatNumber(displayPrice(item.sellPriceWeighted, item.sellPrice)!) : '-',
     displayPrice(item.sellTotalWeighted, item.sellTotal) !== null ? formatNumber(displayPrice(item.sellTotalWeighted, item.sellTotal)!) : '-',
     displayPrice(item.buyPriceWeighted, item.buyPrice) !== null ? formatNumber(displayPrice(item.buyPriceWeighted, item.buyPrice)!) : '-',
@@ -78,7 +87,7 @@ function copyTable() {
   ].join('\t'))
 
   const footer = [
-    'Total', '--', formatNumber(props.totals.volume) + ' m3',
+    'Total', '--', formatVolumeForCopy(props.totals.volume),
     '--', formatNumber(props.totals.sellTotalWeighted ?? props.totals.sellTotal),
     '--', formatNumber(props.totals.buyTotalWeighted ?? props.totals.buyTotal),
     '--', formatNumber(props.totals.splitTotalWeighted ?? props.totals.splitTotal),
@@ -105,6 +114,11 @@ function copyTable() {
     <div v-if="priceError" class="bg-yellow-900/30 border border-yellow-500/30 rounded-xl p-4 text-yellow-400">
       {{ priceError }}
     </div>
+
+    <MissingVolumeWarning
+      v-if="missingVolumeTypeNamesText"
+      :message="t('appraisal.missingVolumeWarning', { types: missingVolumeTypeNamesText })"
+    />
 
     <!-- KPI Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -146,7 +160,8 @@ function copyTable() {
           </svg>
           {{ t('appraisal.totalVolume') }}
         </p>
-        <p class="text-[22px] font-bold text-indigo-400 font-mono">{{ formatNumber(totals.volume) }} m³</p>
+        <p v-if="totals.volume !== null" class="text-[22px] font-bold text-indigo-400 font-mono">{{ formatNumber(totals.volume) }} m³</p>
+        <p v-else class="text-[22px] font-bold text-amber-400 font-mono">{{ t('shopping.unknown') }}</p>
         <p class="text-[11px] text-slate-500 mt-1">{{ t('appraisal.itemsAppraised', { count: items.length }) }}</p>
       </div>
 
@@ -239,7 +254,8 @@ function copyTable() {
                 {{ formatNumber(item.quantity, 0) }}
               </td>
               <td class="px-4 py-2.5 text-right text-slate-400 font-mono text-xs">
-                {{ formatNumber(item.totalVolume) }} m³
+                <template v-if="item.totalVolume !== null">{{ formatNumber(item.totalVolume) }} m³</template>
+                <span v-else class="text-amber-400">{{ t('shopping.unknown') }}</span>
               </td>
               <!-- Sell unit -->
               <td class="px-4 py-2.5 text-right font-mono">
@@ -339,7 +355,10 @@ function copyTable() {
             <tr class="bg-slate-800/40 border-t border-slate-700/40">
               <td class="px-4 py-3 text-slate-200 font-semibold text-[13px]">Total</td>
               <td class="px-4 py-3 text-right text-slate-200 font-mono text-[13px]">--</td>
-              <td class="px-4 py-3 text-right text-slate-400 font-mono text-[13px]">{{ formatNumber(totals.volume) }} m³</td>
+              <td class="px-4 py-3 text-right text-slate-400 font-mono text-[13px]">
+                <template v-if="totals.volume !== null">{{ formatNumber(totals.volume) }} m³</template>
+                <span v-else class="text-amber-400">{{ t('shopping.unknown') }}</span>
+              </td>
               <td class="px-4 py-3 text-right text-slate-500 text-[13px]">--</td>
               <td class="px-4 py-3 text-right font-mono text-sm">
                 <span class="text-cyan-400 font-bold">{{ formatNumber(totals.sellTotalWeighted ?? totals.sellTotal) }}</span>

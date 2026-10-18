@@ -30,6 +30,8 @@ const data = ref<SharedListResponse | null>(null)
 
 const token = computed(() => route.params.token as string)
 
+const missingVolumeTypeIds = computed(() => (data.value?.items ?? []).filter(item => item.totalVolume === null).map(item => item.typeId))
+
 onMounted(async () => {
   await loadSharedList()
 })
@@ -122,6 +124,7 @@ async function loadSharedList() {
           :not-found="data.notFound"
           :structure-id="data.structureId"
           :structure-name="data.structureName"
+          :missing-volume-type-ids="missingVolumeTypeIds"
         />
       </div>
 

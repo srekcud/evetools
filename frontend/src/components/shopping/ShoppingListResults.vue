@@ -5,18 +5,20 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import MissingVolumeWarning from '@/components/shopping/MissingVolumeWarning.vue'
+import { missingVolumeTypeNames } from '@/components/shopping/missingVolume'
 
 export interface ShoppingItem {
   typeId: number
   typeName: string
   quantity: number
-  volume?: number
-  totalVolume: number
+  volume?: number | null
+  totalVolume: number | null
   // Support both naming conventions
   jitaPrice?: number | null
   jitaUnitPrice?: number | null
   jitaTotal: number | null
-  importCost: number
+  importCost: number | null
   jitaWithImport: number | null
   structurePrice?: number | null
   structureUnitPrice?: number | null
@@ -29,11 +31,11 @@ export interface ShoppingItem {
 
 export interface ShoppingTotals {
   jita?: number
-  import?: number
-  jitaWithImport: number
+  import?: number | null
+  jitaWithImport: number | null
   structure: number
   best: number
-  volume: number
+  volume: number | null
   savingsVsJitaWithImport?: number
   savingsVsStructure?: number
 }
@@ -51,6 +53,7 @@ const props = defineProps<{
   isSharing?: boolean
   readonly?: boolean
   shareUrl?: string | null
+  missingVolumeTypeIds: number[]
 }>()
 
 const emit = defineEmits<{
@@ -61,6 +64,8 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const { formatIsk, formatNumber, formatDateTime } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
+
+const missingVolumeTypeNamesText = computed(() => missingVolumeTypeNames(props.items, props.missingVolumeTypeIds))
 
 const copiedJita = ref(false)
 const copiedStructure = ref(false)
@@ -176,6 +181,11 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
       </div>
     </div>
 
+    <MissingVolumeWarning
+      v-if="missingVolumeTypeNamesText"
+      :message="t('shopping.missingVolumeWarning', { types: missingVolumeTypeNamesText })"
+    />
+
     <!-- Cache info -->
     <div
       v-if="structureFromCache && structureLastSync"
@@ -192,11 +202,13 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
         <div>
           <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('shopping.totalVolume') }}</p>
-          <p class="text-lg font-mono text-slate-200">{{ formatNumber(totals.volume) }} m³</p>
+          <p v-if="totals.volume !== null" class="text-lg font-mono text-slate-200">{{ formatNumber(totals.volume) }} m³</p>
+          <p v-else class="text-lg font-mono text-amber-400">{{ t('shopping.unknown') }}</p>
         </div>
         <div>
           <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('shopping.jitaPlusTransport') }}</p>
-          <p class="text-lg font-mono text-cyan-400">{{ formatIsk(totals.jitaWithImport) }}</p>
+          <p v-if="totals.jitaWithImport !== null" class="text-lg font-mono text-cyan-400">{{ formatIsk(totals.jitaWithImport) }}</p>
+          <p v-else class="text-lg font-mono text-amber-400">{{ t('shopping.unknown') }}</p>
         </div>
         <div>
           <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ shortStructureName }}</p>
@@ -330,10 +342,13 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
                 {{ formatNumber(item.quantity) }}
               </td>
               <td class="px-4 py-3 text-right text-slate-400 font-mono text-xs">
-                {{ formatNumber(item.totalVolume) }} m³
+                <template v-if="item.totalVolume !== null">{{ formatNumber(item.totalVolume) }} m³</template>
+                <span v-else class="text-amber-400">{{ t('shopping.unknown') }}</span>
               </td>
               <td class="px-4 py-3 text-right font-mono" :class="item.bestLocation === 'jita' || item.bestLocation === null ? 'text-cyan-400 font-medium' : 'text-slate-400'">
-                {{ item.jitaWithImport !== null ? formatIsk(item.jitaWithImport) : '-' }}
+                <template v-if="item.jitaWithImport !== null">{{ formatIsk(item.jitaWithImport) }}</template>
+                <span v-else-if="item.totalVolume === null" class="text-amber-400">{{ t('shopping.unknown') }}</span>
+                <template v-else>-</template>
               </td>
               <td class="px-4 py-3 text-right font-mono" :class="item.bestLocation === 'structure' ? 'text-purple-400 font-medium' : 'text-slate-400'">
                 {{ item.structureTotal !== null ? formatIsk(item.structureTotal) : '-' }}

@@ -69,7 +69,7 @@ class AppraiseProcessor implements ProcessorInterface
         // Fetch volumes from SDE
         $volumes = [];
         foreach ($this->invTypeRepository->findBy(['typeId' => $typeIds]) as $type) {
-            $volumes[$type->getTypeId()] = $type->getVolume() ?? 0.0;
+            $volumes[$type->getTypeId()] = $type->getVolume();
         }
 
         // Fetch sell and buy prices (best prices) with on-demand ESI fallback
@@ -117,12 +117,16 @@ class AppraiseProcessor implements ProcessorInterface
         $totalBuyWeighted = 0.0;
         $totalSplitWeighted = 0.0;
         $totalVolume = 0.0;
+        $missingVolumeTypeIds = [];
 
         foreach ($resolvedItems['found'] as $item) {
             $typeId = $item['typeId'];
             $quantity = $item['quantity'];
-            $volume = $volumes[$typeId] ?? 0.0;
-            $totalItemVolume = $volume * $quantity;
+            $volume = $volumes[$typeId] ?? null;
+            if ($volume === null) {
+                $missingVolumeTypeIds[] = $typeId;
+            }
+            $totalItemVolume = $volume !== null ? $volume * $quantity : null;
 
             // Best prices (existing behavior)
             $sellPrice = $sellPrices[$typeId] ?? null;
@@ -159,7 +163,7 @@ class AppraiseProcessor implements ProcessorInterface
             $itemResource->typeName = $item['typeName'];
             $itemResource->quantity = $quantity;
             $itemResource->volume = $volume;
-            $itemResource->totalVolume = round($totalItemVolume, 2);
+            $itemResource->totalVolume = $totalItemVolume !== null ? round($totalItemVolume, 2) : null;
             $itemResource->sellPrice = $sellPrice;
             $itemResource->sellTotal = $sellTotal !== null ? round($sellTotal, 2) : null;
             $itemResource->buyPrice = $buyPrice;
@@ -196,8 +200,13 @@ class AppraiseProcessor implements ProcessorInterface
             if ($splitTotalWeighted !== null) {
                 $totalSplitWeighted += $splitTotalWeighted;
             }
-            $totalVolume += $totalItemVolume;
+            if ($totalItemVolume !== null) {
+                $totalVolume += $totalItemVolume;
+            }
         }
+
+        $missingVolumeTypeIds = array_values(array_unique($missingVolumeTypeIds));
+        sort($missingVolumeTypeIds);
 
         $resource->items = $items;
         $resource->notFound = $resolvedItems['notFound'];
@@ -208,8 +217,9 @@ class AppraiseProcessor implements ProcessorInterface
             'sellTotalWeighted' => round($totalSellWeighted, 2),
             'buyTotalWeighted' => round($totalBuyWeighted, 2),
             'splitTotalWeighted' => round($totalSplitWeighted, 2),
-            'volume' => round($totalVolume, 2),
+            'volume' => $missingVolumeTypeIds === [] ? round($totalVolume, 2) : null,
         ];
+        $resource->missingVolumeTypeIds = $missingVolumeTypeIds;
         $resource->priceError = $priceError;
 
         return $resource;

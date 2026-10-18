@@ -43,15 +43,20 @@ function copyStructureMultibuy(): void {
   setTimeout(() => copiedStructure.value = false, 2000)
 }
 
+function formatJitaWithImportForCopy(item: MergedItem): string {
+  if (item.jitaWithImport !== null) return formatNumber(item.jitaWithImport)
+  return item.totalVolume === null ? t('shopping.unknown') : '-'
+}
+
 function copyTable(): void {
   const header = ['Item', 'Qty', 'Volume', 'Jita Sell', 'Jita Buy', 'Jita+Import', 'Structure', 'Buy at'].join('\t')
   const rows = props.mergedItems.map(i => [
     i.typeName,
     i.quantity,
-    formatNumber(i.totalVolume) + ' m3',
+    i.totalVolume !== null ? formatNumber(i.totalVolume) + ' m3' : t('shopping.unknown'),
     i.sellTotalWeighted != null ? formatNumber(i.sellTotalWeighted) : '-',
     i.buyTotalWeighted != null ? formatNumber(i.buyTotalWeighted) : '-',
-    i.jitaWithImport != null ? formatNumber(i.jitaWithImport) : '-',
+    formatJitaWithImportForCopy(i),
     i.structureTotal != null ? formatNumber(i.structureTotal) : '-',
     i.bestLocation ?? '-',
   ].join('\t'))

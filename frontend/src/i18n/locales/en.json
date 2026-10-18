@@ -1542,7 +1542,9 @@
     "itemColumn": "Item",
     "quantityColumn": "Quantity",
     "volumeColumn": "Volume",
-    "buyAt": "Buy at"
+    "buyAt": "Buy at",
+    "unknown": "Unknown",
+    "missingVolumeWarning": "Unknown volume in the SDE for: {types}. Their volume, their import cost and the total volume, import and Jita + import are unknown."
   },
   "appraisal": {
     "title": "Appraisal",
@@ -1598,7 +1600,8 @@
     "itemsLowCoverage": "item(s) with low coverage",
     "pricesUpdated": "prices updated",
     "importTooltip": "Jita sell + transport cost per m3",
-    "weightedSellTooltip": "Weighted sell price based on available sell orders"
+    "weightedSellTooltip": "Weighted sell price based on available sell orders",
+    "missingVolumeWarning": "Unknown volume in the SDE for: {types}. Their volume and the total volume are unknown."
   },
   "admin": {
     "title": "Administration",
