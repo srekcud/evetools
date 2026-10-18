@@ -17,12 +17,15 @@ use App\Service\TypeNameResolver;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(PivotAdvisorService::class)]
 class PivotAdvisorServiceTest extends TestCase
 {
+    use ResolvesTypeNamesFromSde;
+
     private IndustryActivityMaterialRepository&MockObject $materialRepository;
     private IndustryActivityProductRepository&MockObject $productRepository;
     private CachedAssetRepository&MockObject $assetRepository;
@@ -646,6 +649,237 @@ class PivotAdvisorServiceTest extends TestCase
         $this->assertSame('none', $matBRow['candidates'][self::SOURCE_PRODUCT]['status']);
         $this->assertSame('none', $matBRow['candidates'][self::CANDIDATE_1]['status']);
         $this->assertSame(0, $matBRow['candidates'][self::CANDIDATE_1]['needed']);
+    }
+
+    private const array PIVOT_SDE_TYPE_NAMES = [
+        self::SOURCE_PRODUCT => 'Source Ship',
+        self::BUILDABLE_MAT_A => 'Component A',
+        self::BUILDABLE_MAT_B => 'Component B',
+        self::RAW_MAT => 'Tritanium',
+        self::CANDIDATE_1 => 'Candidate Alpha',
+        self::CANDIDATE_2 => 'Candidate Beta',
+    ];
+    private const float JOB_INSTALL_COST_PER_RUN = 1500.0;
+
+    #[Group('issue-115')]
+    public function testPivotAnalysisOfTypesKnownToTheSdeKeepsTheirSdeNames(): void
+    {
+        $this->givenSourceSharingTwoBuildableMaterialsWithTwoCandidates(self::BUILDABLE_MAT_B, self::CANDIDATE_1);
+
+        $result = $this->analyzeOnSdeKnowingPivotTypes();
+
+        $this->assertSame('Source Ship', $result['sourceProduct']['typeName']);
+        $this->assertSame(['Component A', 'Component B'], array_column($result['sourceProduct']['keyComponents'], 'typeName'));
+        $this->assertSame(['Component A', 'Component B'], array_column($result['matrix'], 'typeName'));
+        $this->assertSame(['Candidate Alpha', 'Candidate Beta'], array_column($result['candidates'], 'typeName'));
+        $this->assertSame(['Component B'], array_column($result['candidates'][0]['missingComponents'], 'typeName'));
+        $this->assertSame(['Component A'], array_column($result['candidates'][1]['missingComponents'], 'typeName'));
+    }
+
+    #[Group('issue-115')]
+    public function testMaterialMissingFromTheSdeHasAnUnknownNameInThePivotMatrixWithUnchangedQuantitiesAndCosts(): void
+    {
+        $this->givenSourceSharingTwoBuildableMaterialsWithTwoCandidates(self::ROBOTICS_TYPE_ID, self::CANDIDATE_1);
+
+        $result = $this->analyzeOnSdeKnowingPivotTypes();
+
+        $this->assertSame([
+            [
+                'typeId' => self::BUILDABLE_MAT_A,
+                'typeName' => 'Component A',
+                'inStock' => 50,
+                'candidates' => [
+                    self::SOURCE_PRODUCT => ['needed' => 10, 'status' => 'covered'],
+                    self::CANDIDATE_1 => ['needed' => 30, 'status' => 'covered'],
+                    self::CANDIDATE_2 => ['needed' => 60, 'status' => 'partial'],
+                ],
+            ],
+            [
+                'typeId' => self::ROBOTICS_TYPE_ID,
+                'typeName' => null,
+                'inStock' => 6,
+                'candidates' => [
+                    self::SOURCE_PRODUCT => ['needed' => 20, 'status' => 'partial'],
+                    self::CANDIDATE_1 => ['needed' => 40, 'status' => 'partial'],
+                    self::CANDIDATE_2 => ['needed' => 0, 'status' => 'none'],
+                ],
+            ],
+        ], $result['matrix']);
+        $this->assertSame(
+            [['typeId' => self::ROBOTICS_TYPE_ID, 'typeName' => null, 'quantity' => 30, 'cost' => 75000.0]],
+            $result['candidates'][0]['missingComponents'],
+        );
+        $this->assertSame(75000.0, $result['candidates'][0]['additionalCost']);
+        $this->assertSame(
+            [
+                ['typeId' => self::BUILDABLE_MAT_A, 'typeName' => 'Component A', 'inStock' => 50],
+                ['typeId' => self::ROBOTICS_TYPE_ID, 'typeName' => null, 'inStock' => 6],
+            ],
+            $result['sourceProduct']['keyComponents'],
+        );
+        $this->assertSame(1292.0, $result['sourceProduct']['marginPercent']);
+    }
+
+    #[Group('issue-115')]
+    public function testSourceProductMissingFromTheSdeWithoutBlueprintHasAnUnknownName(): void
+    {
+        $this->productRepository->method('findBlueprintForProduct')->willReturn(null);
+
+        $result = $this->pivotAdvisorOnSdeKnowing(self::PIVOT_SDE_TYPE_NAMES)->analyze(
+            self::ROBOTICS_TYPE_ID,
+            1,
+            self::SOLAR_SYSTEM_ID,
+            self::BROKER_FEE,
+            self::SALES_TAX,
+            $this->user,
+        );
+
+        $this->assertSame([
+            'typeId' => self::ROBOTICS_TYPE_ID,
+            'sourceProduct' => [
+                'typeId' => self::ROBOTICS_TYPE_ID,
+                'typeName' => null,
+                'groupName' => '',
+                'marginPercent' => null,
+                'sellPrice' => null,
+                'dailyVolume' => 0.0,
+                'keyComponents' => [],
+            ],
+            'matrix' => [],
+            'candidates' => [],
+            'matrixProductIds' => [self::ROBOTICS_TYPE_ID],
+        ], $result);
+    }
+
+    #[Group('issue-115')]
+    public function testCandidateProductMissingFromTheSdeHasAnUnknownNameWithUnchangedMarginAndRank(): void
+    {
+        $this->givenSourceSharingTwoBuildableMaterialsWithTwoCandidates(self::BUILDABLE_MAT_B, self::ROBOTICS_TYPE_ID);
+
+        $result = $this->analyzeOnSdeKnowingPivotTypes();
+
+        $this->assertSame([
+            [
+                'typeId' => self::ROBOTICS_TYPE_ID,
+                'typeName' => null,
+                'groupName' => 'Cruiser',
+                'marginPercent' => 207.41,
+                'profitPerUnit' => 250450.0,
+                'dailyVolume' => 9.0,
+                'coveragePercent' => 35.9,
+                'missingComponents' => [['typeId' => self::BUILDABLE_MAT_B, 'typeName' => 'Component B', 'quantity' => 30, 'cost' => 75000.0]],
+                'additionalCost' => 75000.0,
+                'estimatedProfit' => 250450.0,
+                'score' => 7445.56,
+            ],
+            [
+                'typeId' => self::CANDIDATE_2,
+                'typeName' => 'Candidate Beta',
+                'groupName' => 'Battleship',
+                'marginPercent' => 115.81,
+                'profitPerUnit' => 74700.0,
+                'dailyVolume' => 3.0,
+                'coveragePercent' => 92.59,
+                'missingComponents' => [['typeId' => self::BUILDABLE_MAT_A, 'typeName' => 'Component A', 'quantity' => 4, 'cost' => 4000.0]],
+                'additionalCost' => 4000.0,
+                'estimatedProfit' => 74700.0,
+                'score' => 6456.2,
+            ],
+        ], $result['candidates']);
+        $this->assertSame([self::SOURCE_PRODUCT, self::ROBOTICS_TYPE_ID, self::CANDIDATE_2], $result['matrixProductIds']);
+    }
+
+    private function givenSourceSharingTwoBuildableMaterialsWithTwoCandidates(int $sharedMaterialTypeId, int $firstCandidateTypeId): void
+    {
+        $sourceBlueprint = $this->createBlueprintProduct(self::SOURCE_BLUEPRINT, self::SOURCE_PRODUCT, 1, 1);
+        $componentBlueprint = $this->createBlueprintProduct(99001, self::BUILDABLE_MAT_A, 1, 1);
+        $sharedMaterialBlueprint = $this->createBlueprintProduct(99002, $sharedMaterialTypeId, 1, 1);
+        $this->productRepository->method('findBlueprintForProduct')->willReturnCallback(
+            static fn (int $typeId, int $activityId): ?IndustryActivityProduct => match (true) {
+                $activityId !== 1 => null,
+                $typeId === self::SOURCE_PRODUCT => $sourceBlueprint,
+                $typeId === self::BUILDABLE_MAT_A => $componentBlueprint,
+                $typeId === $sharedMaterialTypeId => $sharedMaterialBlueprint,
+                default => null,
+            },
+        );
+
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturnCallback(
+            static fn (array $blueprintTypeIds): array => $blueprintTypeIds === [self::SOURCE_BLUEPRINT]
+                ? [self::SOURCE_BLUEPRINT => [
+                    ['materialTypeId' => self::BUILDABLE_MAT_A, 'quantity' => 10],
+                    ['materialTypeId' => $sharedMaterialTypeId, 'quantity' => 20],
+                    ['materialTypeId' => self::RAW_MAT, 'quantity' => 1000],
+                ]]
+                : [
+                    self::CANDIDATE_1_BP => [
+                        ['materialTypeId' => self::BUILDABLE_MAT_A, 'quantity' => 30],
+                        ['materialTypeId' => $sharedMaterialTypeId, 'quantity' => 40],
+                        ['materialTypeId' => self::RAW_MAT, 'quantity' => 500],
+                    ],
+                    self::CANDIDATE_2_BP => [
+                        ['materialTypeId' => self::BUILDABLE_MAT_A, 'quantity' => 60],
+                        ['materialTypeId' => self::RAW_MAT, 'quantity' => 2000],
+                    ],
+                ],
+        );
+        $this->materialRepository->method('findProductsUsingMaterials')->willReturn([
+            ['blueprintTypeId' => self::CANDIDATE_1_BP, 'productTypeId' => $firstCandidateTypeId, 'outputPerRun' => 1, 'activityId' => 1],
+            ['blueprintTypeId' => self::CANDIDATE_2_BP, 'productTypeId' => self::CANDIDATE_2, 'outputPerRun' => 1, 'activityId' => 1],
+        ]);
+
+        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([
+            self::BUILDABLE_MAT_A => 50,
+            $sharedMaterialTypeId => 6,
+        ]);
+        $this->jitaMarketService->method('getPrices')->willReturn([
+            self::SOURCE_PRODUCT => 900000.0,
+            self::BUILDABLE_MAT_A => 1000.0,
+            $sharedMaterialTypeId => 2500.0,
+            self::RAW_MAT => 5.0,
+            $firstCandidateTypeId => 400000.0,
+            self::CANDIDATE_2 => 150000.0,
+        ]);
+        $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([
+            self::SOURCE_PRODUCT => 12.0,
+            $firstCandidateTypeId => 9.0,
+            self::CANDIDATE_2 => 3.0,
+        ]);
+
+        $this->connection->method('fetchOne')->willReturn(0);
+        $this->connection->method('fetchAllAssociative')->willReturn([
+            ['type_id' => self::SOURCE_PRODUCT, 'group_name' => 'Destroyer'],
+            ['type_id' => $firstCandidateTypeId, 'group_name' => 'Cruiser'],
+            ['type_id' => self::CANDIDATE_2, 'group_name' => 'Battleship'],
+        ]);
+        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
+        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(self::JOB_INSTALL_COST_PER_RUN);
+    }
+
+    private function analyzeOnSdeKnowingPivotTypes(): array
+    {
+        return $this->pivotAdvisorOnSdeKnowing(self::PIVOT_SDE_TYPE_NAMES)->analyze(
+            self::SOURCE_PRODUCT,
+            1,
+            self::SOLAR_SYSTEM_ID,
+            self::BROKER_FEE,
+            self::SALES_TAX,
+            $this->user,
+        );
+    }
+
+    private function pivotAdvisorOnSdeKnowing(array $typeNamesByTypeId): PivotAdvisorService
+    {
+        return new PivotAdvisorService(
+            $this->materialRepository,
+            $this->productRepository,
+            $this->assetRepository,
+            $this->jitaMarketService,
+            $this->esiCostIndexService,
+            new TypeNameResolver($this->sdeTypeRepositoryKnowing($typeNamesByTypeId)),
+            $this->entityManager,
+            $this->inventionService,
+        );
     }
 
     // --- Helper methods ---

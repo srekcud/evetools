@@ -29,4 +29,21 @@ final class TypeNameResolverTest extends TestCase
 
         self::assertNull($resolver->findName(self::ROBOTICS_TYPE_ID));
     }
+
+    public function testFindNamesReturnsOnlyTheSdeNamesOfTypesInInvTypesIndexedByTypeId(): void
+    {
+        $resolver = new TypeNameResolver($this->sdeTypeRepositoryKnowingOnlyNitrogenFuelBlock());
+
+        self::assertSame(
+            [self::NITROGEN_FUEL_BLOCK_TYPE_ID => self::NITROGEN_FUEL_BLOCK_NAME],
+            $resolver->findNames([self::NITROGEN_FUEL_BLOCK_TYPE_ID, self::ROBOTICS_TYPE_ID]),
+        );
+    }
+
+    public function testFindNamesOfNoTypeIsEmpty(): void
+    {
+        $resolver = new TypeNameResolver($this->sdeTypeRepositoryKnowingOnlyNitrogenFuelBlock());
+
+        self::assertSame([], $resolver->findNames([]));
+    }
 }

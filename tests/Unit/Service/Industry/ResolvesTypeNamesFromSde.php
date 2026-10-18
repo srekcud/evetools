@@ -52,6 +52,9 @@ trait ResolvesTypeNamesFromSde
         $invTypeRepository->method('find')->willReturnCallback(
             static fn (mixed $typeId): ?InvType => is_int($typeId) ? ($knownTypes[$typeId] ?? null) : null,
         );
+        $invTypeRepository->method('findByTypeIds')->willReturnCallback(
+            static fn (array $typeIds): array => array_intersect_key($knownTypes, array_flip($typeIds)),
+        );
 
         return $invTypeRepository;
     }

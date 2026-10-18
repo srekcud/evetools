@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Service\Industry;
 use App\Entity\CachedCharacterSkill;
 use App\Entity\CachedIndustryJob;
 use App\Entity\Character;
+use App\Entity\IndustryStockpileTarget;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CachedCharacterSkillRepository;
@@ -19,6 +20,7 @@ use App\Service\TypeNameResolver;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -26,6 +28,8 @@ use PHPUnit\Framework\TestCase;
 #[AllowMockObjectsWithoutExpectations]
 class SlotTrackerServiceTest extends TestCase
 {
+    use ResolvesTypeNamesFromSde;
+
     private CharacterRepository&MockObject $characterRepository;
     private CachedIndustryJobRepository&MockObject $jobRepository;
     private CachedCharacterSkillRepository&MockObject $skillRepository;
@@ -533,6 +537,109 @@ class SlotTrackerServiceTest extends TestCase
         $this->assertSame(3, $result['globalKpis']['manufacturing']['used']);
         $this->assertSame(6, $result['globalKpis']['manufacturing']['max']);
         $this->assertSame(50.0, $result['globalKpis']['manufacturing']['percent']);
+    }
+
+    private const int MANUFACTURING_ACTIVITY_ID = 1;
+
+    #[Group('issue-115')]
+    public function testJobOfAProductKnownToTheSdeKeepsItsSdeName(): void
+    {
+        $this->characterRepository->method('findByUser')->willReturn([$this->createCharacterMock(1001, 'Pilot', true)]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([
+            $this->createJobMock(1, self::NITROGEN_FUEL_BLOCK_TYPE_ID, self::MANUFACTURING_ACTIVITY_ID, 40, '2026-02-23 00:00:00', '2099-01-01 00:00:00'),
+        ]);
+        $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn([]);
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+
+        $result = $this->slotTrackerOnSdeKnowingOnlyNitrogenFuelBlock()->getSlotStatus($this->user);
+
+        $this->assertSame([self::NITROGEN_FUEL_BLOCK_NAME], array_column($result['characters'][0]['jobs'], 'productTypeName'));
+        $this->assertSame([self::NITROGEN_FUEL_BLOCK_NAME], array_column($result['timeline'], 'productTypeName'));
+    }
+
+    #[Group('issue-115')]
+    public function testJobOfAProductMissingFromTheSdeHasAnUnknownNameWithUnchangedOrder(): void
+    {
+        $this->characterRepository->method('findByUser')->willReturn([$this->createCharacterMock(1001, 'Pilot', true)]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([
+            $this->createJobMock(1, self::NITROGEN_FUEL_BLOCK_TYPE_ID, self::MANUFACTURING_ACTIVITY_ID, 40, '2026-02-23 00:00:00', '2099-03-01 00:00:00'),
+            $this->createJobMock(2, self::ROBOTICS_TYPE_ID, self::MANUFACTURING_ACTIVITY_ID, 12, '2026-02-23 00:00:00', '2099-01-01 00:00:00'),
+        ]);
+        $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn(
+            $this->buildSkillMap([CachedCharacterSkill::SKILL_MASS_PRODUCTION => 1]),
+        );
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+
+        $result = $this->slotTrackerOnSdeKnowingOnlyNitrogenFuelBlock()->getSlotStatus($this->user);
+
+        $jobs = $result['characters'][0]['jobs'];
+        $this->assertSame([2, 1], array_column($jobs, 'jobId'));
+        $this->assertSame([self::ROBOTICS_TYPE_ID, self::NITROGEN_FUEL_BLOCK_TYPE_ID], array_column($jobs, 'productTypeId'));
+        $this->assertSame([null, self::NITROGEN_FUEL_BLOCK_NAME], array_column($jobs, 'productTypeName'));
+        $this->assertSame([12, 40], array_column($jobs, 'runs'));
+        $this->assertSame([2, 1], array_column($result['timeline'], 'jobId'));
+        $this->assertSame([null, self::NITROGEN_FUEL_BLOCK_NAME], array_column($result['timeline'], 'productTypeName'));
+    }
+
+    #[Group('issue-115')]
+    public function testFreeSlotSuggestionOfATypeMissingFromTheSdeKeepsTheNameStoredOnTheStockpileTarget(): void
+    {
+        $this->characterRepository->method('findByUser')->willReturn([$this->createCharacterMock(1001, 'Pilot', true)]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([]);
+        $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn([]);
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([$this->roboticsComponentTarget(100)]);
+        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([self::ROBOTICS_TYPE_ID => 25]);
+
+        $result = $this->slotTrackerOnSdeKnowingOnlyNitrogenFuelBlock()->getSlotStatus($this->user);
+
+        $this->assertSame([
+            ['activityType' => 'manufacturing', 'count' => 1, 'suggestion' => ['typeId' => self::ROBOTICS_TYPE_ID, 'typeName' => 'Robotics', 'reason' => 'stockpile at 25%']],
+            ['activityType' => 'reaction', 'count' => 1, 'suggestion' => null],
+            ['activityType' => 'science', 'count' => 1, 'suggestion' => null],
+        ], $result['characters'][0]['freeSlots']);
+    }
+
+    #[Group('issue-115')]
+    public function testFreeSlotSuggestionOfATypeMissingFromTheSdeKeepsTheStoredNameWhileAJobProducesThatType(): void
+    {
+        $this->characterRepository->method('findByUser')->willReturn([$this->createCharacterMock(1001, 'Pilot', true)]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([
+            $this->createJobMock(1, self::ROBOTICS_TYPE_ID, self::MANUFACTURING_ACTIVITY_ID, 12, '2026-02-23 00:00:00', '2099-01-01 00:00:00'),
+        ]);
+        $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn(
+            $this->buildSkillMap([CachedCharacterSkill::SKILL_MASS_PRODUCTION => 1]),
+        );
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([$this->roboticsComponentTarget(80)]);
+        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([self::ROBOTICS_TYPE_ID => 60]);
+
+        $result = $this->slotTrackerOnSdeKnowingOnlyNitrogenFuelBlock()->getSlotStatus($this->user);
+
+        $this->assertSame(
+            ['activityType' => 'manufacturing', 'count' => 1, 'suggestion' => ['typeId' => self::ROBOTICS_TYPE_ID, 'typeName' => 'Robotics', 'reason' => 'stockpile at 75%']],
+            $result['characters'][0]['freeSlots'][0],
+        );
+    }
+
+    private function roboticsComponentTarget(int $targetQuantity): IndustryStockpileTarget
+    {
+        return (new IndustryStockpileTarget())
+            ->setTypeId(self::ROBOTICS_TYPE_ID)
+            ->setTypeName('Robotics')
+            ->setTargetQuantity($targetQuantity)
+            ->setStage('component');
+    }
+
+    private function slotTrackerOnSdeKnowingOnlyNitrogenFuelBlock(): SlotTrackerService
+    {
+        return new SlotTrackerService(
+            $this->characterRepository,
+            $this->jobRepository,
+            $this->skillRepository,
+            $this->calculationService,
+            new TypeNameResolver($this->sdeTypeRepositoryKnowingOnlyNitrogenFuelBlock()),
+            $this->stockpileTargetRepository,
+            $this->assetRepository,
+        );
     }
 
     /**

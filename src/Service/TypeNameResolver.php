@@ -29,6 +29,15 @@ class TypeNameResolver
      * @param int[] $typeIds
      * @return array<int, string>
      */
+    public function findNames(array $typeIds): array
+    {
+        return $this->resolveMany($typeIds);
+    }
+
+    /**
+     * @param int[] $typeIds
+     * @return array<int, string>
+     */
     public function resolveMany(array $typeIds): array
     {
         if (empty($typeIds)) {

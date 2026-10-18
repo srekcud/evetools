@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectStep;
 use App\Entity\Sde\IndustryActivity;
 use App\Entity\Sde\IndustryActivityMaterial;
 use App\Entity\Sde\IndustryActivityProduct;
@@ -20,19 +21,22 @@ use App\Service\JitaMarketService;
 use App\Service\TypeNameResolver;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(InventionService::class)]
 class InventionServiceTest extends TestCase
 {
+    use ResolvesTypeNamesFromSde;
+
     private IndustryActivityProductRepository&MockObject $activityProductRepository;
     private IndustryActivityMaterialRepository&MockObject $activityMaterialRepository;
     private IndustryActivityRepository&MockObject $activityRepository;
     private InvTypeRepository&MockObject $invTypeRepository;
     private JitaMarketService&MockObject $jitaMarketService;
     private EsiCostIndexService&MockObject $esiCostIndexService;
-    private TypeNameResolver&MockObject $typeNameResolver;
+    private TypeNameResolver $typeNameResolver;
     private InventionService $service;
 
     // EVE type IDs for realistic test data
@@ -53,7 +57,7 @@ class InventionServiceTest extends TestCase
         $this->invTypeRepository = $this->createMock(InvTypeRepository::class);
         $this->jitaMarketService = $this->createMock(JitaMarketService::class);
         $this->esiCostIndexService = $this->createMock(EsiCostIndexService::class);
-        $this->typeNameResolver = $this->createMock(TypeNameResolver::class);
+        $this->typeNameResolver = new TypeNameResolver($this->invTypeRepository);
 
         $this->service = new InventionService(
             $this->activityProductRepository,
@@ -110,11 +114,20 @@ class InventionServiceTest extends TestCase
      */
     private function setupSabreInventionChain(?float $baseProbability = 0.30, int $baseRuns = 10): void
     {
-        // Step 1: T2 Blueprint manufactures the Sabre
+        $this->setupInventionChain(
+            self::SABRE_TYPE_ID,
+            $baseProbability,
+            $baseRuns,
+            [self::DATACORE_1_TYPE_ID => 2, self::DATACORE_2_TYPE_ID => 2],
+        );
+    }
+
+    private function setupInventionChain(int $t2ProductTypeId, ?float $baseProbability, int $baseRuns, array $datacoreQuantitiesByTypeId): void
+    {
         $t2Manufacturing = $this->createProduct(
             self::SABRE_BLUEPRINT_ID,
             IndustryActivityType::Manufacturing->value,
-            self::SABRE_TYPE_ID,
+            $t2ProductTypeId,
             1,
         );
 
@@ -129,8 +142,8 @@ class InventionServiceTest extends TestCase
 
         $this->activityProductRepository
             ->method('findBlueprintForProduct')
-            ->willReturnCallback(function (int $productTypeId, int $activityId) use ($t2Manufacturing, $inventionProduct): ?IndustryActivityProduct {
-                if ($productTypeId === self::SABRE_TYPE_ID && $activityId === IndustryActivityType::Manufacturing->value) {
+            ->willReturnCallback(function (int $productTypeId, int $activityId) use ($t2ProductTypeId, $t2Manufacturing, $inventionProduct): ?IndustryActivityProduct {
+                if ($productTypeId === $t2ProductTypeId && $activityId === IndustryActivityType::Manufacturing->value) {
                     return $t2Manufacturing;
                 }
                 if ($productTypeId === self::SABRE_BLUEPRINT_ID && $activityId === IndustryActivityType::Invention->value) {
@@ -140,23 +153,19 @@ class InventionServiceTest extends TestCase
                 return null;
             });
 
-        // Invention materials: 2 datacores
-        $datacore1 = $this->createMaterial(
-            self::THRASHER_BLUEPRINT_ID,
-            IndustryActivityType::Invention->value,
-            self::DATACORE_1_TYPE_ID,
-            2,
-        );
-        $datacore2 = $this->createMaterial(
-            self::THRASHER_BLUEPRINT_ID,
-            IndustryActivityType::Invention->value,
-            self::DATACORE_2_TYPE_ID,
-            2,
-        );
+        $datacores = [];
+        foreach ($datacoreQuantitiesByTypeId as $datacoreTypeId => $quantity) {
+            $datacores[] = $this->createMaterial(
+                self::THRASHER_BLUEPRINT_ID,
+                IndustryActivityType::Invention->value,
+                $datacoreTypeId,
+                $quantity,
+            );
+        }
 
         $this->activityMaterialRepository
             ->method('findByBlueprintAndActivity')
-            ->willReturn([$datacore1, $datacore2]);
+            ->willReturn($datacores);
 
         // Invention activity time
         $inventionActivity = $this->createActivity(
@@ -703,7 +712,6 @@ class InventionServiceTest extends TestCase
         $this->jitaMarketService->method('getPrice')->willReturn(500000.0);
         $this->activityProductRepository->method('findBy')->willReturn([]);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
-        $this->typeNameResolver->method('resolve')->willReturn('Sabre');
     }
 
     public function testGetInventionDataKeepsMissingProbabilityUnknownInsteadOfZero(): void
@@ -812,5 +820,171 @@ class InventionServiceTest extends TestCase
         $this->assertNull($breakdown['summary']['totalInventionCost']);
         $this->assertNull($breakdown['summary']['bestDecryptorTypeId']);
         $this->assertNull($breakdown['summary']['totalBpcKitCost']);
+    }
+
+    private const int THRASHER_TYPE_ID = 16242;
+    private const float COPYING_COST_INDEX = 0.05;
+    private const array INVENTION_SDE_TYPE_NAMES = [
+        self::SABRE_TYPE_ID => 'Sabre',
+        self::SABRE_BLUEPRINT_ID => 'Sabre Blueprint',
+        self::THRASHER_TYPE_ID => 'Thrasher',
+        self::THRASHER_BLUEPRINT_ID => 'Thrasher Blueprint',
+        self::DATACORE_1_TYPE_ID => 'Datacore - Mechanical Engineering',
+        self::DATACORE_2_TYPE_ID => 'Datacore - Minmatar Starship Engineering',
+    ];
+
+    #[Group('issue-115')]
+    public function testBpcKitOfAProductKnownToTheSdeKeepsTheSdeNamesOfTheProductAndItsDatacores(): void
+    {
+        $this->setupSabreInventionChain(0.30, 10);
+        $this->stubKnownCostsPerAttempt();
+        $project = new IndustryProject();
+        $project->setProductTypeId(self::SABRE_TYPE_ID);
+
+        $breakdown = $this->inventionServiceOnSdeKnowing(self::INVENTION_SDE_TYPE_NAMES)->getBpcKitBreakdown($project);
+
+        $this->assertSame('Sabre', $breakdown['inventions'][0]['productName']);
+        $this->assertSame(
+            ['Datacore - Mechanical Engineering', 'Datacore - Minmatar Starship Engineering'],
+            array_column($breakdown['inventions'][0]['datacores'], 'typeName'),
+        );
+    }
+
+    #[Group('issue-115')]
+    public function testCopyCostsOfTypesKnownToTheSdeKeepTheirSdeNames(): void
+    {
+        $project = $this->projectWithOneCopyStep(self::THRASHER_BLUEPRINT_ID, self::THRASHER_TYPE_ID, 4);
+        $this->stubCopyEivOf(self::THRASHER_BLUEPRINT_ID, self::THRASHER_TYPE_ID, 1500000.0);
+
+        $copyCosts = $this->inventionServiceOnSdeKnowing(self::INVENTION_SDE_TYPE_NAMES)->getProjectCopyCosts($project);
+
+        $this->assertSame([
+            [
+                'blueprintTypeId' => self::THRASHER_BLUEPRINT_ID,
+                'blueprintName' => 'Thrasher Blueprint',
+                'productTypeName' => 'Thrasher',
+                'runs' => 4,
+                'cost' => 6000.0,
+                'depth' => 1,
+            ],
+        ], $copyCosts['copies']);
+    }
+
+    #[Group('issue-115')]
+    public function testDatacoreMissingFromTheSdeHasAnUnknownNameInTheInventionDataWithUnchangedQuantity(): void
+    {
+        $this->setupInventionChain(self::SABRE_TYPE_ID, 0.30, 10, [self::DATACORE_1_TYPE_ID => 2, self::ROBOTICS_TYPE_ID => 3]);
+
+        $inventionData = $this->inventionServiceOnSdeKnowing(self::INVENTION_SDE_TYPE_NAMES)->getInventionData(self::SABRE_TYPE_ID);
+
+        $this->assertNotNull($inventionData);
+        $this->assertSame([
+            ['typeId' => self::DATACORE_1_TYPE_ID, 'typeName' => 'Datacore - Mechanical Engineering', 'quantity' => 2],
+            ['typeId' => self::ROBOTICS_TYPE_ID, 'typeName' => null, 'quantity' => 3],
+        ], $inventionData['materials']);
+    }
+
+    #[Group('issue-115')]
+    public function testDatacoreMissingFromTheSdeHasAnUnknownNameInTheInventionCostWithUnchangedPrices(): void
+    {
+        $this->setupInventionChain(self::SABRE_TYPE_ID, 0.30, 10, [self::DATACORE_1_TYPE_ID => 2, self::ROBOTICS_TYPE_ID => 3]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
+            self::DATACORE_1_TYPE_ID => 50000.0,
+            self::ROBOTICS_TYPE_ID => 70000.0,
+        ]);
+        $this->activityProductRepository->method('findBy')->willReturn([]);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+
+        $result = $this->inventionServiceOnSdeKnowing(self::INVENTION_SDE_TYPE_NAMES)->calculateInventionCost(self::SABRE_TYPE_ID, 30002510);
+
+        $this->assertNotNull($result);
+        $this->assertSame([
+            ['typeId' => self::DATACORE_1_TYPE_ID, 'typeName' => 'Datacore - Mechanical Engineering', 'quantity' => 2, 'unitPrice' => 50000.0, 'totalPrice' => 100000.0],
+            ['typeId' => self::ROBOTICS_TYPE_ID, 'typeName' => null, 'quantity' => 3, 'unitPrice' => 70000.0, 'totalPrice' => 210000.0],
+        ], $result['datacores']);
+        $this->assertSame(310000.0, $result['costPerAttempt']);
+        $this->assertSame(1240000.0, $result['totalCost']);
+    }
+
+    #[Group('issue-115')]
+    public function testBpcKitOfAProductMissingFromTheSdeHasAnUnknownProductNameWithUnchangedProbabilityAndCosts(): void
+    {
+        $this->setupInventionChain(self::ROBOTICS_TYPE_ID, 0.30, 10, [self::DATACORE_1_TYPE_ID => 2, self::DATACORE_2_TYPE_ID => 2]);
+        $this->stubKnownCostsPerAttempt();
+        $project = new IndustryProject();
+        $project->setProductTypeId(self::ROBOTICS_TYPE_ID);
+
+        $breakdown = $this->inventionServiceOnSdeKnowing(self::INVENTION_SDE_TYPE_NAMES)->getBpcKitBreakdown($project);
+
+        $invention = $breakdown['inventions'][0];
+        $this->assertSame(self::ROBOTICS_TYPE_ID, $invention['productTypeId']);
+        $this->assertNull($invention['productName']);
+        $this->assertSame(0.30, $invention['baseProbability']);
+        $this->assertSame(260000.0, $invention['decryptorOptions'][0]['costPerAttempt']);
+        $this->assertSame(
+            ['totalInventionCost' => 1040000.0, 'bestDecryptorTypeId' => null, 'totalBpcKitCost' => 1040000.0],
+            $breakdown['summary'],
+        );
+    }
+
+    #[Group('issue-115')]
+    public function testCopyCostsOfABlueprintAndProductMissingFromTheSdeHaveUnknownNamesWithUnchangedCost(): void
+    {
+        $project = $this->projectWithOneCopyStep(self::ROBOTICS_TYPE_ID, self::ROBOTICS_TYPE_ID, 10);
+        $this->stubCopyEivOf(self::ROBOTICS_TYPE_ID, self::ROBOTICS_TYPE_ID, 2000000.0);
+
+        $copyCosts = $this->inventionServiceOnSdeKnowing(self::INVENTION_SDE_TYPE_NAMES)->getProjectCopyCosts($project);
+
+        $this->assertSame([
+            [
+                'blueprintTypeId' => self::ROBOTICS_TYPE_ID,
+                'blueprintName' => null,
+                'productTypeName' => null,
+                'runs' => 10,
+                'cost' => 20000.0,
+                'depth' => 1,
+            ],
+        ], $copyCosts['copies']);
+        $this->assertSame(20000.0, $copyCosts['totalCopyCost']);
+    }
+
+    private function projectWithOneCopyStep(int $blueprintTypeId, int $productTypeId, int $runs): IndustryProject
+    {
+        $project = new IndustryProject();
+        $project->setProductTypeId(self::SABRE_TYPE_ID);
+        $project->addStep(
+            (new IndustryProjectStep())
+                ->setBlueprintTypeId($blueprintTypeId)
+                ->setProductTypeId($productTypeId)
+                ->setRuns($runs)
+                ->setDepth(1)
+                ->setActivityType('copy'),
+        );
+
+        return $project;
+    }
+
+    private function stubCopyEivOf(int $blueprintTypeId, int $productTypeId, float $adjustedPrice): void
+    {
+        $this->activityProductRepository->method('findBy')->willReturn([
+            $this->createProduct($blueprintTypeId, IndustryActivityType::Manufacturing->value, $productTypeId, 1),
+        ]);
+        $this->esiCostIndexService->method('getAdjustedPrice')->willReturn($adjustedPrice);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(self::COPYING_COST_INDEX);
+    }
+
+    private function inventionServiceOnSdeKnowing(array $typeNamesByTypeId): InventionService
+    {
+        $invTypeRepository = $this->sdeTypeRepositoryKnowing($typeNamesByTypeId);
+
+        return new InventionService(
+            $this->activityProductRepository,
+            $this->activityMaterialRepository,
+            $this->activityRepository,
+            $invTypeRepository,
+            $this->jitaMarketService,
+            $this->esiCostIndexService,
+            new TypeNameResolver($invTypeRepository),
+        );
     }
 }

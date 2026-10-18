@@ -21,6 +21,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -28,12 +29,27 @@ use PHPUnit\Framework\TestCase;
 #[AllowMockObjectsWithoutExpectations]
 class BatchProfitScannerServiceTest extends TestCase
 {
+    use ResolvesTypeNamesFromSde;
+
+    private const array SCAN_SDE_TYPE_NAMES = [
+        34 => 'Tritanium',
+        35 => 'Pyerite',
+        101 => 'Reaction Product',
+        200 => 'Raw Material',
+        585 => 'Slasher',
+        587 => 'Rifter',
+        598 => 'Breacher',
+        2001 => 'Scourge Heavy Missile',
+        11393 => 'Jaguar',
+        11399 => 'Morphite',
+    ];
+
     private IndustryActivityProductRepository&MockObject $productRepository;
     private IndustryActivityMaterialRepository&MockObject $materialRepository;
     private JitaMarketService&MockObject $jitaMarketService;
     private StructureMarketService&MockObject $structureMarketService;
     private EsiCostIndexService&MockObject $esiCostIndexService;
-    private TypeNameResolver&MockObject $typeNameResolver;
+    private TypeNameResolver $typeNameResolver;
     private EntityManagerInterface&MockObject $entityManager;
     private Connection&MockObject $connection;
     private CachedStructureRepository&MockObject $cachedStructureRepository;
@@ -53,7 +69,7 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->jitaMarketService = $this->createMock(JitaMarketService::class);
         $this->structureMarketService = $this->createMock(StructureMarketService::class);
         $this->esiCostIndexService = $this->createMock(EsiCostIndexService::class);
-        $this->typeNameResolver = $this->createMock(TypeNameResolver::class);
+        $this->typeNameResolver = new TypeNameResolver($this->sdeTypeRepositoryKnowing(self::SCAN_SDE_TYPE_NAMES));
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->connection = $this->createMock(Connection::class);
         $this->cachedStructureRepository = $this->createMock(CachedStructureRepository::class);
@@ -135,11 +151,6 @@ class BatchProfitScannerServiceTest extends TestCase
         ]);
 
         // Type names
-        $this->typeNameResolver->method('resolveMany')->willReturn([
-            34 => 'Tritanium',
-            35 => 'Pyerite',
-            587 => 'Rifter',
-        ]);
 
         // Job install cost: EIV from pre-loaded adjusted prices, cost index pre-loaded per system
         // EIV = 1850000, costIndex = 0.01 => jobInstallCost = 1850000 * 0.01 = 18500
@@ -196,7 +207,6 @@ class BatchProfitScannerServiceTest extends TestCase
             587 => 5000000.0,
         ]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 5.0]);
-        $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
@@ -229,7 +239,6 @@ class BatchProfitScannerServiceTest extends TestCase
 
         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 100000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 2.0]);
-        $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
@@ -260,7 +269,6 @@ class BatchProfitScannerServiceTest extends TestCase
 
         $this->jitaMarketService->method('getPrices')->willReturn([200 => 10.0, 101 => 50000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([101 => 100.0]);
-        $this->typeNameResolver->method('resolveMany')->willReturn([200 => 'Raw Material', 101 => 'Reaction Product']);
         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
@@ -307,7 +315,6 @@ class BatchProfitScannerServiceTest extends TestCase
         // Cheap materials, expensive product to ensure positive margin even with export cost
         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
-        $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
@@ -353,7 +360,6 @@ class BatchProfitScannerServiceTest extends TestCase
 
         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
-        $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
@@ -396,11 +402,6 @@ class BatchProfitScannerServiceTest extends TestCase
             587 => 50000000.0, // High sell price to ensure positive margin
         ]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
-        $this->typeNameResolver->method('resolveMany')->willReturn([
-            34 => 'Tritanium',
-            35 => 'Pyerite',
-            587 => 'Rifter',
-        ]);
         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
@@ -450,7 +451,6 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->solarSystemRepository->method('find')->willReturn($solarSystem);
 
         $this->jitaMarketService->method('getAverageDailyVolumesForRegion')->willReturn([587 => 20.0]);
-        $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
@@ -485,7 +485,6 @@ class BatchProfitScannerServiceTest extends TestCase
         // 100 units per run, unit sell price = 500 ISK, revenue per run = 50000 ISK
         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 2001 => 500.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([2001 => 5000.0]);
-        $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 2001 => 'Scourge Heavy Missile']);
         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
@@ -528,7 +527,6 @@ class BatchProfitScannerServiceTest extends TestCase
 
         $this->jitaMarketService->method('getPrices')->willReturn([587 => 2500000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
-        $this->typeNameResolver->method('resolveMany')->willReturn([587 => 'Rifter']);
         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
@@ -589,11 +587,6 @@ class BatchProfitScannerServiceTest extends TestCase
             11393 => 80000000.0,
         ]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0, 11393 => 5.0]);
-        $this->typeNameResolver->method('resolveMany')->willReturn([
-            34 => 'Tritanium',
-            587 => 'Rifter',
-            11393 => 'Jaguar',
-        ]);
         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
@@ -647,7 +640,6 @@ class BatchProfitScannerServiceTest extends TestCase
 
         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
-        $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
@@ -706,7 +698,6 @@ class BatchProfitScannerServiceTest extends TestCase
 
         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
-        $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
@@ -744,7 +735,6 @@ class BatchProfitScannerServiceTest extends TestCase
 
         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
-        $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
@@ -1007,6 +997,48 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->assertSame([self::RIFTER_TYPE_ID], array_column($withMinMargin, 'typeId'));
     }
 
+    private const int ROBOTICS_BLUEPRINT_TYPE_ID = 9849;
+
+    #[Group('issue-115')]
+    public function testScannedProductsKnownToTheSdeKeepTheirSdeNames(): void
+    {
+        $this->givenRifterFullyPricedAndSlasherWithUnpricedMorphite();
+
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+
+        $this->assertSame(['Rifter', 'Slasher'], array_column($result, 'typeName'));
+    }
+
+    #[Group('issue-115')]
+    public function testScannedProductMissingFromTheSdeHasAnUnknownNameAndStaysListedWithUnchangedProfit(): void
+    {
+        $this->givenFrigates([
+            self::RIFTER_BLUEPRINT_ID => [self::RIFTER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 100, self::PYERITE_TYPE_ID => 10]],
+            self::ROBOTICS_BLUEPRINT_TYPE_ID => [self::ROBOTICS_TYPE_ID, [self::TRITANIUM_TYPE_ID => 300, self::PYERITE_TYPE_ID => 40]],
+        ]);
+        $this->jitaMarketService->method('getPrices')->willReturn([
+            self::TRITANIUM_TYPE_ID => 5.0,
+            self::PYERITE_TYPE_ID => 10.0,
+            self::RIFTER_TYPE_ID => 1000.0,
+            self::ROBOTICS_TYPE_ID => 3000.0,
+        ]);
+        $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([
+            self::RIFTER_TYPE_ID => 10.0,
+            self::ROBOTICS_TYPE_ID => 7.0,
+        ]);
+
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+
+        $this->assertSame([self::ROBOTICS_TYPE_ID, self::RIFTER_TYPE_ID], array_column($result, 'typeId'));
+        $this->assertSame([null, 'Rifter'], array_column($result, 'typeName'));
+        $robotics = $this->rowOf(self::ROBOTICS_TYPE_ID, $result);
+        $this->assertSame(1710.0, $robotics['materialCost']);
+        $this->assertSame(1290.0, $robotics['profitPerUnit']);
+        $this->assertSame(75.44, $robotics['marginPercent']);
+        $this->assertSame(9030.0, $robotics['iskPerDay']);
+        $this->assertSame(3000.0, $robotics['sellPrice']);
+    }
+
     private function givenRifterFullyPricedAndSlasherWithUnpricedMorphite(): void
     {
         $this->givenFrigates([
@@ -1052,14 +1084,6 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->connection->method('fetchAllAssociative')->willReturnCallback(
             fn (string $sql): array => str_contains($sql, 'group_id') ? $productMetadata : array_values($materialVolumes)
         );
-        $this->typeNameResolver->method('resolveMany')->willReturn([
-            self::TRITANIUM_TYPE_ID => 'Tritanium',
-            self::PYERITE_TYPE_ID => 'Pyerite',
-            self::MORPHITE_TYPE_ID => 'Morphite',
-            self::RIFTER_TYPE_ID => 'Rifter',
-            self::SLASHER_TYPE_ID => 'Slasher',
-            self::BREACHER_TYPE_ID => 'Breacher',
-        ]);
         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
