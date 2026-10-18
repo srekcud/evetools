@@ -159,7 +159,7 @@ class GroupIndustryProjectService
         $jobGroup = $depth === 0 ? 'final' : 'component';
 
         // Register this node as a job
-        $jobKey = $productTypeId . ':' . $activityType;
+        $jobKey = $productTypeId . ':' . $activityType . ':' . $jobGroup;
         if (isset($jobAggregation[$jobKey])) {
             // Aggregate runs for the same product + activity
             $jobAggregation[$jobKey]['runs'] += $tree['runs'];
