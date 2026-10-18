@@ -498,6 +498,12 @@ class IndustryProjectFactory
 
             $maxRunsPerJob = max(1, (int) floor($maxDurationSeconds / $timePerRun));
             $numJobs = (int) ceil($totalRuns / $maxRunsPerJob);
+
+            if ($numJobs === 1) {
+                $result[] = $step;
+                continue;
+            }
+
             $baseRunsPerJob = (int) floor($totalRuns / $numJobs);
             $remainder = $totalRuns - ($baseRunsPerJob * $numJobs);
 
