@@ -39,6 +39,8 @@ Buy vs Build ne liste que les composants de profondeur 1. `BuyVsBuildService::cl
 
 Spec validée en mode nuit. Le SDE importé ne porte ni groupe méta ni niveau technique (`InvType` sans `metaGroupId`) : le niveau du composant est déduit de l'arbre (R2), sans nouvel import SDE. Alternative écartée : listes de groupes SDE codées en dur (identifiants non vérifiables dans le code). Le fichier de caractérisation est aussi modifié, sans commit, par la branche `feat/buy-vs-build-on-engine` : le conflit se limite aux lignes de `stage`.
 
+Limite connue : un composant de capital qui consomme un produit de réaction (Capital Jump Drive du Marshal, Reinforced Carbon Fiber) est libellé « T2 Component ». Le cas de l'issue (fuel block, R.A.M.) est corrigé ; affiner demanderait le groupe méta du SDE.
+
 ## Glossaire
 
 Aucun terme ajouté.

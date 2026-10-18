@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Service\Industry;
 
 use App\Service\Industry\BuyVsBuildService;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -39,6 +40,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
     private const int MEGACYTE = 40;
     private const int MARSHAL = 44996;
     private const int CAPITAL_JUMP_DRIVE = 21025;
+    private const int PLASMA_THRUSTER = 11530;
     private const int HYDROGEN_FUEL_BLOCK = 4246;
     private const int NITROGEN_FUEL_BLOCK = 4051;
     private const int FERNITE_ALLOY = 16656;
@@ -65,6 +67,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
     // Hail L: 5000 units per run, T2 component, two reaction intermediates
     // ===========================================
 
+    #[Group('issue-101')]
     public function testHailLTenRunsCurrentlyWrongBuildsTheTreeForOneRunButSellsTenRuns(): void
     {
         $result = $this->analyzeHailL($this->hailLJitaPrices(), runs: 10);
@@ -107,7 +110,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
                     'typeId' => self::RAM_AMMUNITION_TECH,
                     'typeName' => 'R.A.M.- Ammunition Tech',
                     'quantity' => 1,
-                    'stage' => 'T2 Component',
+                    'stage' => 'T1 Component',
                     'buildCost' => 52666.8,
                     'buildMaterials' => [
                         ['typeId' => self::TRITANIUM, 'typeName' => 'Tritanium', 'quantity' => 501, 'unitPrice' => 5.0, 'totalPrice' => 2505.0],
@@ -362,6 +365,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
     // Fernite Carbide: reaction root, 10000 units per run
     // ===========================================
 
+    #[Group('issue-101')]
     public function testFerniteCarbideTenRunsCurrentlyWrongBuildsOneReactionRunAndCountsEachDepthApart(): void
     {
         $service = $this->buyVsBuildServiceOnGoldenSde(
@@ -397,7 +401,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
 
         $this->assertSame(
             [
-                [self::HYDROGEN_FUEL_BLOCK, 'Hydrogen Fuel Block', 5, 'T2 Component', 10, 1, 35057.5, 787.5, 100000.0, null, 'build', 64942.5, 64.94],
+                [self::HYDROGEN_FUEL_BLOCK, 'Hydrogen Fuel Block', 5, 'T1 Component', 10, 1, 35057.5, 787.5, 100000.0, null, 'build', 64942.5, 64.94],
                 [self::CERAMIC_POWDER, 'Ceramic Powder', 100, 'Reaction', 0, 1, 114000.0, 9000.0, 25000.0, 24000.0, 'buy', -90000.0, 78.95],
                 [self::FERNITE_ALLOY, 'Fernite Alloy', 100, 'Reaction', 0, 1, 121000.0, 9000.0, 30000.0, null, 'buy', -91000.0, 75.21],
             ],
@@ -418,7 +422,8 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
         );
     }
 
-    public function testFuelBlockConsumedByAReactionCurrentlyWrongIsLabelledT2Component(): void
+    #[Group('issue-101')]
+    public function testFuelBlockConsumedByAReactionIsLabelledT1Component(): void
     {
         $service = $this->buyVsBuildServiceOnGoldenSde(
             jitaPrices: $this->fuelBlockInputJitaPrices(),
@@ -429,9 +434,22 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
 
         $result = $service->analyze(self::FERNITE_CARBIDE, 1, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, 0.0, 0.0, null);
 
-        // CARACTÉRISATION : comportement actuel, suspecté faux (libellé), sans issue : tout composant fabriqué
-        // de profondeur 1 est « T2 Component », « T1 Component » n'est jamais produit.
-        $this->assertSame('T2 Component', $this->componentOf($result, self::HYDROGEN_FUEL_BLOCK)['stage']);
+        $this->assertSame('T1 Component', $this->componentOf($result, self::HYDROGEN_FUEL_BLOCK)['stage']);
+    }
+
+    #[Group('issue-101')]
+    public function testManufacturedComponentConsumingAReactionProductIsLabelledT2Component(): void
+    {
+        $service = $this->buyVsBuildServiceOnGoldenSde(
+            jitaPrices: [self::MARSHAL => 300_000_000.0, self::PLASMA_THRUSTER => 90_000.0, self::FERNITE_CARBIDE => 60.0],
+            structurePrices: [],
+            adjustedPrices: [],
+            costIndices: self::FACTORY_COST_INDICES,
+        );
+
+        $result = $service->analyze(self::MARSHAL, 1, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, 0.0, 0.0, null);
+
+        $this->assertSame('T2 Component', $this->componentOf($result, self::PLASMA_THRUSTER)['stage']);
     }
 
     // ===========================================
