@@ -24,6 +24,7 @@ use App\Service\Industry\ProductionCostService;
 use App\Service\JitaMarketService;
 use Doctrine\Common\Collections\ArrayCollection;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
@@ -31,6 +32,8 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(ProductionCostService::class)]
 class ProductionCostServiceTest extends TestCase
 {
+    use ResolvesTypeNamesFromSde;
+
     private JitaMarketService&MockObject $jitaMarketService;
     private EsiCostIndexService&MockObject $esiCostIndexService;
     private IndustryShoppingListBuilder&MockObject $shoppingListBuilder;
@@ -499,5 +502,62 @@ class ProductionCostServiceTest extends TestCase
         $result = $this->service->estimateJobInstallCosts($project);
 
         $this->assertSame(30001234, $result['steps'][0]['solarSystemId']);
+    }
+
+    #[Group('issue-115')]
+    public function testJobInstallCostOfAStepWhoseProductIsMissingFromTheSdeHasAnUnknownProductNameAndAnUnchangedCost(): void
+    {
+        $config = $this->createStructureConfig(30004759, 0.25);
+        $roboticsStep = $this->createStep('manufacturing', self::ROBOTICS_TYPE_ID, 30, $config, 9849);
+        $nitrogenFuelBlockStep = $this->createStep('manufacturing', self::NITROGEN_FUEL_BLOCK_TYPE_ID, 40, $config, 4314);
+
+        $project = $this->createProject(self::ROBOTICS_TYPE_ID, 30);
+        $project->method('getSteps')->willReturn(new ArrayCollection([$roboticsStep, $nitrogenFuelBlockStep]));
+
+        $this->materialRepository->method('findMaterialsForBlueprints')
+            ->willReturnCallback(static fn (array $blueprintTypeIds): array => match ($blueprintTypeIds[0]) {
+                9849 => [9849 => [['materialTypeId' => 34, 'quantity' => 50_000]]],
+                4314 => [4314 => [['materialTypeId' => 44, 'quantity' => 400]]],
+                default => [],
+            });
+        $this->esiCostIndexService->method('calculateEiv')
+            ->willReturnCallback(static fn (array $materials): float => match ($materials[0]['materialTypeId'] ?? null) {
+                34 => 200_000.0,
+                44 => 260_000.0,
+                default => 0.0,
+            });
+        $this->esiCostIndexService->method('calculateJobInstallCost')
+            ->willReturnCallback(static fn (float $eiv): float => match ($eiv) {
+                200_000.0 => 12_400.0,
+                260_000.0 => 9_870.0,
+                default => 0.0,
+            });
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(0.0525);
+
+        $solarSystem = $this->createMock(MapSolarSystem::class);
+        $solarSystem->method('getSolarSystemName')->willReturn('1DQ1-A');
+        $this->solarSystemRepository->method('findBySolarSystemId')->willReturn($solarSystem);
+
+        $service = new ProductionCostService(
+            $this->jitaMarketService,
+            $this->esiCostIndexService,
+            $this->shoppingListBuilder,
+            $this->calculationServiceOnSdeKnowingOnlyNitrogenFuelBlock(),
+            $this->userSettingsRepository,
+            $this->materialRepository,
+            $this->productRepository,
+            $this->solarSystemRepository,
+        );
+
+        $result = $service->estimateJobInstallCosts($project);
+
+        self::assertSame(22_270.0, $result['total']);
+        self::assertCount(2, $result['steps']);
+        self::assertSame(self::ROBOTICS_TYPE_ID, $result['steps'][0]['productTypeId']);
+        self::assertNull($result['steps'][0]['productName']);
+        self::assertSame(30, $result['steps'][0]['runs']);
+        self::assertSame(12_400.0, $result['steps'][0]['installCost']);
+        self::assertSame(self::NITROGEN_FUEL_BLOCK_NAME, $result['steps'][1]['productName']);
+        self::assertSame(9_870.0, $result['steps'][1]['installCost']);
     }
 }

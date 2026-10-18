@@ -20,6 +20,11 @@ class TypeNameResolver
         return $type?->getTypeName() ?? "Type #{$typeId}";
     }
 
+    public function findName(int $typeId): ?string
+    {
+        return $this->resolve($typeId);
+    }
+
     /**
      * @param int[] $typeIds
      * @return array<int, string>

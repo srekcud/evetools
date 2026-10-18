@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Industry;
 
+use App\Entity\IndustryProject;
+use App\Entity\User;
 use App\Service\Industry\IndustryCalculationService;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -16,6 +19,8 @@ use PHPUnit\Framework\TestCase;
  */
 class IndustryCalculationTest extends TestCase
 {
+    use ResolvesTypeNamesFromSde;
+
     private IndustryCalculationService $calculationService;
 
     protected function setUp(): void
@@ -324,5 +329,27 @@ class IndustryCalculationTest extends TestCase
         // Step 4: CF runs
         $cfRuns = $this->calculateRuns($cfNeeded, 200);
         $this->assertSame(12, $cfRuns); // ceil(2337/200) = 12
+    }
+
+    #[Group('issue-115')]
+    public function testProjectDisplayNameIsUnknownWithoutCustomNameWhenItsProductIsMissingFromTheSde(): void
+    {
+        $project = (new IndustryProject())
+            ->setUser(new User())
+            ->setProductTypeId(self::ROBOTICS_TYPE_ID)
+            ->setRuns(5);
+
+        self::assertNull($this->calculationServiceOnSdeKnowingOnlyNitrogenFuelBlock()->getProjectDisplayName($project));
+    }
+
+    #[Group('issue-115')]
+    public function testProjectDisplayNameIsTheSdeNameWithoutCustomNameWhenItsProductIsKnown(): void
+    {
+        $project = (new IndustryProject())
+            ->setUser(new User())
+            ->setProductTypeId(self::NITROGEN_FUEL_BLOCK_TYPE_ID)
+            ->setRuns(40);
+
+        self::assertSame(self::NITROGEN_FUEL_BLOCK_NAME, $this->calculationServiceOnSdeKnowingOnlyNitrogenFuelBlock()->getProjectDisplayName($project));
     }
 }

@@ -26,8 +26,6 @@ use Symfony\Bundle\SecurityBundle\Security;
  * project by project (1 + P + S queries). The number of queries on the industry tables
  * must stay bounded whatever the number of projects and steps, and the listed values
  * must stay exactly the same.
- *
- * The SDE is empty in the test database: type names resolve to "Type #<id>".
  */
 final class ProjectCollectionProviderTest extends IntegrationTestCase
 {
@@ -103,12 +101,12 @@ final class ProjectCollectionProviderTest extends IntegrationTestCase
         // material 400M + jobs 9.5M + tax 10M
         self::assertSame(419_500_000.0, $sabre->totalCost);
         self::assertSame(480_500_000.0, $sabre->profit);
-        self::assertSame('Type #' . self::SABRE_TYPE_ID, $sabre->displayName);
+        self::assertNull($sabre->displayName);
         self::assertSame(10, $sabre->runs);
         // The copy step at depth 0 is not a root product
         self::assertSame([[
             'typeId' => self::SABRE_TYPE_ID,
-            'typeName' => 'Type #' . self::SABRE_TYPE_ID,
+            'typeName' => null,
             'runs' => 10,
             'meLevel' => 2,
             'teLevel' => 4,
@@ -129,7 +127,7 @@ final class ProjectCollectionProviderTest extends IntegrationTestCase
         self::assertSame('Jackdaw batch', $jackdaw->displayName);
         self::assertSame([[
             'typeId' => self::JACKDAW_TYPE_ID,
-            'typeName' => 'Type #' . self::JACKDAW_TYPE_ID,
+            'typeName' => null,
             'runs' => 5,
             'meLevel' => 10,
             'teLevel' => 20,
