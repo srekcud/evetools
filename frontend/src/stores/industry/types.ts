@@ -4,7 +4,7 @@
 
 export interface RootProduct {
   typeId: number
-  typeName: string
+  typeName: string | null
   runs: number
   meLevel: number | null
   teLevel: number | null
@@ -36,7 +36,7 @@ export interface SimilarEsiJob {
 export interface StepPurchase {
   id: string
   typeId: number
-  typeName: string
+  typeName: string | null
   quantity: number
   unitPrice: number
   totalPrice: number
@@ -49,7 +49,7 @@ export interface IndustryProjectStep {
   id: string
   blueprintTypeId: number
   productTypeId: number
-  productTypeName: string
+  productTypeName: string | null
   quantity: number
   runs: number
   depth: number
@@ -102,10 +102,10 @@ export interface IndustryProjectStep {
 
 export interface IndustryProject {
   id: string
-  productTypeName: string
+  productTypeName: string | null
   productTypeId: number
   name?: string | null
-  displayName: string
+  displayName: string | null
   runs: number
   meLevel: number
   teLevel: number
@@ -401,7 +401,7 @@ export interface AvailableJob {
   esiJobId: number
   blueprintTypeId: number
   productTypeId: number
-  productTypeName: string
+  productTypeName: string | null
   runs: number
   cost: number
   status: string
@@ -424,7 +424,7 @@ export interface CostEstimationMaterial {
 export interface CostEstimationStep {
   stepId: string
   productTypeId: number
-  productName: string
+  productName: string | null
   solarSystemId: number
   systemName: string
   costIndex: number
@@ -447,7 +447,7 @@ export interface PurchaseSuggestion {
   transactionId: number
   transactionUuid: string
   typeId: number
-  typeName: string
+  typeName: string | null
   quantity: number
   unitPrice: number
   totalPrice: number

@@ -58,9 +58,9 @@ class IndustryCalculationService
         return $config?->getName();
     }
 
-    public function resolveTypeName(int $typeId): string
+    public function resolveTypeName(int $typeId): ?string
     {
-        return $this->typeNameResolver->resolve($typeId);
+        return $this->typeNameResolver->findName($typeId);
     }
 
     /**
@@ -369,7 +369,7 @@ class IndustryCalculationService
     /**
      * Get the display name for a project (custom name or resolved product name).
      */
-    public function getProjectDisplayName(IndustryProject $project): string
+    public function getProjectDisplayName(IndustryProject $project): ?string
     {
         return $project->getName() ?? $this->resolveTypeName($project->getProductTypeId());
     }

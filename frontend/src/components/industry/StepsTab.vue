@@ -5,6 +5,7 @@ import { useIndustryStore } from '@/stores/industry'
 import { useStepsStore } from '@/stores/industry/steps'
 import { useSyncStore } from '@/stores/sync'
 import { useFormatters } from '@/composables/useFormatters'
+import { useTypeNames } from '@/composables/useTypeNames'
 import StepTree from './StepTree.vue'
 import StepHierarchyTree from './StepHierarchyTree.vue'
 
@@ -18,6 +19,7 @@ const store = useIndustryStore()
 const stepsStore = useStepsStore()
 const syncStore = useSyncStore()
 const { formatIsk, formatDateTime } = useFormatters()
+const { typeNameLabel } = useTypeNames()
 
 const stepsViewMode = ref<'flat' | 'tree'>('flat')
 const regeneratingSteps = ref(false)
@@ -243,7 +245,7 @@ defineExpose({
               class="border-b border-slate-800 hover:bg-slate-800/50"
             >
               <td class="py-2 px-2 text-slate-300">{{ job.characterName }}</td>
-              <td class="py-2 px-2 text-slate-200">{{ job.productTypeName }}</td>
+              <td class="py-2 px-2 text-slate-200">{{ typeNameLabel(job.productTypeName, job.productTypeId) }}</td>
               <td class="py-2 px-2 text-right font-mono text-slate-300">{{ job.runs }}</td>
               <td class="py-2 px-2">
                 <span :class="[
@@ -257,7 +259,7 @@ defineExpose({
               <td class="py-2 px-2 text-right font-mono text-slate-400">{{ formatIsk(job.cost) }}</td>
               <td class="py-2 px-2">
                 <span v-if="job.linkedToStepId" class="text-xs text-blue-400">
-                  {{ job.linkedToStepName }}
+                  {{ typeNameLabel(job.linkedToStepName, job.productTypeId) }}
                 </span>
                 <span v-else class="text-xs text-slate-600">—</span>
               </td>
@@ -283,7 +285,7 @@ defineExpose({
                     :key="step.id"
                     :value="step.id"
                   >
-                    {{ step.productTypeName }} ({{ step.runs }} runs)
+                    {{ typeNameLabel(step.productTypeName, step.productTypeId) }} ({{ step.runs }} runs)
                   </option>
                 </select>
                 <span v-else class="text-xs text-slate-600">—</span>

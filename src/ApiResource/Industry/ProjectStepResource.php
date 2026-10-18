@@ -86,7 +86,7 @@ class ProjectStepResource
     public int $productTypeId;
 
     /** Resolved dynamically from SDE */
-    public string $productTypeName;
+    public ?string $productTypeName;
 
     public int $quantity;
 

@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
+import { useTypeNames } from '@/composables/useTypeNames'
 import type { PurchaseSuggestion } from '@/stores/industry/types'
 
 type FlatPurchase = {
@@ -35,6 +36,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const { formatIsk, formatDateTime } = useFormatters()
+const { typeNameLabel } = useTypeNames()
 
 const linkingId = ref<number | null>(null)
 const suggestionsPage = ref(1)
@@ -127,7 +129,7 @@ defineExpose({ resetLinkingId })
               :class="{ 'opacity-50': suggestion.alreadyLinked }"
             >
               <td class="py-2 px-3 text-slate-400 text-xs">{{ formatDateTime(suggestion.date) }}</td>
-              <td class="py-2 px-3 text-slate-200">{{ suggestion.typeName }}</td>
+              <td class="py-2 px-3 text-slate-200">{{ typeNameLabel(suggestion.typeName, suggestion.typeId) }}</td>
               <td class="py-2 px-3 text-right font-mono text-slate-300">{{ suggestion.quantity.toLocaleString() }}</td>
               <td class="py-2 px-3 text-right font-mono text-slate-400">{{ formatIsk(suggestion.unitPrice) }}</td>
               <td class="py-2 px-3 text-right font-mono text-slate-200">{{ formatIsk(suggestion.totalPrice) }}</td>

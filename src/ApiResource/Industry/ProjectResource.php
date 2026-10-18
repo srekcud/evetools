@@ -97,11 +97,11 @@ class ProjectResource
     public int $productTypeId;
 
     /** Resolved dynamically from SDE */
-    public string $productTypeName;
+    public ?string $productTypeName;
 
     public ?string $name = null;
 
-    public string $displayName = '';
+    public ?string $displayName = null;
 
     public int $runs;
 
@@ -153,7 +153,7 @@ class ProjectResource
 
     public string $createdAt;
 
-    /** @var array<array{typeId: int, typeName: string, runs: int, meLevel: int|null, teLevel: int|null}> */
+    /** @var array<array{typeId: int, typeName: string|null, runs: int, meLevel: int|null, teLevel: int|null}> */
     public array $rootProducts = [];
 
     /** @var ProjectStepResource[] */

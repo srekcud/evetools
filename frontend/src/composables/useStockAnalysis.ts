@@ -1,4 +1,5 @@
 import { ref, computed, watch, type Ref } from 'vue'
+import { useTypeNames } from '@/composables/useTypeNames'
 import type { IndustryProject, ProductionTreeNode } from '@/stores/industry/types'
 import type { ShoppingListItem } from '@/stores/industry/types'
 
@@ -115,6 +116,7 @@ export function useStockAnalysis(
   toggleStepInStock: (projectId: string, stepId: string, qty: number) => Promise<void>,
   fetchProject: (id: string) => Promise<void>,
 ) {
+  const { typeNameLabel } = useTypeNames()
   const pastedStock = ref('')
   const parsedStock = ref<ParsedStockItem[]>([])
   const relevantStock = ref<RelevantStockItem[]>([])
@@ -202,8 +204,7 @@ export function useStockAnalysis(
       if (rootProductTypeIds.has(step.productTypeId)) continue
       if (step.purchased || step.inStock) continue
 
-      const key = step.productTypeName.toLowerCase()
-      const inStock = stockMap.get(key) ?? 0
+      const inStock = step.productTypeName === null ? 0 : stockMap.get(step.productTypeName.toLowerCase()) ?? 0
       const existing = intermediateMap.get(step.productTypeId)
 
       if (existing) {
@@ -219,7 +220,7 @@ export function useStockAnalysis(
           : 0
         intermediateMap.set(step.productTypeId, {
           typeId: step.productTypeId,
-          name: step.productTypeName,
+          name: typeNameLabel(step.productTypeName, step.productTypeId),
           inStock,
           needed: step.quantity,
           stepId: step.id,
@@ -418,7 +419,7 @@ export function useStockAnalysis(
     let cascadeTriggered = false
     for (const newItem of newItems) {
       const matchingStep = steps.find(
-        s => s.productTypeName.toLowerCase() === newItem.name.toLowerCase() &&
+        s => s.productTypeName?.toLowerCase() === newItem.name.toLowerCase() &&
           (s.activityType === 'manufacturing' || s.activityType === 'reaction') &&
           !rootProductTypeIds.has(s.productTypeId) &&
           s.depth > 0 &&

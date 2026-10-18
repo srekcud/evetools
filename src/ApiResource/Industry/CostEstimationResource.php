@@ -40,6 +40,6 @@ class CostEstimationResource
     /** @var array<array{typeId: int, typeName: string, quantity: int, unitPrice: float, totalPrice: float}> */
     public array $materials = [];
 
-    /** @var array<array{stepId: string, productTypeId: int, productName: string, solarSystemId: int, systemName: string, costIndex: float, runs: int, installCost: float}> */
+    /** @var array<array{stepId: string, productTypeId: int, productName: string|null, solarSystemId: int, systemName: string, costIndex: float, runs: int, installCost: float}> */
     public array $jobInstallSteps = [];
 }

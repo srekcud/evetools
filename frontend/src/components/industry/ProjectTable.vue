@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useIndustryStore, type IndustryProject } from '@/stores/industry'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import { useTypeNames } from '@/composables/useTypeNames'
 import { parseIskValue } from '@/composables/useIskParser'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
 
@@ -25,6 +26,7 @@ const emit = defineEmits<{
 const store = useIndustryStore()
 const { formatIsk } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
+const { typeNameLabel, projectDisplayName } = useTypeNames()
 
 // Computed for filtered projects based on activeOnly prop
 const displayedProjects = computed(() => {
@@ -55,7 +57,7 @@ function toggleSort(field: SortField) {
 
 function getSortValue(project: IndustryProject, field: SortField): number | string {
   switch (field) {
-    case 'name': return project.displayName.toLowerCase()
+    case 'name': return projectDisplayName(project).toLowerCase()
     case 'status': return project.status
     case 'runs': return project.runs
     case 'materials': return project.materialCost ?? project.estimatedMaterialCost ?? 0
@@ -234,8 +236,8 @@ function formatRootProducts(project: IndustryProject): string {
     const me = p.meLevel ?? project.meLevel
     const count = p.count ?? 1
     return count > 1
-      ? `${cleanTypeName(p.typeName)} ${count}x${p.runs / count} runs (ME${me})`
-      : `${cleanTypeName(p.typeName)} x${p.runs} (ME${me})`
+      ? `${cleanTypeName(typeNameLabel(p.typeName, p.typeId))} ${count}x${p.runs / count} runs (ME${me})`
+      : `${cleanTypeName(typeNameLabel(p.typeName, p.typeId))} x${p.runs} (ME${me})`
   }).join(', ')
 }
 </script>
@@ -312,7 +314,7 @@ function formatRootProducts(project: IndustryProject): string {
                   {{ rootStepCount(project) }}
                 </span>
                 <div>
-                  <span class="text-cyan-400 hover:text-cyan-300 font-medium">{{ project.displayName }}</span>
+                  <span class="text-cyan-400 hover:text-cyan-300 font-medium">{{ projectDisplayName(project) }}</span>
                   <div class="text-xs text-slate-500 mt-0.5">{{ formatRootProducts(project) }}</div>
                 </div>
               </template>
@@ -321,14 +323,14 @@ function formatRootProducts(project: IndustryProject): string {
                 <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0">
                   <img
                     :src="getTypeIconUrl(project.productTypeId, 64)"
-                    :alt="project.displayName"
+                    :alt="projectDisplayName(project)"
                     class="w-full h-full object-cover"
                     @error="onImageError"
                   />
                 </div>
                 <div class="flex items-center gap-2">
-                  <span class="text-cyan-400 hover:text-cyan-300 font-medium">{{ project.displayName }}</span>
-                  <span v-if="project.name" class="text-slate-500 text-xs">({{ project.productTypeName }})</span>
+                  <span class="text-cyan-400 hover:text-cyan-300 font-medium">{{ projectDisplayName(project) }}</span>
+                  <span v-if="project.name" class="text-slate-500 text-xs">({{ typeNameLabel(project.productTypeName, project.productTypeId) }})</span>
                   <span v-if="project.isT2" class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded">T2</span>
                 </div>
               </template>
@@ -608,7 +610,7 @@ function formatRootProducts(project: IndustryProject): string {
   <ConfirmModal
     :show="showDeleteModal && deleteTarget != null"
     :title="t('industry.project.confirmDelete')"
-    :subtitle="deleteTarget?.displayName"
+    :subtitle="deleteTarget ? projectDisplayName(deleteTarget) : undefined"
     :message="t('industry.project.confirmDeleteMessage')"
     :confirm-label="isDeleting ? t('common.actions.loading') : t('common.actions.delete')"
     :is-loading="isDeleting"

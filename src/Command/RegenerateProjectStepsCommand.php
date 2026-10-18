@@ -44,7 +44,7 @@ class RegenerateProjectStepsCommand extends Command
             return Command::FAILURE;
         }
 
-        $productName = $this->calculationService->getProjectDisplayName($project);
+        $productName = ConsoleProjectLabel::of($project, $this->calculationService->getProjectDisplayName($project));
         $io->info("Regenerating steps for: {$productName}");
 
         $oldCount = $project->getSteps()->count();

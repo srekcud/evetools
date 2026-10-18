@@ -22,7 +22,7 @@ class TypeNameResolver
 
     public function findName(int $typeId): ?string
     {
-        return $this->resolve($typeId);
+        return $this->invTypeRepository->find($typeId)?->getTypeName();
     }
 
     /**

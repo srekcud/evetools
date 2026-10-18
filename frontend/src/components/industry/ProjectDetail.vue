@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useIndustryStore } from '@/stores/industry'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import { useTypeNames } from '@/composables/useTypeNames'
 import { parseIskValue } from '@/composables/useIskParser'
 import { formatDuration, useProjectTime } from '@/composables/useProjectTime'
 import StepsTab from './StepsTab.vue'
@@ -24,6 +25,7 @@ const emit = defineEmits<{
 const store = useIndustryStore()
 const { formatIsk, formatDateTime } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
+const { typeNameLabel, projectDisplayName } = useTypeNames()
 
 const projectRef = computed(() => store.currentProject)
 const { estimatedProjectTime } = useProjectTime(projectRef)
@@ -62,7 +64,7 @@ function cancelProjectNameEdit() {
 const rootProducts = computed(() => {
   const steps = store.currentProject?.steps
   if (!steps || steps.length === 0) return []
-  const productMap = new Map<number, { typeId: number; typeName: string; runs: number; count: number }>()
+  const productMap = new Map<number, { typeId: number; typeName: string | null; runs: number; count: number }>()
   for (const step of steps) {
     if (step.depth === 0 && (step.activityType === 'manufacturing' || step.activityType === 'reaction')) {
       const existing = productMap.get(step.productTypeId)
@@ -182,7 +184,7 @@ onMounted(async () => {
               :src="getTypeIconUrl(product.typeId, 64)"
               class="w-14 h-14 rounded-lg border-2 border-slate-900"
               :style="{ zIndex: 10 - index }"
-              :title="product.typeName"
+              :title="typeNameLabel(product.typeName, product.typeId)"
               @error="onImageError"
             />
             <div
@@ -195,7 +197,7 @@ onMounted(async () => {
           <div>
             <div class="flex items-center gap-2">
               <h3 v-if="!editingProjectName" class="text-2xl font-bold text-slate-100">
-                {{ store.currentProject.displayName }}
+                {{ projectDisplayName(store.currentProject) }}
               </h3>
               <input
                 v-else
@@ -230,7 +232,7 @@ onMounted(async () => {
               >
                 {{ store.currentProject.status === 'completed' ? t('industry.stepStatus.completed') : t('common.status.active') }}
               </span>
-              <span v-if="store.currentProject.name" class="text-slate-400">{{ store.currentProject.productTypeName }}</span>
+              <span v-if="store.currentProject.name" class="text-slate-400">{{ typeNameLabel(store.currentProject.productTypeName, store.currentProject.productTypeId) }}</span>
               <span class="text-slate-400">{{ store.currentProject.runs }} run{{ store.currentProject.runs > 1 ? 's' : '' }} · ME {{ store.currentProject.meLevel }} · TE {{ store.currentProject.teLevel }}</span>
               <span v-if="estimatedProjectTime" class="text-cyan-400 font-mono">{{ formatDuration(estimatedProjectTime) }}</span>
               <!-- Jobs start date -->
@@ -254,7 +256,7 @@ onMounted(async () => {
                   :key="product.typeId"
                   class="text-slate-400"
                 >
-                  {{ product.typeName }}
+                  {{ typeNameLabel(product.typeName, product.typeId) }}
                   <span class="text-slate-500">
                     {{ product.count > 1 ? `${product.count} × ${product.runs / product.count} runs` : `×${product.runs}` }}
                   </span>

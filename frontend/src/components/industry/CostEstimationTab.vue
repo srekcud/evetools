@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useIndustryStore } from '@/stores/industry'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import { useTypeNames } from '@/composables/useTypeNames'
 import type { CostEstimation, CopyCosts } from '@/stores/industry/types'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
@@ -19,6 +20,7 @@ const { t } = useI18n()
 const store = useIndustryStore()
 const { formatIsk, formatIskFull, formatTimeSince } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
+const { typeNameLabel } = useTypeNames()
 
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -339,7 +341,7 @@ defineExpose({ activate, loadCostEstimation })
                       @error="onImageError"
                     />
                   </div>
-                  <span class="text-slate-200">{{ step.productName }}</span>
+                  <span class="text-slate-200">{{ typeNameLabel(step.productName, step.productTypeId) }}</span>
                 </div>
               </td>
               <td class="py-2.5 px-3">

@@ -3,6 +3,7 @@ import { computed, ref, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import { useTypeNames } from '@/composables/useTypeNames'
 import { formatDuration } from '@/composables/useProjectTime'
 import type { IndustryProjectStep, SimilarJob } from '@/stores/industry'
 
@@ -60,6 +61,7 @@ watch(() => props.steps, (newSteps) => {
 
 const { formatIsk } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
+const { typeNameLabel } = useTypeNames()
 
 // Calculate total duration for a step (timePerRun * runs)
 function stepTotalDuration(step: IndustryProjectStep): number | null {
@@ -190,7 +192,7 @@ const groupedSteps = computed<StepGroup[]>(() => {
 
       splitGroup = {
         splitGroupId: groupId,
-        productTypeName: step.productTypeName,
+        productTypeName: typeNameLabel(step.productTypeName, step.productTypeId),
         productTypeId: step.productTypeId,
         activityType: step.activityType,
         depth: step.depth,
@@ -622,7 +624,7 @@ function mergeGroup(stepId: string) {
               />
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 flex-wrap">
-                  <span class="font-medium text-slate-200">{{ step.productTypeName }}</span>
+                  <span class="font-medium text-slate-200">{{ typeNameLabel(step.productTypeName, step.productTypeId) }}</span>
                   <span class="text-xs text-slate-500">×{{ step.quantity.toLocaleString() }}</span>
                   <!-- Inline runs editing (disabled for ESI-linked steps and readonly mode) -->
                   <template v-if="!isLinkedToEsi(step) && !readonly">
@@ -846,7 +848,7 @@ function mergeGroup(stepId: string) {
               <!-- Delete button (hidden for ESI-linked steps and readonly mode) -->
               <button
                 v-if="!isLinkedToEsi(step) && !readonly"
-                @click.stop="deleteStep(step.id, step.productTypeName)"
+                @click.stop="deleteStep(step.id, typeNameLabel(step.productTypeName, step.productTypeId))"
                 class="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-700 rounded-sm"
                 :title="t('industry.stepTree.deleteStep')"
               >

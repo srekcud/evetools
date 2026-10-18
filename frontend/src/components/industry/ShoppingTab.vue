@@ -6,6 +6,7 @@ import { useSyncStore } from '@/stores/sync'
 import { usePurchasesStore } from '@/stores/industry/purchases'
 import { useFormatters } from '@/composables/useFormatters'
 import { useShoppingStockAnalysis } from '@/composables/useShoppingStockAnalysis'
+import { useTypeNames } from '@/composables/useTypeNames'
 import { apiRequest } from '@/services/api'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ShoppingConfigPanel from './shopping/ShoppingConfigPanel.vue'
@@ -49,6 +50,7 @@ const store = useIndustryStore()
 const syncStore = useSyncStore()
 const purchasesStore = usePurchasesStore()
 const { formatDateTime } = useFormatters()
+const { typeNameLabel } = useTypeNames()
 
 // Shopping list state
 const shoppingList = ref<ShoppingListItem[]>([])
@@ -237,8 +239,8 @@ const projectPurchases = computed<FlatPurchase[]>(() => {
         result.push({
           id: p.id,
           stepId: step.id,
-          stepName: step.productTypeName,
-          typeName: p.typeName,
+          stepName: typeNameLabel(step.productTypeName, step.productTypeId),
+          typeName: typeNameLabel(p.typeName, p.typeId),
           quantity: p.quantity,
           unitPrice: p.unitPrice,
           totalPrice: p.totalPrice,
@@ -255,16 +257,16 @@ const projectPurchasesTotalCost = computed(() =>
   projectPurchases.value.reduce((sum, p) => sum + p.totalPrice, 0),
 )
 
-function findStepForType(typeId: number): { id: string; name: string } | null {
+function findStepForType(typeId: number): { id: string } | null {
   if (!store.currentProject?.steps) return null
   for (const step of store.currentProject.steps) {
     if (step.depth > 0 && step.activityType !== 'copy' && step.productTypeId === typeId) {
-      return { id: step.id, name: step.productTypeName }
+      return { id: step.id }
     }
   }
   for (const step of store.currentProject.steps) {
     if (step.depth === 0 && step.activityType !== 'copy') {
-      return { id: step.id, name: step.productTypeName }
+      return { id: step.id }
     }
   }
   return null

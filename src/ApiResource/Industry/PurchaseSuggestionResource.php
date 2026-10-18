@@ -12,7 +12,7 @@ class PurchaseSuggestionResource
 
     public int $typeId;
 
-    public string $typeName;
+    public ?string $typeName;
 
     public int $quantity;
 

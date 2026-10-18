@@ -29,7 +29,7 @@ class AvailableJobResource
 
     public int $productTypeId;
 
-    public string $productTypeName;
+    public ?string $productTypeName;
 
     public int $runs;
 

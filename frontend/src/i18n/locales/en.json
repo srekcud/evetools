@@ -1,5 +1,6 @@
 {
   "common": {
+    "unknownTypeName": "Unknown name (#{typeId})",
     "actions": {
       "save": "Save",
       "cancel": "Cancel",

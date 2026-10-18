@@ -6,6 +6,7 @@ import { useSlotsStore } from '@/stores/industry/slots'
 import { useStockpileStore } from '@/stores/industry/stockpile'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import { useTypeNames } from '@/composables/useTypeNames'
 import type { IndustryProject } from '@/stores/industry/types'
 
 const { t } = useI18n()
@@ -14,6 +15,7 @@ const slotsStore = useSlotsStore()
 const stockpileStore = useStockpileStore()
 const { formatIsk } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
+const { projectDisplayName } = useTypeNames()
 
 const emit = defineEmits<{
   'view-project': [id: string]
@@ -194,7 +196,7 @@ const alerts = computed<DashboardAlert[]>(() => {
       id: `negative-profit-${project.id}`,
       type: 'orange',
       icon: 'info-circle',
-      title: t('industry.dashboard.alerts.negativeProfitTitle', { name: project.displayName }),
+      title: t('industry.dashboard.alerts.negativeProfitTitle', { name: projectDisplayName(project) }),
       description: t('industry.dashboard.alerts.negativeProfitDesc', {
         margin: project.profitPercent?.toFixed(1) ?? '0',
       }),
@@ -534,13 +536,13 @@ function cleanTypeName(name: string): string {
                 <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden">
                   <img
                     :src="getTypeIconUrl(project.productTypeId, 64)"
-                    :alt="project.displayName"
+                    :alt="projectDisplayName(project)"
                     class="w-full h-full object-cover"
                     @error="onImageError"
                   />
                 </div>
                 <span class="text-slate-100 font-medium group-hover:text-cyan-400 transition-colors">
-                  {{ cleanTypeName(project.displayName) }}
+                  {{ cleanTypeName(projectDisplayName(project)) }}
                 </span>
               </div>
             </td>

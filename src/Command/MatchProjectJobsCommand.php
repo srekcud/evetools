@@ -46,7 +46,7 @@ class MatchProjectJobsCommand extends Command
             return Command::FAILURE;
         }
 
-        $productName = $this->calculationService->getProjectDisplayName($project);
+        $productName = ConsoleProjectLabel::of($project, $this->calculationService->getProjectDisplayName($project));
         $io->info("Syncing ESI jobs for: {$productName}");
 
         // Sync jobs from ESI first

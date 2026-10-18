@@ -1,6 +1,7 @@
 import { ref, computed, watch } from 'vue'
 import type { Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useTypeNames } from '@/composables/useTypeNames'
 import { parseEveStock } from '@/composables/useStockAnalysis'
 import type { ParsedStockItem, IntermediateInStock, RelevantStockItem } from '@/composables/useStockAnalysis'
 import type { ShoppingListItem, ProductionTreeNode, IndustryProjectStep } from '@/stores/industry/types'
@@ -31,6 +32,7 @@ export function useShoppingStockAnalysis(
   loadShoppingList: () => Promise<void>,
 ) {
   const { t } = useI18n()
+  const { typeNameLabel } = useTypeNames()
 
   const pastedStock = ref('')
   const parsedStock = ref<ParsedStockItem[]>([])
@@ -100,8 +102,7 @@ export function useShoppingStockAnalysis(
       if (rootProductTypeIds.has(step.productTypeId)) continue
       if (step.purchased || step.inStock) continue
 
-      const key = step.productTypeName.toLowerCase()
-      const inStock = stockMap.get(key) ?? 0
+      const inStock = step.productTypeName === null ? 0 : stockMap.get(step.productTypeName.toLowerCase()) ?? 0
       const existing = intermediateMap.get(step.productTypeId)
 
       if (existing) {
@@ -123,7 +124,7 @@ export function useShoppingStockAnalysis(
 
         intermediateMap.set(step.productTypeId, {
           typeId: step.productTypeId,
-          name: step.productTypeName,
+          name: typeNameLabel(step.productTypeName, step.productTypeId),
           inStock,
           needed: step.quantity,
           stepId: step.id,
@@ -288,7 +289,7 @@ export function useShoppingStockAnalysis(
     let cascadeTriggered = false
     for (const newItem of newItems) {
       const matchingStep = allSteps.find(
-        s => s.productTypeName.toLowerCase() === newItem.name.toLowerCase() &&
+        s => s.productTypeName?.toLowerCase() === newItem.name.toLowerCase() &&
           (s.activityType === 'manufacturing' || s.activityType === 'reaction') &&
           !rootProductTypeIds.has(s.productTypeId) &&
           s.depth > 0 &&

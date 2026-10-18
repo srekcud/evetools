@@ -73,7 +73,7 @@ class ProductionCostService
     /**
      * Estimate job install costs for all manufacturing/reaction steps in the project.
      *
-     * @return array{total: float, steps: list<array{stepId: string, productTypeId: int, productName: string, solarSystemId: int, systemName: string, costIndex: float, runs: int, installCost: float}>}
+     * @return array{total: float, steps: list<array{stepId: string, productTypeId: int, productName: string|null, solarSystemId: int, systemName: string, costIndex: float, runs: int, installCost: float}>}
      */
     public function estimateJobInstallCosts(IndustryProject $project): array
     {
@@ -133,7 +133,7 @@ class ProductionCostService
     /**
      * Estimate the total production cost with full breakdown.
      *
-     * @return array{materialCost: float, jobInstallCost: float, bpoCost: float, totalCost: float, perUnit: float, materials: list<array{typeId: int, typeName: string, quantity: int, unitPrice: float, totalPrice: float}>, jobInstallSteps: list<array{stepId: string, productTypeId: int, productName: string, solarSystemId: int, systemName: string, costIndex: float, runs: int, installCost: float}>}
+     * @return array{materialCost: float, jobInstallCost: float, bpoCost: float, totalCost: float, perUnit: float, materials: list<array{typeId: int, typeName: string, quantity: int, unitPrice: float, totalPrice: float}>, jobInstallSteps: list<array{stepId: string, productTypeId: int, productName: string|null, solarSystemId: int, systemName: string, costIndex: float, runs: int, installCost: float}>}
      */
     public function estimateTotalCost(IndustryProject $project): array
     {

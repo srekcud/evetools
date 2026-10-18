@@ -200,12 +200,12 @@ class IndustryResourceMapper
             $resource->displayName = $project->getName();
         } elseif (count($rootProductsByType) === 1) {
             $info = array_values($rootProductsByType)[0];
-            $resource->displayName = $info['count'] > 1
+            $resource->displayName = $info['count'] > 1 && $info['typeName'] !== null
                 ? $info['typeName'] . ' ×' . $info['count']
                 : $info['typeName'];
         } elseif (count($rootProductsByType) > 1) {
-            $names = array_map(fn ($p) => $p['typeName'], array_values($rootProductsByType));
-            $resource->displayName = implode(' + ', $names);
+            $names = array_column($rootProductsByType, 'typeName');
+            $resource->displayName = in_array(null, $names, true) ? null : implode(' + ', $names);
         } else {
             $resource->displayName = $this->calculationService->getProjectDisplayName($project);
         }
