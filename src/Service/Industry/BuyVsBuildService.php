@@ -70,7 +70,8 @@ class BuyVsBuildService
 
         // Collect all buildable intermediate components from the tree
         $components = [];
-        $this->collectBuildableComponents($tree, $components, $solarSystemId);
+        $reactionSolarSystemId ??= $solarSystemId;
+        $this->collectBuildableComponents($tree, $components, $solarSystemId, $reactionSolarSystemId);
 
         // Collect all type IDs for batch pricing
         $allTypeIds = [$typeId];
@@ -213,7 +214,7 @@ class BuyVsBuildService
         $finalJobCost = $this->esiCostIndexService->calculateJobInstallCost(
             $finalEiv,
             $runs,
-            $solarSystemId,
+            $tree['activityType'] === 'reaction' ? $reactionSolarSystemId : $solarSystemId,
             $tree['activityType'],
         );
 
@@ -253,7 +254,7 @@ class BuyVsBuildService
      * @param array<string, mixed> $node
      * @param list<array{typeId: int, quantity: int, materials: list<array{materialTypeId: int, adjustedQuantity: int}>, materialTypeIds: list<int>, jobInstallCost: float, stage: string, meLevel: int, runs: int}> $components
      */
-    private function collectBuildableComponents(array $node, array &$components, int $solarSystemId): void
+    private function collectBuildableComponents(array $node, array &$components, int $solarSystemId, int $reactionSolarSystemId): void
     {
         foreach ($node['materials'] as $material) {
             if (!($material['isBuildable'] ?? false) || !isset($material['blueprint'])) {
@@ -289,7 +290,7 @@ class BuyVsBuildService
             $jobInstallCost = $this->esiCostIndexService->calculateJobInstallCost(
                 $compEiv,
                 $compRuns,
-                $solarSystemId,
+                $activityType === 'reaction' ? $reactionSolarSystemId : $solarSystemId,
                 $activityType,
             );
 

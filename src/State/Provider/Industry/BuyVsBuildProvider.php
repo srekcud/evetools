@@ -62,6 +62,9 @@ class BuyVsBuildProvider implements ProviderInterface
         $solarSystemId = $solarSystemIdParam !== null
             ? (int) $solarSystemIdParam
             : ($settings?->getFavoriteManufacturingSystemId() ?? EveConstants::JITA_SOLAR_SYSTEM_ID);
+        $reactionSolarSystemId = $solarSystemIdParam !== null
+            ? $solarSystemId
+            : ($settings?->getFavoriteReactionSystemId() ?? $solarSystemId);
 
         $result = $this->buyVsBuildService->analyze(
             $typeId,
@@ -72,6 +75,7 @@ class BuyVsBuildProvider implements ProviderInterface
             $brokerFeeRate,
             $salesTaxRate,
             $user,
+            $reactionSolarSystemId,
         );
 
         $resource = $this->mapToResource($result);
