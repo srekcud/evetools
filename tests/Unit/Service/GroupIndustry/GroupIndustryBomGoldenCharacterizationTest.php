@@ -33,6 +33,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -325,34 +326,86 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         );
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux (aucune issue connue) : un produit demandé à la fois comme
-    // item du projet et comme intermédiaire d'un autre item partage une seule ligne de job. Hail L passe en premier :
-    // la Fernite Carbide garde le groupe « component » et le parent Hail L, le run saisi s'ajoute au run de
-    // l'intermédiaire, et le projet n'a plus qu'un seul job « final ». Les deux arbres sont aplatis sans
-    // agrégation de la demande (#69) : 6 runs de Hydrogen Fuel Block et 2 de Fernite Alloy.
-    public function testProjectItemAlsoNeededAsAnIntermediateCurrentlyLosesItsFinalJobGroup(): void
+    #[Group('issue-106')]
+    #[Group('issue-69')]
+    public function testProjectItemAlsoNeededAsAnIntermediateKeepsItsFinalJobNextToTheIntermediateJobAndCurrentlyFlattensBothTreesIssue69(): void
     {
         $project = $this->projectOf([[self::HAIL_L, 1, 2, 4], [self::FERNITE_CARBIDE, 1, 0, 0]]);
 
         $this->service->buildBom($project, $this->owner);
 
         self::assertSame(
-            [[self::FERNITE_CARBIDE, 'reaction', 'component', 2, 0, 0, 2, self::HAIL_L]],
-            $this->jobsOfType($project, self::FERNITE_CARBIDE),
+            [
+                [self::FERNITE_CARBIDE, 'reaction', 'component', 1, 0, 0, 1, self::HAIL_L],
+                [self::FERNITE_CARBIDE, 'reaction', 'final', 1, 0, 0, 1, null],
+            ],
+            $this->sortedJobs($this->jobsOfType($project, self::FERNITE_CARBIDE)),
         );
-        self::assertSame(
-            [self::HAIL_L],
-            array_values(array_map(
-                static fn (GroupIndustryBomItem $bomItem): int => $bomItem->getTypeId(),
-                array_filter($this->jobBomItems($project), static fn (GroupIndustryBomItem $bomItem): bool => $bomItem->getJobGroup() === 'final'),
-            )),
-        );
+        self::assertSame([self::HAIL_L, self::FERNITE_CARBIDE], $this->finalJobTypeIds($project));
         self::assertSame([6, 6, 2], [
             $this->jobsOf($project, self::HYDROGEN_FUEL_BLOCK, 'manufacturing')[0]->getRuns(),
             $this->jobsOf($project, self::HYDROGEN_FUEL_BLOCK, 'copy')[0]->getRuns(),
             $this->jobsOf($project, self::FERNITE_ALLOY, 'reaction')[0]->getRuns(),
         ]);
         self::assertSame(2430, $this->materials($project)[17889]);
+    }
+
+    #[Group('issue-106')]
+    public function testOrderOfTheProjectItemsLeavesTheJobsAndMaterialsOfTheBomUnchanged(): void
+    {
+        $intermediateFirstProject = $this->projectOf([[self::HAIL_L, 1, 2, 4], [self::FERNITE_CARBIDE, 1, 0, 0]]);
+        $projectItemFirstProject = $this->projectOf([[self::FERNITE_CARBIDE, 1, 0, 0], [self::HAIL_L, 1, 2, 4]]);
+
+        $this->service->buildBom($intermediateFirstProject, $this->owner);
+        $this->service->buildBom($projectItemFirstProject, $this->owner);
+
+        self::assertSame(
+            $this->sortedJobs($this->jobs($intermediateFirstProject)),
+            $this->sortedJobs($this->jobs($projectItemFirstProject)),
+        );
+        $intermediateFirstMaterials = $this->materials($intermediateFirstProject);
+        $projectItemFirstMaterials = $this->materials($projectItemFirstProject);
+        ksort($intermediateFirstMaterials);
+        ksort($projectItemFirstMaterials);
+        self::assertSame($intermediateFirstMaterials, $projectItemFirstMaterials);
+    }
+
+    #[Group('issue-106')]
+    public function testManufacturedProjectItemAlsoNeededAsAnIntermediateKeepsItsFinalJobNextToTheIntermediateJob(): void
+    {
+        $project = $this->projectOf([[self::HAIL_L, 1, 2, 4], [self::NITROGEN_FUEL_BLOCK, 1, 10, 20]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [
+                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'component', 2, 10, 20, 2, self::FULLERIDES],
+                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 0, 0, 1, null],
+            ],
+            $this->sortedJobs(array_values(array_filter(
+                $this->jobsOfType($project, self::NITROGEN_FUEL_BLOCK),
+                static fn (array $job): bool => $job[1] === 'manufacturing',
+            ))),
+        );
+    }
+
+    #[Group('issue-106')]
+    public function testProjectItemAlsoNeededAsAnIntermediateKeepsTheMaterialsOfBothTrees(): void
+    {
+        $project = $this->projectOf([[self::HAIL_L, 1, 2, 4], [self::FERNITE_CARBIDE, 1, 0, 0]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        $materials = $this->materials($project);
+        ksort($materials);
+        self::assertSame(
+            [
+                34 => 501, 35 => 400, 36 => 200, 37 => 74, 38 => 33, 44 => 36, 3683 => 180, 3689 => 36, 9832 => 81, 9848 => 9,
+                11399 => 15, 16272 => 1377, 16273 => 2835, 16274 => 405, 16275 => 162, 16633 => 100, 16635 => 200,
+                16636 => 300, 16639 => 200, 16642 => 200, 16644 => 100, 16649 => 100, 17888 => 810, 17889 => 2430,
+            ],
+            $materials,
+        );
     }
 
     public function testBlacklistedIntermediateBecomesAMaterialOfTheBom(): void
@@ -664,6 +717,24 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     private function jobsOfType(GroupIndustryProject $project, int $typeId): array
     {
         return array_values(array_filter($this->jobs($project), static fn (array $job): bool => $job[0] === $typeId));
+    }
+
+    private function sortedJobs(array $jobs): array
+    {
+        usort($jobs, static fn (array $left, array $right): int => $left <=> $right);
+
+        return $jobs;
+    }
+
+    private function finalJobTypeIds(GroupIndustryProject $project): array
+    {
+        $finalJobTypeIds = array_values(array_map(
+            static fn (GroupIndustryBomItem $bomItem): int => $bomItem->getTypeId(),
+            array_filter($this->jobBomItems($project), static fn (GroupIndustryBomItem $bomItem): bool => $bomItem->getJobGroup() === 'final'),
+        ));
+        sort($finalJobTypeIds);
+
+        return $finalJobTypeIds;
     }
 
     /** @return list<GroupIndustryBomItem> */
