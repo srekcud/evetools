@@ -648,6 +648,28 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
         self::assertSame([], $shoppingList->missingVolumeTypeIds);
     }
 
+    public function testPricedShoppingListReportsNoFailedProductWhenEveryRootProductIsBuilt(): void
+    {
+        $shoppingList = $this->provideShoppingList();
+
+        self::assertSame([], $shoppingList->failedProducts);
+    }
+
+    public function testPricedShoppingListReportsTheRootProductWithoutBlueprintNextToTheMaterialsOfTheOtherProduct(): void
+    {
+        self::addStep($this->project, self::ROBOTICS, 3, 0, 'manufacturing');
+
+        $shoppingList = $this->provideShoppingList();
+
+        self::assertSame(
+            [['typeId' => self::ROBOTICS, 'reason' => 'No blueprint or reaction found for product type ID 9848']],
+            $shoppingList->failedProducts,
+        );
+        self::assertSame(self::LISTED_TYPE_IDS, array_map(static fn (ShoppingListMaterialResource $material): int => $material->typeId, $shoppingList->materials));
+        self::assertSame(self::ISOTOPES_QUANTITY, $this->materialOf($shoppingList, self::NITROGEN_ISOTOPES)->quantity);
+        self::assertSame(1, $this->materialOf($shoppingList, self::ROBOTICS)->quantity);
+    }
+
     private function assertIsotopesImportIsUnknownWithAJitaPriceOfFiveHundredOnly(ShoppingListResource $shoppingList): void
     {
         $isotopesJitaTotal = self::ISOTOPES_QUANTITY * 500.0;

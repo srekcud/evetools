@@ -47,6 +47,8 @@ trait BuildsShoppingListOnGoldenSde
     /** @var list<IndustryStructureConfig> */
     private array $pilotStructures = [];
 
+    private array $typeIdsMissingFromSde = [];
+
     private function shoppingListBuilderOnGoldenSde(): IndustryShoppingListBuilder
     {
         $recipes = self::goldenRecipes();
@@ -54,7 +56,9 @@ trait BuildsShoppingListOnGoldenSde
 
         $invTypeRepository = $this->createStub(InvTypeRepository::class);
         $invTypeRepository->method('find')->willReturnCallback(
-            static fn (int $typeId): ?InvType => isset($typeNames[$typeId]) ? self::invType($typeId, $typeNames[$typeId]) : null,
+            fn (int $typeId): ?InvType => isset($typeNames[$typeId]) && !\in_array($typeId, $this->typeIdsMissingFromSde, true)
+                ? self::invType($typeId, $typeNames[$typeId])
+                : null,
         );
 
         $activityProductRepository = $this->createStub(IndustryActivityProductRepository::class);

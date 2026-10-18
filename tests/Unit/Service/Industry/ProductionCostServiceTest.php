@@ -122,9 +122,12 @@ class ProductionCostServiceTest extends TestCase
         $this->shoppingListBuilder
             ->method('getShoppingList')
             ->willReturn([
-                ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 250000],
-                ['typeId' => 35, 'typeName' => 'Pyerite', 'quantity' => 50000],
-                ['typeId' => 36, 'typeName' => 'Mexallon', 'quantity' => 10000],
+                'materials' => [
+                    ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 250000],
+                    ['typeId' => 35, 'typeName' => 'Pyerite', 'quantity' => 50000],
+                    ['typeId' => 36, 'typeName' => 'Mexallon', 'quantity' => 10000],
+                ],
+                'failedProducts' => [],
             ]);
 
         $this->jitaMarketService
@@ -153,8 +156,11 @@ class ProductionCostServiceTest extends TestCase
         $this->shoppingListBuilder
             ->method('getShoppingList')
             ->willReturn([
-                ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 1000],
-                ['typeId' => 99999, 'typeName' => 'Unknown Material', 'quantity' => 500],
+                'materials' => [
+                    ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 1000],
+                    ['typeId' => 99999, 'typeName' => 'Unknown Material', 'quantity' => 500],
+                ],
+                'failedProducts' => [],
             ]);
 
         // typeId 99999 has no price (returns null, getPricesWithFallback returns 0.0 as default)
@@ -176,13 +182,35 @@ class ProductionCostServiceTest extends TestCase
     {
         $project = $this->createProject(587, 1);
 
-        $this->shoppingListBuilder->method('getShoppingList')->willReturn([]);
+        $this->shoppingListBuilder->method('getShoppingList')->willReturn(['materials' => [], 'failedProducts' => []]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([]);
 
         $result = $this->service->estimateMaterialCost($project);
 
         $this->assertSame(0.0, $result['total']);
         $this->assertCount(0, $result['items']);
+    }
+
+    public function testEstimateMaterialCostLeavesTheFailedProductsOfTheShoppingListOutOfTheCost(): void
+    {
+        $project = $this->createProject(587, 2);
+
+        $this->shoppingListBuilder->method('getShoppingList')->willReturn([
+            'materials' => [
+                ['typeId' => 35, 'typeName' => 'Pyerite', 'quantity' => 1200],
+            ],
+            'failedProducts' => [
+                ['typeId' => 9848, 'reason' => 'No blueprint or reaction found for product type ID 9848'],
+            ],
+        ]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturnCallback(
+            static fn (array $typeIds): array => array_intersect_key([35 => 7.25, 9848 => 3100.0], array_flip($typeIds)),
+        );
+
+        $result = $this->service->estimateMaterialCost($project);
+
+        $this->assertSame(8700.0, $result['total']);
+        $this->assertSame([35], array_column($result['items'], 'typeId'));
     }
 
     // ===========================================
@@ -330,7 +358,10 @@ class ProductionCostServiceTest extends TestCase
 
         // Material cost
         $this->shoppingListBuilder->method('getShoppingList')->willReturn([
-            ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 100000],
+            'materials' => [
+                ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 100000],
+            ],
+            'failedProducts' => [],
         ]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 5.0]);
 
@@ -377,7 +408,10 @@ class ProductionCostServiceTest extends TestCase
         $project->method('getSteps')->willReturn(new ArrayCollection([$step]));
 
         $this->shoppingListBuilder->method('getShoppingList')->willReturn([
-            ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 5000],
+            'materials' => [
+                ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 5000],
+            ],
+            'failedProducts' => [],
         ]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 10.0]);
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([]);
@@ -411,7 +445,7 @@ class ProductionCostServiceTest extends TestCase
         $project = $this->createProject(587, 1, null);
         $project->method('getSteps')->willReturn(new ArrayCollection([$step]));
 
-        $this->shoppingListBuilder->method('getShoppingList')->willReturn([]);
+        $this->shoppingListBuilder->method('getShoppingList')->willReturn(['materials' => [], 'failedProducts' => []]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([]);
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([]);
         $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
