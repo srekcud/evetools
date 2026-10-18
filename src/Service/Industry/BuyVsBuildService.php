@@ -349,12 +349,12 @@ class BuyVsBuildService
             return 'Reaction';
         }
 
-        $depth = (int) ($blueprint['depth'] ?? 0);
-
-        if ($depth >= 2) {
-            return 'T1 Component';
+        foreach ($blueprint['materials'] as $material) {
+            if (isset($material['blueprint']) && $material['blueprint']['activityType'] === 'reaction') {
+                return 'T2 Component';
+            }
         }
 
-        return 'T2 Component';
+        return 'T1 Component';
     }
 }
