@@ -98,6 +98,8 @@ class GroupIndustryProjectService
                 $materialAggregation,
                 $jobAggregation,
                 parentTypeId: null,
+                itemMeLevel: $item->getMeLevel(),
+                itemTeLevel: $item->getTeLevel(),
             );
         }
 
@@ -151,6 +153,8 @@ class GroupIndustryProjectService
         array &$materialAggregation,
         array &$jobAggregation,
         ?int $parentTypeId,
+        int $itemMeLevel,
+        int $itemTeLevel,
     ): void {
         $productTypeId = $tree['productTypeId'];
         $blueprintTypeId = $tree['blueprintTypeId'];
@@ -160,24 +164,32 @@ class GroupIndustryProjectService
         // Determine job group based on depth
         $jobGroup = $depth === 0 ? 'final' : 'component';
 
+        if ($activityType === 'reaction') {
+            $meLevel = 0;
+            $teLevel = 0;
+        } elseif ($depth === 0) {
+            $meLevel = $itemMeLevel;
+            $teLevel = $itemTeLevel;
+        } else {
+            $meLevel = 10;
+            $teLevel = 20;
+        }
+
         // Register this node as a job
         $jobKey = $productTypeId . ':' . $activityType . ':' . $jobGroup;
+        if ($depth === 0) {
+            $jobKey .= ':' . $meLevel . ':' . $teLevel;
+        }
         if (isset($jobAggregation[$jobKey])) {
             // Aggregate runs for the same product + activity
             $jobAggregation[$jobKey]['runs'] += $tree['runs'];
         } else {
-            $meLevel = $tree['depth'] === 0 ? 0 : 10;
-            // Reactions have no ME
-            if ($activityType === 'reaction') {
-                $meLevel = 0;
-            }
-
             $jobAggregation[$jobKey] = [
                 'typeId' => $productTypeId,
                 'typeName' => $tree['productTypeName'],
                 'runs' => $tree['runs'],
                 'meLevel' => $meLevel,
-                'teLevel' => $depth === 0 ? 0 : ($activityType === 'reaction' ? 0 : 20),
+                'teLevel' => $teLevel,
                 'activityType' => $activityType,
                 'jobGroup' => $jobGroup,
                 'parentTypeId' => $parentTypeId,
@@ -216,6 +228,8 @@ class GroupIndustryProjectService
                     $materialAggregation,
                     $jobAggregation,
                     parentTypeId: $productTypeId,
+                    itemMeLevel: $itemMeLevel,
+                    itemTeLevel: $itemTeLevel,
                 );
             } else {
                 // Leaf material: aggregate by typeId
