@@ -38,4 +38,7 @@ class AppraisalResultResource
     public array $totals = [];
 
     public ?string $priceError = null;
+
+    /** @var list<int> */
+    public array $missingVolumeTypeIds = [];
 }
