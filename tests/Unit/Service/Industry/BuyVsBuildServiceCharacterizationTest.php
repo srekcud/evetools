@@ -68,6 +68,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
     // ===========================================
 
     #[Group('issue-101')]
+    #[Group('issue-98')]
     public function testHailLTenRunsCurrentlyWrongBuildsTheTreeForOneRunButSellsTenRuns(): void
     {
         $result = $this->analyzeHailL($this->hailLJitaPrices(), runs: 10);
@@ -76,15 +77,15 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
         // buildProductionTree() reads the 10 runs as 10 units: ceil(10 / 5000) = 1 run. Materials are those of one run
         // (Fernite Carbide 2940 = ceil(3000 × 0.98) instead of 29400 for 10 runs), while the revenue counts
         // 10 runs × 5000 units and the final job install cost counts 10 runs.
-        // totalProductionCost = optimal mix 346800 + root leaves 0 (see the root leaf test) + final job 307000 × 10 × 0.05.
+        // totalProductionCost = optimal mix 346800 + root leaf Morphite 15 × 10000 + final job 307000 × 10 × 0.05.
         $this->assertSame([
             'typeId' => self::HAIL_L,
             'typeName' => 'Hail L',
             'isT2' => true,
             'runs' => 10,
-            'totalProductionCost' => 500300.0,
+            'totalProductionCost' => 650300.0,
             'sellPrice' => 500.0,
-            'marginPercent' => 4522.23,
+            'marginPercent' => 3456.05,
             'components' => [
                 [
                     'typeId' => self::FERNITE_CARBIDE,
@@ -232,6 +233,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
         }
     }
 
+    #[Group('issue-98')]
     public function testZeroStructureSellPriceCurrentlyWrongHidesTheJitaPriceAndLeavesTheMarginUnknown(): void
     {
         $result = $this->analyzeHailL($this->hailLJitaPrices(), productStructurePrice: 0.0);
@@ -240,9 +242,10 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
         // A structure sell price of 0 is taken as a real price: the Jita price (500) is ignored and the margin is unknown.
         $this->assertSame(0.0, $result['sellPrice']);
         $this->assertNull($result['marginPercent']);
-        $this->assertSame(362150.0, $result['totalProductionCost']);
+        $this->assertSame(512150.0, $result['totalProductionCost']);
     }
 
+    #[Group('issue-98')]
     public function testPricesAndCostsAreRoundedToTwoDecimals(): void
     {
         $jitaPrices = [
@@ -271,18 +274,19 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
         $this->assertSame(176397.94, $ferniteCarbide['buyCostStructure']);
         $this->assertSame(9597.94, $ferniteCarbide['savings']);
         $this->assertSame(500.12, $result['sellPrice']);
-        $this->assertSame(367150.02, $result['totalProductionCost']);
+        $this->assertSame(517150.02, $result['totalProductionCost']);
         $this->assertSame(374806.51, $result['buildAllCost']);
         $this->assertSame(206397.96, $result['buyAllCost']);
         $this->assertSame(351800.02, $result['optimalMixCost']);
-        $this->assertSame(530.01, $result['marginPercent']);
+        $this->assertSame(347.27, $result['marginPercent']);
     }
 
     // ===========================================
     // Nitrogen Fuel Block: 40 units per run, no intermediate
     // ===========================================
 
-    public function testRootLeavesCurrentlyWrongAreNeverPricedSoNitrogenFuelBlockCostsNothing(): void
+    #[Group('issue-98')]
+    public function testRootLeavesArePricedAtJitaSoNitrogenFuelBlockCostsItsMaterials(): void
     {
         $service = $this->buyVsBuildServiceOnGoldenSde(
             jitaPrices: [self::NITROGEN_FUEL_BLOCK => 14000.0] + $this->fuelBlockInputJitaPrices(),
@@ -293,18 +297,14 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
 
         $result = $service->analyze(self::NITROGEN_FUEL_BLOCK, 1, 10, self::UNINDEXED_SYSTEM_ID, self::SELL_STRUCTURE_ID, 0.01, 0.02, null);
 
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issues #8 et #7 (R10), sans issue dédiée.
-        // The Jita batch only asks for the product, the components and their build materials: the leaves of the
-        // root job (here every input of the fuel block) get no price and cost 0, although Jita prices them.
-        // The system has no cost index: final job install cost 0. Total 0, so the margin is unknown.
         $this->assertSame([
             'typeId' => self::NITROGEN_FUEL_BLOCK,
             'typeName' => 'Nitrogen Fuel Block',
             'isT2' => false,
             'runs' => 1,
-            'totalProductionCost' => 0.0,
+            'totalProductionCost' => 36295.0,
             'sellPrice' => 15000.0,
-            'marginPercent' => null,
+            'marginPercent' => 1503.53,
             'components' => [],
             'buildAllCost' => 0.0,
             'buyAllCost' => 0.0,
@@ -314,15 +314,13 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
         ], $result);
     }
 
-    public function testRootLeafCurrentlyWrongIsFreeWhenNoComponentConsumesIt(): void
+    #[Group('issue-98')]
+    public function testRootLeafIsPricedAtJitaWhenNoComponentConsumesIt(): void
     {
         $result = $this->analyzeHailL($this->hailLJitaPrices());
 
-        // CARACTÉRISATION : comportement actuel, suspecté faux, sans issue dédiée (proche de #8).
-        // Morphite (15 units, 10000 ISK at Jita) is a leaf of the root job: it adds 0 instead of 150000.
-        // totalProductionCost = optimal mix 346800 + final job 307000 × 1 run × 0.05.
         $this->assertSame(346800.0, $result['optimalMixCost']);
-        $this->assertSame(362150.0, $result['totalProductionCost']);
+        $this->assertSame(512150.0, $result['totalProductionCost']);
     }
 
     // ===========================================

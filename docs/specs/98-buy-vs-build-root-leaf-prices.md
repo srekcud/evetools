@@ -30,6 +30,7 @@
 
 - `BuyVsBuildServiceCharacterizationTest::testRootLeavesCurrentlyWrongAreNeverPricedSoNitrogenFuelBlockCostsNothing` : remplacé par E1.
 - `BuyVsBuildServiceCharacterizationTest::testRootLeafCurrentlyWrongIsFreeWhenNoComponentConsumesIt` : remplacé par E2.
+- Hail L 10 runs (650 300), prix de vente structure à 0 (512 150) et arrondis (517 150,02) : la Morphite du job final y est désormais comptée.
 
 ## Décision prise en autonomie
 
