@@ -22,6 +22,7 @@ class EsiClient
     private const DEFAULT_CACHE_TTL_SECONDS = 300;
     private const REVALIDATION_TTL_SECONDS = 7 * 24 * 3600;
     private const VERSION_SEGMENT = '/latest';
+    private const CURSOR_PAGE_LIMIT = 100;
 
     private int $errorLimitRemain = 100;
     private int $errorLimitReset = 0;
@@ -70,6 +71,33 @@ class EsiClient
         } catch (TransportExceptionInterface $e) {
             throw EsiApiException::fromResponse(0, 'Network error: ' . $e->getMessage(), $endpoint);
         }
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function getUnversionedCursorPaginated(string $endpoint, ?EveToken $token, string $compatibilityDate, string $recordsKey): array
+    {
+        $firstPageEndpoint = $endpoint . (str_contains($endpoint, '?') ? '&' : '?') . 'limit=' . self::CURSOR_PAGE_LIMIT;
+        $recordsById = [];
+        $pageEndpoint = $firstPageEndpoint;
+
+        do {
+            $page = $this->getUnversioned($pageEndpoint, $token, $compatibilityDate);
+            if (!array_key_exists($recordsKey, $page)) {
+                throw new \UnexpectedValueException("ESI cursor page {$pageEndpoint} has no '{$recordsKey}' list");
+            }
+            $records = $page[$recordsKey];
+
+            foreach ($records as $record) {
+                $recordsById[$record['id']] ??= $record;
+            }
+
+            $before = $page['cursor']['before'] ?? null;
+            $pageEndpoint = $firstPageEndpoint . '&before=' . $before;
+        } while ($records !== [] && $before !== null);
+
+        return array_values($recordsById);
     }
 
     /**

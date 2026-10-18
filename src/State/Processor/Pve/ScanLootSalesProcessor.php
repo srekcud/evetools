@@ -297,19 +297,11 @@ class ScanLootSalesProcessor implements ProcessorInterface
 
                 $this->logger->info('Corp projects: Found ' . count($projects) . ' projects for corp ' . $corporationId);
 
-                // Check active projects AND recently completed projects (last 7 days)
-                $oneWeekAgo = new \DateTimeImmutable('-7 days');
-                $relevantProjects = array_filter($projects, function($p) use ($oneWeekAgo) {
-                    $state = $p['state'] ?? '';
-                    if ($state === 'Active') {
-                        return true;
-                    }
-                    if ($state === 'Completed') {
-                        $completedAt = isset($p['completed_at']) ? new \DateTimeImmutable($p['completed_at']) : null;
-                        return $completedAt !== null && $completedAt >= $oneWeekAgo;
-                    }
-                    return false;
-                });
+                $relevantProjects = array_filter(
+                    $projects,
+                    static fn (array $project): bool => $project['state'] !== 'Deleted'
+                        && new \DateTimeImmutable($project['last_modified']) >= $from,
+                );
 
                 // Build list of user's character IDs in this corporation
                 $userCharacterIds = [];
@@ -460,12 +452,12 @@ class ScanLootSalesProcessor implements ProcessorInterface
             return $cacheItem->get();
         }
 
-        $response = $this->esiClient->getUnversioned(
-            "/corporations/{$corporationId}/projects",
+        $projects = $this->esiClient->getUnversionedCursorPaginated(
+            "/corporations/{$corporationId}/projects?state=All",
             $token,
             self::CORP_PROJECTS_COMPATIBILITY_DATE,
+            'projects',
         );
-        $projects = $response['projects'] ?? [];
 
         $cacheItem->set($projects);
         $cacheItem->expiresAfter(self::CACHE_TTL_PROJECTS);
@@ -489,12 +481,12 @@ class ScanLootSalesProcessor implements ProcessorInterface
             return $cacheItem->get();
         }
 
-        $contributorsResponse = $this->esiClient->getUnversioned(
+        $contributors = $this->esiClient->getUnversionedCursorPaginated(
             "/corporations/{$corporationId}/projects/{$projectId}/contributors",
             $token,
             self::CORP_PROJECTS_COMPATIBILITY_DATE,
+            'contributors',
         );
-        $contributors = $contributorsResponse['contributors'] ?? [];
 
         $contributorIds = array_map(fn($c) => $c['character_id'] ?? $c['id'] ?? 0, $contributors);
 
