@@ -21,6 +21,7 @@ use App\Service\Industry\IndustryTreeService;
 use App\Service\JitaMarketService;
 use App\Tests\Integration\IntegrationTestCase;
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Characterization of the group BOM written to the database by createProject() and buildBom(), before
@@ -86,10 +87,9 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
         );
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issues #2 et #23 : les 25 runs saisis sont persistés
-    // sur l'item du projet, mais la BOM est celle d'un seul run (ceil(25 / 40) = 1) et le job final est enregistré
-    // en ME 0 / TE 0 au lieu du ME 10 / TE 20 saisi.
-    public function testCreatedProjectCurrentlyPersistsTheBomOfOneRunForTwentyFiveRunsOfNitrogenFuelBlockIssues2And23(): void
+    #[Group('issue-2')]
+    #[Group('issue-23')]
+    public function testCreatedProjectCurrentlyPersistsTheBomOfOneRunForTwentyFiveRunsOfNitrogenFuelBlockIssue2(): void
     {
         $projectId = (string) $this->createNitrogenFuelBlockProject(runs: 25, meLevel: 10, teLevel: 20)->getId();
         $this->em->clear();
@@ -106,7 +106,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
                 [16275, 'Strontium Clathrates', 18, 0, null, false, null, null, null, null, null, null],
                 [17888, 'Nitrogen Isotopes', 405, 0, 512.5, false, null, null, null, null, null, null],
                 [4051, 'Nitrogen Fuel Block', 1, 0, null, true, 'blueprint', 'copy', null, 0, 0, 1],
-                [4051, 'Nitrogen Fuel Block', 40, 0, null, true, 'final', 'manufacturing', null, 0, 0, 1],
+                [4051, 'Nitrogen Fuel Block', 40, 0, null, true, 'final', 'manufacturing', null, 10, 20, 1],
             ],
             $this->persistedBomRows($projectId),
         );

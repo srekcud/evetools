@@ -167,25 +167,40 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         self::assertCount(11, $project->getBomItems());
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #23 : le job final est forcé en ME 0 / TE 0
-    // (GroupIndustryProjectService.php:167, :178) alors que le ME saisi (10) a servi au calcul des matériaux
-    // (Nitrogen Isotopes 405 = ceil(450 × 0.9)). Le TE saisi (20) n'est lu nulle part.
-    public function testFinalJobCurrentlyIgnoresTheMeAndTeOfTheProjectItemIssue23(): void
+    #[Group('issue-23')]
+    public function testFinalManufacturingJobCarriesTheMeAndTeOfTheProjectItem(): void
     {
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 10, 20]]);
 
         $this->service->buildBom($project, $this->owner);
 
-        $finalJob = $this->jobBomItems($project)[0];
-        self::assertSame('final', $finalJob->getJobGroup());
-        self::assertSame(0, $finalJob->getMeLevel());
-        self::assertSame(0, $finalJob->getTeLevel());
-        self::assertSame(405, $this->materials($project)[self::NITROGEN_ISOTOPES]);
+        self::assertSame(
+            [
+                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 10, 20, 40, null],
+                [self::NITROGEN_FUEL_BLOCK, 'copy', 'blueprint', 1, 0, 0, 1, null],
+            ],
+            $this->jobs($project),
+        );
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #23 : le TE saisi n'est lu nulle part, la BOM
-    // d'un item en TE 20 est identique à celle du même item en TE 0.
-    public function testTeOfTheProjectItemCurrentlyLeavesTheBomUnchangedIssue23(): void
+    #[Group('issue-23')]
+    public function testFinalManufacturingJobCarriesTheTeZeroOfTheProjectItem(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 10, 0]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [
+                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 10, 0, 40, null],
+                [self::NITROGEN_FUEL_BLOCK, 'copy', 'blueprint', 1, 0, 0, 1, null],
+            ],
+            $this->jobs($project),
+        );
+    }
+
+    #[Group('issue-23')]
+    public function testMaterialsOfTheBomFollowTheMeOfTheProjectItemAndIgnoreItsTe(): void
     {
         $projectAtTeTwenty = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 10, 20]]);
         $projectAtTeZero = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 10, 0]]);
@@ -194,18 +209,35 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         $this->service->buildBom($projectAtTeZero, $this->owner);
 
         self::assertSame(
-            [
-                [44 => 4, 3683 => 20, 3689 => 4, 9832 => 9, 9848 => 1, 16272 => 153, 16273 => 315, 16275 => 18, 17888 => 405],
-                [
-                    [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 0, 0, 40, null],
-                    [self::NITROGEN_FUEL_BLOCK, 'copy', 'blueprint', 1, 0, 0, 1, null],
-                ],
-            ],
-            [$this->materials($projectAtTeZero), $this->jobs($projectAtTeZero)],
+            [44 => 4, 3683 => 20, 3689 => 4, 9832 => 9, 9848 => 1, 16272 => 153, 16273 => 315, 16275 => 18, 17888 => 405],
+            $this->materials($projectAtTeTwenty),
         );
+        self::assertSame($this->materials($projectAtTeTwenty), $this->materials($projectAtTeZero));
+    }
+
+    #[Group('issue-23')]
+    public function testFinalManufacturingJobOfAT2ProductCarriesTheMeAndTeOfTheProjectItem(): void
+    {
+        $project = $this->projectOf([[self::HAIL_L, 1, 2, 4]]);
+
+        $this->service->buildBom($project, $this->owner);
+
         self::assertSame(
-            [$this->materials($projectAtTeZero), $this->jobs($projectAtTeZero)],
-            [$this->materials($projectAtTeTwenty), $this->jobs($projectAtTeTwenty)],
+            [[self::HAIL_L, 'manufacturing', 'final', 1, 2, 4, 5_000, null]],
+            array_values(array_filter($this->jobsOfType($project, self::HAIL_L), static fn (array $job): bool => $job[1] === 'manufacturing')),
+        );
+    }
+
+    #[Group('issue-23')]
+    public function testFinalReactionJobKeepsMeZeroAndTeZero(): void
+    {
+        $project = $this->projectOf([[self::FERNITE_CARBIDE, 1, 0, 0]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [[self::FERNITE_CARBIDE, 'reaction', 'final', 1, 0, 0, 10_000, null]],
+            $this->jobsOfType($project, self::FERNITE_CARBIDE),
         );
     }
 
@@ -222,10 +254,25 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         );
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux (aucune issue connue) : deux items du même produit, à des ME
-    // différents (10 et 0), partagent un seul job final dont les runs s'additionnent ; leurs matériaux s'additionnent
-    // aussi, chacun calculé avec le ME de son item (Nitrogen Isotopes 405 + 450).
-    public function testSameProductOnTwoItemsCurrentlySharesOneFinalJob(): void
+    #[Group('issue-23')]
+    public function testSameProductOnTwoItemsAtDifferentMeAndTeGetsOneFinalJobPerItem(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 10, 20], [self::NITROGEN_FUEL_BLOCK, 1, 0, 0]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [
+                [self::NITROGEN_FUEL_BLOCK, 'copy', 'blueprint', 2, 0, 0, 2, null],
+                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 0, 0, 40, null],
+                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 10, 20, 40, null],
+            ],
+            $this->sortedJobs($this->jobs($project)),
+        );
+    }
+
+    #[Group('issue-23')]
+    public function testSameProductOnTwoItemsAtDifferentMeAddsTheMaterialsOfEachItemAtItsOwnMe(): void
     {
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 10, 20], [self::NITROGEN_FUEL_BLOCK, 1, 0, 0]]);
 
@@ -235,6 +282,15 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
             [44 => 8, 3683 => 42, 3689 => 8, 9832 => 18, 9848 => 2, 16272 => 323, 16273 => 665, 16275 => 38, 17888 => 855],
             $this->materials($project),
         );
+    }
+
+    #[Group('issue-23')]
+    public function testSameProductOnTwoItemsAtTheSameMeAndTeSharesOneFinalJob(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 10, 20], [self::NITROGEN_FUEL_BLOCK, 1, 10, 20]]);
+
+        $this->service->buildBom($project, $this->owner);
+
         self::assertSame(
             [
                 [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 2, 80, null],
@@ -285,10 +341,9 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         );
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issues #2 et #23 : 10 runs de Hail L (5000 unités par
-    // run) deviennent 1 run ; le ME 2 saisi réduit les matériaux (Morphite ceil(15 × 0.98) = 15) mais le job final
-    // reste en ME 0 / TE 0. Le T2 est obtenu par une copie du blueprint T2, sans job d'invention (aucune issue connue).
-    public function testTenRunsOfHailLCurrentlyBecomeOneRunWithACopyOfTheT2BlueprintAndNoInventionIssues2And23(): void
+    #[Group('issue-2')]
+    #[Group('issue-23')]
+    public function testTenRunsOfHailLCurrentlyBecomeOneRunWithACopyOfTheT2BlueprintAndNoInventionIssue2(): void
     {
         $project = $this->projectOf([[self::HAIL_L, 10, 2, 4]]);
 
@@ -305,7 +360,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         );
         self::assertSame(
             [
-                [self::HAIL_L, 'manufacturing', 'final', 1, 0, 0, 5_000, null],
+                [self::HAIL_L, 'manufacturing', 'final', 1, 2, 4, 5_000, null],
                 [self::RAM_AMMUNITION_TECH, 'manufacturing', 'component', 1, 10, 20, 100, self::HAIL_L],
                 [self::FERNITE_CARBIDE, 'reaction', 'component', 1, 0, 0, 10_000, self::HAIL_L],
                 [self::HYDROGEN_FUEL_BLOCK, 'manufacturing', 'component', 3, 10, 20, 120, self::FERNITE_CARBIDE],
@@ -371,6 +426,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     }
 
     #[Group('issue-106')]
+    #[Group('issue-23')]
     public function testManufacturedProjectItemAlsoNeededAsAnIntermediateKeepsItsFinalJobNextToTheIntermediateJob(): void
     {
         $project = $this->projectOf([[self::HAIL_L, 1, 2, 4], [self::NITROGEN_FUEL_BLOCK, 1, 10, 20]]);
@@ -380,7 +436,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         self::assertSame(
             [
                 [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'component', 2, 10, 20, 80, self::FULLERIDES],
-                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 0, 0, 40, null],
+                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 10, 20, 40, null],
             ],
             $this->sortedJobs(array_values(array_filter(
                 $this->jobsOfType($project, self::NITROGEN_FUEL_BLOCK),
