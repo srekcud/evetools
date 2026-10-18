@@ -14,7 +14,6 @@ use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
 use App\Service\Mercure\MercurePublisherService;
@@ -48,8 +47,6 @@ class LeaveGroupProjectProcessorTest extends TestCase
 
     private array $memberships = [];
 
-    private array $contributions = [];
-
     protected function setUp(): void
     {
         $this->project = new GroupIndustryProject();
@@ -75,14 +72,6 @@ class LeaveGroupProjectProcessorTest extends TestCase
             },
         );
 
-        $contributionRepository = $this->createStub(GroupIndustryContributionRepository::class);
-        $contributionRepository->method('countByMember')->willReturnCallback(
-            fn (GroupIndustryProjectMember $member): int => \count(array_filter(
-                $this->contributions,
-                static fn (GroupIndustryContribution $contribution): bool => $contribution->getMember() === $member,
-            )),
-        );
-
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->hub = $this->createMock(HubInterface::class);
 
@@ -90,7 +79,6 @@ class LeaveGroupProjectProcessorTest extends TestCase
             $this->security,
             $this->projectRepository,
             $memberRepository,
-            $contributionRepository,
             $this->entityManager,
             new MercurePublisherService($this->hub, new NullLogger()),
         );
@@ -149,6 +137,28 @@ class LeaveGroupProjectProcessorTest extends TestCase
     {
         yield 'pending' => [GroupMemberStatus::Pending];
         yield 'removed' => [GroupMemberStatus::Removed];
+    }
+
+    public function testMembershipOnAnotherProjectDoesNotAllowLeavingThisOne(): void
+    {
+        $user = $this->actAs('Wandering Pilot');
+        $otherProject = new GroupIndustryProject();
+        $otherProject->setOwner($this->createStub(User::class));
+        (new \ReflectionProperty(GroupIndustryProject::class, 'id'))->setValue($otherProject, Uuid::v4());
+        $otherMembership = $this->addMembership($user, GroupMemberRole::Member, GroupMemberStatus::Accepted, $otherProject);
+
+        $this->entityManager->expects($this->never())->method('flush');
+        $this->hub->expects($this->never())->method('publish');
+
+        try {
+            $this->leave();
+            self::fail('A membership on another project must not allow leaving this one');
+        } catch (NotFoundHttpException $e) {
+            self::assertSame('You are not a member of this project', $e->getMessage());
+        }
+
+        self::assertSame(GroupMemberStatus::Accepted, $otherMembership->getStatus());
+        self::assertSame($otherProject, $otherMembership->getProject());
     }
 
     public function testOwnerCannotLeave(): void
@@ -241,14 +251,14 @@ class LeaveGroupProjectProcessorTest extends TestCase
         return $user;
     }
 
-    private function addMembership(User $user, GroupMemberRole $role, GroupMemberStatus $status): GroupIndustryProjectMember
+    private function addMembership(User $user, GroupMemberRole $role, GroupMemberStatus $status, ?GroupIndustryProject $project = null): GroupIndustryProjectMember
     {
         $membership = new GroupIndustryProjectMember();
         $membership->setUser($user);
         $membership->setRole($role);
         $membership->setStatus($status);
         (new \ReflectionProperty(GroupIndustryProjectMember::class, 'id'))->setValue($membership, Uuid::v4());
-        $this->project->addMember($membership);
+        ($project ?? $this->project)->addMember($membership);
         $this->memberships[] = $membership;
 
         return $membership;
@@ -262,7 +272,6 @@ class LeaveGroupProjectProcessorTest extends TestCase
         $contribution->setType(ContributionType::Material);
         $contribution->setQuantity($quantity);
         $contribution->setStatus($status);
-        $this->contributions[] = $contribution;
 
         return $contribution;
     }

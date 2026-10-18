@@ -9,7 +9,6 @@ use ApiPlatform\State\ProcessorInterface;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
 use App\Service\Mercure\MercurePublisherService;
@@ -29,7 +28,6 @@ class LeaveGroupProjectProcessor implements ProcessorInterface
         private readonly Security $security,
         private readonly GroupIndustryProjectRepository $projectRepository,
         private readonly GroupIndustryProjectMemberRepository $memberRepository,
-        private readonly GroupIndustryContributionRepository $contributionRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly MercurePublisherService $mercurePublisher,
     ) {
@@ -67,12 +65,9 @@ class LeaveGroupProjectProcessor implements ProcessorInterface
             throw new BadRequestHttpException('Owner cannot leave the project');
         }
 
-        $contributionCount = $this->contributionRepository->countByMember($member);
-        if ($contributionCount > 0) {
-            throw new BadRequestHttpException('Cannot leave: you have contributions in this project');
-        }
+        $member->setStatus(GroupMemberStatus::Removed);
+        $this->entityManager->flush();
 
-        // Publish before remove so we still have access to member data
         $this->mercurePublisher->publishGroupProjectEvent(
             $project->getId()->toRfc4122(),
             'member_left',
@@ -81,8 +76,5 @@ class LeaveGroupProjectProcessor implements ProcessorInterface
                 'characterName' => $member->getUser()->getMainCharacter()?->getName() ?? 'Unknown',
             ],
         );
-
-        $this->entityManager->remove($member);
-        $this->entityManager->flush();
     }
 }

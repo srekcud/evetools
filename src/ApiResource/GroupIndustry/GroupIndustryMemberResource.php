@@ -76,7 +76,7 @@ use App\State\Provider\GroupIndustry\GroupMemberItemProvider;
             processor: LeaveGroupProjectProcessor::class,
             openapi: new Model\Operation(
                 summary: 'Leave a project',
-                description: 'Leave a group industry project voluntarily. Only members with no contributions can leave. Owner cannot leave.',
+                description: 'Leave a group industry project voluntarily. The membership is marked as removed and its contributions are kept. Owner cannot leave.',
                 tags: ['Group Industry - Members'],
             ),
         ),
