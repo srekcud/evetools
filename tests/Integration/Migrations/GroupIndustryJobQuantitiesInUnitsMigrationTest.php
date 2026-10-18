@@ -32,6 +32,8 @@ final class GroupIndustryJobQuantitiesInUnitsMigrationTest extends IntegrationTe
     private const int HAIL_L = 12779;
     private const int CAPITAL_PROPULSION_ENGINE = 21009;
     private const int NITROGEN_ISOTOPES = 17888;
+    private const int HELIUM_FUEL_BLOCK = 4247;
+    private const int OXYGEN_FUEL_BLOCK = 4312;
 
     private const int NITROGEN_FUEL_BLOCK_BLUEPRINT = 999_995_001;
     private const int HYDROGEN_FUEL_BLOCK_BLUEPRINT = 999_995_002;
@@ -39,6 +41,8 @@ final class GroupIndustryJobQuantitiesInUnitsMigrationTest extends IntegrationTe
     private const int FERNITE_ALLOY_BLUEPRINT = 999_995_004;
     private const int HAIL_L_BLUEPRINT = 999_995_005;
     private const int HAIL_L_OTHER_BLUEPRINT = 999_995_006;
+    private const int HELIUM_FUEL_BLOCK_BLUEPRINT = 999_995_007;
+    private const int HELIUM_FUEL_BLOCK_OTHER_BLUEPRINT = 999_995_008;
 
     private Connection $connection;
     private GroupIndustryProject $project;
@@ -65,12 +69,50 @@ final class GroupIndustryJobQuantitiesInUnitsMigrationTest extends IntegrationTe
         $finalJob = $this->jobLine(self::NITROGEN_FUEL_BLOCK, 'Nitrogen Fuel Block', 'manufacturing', 'final', runs: 3, fulfilledQuantity: 2);
         $approved = $this->contribution($finalJob, ContributionType::JobInstall, 2, ContributionStatus::Approved);
         $pending = $this->contribution($finalJob, ContributionType::JobInstall, 1, ContributionStatus::Pending);
+        $rejected = $this->contribution($finalJob, ContributionType::JobInstall, 4, ContributionStatus::Rejected);
         $this->flushAndClear();
 
         $this->migrate();
 
         self::assertSame([3, 120, 80], $this->bomItemRow($finalJob));
-        self::assertSame([80, 40], [$this->contributionQuantity($approved), $this->contributionQuantity($pending)]);
+        self::assertSame([80, 40, 160], [$this->contributionQuantity($approved), $this->contributionQuantity($pending), $this->contributionQuantity($rejected)]);
+    }
+
+    public function testOnlyProductionJobLinesAndTheirContributionsAreConvertedInAMixedProject(): void
+    {
+        $finalJob = $this->jobLine(self::NITROGEN_FUEL_BLOCK, 'Nitrogen Fuel Block', 'manufacturing', 'final', runs: 3, fulfilledQuantity: 2);
+        $reactionJob = $this->jobLine(self::FERNITE_CARBIDE, 'Fernite Carbide', 'reaction', 'component', runs: 5, fulfilledQuantity: 3);
+        $isotopes = $this->materialLine(self::NITROGEN_ISOTOPES, 'Nitrogen Isotopes', requiredQuantity: 405, fulfilledQuantity: 300);
+        $copyJob = $this->jobLine(self::OXYGEN_FUEL_BLOCK, 'Oxygen Fuel Block', 'copy', 'blueprint', runs: 7, fulfilledQuantity: 6);
+        $finalApproved = $this->contribution($finalJob, ContributionType::JobInstall, 2, ContributionStatus::Approved);
+        $finalPending = $this->contribution($finalJob, ContributionType::JobInstall, 1, ContributionStatus::Pending);
+        $reactionApproved = $this->contribution($reactionJob, ContributionType::JobInstall, 3, ContributionStatus::Approved);
+        $isotopesContribution = $this->contribution($isotopes, ContributionType::Material, 300, ContributionStatus::Approved);
+        $bpc = $this->contribution($copyJob, ContributionType::Bpc, 6, ContributionStatus::Approved);
+        $this->flushAndClear();
+
+        $this->migrate();
+
+        self::assertSame([3, 120, 80], $this->bomItemRow($finalJob));
+        self::assertSame([5, 50_000, 30_000], $this->bomItemRow($reactionJob));
+        self::assertSame([null, 405, 300], $this->bomItemRow($isotopes));
+        self::assertSame([7, 7, 6], $this->bomItemRow($copyJob));
+        self::assertSame([80, 40], [$this->contributionQuantity($finalApproved), $this->contributionQuantity($finalPending)]);
+        self::assertSame(30_000, $this->contributionQuantity($reactionApproved));
+        self::assertSame(300, $this->contributionQuantity($isotopesContribution));
+        self::assertSame(6, $this->contributionQuantity($bpc));
+    }
+
+    public function testJobLineWithSeveralBlueprintsOfTheSameUnitsPerRunIsConverted(): void
+    {
+        $heliumJob = $this->jobLine(self::HELIUM_FUEL_BLOCK, 'Helium Fuel Block', 'manufacturing', 'final', runs: 6, fulfilledQuantity: 5);
+        $approved = $this->contribution($heliumJob, ContributionType::JobInstall, 5, ContributionStatus::Approved);
+        $this->flushAndClear();
+
+        $this->migrate();
+
+        self::assertSame([6, 240, 200], $this->bomItemRow($heliumJob));
+        self::assertSame(200, $this->contributionQuantity($approved));
     }
 
     public function testReactionJobLineAndItsContributionIsConvertedToUnits(): void
@@ -231,6 +273,8 @@ final class GroupIndustryJobQuantitiesInUnitsMigrationTest extends IntegrationTe
             [self::FERNITE_ALLOY_BLUEPRINT, self::ACTIVITY_MANUFACTURING, self::FERNITE_ALLOY, 200],
             [self::HAIL_L_BLUEPRINT, self::ACTIVITY_MANUFACTURING, self::HAIL_L, 5_000],
             [self::HAIL_L_OTHER_BLUEPRINT, self::ACTIVITY_MANUFACTURING, self::HAIL_L, 2_500],
+            [self::HELIUM_FUEL_BLOCK_BLUEPRINT, self::ACTIVITY_MANUFACTURING, self::HELIUM_FUEL_BLOCK, 40],
+            [self::HELIUM_FUEL_BLOCK_OTHER_BLUEPRINT, self::ACTIVITY_MANUFACTURING, self::HELIUM_FUEL_BLOCK, 40],
         ] as [$blueprintTypeId, $activityId, $productTypeId, $unitsPerRun]) {
             $this->connection->insert('sde_industry_activity_products', [
                 'type_id' => $blueprintTypeId,
