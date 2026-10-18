@@ -736,7 +736,7 @@ class IndustryJobMatcherTest extends TestCase
     // Skipped steps
     // ===========================================
 
-    public function testPurchasedStepIsNotMatchedAndLosesItsPreviousMatches(): void
+    public function testPurchasedStepKeepsItsJobMatchesAndGetsNoNewJob(): void
     {
         $step = $this->createStep(runs: 10, quantity: 10);
         $step->setPurchased(true);
@@ -748,8 +748,58 @@ class IndustryJobMatcherTest extends TestCase
 
         $this->matcher->matchEsiJobs($project);
 
-        $this->assertSame([], $this->matchedJobIds($step));
+        $this->assertSame([4242], $this->matchedJobIds($step));
         $this->assertSame(10, $step->getRuns());
+    }
+
+    public function testJobMatchedToPurchasedStepIsNotMatchedToAnotherStepOfTheProject(): void
+    {
+        $purchasedStep = $this->createStep(runs: 10, quantity: 10);
+        $purchasedStep->setPurchased(true);
+        $purchasedStep->addJobMatch($this->createExistingMatch(esiJobId: 4242, runs: 10));
+        $autoStep = $this->createStep(runs: 10, quantity: 10);
+        $project = $this->createProject($purchasedStep, $autoStep);
+        $this->givenJobsForBlueprint(
+            self::BLUEPRINT_TYPE_ID,
+            $this->createJob(jobId: 4242, runs: 10),
+            $this->createJob(jobId: 5001, runs: 10),
+        );
+
+        $this->matcher->matchEsiJobs($project);
+
+        $this->assertSame([5001], $this->matchedJobIds($autoStep));
+        $this->assertSame([4242], $this->matchedJobIds($purchasedStep));
+    }
+
+    public function testPurchasedStepInManualModeKeepsItsManualLink(): void
+    {
+        $step = $this->createStep(runs: 10, quantity: 10);
+        $step->setPurchased(true);
+        $step->setJobMatchMode('manual');
+        $step->addJobMatch($this->createExistingMatch(esiJobId: 7777, runs: 10));
+        $project = $this->createProject($step);
+        $this->givenJobsForBlueprint(self::BLUEPRINT_TYPE_ID, $this->createJob(jobId: 5001, runs: 10));
+
+        $this->matcher->matchEsiJobs($project);
+
+        $this->assertSame([7777], $this->matchedJobIds($step));
+    }
+
+    public function testPurchasedStepKeepsItsRunsAndQuantityWhenItsJobMatchesCoverFewerRuns(): void
+    {
+        $step = $this->createStep(runs: 10, quantity: 1000);
+        $step->setPurchased(true);
+        $step->addJobMatch($this->createExistingMatch(esiJobId: 4242, runs: 6));
+        $project = $this->createProject($step);
+        $this->givenOutputPerRun(self::OUTPUT_PER_RUN);
+
+        $this->stepCalculator->expects($this->never())->method('recalculateStepQuantities');
+
+        $this->matcher->matchEsiJobs($project);
+
+        $this->assertSame([4242], $this->matchedJobIds($step));
+        $this->assertSame(10, $step->getRuns());
+        $this->assertSame(1000, $step->getQuantity());
     }
 
     public function testInStockStepIsStillMatched(): void
