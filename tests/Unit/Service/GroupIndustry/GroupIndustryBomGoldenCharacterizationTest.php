@@ -159,7 +159,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         );
         self::assertSame(
             [
-                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 1, null],
+                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 40, null],
                 [self::NITROGEN_FUEL_BLOCK, 'copy', 'blueprint', 1, 1, null],
             ],
             $this->jobsIgnoringMeAndTe($project),
@@ -197,7 +197,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
             [
                 [44 => 4, 3683 => 20, 3689 => 4, 9832 => 9, 9848 => 1, 16272 => 153, 16273 => 315, 16275 => 18, 17888 => 405],
                 [
-                    [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 0, 0, 1, null],
+                    [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 0, 0, 40, null],
                     [self::NITROGEN_FUEL_BLOCK, 'copy', 'blueprint', 1, 0, 0, 1, null],
                 ],
             ],
@@ -237,7 +237,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         );
         self::assertSame(
             [
-                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 2, 2, null],
+                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 2, 80, null],
                 [self::NITROGEN_FUEL_BLOCK, 'copy', 'blueprint', 2, 2, null],
             ],
             $this->jobsIgnoringMeAndTe($project),
@@ -275,10 +275,10 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         );
         self::assertSame(
             [
-                [self::FERNITE_CARBIDE, 'reaction', 'final', 1, 0, 0, 1, null],
-                [self::HYDROGEN_FUEL_BLOCK, 'manufacturing', 'component', 3, 10, 20, 3, self::FERNITE_CARBIDE],
-                [self::FERNITE_ALLOY, 'reaction', 'component', 1, 0, 0, 1, self::FERNITE_CARBIDE],
-                [self::CERAMIC_POWDER, 'reaction', 'component', 1, 0, 0, 1, self::FERNITE_CARBIDE],
+                [self::FERNITE_CARBIDE, 'reaction', 'final', 1, 0, 0, 10_000, null],
+                [self::HYDROGEN_FUEL_BLOCK, 'manufacturing', 'component', 3, 10, 20, 120, self::FERNITE_CARBIDE],
+                [self::FERNITE_ALLOY, 'reaction', 'component', 1, 0, 0, 200, self::FERNITE_CARBIDE],
+                [self::CERAMIC_POWDER, 'reaction', 'component', 1, 0, 0, 200, self::FERNITE_CARBIDE],
                 [self::HYDROGEN_FUEL_BLOCK, 'copy', 'blueprint', 3, 0, 0, 3, self::FERNITE_CARBIDE],
             ],
             $this->jobs($project),
@@ -305,17 +305,17 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         );
         self::assertSame(
             [
-                [self::HAIL_L, 'manufacturing', 'final', 1, 0, 0, 1, null],
-                [self::RAM_AMMUNITION_TECH, 'manufacturing', 'component', 1, 10, 20, 1, self::HAIL_L],
-                [self::FERNITE_CARBIDE, 'reaction', 'component', 1, 0, 0, 1, self::HAIL_L],
-                [self::HYDROGEN_FUEL_BLOCK, 'manufacturing', 'component', 3, 10, 20, 3, self::FERNITE_CARBIDE],
-                [self::FERNITE_ALLOY, 'reaction', 'component', 1, 0, 0, 1, self::FERNITE_CARBIDE],
-                [self::CERAMIC_POWDER, 'reaction', 'component', 1, 0, 0, 1, self::FERNITE_CARBIDE],
-                [self::FULLERIDES, 'reaction', 'component', 1, 0, 0, 1, self::HAIL_L],
-                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'component', 2, 10, 20, 2, self::FULLERIDES],
-                [self::CARBON_POLYMERS, 'reaction', 'component', 1, 0, 0, 1, self::FULLERIDES],
-                [self::HELIUM_FUEL_BLOCK, 'manufacturing', 'component', 1, 10, 20, 1, self::CARBON_POLYMERS],
-                [self::PLATINUM_TECHNITE, 'reaction', 'component', 1, 0, 0, 1, self::FULLERIDES],
+                [self::HAIL_L, 'manufacturing', 'final', 1, 0, 0, 5_000, null],
+                [self::RAM_AMMUNITION_TECH, 'manufacturing', 'component', 1, 10, 20, 100, self::HAIL_L],
+                [self::FERNITE_CARBIDE, 'reaction', 'component', 1, 0, 0, 10_000, self::HAIL_L],
+                [self::HYDROGEN_FUEL_BLOCK, 'manufacturing', 'component', 3, 10, 20, 120, self::FERNITE_CARBIDE],
+                [self::FERNITE_ALLOY, 'reaction', 'component', 1, 0, 0, 200, self::FERNITE_CARBIDE],
+                [self::CERAMIC_POWDER, 'reaction', 'component', 1, 0, 0, 200, self::FERNITE_CARBIDE],
+                [self::FULLERIDES, 'reaction', 'component', 1, 0, 0, 3_000, self::HAIL_L],
+                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'component', 2, 10, 20, 80, self::FULLERIDES],
+                [self::CARBON_POLYMERS, 'reaction', 'component', 1, 0, 0, 200, self::FULLERIDES],
+                [self::HELIUM_FUEL_BLOCK, 'manufacturing', 'component', 1, 10, 20, 40, self::CARBON_POLYMERS],
+                [self::PLATINUM_TECHNITE, 'reaction', 'component', 1, 0, 0, 200, self::FULLERIDES],
                 [self::HAIL_L, 'copy', 'blueprint', 1, 0, 0, 1, null],
                 [self::RAM_AMMUNITION_TECH, 'copy', 'blueprint', 1, 0, 0, 1, self::HAIL_L],
                 [self::HYDROGEN_FUEL_BLOCK, 'copy', 'blueprint', 3, 0, 0, 3, self::FERNITE_CARBIDE],
@@ -336,8 +336,8 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
 
         self::assertSame(
             [
-                [self::FERNITE_CARBIDE, 'reaction', 'component', 1, 0, 0, 1, self::HAIL_L],
-                [self::FERNITE_CARBIDE, 'reaction', 'final', 1, 0, 0, 1, null],
+                [self::FERNITE_CARBIDE, 'reaction', 'component', 1, 0, 0, 10_000, self::HAIL_L],
+                [self::FERNITE_CARBIDE, 'reaction', 'final', 1, 0, 0, 10_000, null],
             ],
             $this->sortedJobs($this->jobsOfType($project, self::FERNITE_CARBIDE)),
         );
@@ -379,8 +379,8 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
 
         self::assertSame(
             [
-                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'component', 2, 10, 20, 2, self::FULLERIDES],
-                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 0, 0, 1, null],
+                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'component', 2, 10, 20, 80, self::FULLERIDES],
+                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 0, 0, 40, null],
             ],
             $this->sortedJobs(array_values(array_filter(
                 $this->jobsOfType($project, self::NITROGEN_FUEL_BLOCK),
@@ -516,8 +516,8 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
 
         self::assertSame(
             [
-                [self::FERNITE_ALLOY, 'reaction', 'final', 500, 0, 0, 500, null],
-                [self::FERNITE_ALLOY, 'reaction', 'final', 1, 0, 0, 1, null],
+                [self::FERNITE_ALLOY, 'reaction', 'final', 500, 0, 0, 100_000, null],
+                [self::FERNITE_ALLOY, 'reaction', 'final', 1, 0, 0, 200, null],
             ],
             $this->jobsOfType($project, self::FERNITE_ALLOY),
         );
@@ -659,6 +659,83 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         self::assertSame($finalJob, $pendingJob->getBomItem());
         self::assertSame(ContributionStatus::Pending, $pendingJob->getStatus());
         self::assertSame([$approvedIsotopes, $pendingJob], $project->getContributions()->toArray());
+    }
+
+    #[Group('issue-107')]
+    public function testFinalManufacturingJobOfOneRunRequiresTheUnitsProducedByThatRun(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 10, 20]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        $finalJob = $this->jobsOf($project, self::NITROGEN_FUEL_BLOCK, 'manufacturing')[0];
+        self::assertSame([1, 40], [$finalJob->getRuns(), $finalJob->getRequiredQuantity()]);
+    }
+
+    #[Group('issue-107')]
+    public function testIntermediateManufacturingJobRequiresItsRunsTimesTheUnitsPerRun(): void
+    {
+        $project = $this->projectOf([[self::FERNITE_CARBIDE, 10, 10, 20]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        $intermediateJob = $this->jobsOf($project, self::HYDROGEN_FUEL_BLOCK, 'manufacturing')[0];
+        self::assertSame(['component', 3, 120], [$intermediateJob->getJobGroup(), $intermediateJob->getRuns(), $intermediateJob->getRequiredQuantity()]);
+    }
+
+    #[Group('issue-107')]
+    public function testFinalReactionJobRequiresItsRunsTimesTheUnitsPerRun(): void
+    {
+        $project = $this->projectOf([[self::FERNITE_CARBIDE, 10, 10, 20]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        $finalJob = $this->jobsOf($project, self::FERNITE_CARBIDE, 'reaction')[0];
+        self::assertSame(['final', 1, 10_000], [$finalJob->getJobGroup(), $finalJob->getRuns(), $finalJob->getRequiredQuantity()]);
+    }
+
+    #[Group('issue-107')]
+    public function testEachLineOfASplitReactionJobRequiresItsOwnRunsTimesTheUnitsPerRun(): void
+    {
+        $project = $this->projectOf([[self::FERNITE_ALLOY, 100_001, 0, 0]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [[500, 100_000], [1, 200]],
+            array_map(
+                static fn (GroupIndustryBomItem $bomItem): array => [$bomItem->getRuns(), $bomItem->getRequiredQuantity()],
+                $this->jobsOf($project, self::FERNITE_ALLOY, 'reaction'),
+            ),
+        );
+    }
+
+    #[Group('issue-107')]
+    public function testEachLineOfASplitJobOfOneUnitPerRunRequiresItsOwnRuns(): void
+    {
+        $this->maxProductionLimits = [self::CAPITAL_PROPULSION_ENGINE + self::BLUEPRINT_TYPE_ID_OFFSET => 15];
+        $project = $this->projectOf([[self::FENRIR, 1, 0, 0]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [[15, 15], [5, 5]],
+            array_map(
+                static fn (GroupIndustryBomItem $bomItem): array => [$bomItem->getRuns(), $bomItem->getRequiredQuantity()],
+                $this->jobsOf($project, self::CAPITAL_PROPULSION_ENGINE, 'manufacturing'),
+            ),
+        );
+    }
+
+    #[Group('issue-107')]
+    public function testCopyJobRequiresItsRunsAndNotUnits(): void
+    {
+        $project = $this->projectOf([[self::FERNITE_CARBIDE, 10, 10, 20]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        $copyJob = $this->jobsOf($project, self::HYDROGEN_FUEL_BLOCK, 'copy')[0];
+        self::assertSame(['blueprint', 3, 3], [$copyJob->getJobGroup(), $copyJob->getRuns(), $copyJob->getRequiredQuantity()]);
     }
 
     /** @param list<array{int, int, int, int}> $items typeId, runs, ME, TE */

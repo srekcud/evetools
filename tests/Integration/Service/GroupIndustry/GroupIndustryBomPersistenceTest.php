@@ -88,7 +88,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
 
     // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issues #2 et #23 : les 25 runs saisis sont persistés
     // sur l'item du projet, mais la BOM est celle d'un seul run (ceil(25 / 40) = 1) et le job final est enregistré
-    // en ME 0 / TE 0 au lieu du ME 10 / TE 20 saisi. La quantité requise d'une ligne de job est son nombre de runs.
+    // en ME 0 / TE 0 au lieu du ME 10 / TE 20 saisi.
     public function testCreatedProjectCurrentlyPersistsTheBomOfOneRunForTwentyFiveRunsOfNitrogenFuelBlockIssues2And23(): void
     {
         $projectId = (string) $this->createNitrogenFuelBlockProject(runs: 25, meLevel: 10, teLevel: 20)->getId();
@@ -106,7 +106,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
                 [16275, 'Strontium Clathrates', 18, 0, null, false, null, null, null, null, null, null],
                 [17888, 'Nitrogen Isotopes', 405, 0, 512.5, false, null, null, null, null, null, null],
                 [4051, 'Nitrogen Fuel Block', 1, 0, null, true, 'blueprint', 'copy', null, 0, 0, 1],
-                [4051, 'Nitrogen Fuel Block', 1, 0, null, true, 'final', 'manufacturing', null, 0, 0, 1],
+                [4051, 'Nitrogen Fuel Block', 40, 0, null, true, 'final', 'manufacturing', null, 0, 0, 1],
             ],
             $this->persistedBomRows($projectId),
         );
@@ -167,7 +167,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
             ),
         );
         self::assertSame(
-            [[1, 1, 'final']],
+            [[1, 40, 'final']],
             $this->connection->fetchAllNumeric(
                 'SELECT runs, required_quantity, job_group FROM group_industry_bom_items WHERE id = ?',
                 [$finalJobId],
