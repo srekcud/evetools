@@ -52,9 +52,8 @@ use Symfony\Component\Mercure\HubInterface;
  *
  * Steps are pinned in JSON snapshots in tests/Fixtures/Characterization/IndustryProjectFactory/ (the Nomad snapshots
  * are reduced to a summary per product). A missing snapshot fails the test; snapshots are (re)written only when the
- * environment variable UPDATE_SNAPSHOTS=1 is set. Blueprint type IDs are synthetic (product type ID + 1000000). Split
- * group UUIDs are random and drive the order of split steps: snapshots sort the steps canonically and name the groups
- * split-0, split-1… in that order.
+ * environment variable UPDATE_SNAPSHOTS=1 is set. Blueprint type IDs are synthetic (product type ID + 1000000).
+ * Snapshots sort the steps canonically and name the split groups split-0, split-1… in that order.
  */
 #[CoversClass(IndustryProjectFactory::class)]
 #[CoversClass(IndustryStepCalculator::class)]
@@ -80,6 +79,16 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     private const int UNKNOWN_BLUEPRINT_TYPE_ID = 999_999_999;
 
     private const float DEFAULT_MAX_JOB_DURATION_DAYS = 2.0;
+
+    private const array ACTIVITY_ORDER = ['reaction' => 0, 'copy' => 1, 'manufacturing' => 2];
+
+    private const array FIVE_MANUFACTURING_STEPS_OF_ONE_NOMAD_IN_SORT_ORDER = [
+        [0, 'Helium Fuel Block', 'manufacturing', 5, 0, 107, 4265],
+        [1, 'Hydrogen Fuel Block', 'manufacturing', 5, 0, 162, 6480],
+        [2, 'Hydrogen Fuel Block', 'manufacturing', 5, 1, 162, 6480],
+        [3, 'Nitrogen Fuel Block', 'manufacturing', 5, 0, 107, 4260],
+        [4, 'Oxygen Fuel Block', 'manufacturing', 5, 0, 46, 1815],
+    ];
 
     /** @var array{recipes: array<string, array{name: string, activity: string, outputPerRun: int, baseTimeSeconds: int, materials: array<string, int>}>, typeNames: array<string, string>} */
     private array $sde;
@@ -298,34 +307,54 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         self::assertSame([[531, 106_026, 4, 0, 0, 0, null]], $this->jobsOf($steps, self::FERNITE_ALLOY));
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, sans issue. À profondeur et activité égales, les étapes
-    // non découpées passent d'abord, puis les groupes découpés dans l'ordre de leur UUID v4 aléatoire, avant le nom du
-    // produit : l'ordre des étapes d'un même projet change d'une génération à l'autre.
-    public function testSplitGroupsAreCurrentlyOrderedByTheirRandomIdentifier(): void
+    #[Group('issue-110')]
+    public function testStepsOfEachLevelOfOneNomadAreOrderedByProductNameThenSplitIndex(): void
     {
         $project = $this->createProject(self::NOMAD, runs: 1, meLevel: 10, teLevel: 20);
 
-        $splitGroupIdsInStepOrder = [];
-        $unsplitAfterSplit = [];
-        $previous = null;
-        foreach ($project->getSteps() as $step) {
-            $isSameLevel = $previous !== null && $previous->getDepth() === $step->getDepth() && $previous->getActivityType() === $step->getActivityType();
-            if ($isSameLevel && $previous->getSplitGroupId() !== null && $step->getSplitGroupId() === null) {
-                $unsplitAfterSplit[] = $step->getProductTypeId();
-            }
-            if ($step->getSplitGroupId() !== null) {
-                $splitGroupIdsInStepOrder[$step->getDepth().'-'.$step->getActivityType()][$step->getSplitGroupId()] = true;
-            }
-            $previous = $step;
+        $stepsByLevel = [];
+        foreach ($this->stepsOf($project) as $step) {
+            $stepsByLevel[$step['depth'].' '.$step['activityType']][] = $step;
         }
+        $productAndSplitIndexByLevel = array_map($this->productAndSplitIndexOfStepsOf(...), $stepsByLevel);
+        $productAndSplitIndexByLevelInTheOrderOfR1 = array_map(
+            fn (array $steps): array => $this->productAndSplitIndexOfStepsOf($this->sortedByProductNameThenSplitIndex($steps)),
+            $stepsByLevel,
+        );
+        $levelsWithAnUnsplitStepAfterASplitGroup = array_keys(array_filter(
+            array_map($this->hasAnUnsplitStepAfterASplitGroup(...), array_map($this->sortedByProductNameThenSplitIndex(...), $stepsByLevel)),
+        ));
 
-        self::assertSame([], $unsplitAfterSplit);
-        self::assertCount(7, $splitGroupIdsInStepOrder);
-        foreach ($splitGroupIdsInStepOrder as $splitGroupIds) {
-            $sorted = array_keys($splitGroupIds);
-            sort($sorted, \SORT_STRING);
-            self::assertSame($sorted, array_keys($splitGroupIds));
-        }
+        self::assertSame(['5 manufacturing', '3 reaction', '2 reaction', '2 manufacturing', '1 manufacturing'], $levelsWithAnUnsplitStepAfterASplitGroup);
+        self::assertSame(
+            [['Helium Fuel Block', 0], ['Hydrogen Fuel Block', 0], ['Hydrogen Fuel Block', 1], ['Nitrogen Fuel Block', 0], ['Oxygen Fuel Block', 0]],
+            $productAndSplitIndexByLevel['5 manufacturing'],
+        );
+        self::assertSame($productAndSplitIndexByLevelInTheOrderOfR1, $productAndSplitIndexByLevel);
+    }
+
+    #[Group('issue-110')]
+    public function testTwoCreationsOfOneNomadGiveTheSameStepsInTheSameSortOrder(): void
+    {
+        $first = $this->createProject(self::NOMAD, runs: 1, meLevel: 10, teLevel: 20);
+        $second = $this->createProject(self::NOMAD, runs: 1, meLevel: 10, teLevel: 20);
+
+        self::assertSame(self::FIVE_MANUFACTURING_STEPS_OF_ONE_NOMAD_IN_SORT_ORDER, array_slice($this->stepsInSortOrderOf($first), 0, 5));
+        self::assertSame($this->stepsInTheOrderOfR1Of($first), $this->stepsInSortOrderOf($first));
+        self::assertSame($this->stepsInSortOrderOf($first), $this->stepsInSortOrderOf($second));
+    }
+
+    #[Group('issue-110')]
+    public function testRegeneratedStepsOfOneNomadKeepTheSortOrderOfTheCreation(): void
+    {
+        $created = $this->createProject(self::NOMAD, runs: 1, meLevel: 10, teLevel: 20);
+        $regenerated = $this->createProject(self::NOMAD, runs: 1, meLevel: 10, teLevel: 20);
+
+        $this->factory->regenerateSteps($regenerated);
+
+        self::assertSame(self::FIVE_MANUFACTURING_STEPS_OF_ONE_NOMAD_IN_SORT_ORDER, array_slice($this->stepsInSortOrderOf($regenerated), 0, 5));
+        self::assertSame($this->stepsInTheOrderOfR1Of($regenerated), $this->stepsInSortOrderOf($regenerated));
+        self::assertSame($this->stepsInSortOrderOf($created), $this->stepsInSortOrderOf($regenerated));
     }
 
     public function testProductWithoutBlueprintNorReactionIsRefused(): void
@@ -732,10 +761,70 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     }
 
     /**
-     * The steps without sortOrder, sorted by depth (deepest first), activity, product and split index, split groups
-     * labelled in that order: the order of split groups follows their random UUID (see
-     * testSplitGroupsAreCurrentlyOrderedByTheirRandomIdentifier).
-     *
+     * @return list<array{int, string, string, int, int, int, int}>
+     */
+    private function stepsInSortOrderOf(IndustryProject $project): array
+    {
+        $steps = $this->stepsOf($project);
+        usort($steps, static fn (array $a, array $b): int => $a['sortOrder'] <=> $b['sortOrder']);
+
+        return array_map(
+            static fn (array $step): array => [$step['sortOrder'], $step['product'], $step['activityType'], $step['depth'], $step['splitIndex'], $step['runs'], $step['quantity']],
+            $steps,
+        );
+    }
+
+    /**
+     * @return list<array{int, string, string, int, int, int, int}>
+     */
+    private function stepsInTheOrderOfR1Of(IndustryProject $project): array
+    {
+        $steps = $this->stepsOf($project);
+        usort($steps, static fn (array $a, array $b): int => [$b['depth'], self::ACTIVITY_ORDER[$a['activityType']], strcasecmp($a['product'], $b['product']), $a['splitIndex']]
+            <=> [$a['depth'], self::ACTIVITY_ORDER[$b['activityType']], 0, $b['splitIndex']]);
+
+        return array_map(
+            static fn (int $sortOrder, array $step): array => [$sortOrder, $step['product'], $step['activityType'], $step['depth'], $step['splitIndex'], $step['runs'], $step['quantity']],
+            array_keys($steps),
+            $steps,
+        );
+    }
+
+    /**
+     * @param list<array<string, mixed>> $steps
+     * @return list<array<string, mixed>>
+     */
+    private function sortedByProductNameThenSplitIndex(array $steps): array
+    {
+        usort($steps, static fn (array $a, array $b): int => [strcasecmp($a['product'], $b['product']), $a['splitIndex']] <=> [0, $b['splitIndex']]);
+
+        return $steps;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $steps
+     * @return list<array{string, int}>
+     */
+    private function productAndSplitIndexOfStepsOf(array $steps): array
+    {
+        return array_map(static fn (array $step): array => [$step['product'], $step['splitIndex']], $steps);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $steps
+     */
+    private function hasAnUnsplitStepAfterASplitGroup(array $steps): bool
+    {
+        foreach (array_slice(array_keys($steps), 1) as $position) {
+            if ($steps[$position - 1]['splitGroup'] !== null && $steps[$position]['splitGroup'] === null) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     private function canonicalStepsOf(IndustryProject $project): array
