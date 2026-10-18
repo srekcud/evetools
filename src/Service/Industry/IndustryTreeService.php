@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Industry;
 
 use App\Entity\User;
+use App\Exception\TypeMissingFromSdeException;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Enum\IndustryActivityType;
@@ -33,15 +34,23 @@ class IndustryTreeService
      */
     public function buildProductionTree(int $productTypeId, int $runs = 1, int $finalMe = 0, array $excludedTypeIds = [], ?User $user = null, array $structureBonusOverrides = []): array
     {
-        return $this->buildNode($productTypeId, $runs, $finalMe, 0, $excludedTypeIds, $user, $structureBonusOverrides);
+        $missingTypeIds = [];
+        $tree = $this->buildNode($productTypeId, $runs, $finalMe, 0, $excludedTypeIds, $user, $missingTypeIds, $structureBonusOverrides);
+
+        if ($missingTypeIds !== []) {
+            throw new TypeMissingFromSdeException($missingTypeIds);
+        }
+
+        return $tree;
     }
 
     /**
      * @param list<int> $excludedTypeIds
+     * @param list<int> $missingTypeIds
      * @param array<int, float> $structureBonusOverrides
      * @return array<string, mixed>
      */
-    private function buildNode(int $productTypeId, int $quantity, int $meLevel, int $depth, array $excludedTypeIds, ?User $user, array $structureBonusOverrides = []): array
+    private function buildNode(int $productTypeId, int $quantity, int $meLevel, int $depth, array $excludedTypeIds, ?User $user, array &$missingTypeIds, array $structureBonusOverrides = []): array
     {
         // Find the blueprint/formula that produces this type (manufacturing or reaction)
         $product = $this->findProducerFor($productTypeId);
@@ -55,8 +64,7 @@ class IndustryTreeService
         $outputPerRun = $product->getQuantity();
         $runs = (int) ceil($quantity / $outputPerRun);
 
-        $type = $this->invTypeRepository->find($productTypeId);
-        $productTypeName = $type?->getTypeName() ?? "Type #{$productTypeId}";
+        $productTypeName = $this->typeNameOf($productTypeId, $missingTypeIds);
 
         $activityType = match ($activityId) {
             IndustryActivityType::Reaction->value => 'reaction',
@@ -134,8 +142,7 @@ class IndustryTreeService
                 (int) ceil(round($baseQuantity * $runs * $meMultiplier * $structureMultiplier * $rigMultiplier, 2))
             );
 
-            $matType = $this->invTypeRepository->find($matTypeId);
-            $matTypeName = $matType?->getTypeName() ?? "Type #{$matTypeId}";
+            $matTypeName = $this->typeNameOf($matTypeId, $missingTypeIds);
 
             // Check if this material can be produced (manufacturing or reaction)
             // Excluded types are treated as raw materials (not expanded)
@@ -161,7 +168,7 @@ class IndustryTreeService
             if ($isBuildable) {
                 // Intermediate manufacturing uses ME 10, reactions have no ME
                 $childMe = ($matProducer->getActivityId() === IndustryActivityType::Manufacturing->value) ? 10 : 0;
-                $node['blueprint'] = $this->buildNode($matTypeId, $adjustedQuantity, $childMe, $depth + 1, $excludedTypeIds, $user, $structureBonusOverrides);
+                $node['blueprint'] = $this->buildNode($matTypeId, $adjustedQuantity, $childMe, $depth + 1, $excludedTypeIds, $user, $missingTypeIds, $structureBonusOverrides);
             }
 
             $materialNodes[] = $node;
@@ -186,6 +193,17 @@ class IndustryTreeService
             'structureName' => $structureName,
             'productCategory' => $productCategory,
         ];
+    }
+
+    /** @param list<int> $missingTypeIds */
+    private function typeNameOf(int $typeId, array &$missingTypeIds): ?string
+    {
+        $typeName = $this->invTypeRepository->find($typeId)?->getTypeName();
+        if ($typeName === null) {
+            $missingTypeIds[] = $typeId;
+        }
+
+        return $typeName;
     }
 
     /**
