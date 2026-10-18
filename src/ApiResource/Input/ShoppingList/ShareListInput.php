@@ -15,7 +15,7 @@ class ShareListInput
     /** @var string[] */
     public array $notFound = [];
 
-    /** @var array<string, float> */
+    /** @var array<string, float|null> */
     public array $totals = [];
 
     #[Assert\Positive]

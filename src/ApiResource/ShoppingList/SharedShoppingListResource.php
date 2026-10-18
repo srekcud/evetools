@@ -42,7 +42,7 @@ class SharedShoppingListResource
     /** @var string[] */
     public array $notFound = [];
 
-    /** @var array<string, float> */
+    /** @var array<string, float|null> */
     public array $totals = [];
 
     public float $transportCostPerM3 = 1200.0;
