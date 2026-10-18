@@ -125,8 +125,8 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
         self::assertSame(203400.0, $shoppingList->totals->jita);
         self::assertSame(516600.0, $shoppingList->totals->structure);
         self::assertSame(493200.0, $shoppingList->totals->best);
-        self::assertSame(-30600.0, $shoppingList->totals->savingsVsJitaWithImport);
-        self::assertSame(23400.0, $shoppingList->totals->savingsVsStructure);
+        self::assertSame(0.0, $shoppingList->totals->savingsVsJitaWithImport);
+        self::assertSame(40500.0, $shoppingList->totals->savingsVsStructure);
     }
 
     public function testPricedShoppingListComparesJitaWithImportToTheStructureForEachMaterial(): void
@@ -169,7 +169,7 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
         self::assertSame(259200.0, $shoppingList->totals->import);
         self::assertSame(462600.0, $shoppingList->totals->jitaWithImport);
         self::assertSame(414.625, $shoppingList->totals->volume);
-        self::assertSame(23400.0, $shoppingList->totals->savingsVsStructure);
+        self::assertSame(40500.0, $shoppingList->totals->savingsVsStructure);
         self::assertSame(self::TRANSPORT_COST_PER_M3, $shoppingList->transportCostPerM3);
         self::assertNull($shoppingList->priceError);
         self::assertSame(self::PRICED_MARKET_STRUCTURE_ID, $shoppingList->structureId);
@@ -303,14 +303,101 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
         self::assertSame(101250.0, $this->materialOf($shoppingList, self::NITROGEN_ISOTOPES)->importCost);
     }
 
-    public function testPricedShoppingListCurrentlyReportsANegativeSavingVersusJitaWhenAMaterialIsOnlySoldInStructure(): void
+    public function testPricedShoppingListSavingsLeaveOutTheMaterialsPricedOnlyInJitaOrOnlyInTheStructure(): void
     {
+        $this->jitaPrices = [self::NITROGEN_ISOTOPES => 500.0, self::COOLANT => 100.0];
+        $this->structurePrices = [self::NITROGEN_ISOTOPES => 1200.0, self::HEAVY_WATER => 200.0];
+        $isotopesJitaWithImport = 445500.0;
+        $isotopesStructureTotal = 486000.0;
+        $bestPriceOfEveryPricedMaterial = 493200.0;
+
+        $shoppingList = $this->provideShoppingList();
+
+        $isotopes = $this->materialOf($shoppingList, self::NITROGEN_ISOTOPES);
+        self::assertSame($isotopesJitaWithImport, $isotopes->jitaWithImport);
+        self::assertSame($isotopesStructureTotal, $isotopes->structureTotal);
+        self::assertSame($isotopesJitaWithImport, $isotopes->bestPrice);
+        self::assertSame(0.0, $shoppingList->totals->savingsVsJitaWithImport);
+        self::assertSame($isotopesStructureTotal - $isotopesJitaWithImport, $shoppingList->totals->savingsVsStructure);
+        self::assertSame(40500.0, $shoppingList->totals->savingsVsStructure);
+        self::assertSame($bestPriceOfEveryPricedMaterial, $shoppingList->totals->best);
+    }
+
+    public function testPricedShoppingListSavesVersusJitaWhenTheStructureIsCheaperForTheMaterialPricedInBoth(): void
+    {
+        $this->jitaPrices = [self::NITROGEN_ISOTOPES => 500.0, self::COOLANT => 100.0];
+        $this->structurePrices = [self::NITROGEN_ISOTOPES => 1000.0, self::HEAVY_WATER => 200.0];
+        $isotopesJitaWithImport = 445500.0;
+        $isotopesStructureTotal = 405000.0;
+
+        $shoppingList = $this->provideShoppingList();
+
+        $isotopes = $this->materialOf($shoppingList, self::NITROGEN_ISOTOPES);
+        self::assertSame('structure', $isotopes->bestLocation);
+        self::assertSame($isotopesStructureTotal, $isotopes->bestPrice);
+        self::assertSame($isotopesJitaWithImport - $isotopesStructureTotal, $shoppingList->totals->savingsVsJitaWithImport);
+        self::assertSame(40500.0, $shoppingList->totals->savingsVsJitaWithImport);
+        self::assertSame(0.0, $shoppingList->totals->savingsVsStructure);
+    }
+
+    public function testPricedShoppingListSumsTheSavingsOfEveryMaterialPricedInBothWhateverItsBestLocation(): void
+    {
+        $this->jitaPrices = [self::NITROGEN_ISOTOPES => 500.0, self::COOLANT => 100.0];
+        $this->structurePrices = [self::NITROGEN_ISOTOPES => 1200.0, self::COOLANT => 1500.0];
+        $isotopesJitaWithImport = 445500.0;
+        $isotopesStructureTotal = 486000.0;
+        $coolantJitaWithImport = 17100.0;
+        $coolantStructureTotal = 13500.0;
+
+        $shoppingList = $this->provideShoppingList();
+
+        self::assertSame('jita', $this->materialOf($shoppingList, self::NITROGEN_ISOTOPES)->bestLocation);
+        $coolant = $this->materialOf($shoppingList, self::COOLANT);
+        self::assertSame($coolantJitaWithImport, $coolant->jitaWithImport);
+        self::assertSame($coolantStructureTotal, $coolant->structureTotal);
+        self::assertSame('structure', $coolant->bestLocation);
+        self::assertSame($coolantJitaWithImport - $coolantStructureTotal, $shoppingList->totals->savingsVsJitaWithImport);
+        self::assertSame(3600.0, $shoppingList->totals->savingsVsJitaWithImport);
+        self::assertSame($isotopesStructureTotal - $isotopesJitaWithImport, $shoppingList->totals->savingsVsStructure);
+        self::assertSame(40500.0, $shoppingList->totals->savingsVsStructure);
+    }
+
+    public function testPricedShoppingListLeavesAMaterialWithAnUnknownVolumeOutOfTheSavingsVersusTheStructure(): void
+    {
+        $this->volumes[self::NITROGEN_ISOTOPES] = null;
         $this->jitaPrices = [self::NITROGEN_ISOTOPES => 500.0, self::COOLANT => 100.0];
         $this->structurePrices = [self::NITROGEN_ISOTOPES => 1200.0, self::HEAVY_WATER => 200.0];
 
         $shoppingList = $this->provideShoppingList();
 
-        self::assertSame(-30600.0, $shoppingList->totals->savingsVsJitaWithImport);
+        self::assertNull($this->materialOf($shoppingList, self::NITROGEN_ISOTOPES)->jitaWithImport);
+        self::assertNull($shoppingList->totals->savingsVsJitaWithImport);
+        self::assertSame(0.0, $shoppingList->totals->savingsVsStructure);
+    }
+
+    public function testPricedShoppingListHasNoSavingWhenJitaWithImportEqualsTheStructurePrice(): void
+    {
+        $this->jitaPrices = [self::NITROGEN_ISOTOPES => 500.0];
+        $this->structurePrices = [self::NITROGEN_ISOTOPES => 1100.0];
+
+        $shoppingList = $this->provideShoppingList();
+
+        $isotopes = $this->materialOf($shoppingList, self::NITROGEN_ISOTOPES);
+        self::assertSame($isotopes->structureTotal, $isotopes->jitaWithImport);
+        self::assertSame('jita', $isotopes->bestLocation);
+        self::assertSame(0.0, $shoppingList->totals->savingsVsJitaWithImport);
+        self::assertSame(0.0, $shoppingList->totals->savingsVsStructure);
+    }
+
+    public function testShoppingListWithoutMarketHasNoSaving(): void
+    {
+        $this->marketUnavailable = true;
+
+        $shoppingList = $this->provideShoppingList();
+
+        self::assertSame('Impossible de récupérer les prix du marché. Réessayez plus tard.', $shoppingList->priceError);
+        self::assertSame(0.0, $shoppingList->totals->savingsVsJitaWithImport);
+        self::assertSame(0.0, $shoppingList->totals->savingsVsStructure);
     }
 
     public function testPricedShoppingListAppendsTheInventionMaterialsOfTheProject(): void
