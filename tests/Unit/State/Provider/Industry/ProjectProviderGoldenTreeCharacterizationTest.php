@@ -15,6 +15,7 @@ use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
+use App\Exception\TypeMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -49,6 +50,7 @@ use Symfony\Component\Uid\Uuid;
  * 1000000) and hasCopy is false unless a test declares a copying activity.
  */
 #[CoversClass(ProjectProvider::class)]
+#[CoversClass(IndustryTreeService::class)]
 #[AllowMockObjectsWithoutExpectations]
 final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
 {
@@ -99,6 +101,7 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
     private User $pilot;
     private IndustryProject $project;
     private Security $security;
+    private IndustryTreeService $treeService;
     private ProjectProvider $provider;
     private ProjectStepResource $mappedStep;
 
@@ -131,11 +134,12 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
         $connection->method('fetchOne')->willReturnCallback(fn (): int => $this->copyingActivityCount);
         $entityManager->method('getConnection')->willReturn($connection);
 
+        $this->treeService = $this->treeServiceOnGoldenSde($entityManager);
         $this->provider = new ProjectProvider(
             $this->security,
             $projectRepository,
             $mapper,
-            $this->treeServiceOnGoldenSde($entityManager),
+            $this->treeService,
             new IndustryBlacklistService($entityManager),
         );
     }
@@ -338,17 +342,73 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
         self::assertTrue($this->blueprintNodesOf($tree, self::HYDROGEN_FUEL_BLOCK)[0]['hasCopy']);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux (pas d'issue ouverte) : un type absent du SDE reçoit le nom
-    // de substitution "Type #<typeId>" au lieu d'un état « inconnu » explicite ; la règle du projet interdit une valeur
-    // par défaut plausible sur une donnée métier.
-    public function testTypeWithoutSdeNameCurrentlyGetsAPlaceholderName(): void
+    public function testTreeOfNitrogenFuelBlockWithEveryTypeInTheSdeKeepsTheSdeNames(): void
     {
-        $this->typeIdsWithoutSdeName = [self::NITROGEN_FUEL_BLOCK, self::ROBOTICS];
-
         $tree = $this->treeOfProject(self::NITROGEN_FUEL_BLOCK, runs: 1, meLevel: 0);
 
-        self::assertSame('Type #4051', $tree['productTypeName']);
-        self::assertSame('Type #9848', array_column($tree['materials'], 'typeName', 'typeId')[self::ROBOTICS]);
+        self::assertSame('Nitrogen Fuel Block', $tree['productTypeName']);
+        self::assertSame(
+            [44 => 'Enriched Uranium', 3683 => 'Oxygen', 3689 => 'Mechanical Parts', 9832 => 'Coolant', self::ROBOTICS => 'Robotics', 16272 => 'Heavy Water', 16273 => 'Liquid Ozone', 16275 => 'Strontium Clathrates', 17888 => 'Nitrogen Isotopes'],
+            array_column($tree['materials'], 'typeName', 'typeId'),
+        );
+    }
+
+    public function testRootProductMissingFromTheSdeFailsTheTreeWithItsTypeId(): void
+    {
+        $this->typeIdsWithoutSdeName = [self::NITROGEN_FUEL_BLOCK];
+
+        $error = $this->typeMissingFromSdeErrorOfTree(self::NITROGEN_FUEL_BLOCK);
+
+        self::assertSame([[self::NITROGEN_FUEL_BLOCK], 'Types missing from the SDE: 4051'], [$error->getMissingTypeIds(), $error->getMessage()]);
+    }
+
+    public function testMaterialMissingFromTheSdeFailsTheTreeWithItsTypeId(): void
+    {
+        $this->typeIdsWithoutSdeName = [self::ROBOTICS];
+
+        $error = $this->typeMissingFromSdeErrorOfTree(self::NITROGEN_FUEL_BLOCK);
+
+        self::assertSame([[self::ROBOTICS], 'Types missing from the SDE: 9848'], [$error->getMissingTypeIds(), $error->getMessage()]);
+    }
+
+    public function testProductAndMaterialMissingFromTheSdeAreAllReportedInAscendingOrder(): void
+    {
+        $this->typeIdsWithoutSdeName = [self::ROBOTICS, self::NITROGEN_FUEL_BLOCK];
+
+        $error = $this->typeMissingFromSdeErrorOfTree(self::NITROGEN_FUEL_BLOCK);
+
+        self::assertSame(
+            [[self::NITROGEN_FUEL_BLOCK, self::ROBOTICS], 'Types missing from the SDE: 4051, 9848'],
+            [$error->getMissingTypeIds(), $error->getMessage()],
+        );
+    }
+
+    public function testIntermediateMissingFromTheSdeInSeveralBranchesIsReportedOnce(): void
+    {
+        $this->typeIdsWithoutSdeName = [self::HYDROGEN_FUEL_BLOCK];
+
+        $error = $this->typeMissingFromSdeErrorOfTree(self::FERNITE_CARBIDE);
+
+        self::assertSame([[self::HYDROGEN_FUEL_BLOCK], 'Types missing from the SDE: 4246'], [$error->getMissingTypeIds(), $error->getMessage()]);
+    }
+
+    public function testExcludedMaterialMissingFromTheSdeFailsTheTreeWithItsTypeId(): void
+    {
+        $this->typeIdsWithoutSdeName = [self::HYDROGEN_FUEL_BLOCK];
+
+        $error = $this->typeMissingFromSdeErrorOfTree(self::FERNITE_CARBIDE, self::HYDROGEN_FUEL_BLOCK);
+
+        self::assertSame([[self::HYDROGEN_FUEL_BLOCK], 'Types missing from the SDE: 4246'], [$error->getMissingTypeIds(), $error->getMessage()]);
+    }
+
+    public function testRootWithoutRecipeAndMissingFromTheSdeStillReportsTheMissingBlueprint(): void
+    {
+        $this->typeIdsWithoutSdeName = [self::ROBOTICS];
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('No blueprint or reaction found for product type ID 9848');
+
+        $this->treeService->buildProductionTree(self::ROBOTICS, 1, 0);
     }
 
     public function testIntermediateWithoutRecipeIsShownAsANonBuildableMaterialAndKeepsTheTree(): void
@@ -390,6 +450,15 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
     public function testTreeIsNullWhenTheProductHasNoBlueprintNorReaction(): void
     {
         $resource = $this->provideProject(self::ROBOTICS, runs: 1, meLevel: 10);
+
+        self::assertNull($resource->tree);
+    }
+
+    public function testTreeIsNullWhenATypeOfTheTreeIsMissingFromTheSde(): void
+    {
+        $this->typeIdsWithoutSdeName = [self::ROBOTICS];
+
+        $resource = $this->provideProject(self::NITROGEN_FUEL_BLOCK, runs: 1, meLevel: 10);
 
         self::assertNull($resource->tree);
     }
@@ -436,6 +505,17 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
         self::assertIsArray($tree);
 
         return $tree;
+    }
+
+    private function typeMissingFromSdeErrorOfTree(int $productTypeId, int ...$excludedTypeIds): TypeMissingFromSdeException
+    {
+        try {
+            $this->treeService->buildProductionTree($productTypeId, 1, 0, array_values($excludedTypeIds));
+        } catch (TypeMissingFromSdeException $error) {
+            return $error;
+        }
+
+        self::fail("The tree of type {$productTypeId} was built without a TypeMissingFromSdeException.");
     }
 
     private function provideProject(int $productTypeId, int $runs, int $meLevel): ProjectResource

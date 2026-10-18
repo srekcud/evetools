@@ -19,6 +19,7 @@ use App\Enum\ContributionType;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\IndustryActivityType;
+use App\Exception\TypeMissingFromSdeException;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryBlueprintRepository;
@@ -81,7 +82,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     /** @var array<int, int> max production limit by blueprint typeId, an absent blueprint is missing from the SDE */
     private array $maxProductionLimits = [];
 
-    private bool $typeNamesKnown = true;
+    private array $typeIdsWithoutSdeName = [];
 
     /** @var array{total: float, base: float, rig: float} structure bonus of the best structure of the owner */
     private array $ownerStructureBonus = ['total' => 0.0, 'base' => 0.0, 'rig' => 0.0];
@@ -482,15 +483,18 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         self::assertCount(0, $project->getBomItems());
     }
 
-    public function testTypeMissingFromTheSdeTypesIsNamedByItsTypeId(): void
+    public function testTypesMissingFromTheSdeTypesThrowAndLeaveTheBomEmpty(): void
     {
-        $this->typeNamesKnown = false;
+        $this->typeIdsWithoutSdeName = [9848, self::NITROGEN_FUEL_BLOCK];
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 10, 20]]);
 
-        $this->service->buildBom($project, $this->owner);
-
-        self::assertSame('Type #9848', $this->bomItemsOf($project, 9848)[0]->getTypeName());
-        self::assertSame('Type #4051', $this->jobBomItems($project)[0]->getTypeName());
+        try {
+            $this->service->buildBom($project, $this->owner);
+            self::fail('Expected a TypeMissingFromSdeException');
+        } catch (TypeMissingFromSdeException $exception) {
+            self::assertSame([self::NITROGEN_FUEL_BLOCK, 9848], $exception->getMissingTypeIds());
+        }
+        self::assertCount(0, $project->getBomItems());
     }
 
     public function testCreateProjectPersistsTheProjectWithItsBomAndFlushesOnce(): void
@@ -755,7 +759,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
 
         $typeRepository = $this->createMock(InvTypeRepository::class);
         $typeRepository->method('find')->willReturnCallback(
-            fn (int $typeId): ?InvType => $this->typeNamesKnown && isset($this->sde['typeNames'][(string) $typeId])
+            fn (int $typeId): ?InvType => !in_array($typeId, $this->typeIdsWithoutSdeName, true) && isset($this->sde['typeNames'][(string) $typeId])
                 ? (new InvType())->setTypeId($typeId)->setTypeName($this->sde['typeNames'][(string) $typeId])
                 : null,
         );

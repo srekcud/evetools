@@ -10,6 +10,7 @@ use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
+use App\Exception\TypeMissingFromSdeException;
 use App\Repository\CachedAssetRepository;
 use App\Repository\IndustryStockpileTargetRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
@@ -55,7 +56,7 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
     /** @var array<int, float> */
     private array $jitaPrices = [];
 
-    private bool $typeNamesKnown = true;
+    private array $typeIdsWithoutSdeName = [];
 
     private IndustryStockpileTargetRepository $targetRepository;
     private EntityManagerInterface $entityManager;
@@ -163,14 +164,16 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         self::assertSame(134.87, $preview['estimatedCost']);
     }
 
-    public function testPreviewNamesAnItemMissingFromTheSdeTypesByItsTypeId(): void
+    public function testPreviewOfATreeWithTypesMissingFromTheSdeTypesThrows(): void
     {
-        $this->typeNamesKnown = false;
+        $this->typeIdsWithoutSdeName = [self::ROBOTICS, self::NITROGEN_FUEL_BLOCK];
 
-        $preview = $this->service->previewImport($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 10);
-
-        self::assertSame('Type #4051', $preview['stages']['final_product'][0]['typeName']);
-        self::assertSame('Type #9848', $this->entryOf($preview['stages']['raw_material'], self::ROBOTICS)['typeName']);
+        try {
+            $this->service->previewImport($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 10);
+            self::fail('Expected a TypeMissingFromSdeException');
+        } catch (TypeMissingFromSdeException $exception) {
+            self::assertSame([self::NITROGEN_FUEL_BLOCK, self::ROBOTICS], $exception->getMissingTypeIds());
+        }
     }
 
     public function testPreviewOfAProductWithoutBlueprintNorReactionThrows(): void
@@ -399,7 +402,7 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
 
         $typeRepository = $this->createMock(InvTypeRepository::class);
         $typeRepository->method('find')->willReturnCallback(
-            fn (int $typeId): ?InvType => $this->typeNamesKnown && isset($this->sde['typeNames'][(string) $typeId])
+            fn (int $typeId): ?InvType => !in_array($typeId, $this->typeIdsWithoutSdeName, true) && isset($this->sde['typeNames'][(string) $typeId])
                 ? (new InvType())->setTypeId($typeId)->setTypeName($this->sde['typeNames'][(string) $typeId])
                 : null,
         );
