@@ -29,7 +29,7 @@ Colonnes : `[runs, quantity, depth, meLevel, teLevel, splitIndex, totalGroupRuns
 | E4 | Découpage manuel en 2 jobs d'une étape de 5 runs, besoin 190, 40 unités par run | runs 3 + 2, quantités 3 + 2 | runs 3 + 2, quantités 120 + 70 |
 | E5 | Découpage manuel en 3 jobs d'une étape de 10 runs, besoin 990, 100 unités par run | runs 4 + 3 + 3, quantités 4 + 3 + 3 | runs 4 + 3 + 3, quantités 400 + 300 + 290 |
 | E6 | Recalcul : 11 runs de Fernite Carbide demandent 1 100 Fernite Alloy (200 par run), groupe de 3 jobs redistribué à 2 + 2 + 2 runs | quantités 400, 400, 400 | quantités 400, 400, 300 |
-| E7 | Recalcul : besoin de 98 Fernite Alloy (1 run), groupe de 2 jobs gardé à 1 + 1 run (minimum 1 run par job) | quantités 200, 200 | quantités 98, 0 |
+| E7 | Recalcul : besoin de 100 Fernite Alloy (1 run), groupe de 2 jobs gardé à 1 + 1 run (minimum 1 run par job) | quantités 200, 200 | quantités 100, 0 |
 | E8 | Fusion d'un groupe issu de E5 | 4 + 3 + 3 = 10 | 990 (somme des quantités, besoin retrouvé) |
 
 ## Cas limites
@@ -51,9 +51,16 @@ Colonnes : `[runs, quantity, depth, meLevel, teLevel, splitIndex, totalGroupRuns
 
 - `testDurationOfAnIntermediateCurrentlyUsesTeTwentyWhateverTheProjectTeIssue116` (groupes `issue-116`, `issue-112`) : le second job d'Oxygen Fuel Block passe de 40 à 15 (E1). #116 est fermée comme voulue : le test peut perdre `Currently…Issue116` et le groupe `issue-116`.
 - `testUnchangedJobOfARecalculatedSplitGroupCurrentlyKeepsTheOldTotalGroupRuns` : quantité du job 2 de 400 à 300 (E6), le reste inchangé.
-- `testSplitChildGroupCurrentlyKeepsTwoRunsForANeedOfOne` : quantités 200, 200 → 98, 0 (E7), runs inchangés.
+- `testSplitChildGroupCurrentlyKeepsTwoRunsForANeedOfOne` : quantités 200, 200 → 100, 0 (E7), runs inchangés.
+- `testRecalculatingTheStepsOfOneNomadCurrentlyKeepsOnlyTheNeedOfTheDeepestConsumerIssue16` : job 1 d'Hydrogen Fuel Block 160 → 155 (besoin 355).
 - Snapshots des goldens contenant un groupe découpé d'un produit à plusieurs unités par run (Nomad par produit, Fernite Carbide Tatara) : à régénérer, seule la quantité du dernier job de chaque groupe doit bouger.
 - Tests de `SplitStepProcessor` s'il en existe.
+
+## Décision prise en autonomie
+
+- E7 portait un besoin de 98 (chiffre du cas Tatara) : sans structure, le besoin vaut 100. Le test Issue16 du Nomad change aussi (besoin d'Hydrogen Fuel Block 355). Valeurs vérifiées sur le SDE des goldens.
+- **R5 — Découpage manuel d'une étape de copie** : une copie produit 1 unité (un run de BPC) par run, sans lire le produit de fabrication. Exemple E9 : copie de 10 runs, besoin 10, 2 jobs → 5 + 5.
+- **R6 — Produit absent du SDE au découpage manuel** : erreur explicite (400, « Product of blueprint <id> missing from the SDE »), aucune étape modifiée, au lieu d'une unité par run par défaut (règle du projet : pas de valeur plausible pour une donnée manquante). Exemple E10.
 
 ## Glossaire
 

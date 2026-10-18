@@ -577,7 +577,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         $this->stepCalculator->recalculateStepQuantities($project);
 
         $steps = $this->stepsOf($project);
-        self::assertSame([[5, 200, 5, 10, 20, 0, 9], [4, 124, 5, 10, 20, 1, 9]], $this->jobsOf($steps, self::HYDROGEN_FUEL_BLOCK));
+        self::assertSame([[5, 200, 5, 10, 20, 0, 9], [4, 155, 5, 10, 20, 1, 9]], $this->jobsOf($steps, self::HYDROGEN_FUEL_BLOCK));
         self::assertSame([[1, 30, 5, 10, 20, 0, null]], $this->jobsOf($steps, self::NITROGEN_FUEL_BLOCK));
         self::assertSame([35, 4], [$this->totalRunsOf($steps, self::FERNITE_ALLOY), $this->stepsOfProduct($steps, self::FERNITE_ALLOY)[0]['totalGroupRuns']]);
         self::assertSame([5, 1], [$this->totalRunsOf($steps, self::FERMIONIC_CONDENSATES), $this->stepsOfProduct($steps, self::FERMIONIC_CONDENSATES)[0]['totalGroupRuns']]);
@@ -623,7 +623,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         $changedSteps = $this->stepCalculator->recalculateStepQuantities($project);
 
         self::assertSame(
-            [[1, 98, 1, 0, 20, 0, 1], [1, 0, 1, 0, 20, 1, 1]],
+            [[1, 100, 1, 0, 20, 0, 1], [1, 0, 1, 0, 20, 1, 1]],
             $this->jobsOf($this->stepsOf($project), self::FERNITE_ALLOY),
         );
         self::assertSame([[self::FERNITE_ALLOY, 0], [self::FERNITE_ALLOY, 1]], $this->productAndSplitIndexOf($changedSteps));

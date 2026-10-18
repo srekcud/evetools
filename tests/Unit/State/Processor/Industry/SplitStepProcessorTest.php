@@ -21,6 +21,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(SplitStepProcessor::class)]
@@ -32,6 +33,11 @@ final class SplitStepProcessorTest extends TestCase
     private const int FERNITE_ALLOY = 16656;
     private const int FERNITE_ALLOY_FORMULA = 17960;
     private const int FERNITE_ALLOY_OUTPUT_PER_RUN = 100;
+    private const int NOMAD_BLUEPRINT = 28847;
+    private const int NOMAD = 28846;
+    private const int NOMAD_OUTPUT_PER_RUN_READ_AS_IF_MANUFACTURED = 10;
+    private const int NITROGEN_FUEL_BLOCK = 4051;
+    private const int NITROGEN_FUEL_BLOCK_BLUEPRINT_MISSING_FROM_THE_SDE = 4314;
     private const int MANUFACTURING_ACTIVITY_ID = 1;
     private const int REACTION_ACTIVITY_ID = 11;
 
@@ -64,6 +70,36 @@ final class SplitStepProcessorTest extends TestCase
         self::assertSame([[4, 400, 0, 10], [3, 300, 1, 10], [3, 290, 2, 10]], $this->jobsOfTheProject());
     }
 
+    #[Group('issue-112')]
+    public function testManualSplitOfACopyStepGivesEachJobOneUnitPerRun(): void
+    {
+        $step = $this->stepOfTheProject(self::NOMAD, self::NOMAD_BLUEPRINT, 'copy', runs: 10, quantity: 10);
+
+        $this->split($step, numberOfJobs: 2);
+
+        self::assertSame([[5, 5, 0, 10], [5, 5, 1, 10]], $this->jobsOfTheProject());
+    }
+
+    #[Group('issue-112')]
+    public function testManualSplitOfAStepWhoseProductIsMissingFromTheSdeIsRefusedWithoutChangingTheStep(): void
+    {
+        $step = $this->stepOfTheProject(self::NITROGEN_FUEL_BLOCK, self::NITROGEN_FUEL_BLOCK_BLUEPRINT_MISSING_FROM_THE_SDE, 'manufacturing', runs: 6, quantity: 230);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects($this->never())->method('flush');
+
+        try {
+            $this->split($step, numberOfJobs: 2, entityManager: $entityManager);
+            self::fail('A step whose product is missing from the SDE must not be split.');
+        } catch (BadRequestHttpException $refusal) {
+            self::assertSame('Product of blueprint 4314 missing from the SDE', $refusal->getMessage());
+        }
+
+        self::assertSame([[6, 230, null]], array_map(
+            static fn (IndustryProjectStep $unchanged): array => [$unchanged->getRuns(), $unchanged->getQuantity(), $unchanged->getSplitGroupId()],
+            array_values($this->project->getSteps()->toArray()),
+        ));
+    }
+
     private function stepOfTheProject(int $productTypeId, int $blueprintTypeId, string $activityType, int $runs, int $quantity): IndustryProjectStep
     {
         $step = (new IndustryProjectStep())
@@ -80,7 +116,7 @@ final class SplitStepProcessorTest extends TestCase
         return $step;
     }
 
-    private function split(IndustryProjectStep $step, int $numberOfJobs): void
+    private function split(IndustryProjectStep $step, int $numberOfJobs, ?EntityManagerInterface $entityManager = null): void
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($this->user);
@@ -100,7 +136,7 @@ final class SplitStepProcessorTest extends TestCase
             $stepRepository,
             $this->activityProductRepositoryOfTheSde(),
             $mapper,
-            $this->createStub(EntityManagerInterface::class),
+            $entityManager ?? $this->createStub(EntityManagerInterface::class),
         );
         $processor->process($input, new Post(), ['id' => Uuid::v4()->toRfc4122(), 'stepId' => Uuid::v4()->toRfc4122()]);
     }
@@ -109,6 +145,7 @@ final class SplitStepProcessorTest extends TestCase
     {
         $products = [
             self::OXYGEN_FUEL_BLOCK_BLUEPRINT.'-'.self::MANUFACTURING_ACTIVITY_ID => $this->activityProduct(self::OXYGEN_FUEL_BLOCK_BLUEPRINT, self::MANUFACTURING_ACTIVITY_ID, self::OXYGEN_FUEL_BLOCK, self::OXYGEN_FUEL_BLOCK_OUTPUT_PER_RUN),
+            self::NOMAD_BLUEPRINT.'-'.self::MANUFACTURING_ACTIVITY_ID => $this->activityProduct(self::NOMAD_BLUEPRINT, self::MANUFACTURING_ACTIVITY_ID, self::NOMAD, self::NOMAD_OUTPUT_PER_RUN_READ_AS_IF_MANUFACTURED),
             self::FERNITE_ALLOY_FORMULA.'-'.self::REACTION_ACTIVITY_ID => $this->activityProduct(self::FERNITE_ALLOY_FORMULA, self::REACTION_ACTIVITY_ID, self::FERNITE_ALLOY, self::FERNITE_ALLOY_OUTPUT_PER_RUN),
         ];
         $repository = $this->createStub(IndustryActivityProductRepository::class);
