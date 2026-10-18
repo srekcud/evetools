@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\StructureConfigResource;
 use App\ApiResource\Input\Industry\UpdateStructureInput;
+use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
 use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryStructureConfigRepository;
@@ -62,7 +63,15 @@ class UpdateStructureProcessor implements ProcessorInterface
         }
 
         if ($data->structureType !== null) {
+            $leavesNpcStation = $structure->isNpcStation() && $data->structureType !== IndustryStructureConfig::NPC_STATION_STRUCTURE_TYPE;
             $structure->setStructureType($data->structureType);
+            if ($leavesNpcStation) {
+                $structure->setFacilityTaxRate(null);
+            }
+        }
+
+        if ($data->facilityTaxRate !== null) {
+            $structure->setFacilityTaxRate($data->facilityTaxRate);
         }
 
         if ($data->rigs !== null) {

@@ -73,6 +73,7 @@ class CorporationStructureProvider implements ProviderInterface
                 'securityType' => $config->getSecurityType(),
                 'structureType' => $config->getStructureType(),
                 'rigs' => $config->getRigs(),
+                'facilityTaxRate' => $config->getFacilityTaxRate(),
                 'manufacturingMaterialBonus' => $config->getManufacturingMaterialBonus(),
                 'reactionMaterialBonus' => $config->getReactionMaterialBonus(),
                 'manufacturingTimeBonus' => $config->getManufacturingTimeBonus(),

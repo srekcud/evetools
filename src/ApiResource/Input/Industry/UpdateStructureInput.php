@@ -24,6 +24,9 @@ class UpdateStructureInput
 
     public ?bool $isCorporationStructure = null;
 
+    #[Assert\Range(min: 0, max: 50)]
+    public ?float $facilityTaxRate = null;
+
     #[Assert\Positive]
     public ?int $solarSystemId = null;
 }

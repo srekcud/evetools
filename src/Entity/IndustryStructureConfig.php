@@ -44,6 +44,10 @@ class IndustryStructureConfig
         'nullsec' => 0.1,
     ];
 
+    public const string NPC_STATION_STRUCTURE_TYPE = 'station';
+
+    public const float NPC_STATION_FACILITY_TAX_RATE = 0.25;
+
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME)]
     private Uuid $id;
@@ -235,7 +239,16 @@ class IndustryStructureConfig
 
     public function getFacilityTaxRate(): ?float
     {
+        if ($this->isNpcStation()) {
+            return self::NPC_STATION_FACILITY_TAX_RATE;
+        }
+
         return $this->facilityTaxRate;
+    }
+
+    public function isNpcStation(): bool
+    {
+        return isset($this->structureType) && $this->structureType === self::NPC_STATION_STRUCTURE_TYPE;
     }
 
     public function setFacilityTaxRate(?float $facilityTaxRate): self

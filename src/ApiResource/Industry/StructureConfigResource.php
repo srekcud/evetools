@@ -74,6 +74,8 @@ class StructureConfigResource
 
     public bool $isCorporationStructure = false;
 
+    public ?float $facilityTaxRate = null;
+
     public float $manufacturingMaterialBonus = 0.0;
 
     public float $reactionMaterialBonus = 0.0;

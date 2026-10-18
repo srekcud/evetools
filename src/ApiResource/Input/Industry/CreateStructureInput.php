@@ -23,6 +23,9 @@ class CreateStructureInput
 
     public bool $isDefault = false;
 
+    #[Assert\Range(min: 0, max: 50)]
+    public ?float $facilityTaxRate = null;
+
     #[Assert\Positive]
     public ?int $locationId = null;
 
