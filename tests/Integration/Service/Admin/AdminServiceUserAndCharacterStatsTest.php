@@ -77,6 +77,29 @@ final class AdminServiceUserAndCharacterStatsTest extends IntegrationTestCase
         );
     }
 
+    public function testAUserWithTwoRevokedCharactersCountsOnceAsInvalid(): void
+    {
+        $statsBefore = $this->adminService->getStats();
+
+        $user = $this->createUser()->setLastLoginAt(new \DateTimeImmutable('-4 days'));
+        $revokedMain = $this->createCharacterWithToken($user, 'Revoked Main Pilot')->markAuthInvalid();
+        $user->setMainCharacter($revokedMain);
+        $this->createCharacterWithToken($user, 'Revoked Alt Pilot')->markAuthInvalid();
+        $this->flushAndClear();
+
+        $statsAfter = $this->adminService->getStats();
+
+        self::assertSame(
+            ['users.total' => 1, 'users.valid' => 0, 'users.invalid' => 1, 'characters.withValidTokens' => 0],
+            [
+                'users.total' => $statsAfter['users']['total'] - $statsBefore['users']['total'],
+                'users.valid' => $statsAfter['users']['valid'] - $statsBefore['users']['valid'],
+                'users.invalid' => $statsAfter['users']['invalid'] - $statsBefore['users']['invalid'],
+                'characters.withValidTokens' => $statsAfter['characters']['withValidTokens'] - $statsBefore['characters']['withValidTokens'],
+            ],
+        );
+    }
+
     private function createCharacterWithToken(User $user, string $name): Character
     {
         $character = $this->createCharacter($user, $name);

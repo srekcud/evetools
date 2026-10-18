@@ -37,6 +37,7 @@ Utilisateur U avec le main M et l'alt A, tous deux avec token et scopes ; U conn
 
 ## Cas limites
 
+- Utilisateur sans aucun personnage : exclu de `findActiveWithCharacters()` (avant : inclus), puisqu'il n'a rien à synchroniser.
 - Personnage sans token : statut valide (le statut ne dépend pas du token) ; les sélections exigent déjà un token.
 - Utilisateur dont tous les personnages sont invalides : plus aucune sync planifiée (comme aujourd'hui) ; une sync manuelle échoue pour chaque personnage sans appel SSO.
 - Migration : tous les personnages démarrent valides, y compris ceux des utilisateurs aujourd'hui invalides. Un personnage réellement révoqué se ré-invalide seul à son prochain refresh (un appel SSO refusé par personnage).
@@ -55,6 +56,7 @@ Mode nuit, spec validée sans Sylvain. Options les plus conservatrices retenues 
 - A4 : pas de repli vers un autre membre de la corporation quand le directeur est invalide : `getCorpAssetsCharacter()` n'est pas modifié, `canSync()` refuse comme aujourd'hui.
 - A5 : un personnage invalide n'appelle jamais EVE SSO, même avec un access token encore valide.
 - A8 : pas de bascule Ansiblex vers un alt.
+- Utilisateur sans personnage exclu des syncs par utilisateur : sans effet, il n'a rien à synchroniser.
 - A9 : migration « tous valides », auto-correction au prochain refresh plutôt que conserver l'exclusion de tous les personnages d'un utilisateur invalide.
 
 ## Glossaire
