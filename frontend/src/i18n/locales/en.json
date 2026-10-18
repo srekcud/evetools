@@ -1086,13 +1086,19 @@
       "bonusPreviewUnavailable": "Bonuses unavailable, retry by changing the configuration",
       "npcNoBonus": "NPC stations have no bonuses",
       "npcStationOption": "NPC Station (no bonus)",
+      "facilityTax": "Facility tax:",
+      "facilityTaxLabel": "Facility tax (%)",
+      "facilityTaxValue": "{rate}%",
+      "facilityTaxNotSet": "not set",
+      "facilityTaxNpcFixed": "{rate} (set by the game)",
+      "facilityTaxOutOfRange": "Facility tax must be between {min} and {max}%",
       "noStructures": "No structures configured",
       "noStructuresHint": "Add your structures to calculate material bonuses",
       "deleteTitle": "Delete structure",
       "deleteConfirm": "Are you sure you want to delete {name}?",
       "editCorpTitle": "Edit corp structure",
       "editCorpWarning1": "This structure is shared with your corporation.",
-      "editCorpWarning2": "Changes (rigs, type, security) will be offered to corp members who import this structure. Copies already imported by other members are not changed. Continue?"
+      "editCorpWarning2": "Changes (rigs, type, security, facility tax) will be offered to corp members who import this structure. Copies already imported by other members are not changed. Continue?"
     },
     "shoppingTab": {
       "marketStructure": "Market structure",

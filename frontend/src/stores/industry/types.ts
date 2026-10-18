@@ -242,6 +242,7 @@ export interface StructureConfig {
   reactionMaterialBonus: number
   manufacturingTimeBonus: number
   reactionTimeBonus: number
+  facilityTaxRate: number | null
   createdAt: string
 }
 
@@ -283,6 +284,7 @@ export interface CorporationStructureSharedConfig {
   rigs: string[]
   manufacturingMaterialBonus: number
   reactionMaterialBonus: number
+  facilityTaxRate: number | null
 }
 
 export interface CorporationStructure {

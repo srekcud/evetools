@@ -6,9 +6,11 @@ import type { StructureConfig, RigOption, CorporationStructure, StructureSearchR
 import FavoriteSystemsConfig from './FavoriteSystemsConfig.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { ApiError } from '@/services/api'
+import { useFormatters } from '@/composables/useFormatters'
 
 const { t } = useI18n()
 const store = useIndustryStore()
+const { formatNumber } = useFormatters()
 
 const showAddForm = ref(false)
 const editingStructure = ref<StructureConfig | null>(null)
@@ -21,6 +23,24 @@ const formSolarSystemId = ref<number | null>(null)
 const formSecurityType = ref<'highsec' | 'lowsec' | 'nullsec'>('nullsec')
 const formStructureType = ref<string>('raitaru')
 const formRigs = ref<string[]>([])
+const formFacilityTaxRate = ref<number | ''>('')
+
+const NPC_STATION_FACILITY_TAX_RATE = 0.25
+const MIN_FACILITY_TAX_RATE = 0
+const MAX_FACILITY_TAX_RATE = 50
+
+const isNpcStation = computed(() => formStructureType.value === 'station')
+const enteredFacilityTaxRate = computed<number | null>(() =>
+  formFacilityTaxRate.value === '' ? null : formFacilityTaxRate.value,
+)
+const isFacilityTaxRateOutOfRange = computed(() => {
+  const rate = enteredFacilityTaxRate.value
+  return !isNpcStation.value && rate != null && (rate < MIN_FACILITY_TAX_RATE || rate > MAX_FACILITY_TAX_RATE)
+})
+
+function formatFacilityTaxRate(rate: number): string {
+  return t('industry.structures.facilityTaxValue', { rate: formatNumber(rate) })
+}
 
 // Rig search state
 const rigSearchQuery = ref('')
@@ -69,6 +89,7 @@ function onCorpStructureSelected() {
       formSecurityType.value = struct.sharedConfig.securityType
       formStructureType.value = struct.sharedConfig.structureType
       formRigs.value = [...struct.sharedConfig.rigs]
+      formFacilityTaxRate.value = struct.sharedConfig.facilityTaxRate ?? ''
     } else {
       // Use the structure type from ESI data if available
       if (struct.structureType) {
@@ -215,6 +236,7 @@ function resetForm() {
   formSecurityType.value = 'nullsec'
   formStructureType.value = 'raitaru'
   formRigs.value = []
+  formFacilityTaxRate.value = ''
   isKnownCorpStructure.value = false
   editingStructure.value = null
   rigSearchQuery.value = ''
@@ -240,11 +262,24 @@ function openEditForm(structure: StructureConfig) {
   formSecurityType.value = structure.securityType
   formStructureType.value = structure.structureType
   formRigs.value = [...structure.rigs]
+  formFacilityTaxRate.value = editableFacilityTaxRate(structure) ?? ''
   isKnownCorpStructure.value = structure.isCorporationStructure
   editingStructure.value = structure
   rigSearchQuery.value = ''
   showRigDropdown.value = false
   showAddForm.value = true
+}
+
+function editableFacilityTaxRate(structure: StructureConfig): number | null {
+  return structure.structureType === 'station' ? null : structure.facilityTaxRate
+}
+
+function facilityTaxRateToUpdate(original: StructureConfig): number | null {
+  const rate = enteredFacilityTaxRate.value
+  if (isNpcStation.value || rate == null || rate === editableFacilityTaxRate(original)) {
+    return null
+  }
+  return rate
 }
 
 function cancelForm() {
@@ -274,10 +309,15 @@ function hasCorpStructureChanges(): boolean {
   if (editingStructure.value.securityType !== formSecurityType.value) {
     return true
   }
+  if (facilityTaxRateToUpdate(editingStructure.value) != null) {
+    return true
+  }
   return false
 }
 
 async function saveStructure() {
+  if (isFacilityTaxRateOutOfRange.value) return
+
   // If editing a corp structure with changes, ask for confirmation
   if (editingStructure.value && hasCorpStructureChanges() && !pendingSave.value) {
     showCorpEditModal.value = true
@@ -288,11 +328,13 @@ async function saveStructure() {
   saveError.value = null
   try {
     if (editingStructure.value) {
+      const facilityTaxRate = facilityTaxRateToUpdate(editingStructure.value)
       await store.updateStructure(editingStructure.value.id, {
         name: formName.value,
         securityType: formSecurityType.value,
         structureType: formStructureType.value as StructureConfig['structureType'],
         rigs: formRigs.value,
+        ...(facilityTaxRate != null ? { facilityTaxRate } : {}),
       })
     } else {
       await store.createStructure({
@@ -302,6 +344,7 @@ async function saveStructure() {
         securityType: formSecurityType.value,
         structureType: formStructureType.value,
         rigs: formRigs.value,
+        facilityTaxRate: isNpcStation.value ? null : enteredFacilityTaxRate.value,
       })
       // The new structure changes the shared corp configs and the "already imported" marks
       await store.fetchCorporationStructures()
@@ -654,6 +697,31 @@ watch(
           </div>
         </div>
 
+        <div>
+          <label for="structure-facility-tax" class="block text-xs text-slate-400 mb-1">{{ t('industry.structures.facilityTaxLabel') }}</label>
+          <p v-if="isNpcStation" class="text-sm text-slate-300">
+            {{ t('industry.structures.facilityTaxNpcFixed', { rate: formatFacilityTaxRate(NPC_STATION_FACILITY_TAX_RATE) }) }}
+          </p>
+          <div v-else>
+            <input
+              id="structure-facility-tax"
+              v-model="formFacilityTaxRate"
+              type="number"
+              :min="MIN_FACILITY_TAX_RATE"
+              :max="MAX_FACILITY_TAX_RATE"
+              step="0.01"
+              inputmode="decimal"
+              :placeholder="t('industry.structures.facilityTaxNotSet')"
+              :aria-invalid="isFacilityTaxRateOutOfRange"
+              class="w-full sm:w-48 px-3 py-2 bg-slate-900 border rounded-lg text-slate-200 text-sm focus:outline-hidden"
+              :class="isFacilityTaxRateOutOfRange ? 'border-red-500 focus:border-red-400' : 'border-slate-600 focus:border-cyan-500'"
+            />
+            <p v-if="isFacilityTaxRateOutOfRange" class="mt-1 text-xs text-red-400">
+              {{ t('industry.structures.facilityTaxOutOfRange', { min: MIN_FACILITY_TAX_RATE, max: MAX_FACILITY_TAX_RATE }) }}
+            </p>
+          </div>
+        </div>
+
         <!-- Rigs Search -->
         <div>
           <label class="block text-xs text-slate-400 mb-2">
@@ -781,7 +849,7 @@ watch(
         <div class="flex gap-3 pt-2">
           <button
             @click="saveStructure"
-            :disabled="!formName.trim()"
+            :disabled="!formName.trim() || isFacilityTaxRateOutOfRange"
             class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg text-white text-sm font-medium"
           >
             {{ editingStructure ? t('common.actions.save') : t('common.actions.add') }}
@@ -817,6 +885,11 @@ watch(
             <p class="text-xs text-slate-500 mt-1">
               {{ structureTypeLabels[structure.structureType] }} -
               {{ securityLabels[structure.securityType] }}
+            </p>
+            <p class="text-xs text-slate-500 mt-1">
+              {{ t('industry.structures.facilityTax') }}
+              <span v-if="structure.facilityTaxRate != null" class="text-slate-300">{{ formatFacilityTaxRate(structure.facilityTaxRate) }}</span>
+              <span v-else class="italic">{{ t('industry.structures.facilityTaxNotSet') }}</span>
             </p>
             <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2">
               <template v-if="structure.manufacturingMaterialBonus > 0 || structure.manufacturingTimeBonus > 0">

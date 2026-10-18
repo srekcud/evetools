@@ -1086,13 +1086,19 @@
       "bonusPreviewUnavailable": "Bonus indisponibles, réessayez en modifiant la configuration",
       "npcNoBonus": "Les stations NPC n'ont pas de bonus",
       "npcStationOption": "Station NPC (aucun bonus)",
+      "facilityTax": "Taxe d'installation :",
+      "facilityTaxLabel": "Taxe d'installation (%)",
+      "facilityTaxValue": "{rate} %",
+      "facilityTaxNotSet": "non saisie",
+      "facilityTaxNpcFixed": "{rate} (fixée par le jeu)",
+      "facilityTaxOutOfRange": "La taxe d'installation doit être comprise entre {min} et {max} %",
       "noStructures": "Aucune structure configurée",
       "noStructuresHint": "Ajoutez vos structures pour calculer les bonus de matériaux",
       "deleteTitle": "Supprimer la structure",
       "deleteConfirm": "Voulez-vous vraiment supprimer {name} ?",
       "editCorpTitle": "Modifier une structure corpo",
       "editCorpWarning1": "Cette structure est partagée avec votre corporation.",
-      "editCorpWarning2": "Les modifications (rigs, type, sécurité) seront proposées aux membres de la corpo qui importeront cette structure. Les copies déjà importées par les autres membres ne changent pas. Voulez-vous continuer ?"
+      "editCorpWarning2": "Les modifications (rigs, type, sécurité, taxe d'installation) seront proposées aux membres de la corpo qui importeront cette structure. Les copies déjà importées par les autres membres ne changent pas. Voulez-vous continuer ?"
     },
     "shoppingTab": {
       "marketStructure": "Structure marche",

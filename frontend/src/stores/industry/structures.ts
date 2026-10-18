@@ -50,6 +50,7 @@ export const useStructuresStore = defineStore('industry-structures', () => {
     securityType: string
     structureType: string
     rigs: string[]
+    facilityTaxRate: number | null
   }) {
     try {
       const structure = await apiRequest<StructureConfig>('/industry/structures', {
