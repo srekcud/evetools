@@ -39,11 +39,12 @@ Les unités par run exactes des exemples sont celles du harnais de `GroupIndustr
 ## Décision prise en autonomie
 
 - Migration (R5) : quand les unités par run ne sont pas uniques pour un produit et une activité, la ligne n'est pas migrée plutôt que de choisir une valeur (option la plus conservatrice).
+- Migration : toutes les contributions d'une ligne de production sont converties, quel que soit leur type (y compris `bpc`, `line_rental`) ou leur statut, pour rester cohérentes avec `fulfilledQuantity`, qui les additionne sans distinction.
 - Frontend : aucun libellé ne présente l'avancement d'une ligne de job en runs ; la modale pré-remplit le reste, qui devient en unités sans changement. Pas de modification front.
 
 ## Glossaire
 
-Aucun terme ajouté : « Quantité » (unités) et « Unités par run » couvrent la règle.
+Ajout de « Ligne de BOM » (revue DDD) ; « Quantité » (unités) et « Unités par run » couvrent la règle.
 
 ## Tests impactés
 

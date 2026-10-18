@@ -81,7 +81,7 @@ class GroupIndustryProjectService
         /** @var array<int, array{typeName: string, quantity: int}> $materialAggregation */
         $materialAggregation = [];
 
-        /** @var array<string, array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null, blueprintTypeId: int}> $jobAggregation */
+        /** @var array<string, array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null, blueprintTypeId: int, outputPerRun: int}> $jobAggregation */
         $jobAggregation = [];
 
         foreach ($project->getItems() as $item) {
@@ -125,7 +125,9 @@ class GroupIndustryProjectService
             $bomItem = new GroupIndustryBomItem();
             $bomItem->setTypeId($jobData['typeId']);
             $bomItem->setTypeName($jobData['typeName']);
-            $bomItem->setRequiredQuantity($jobData['runs']);
+            $bomItem->setRequiredQuantity(
+                in_array($jobData['activityType'], ['manufacturing', 'reaction'], true) ? $jobData['runs'] * $jobData['outputPerRun'] : $jobData['runs'],
+            );
             $bomItem->setIsJob(true);
             $bomItem->setJobGroup($jobData['jobGroup']);
             $bomItem->setActivityType($jobData['activityType']);
@@ -142,7 +144,7 @@ class GroupIndustryProjectService
      *
      * @param array<string, mixed> $tree
      * @param array<int, array{typeName: string, quantity: int}> $materialAggregation
-     * @param array<string, array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null, blueprintTypeId: int}> $jobAggregation
+     * @param array<string, array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null, blueprintTypeId: int, outputPerRun: int}> $jobAggregation
      */
     private function flattenTree(
         array $tree,
@@ -180,6 +182,7 @@ class GroupIndustryProjectService
                 'jobGroup' => $jobGroup,
                 'parentTypeId' => $parentTypeId,
                 'blueprintTypeId' => $blueprintTypeId,
+                'outputPerRun' => $tree['outputPerRun'],
             ];
         }
 
@@ -197,6 +200,7 @@ class GroupIndustryProjectService
                     'jobGroup' => 'blueprint',
                     'parentTypeId' => $parentTypeId,
                     'blueprintTypeId' => $blueprintTypeId,
+                    'outputPerRun' => $tree['outputPerRun'],
                 ];
             } else {
                 $jobAggregation[$copyKey]['runs'] += $tree['runs'];
@@ -231,8 +235,8 @@ class GroupIndustryProjectService
     /**
      * Split aggregated jobs that exceed their blueprint's maxProductionLimit into multiple entries.
      *
-     * @param array<string, array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null, blueprintTypeId: int}> $jobAggregation
-     * @return list<array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null, blueprintTypeId: int}>
+     * @param array<string, array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null, blueprintTypeId: int, outputPerRun: int}> $jobAggregation
+     * @return list<array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null, blueprintTypeId: int, outputPerRun: int}>
      */
     private function splitJobsByMaxProductionLimit(array $jobAggregation): array
     {
