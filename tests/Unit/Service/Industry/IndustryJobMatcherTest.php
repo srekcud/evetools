@@ -32,6 +32,7 @@ use Doctrine\ORM\Query;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
@@ -220,6 +221,14 @@ class IndustryJobMatcherTest extends TestCase
     {
         return array_values(array_map(
             static fn (IndustryStepJobMatch $match): int => $match->getEsiJobId(),
+            $step->getJobMatches()->toArray(),
+        ));
+    }
+
+    private function matchedRuns(IndustryProjectStep $step): int
+    {
+        return array_sum(array_map(
+            static fn (IndustryStepJobMatch $match): int => $match->getRuns(),
             $step->getJobMatches()->toArray(),
         ));
     }
@@ -454,36 +463,6 @@ class IndustryJobMatcherTest extends TestCase
         $this->assertSame(5, $secondSplit->getRuns());
     }
 
-    public function testSplitStepAdaptsOnlyItsOwnRunsAndLeavesTotalGroupRunsAndSiblingUnchanged(): void
-    {
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #3
-        // The first split takes both jobs (3 + oversized fallback 4 = 7 runs), the sibling gets none,
-        // and totalGroupRuns still says 10.
-        $this->givenOutputPerRun(1);
-        $firstSplit = $this->createStep(runs: 5, quantity: 5);
-        $firstSplit->setSplitGroupId('split-group-1');
-        $firstSplit->setTotalGroupRuns(10);
-        $secondSplit = $this->createStep(runs: 5, quantity: 5);
-        $secondSplit->setSplitGroupId('split-group-1');
-        $secondSplit->setSplitIndex(1);
-        $secondSplit->setTotalGroupRuns(10);
-        $project = $this->createProject($firstSplit, $secondSplit);
-        $this->givenJobsForBlueprint(
-            self::BLUEPRINT_TYPE_ID,
-            $this->createJob(jobId: 5001, runs: 3),
-            $this->createJob(jobId: 5002, runs: 4),
-        );
-
-        $this->matcher->matchEsiJobs($project);
-
-        $this->assertSame([5001, 5002], $this->matchedJobIds($firstSplit));
-        $this->assertSame([], $this->matchedJobIds($secondSplit));
-        $this->assertSame(7, $firstSplit->getRuns());
-        $this->assertSame(7, $firstSplit->getQuantity());
-        $this->assertSame(5, $secondSplit->getRuns());
-        $this->assertSame(10, $firstSplit->getTotalGroupRuns());
-        $this->assertSame(10, $secondSplit->getTotalGroupRuns());
-    }
 
     // ===========================================
     // Greedy assignment of runs
@@ -540,22 +519,6 @@ class IndustryJobMatcherTest extends TestCase
         $this->assertSame(10, $step->getRuns());
     }
 
-    public function testOversizedJobIsMatchedAsFallbackAndStepRunsGrowToItsRuns(): void
-    {
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #3
-        $this->givenOutputPerRun(self::OUTPUT_PER_RUN);
-        $step = $this->createStep(runs: 10, quantity: 1000);
-        $project = $this->createProject($step);
-        $this->givenJobsForBlueprint(self::BLUEPRINT_TYPE_ID, $this->createJob(jobId: 5001, runs: 15));
-
-        $this->stepCalculator->expects($this->once())->method('recalculateStepQuantities')->with($project);
-
-        $this->matcher->matchEsiJobs($project);
-
-        $this->assertSame([5001], $this->matchedJobIds($step));
-        $this->assertSame(15, $step->getRuns());
-        $this->assertSame(1500, $step->getQuantity());
-    }
 
     public function testOnlyFirstOversizedJobIsMatchedAsFallback(): void
     {
@@ -571,100 +534,141 @@ class IndustryJobMatcherTest extends TestCase
         $this->matcher->matchEsiJobs($project);
 
         $this->assertSame([5001], $this->matchedJobIds($step));
-        $this->assertSame(15, $step->getRuns());
+        $this->assertSame(10, $step->getRuns());
     }
 
-    public function testFallbackAddsOversizedJobOnTopOfPartialMatchSoStepRunsExceedPlannedRuns(): void
-    {
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #3
-        // 10 runs planned, jobs of 8 and 5 runs: 8 fits, 5 > 2 remaining is then taken as fallback.
-        // Step ends with 13 runs although only 2 were missing.
-        $this->givenOutputPerRun(self::OUTPUT_PER_RUN);
-        $step = $this->createStep(runs: 10, quantity: 1000);
-        $project = $this->createProject($step);
-        $this->givenJobsForBlueprint(
-            self::BLUEPRINT_TYPE_ID,
-            $this->createJob(jobId: 5001, runs: 8),
-            $this->createJob(jobId: 5002, runs: 5),
-        );
-
-        $this->stepCalculator->expects($this->once())->method('recalculateStepQuantities')->with($project);
-
-        $this->matcher->matchEsiJobs($project);
-
-        $this->assertSame([5001, 5002], $this->matchedJobIds($step));
-        $this->assertSame(13, $step->getRuns());
-        $this->assertSame(1300, $step->getQuantity());
-    }
 
     // ===========================================
     // Step runs adaptation (issue #3)
     // ===========================================
 
-    public function testStepRunsShrinkToMatchedRunsWhenJobsCoverFewerRunsThanPlanned(): void
+    #[Group('issue-3')]
+    public function testPartialJobCountsAsProgressAndKeepsStepRunsAndQuantity(): void
     {
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #3
-        // A 10-run step with a single 5-run job becomes a 5-run step (quantity recomputed),
-        // then the whole project quantities are recalculated.
-        $step = $this->createStep(runs: 10, quantity: 1000);
+        $step = $this->createStep(runs: 10, quantity: 10);
         $project = $this->createProject($step);
-        $this->givenJobsForBlueprint(self::BLUEPRINT_TYPE_ID, $this->createJob(jobId: 5001, runs: 5));
+        $this->givenJobsForBlueprint(self::BLUEPRINT_TYPE_ID, $this->createJob(jobId: 5101, runs: 5));
 
-        $product = new IndustryActivityProduct();
-        $product->setQuantity(self::OUTPUT_PER_RUN);
-        $this->productRepository->expects($this->once())
-            ->method('findOneBy')
-            ->with(['typeId' => self::BLUEPRINT_TYPE_ID, 'activityId' => 1])
-            ->willReturn($product);
-        $this->stepCalculator->expects($this->once())->method('recalculateStepQuantities')->with($project);
+        $this->stepCalculator->expects($this->never())->method('recalculateStepQuantities');
 
         $this->matcher->matchEsiJobs($project);
 
-        $this->assertSame([5001], $this->matchedJobIds($step));
-        $this->assertSame(5, $step->getRuns());
-        $this->assertSame(500, $step->getQuantity());
+        $this->assertSame([5101], $this->matchedJobIds($step));
+        $this->assertSame(10, $step->getRuns());
+        $this->assertSame(10, $step->getQuantity());
     }
 
-    public function testReactionStepAdaptationUsesReactionOutputPerRun(): void
+    #[Group('issue-3')]
+    public function testFallbackJobOnTopOfPartialMatchIsMatchedAndStepKeepsItsPlannedRuns(): void
     {
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #3
+        $step = $this->createStep(runs: 10, quantity: 10);
+        $project = $this->createProject($step);
+        $this->givenJobsForBlueprint(
+            self::BLUEPRINT_TYPE_ID,
+            $this->createJob(jobId: 5201, runs: 8),
+            $this->createJob(jobId: 5202, runs: 5),
+        );
+
+        $this->matcher->matchEsiJobs($project);
+
+        $this->assertSame([5201, 5202], $this->matchedJobIds($step));
+        $this->assertSame(13, $this->matchedRuns($step));
+        $this->assertSame(10, $step->getRuns());
+        $this->assertSame(10, $step->getQuantity());
+    }
+
+    #[Group('issue-3')]
+    public function testOversizedFallbackJobIsMatchedAndStepKeepsItsPlannedRuns(): void
+    {
+        $step = $this->createStep(runs: 10, quantity: 10);
+        $project = $this->createProject($step);
+        $this->givenJobsForBlueprint(self::BLUEPRINT_TYPE_ID, $this->createJob(jobId: 5301, runs: 12));
+
+        $this->matcher->matchEsiJobs($project);
+
+        $this->assertSame([5301], $this->matchedJobIds($step));
+        $this->assertSame(10, $step->getRuns());
+        $this->assertSame(10, $step->getQuantity());
+    }
+
+    #[Group('issue-3')]
+    public function testJobsCoveringExactlyStepRunsAreMatchedAndStepKeepsItsRuns(): void
+    {
+        $step = $this->createStep(runs: 10, quantity: 10);
+        $project = $this->createProject($step);
+        $this->givenJobsForBlueprint(
+            self::BLUEPRINT_TYPE_ID,
+            $this->createJob(jobId: 5401, runs: 6),
+            $this->createJob(jobId: 5402, runs: 4),
+        );
+
+        $this->stepCalculator->expects($this->never())->method('recalculateStepQuantities');
+
+        $this->matcher->matchEsiJobs($project);
+
+        $this->assertSame([5401, 5402], $this->matchedJobIds($step));
+        $this->assertSame(10, $step->getRuns());
+        $this->assertSame(10, $step->getQuantity());
+    }
+
+    #[Group('issue-3')]
+    public function testMatchingTwiceWithPartialJobKeepsStepPlannedRunsAndASingleMatch(): void
+    {
+        $step = $this->createStep(runs: 10, quantity: 10);
+        $project = $this->createProject($step);
+        $this->givenJobsForBlueprint(self::BLUEPRINT_TYPE_ID, $this->createJob(jobId: 5501, runs: 5));
+
+        $this->matcher->matchEsiJobs($project);
+        $this->matcher->matchEsiJobs($project);
+
+        $this->assertSame([5501], $this->matchedJobIds($step));
+        $this->assertSame(5, $this->matchedRuns($step));
+        $this->assertSame(10, $step->getRuns());
+        $this->assertSame(10, $step->getQuantity());
+    }
+
+    #[Group('issue-3')]
+    public function testPartialJobOnReactionStepKeepsReactionRunsAndQuantity(): void
+    {
+        $this->givenOutputPerRun(200);
         $step = $this->createStep(runs: 10, quantity: 2000, activityType: 'reaction');
         $project = $this->createProject($step);
-        $this->givenJobsForBlueprint(self::BLUEPRINT_TYPE_ID, $this->createJob(jobId: 5001, runs: 4));
-
-        $product = new IndustryActivityProduct();
-        $product->setQuantity(200);
-        $this->productRepository->expects($this->once())
-            ->method('findOneBy')
-            ->with(['typeId' => self::BLUEPRINT_TYPE_ID, 'activityId' => 11])
-            ->willReturn($product);
-        $this->stepCalculator->expects($this->once())->method('recalculateStepQuantities')->with($project);
+        $this->givenJobsForBlueprint(self::BLUEPRINT_TYPE_ID, $this->createJob(jobId: 5801, runs: 4));
 
         $this->matcher->matchEsiJobs($project);
 
-        $this->assertSame([5001], $this->matchedJobIds($step));
-        $this->assertSame(4, $step->getRuns());
-        $this->assertSame(800, $step->getQuantity());
+        $this->assertSame([5801], $this->matchedJobIds($step));
+        $this->assertSame(10, $step->getRuns());
+        $this->assertSame(2000, $step->getQuantity());
     }
 
-    public function testStepAdaptationAssumesOneUnitPerRunWhenSdeProductIsMissing(): void
+    #[Group('issue-3')]
+    public function testPartialJobInAnotherKnownStructureSwitchesStructureAndRecalculatesButKeepsStepRuns(): void
     {
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #3
-        $step = $this->createStep(runs: 10, quantity: 1000);
+        $plannedStructure = $this->createStructureConfig('Planned Raitaru', self::STRUCTURE_LOCATION_ID);
+        $actualStructure = $this->createStructureConfig('Actual Azbel', self::OTHER_STRUCTURE_LOCATION_ID);
+        $step = $this->createStep(runs: 10, quantity: 10);
+        $step->setStructureConfig($plannedStructure);
         $project = $this->createProject($step);
-        $this->givenJobsForBlueprint(self::BLUEPRINT_TYPE_ID, $this->createJob(jobId: 5001, runs: 5));
-        $this->productRepository->expects($this->once())
-            ->method('findOneBy')
-            ->with(['typeId' => self::BLUEPRINT_TYPE_ID, 'activityId' => 1])
-            ->willReturn(null);
+        $this->givenJobsForBlueprint(
+            self::BLUEPRINT_TYPE_ID,
+            $this->createJob(jobId: 5901, runs: 6, stationId: self::OTHER_STRUCTURE_LOCATION_ID),
+        );
+        $this->structureConfigRepository->method('findByUserAndLocationId')->willReturn($actualStructure);
+        $this->calculationService->method('getStructureBonusForStep')
+            ->willReturn(['materialBonus' => ['total' => 1.8]]);
+
         $this->stepCalculator->expects($this->once())->method('recalculateStepQuantities')->with($project);
 
         $this->matcher->matchEsiJobs($project);
 
-        $this->assertSame([5001], $this->matchedJobIds($step));
-        $this->assertSame(5, $step->getRuns());
-        $this->assertSame(5, $step->getQuantity());
+        $this->assertSame([5901], $this->matchedJobIds($step));
+        $this->assertSame($actualStructure, $step->getStructureConfig());
+        $this->assertSame('Planned Raitaru', $step->getJobMatches()->first()->getPlannedStructureName());
+        $this->assertSame(10, $step->getRuns());
+        $this->assertSame(10, $step->getQuantity());
     }
+
 
     // ===========================================
     // Job status (issue #4)
@@ -1025,25 +1029,6 @@ class IndustryJobMatcherTest extends TestCase
         $this->assertSame(10, $step->getRuns());
     }
 
-    public function testMatchingTwiceKeepsStepRunsShrunkByFirstRun(): void
-    {
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #3
-        // After the first run, the 10-run step became a 5-run step; the second run sees
-        // 5 planned runs covered by the 5-run job and never restores the original 10.
-        $this->givenOutputPerRun(self::OUTPUT_PER_RUN);
-        $step = $this->createStep(runs: 10, quantity: 1000);
-        $project = $this->createProject($step);
-        $this->givenJobsForBlueprint(self::BLUEPRINT_TYPE_ID, $this->createJob(jobId: 5001, runs: 5));
-
-        $this->stepCalculator->expects($this->once())->method('recalculateStepQuantities')->with($project);
-
-        $this->matcher->matchEsiJobs($project);
-        $this->matcher->matchEsiJobs($project);
-
-        $this->assertSame([5001], $this->matchedJobIds($step));
-        $this->assertSame(5, $step->getRuns());
-        $this->assertSame(500, $step->getQuantity());
-    }
 
     // ===========================================
     // Facility auto-correction of the step structure
@@ -1241,52 +1226,44 @@ class IndustryJobMatcherTest extends TestCase
         return $step;
     }
 
-    public function testAdaptedChildStepRunsAfterRecalculation(): void
+    #[Group('issue-3')]
+    public function testPartialJobOnChildStepKeepsItsPlannedRunsAndQuantity(): void
     {
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #3
-        // The matcher shrinks the depth-1 step to the 5 matched runs, then the real
-        // recalculation rewrites it from the parent needs (10 runs x 1 component, ME 0):
-        // the shrink is silently undone, the step is back to 10 runs while only one
-        // 5-run job is linked to it.
         $finalProductStep = $this->createFinalProductStep(runs: 10);
         $componentStep = $this->createComponentStep(runs: 10);
         $project = $this->createProject($finalProductStep, $componentStep);
-        $this->givenJobsForBlueprint(self::COMPONENT_BLUEPRINT_TYPE_ID, $this->createJob(jobId: 5001, runs: 5));
+        $this->givenJobsForBlueprint(self::COMPONENT_BLUEPRINT_TYPE_ID, $this->createJob(jobId: 5601, runs: 5));
 
         $matcher = $this->createMatcherWithRealStepCalculator($this->createComponentMaterialForFinalProduct(1));
         $matcher->matchEsiJobs($project);
 
-        $this->assertSame([5001], $this->matchedJobIds($componentStep));
+        $this->assertSame([5601], $this->matchedJobIds($componentStep));
         $this->assertSame(10, $componentStep->getRuns());
         $this->assertSame(10, $componentStep->getQuantity());
         $this->assertSame([], $this->matchedJobIds($finalProductStep));
         $this->assertSame(10, $finalProductStep->getRuns());
     }
 
-    public function testSplitGroupAfterMatch(): void
+    #[Group('issue-3')]
+    public function testPartialJobOnSplitStepLeavesItsRunsSiblingRunsAndTotalGroupRunsUnchanged(): void
     {
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #3
-        // Split group 5 + 5 runs, a single 3-run job: the matcher shrinks the first split to 3,
-        // then the real recalculation redistributes the 10 needed runs proportionally to the
-        // shrunk runs (3/8 and 5/8): first split 4 runs (linked job covers only 3),
-        // second split grows to 6 runs.
         $finalProductStep = $this->createFinalProductStep(runs: 10);
         $firstSplit = $this->createComponentStep(runs: 5, splitGroupId: 'split-group-1', splitIndex: 0);
         $firstSplit->setTotalGroupRuns(10);
         $secondSplit = $this->createComponentStep(runs: 5, splitGroupId: 'split-group-1', splitIndex: 1);
         $secondSplit->setTotalGroupRuns(10);
         $project = $this->createProject($finalProductStep, $firstSplit, $secondSplit);
-        $this->givenJobsForBlueprint(self::COMPONENT_BLUEPRINT_TYPE_ID, $this->createJob(jobId: 5001, runs: 3));
+        $this->givenJobsForBlueprint(self::COMPONENT_BLUEPRINT_TYPE_ID, $this->createJob(jobId: 5701, runs: 3));
 
         $matcher = $this->createMatcherWithRealStepCalculator($this->createComponentMaterialForFinalProduct(1));
         $matcher->matchEsiJobs($project);
 
-        $this->assertSame([5001], $this->matchedJobIds($firstSplit));
+        $this->assertSame([5701], $this->matchedJobIds($firstSplit));
         $this->assertSame([], $this->matchedJobIds($secondSplit));
-        $this->assertSame(4, $firstSplit->getRuns());
-        $this->assertSame(4, $firstSplit->getQuantity());
-        $this->assertSame(6, $secondSplit->getRuns());
-        $this->assertSame(6, $secondSplit->getQuantity());
+        $this->assertSame(5, $firstSplit->getRuns());
+        $this->assertSame(5, $firstSplit->getQuantity());
+        $this->assertSame(5, $secondSplit->getRuns());
+        $this->assertSame(5, $secondSplit->getQuantity());
         $this->assertSame(10, $firstSplit->getTotalGroupRuns());
         $this->assertSame(10, $secondSplit->getTotalGroupRuns());
     }

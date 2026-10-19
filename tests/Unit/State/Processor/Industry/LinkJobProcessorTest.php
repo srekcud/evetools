@@ -25,6 +25,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Query;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
@@ -313,18 +314,60 @@ class LinkJobProcessorTest extends TestCase
     }
 
     // ===========================================
+    // Progress (issue #3)
+    // ===========================================
+
+    #[Group('issue-3')]
+    public function testManualLinkOfPartialJobKeepsStepRunsAndQuantityWithoutRecalculation(): void
+    {
+        $this->givenJob($this->mainCharacter, runs: 5);
+        $stepCalculator = $this->createMock(IndustryStepCalculator::class);
+        $stepCalculator->expects($this->never())->method('recalculateStepQuantities');
+
+        $this->processorWithStepCalculator($stepCalculator)
+            ->process($this->input(self::ESI_JOB_ID), new Post(), $this->uriVariables());
+
+        $match = $this->onlyJobMatch();
+        self::assertSame(self::ESI_JOB_ID, $match->getEsiJobId());
+        self::assertSame(5, $match->getRuns());
+        self::assertSame(10, $this->step->getRuns());
+        self::assertSame(10, $this->step->getQuantity());
+    }
+
+    #[Group('issue-3')]
+    public function testSecondManualLinkBringingMatchedRunsAboveStepRunsKeepsStepRuns(): void
+    {
+        $firstLinkedMatch = (new IndustryStepJobMatch())->setEsiJobId(600_000_002)->setRuns(8);
+        $this->step->addJobMatch($firstLinkedMatch);
+        $this->givenJob($this->mainCharacter, runs: 5);
+
+        $this->link(self::ESI_JOB_ID);
+
+        self::assertCount(2, $this->step->getJobMatches());
+        self::assertSame(13, array_sum(array_map(
+            static fn (IndustryStepJobMatch $match): int => $match->getRuns(),
+            $this->step->getJobMatches()->toArray(),
+        )));
+        self::assertSame(10, $this->step->getRuns());
+        self::assertSame(10, $this->step->getQuantity());
+    }
+
+    // ===========================================
     // Helpers
     // ===========================================
 
-    private function givenJob(Character $installer, int $blueprintTypeId = self::BLUEPRINT_TYPE_ID): void
-    {
+    private function givenJob(
+        Character $installer,
+        int $blueprintTypeId = self::BLUEPRINT_TYPE_ID,
+        int $runs = self::STEP_RUNS,
+    ): void {
         $job = (new CachedIndustryJob())
             ->setCharacter($installer)
             ->setJobId(self::ESI_JOB_ID)
             ->setActivityId(1)
             ->setBlueprintTypeId($blueprintTypeId)
             ->setProductTypeId($blueprintTypeId + 1)
-            ->setRuns(self::STEP_RUNS)
+            ->setRuns($runs)
             ->setCost(self::JOB_COST)
             ->setStatus('active')
             ->setStartDate(new \DateTimeImmutable('2026-10-01 12:00:00'))
@@ -340,6 +383,21 @@ class LinkJobProcessorTest extends TestCase
         $user?->addCharacter($character);
 
         return $character;
+    }
+
+    private function processorWithStepCalculator(IndustryStepCalculator $stepCalculator): LinkJobProcessor
+    {
+        return new LinkJobProcessor(
+            $this->security,
+            $this->projectRepository,
+            $this->stepRepository,
+            $this->jobRepository,
+            $this->createStub(IndustryStructureConfigRepository::class),
+            $this->createStub(IndustryCalculationService::class),
+            $stepCalculator,
+            $this->mapper,
+            $this->entityManager,
+        );
     }
 
     private function link(int $esiJobId): ProjectStepResource
