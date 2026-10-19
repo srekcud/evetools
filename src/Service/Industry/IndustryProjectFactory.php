@@ -313,23 +313,9 @@ class IndustryProjectFactory
                             $meMultiplier = 1 - $consumer['meLevel'] / 100;
                         }
 
-                        $structureBaseBonus = 0.0;
-                        $rigBonus = 0.0;
-                        if ($activityId === IndustryActivityType::Reaction->value) {
-                            $consumerCategory = $this->bonusService->getCategoryForProduct($consumer['productTypeId'], true);
-                            if ($consumerCategory !== null) {
-                                $bonusData = $this->bonusService->findBestStructureForCategory($user, $consumerCategory, true);
-                                $structureBaseBonus = $bonusData['bonus']['base'];
-                                $rigBonus = $bonusData['bonus']['rig'];
-                            }
-                        } else {
-                            $consumerCategory = $this->bonusService->getCategoryForProduct($consumer['productTypeId'], false);
-                            if ($consumerCategory !== null) {
-                                $bonusData = $this->bonusService->findBestStructureForCategory($user, $consumerCategory, false);
-                                $structureBaseBonus = $bonusData['bonus']['base'];
-                                $rigBonus = $bonusData['bonus']['rig'];
-                            }
-                        }
+                        $reactionMaterialBonus = $this->reactionMaterialBonusOf($user, $consumer);
+                        $structureBaseBonus = $reactionMaterialBonus['base'];
+                        $rigBonus = $reactionMaterialBonus['rig'];
                         $structureMultiplier = $structureBaseBonus > 0 ? (1 - $structureBaseBonus / 100) : 1.0;
                         $rigMultiplier = $rigBonus > 0 ? (1 - $rigBonus / 100) : 1.0;
 
@@ -495,7 +481,7 @@ class IndustryProjectFactory
 
         $changeOfNeedByProduct = array_fill_keys(array_keys($activityTypeByProduct), 0);
         $plannedSteps = [];
-        foreach ($steps as $key => $step) {
+        foreach ($steps as $step) {
             if ($step['activityType'] === 'copy') {
                 $plannedSteps[] = $step;
                 continue;
@@ -507,7 +493,7 @@ class IndustryProjectFactory
                 $step['runs'] = (int) ceil($step['quantity'] / $step['outputPerRun']);
             }
 
-            $jobs = $this->splitLongJobs([$key => $step], $maxJobDurationDays);
+            $jobs = $this->jobsOf($step, $maxJobDurationDays);
             $jobRuns = array_column($jobs, 'runs');
             if ($jobRuns !== [$runsBeforeChangeOfNeed]) {
                 $materials = $materialsByKey[$step['blueprintTypeId'] . '-' . self::activityIdOf($step['activityType'])] ?? [];
@@ -535,16 +521,11 @@ class IndustryProjectFactory
      */
     private function materialBonusOf(User $user, array $consumer, int $materialTypeId, bool $materialIsReaction): array
     {
-        $consumerIsReaction = $consumer['activityType'] === 'reaction';
-
         if ($materialIsReaction) {
-            $consumerCategory = $this->bonusService->getCategoryForProduct($consumer['productTypeId'], $consumerIsReaction);
-
-            return $consumerCategory === null
-                ? self::NO_MATERIAL_BONUS
-                : $this->bonusService->findBestStructureForCategory($user, $consumerCategory, $consumerIsReaction)['bonus'];
+            return $this->reactionMaterialBonusOf($user, $consumer);
         }
 
+        $consumerIsReaction = $consumer['activityType'] === 'reaction';
         $consumerStructure = $this->bonusService->findBestStructureForProduct($user, $consumer['productTypeId'], $consumerIsReaction);
         $materialCategory = $this->bonusService->getCategoryForProduct($materialTypeId, false);
         if ($materialCategory !== null && $materialCategory !== $consumerStructure['category']) {
@@ -552,6 +533,20 @@ class IndustryProjectFactory
         }
 
         return $consumerStructure['bonus'];
+    }
+
+    /**
+     * @param array<string, mixed> $consumer
+     * @return array{total: float, base: float, rig: float}
+     */
+    private function reactionMaterialBonusOf(User $user, array $consumer): array
+    {
+        $consumerIsReaction = $consumer['activityType'] === 'reaction';
+        $consumerCategory = $this->bonusService->getCategoryForProduct($consumer['productTypeId'], $consumerIsReaction);
+
+        return $consumerCategory === null
+            ? self::NO_MATERIAL_BONUS
+            : $this->bonusService->findBestStructureForCategory($user, $consumerCategory, $consumerIsReaction)['bonus'];
     }
 
     /**
@@ -574,56 +569,42 @@ class IndustryProjectFactory
     }
 
     /**
-     * @param array<string, array<string, mixed>> $steps
+     * @param array<string, mixed> $step
      * @return list<array<string, mixed>>
      */
-    private function splitLongJobs(array $steps, float $maxDurationDays): array
+    private function jobsOf(array $step, float $maxJobDurationDays): array
     {
-        $result = [];
-        $maxDurationSeconds = $maxDurationDays * self::SECONDS_PER_DAY;
+        $timePerRun = $step['timePerRun'];
+        $maxDurationSeconds = $maxJobDurationDays * self::SECONDS_PER_DAY;
+        $totalRuns = $step['runs'];
 
-        foreach ($steps as $step) {
-            $timePerRun = $step['timePerRun'] ?? null;
-
-            if ($timePerRun === null || $step['activityType'] === 'copy') {
-                $result[] = $step;
-                continue;
-            }
-
-            $totalRuns = $step['runs'];
-            $totalDuration = $timePerRun * $totalRuns;
-
-            if ($totalDuration <= $maxDurationSeconds) {
-                $result[] = $step;
-                continue;
-            }
-
-            $maxRunsPerJob = max(1, (int) floor($maxDurationSeconds / $timePerRun));
-            $numJobs = (int) ceil($totalRuns / $maxRunsPerJob);
-
-            if ($numJobs === 1) {
-                $result[] = $step;
-                continue;
-            }
-
-            $splitGroupId = Uuid::v4()->toRfc4122();
-            $outputPerRun = $step['outputPerRun'] ?? 1;
-
-            $runsBySplitIndex = SplitGroupQuantities::runsBySplitIndex($totalRuns, $numJobs);
-            $quantitiesBySplitIndex = SplitGroupQuantities::share($step['quantity'], $outputPerRun, $runsBySplitIndex);
-
-            foreach ($runsBySplitIndex as $splitIndex => $runsForThisJob) {
-                $splitStep = $step;
-                $splitStep['runs'] = $runsForThisJob;
-                $splitStep['quantity'] = $quantitiesBySplitIndex[$splitIndex];
-                $splitStep['splitGroupId'] = $splitGroupId;
-                $splitStep['splitIndex'] = $splitIndex;
-                $splitStep['totalGroupRuns'] = $totalRuns;
-
-                $result[] = $splitStep;
-            }
+        if ($timePerRun === null || $timePerRun * $totalRuns <= $maxDurationSeconds) {
+            return [$step];
         }
 
-        return $result;
+        $maxRunsPerJob = max(1, (int) floor($maxDurationSeconds / $timePerRun));
+        $numJobs = (int) ceil($totalRuns / $maxRunsPerJob);
+
+        if ($numJobs === 1) {
+            return [$step];
+        }
+
+        $splitGroupId = Uuid::v4()->toRfc4122();
+        $runsBySplitIndex = SplitGroupQuantities::runsBySplitIndex($totalRuns, $numJobs);
+        $quantitiesBySplitIndex = SplitGroupQuantities::share($step['quantity'], $step['outputPerRun'], $runsBySplitIndex);
+
+        $jobs = [];
+        foreach ($runsBySplitIndex as $splitIndex => $runsForThisJob) {
+            $job = $step;
+            $job['runs'] = $runsForThisJob;
+            $job['quantity'] = $quantitiesBySplitIndex[$splitIndex];
+            $job['splitGroupId'] = $splitGroupId;
+            $job['splitIndex'] = $splitIndex;
+            $job['totalGroupRuns'] = $totalRuns;
+
+            $jobs[] = $job;
+        }
+
+        return $jobs;
     }
 }
