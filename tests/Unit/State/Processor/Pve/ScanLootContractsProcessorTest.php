@@ -7,6 +7,7 @@ namespace App\Tests\Unit\State\Processor\Pve;
 use ApiPlatform\Metadata\Post;
 use App\Entity\Character;
 use App\Entity\EveToken;
+use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Entity\UserPveSettings;
 use App\Repository\PveIncomeRepository;
@@ -18,6 +19,7 @@ use App\State\Processor\Pve\ScanLootContractsProcessor;
 use Doctrine\Common\Collections\ArrayCollection;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -30,11 +32,14 @@ use Symfony\Component\Uid\Uuid;
 class ScanLootContractsProcessorTest extends TestCase
 {
     private const EVE_CHARACTER_ID = 12345;
+    private const ROGUE_DRONE_INFESTATION_DATA = 60459;
+    private const THIRD_TIER_OVERSEERS_PERSONAL_EFFECTS = 19402;
 
     private Security&Stub $security;
     private EsiClient&Stub $esiClient;
     private PveIncomeRepository&Stub $incomeRepository;
     private UserPveSettingsRepository&Stub $settingsRepository;
+    private InvTypeRepository&Stub $invTypeRepository;
     private ScanLootContractsProcessor $processor;
 
     protected function setUp(): void
@@ -43,6 +48,7 @@ class ScanLootContractsProcessorTest extends TestCase
         $this->esiClient = $this->createStub(EsiClient::class);
         $this->incomeRepository = $this->createStub(PveIncomeRepository::class);
         $this->settingsRepository = $this->createStub(UserPveSettingsRepository::class);
+        $this->invTypeRepository = $this->createStub(InvTypeRepository::class);
 
         $requestStack = new RequestStack();
         $requestStack->push(new Request());
@@ -53,7 +59,7 @@ class ScanLootContractsProcessorTest extends TestCase
             $this->createStub(TokenManager::class),
             $this->incomeRepository,
             $this->settingsRepository,
-            $this->createStub(InvTypeRepository::class),
+            $this->invTypeRepository,
             $requestStack,
         );
     }
@@ -96,6 +102,58 @@ class ScanLootContractsProcessorTest extends TestCase
         $this->assertSame(2, $result->scannedContracts);
     }
 
+    #[Group('issue-115')]
+    public function testLootContractWithAnItemMissingFromTheSdeLeavesItsNameUnknownAndLabelsItInTheDescription(): void
+    {
+        $this->security->method('getUser')->willReturn($this->createUserWithCharacter());
+        $this->incomeRepository->method('getImportedContractIds')->willReturn([]);
+        $this->settingsRepository->method('findByUser')->willReturn(null);
+        $this->knowOnlyThirdTierOverseersPersonalEffects();
+        $this->esiClient->method('getPaginated')->willReturn([$this->finishedLootContractAtPrice(600101, 1260000.0)]);
+        $this->esiClient->method('get')->willReturn([
+            ['type_id' => self::ROGUE_DRONE_INFESTATION_DATA, 'quantity' => 9, 'is_included' => true],
+            ['type_id' => self::THIRD_TIER_OVERSEERS_PERSONAL_EFFECTS, 'quantity' => 6, 'is_included' => true],
+        ]);
+
+        $result = $this->processor->process(null, new Post());
+
+        $this->assertCount(1, $result->detectedContracts);
+        $detected = $result->detectedContracts[0];
+        $this->assertSame(600101, $detected->contractId);
+        $this->assertSame([
+            ['typeId' => self::ROGUE_DRONE_INFESTATION_DATA, 'typeName' => null, 'quantity' => 9],
+            ['typeId' => self::THIRD_TIER_OVERSEERS_PERSONAL_EFFECTS, 'typeName' => "3rd Tier Overseer's Personal Effects", 'quantity' => 6],
+        ], $detected->items);
+        $this->assertSame("9x type 60459 (name missing from the SDE), 6x 3rd Tier Overseer's Personal Effects", $detected->description);
+        $this->assertSame(15, $detected->totalQuantity);
+        $this->assertSame(1260000.0, $detected->contractPrice);
+        $this->assertSame(1260000.0, $detected->suggestedPrice);
+    }
+
+    #[Group('issue-115')]
+    public function testLootContractWithOnlyKnownItemsKeepsTheirSdeNames(): void
+    {
+        $this->security->method('getUser')->willReturn($this->createUserWithCharacter());
+        $this->incomeRepository->method('getImportedContractIds')->willReturn([]);
+        $this->settingsRepository->method('findByUser')->willReturn(null);
+        $this->knowOnlyThirdTierOverseersPersonalEffects();
+        $this->esiClient->method('getPaginated')->willReturn([$this->finishedLootContractAtPrice(600102, 0.0)]);
+        $this->esiClient->method('get')->willReturn([
+            ['type_id' => self::THIRD_TIER_OVERSEERS_PERSONAL_EFFECTS, 'quantity' => 11, 'is_included' => true],
+        ]);
+
+        $result = $this->processor->process(null, new Post());
+
+        $this->assertCount(1, $result->detectedContracts);
+        $detected = $result->detectedContracts[0];
+        $this->assertSame([
+            ['typeId' => self::THIRD_TIER_OVERSEERS_PERSONAL_EFFECTS, 'typeName' => "3rd Tier Overseer's Personal Effects", 'quantity' => 11],
+        ], $detected->items);
+        $this->assertSame("11x 3rd Tier Overseer's Personal Effects", $detected->description);
+        $this->assertSame(11, $detected->totalQuantity);
+        $this->assertSame(1100000.0, $detected->suggestedPrice);
+    }
+
     // ===========================================
     // Helpers
     // ===========================================
@@ -116,6 +174,20 @@ class ScanLootContractsProcessorTest extends TestCase
         $user->method('getCharacters')->willReturn(new ArrayCollection([$character]));
 
         return $user;
+    }
+
+    private function knowOnlyThirdTierOverseersPersonalEffects(): void
+    {
+        $knownType = $this->createStub(InvType::class);
+        $knownType->method('getTypeName')->willReturn("3rd Tier Overseer's Personal Effects");
+        $this->invTypeRepository->method('find')->willReturnCallback(
+            static fn (mixed $typeId): ?InvType => $typeId === self::THIRD_TIER_OVERSEERS_PERSONAL_EFFECTS ? $knownType : null,
+        );
+    }
+
+    private function finishedLootContractAtPrice(int $contractId, float $price): array
+    {
+        return [...$this->finishedLootContract($contractId), 'price' => $price];
     }
 
     /** @return array<string, mixed> */

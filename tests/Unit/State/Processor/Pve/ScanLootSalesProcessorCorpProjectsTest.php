@@ -50,6 +50,8 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
     private const RED_LOOT_REWARD_PER_CONTRIBUTION = 85000.0;
     private const CONTRIBUTED_QUANTITY = 1000;
     private const RED_LOOT_CONTRIBUTED_QUANTITY = 7;
+    private const RED_LOOT_MISSING_FROM_SDE_CONTRIBUTED_QUANTITY = 5;
+    private const RED_LOOT_MISSING_FROM_SDE_REWARD_PER_CONTRIBUTION = 64000.0;
     private const ACCESS_TOKEN = 'access-token-2112000001';
     private const COMPATIBILITY_DATE = '2025-12-16';
     private const PROJECTS_PATH = '/corporations/98000001/projects';
@@ -332,6 +334,33 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
         ], $this->requestedPaths());
     }
 
+    #[Group('issue-115')]
+    public function testContributionOfLootMissingFromTheSdeIsDetectedWithTheExplicitLabel(): void
+    {
+        $contributedAt = new \DateTimeImmutable('-3 days');
+        $processor = $this->createProcessor([
+            ...$this->projectListPages([
+                $this->projectRecord(self::RED_LOOT_PROJECT_ID, self::RED_LOOT_PROJECT_NAME, 'Active', new \DateTimeImmutable('-2 days')),
+            ]),
+            ...$this->contributorPages(self::RED_LOOT_PROJECT_ID, [$this->contributorRecord(self::EVE_CHARACTER_ID, 'Pilot One', self::RED_LOOT_MISSING_FROM_SDE_CONTRIBUTED_QUANTITY)]),
+            ...$this->projectDetails(self::RED_LOOT_PROJECT_ID, self::ROGUE_DRONE_INFESTATION_DATA, self::RED_LOOT_MISSING_FROM_SDE_REWARD_PER_CONTRIBUTION),
+            ...$this->contribution(self::RED_LOOT_PROJECT_ID, self::EVE_CHARACTER_ID, self::RED_LOOT_MISSING_FROM_SDE_CONTRIBUTED_QUANTITY, $contributedAt),
+        ], [self::TRITANIUM => 'Tritanium']);
+
+        $result = $processor->process(null, new Post());
+
+        $this->assertCount(1, $result->detectedSales);
+        $sale = $result->detectedSales[0];
+        $this->assertSame(self::RED_LOOT_PROJECT_ID, $sale->projectId);
+        $this->assertSame(PveIncomeType::CorpProject->value, $sale->type);
+        $this->assertSame(self::ROGUE_DRONE_INFESTATION_DATA, $sale->typeId);
+        $this->assertSame('5x type 60459 (name missing from the SDE)', $sale->typeName);
+        $this->assertSame(5, $sale->quantity);
+        $this->assertSame(320000.0, $sale->price);
+        $this->assertSame($contributedAt->format('Y-m-d'), $sale->dateIssued);
+        $this->assertSame(self::RED_LOOT_PROJECT_NAME, $sale->projectName);
+    }
+
     private function corpProjectResponses(\DateTimeImmutable $contributedAt): array
     {
         return [
@@ -434,8 +463,10 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
         return array_column($this->corporationProjectRequests, 'key');
     }
 
-    private function createProcessor(array $corpProjectResponsesByKey): ScanLootSalesProcessor
-    {
+    private function createProcessor(
+        array $corpProjectResponsesByKey,
+        array $knownTypeNamesById = [self::TRITANIUM => 'Tritanium', self::ROGUE_DRONE_INFESTATION_DATA => 'Rogue Drone Infestation Data'],
+    ): ScanLootSalesProcessor {
         $tokenManager = $this->createStub(TokenManager::class);
         $tokenManager->method('getValidAccessToken')->willReturn(self::ACCESS_TOKEN);
 
@@ -450,10 +481,7 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
         $incomeRepository = $this->createStub(PveIncomeRepository::class);
         $incomeRepository->method('getImportedTransactionIds')->willReturn([]);
 
-        $typesById = [
-            self::TRITANIUM => $this->createInvType('Tritanium'),
-            self::ROGUE_DRONE_INFESTATION_DATA => $this->createInvType('Rogue Drone Infestation Data'),
-        ];
+        $typesById = array_map(fn (string $typeName): InvType => $this->createInvType($typeName), $knownTypeNamesById);
         $invTypeRepository = $this->createStub(InvTypeRepository::class);
         $invTypeRepository->method('find')->willReturnCallback(static fn (mixed $typeId): ?InvType => $typesById[$typeId] ?? null);
 
