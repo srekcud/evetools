@@ -13,6 +13,7 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
+use App\Service\UnknownTypeName;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\Service\ResetInterface;
@@ -218,7 +219,9 @@ class IndustryJobSyncService implements ResetInterface
                 // Send individual notifications for newly completed jobs
                 $user = $character->getUser();
                 foreach ($newlyCompletedJobs as $jobData) {
-                    $productName = $this->getTypeName($jobData['product_type_id'] ?? $jobData['blueprint_type_id']);
+                    $productTypeId = $jobData['product_type_id'] ?? $jobData['blueprint_type_id'];
+                    $productName = $this->getTypeName($productTypeId);
+                    $productLabel = $productName ?? UnknownTypeName::label($productTypeId);
                     $activityName = $this->getActivityName($jobData['activity_id']);
                     // Keep existing Mercure sync progress for backward compat
                     $this->mercurePublisher->publishSyncProgress(
@@ -226,7 +229,7 @@ class IndustryJobSyncService implements ResetInterface
                         'industry-job-completed',
                         'notification',
                         null,
-                        sprintf('%s - %s completed!', $productName, $activityName),
+                        sprintf('%s - %s completed!', $productLabel, $activityName),
                         [
                             'jobId' => $jobData['job_id'],
                             'productTypeId' => $jobData['product_type_id'] ?? $jobData['blueprint_type_id'],
@@ -242,8 +245,8 @@ class IndustryJobSyncService implements ResetInterface
                             $user,
                             Notification::CATEGORY_INDUSTRY,
                             Notification::LEVEL_SUCCESS,
-                            sprintf('Job completed: %s', $productName),
-                            sprintf('%s %s (%dx) ready to deliver', $productName, $activityName, $jobData['runs']),
+                            sprintf('Job completed: %s', $productLabel),
+                            sprintf('%s %s (%dx) ready to deliver', $productLabel, $activityName, $jobData['runs']),
                             [
                                 'jobId' => $jobData['job_id'],
                                 'productTypeId' => $jobData['product_type_id'] ?? $jobData['blueprint_type_id'],
@@ -267,10 +270,9 @@ class IndustryJobSyncService implements ResetInterface
         }
     }
 
-    private function getTypeName(int $typeId): string
+    private function getTypeName(int $typeId): ?string
     {
-        $type = $this->invTypeRepository->find($typeId);
-        return $type?->getTypeName() ?? "Type #{$typeId}";
+        return $this->invTypeRepository->find($typeId)?->getTypeName();
     }
 
     private function getActivityName(int $activityId): string
@@ -332,8 +334,8 @@ class IndustryJobSyncService implements ResetInterface
                     'completedSteps' => [],
                 ];
             }
-            $productName = $this->getTypeName($step->getProductTypeId());
-            $projectUpdates[$projectId]['completedSteps'][] = $productName;
+            $productTypeId = $step->getProductTypeId();
+            $projectUpdates[$projectId]['completedSteps'][] = $this->getTypeName($productTypeId) ?? UnknownTypeName::label($productTypeId);
         }
 
         foreach ($projectUpdates as $projectId => $update) {
