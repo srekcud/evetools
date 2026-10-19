@@ -25,6 +25,7 @@ Quatre services d'analyse industrie inventent encore `"Type #<typeId>"`, soit pa
 - **Datacores de l'écran Marges** : la sortie de `ProfitMarginService` ne porte pas de typeId pour les datacores (golden figé, branche CP en cours) : un nom inconnu s'y affiche « Nom inconnu », sans `#id` (clé `common.unknownName`). Ajouter le typeId reviendra à la migration de ProfitMargin sur le moteur.
 - **Timeline du Slot Tracker** : `productTypeId` ajouté à chaque job de la timeline, seul moyen d'afficher « Nom inconnu (#id) ».
 - **Harnais** : les stubs de `resolveMany()` / `resolve()` des tests Pivot Advisor, Slot Tracker et règles du scanner passent à `findNames()` / `findName()`, assertions inchangées (oubli de la phase rouge, repris avant la phase verte).
+- **Kit BPC appliqué avec un datacore au nom inconnu** (relevé en review) : `UpdateProjectInput::$inventionMaterials` refuse un matériau sans nom (E12), et le bouton « Appliquer » du Kit BPC est désactivé avec un message tant qu'un datacore a un nom inconnu. Option conservatrice : on ne retire pas le matériau en silence (il manquerait à la liste de courses) et on n'enregistre pas de nom `null` que la liste de courses du projet ne sait pas lire.
 - **Pas de test front** pour R5 (pas de harnais composant) : vérifié par le typecheck et à la lecture du diff.
 
 ## Exemples chiffrés
@@ -44,6 +45,7 @@ Types : Nitrogen Fuel Block 4051 (connu), Robotics 9848 (absent de `invTypes`).
 | E9 | Coûts de copie, types inconnus | étape de copie du blueprint 9848 produisant 9848 | `copies[].blueprintName = null`, `productTypeName = null`, `cost` inchangé |
 | E10 | Slot Tracker, job inconnu | job ESI produisant 9848 | `productTypeName = null`, temps restant et tri inchangés |
 | E11 | Slot Tracker, suggestion avec nom enregistré | cible de stockpile 9848 nommée « Robotics » en base | `suggestion.typeName = "Robotics"` |
+| E12 | Kit BPC appliqué au projet avec un datacore inconnu | `PATCH` projet, `inventionMaterials = [{typeId: 9848, typeName: null, quantity: 4}]` (ou `typeName` vide) | violation de validation sur `inventionMaterials[0][typeName]`, rien n'est enregistré ; un matériau nommé reste accepté |
 
 ## Cas limites
 
