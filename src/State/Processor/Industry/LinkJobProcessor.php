@@ -119,27 +119,7 @@ class LinkJobProcessor implements ProcessorInterface
 
         $step->addJobMatch($match);
 
-        // Adapt step runs if total matched runs differ from expected
-        $totalMatchedRuns = 0;
-        foreach ($step->getJobMatches() as $m) {
-            $totalMatchedRuns += $m->getRuns();
-        }
-        $runsChanged = $totalMatchedRuns > 0 && $totalMatchedRuns !== $step->getRuns();
-        if ($runsChanged) {
-            $activityId = $step->getActivityType() === 'reaction' ? 11 : 1;
-            $product = $this->entityManager->getRepository(\App\Entity\Sde\IndustryActivityProduct::class)
-                ->findOneBy(['typeId' => $step->getBlueprintTypeId(), 'activityId' => $activityId]);
-            $outputPerRun = $product?->getQuantity() ?? 1;
-
-            $step->setRuns($totalMatchedRuns);
-            $step->setQuantity($totalMatchedRuns * $outputPerRun);
-        }
-
         $this->entityManager->flush();
-
-        if ($runsChanged) {
-            $this->stepCalculator->recalculateStepQuantities($project);
-        }
 
         return $this->mapper->stepToResource($step);
     }

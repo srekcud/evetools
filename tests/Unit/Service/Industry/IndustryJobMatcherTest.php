@@ -111,7 +111,6 @@ class IndustryJobMatcherTest extends TestCase
             $this->stepCalculator,
             $this->calculationService,
             $this->jobRepository,
-            $this->productRepository,
             $this->structureConfigRepository,
             $this->entityManager,
         );
@@ -279,7 +278,6 @@ class IndustryJobMatcherTest extends TestCase
             $this->stepCalculator,
             $this->calculationService,
             $this->jobRepository,
-            $this->productRepository,
             $this->structureConfigRepository,
             $this->entityManager,
         );
@@ -302,7 +300,6 @@ class IndustryJobMatcherTest extends TestCase
             $this->stepCalculator,
             $this->calculationService,
             $this->jobRepository,
-            $this->productRepository,
             $this->structureConfigRepository,
             $this->entityManager,
         );
@@ -326,7 +323,6 @@ class IndustryJobMatcherTest extends TestCase
             $this->stepCalculator,
             $this->calculationService,
             $this->jobRepository,
-            $this->productRepository,
             $this->structureConfigRepository,
             $this->entityManager,
         );
@@ -1187,7 +1183,6 @@ class IndustryJobMatcherTest extends TestCase
             $realStepCalculator,
             $this->calculationService,
             $this->jobRepository,
-            $this->productRepository,
             $this->structureConfigRepository,
             $this->entityManager,
         );

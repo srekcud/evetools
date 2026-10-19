@@ -8,10 +8,8 @@ use App\Entity\CachedIndustryJob;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStepJobMatch;
-use App\Enum\IndustryActivityType;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryStructureConfigRepository;
-use App\Repository\Sde\IndustryActivityProductRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -30,7 +28,6 @@ class IndustryJobMatcher
         private readonly IndustryStepCalculator $stepCalculator,
         private readonly IndustryCalculationService $calculationService,
         private readonly CachedIndustryJobRepository $jobRepository,
-        private readonly IndustryActivityProductRepository $productRepository,
         private readonly IndustryStructureConfigRepository $structureConfigRepository,
         private readonly EntityManagerInterface $entityManager,
     ) {
@@ -119,16 +116,6 @@ class IndustryJobMatcher
                     break; // Only one fallback job
                 }
             }
-
-            // Adapt step runs if total matched runs differ from expected
-            $totalMatchedRuns = 0;
-            foreach ($step->getJobMatches() as $m) {
-                $totalMatchedRuns += $m->getRuns();
-            }
-            if ($totalMatchedRuns > 0 && $totalMatchedRuns !== $step->getRuns()) {
-                $this->adaptStepRuns($step, $totalMatchedRuns);
-                $stepsToRecalculate = true;
-            }
         }
 
         $this->entityManager->flush();
@@ -204,25 +191,6 @@ class IndustryJobMatcher
     private function withoutCancelledJobs(array $jobs): array
     {
         return array_filter($jobs, static fn (CachedIndustryJob $job): bool => !$job->isCancelled());
-    }
-
-    /**
-     * Adapt a step's runs and quantity to match the total runs from linked jobs.
-     */
-    private function adaptStepRuns(IndustryProjectStep $step, int $newRuns): void
-    {
-        $activityId = $step->getActivityType() === 'reaction'
-            ? IndustryActivityType::Reaction->value
-            : IndustryActivityType::Manufacturing->value;
-
-        $product = $this->productRepository->findOneBy([
-            'typeId' => $step->getBlueprintTypeId(),
-            'activityId' => $activityId,
-        ]);
-        $outputPerRun = $product?->getQuantity() ?? 1;
-
-        $step->setRuns($newRuns);
-        $step->setQuantity($newRuns * $outputPerRun);
     }
 
     /**
