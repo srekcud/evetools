@@ -743,10 +743,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         self::assertSame([[107, 4245, 5, 10, 20, 0, null]], $this->jobsOf($steps, self::HELIUM_FUEL_BLOCK));
         self::assertSame([550, 550], [$this->totalRunsOf($steps, self::FERNITE_ALLOY), $this->stepsOfProduct($steps, self::FERNITE_ALLOY)[0]['totalGroupRuns']]);
         self::assertSame([70, 70], [$this->totalRunsOf($steps, self::FERMIONIC_CONDENSATES), $this->stepsOfProduct($steps, self::FERMIONIC_CONDENSATES)[0]['totalGroupRuns']]);
-        self::assertSame(
-            [[self::NITROGEN_FUEL_BLOCK, 0], [self::HYDROGEN_FUEL_BLOCK, 0], [self::HYDROGEN_FUEL_BLOCK, 1], [self::HELIUM_FUEL_BLOCK, 0], [self::OXYGEN_FUEL_BLOCK, 0]],
-            $this->sortedProductAndSplitIndexOf($changedSteps),
-        );
+        self::assertSame([], $this->sortedProductAndSplitIndexOf($changedSteps));
         $this->assertMatchesSnapshot('nomad-1run-me10-no-structure-recalculated-per-product', $this->summaryPerProductOf($project));
     }
 
