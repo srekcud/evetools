@@ -7,6 +7,9 @@ namespace App\Tests\Unit\Service\Sync;
 use App\Entity\CachedIndustryJob;
 use App\Entity\Character;
 use App\Entity\EveToken;
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectStep;
+use App\Entity\IndustryStepJobMatch;
 use App\Entity\Notification;
 use App\Entity\User;
 use App\Repository\CachedIndustryJobRepository;
@@ -16,6 +19,7 @@ use App\Service\ESI\EsiClient;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
 use App\Service\Sync\IndustryJobSyncService;
+use App\Tests\Unit\Service\Industry\ResolvesTypeNamesFromSde;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -25,6 +29,7 @@ use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Mercure\HubInterface;
+use Symfony\Component\Mercure\Update;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\Service\ResetInterface;
 
@@ -32,6 +37,10 @@ use Symfony\Contracts\Service\ResetInterface;
 #[AllowMockObjectsWithoutExpectations]
 class IndustryJobSyncServiceTest extends TestCase
 {
+    use ResolvesTypeNamesFromSde;
+
+    private const int TYPE_ID_MISSING_FROM_SDE = 1000;
+
     private EsiClient&MockObject $esiClient;
     private CachedIndustryJobRepository&MockObject $jobRepository;
     private InvTypeRepository&Stub $invTypeRepository;
@@ -39,20 +48,25 @@ class IndustryJobSyncServiceTest extends TestCase
     private IndustryStepJobMatchRepository&Stub $jobMatchRepository;
     private NotificationDispatcher&MockObject $notificationDispatcher;
     private IndustryJobSyncService $service;
+    private array $publishedMercurePayloads = [];
 
     protected function setUp(): void
     {
         $this->esiClient = $this->createMock(EsiClient::class);
         $this->jobRepository = $this->createMock(CachedIndustryJobRepository::class);
-        $this->invTypeRepository = $this->createStub(InvTypeRepository::class);
+        $this->invTypeRepository = $this->sdeTypeRepositoryKnowingOnlyNitrogenFuelBlock();
         $this->em = $this->createMock(EntityManagerInterface::class);
         $this->jobMatchRepository = $this->createStub(IndustryStepJobMatchRepository::class);
         $this->notificationDispatcher = $this->createMock(NotificationDispatcher::class);
 
-        $mercurePublisher = new MercurePublisherService(
-            $this->createStub(HubInterface::class),
-            new NullLogger(),
-        );
+        $mercureHub = $this->createStub(HubInterface::class);
+        $mercureHub->method('publish')->willReturnCallback(function (Update $update): string {
+            $this->publishedMercurePayloads[] = json_decode($update->getData(), true, flags: JSON_THROW_ON_ERROR);
+
+            return 'published';
+        });
+
+        $mercurePublisher = new MercurePublisherService($mercureHub, new NullLogger());
 
         $this->service = new IndustryJobSyncService(
             $this->esiClient,
@@ -354,12 +368,12 @@ class IndustryJobSyncServiceTest extends TestCase
                 $user,
                 Notification::CATEGORY_INDUSTRY,
                 Notification::LEVEL_SUCCESS,
-                'Job completed: Type #1000',
-                'Type #1000 Manufacturing (5x) ready to deliver',
+                'Job completed: type 1000 (name missing from the SDE)',
+                'type 1000 (name missing from the SDE) Manufacturing (5x) ready to deliver',
                 [
                     'jobId' => 7002,
                     'productTypeId' => 1000,
-                    'productName' => 'Type #1000',
+                    'productName' => null,
                     'runs' => 5,
                     'activityId' => 1,
                 ],
@@ -397,6 +411,87 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->assertSame('active', $corporationJobOfB->getStatus());
         $this->assertNull($corporationJobOfB->getCompletedDate());
         $this->assertSame('delivered', $personalStaleJobOfB->getStatus());
+    }
+
+    public function testCompletedJobNotificationNamesKnownProductFromSde(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $user = $character->getUser();
+        $this->completeJobOf($character, 7001, self::NITROGEN_FUEL_BLOCK_TYPE_ID);
+
+        $this->notificationDispatcher->expects($this->once())
+            ->method('dispatch')
+            ->with(
+                $user,
+                Notification::CATEGORY_INDUSTRY,
+                Notification::LEVEL_SUCCESS,
+                'Job completed: Nitrogen Fuel Block',
+                'Nitrogen Fuel Block Manufacturing (5x) ready to deliver',
+                [
+                    'jobId' => 7001,
+                    'productTypeId' => 4051,
+                    'productName' => 'Nitrogen Fuel Block',
+                    'runs' => 5,
+                    'activityId' => 1,
+                ],
+                '/industry',
+            );
+
+        $this->service->syncCharacterJobs($character);
+
+        $jobCompletedNotifications = $this->mercureNotificationsOf('industry-job-completed');
+        $this->assertCount(1, $jobCompletedNotifications);
+        $this->assertSame('Nitrogen Fuel Block - Manufacturing completed!', $jobCompletedNotifications[0]['message']);
+        $this->assertSame([
+            'jobId' => 7001,
+            'productTypeId' => 4051,
+            'productName' => 'Nitrogen Fuel Block',
+            'runs' => 5,
+            'activityId' => 1,
+        ], $jobCompletedNotifications[0]['data']);
+    }
+
+    public function testJobCompletedMercureMessageLabelsProductMissingFromSdeWithNullProductName(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->completeJobOf($character, 7002, self::TYPE_ID_MISSING_FROM_SDE);
+
+        $this->service->syncCharacterJobs($character);
+
+        $jobCompletedNotifications = $this->mercureNotificationsOf('industry-job-completed');
+        $this->assertCount(1, $jobCompletedNotifications);
+        $this->assertSame(
+            'type 1000 (name missing from the SDE) - Manufacturing completed!',
+            $jobCompletedNotifications[0]['message'],
+        );
+        $this->assertSame([
+            'jobId' => 7002,
+            'productTypeId' => 1000,
+            'productName' => null,
+            'runs' => 5,
+            'activityId' => 1,
+        ], $jobCompletedNotifications[0]['data']);
+    }
+
+    public function testProjectProgressMercureMessageLabelsStepProductMissingFromSde(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->completeJobOf($character, 7002, self::TYPE_ID_MISSING_FROM_SDE);
+
+        $project = $this->createStub(IndustryProject::class);
+        $project->method('getId')->willReturn(Uuid::fromString('0193a5c2-7b1e-7c4d-9f2a-3e8b6d1c5a40'));
+        $project->method('getName')->willReturn('Batch');
+        $step = (new IndustryProjectStep())->setProject($project)->setProductTypeId(self::TYPE_ID_MISSING_FROM_SDE);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([(new IndustryStepJobMatch())->setStep($step)]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $projectNotifications = $this->mercureNotificationsOf('industry-project');
+        $this->assertCount(1, $projectNotifications);
+        $this->assertSame(
+            'Project "Batch": type 1000 (name missing from the SDE) completed',
+            $projectNotifications[0]['message'],
+        );
     }
 
     // ===========================================
@@ -549,6 +644,25 @@ class IndustryJobSyncServiceTest extends TestCase
         return $job;
     }
 
+    private function completeJobOf(Character $character, int $jobId, int $productTypeId): void
+    {
+        $this->esiClient->method('get')->willReturn([
+            $this->makeJobData($jobId, $character->getEveCharacterId(), 'ready', $productTypeId),
+        ]);
+        $activeJob = $this->makeCachedJob($jobId, $character, 'active', '-1 hour');
+        $this->jobRepository->method('findByJobId')
+            ->willReturnCallback(fn (int $requestedJobId): ?CachedIndustryJob => $requestedJobId === $jobId ? $activeJob : null);
+        $this->stubActiveJobsByCharacter([$activeJob]);
+    }
+
+    private function mercureNotificationsOf(string $syncType): array
+    {
+        return array_values(array_filter(
+            $this->publishedMercurePayloads,
+            static fn (array $payload): bool => $payload['syncType'] === $syncType && $payload['status'] === 'notification',
+        ));
+    }
+
     /**
      * Mimics the real query: jobs of the given character whose status is active or ready.
      *
@@ -568,14 +682,14 @@ class IndustryJobSyncServiceTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function makeJobData(int $jobId, int $installerId, string $status): array
+    private function makeJobData(int $jobId, int $installerId, string $status, int $productTypeId = self::TYPE_ID_MISSING_FROM_SDE): array
     {
         return [
             'job_id' => $jobId,
             'installer_id' => $installerId,
             'activity_id' => 1,
             'blueprint_type_id' => 999,
-            'product_type_id' => 1000,
+            'product_type_id' => $productTypeId,
             'runs' => 5,
             'cost' => 100_000.0,
             'status' => $status,

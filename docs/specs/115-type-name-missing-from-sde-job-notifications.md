@@ -14,7 +14,7 @@ Lots 1, 2, 4a, 4b et 5 (specs `115-type-name-missing-from-sde*.md`) : le **nom d
 
 - **R1 — Données.** `productName` dans les données de la notification et du message Mercure vaut `null` pour un type absent de `invTypes` ; `productTypeId` reste renseigné.
 - **R2 — Texte.** Dans un texte (titre, message, liste d'étapes), un type inconnu s'écrit `type <typeId> (name missing from the SDE)`, le même libellé que la console. Ce format n'existe qu'à un endroit du back : il est partagé avec `ConsoleProjectLabel`, pas recopié.
-- **R3 — Résolution.** Le service passe par `TypeNameResolver::findName()`.
+- **R3 — Résolution.** Le service garde sa lecture actuelle d'`InvTypeRepository` (son harnais de test le construit avec le dépôt) et retire seulement le nom inventé : `getTypeName()` renvoie `?string`.
 - **R4 — Inchangé.** Un type connu garde exactement les textes et données actuels ; nombre de notifications, catégorie, niveau, `jobId`, runs et activité inchangés.
 
 ## Exemples chiffrés
