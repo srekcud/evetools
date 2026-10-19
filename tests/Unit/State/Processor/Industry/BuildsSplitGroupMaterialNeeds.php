@@ -34,6 +34,7 @@ trait BuildsSplitGroupMaterialNeeds
     private const int AUTO_INTEGRITY_PRESERVATION_SEAL = 57478;
     private const int CORE_TEMPERATURE_REGULATOR = 57479;
     private const int LIFE_SUPPORT_BACKUP_UNIT = 57486;
+    private const string ADVANCED_COMPONENT_CATEGORY = 'advanced_component';
 
     private const array RECIPES = [
         self::QUANTUM_MICROPROCESSOR => ['activity' => 'manufacturing', 'outputPerRun' => 1, 'materials' => [self::TITANIUM_CARBIDE => 17, self::PHENOLIC_COMPOSITES => 6, self::NANOTRANSISTORS => 2, self::NONLINEAR_METAMATERIALS => 2]],
@@ -65,6 +66,15 @@ trait BuildsSplitGroupMaterialNeeds
             $this->calculationServiceWithoutStructure(),
             $this->materialRepositoryOnRecipes(),
             $this->productRepositoryOnRecipes($blueprintsMissingFromTheSde),
+        );
+    }
+
+    private function splitGroupMaterialNeedsOnRecipesInAStructure(float $baseMaterialBonus, float $rigMaterialBonus): SplitGroupMaterialNeeds
+    {
+        return new SplitGroupMaterialNeeds(
+            $this->calculationServiceInAStructure($baseMaterialBonus, $rigMaterialBonus),
+            $this->materialRepositoryOnRecipes(),
+            $this->productRepositoryOnRecipes([]),
         );
     }
 
@@ -157,10 +167,26 @@ trait BuildsSplitGroupMaterialNeeds
 
     private function calculationServiceWithoutStructure(): IndustryCalculationService
     {
-        $typeRepository = $this->createStub(InvTypeRepository::class);
         $bonusService = $this->createStub(IndustryBonusService::class);
         $bonusService->method('findBestStructureForProduct')->willReturn(['structure' => null, 'bonus' => ['total' => 0.0, 'base' => 0.0, 'rig' => 0.0], 'category' => null]);
         $bonusService->method('getCategoryForProduct')->willReturn(null);
+
+        return $this->calculationServiceWith($bonusService);
+    }
+
+    private function calculationServiceInAStructure(float $baseMaterialBonus, float $rigMaterialBonus): IndustryCalculationService
+    {
+        $bonusService = $this->createStub(IndustryBonusService::class);
+        $bonusService->method('getCategoryForProduct')->willReturn(self::ADVANCED_COMPONENT_CATEGORY);
+        $bonusService->method('calculateStructureBonusForCategory')->willReturn(['total' => $baseMaterialBonus + $rigMaterialBonus, 'base' => $baseMaterialBonus, 'rig' => $rigMaterialBonus]);
+        $bonusService->method('calculateStructureTimeBonusForCategory')->willReturn(0.0);
+
+        return $this->calculationServiceWith($bonusService);
+    }
+
+    private function calculationServiceWith(IndustryBonusService $bonusService): IndustryCalculationService
+    {
+        $typeRepository = $this->createStub(InvTypeRepository::class);
         $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
         $settingsRepository->method('findOneBy')->willReturn(null);
 

@@ -9,12 +9,14 @@ use App\ApiResource\Industry\ProjectStepResource;
 use App\ApiResource\Input\Industry\SplitStepInput;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
+use App\Entity\IndustryStructureConfig;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\SplitGroupMaterialNeeds;
+use App\Service\Industry\SplitGroupQuantities;
 use App\State\Processor\Industry\SplitStepProcessor;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,6 +28,8 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(SplitStepProcessor::class)]
+#[CoversClass(SplitGroupMaterialNeeds::class)]
+#[CoversClass(SplitGroupQuantities::class)]
 final class SplitStepProcessorTest extends TestCase
 {
     use BuildsSplitGroupMaterialNeeds;
@@ -43,6 +47,8 @@ final class SplitStepProcessorTest extends TestCase
     private const int NITROGEN_FUEL_BLOCK_BLUEPRINT_MISSING_FROM_THE_SDE = 4314;
     private const int MANUFACTURING_ACTIVITY_ID = 1;
     private const int REACTION_ACTIVITY_ID = 11;
+    private const float RAITARU_BASE_MATERIAL_BONUS = 1.0;
+    private const float ADVANCED_COMPONENT_RIG_MATERIAL_BONUS = 2.4;
 
     private User $user;
     private IndustryProject $project;
@@ -199,6 +205,45 @@ final class SplitStepProcessorTest extends TestCase
                 array_values($this->project->getSteps()->toArray()),
             ),
         );
+    }
+
+    #[Group('issue-73')]
+    public function testManualSplitOfAConsumerInAStructureGivesItsMaterialStepsTheMaterialsOfEachNewJobWithTheStructureBonus(): void
+    {
+        $quantumMicroprocessor = $this->stepOfTheProject(self::QUANTUM_MICROPROCESSOR, self::blueprintOfRecipe(self::QUANTUM_MICROPROCESSOR), 'manufacturing', runs: 32, quantity: 32);
+        $quantumMicroprocessor->setStructureConfig((new IndustryStructureConfig())->setName('Raitaru')->setStructureType('raitaru')->setSecurityType('highsec'));
+        $this->stepOfTheProject(self::TITANIUM_CARBIDE, self::blueprintOfRecipe(self::TITANIUM_CARBIDE), 'reaction', runs: 1, quantity: 474);
+        $this->stepOfTheProject(self::PHENOLIC_COMPOSITES, self::blueprintOfRecipe(self::PHENOLIC_COMPOSITES), 'reaction', runs: 1, quantity: 167);
+        $this->stepOfTheProject(self::NANOTRANSISTORS, self::blueprintOfRecipe(self::NANOTRANSISTORS), 'reaction', runs: 1, quantity: 56);
+        $this->stepOfTheProject(self::NONLINEAR_METAMATERIALS, self::blueprintOfRecipe(self::NONLINEAR_METAMATERIALS), 'reaction', runs: 1, quantity: 56);
+
+        $this->split(
+            $quantumMicroprocessor,
+            numberOfJobs: 3,
+            splitGroupMaterialNeeds: $this->splitGroupMaterialNeedsOnRecipesInAStructure(self::RAITARU_BASE_MATERIAL_BONUS, self::ADVANCED_COMPONENT_RIG_MATERIAL_BONUS),
+        );
+
+        self::assertSame(
+            [self::TITANIUM_CARBIDE => [[1, 474, 0, null]], self::PHENOLIC_COMPOSITES => [[1, 169, 0, null]], self::NANOTRANSISTORS => [[1, 58, 0, null]], self::NONLINEAR_METAMATERIALS => [[1, 58, 0, null]]],
+            [
+                self::TITANIUM_CARBIDE => $this->jobsOfProduct(self::TITANIUM_CARBIDE),
+                self::PHENOLIC_COMPOSITES => $this->jobsOfProduct(self::PHENOLIC_COMPOSITES),
+                self::NANOTRANSISTORS => $this->jobsOfProduct(self::NANOTRANSISTORS),
+                self::NONLINEAR_METAMATERIALS => $this->jobsOfProduct(self::NONLINEAR_METAMATERIALS),
+            ],
+        );
+    }
+
+    #[Group('issue-73')]
+    public function testManualSplitOfACopyStepLeavesTheMaterialStepsOfItsBlueprintUnchanged(): void
+    {
+        $quantumMicroprocessorCopy = $this->stepOfTheProject(self::QUANTUM_MICROPROCESSOR, self::blueprintOfRecipe(self::QUANTUM_MICROPROCESSOR), 'copy', runs: 32, quantity: 32);
+        $this->stepOfTheProject(self::TITANIUM_CARBIDE, self::blueprintOfRecipe(self::TITANIUM_CARBIDE), 'reaction', runs: 1, quantity: 490);
+
+        $this->split($quantumMicroprocessorCopy, numberOfJobs: 3);
+
+        self::assertSame([[11, 11, 0, 32], [11, 11, 1, 32], [10, 10, 2, 32]], $this->jobsOfProduct(self::QUANTUM_MICROPROCESSOR));
+        self::assertSame([[1, 490, 0, null]], $this->jobsOfProduct(self::TITANIUM_CARBIDE));
     }
 
     private function stepOfTheProject(int $productTypeId, int $blueprintTypeId, string $activityType, int $runs, int $quantity): IndustryProjectStep

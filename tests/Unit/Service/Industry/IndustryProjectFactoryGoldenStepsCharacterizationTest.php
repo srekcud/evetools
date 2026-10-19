@@ -29,6 +29,7 @@ use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryProjectFactory;
 use App\Service\Industry\IndustryStepCalculator;
 use App\Service\Industry\IndustryTreeService;
+use App\Service\Industry\SplitGroupQuantities;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\TypeNameResolver;
 use Doctrine\DBAL\Connection;
@@ -57,6 +58,7 @@ use Symfony\Component\Mercure\HubInterface;
  */
 #[CoversClass(IndustryProjectFactory::class)]
 #[CoversClass(IndustryStepCalculator::class)]
+#[CoversClass(SplitGroupQuantities::class)]
 final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCase
 {
     private const string GOLDEN_DIR = __DIR__.'/../../../Fixtures/Golden/';
@@ -80,6 +82,13 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     private const int WIDOW = 22436;
     private const int MAGPULSE_THRUSTER = 11533;
     private const int SUSTAINED_SHIELD_EMITTER = 11558;
+    private const int TITANIUM_CHROMIDE = 16654;
+    private const int SYLRAMIC_FIBERS = 16678;
+    private const int FERROGEL = 16683;
+    private const int SCORPION = 640;
+    private const int AUTO_INTEGRITY_PRESERVATION_SEAL = 57478;
+    private const int CORE_TEMPERATURE_REGULATOR = 57479;
+    private const int LIFE_SUPPORT_BACKUP_UNIT = 57486;
     private const int UNKNOWN_BLUEPRINT_TYPE_ID = 999_999_999;
 
     private const float DEFAULT_MAX_JOB_DURATION_DAYS = 2.0;
@@ -530,6 +539,60 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         );
     }
 
+    #[Group('issue-73')]
+    public function testSplitReactionConsumerInATataraNeedsTheFuelBlocksOfEachOfItsJobsWithTheRaitaruBonus(): void
+    {
+        $this->pilotOwnsTataraAndRaitaru = true;
+
+        $project = $this->createProject(self::TITANIUM_CHROMIDE, runs: 4000, meLevel: 0, teLevel: 0, maxJobDurationDays: 0.05);
+
+        $steps = $this->stepsOf($project);
+        self::assertSame(
+            array_map(static fn (int $splitIndex): array => [1, 200, 0, 0, 0, $splitIndex, 20], range(0, 19)),
+            $this->jobsOf($steps, self::TITANIUM_CHROMIDE),
+        );
+        self::assertSame([[3, 100, 1, 10, 20, 0, null]], $this->jobsOf($steps, self::OXYGEN_FUEL_BLOCK));
+    }
+
+    #[Group('issue-73')]
+    public function testSplitManufacturingConsumerInARaitaruNeedsTheIntermediatesOfEachOfItsJobsWithTheRaitaruBonus(): void
+    {
+        $this->pilotOwnsTataraAndRaitaru = true;
+
+        $project = $this->createProject(self::SCORPION, runs: 5, meLevel: 10, teLevel: 20, maxJobDurationDays: 0.1);
+
+        $steps = $this->stepsOf($project);
+        self::assertSame(
+            array_map(static fn (int $splitIndex): array => [1, 1, 0, 10, 20, $splitIndex, 5], range(0, 4)),
+            $this->jobsOf($steps, self::SCORPION),
+        );
+        self::assertSame(
+            [self::AUTO_INTEGRITY_PRESERVATION_SEAL => [167, 500], self::LIFE_SUPPORT_BACKUP_UNIT => [84, 250], self::CORE_TEMPERATURE_REGULATOR => [5, 5]],
+            array_map(
+                fn (int $productTypeId): array => [$this->totalRunsOf($steps, $productTypeId), $this->totalQuantityOf($steps, $productTypeId)],
+                [self::AUTO_INTEGRITY_PRESERVATION_SEAL => self::AUTO_INTEGRITY_PRESERVATION_SEAL, self::LIFE_SUPPORT_BACKUP_UNIT => self::LIFE_SUPPORT_BACKUP_UNIT, self::CORE_TEMPERATURE_REGULATOR => self::CORE_TEMPERATURE_REGULATOR],
+            ),
+        );
+    }
+
+    #[Group('issue-73')]
+    public function testSplitManufacturingConsumerWithoutRigCategoryNeedsTheReactionsOfEachOfItsJobsWithoutStructureBonus(): void
+    {
+        $this->pilotOwnsTataraAndRaitaru = true;
+
+        $project = $this->createProject(self::SUSTAINED_SHIELD_EMITTER, runs: 10, meLevel: 10, teLevel: 20, maxJobDurationDays: 0.002);
+
+        $steps = $this->stepsOf($project);
+        self::assertSame(
+            array_map(static fn (int $splitIndex): array => [1, 1, 0, 10, 20, $splitIndex, 10], range(0, 9)),
+            $this->jobsOf($steps, self::SUSTAINED_SHIELD_EMITTER),
+        );
+        self::assertSame(
+            [self::TITANIUM_CARBIDE => [[1, 200, 1, 0, 0, 0, null]], self::SYLRAMIC_FIBERS => [[1, 90, 1, 0, 0, 0, null]], self::FERROGEL => [[1, 10, 1, 0, 0, 0, null]]],
+            [self::TITANIUM_CARBIDE => $this->jobsOf($steps, self::TITANIUM_CARBIDE), self::SYLRAMIC_FIBERS => $this->jobsOf($steps, self::SYLRAMIC_FIBERS), self::FERROGEL => $this->jobsOf($steps, self::FERROGEL)],
+        );
+    }
+
     // ===========================================
     // regenerateSteps() without database
     // ===========================================
@@ -570,6 +633,20 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         $created = $this->createProject(self::QUANTUM_MICROPROCESSOR, runs: 32, meLevel: 10, teLevel: 20, maxJobDurationDays: 0.01);
         self::assertSame([[1, 491, 1, 0, 0, 0, null]], $this->jobsOf($this->stepsOf($regenerated), self::TITANIUM_CARBIDE));
         self::assertSame($this->canonicalStepsOf($created), $this->canonicalStepsOf($regenerated));
+    }
+
+    #[Group('issue-73')]
+    public function testRegeneratedSplitReactionConsumerInATataraNeedsTheFuelBlocksOfEachOfItsJobsWithTheRaitaruBonus(): void
+    {
+        $this->pilotOwnsTataraAndRaitaru = true;
+        $regenerated = $this->createProject(self::TITANIUM_CHROMIDE, runs: 4000, meLevel: 0, teLevel: 0, maxJobDurationDays: self::MAX_JOB_DURATION_DAYS_THAT_SPLITS_NOTHING);
+        $regenerated->setMaxJobDurationDays(0.05);
+
+        $this->factory->regenerateSteps($regenerated);
+
+        $steps = $this->stepsOf($regenerated);
+        self::assertCount(20, $this->stepsOfProduct($steps, self::TITANIUM_CHROMIDE));
+        self::assertSame([[3, 100, 1, 10, 20, 0, null]], $this->jobsOf($steps, self::OXYGEN_FUEL_BLOCK));
     }
 
     public function testRegeneratedStepsOfANomadInATataraAreTheStepsOfANewProject(): void

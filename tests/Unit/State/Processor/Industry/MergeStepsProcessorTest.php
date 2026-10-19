@@ -13,6 +13,8 @@ use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
+use App\Service\Industry\SplitGroupMaterialNeeds;
+use App\Service\Industry\SplitGroupQuantities;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\State\Processor\Industry\MergeStepsProcessor;
 use App\State\Processor\Industry\SplitStepProcessor;
@@ -26,6 +28,8 @@ use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(MergeStepsProcessor::class)]
 #[CoversClass(SplitStepProcessor::class)]
+#[CoversClass(SplitGroupMaterialNeeds::class)]
+#[CoversClass(SplitGroupQuantities::class)]
 final class MergeStepsProcessorTest extends TestCase
 {
     use BuildsSplitGroupMaterialNeeds;
