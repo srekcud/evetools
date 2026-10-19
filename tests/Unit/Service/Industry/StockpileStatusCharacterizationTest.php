@@ -7,9 +7,11 @@ namespace App\Tests\Unit\Service\Industry;
 use App\Entity\IndustryStockpileTarget;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
+use App\Repository\IndustryStockpileImportRepository;
 use App\Repository\IndustryStockpileTargetRepository;
 use App\Service\Industry\IndustryTreeService;
 use App\Service\Industry\StockpileService;
+use App\Service\Industry\StockpileStartingStockReducer;
 use App\Service\JitaMarketService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -58,12 +60,15 @@ final class StockpileStatusCharacterizationTest extends TestCase
             },
         );
 
+        $treeService = $this->createMock(IndustryTreeService::class);
         $this->service = new StockpileService(
             $targetRepository,
             $assetRepository,
             $jitaMarketService,
-            $this->createMock(IndustryTreeService::class),
+            $treeService,
             $this->createMock(EntityManagerInterface::class),
+            $this->createMock(IndustryStockpileImportRepository::class),
+            new StockpileStartingStockReducer($treeService),
         );
         $this->pilot = $this->createMock(User::class);
     }
@@ -167,6 +172,8 @@ final class StockpileStatusCharacterizationTest extends TestCase
                     'estOutput' => ['ready' => 0, 'total' => 0, 'readyNames' => []],
                 ],
                 'shoppingList' => [],
+                'importsWithoutPlan' => [],
+                'failedProducts' => [],
             ],
             $this->service->getStockpileStatus($this->pilot),
         );
@@ -185,6 +192,7 @@ final class StockpileStatusCharacterizationTest extends TestCase
                 'typeId' => 34,
                 'typeName' => 'Tritanium',
                 'targetQuantity' => 120,
+                'remainingTargetQuantity' => 120,
                 'stock' => 45,
                 'percent' => 37.5,
                 'status' => 'critical',
@@ -260,30 +268,6 @@ final class StockpileStatusCharacterizationTest extends TestCase
         $status = $this->service->getStockpileStatus($this->pilot);
 
         self::assertNull($status['stages']['raw_material']['items'][0]['id']);
-    }
-
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #20 (R9) : le stock partiel d'un intermédiaire
-    // ne réduit pas les cibles de son sous-arbre. Avec 5 Frames sur 10 en stock, les 700 Ore nécessaires aux 10 Frames
-    // restent dus en entier (deficitCost 1400.0) ; le goulot est le produit final, premier à 0 %.
-    public function testPartialStockOfAnIntermediateDoesNotReduceTheTargetsBelowItIssue20(): void
-    {
-        $this->addTarget(self::WIDGET_SOURCE, 'Widget', 1, 'final_product', stock: 0, unitPrice: 1000.0, source: self::WIDGET_SOURCE);
-        $this->addTarget(2, 'Frame', 10, 'intermediate', stock: 5, unitPrice: 50.0, source: self::WIDGET_SOURCE);
-        $this->addTarget(1, 'Ore', 700, 'raw_material', stock: 0, unitPrice: 2.0, source: self::WIDGET_SOURCE);
-
-        $status = $this->service->getStockpileStatus($this->pilot);
-
-        $ore = $status['stages']['raw_material']['items'][0];
-        self::assertSame([700, 0.0, 'critical', 1400.0], [$ore['targetQuantity'], $ore['percent'], $ore['status'], $ore['deficitCost']]);
-        $frame = $status['stages']['intermediate']['items'][0];
-        self::assertSame([50.0, 'partial', 250.0, 250.0], [$frame['percent'], $frame['status'], $frame['stockValue'], $frame['deficitCost']]);
-        self::assertSame([self::WIDGET_SOURCE, 1, 2], array_column($status['shoppingList'], 'typeId'));
-        self::assertSame(
-            ['typeId' => self::WIDGET_SOURCE, 'typeName' => 'Widget', 'percent' => 0.0, 'blocksProducts' => 1],
-            $status['kpis']['bottleneck'],
-        );
-        self::assertSame(['ready' => 0, 'total' => 1, 'readyNames' => []], $status['kpis']['estOutput']);
-        self::assertSame(250.0, $status['kpis']['totalInvested']);
     }
 
     public function testBottleneckBlocksEveryFinalProductImportedFromTheSameSource(): void

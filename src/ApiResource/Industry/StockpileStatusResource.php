@@ -34,4 +34,10 @@ class StockpileStatusResource
 
     /** @var list<array<string, mixed>> */
     public array $shoppingList = [];
+
+    /** @var list<int> */
+    public array $importsWithoutPlan = [];
+
+    /** @var list<array{typeId: int, reason: string}> */
+    public array $failedProducts = [];
 }

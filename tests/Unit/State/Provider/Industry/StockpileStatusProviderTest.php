@@ -8,9 +8,11 @@ use ApiPlatform\Metadata\Get;
 use App\Entity\IndustryStockpileTarget;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
+use App\Repository\IndustryStockpileImportRepository;
 use App\Repository\IndustryStockpileTargetRepository;
 use App\Service\Industry\IndustryTreeService;
 use App\Service\Industry\StockpileService;
+use App\Service\Industry\StockpileStartingStockReducer;
 use App\Service\JitaMarketService;
 use App\State\Provider\Industry\StockpileStatusProvider;
 use Doctrine\ORM\EntityManagerInterface;
@@ -24,31 +26,41 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 #[AllowMockObjectsWithoutExpectations]
 final class StockpileStatusProviderTest extends TestCase
 {
+    private const int TRITANIUM_TARGET = 1000;
+    private const int PYERITE_TARGET = 600;
+
     private Security $security;
     private StockpileStatusProvider $provider;
+    private array $targets = [];
 
     protected function setUp(): void
     {
-        $ore = (new IndustryStockpileTarget())
+        $this->targets = [(new IndustryStockpileTarget())
             ->setTypeId(34)
             ->setTypeName('Tritanium')
-            ->setTargetQuantity(1000)
+            ->setTargetQuantity(self::TRITANIUM_TARGET)
             ->setStage('raw_material')
-            ->setSourceProductTypeId(4051);
+            ->setSourceProductTypeId(4051)];
         $targetRepository = $this->createMock(IndustryStockpileTargetRepository::class);
-        $targetRepository->method('findByUser')->willReturn([$ore]);
+        $targetRepository->method('findByUser')->willReturnCallback(fn (): array => $this->targets);
         $assetRepository = $this->createMock(CachedAssetRepository::class);
-        $assetRepository->method('getQuantitiesByUserWithLocations')->willReturn([34 => ['total' => 400, 'locations' => []]]);
+        $assetRepository->method('getQuantitiesByUserWithLocations')->willReturn([
+            34 => ['total' => 400, 'locations' => []],
+            35 => ['total' => 150, 'locations' => []],
+        ]);
         $jitaMarketService = $this->createMock(JitaMarketService::class);
-        $jitaMarketService->method('getPrices')->willReturn([34 => 4.0]);
+        $jitaMarketService->method('getPrices')->willReturn([34 => 4.0, 35 => 9.5]);
+        $treeService = $this->createMock(IndustryTreeService::class);
 
         $this->security = $this->createStub(Security::class);
         $this->provider = new StockpileStatusProvider($this->security, new StockpileService(
             $targetRepository,
             $assetRepository,
             $jitaMarketService,
-            $this->createMock(IndustryTreeService::class),
+            $treeService,
             $this->createMock(EntityManagerInterface::class),
+            $this->createMock(IndustryStockpileImportRepository::class),
+            new StockpileStartingStockReducer($treeService),
         ));
     }
 
@@ -63,6 +75,7 @@ final class StockpileStatusProviderTest extends TestCase
             'typeId' => 34,
             'typeName' => 'Tritanium',
             'targetQuantity' => 1000,
+            'remainingTargetQuantity' => 1000,
             'stock' => 400,
             'percent' => 40.0,
             'status' => 'critical',
@@ -93,6 +106,28 @@ final class StockpileStatusProviderTest extends TestCase
             $resource->kpis,
         );
         self::assertSame([$tritanium], $resource->shoppingList);
+        self::assertSame([4051], $resource->importsWithoutPlan);
+        self::assertSame([], $resource->failedProducts);
+    }
+
+    public function testExposesTheRemainingTargetEqualToTheTargetQuantityAndNoImportWarningWithoutReduction(): void
+    {
+        $this->targets = [(new IndustryStockpileTarget())
+            ->setTypeId(35)
+            ->setTypeName('Pyerite')
+            ->setTargetQuantity(self::PYERITE_TARGET)
+            ->setStage('raw_material')];
+        $this->security->method('getUser')->willReturn($this->createMock(User::class));
+
+        $resource = $this->provider->provide(new Get());
+
+        self::assertSame(
+            [35 => 600],
+            array_column($resource->stages['raw_material']['items'], 'remainingTargetQuantity', 'typeId'),
+        );
+        self::assertSame([35 => 600], array_column($resource->shoppingList, 'remainingTargetQuantity', 'typeId'));
+        self::assertSame([], $resource->importsWithoutPlan);
+        self::assertSame([], $resource->failedProducts);
     }
 
     public function testRejectsAnAnonymousRequest(): void

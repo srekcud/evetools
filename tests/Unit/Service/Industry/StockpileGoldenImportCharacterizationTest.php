@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Industry;
 
+use App\Entity\IndustryStockpileImport;
 use App\Entity\IndustryStockpileTarget;
 use App\Entity\Sde\IndustryActivityMaterial;
 use App\Entity\Sde\IndustryActivityProduct;
@@ -12,6 +13,7 @@ use App\Entity\User;
 use App\Enum\IndustryActivityType;
 use App\Exception\TypeMissingFromSdeException;
 use App\Repository\CachedAssetRepository;
+use App\Repository\IndustryStockpileImportRepository;
 use App\Repository\IndustryStockpileTargetRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -19,6 +21,7 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Service\Industry\IndustryBonusService;
 use App\Service\Industry\IndustryTreeService;
 use App\Service\Industry\StockpileService;
+use App\Service\Industry\StockpileStartingStockReducer;
 use App\Service\JitaMarketService;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -59,6 +62,7 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
     private array $typeIdsWithoutSdeName = [];
 
     private IndustryStockpileTargetRepository $targetRepository;
+    private IndustryStockpileImportRepository $importRepository;
     private EntityManagerInterface $entityManager;
     private StockpileService $service;
     private User $pilot;
@@ -68,6 +72,7 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         $this->sde = json_decode((string) file_get_contents(self::GOLDEN_DIR.'sde-blueprint-recipes.json'), true, flags: \JSON_THROW_ON_ERROR);
 
         $this->targetRepository = $this->createMock(IndustryStockpileTargetRepository::class);
+        $this->importRepository = $this->createMock(IndustryStockpileImportRepository::class);
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $connection = $this->createMock(Connection::class);
         $connection->method('fetchOne')->willReturn(0);
@@ -78,12 +83,15 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
             fn (array $typeIds): array => array_intersect_key($this->jitaPrices, array_flip($typeIds)),
         );
 
+        $treeService = $this->treeServiceOnGoldenSde();
         $this->service = new StockpileService(
             $this->targetRepository,
             $this->createMock(CachedAssetRepository::class),
             $jitaMarketService,
-            $this->treeServiceOnGoldenSde(),
+            $treeService,
             $this->entityManager,
+            $this->importRepository,
+            new StockpileStartingStockReducer($treeService),
         );
         $this->pilot = $this->createMock(User::class);
     }
@@ -262,6 +270,7 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
             static fn (User $user, int $typeId): ?IndustryStockpileTarget => $typeId === self::COOLANT ? $existingCoolant : null,
         );
         $this->targetRepository->expects(self::never())->method('deleteAllForUser');
+        $this->importRepository->expects(self::never())->method('deleteAllForUser');
         $persisted = [];
         $this->entityManager->method('persist')->willReturnCallback(static function (object $target) use (&$persisted): void {
             $persisted[] = $target;
@@ -269,6 +278,7 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
 
         $this->service->importFromBlueprint($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 10, 'merge');
 
+        $persistedTargets = self::persistedOfClass($persisted, IndustryStockpileTarget::class);
         self::assertSame(1009, $existingCoolant->getTargetQuantity());
         self::assertNotNull($existingCoolant->getUpdatedAt());
         self::assertSame(
@@ -285,28 +295,43 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
             ],
             array_map(static fn (IndustryStockpileTarget $target): array => [
                 $target->getTypeId(), $target->getTypeName(), $target->getTargetQuantity(), $target->getStage(), $target->getSourceProductTypeId(),
-            ], $persisted),
+            ], $persistedTargets),
         );
-        self::assertSame($this->pilot, $persisted[0]->getUser());
+        self::assertSame($this->pilot, $persistedTargets[0]->getUser());
+        self::assertSame(
+            [['pilot', self::NITROGEN_FUEL_BLOCK, 1, 10]],
+            array_map(fn (IndustryStockpileImport $stockpileImport): array => [
+                $stockpileImport->getUser() === $this->pilot ? 'pilot' : 'another user',
+                $stockpileImport->getProductTypeId(),
+                $stockpileImport->getRuns(),
+                $stockpileImport->getMe(),
+            ], self::persistedOfClass($persisted, IndustryStockpileImport::class)),
+        );
     }
 
-    public function testImportInReplaceModeDeletesTheTargetsOfThePilotBeforePersistingTheTree(): void
+    public function testImportInReplaceModeDeletesTheTargetsAndTheStockpileImportsOfThePilotBeforePersistingTheTreeAndItsImport(): void
     {
         $calls = [];
         $this->targetRepository->method('deleteAllForUser')->willReturnCallback(static function () use (&$calls): void {
-            $calls[] = 'delete';
+            $calls[] = 'delete targets';
+        });
+        $this->importRepository->method('deleteAllForUser')->willReturnCallback(static function () use (&$calls): void {
+            $calls[] = 'delete imports';
         });
         $this->targetRepository->expects(self::never())->method('findByUserAndTypeId');
         $this->entityManager->method('flush')->willReturnCallback(static function () use (&$calls): void {
             $calls[] = 'flush';
         });
-        $this->entityManager->method('persist')->willReturnCallback(static function () use (&$calls): void {
-            $calls[] = 'persist';
+        $this->entityManager->method('persist')->willReturnCallback(static function (object $entity) use (&$calls): void {
+            $calls[] = $entity instanceof IndustryStockpileImport ? 'persist import' : 'persist target';
         });
 
         $this->service->importFromBlueprint($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 10, 'replace');
 
-        self::assertSame(['delete', 'flush', ...array_fill(0, 10, 'persist'), 'flush'], $calls);
+        self::assertEqualsCanonicalizing(['delete targets', 'delete imports'], array_slice($calls, 0, 2));
+        self::assertSame(['flush'], array_slice($calls, 2, 1));
+        self::assertEqualsCanonicalizing(['persist import', ...array_fill(0, 10, 'persist target')], array_slice($calls, 3, 11));
+        self::assertSame(['flush'], array_slice($calls, 14));
     }
 
     public function testFlattenTreeReadsTheStageFromTheDepthOfEachBlueprintNodeAndDefaultsMissingFields(): void
@@ -361,6 +386,11 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
             }
         }
         self::fail("No entry for type {$typeId}");
+    }
+
+    private static function persistedOfClass(array $persisted, string $className): array
+    {
+        return array_values(array_filter($persisted, static fn (object $entity): bool => $entity instanceof $className));
     }
 
     private function treeServiceOnGoldenSde(): IndustryTreeService

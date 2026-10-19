@@ -7,6 +7,7 @@ namespace App\Service\Industry;
 use App\Entity\IndustryStockpileTarget;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
+use App\Repository\IndustryStockpileImportRepository;
 use App\Repository\IndustryStockpileTargetRepository;
 use App\Service\JitaMarketService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -29,6 +30,8 @@ class StockpileService
         private readonly JitaMarketService $jitaMarketService,
         private readonly IndustryTreeService $treeService,
         private readonly EntityManagerInterface $entityManager,
+        private readonly IndustryStockpileImportRepository $importRepository,
+        private readonly StockpileStartingStockReducer $startingStockReducer,
     ) {
     }
 

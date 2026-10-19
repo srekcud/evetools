@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Industry;
 
+use App\Entity\IndustryStockpileImport;
 use App\Entity\IndustryStockpileTarget;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
+use App\Repository\IndustryStockpileImportRepository;
 use App\Repository\IndustryStockpileTargetRepository;
 use App\Service\Industry\IndustryTreeService;
 use App\Service\Industry\StockpileService;
+use App\Service\Industry\StockpileStartingStockReducer;
 use App\Service\JitaMarketService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -27,6 +30,7 @@ class StockpileServiceTest extends TestCase
     private JitaMarketService&MockObject $jitaMarketService;
     private IndustryTreeService&MockObject $treeService;
     private EntityManagerInterface&MockObject $entityManager;
+    private IndustryStockpileImportRepository&MockObject $importRepository;
     private StockpileService $service;
     private User&MockObject $user;
 
@@ -37,6 +41,7 @@ class StockpileServiceTest extends TestCase
         $this->jitaMarketService = $this->createMock(JitaMarketService::class);
         $this->treeService = $this->createMock(IndustryTreeService::class);
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
+        $this->importRepository = $this->createMock(IndustryStockpileImportRepository::class);
 
         $this->service = new StockpileService(
             $this->targetRepository,
@@ -44,6 +49,8 @@ class StockpileServiceTest extends TestCase
             $this->jitaMarketService,
             $this->treeService,
             $this->entityManager,
+            $this->importRepository,
+            new StockpileStartingStockReducer($this->treeService),
         );
 
         $this->user = $this->createMock(User::class);
@@ -246,6 +253,39 @@ class StockpileServiceTest extends TestCase
         $this->entityManager->expects($this->atLeastOnce())->method('flush');
 
         $this->service->importFromBlueprint($this->user, 100, 1, 0, 'merge');
+    }
+
+    public function testImportInReplaceModeKeepsOnlyTheStockpileImportOfTheLastImport(): void
+    {
+        $recordedImports = $this->recordStockpileImports();
+        $this->treeService->method('buildProductionTree')->willReturn($this->buildMockTree());
+        $firstRuns = 2;
+        $firstMe = 4;
+        $secondRuns = 3;
+        $secondMe = 6;
+        $replacingRuns = 5;
+        $replacingMe = 8;
+
+        $this->service->importFromBlueprint($this->user, 100, $firstRuns, $firstMe, 'merge');
+        $this->service->importFromBlueprint($this->user, 100, $secondRuns, $secondMe, 'merge');
+        $this->service->importFromBlueprint($this->user, 100, $replacingRuns, $replacingMe, 'replace');
+
+        $this->assertSame([['pilot', 100, 5, 8]], $this->describeStockpileImports($recordedImports));
+    }
+
+    public function testImportInMergeModeAddsOneStockpileImport(): void
+    {
+        $recordedImports = $this->recordStockpileImports();
+        $this->treeService->method('buildProductionTree')->willReturn($this->buildMockTree());
+        $replacingRuns = 5;
+        $replacingMe = 8;
+        $mergedRuns = 7;
+        $mergedMe = 9;
+
+        $this->service->importFromBlueprint($this->user, 100, $replacingRuns, $replacingMe, 'replace');
+        $this->service->importFromBlueprint($this->user, 100, $mergedRuns, $mergedMe, 'merge');
+
+        $this->assertSame([['pilot', 100, 5, 8], ['pilot', 100, 7, 9]], $this->describeStockpileImports($recordedImports));
     }
 
     public function testKpiPipelineHealth(): void
@@ -522,6 +562,38 @@ class StockpileServiceTest extends TestCase
         // Total invested = sum of stock * unitPrice (capped at 100% for percent but stock value counts all)
         // 15 * 5000000 + 500 * 10 + 30 * 500 + 200 * 50 = 75000000 + 5000 + 15000 + 10000 = 75030000
         $this->assertSame(75030000.0, $status['kpis']['totalInvested']);
+    }
+
+    private function recordStockpileImports(): \ArrayObject
+    {
+        $recordedImports = new \ArrayObject();
+        $this->importRepository->method('deleteAllForUser')->willReturnCallback(
+            static function () use ($recordedImports): void {
+                $recordedImports->exchangeArray([]);
+            },
+        );
+        $this->entityManager->method('persist')->willReturnCallback(
+            static function (object $entity) use ($recordedImports): void {
+                if ($entity instanceof IndustryStockpileImport) {
+                    $recordedImports->append($entity);
+                }
+            },
+        );
+
+        return $recordedImports;
+    }
+
+    private function describeStockpileImports(\ArrayObject $recordedImports): array
+    {
+        return array_map(
+            fn (IndustryStockpileImport $stockpileImport): array => [
+                $stockpileImport->getUser() === $this->user ? 'pilot' : 'another user',
+                $stockpileImport->getProductTypeId(),
+                $stockpileImport->getRuns(),
+                $stockpileImport->getMe(),
+            ],
+            $recordedImports->getArrayCopy(),
+        );
     }
 
     /**
