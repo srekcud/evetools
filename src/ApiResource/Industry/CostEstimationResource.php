@@ -27,19 +27,21 @@ class CostEstimationResource
     #[ApiProperty(identifier: true)]
     public string $id;
 
-    public float $materialCost = 0;
+    public ?float $materialCost = 0;
 
     public float $jobInstallCost = 0;
 
     public float $bpoCost = 0;
 
-    public float $totalCost = 0;
+    public ?float $totalCost = 0;
 
-    public float $perUnit = 0;
+    public ?float $perUnit = 0;
 
     /** @var array<array{typeId: int, typeName: string, quantity: int, unitPrice: float, totalPrice: float}> */
     public array $materials = [];
 
     /** @var array<array{stepId: string, productTypeId: int, productName: string|null, solarSystemId: int, systemName: string, costIndex: float, runs: int, installCost: float}> */
     public array $jobInstallSteps = [];
+
+    public array $failedProducts = [];
 }

@@ -156,6 +156,37 @@ final class CreateProjectProcessorTest extends TestCase
         self::assertTrue($this->contextMentions($warnings[0][2], self::MATERIAL_COST_FAILURE_REASON));
     }
 
+    #[Group('issue-119')]
+    public function testUnknownMaterialCostOfAProjectWithAFailedProductLeavesTheEstimatedMaterialCostUnknown(): void
+    {
+        $user = $this->createStub(User::class);
+        $user->method('getPreferredMarketStructureId')->willReturn(null);
+        $project = $this->projectFor(self::RIFTER);
+        $productionCostService = $this->createStub(ProductionCostService::class);
+        $productionCostService->method('estimateJobInstallCosts')->willReturn(['total' => self::ESTIMATED_JOB_COST, 'steps' => []]);
+        $productionCostService->method('estimateMaterialCost')->willReturn([
+            'total' => null,
+            'items' => [['typeId' => 35, 'typeName' => 'Pyerite', 'quantity' => 1200, 'unitPrice' => 7.25, 'totalPrice' => 8700.0]],
+            'failedProducts' => [['typeId' => self::ROBOTICS, 'reason' => 'No blueprint or reaction found for product type ID 9848']],
+        ]);
+        $jitaMarketService = $this->createStub(JitaMarketService::class);
+        $jitaMarketService->method('getPrice')->willReturn(null);
+        $processor = $this->processor(
+            $user,
+            $project,
+            $productionCostService,
+            $jitaMarketService,
+            $this->createStub(StructureMarketService::class),
+            $this->settingsRepositoryReturning($this->userSettings()),
+            new NullLogger(),
+        );
+
+        $processor->process($this->inputFor(self::RIFTER), new Post());
+
+        self::assertNull($project->getEstimatedMaterialCost());
+        self::assertEqualsWithDelta(self::ESTIMATED_JOB_COST, $project->getEstimatedJobCost(), 0.001);
+    }
+
     private function createProjectWithSellPrices(
         int $productTypeId,
         float $jitaPrice,
@@ -167,7 +198,7 @@ final class CreateProjectProcessorTest extends TestCase
         $project = $this->projectFor($productTypeId);
         $productionCostService = $this->createStub(ProductionCostService::class);
         $productionCostService->method('estimateJobInstallCosts')->willReturn(['total' => self::ESTIMATED_JOB_COST, 'steps' => []]);
-        $productionCostService->method('estimateMaterialCost')->willReturn(['total' => 400_000.0, 'items' => []]);
+        $productionCostService->method('estimateMaterialCost')->willReturn(['total' => 400_000.0, 'items' => [], 'failedProducts' => []]);
         $jitaMarketService = $this->createStub(JitaMarketService::class);
         $jitaMarketService->method('getPrice')->willReturnMap([[$productTypeId, $jitaPrice]]);
         $structureMarketService = $this->createStub(StructureMarketService::class);

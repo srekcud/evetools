@@ -34,6 +34,13 @@ class ProductionCostServiceTest extends TestCase
 {
     use ResolvesTypeNamesFromSde;
 
+    private const int RIFTER_TYPE_ID = 587;
+    private const int RIFTER_BLUEPRINT_TYPE_ID = 691;
+    private const int PYERITE_TYPE_ID = 35;
+    private const string ROBOTICS_FAILURE_REASON = 'No blueprint or reaction found for product type ID 9848';
+    private const int TYPE_MISSING_FROM_SDE_ID = 123456;
+    private const string TYPE_MISSING_FROM_SDE_REASON = 'Types missing from the SDE: 123456';
+
     private JitaMarketService&MockObject $jitaMarketService;
     private EsiCostIndexService&MockObject $esiCostIndexService;
     private IndustryShoppingListBuilder&MockObject $shoppingListBuilder;
@@ -192,26 +199,59 @@ class ProductionCostServiceTest extends TestCase
     }
 
     #[Group('issue-119')]
-    public function testEstimateMaterialCostCurrentlyLeavesTheFailedProductsOfTheShoppingListSilentlyOutOfTheCostIssue119(): void
+    public function testEstimateMaterialCostOfAProjectWithAFailedProductIsUnknownAndCarriesTheFailedProduct(): void
     {
-        $project = $this->createProject(587, 2);
-
-        $this->shoppingListBuilder->method('getShoppingList')->willReturn([
-            'materials' => [
-                ['typeId' => 35, 'typeName' => 'Pyerite', 'quantity' => 1200],
-            ],
-            'failedProducts' => [
-                ['typeId' => 9848, 'reason' => 'No blueprint or reaction found for product type ID 9848'],
-            ],
-        ]);
-        $this->jitaMarketService->method('getPricesWithFallback')->willReturnCallback(
-            static fn (array $typeIds): array => array_intersect_key([35 => 7.25, 9848 => 3100.0], array_flip($typeIds)),
+        $project = $this->createProject(self::RIFTER_TYPE_ID, 2);
+        $this->stubShoppingList(
+            [['typeId' => self::PYERITE_TYPE_ID, 'typeName' => 'Pyerite', 'quantity' => 1200]],
+            [['typeId' => self::ROBOTICS_TYPE_ID, 'reason' => self::ROBOTICS_FAILURE_REASON]],
         );
 
         $result = $this->service->estimateMaterialCost($project);
 
-        $this->assertSame(8700.0, $result['total']);
-        $this->assertSame([35], array_column($result['items'], 'typeId'));
+        self::assertNull($result['total']);
+        self::assertSame([
+            ['typeId' => self::PYERITE_TYPE_ID, 'typeName' => 'Pyerite', 'quantity' => 1200, 'unitPrice' => 7.25, 'totalPrice' => 8700.0],
+        ], $result['items']);
+        self::assertSame([
+            ['typeId' => self::ROBOTICS_TYPE_ID, 'reason' => self::ROBOTICS_FAILURE_REASON],
+        ], $result['failedProducts']);
+    }
+
+    #[Group('issue-119')]
+    public function testEstimateMaterialCostOfAProjectWhoseOnlyProductFailedIsUnknownWithoutMaterials(): void
+    {
+        $project = $this->createProject(self::TYPE_MISSING_FROM_SDE_ID, 2);
+        $this->stubShoppingList(
+            [],
+            [['typeId' => self::TYPE_MISSING_FROM_SDE_ID, 'reason' => self::TYPE_MISSING_FROM_SDE_REASON]],
+        );
+
+        $result = $this->service->estimateMaterialCost($project);
+
+        self::assertNull($result['total']);
+        self::assertSame([], $result['items']);
+        self::assertSame([
+            ['typeId' => self::TYPE_MISSING_FROM_SDE_ID, 'reason' => self::TYPE_MISSING_FROM_SDE_REASON],
+        ], $result['failedProducts']);
+    }
+
+    #[Group('issue-119')]
+    public function testEstimateMaterialCostWithoutFailedProductIsPricedAndCarriesNoFailedProduct(): void
+    {
+        $project = $this->createProject(self::RIFTER_TYPE_ID, 2);
+        $this->stubShoppingList(
+            [['typeId' => self::PYERITE_TYPE_ID, 'typeName' => 'Pyerite', 'quantity' => 1200]],
+            [],
+        );
+
+        $result = $this->service->estimateMaterialCost($project);
+
+        self::assertSame(8700.0, $result['total']);
+        self::assertSame([
+            ['typeId' => self::PYERITE_TYPE_ID, 'typeName' => 'Pyerite', 'quantity' => 1200, 'unitPrice' => 7.25, 'totalPrice' => 8700.0],
+        ], $result['items']);
+        self::assertSame([], $result['failedProducts']);
     }
 
     // ===========================================
@@ -467,6 +507,89 @@ class ProductionCostServiceTest extends TestCase
 
         $this->assertSame(0.0, $result['bpoCost']);
         $this->assertSame(0.0, $result['totalCost']);
+    }
+
+    #[Group('issue-119')]
+    public function testEstimateTotalCostOfAProjectWithAFailedProductHasUnknownMaterialTotalAndPerUnitCostsAndPricedJobAndBpoCosts(): void
+    {
+        $project = $this->projectWithOneRifterManufacturingStep(1000.0);
+        $this->stubShoppingList(
+            [['typeId' => self::PYERITE_TYPE_ID, 'typeName' => 'Pyerite', 'quantity' => 1200]],
+            [['typeId' => self::ROBOTICS_TYPE_ID, 'reason' => self::ROBOTICS_FAILURE_REASON]],
+        );
+
+        $result = $this->service->estimateTotalCost($project);
+
+        self::assertNull($result['materialCost']);
+        self::assertNull($result['totalCost']);
+        self::assertNull($result['perUnit']);
+        self::assertSame(5000.0, $result['jobInstallCost']);
+        self::assertSame(1000.0, $result['bpoCost']);
+        self::assertSame([
+            ['typeId' => self::PYERITE_TYPE_ID, 'typeName' => 'Pyerite', 'quantity' => 1200, 'unitPrice' => 7.25, 'totalPrice' => 8700.0],
+        ], $result['materials']);
+        self::assertSame([
+            ['typeId' => self::ROBOTICS_TYPE_ID, 'reason' => self::ROBOTICS_FAILURE_REASON],
+        ], $result['failedProducts']);
+    }
+
+    #[Group('issue-119')]
+    public function testEstimateTotalCostWithoutFailedProductSumsMaterialJobAndBpoCostsAndCarriesNoFailedProduct(): void
+    {
+        $project = $this->projectWithOneRifterManufacturingStep(1000.0);
+        $this->stubShoppingList(
+            [['typeId' => self::PYERITE_TYPE_ID, 'typeName' => 'Pyerite', 'quantity' => 1200]],
+            [],
+        );
+
+        $result = $this->service->estimateTotalCost($project);
+
+        self::assertSame(8700.0, $result['materialCost']);
+        self::assertSame(5000.0, $result['jobInstallCost']);
+        self::assertSame(1000.0, $result['bpoCost']);
+        self::assertSame(14700.0, $result['totalCost']);
+        self::assertSame(7350.0, $result['perUnit']);
+        self::assertSame([], $result['failedProducts']);
+    }
+
+    private function projectWithOneRifterManufacturingStep(float $bpoCost): IndustryProject&MockObject
+    {
+        $step = $this->createStep('manufacturing', self::RIFTER_TYPE_ID, 2, $this->createStructureConfig(30002510), self::RIFTER_BLUEPRINT_TYPE_ID);
+        $project = $this->createProject(self::RIFTER_TYPE_ID, 2, $bpoCost);
+        $project->method('getSteps')->willReturn(new ArrayCollection([$step]));
+
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
+            self::RIFTER_BLUEPRINT_TYPE_ID => [['materialTypeId' => self::PYERITE_TYPE_ID, 'quantity' => 600]],
+        ]);
+        $this->esiCostIndexService->method('calculateEiv')->willReturn(83_000.0);
+        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(5000.0);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(0.0412);
+        $this->calculationService->method('resolveTypeName')->willReturn('Rifter');
+        $this->solarSystemRepository->method('findBySolarSystemId')->willReturn(null);
+        $this->userSettingsRepository->method('findOneBy')->willReturn(null);
+
+        $outputProduct = new IndustryActivityProduct();
+        $outputProduct->setTypeId(self::RIFTER_BLUEPRINT_TYPE_ID);
+        $outputProduct->setActivityId(IndustryActivityType::Manufacturing->value);
+        $outputProduct->setProductTypeId(self::RIFTER_TYPE_ID);
+        $outputProduct->setQuantity(1);
+        $this->productRepository->method('findBlueprintForProduct')->willReturn($outputProduct);
+
+        return $project;
+    }
+
+    private function stubShoppingList(array $materials, array $failedProducts): void
+    {
+        $this->shoppingListBuilder->method('getShoppingList')->willReturn([
+            'materials' => $materials,
+            'failedProducts' => $failedProducts,
+        ]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturnCallback(
+            static fn (array $typeIds): array => array_intersect_key(
+                [self::PYERITE_TYPE_ID => 7.25, self::ROBOTICS_TYPE_ID => 3100.0, self::TYPE_MISSING_FROM_SDE_ID => 42.0],
+                array_flip($typeIds),
+            ),
+        );
     }
 
     // ===========================================
