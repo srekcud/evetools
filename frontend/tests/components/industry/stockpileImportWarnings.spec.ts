@@ -14,6 +14,9 @@ const WIDGET_TYPE_ID = 3001
 const WIDGET_TARGET_QUANTITY = 1
 const WIDGET_STOCK = 0
 const WIDGET_FAILURE_REASON = `No blueprint or reaction found for product type ID ${WIDGET_TYPE_ID}`
+const GADGET_TYPE_ID = 3004
+const GADGET_FAILURE_REASON = `No blueprint or reaction found for product type ID ${GADGET_TYPE_ID}`
+const UNKNOWN_GADGET_TEXT = `Unknown product #${GADGET_TYPE_ID}`
 const IMPORT_WARNINGS_SELECTOR = '[data-testid="stockpile-import-warnings"]'
 
 const widgetItem = {
@@ -92,5 +95,21 @@ describe('StockpileDashboard import warnings', () => {
 
   it('shows no import warning when every import was recorded and rebuilt', async () => {
     expect((await mountDashboard([], [])).find(IMPORT_WARNINGS_SELECTOR).exists()).toBe(false)
+  })
+
+  it('names a product missing from the final product targets by its type ID', async () => {
+    const warnings = (await mountDashboard([GADGET_TYPE_ID], [])).find(IMPORT_WARNINGS_SELECTOR)
+
+    expect(warnings.text()).toContain(UNKNOWN_GADGET_TEXT)
+  })
+
+  it('shows the products without plan and the products that cannot be rebuilt together', async () => {
+    const warnings = (await mountDashboard([WIDGET_TYPE_ID], [{ typeId: GADGET_TYPE_ID, reason: GADGET_FAILURE_REASON }])).find(IMPORT_WARNINGS_SELECTOR)
+    const text = warnings.text()
+
+    expect(text).toContain(en.industry.stockpile.importWarnings.withoutPlan)
+    expect(text).toContain('Widget')
+    expect(text).toContain(en.industry.stockpile.importWarnings.failedProducts)
+    expect(text).toContain(`${UNKNOWN_GADGET_TEXT}: ${GADGET_FAILURE_REASON}`)
   })
 })

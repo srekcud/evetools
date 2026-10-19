@@ -64,6 +64,16 @@ final class DeleteStockpileTargetProcessorTest extends TestCase
         $this->delete($widgetOre);
     }
 
+    public function testTargetOfAnotherUserWithTheSameSourceProductDoesNotKeepMyImports(): void
+    {
+        $widgetOre = $this->addTarget(1, self::ORE, self::WIDGET);
+        $this->addTarget(2, self::FRAME, self::WIDGET)->setUser($this->createStub(User::class));
+
+        $this->importRepository->expects(self::once())->method('deleteAllForUserAndProduct')->with($this->pilot, self::WIDGET);
+
+        $this->delete($widgetOre);
+    }
+
     public function testDeletingATargetWhileAnotherTargetOfTheSameSourceProductRemainsKeepsItsStockpileImports(): void
     {
         $widgetOre = $this->addTarget(1, self::ORE, self::WIDGET);

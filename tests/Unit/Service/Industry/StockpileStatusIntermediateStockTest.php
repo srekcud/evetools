@@ -261,6 +261,25 @@ final class StockpileStatusIntermediateStockTest extends TestCase
         );
     }
 
+    public function testTargetOfAProductWithoutImportIsNotReducedByAnotherImportSharingItsType(): void
+    {
+        $this->imports = [$this->stockpileImport($this->pilot, self::GADGET, self::ONE_RUN, self::ME_ZERO)];
+        $this->addTarget(self::GADGET, self::GADGET_TARGET, 'final_product', self::GADGET);
+        $this->addTarget(self::ORE, self::ORE_TARGET, 'raw_material', self::WIDGET);
+        $this->stockByTypeId = [self::FRAME => 5];
+
+        $status = $this->service->getStockpileStatus($this->pilot);
+
+        self::assertSame(
+            ['targetQuantity' => 700, 'remainingTargetQuantity' => 700],
+            $this->fieldsOf($status, self::ORE, ['targetQuantity', 'remainingTargetQuantity']),
+        );
+        self::assertSame(
+            ['importsWithoutPlan' => [self::WIDGET], 'failedProducts' => []],
+            self::importWarningsOf($status),
+        );
+    }
+
     public function testManualTargetIsNeverReducedNorListedAsAnImportWithoutPlan(): void
     {
         $manualOreTarget = 700;

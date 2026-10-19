@@ -11,6 +11,7 @@ const FRAME_TYPE_ID = 3002
 const ORE_TARGET_QUANTITY = 700
 const ORE_REMAINING_TARGET_QUANTITY = 350
 const ORE_STOCK = 0
+const ORE_REMAINING_TARGET_QUANTITY_WITH_FRAMES_IN_STOCK = 0
 const FRAME_TARGET_QUANTITY = 10
 const FRAME_REMAINING_TARGET_QUANTITY = 10
 const FRAME_STOCK = 5
@@ -72,5 +73,11 @@ describe('StockpileColumn remaining target', () => {
 
     expect(text).toContain('5 / 10')
     expect(text).not.toMatch(/5 \/ 10 \(/)
+  })
+
+  it('shows a remaining target of zero against the target quantity in parentheses', () => {
+    const oreCoveredByFrames = { ...oreItem, remainingTargetQuantity: ORE_REMAINING_TARGET_QUANTITY_WITH_FRAMES_IN_STOCK, percent: 100, status: 'met' as const, deficitCost: 0 }
+
+    expect(columnText('raw_material', oreCoveredByFrames)).toContain('0 / 0 (700)')
   })
 })
