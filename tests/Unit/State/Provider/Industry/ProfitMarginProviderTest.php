@@ -28,6 +28,7 @@ class ProfitMarginProviderTest extends TestCase
     private const int HAIL_L_TYPE_ID = 12779;
     private const int PREFERRED_MARKET_STRUCTURE_ID = 1035466617946;
     private const int FAVORITE_MANUFACTURING_SYSTEM_ID = 30002510;
+    private const int ROBOTICS_TYPE_ID = 9848;
 
     public function testWithoutQueryNorSettingsCurrentlyAnalyzesOneRunAtMeTenInJitaSoldAtJitaStation(): void
     {
@@ -156,6 +157,30 @@ class ProfitMarginProviderTest extends TestCase
         $this->assertNull($resource->dailyVolume);
         $this->assertSame([null, -1494.6], array_column($resource->invention['options'] ?? [], 'bestMargin'));
         $this->assertSame($unknownMargin, $resource->margins['jitaSell']);
+    }
+
+    #[Group('issue-115')]
+    public function testProductMissingFromTheSdeReachesTheResourceWithAnUnknownTypeNameAndItsTypeId(): void
+    {
+        $profitMarginService = $this->createStub(ProfitMarginService::class);
+        $profitMarginService->method('analyze')->willReturn($this->analysis([
+            'typeId' => self::ROBOTICS_TYPE_ID,
+            'typeName' => null,
+            'isT2' => false,
+            'runs' => 3,
+            'outputQuantity' => 3,
+            'outputPerRun' => 1,
+            'totalCost' => 214350.75,
+        ]));
+
+        $resource = $this->provider(new User(), new Request(['runs' => '3']), $profitMarginService)
+            ->provide(new Get(), ['typeId' => (string) self::ROBOTICS_TYPE_ID]);
+
+        $this->assertNull($resource->typeName);
+        $this->assertSame(self::ROBOTICS_TYPE_ID, $resource->typeId);
+        $this->assertSame(3, $resource->runs);
+        $this->assertSame(3, $resource->outputQuantity);
+        $this->assertSame(214350.75, $resource->totalCost);
     }
 
     private function settings(User $user): IndustryUserSettings

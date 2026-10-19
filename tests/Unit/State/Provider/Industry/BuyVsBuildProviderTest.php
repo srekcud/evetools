@@ -43,6 +43,7 @@ final class BuyVsBuildProviderTest extends TestCase
     private const int HYDROGEN_FUEL_BLOCK = 4246;
     private const int FERNITE_ALLOY = 16656;
     private const int CERAMIC_POWDER = 16660;
+    private const int ROBOTICS = 9848;
 
     #[Group('issue-100')]
     public function testWithoutParametersNorSettingsAnalyzesOneRunAtMe10InJitaWithDefaultFees(): void
@@ -210,6 +211,58 @@ final class BuyVsBuildProviderTest extends TestCase
         $this->assertSame([self::FERNITE_ALLOY, self::CERAMIC_POWDER], $resource->buyTypeIds);
         $this->assertSame(55787.5, $resource->optimalMixCost);
         $this->assertSame(60507.5, $resource->totalProductionCost);
+    }
+
+    #[Group('issue-115')]
+    public function testProductMissingFromTheSdeReachesTheResourceWithAnUnknownTypeNameAndItsTypeId(): void
+    {
+        $components = [[
+            'typeId' => self::FERNITE_CARBIDE,
+            'typeName' => 'Fernite Carbide',
+            'quantity' => 1320,
+            'stage' => 'intermediate',
+            'buildCost' => 52800.0,
+            'buildMaterials' => [['typeId' => self::ROBOTICS, 'typeName' => null, 'quantity' => 7, 'unitPrice' => 6100.0, 'totalPrice' => 42700.0]],
+            'buildJobInstallCost' => 1850.0,
+            'buyCostJita' => 79200.0,
+            'buyCostStructure' => null,
+            'verdict' => 'build',
+            'savings' => 24550.0,
+            'savingsPercent' => 31.0,
+            'meUsed' => 10,
+            'runs' => 2,
+        ]];
+        $buyVsBuildService = $this->createStub(BuyVsBuildService::class);
+        $buyVsBuildService->method('analyze')->willReturn([
+            'typeId' => self::ROBOTICS,
+            'typeName' => null,
+            'isT2' => false,
+            'runs' => 4,
+            'totalProductionCost' => 61230.5,
+            'sellPrice' => 18900.0,
+            'marginPercent' => 19.4,
+            'components' => $components,
+            'buildAllCost' => 54650.0,
+            'buyAllCost' => 79200.0,
+            'optimalMixCost' => 54650.0,
+            'buildTypeIds' => [self::FERNITE_CARBIDE],
+            'buyTypeIds' => [],
+        ]);
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn(new User());
+        $requestStack = new RequestStack();
+        $requestStack->push(new Request(['runs' => '4']));
+        $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
+        $settingsRepository->method('findOneBy')->willReturn(null);
+
+        $resource = (new BuyVsBuildProvider($security, $requestStack, $buyVsBuildService, $settingsRepository))
+            ->provide(new Get(), ['typeId' => (string) self::ROBOTICS]);
+
+        $this->assertNull($resource->typeName);
+        $this->assertSame(self::ROBOTICS, $resource->typeId);
+        $this->assertSame(4, $resource->runs);
+        $this->assertSame(61230.5, $resource->totalProductionCost);
+        $this->assertSame($components, $resource->components);
     }
 
     public function testAnonymousRequestIsUnauthorized(): void
