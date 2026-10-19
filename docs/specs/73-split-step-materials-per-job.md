@@ -58,6 +58,13 @@ Colonnes : `[runs, quantity, depth, meLevel, teLevel, splitIndex, totalGroupRuns
 - **Petits-enfants (R3)** : option la plus conservatrice retenue, le découpage et la fusion manuels ne modifient que les étapes matériaux directes du groupe. Un Δ qui change les runs d'un intermédiaire ne descend pas à ses propres matériaux ; la régénération du projet (R2) remet tout l'arbre en cohérence.
 - **Liste d'achats, coût de production, arbre affiché** : pas d'issue GitHub créée en autonomie ; le constat est noté dans `.claude/tasks/issues-proposals.md` pour validation.
 
+- **Périmètre de R1 à la création (option B de la note de câblage `.claude/tasks/73-wiring.md`)** : le besoin d'un intermédiaire garde sa valeur d'aujourd'hui (arbre ou `recalculateReactionQuantities()`), corrigée de `Σ matériaux des jobs − matériaux du job non découpé` pour chaque consommateur découpé. L'agrégation entre branches (#69) n'est pas corrigée ici : elle reste dans le flux principal.
+- **Règles de bonus de structure** : chaque chemin garde la sienne (arbre et réactions en R2, `getStructureBonusForStep()` en R3) ; leur unification est hors périmètre.
+- **Étapes de copie** : leurs runs ne suivent pas un changement de runs de la fabrication (déjà le cas au recalcul) ; hors périmètre.
+- **Produit d'une étape matériau absent du SDE en R3** : refus explicite (400), aucune étape modifiée, comme `SplitStepProcessor::getOutputPerRun()` (pas de repli à 1 unité par run).
+- **« Profondeur par profondeur » (R2)** : profondeur maximale du produit dans l'arbre, le `depth` persisté étant faux (#16).
+- **Test #112 contredit par R1** : `testQuantitiesOfEachSplitGroupOfOneNomadAddUpToTheQuantityOfTheUnsplitStep` est réécrit, la quantité de chaque groupe découpé valant le besoin job par job de ses consommateurs.
+
 ## Glossaire
 
 Aucun terme ajouté : **Besoin**, **Job** et **Groupe découpé** couvrent la règle.
