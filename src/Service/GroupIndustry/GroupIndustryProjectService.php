@@ -14,9 +14,11 @@ use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Exception\InventionProbabilityMissingException;
 use App\Exception\TypeMissingFromSdeException;
-use App\Industry\Application\InventionCatalog;
+use App\Industry\Application\InventionRecipe;
+use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryBlueprintRepository;
 use App\Service\Industry\IndustryTreeService;
+use App\Service\Industry\InventionService;
 use App\Service\JitaMarketService;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -27,7 +29,8 @@ class GroupIndustryProjectService
         private readonly JitaMarketService $jitaMarketService,
         private readonly EntityManagerInterface $entityManager,
         private readonly IndustryBlueprintRepository $blueprintRepository,
-        private readonly InventionCatalog $inventionCatalog,
+        private readonly InventionService $inventionService,
+        private readonly IndustryActivityProductRepository $activityProductRepository,
     ) {
     }
 
@@ -276,7 +279,7 @@ class GroupIndustryProjectService
         $inventionsByProduct = [];
         $inventionTypeIds = [];
         foreach (array_keys($firstManufacturingJobByProduct) as $productTypeId) {
-            $invention = $this->inventionCatalog->inventionOf($productTypeId);
+            $invention = $this->inventionOf($productTypeId);
             if ($invention === null) {
                 continue;
             }
@@ -454,5 +457,10 @@ class GroupIndustryProjectService
         }
 
         return array_values(array_unique($resolved));
+    }
+
+    private function inventionOf(int $productTypeId): ?InventionRecipe
+    {
+        return null;
     }
 }

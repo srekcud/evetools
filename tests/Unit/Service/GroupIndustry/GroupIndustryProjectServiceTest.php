@@ -13,12 +13,13 @@ use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
+use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryBlueprintRepository;
 use App\Service\GroupIndustry\CreateProjectData;
 use App\Service\GroupIndustry\GroupIndustryProjectService;
 use App\Service\Industry\IndustryTreeService;
+use App\Service\Industry\InventionService;
 use App\Service\JitaMarketService;
-use App\Tests\Unit\Industry\Application\Double\InMemoryInventionCatalog;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -34,6 +35,8 @@ class GroupIndustryProjectServiceTest extends TestCase
     private EntityManagerInterface&Stub $entityManager;
     private IndustryBlueprintRepository&Stub $blueprintRepository;
     private Connection&Stub $connection;
+    private InventionService&Stub $inventionService;
+    private IndustryActivityProductRepository&Stub $activityProductRepository;
     private GroupIndustryProjectService $service;
 
     protected function setUp(): void
@@ -43,6 +46,8 @@ class GroupIndustryProjectServiceTest extends TestCase
         $this->entityManager = $this->createStub(EntityManagerInterface::class);
         $this->blueprintRepository = $this->createStub(IndustryBlueprintRepository::class);
         $this->connection = $this->createStub(Connection::class);
+        $this->inventionService = $this->createStub(InventionService::class);
+        $this->activityProductRepository = $this->createStub(IndustryActivityProductRepository::class);
 
         $this->entityManager->method('getConnection')->willReturn($this->connection);
         // Default: no blueprint found (use default limits)
@@ -53,7 +58,8 @@ class GroupIndustryProjectServiceTest extends TestCase
             $this->jitaMarketService,
             $this->entityManager,
             $this->blueprintRepository,
-            new InMemoryInventionCatalog(),
+            $this->inventionService,
+            $this->activityProductRepository,
         );
     }
 
@@ -270,7 +276,7 @@ class GroupIndustryProjectServiceTest extends TestCase
         $em->expects($this->once())->method('persist');
         $em->expects($this->once())->method('flush');
 
-        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $this->blueprintRepository, new InMemoryInventionCatalog());
+        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $this->blueprintRepository, $this->inventionService, $this->activityProductRepository);
 
         $data = new CreateProjectData(
             name: 'Persist Test',
@@ -619,7 +625,7 @@ class GroupIndustryProjectServiceTest extends TestCase
         $conn = $this->createStub(Connection::class);
         $em->method('getConnection')->willReturn($conn);
 
-        $service = new GroupIndustryProjectService($treeStub, $jitaMock, $em, $this->blueprintRepository, new InMemoryInventionCatalog());
+        $service = new GroupIndustryProjectService($treeStub, $jitaMock, $em, $this->blueprintRepository, $this->inventionService, $this->activityProductRepository);
 
         $data = new CreateProjectData(
             name: 'Priced',
@@ -704,7 +710,7 @@ class GroupIndustryProjectServiceTest extends TestCase
         $em = $this->createStub(EntityManagerInterface::class);
         $em->method('getConnection')->willReturn($this->connection);
 
-        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $this->blueprintRepository, new InMemoryInventionCatalog());
+        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $this->blueprintRepository, $this->inventionService, $this->activityProductRepository);
 
         $data = new CreateProjectData(
             name: 'Blacklisted',
@@ -751,7 +757,7 @@ class GroupIndustryProjectServiceTest extends TestCase
         $conn = $this->createStub(Connection::class);
         $em->method('getConnection')->willReturn($conn);
 
-        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $this->blueprintRepository, new InMemoryInventionCatalog());
+        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $this->blueprintRepository, $this->inventionService, $this->activityProductRepository);
 
         $data = new CreateProjectData(
             name: 'No Blacklist',
@@ -1031,7 +1037,7 @@ class GroupIndustryProjectServiceTest extends TestCase
         $conn = $this->createStub(Connection::class);
         $em->method('getConnection')->willReturn($conn);
 
-        $service = new GroupIndustryProjectService($treeStub, $jitaMock, $em, $this->blueprintRepository, new InMemoryInventionCatalog());
+        $service = new GroupIndustryProjectService($treeStub, $jitaMock, $em, $this->blueprintRepository, $this->inventionService, $this->activityProductRepository);
 
         $data = new CreateProjectData(
             name: 'No Mats',
@@ -1084,7 +1090,7 @@ class GroupIndustryProjectServiceTest extends TestCase
         $jitaStub = $this->createStub(JitaMarketService::class);
         $jitaStub->method('getCheapestPercentilePrices')->willReturn([]);
 
-        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $bpRepository, new InMemoryInventionCatalog());
+        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $bpRepository, $this->inventionService, $this->activityProductRepository);
 
         $data = new CreateProjectData(
             name: 'Split Test',
@@ -1134,7 +1140,7 @@ class GroupIndustryProjectServiceTest extends TestCase
         $jitaStub = $this->createStub(JitaMarketService::class);
         $jitaStub->method('getCheapestPercentilePrices')->willReturn([34 => 5.5]);
 
-        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $bpRepository, new InMemoryInventionCatalog());
+        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $bpRepository, $this->inventionService, $this->activityProductRepository);
 
         $data = new CreateProjectData(
             name: 'No Split',
@@ -1187,7 +1193,7 @@ class GroupIndustryProjectServiceTest extends TestCase
         $jitaStub = $this->createStub(JitaMarketService::class);
         $jitaStub->method('getCheapestPercentilePrices')->willReturn([]);
 
-        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $bpRepository, new InMemoryInventionCatalog());
+        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $bpRepository, $this->inventionService, $this->activityProductRepository);
 
         $data = new CreateProjectData(
             name: 'Exact Split',
@@ -1235,7 +1241,7 @@ class GroupIndustryProjectServiceTest extends TestCase
         $jitaStub = $this->createStub(JitaMarketService::class);
         $jitaStub->method('getCheapestPercentilePrices')->willReturn([34 => 5.5]);
 
-        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $bpRepository, new InMemoryInventionCatalog());
+        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $bpRepository, $this->inventionService, $this->activityProductRepository);
 
         $data = new CreateProjectData(
             name: 'Copy No Split',
@@ -1276,7 +1282,7 @@ class GroupIndustryProjectServiceTest extends TestCase
         $jitaStub = $this->createStub(JitaMarketService::class);
         $jitaStub->method('getCheapestPercentilePrices')->willReturn([34 => 5.5]);
 
-        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $bpRepository, new InMemoryInventionCatalog());
+        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $bpRepository, $this->inventionService, $this->activityProductRepository);
 
         $data = new CreateProjectData(
             name: 'Default Limit',

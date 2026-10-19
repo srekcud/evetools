@@ -20,11 +20,6 @@ use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\IndustryActivityType;
 use App\Exception\TypeMissingFromSdeException;
-use App\Industry\Application\InventionCatalog;
-use App\Industry\Application\InventionRecipe;
-use App\Industry\Domain\Quantity;
-use App\Industry\Domain\RecipeMaterial;
-use App\Industry\Domain\Runs;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryBlueprintRepository;
@@ -33,8 +28,8 @@ use App\Service\GroupIndustry\CreateProjectData;
 use App\Service\GroupIndustry\GroupIndustryProjectService;
 use App\Service\Industry\IndustryBonusService;
 use App\Service\Industry\IndustryTreeService;
+use App\Service\Industry\InventionService;
 use App\Service\JitaMarketService;
-use App\Tests\Unit\Industry\Application\Double\InMemoryInventionCatalog;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -84,6 +79,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     private const int HAIL_L_INVENTED_BPC_RUNS = 10;
     private const int NUCLEAR_PHYSICS_PER_ATTEMPT = 1;
     private const int MECHANICAL_ENGINEERING_PER_ATTEMPT = 2;
+    private const int HAIL_L_INVENTION_TIME = 63_900;
 
     private const array INVENTION_TYPE_NAMES = [
         self::DEPLETED_URANIUM_L => 'Depleted Uranium L',
@@ -1228,23 +1224,50 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
 
     private function serviceInventing(?float $hailLBaseProbability): GroupIndustryProjectService
     {
+        $inventionService = $this->createMock(InventionService::class);
+        $inventionService->method('getInventionData')->willReturnCallback(
+            static fn (int $t2TypeId): ?array => $t2TypeId === self::HAIL_L ? [
+                't1BlueprintTypeId' => self::DEPLETED_URANIUM_L_BLUEPRINT,
+                't2BlueprintTypeId' => self::HAIL_L + self::BLUEPRINT_TYPE_ID_OFFSET,
+                'probability' => $hailLBaseProbability,
+                'baseRuns' => self::HAIL_L_INVENTED_BPC_RUNS,
+                'materials' => [
+                    [
+                        'typeId' => self::DATACORE_NUCLEAR_PHYSICS,
+                        'typeName' => self::INVENTION_TYPE_NAMES[self::DATACORE_NUCLEAR_PHYSICS],
+                        'quantity' => self::NUCLEAR_PHYSICS_PER_ATTEMPT,
+                    ],
+                    [
+                        'typeId' => self::DATACORE_MECHANICAL_ENGINEERING,
+                        'typeName' => self::INVENTION_TYPE_NAMES[self::DATACORE_MECHANICAL_ENGINEERING],
+                        'quantity' => self::MECHANICAL_ENGINEERING_PER_ATTEMPT,
+                    ],
+                ],
+                'inventionTime' => self::HAIL_L_INVENTION_TIME,
+            ] : null,
+        );
+
+        $activityProductRepository = $this->createMock(IndustryActivityProductRepository::class);
+        $activityProductRepository->method('findProductsForBlueprints')->willReturnCallback(
+            static fn (array $blueprintTypeIds, array $activityIds): array => in_array(self::DEPLETED_URANIUM_L_BLUEPRINT, $blueprintTypeIds, true)
+                && in_array(IndustryActivityType::Manufacturing->value, $activityIds, true)
+                ? [
+                    self::DEPLETED_URANIUM_L_BLUEPRINT.'-'.IndustryActivityType::Manufacturing->value => (new IndustryActivityProduct())
+                        ->setTypeId(self::DEPLETED_URANIUM_L_BLUEPRINT)
+                        ->setActivityId(IndustryActivityType::Manufacturing->value)
+                        ->setProductTypeId(self::DEPLETED_URANIUM_L)
+                        ->setQuantity(1),
+                ]
+                : [],
+        );
+
         return new GroupIndustryProjectService(
             $this->treeServiceOnGoldenSde($this->entityManager),
             $this->jitaMarketService,
             $this->entityManager,
             $this->blueprintRepository,
-            new InMemoryInventionCatalog([
-                self::HAIL_L => new InventionRecipe(
-                    t1BlueprintTypeId: self::DEPLETED_URANIUM_L_BLUEPRINT,
-                    t1ProductTypeId: self::DEPLETED_URANIUM_L,
-                    baseProbability: $hailLBaseProbability,
-                    baseRuns: new Runs(self::HAIL_L_INVENTED_BPC_RUNS),
-                    datacores: [
-                        new RecipeMaterial(self::DATACORE_NUCLEAR_PHYSICS, new Quantity(self::NUCLEAR_PHYSICS_PER_ATTEMPT)),
-                        new RecipeMaterial(self::DATACORE_MECHANICAL_ENGINEERING, new Quantity(self::MECHANICAL_ENGINEERING_PER_ATTEMPT)),
-                    ],
-                ),
-            ]),
+            $inventionService,
+            $activityProductRepository,
         );
     }
 

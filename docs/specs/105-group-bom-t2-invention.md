@@ -6,7 +6,7 @@
 
 ## Règles métier
 
-- **R1 — Nœud inventé.** Un nœud de l'arbre (item du projet ou intermédiaire) dont le produit a une recette d'invention (`InventionCatalog::inventionOf()` non nul) n'a pas de ligne de copie de son propre blueprint.
+- **R1 — Nœud inventé.** Un nœud de l'arbre (item du projet ou intermédiaire) dont le produit a une recette d'invention (`InventionService::getInventionData()` non nul) n'a pas de ligne de copie de son propre blueprint.
 - **R2 — Tentatives.** Pour un produit inventé, le nombre de tentatives d'invention vaut `ceil(runs / (runs de base × probabilité de base))`, où `runs` est la somme des runs de fabrication de ce produit dans la BOM (toutes lignes de production confondues), `runs de base` les runs du BPC inventé et la probabilité celle du SDE. Ni compétences ni décrypteur.
 - **R3 — Ligne d'invention.** Une ligne de job par produit inventé : `typeId` = produit T2, activité `invention`, groupe `blueprint`, `runs` = tentatives, `requiredQuantity` = tentatives, ME 0 / TE 0, parent = parent de la première ligne de fabrication du produit (null pour un item du projet).
 - **R4 — Copie du T1.** Une ligne de copie par produit inventé : `typeId` = produit T1 (`t1ProductTypeId`), activité `copy`, groupe `blueprint`, `runs` = tentatives (une copie d'un run par tentative), `requiredQuantity` = tentatives, ME 0 / TE 0, même parent que R3.
@@ -43,7 +43,7 @@ Recette d'invention de Hail L (SDE) : blueprint T1 898, produit T1 197 (Depleted
 - R2 : probabilité de base du SDE, sans compétences ni décrypteur (le projet Group Industry n'a pas de pilote désigné pour l'invention) ; c'est l'estimation qui demande le plus de tentatives, donc la plus prudente pour l'approvisionnement.
 - R3/R4 : invention et copie du T1 rangées dans le groupe `blueprint` existant, pour ne pas créer de groupe que le front ne connaît pas.
 - R6 : erreur explicite plutôt qu'un nombre de tentatives par défaut (règle du glossaire : jamais de valeur plausible à la place d'une donnée manquante), sur le modèle de `TypeMissingFromSdeException` (#109).
-- Dépendance : le service passe par le port `App\Industry\Application\InventionCatalog` (implémentation `SdeInventionCatalog`), pas par `InventionService`.
+- Dépendance (décision de Sylvain, 2026-10-19) : le service passe par `InventionService::getInventionData()` (couche Service) et non par le port `App\Industry\Application\InventionCatalog`, que `deptrac.yaml` interdit aux dossiers plats. Le produit T1 est lu via `IndustryActivityProductRepository` (produit de fabrication du blueprint T1).
 
 ## Glossaire
 
