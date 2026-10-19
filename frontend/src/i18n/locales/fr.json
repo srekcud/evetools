@@ -1809,6 +1809,7 @@
       "product": "Produit",
       "activity": "Activite",
       "runs": "Runs",
+      "attempts": "Tentatives",
       "status": "Statut",
       "totalJobs": "Total jobs",
       "blueprints": "Blueprints",

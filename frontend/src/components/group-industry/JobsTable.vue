@@ -228,6 +228,7 @@ function isJobDimmed(job: BomItem): boolean {
                     <!-- Runs -->
                     <td class="py-2.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
                       {{ job.runs != null ? formatNumber(job.runs, 0) : '---' }}
+                      <span v-if="job.activityType === 'invention'" class="block text-xs font-sans text-slate-500">{{ t('groupIndustry.jobs.attempts') }}</span>
                     </td>
 
                     <!-- ME/TE -->

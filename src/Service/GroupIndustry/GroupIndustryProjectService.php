@@ -12,9 +12,10 @@ use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
+use App\Enum\IndustryActivityType;
 use App\Exception\InventionProbabilityMissingException;
+use App\Exception\InventionT1ProductMissingException;
 use App\Exception\TypeMissingFromSdeException;
-use App\Industry\Application\InventionRecipe;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryBlueprintRepository;
 use App\Service\Industry\IndustryTreeService;
@@ -279,17 +280,18 @@ class GroupIndustryProjectService
         $inventionsByProduct = [];
         $inventionTypeIds = [];
         foreach (array_keys($firstManufacturingJobByProduct) as $productTypeId) {
-            $invention = $this->inventionOf($productTypeId);
+            $invention = $this->inventionService->getInventionData($productTypeId);
             if ($invention === null) {
                 continue;
             }
-            if ($invention->baseProbability === null) {
-                throw new InventionProbabilityMissingException($productTypeId, $invention->t1BlueprintTypeId);
+            if ($invention['probability'] === null || $invention['probability'] <= 0 || $invention['baseRuns'] <= 0) {
+                throw new InventionProbabilityMissingException($productTypeId, $invention['t1BlueprintTypeId']);
             }
-            $inventionsByProduct[$productTypeId] = ['recipe' => $invention, 'baseProbability' => $invention->baseProbability];
-            $inventionTypeIds[] = $invention->t1ProductTypeId;
-            foreach ($invention->datacores as $datacore) {
-                $inventionTypeIds[] = $datacore->typeId;
+            $t1ProductTypeId = $this->t1ProductTypeIdOf($invention['t1BlueprintTypeId']);
+            $inventionsByProduct[$productTypeId] = ['recipe' => $invention, 'baseProbability' => $invention['probability'], 't1ProductTypeId' => $t1ProductTypeId];
+            $inventionTypeIds[] = $t1ProductTypeId;
+            foreach ($invention['materials'] as $datacore) {
+                $inventionTypeIds[] = $datacore['typeId'];
             }
         }
 
@@ -299,9 +301,9 @@ class GroupIndustryProjectService
 
         $typeNames = $this->sdeTypeNames($inventionTypeIds);
 
-        foreach ($inventionsByProduct as $productTypeId => ['recipe' => $invention, 'baseProbability' => $baseProbability]) {
+        foreach ($inventionsByProduct as $productTypeId => ['recipe' => $invention, 'baseProbability' => $baseProbability, 't1ProductTypeId' => $t1ProductTypeId]) {
             $firstManufacturingJob = $firstManufacturingJobByProduct[$productTypeId];
-            $attempts = (int) ceil($manufacturingRunsByProduct[$productTypeId] / ($invention->baseRuns->value * $baseProbability));
+            $attempts = (int) ceil($manufacturingRunsByProduct[$productTypeId] / ($invention['baseRuns'] * $baseProbability));
 
             unset($jobAggregation[$productTypeId . ':copy']);
             $jobAggregation[$productTypeId . ':invention'] = [
@@ -313,35 +315,35 @@ class GroupIndustryProjectService
                 'activityType' => 'invention',
                 'jobGroup' => 'blueprint',
                 'parentTypeId' => $firstManufacturingJob['parentTypeId'],
-                'blueprintTypeId' => $invention->t1BlueprintTypeId,
+                'blueprintTypeId' => $invention['t1BlueprintTypeId'],
                 'outputPerRun' => 1,
             ];
 
-            $t1CopyKey = $invention->t1ProductTypeId . ':copy:invention';
+            $t1CopyKey = $t1ProductTypeId . ':copy:invention';
             if (isset($jobAggregation[$t1CopyKey])) {
                 $jobAggregation[$t1CopyKey]['runs'] += $attempts;
             } else {
                 $jobAggregation[$t1CopyKey] = [
-                    'typeId' => $invention->t1ProductTypeId,
-                    'typeName' => $typeNames[$invention->t1ProductTypeId],
+                    'typeId' => $t1ProductTypeId,
+                    'typeName' => $typeNames[$t1ProductTypeId],
                     'runs' => $attempts,
                     'meLevel' => 0,
                     'teLevel' => 0,
                     'activityType' => 'copy',
                     'jobGroup' => 'blueprint',
                     'parentTypeId' => $firstManufacturingJob['parentTypeId'],
-                    'blueprintTypeId' => $invention->t1BlueprintTypeId,
+                    'blueprintTypeId' => $invention['t1BlueprintTypeId'],
                     'outputPerRun' => 1,
                 ];
             }
 
-            foreach ($invention->datacores as $datacore) {
-                $quantity = $datacore->baseQuantityPerRun->value * $attempts;
-                if (isset($materialAggregation[$datacore->typeId])) {
-                    $materialAggregation[$datacore->typeId]['quantity'] += $quantity;
+            foreach ($invention['materials'] as $datacore) {
+                $quantity = $datacore['quantity'] * $attempts;
+                if (isset($materialAggregation[$datacore['typeId']])) {
+                    $materialAggregation[$datacore['typeId']]['quantity'] += $quantity;
                 } else {
-                    $materialAggregation[$datacore->typeId] = [
-                        'typeName' => $typeNames[$datacore->typeId],
+                    $materialAggregation[$datacore['typeId']] = [
+                        'typeName' => $typeNames[$datacore['typeId']],
                         'quantity' => $quantity,
                     ];
                 }
@@ -459,8 +461,15 @@ class GroupIndustryProjectService
         return array_values(array_unique($resolved));
     }
 
-    private function inventionOf(int $productTypeId): ?InventionRecipe
+    private function t1ProductTypeIdOf(int $t1BlueprintTypeId): int
     {
-        return null;
+        $manufacturing = IndustryActivityType::Manufacturing->value;
+        $products = $this->activityProductRepository->findProductsForBlueprints([$t1BlueprintTypeId], [$manufacturing]);
+        $product = $products[$t1BlueprintTypeId . '-' . $manufacturing] ?? null;
+        if ($product === null) {
+            throw new InventionT1ProductMissingException($t1BlueprintTypeId);
+        }
+
+        return $product->getProductTypeId();
     }
 }
