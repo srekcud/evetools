@@ -27,7 +27,7 @@ Le worker consomme `async` et `scheduler_default` dans un seul processus. Un mes
 ## Cas limites
 
 - Personnage sans `id` ou sans token : ignoré, comme aujourd'hui pour le token.
-- Deux personnages d'une même corporation : l'endpoint corpo est lu deux fois (cache ESI/ETag) ; accepté.
+- Deux personnages d'une même corporation : l'endpoint corpo est lu deux fois. `getPaginated()` ne passe pas par l'ETag : k personnages d'une corporation de p pages font k × p appels par sync (toutes les 30 min), au lieu de p. Un 420 est absorbé par `EsiClient` (attente du reset puis une relance).
 
 ## Hors périmètre
 
