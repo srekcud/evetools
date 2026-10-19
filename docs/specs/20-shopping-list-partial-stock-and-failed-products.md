@@ -52,13 +52,16 @@ Le `test-writer` calcule les quantités exactes d'E1, E4, E5 et E9 sur le SDE go
 
 ## Décision prise en autonomie
 
-- **Forme du signalement (R4).** Sylvain absent : choix le plus conservateur, la liste des autres produits reste calculée et l'erreur est ajoutée à la réponse (`failedProducts` avec `typeId` et le message d'erreur brut), plutôt que de faire échouer toute la liste (4xx) ou d'inventer un nom de produit. Pas de nouveau terme de glossaire.
+- **Forme du signalement (R4).** Sylvain absent : choix le plus conservateur, la liste des autres produits reste calculée et l'erreur est ajoutée à la réponse (`failedProducts` avec `typeId` et le message d'erreur brut), plutôt que de faire échouer toute la liste (4xx) ou d'inventer un nom de produit.
 - **Calcul du sous-arbre réduit (R1).** Reconstruction de l'arbre de l'intermédiaire pour la quantité restante (runs entiers, ME et bonus inchangés), plutôt qu'une réduction proportionnelle des quantités : c'est la règle R9 du noyau (« stock consommé avant le calcul des runs ») et elle garde l'arrondi par run.
 - **Stockpile.** Exclu et reporté dans une issue séparée pour garder un ticket limité à la liste d'achats.
 
 ## Glossaire
 
-Aucun terme ajouté.
+Termes ajoutés à [`docs/glossary.md`](../glossary.md) :
+
+- **Produit en erreur** (*Failed product*) : produit racine dont l'arbre de production ne peut pas être construit ; porté par `failedProducts` avec la raison, ses matériaux absents de la liste.
+- **Stock de départ** (*Starting stock*) : stock consommé avant le calcul des runs ; un intermédiaire couvert en partie voit son sous-arbre reconstruit pour la quantité restante (R9 du noyau).
 
 ## Tests impactés
 
