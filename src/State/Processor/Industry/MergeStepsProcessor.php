@@ -10,6 +10,7 @@ use App\ApiResource\Industry\ProjectStepResource;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
+use App\Service\Industry\SplitGroupMaterialNeeds;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -29,6 +30,7 @@ class MergeStepsProcessor implements ProcessorInterface
         private readonly IndustryProjectStepRepository $stepRepository,
         private readonly IndustryResourceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,
+        private readonly SplitGroupMaterialNeeds $splitGroupMaterialNeeds,
     ) {
     }
 

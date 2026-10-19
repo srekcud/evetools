@@ -14,6 +14,7 @@ use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Service\Industry\SplitGroupMaterialNeeds;
 use App\State\Processor\Industry\SplitStepProcessor;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
@@ -27,6 +28,8 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(SplitStepProcessor::class)]
 final class SplitStepProcessorTest extends TestCase
 {
+    use BuildsSplitGroupMaterialNeeds;
+
     private const int OXYGEN_FUEL_BLOCK = 4312;
     private const int OXYGEN_FUEL_BLOCK_BLUEPRINT = 4313;
     private const int OXYGEN_FUEL_BLOCK_OUTPUT_PER_RUN = 40;
@@ -110,6 +113,94 @@ final class SplitStepProcessorTest extends TestCase
         ));
     }
 
+    #[Group('issue-73')]
+    public function testManualSplitOfAConsumerGivesItsMaterialStepTheMaterialsOfEachNewJob(): void
+    {
+        $quantumMicroprocessor = $this->stepOfTheProject(self::QUANTUM_MICROPROCESSOR, self::blueprintOfRecipe(self::QUANTUM_MICROPROCESSOR), 'manufacturing', runs: 32, quantity: 32);
+        $this->stepOfTheProject(self::TITANIUM_CARBIDE, self::blueprintOfRecipe(self::TITANIUM_CARBIDE), 'reaction', runs: 1, quantity: 490);
+
+        $this->split($quantumMicroprocessor, numberOfJobs: 3);
+
+        self::assertSame([[11, 11, 0, 32], [11, 11, 1, 32], [10, 10, 2, 32]], $this->jobsOfProduct(self::QUANTUM_MICROPROCESSOR));
+        self::assertSame([[1, 491, 0, null]], $this->jobsOfProduct(self::TITANIUM_CARBIDE));
+    }
+
+    #[Group('issue-73')]
+    public function testManualSplitLeavesUnchangedTheMaterialStepWhoseJobByJobNeedIsTheSame(): void
+    {
+        $quantumMicroprocessor = $this->stepOfTheProject(self::QUANTUM_MICROPROCESSOR, self::blueprintOfRecipe(self::QUANTUM_MICROPROCESSOR), 'manufacturing', runs: 32, quantity: 32);
+        $this->stepOfTheProject(self::PHENOLIC_COMPOSITES, self::blueprintOfRecipe(self::PHENOLIC_COMPOSITES), 'reaction', runs: 1, quantity: 173);
+        $this->stepOfTheProject(self::NANOTRANSISTORS, self::blueprintOfRecipe(self::NANOTRANSISTORS), 'reaction', runs: 1, quantity: 58);
+
+        $this->split($quantumMicroprocessor, numberOfJobs: 3);
+
+        self::assertSame(
+            [self::PHENOLIC_COMPOSITES => [[1, 174, 0, null]], self::NANOTRANSISTORS => [[1, 58, 0, null]]],
+            [self::PHENOLIC_COMPOSITES => $this->jobsOfProduct(self::PHENOLIC_COMPOSITES), self::NANOTRANSISTORS => $this->jobsOfProduct(self::NANOTRANSISTORS)],
+        );
+    }
+
+    #[Group('issue-73')]
+    public function testManualSplitWhoseNewJobsNeedMoreThanTheProductionOfAMaterialStepRaisesItsRuns(): void
+    {
+        $scorpion = $this->stepOfTheProject(self::SCORPION, self::blueprintOfRecipe(self::SCORPION), 'manufacturing', runs: 5, quantity: 5);
+        $this->stepOfTheProject(self::AUTO_INTEGRITY_PRESERVATION_SEAL, self::blueprintOfRecipe(self::AUTO_INTEGRITY_PRESERVATION_SEAL), 'manufacturing', runs: 168, quantity: 504);
+        $this->stepOfTheProject(self::LIFE_SUPPORT_BACKUP_UNIT, self::blueprintOfRecipe(self::LIFE_SUPPORT_BACKUP_UNIT), 'manufacturing', runs: 84, quantity: 252);
+
+        $this->split($scorpion, numberOfJobs: 5);
+
+        self::assertSame(
+            [self::AUTO_INTEGRITY_PRESERVATION_SEAL => [[169, 505, 0, null]], self::LIFE_SUPPORT_BACKUP_UNIT => [[85, 255, 0, null]]],
+            [self::AUTO_INTEGRITY_PRESERVATION_SEAL => $this->jobsOfProduct(self::AUTO_INTEGRITY_PRESERVATION_SEAL), self::LIFE_SUPPORT_BACKUP_UNIT => $this->jobsOfProduct(self::LIFE_SUPPORT_BACKUP_UNIT)],
+        );
+    }
+
+    #[Group('issue-73')]
+    public function testManualSplitKeepsTheNeedOfTheOtherConsumerOfAMaterial(): void
+    {
+        $scorpion = $this->stepOfTheProject(self::SCORPION, self::blueprintOfRecipe(self::SCORPION), 'manufacturing', runs: 5, quantity: 5);
+        $this->stepOfTheProject(self::NESTOR, self::blueprintOfRecipe(self::NESTOR), 'manufacturing', runs: 1, quantity: 1);
+        $this->stepOfTheProject(self::AUTO_INTEGRITY_PRESERVATION_SEAL, self::blueprintOfRecipe(self::AUTO_INTEGRITY_PRESERVATION_SEAL), 'manufacturing', runs: 248, quantity: 742);
+        $this->stepOfTheProject(self::LIFE_SUPPORT_BACKUP_UNIT, self::blueprintOfRecipe(self::LIFE_SUPPORT_BACKUP_UNIT), 'manufacturing', runs: 124, quantity: 371);
+
+        $this->split($scorpion, numberOfJobs: 5);
+
+        self::assertSame(
+            [self::NESTOR => [[1, 1, 0, null]], self::AUTO_INTEGRITY_PRESERVATION_SEAL => [[248, 743, 0, null]], self::LIFE_SUPPORT_BACKUP_UNIT => [[125, 374, 0, null]]],
+            [self::NESTOR => $this->jobsOfProduct(self::NESTOR), self::AUTO_INTEGRITY_PRESERVATION_SEAL => $this->jobsOfProduct(self::AUTO_INTEGRITY_PRESERVATION_SEAL), self::LIFE_SUPPORT_BACKUP_UNIT => $this->jobsOfProduct(self::LIFE_SUPPORT_BACKUP_UNIT)],
+        );
+    }
+
+    #[Group('issue-73')]
+    public function testManualSplitOfAConsumerWhoseMaterialStepProductIsMissingFromTheSdeIsRefusedWithoutChangingAnyStep(): void
+    {
+        $scorpion = $this->stepOfTheProject(self::SCORPION, self::blueprintOfRecipe(self::SCORPION), 'manufacturing', runs: 5, quantity: 5);
+        $this->stepOfTheProject(self::AUTO_INTEGRITY_PRESERVATION_SEAL, self::blueprintOfRecipe(self::AUTO_INTEGRITY_PRESERVATION_SEAL), 'manufacturing', runs: 168, quantity: 504);
+        $this->stepOfTheProject(self::LIFE_SUPPORT_BACKUP_UNIT, self::blueprintOfRecipe(self::LIFE_SUPPORT_BACKUP_UNIT), 'manufacturing', runs: 84, quantity: 252);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects($this->never())->method('flush');
+
+        try {
+            $this->split(
+                $scorpion,
+                numberOfJobs: 5,
+                entityManager: $entityManager,
+                splitGroupMaterialNeeds: $this->splitGroupMaterialNeedsOnRecipes([self::blueprintOfRecipe(self::AUTO_INTEGRITY_PRESERVATION_SEAL)]),
+            );
+            self::fail('A consumer whose material step has no product in the SDE must not be split.');
+        } catch (BadRequestHttpException $refusal) {
+            self::assertSame('Product of blueprint 1057478 missing from the SDE', $refusal->getMessage());
+        }
+
+        self::assertSame(
+            [[self::SCORPION, 5, 5, null], [self::AUTO_INTEGRITY_PRESERVATION_SEAL, 168, 504, null], [self::LIFE_SUPPORT_BACKUP_UNIT, 84, 252, null]],
+            array_map(
+                static fn (IndustryProjectStep $unchanged): array => [$unchanged->getProductTypeId(), $unchanged->getRuns(), $unchanged->getQuantity(), $unchanged->getSplitGroupId()],
+                array_values($this->project->getSteps()->toArray()),
+            ),
+        );
+    }
+
     private function stepOfTheProject(int $productTypeId, int $blueprintTypeId, string $activityType, int $runs, int $quantity): IndustryProjectStep
     {
         $step = (new IndustryProjectStep())
@@ -126,7 +217,7 @@ final class SplitStepProcessorTest extends TestCase
         return $step;
     }
 
-    private function split(IndustryProjectStep $step, int $numberOfJobs, ?EntityManagerInterface $entityManager = null): void
+    private function split(IndustryProjectStep $step, int $numberOfJobs, ?EntityManagerInterface $entityManager = null, ?SplitGroupMaterialNeeds $splitGroupMaterialNeeds = null): void
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($this->user);
@@ -147,6 +238,7 @@ final class SplitStepProcessorTest extends TestCase
             $this->activityProductRepositoryOfTheSde(),
             $mapper,
             $entityManager ?? $this->createStub(EntityManagerInterface::class),
+            $splitGroupMaterialNeeds ?? $this->splitGroupMaterialNeedsOnRecipes(),
         );
         $processor->process($input, new Post(), ['id' => Uuid::v4()->toRfc4122(), 'stepId' => Uuid::v4()->toRfc4122()]);
     }
@@ -157,6 +249,7 @@ final class SplitStepProcessorTest extends TestCase
             self::OXYGEN_FUEL_BLOCK_BLUEPRINT.'-'.self::MANUFACTURING_ACTIVITY_ID => $this->activityProduct(self::OXYGEN_FUEL_BLOCK_BLUEPRINT, self::MANUFACTURING_ACTIVITY_ID, self::OXYGEN_FUEL_BLOCK, self::OXYGEN_FUEL_BLOCK_OUTPUT_PER_RUN),
             self::NOMAD_BLUEPRINT.'-'.self::MANUFACTURING_ACTIVITY_ID => $this->activityProduct(self::NOMAD_BLUEPRINT, self::MANUFACTURING_ACTIVITY_ID, self::NOMAD, self::NOMAD_OUTPUT_PER_RUN_READ_AS_IF_MANUFACTURED),
             self::FERNITE_ALLOY_FORMULA.'-'.self::REACTION_ACTIVITY_ID => $this->activityProduct(self::FERNITE_ALLOY_FORMULA, self::REACTION_ACTIVITY_ID, self::FERNITE_ALLOY, self::FERNITE_ALLOY_OUTPUT_PER_RUN),
+            ...$this->recipeProductsByBlueprintAndActivity(),
         ];
         $repository = $this->createStub(IndustryActivityProductRepository::class);
         $repository->method('findOneBy')->willReturnCallback(
@@ -178,6 +271,17 @@ final class SplitStepProcessorTest extends TestCase
     private function jobsOfTheProject(): array
     {
         $steps = $this->project->getSteps()->toArray();
+        usort($steps, static fn (IndustryProjectStep $a, IndustryProjectStep $b): int => $a->getSplitIndex() <=> $b->getSplitIndex());
+
+        return array_map(
+            static fn (IndustryProjectStep $step): array => [$step->getRuns(), $step->getQuantity(), $step->getSplitIndex(), $step->getTotalGroupRuns()],
+            $steps,
+        );
+    }
+
+    private function jobsOfProduct(int $productTypeId): array
+    {
+        $steps = array_filter($this->project->getSteps()->toArray(), static fn (IndustryProjectStep $step): bool => $step->getProductTypeId() === $productTypeId);
         usort($steps, static fn (IndustryProjectStep $a, IndustryProjectStep $b): int => $a->getSplitIndex() <=> $b->getSplitIndex());
 
         return array_map(

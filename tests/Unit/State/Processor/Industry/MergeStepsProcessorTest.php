@@ -28,6 +28,8 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(SplitStepProcessor::class)]
 final class MergeStepsProcessorTest extends TestCase
 {
+    use BuildsSplitGroupMaterialNeeds;
+
     private const int FERNITE_ALLOY = 16656;
     private const int FERNITE_ALLOY_FORMULA = 17960;
     private const int FERNITE_ALLOY_OUTPUT_PER_RUN = 100;
@@ -72,9 +74,9 @@ final class MergeStepsProcessorTest extends TestCase
         $splitInput = new SplitStepInput();
         $splitInput->numberOfJobs = 3;
 
-        (new SplitStepProcessor($security, $projectRepository, $stepRepository, $activityProductRepository, $mapper, $entityManager))
+        (new SplitStepProcessor($security, $projectRepository, $stepRepository, $activityProductRepository, $mapper, $entityManager, $this->splitGroupMaterialNeedsOnRecipes()))
             ->process($splitInput, new Post(), $uriVariables);
-        (new MergeStepsProcessor($security, $projectRepository, $stepRepository, $mapper, $entityManager))
+        (new MergeStepsProcessor($security, $projectRepository, $stepRepository, $mapper, $entityManager, $this->splitGroupMaterialNeedsOnRecipes()))
             ->process(null, new Post(), $uriVariables);
 
         self::assertSame(
@@ -83,6 +85,87 @@ final class MergeStepsProcessorTest extends TestCase
                 static fn (IndustryProjectStep $remaining): array => [$remaining->getRuns(), $remaining->getQuantity(), $remaining->getSplitIndex(), $remaining->getSplitGroupId(), $remaining->getTotalGroupRuns()],
                 array_values($project->getSteps()->toArray()),
             ),
+        );
+    }
+
+    #[Group('issue-73')]
+    public function testMergingASplitConsumerGivesItsMaterialStepTheMaterialsOfTheSingleJob(): void
+    {
+        $project = (new IndustryProject())->setUser(new User());
+        $firstJob = $this->stepOf($project, self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 11, quantity: 11, splitGroupId: 'quantum-microprocessor', splitIndex: 0, totalGroupRuns: 32);
+        $this->stepOf($project, self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 11, quantity: 11, splitGroupId: 'quantum-microprocessor', splitIndex: 1, totalGroupRuns: 32);
+        $this->stepOf($project, self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 10, quantity: 10, splitGroupId: 'quantum-microprocessor', splitIndex: 2, totalGroupRuns: 32);
+        $this->stepOf($project, self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: 491);
+
+        $this->merge($project, $firstJob);
+
+        self::assertSame(
+            [self::QUANTUM_MICROPROCESSOR => [[32, 32, 0, null]], self::TITANIUM_CARBIDE => [[1, 490, 0, null]]],
+            [self::QUANTUM_MICROPROCESSOR => $this->jobsOfProduct($project, self::QUANTUM_MICROPROCESSOR), self::TITANIUM_CARBIDE => $this->jobsOfProduct($project, self::TITANIUM_CARBIDE)],
+        );
+    }
+
+    #[Group('issue-73')]
+    public function testMergingASplitConsumerLowersTheRunsOfAMaterialStepToItsNewNeed(): void
+    {
+        $project = (new IndustryProject())->setUser(new User());
+        $firstJob = $this->stepOf($project, self::SCORPION, 'manufacturing', runs: 1, quantity: 1, splitGroupId: 'scorpion', splitIndex: 0, totalGroupRuns: 5);
+        foreach ([1, 2, 3, 4] as $splitIndex) {
+            $this->stepOf($project, self::SCORPION, 'manufacturing', runs: 1, quantity: 1, splitGroupId: 'scorpion', splitIndex: $splitIndex, totalGroupRuns: 5);
+        }
+        $this->stepOf($project, self::AUTO_INTEGRITY_PRESERVATION_SEAL, 'manufacturing', runs: 169, quantity: 505);
+        $this->stepOf($project, self::LIFE_SUPPORT_BACKUP_UNIT, 'manufacturing', runs: 85, quantity: 255);
+
+        $this->merge($project, $firstJob);
+
+        self::assertSame(
+            [self::AUTO_INTEGRITY_PRESERVATION_SEAL => [[168, 504, 0, null]], self::LIFE_SUPPORT_BACKUP_UNIT => [[84, 252, 0, null]]],
+            [self::AUTO_INTEGRITY_PRESERVATION_SEAL => $this->jobsOfProduct($project, self::AUTO_INTEGRITY_PRESERVATION_SEAL), self::LIFE_SUPPORT_BACKUP_UNIT => $this->jobsOfProduct($project, self::LIFE_SUPPORT_BACKUP_UNIT)],
+        );
+    }
+
+    private function stepOf(IndustryProject $project, int $productTypeId, string $activityType, int $runs, int $quantity, ?string $splitGroupId = null, int $splitIndex = 0, ?int $totalGroupRuns = null): IndustryProjectStep
+    {
+        $step = (new IndustryProjectStep())
+            ->setProductTypeId($productTypeId)
+            ->setBlueprintTypeId(self::blueprintOfRecipe($productTypeId))
+            ->setActivityType($activityType)
+            ->setRuns($runs)
+            ->setQuantity($quantity)
+            ->setDepth(1)
+            ->setMeLevel($activityType === 'reaction' ? 0 : 10)
+            ->setTeLevel($activityType === 'reaction' ? 0 : 20)
+            ->setSplitGroupId($splitGroupId)
+            ->setSplitIndex($splitIndex)
+            ->setTotalGroupRuns($totalGroupRuns);
+        $project->addStep($step);
+
+        return $step;
+    }
+
+    private function merge(IndustryProject $project, IndustryProjectStep $jobOfTheSplitGroup): void
+    {
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn($project->getUser());
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
+        $projectRepository->method('find')->willReturn($project);
+        $stepRepository = $this->createStub(IndustryProjectStepRepository::class);
+        $stepRepository->method('find')->willReturn($jobOfTheSplitGroup);
+        $mapper = $this->createStub(IndustryResourceMapper::class);
+        $mapper->method('stepToResource')->willReturn(new ProjectStepResource());
+
+        (new MergeStepsProcessor($security, $projectRepository, $stepRepository, $mapper, $this->createStub(EntityManagerInterface::class), $this->splitGroupMaterialNeedsOnRecipes()))
+            ->process(null, new Post(), ['id' => Uuid::v4()->toRfc4122(), 'stepId' => Uuid::v4()->toRfc4122()]);
+    }
+
+    private function jobsOfProduct(IndustryProject $project, int $productTypeId): array
+    {
+        $steps = array_filter($project->getSteps()->toArray(), static fn (IndustryProjectStep $step): bool => $step->getProductTypeId() === $productTypeId);
+        usort($steps, static fn (IndustryProjectStep $a, IndustryProjectStep $b): int => $a->getSplitIndex() <=> $b->getSplitIndex());
+
+        return array_map(
+            static fn (IndustryProjectStep $step): array => [$step->getRuns(), $step->getQuantity(), $step->getSplitIndex(), $step->getTotalGroupRuns()],
+            $steps,
         );
     }
 }

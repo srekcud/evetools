@@ -14,6 +14,7 @@ use App\Enum\IndustryActivityType;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Service\Industry\SplitGroupMaterialNeeds;
 use App\Service\Industry\SplitGroupQuantities;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
@@ -37,6 +38,7 @@ class SplitStepProcessor implements ProcessorInterface
         private readonly IndustryActivityProductRepository $activityProductRepository,
         private readonly IndustryResourceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,
+        private readonly SplitGroupMaterialNeeds $splitGroupMaterialNeeds,
     ) {
     }
 

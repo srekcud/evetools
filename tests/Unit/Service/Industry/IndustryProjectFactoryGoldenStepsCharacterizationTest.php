@@ -76,6 +76,10 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     private const int CAPITAL_ELECTROLYTIC_CAPACITOR_UNIT = 29045;
     private const int FERMIONIC_CONDENSATES = 17317;
     private const int ROBOTICS = 9848;
+    private const int NANOTRANSISTORS = 16681;
+    private const int WIDOW = 22436;
+    private const int MAGPULSE_THRUSTER = 11533;
+    private const int SUSTAINED_SHIELD_EMITTER = 11558;
     private const int UNKNOWN_BLUEPRINT_TYPE_ID = 999_999_999;
 
     private const float DEFAULT_MAX_JOB_DURATION_DAYS = 2.0;
@@ -101,6 +105,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     private User $pilot;
     private IndustryProjectFactory $factory;
     private IndustryStepCalculator $stepCalculator;
+    private IndustryCalculationService $calculationService;
 
     protected function setUp(): void
     {
@@ -144,6 +149,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
         );
         $this->stepCalculator = new IndustryStepCalculator($calculationService, $materialRepository, $productRepository, $entityManager);
+        $this->calculationService = $calculationService;
     }
 
     // ===========================================
@@ -450,7 +456,8 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     }
 
     #[Group('issue-112')]
-    public function testQuantitiesOfEachSplitGroupOfOneNomadAddUpToTheQuantityOfTheUnsplitStep(): void
+    #[Group('issue-73')]
+    public function testNeedOfEachSplitGroupOfOneNomadFollowsTheMaterialsOfEachJobOfItsConsumers(): void
     {
         $split = $this->stepsOf($this->createProject(self::NOMAD, runs: 1, meLevel: 10, teLevel: 20));
         $unsplit = $this->stepsOf($this->createProject(self::NOMAD, runs: 1, meLevel: 10, teLevel: 20, maxJobDurationDays: self::MAX_JOB_DURATION_DAYS_THAT_SPLITS_NOTHING));
@@ -458,8 +465,8 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         $splitProducts = array_unique(array_column(array_filter($split, static fn (array $step): bool => $step['splitGroup'] !== null), 'productTypeId', 'product'));
         self::assertSame([], array_filter($unsplit, static fn (array $step): bool => $step['splitGroup'] !== null));
         self::assertSame(
-            array_map(fn (int $productTypeId): int => $this->totalQuantityOf($unsplit, $productTypeId), $splitProducts),
-            array_map(fn (int $productTypeId): int => $this->totalQuantityOf($split, $productTypeId), $splitProducts),
+            array_map(fn (int $productTypeId): int => $this->totalQuantityOf($unsplit, $productTypeId) - $this->materialsOfTheJobsConsuming($unsplit, $productTypeId), $splitProducts),
+            array_map(fn (int $productTypeId): int => $this->totalQuantityOf($split, $productTypeId) - $this->materialsOfTheJobsConsuming($split, $productTypeId), $splitProducts),
         );
     }
 
@@ -495,11 +502,8 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         self::assertCount(19, $steps);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #73. À la création, les réactions sont calculées
-    // sur le job non découpé du consommateur (17 × 32 × 0,9 = 489,6 → 490), puis le consommateur est découpé en
-    // 11 + 11 + 10 runs, dont les besoins sont 169 + 169 + 153 = 491 (R13, spec §4.6). Titanium Carbide n'a pas de
-    // durée de base ici, pour qu'il reste un job non découpé dont la quantité est le besoin.
-    public function testSplitConsumerCurrentlyKeepsTheNeedOfTheUnsplitJobAtCreationIssue73(): void
+    #[Group('issue-73')]
+    public function testSplitConsumerNeedsTheMaterialsOfEachOfItsJobsAtCreation(): void
     {
         $this->typeIdsWithoutBaseTime = [self::TITANIUM_CARBIDE];
 
@@ -507,7 +511,23 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
 
         $steps = $this->stepsOf($project);
         self::assertSame([[11, 11, 0, 10, 20, 0, 32], [11, 11, 0, 10, 20, 1, 32], [10, 10, 0, 10, 20, 2, 32]], $this->jobsOf($steps, self::QUANTUM_MICROPROCESSOR));
-        self::assertSame([[1, 490, 1, 0, 0, 0, null]], $this->jobsOf($steps, self::TITANIUM_CARBIDE));
+        self::assertSame([[1, 491, 1, 0, 0, 0, null]], $this->jobsOf($steps, self::TITANIUM_CARBIDE));
+        self::assertSame([[1, 174, 1, 0, 0, 0, null]], $this->jobsOf($steps, self::PHENOLIC_COMPOSITES));
+        self::assertSame([[1, 58, 1, 0, 0, 0, null]], $this->jobsOf($steps, self::NANOTRANSISTORS));
+    }
+
+    #[Group('issue-73')]
+    public function testSplitManufacturingConsumerOfAManufacturedIntermediateNeedsTheMaterialsOfEachOfItsJobsAtCreation(): void
+    {
+        $project = $this->createProject(self::WIDOW, runs: 3, meLevel: 10, teLevel: 20);
+
+        $steps = $this->stepsOf($project);
+        self::assertSame([[1, 1, 0, 10, 20, 0, 3], [1, 1, 0, 10, 20, 1, 3], [1, 1, 0, 10, 20, 2, 3]], $this->jobsOf($steps, self::WIDOW));
+        self::assertSame([[609, 609, 1, 10, 20, 0, null]], $this->jobsOf($steps, self::MAGPULSE_THRUSTER));
+        self::assertSame(
+            [[1104, 1104, 1, 10, 20, 0, 4413], [1103, 1103, 1, 10, 20, 1, 4413], [1103, 1103, 1, 10, 20, 2, 4413], [1103, 1103, 1, 10, 20, 3, 4413]],
+            $this->jobsOf($steps, self::SUSTAINED_SHIELD_EMITTER),
+        );
     }
 
     // ===========================================
@@ -536,6 +556,20 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         $steps = $this->stepsOf($project);
         self::assertSame([[1, 490, 1, 0, 0, 0, null]], $this->jobsOf($steps, self::TITANIUM_CARBIDE));
         self::assertSame([null], array_column($this->stepsOfProduct($steps, self::TITANIUM_CARBIDE), 'splitGroup'));
+    }
+
+    #[Group('issue-73')]
+    public function testRegeneratedStepsOfASplitConsumerNeedTheMaterialsOfEachOfItsJobsAsAtCreation(): void
+    {
+        $this->typeIdsWithoutBaseTime = [self::TITANIUM_CARBIDE];
+        $regenerated = $this->createProject(self::QUANTUM_MICROPROCESSOR, runs: 32, meLevel: 10, teLevel: 20);
+        $regenerated->setMaxJobDurationDays(0.01);
+
+        $this->factory->regenerateSteps($regenerated);
+
+        $created = $this->createProject(self::QUANTUM_MICROPROCESSOR, runs: 32, meLevel: 10, teLevel: 20, maxJobDurationDays: 0.01);
+        self::assertSame([[1, 491, 1, 0, 0, 0, null]], $this->jobsOf($this->stepsOf($regenerated), self::TITANIUM_CARBIDE));
+        self::assertSame($this->canonicalStepsOf($created), $this->canonicalStepsOf($regenerated));
     }
 
     public function testRegeneratedStepsOfANomadInATataraAreTheStepsOfANewProject(): void
@@ -799,6 +833,19 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     private function totalQuantityOf(array $steps, int $productTypeId): int
     {
         return array_sum(array_column($this->stepsOfProduct($steps, $productTypeId), 'quantity'));
+    }
+
+    private function materialsOfTheJobsConsuming(array $steps, int $materialTypeId): int
+    {
+        $materials = 0;
+        foreach ($steps as $consumer) {
+            $baseQuantityPerRun = $this->recipeOfProduct($consumer['productTypeId'])['materials'][(string) $materialTypeId] ?? null;
+            if ($baseQuantityPerRun !== null) {
+                $materials += $this->calculationService->calculateMaterialQuantity($baseQuantityPerRun, $consumer['runs'], $consumer['meLevel']);
+            }
+        }
+
+        return $materials;
     }
 
     /** @return array{int, int} */
