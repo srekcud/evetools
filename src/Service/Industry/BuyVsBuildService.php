@@ -73,8 +73,11 @@ class BuyVsBuildService
         $reactionSolarSystemId ??= $solarSystemId;
         $this->collectBuildableComponents($tree, $components, $solarSystemId, $reactionSolarSystemId);
 
+        $leafMaterials = [];
+        $this->collectLeafMaterialsFromTree($tree, $leafMaterials);
+
         // Collect all type IDs for batch pricing
-        $allTypeIds = [$typeId];
+        $allTypeIds = [$typeId, ...array_keys($leafMaterials)];
         foreach ($components as $comp) {
             $allTypeIds[] = $comp['typeId'];
             foreach ($comp['materialTypeIds'] as $matId) {
@@ -196,8 +199,6 @@ class BuyVsBuildService
         // Calculate margin for the final product using optimal mix cost
         // Add leaf material costs + final product job install cost
         $leafMaterialCost = 0.0;
-        $leafMaterials = [];
-        $this->collectLeafMaterialsFromTree($tree, $leafMaterials);
         foreach ($leafMaterials as $matTypeId => $matQty) {
             $leafMaterialCost += ($jitaPrices[$matTypeId] ?? 0.0) * $matQty;
         }
