@@ -16,6 +16,6 @@ export function venueMargin(
   const revenue = unitPrice * outputQuantity
   const fees = isContract ? 0 : revenue * (brokerFeeRate + salesTaxRate)
   const profit = revenue - totalCost - fees
-  const margin = revenue > 0 ? (profit / revenue) * 100 : 0
+  const margin = totalCost > 0 ? (profit / totalCost) * 100 : 0
   return { revenue, fees, profit, margin }
 }
