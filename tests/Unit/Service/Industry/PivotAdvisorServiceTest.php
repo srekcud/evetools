@@ -930,4 +930,128 @@ class PivotAdvisorServiceTest extends TestCase
     {
         // Already handled via setupBlueprintLookup - materials with blueprints are buildable
     }
+
+    private const int REACTION_CANDIDATE = 22462;
+    private const int REACTION_CANDIDATE_FORMULA = 22463;
+
+    public function testCandidateMaterialQuantitiesOfAT1ProductApplyMe10RoundedUpPerMaterial(): void
+    {
+        $candidate = $this->candidateOf(self::CANDIDATE_1, $this->analyzeT1T2AndReactionCandidates());
+
+        $this->assertSame([self::BUILDABLE_MAT_A => 30], $this->missingQuantitiesOf($candidate));
+        $this->assertSame(39000.0, $candidate['additionalCost']);
+        $this->assertSame(53758.0, $candidate['profitPerUnit']);
+    }
+
+    public function testCandidateMaterialQuantitiesOfAT2ProductApplyMe2RoundedUpPerMaterial(): void
+    {
+        $candidate = $this->candidateOf(self::CANDIDATE_2, $this->analyzeT1T2AndReactionCandidates());
+
+        $this->assertSame([self::BUILDABLE_MAT_A => 147], $this->missingQuantitiesOf($candidate));
+        $this->assertSame(191100.0, $candidate['additionalCost']);
+        $this->assertSame(179902.0, $candidate['profitPerUnit']);
+    }
+
+    public function testCandidateMaterialQuantitiesOfAReactionKeepTheBaseQuantities(): void
+    {
+        $candidate = $this->candidateOf(self::REACTION_CANDIDATE, $this->analyzeT1T2AndReactionCandidates());
+
+        $this->assertSame([self::BUILDABLE_MAT_A => 33], $this->missingQuantitiesOf($candidate));
+        $this->assertSame(42900.0, $candidate['additionalCost']);
+        $this->assertSame(22018.0, $candidate['profitPerUnit']);
+    }
+
+    public function testSourceProductMarginAppliesMe10RoundedUpPerMaterial(): void
+    {
+        $result = $this->analyzeT1T2AndReactionCandidates();
+
+        $this->assertSame(400.0, $result['sourceProduct']['marginPercent']);
+    }
+
+    private function analyzeT1T2AndReactionCandidates(): array
+    {
+        $sourceBlueprint = $this->createBlueprintProduct(self::SOURCE_BLUEPRINT, self::SOURCE_PRODUCT, 1, 1);
+        $componentBlueprint = $this->createBlueprintProduct(99001, self::BUILDABLE_MAT_A, 1, 1);
+        $this->productRepository->method('findBlueprintForProduct')->willReturnCallback(
+            static fn (int $typeId, int $activityId): ?IndustryActivityProduct => match (true) {
+                $activityId !== 1 => null,
+                $typeId === self::SOURCE_PRODUCT => $sourceBlueprint,
+                $typeId === self::BUILDABLE_MAT_A => $componentBlueprint,
+                default => null,
+            },
+        );
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturnCallback(
+            static fn (array $blueprintTypeIds): array => $blueprintTypeIds === [self::SOURCE_BLUEPRINT]
+                ? [self::SOURCE_BLUEPRINT => [
+                    ['materialTypeId' => self::BUILDABLE_MAT_A, 'quantity' => 7],
+                    ['materialTypeId' => self::RAW_MAT, 'quantity' => 33],
+                ]]
+                : [
+                    self::CANDIDATE_1_BP => [
+                        ['materialTypeId' => self::BUILDABLE_MAT_A, 'quantity' => 33],
+                        ['materialTypeId' => self::RAW_MAT, 'quantity' => 7],
+                    ],
+                    self::CANDIDATE_2_BP => [
+                        ['materialTypeId' => self::BUILDABLE_MAT_A, 'quantity' => 150],
+                        ['materialTypeId' => self::RAW_MAT, 'quantity' => 33],
+                    ],
+                    self::REACTION_CANDIDATE_FORMULA => [
+                        ['materialTypeId' => self::BUILDABLE_MAT_A, 'quantity' => 33],
+                        ['materialTypeId' => self::RAW_MAT, 'quantity' => 7],
+                    ],
+                ],
+        );
+        $this->materialRepository->method('findProductsUsingMaterials')->willReturn([
+            ['blueprintTypeId' => self::CANDIDATE_1_BP, 'productTypeId' => self::CANDIDATE_1, 'outputPerRun' => 1, 'activityId' => 1],
+            ['blueprintTypeId' => self::CANDIDATE_2_BP, 'productTypeId' => self::CANDIDATE_2, 'outputPerRun' => 1, 'activityId' => 1],
+            ['blueprintTypeId' => self::REACTION_CANDIDATE_FORMULA, 'productTypeId' => self::REACTION_CANDIDATE, 'outputPerRun' => 1, 'activityId' => 11],
+        ]);
+        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([]);
+        $this->jitaMarketService->method('getPrices')->willReturn([
+            self::SOURCE_PRODUCT => 50000.0,
+            self::BUILDABLE_MAT_A => 1300.0,
+            self::RAW_MAT => 6.0,
+            self::CANDIDATE_1 => 100000.0,
+            self::CANDIDATE_2 => 400000.0,
+            self::REACTION_CANDIDATE => 70000.0,
+        ]);
+        $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([
+            self::SOURCE_PRODUCT => 12.0,
+            self::CANDIDATE_1 => 9.0,
+            self::CANDIDATE_2 => 3.0,
+            self::REACTION_CANDIDATE => 40.0,
+        ]);
+        $this->connection->method('fetchOne')->willReturn(0);
+        $this->connection->method('fetchAllAssociative')->willReturn([]);
+        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
+        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+
+        $this->inventionService = $this->createMock(InventionService::class);
+        $this->inventionService->method('identifyT2Products')->willReturn([self::CANDIDATE_2 => true]);
+
+        return $this->pivotAdvisorOnSdeKnowing([])->analyze(
+            self::SOURCE_PRODUCT,
+            1,
+            self::SOLAR_SYSTEM_ID,
+            self::BROKER_FEE,
+            self::SALES_TAX,
+            $this->user,
+        );
+    }
+
+    private function candidateOf(int $typeId, array $result): array
+    {
+        foreach ($result['candidates'] as $candidate) {
+            if ($candidate['typeId'] === $typeId) {
+                return $candidate;
+            }
+        }
+
+        $this->fail("Candidate {$typeId} is missing from the pivot analysis");
+    }
+
+    private function missingQuantitiesOf(array $candidate): array
+    {
+        return array_column($candidate['missingComponents'], 'quantity', 'typeId');
+    }
 }

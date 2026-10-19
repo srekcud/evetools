@@ -1103,4 +1103,125 @@ class BatchProfitScannerServiceTest extends TestCase
 
         $this->fail("Type {$typeId} is missing from the scan result");
     }
+
+    private const int JAGUAR_BLUEPRINT_ID = 11400;
+    private const int JAGUAR_TYPE_ID = 11393;
+    private const int REACTION_FORMULA_ID = 100;
+    private const int REACTION_PRODUCT_TYPE_ID = 101;
+    private const int MEXALLON_TYPE_ID = 36;
+    private const int NOCXIUM_TYPE_ID = 38;
+    private const int RAW_MATERIAL_TYPE_ID = 200;
+    private const int SECOND_RAW_MATERIAL_TYPE_ID = 201;
+    private const float EXPORT_COST_PER_M3 = 1.0;
+
+    public function testMaterialQuantitiesOfAT1ProductApplyMe10RoundedUpPerMaterial(): void
+    {
+        $result = $this->scanT1T2AndReactionProducts();
+
+        $rifter = $this->rowOf(self::RIFTER_TYPE_ID, $result);
+        $this->assertSame(10, $rifter['meUsed']);
+        $this->assertSame(42527.0, $rifter['materialCost']);
+        $this->assertSame(1816.75, $rifter['importCost']);
+    }
+
+    public function testMaterialQuantitiesOfAT2ProductApplyMe2RoundedUpPerMaterial(): void
+    {
+        $result = $this->scanT1T2AndReactionProducts();
+
+        $jaguar = $this->rowOf(self::JAGUAR_TYPE_ID, $result);
+        $this->assertSame(2, $jaguar['meUsed']);
+        $this->assertSame(561300.0, $jaguar['materialCost']);
+        $this->assertSame(159.75, $jaguar['importCost']);
+    }
+
+    public function testMaterialQuantitiesOfAReactionKeepTheBaseQuantities(): void
+    {
+        $result = $this->scanT1T2AndReactionProducts();
+
+        $reactionProduct = $this->rowOf(self::REACTION_PRODUCT_TYPE_ID, $result);
+        $this->assertSame(0, $reactionProduct['meUsed']);
+        $this->assertSame(4130.0, $reactionProduct['materialCost']);
+        $this->assertSame(133.75, $reactionProduct['importCost']);
+    }
+
+    private function scanT1T2AndReactionProducts(): array
+    {
+        $this->inventionService = $this->createMock(InventionService::class);
+        $this->inventionService->method('identifyT2Products')->willReturn([self::JAGUAR_TYPE_ID => true]);
+        $scanner = new BatchProfitScannerService(
+            $this->productRepository,
+            $this->materialRepository,
+            $this->jitaMarketService,
+            $this->structureMarketService,
+            $this->esiCostIndexService,
+            $this->typeNameResolver,
+            $this->entityManager,
+            $this->cachedStructureRepository,
+            $this->solarSystemRepository,
+            $this->inventionService,
+            $this->bpcPriceRepository,
+            $this->activitySkillRepository,
+            $this->characterSkillRepository,
+        );
+
+        $this->productRepository->method('findAllManufacturableProducts')->willReturn([
+            ['blueprintTypeId' => self::RIFTER_BLUEPRINT_ID, 'productTypeId' => self::RIFTER_TYPE_ID, 'outputPerRun' => 1, 'activityId' => 1],
+            ['blueprintTypeId' => self::JAGUAR_BLUEPRINT_ID, 'productTypeId' => self::JAGUAR_TYPE_ID, 'outputPerRun' => 1, 'activityId' => 1],
+            ['blueprintTypeId' => self::REACTION_FORMULA_ID, 'productTypeId' => self::REACTION_PRODUCT_TYPE_ID, 'outputPerRun' => 1, 'activityId' => 11],
+        ]);
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
+            self::RIFTER_BLUEPRINT_ID => [
+                ['materialTypeId' => self::TRITANIUM_TYPE_ID, 'quantity' => 33],
+                ['materialTypeId' => self::PYERITE_TYPE_ID, 'quantity' => 7],
+                ['materialTypeId' => self::MEXALLON_TYPE_ID, 'quantity' => 1000],
+            ],
+            self::JAGUAR_BLUEPRINT_ID => [
+                ['materialTypeId' => self::MORPHITE_TYPE_ID, 'quantity' => 33],
+                ['materialTypeId' => self::NOCXIUM_TYPE_ID, 'quantity' => 150],
+            ],
+            self::REACTION_FORMULA_ID => [
+                ['materialTypeId' => self::RAW_MATERIAL_TYPE_ID, 'quantity' => 33],
+                ['materialTypeId' => self::SECOND_RAW_MATERIAL_TYPE_ID, 'quantity' => 7],
+            ],
+        ]);
+        $this->connection->method('fetchAllAssociative')->willReturnCallback(
+            static fn (string $sql): array => str_contains($sql, 'group_id')
+                ? [
+                    ['type_id' => self::RIFTER_TYPE_ID, 'group_id' => 25, 'group_name' => 'Frigate', 'category_id' => 6, 'volume' => 27289.0],
+                    ['type_id' => self::JAGUAR_TYPE_ID, 'group_id' => 324, 'group_name' => 'Assault Frigate', 'category_id' => 6, 'volume' => 28600.0],
+                    ['type_id' => self::REACTION_PRODUCT_TYPE_ID, 'group_id' => 436, 'group_name' => 'Simple Reactions', 'category_id' => 17, 'volume' => 1.0],
+                ]
+                : [
+                    ['type_id' => self::TRITANIUM_TYPE_ID, 'volume' => 0.5],
+                    ['type_id' => self::PYERITE_TYPE_ID, 'volume' => 0.25],
+                    ['type_id' => self::MEXALLON_TYPE_ID, 'volume' => 2.0],
+                    ['type_id' => self::MORPHITE_TYPE_ID, 'volume' => 1.5],
+                    ['type_id' => self::NOCXIUM_TYPE_ID, 'volume' => 0.75],
+                    ['type_id' => self::RAW_MATERIAL_TYPE_ID, 'volume' => 4.0],
+                    ['type_id' => self::SECOND_RAW_MATERIAL_TYPE_ID, 'volume' => 0.25],
+                ]
+        );
+        $this->jitaMarketService->method('getPrices')->willReturn([
+            self::TRITANIUM_TYPE_ID => 5.0,
+            self::PYERITE_TYPE_ID => 11.0,
+            self::MEXALLON_TYPE_ID => 47.0,
+            self::MORPHITE_TYPE_ID => 13000.0,
+            self::NOCXIUM_TYPE_ID => 900.0,
+            self::RAW_MATERIAL_TYPE_ID => 70.0,
+            self::SECOND_RAW_MATERIAL_TYPE_ID => 260.0,
+            self::RIFTER_TYPE_ID => 900000.0,
+            self::JAGUAR_TYPE_ID => 3000000.0,
+            self::REACTION_PRODUCT_TYPE_ID => 60000.0,
+        ]);
+        $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([
+            self::RIFTER_TYPE_ID => 20.0,
+            self::JAGUAR_TYPE_ID => 4.0,
+            self::REACTION_PRODUCT_TYPE_ID => 300.0,
+        ]);
+        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+
+        return $scanner->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.036, 0.036, self::EXPORT_COST_PER_M3, null);
+    }
 }
