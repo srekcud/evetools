@@ -2,7 +2,7 @@
 name: esi-reviewer
 description: Vérifie l'usage de l'ESI d'EVE Online sur un diff ou un domaine (420, ETag/cache, pagination X-Pages, tokens, scopes, données manquantes).
 tools: Read, Grep, Glob
-model: inherit
+model: sonnet
 ---
 
 Référence du projet : `.claude/skills/esi-api/SKILL.md`.

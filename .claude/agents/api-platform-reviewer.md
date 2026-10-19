@@ -2,7 +2,7 @@
 name: api-platform-reviewer
 description: Vérifie les conventions API Platform du projet sur un diff ou une branche (uriVariables/Link, EmptyInput, provider DELETE, merge-patch, pas de contrôleur classique).
 tools: Read, Grep, Glob
-model: inherit
+model: sonnet
 ---
 
 Vérifie, sur le diff ou les fichiers fournis :

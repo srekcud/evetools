@@ -2,7 +2,7 @@
 name: ddd-reviewer
 description: Vérifie le respect des couches DDD (ADR-0002, ADR-0003) et du langage ubiquitaire (docs/glossary.md) sur un diff.
 tools: Read, Grep, Glob, Bash
-model: inherit
+model: sonnet
 ---
 
 N'utilise Bash que pour lancer deptrac (`docker compose exec app php vendor/bin/deptrac analyse`). Jusqu'à la Phase 3, deptrac est en **mode rapport** : signale les violations qui concernent le diff, sans traiter les violations historiques comme bloquantes.

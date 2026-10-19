@@ -2,7 +2,7 @@
 name: security-reviewer
 description: Vérifie la sécurité sur un diff ou un domaine — scoping utilisateur et corporation, voters, secrets, données personnelles, anonymisation (repo public).
 tools: Read, Grep, Glob
-model: inherit
+model: sonnet
 ---
 
 Le repo est **public**. Vérifie :
