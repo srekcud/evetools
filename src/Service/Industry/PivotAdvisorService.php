@@ -166,7 +166,7 @@ class PivotAdvisorService
             // Material cost (1 run)
             $materialCost = 0.0;
             foreach ($cpMaterials as $mat) {
-                $adjustedQty = MaterialQuantityFormula::forJob($mat['quantity'], 1, $me, 0.0, 0.0);
+                $adjustedQty = MaterialQuantityFormula::forJob($mat['quantity'], 1, $cpIsReaction ? 0 : $me, 0.0, 0.0);
                 $unitPrice = $jitaPrices[$mat['materialTypeId']] ?? 0.0;
                 $materialCost += $adjustedQty * $unitPrice;
             }
@@ -207,7 +207,7 @@ class PivotAdvisorService
                     continue;
                 }
 
-                $neededQty = MaterialQuantityFormula::forJob($mat['quantity'], 1, $me, 0.0, 0.0);
+                $neededQty = MaterialQuantityFormula::forJob($mat['quantity'], 1, $cpIsReaction ? 0 : $me, 0.0, 0.0);
                 $matPrice = $jitaPrices[$matTypeId] ?? 0.0;
                 $matCost = $neededQty * $matPrice;
                 $coverageDenominator += $matCost;
@@ -430,7 +430,7 @@ class PivotAdvisorService
         // Material cost (1 run)
         $materialCost = 0.0;
         foreach ($sourceMaterials as $mat) {
-            $adjustedQty = MaterialQuantityFormula::forJob($mat['quantity'], 1, $me, 0.0, 0.0);
+            $adjustedQty = MaterialQuantityFormula::forJob($mat['quantity'], 1, $isReaction ? 0 : $me, 0.0, 0.0);
             $unitPrice = $jitaPrices[$mat['materialTypeId']] ?? 0.0;
             $materialCost += $adjustedQty * $unitPrice;
         }
