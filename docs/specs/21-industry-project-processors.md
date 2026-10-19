@@ -17,7 +17,7 @@
 | E1 | Prix Jita 100 000, 10 runs, 1 unité par run, courtage 1 %, taxe 2 % | taxe estimée 61 000 (6,1 %) | 30 000 (3 %) |
 | E2 | Même cas, prix de structure retenu | 46 000 (4,6 %) | 30 000 |
 | E3 | Utilisateur sans réglages Industry, prix Jita | 6,1 % | 3,6 % + 3,6 % = 7,2 % → 72 000 |
-| E4 | `PATCH` avec `status = "bogus"` | 200, statut inchangé | 422, statut inchangé |
+| E4 | `PATCH` avec `status = "bogus"` | déjà refusé : `UpdateProjectInput::$status` porte `Assert\Choice` (le `tryFrom` du processor n'est jamais atteint) | inchangé, figé par un test de validation |
 | E5 | Estimation du coût matériaux qui lève une exception | projet créé, coût vide, rien journalisé | projet créé, coût `null`, un avertissement journalisé |
 
 ## Hors périmètre

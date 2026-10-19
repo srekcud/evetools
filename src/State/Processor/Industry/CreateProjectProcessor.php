@@ -9,6 +9,7 @@ use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\ProjectResource;
 use App\ApiResource\Input\Industry\CreateProjectInput;
 use App\Entity\User;
+use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryProjectFactory;
 use App\Service\Industry\InventionService;
@@ -17,6 +18,7 @@ use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -36,6 +38,8 @@ class CreateProjectProcessor implements ProcessorInterface
         private readonly StructureMarketService $structureMarketService,
         private readonly IndustryActivityProductRepository $activityProductRepository,
         private readonly EntityManagerInterface $entityManager,
+        private readonly IndustryUserSettingsRepository $settingsRepository,
+        private readonly LoggerInterface $logger,
     ) {
     }
 

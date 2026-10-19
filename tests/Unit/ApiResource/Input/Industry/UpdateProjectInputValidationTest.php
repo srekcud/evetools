@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Unit\ApiResource\Input\Industry;
 
 use App\ApiResource\Input\Industry\UpdateProjectInput;
+use App\Enum\ProjectStatus;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Validator\ConstraintViolationListInterface;
 use Symfony\Component\Validator\Validation;
@@ -17,6 +20,7 @@ final class UpdateProjectInputValidationTest extends TestCase
     private const int ROBOTICS_TYPE_ID = 9848;
     private const int DATACORE_QUANTITY = 4;
     private const string UNKNOWN_TYPE_NAME_PATH = 'inventionMaterials[0][typeName]';
+    private const string UNKNOWN_PROJECT_STATUS = 'bogus';
 
     private ValidatorInterface $validator;
 
@@ -57,6 +61,31 @@ final class UpdateProjectInputValidationTest extends TestCase
         $violations = $this->validateInventionMaterials(null);
 
         self::assertCount(0, $violations);
+    }
+
+    #[Group('issue-21')]
+    public function testUnknownProjectStatusIsRejected(): void
+    {
+        $violations = $this->validator->validatePropertyValue(new UpdateProjectInput(), 'status', self::UNKNOWN_PROJECT_STATUS);
+
+        self::assertCount(1, $violations);
+        self::assertSame('status', $violations[0]->getPropertyPath());
+    }
+
+    #[Group('issue-21')]
+    #[DataProvider('projectStatuses')]
+    public function testEveryProjectStatusIsAccepted(ProjectStatus $projectStatus): void
+    {
+        $violations = $this->validator->validatePropertyValue(new UpdateProjectInput(), 'status', $projectStatus->value);
+
+        self::assertCount(0, $violations);
+    }
+
+    public static function projectStatuses(): \Generator
+    {
+        foreach (ProjectStatus::cases() as $projectStatus) {
+            yield $projectStatus->value => [$projectStatus];
+        }
     }
 
     /**
