@@ -6,7 +6,7 @@ La formule `max(runs, ceil(round(base × runs × ME × structure × rig, 2)))` e
 
 ## Règles métier
 
-- **R1 — Une seule fonction.** Hors du noyau `src/Industry/Domain`, toute quantité de matériau d'un job est calculée par `IndustryCalculationService::calculateMaterialQuantity()`.
+- **R1 — Une seule fonction.** Hors du noyau `src/Industry/Domain`, toute quantité de matériau d'un job est calculée par une seule fonction pure et statique ; `IndustryCalculationService::calculateMaterialQuantity()` la délègue.
 - **R2 — Scanner et Pivot Advisor.** Leur calcul « 1 run » devient `calculateMaterialQuantity(base, 1, ME, 0, 0)`, avec leur ME actuel (2 pour un T2, 0 pour une réaction, 10 sinon). Aucune valeur ne change.
 - **R3 — Arbre.** `IndustryTreeService` appelle la même fonction avec son ME effectif (0 si l'ME ne s'applique pas) et ses bonus de structure et de rig ; aucun changement de valeur.
 
@@ -29,6 +29,8 @@ La formule `max(runs, ceil(round(base × runs × ME × structure × rig, 2)))` e
 ## Décision prise en autonomie
 
 - Le noyau garde sa formule : il remplacera ces services (industry-engine §7), le converger maintenant créerait une dépendance de `src/Industry/Domain` vers un service Symfony.
+
+- Fonction statique plutôt qu'injection de `IndustryCalculationService` dans l'arbre, le scanner et le Pivot Advisor : l'injection changerait les constructeurs construits à la main dans une dizaine de fichiers de tests ; la fonction pure n'en change aucun.
 
 ## Glossaire
 
