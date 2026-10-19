@@ -49,6 +49,7 @@ final class PveSyncServiceCharacterizationTest extends TestCase
     private const OPE_TIER_8 = 19407;
     private const OPE_TIER_12 = 19410;
     private const ROGUE_DRONE_DATA = 60459;
+    private const DRONE_DATA_MISSING_FROM_SDE = 60460;
     private const CUSTOM_LOOT_TYPE = 47975;
     private const TRITANIUM = 34;
     private const EMP_AMMO = 21898;
@@ -167,6 +168,7 @@ final class PveSyncServiceCharacterizationTest extends TestCase
         $this->assertSame([], $this->persisted);
     }
 
+    #[Group('issue-115')]
     public function testLootSalesPersistsSellTransactionsOfLootTypesSkippingImportedAndDeclinedLootSales(): void
     {
         $settings = $this->settingsWithLootTypes([self::OPE_TIER_4, self::ROGUE_DRONE_DATA]);
@@ -192,7 +194,7 @@ final class PveSyncServiceCharacterizationTest extends TestCase
         $this->assertSame(3, $imported);
         $this->assertSame([
             $this->incomeRow(PveIncomeType::LootSale, "7x 4th Tier Overseer's Personal Effects", 8_638_003.5, self::daysAgo(1), transactionId: 8200001),
-            $this->incomeRow(PveIncomeType::LootSale, '3x Type #60459', 2_733_750.75, self::daysAgo(2), transactionId: 8200002),
+            $this->incomeRow(PveIncomeType::LootSale, '3x type 60459 (name missing from the SDE)', 2_733_750.75, self::daysAgo(2), transactionId: 8200002),
             $this->incomeRow(PveIncomeType::LootSale, "4x 4th Tier Overseer's Personal Effects", 5_206_000.0, self::daysAgo(3), transactionId: 8200007),
         ], $this->persistedIncomeRows());
     }
@@ -217,6 +219,7 @@ final class PveSyncServiceCharacterizationTest extends TestCase
         $this->assertSame([], $this->persisted);
     }
 
+    #[Group('issue-115')]
     public function testLootContractsPersistsIssuedFinishedContractsWithIncludedLootAndTheirPrice(): void
     {
         $settings = $this->settingsWithLootTypes([self::CUSTOM_LOOT_TYPE]);
@@ -264,7 +267,7 @@ final class PveSyncServiceCharacterizationTest extends TestCase
 
         $this->assertSame(2, $imported);
         $this->assertSame([
-            $this->incomeRow(PveIncomeType::LootContract, "6x 6th Tier Overseer's Personal Effects, 9x Type #60459", 47_300_000.0, self::daysAgo(2), contractId: 9400006),
+            $this->incomeRow(PveIncomeType::LootContract, "6x 6th Tier Overseer's Personal Effects, 9x type 60459 (name missing from the SDE)", 47_300_000.0, self::daysAgo(2), contractId: 9400006),
             $this->incomeRow(PveIncomeType::LootContract, '15x Triglavian Survey Database', 13_750_000.0, self::daysAgo(6), contractId: 9400009),
         ], $this->persistedIncomeRows());
         $this->assertSame([
@@ -276,6 +279,7 @@ final class PveSyncServiceCharacterizationTest extends TestCase
         ], $this->requestedItemEndpoints());
     }
 
+    #[Group('issue-115')]
     public function testLootContractDescriptionLongerThan250CharactersIsTruncatedWithEllipsis(): void
     {
         $this->settingsRepository->method('findByUser')->willReturn(null);
@@ -302,13 +306,41 @@ final class PveSyncServiceCharacterizationTest extends TestCase
         $this->assertSame([
             $this->incomeRow(
                 PveIncomeType::LootContract,
-                '11x Type #19400, 12x Type #19401, 13x Type #19402, '
-                . "14x 4th Tier Overseer's Personal Effects, 15x Type #19404, "
-                . "16x 6th Tier Overseer's Personal Effects, 17x Type #19406, "
-                . "18x 8th Tier Overseer's Personal Effects, 19x Type #19408, 21x Type #19409, 22...",
+                '11x type 19400 (name missing from the SDE), 12x type 19401 (name missing from the SDE), '
+                . '13x type 19402 (name missing from the SDE), '
+                . "14x 4th Tier Overseer's Personal Effects, 15x type 19404 (name missing from the SDE), "
+                . "16x 6th Tier Overseer's Perso...",
                 61_900_000.0,
                 self::daysAgo(1),
                 contractId: 9400030,
+            ),
+        ], $this->persistedIncomeRows());
+    }
+
+    #[Group('issue-115')]
+    public function testLootContractKeepsTwoTypesMissingFromSdeAsDistinctLabelledEntries(): void
+    {
+        $this->settingsWithLootTypes([self::DRONE_DATA_MISSING_FROM_SDE]);
+        $this->incomeRepository->method('getImportedContractIds')->willReturn([]);
+        $this->respondWith(
+            [self::CONTRACTS_ENDPOINT => [self::lootContract(9400040, 58_250_000.0, self::daysAgo(2))]],
+            [9400040 => [
+                ['type_id' => self::ROGUE_DRONE_DATA, 'quantity' => 9, 'is_included' => true],
+                ['type_id' => self::DRONE_DATA_MISSING_FROM_SDE, 'quantity' => 2, 'is_included' => true],
+                ['type_id' => self::OPE_TIER_8, 'quantity' => 6, 'is_included' => true],
+            ]],
+        );
+
+        $this->service->syncLootFromContracts($this->user);
+
+        $this->assertSame([
+            $this->incomeRow(
+                PveIncomeType::LootContract,
+                '9x type 60459 (name missing from the SDE), 2x type 60460 (name missing from the SDE), '
+                . "6x 8th Tier Overseer's Personal Effects",
+                58_250_000.0,
+                self::daysAgo(2),
+                contractId: 9400040,
             ),
         ], $this->persistedIncomeRows());
     }
