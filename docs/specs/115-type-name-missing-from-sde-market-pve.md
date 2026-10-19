@@ -14,7 +14,7 @@ Trois lectures hors industrie inventent encore `"Type #<typeId>"` :
 
 - **R1 — Nom inconnu.** Un type absent de `invTypes` a un nom `null` dans ces trois réponses ; le typeId reste renseigné. Prix, variation 30 j et dates inchangés.
 - **R2 — Nom réel au `DELETE`.** La réponse du `DELETE` d'un favori porte le nom du SDE du type (ou `null` s'il est inconnu), plus jamais `"Type #<id>"`.
-- **R3 — Résolution.** Les trois providers passent par `TypeNameResolver::findName()` / `findNames()`.
+- **R3 — Résolution.** `MarketFavoriteDeleteProvider` reçoit `TypeNameResolver` et passe par `findName()`. La liste des favoris et les réglages PVE gardent leur lecture groupée actuelle d'`InvTypeRepository` et retirent seulement le nom inventé (leurs tests construisent le provider avec le dépôt).
 - **R4 — Front.** Favoris marché et réglages PVE affichent un nom `null` avec `typeNameLabel()`.
 
 ## Exemples chiffrés

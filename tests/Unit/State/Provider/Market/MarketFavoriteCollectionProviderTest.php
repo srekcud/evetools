@@ -14,6 +14,7 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Service\JitaMarketService;
 use App\Service\MarketHistoryService;
 use App\State\Provider\Market\MarketFavoriteCollectionProvider;
+use App\Tests\Unit\Service\Industry\ResolvesTypeNamesFromSde;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
@@ -24,6 +25,11 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(MarketFavoriteCollectionProvider::class)]
 class MarketFavoriteCollectionProviderTest extends TestCase
 {
+    use ResolvesTypeNamesFromSde;
+
+    private const int TRITANIUM_TYPE_ID = 34;
+    private const string TRITANIUM_NAME = 'Tritanium';
+
     private Security&Stub $security;
     private MarketFavoriteRepository&Stub $favoriteRepository;
     private InvTypeRepository&Stub $invTypeRepository;
@@ -106,7 +112,7 @@ class MarketFavoriteCollectionProviderTest extends TestCase
     // Fallback type name
     // ===========================================
 
-    public function testFallbackTypeNameWhenSdeTypeNotFound(): void
+    public function testTypeNameIsUnknownWhenSdeTypeNotFound(): void
     {
         $user = $this->createUserStub();
         $this->security->method('getUser')->willReturn($user);
@@ -114,7 +120,6 @@ class MarketFavoriteCollectionProviderTest extends TestCase
         $favorite = $this->createFavorite(99999, $user);
         $this->favoriteRepository->method('findByUser')->willReturn([$favorite]);
 
-        // No SDE type found
         $this->invTypeRepository->method('findByTypeIds')->willReturn([]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([99999 => null]);
         $this->jitaMarketService->method('getBuyPricesWithFallback')->willReturn([99999 => null]);
@@ -122,7 +127,50 @@ class MarketFavoriteCollectionProviderTest extends TestCase
 
         $result = $this->provider->provide(new GetCollection());
 
-        $this->assertSame('Type #99999', $result[0]->typeName);
+        $this->assertNull($result[0]->typeName);
+        $this->assertSame(99999, $result[0]->typeId);
+    }
+
+    public function testFavoriteMissingFromSdeHasUnknownTypeNameAndKeepsItsPrices(): void
+    {
+        $user = $this->createUserStub();
+        $this->security->method('getUser')->willReturn($user);
+        $this->favoriteRepository->method('findByUser')->willReturn([
+            $this->createFavorite(self::TRITANIUM_TYPE_ID, $user),
+            $this->createFavorite(self::ROBOTICS_TYPE_ID, $user),
+        ]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
+            self::TRITANIUM_TYPE_ID => 5.50,
+            self::ROBOTICS_TYPE_ID => 61200.0,
+        ]);
+        $this->jitaMarketService->method('getBuyPricesWithFallback')->willReturn([
+            self::TRITANIUM_TYPE_ID => 5.00,
+            self::ROBOTICS_TYPE_ID => 59800.0,
+        ]);
+        $this->marketHistoryService->method('get30dPriceChange')->willReturnCallback(
+            static fn (int $typeId): float => [self::TRITANIUM_TYPE_ID => 2.0, self::ROBOTICS_TYPE_ID => -3.5][$typeId],
+        );
+        $provider = new MarketFavoriteCollectionProvider(
+            $this->security,
+            $this->favoriteRepository,
+            $this->sdeTypeRepositoryKnowing([self::TRITANIUM_TYPE_ID => self::TRITANIUM_NAME]),
+            $this->jitaMarketService,
+            $this->marketHistoryService,
+        );
+
+        $result = $provider->provide(new GetCollection());
+
+        $this->assertCount(2, $result);
+        $this->assertSame(self::TRITANIUM_TYPE_ID, $result[0]->typeId);
+        $this->assertSame(self::TRITANIUM_NAME, $result[0]->typeName);
+        $this->assertSame(5.50, $result[0]->jitaSell);
+        $this->assertSame(5.00, $result[0]->jitaBuy);
+        $this->assertSame(2.0, $result[0]->change30d);
+        $this->assertSame(self::ROBOTICS_TYPE_ID, $result[1]->typeId);
+        $this->assertNull($result[1]->typeName);
+        $this->assertSame(61200.0, $result[1]->jitaSell);
+        $this->assertSame(59800.0, $result[1]->jitaBuy);
+        $this->assertSame(-3.5, $result[1]->change30d);
     }
 
     // ===========================================
