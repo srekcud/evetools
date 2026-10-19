@@ -8,6 +8,8 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\ProjectResource;
 use App\ApiResource\Input\Industry\CreateProjectInput;
+use App\Constant\EveConstants;
+use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -79,15 +81,15 @@ class CreateProjectProcessor implements ProcessorInterface
         try {
             $jobInstallResult = $this->productionCostService->estimateJobInstallCosts($project);
             $project->setEstimatedJobCost($jobInstallResult['total']);
-        } catch (\Throwable) {
-            // Silently ignore - ESI cost indices might not be available
+        } catch (\Throwable $e) {
+            $this->logEstimationFailure('job_install_cost', $project, $e);
         }
 
         try {
             $materialResult = $this->productionCostService->estimateMaterialCost($project);
             $project->setEstimatedMaterialCost($materialResult['total']);
-        } catch (\Throwable) {
-            // Silently ignore - Jita prices might not be available
+        } catch (\Throwable $e) {
+            $this->logEstimationFailure('material_cost', $project, $e);
         }
 
         try {
@@ -123,22 +125,36 @@ class CreateProjectProcessor implements ProcessorInterface
             if ($bestPrice !== null) {
                 $product = $this->activityProductRepository->findBlueprintForProduct($productTypeId, 1);
                 $outputPerRun = $product?->getQuantity() ?? 1;
-                $project->setEstimatedSellPrice($bestPrice * $project->getRuns() * $outputPerRun);
-                $project->setEstimatedSellPriceSource($source);
-
-                // Calculate estimated taxes based on sell price source
-                // Jita (NPC): 3.6% sales tax + 2.5% broker fee = 6.1%
-                // Structure: 3.6% sales tax + 1.0% broker fee = 4.6%
-                $taxRate = $source === 'structure' ? 0.046 : 0.061;
                 $estimatedSellTotal = $bestPrice * $project->getRuns() * $outputPerRun;
-                $project->setEstimatedTaxAmount($estimatedSellTotal * $taxRate);
+                $project->setEstimatedSellPrice($estimatedSellTotal);
+                $project->setEstimatedSellPriceSource($source);
+                $project->setEstimatedTaxAmount($estimatedSellTotal * $this->sellTaxRate($user));
             }
-        } catch (\Throwable) {
-            // Silently ignore - prices might not be available
+        } catch (\Throwable $e) {
+            $this->logEstimationFailure('sell_price', $project, $e);
         }
 
         $this->entityManager->flush();
 
         return $this->mapper->projectToResource($project);
+    }
+
+    private function sellTaxRate(User $user): float
+    {
+        $settings = $this->settingsRepository->findOneBy(['user' => $user]);
+        $brokerFeeRate = $settings?->getBrokerFeeRate() ?? EveConstants::DEFAULT_BROKER_FEE_RATE;
+        $salesTaxRate = $settings?->getSalesTaxRate() ?? EveConstants::DEFAULT_SALES_TAX_RATE;
+
+        return $brokerFeeRate + $salesTaxRate;
+    }
+
+    private function logEstimationFailure(string $estimation, IndustryProject $project, \Throwable $exception): void
+    {
+        $this->logger->warning('Industry project estimation failed', [
+            'estimation' => $estimation,
+            'projectId' => $project->getId()?->toRfc4122(),
+            'reason' => $exception->getMessage(),
+            'exception' => $exception,
+        ]);
     }
 }
