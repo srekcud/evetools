@@ -100,7 +100,7 @@ class IndustryProjectFactory
 
             $rawSteps = [];
             $this->collectStepsFromTree($rawSteps, $tree, $project->getMeLevel(), $project->getTeLevel());
-                $this->addTimeDataToSteps($rawSteps, $user, $project->getTeLevel());
+            $this->addTimeDataToSteps($rawSteps, $user, $project->getTeLevel());
             $rawSteps = $this->planStepsJobByJob($rawSteps, $user, $project->getMaxJobDurationDays());
 
             $this->sortAndCreateSteps($project, $rawSteps);
