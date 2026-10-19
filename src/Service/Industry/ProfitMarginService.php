@@ -223,7 +223,7 @@ class ProfitMarginService
 
         // 11. Daily volume
         $volumes = $this->jitaMarketService->getAverageDailyVolumes([$typeId]);
-        $dailyVolume = $volumes[$typeId] ?? 0.0;
+        $dailyVolume = $volumes[$typeId] ?? null;
 
         return [
             'typeId' => $typeId,
@@ -368,7 +368,7 @@ class ProfitMarginService
     /**
      * Calculate margins for each sell venue.
      *
-     * @return array<string, array{revenue: float, fees: float, profit: float, margin: float}|null>
+     * @return array<string, array{revenue: float, fees: float, profit: float, margin: float|null}|null>
      */
     private function calculateMargins(
         ?float $jitaSellPrice,
@@ -391,7 +391,7 @@ class ProfitMarginService
     /**
      * Compute margin for a contract sell price (no broker fee, no sales tax).
      *
-     * @return array{revenue: float, fees: float, profit: float, margin: float}|null
+     * @return array{revenue: float, fees: float, profit: float, margin: float|null}|null
      */
     private function computeContractMargin(
         ?float $unitPrice,
@@ -405,7 +405,7 @@ class ProfitMarginService
         $grossRevenue = $unitPrice * $outputQuantity;
         $fees = 0.0; // Contracts have no broker fee and no sales tax
         $profit = $grossRevenue - $totalCost;
-        $margin = $totalCost > 0 ? ($profit / $totalCost) * 100.0 : 0.0;
+        $margin = $totalCost > 0 ? ($profit / $totalCost) * 100.0 : null;
 
         return [
             'revenue' => $grossRevenue,
@@ -418,7 +418,7 @@ class ProfitMarginService
     /**
      * Compute margin for a single sell price point.
      *
-     * @return array{revenue: float, fees: float, profit: float, margin: float}|null
+     * @return array{revenue: float, fees: float, profit: float, margin: float|null}|null
      */
     private function computeMarginForPrice(
         ?float $unitPrice,
@@ -435,7 +435,7 @@ class ProfitMarginService
         $fees = $grossRevenue * ($brokerFeeRate + $salesTaxRate);
         $netRevenue = $grossRevenue - $fees;
         $profit = $netRevenue - $totalCost;
-        $margin = $totalCost > 0 ? ($profit / $totalCost) * 100.0 : 0.0;
+        $margin = $totalCost > 0 ? ($profit / $totalCost) * 100.0 : null;
 
         return [
             'revenue' => $grossRevenue,
@@ -457,24 +457,19 @@ class ProfitMarginService
         float $totalProductionCost,
         float $brokerFeeRate,
         float $salesTaxRate,
-    ): float {
-        $bestMargin = -999.0;
+    ): ?float {
+        $venueMargins = [
+            $this->computeMarginForPrice($jitaSellPrice, $outputQuantity, $totalProductionCost, $brokerFeeRate, $salesTaxRate),
+            $this->computeMarginForPrice($structureSellPrice, $outputQuantity, $totalProductionCost, $brokerFeeRate, $salesTaxRate),
+            $this->computeMarginForPrice($structureBuyPrice, $outputQuantity, $totalProductionCost, $brokerFeeRate, $salesTaxRate),
+            $this->computeContractMargin($contractSellPrice, $outputQuantity, $totalProductionCost),
+        ];
+        $knownMargins = array_filter(
+            array_map(static fn (?array $venueMargin): ?float => $venueMargin === null ? null : $venueMargin['margin'], $venueMargins),
+            static fn (?float $margin): bool => $margin !== null,
+        );
 
-        // Market venues (with broker + sales tax)
-        foreach ([$jitaSellPrice, $structureSellPrice, $structureBuyPrice] as $price) {
-            $marginData = $this->computeMarginForPrice($price, $outputQuantity, $totalProductionCost, $brokerFeeRate, $salesTaxRate);
-            if ($marginData !== null && $marginData['margin'] > $bestMargin) {
-                $bestMargin = $marginData['margin'];
-            }
-        }
-
-        // Contract venue (no fees)
-        $contractMargin = $this->computeContractMargin($contractSellPrice, $outputQuantity, $totalProductionCost);
-        if ($contractMargin !== null && $contractMargin['margin'] > $bestMargin) {
-            $bestMargin = $contractMargin['margin'];
-        }
-
-        return $bestMargin > -999.0 ? $bestMargin : 0.0;
+        return $knownMargins === [] ? null : max($knownMargins);
     }
 
     /**

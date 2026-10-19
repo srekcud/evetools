@@ -2,7 +2,7 @@ export interface VenueMargin {
   revenue: number
   fees: number
   profit: number
-  margin: number
+  margin: number | null
 }
 
 export function venueMargin(
@@ -16,6 +16,6 @@ export function venueMargin(
   const revenue = unitPrice * outputQuantity
   const fees = isContract ? 0 : revenue * (brokerFeeRate + salesTaxRate)
   const profit = revenue - totalCost - fees
-  const margin = totalCost > 0 ? (profit / totalCost) * 100 : 0
+  const margin = totalCost > 0 ? (profit / totalCost) * 100 : null
   return { revenue, fees, profit, margin }
 }

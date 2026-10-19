@@ -103,7 +103,7 @@ const bestVenue = computed(() => {
     // Use original margins from API
     let best: { key: string; margin: number; revenue: number; profit: number; fees: number; unitPrice: number } | null = null
     for (const [key, entry] of Object.entries(r.margins)) {
-      if (entry != null && (best == null || entry.margin > best.margin)) {
+      if (entry != null && entry.margin != null && (best == null || entry.margin > best.margin)) {
         const unitPrice = key === 'jitaSell' ? (r.sellPrices.jitaSell ?? 0)
           : key === 'structureSell' ? (r.sellPrices.structureSell ?? 0)
           : key === 'contractSell' ? (r.sellPrices.contractSell ?? 0)
@@ -126,8 +126,8 @@ const bestVenue = computed(() => {
     if (price == null || r.margins[key] == null) continue
     const isContract = key === 'contractSell'
     const m = venueMargin(price, r.outputQuantity, totalCost, r.brokerFeeRate, r.salesTaxRate, isContract)
-    if (best == null || m.margin > best.margin) {
-      best = { key, ...m, unitPrice: price }
+    if (m.margin != null && (best == null || m.margin > best.margin)) {
+      best = { key, ...m, margin: m.margin, unitPrice: price }
     }
   }
   return best
@@ -137,7 +137,7 @@ const productionCostUnknown = computed(() => result.value != null && effectiveTo
 
 const bestSellRevenue = computed(() => bestVenue.value?.revenue ?? 0)
 const bestProfit = computed((): number | null => productionCostUnknown.value ? null : (bestVenue.value?.profit ?? 0))
-const bestMargin = computed((): number | null => productionCostUnknown.value ? null : (bestVenue.value?.margin ?? 0))
+const bestMargin = computed((): number | null => bestVenue.value?.margin ?? null)
 const bestUnitPrice = computed(() => bestVenue.value?.unitPrice ?? 0)
 
 const bestVenueLabel = computed(() => {

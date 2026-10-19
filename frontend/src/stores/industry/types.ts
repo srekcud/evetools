@@ -350,7 +350,7 @@ export interface MarginEntry {
   revenue: number
   fees: number
   profit: number
-  margin: number
+  margin: number | null
 }
 
 export interface ProfitMarginInventionOption {
@@ -394,7 +394,7 @@ export interface ProfitMarginResult {
   brokerFeeRate: number
   salesTaxRate: number
   margins: Record<string, MarginEntry | null>
-  dailyVolume: number
+  dailyVolume: number | null
 }
 
 export interface AvailableJob {

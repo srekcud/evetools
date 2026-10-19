@@ -87,8 +87,8 @@ class ProfitMarginResource
 
     public float $salesTaxRate = 0.036;
 
-    /** @var array<string, array{revenue: float, fees: float, profit: float, margin: float}|null> */
+    /** @var array<string, array{revenue: float, fees: float, profit: float, margin: float|null}|null> */
     public array $margins = [];
 
-    public ?float $dailyVolume = 0;
+    public ?float $dailyVolume = null;
 }

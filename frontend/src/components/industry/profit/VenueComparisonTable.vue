@@ -10,7 +10,7 @@ export type SellRow = {
   revenue: number
   fees: number
   profit: number
-  margin: number
+  margin: number | null
   dailyVolume: number | null
   contractCount: number | null
   isBest: boolean
@@ -72,7 +72,8 @@ const { formatIsk } = useFormatters()
           <td class="py-2.5 px-3 text-right font-mono" :class="row.isBest ? 'text-slate-100' : 'text-slate-300'">{{ formatIsk(row.revenue) }}</td>
           <td class="py-2.5 px-3 text-right font-mono text-amber-400" :class="!row.isBest ? 'text-amber-400/70' : ''">-{{ formatIsk(Math.abs(row.fees)) }}</td>
           <td class="py-2.5 px-3 text-right font-mono" :class="[row.profit >= 0 ? 'text-emerald-400' : 'text-red-400', row.isBest ? 'font-bold' : '']">{{ row.profit >= 0 ? '+' : '' }}{{ formatIsk(row.profit) }}</td>
-          <td class="py-2.5 px-3 text-right font-mono" :class="[row.margin >= 0 ? 'text-emerald-400' : 'text-red-400', row.isBest ? 'font-bold' : '']">{{ row.margin >= 0 ? '+' : '' }}{{ row.margin.toFixed(1) }}%</td>
+          <td v-if="row.margin == null" class="py-2.5 px-3 text-right font-mono text-slate-500">{{ t('industry.inventionUnknown.label') }}</td>
+          <td v-else class="py-2.5 px-3 text-right font-mono" :class="[row.margin >= 0 ? 'text-emerald-400' : 'text-red-400', row.isBest ? 'font-bold' : '']">{{ row.margin >= 0 ? '+' : '' }}{{ row.margin.toFixed(1) }}%</td>
           <td class="py-2.5 px-4 text-right font-mono" :class="row.dailyVolume != null || row.contractCount != null ? 'text-slate-300' : 'text-slate-500'">
             <template v-if="row.contractCount != null">{{ t('industry.margins.contractCount', { count: row.contractCount }) }}</template>
             <template v-else-if="row.dailyVolume != null">{{ Math.round(row.dailyVolume) }}/day</template>
