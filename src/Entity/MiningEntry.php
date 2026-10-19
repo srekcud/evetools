@@ -43,7 +43,7 @@ class MiningEntry
     #[ORM\Column(type: 'integer')]
     private int $typeId;
 
-    #[ORM\Column(type: 'string', length: 255)]
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $typeName;
 
     #[ORM\Column(type: 'integer')]

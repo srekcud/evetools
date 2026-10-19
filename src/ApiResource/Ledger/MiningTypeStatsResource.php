@@ -8,7 +8,7 @@ class MiningTypeStatsResource
 {
     public int $typeId;
 
-    public string $typeName;
+    public ?string $typeName;
 
     public float $totalValue = 0.0;
 

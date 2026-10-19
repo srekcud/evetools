@@ -64,7 +64,7 @@ export interface MiningEntry {
   characterName: string
   date: string
   typeId: number
-  typeName: string
+  typeName: string | null
   solarSystemId: number
   solarSystemName: string
   quantity: number
@@ -123,7 +123,7 @@ export interface MiningStatsByType {
   }
   byType: {
     typeId: number
-    typeName: string
+    typeName: string | null
     totalValue: number
     totalQuantity: number
   }[]

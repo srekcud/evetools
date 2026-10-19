@@ -21,7 +21,7 @@ class MiningSyncService
 {
     private const SYNC_INTERVAL_MINUTES = 30;
 
-    /** @var array<int, string> */
+    /** @var array<int, string|null> */
     private array $typeNameCache = [];
 
     /** @var array<int, string> */
@@ -249,11 +249,10 @@ class MiningSyncService
                 $changed = true;
             }
 
-            // Fix unresolved type names from previous SDE gaps
-            if (str_starts_with($existing->getTypeName(), 'Type #')) {
-                $resolved = $this->resolveTypeName($typeId);
-                if (!str_starts_with($resolved, 'Type #')) {
-                    $existing->setTypeName($resolved);
+            if ($existing->getTypeName() === null) {
+                $typeName = $this->findTypeName($typeId);
+                if ($typeName !== null) {
+                    $existing->setTypeName($typeName);
                     $changed = true;
                 }
             }
@@ -272,7 +271,7 @@ class MiningSyncService
         $entry->setCharacterName($characterName);
         $entry->setDate($date);
         $entry->setTypeId($typeId);
-        $entry->setTypeName($this->resolveTypeName($typeId));
+        $entry->setTypeName($this->findTypeName($typeId));
         $entry->setSolarSystemId($solarSystemId);
         $entry->setSolarSystemName($this->resolveSolarSystemName($solarSystemId));
         $entry->setQuantity($quantity);
@@ -312,10 +311,10 @@ class MiningSyncService
         return $updated;
     }
 
-    private function resolveTypeName(int $typeId): string
+    private function findTypeName(int $typeId): ?string
     {
-        if (!isset($this->typeNameCache[$typeId])) {
-            $this->typeNameCache[$typeId] = $this->typeNameResolver->resolve($typeId);
+        if (!array_key_exists($typeId, $this->typeNameCache)) {
+            $this->typeNameCache[$typeId] = $this->typeNameResolver->findName($typeId);
         }
         return $this->typeNameCache[$typeId];
     }

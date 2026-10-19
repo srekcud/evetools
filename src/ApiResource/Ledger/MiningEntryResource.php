@@ -77,7 +77,7 @@ class MiningEntryResource
 
     public int $typeId;
 
-    public string $typeName;
+    public ?string $typeName;
 
     public int $solarSystemId;
 

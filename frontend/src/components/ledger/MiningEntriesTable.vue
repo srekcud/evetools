@@ -5,6 +5,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { useMiningPricing } from '@/composables/useMiningPricing'
 import { useContextMenu } from '@/composables/useContextMenu'
+import { useTypeNames } from '@/composables/useTypeNames'
 import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import type { MiningEntry } from '@/stores/ledger'
 import MiningEntryMenu from './MiningEntryMenu.vue'
@@ -22,6 +23,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const { formatIskShort, formatNumber, formatDate } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
+const { typeNameLabel } = useTypeNames()
 
 // Wrap reprocessYield as a ref for the composable
 const reprocessYieldRef = computed(() => props.reprocessYield)
@@ -247,11 +249,11 @@ defineExpose({ resetPage: () => { currentPage.value = 1 } })
               <div class="flex items-center gap-2">
                 <img
                   :src="getTypeIconUrl(entry.typeId)"
-                  :alt="entry.typeName"
+                  :alt="typeNameLabel(entry.typeName, entry.typeId)"
                   class="w-5 h-5"
                   @error="onImageError"
                 />
-                <span class="text-sm text-white truncate max-w-[120px]" :title="entry.typeName">{{ entry.typeName }}</span>
+                <span class="text-sm text-white truncate max-w-[120px]" :title="typeNameLabel(entry.typeName, entry.typeId)">{{ typeNameLabel(entry.typeName, entry.typeId) }}</span>
                 <OpenInGameButton type="market" :targetId="entry.typeId" />
               </div>
             </td>

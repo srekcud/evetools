@@ -145,7 +145,7 @@ class MiningEntryRepository extends ServiceEntityRepository
     /**
      * Get totals by ore type.
      * @param list<string>|null $excludeUsages
-     * @return array<int, array{typeId: int, typeName: string, totalValue: float, totalQuantity: int}>
+     * @return array<int, array{typeId: int, typeName: string|null, totalValue: float, totalQuantity: int}>
      */
     public function getTotalsByType(
         User $user,
