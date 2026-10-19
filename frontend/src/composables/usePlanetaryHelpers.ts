@@ -133,7 +133,7 @@ export function usePlanetaryHelpers() {
 
   // Storage flow computation
   interface FlowLine {
-    contentTypeName: string
+    contentTypeName: string | null
     contentTypeId: number
     quantityPerCycle: number
     cycleTimeSeconds: number | null
@@ -174,8 +174,8 @@ export function usePlanetaryHelpers() {
 
   function getStorageFlowData(colony: Colony, storagePin: Pin): StorageFlowData {
     interface RouteEntry { quantity: number; cycleTime: number | null }
-    const inMap = new Map<number, { name: string; routes: RouteEntry[] }>()
-    const outMap = new Map<number, { name: string; routes: RouteEntry[] }>()
+    const inMap = new Map<number, { name: string | null; routes: RouteEntry[] }>()
+    const outMap = new Map<number, { name: string | null; routes: RouteEntry[] }>()
 
     for (const route of colony.routes) {
       if (route.destinationPinId === storagePin.pinId) {
@@ -198,7 +198,7 @@ export function usePlanetaryHelpers() {
       }
     }
 
-    function buildFlowLines(map: Map<number, { name: string; routes: RouteEntry[] }>): FlowLine[] {
+    function buildFlowLines(map: Map<number, { name: string | null; routes: RouteEntry[] }>): FlowLine[] {
       const lines: FlowLine[] = []
       for (const [typeId, data] of map) {
         const totalQty = data.routes.reduce((sum, r) => sum + r.quantity, 0)
@@ -246,7 +246,8 @@ export function usePlanetaryHelpers() {
 
   // Colony production computation
   interface ColonyProductionItem {
-    typeName: string
+    typeId: number
+    typeName: string | null
     dailyQuantity: number
     outputTier: string | null
     unitPrice: number
@@ -271,12 +272,13 @@ export function usePlanetaryHelpers() {
         const cyclesPerDay = (3600 / pin.schematicCycleTime) * 24
         const dailyQty = Math.round(pin.schematicOutput.quantity * cyclesPerDay)
         const unitPrice = findUnitPrice(pin.schematicOutput.typeId)
-        const existing = items.find(i => i.typeName === pin.schematicOutput!.typeName)
+        const existing = items.find(i => i.typeId === pin.schematicOutput!.typeId)
         if (existing) {
           existing.dailyQuantity += dailyQty
           existing.dailyIskValue += dailyQty * unitPrice
         } else {
           items.push({
+            typeId: pin.schematicOutput.typeId,
             typeName: pin.schematicOutput.typeName,
             dailyQuantity: dailyQty,
             outputTier: pin.outputTier,

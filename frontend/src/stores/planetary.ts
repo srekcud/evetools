@@ -6,14 +6,14 @@ import { apiRequest } from '@/services/api'
 
 export interface PinContent {
   typeId: number
-  typeName: string
+  typeName: string | null
   amount: number
   volume: number | null
 }
 
 export interface SchematicIO {
   typeId: number
-  typeName: string
+  typeName: string | null
   quantity: number
 }
 
@@ -45,7 +45,7 @@ export interface Route {
   sourcePinId: number
   destinationPinId: number
   contentTypeId: number
-  contentTypeName: string
+  contentTypeName: string | null
   quantity: number
   waypoints: number[]
 }
@@ -86,7 +86,7 @@ export interface PlanetaryStats {
 
 export interface ProductionInput {
   typeId: number
-  typeName: string
+  typeName: string | null
   dailyConsumed: number
   dailyProduced: number
   delta: number
@@ -94,7 +94,7 @@ export interface ProductionInput {
 
 export interface ProductionItem {
   typeId: number
-  typeName: string
+  typeName: string | null
   dailyQuantity: number
   unitPrice: number
   dailyIskValue: number

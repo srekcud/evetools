@@ -216,7 +216,7 @@ class ContractCollectionProvider implements ProviderInterface
         foreach ($includedItems as $item) {
             $typeId = $item['type_id'];
             $quantity = $item['quantity'];
-            $typeName = $typeNames[$typeId] ?? 'Unknown';
+            $typeName = $typeNames[$typeId] ?? null;
 
             $jitaPrice = $jitaPrices[$typeId] ?? null;
             $itemJitaValue = $jitaPrice !== null ? $jitaPrice * $quantity : null;

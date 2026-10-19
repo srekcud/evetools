@@ -10,7 +10,7 @@ class SkillQueueEntryResource
 
     public int $skillId;
 
-    public string $skillName;
+    public ?string $skillName;
 
     public ?int $finishedLevel = null;
 

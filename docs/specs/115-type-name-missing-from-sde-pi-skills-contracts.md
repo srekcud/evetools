@@ -39,6 +39,7 @@ Types : Bacteria 2393 (connu), Robotics 9848 (absent de `invTypes`), compétence
 ## Décision prise en autonomie
 
 - **Contrats** : `'Unknown'` est traité comme un nom inventé, donc remplacé par `null` (même règle que `"Type #<id>"`).
+- **Colonie PI, front** : les replis codés en dur (« Stockage », `pi.colony.unknown`) sur un pin sans nom deviennent `typeNameLabel()` (« Nom inconnu (#id) »), et la production par colonie est regroupée par typeId au lieu du nom, pour ne pas fusionner deux types inconnus (R2).
 - **Pas de test front** (pas de harnais composant) : vérifié par le typecheck.
 
 ## Hors périmètre

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
+import { useTypeNames } from '@/composables/useTypeNames'
 
 interface Character {
   id: string
@@ -19,7 +20,7 @@ interface Character {
 interface SkillQueue {
   characterId: string
   skillId: number
-  skillName: string
+  skillName: string | null
   finishedLevel: number | null
   finishDate: string
   queueSize: number
@@ -38,6 +39,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const { formatIsk } = useFormatters()
+const { typeNameLabel } = useTypeNames()
 
 function formatSkillRemaining(finishDate: string): string {
   const finish = new Date(finishDate)
@@ -104,7 +106,7 @@ function romanLevel(level: number | null): string {
               <p class="text-xs text-slate-500 uppercase tracking-wide">{{ t('characters.skillTraining') }}</p>
               <template v-if="props.skillQueue">
                 <p class="text-sm text-slate-200">
-                  {{ props.skillQueue.skillName }}
+                  {{ typeNameLabel(props.skillQueue.skillName, props.skillQueue.skillId) }}
                   <span class="text-amber-400">{{ romanLevel(props.skillQueue.finishedLevel) }}</span>
                 </p>
                 <p class="text-xs text-slate-400">

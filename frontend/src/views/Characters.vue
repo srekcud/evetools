@@ -27,7 +27,7 @@ interface Character {
 interface SkillQueue {
   characterId: string
   skillId: number
-  skillName: string
+  skillName: string | null
   finishedLevel: number | null
   finishDate: string
   queueSize: number

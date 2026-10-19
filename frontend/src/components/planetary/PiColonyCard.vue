@@ -3,10 +3,12 @@ import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePlanetaryTimers } from '@/composables/usePlanetaryTimers'
 import { usePlanetaryHelpers, TIER_CONFIG } from '@/composables/usePlanetaryHelpers'
+import { useTypeNames } from '@/composables/useTypeNames'
 import type { Colony } from '@/stores/planetary'
 
 const { t } = useI18n()
 const { formatIsk, formatNumber, formatTimeSince } = useFormatters()
+const { typeNameLabel } = useTypeNames()
 const {
   getTimerInfo,
   getTimerColorClasses,
@@ -175,7 +177,7 @@ defineEmits<{
                     </span>
                   </div>
                   <div>
-                    <span class="text-white text-sm font-medium">{{ pin.extractorProductName || pin.typeName || t('pi.colony.unknown') }}</span>
+                    <span class="text-white text-sm font-medium">{{ pin.extractorProductTypeId !== null ? typeNameLabel(pin.extractorProductName, pin.extractorProductTypeId) : typeNameLabel(pin.typeName, pin.typeId) }}</span>
                     <div class="text-[10px] text-slate-500">{{ t('pi.colony.extractionUnit') }}</div>
                   </div>
                 </div>
@@ -228,10 +230,10 @@ defineEmits<{
               </thead>
               <tbody class="divide-y divide-slate-700/20">
                 <tr v-for="pin in getFactoryPins(colony)" :key="pin.pinId" class="hover:bg-slate-700/20">
-                  <td class="px-3 py-2 text-white font-medium">{{ pin.schematicName || pin.typeName || t('pi.colony.unknown') }}</td>
+                  <td class="px-3 py-2 text-white font-medium">{{ pin.schematicName || typeNameLabel(pin.typeName, pin.typeId) }}</td>
                   <td class="px-3 py-2 text-slate-400 text-xs">
                     <template v-if="pin.schematicInputs && pin.schematicInputs.length > 0">
-                      {{ pin.schematicInputs.map(i => `${formatNumber(i.quantity, 0)} ${i.typeName}`).join(' + ') }}
+                      {{ pin.schematicInputs.map(i => `${formatNumber(i.quantity, 0)} ${typeNameLabel(i.typeName, i.typeId)}`).join(' + ') }}
                     </template>
                     <span v-else class="text-slate-500">-</span>
                   </td>
@@ -243,7 +245,7 @@ defineEmits<{
                           {{ pin.outputTier }}
                         </span>
                         <span :class="['text-xs', pin.outputTier ? TIER_CONFIG[pin.outputTier]?.badgeText || 'text-white' : 'text-white']">
-                          {{ formatNumber(pin.schematicOutput.quantity, 0) }} {{ pin.schematicOutput.typeName }}
+                          {{ formatNumber(pin.schematicOutput.quantity, 0) }} {{ typeNameLabel(pin.schematicOutput.typeName, pin.schematicOutput.typeId) }}
                         </span>
                       </div>
                     </template>
@@ -273,7 +275,7 @@ defineEmits<{
               <div class="divide-y divide-slate-700/20">
                 <div
                   v-for="prod in getColonyProduction(colony)"
-                  :key="prod.typeName"
+                  :key="prod.typeId"
                   class="flex items-center justify-between px-3 py-2.5"
                 >
                   <div class="flex items-center gap-1.5">
@@ -282,7 +284,7 @@ defineEmits<{
                       {{ prod.outputTier }}
                     </span>
                     <span :class="['text-sm', prod.outputTier ? TIER_CONFIG[prod.outputTier]?.badgeText || 'text-white' : 'text-white']">
-                      {{ prod.typeName }}
+                      {{ typeNameLabel(prod.typeName, prod.typeId) }}
                     </span>
                   </div>
                   <div class="text-right flex items-center gap-3">
@@ -319,7 +321,7 @@ defineEmits<{
               >
                 <!-- Pin header -->
                 <div class="px-3 py-2 flex items-center justify-between">
-                  <span class="text-slate-300 text-sm font-medium">{{ storagePin.typeName || 'Stockage' }}</span>
+                  <span class="text-slate-300 text-sm font-medium">{{ typeNameLabel(storagePin.typeName, storagePin.typeId) }}</span>
                   <span v-if="storagePin.capacity" class="text-[10px] text-slate-500 font-mono-tech">
                     {{ t('pi.colony.capacity', { value: formatNumber(storagePin.capacity, 0) }) }}
                   </span>
@@ -342,7 +344,7 @@ defineEmits<{
                           :key="'in-' + flow.contentTypeId"
                           class="flex items-center justify-between pl-4 text-xs"
                         >
-                          <span class="text-emerald-400">{{ flow.contentTypeName }}</span>
+                          <span class="text-emerald-400">{{ typeNameLabel(flow.contentTypeName, flow.contentTypeId) }}</span>
                           <div class="flex items-center gap-3 text-slate-400 font-mono-tech">
                             <span>{{ formatNumber(flow.quantityPerCycle, 0) }}/cycle</span>
                             <span v-if="flow.dailyQuantity !== null" class="text-emerald-400/80">
@@ -365,7 +367,7 @@ defineEmits<{
                           :key="'out-' + flow.contentTypeId"
                           class="flex items-center justify-between pl-4 text-xs"
                         >
-                          <span class="text-amber-400">{{ flow.contentTypeName }}</span>
+                          <span class="text-amber-400">{{ typeNameLabel(flow.contentTypeName, flow.contentTypeId) }}</span>
                           <div class="flex items-center gap-3 text-slate-400 font-mono-tech">
                             <span>{{ formatNumber(flow.quantityPerCycle, 0) }}/cycle</span>
                             <span v-if="flow.dailyQuantity !== null" class="text-amber-400/80">

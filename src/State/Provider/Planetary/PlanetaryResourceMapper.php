@@ -70,7 +70,7 @@ class PlanetaryResourceMapper
                 'sourcePinId' => $route->getSourcePinId(),
                 'destinationPinId' => $route->getDestinationPinId(),
                 'contentTypeId' => $route->getContentTypeId(),
-                'contentTypeName' => $this->resolveTypeName($route->getContentTypeId()),
+                'contentTypeName' => $this->typeNameResolver->findName($route->getContentTypeId()),
                 'quantity' => $route->getQuantity(),
                 'waypoints' => $route->getWaypoints() ?? [],
             ];
@@ -155,7 +155,7 @@ class PlanetaryResourceMapper
         return [
             'pinId' => $pin->getPinId(),
             'typeId' => $pin->getTypeId(),
-            'typeName' => $pin->getTypeName() ?? $this->resolveTypeName($pin->getTypeId()),
+            'typeName' => $pin->getTypeName() ?? $this->typeNameResolver->findName($pin->getTypeId()),
             'pinCategory' => $this->derivePinCategory($pin),
             'capacity' => $capacity,
             'schematicId' => $pin->getSchematicId(),
@@ -175,7 +175,7 @@ class PlanetaryResourceMapper
             'isExpiringSoon' => $pin->isExpiringSoon(24),
             'extractorProductTypeId' => $pin->getExtractorProductTypeId(),
             'extractorProductName' => $pin->getExtractorProductTypeId()
-                ? $this->resolveTypeName($pin->getExtractorProductTypeId())
+                ? $this->typeNameResolver->findName($pin->getExtractorProductTypeId())
                 : null,
             'extractorCycleTime' => $pin->getExtractorCycleTime(),
             'extractorQtyPerCycle' => $pin->getExtractorQtyPerCycle(),
@@ -226,16 +226,11 @@ class PlanetaryResourceMapper
 
             return [
                 'typeId' => $item['type_id'],
-                'typeName' => $type?->getTypeName() ?? "Type #{$item['type_id']}",
+                'typeName' => $type?->getTypeName(),
                 'amount' => $item['amount'],
                 'volume' => $type?->getVolume(),
             ];
         }, $contents));
-    }
-
-    private function resolveTypeName(int $typeId): string
-    {
-        return $this->typeNameResolver->resolve($typeId);
     }
 
     private function resolveSolarSystemSecurity(int $solarSystemId): ?float
@@ -265,7 +260,7 @@ class PlanetaryResourceMapper
         foreach ($schematic->getSchematicTypes() as $schematicType) {
             $entry = [
                 'typeId' => $schematicType->getTypeId(),
-                'typeName' => $this->resolveTypeName($schematicType->getTypeId()),
+                'typeName' => $this->typeNameResolver->findName($schematicType->getTypeId()),
                 'quantity' => $schematicType->getQuantity(),
             ];
 

@@ -325,8 +325,8 @@ class PlanetaryProductionCalculator
         };
     }
 
-    private function resolveTypeName(int $typeId): string
+    private function resolveTypeName(int $typeId): ?string
     {
-        return $this->typeNameResolver->resolve($typeId);
+        return $this->typeNameResolver->findName($typeId);
     }
 }

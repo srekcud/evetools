@@ -5,16 +5,18 @@ import { authFetch, safeJsonParse } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import { useTypeNames } from '@/composables/useTypeNames'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
 const { formatIsk, formatDate, formatDateTime } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
+const { typeNameLabel } = useTypeNames()
 
 interface ContractItem {
   typeId: number
-  typeName: string
+  typeName: string | null
   quantity: number
   jitaPrice: number | null
   jitaValue: number | null
@@ -421,12 +423,12 @@ function onAvailabilityChange() {
                 >
                   <img
                     :src="getTypeIconUrl(item.typeId, 32)"
-                    :alt="item.typeName"
+                    :alt="typeNameLabel(item.typeName, item.typeId)"
                     class="w-8 h-8 rounded-sm"
                     @error="onImageError"
                   />
                   <div class="flex-1 min-w-0">
-                    <p class="text-sm text-slate-300 truncate">{{ item.typeName }}</p>
+                    <p class="text-sm text-slate-300 truncate">{{ typeNameLabel(item.typeName, item.typeId) }}</p>
                     <p class="text-xs text-slate-500">x{{ item.quantity.toLocaleString() }}</p>
                   </div>
                   <div class="text-right flex gap-4">

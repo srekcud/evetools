@@ -8,7 +8,7 @@ class ContractItemResource
 {
     public int $typeId = 0;
 
-    public string $typeName = '';
+    public ?string $typeName = null;
 
     public int $quantity = 0;
 
