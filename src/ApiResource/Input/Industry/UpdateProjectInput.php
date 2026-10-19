@@ -44,5 +44,11 @@ class UpdateProjectInput
     public ?string $jobsStartDate = null;
 
     /** @var array<array{typeId: int, typeName: string, quantity: int}>|null */
+    #[Assert\All([
+        new Assert\Collection(
+            fields: ['typeName' => [new Assert\NotBlank(), new Assert\Type('string')]],
+            allowExtraFields: true,
+        ),
+    ])]
     public ?array $inventionMaterials = null;
 }

@@ -88,6 +88,10 @@ const inventionMaterials = computed(() => {
   return materials
 })
 
+const hasUnknownDatacoreName = computed(() =>
+  selectedInvention.value?.datacores.some(dc => dc.typeName == null) ?? false
+)
+
 function meTeColor(value: number): string {
   if (value < 0) return 'text-emerald-400'
   if (value > 0) return 'text-red-400'
@@ -149,7 +153,7 @@ async function markBpcStepsPurchased() {
 }
 
 async function applyToProject() {
-  if (appliedCost.value == null) return
+  if (appliedCost.value == null || hasUnknownDatacoreName.value) return
   applying.value = true
   try {
     await markBpcStepsPurchased()
@@ -426,12 +430,15 @@ onMounted(() => {
             </span>
           </div>
           <div class="flex items-center gap-3">
+            <p v-if="hasUnknownDatacoreName" class="text-xs text-amber-400 text-right">
+              {{ t('industry.bpcKitTab.unknownDatacoreName') }}
+            </p>
             <div v-if="selectedDecryptorOption" class="text-xs text-slate-500 text-right">
               {{ summaryInventionLabel }}
             </div>
             <button
               @click="applyToProject"
-              :disabled="applying || appliedCost == null || store.currentProject?.status === 'completed'"
+              :disabled="applying || appliedCost == null || hasUnknownDatacoreName || store.currentProject?.status === 'completed'"
               class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-cyan-800 disabled:cursor-not-allowed rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-colors whitespace-nowrap"
             >
               <LoadingSpinner v-if="applying" size="sm" />

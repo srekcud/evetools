@@ -976,6 +976,7 @@
       "attempt": "tentative | tentatives",
       "totalBpcKitCost": "Cout total du kit BPC",
       "applyToProject": "Appliquer au projet",
+      "unknownDatacoreName": "Un datacore a un nom inconnu (absent des données statiques) : impossible de l'ajouter à la liste de courses.",
       "doubleClickOverride": "Double-cliquer pour modifier",
       "orEnterManually": "Ou saisir manuellement :",
       "manualPlaceholder": "ex: 2M, 1.5B",

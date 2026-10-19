@@ -976,6 +976,7 @@
       "attempt": "attempt | attempts",
       "totalBpcKitCost": "Total BPC Kit Cost",
       "applyToProject": "Apply to Project",
+      "unknownDatacoreName": "A datacore has an unknown name (missing from the static data): it cannot be added to the shopping list.",
       "doubleClickOverride": "Double-click to override",
       "orEnterManually": "Or enter manually:",
       "manualPlaceholder": "ex: 2M, 1.5B",
