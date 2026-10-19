@@ -18,6 +18,7 @@ use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -582,6 +583,54 @@ class ProfitMarginServiceTest extends TestCase
         );
 
         $this->assertNull($result['invention']);
+    }
+
+    #[Group('issue-115')]
+    public function testInventionDatacoreMissingFromTheSdeIsRelayedWithANullName(): void
+    {
+        $this->setupDefaultMocks();
+        $this->inventionService->method('isT2')->willReturn(true);
+
+        $tree = $this->buildFlatTree(self::SABRE_TYPE_ID, 'Sabre', 1, 1, [
+            ['typeId' => 36, 'typeName' => 'Mexallon', 'quantity' => 750],
+        ]);
+        $this->treeService->method('buildProductionTree')->willReturn($tree);
+
+        $this->jitaMarketService->method('getWeightedSellPricesWithFallback')
+            ->willReturn([36 => ['weightedPrice' => 80.0, 'coverage' => 1.0, 'ordersUsed' => 2]]);
+        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->jitaMarketService->method('getWeightedSellPrice')->willReturn(null);
+        $this->structureMarketService->method('getLowestSellPrice')->willReturn(null);
+        $this->structureMarketService->method('getHighestBuyPrice')->willReturn(null);
+
+        $this->inventionService
+            ->method('calculateInventionCost')
+            ->willReturn([
+                'baseProbability' => 0.34,
+                'effectiveProbability' => 0.34,
+                'expectedAttempts' => 3,
+                'me' => 2, 'te' => 4, 'runs' => 10,
+                'costPerAttempt' => 135000.0,
+                'totalCost' => 405000.0,
+                'costBreakdown' => ['datacores' => 125000.0, 'decryptor' => 0.0, 'copyCost' => 0.0, 'inventionInstall' => 10000.0],
+                'datacores' => [
+                    ['typeId' => 20424, 'typeName' => 'Datacore - Mechanical Engineering', 'quantity' => 2, 'unitPrice' => 32500.0, 'totalPrice' => 65000.0],
+                    ['typeId' => 9848, 'typeName' => null, 'quantity' => 4, 'unitPrice' => 15000.0, 'totalPrice' => 60000.0],
+                ],
+                'decryptorName' => null,
+            ]);
+        $this->inventionService->method('buildDecryptorOptions')->willReturn([]);
+        $this->inventionService->method('getCopyJobCost')->willReturn(0.0);
+
+        $result = $this->service->analyze(
+            self::SABRE_TYPE_ID, 1, 2, 4,
+            self::SELL_STRUCTURE_ID, self::SOLAR_SYSTEM_ID, null,
+            0.036, 0.036, null,
+        );
+
+        $this->assertSame(['Datacore - Mechanical Engineering', null], $result['invention']['datacores']);
+        $this->assertSame(405000.0, $result['inventionCost']);
+        $this->assertSame(465000.0, $result['totalCost']);
     }
 
     public function testDecryptorOptionsPopulatedForT2(): void

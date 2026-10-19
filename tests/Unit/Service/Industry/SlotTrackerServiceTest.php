@@ -582,6 +582,26 @@ class SlotTrackerServiceTest extends TestCase
     }
 
     #[Group('issue-115')]
+    public function testTimelineJobOfAProductMissingFromTheSdeExposesItsTypeId(): void
+    {
+        $this->characterRepository->method('findByUser')->willReturn([$this->createCharacterMock(1001, 'Pilot', true)]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([
+            $this->createJobMock(1, self::NITROGEN_FUEL_BLOCK_TYPE_ID, self::MANUFACTURING_ACTIVITY_ID, 40, '2026-02-23 00:00:00', '2099-03-01 00:00:00'),
+            $this->createJobMock(2, self::ROBOTICS_TYPE_ID, self::MANUFACTURING_ACTIVITY_ID, 12, '2026-02-23 00:00:00', '2099-01-01 00:00:00'),
+        ]);
+        $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn(
+            $this->buildSkillMap([CachedCharacterSkill::SKILL_MASS_PRODUCTION => 1]),
+        );
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+
+        $result = $this->slotTrackerOnSdeKnowingOnlyNitrogenFuelBlock()->getSlotStatus($this->user);
+
+        $this->assertSame([self::ROBOTICS_TYPE_ID, self::NITROGEN_FUEL_BLOCK_TYPE_ID], array_column($result['timeline'], 'productTypeId'));
+        $this->assertSame([null, self::NITROGEN_FUEL_BLOCK_NAME], array_column($result['timeline'], 'productTypeName'));
+        $this->assertSame([12, 40], array_column($result['timeline'], 'runs'));
+    }
+
+    #[Group('issue-115')]
     public function testFreeSlotSuggestionOfATypeMissingFromTheSdeKeepsTheNameStoredOnTheStockpileTarget(): void
     {
         $this->characterRepository->method('findByUser')->willReturn([$this->createCharacterMock(1001, 'Pilot', true)]);
