@@ -139,7 +139,7 @@ class BatchProfitScannerService
      * profitPerUnit and iskPerDay are null, unknownReason and missingPriceTypeIds explain why.
      * Products with a known cost are ranked first, by iskPerDay descending.
      *
-     * @return list<array{typeId: int, typeName: string, groupName: string, categoryLabel: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float, iskPerDay: float|null, materialCost: float|null, importCost: float, exportCost: float, sellPrice: float|null, meUsed: int, activityType: string, isFactionBlueprint: bool, bpcCostPerRun: float|null, hasAllSkills: bool, missingSkillCount: int, unknownReason: string|null, missingPriceTypeIds: list<int>}>
+     * @return list<array{typeId: int, typeName: string|null, groupName: string, categoryLabel: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float, iskPerDay: float|null, materialCost: float|null, importCost: float, exportCost: float, sellPrice: float|null, meUsed: int, activityType: string, isFactionBlueprint: bool, bpcCostPerRun: float|null, hasAllSkills: bool, missingSkillCount: int, unknownReason: string|null, missingPriceTypeIds: list<int>}>
      */
     public function scan(
         ?string $category,
@@ -265,7 +265,7 @@ class BatchProfitScannerService
         }
 
         // 9. Resolve type names
-        $typeNames = $this->typeNameResolver->resolveMany($uniqueTypeIds);
+        $typeNames = $this->typeNameResolver->findNames($uniqueTypeIds);
 
         // 10. Pre-load adjusted prices for all materials (avoids ~20K-35K individual Redis calls)
         $allMaterialTypeIds = [];
@@ -379,7 +379,7 @@ class BatchProfitScannerService
 
             $results[] = [
                 'typeId' => $typeId,
-                'typeName' => $typeNames[$typeId] ?? "Type #{$typeId}",
+                'typeName' => $typeNames[$typeId] ?? null,
                 'groupName' => $meta['groupName'] ?? '',
                 'categoryLabel' => $categoryLabel,
                 'marginPercent' => $marginPercent !== null ? round($marginPercent, 2) : null,

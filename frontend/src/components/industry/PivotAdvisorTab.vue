@@ -5,6 +5,7 @@ import { useScannerStore } from '@/stores/industry/scanner'
 import { useIndustryStore, type SearchResult } from '@/stores/industry'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import { useTypeNames } from '@/composables/useTypeNames'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
 import type { PivotCandidate } from '@/stores/industry/types'
 
@@ -17,6 +18,7 @@ const scannerStore = useScannerStore()
 const industryStore = useIndustryStore()
 const { formatIsk, formatNumber } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
+const { typeNameLabel } = useTypeNames()
 
 // Product selector
 const selectedProduct = ref<SearchResult | null>(null)
@@ -79,7 +81,7 @@ function onPivot(candidate: PivotCandidate): void {
     target: 'projects',
     prefill: {
       typeId: candidate.typeId,
-      typeName: candidate.typeName,
+      typeName: typeNameLabel(candidate.typeName, candidate.typeId),
     },
   }
 }
@@ -204,7 +206,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
           <div class="flex-shrink-0">
             <img
               :src="getTypeIconUrl(result.sourceProduct.typeId, 64)"
-              :alt="result.sourceProduct.typeName"
+              :alt="typeNameLabel(result.sourceProduct.typeName, result.sourceProduct.typeId)"
               class="w-16 h-16 rounded-lg border"
               :class="result.sourceProduct.marginPercent != null && result.sourceProduct.marginPercent < 0 ? 'border-amber-500/30' : 'border-slate-700'"
               @error="onImageError"
@@ -214,7 +216,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
           <!-- Product info -->
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-3 mb-2 flex-wrap">
-              <h2 class="text-lg font-bold text-slate-100">{{ result.sourceProduct.typeName }}</h2>
+              <h2 class="text-lg font-bold text-slate-100">{{ typeNameLabel(result.sourceProduct.typeName, result.sourceProduct.typeId) }}</h2>
               <span class="text-xs px-2 py-0.5 rounded bg-amber-400/10 text-amber-400 border border-amber-400/20">
                 {{ result.sourceProduct.groupName }}
               </span>
@@ -264,7 +266,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
                 :key="comp.typeId"
                 class="flex items-center justify-between text-sm"
               >
-                <span class="text-slate-300 truncate mr-2">{{ comp.typeName }}</span>
+                <span class="text-slate-300 truncate mr-2">{{ typeNameLabel(comp.typeName, comp.typeId) }}</span>
                 <span class="font-mono text-cyan-400 shrink-0">{{ formatNumber(comp.inStock, 0) }}</span>
               </div>
             </div>
@@ -323,8 +325,8 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
                     />
                     <span class="text-xs" :class="productId === result.sourceProduct.typeId ? 'text-slate-500' : 'text-slate-400'">
                       {{ productId === result.sourceProduct.typeId
-                        ? result.sourceProduct.typeName
-                        : (result.candidates.find(c => c.typeId === productId)?.typeName ?? String(productId))
+                        ? typeNameLabel(result.sourceProduct.typeName, result.sourceProduct.typeId)
+                        : typeNameLabel(result.candidates.find(c => c.typeId === productId)?.typeName ?? null, productId)
                       }}
                     </span>
                     <span
@@ -352,7 +354,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
                 class="border-b border-slate-800/50"
                 :class="rowIdx % 2 === 1 ? 'bg-slate-800/30' : ''"
               >
-                <td class="px-4 py-2.5 text-slate-300 font-medium">{{ row.typeName }}</td>
+                <td class="px-4 py-2.5 text-slate-300 font-medium">{{ typeNameLabel(row.typeName, row.typeId) }}</td>
                 <td class="px-3 py-2.5 text-center font-mono text-cyan-400">{{ formatNumber(row.inStock, 0) }}</td>
                 <td
                   v-for="productId in result.matrixProductIds"
@@ -440,13 +442,13 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
             <div class="flex items-center gap-3 mb-3">
               <img
                 :src="getTypeIconUrl(candidate.typeId, 64)"
-                :alt="candidate.typeName"
+                :alt="typeNameLabel(candidate.typeName, candidate.typeId)"
                 class="w-12 h-12 rounded-lg border border-slate-700"
                 @error="onImageError"
               />
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2">
-                  <span class="text-base font-bold text-slate-100">{{ candidate.typeName }}</span>
+                  <span class="text-base font-bold text-slate-100">{{ typeNameLabel(candidate.typeName, candidate.typeId) }}</span>
                   <span class="text-xs px-1.5 py-0.5 rounded bg-cyan-400/10 text-cyan-400 border border-cyan-400/20">
                     {{ candidate.groupName }}
                   </span>
@@ -498,7 +500,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
                 >
                   <!-- Amber for partial (some stock), red for none (zero stock) -->
                   <span :class="mc.quantity > 0 && mc.cost > 0 ? 'text-amber-400' : 'text-red-400'">
-                    {{ mc.typeName }}
+                    {{ typeNameLabel(mc.typeName, mc.typeId) }}
                   </span>
                   <span
                     class="font-mono"

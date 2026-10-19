@@ -27,7 +27,7 @@ class CopyCostsResource
     #[ApiProperty(identifier: true)]
     public string $id;
 
-    /** @var list<array{blueprintTypeId: int, blueprintName: string, productTypeName: string, runs: int, cost: float, depth: int}> */
+    /** @var list<array{blueprintTypeId: int, blueprintName: string|null, productTypeName: string|null, runs: int, cost: float, depth: int}> */
     public array $copies = [];
 
     public float $totalCopyCost = 0.0;

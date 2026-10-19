@@ -6,7 +6,7 @@ import type { InventionUnknownReason, ProfitMarginInventionOption } from '@/stor
 const props = defineProps<{
   baseProbability: number | null
   unknownReason: InventionUnknownReason | null
-  datacores: string[]
+  datacores: (string | null)[]
   options: ProfitMarginInventionOption[]
   bestDecryptorIndex: number
   selectedOption: ProfitMarginInventionOption | null
@@ -92,7 +92,7 @@ function selectedDecryptorName(): string {
         <div class="flex items-center gap-4 text-xs text-slate-500">
           <span>{{ t('industry.bpcKitTab.baseProbability') }}: <span class="text-cyan-400 font-mono">{{ formatProbability(props.baseProbability) }}</span></span>
           <span class="text-slate-700">|</span>
-          <span>{{ t('industry.bpcKitTab.datacoresLabel') }}: <span class="text-slate-400">{{ props.datacores.join(' + ') }}</span></span>
+          <span>{{ t('industry.bpcKitTab.datacoresLabel') }}: <span class="text-slate-400">{{ props.datacores.map(name => name ?? t('common.unknownName')).join(' + ') }}</span></span>
         </div>
       </div>
       <p v-if="props.unknownReason != null" class="mt-2 text-xs text-amber-400">

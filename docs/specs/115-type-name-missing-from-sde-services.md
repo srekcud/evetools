@@ -22,6 +22,9 @@ Quatre services d'analyse industrie inventent encore `"Type #<typeId>"`, soit pa
 ## Décision prise en autonomie
 
 - **Export multibuy du Batch Scan** (`BatchScanTab.vue:180`, `typeName\t1`) : un produit au nom inconnu est **exclu** de l'export, car le jeu ne reconnaît pas « Nom inconnu (#id) ». C'est l'option conservatrice : l'export ne contient que des lignes que le jeu sait lire. Les autres lignes restent exportées.
+- **Datacores de l'écran Marges** : la sortie de `ProfitMarginService` ne porte pas de typeId pour les datacores (golden figé, branche CP en cours) : un nom inconnu s'y affiche « Nom inconnu », sans `#id` (clé `common.unknownName`). Ajouter le typeId reviendra à la migration de ProfitMargin sur le moteur.
+- **Timeline du Slot Tracker** : `productTypeId` ajouté à chaque job de la timeline, seul moyen d'afficher « Nom inconnu (#id) ».
+- **Harnais** : les stubs de `resolveMany()` / `resolve()` des tests Pivot Advisor, Slot Tracker et règles du scanner passent à `findNames()` / `findName()`, assertions inchangées (oubli de la phase rouge, repris avant la phase verte).
 - **Pas de test front** pour R5 (pas de harnais composant) : vérifié par le typecheck et à la lecture du diff.
 
 ## Exemples chiffrés

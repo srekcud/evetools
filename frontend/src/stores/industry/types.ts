@@ -385,7 +385,7 @@ export interface ProfitMarginResult {
   invention: {
     baseProbability: number | null
     unknownReason: InventionUnknownReason | null
-    datacores: string[]
+    datacores: (string | null)[]
     selectedDecryptorTypeId: number | null
     selectedDecryptorName: string
     options: ProfitMarginInventionOption[]
@@ -461,8 +461,8 @@ export interface PurchaseSuggestion {
 
 export interface CopyCostEntry {
   blueprintTypeId: number
-  blueprintName: string
-  productTypeName: string
+  blueprintName: string | null
+  productTypeName: string | null
   runs: number
   cost: number
   depth: number
@@ -478,7 +478,7 @@ export interface CopyCosts {
 
 export interface BpcKitDatacore {
   typeId: number
-  typeName: string
+  typeName: string | null
   quantity: number
   unitPrice: number
   totalPrice: number
@@ -504,7 +504,7 @@ export interface BpcKitDecryptorOption {
 
 export interface BpcKitInvention {
   productTypeId: number
-  productName: string
+  productName: string | null
   baseProbability: number | null
   unknownReason: InventionUnknownReason | null
   desiredSuccesses: number
@@ -528,7 +528,7 @@ export interface BpcKit {
 // Batch Scan types
 export type BatchScanItem = {
   typeId: number
-  typeName: string
+  typeName: string | null
   groupName: string
   categoryLabel: string
   marginPercent: number | null
@@ -606,21 +606,21 @@ export type BuyVsBuildResult = {
 // Pivot Advisor types
 export type PivotMissingComponent = {
   typeId: number
-  typeName: string
+  typeName: string | null
   quantity: number
   cost: number
 }
 
 export type PivotComponentCoverage = {
   typeId: number
-  typeName: string
+  typeName: string | null
   inStock: number
   candidates: Record<number, { needed: number; status: 'covered' | 'partial' | 'none' }>
 }
 
 export type PivotCandidate = {
   typeId: number
-  typeName: string
+  typeName: string | null
   groupName: string
   marginPercent: number | null
   profitPerUnit: number
@@ -634,12 +634,12 @@ export type PivotCandidate = {
 
 export type PivotSourceProduct = {
   typeId: number
-  typeName: string
+  typeName: string | null
   groupName: string
   marginPercent: number | null
   sellPrice: number
   dailyVolume: number
-  keyComponents: { typeId: number; typeName: string; inStock: number }[]
+  keyComponents: { typeId: number; typeName: string | null; inStock: number }[]
 }
 
 export type PivotAnalysisResult = {
@@ -749,7 +749,7 @@ export type SlotActivity = 'manufacturing' | 'reaction' | 'science'
 export type SlotUsage = { used: number; max: number; percent?: number }
 
 export type SlotTrackerJob = {
-  jobId: number; productTypeId: number; productTypeName: string
+  jobId: number; productTypeId: number; productTypeName: string | null
   activityType: string; runs: number; progress: number
   timeLeftSeconds: number; facilityName: string | null
   startDate: string; endDate: string
@@ -767,7 +767,7 @@ export type SlotTrackerCharacter = {
 }
 
 export type TimelineJob = {
-  jobId: number; characterName: string; productTypeName: string
+  jobId: number; characterName: string; productTypeId: number; productTypeName: string | null
   activityType: string; runs: number; timeLeftSeconds: number; endDate: string
 }
 

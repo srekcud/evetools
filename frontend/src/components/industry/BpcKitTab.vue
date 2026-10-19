@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useIndustryStore } from '@/stores/industry'
 import { useFormatters } from '@/composables/useFormatters'
 import { parseIskValue } from '@/composables/useIskParser'
+import { useTypeNames } from '@/composables/useTypeNames'
 import type { BpcKitDecryptorOption } from '@/stores/industry/types'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
@@ -15,6 +16,7 @@ const props = defineProps<{
 
 const store = useIndustryStore()
 const { formatIsk, formatIskFull } = useFormatters()
+const { typeNameLabel } = useTypeNames()
 
 const loading = ref(false)
 const desiredBpcCount = ref(1)
@@ -64,7 +66,7 @@ const inventionMaterials = computed(() => {
   if (!selectedInvention.value || !selectedDecryptorOption.value) return []
   const attempts = selectedDecryptorOption.value.expectedAttempts
   if (attempts == null) return []
-  const materials: { typeId: number; name: string; quantity: number }[] = []
+  const materials: { typeId: number; name: string | null; quantity: number }[] = []
 
   for (const dc of selectedInvention.value.datacores) {
     materials.push({
@@ -245,7 +247,7 @@ onMounted(() => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
               </svg>
               <h4 class="text-sm font-semibold text-slate-200">
-                {{ selectedInvention.productName }} &mdash; {{ t('industry.bpcKitTab.invention') }}
+                {{ typeNameLabel(selectedInvention.productName, selectedInvention.productTypeId) }} &mdash; {{ t('industry.bpcKitTab.invention') }}
               </h4>
             </div>
             <div class="flex items-center gap-4 text-xs text-slate-500">
@@ -257,7 +259,7 @@ onMounted(() => {
               <span>
                 {{ t('industry.bpcKitTab.datacoresLabel') }}:
                 <span class="text-slate-400">
-                  {{ selectedInvention.datacores.map(d => d.typeName).join(' + ') }}
+                  {{ selectedInvention.datacores.map(d => typeNameLabel(d.typeName, d.typeId)).join(' + ') }}
                 </span>
               </span>
             </div>

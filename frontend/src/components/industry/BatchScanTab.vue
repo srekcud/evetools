@@ -5,6 +5,7 @@ import { useScannerStore } from '@/stores/industry/scanner'
 import { useIndustryStore } from '@/stores/industry'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import { useTypeNames } from '@/composables/useTypeNames'
 import { apiRequest } from '@/services/api'
 import type { BatchScanItem } from '@/stores/industry/types'
 import ProductionCalculator from './ProductionCalculator.vue'
@@ -20,6 +21,7 @@ const scannerStore = useScannerStore()
 const industryStore = useIndustryStore()
 const { formatIsk, formatNumber, formatDateTime } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
+const { typeNameLabel } = useTypeNames()
 
 // Filters
 const categoryFilter = ref('all')
@@ -65,6 +67,10 @@ const SELL_VENUE_OPTIONS = [
   { value: 'contracts', label: 'Public Contracts' },
 ]
 
+function sortValue(item: BatchScanItem): BatchScanItem[SortKey] {
+  return sortKey.value === 'typeName' ? typeNameLabel(item.typeName, item.typeId) : item[sortKey.value]
+}
+
 // Client-side filtered + sorted results
 const filteredResults = computed((): BatchScanItem[] => {
   let items = [...(scannerStore.scanResults ?? [])]
@@ -83,8 +89,8 @@ const filteredResults = computed((): BatchScanItem[] => {
   }
 
   items.sort((a, b) => {
-    const aVal = a[sortKey.value]
-    const bVal = b[sortKey.value]
+    const aVal = sortValue(a)
+    const bVal = sortValue(b)
     // Unknown amounts stay last whatever the sort direction
     if (aVal == null || bVal == null) {
       return Number(aVal == null) - Number(bVal == null)
@@ -176,7 +182,7 @@ function onScan(): void {
 
 async function copyToMultibuy(): Promise<void> {
   const lines = filteredResults.value
-    .filter(item => item.marginPercent != null && item.marginPercent > 0)
+    .filter(item => item.marginPercent != null && item.marginPercent > 0 && item.typeName !== null)
     .map(item => `${item.typeName}\t1`)
     .join('\n')
 
@@ -487,11 +493,11 @@ onBeforeUnmount(() => {
           <div v-if="bestMarginItem" class="flex items-center gap-1.5 mt-1">
             <img
               :src="getTypeIconUrl(bestMarginItem.item.typeId, 32)"
-              :alt="bestMarginItem.item.typeName"
+              :alt="typeNameLabel(bestMarginItem.item.typeName, bestMarginItem.item.typeId)"
               class="w-4 h-4 rounded-sm"
               @error="onImageError"
             />
-            <p class="text-xs text-slate-400">{{ bestMarginItem.item.typeName }}</p>
+            <p class="text-xs text-slate-400">{{ typeNameLabel(bestMarginItem.item.typeName, bestMarginItem.item.typeId) }}</p>
           </div>
         </div>
 
@@ -509,11 +515,11 @@ onBeforeUnmount(() => {
           <div v-if="bestIskDayItem" class="flex items-center gap-1.5 mt-1">
             <img
               :src="getTypeIconUrl(bestIskDayItem.item.typeId, 32)"
-              :alt="bestIskDayItem.item.typeName"
+              :alt="typeNameLabel(bestIskDayItem.item.typeName, bestIskDayItem.item.typeId)"
               class="w-4 h-4 rounded-sm"
               @error="onImageError"
             />
-            <p class="text-xs text-slate-400">{{ bestIskDayItem.item.typeName }}</p>
+            <p class="text-xs text-slate-400">{{ typeNameLabel(bestIskDayItem.item.typeName, bestIskDayItem.item.typeId) }}</p>
           </div>
         </div>
       </div>
@@ -621,7 +627,7 @@ onBeforeUnmount(() => {
                 <td class="py-3 px-3">
                   <img
                     :src="getTypeIconUrl(item.typeId, 32)"
-                    :alt="item.typeName"
+                    :alt="typeNameLabel(item.typeName, item.typeId)"
                     class="w-7 h-7 rounded-sm"
                     @error="onImageError"
                   />
@@ -642,7 +648,7 @@ onBeforeUnmount(() => {
                     <span :class="[
                       'font-semibold',
                       idx === 0 && currentPage === 1 ? 'text-slate-100' : item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-300' : 'text-slate-200',
-                    ]">{{ item.typeName }}</span>
+                    ]">{{ typeNameLabel(item.typeName, item.typeId) }}</span>
                     <span class="text-[10px] text-slate-500">{{ item.groupName }}</span>
                     <!-- Skills warning -->
                     <span

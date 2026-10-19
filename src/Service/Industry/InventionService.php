@@ -136,7 +136,7 @@ class InventionService
      * The probability is null when the SDE does not carry it: the invention chain still exists,
      * but its success rate (and therefore its cost) is unknown.
      *
-     * @return array{t1BlueprintTypeId: int, t2BlueprintTypeId: int, probability: ?float, baseRuns: int, materials: list<array{typeId: int, typeName: string, quantity: int}>, inventionTime: int}|null
+     * @return array{t1BlueprintTypeId: int, t2BlueprintTypeId: int, probability: ?float, baseRuns: int, materials: list<array{typeId: int, typeName: string|null, quantity: int}>, inventionTime: int}|null
      */
     public function getInventionData(int $t2TypeId): ?array
     {
@@ -183,7 +183,7 @@ class InventionService
             $matTypeId = $material->getMaterialTypeId();
             $materials[] = [
                 'typeId' => $matTypeId,
-                'typeName' => $typeNames[$matTypeId]?->getTypeName() ?? "Type #{$matTypeId}",
+                'typeName' => ($typeNames[$matTypeId] ?? null)?->getTypeName(),
                 'quantity' => $material->getQuantity(),
             ];
         }
@@ -231,7 +231,7 @@ class InventionService
      *     costPerAttempt: float,
      *     totalCost: ?float,
      *     costBreakdown: array{datacores: float, decryptor: float, copyCost: float, inventionInstall: float},
-     *     datacores: list<array{typeId: int, typeName: string, quantity: int, unitPrice: float, totalPrice: float}>,
+     *     datacores: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: float, totalPrice: float}>,
      *     decryptorName: ?string,
      *     unknownReason: ?string
      * }|null
@@ -349,11 +349,11 @@ class InventionService
      *     isT2: bool,
      *     inventions: list<array{
      *         productTypeId: int,
-     *         productName: string,
+     *         productName: string|null,
      *         baseProbability: ?float,
      *         unknownReason: ?string,
      *         desiredSuccesses: int,
-     *         datacores: list<array{typeId: int, typeName: string, quantity: int, unitPrice: float, totalPrice: float}>,
+     *         datacores: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: float, totalPrice: float}>,
      *         decryptorOptions: list<array{
      *             decryptorTypeId: ?int,
      *             decryptorName: string,
@@ -403,7 +403,7 @@ class InventionService
                 $facilityTaxRate,
             );
 
-            $productName = $this->resolveTypeName($productTypeId);
+            $productName = $this->typeNameResolver->findName($productTypeId);
 
             $inventions[] = [
                 'productTypeId' => $productTypeId,
@@ -439,7 +439,7 @@ class InventionService
      * Calculate all T1 BPC copy costs for a project.
      * Returns copy costs for ALL steps with activityType === 'copy'.
      *
-     * @return array{copies: list<array{blueprintTypeId: int, blueprintName: string, productTypeName: string, runs: int, cost: float, depth: int}>, totalCopyCost: float}
+     * @return array{copies: list<array{blueprintTypeId: int, blueprintName: string|null, productTypeName: string|null, runs: int, cost: float, depth: int}>, totalCopyCost: float}
      */
     public function getProjectCopyCosts(IndustryProject $project): array
     {
@@ -465,8 +465,8 @@ class InventionService
             );
             $totalCopyCost += $copyCost;
 
-            $blueprintName = $this->resolveTypeName($blueprintTypeId);
-            $productTypeName = $this->resolveTypeName($step->getProductTypeId());
+            $blueprintName = $this->typeNameResolver->findName($blueprintTypeId);
+            $productTypeName = $this->typeNameResolver->findName($step->getProductTypeId());
             $copies[] = [
                 'blueprintTypeId' => $blueprintTypeId,
                 'blueprintName' => $blueprintName,
@@ -601,10 +601,5 @@ class InventionService
         }
 
         return $eiv;
-    }
-
-    private function resolveTypeName(int $typeId): string
-    {
-        return $this->typeNameResolver->resolve($typeId);
     }
 }

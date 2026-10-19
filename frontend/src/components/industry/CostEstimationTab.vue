@@ -416,7 +416,7 @@ defineExpose({ activate, loadCostEstimation })
                       @error="onImageError"
                     />
                   </div>
-                  <span class="text-slate-200">{{ copy.blueprintName }}</span>
+                  <span class="text-slate-200">{{ typeNameLabel(copy.blueprintName, copy.blueprintTypeId) }}</span>
                 </div>
               </td>
               <td class="py-2.5 px-3 text-center font-mono text-slate-500">{{ copy.depth }}</td>

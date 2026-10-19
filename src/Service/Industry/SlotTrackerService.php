@@ -79,7 +79,7 @@ class SlotTrackerService
             $characterData[] = ['character' => $character, 'jobs' => $jobs];
         }
 
-        $typeNames = $this->typeNameResolver->resolveMany(array_unique($allProductTypeIds));
+        $typeNames = $this->typeNameResolver->findNames(array_unique($allProductTypeIds));
 
         // Stockpile targets for suggestions
         $stockpileTargets = $this->stockpileTargetRepository->findByUser($user);
@@ -136,7 +136,7 @@ class SlotTrackerService
                 $jobEntry = [
                     'jobId' => $job->getJobId(),
                     'productTypeId' => $job->getProductTypeId(),
-                    'productTypeName' => $typeNames[$job->getProductTypeId()] ?? "Type #{$job->getProductTypeId()}",
+                    'productTypeName' => $typeNames[$job->getProductTypeId()] ?? null,
                     'activityType' => $activityType ?? 'unknown',
                     'runs' => $job->getRuns(),
                     'progress' => $progress,
@@ -150,6 +150,7 @@ class SlotTrackerService
                 $allTimelineJobs[] = [
                     'jobId' => $job->getJobId(),
                     'characterName' => $character->getName(),
+                    'productTypeId' => $job->getProductTypeId(),
                     'productTypeName' => $jobEntry['productTypeName'],
                     'activityType' => $jobEntry['activityType'],
                     'runs' => $job->getRuns(),

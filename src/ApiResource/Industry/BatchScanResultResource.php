@@ -38,7 +38,7 @@ class BatchScanResultResource
 {
     public int $typeId;
 
-    public string $typeName = '';
+    public ?string $typeName = null;
 
     public string $groupName = '';
 

@@ -2,6 +2,7 @@
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
+import { useTypeNames } from '@/composables/useTypeNames'
 import { useSlotsStore } from '@/stores/industry/slots'
 import type { SlotActivity, SlotTrackerCharacter, FreeSlotEntry, TimelineJob } from '@/stores/industry/types'
 
@@ -11,6 +12,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const { getTypeIconUrl, getCharacterPortraitUrl, onImageError } = useEveImages()
+const { typeNameLabel } = useTypeNames()
 const slotsStore = useSlotsStore()
 
 function navigateToSettings() {
@@ -400,7 +402,7 @@ onMounted(() => {
                 <div class="w-8 h-8 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden">
                   <img
                     :src="getTypeIconUrl(job.productTypeId, 64)"
-                    :alt="job.productTypeName"
+                    :alt="typeNameLabel(job.productTypeName, job.productTypeId)"
                     class="w-full h-full object-cover"
                     @error="onImageError"
                   />
@@ -408,7 +410,7 @@ onMounted(() => {
               </td>
               <!-- Product name -->
               <td class="py-2.5 px-3">
-                <span class="text-slate-100 font-semibold">{{ job.productTypeName }}</span>
+                <span class="text-slate-100 font-semibold">{{ typeNameLabel(job.productTypeName, job.productTypeId) }}</span>
               </td>
               <!-- Activity badge -->
               <td class="py-2.5 px-3">
@@ -567,7 +569,7 @@ onMounted(() => {
                 class="flex items-center h-6 -ml-[180px]"
               >
                 <span class="w-[180px] shrink-0 text-xs text-slate-400 pr-3 text-right truncate">
-                  {{ job.productTypeName }}
+                  {{ typeNameLabel(job.productTypeName, job.productTypeId) }}
                 </span>
                 <div class="flex-1 relative">
                   <div
@@ -584,10 +586,10 @@ onMounted(() => {
                       v-if="ganttBarWidth(job.timeLeftSeconds) > 8"
                       class="text-[10px] truncate"
                       :class="ganttClasses(job.activityType).labelText"
-                    >{{ job.productTypeName }} x{{ job.runs }}</span>
+                    >{{ typeNameLabel(job.productTypeName, job.productTypeId) }} x{{ job.runs }}</span>
                     <!-- Tooltip -->
                     <div class="gantt-tooltip bg-slate-800 border border-slate-700 rounded-lg shadow-xl px-3 py-2 text-xs">
-                      <div class="text-slate-100 font-semibold">{{ job.productTypeName }} x{{ job.runs }}</div>
+                      <div class="text-slate-100 font-semibold">{{ typeNameLabel(job.productTypeName, job.productTypeId) }} x{{ job.runs }}</div>
                       <div class="text-slate-400 mt-0.5">{{ t('industry.slots.timeline.completesIn') }} {{ formatDuration(job.timeLeftSeconds) }}</div>
                     </div>
                   </div>
@@ -607,7 +609,7 @@ onMounted(() => {
             <template v-if="nextSlotJob != null">
               {{ t('industry.slots.timeline.nextSlotOpens') }}
               <span class="text-cyan-400 font-mono font-semibold">{{ formatDuration(nextSlotJob.timeLeftSeconds) }}</span>
-              ({{ nextSlotJob.productTypeName }}).
+              ({{ typeNameLabel(nextSlotJob.productTypeName, nextSlotJob.productTypeId) }}).
             </template>
           </span>
         </div>

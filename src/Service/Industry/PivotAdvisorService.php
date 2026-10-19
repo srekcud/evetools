@@ -142,7 +142,7 @@ class PivotAdvisorService
         $sourceIsReaction = $sourceActivityId === IndustryActivityType::Reaction->value;
 
         // 9. Resolve type names and group names
-        $typeNames = $this->typeNameResolver->resolveMany($allTypeIds);
+        $typeNames = $this->typeNameResolver->findNames($allTypeIds);
         $groupNames = $this->loadGroupNames(array_merge([$sourceTypeId], array_map(fn (array $p) => $p['productTypeId'], $candidateProducts)));
 
         // Build buildable material type ID set for quick lookup
@@ -224,7 +224,7 @@ class PivotAdvisorService
                     $additionalCost += $missingCost;
                     $missingComponents[] = [
                         'typeId' => $matTypeId,
-                        'typeName' => $typeNames[$matTypeId] ?? "Type #{$matTypeId}",
+                        'typeName' => $typeNames[$matTypeId] ?? null,
                         'quantity' => $missingQty,
                         'cost' => round($missingCost, 2),
                     ];
@@ -242,7 +242,7 @@ class PivotAdvisorService
 
             $scoredCandidates[] = [
                 'typeId' => $cpTypeId,
-                'typeName' => $typeNames[$cpTypeId] ?? "Type #{$cpTypeId}",
+                'typeName' => $typeNames[$cpTypeId] ?? null,
                 'groupName' => $groupNames[$cpTypeId] ?? '',
                 'marginPercent' => round($marginPercent, 2),
                 'profitPerUnit' => round($profitPerUnit, 2),
@@ -329,7 +329,7 @@ class PivotAdvisorService
 
             $matrix[] = [
                 'typeId' => $matTypeId,
-                'typeName' => $typeNames[$matTypeId] ?? "Type #{$matTypeId}",
+                'typeName' => $typeNames[$matTypeId] ?? null,
                 'inStock' => $inStock,
                 'candidates' => $candidates,
             ];
@@ -463,14 +463,14 @@ class PivotAdvisorService
             $matTypeId = $mat['materialTypeId'];
             $keyComponents[] = [
                 'typeId' => $matTypeId,
-                'typeName' => $typeNames[$matTypeId] ?? "Type #{$matTypeId}",
+                'typeName' => $typeNames[$matTypeId] ?? null,
                 'inStock' => $userStock[$matTypeId] ?? 0,
             ];
         }
 
         return [
             'typeId' => $sourceTypeId,
-            'typeName' => $typeNames[$sourceTypeId] ?? "Type #{$sourceTypeId}",
+            'typeName' => $typeNames[$sourceTypeId] ?? null,
             'groupName' => $groupNames[$sourceTypeId] ?? '',
             'marginPercent' => $marginPercent,
             'sellPrice' => $sellPrice !== null ? round($sellPrice, 2) : null,
@@ -484,7 +484,7 @@ class PivotAdvisorService
      */
     private function emptyResult(int $sourceTypeId): array
     {
-        $typeName = $this->typeNameResolver->resolve($sourceTypeId);
+        $typeName = $this->typeNameResolver->findName($sourceTypeId);
 
         return [
             'typeId' => $sourceTypeId,
@@ -536,7 +536,7 @@ class PivotAdvisorService
 
         $jitaPrices = $this->jitaMarketService->getPrices($allTypeIds);
         $dailyVolumes = $this->jitaMarketService->getCachedDailyVolumes([$sourceTypeId]);
-        $typeNames = $this->typeNameResolver->resolveMany($allTypeIds);
+        $typeNames = $this->typeNameResolver->findNames($allTypeIds);
         $groupNames = $this->loadGroupNames([$sourceTypeId]);
         $userStock = $this->assetRepository->getAggregatedQuantitiesByUser($user);
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Entity\Sde\InvType;
 use App\Repository\Sde\InvTypeRepository;
 
 class TypeNameResolver
@@ -31,7 +32,10 @@ class TypeNameResolver
      */
     public function findNames(array $typeIds): array
     {
-        return $this->resolveMany($typeIds);
+        return array_map(
+            static fn (InvType $type): string => $type->getTypeName(),
+            $this->invTypeRepository->findByTypeIds($typeIds),
+        );
     }
 
     /**
