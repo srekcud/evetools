@@ -6,12 +6,15 @@ namespace App\Tests\Integration\MessageHandler;
 
 use App\Entity\Character;
 use App\Entity\EveToken;
+use App\Message\SyncIndustryJobs;
 use App\Message\SyncPlanetaryColonies;
 use App\Message\SyncWalletTransactions;
+use App\MessageHandler\SyncIndustryJobsHandler;
 use App\MessageHandler\SyncPlanetaryColoniesHandler;
 use App\MessageHandler\SyncWalletTransactionsHandler;
 use App\Repository\CharacterRepository;
 use App\Service\Admin\SyncTracker;
+use App\Service\Sync\IndustryJobSyncService;
 use App\Service\Sync\PlanetarySyncService;
 use App\Service\Sync\WalletTransactionSyncService;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -33,6 +36,7 @@ use Symfony\Component\Uid\Uuid;
  */
 #[CoversClass(SyncWalletTransactionsHandler::class)]
 #[CoversClass(SyncPlanetaryColoniesHandler::class)]
+#[CoversClass(SyncIndustryJobsHandler::class)]
 #[AllowMockObjectsWithoutExpectations]
 final class ScheduledCharacterSyncFanOutTest extends KernelTestCase
 {
@@ -63,6 +67,15 @@ final class ScheduledCharacterSyncFanOutTest extends KernelTestCase
             'syncCharacterColonies',
             'App\Message\SyncCharacterPlanetaryColonies',
             'planetary',
+        ];
+        yield 'industry jobs' => [
+            new SyncIndustryJobs(),
+            'scheduler_default',
+            'esi-industry.read_character_jobs.v1',
+            IndustryJobSyncService::class,
+            'syncCharacterJobs',
+            'App\Message\SyncCharacterIndustryJobs',
+            'industry',
         ];
     }
 
