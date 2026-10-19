@@ -551,7 +551,7 @@ class BatchProfitScanRulesTest extends TestCase
         );
 
         $typeNameResolver = $this->createStub(TypeNameResolver::class);
-        $typeNameResolver->method('resolveMany')->willReturnCallback(
+        $typeNameResolver->method('findNames')->willReturnCallback(
             static fn (array $typeIds): array => array_combine($typeIds, array_map(static fn (int $typeId): string => 'Type ' . $typeId, $typeIds)),
         );
 

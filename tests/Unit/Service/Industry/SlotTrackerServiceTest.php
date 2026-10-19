@@ -273,7 +273,7 @@ class SlotTrackerServiceTest extends TestCase
                 default => [],
             });
 
-        $this->typeNameResolver->method('resolveMany')->willReturn([
+        $this->typeNameResolver->method('findNames')->willReturn([
             100 => 'Widget A', 101 => 'Widget B', 102 => 'Widget C', 103 => 'Widget D',
         ]);
         $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
@@ -302,7 +302,7 @@ class SlotTrackerServiceTest extends TestCase
         $this->characterRepository->method('findByUser')->willReturn([$charAlt1, $charMain, $charAlt2]);
         $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([]);
         $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn([]);
-        $this->typeNameResolver->method('resolveMany')->willReturn([]);
+        $this->typeNameResolver->method('findNames')->willReturn([]);
         $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
 
         $result = $this->service->getSlotStatus($this->user);
@@ -325,7 +325,7 @@ class SlotTrackerServiceTest extends TestCase
 
         $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([$jobLate, $jobEarly, $jobMid]);
         $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn([]);
-        $this->typeNameResolver->method('resolveMany')->willReturn([100 => 'A', 101 => 'B', 102 => 'C']);
+        $this->typeNameResolver->method('findNames')->willReturn([100 => 'A', 101 => 'B', 102 => 'C']);
         $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
         $this->calculationService->method('resolveFacilityName')->willReturn(null);
 
@@ -340,7 +340,7 @@ class SlotTrackerServiceTest extends TestCase
     public function testEmptyCharacterList(): void
     {
         $this->characterRepository->method('findByUser')->willReturn([]);
-        $this->typeNameResolver->method('resolveMany')->willReturn([]);
+        $this->typeNameResolver->method('findNames')->willReturn([]);
         $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
 
         $result = $this->service->getSlotStatus($this->user);
@@ -392,7 +392,7 @@ class SlotTrackerServiceTest extends TestCase
         $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn(
             $this->buildSkillMap([CachedCharacterSkill::SKILL_LABORATORY_OPERATION => 5])
         );
-        $this->typeNameResolver->method('resolveMany')->willReturn([100 => 'Blueprint A', 101 => 'Blueprint B']);
+        $this->typeNameResolver->method('findNames')->willReturn([100 => 'Blueprint A', 101 => 'Blueprint B']);
         $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
         $this->calculationService->method('resolveFacilityName')->willReturn(null);
 
@@ -424,7 +424,7 @@ class SlotTrackerServiceTest extends TestCase
         $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn(
             $this->buildSkillMap([CachedCharacterSkill::SKILL_MASS_PRODUCTION => 5])
         );
-        $this->typeNameResolver->method('resolveMany')->willReturn([100 => 'A', 101 => 'B']);
+        $this->typeNameResolver->method('findNames')->willReturn([100 => 'A', 101 => 'B']);
         $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
         $this->calculationService->method('resolveFacilityName')->willReturn(null);
 
@@ -456,7 +456,7 @@ class SlotTrackerServiceTest extends TestCase
                 CachedCharacterSkill::SKILL_LABORATORY_OPERATION => 5,
             ])
         );
-        $this->typeNameResolver->method('resolveMany')->willReturn([100 => 'Ferox', 101 => 'BP TE', 102 => 'BP ME']);
+        $this->typeNameResolver->method('findNames')->willReturn([100 => 'Ferox', 101 => 'BP TE', 102 => 'BP ME']);
         $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
         $this->calculationService->method('resolveFacilityName')->willReturn(null);
 
@@ -491,7 +491,7 @@ class SlotTrackerServiceTest extends TestCase
         $this->jobRepository->method('findActiveJobsByCharacter')->willReturn($jobs);
         // No skills synced: empty array -> max = 1 (base) per category
         $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn([]);
-        $this->typeNameResolver->method('resolveMany')->willReturn(
+        $this->typeNameResolver->method('findNames')->willReturn(
             array_combine(range(101, 105), array_map(fn ($i) => "Reaction $i", range(1, 5)))
         );
         $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
@@ -524,7 +524,7 @@ class SlotTrackerServiceTest extends TestCase
         $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn(
             $this->buildSkillMap([CachedCharacterSkill::SKILL_MASS_PRODUCTION => 5])
         );
-        $this->typeNameResolver->method('resolveMany')->willReturn(
+        $this->typeNameResolver->method('findNames')->willReturn(
             array_combine(range(101, 103), ['Ship A', 'Ship B', 'Ship C'])
         );
         $this->stockpileTargetRepository->method('findByUser')->willReturn([]);

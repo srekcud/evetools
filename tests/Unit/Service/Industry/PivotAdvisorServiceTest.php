@@ -175,7 +175,7 @@ class PivotAdvisorServiceTest extends TestCase
         $this->connection->method('fetchOne')->willReturn(0);
 
         // Type names
-        $this->typeNameResolver->method('resolveMany')->willReturn([
+        $this->typeNameResolver->method('findNames')->willReturn([
             self::SOURCE_PRODUCT => 'Source Ship',
             self::BUILDABLE_MAT_A => 'Component A',
             self::BUILDABLE_MAT_B => 'Component B',
@@ -286,7 +286,7 @@ class PivotAdvisorServiceTest extends TestCase
 
         $this->connection->method('fetchFirstColumn')->willReturn([]);
         $this->connection->method('fetchOne')->willReturn(0);
-        $this->typeNameResolver->method('resolveMany')->willReturn([
+        $this->typeNameResolver->method('findNames')->willReturn([
             self::SOURCE_PRODUCT => 'Source',
             self::BUILDABLE_MAT_A => 'Mat A',
             self::BUILDABLE_MAT_B => 'Mat B',
@@ -368,7 +368,7 @@ class PivotAdvisorServiceTest extends TestCase
 
         $this->connection->method('fetchFirstColumn')->willReturn([]);
         $this->connection->method('fetchOne')->willReturn(0);
-        $this->typeNameResolver->method('resolveMany')->willReturn([
+        $this->typeNameResolver->method('findNames')->willReturn([
             self::SOURCE_PRODUCT => 'Source',
             self::BUILDABLE_MAT_A => 'Mat A',
             self::BUILDABLE_MAT_B => 'Mat B',
@@ -450,11 +450,11 @@ class PivotAdvisorServiceTest extends TestCase
         ]);
 
         $this->connection->method('fetchOne')->willReturn(0);
-        $this->typeNameResolver->method('resolveMany')->willReturn([
+        $this->typeNameResolver->method('findNames')->willReturn([
             self::SOURCE_PRODUCT => 'Source',
             self::RAW_MAT => 'Tritanium',
         ]);
-        $this->typeNameResolver->method('resolve')->willReturn('Source');
+        $this->typeNameResolver->method('findName')->willReturn('Source');
         $this->connection->method('fetchAllAssociative')->willReturn([
             ['type_id' => self::SOURCE_PRODUCT, 'group_name' => 'Group'],
         ]);
@@ -520,7 +520,7 @@ class PivotAdvisorServiceTest extends TestCase
 
         $this->connection->method('fetchFirstColumn')->willReturn([]);
         $this->connection->method('fetchOne')->willReturn(0);
-        $this->typeNameResolver->method('resolveMany')->willReturn([
+        $this->typeNameResolver->method('findNames')->willReturn([
             self::SOURCE_PRODUCT => 'Source',
             self::BUILDABLE_MAT_A => 'Mat A',
             self::CANDIDATE_1 => 'Candidate',
@@ -598,7 +598,7 @@ class PivotAdvisorServiceTest extends TestCase
 
         $this->connection->method('fetchFirstColumn')->willReturn([]);
         $this->connection->method('fetchOne')->willReturn(0);
-        $this->typeNameResolver->method('resolveMany')->willReturn([
+        $this->typeNameResolver->method('findNames')->willReturn([
             self::SOURCE_PRODUCT => 'Source',
             self::BUILDABLE_MAT_A => 'Mat A',
             self::BUILDABLE_MAT_B => 'Mat B',
