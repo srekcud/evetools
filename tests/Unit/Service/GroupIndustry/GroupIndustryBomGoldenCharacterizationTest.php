@@ -19,6 +19,8 @@ use App\Enum\ContributionType;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\IndustryActivityType;
+use App\Exception\InventionProbabilityMissingException;
+use App\Exception\InventionT1ProductMissingException;
 use App\Exception\TypeMissingFromSdeException;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -80,6 +82,12 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     private const int NUCLEAR_PHYSICS_PER_ATTEMPT = 1;
     private const int MECHANICAL_ENGINEERING_PER_ATTEMPT = 2;
     private const int HAIL_L_INVENTION_TIME = 63_900;
+    private const int HAIL_L_CRATE = 990_001;
+    private const int DATACORE_RESEARCH_KIT = 990_002;
+    private const int PROTOTYPE_AMMUNITION_L = 990_003;
+    private const float PROTOTYPE_AMMUNITION_L_BASE_PROBABILITY = 0.4;
+    private const int PROTOTYPE_AMMUNITION_L_INVENTED_BPC_RUNS = 5;
+    private const int PROTOTYPE_AMMUNITION_L_INVENTION_TIME = 48_000;
 
     private const array INVENTION_TYPE_NAMES = [
         self::DEPLETED_URANIUM_L => 'Depleted Uranium L',
@@ -100,6 +108,10 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     private array $maxProductionLimits = [];
 
     private array $typeIdsWithoutSdeName = [];
+
+    private array $otherInventions = [];
+
+    private bool $t1BlueprintWithoutManufacturingProduct = false;
 
     /** @var array{total: float, base: float, rig: float} structure bonus of the best structure of the owner */
     private array $ownerStructureBonus = ['total' => 0.0, 'base' => 0.0, 'rig' => 0.0];
@@ -478,7 +490,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
 
     #[Group('issue-2')]
     #[Group('issue-105')]
-    public function testSevenManufacturingRunsOfHailLNeedThreeInventionAttemptsAndThreeCopiesOfTheT1Blueprint(): void
+    public function testThirtyFiveThousandRunsOfHailLCurrentlyBecomeSevenManufacturingRunsNeedingThreeInventionAttemptsAndThreeCopiesOfTheT1BlueprintIssue2(): void
     {
         $project = $this->projectOf([[self::HAIL_L, 35_000, 2, 4]]);
 
@@ -546,7 +558,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
             $missingProbability = $exception;
         }
 
-        self::assertInstanceOf(\RuntimeException::class, $missingProbability, 'Expected a RuntimeException for the missing invention probability');
+        self::assertInstanceOf(InventionProbabilityMissingException::class, $missingProbability);
         self::assertMatchesRegularExpression('/\b'.self::HAIL_L.'\b/', $missingProbability->getMessage());
         self::assertMatchesRegularExpression('/\b'.self::DEPLETED_URANIUM_L_BLUEPRINT.'\b/', $missingProbability->getMessage());
         self::assertCount(0, $project->getBomItems());
@@ -571,12 +583,13 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
             $missingProbability = $exception;
         }
 
-        self::assertInstanceOf(\RuntimeException::class, $missingProbability, 'Expected a RuntimeException for the missing invention probability');
+        self::assertInstanceOf(InventionProbabilityMissingException::class, $missingProbability);
         self::assertSame([], $persisted);
     }
 
+    #[Group('issue-2')]
     #[Group('issue-105')]
-    public function testTwoHailLItemsShareOneInventionAndOneT1CopySizedOnTheSumOfTheirManufacturingRuns(): void
+    public function testTwoHailLItemsCurrentlyBecomingOneAndSevenManufacturingRunsShareOneInventionAndOneT1CopySizedOnTheirSumIssue2(): void
     {
         $project = $this->projectOf([[self::HAIL_L, 1, 2, 4], [self::HAIL_L, 35_000, 0, 0]]);
 
@@ -594,6 +607,182 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
             [[self::DATACORE_NUCLEAR_PHYSICS, 'Datacore - Nuclear Physics', 3], [self::DATACORE_MECHANICAL_ENGINEERING, 'Datacore - Mechanical Engineering', 6]],
             $this->datacoreLines($project),
         );
+    }
+
+    #[Group('issue-2')]
+    #[Group('issue-105')]
+    public function testTwoHailLItemsCurrentlyBecomingSevenAndSevenManufacturingRunsNeedFiveAttemptsOnTheirSumIssue2(): void
+    {
+        $project = $this->projectOf([[self::HAIL_L, 35_000, 2, 4], [self::HAIL_L, 35_000, 0, 0]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [[7, 0, 0], [7, 2, 4]],
+            $this->sortedJobs(array_map(
+                static fn (GroupIndustryBomItem $bomItem): array => [$bomItem->getRuns(), $bomItem->getMeLevel(), $bomItem->getTeLevel()],
+                $this->jobsOf($project, self::HAIL_L, 'manufacturing'),
+            )),
+        );
+        self::assertSame($this->hailLInventionJobs(5), $this->inventionJobs($project));
+        self::assertSame(
+            [[self::DATACORE_NUCLEAR_PHYSICS, 'Datacore - Nuclear Physics', 5], [self::DATACORE_MECHANICAL_ENGINEERING, 'Datacore - Mechanical Engineering', 10]],
+            $this->datacoreLines($project),
+        );
+    }
+
+    #[Group('issue-105')]
+    public function testManufacturingRunsExactlyCoveredByTheExpectedInventedRunsNeedNoExtraAttempt(): void
+    {
+        $this->addManufacturingRecipe(self::PROTOTYPE_AMMUNITION_L, 'Prototype Ammunition L', 1, [(string) self::MORPHITE => 6]);
+        $this->otherInventions[self::PROTOTYPE_AMMUNITION_L] = self::inventionFromDepletedUraniumL(
+            self::PROTOTYPE_AMMUNITION_L,
+            0.5,
+            10,
+            [self::DATACORE_NUCLEAR_PHYSICS => 3, self::DATACORE_MECHANICAL_ENGINEERING => 4],
+            self::PROTOTYPE_AMMUNITION_L_INVENTION_TIME,
+        );
+        $service = $this->serviceInventing(self::HAIL_L_BASE_PROBABILITY);
+        $project = $this->projectOf([[self::PROTOTYPE_AMMUNITION_L, 5, 0, 0]]);
+
+        $service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', 1, 0, 0, 1, null],
+                [self::PROTOTYPE_AMMUNITION_L, 'invention', 'blueprint', 1, 0, 0, 1, null],
+                [self::PROTOTYPE_AMMUNITION_L, 'manufacturing', 'final', 5, 0, 0, 5, null],
+            ],
+            $this->sortedJobs($this->jobs($project)),
+        );
+        self::assertSame([[self::DATACORE_NUCLEAR_PHYSICS, 'Datacore - Nuclear Physics', 3], [self::DATACORE_MECHANICAL_ENGINEERING, 'Datacore - Mechanical Engineering', 4]], $this->datacoreLines($project));
+    }
+
+    #[Group('issue-105')]
+    public function testT1BlueprintWithoutManufacturingProductThrowsNamingTheT1BlueprintAndPersistsNoProject(): void
+    {
+        $this->t1BlueprintWithoutManufacturingProduct = true;
+
+        [$failure, $persisted] = $this->inventionFailure($this->service);
+
+        self::assertInstanceOf(InventionT1ProductMissingException::class, $failure);
+        self::assertMatchesRegularExpression('/\b'.self::DEPLETED_URANIUM_L_BLUEPRINT.'\b/', $failure->getMessage());
+        self::assertSame([], $persisted);
+    }
+
+    #[Group('issue-105')]
+    public function testZeroInventionProbabilityThrowsAsAMissingProbabilityAndPersistsNoProject(): void
+    {
+        [$failure, $persisted] = $this->inventionFailure($this->serviceInventing(0.0));
+
+        self::assertInstanceOf(InventionProbabilityMissingException::class, $failure);
+        self::assertSame([], $persisted);
+    }
+
+    #[Group('issue-105')]
+    public function testZeroInventedBpcRunsThrowAsAMissingProbabilityAndPersistNoProject(): void
+    {
+        [$failure, $persisted] = $this->inventionFailure($this->serviceInventing(self::HAIL_L_BASE_PROBABILITY, 0));
+
+        self::assertInstanceOf(InventionProbabilityMissingException::class, $failure);
+        self::assertSame([], $persisted);
+    }
+
+    #[Group('issue-105')]
+    public function testInventionOfAnIntermediateHangsUnderTheParentOfItsManufacturingJob(): void
+    {
+        $this->addManufacturingRecipe(self::HAIL_L_CRATE, 'Hail L Crate', 1, [(string) self::HAIL_L => 22_000]);
+        $service = $this->serviceInventing(self::HAIL_L_BASE_PROBABILITY);
+        $project = $this->projectOf([[self::HAIL_L_CRATE, 1, 0, 0]]);
+
+        $service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [[self::HAIL_L, 'manufacturing', 'component', 5, 10, 20, 25_000, self::HAIL_L_CRATE]],
+            array_values(array_filter($this->jobsOfType($project, self::HAIL_L), static fn (array $job): bool => $job[1] === 'manufacturing')),
+        );
+        self::assertSame(
+            [
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', 2, 0, 0, 2, self::HAIL_L_CRATE],
+                [self::HAIL_L, 'invention', 'blueprint', 2, 0, 0, 2, self::HAIL_L_CRATE],
+            ],
+            $this->inventionJobs($project),
+        );
+    }
+
+    #[Group('issue-105')]
+    public function testDatacoreAlsoNeededAsAMaterialOfAnotherTreeAddsBothQuantities(): void
+    {
+        $this->addManufacturingRecipe(self::DATACORE_RESEARCH_KIT, 'Datacore Research Kit', 1, [(string) self::DATACORE_NUCLEAR_PHYSICS => 4, (string) self::MORPHITE => 9]);
+        $service = $this->serviceInventing(self::HAIL_L_BASE_PROBABILITY);
+        $project = $this->projectOf([[self::HAIL_L, 1, 2, 4], [self::DATACORE_RESEARCH_KIT, 1, 0, 0]]);
+
+        $service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [[self::DATACORE_NUCLEAR_PHYSICS, 'Datacore - Nuclear Physics', 5], [self::DATACORE_MECHANICAL_ENGINEERING, 'Datacore - Mechanical Engineering', 2]],
+            $this->datacoreLines($project),
+        );
+    }
+
+    #[Group('issue-105')]
+    public function testTwoT2ProductsInventedFromTheSameT1BlueprintShareOneT1CopyAndAddTheirAttemptsAndDatacores(): void
+    {
+        $this->addManufacturingRecipe(self::PROTOTYPE_AMMUNITION_L, 'Prototype Ammunition L', 1, [(string) self::MORPHITE => 6]);
+        $this->otherInventions[self::PROTOTYPE_AMMUNITION_L] = self::inventionFromDepletedUraniumL(
+            self::PROTOTYPE_AMMUNITION_L,
+            self::PROTOTYPE_AMMUNITION_L_BASE_PROBABILITY,
+            self::PROTOTYPE_AMMUNITION_L_INVENTED_BPC_RUNS,
+            [self::DATACORE_NUCLEAR_PHYSICS => 3, self::DATACORE_MECHANICAL_ENGINEERING => 4],
+            self::PROTOTYPE_AMMUNITION_L_INVENTION_TIME,
+        );
+        $service = $this->serviceInventing(self::HAIL_L_BASE_PROBABILITY);
+        $project = $this->projectOf([[self::HAIL_L, 1, 2, 4], [self::PROTOTYPE_AMMUNITION_L, 3, 0, 0]]);
+
+        $service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', 3, 0, 0, 3, null],
+                [self::HAIL_L, 'invention', 'blueprint', 1, 0, 0, 1, null],
+                [self::PROTOTYPE_AMMUNITION_L, 'invention', 'blueprint', 2, 0, 0, 2, null],
+            ],
+            $this->inventionJobs($project),
+        );
+        self::assertSame(
+            [[self::DATACORE_NUCLEAR_PHYSICS, 'Datacore - Nuclear Physics', 7], [self::DATACORE_MECHANICAL_ENGINEERING, 'Datacore - Mechanical Engineering', 10]],
+            $this->datacoreLines($project),
+        );
+    }
+
+    #[Group('issue-105')]
+    public function testDatacoreMissingFromTheSdeTypesThrowsAndLeavesTheBomEmpty(): void
+    {
+        $this->typeIdsWithoutSdeName = [self::DATACORE_MECHANICAL_ENGINEERING];
+        $project = $this->projectOf([[self::HAIL_L, 1, 2, 4]]);
+
+        try {
+            $this->service->buildBom($project, $this->owner);
+            self::fail('Expected a TypeMissingFromSdeException');
+        } catch (TypeMissingFromSdeException $exception) {
+            self::assertSame([self::DATACORE_MECHANICAL_ENGINEERING], $exception->getMissingTypeIds());
+        }
+        self::assertCount(0, $project->getBomItems());
+    }
+
+    #[Group('issue-105')]
+    public function testT1ProductMissingFromTheSdeTypesThrowsAndLeavesTheBomEmpty(): void
+    {
+        $this->typeIdsWithoutSdeName = [self::DEPLETED_URANIUM_L];
+        $project = $this->projectOf([[self::HAIL_L, 1, 2, 4]]);
+
+        try {
+            $this->service->buildBom($project, $this->owner);
+            self::fail('Expected a TypeMissingFromSdeException');
+        } catch (TypeMissingFromSdeException $exception) {
+            self::assertSame([self::DEPLETED_URANIUM_L], $exception->getMissingTypeIds());
+        }
+        self::assertCount(0, $project->getBomItems());
     }
 
     #[Group('issue-106')]
@@ -1222,34 +1411,24 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         return new IndustryTreeService($productRepository, $materialRepository, $typeRepository, $entityManager, $bonusService);
     }
 
-    private function serviceInventing(?float $hailLBaseProbability): GroupIndustryProjectService
+    private function serviceInventing(?float $hailLBaseProbability, int $hailLInventedBpcRuns = self::HAIL_L_INVENTED_BPC_RUNS): GroupIndustryProjectService
     {
+        $hailLInvention = self::inventionFromDepletedUraniumL(
+            self::HAIL_L,
+            $hailLBaseProbability,
+            $hailLInventedBpcRuns,
+            [self::DATACORE_NUCLEAR_PHYSICS => self::NUCLEAR_PHYSICS_PER_ATTEMPT, self::DATACORE_MECHANICAL_ENGINEERING => self::MECHANICAL_ENGINEERING_PER_ATTEMPT],
+            self::HAIL_L_INVENTION_TIME,
+        );
         $inventionService = $this->createMock(InventionService::class);
         $inventionService->method('getInventionData')->willReturnCallback(
-            static fn (int $t2TypeId): ?array => $t2TypeId === self::HAIL_L ? [
-                't1BlueprintTypeId' => self::DEPLETED_URANIUM_L_BLUEPRINT,
-                't2BlueprintTypeId' => self::HAIL_L + self::BLUEPRINT_TYPE_ID_OFFSET,
-                'probability' => $hailLBaseProbability,
-                'baseRuns' => self::HAIL_L_INVENTED_BPC_RUNS,
-                'materials' => [
-                    [
-                        'typeId' => self::DATACORE_NUCLEAR_PHYSICS,
-                        'typeName' => self::INVENTION_TYPE_NAMES[self::DATACORE_NUCLEAR_PHYSICS],
-                        'quantity' => self::NUCLEAR_PHYSICS_PER_ATTEMPT,
-                    ],
-                    [
-                        'typeId' => self::DATACORE_MECHANICAL_ENGINEERING,
-                        'typeName' => self::INVENTION_TYPE_NAMES[self::DATACORE_MECHANICAL_ENGINEERING],
-                        'quantity' => self::MECHANICAL_ENGINEERING_PER_ATTEMPT,
-                    ],
-                ],
-                'inventionTime' => self::HAIL_L_INVENTION_TIME,
-            ] : null,
+            fn (int $t2TypeId): ?array => $t2TypeId === self::HAIL_L ? $hailLInvention : ($this->otherInventions[$t2TypeId] ?? null),
         );
 
         $activityProductRepository = $this->createMock(IndustryActivityProductRepository::class);
         $activityProductRepository->method('findProductsForBlueprints')->willReturnCallback(
-            static fn (array $blueprintTypeIds, array $activityIds): array => in_array(self::DEPLETED_URANIUM_L_BLUEPRINT, $blueprintTypeIds, true)
+            fn (array $blueprintTypeIds, array $activityIds): array => !$this->t1BlueprintWithoutManufacturingProduct
+                && in_array(self::DEPLETED_URANIUM_L_BLUEPRINT, $blueprintTypeIds, true)
                 && in_array(IndustryActivityType::Manufacturing->value, $activityIds, true)
                 ? [
                     self::DEPLETED_URANIUM_L_BLUEPRINT.'-'.IndustryActivityType::Manufacturing->value => (new IndustryActivityProduct())
@@ -1269,6 +1448,52 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
             $inventionService,
             $activityProductRepository,
         );
+    }
+
+    private static function inventionFromDepletedUraniumL(int $t2TypeId, ?float $baseProbability, int $inventedBpcRuns, array $datacoreQuantitiesPerAttempt, int $inventionTime): array
+    {
+        return [
+            't1BlueprintTypeId' => self::DEPLETED_URANIUM_L_BLUEPRINT,
+            't2BlueprintTypeId' => $t2TypeId + self::BLUEPRINT_TYPE_ID_OFFSET,
+            'probability' => $baseProbability,
+            'baseRuns' => $inventedBpcRuns,
+            'materials' => array_map(
+                static fn (int $datacoreTypeId, int $quantityPerAttempt): array => [
+                    'typeId' => $datacoreTypeId,
+                    'typeName' => self::INVENTION_TYPE_NAMES[$datacoreTypeId],
+                    'quantity' => $quantityPerAttempt,
+                ],
+                array_keys($datacoreQuantitiesPerAttempt),
+                $datacoreQuantitiesPerAttempt,
+            ),
+            'inventionTime' => $inventionTime,
+        ];
+    }
+
+    private function addManufacturingRecipe(int $productTypeId, string $typeName, int $outputPerRun, array $materials): void
+    {
+        $this->sde['recipes'][(string) $productTypeId] = ['name' => $typeName, 'activity' => 'manufacturing', 'outputPerRun' => $outputPerRun, 'materials' => $materials];
+        $this->sde['typeNames'][(string) $productTypeId] = $typeName;
+    }
+
+    private function inventionFailure(GroupIndustryProjectService $service): array
+    {
+        $persisted = [];
+        $this->entityManager->method('persist')->willReturnCallback(static function (object $entity) use (&$persisted): void {
+            $persisted[] = $entity;
+        });
+
+        $failure = null;
+        try {
+            $service->createProject($this->owner, new CreateProjectData(
+                name: 'Hail run',
+                items: [['typeId' => self::HAIL_L, 'typeName' => 'Hail L', 'meLevel' => 2, 'teLevel' => 4, 'runs' => 1]],
+            ));
+        } catch (\Throwable $exception) {
+            $failure = $exception;
+        }
+
+        return [$failure, $persisted];
     }
 
     private function typeRepositoryOnGoldenSde(): InvTypeRepository

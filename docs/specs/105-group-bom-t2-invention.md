@@ -12,6 +12,8 @@
 - **R4 — Copie du T1.** Une ligne de copie par produit inventé : `typeId` = produit T1 (`t1ProductTypeId`), activité `copy`, groupe `blueprint`, `runs` = tentatives (une copie d'un run par tentative), `requiredQuantity` = tentatives, ME 0 / TE 0, même parent que R3.
 - **R5 — Datacores.** Chaque datacore de la recette est ajouté aux matériaux de la BOM, quantité = quantité par tentative × tentatives, agrégé avec les autres matériaux et pricé comme eux.
 - **R6 — Probabilité inconnue.** Si la recette n'a pas de probabilité, la construction de la BOM échoue avec une erreur explicite qui nomme le produit T2 et le blueprint T1 ; aucune BOM partielle n'est enregistrée.
+- **R6b — Recette inexploitable.** Une probabilité ≤ 0 ou des runs de base ≤ 0 suivent R6 (même erreur explicite). Un blueprint T1 sans produit de fabrication dans le SDE lève une erreur dédiée qui nomme le blueprint T1 ; aucune BOM enregistrée.
+- **R6c — Frontend.** Sur une ligne `invention`, la colonne des runs est libellée « Tentatives » (FR) / « Attempts » (EN).
 - **R7 — Inchangé.** Nœuds non inventés (T1, réactions) : copie comme aujourd'hui. Matériaux de fabrication, lignes de production.
 
 ## Exemples chiffrés
@@ -31,6 +33,11 @@ Recette d'invention de Hail L (SDE) : blueprint T1 898, produit T1 197 (Depleted
 
 - Un datacore déjà présent comme matériau : quantités additionnées.
 - Les intermédiaires d'un T2 (Ram Ammunition Tech, réactions…) gardent leurs règles actuelles.
+
+## Revue (2026-10-19)
+
+- Calcul des tentatives laissé dans le service plutôt que dans le Domain du noyau (proposé par la revue DDD) : contraire à la décision de ne pas importer `App\Industry` depuis `src/Service`.
+- Libellés i18n des activités (`copy`, `invention`) de la table des jobs : hors périmètre, défaut antérieur.
 
 ## Hors périmètre
 
