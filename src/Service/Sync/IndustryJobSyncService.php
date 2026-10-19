@@ -184,24 +184,25 @@ class IndustryJobSyncService implements ResetInterface
             // from ESI with an end_date in the past are effectively delivered/expired.
             // Alts' jobs are left to their own sync; corporation jobs fetched earlier in this
             // run (corp endpoint is not called again) are still present in ESI.
-            $now = new \DateTimeImmutable();
-            $activeJobsToCheck = $corporationJobsUnknown ? [] : $this->jobRepository->findActiveJobsByCharacter($character);
-            foreach ($activeJobsToCheck as $dbJob) {
-                $jobId = $dbJob->getJobId();
-                if (in_array($jobId, $ownedEsiJobIds, true) || isset($this->corporationJobIdsSeenThisRun[$jobId])) {
-                    continue;
+            if (!$corporationJobsUnknown) {
+                $now = new \DateTimeImmutable();
+                foreach ($this->jobRepository->findActiveJobsByCharacter($character) as $dbJob) {
+                    $jobId = $dbJob->getJobId();
+                    if (in_array($jobId, $ownedEsiJobIds, true) || isset($this->corporationJobIdsSeenThisRun[$jobId])) {
+                        continue;
+                    }
+                    if ($dbJob->getEndDate() > $now) {
+                        continue;
+                    }
+                    $dbJob->setStatus('delivered');
+                    $dbJob->setCompletedDate($dbJob->getEndDate());
+                    $dbJob->setCachedAt($now);
+                    $this->logger->info('Stale industry job marked as delivered', [
+                        'jobId' => $jobId,
+                        'characterName' => $character->getName(),
+                        'endDate' => $dbJob->getEndDate()->format('c'),
+                    ]);
                 }
-                if ($dbJob->getEndDate() > $now) {
-                    continue;
-                }
-                $dbJob->setStatus('delivered');
-                $dbJob->setCompletedDate($dbJob->getEndDate());
-                $dbJob->setCachedAt($now);
-                $this->logger->info('Stale industry job marked as delivered', [
-                    'jobId' => $jobId,
-                    'characterName' => $character->getName(),
-                    'endDate' => $dbJob->getEndDate()->format('c'),
-                ]);
             }
 
             $this->entityManager->flush();
