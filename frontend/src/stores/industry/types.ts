@@ -683,6 +683,7 @@ export type StockpileItemStatus = {
   typeId: number
   typeName: string
   targetQuantity: number
+  remainingTargetQuantity: number
   stock: number
   percent: number
   status: 'met' | 'partial' | 'critical'
@@ -724,6 +725,13 @@ export type StockpileStatus = {
   stages: Record<StockpileStage, StockpileStageStatus>
   kpis: StockpileKpis
   shoppingList: StockpileShoppingItem[]
+  importsWithoutPlan: number[]
+  failedProducts: StockpileFailedProduct[]
+}
+
+export type StockpileFailedProduct = {
+  typeId: number
+  reason: string
 }
 
 export type StockpileShoppingItem = {

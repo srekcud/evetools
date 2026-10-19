@@ -148,7 +148,8 @@ function onDeleteTarget(targetId: string): void {
             </div>
             <div class="flex items-center justify-between">
               <div class="relative group/loc font-mono text-xs text-slate-500" :class="{ 'cursor-help underline decoration-dotted decoration-slate-600': item.locations?.length > 1 }">
-                {{ formatNumber(item.stock, 0) }} / {{ formatNumber(item.targetQuantity, 0) }}
+                {{ formatNumber(item.stock, 0) }} / {{ formatNumber(item.remainingTargetQuantity, 0) }}
+                <span v-if="item.remainingTargetQuantity !== item.targetQuantity" class="text-slate-600">({{ formatNumber(item.targetQuantity, 0) }})</span>
                 <!-- Location tooltip -->
                 <div
                   v-if="item.locations?.length > 0"

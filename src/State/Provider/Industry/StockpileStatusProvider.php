@@ -38,6 +38,8 @@ class StockpileStatusProvider implements ProviderInterface
         $resource->stages = $status['stages'];
         $resource->kpis = $status['kpis'];
         $resource->shoppingList = $status['shoppingList'];
+        $resource->importsWithoutPlan = $status['importsWithoutPlan'];
+        $resource->failedProducts = $status['failedProducts'];
 
         return $resource;
     }

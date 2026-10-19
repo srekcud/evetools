@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Industry;
 
+use App\Entity\IndustryStockpileImport;
 use App\Entity\IndustryStockpileTarget;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
@@ -93,8 +94,11 @@ class StockpileService
 
         if ($mode === 'replace') {
             $this->targetRepository->deleteAllForUser($user);
+            $this->importRepository->deleteAllForUser($user);
             $this->entityManager->flush();
         }
+
+        $this->entityManager->persist(new IndustryStockpileImport($user, $typeId, $runs, $me));
 
         foreach ($flatTargets as $matTypeId => $item) {
             if ($mode === 'merge') {
@@ -122,7 +126,7 @@ class StockpileService
     /**
      * Compute the full stockpile status with KPIs for a user.
      *
-     * @return array{targetCount: int, stages: array<string, array{items: list<array<string, mixed>>, totalValue: float, healthPercent: float}>, kpis: array{pipelineHealth: float, totalInvested: float, bottleneck: array<string, mixed>|null, estOutput: array{ready: int, total: int, readyNames: list<string>}}, shoppingList: list<array<string, mixed>>}
+     * @return array{targetCount: int, stages: array<string, array{items: list<array<string, mixed>>, totalValue: float, healthPercent: float}>, kpis: array{pipelineHealth: float, totalInvested: float, bottleneck: array<string, mixed>|null, estOutput: array{ready: int, total: int, readyNames: list<string>}}, shoppingList: list<array<string, mixed>>, importsWithoutPlan: list<int>, failedProducts: list<array{typeId: int, reason: string}>}
      */
     public function getStockpileStatus(User $user): array
     {
@@ -139,6 +143,8 @@ class StockpileService
                     'estOutput' => ['ready' => 0, 'total' => 0, 'readyNames' => []],
                 ],
                 'shoppingList' => [],
+                'importsWithoutPlan' => [],
+                'failedProducts' => [],
             ];
         }
 
@@ -146,6 +152,9 @@ class StockpileService
         $assetQuantities = array_map(fn (array $data) => $data['total'], $stockData);
         $typeIds = array_map(fn (IndustryStockpileTarget $t) => $t->getTypeId(), $targets);
         $prices = $this->jitaMarketService->getPrices($typeIds);
+
+        $startingStockReduction = $this->reduceTargetsByStartingStock($user, $targets, $assetQuantities);
+        $remainingTargetQuantities = $startingStockReduction['remainingTargetQuantities'];
 
         // Build computed items grouped by stage
         $stageGroups = [];
@@ -158,12 +167,12 @@ class StockpileService
         foreach ($targets as $target) {
             $tid = $target->getTypeId();
             $stock = $assetQuantities[$tid] ?? 0;
-            $targetQty = $target->getTargetQuantity();
-            $percent = $targetQty > 0
-                ? min(self::FULL_PERMILLE, intdiv($stock * self::FULL_PERMILLE, $targetQty)) / self::PERMILLE_PER_PERCENT
+            $remainingTargetQty = $remainingTargetQuantities[$tid];
+            $percent = $remainingTargetQty > 0
+                ? min(self::FULL_PERMILLE, intdiv($stock * self::FULL_PERMILLE, $remainingTargetQty)) / self::PERMILLE_PER_PERCENT
                 : 100.0;
 
-            if ($target->isMetBy($stock)) {
+            if ($stock >= $remainingTargetQty) {
                 $status = 'met';
                 $metCount++;
             } elseif ($percent >= 50) {
@@ -174,14 +183,15 @@ class StockpileService
 
             $unitPrice = $prices[$tid] ?? 0.0;
             $stockValue = $stock * ($unitPrice ?? 0.0);
-            $deficitCost = max(0, $targetQty - $stock) * ($unitPrice ?? 0.0);
+            $deficitCost = max(0, $remainingTargetQty - $stock) * ($unitPrice ?? 0.0);
             $totalInvested += $stockValue;
 
             $item = [
                 'id' => $target->getId()?->toRfc4122(),
                 'typeId' => $tid,
                 'typeName' => $target->getTypeName(),
-                'targetQuantity' => $targetQty,
+                'targetQuantity' => $target->getTargetQuantity(),
+                'remainingTargetQuantity' => $remainingTargetQty,
                 'stock' => $stock,
                 'percent' => $percent,
                 'status' => $status,
@@ -201,7 +211,7 @@ class StockpileService
                 $worstItem = $item;
             }
 
-            if ($stock < $targetQty) {
+            if ($stock < $remainingTargetQty) {
                 $shoppingList[] = $item;
             }
         }
@@ -248,7 +258,7 @@ class StockpileService
         }
 
         // KPI: estimated output
-        $estOutput = $this->computeEstOutput($targets, $assetQuantities);
+        $estOutput = $this->computeEstOutput($targets, $assetQuantities, $remainingTargetQuantities);
 
         return [
             'targetCount' => $totalTargets,
@@ -260,6 +270,45 @@ class StockpileService
                 'estOutput' => $estOutput,
             ],
             'shoppingList' => $shoppingList,
+            'importsWithoutPlan' => $startingStockReduction['importsWithoutPlan'],
+            'failedProducts' => $startingStockReduction['failedProducts'],
+        ];
+    }
+
+    /**
+     * @param IndustryStockpileTarget[] $targets
+     * @param array<int, int> $assetQuantities
+     * @return array{remainingTargetQuantities: array<int, int>, importsWithoutPlan: list<int>, failedProducts: list<array{typeId: int, reason: string}>}
+     */
+    private function reduceTargetsByStartingStock(User $user, array $targets, array $assetQuantities): array
+    {
+        $stockpileImports = $this->importRepository->findByUserInCreationOrder($user);
+        $importedProductTypeIds = array_map(static fn (IndustryStockpileImport $i): int => $i->getProductTypeId(), $stockpileImports);
+        $targetSourceProductTypeIds = array_map(static fn (IndustryStockpileTarget $t): ?int => $t->getSourceProductTypeId(), $targets);
+        $importsWithTargets = array_values(array_filter(
+            $stockpileImports,
+            static fn (IndustryStockpileImport $i): bool => in_array($i->getProductTypeId(), $targetSourceProductTypeIds, true),
+        ));
+        $reduction = $this->startingStockReducer->reduce($importsWithTargets, $assetQuantities, $user);
+
+        $remainingTargetQuantities = [];
+        $importsWithoutPlan = [];
+        foreach ($targets as $target) {
+            $source = $target->getSourceProductTypeId();
+            $isImportRecorded = in_array($source, $importedProductTypeIds, true);
+            $remainingTargetQuantities[$target->getTypeId()] = $isImportRecorded
+                ? max(0, $target->getTargetQuantity() - ($reduction['reductionByTypeId'][$target->getTypeId()] ?? 0))
+                : $target->getTargetQuantity();
+            if ($source !== null && !$isImportRecorded) {
+                $importsWithoutPlan[$source] = $source;
+            }
+        }
+        ksort($importsWithoutPlan);
+
+        return [
+            'remainingTargetQuantities' => $remainingTargetQuantities,
+            'importsWithoutPlan' => array_values($importsWithoutPlan),
+            'failedProducts' => $reduction['failedProducts'],
         ];
     }
 
@@ -362,9 +411,10 @@ class StockpileService
     /**
      * @param IndustryStockpileTarget[] $targets
      * @param array<int, int> $assetQuantities
+     * @param array<int, int> $remainingTargetQuantities
      * @return array{ready: int, total: int, readyNames: list<string>}
      */
-    private function computeEstOutput(array $targets, array $assetQuantities): array
+    private function computeEstOutput(array $targets, array $assetQuantities, array $remainingTargetQuantities): array
     {
         // Group targets by sourceProductTypeId
         $bySource = [];
@@ -388,18 +438,27 @@ class StockpileService
         foreach ($finalProducts as [$finalProduct, $source]) {
             $upstreamMet = true;
             foreach ($bySource[$source] as $target) {
-                if ($target !== $finalProduct && !$target->isMetBy($assetQuantities[$target->getTypeId()] ?? 0)) {
+                if ($target !== $finalProduct && !$this->isRemainingTargetMet($target, $assetQuantities, $remainingTargetQuantities)) {
                     $upstreamMet = false;
                     break;
                 }
             }
 
-            if ($upstreamMet || $finalProduct->isMetBy($assetQuantities[$finalProduct->getTypeId()] ?? 0)) {
+            if ($upstreamMet || $this->isRemainingTargetMet($finalProduct, $assetQuantities, $remainingTargetQuantities)) {
                 $ready++;
                 $readyNames[] = $finalProduct->getTypeName();
             }
         }
 
         return ['ready' => $ready, 'total' => $total, 'readyNames' => $readyNames];
+    }
+
+    /**
+     * @param array<int, int> $assetQuantities
+     * @param array<int, int> $remainingTargetQuantities
+     */
+    private function isRemainingTargetMet(IndustryStockpileTarget $target, array $assetQuantities, array $remainingTargetQuantities): bool
+    {
+        return ($assetQuantities[$target->getTypeId()] ?? 0) >= $remainingTargetQuantities[$target->getTypeId()];
     }
 }

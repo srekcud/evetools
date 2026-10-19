@@ -1228,6 +1228,12 @@
         "buildable": "buildable"
       },
       "locationBreakdown": "Location Breakdown",
+      "importWarnings": {
+        "title": "Import warnings",
+        "withoutPlan": "Reimport these products to take the stock of their intermediates into account:",
+        "failedProducts": "These products could not be rebuilt, their targets are not reduced by the stock of their intermediates:",
+        "unknownProduct": "Unknown product #{typeId}"
+      },
       "stages": {
         "raw_material": "Raw Materials",
         "intermediate": "Intermediates",

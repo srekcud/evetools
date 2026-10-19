@@ -72,6 +72,18 @@ const shoppingItems = computed(() =>
   stockpileStore.stockpileStatus?.shoppingList.filter(i => i.deficit > 0) ?? [],
 )
 
+const productNameByTypeId = computed(() => new Map(
+  (stockpileStore.stockpileStatus?.stages.final_product.items ?? []).map(item => [item.typeId, item.typeName]),
+))
+
+function productName(typeId: number): string {
+  return productNameByTypeId.value.get(typeId) ?? t('industry.stockpile.importWarnings.unknownProduct', { typeId })
+}
+
+const importsWithoutPlan = computed(() => stockpileStore.stockpileStatus?.importsWithoutPlan ?? [])
+const failedProducts = computed(() => stockpileStore.stockpileStatus?.failedProducts ?? [])
+const hasImportWarnings = computed(() => importsWithoutPlan.value.length > 0 || failedProducts.value.length > 0)
+
 const clearing = ref(false)
 const showConfirmModal = ref(false)
 const pendingAction = ref<(() => Promise<void>) | null>(null)
@@ -291,6 +303,28 @@ onMounted(async () => {
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div
+      v-if="hasImportWarnings"
+      data-testid="stockpile-import-warnings"
+      class="bg-amber-500/5 rounded-xl border border-amber-500/30 px-6 py-4 space-y-3 text-sm"
+    >
+      <h2 class="font-semibold text-amber-400">{{ t('industry.stockpile.importWarnings.title') }}</h2>
+      <div v-if="importsWithoutPlan.length > 0">
+        <p class="text-slate-300">{{ t('industry.stockpile.importWarnings.withoutPlan') }}</p>
+        <ul class="mt-1 list-disc list-inside text-slate-400">
+          <li v-for="typeId in importsWithoutPlan" :key="typeId">{{ productName(typeId) }}</li>
+        </ul>
+      </div>
+      <div v-if="failedProducts.length > 0">
+        <p class="text-slate-300">{{ t('industry.stockpile.importWarnings.failedProducts') }}</p>
+        <ul class="mt-1 list-disc list-inside text-slate-400">
+          <li v-for="failed in failedProducts" :key="failed.typeId">
+            {{ productName(failed.typeId) }}: <span class="font-mono text-xs text-slate-500">{{ failed.reason }}</span>
+          </li>
+        </ul>
       </div>
     </div>
 
