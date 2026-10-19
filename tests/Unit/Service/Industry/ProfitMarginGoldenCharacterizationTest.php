@@ -663,8 +663,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         $invTypeRepository = $this->sdeInvTypeRepository();
         $costIndexService = new EsiCostIndexService($this->createStub(EsiClient::class), $this->costIndexCache(), new NullLogger());
         $jitaMarketService = $this->jitaMarketService($typeId);
-        $typeNameResolver = $this->createStub(TypeNameResolver::class);
-        $typeNameResolver->method('resolve')->willReturnCallback(fn (int $id): string => $this->typeNames[(string) $id]);
+        $typeNameResolver = new TypeNameResolver($invTypeRepository);
 
         $connection = $this->createStub(Connection::class);
         $connection->method('fetchOne')->willReturn(1);

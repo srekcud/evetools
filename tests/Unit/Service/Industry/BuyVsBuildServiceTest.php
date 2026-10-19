@@ -20,18 +20,22 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(BuyVsBuildService::class)]
 class BuyVsBuildServiceTest extends TestCase
 {
+    use ResolvesTypeNamesFromSde;
+
     private IndustryTreeService&MockObject $treeService;
     private JitaMarketService&MockObject $jitaMarketService;
     private StructureMarketService&MockObject $structureMarketService;
     private EsiCostIndexService&MockObject $esiCostIndexService;
     private InventionService&MockObject $inventionService;
-    private TypeNameResolver&MockObject $typeNameResolver;
     private IndustryBlacklistService&MockObject $blacklistService;
     private IndustryActivityMaterialRepository&MockObject $materialRepository;
     private BuyVsBuildService $service;
 
     private const SOLAR_SYSTEM_ID = 30002510;
     private const SELL_STRUCTURE_ID = 1035466617946;
+    private const int HEAVY_WATER_TYPE_ID = 16272;
+    private const int LIQUID_OZONE_TYPE_ID = 16273;
+    private const int MECHANICAL_PARTS_TYPE_ID = 3689;
 
     protected function setUp(): void
     {
@@ -40,7 +44,6 @@ class BuyVsBuildServiceTest extends TestCase
         $this->structureMarketService = $this->createMock(StructureMarketService::class);
         $this->esiCostIndexService = $this->createMock(EsiCostIndexService::class);
         $this->inventionService = $this->createMock(InventionService::class);
-        $this->typeNameResolver = $this->createMock(TypeNameResolver::class);
         $this->blacklistService = $this->createMock(IndustryBlacklistService::class);
         $this->materialRepository = $this->createMock(IndustryActivityMaterialRepository::class);
 
@@ -50,7 +53,21 @@ class BuyVsBuildServiceTest extends TestCase
             $this->structureMarketService,
             $this->esiCostIndexService,
             $this->inventionService,
-            $this->typeNameResolver,
+            new TypeNameResolver($this->sdeTypeRepositoryKnowing([
+                22456 => 'Sabre',
+                11530 => 'Plasma Thruster',
+                1001 => 'T2 Ship',
+                2001 => 'T2 Component',
+                3001 => 'T1 Component',
+                101 => 'Product',
+                201 => 'Cheap Component',
+                301 => 'Expensive Component',
+                self::NITROGEN_FUEL_BLOCK_TYPE_ID => self::NITROGEN_FUEL_BLOCK_NAME,
+                self::HYDROGEN_FUEL_BLOCK_TYPE_ID => self::HYDROGEN_FUEL_BLOCK_NAME,
+                self::HEAVY_WATER_TYPE_ID => 'Heavy Water',
+                self::LIQUID_OZONE_TYPE_ID => 'Liquid Ozone',
+                self::MECHANICAL_PARTS_TYPE_ID => 'Mechanical Parts',
+            ])),
             $this->blacklistService,
             $this->materialRepository,
         );
@@ -128,11 +145,6 @@ class BuyVsBuildServiceTest extends TestCase
         $tree = $this->buildTreeWithIntermediates();
         $this->treeService->method('buildProductionTree')->willReturn($tree);
         $this->inventionService->method('isT2')->willReturn(true);
-        $this->typeNameResolver->method('resolve')->willReturnCallback(fn (int $id) => match ($id) {
-            22456 => 'Sabre',
-            11530 => 'Plasma Thruster',
-            default => "Type #{$id}",
-        });
 
         // Jita prices: Plasma Thruster costs 200 ISK each to buy
         // But materials to build are cheap (Tritanium 5.0 * 10000 = 50000 for 50 units = 1000/unit)
@@ -225,7 +237,6 @@ class BuyVsBuildServiceTest extends TestCase
 
         $this->treeService->method('buildProductionTree')->willReturn($tree);
         $this->inventionService->method('isT2')->willReturn(false);
-        $this->typeNameResolver->method('resolve')->willReturnCallback(fn (int $id) => "Type #{$id}");
 
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             587 => 100000.0,
@@ -279,7 +290,6 @@ class BuyVsBuildServiceTest extends TestCase
 
         $this->treeService->method('buildProductionTree')->willReturn($tree);
         $this->inventionService->method('isT2')->willReturn(false);
-        $this->typeNameResolver->method('resolve')->willReturnCallback(fn (int $id) => "Type #{$id}");
 
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             587 => 200000.0,
@@ -329,7 +339,6 @@ class BuyVsBuildServiceTest extends TestCase
 
         $this->treeService->method('buildProductionTree')->willReturn($tree);
         $this->inventionService->method('isT2')->willReturn(false);
-        $this->typeNameResolver->method('resolve')->willReturnCallback(fn (int $id) => "Type #{$id}");
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([587 => null, 34 => 5.0]);
         $this->structureMarketService->method('getLowestSellPrice')->willReturn(null);
         $this->structureMarketService->method('getLowestSellPrices')->willReturn([]);
@@ -421,9 +430,6 @@ class BuyVsBuildServiceTest extends TestCase
 
         $this->treeService->method('buildProductionTree')->willReturn($tree);
         $this->inventionService->method('isT2')->willReturn(true);
-        $this->typeNameResolver->method('resolve')->willReturnCallback(fn (int $id) => match ($id) {
-            1001 => 'T2 Ship', 2001 => 'T2 Component', 3001 => 'T1 Component', default => "Type #{$id}",
-        });
 
         // T1 Component costs 100 ISK each at Jita
         // T2 Component costs 5000 ISK each at Jita
@@ -514,9 +520,6 @@ class BuyVsBuildServiceTest extends TestCase
 
         $this->treeService->method('buildProductionTree')->willReturn($tree);
         $this->inventionService->method('isT2')->willReturn(false);
-        $this->typeNameResolver->method('resolve')->willReturnCallback(fn (int $id) => match ($id) {
-            101 => 'Product', 201 => 'Cheap Component', 301 => 'Expensive Component', default => "Type #{$id}",
-        });
 
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             101 => 1000000.0,
@@ -540,5 +543,193 @@ class BuyVsBuildServiceTest extends TestCase
         // Expensive Component should be first (higher savings)
         $this->assertSame(301, $result['components'][0]['typeId']);
         $this->assertSame(201, $result['components'][1]['typeId']);
+    }
+
+    public function testProductComponentAndMaterialKnownToTheSdeKeepTheirSdeNames(): void
+    {
+        $result = $this->analyzeProductWithOneBuildableComponent(
+            self::NITROGEN_FUEL_BLOCK_TYPE_ID,
+            self::HYDROGEN_FUEL_BLOCK_TYPE_ID,
+            self::HEAVY_WATER_TYPE_ID,
+        );
+
+        $this->assertSame(
+            $this->expectedAnalysis(
+                self::NITROGEN_FUEL_BLOCK_TYPE_ID, self::NITROGEN_FUEL_BLOCK_NAME,
+                self::HYDROGEN_FUEL_BLOCK_TYPE_ID, self::HYDROGEN_FUEL_BLOCK_NAME,
+                self::HEAVY_WATER_TYPE_ID, 'Heavy Water',
+            ),
+            $result,
+        );
+    }
+
+    public function testProductAbsentFromTheSdeHasAnUnknownTypeNameAndUnchangedVerdicts(): void
+    {
+        $result = $this->analyzeProductWithOneBuildableComponent(
+            self::ROBOTICS_TYPE_ID,
+            self::HYDROGEN_FUEL_BLOCK_TYPE_ID,
+            self::HEAVY_WATER_TYPE_ID,
+        );
+
+        $this->assertSame(self::ROBOTICS_TYPE_ID, $result['typeId']);
+        $this->assertNull($result['typeName']);
+        $this->assertSame(
+            $this->expectedAnalysis(
+                self::ROBOTICS_TYPE_ID, null,
+                self::HYDROGEN_FUEL_BLOCK_TYPE_ID, self::HYDROGEN_FUEL_BLOCK_NAME,
+                self::HEAVY_WATER_TYPE_ID, 'Heavy Water',
+            ),
+            $result,
+        );
+    }
+
+    public function testComponentAbsentFromTheSdeHasAnUnknownTypeNameAndUnchangedVerdictAndSavings(): void
+    {
+        $result = $this->analyzeProductWithOneBuildableComponent(
+            self::NITROGEN_FUEL_BLOCK_TYPE_ID,
+            self::ROBOTICS_TYPE_ID,
+            self::HEAVY_WATER_TYPE_ID,
+        );
+
+        $this->assertSame(self::ROBOTICS_TYPE_ID, $result['components'][0]['typeId']);
+        $this->assertNull($result['components'][0]['typeName']);
+        $this->assertSame(
+            $this->expectedAnalysis(
+                self::NITROGEN_FUEL_BLOCK_TYPE_ID, self::NITROGEN_FUEL_BLOCK_NAME,
+                self::ROBOTICS_TYPE_ID, null,
+                self::HEAVY_WATER_TYPE_ID, 'Heavy Water',
+            ),
+            $result,
+        );
+    }
+
+    public function testComponentBuildMaterialAbsentFromTheSdeHasAnUnknownTypeNameAndUnchangedQuantityAndPrice(): void
+    {
+        $result = $this->analyzeProductWithOneBuildableComponent(
+            self::NITROGEN_FUEL_BLOCK_TYPE_ID,
+            self::HYDROGEN_FUEL_BLOCK_TYPE_ID,
+            self::ROBOTICS_TYPE_ID,
+        );
+
+        $this->assertSame(self::ROBOTICS_TYPE_ID, $result['components'][0]['buildMaterials'][0]['typeId']);
+        $this->assertNull($result['components'][0]['buildMaterials'][0]['typeName']);
+        $this->assertSame(
+            $this->expectedAnalysis(
+                self::NITROGEN_FUEL_BLOCK_TYPE_ID, self::NITROGEN_FUEL_BLOCK_NAME,
+                self::HYDROGEN_FUEL_BLOCK_TYPE_ID, self::HYDROGEN_FUEL_BLOCK_NAME,
+                self::ROBOTICS_TYPE_ID, null,
+            ),
+            $result,
+        );
+    }
+
+    private function analyzeProductWithOneBuildableComponent(int $productTypeId, int $componentTypeId, int $firstBuildMaterialTypeId): array
+    {
+        $this->treeService->method('buildProductionTree')->willReturn([
+            'blueprintTypeId' => 4312,
+            'productTypeId' => $productTypeId,
+            'productTypeName' => 'Tree Product Name',
+            'quantity' => 1,
+            'runs' => 1,
+            'outputPerRun' => 1,
+            'depth' => 0,
+            'activityType' => 'manufacturing',
+            'hasCopy' => false,
+            'materials' => [
+                ['typeId' => self::MECHANICAL_PARTS_TYPE_ID, 'typeName' => 'Tree Leaf Name', 'quantity' => 12, 'isBuildable' => false, 'activityType' => null],
+                [
+                    'typeId' => $componentTypeId,
+                    'typeName' => 'Tree Component Name',
+                    'quantity' => 20,
+                    'isBuildable' => true,
+                    'activityType' => 'manufacturing',
+                    'blueprint' => [
+                        'blueprintTypeId' => 4316,
+                        'productTypeId' => $componentTypeId,
+                        'productTypeName' => 'Tree Component Name',
+                        'quantity' => 20,
+                        'runs' => 2,
+                        'outputPerRun' => 10,
+                        'depth' => 1,
+                        'activityType' => 'manufacturing',
+                        'hasCopy' => false,
+                        'materials' => [
+                            ['typeId' => $firstBuildMaterialTypeId, 'typeName' => 'Tree Material Name', 'quantity' => 400, 'isBuildable' => false, 'activityType' => null],
+                            ['typeId' => self::LIQUID_OZONE_TYPE_ID, 'typeName' => 'Tree Material Name', 'quantity' => 6, 'isBuildable' => false, 'activityType' => null],
+                        ],
+                        'structureBonus' => 0.0,
+                        'structureName' => null,
+                        'productCategory' => null,
+                    ],
+                ],
+            ],
+            'structureBonus' => 0.0,
+            'structureName' => null,
+            'productCategory' => null,
+        ]);
+        $this->inventionService->method('isT2')->willReturn(false);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
+            $productTypeId => 300000.0,
+            self::MECHANICAL_PARTS_TYPE_ID => 9000.0,
+            $componentTypeId => 7000.0,
+            $firstBuildMaterialTypeId => 250.0,
+            self::LIQUID_OZONE_TYPE_ID => 3500.0,
+        ]);
+        $this->structureMarketService->method('getLowestSellPrice')->willReturn(null);
+        $this->structureMarketService->method('getLowestSellPrices')->willReturn([$componentTypeId => null]);
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([]);
+        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
+        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(4000.0);
+
+        return $this->service->analyze(
+            $productTypeId, 1, 10,
+            self::SOLAR_SYSTEM_ID, self::SELL_STRUCTURE_ID,
+            0.0, 0.0, null,
+        );
+    }
+
+    private function expectedAnalysis(
+        int $productTypeId,
+        ?string $productTypeName,
+        int $componentTypeId,
+        ?string $componentTypeName,
+        int $firstBuildMaterialTypeId,
+        ?string $firstBuildMaterialTypeName,
+    ): array {
+        return [
+            'typeId' => $productTypeId,
+            'typeName' => $productTypeName,
+            'isT2' => false,
+            'runs' => 1,
+            'totalProductionCost' => 237000.0,
+            'sellPrice' => 300000.0,
+            'marginPercent' => 26.58,
+            'components' => [
+                [
+                    'typeId' => $componentTypeId,
+                    'typeName' => $componentTypeName,
+                    'quantity' => 20,
+                    'stage' => 'T1 Component',
+                    'buildCost' => 125000.0,
+                    'buildMaterials' => [
+                        ['typeId' => $firstBuildMaterialTypeId, 'typeName' => $firstBuildMaterialTypeName, 'quantity' => 400, 'unitPrice' => 250.0, 'totalPrice' => 100000.0],
+                        ['typeId' => self::LIQUID_OZONE_TYPE_ID, 'typeName' => 'Liquid Ozone', 'quantity' => 6, 'unitPrice' => 3500.0, 'totalPrice' => 21000.0],
+                    ],
+                    'buildJobInstallCost' => 4000.0,
+                    'buyCostJita' => 140000.0,
+                    'buyCostStructure' => null,
+                    'verdict' => 'build',
+                    'savings' => 15000.0,
+                    'savingsPercent' => 10.71,
+                    'meUsed' => 10,
+                    'runs' => 2,
+                ],
+            ],
+            'buildAllCost' => 125000.0,
+            'buyAllCost' => 140000.0,
+            'optimalMixCost' => 125000.0,
+            'buildTypeIds' => [$componentTypeId],
+            'buyTypeIds' => [],
+        ];
     }
 }

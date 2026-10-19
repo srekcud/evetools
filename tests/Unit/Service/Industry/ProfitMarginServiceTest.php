@@ -25,13 +25,14 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(ProfitMarginService::class)]
 class ProfitMarginServiceTest extends TestCase
 {
+    use ResolvesTypeNamesFromSde;
+
     private IndustryTreeService&MockObject $treeService;
     private JitaMarketService&MockObject $jitaMarketService;
     private StructureMarketService&MockObject $structureMarketService;
     private EsiCostIndexService&MockObject $esiCostIndexService;
     private InventionService&MockObject $inventionService;
     private PublicContractPriceService&MockObject $publicContractPriceService;
-    private TypeNameResolver&MockObject $typeNameResolver;
     private CachedStructureRepository&MockObject $cachedStructureRepository;
     private IndustryBlacklistService&MockObject $blacklistService;
     private IndustryStructureConfigRepository&MockObject $structureConfigRepository;
@@ -52,7 +53,6 @@ class ProfitMarginServiceTest extends TestCase
         $this->esiCostIndexService = $this->createMock(EsiCostIndexService::class);
         $this->inventionService = $this->createMock(InventionService::class);
         $this->publicContractPriceService = $this->createMock(PublicContractPriceService::class);
-        $this->typeNameResolver = $this->createMock(TypeNameResolver::class);
         $this->cachedStructureRepository = $this->createMock(CachedStructureRepository::class);
         $this->blacklistService = $this->createMock(IndustryBlacklistService::class);
         $this->structureConfigRepository = $this->createMock(IndustryStructureConfigRepository::class);
@@ -65,7 +65,11 @@ class ProfitMarginServiceTest extends TestCase
             $this->esiCostIndexService,
             $this->inventionService,
             $this->publicContractPriceService,
-            $this->typeNameResolver,
+            new TypeNameResolver($this->sdeTypeRepositoryKnowing([
+                self::RIFTER_TYPE_ID => 'Rifter',
+                self::SABRE_TYPE_ID => 'Sabre',
+                self::NITROGEN_FUEL_BLOCK_TYPE_ID => self::NITROGEN_FUEL_BLOCK_NAME,
+            ])),
             $this->cachedStructureRepository,
             $this->blacklistService,
             $this->structureConfigRepository,
@@ -113,7 +117,6 @@ class ProfitMarginServiceTest extends TestCase
     private function setupDefaultMocks(array $dailyVolumes = []): void
     {
         $this->blacklistService->method('resolveBlacklistedTypeIds')->willReturn([]);
-        $this->typeNameResolver->method('resolve')->willReturnCallback(fn (int $id) => "Type #{$id}");
         $this->cachedStructureRepository->method('findByStructureId')->willReturn(null);
         $this->jitaMarketService->method('getAverageDailyVolumes')->willReturn($dailyVolumes);
         $this->structureConfigRepository->method('findByUser')->willReturn([]);
@@ -879,5 +882,100 @@ class ProfitMarginServiceTest extends TestCase
         $this->assertNull($result['invention']['options'][0]['inventionCost']);
         $this->assertNull($result['invention']['options'][0]['totalProductionCost']);
         $this->assertNull($result['invention']['options'][0]['bestMargin']);
+    }
+
+    public function testProductKnownToTheSdeKeepsItsSdeNameInTheMarginAnalysis(): void
+    {
+        $result = $this->analyzeT1ProductSoldAtJita(
+            productTypeId: self::NITROGEN_FUEL_BLOCK_TYPE_ID,
+            runs: 2,
+            outputPerRun: 40,
+            materials: [
+                ['typeId' => 17888, 'typeName' => 'Nitrogen Isotopes', 'quantity' => 800, 'unitPrice' => 520.0],
+                ['typeId' => 44, 'typeName' => 'Enriched Uranium', 'quantity' => 8, 'unitPrice' => 11000.0],
+            ],
+            jobInstallCost: 16000.0,
+            jitaSellPrice: 7800.0,
+            brokerFeeRate: 0.04,
+            salesTaxRate: 0.06,
+        );
+
+        $this->assertSame(self::NITROGEN_FUEL_BLOCK_TYPE_ID, $result['typeId']);
+        $this->assertSame(self::NITROGEN_FUEL_BLOCK_NAME, $result['typeName']);
+        $this->assertSame(80, $result['outputQuantity']);
+        $this->assertSame(504000.0, $result['materialCost']);
+        $this->assertSame(16000.0, $result['jobInstallCost']);
+        $this->assertSame(520000.0, $result['totalCost']);
+        $this->assertSame(6500.0, $result['costPerUnit']);
+        $this->assertSame(['revenue' => 624000.0, 'fees' => 62400.0, 'profit' => 41600.0, 'margin' => 8.0], $result['margins']['jitaSell']);
+    }
+
+    public function testProductAbsentFromTheSdeHasAnUnknownTypeNameAndUnchangedMargins(): void
+    {
+        $result = $this->analyzeT1ProductSoldAtJita(
+            productTypeId: self::ROBOTICS_TYPE_ID,
+            runs: 5,
+            outputPerRun: 1,
+            materials: [
+                ['typeId' => 16272, 'typeName' => 'Heavy Water', 'quantity' => 1500, 'unitPrice' => 64.0],
+                ['typeId' => 3828, 'typeName' => 'Construction Blocks', 'quantity' => 30, 'unitPrice' => 12800.0],
+            ],
+            jobInstallCost: 20000.0,
+            jitaSellPrice: 125000.0,
+            brokerFeeRate: 0.03,
+            salesTaxRate: 0.05,
+        );
+
+        $this->assertSame(self::ROBOTICS_TYPE_ID, $result['typeId']);
+        $this->assertNull($result['typeName']);
+        $this->assertSame(5, $result['outputQuantity']);
+        $this->assertSame(480000.0, $result['materialCost']);
+        $this->assertSame(20000.0, $result['jobInstallCost']);
+        $this->assertSame(500000.0, $result['totalCost']);
+        $this->assertSame(100000.0, $result['costPerUnit']);
+        $this->assertSame(['revenue' => 625000.0, 'fees' => 50000.0, 'profit' => 75000.0, 'margin' => 15.0], $result['margins']['jitaSell']);
+    }
+
+    /**
+     * @param list<array{typeId: int, typeName: string, quantity: int, unitPrice: float}> $materials
+     */
+    private function analyzeT1ProductSoldAtJita(
+        int $productTypeId,
+        int $runs,
+        int $outputPerRun,
+        array $materials,
+        float $jobInstallCost,
+        float $jitaSellPrice,
+        float $brokerFeeRate,
+        float $salesTaxRate,
+    ): array {
+        $this->setupDefaultMocks();
+        $this->inventionService->method('isT2')->willReturn(false);
+        $this->treeService->method('buildProductionTree')->willReturn(
+            $this->buildFlatTree($productTypeId, 'Tree Product Name', $runs, $outputPerRun, $materials),
+        );
+
+        $weightedPrices = [];
+        foreach ($materials as $material) {
+            $weightedPrices[$material['typeId']] = ['weightedPrice' => $material['unitPrice'], 'coverage' => 1.0, 'ordersUsed' => 1];
+        }
+        $this->jitaMarketService->method('getWeightedSellPricesWithFallback')->willReturn($weightedPrices);
+        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn($jobInstallCost);
+        $this->jitaMarketService->method('getWeightedSellPrice')->willReturn(['weightedPrice' => $jitaSellPrice, 'coverage' => 1.0, 'ordersUsed' => 2]);
+        $this->structureMarketService->method('getLowestSellPrice')->willReturn(null);
+        $this->structureMarketService->method('getHighestBuyPrice')->willReturn(null);
+
+        return $this->service->analyze(
+            $productTypeId,
+            $runs,
+            10,
+            20,
+            self::SELL_STRUCTURE_ID,
+            self::SOLAR_SYSTEM_ID,
+            null,
+            $brokerFeeRate,
+            $salesTaxRate,
+            null,
+        );
     }
 }
