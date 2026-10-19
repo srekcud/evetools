@@ -19,11 +19,13 @@ Règle cible : spec du noyau `docs/specs/industry-engine.md`, R9 (« un intermé
 - **R6 — Import sans données (ancien import).** Une cible avec produit source dont aucun import enregistré ne porte ce produit n'est pas réduite (cible restante = quantité cible). Le statut liste ces produits dans `importsWithoutPlan` (typeIds triés, sans doublon) pour inviter à réimporter. Une cible manuelle (sans produit source) n'est jamais réduite et n'y figure pas.
 - **R7 — Produit en erreur.** Si l'arbre d'un import ne peut pas être reconstruit (aucun blueprint ni réaction, type absent du SDE), cet import ne réduit rien, le reste du statut est calculé, et le statut porte `failedProducts` : `{typeId, reason}` par import en erreur (message brut de l'exception), trié par typeId, sans doublon. Il ne consomme pas de stock du réservoir.
 - **R8 — API.** `GET` du statut de stockpile expose, par item, `remainingTargetQuantity` (en plus de `targetQuantity`, inchangé) ; au niveau du statut, `importsWithoutPlan` et `failedProducts` (`[]` quand rien à signaler).
-- **R9 — Frontend.** Une cible dont la cible restante diffère de la quantité cible affiche « restante / cible » (ex. `350 / 700`). Un avertissement liste les produits de `importsWithoutPlan` (« réimporter pour tenir compte du stock des intermédiaires ») et ceux de `failedProducts` avec leur raison.
+- **R9 — Frontend.** La colonne affiche `stock / cible restante`, et la quantité cible entre parenthèses, en discret, seulement quand elle diffère (ex. `0 / 350 (700)`) ; la barre de progression suit la cible restante. Un avertissement liste les produits de `importsWithoutPlan` (« réimporter pour tenir compte du stock des intermédiaires ») et ceux de `failedProducts` avec leur raison.
+- **R10 — Import sans cible.** Supprimer la dernière cible d'un produit source supprime les imports de ce produit (« Clear all », qui supprime les cibles une à une, vide donc aussi les imports). Au statut, un import dont il ne reste aucune cible de même produit source est ignoré : il ne consomme rien du réservoir.
+- **R11 — Parcours.** Le stock est consommé en profondeur d'abord (pré-ordre, ordre des matériaux de l'arbre), comme la liste d'achats de #20.
 
 ## Exemples chiffrés
 
-Fixture : Widget (produit final, 1 unité par run) demande 10 Frames par run ; Frame (intermédiaire, 1 unité par run) demande 70 Ore par run. Import de 1 run de Widget, ME 0 : cibles Widget 1, Frame 10, Ore 700. Prix : Widget 1000, Frame 50, Ore 2.
+Fixture : Widget (produit final, fabrication, 1 unité par run) demande 10 Frames par run ; Frame (intermédiaire, **réaction** pour échapper au ME 10 des intermédiaires fabriqués, 1 unité par run) demande 70 Ore par run. Import de 1 run de Widget, ME 0 : cibles Widget 1, Frame 10, Ore 700. Prix : Widget 1000, Frame 50, Ore 2.
 
 | # | Situation | Attendu |
 |---|---|---|
@@ -39,14 +41,17 @@ Fixture : Widget (produit final, 1 unité par run) demande 10 Frames par run ; F
 | E10 | import dont l'arbre ne se reconstruit plus | ses cibles gardent leur quantité cible ; `failedProducts = [{typeId: Widget, reason: "No blueprint or reaction found for product type ID …"}]` |
 | E11 | import `replace` après deux imports | une seule ligne d'import, celle du dernier ; import `merge` : une ligne de plus |
 | E12 | API : statut sans réduction | `remainingTargetQuantity = targetQuantity` sur chaque item, `importsWithoutPlan = []`, `failedProducts = []` |
-| E13 | front : E1 | la cible Ore affiche `350 / 700` ; la cible Frame affiche `10` ; E9 et E10 affichent l'avertissement |
+| E13 | front : E1 | la ligne Ore affiche `0 / 350 (700)` ; la ligne Frame affiche `5 / 10` sans parenthèses ; E9 et E10 affichent l'avertissement |
+| E14 | import de 2 runs de Widget (Widget 2, Frame 20, Ore 1400), stock Widget 1 | reste 1 Widget : Frame cible restante 10, Ore cible restante 700 ; Widget cible restante 2 |
+| E15 | suppression de la dernière cible du produit Widget | les imports de Widget sont supprimés ; tant qu'une cible de Widget reste, ils restent |
+| E16 | import Widget dont toutes les cibles ont disparu sans passer par la suppression (ligne orpheline), puis import Gadget, stock Frame 10 | l'import Widget est ignoré : Gadget consomme les 10 Frames (Ore de Gadget −700) |
 
 ## Cas limites
 
 - ME d'import > 0 : arbres complet et réduit reconstruits avec le même ME ; la réduction suit les arrondis du ME.
 - Stock supérieur à la demande d'un intermédiaire : couvert en totalité, le surplus reste dans le réservoir pour les imports suivants.
 - Réduction supérieure à la quantité cible (cible éditée à la baisse) : cible restante 0, jamais négative.
-- Cible supprimée par l'utilisateur : l'import reste ; la réduction ne s'applique qu'aux cibles qui existent.
+- Cible supprimée par l'utilisateur : l'import reste tant qu'une cible de son produit source existe (R10) ; la réduction ne s'applique qu'aux cibles qui existent.
 - Structures de l'utilisateur modifiées depuis l'import : arbres complet et réduit reconstruits tous deux avec les structures actuelles, la réduction reste cohérente.
 - Aucune cible : statut vide inchangé, `importsWithoutPlan = []`, `failedProducts = []`.
 
@@ -56,6 +61,7 @@ Fixture : Widget (produit final, 1 unité par run) demande 10 Frames par run ; F
 - Liste d'achats et projets industriels (#20, fermée).
 - Agrégation de la demande d'un intermédiaire entre branches (#69) : l'arbre reste celui de `buildProductionTree()`.
 - Runs comme quantité pour les produits à plusieurs unités par run (#2) et règle de bonus de structure (#6).
+- `StockpileShoppingList.vue` lit `item.deficit`, jamais envoyé par le backend : issue séparée.
 - Migration des anciens imports : aucune déduction du ME depuis les cibles (R6).
 
 ## Glossaire
