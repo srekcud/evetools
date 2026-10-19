@@ -929,7 +929,9 @@
       "collapse": "Collapse",
       "bpcCopyCosts": "BPC Copy Costs",
       "totalCopyCost": "Total Copy Cost",
-      "depth": "Depth"
+      "depth": "Depth",
+      "unknown": "Unknown",
+      "failedProductsWarning": "The material cost of these products is unknown: their production tree could not be built."
     },
     "projectDetail": {
       "editName": "Edit name",

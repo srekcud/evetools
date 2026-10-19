@@ -7,6 +7,7 @@ import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
 import type { CostEstimation, CopyCosts } from '@/stores/industry/types'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import ShoppingFailedProductsWarning from './shopping/ShoppingFailedProductsWarning.vue'
 
 const props = defineProps<{
   projectId: string
@@ -63,20 +64,29 @@ const hiddenMaterialsTotal = computed(() => {
     .reduce((sum, m) => sum + m.totalPrice, 0)
 })
 
-// Cost breakdown percentages
-const materialPercent = computed(() => {
-  if (!costData.value || costData.value.totalCost === 0) return 0
-  return (costData.value.materialCost / costData.value.totalCost) * 100
+function formatCost(cost: number | null): string {
+  if (cost === null) return t('industry.costEstimation.unknown')
+  return cost.toLocaleString(undefined, { maximumFractionDigits: 0 })
+}
+
+const costBreakdown = computed(() => {
+  if (!costData.value || costData.value.materialCost === null || costData.value.totalCost === null) return null
+  const { materialCost, jobInstallCost, bpoCost, totalCost } = costData.value
+  if (totalCost === 0) return { materialPercent: 0, jobInstallPercent: 0, bpcPercent: 0, materialCost }
+  return {
+    materialPercent: (materialCost / totalCost) * 100,
+    jobInstallPercent: (jobInstallCost / totalCost) * 100,
+    bpcPercent: (bpoCost / totalCost) * 100,
+    materialCost,
+  }
 })
 
-const jobInstallPercent = computed(() => {
-  if (!costData.value || costData.value.totalCost === 0) return 0
-  return (costData.value.jobInstallCost / costData.value.totalCost) * 100
-})
-
-const bpcPercent = computed(() => {
-  if (!costData.value || costData.value.totalCost === 0) return 0
-  return (costData.value.bpoCost / costData.value.totalCost) * 100
+const failedProductNamesByTypeId = computed(() => {
+  const names = new Map<number, string>()
+  for (const rootProduct of store.currentProject?.rootProducts ?? []) {
+    if (rootProduct.typeName) names.set(rootProduct.typeId, rootProduct.typeName)
+  }
+  return names
 })
 
 // Sell price comparison
@@ -85,7 +95,7 @@ const sellPrice = computed(() => project.value?.sellPrice ?? null)
 const runs = computed(() => project.value?.runs ?? 1)
 
 const profitAmount = computed(() => {
-  if (sellPrice.value == null || !costData.value) return null
+  if (sellPrice.value == null || !costData.value || costData.value.totalCost === null) return null
   return sellPrice.value - costData.value.totalCost
 })
 
@@ -118,11 +128,12 @@ async function refreshPrices() {
 }
 
 async function saveCostsToProject() {
-  if (!costData.value || !store.currentProject) return
+  if (!costData.value || costData.value.materialCost === null || !store.currentProject) return
+  const { materialCost } = costData.value
   savingCosts.value = true
   try {
     await store.updateProject(props.projectId, {
-      materialCost: Math.ceil(costData.value.materialCost),
+      materialCost: Math.ceil(materialCost),
       jobsCost: Math.ceil(costData.value.jobInstallCost),
     } as never)
   } finally {
@@ -196,7 +207,7 @@ defineExpose({ activate, loadCostEstimation })
         <!-- Material Cost -->
         <div class="eve-card p-4">
           <p class="text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.costEstimation.materialCost') }}</p>
-          <p class="text-xl font-mono text-slate-100 font-semibold">{{ costData.materialCost.toLocaleString(undefined, { maximumFractionDigits: 0 }) }}</p>
+          <p class="text-xl font-mono text-slate-100 font-semibold">{{ formatCost(costData.materialCost) }}</p>
           <p class="text-xs text-slate-600 mt-1">{{ t('industry.costEstimation.fromShoppingTab') }}</p>
         </div>
         <!-- Job Install Cost -->
@@ -214,10 +225,16 @@ defineExpose({ activate, loadCostEstimation })
         <!-- Total Production Cost -->
         <div class="eve-card p-4 border-cyan-500/30">
           <p class="text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.costEstimation.totalProductionCost') }}</p>
-          <p class="text-xl font-mono text-cyan-400 font-bold">{{ costData.totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 }) }}</p>
-          <p class="text-xs text-slate-500 font-mono mt-1">{{ t('industry.costEstimation.perUnit') }}: <span class="text-slate-400">{{ costData.perUnit.toLocaleString(undefined, { maximumFractionDigits: 0 }) }} ISK</span></p>
+          <p class="text-xl font-mono text-cyan-400 font-bold">{{ formatCost(costData.totalCost) }}</p>
+          <p class="text-xs text-slate-500 font-mono mt-1">{{ t('industry.costEstimation.perUnit') }}: <span class="text-slate-400">{{ costData.perUnit === null ? t('industry.costEstimation.unknown') : `${formatCost(costData.perUnit)} ISK` }}</span></p>
         </div>
       </div>
+
+      <ShoppingFailedProductsWarning
+        :failed-products="costData.failedProducts"
+        :product-names-by-type-id="failedProductNamesByTypeId"
+        :message="t('industry.costEstimation.failedProductsWarning')"
+      />
 
       <!-- Section: Material Cost Breakdown -->
       <div class="eve-card overflow-hidden">
@@ -296,7 +313,7 @@ defineExpose({ activate, loadCostEstimation })
           <tfoot>
             <tr class="border-t border-slate-700 bg-slate-800/30">
               <td colspan="3" class="py-3 px-4 text-right text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.costEstimation.totalMaterialCost') }}</td>
-              <td class="py-3 px-4 text-right font-mono text-slate-100 font-bold text-base">{{ formatIskFull(costData.materialCost) }}</td>
+              <td class="py-3 px-4 text-right font-mono text-slate-100 font-bold text-base">{{ costData.materialCost === null ? t('industry.costEstimation.unknown') : formatIskFull(costData.materialCost) }}</td>
             </tr>
           </tfoot>
         </table>
@@ -482,7 +499,7 @@ defineExpose({ activate, loadCostEstimation })
           <div class="grid grid-cols-4 gap-6 text-center">
             <div>
               <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costEstimation.totalCostLabel') }}</div>
-              <div class="font-mono text-slate-200 text-lg">{{ costData.totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 }) }}</div>
+              <div class="font-mono text-slate-200 text-lg">{{ formatCost(costData.totalCost) }}</div>
             </div>
             <div>
               <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costEstimation.sellPriceLabel') }}</div>
@@ -510,42 +527,42 @@ defineExpose({ activate, loadCostEstimation })
           </div>
 
           <!-- Breakdown bar -->
-          <div class="mt-4 pt-4 border-t border-slate-800">
+          <div v-if="costBreakdown" class="mt-4 pt-4 border-t border-slate-800">
             <div class="flex items-center gap-1 text-xs text-slate-500 mb-2">
               <span>{{ t('industry.costEstimation.costBreakdown') }}</span>
             </div>
             <div class="h-3 rounded-full overflow-hidden flex bg-slate-800">
               <div
                 class="bg-blue-500/60"
-                :style="{ width: materialPercent + '%' }"
-                :title="`${t('industry.costEstimation.materials')}: ${formatIsk(costData.materialCost)} (${materialPercent.toFixed(1)}%)`"
+                :style="{ width: costBreakdown.materialPercent + '%' }"
+                :title="`${t('industry.costEstimation.materials')}: ${formatIsk(costBreakdown.materialCost)} (${costBreakdown.materialPercent.toFixed(1)}%)`"
               ></div>
               <div
                 class="bg-amber-500/60"
-                :style="{ width: jobInstallPercent + '%' }"
-                :title="`${t('industry.costEstimation.jobInstall')}: ${formatIsk(costData.jobInstallCost)} (${jobInstallPercent.toFixed(1)}%)`"
+                :style="{ width: costBreakdown.jobInstallPercent + '%' }"
+                :title="`${t('industry.costEstimation.jobInstall')}: ${formatIsk(costData.jobInstallCost)} (${costBreakdown.jobInstallPercent.toFixed(1)}%)`"
               ></div>
               <div
                 class="bg-purple-500/60"
-                :style="{ width: bpcPercent + '%' }"
-                :title="`${t('industry.costEstimation.bpc')}: ${formatIsk(costData.bpoCost)} (${bpcPercent.toFixed(1)}%)`"
+                :style="{ width: costBreakdown.bpcPercent + '%' }"
+                :title="`${t('industry.costEstimation.bpc')}: ${formatIsk(costData.bpoCost)} (${costBreakdown.bpcPercent.toFixed(1)}%)`"
               ></div>
             </div>
             <div class="flex items-center gap-4 mt-2 text-xs">
               <span class="flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-full bg-blue-500/60"></span>
                 <span class="text-slate-500">{{ t('industry.costEstimation.materials') }}</span>
-                <span class="font-mono text-slate-400">{{ materialPercent.toFixed(1) }}%</span>
+                <span class="font-mono text-slate-400">{{ costBreakdown.materialPercent.toFixed(1) }}%</span>
               </span>
               <span class="flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-full bg-amber-500/60"></span>
                 <span class="text-slate-500">{{ t('industry.costEstimation.jobInstall') }}</span>
-                <span class="font-mono text-slate-400">{{ jobInstallPercent.toFixed(1) }}%</span>
+                <span class="font-mono text-slate-400">{{ costBreakdown.jobInstallPercent.toFixed(1) }}%</span>
               </span>
               <span class="flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-full bg-purple-500/60"></span>
                 <span class="text-slate-500">{{ t('industry.costEstimation.bpc') }}</span>
-                <span class="font-mono text-slate-400">{{ bpcPercent.toFixed(1) }}%</span>
+                <span class="font-mono text-slate-400">{{ costBreakdown.bpcPercent.toFixed(1) }}%</span>
               </span>
             </div>
           </div>
@@ -558,7 +575,7 @@ defineExpose({ activate, loadCostEstimation })
           <button
             v-if="project?.status !== 'completed'"
             @click="saveCostsToProject"
-            :disabled="savingCosts"
+            :disabled="savingCosts || costData.materialCost === null"
             class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-colors"
           >
             <LoadingSpinner v-if="savingCosts" size="sm" />

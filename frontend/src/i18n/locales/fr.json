@@ -929,7 +929,9 @@
       "collapse": "Reduire",
       "bpcCopyCosts": "Couts de copie BPC",
       "totalCopyCost": "Cout total de copie",
-      "depth": "Profondeur"
+      "depth": "Profondeur",
+      "unknown": "Inconnu",
+      "failedProductsWarning": "Le cout materiaux de ces produits est inconnu : leur arbre de production n'a pas pu etre construit."
     },
     "projectDetail": {
       "editName": "Modifier le nom",

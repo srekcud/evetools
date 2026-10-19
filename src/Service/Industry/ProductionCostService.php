@@ -36,11 +36,13 @@ class ProductionCostService
     /**
      * Estimate the cost of raw materials needed for the project.
      *
-     * @return array{total: float, items: list<array{typeId: int, typeName: string, quantity: int, unitPrice: float, totalPrice: float}>}
+     * @return array{total: float|null, items: list<array{typeId: int, typeName: string, quantity: int, unitPrice: float, totalPrice: float}>, failedProducts: list<array{typeId: int, reason: string}>}
      */
     public function estimateMaterialCost(IndustryProject $project): array
     {
-        $shoppingList = $this->shoppingListBuilder->getShoppingList($project)['materials'];
+        $shoppingListResult = $this->shoppingListBuilder->getShoppingList($project);
+        $shoppingList = $shoppingListResult['materials'];
+        $failedProducts = $shoppingListResult['failedProducts'];
 
         $typeIds = array_map(fn (array $mat) => $mat['typeId'], $shoppingList);
         $prices = $this->jitaMarketService->getPricesWithFallback($typeIds);
@@ -65,8 +67,9 @@ class ProductionCostService
         }
 
         return [
-            'total' => $total,
+            'total' => $failedProducts === [] ? $total : null,
             'items' => $items,
+            'failedProducts' => $failedProducts,
         ];
     }
 
@@ -133,7 +136,7 @@ class ProductionCostService
     /**
      * Estimate the total production cost with full breakdown.
      *
-     * @return array{materialCost: float, jobInstallCost: float, bpoCost: float, totalCost: float, perUnit: float, materials: list<array{typeId: int, typeName: string, quantity: int, unitPrice: float, totalPrice: float}>, jobInstallSteps: list<array{stepId: string, productTypeId: int, productName: string|null, solarSystemId: int, systemName: string, costIndex: float, runs: int, installCost: float}>}
+     * @return array{materialCost: float|null, jobInstallCost: float, bpoCost: float, totalCost: float|null, perUnit: float|null, materials: list<array{typeId: int, typeName: string, quantity: int, unitPrice: float, totalPrice: float}>, jobInstallSteps: list<array{stepId: string, productTypeId: int, productName: string|null, solarSystemId: int, systemName: string, costIndex: float, runs: int, installCost: float}>, failedProducts: list<array{typeId: int, reason: string}>}
      */
     public function estimateTotalCost(IndustryProject $project): array
     {
@@ -141,10 +144,16 @@ class ProductionCostService
         $jobInstallResult = $this->estimateJobInstallCosts($project);
         $bpoCost = $project->getBpoCost() ?? 0.0;
 
-        $totalCost = $materialResult['total'] + $jobInstallResult['total'] + $bpoCost;
+        $totalCost = $materialResult['total'] === null
+            ? null
+            : $materialResult['total'] + $jobInstallResult['total'] + $bpoCost;
 
         $totalOutputQuantity = $this->calculateTotalOutputQuantity($project);
-        $perUnit = $totalOutputQuantity > 0 ? $totalCost / $totalOutputQuantity : 0.0;
+        $perUnit = match (true) {
+            $totalCost === null => null,
+            $totalOutputQuantity > 0 => $totalCost / $totalOutputQuantity,
+            default => 0.0,
+        };
 
         return [
             'materialCost' => $materialResult['total'],
@@ -154,6 +163,7 @@ class ProductionCostService
             'perUnit' => $perUnit,
             'materials' => $materialResult['items'],
             'jobInstallSteps' => $jobInstallResult['steps'],
+            'failedProducts' => $materialResult['failedProducts'],
         ];
     }
 

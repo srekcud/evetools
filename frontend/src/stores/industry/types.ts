@@ -440,13 +440,14 @@ export interface CostEstimationStep {
 
 export interface CostEstimation {
   id: string
-  materialCost: number
+  materialCost: number | null
   jobInstallCost: number
   bpoCost: number
-  totalCost: number
-  perUnit: number
+  totalCost: number | null
+  perUnit: number | null
   materials: CostEstimationMaterial[]
   jobInstallSteps: CostEstimationStep[]
+  failedProducts: ShoppingListFailedProduct[]
 }
 
 export interface PurchaseSuggestion {
