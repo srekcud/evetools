@@ -6,6 +6,7 @@ namespace App\Service\Industry;
 
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
+use App\Entity\Sde\IndustryActivityMaterial;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
 use App\Repository\CachedCharacterSkillRepository;
@@ -62,7 +63,6 @@ class IndustryProjectFactory
 
         $rawSteps = [];
         $this->collectStepsFromTree($rawSteps, $tree, $meLevel, $teLevel);
-        $this->recalculateReactionQuantities($rawSteps, $user);
         $this->addTimeDataToSteps($rawSteps, $user, $project->getTeLevel());
         $rawSteps = $this->planStepsJobByJob($rawSteps, $user, $project->getMaxJobDurationDays());
 
@@ -100,8 +100,7 @@ class IndustryProjectFactory
 
             $rawSteps = [];
             $this->collectStepsFromTree($rawSteps, $tree, $project->getMeLevel(), $project->getTeLevel());
-            $this->recalculateReactionQuantities($rawSteps, $user);
-            $this->addTimeDataToSteps($rawSteps, $user, $project->getTeLevel());
+                $this->addTimeDataToSteps($rawSteps, $user, $project->getTeLevel());
             $rawSteps = $this->planStepsJobByJob($rawSteps, $user, $project->getMaxJobDurationDays());
 
             $this->sortAndCreateSteps($project, $rawSteps);
@@ -246,101 +245,6 @@ class IndustryProjectFactory
     }
 
     /**
-     * Recalculate reaction step quantities based on consolidated consumer needs.
-     *
-     * @param array<string, array<string, mixed>> $steps
-     */
-    private function recalculateReactionQuantities(array &$steps, User $user): void
-    {
-        $reactionSteps = [];
-
-        foreach ($steps as $key => &$step) {
-            if ($step['activityType'] === 'reaction') {
-                $reactionSteps[$key] = &$step;
-            }
-        }
-        unset($step);
-
-        if (empty($reactionSteps)) {
-            return;
-        }
-
-        uasort($reactionSteps, fn ($a, $b) => $a['depth'] <=> $b['depth']);
-
-        // Preload all materials for all consumer steps (non-copy) in one batch query
-        $consumerTypeIds = [];
-        $consumerActivityIds = [];
-        foreach ($steps as $step) {
-            if ($step['activityType'] === 'copy') {
-                continue;
-            }
-            $activityId = match ($step['activityType']) {
-                'reaction' => IndustryActivityType::Reaction->value,
-                default => IndustryActivityType::Manufacturing->value,
-            };
-            $consumerTypeIds[] = $step['blueprintTypeId'];
-            $consumerActivityIds[] = $activityId;
-        }
-        $materialsByKey = $this->materialRepository->findMaterialEntitiesForBlueprints($consumerTypeIds, $consumerActivityIds);
-
-        foreach ($reactionSteps as $reactionKey => &$reaction) {
-            $productTypeId = $reaction['productTypeId'];
-            $totalNeeded = 0;
-
-            foreach ($steps as $consumerKey => &$consumer) {
-                if ($consumerKey === $reactionKey) {
-                    continue;
-                }
-                if ($consumer['activityType'] === 'copy') {
-                    continue;
-                }
-
-                $activityId = match ($consumer['activityType']) {
-                    'reaction' => IndustryActivityType::Reaction->value,
-                    default => IndustryActivityType::Manufacturing->value,
-                };
-
-                $materialKey = $consumer['blueprintTypeId'] . '-' . $activityId;
-                $materials = $materialsByKey[$materialKey] ?? [];
-
-                foreach ($materials as $material) {
-                    if ($material->getMaterialTypeId() === $productTypeId) {
-                        $baseQty = $material->getQuantity();
-                        $runs = $consumer['runs'];
-
-                        $meMultiplier = 1.0;
-                        if ($activityId === IndustryActivityType::Manufacturing->value) {
-                            $meMultiplier = 1 - $consumer['meLevel'] / 100;
-                        }
-
-                        $reactionMaterialBonus = $this->reactionMaterialBonusOf($user, $consumer);
-                        $structureBaseBonus = $reactionMaterialBonus['base'];
-                        $rigBonus = $reactionMaterialBonus['rig'];
-                        $structureMultiplier = $structureBaseBonus > 0 ? (1 - $structureBaseBonus / 100) : 1.0;
-                        $rigMultiplier = $rigBonus > 0 ? (1 - $rigBonus / 100) : 1.0;
-
-                        $adjustedQty = max(
-                            $runs,
-                            (int) ceil(round($baseQty * $runs * $meMultiplier * $structureMultiplier * $rigMultiplier, 2))
-                        );
-
-                        $totalNeeded += $adjustedQty;
-                        break;
-                    }
-                }
-            }
-            unset($consumer);
-
-            if ($totalNeeded > 0) {
-                $outputPerRun = $reaction['outputPerRun'] ?? 200;
-                $steps[$reactionKey]['quantity'] = $totalNeeded;
-                $steps[$reactionKey]['runs'] = (int) ceil($totalNeeded / $outputPerRun);
-            }
-        }
-        unset($reaction);
-    }
-
-    /**
      * @param array<string, array<string, mixed>> $steps
      */
     private function addTimeDataToSteps(array &$steps, User $user, int $projectTeLevel = 20): void
@@ -464,22 +368,17 @@ class IndustryProjectFactory
      */
     private function planStepsJobByJob(array $steps, User $user, float $maxJobDurationDays): array
     {
-        $blueprintTypeIds = [];
-        $activityIds = [];
         $activityTypeByProduct = [];
         foreach ($steps as $step) {
-            if ($step['activityType'] === 'copy') {
-                continue;
+            if ($step['activityType'] !== 'copy') {
+                $activityTypeByProduct[$step['productTypeId']] = $step['activityType'];
             }
-            $blueprintTypeIds[] = $step['blueprintTypeId'];
-            $activityIds[] = SplitGroupMaterials::activityIdOf($step['activityType']);
-            $activityTypeByProduct[$step['productTypeId']] = $step['activityType'];
         }
-        $materialsByKey = $this->materialRepository->findMaterialEntitiesForBlueprints($blueprintTypeIds, $activityIds);
+        $materialsByKey = $this->materialsOfSteps($steps);
 
         uasort($steps, static fn (array $a, array $b): int => $a['planningLevel'] <=> $b['planningLevel']);
 
-        $changeOfNeedByProduct = array_fill_keys(array_keys($activityTypeByProduct), 0);
+        $needByProduct = array_fill_keys(array_keys($activityTypeByProduct), 0);
         $plannedSteps = [];
         foreach ($steps as $step) {
             if ($step['activityType'] === 'copy') {
@@ -487,32 +386,57 @@ class IndustryProjectFactory
                 continue;
             }
 
-            $runsBeforeChangeOfNeed = $step['runs'];
-            if ($changeOfNeedByProduct[$step['productTypeId']] !== 0) {
-                $step['quantity'] += $changeOfNeedByProduct[$step['productTypeId']];
+            if ($needByProduct[$step['productTypeId']] !== 0) {
+                $step['quantity'] = $needByProduct[$step['productTypeId']];
                 $step['runs'] = (int) ceil($step['quantity'] / $step['outputPerRun']);
             }
 
             $jobs = $this->jobsOf($step, $maxJobDurationDays);
-            $jobRuns = array_column($jobs, 'runs');
-            if ($jobRuns !== [$runsBeforeChangeOfNeed]) {
-                $materials = $materialsByKey[$step['blueprintTypeId'] . '-' . SplitGroupMaterials::activityIdOf($step['activityType'])] ?? [];
-                foreach ($materials as $material) {
-                    $materialTypeId = $material->getMaterialTypeId();
-                    if (!isset($activityTypeByProduct[$materialTypeId])) {
-                        continue;
-                    }
-                    $materialBonus = $this->materialBonusOf($user, $step, $materialTypeId, $activityTypeByProduct[$materialTypeId] === 'reaction');
-                    $changeOfNeed = SplitGroupMaterials::materialsOfJobs($this->calculationService, $material->getQuantity(), $jobRuns, $step['meLevel'], $materialBonus)
-                        - SplitGroupMaterials::materialsOfJobs($this->calculationService, $material->getQuantity(), [$runsBeforeChangeOfNeed], $step['meLevel'], $materialBonus);
-                    $changeOfNeedByProduct[$materialTypeId] += $changeOfNeed;
-                }
-            }
+            $materials = $materialsByKey[$step['blueprintTypeId'] . '-' . SplitGroupMaterials::activityIdOf($step['activityType'])] ?? [];
+            $this->addNeedOfJobs($needByProduct, $user, $step, array_column($jobs, 'runs'), $materials, $activityTypeByProduct);
 
             array_push($plannedSteps, ...$jobs);
         }
 
         return $plannedSteps;
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $steps
+     * @return array<string, list<IndustryActivityMaterial>>
+     */
+    private function materialsOfSteps(array $steps): array
+    {
+        $blueprintTypeIds = [];
+        $activityIds = [];
+        foreach ($steps as $step) {
+            if ($step['activityType'] === 'copy') {
+                continue;
+            }
+            $blueprintTypeIds[] = $step['blueprintTypeId'];
+            $activityIds[] = SplitGroupMaterials::activityIdOf($step['activityType']);
+        }
+
+        return $this->materialRepository->findMaterialEntitiesForBlueprints($blueprintTypeIds, $activityIds);
+    }
+
+    /**
+     * @param array<int, int> $needByProduct
+     * @param array<string, mixed> $consumer
+     * @param list<int> $jobRuns
+     * @param list<IndustryActivityMaterial> $materials
+     * @param array<int, string> $activityTypeByProduct
+     */
+    private function addNeedOfJobs(array &$needByProduct, User $user, array $consumer, array $jobRuns, array $materials, array $activityTypeByProduct): void
+    {
+        foreach ($materials as $material) {
+            $materialTypeId = $material->getMaterialTypeId();
+            if (!isset($activityTypeByProduct[$materialTypeId])) {
+                continue;
+            }
+            $materialBonus = $this->materialBonusOf($user, $consumer, $materialTypeId, $activityTypeByProduct[$materialTypeId] === 'reaction');
+            $needByProduct[$materialTypeId] += SplitGroupMaterials::materialsOfJobs($this->calculationService, $material->getQuantity(), $jobRuns, $consumer['meLevel'], $materialBonus);
+        }
     }
 
     /**

@@ -45,6 +45,7 @@ Nomad 1 run, ME 10 / TE 20, sans structure (valeurs de la note de câblage #73, 
 ## Tests existants appelés à changer
 
 - `testStepsOfOneNomadCurrentlyOverplanTheFuelBlocksSummedAcrossBranchesIssue69` (perd `Currently…Issue69`), snapshot `nomad-1run-me10-no-structure-per-product.json`, constante `FIVE_MANUFACTURING_STEPS_OF_ONE_NOMAD_IN_SORT_ORDER` (#110) : valeurs ci-dessus.
+- `testRecalculatingTheStepsOfOneNomadSumsTheNeedOfEveryConsumerOfAMaterialConsumedAtSeveralDepths` (#16) : le recalcul d'un Nomad juste créé ne modifie plus aucune étape (R5) ; les valeurs recalculées restent.
 
 ## Glossaire
 
