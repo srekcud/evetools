@@ -18,10 +18,10 @@
         "teLevel": 0
     },
     "Caesarium Cadmide": {
-        "runs": 4,
+        "runs": 50,
         "jobs": 4,
         "totalGroupRuns": [
-            3
+            50
         ],
         "meLevel": 0,
         "teLevel": 0
@@ -144,19 +144,19 @@
         "teLevel": 20
     },
     "Carbon Fiber": {
-        "runs": 36,
+        "runs": 120,
         "jobs": 8,
         "totalGroupRuns": [
-            36
+            120
         ],
         "meLevel": 0,
         "teLevel": 0
     },
     "Carbon Polymers": {
-        "runs": 15,
+        "runs": 232,
         "jobs": 15,
         "totalGroupRuns": [
-            5
+            232
         ],
         "meLevel": 0,
         "teLevel": 0
@@ -189,10 +189,10 @@
         "teLevel": 20
     },
     "Dysporite": {
-        "runs": 3,
+        "runs": 43,
         "jobs": 3,
         "totalGroupRuns": [
-            3
+            43
         ],
         "meLevel": 0,
         "teLevel": 0
@@ -207,19 +207,19 @@
         "teLevel": 20
     },
     "Fermionic Condensates": {
-        "runs": 5,
+        "runs": 70,
         "jobs": 5,
         "totalGroupRuns": [
-            1
+            70
         ],
         "meLevel": 0,
         "teLevel": 0
     },
     "Fernite Alloy": {
-        "runs": 35,
+        "runs": 550,
         "jobs": 35,
         "totalGroupRuns": [
-            4
+            550
         ],
         "meLevel": 0,
         "teLevel": 0
@@ -252,10 +252,10 @@
         "teLevel": 0
     },
     "Fluxed Condensates": {
-        "runs": 3,
+        "runs": 35,
         "jobs": 3,
         "totalGroupRuns": [
-            3
+            35
         ],
         "meLevel": 0,
         "teLevel": 0
@@ -315,7 +315,7 @@
         "teLevel": 0
     },
     "Helium Fuel Block": {
-        "runs": 3,
+        "runs": 107,
         "jobs": 1,
         "totalGroupRuns": [
             null
@@ -333,10 +333,10 @@
         "teLevel": 0
     },
     "Hydrogen Fuel Block": {
-        "runs": 9,
+        "runs": 322,
         "jobs": 2,
         "totalGroupRuns": [
-            9
+            322
         ],
         "meLevel": 10,
         "teLevel": 20
@@ -405,16 +405,16 @@
         "teLevel": 0
     },
     "Neo Mercurite": {
-        "runs": 5,
+        "runs": 76,
         "jobs": 5,
         "totalGroupRuns": [
-            4
+            76
         ],
         "meLevel": 0,
         "teLevel": 0
     },
     "Nitrogen Fuel Block": {
-        "runs": 1,
+        "runs": 106,
         "jobs": 1,
         "totalGroupRuns": [
             null
@@ -432,16 +432,16 @@
         "teLevel": 20
     },
     "Oxy-Organic Solvents": {
-        "runs": 5,
+        "runs": 20,
         "jobs": 2,
         "totalGroupRuns": [
-            5
+            20
         ],
         "meLevel": 0,
         "teLevel": 0
     },
     "Oxygen Fuel Block": {
-        "runs": 7,
+        "runs": 44,
         "jobs": 1,
         "totalGroupRuns": [
             null
@@ -468,10 +468,10 @@
         "teLevel": 0
     },
     "Plasmonic Metamaterials": {
-        "runs": 8,
+        "runs": 128,
         "jobs": 8,
         "totalGroupRuns": [
-            2
+            128
         ],
         "meLevel": 0,
         "teLevel": 0
@@ -486,19 +486,19 @@
         "teLevel": 0
     },
     "Pressurized Oxidizers": {
-        "runs": 72,
+        "runs": 73,
         "jobs": 5,
         "totalGroupRuns": [
-            72
+            73
         ],
         "meLevel": 0,
         "teLevel": 0
     },
     "Prometium": {
-        "runs": 4,
+        "runs": 50,
         "jobs": 4,
         "totalGroupRuns": [
-            3
+            50
         ],
         "meLevel": 0,
         "teLevel": 0
@@ -513,10 +513,10 @@
         "teLevel": 20
     },
     "Reinforced Carbon Fiber": {
-        "runs": 72,
+        "runs": 120,
         "jobs": 8,
         "totalGroupRuns": [
-            72
+            120
         ],
         "meLevel": 0,
         "teLevel": 0
@@ -558,10 +558,10 @@
         "teLevel": 0
     },
     "Sulfuric Acid": {
-        "runs": 6,
+        "runs": 85,
         "jobs": 6,
         "totalGroupRuns": [
-            5
+            85
         ],
         "meLevel": 0,
         "teLevel": 0
@@ -576,10 +576,10 @@
         "teLevel": 0
     },
     "Thermosetting Polymer": {
-        "runs": 36,
+        "runs": 120,
         "jobs": 8,
         "totalGroupRuns": [
-            36
+            120
         ],
         "meLevel": 0,
         "teLevel": 0

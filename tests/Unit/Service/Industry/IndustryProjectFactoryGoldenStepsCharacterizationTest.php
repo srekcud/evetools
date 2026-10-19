@@ -73,6 +73,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     private const int TITANIUM_CARBIDE = 16671;
     private const int PHENOLIC_COMPOSITES = 16680;
     private const int OXYGEN_FUEL_BLOCK = 4312;
+    private const int HELIUM_FUEL_BLOCK = 4247;
     private const int QUANTUM_MICROPROCESSOR = 11540;
     private const int NOMAD = 28846;
     private const int CAPITAL_ELECTROLYTIC_CAPACITOR_UNIT = 29045;
@@ -664,43 +665,148 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     // IndustryStepCalculator::recalculateStepQuantities() on the steps of the goldens
     // ===========================================
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #16. Les besoins sont remis à zéro à chaque
-    // profondeur et seules les profondeurs inférieures à la profondeur maximale consomment. Sur Fernite Carbide, le
-    // Hydrogen Fuel Block (profondeur 1) ne garde que le besoin du job racine (5) : les 10 unités des réactions de
-    // profondeur 1 sont perdues.
-    public function testRecalculatedFuelBlockOfFerniteCarbideCurrentlyKeepsOnlyTheNeedOfTheRootIssue16(): void
+    #[Group('issue-16')]
+    public function testRecalculatedFuelBlockOfFerniteCarbideSumsTheNeedOfTheRootAndOfTheReactions(): void
     {
         $this->pilotOwnsTataraAndRaitaru = true;
         $project = $this->createProject(self::FERNITE_CARBIDE, runs: 1, meLevel: 10, teLevel: 20);
 
         $changedSteps = $this->stepCalculator->recalculateStepQuantities($project);
 
-        self::assertSame([self::HYDROGEN_FUEL_BLOCK], array_map(static fn (IndustryProjectStep $step): int => $step->getProductTypeId(), $changedSteps));
-        self::assertSame([[1, 5, 1, 10, 20, 0, null]], $this->jobsOf($this->stepsOf($project), self::HYDROGEN_FUEL_BLOCK));
+        self::assertSame([], $this->productAndSplitIndexOf($changedSteps));
+        self::assertSame([[1, 15, 1, 10, 20, 0, null]], $this->jobsOf($this->stepsOf($project), self::HYDROGEN_FUEL_BLOCK));
         self::assertSame([[1, 98, 1, 0, 0, 0, null]], $this->jobsOf($this->stepsOf($project), self::FERNITE_ALLOY));
         self::assertSame([[1, 98, 1, 0, 0, 0, null]], $this->jobsOf($this->stepsOf($project), self::CERAMIC_POWDER));
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #16. Recalculer les étapes générées d'un Nomad
-    // remet les besoins à zéro à chaque profondeur : un intermédiaire consommé à plusieurs profondeurs ne garde que le
-    // besoin de la dernière profondeur qui le consomme. Hydrogen Fuel Block 324 → 9 runs, Nitrogen Fuel Block
-    // 107 → 1 run (30 unités), Fernite Alloy 550 → 4 runs (golden Ravworks : 550 et 322).
-    // Comportement suspecté faux, sans issue : un groupe découpé ne perd jamais de job ; chaque job garde au moins
-    // 1 run, si bien que la somme des runs dépasse totalGroupRuns (Fernite Alloy : 35 jobs de 1 run pour 4 runs,
-    // Fermionic Condensates : 5 jobs de 1 run pour 1 run).
+    #[Group('issue-16')]
     #[Group('issue-112')]
-    public function testRecalculatingTheStepsOfOneNomadCurrentlyKeepsOnlyTheNeedOfTheDeepestConsumerIssue16(): void
+    public function testRecalculatingTheStepsOfOneNomadSumsTheNeedOfEveryConsumerOfAMaterialConsumedAtSeveralDepths(): void
     {
         $project = $this->createProject(self::NOMAD, runs: 1, meLevel: 10, teLevel: 20);
+
+        $changedSteps = $this->stepCalculator->recalculateStepQuantities($project);
+
+        $steps = $this->stepsOf($project);
+        self::assertSame([[161, 6440, 5, 10, 20, 0, 322], [161, 6415, 5, 10, 20, 1, 322]], $this->jobsOf($steps, self::HYDROGEN_FUEL_BLOCK));
+        self::assertSame([[106, 4225, 5, 10, 20, 0, null]], $this->jobsOf($steps, self::NITROGEN_FUEL_BLOCK));
+        self::assertSame([[44, 1735, 5, 10, 20, 0, null]], $this->jobsOf($steps, self::OXYGEN_FUEL_BLOCK));
+        self::assertSame([[107, 4245, 5, 10, 20, 0, null]], $this->jobsOf($steps, self::HELIUM_FUEL_BLOCK));
+        self::assertSame([550, 550], [$this->totalRunsOf($steps, self::FERNITE_ALLOY), $this->stepsOfProduct($steps, self::FERNITE_ALLOY)[0]['totalGroupRuns']]);
+        self::assertSame([70, 70], [$this->totalRunsOf($steps, self::FERMIONIC_CONDENSATES), $this->stepsOfProduct($steps, self::FERMIONIC_CONDENSATES)[0]['totalGroupRuns']]);
+        self::assertSame(
+            [[self::NITROGEN_FUEL_BLOCK, 0], [self::HYDROGEN_FUEL_BLOCK, 0], [self::HYDROGEN_FUEL_BLOCK, 1], [self::HELIUM_FUEL_BLOCK, 0], [self::OXYGEN_FUEL_BLOCK, 0]],
+            $this->sortedProductAndSplitIndexOf($changedSteps),
+        );
+        $this->assertMatchesSnapshot('nomad-1run-me10-no-structure-recalculated-per-product', $this->summaryPerProductOf($project));
+    }
+
+    #[Group('issue-16')]
+    public function testSecondRecalculationOfOneNomadChangesNoStep(): void
+    {
+        $project = $this->createProject(self::NOMAD, runs: 1, meLevel: 10, teLevel: 20);
+        $this->stepCalculator->recalculateStepQuantities($project);
+        $stepsAfterTheFirstRecalculation = $this->stepsOf($project);
+
+        $changedSteps = $this->stepCalculator->recalculateStepQuantities($project);
+
+        self::assertSame([], $this->productAndSplitIndexOf($changedSteps));
+        self::assertSame($stepsAfterTheFirstRecalculation, $this->stepsOf($project));
+    }
+
+    #[Group('issue-16')]
+    public function testMaterialConsumedAtASingleDepthKeepsTheNeedOfItsConsumer(): void
+    {
+        $project = $this->projectOfStepsWithoutStructure([
+            $this->step(self::FERNITE_CARBIDE, 'reaction', runs: 3, quantity: 30_000, depth: 0, meLevel: 0),
+            $this->step(self::CERAMIC_POWDER, 'reaction', runs: 9, quantity: 1800, depth: 1, meLevel: 0),
+        ]);
+
+        $changedSteps = $this->stepCalculator->recalculateStepQuantities($project);
+
+        self::assertSame([[2, 300, 1, 0, 20, 0, null]], $this->jobsOf($this->stepsOf($project), self::CERAMIC_POWDER));
+        self::assertSame([[self::CERAMIC_POWDER, 0]], $this->productAndSplitIndexOf($changedSteps));
+    }
+
+    #[Group('issue-16')]
+    #[Group('issue-112')]
+    public function testSplitGroupOfThreeAndTwoRunsSharesANewTotalOfSevenRunsAsFourAndThree(): void
+    {
+        $project = $this->projectOfStepsWithoutStructure([
+            $this->step(self::FERNITE_CARBIDE, 'reaction', runs: 14, quantity: 140_000, depth: 0, meLevel: 0),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 3, quantity: 600, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 0, totalGroupRuns: 5),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 2, quantity: 400, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 1, totalGroupRuns: 5),
+        ]);
+
+        $this->stepCalculator->recalculateStepQuantities($project);
+
+        self::assertSame(
+            [[4, 800, 1, 0, 20, 0, 7], [3, 600, 1, 0, 20, 1, 7]],
+            $this->jobsOf($this->stepsOf($project), self::FERNITE_ALLOY),
+        );
+    }
+
+    #[Group('issue-16')]
+    public function testMaterialConsumedByAnUnsplitStepAndBySplitJobsAtAnotherDepthSumsTheNeedOfEveryJob(): void
+    {
+        $project = $this->projectOfStepsWithoutStructure([
+            $this->step(self::FERNITE_CARBIDE, 'reaction', runs: 6, quantity: 60_000, depth: 0, meLevel: 0),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 3, quantity: 600, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 0, totalGroupRuns: 6),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 3, quantity: 550, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 1, totalGroupRuns: 6),
+            $this->step(self::HYDROGEN_FUEL_BLOCK, 'manufacturing', runs: 1, quantity: 1, depth: 2, meLevel: 10),
+        ]);
+
+        $changedSteps = $this->stepCalculator->recalculateStepQuantities($project);
+
+        $steps = $this->stepsOf($project);
+        self::assertSame([[2, 400, 1, 0, 20, 0, 3], [1, 200, 1, 0, 20, 1, 3]], $this->jobsOf($steps, self::FERNITE_ALLOY));
+        self::assertSame([[2, 45, 2, 10, 20, 0, null]], $this->jobsOf($steps, self::HYDROGEN_FUEL_BLOCK));
+        self::assertSame(
+            [[self::HYDROGEN_FUEL_BLOCK, 0], [self::FERNITE_ALLOY, 0], [self::FERNITE_ALLOY, 1]],
+            $this->sortedProductAndSplitIndexOf($changedSteps),
+        );
+    }
+
+    #[Group('issue-16')]
+    public function testNeedOfAMaterialFollowsTheFinalRunsOfItsConsumersWhateverTheOrderAndTheDepthOfTheSteps(): void
+    {
+        $project = $this->projectOfStepsWithoutStructure([
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 1, quantity: 200, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 0, totalGroupRuns: 2),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 1, quantity: 200, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 1, totalGroupRuns: 2),
+            $this->step(self::HYDROGEN_FUEL_BLOCK, 'manufacturing', runs: 1, quantity: 40, depth: 1, meLevel: 10),
+            $this->step(self::FERNITE_CARBIDE, 'reaction', runs: 8, quantity: 80_000, depth: 0, meLevel: 0),
+        ]);
 
         $this->stepCalculator->recalculateStepQuantities($project);
 
         $steps = $this->stepsOf($project);
-        self::assertSame([[5, 200, 5, 10, 20, 0, 9], [4, 155, 5, 10, 20, 1, 9]], $this->jobsOf($steps, self::HYDROGEN_FUEL_BLOCK));
-        self::assertSame([[1, 30, 5, 10, 20, 0, null]], $this->jobsOf($steps, self::NITROGEN_FUEL_BLOCK));
-        self::assertSame([35, 4], [$this->totalRunsOf($steps, self::FERNITE_ALLOY), $this->stepsOfProduct($steps, self::FERNITE_ALLOY)[0]['totalGroupRuns']]);
-        self::assertSame([5, 1], [$this->totalRunsOf($steps, self::FERMIONIC_CONDENSATES), $this->stepsOfProduct($steps, self::FERMIONIC_CONDENSATES)[0]['totalGroupRuns']]);
-        $this->assertMatchesSnapshot('nomad-1run-me10-no-structure-recalculated-per-product', $this->summaryPerProductOf($project));
+        self::assertSame([[2, 400, 1, 0, 20, 0, 4], [2, 400, 1, 0, 20, 1, 4]], $this->jobsOf($steps, self::FERNITE_ALLOY));
+        self::assertSame([[2, 60, 1, 10, 20, 0, null]], $this->jobsOf($steps, self::HYDROGEN_FUEL_BLOCK));
+    }
+
+    #[Group('issue-16')]
+    public function testCopyStepsNeitherConsumeNorReceiveANeed(): void
+    {
+        $project = $this->projectOfStepsWithoutStructure([
+            $this->step(self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32, depth: 0, meLevel: 10),
+            $this->step(self::QUANTUM_MICROPROCESSOR, 'copy', runs: 9, quantity: 9, depth: 0, meLevel: 0),
+            $this->step(self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: 1, depth: 1, meLevel: 0),
+            $this->step(self::PHENOLIC_COMPOSITES, 'reaction', runs: 1, quantity: 1, depth: 1, meLevel: 0),
+            $this->step(self::OXYGEN_FUEL_BLOCK, 'manufacturing', runs: 1, quantity: 1, depth: 2, meLevel: 10),
+            $this->step(self::OXYGEN_FUEL_BLOCK, 'copy', runs: 4, quantity: 4, depth: 2, meLevel: 0),
+        ]);
+
+        $changedSteps = $this->stepCalculator->recalculateStepQuantities($project);
+
+        $steps = $this->stepsOf($project);
+        self::assertSame([[1, 490, 1, 0, 20, 0, null]], $this->jobsOf($steps, self::TITANIUM_CARBIDE));
+        self::assertSame([[1, 173, 1, 0, 20, 0, null]], $this->jobsOf($steps, self::PHENOLIC_COMPOSITES));
+        self::assertSame([[1, 10, 2, 10, 20, 0, null], [4, 4, 2, 0, 20, 0, null]], $this->jobsOf($steps, self::OXYGEN_FUEL_BLOCK));
+        self::assertSame([[32, 32, 0, 10, 20, 0, null], [9, 9, 0, 0, 20, 0, null]], $this->jobsOf($steps, self::QUANTUM_MICROPROCESSOR));
+        self::assertSame(
+            [[self::OXYGEN_FUEL_BLOCK, 0], [self::TITANIUM_CARBIDE, 0], [self::PHENOLIC_COMPOSITES, 0]],
+            $this->sortedProductAndSplitIndexOf($changedSteps),
+        );
     }
 
     // R13 (spec §4.6): a split consumer recomputes its materials job by job. Quantum Microprocessor takes 17 Titanium
@@ -1048,6 +1154,14 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     private function productAndSplitIndexOf(array $steps): array
     {
         return array_map(static fn (IndustryProjectStep $step): array => [$step->getProductTypeId(), $step->getSplitIndex()], $steps);
+    }
+
+    private function sortedProductAndSplitIndexOf(array $steps): array
+    {
+        $productAndSplitIndex = $this->productAndSplitIndexOf($steps);
+        sort($productAndSplitIndex);
+
+        return $productAndSplitIndex;
     }
 
     /**
