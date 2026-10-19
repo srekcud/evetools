@@ -25,12 +25,12 @@ describe('venueMargin', () => {
     expect(result.margin).toBe(25)
   })
 
-  it('returns a zero margin when the total cost is zero', () => {
+  it('leaves the margin unknown when the total cost is zero', () => {
     const result = venueMargin(UNIT_PRICE, OUTPUT_QUANTITY, 0, BROKER_FEE_RATE, SALES_TAX_RATE)
 
     expect(result.revenue).toBe(10000)
     expect(result.fees).toBeCloseTo(300, 6)
     expect(result.profit).toBeCloseTo(9700, 6)
-    expect(result.margin).toBe(0)
+    expect(result.margin).toBeNull()
   })
 })

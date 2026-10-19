@@ -12,6 +12,7 @@ use App\Repository\IndustryUserSettingsRepository;
 use App\Service\Industry\ProfitMarginService;
 use App\State\Provider\Industry\ProfitMarginProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
@@ -138,6 +139,25 @@ class ProfitMarginProviderTest extends TestCase
             ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
     }
 
+    #[Group('issue-108')]
+    public function testUnknownDailyVolumeAndMarginsReachTheResource(): void
+    {
+        $unknownMargin = ['revenue' => 700000.0, 'fees' => 50400.0, 'profit' => 649600.0, 'margin' => null];
+        $profitMarginService = $this->createStub(ProfitMarginService::class);
+        $profitMarginService->method('analyze')->willReturn($this->analysis([
+            'invention' => ['options' => [['decryptorTypeId' => null, 'bestMargin' => null], ['decryptorTypeId' => 34205, 'bestMargin' => -1494.6]]],
+            'margins' => ['jitaSell' => $unknownMargin, 'structureSell' => null, 'structureBuy' => null, 'contractSell' => null],
+            'dailyVolume' => null,
+        ]));
+
+        $resource = $this->provider(new User(), new Request(), $profitMarginService)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+
+        $this->assertNull($resource->dailyVolume);
+        $this->assertSame([null, -1494.6], array_column($resource->invention['options'] ?? [], 'bestMargin'));
+        $this->assertSame($unknownMargin, $resource->margins['jitaSell']);
+    }
+
     private function settings(User $user): IndustryUserSettings
     {
         return (new IndustryUserSettings())
@@ -162,9 +182,9 @@ class ProfitMarginProviderTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function analysis(): array
+    private function analysis(array $overrides = []): array
     {
-        return [
+        return array_replace([
             'typeId' => self::HAIL_L_TYPE_ID,
             'typeName' => 'Hail L',
             'isT2' => true,
@@ -185,6 +205,6 @@ class ProfitMarginProviderTest extends TestCase
             'salesTaxRate' => 0.036,
             'margins' => ['jitaSell' => null, 'structureSell' => null, 'structureBuy' => null, 'contractSell' => null],
             'dailyVolume' => 0.0,
-        ];
+        ], $overrides);
     }
 }

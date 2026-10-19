@@ -31,6 +31,7 @@ use App\Service\TypeNameResolver;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
@@ -139,6 +140,8 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     private ?float $structureBuyPriceOfProduct = null;
     private ?float $contractSellPriceOfProduct = null;
     private int $contractCountOfProduct = 0;
+    private float $brokerFeeRate = self::BROKER_FEE_RATE;
+    private float $salesTaxRate = self::SALES_TAX_RATE;
 
     protected function setUp(): void
     {
@@ -324,7 +327,8 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         $this->assertNotNull($result['margins']['contractSell']);
     }
 
-    public function testZeroProductionCostCurrentlyReportsZeroMarginInsteadOfUnknown(): void
+    #[Group('issue-108')]
+    public function testZeroProductionCostLeavesVenueMarginsUnknownButKeepsRevenueFeesAndProfit(): void
     {
         $this->leavesWithoutJitaPrice = array_keys(self::NITROGEN_FUEL_BLOCK_ONE_RUN_LEAVES);
         $this->jitaSellPriceOfProduct = 4500.0;
@@ -332,12 +336,10 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
 
         $result = $this->analyze(self::NITROGEN_FUEL_BLOCK, runs: 1, me: 10, solarSystemId: null);
 
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #8 (R10)
-        // No leaf price and no install cost: a zero production cost, and a 0 % margin, instead of an unknown cost.
         $this->assertSame(0.0, $result['totalCost']);
         $this->assertSame(0.0, $result['costPerUnit']);
-        $this->assertMargin(180000.0, 12960.0, 0.0, $result['margins']['jitaSell'], expectedMargin: 0.0);
-        $this->assertMargin(172000.0, 0.0, 0.0, $result['margins']['contractSell'], expectedMargin: 0.0);
+        $this->assertUnknownMargin(180000.0, 12960.0, 167040.0, $result['margins']['jitaSell']);
+        $this->assertUnknownMargin(172000.0, 0.0, 172000.0, $result['margins']['contractSell']);
     }
 
     public function testDailyVolumeIsTheJitaAverageDailyVolumeOfTheProduct(): void
@@ -349,14 +351,14 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         $this->assertSame(1234.5, $result['dailyVolume']);
     }
 
-    public function testProductWithoutDailyVolumeCurrentlyReportsZeroVolume(): void
+    #[Group('issue-108')]
+    public function testProductWithoutDailyVolumeHasUnknownDailyVolume(): void
     {
         $this->dailyVolumes = [self::ROBOTICS => 99.0];
 
         $result = $this->analyze(self::NITROGEN_FUEL_BLOCK, runs: 1, me: 10, solarSystemId: self::MANUFACTURING_SYSTEM_ID);
 
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. glossaire « Volume journalier moyen » (indistinct from an inactive market)
-        $this->assertSame(0.0, $result['dailyVolume']);
+        $this->assertNull($result['dailyVolume']);
     }
 
     public function testStructureNameComesFromCachedStructure(): void
@@ -482,13 +484,26 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         $this->assertEqualsWithDelta((658880.0 - 652513.732561) / 652513.732561 * 100.0, $this->decryptorOption($result, self::PROCESS_DECRYPTOR)['bestMargin'], 1e-9);
     }
 
-    public function testDecryptorOptionWithoutAnySellPriceCurrentlyHasZeroBestMargin(): void
+    #[Group('issue-108')]
+    public function testDecryptorOptionWithoutAnySellPriceHasUnknownBestMargin(): void
     {
         $result = $this->analyzeHailL(runs: 1);
 
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #8 (R10)
-        // No venue has a price: the -999 sentinel turns into a 0 % margin instead of an unknown one.
-        $this->assertSame(array_fill(0, 9, 0.0), array_column($result['invention']['options'], 'bestMargin'));
+        $this->assertSame(array_fill(0, 9, null), array_column($result['invention']['options'], 'bestMargin'));
+    }
+
+    #[Group('issue-108')]
+    public function testDecryptorOptionBestMarginKeepsItsOnlyVenueMarginBelowMinus999Percent(): void
+    {
+        $this->jitaSellPriceOfProduct = 1820.0;
+        $this->brokerFeeRate = 1.0;
+        $this->salesTaxRate = 1.0;
+
+        $result = $this->analyzeHailL(runs: 1);
+
+        $this->assertEqualsWithDelta(-1496.8032919718694, $result['invention']['options'][0]['bestMargin'], 1e-9);
+        $this->assertEqualsWithDelta(-1494.6066643354957, $this->decryptorOption($result, self::PROCESS_DECRYPTOR)['bestMargin'], 1e-9);
+        $this->assertMargin(9100000.0, 18200000.0, self::HAIL_L_ONE_RUN_TOTAL_COST, $result['margins']['jitaSell']);
     }
 
     public function testUnknownInventionProbabilityLeavesTotalCostAndMarginsUnknown(): void
@@ -698,8 +713,8 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
             self::SELL_STRUCTURE_ID,
             $solarSystemId,
             $decryptorTypeId,
-            self::BROKER_FEE_RATE,
-            self::SALES_TAX_RATE,
+            $this->brokerFeeRate,
+            $this->salesTaxRate,
             $user,
         );
     }
@@ -997,18 +1012,29 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     }
 
     /**
-     * Profit = revenue - fees - production cost; margin = profit / production cost unless given.
+     * Profit = revenue - fees - production cost; margin = profit / production cost.
      *
-     * @param array{revenue: float, fees: float, profit: float, margin: float}|null $actual
+     * @param array{revenue: float, fees: float, profit: float, margin: float|null}|null $actual
      */
-    private function assertMargin(float $revenue, float $fees, float $totalCost, ?array $actual, ?float $expectedMargin = null): void
+    private function assertMargin(float $revenue, float $fees, float $totalCost, ?array $actual): void
     {
         $profit = $revenue - $fees - $totalCost;
+        $this->assertRevenueFeesAndProfit($revenue, $fees, $profit, $actual);
+        $this->assertEqualsWithDelta($profit / $totalCost * 100.0, $actual['margin'], 1e-9);
+    }
+
+    private function assertUnknownMargin(float $revenue, float $fees, float $profit, ?array $actual): void
+    {
+        $this->assertRevenueFeesAndProfit($revenue, $fees, $profit, $actual);
+        $this->assertNull($actual['margin']);
+    }
+
+    private function assertRevenueFeesAndProfit(float $revenue, float $fees, float $profit, ?array $actual): void
+    {
         $this->assertNotNull($actual);
         $this->assertEqualsWithDelta($revenue, $actual['revenue'], 1e-6);
         $this->assertEqualsWithDelta($fees, $actual['fees'], 1e-6);
         $this->assertEqualsWithDelta($profit, $actual['profit'], 1e-6);
-        $this->assertEqualsWithDelta($expectedMargin ?? $profit / $totalCost * 100.0, $actual['margin'], 1e-9);
     }
 
     /**
