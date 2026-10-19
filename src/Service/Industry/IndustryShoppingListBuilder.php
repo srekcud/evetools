@@ -201,10 +201,9 @@ class IndustryShoppingListBuilder
 
             if (($material['isBuildable'] ?? false) && isset($material['blueprint'])) {
                 $subtree = $isPartlyInStock
-                    ? $this->treeService->buildProductionTree(
+                    ? $this->treeService->buildIntermediateTree(
                         $typeId,
                         $neededQuantity,
-                        $material['activityType'] === 'manufacturing' ? IndustryTreeService::INTERMEDIATE_MANUFACTURING_ME : 0,
                         $excludedTypeIds,
                         $user,
                         $structureBonusOverrides,

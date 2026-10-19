@@ -14,7 +14,7 @@ use Doctrine\ORM\EntityManagerInterface;
 
 class IndustryTreeService
 {
-    public const int INTERMEDIATE_MANUFACTURING_ME = 10;
+    private const int INTERMEDIATE_MANUFACTURING_ME = 10;
 
     public function __construct(
         private readonly IndustryActivityProductRepository $activityProductRepository,
@@ -43,6 +43,29 @@ class IndustryTreeService
         }
 
         return $tree;
+    }
+
+    /**
+     * @param list<int> $excludedTypeIds
+     * @param array<int, float> $structureBonusOverrides
+     * @return array<string, mixed>
+     */
+    public function buildIntermediateTree(int $typeId, int $quantity, array $excludedTypeIds, ?User $user, array $structureBonusOverrides = []): array
+    {
+        $missingTypeIds = [];
+        $meLevel = $this->intermediateMeLevelFor($this->findProducerFor($typeId));
+        $tree = $this->buildNode($typeId, $quantity, $meLevel, 0, $excludedTypeIds, $user, $missingTypeIds, $structureBonusOverrides);
+
+        if ($missingTypeIds !== []) {
+            throw new TypeMissingFromSdeException($missingTypeIds);
+        }
+
+        return $tree;
+    }
+
+    private function intermediateMeLevelFor(?\App\Entity\Sde\IndustryActivityProduct $producer): int
+    {
+        return $producer?->getActivityId() === IndustryActivityType::Manufacturing->value ? self::INTERMEDIATE_MANUFACTURING_ME : 0;
     }
 
     /**
@@ -168,8 +191,7 @@ class IndustryTreeService
 
             if ($isBuildable) {
                 // Intermediate manufacturing uses ME 10, reactions have no ME
-                $childMe = ($matProducer->getActivityId() === IndustryActivityType::Manufacturing->value) ? self::INTERMEDIATE_MANUFACTURING_ME : 0;
-                $node['blueprint'] = $this->buildNode($matTypeId, $adjustedQuantity, $childMe, $depth + 1, $excludedTypeIds, $user, $missingTypeIds, $structureBonusOverrides);
+                $node['blueprint'] = $this->buildNode($matTypeId, $adjustedQuantity, $this->intermediateMeLevelFor($matProducer), $depth + 1, $excludedTypeIds, $user, $missingTypeIds, $structureBonusOverrides);
             }
 
             $materialNodes[] = $node;
