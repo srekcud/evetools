@@ -80,14 +80,7 @@ class IndustryCalculationService
      */
     public function calculateMaterialQuantity(int $baseQty, int $runs, int $meLevel, float $structureBaseBonus = 0.0, float $rigBonus = 0.0): int
     {
-        $meMultiplier = (100 - $meLevel) / 100;
-        $structureMultiplier = $structureBaseBonus > 0 ? (1 - $structureBaseBonus / 100) : 1.0;
-        $rigMultiplier = $rigBonus > 0 ? (1 - $rigBonus / 100) : 1.0;
-
-        return max(
-            $runs,
-            (int) ceil(round($baseQty * $runs * $meMultiplier * $structureMultiplier * $rigMultiplier, 2))
-        );
+        return MaterialQuantityFormula::forJob($baseQty, $runs, $meLevel, $structureBaseBonus, $rigBonus);
     }
 
     /**

@@ -140,8 +140,6 @@ class IndustryTreeService
             $matTypeId = $material->getMaterialTypeId();
             $baseQuantity = $material->getQuantity();
 
-            // Calculate material reduction
-            // Formula: base * runs * (1 - ME/100) * (1 - structureBase/100) * (1 - rigBonus/100)
             // IMPORTANT: The structure bonus must be looked up for EACH material's category,
             // not the parent product's category. E.g., when building a Rorqual (capital_ship),
             // the CCP materials are basic_capital_component and need their own bonus.
@@ -157,14 +155,7 @@ class IndustryTreeService
                 }
             }
 
-            $meMultiplier = $applyMe && $effectiveMe > 0 ? (1 - $effectiveMe / 100) : 1.0;
-            $structureMultiplier = $matStructureBase > 0 ? (1 - $matStructureBase / 100) : 1.0;
-            $rigMultiplier = $matRigBonus > 0 ? (1 - $matRigBonus / 100) : 1.0;
-
-            $adjustedQuantity = max(
-                $runs,
-                (int) ceil(round($baseQuantity * $runs * $meMultiplier * $structureMultiplier * $rigMultiplier, 2))
-            );
+            $adjustedQuantity = MaterialQuantityFormula::forJob($baseQuantity, $runs, $effectiveMe, $matStructureBase, $matRigBonus);
 
             $matTypeName = $this->typeNameOf($matTypeId, $missingTypeIds);
 

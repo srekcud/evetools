@@ -302,9 +302,7 @@ class BatchProfitScannerService
             $missingPriceTypeIds = [];
             foreach ($materials as $mat) {
                 $baseQty = $mat['quantity'];
-                // Apply ME reduction (only for manufacturing, not reactions)
-                $meMultiplier = !$isReaction && $me > 0 ? (1 - $me / 100) : 1.0;
-                $adjustedQty = max(1, (int) ceil($baseQty * $meMultiplier));
+                $adjustedQty = MaterialQuantityFormula::forJob($baseQty, 1, $me, 0.0, 0.0);
                 $unitPrice = $jitaPrices[$mat['materialTypeId']] ?? null;
                 if ($unitPrice === null) {
                     $missingPriceTypeIds[$mat['materialTypeId']] = true;
