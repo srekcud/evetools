@@ -15,6 +15,7 @@ use App\Service\ESI\PlanetaryService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
 use App\Service\TypeNameResolver;
+use App\Service\UnknownTypeName;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -199,7 +200,7 @@ class PlanetarySyncService
     {
         // Collect type IDs to resolve names in batch
         $typeIds = array_unique(array_column($pinsData, 'type_id'));
-        $typeNames = $this->typeNameResolver->resolveMany($typeIds);
+        $typeNames = $this->typeNameResolver->findNames($typeIds);
 
         foreach ($pinsData as $pinData) {
             $pin = new PlanetaryPin();
@@ -289,7 +290,9 @@ class PlanetarySyncService
                 }
 
                 $planetName = $colony->getPlanetName() ?? $colony->getSolarSystemName() ?? 'Unknown';
-                $productName = $this->resolveTypeName($pin->getExtractorProductTypeId());
+                $productTypeId = $pin->getExtractorProductTypeId();
+                $productName = $this->typeNameResolver->findName($productTypeId);
+                $productLabel = $productName ?? UnknownTypeName::label($productTypeId);
 
                 if ($expiry < $now) {
                     // Keep existing Mercure alert for backward compat
@@ -309,7 +312,7 @@ class PlanetarySyncService
                             Notification::CATEGORY_PLANETARY,
                             Notification::LEVEL_ERROR,
                             'Extractor expired',
-                            sprintf('%s extractor on %s has expired (%s)', $productName, $planetName, $character->getName()),
+                            sprintf('%s extractor on %s has expired (%s)', $productLabel, $planetName, $character->getName()),
                             [
                                 'colonyId' => $colony->getId()?->toRfc4122(),
                                 'planetName' => $planetName,
@@ -342,7 +345,7 @@ class PlanetarySyncService
                             Notification::CATEGORY_PLANETARY,
                             $notifLevel,
                             'Extractor expiring soon',
-                            sprintf('%s extractor on %s expires in %d min (%s)', $productName, $planetName, $minutesRemaining, $character->getName()),
+                            sprintf('%s extractor on %s expires in %d min (%s)', $productLabel, $planetName, $minutesRemaining, $character->getName()),
                             [
                                 'colonyId' => $colony->getId()?->toRfc4122(),
                                 'planetName' => $planetName,
@@ -356,10 +359,5 @@ class PlanetarySyncService
                 }
             }
         }
-    }
-
-    private function resolveTypeName(int $typeId): string
-    {
-        return $this->typeNameResolver->resolve($typeId);
     }
 }

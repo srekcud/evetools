@@ -17,6 +17,7 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\UnknownTypeName;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -59,7 +60,7 @@ class PveSyncService
     {
         if (!isset($this->typeNameCache[$typeId])) {
             $type = $this->invTypeRepository->find($typeId);
-            $this->typeNameCache[$typeId] = $type?->getTypeName() ?? "Type #{$typeId}";
+            $this->typeNameCache[$typeId] = $type?->getTypeName() ?? UnknownTypeName::label($typeId);
         }
         return $this->typeNameCache[$typeId];
     }
