@@ -35,6 +35,8 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
     private const SMARTFAB_UNITS = 2351;
     private const VACCINES = 28974;
     private const STERILE_CONDUITS = 2875;
+    private const BACTERIA = 2393;
+    private const ROBOTICS = 9848;
 
     private const SCHEMATIC_WATER = 121;
     private const SCHEMATIC_ELECTROLYTES = 123;
@@ -43,6 +45,7 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
     private const SCHEMATIC_WATER_COOLED_CPU = 72;
     private const SCHEMATIC_STERILE_CONDUITS = 113;
     private const SCHEMATIC_BROKEN = 999;
+    private const SCHEMATIC_ROBOTICS = 97;
 
     private const MARKET_GROUP_P0 = 1333;
     private const MARKET_GROUP_P1 = 1334;
@@ -54,7 +57,6 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
         self::AQUEOUS_LIQUIDS => 'Aqueous Liquids',
         self::IONIC_SOLUTIONS => 'Ionic Solutions',
         self::BASE_METALS => 'Base Metals',
-        self::NON_CS_CRYSTALS => 'Non-CS Crystals',
         self::WATER => 'Water',
         self::ELECTROLYTES => 'Electrolytes',
         self::REACTIVE_METALS => 'Reactive Metals',
@@ -486,11 +488,70 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
                 'tier' => 'P0',
                 'label' => 'Raw Materials',
                 'items' => [
-                    $this->item(self::NON_CS_CRYSTALS, 2400.0, 3.6871, 8849.04),
+                    [
+                        'typeId' => self::NON_CS_CRYSTALS,
+                        'typeName' => null,
+                        'dailyQuantity' => 2400.0,
+                        'unitPrice' => 3.6871,
+                        'dailyIskValue' => 8849.04,
+                        'inputs' => [],
+                    ],
                 ],
                 'dailyIskValue' => 8849.04,
             ],
         ], $result['tiers']);
+    }
+
+    public function testFactoryProductAbsentFromTheSdeHasAnUnknownTypeNameNextToItsKnownInput(): void
+    {
+        $bacteria = new InvType();
+        $bacteria->setTypeId(self::BACTERIA);
+        $bacteria->setTypeName('Bacteria');
+        $basicCommodities = new InvMarketGroup();
+        $basicCommodities->setMarketGroupId(self::MARKET_GROUP_P1);
+        $bacteria->setMarketGroup($basicCommodities);
+
+        $result = $this->calculator(
+            prices: [self::ROBOTICS => 71245.6, self::BACTERIA => 418.75],
+            schematicMap: [
+                self::SCHEMATIC_ROBOTICS => [
+                    'inputs' => [self::BACTERIA => 40],
+                    'output' => ['typeId' => self::ROBOTICS, 'quantity' => 3],
+                ],
+            ],
+            schematicCycleTimes: [self::SCHEMATIC_ROBOTICS => 3600],
+            typesById: [self::BACTERIA => $bacteria],
+        )->calculateProduction([$this->colony($this->factoryPin(self::SCHEMATIC_ROBOTICS))]);
+
+        $this->assertSame([
+            'tiers' => [
+                [
+                    'tier' => 'P0',
+                    'label' => 'Raw Materials',
+                    'items' => [
+                        [
+                            'typeId' => self::ROBOTICS,
+                            'typeName' => null,
+                            'dailyQuantity' => 72.0,
+                            'unitPrice' => 71245.6,
+                            'dailyIskValue' => 5129683.2,
+                            'inputs' => [
+                                [
+                                    'typeId' => self::BACTERIA,
+                                    'typeName' => 'Bacteria',
+                                    'dailyConsumed' => 960.0,
+                                    'dailyProduced' => 0.0,
+                                    'delta' => -960.0,
+                                ],
+                            ],
+                        ],
+                    ],
+                    'dailyIskValue' => 5129683.2,
+                ],
+            ],
+            'totalDailyIsk' => 5129683.2,
+            'totalMonthlyIsk' => 153890496.0,
+        ], $result);
     }
 
     public function testWaterNestedTenMarketGroupsBelowBasicCommoditiesIsStillABasicCommodity(): void
@@ -680,9 +741,6 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
             },
         );
 
-        $typeNameResolver = $this->createStub(TypeNameResolver::class);
-        $typeNameResolver->method('resolve')->willReturnCallback(static fn (int $typeId): string => self::TYPE_NAMES[$typeId]);
-
         $jitaMarketService = $this->createStub(JitaMarketService::class);
         $jitaMarketService->method('getPrices')->willReturnCallback(
             static fn (array $typeIds): array => array_intersect_key($prices, array_flip($typeIds)),
@@ -692,7 +750,7 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
             $schematicRepository,
             $schematicTypeRepository,
             $invTypeRepository,
-            $typeNameResolver,
+            new TypeNameResolver($invTypeRepository),
             $jitaMarketService,
         );
     }

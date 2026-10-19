@@ -33,7 +33,6 @@ class ContractCollectionProviderTest extends TestCase
     private const TRITANIUM_TYPE_ID = 34;
     private const PYERITE_TYPE_ID = 35;
     private const TYPE_ID_ABSENT_FROM_SDE = 999_999_999;
-    private const UNKNOWN_TYPE_NAME = 'Unknown';
     private const DEFAULT_MARKET_STRUCTURE_ID = 1035466617946;
     private const PUBLIC_CONTRACTS_ENDPOINT = '/contracts/public/' . EveConstants::THE_FORGE_REGION_ID . '/';
     private const CHARACTER_CONTRACTS_ENDPOINT = '/characters/' . self::CHARACTER_ID . '/contracts/';
@@ -125,7 +124,7 @@ class ContractCollectionProviderTest extends TestCase
         $this->assertSame(500, $contract->items[1]->quantity);
     }
 
-    public function testItemTypeAbsentFromSdeKeepsUnknownFallbackName(): void
+    public function testItemTypeAbsentFromSdeHasAnUnknownTypeName(): void
     {
         $this->stubEsi(
             publicContractsFirstPage: [],
@@ -141,9 +140,9 @@ class ContractCollectionProviderTest extends TestCase
         $this->assertSame(2, $contract->itemCount);
         $this->assertSame('Tritanium', $contract->items[0]->typeName);
         $this->assertSame(self::TYPE_ID_ABSENT_FROM_SDE, $contract->items[1]->typeId);
-        // Fallback label already used by processContract() when a name cannot be resolved.
-        $this->assertSame(self::UNKNOWN_TYPE_NAME, $contract->items[1]->typeName);
+        $this->assertNull($contract->items[1]->typeName);
         $this->assertSame(3, $contract->items[1]->quantity);
+        $this->assertSame(1_000_000.0, $contract->jitaValue);
     }
 
     public function testItemTypeNamesStillResolvedWhenPublicContractsEsiCallFails(): void
