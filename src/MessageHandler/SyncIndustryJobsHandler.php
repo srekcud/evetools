@@ -4,19 +4,20 @@ declare(strict_types=1);
 
 namespace App\MessageHandler;
 
+use App\Message\SyncCharacterIndustryJobs;
 use App\Message\SyncIndustryJobs;
 use App\Repository\CharacterRepository;
 use App\Service\Admin\SyncTracker;
-use App\Service\Sync\IndustryJobSyncService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 #[AsMessageHandler]
 final readonly class SyncIndustryJobsHandler
 {
     public function __construct(
         private CharacterRepository $characterRepository,
-        private IndustryJobSyncService $industryJobSyncService,
+        private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
         private SyncTracker $syncTracker,
     ) {
@@ -25,37 +26,28 @@ final readonly class SyncIndustryJobsHandler
     public function __invoke(SyncIndustryJobs $message): void
     {
         $this->syncTracker->start('industry');
-        $this->industryJobSyncService->resetCorporationTracking();
 
         try {
             $characters = $this->characterRepository->findActiveWithValidTokens();
-            $synced = 0;
+            $queued = 0;
 
             foreach ($characters as $character) {
+                $characterId = $character->getId()?->toRfc4122();
                 $token = $character->getEveToken();
-                if ($token === null || !$token->hasScope('esi-industry.read_character_jobs.v1')) {
+                if ($characterId === null || $token === null || !$token->hasScope('esi-industry.read_character_jobs.v1')) {
                     continue;
                 }
 
-                try {
-                    $this->industryJobSyncService->syncCharacterJobs($character);
-                    $synced++;
-                } catch (\Throwable $e) {
-                    $this->logger->error('Failed to sync industry jobs', [
-                        'characterName' => $character->getName(),
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-
-                usleep(500_000);
+                $this->messageBus->dispatch(new SyncCharacterIndustryJobs($characterId));
+                $queued++;
             }
 
-            $this->logger->info('Industry jobs sync completed', [
-                'synced' => $synced,
+            $this->logger->info('Industry jobs sync queued', [
+                'charactersQueued' => $queued,
                 'totalCharacters' => count($characters),
             ]);
 
-            $this->syncTracker->complete('industry', "{$synced}/" . count($characters) . ' chars synced');
+            $this->syncTracker->complete('industry', "{$queued}/" . count($characters) . ' chars queued');
         } catch (\Throwable $e) {
             $this->syncTracker->fail('industry', $e->getMessage());
             throw $e;

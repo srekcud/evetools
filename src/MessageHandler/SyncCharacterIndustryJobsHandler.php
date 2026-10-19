@@ -9,6 +9,7 @@ use App\Repository\CharacterRepository;
 use App\Service\Sync\IndustryJobSyncService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Uid\Uuid;
 
 #[AsMessageHandler]
 final readonly class SyncCharacterIndustryJobsHandler
@@ -22,5 +23,15 @@ final readonly class SyncCharacterIndustryJobsHandler
 
     public function __invoke(SyncCharacterIndustryJobs $message): void
     {
+        $character = $this->characterRepository->find(Uuid::fromString($message->characterId));
+
+        if ($character === null) {
+            $this->logger->warning('Character not found for industry jobs sync', ['characterId' => $message->characterId]);
+
+            return;
+        }
+
+        $this->industryJobSyncService->resetCorporationTracking();
+        $this->industryJobSyncService->syncCharacterJobs($character);
     }
 }
