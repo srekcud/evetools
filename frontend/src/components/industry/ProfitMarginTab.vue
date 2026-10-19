@@ -11,6 +11,7 @@ import VenueComparisonTable from '@/components/industry/profit/VenueComparisonTa
 import type { SellRow } from '@/components/industry/profit/VenueComparisonTable.vue'
 import InventionOptionsPanel from '@/components/industry/profit/InventionOptionsPanel.vue'
 import { venueLabel } from '@/components/industry/venueLabel'
+import { venueMargin } from '@/components/industry/venueMargin'
 
 const { t } = useI18n()
 const store = useIndustryStore()
@@ -90,15 +91,6 @@ const effectiveInventionCost = computed((): number | null => {
 const totalCost = computed(() => effectiveTotalCost.value)
 const costPerUnit = computed(() => effectiveCostPerUnit.value)
 
-// Recompute margins per venue using the effective total cost
-function computeVenueMargin(unitPrice: number, r: ProfitMarginResult, totalCost: number, isContract: boolean = false): { revenue: number; fees: number; profit: number; margin: number } {
-  const revenue = unitPrice * r.outputQuantity
-  const fees = isContract ? 0 : revenue * (r.brokerFeeRate + r.salesTaxRate)
-  const profit = revenue - totalCost - fees
-  const margin = revenue > 0 ? (profit / revenue) * 100 : 0
-  return { revenue, fees, profit, margin }
-}
-
 const bestVenue = computed(() => {
   if (!result.value) return null
   const r = result.value
@@ -133,7 +125,7 @@ const bestVenue = computed(() => {
   for (const [key, price] of prices) {
     if (price == null || r.margins[key] == null) continue
     const isContract = key === 'contractSell'
-    const m = computeVenueMargin(price, r, totalCost, isContract)
+    const m = venueMargin(price, r.outputQuantity, totalCost, r.brokerFeeRate, r.salesTaxRate, isContract)
     if (best == null || m.margin > best.margin) {
       best = { key, ...m, unitPrice: price }
     }
@@ -172,7 +164,7 @@ const sellRows = computed((): SellRow[] => {
   function buildRow(key: string, venue: string, tag: string, unitPrice: number, origEntry: MarginEntry, dailyVolume: number | null, contractCount: number | null = null): SellRow {
     const isContract = key === 'contractSell'
     if (overrideTotalCost != null) {
-      const recomputed = computeVenueMargin(unitPrice, r, overrideTotalCost, isContract)
+      const recomputed = venueMargin(unitPrice, r.outputQuantity, overrideTotalCost, r.brokerFeeRate, r.salesTaxRate, isContract)
       return {
         key, venue, tag, unitPrice,
         revenue: recomputed.revenue,
