@@ -41,7 +41,7 @@ class SettingsProvider implements ProviderInterface
             $type = $this->invTypeRepository->find($typeId);
             $typeResource = new TypeResource();
             $typeResource->typeId = $typeId;
-            $typeResource->typeName = $type?->getTypeName() ?? "Type #{$typeId}";
+            $typeResource->typeName = $type?->getTypeName();
             $ammoTypes[] = $typeResource;
         }
 
@@ -50,7 +50,7 @@ class SettingsProvider implements ProviderInterface
             $type = $this->invTypeRepository->find($typeId);
             $typeResource = new TypeResource();
             $typeResource->typeId = $typeId;
-            $typeResource->typeName = $type?->getTypeName() ?? "Type #{$typeId}";
+            $typeResource->typeName = $type?->getTypeName();
             $lootTypes[] = $typeResource;
         }
 

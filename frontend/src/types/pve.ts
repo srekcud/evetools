@@ -35,7 +35,7 @@ export type PveData = {
 
 export type AmmoType = {
   typeId: number
-  typeName: string
+  typeName: string | null
 }
 
 export type DetectedExpense = {

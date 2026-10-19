@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
+import { useTypeNames } from '@/composables/useTypeNames'
 import type { AmmoType } from '@/types/pve'
 
 const props = defineProps<{
@@ -25,6 +26,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const { getTypeIconUrl, onImageError } = useEveImages()
+const { typeNameLabel } = useTypeNames()
 
 const searchQuery = ref('')
 let searchTimeout: ReturnType<typeof setTimeout> | null = null
@@ -89,7 +91,7 @@ const addIconClass = props.accentColor === 'amber' ? 'text-amber-500' : 'text-cy
             :disabled="isAdding"
             class="w-full px-4 py-2 text-left hover:bg-slate-700 text-sm flex items-center justify-between group disabled:opacity-50"
           >
-            <span>{{ result.typeName }}</span>
+            <span>{{ typeNameLabel(result.typeName, result.typeId) }}</span>
             <svg :class="['w-4 h-4 opacity-0 group-hover:opacity-100', addIconClass]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
             </svg>
@@ -107,11 +109,11 @@ const addIconClass = props.accentColor === 'amber' ? 'text-amber-500' : 'text-cy
             <div class="flex items-center gap-3">
               <img
                 :src="getTypeIconUrl(item.typeId, 32)"
-                :alt="item.typeName"
+                :alt="typeNameLabel(item.typeName, item.typeId)"
                 class="w-6 h-6 rounded-sm"
                 @error="onImageError"
               />
-              <span class="text-sm">{{ item.typeName }}</span>
+              <span class="text-sm">{{ typeNameLabel(item.typeName, item.typeId) }}</span>
             </div>
             <button
               @click="emit('remove', item.typeId)"

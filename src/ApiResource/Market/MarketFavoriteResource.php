@@ -51,7 +51,7 @@ class MarketFavoriteResource
     #[ApiProperty(identifier: true)]
     public int $typeId;
 
-    public string $typeName;
+    public ?string $typeName;
 
     public ?float $jitaSell = null;
 

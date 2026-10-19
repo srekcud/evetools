@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useMarketStore, type MarketSearchItem } from '@/stores/market'
 import { useEveImages } from '@/composables/useEveImages'
+import { useTypeNames } from '@/composables/useTypeNames'
 import { apiRequest } from '@/services/api'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
@@ -16,6 +17,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 const { t } = useI18n()
 const marketStore = useMarketStore()
 const { getTypeIconUrl, onImageError } = useEveImages()
+const { typeNameLabel } = useTypeNames()
 
 // Structure name from user settings
 const structureSystemName = ref<string | null>(null)
@@ -275,10 +277,10 @@ const allButtonLabel = computed(() => {
                   :src="getTypeIconUrl(fav.typeId, 32)"
                   @error="onImageError"
                   class="w-4 h-4 rounded"
-                  :alt="fav.typeName"
+                  :alt="typeNameLabel(fav.typeName, fav.typeId)"
                   loading="lazy"
                 />
-                {{ fav.typeName }}
+                {{ typeNameLabel(fav.typeName, fav.typeId) }}
               </span>
             </div>
           </div>

@@ -55,7 +55,7 @@ export interface HistoryEntry {
 
 export interface MarketFavorite {
   typeId: number
-  typeName: string
+  typeName: string | null
   jitaSell: number | null
   jitaBuy: number | null
   change30d: number | null

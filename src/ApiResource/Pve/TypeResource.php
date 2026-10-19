@@ -8,5 +8,5 @@ class TypeResource
 {
     public int $typeId = 0;
 
-    public string $typeName = '';
+    public ?string $typeName = null;
 }

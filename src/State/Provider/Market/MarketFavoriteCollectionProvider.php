@@ -65,7 +65,7 @@ class MarketFavoriteCollectionProvider implements ProviderInterface
 
             $resource = new MarketFavoriteResource();
             $resource->typeId = $typeId;
-            $resource->typeName = $invType?->getTypeName() ?? "Type #{$typeId}";
+            $resource->typeName = $invType?->getTypeName();
             $resource->jitaSell = $sellPrices[$typeId] ?? null;
             $resource->jitaBuy = $buyPrices[$typeId] ?? null;
             $resource->change30d = $this->marketHistoryService->get30dPriceChange($typeId);

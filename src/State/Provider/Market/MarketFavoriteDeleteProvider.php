@@ -9,6 +9,7 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Market\MarketFavoriteResource;
 use App\Entity\User;
 use App\Repository\MarketFavoriteRepository;
+use App\Service\TypeNameResolver;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -21,6 +22,7 @@ class MarketFavoriteDeleteProvider implements ProviderInterface
     public function __construct(
         private readonly Security $security,
         private readonly MarketFavoriteRepository $favoriteRepository,
+        private readonly TypeNameResolver $typeNameResolver,
     ) {
     }
 
@@ -41,7 +43,7 @@ class MarketFavoriteDeleteProvider implements ProviderInterface
 
         $resource = new MarketFavoriteResource();
         $resource->typeId = $favorite->getTypeId();
-        $resource->typeName = "Type #{$favorite->getTypeId()}";
+        $resource->typeName = $this->typeNameResolver->findName($favorite->getTypeId());
         $resource->createdAt = $favorite->getCreatedAt()->format('c');
 
         return $resource;
