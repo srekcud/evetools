@@ -15,6 +15,7 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Repository\UserPveSettingsRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
+use App\Service\UnknownTypeName;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -129,7 +130,7 @@ class ScanContractsProcessor implements ProcessorInterface
 
                         $typeId = $item['type_id'];
                         $quantity = $item['quantity'] ?? 1;
-                        $typeName = $this->invTypeRepository->find($typeId)?->getTypeName() ?? "Type #{$typeId}";
+                        $typeName = $this->invTypeRepository->find($typeId)?->getTypeName() ?? UnknownTypeName::label($typeId);
 
                         if (in_array($typeId, self::BEACON_TYPE_IDS, true)) {
                             $beaconItems[] = ['typeId' => $typeId, 'typeName' => $typeName, 'quantity' => $quantity];
@@ -225,7 +226,7 @@ class ScanContractsProcessor implements ProcessorInterface
                         continue;
                     }
 
-                    $typeName = $this->invTypeRepository->find($typeId)?->getTypeName() ?? "Type #{$typeId}";
+                    $typeName = $this->invTypeRepository->find($typeId)?->getTypeName() ?? UnknownTypeName::label($typeId);
 
                     $type = match (true) {
                         in_array($typeId, self::BEACON_TYPE_IDS, true) => PveExpense::TYPE_CRAB_BEACON,

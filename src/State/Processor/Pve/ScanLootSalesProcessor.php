@@ -17,6 +17,7 @@ use App\Repository\UserPveSettingsRepository;
 use App\Entity\EveToken;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
+use App\Service\UnknownTypeName;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -125,7 +126,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
                         continue;
                     }
 
-                    $typeName = $this->invTypeRepository->find($typeId)?->getTypeName() ?? "Type #{$typeId}";
+                    $typeName = $this->invTypeRepository->find($typeId)?->getTypeName() ?? UnknownTypeName::label($typeId);
 
                     $sale = new DetectedSaleResource();
                     $sale->transactionId = $transaction['transaction_id'];
@@ -231,7 +232,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
                         }
 
                         $quantity = $item['quantity'] ?? 1;
-                        $typeName = $this->invTypeRepository->find($typeId)?->getTypeName() ?? "Type #{$typeId}";
+                        $typeName = $this->invTypeRepository->find($typeId)?->getTypeName() ?? UnknownTypeName::label($typeId);
 
                         $soldLootItems[] = ['typeId' => $typeId, 'typeName' => $typeName, 'quantity' => $quantity];
                     }
@@ -392,7 +393,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
                                 }
 
                                 $typeName = $typeId > 0
-                                    ? ($this->invTypeRepository->find($typeId)?->getTypeName() ?? "Type #{$typeId}")
+                                    ? ($this->invTypeRepository->find($typeId)?->getTypeName() ?? UnknownTypeName::label($typeId))
                                     : 'Items';
 
                                 // Calculate price based on quantity contributed * reward per unit

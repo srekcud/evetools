@@ -10,7 +10,7 @@ class DetectedLootContractResource
 
     public string $description = '';
 
-    /** @var array<array{typeId: int, typeName: string, quantity: int}> */
+    /** @var array<array{typeId: int, typeName: string|null, quantity: int}> */
     public array $items = [];
 
     public int $totalQuantity = 0;

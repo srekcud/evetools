@@ -175,7 +175,7 @@ export function usePveExpenseScanning(
         .map((c: {
           contractId: number
           description: string
-          items: { typeId: number; typeName: string; quantity: number }[]
+          items: { typeId: number; typeName: string | null; quantity: number }[]
           totalQuantity: number
           contractPrice: number
           suggestedPrice: number

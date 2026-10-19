@@ -15,6 +15,7 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Repository\UserPveSettingsRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
+use App\Service\UnknownTypeName;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -127,7 +128,7 @@ class ScanLootContractsProcessor implements ProcessorInterface
                         $quantity = (int) ($item['quantity'] ?? 1);
 
                         if ($isIncluded && in_array($typeId, $pveLootTypeIds, true)) {
-                            $typeName = $this->invTypeRepository->find($typeId)?->getTypeName() ?? "Type #{$typeId}";
+                            $typeName = $this->invTypeRepository->find($typeId)?->getTypeName();
                             $lootItems[] = [
                                 'typeId' => $typeId,
                                 'typeName' => $typeName,
@@ -142,7 +143,7 @@ class ScanLootContractsProcessor implements ProcessorInterface
                     }
 
                     $description = implode(', ', array_map(
-                        fn($i) => "{$i['quantity']}x {$i['typeName']}",
+                        fn($i) => $i['quantity'] . 'x ' . ($i['typeName'] ?? UnknownTypeName::label($i['typeId'])),
                         $lootItems
                     ));
 
