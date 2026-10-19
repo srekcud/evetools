@@ -90,6 +90,11 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     private const int AUTO_INTEGRITY_PRESERVATION_SEAL = 57478;
     private const int CORE_TEMPERATURE_REGULATOR = 57479;
     private const int LIFE_SUPPORT_BACKUP_UNIT = 57486;
+    private const int MACHARIEL = 17738;
+    private const int OXY_ORGANIC_SOLVENTS = 57454;
+    private const int THERMOSETTING_POLYMER = 57455;
+    private const int PRESSURIZED_OXIDIZERS = 57456;
+    private const int REINFORCED_CARBON_FIBER = 57457;
     private const int UNKNOWN_BLUEPRINT_TYPE_ID = 999_999_999;
 
     private const float DEFAULT_MAX_JOB_DURATION_DAYS = 2.0;
@@ -98,11 +103,11 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     private const array ACTIVITY_ORDER = ['reaction' => 0, 'copy' => 1, 'manufacturing' => 2];
 
     private const array FIVE_MANUFACTURING_STEPS_OF_ONE_NOMAD_IN_SORT_ORDER = [
-        [0, 'Helium Fuel Block', 'manufacturing', 5, 0, 107, 4265],
-        [1, 'Hydrogen Fuel Block', 'manufacturing', 5, 0, 162, 6480],
-        [2, 'Hydrogen Fuel Block', 'manufacturing', 5, 1, 162, 6480],
-        [3, 'Nitrogen Fuel Block', 'manufacturing', 5, 0, 107, 4260],
-        [4, 'Oxygen Fuel Block', 'manufacturing', 5, 0, 46, 1815],
+        [0, 'Helium Fuel Block', 'manufacturing', 5, 0, 107, 4245],
+        [1, 'Hydrogen Fuel Block', 'manufacturing', 5, 0, 161, 6440],
+        [2, 'Hydrogen Fuel Block', 'manufacturing', 5, 1, 161, 6415],
+        [3, 'Nitrogen Fuel Block', 'manufacturing', 5, 0, 106, 4225],
+        [4, 'Oxygen Fuel Block', 'manufacturing', 5, 0, 44, 1735],
     ];
 
     /** @var array{recipes: array<string, array{name: string, activity: string, outputPerRun: int, baseTimeSeconds: int, materials: array<string, int>}>, typeNames: array<string, string>} */
@@ -219,11 +224,8 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         $this->assertMatchesSnapshot('fernite-carbide-1run-tatara-nullsec', $this->canonicalStepsOf($project));
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #69. Un Nomad, ME 10, sans structure, comparé
-    // au golden Ravworks (fait foi) : les intermédiaires sont fusionnés par blueprint, mais leur quantité est la somme
-    // des quantités déjà arrondies de chaque branche de l'arbre. Hydrogen Fuel Block 324 runs au lieu de 322, Nitrogen
-    // Fuel Block 107 au lieu de 106 ; Fernite Alloy (550) et Capital Electrolytic Capacitor Unit (951) suivent le golden.
-    public function testStepsOfOneNomadCurrentlyOverplanTheFuelBlocksSummedAcrossBranchesIssue69(): void
+    #[Group('issue-69')]
+    public function testStepsOfOneNomadPlanTheFuelBlocksOnTheNeedAggregatedAcrossThePlan(): void
     {
         $project = $this->createProject(self::NOMAD, runs: 1, meLevel: 10, teLevel: 20);
 
@@ -231,10 +233,12 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         self::assertSame([[1, 1, 0, 10, 20, 0, null]], $this->jobsOf($steps, self::NOMAD));
         self::assertNull($this->stepsOfProduct($steps, self::NOMAD)[0]['splitGroup']);
         self::assertSame(
-            [[162, 6480, 5, 10, 20, 0, 324], [162, 6480, 5, 10, 20, 1, 324]],
+            [[161, 6440, 5, 10, 20, 0, 322], [161, 6415, 5, 10, 20, 1, 322]],
             $this->jobsOf($steps, self::HYDROGEN_FUEL_BLOCK),
         );
-        self::assertSame([[107, 4260, 5, 10, 20, 0, null]], $this->jobsOf($steps, self::NITROGEN_FUEL_BLOCK));
+        self::assertSame([[106, 4225, 5, 10, 20, 0, null]], $this->jobsOf($steps, self::NITROGEN_FUEL_BLOCK));
+        self::assertSame([[44, 1735, 5, 10, 20, 0, null]], $this->jobsOf($steps, self::OXYGEN_FUEL_BLOCK));
+        self::assertSame([[107, 4245, 5, 10, 20, 0, null]], $this->jobsOf($steps, self::HELIUM_FUEL_BLOCK));
         self::assertSame(
             [self::FERNITE_ALLOY => 550, self::CAPITAL_ELECTROLYTIC_CAPACITOR_UNIT => 951],
             [self::FERNITE_ALLOY => $this->totalRunsOf($steps, self::FERNITE_ALLOY), self::CAPITAL_ELECTROLYTIC_CAPACITOR_UNIT => $this->totalRunsOf($steps, self::CAPITAL_ELECTROLYTIC_CAPACITOR_UNIT)],
@@ -594,6 +598,51 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         );
     }
 
+    #[Group('issue-69')]
+    public function testReactionConsumedByTwoBranchesIsPlannedOnTheNeedOfBothConsumerSteps(): void
+    {
+        $project = $this->createProject(self::MACHARIEL, runs: 1, meLevel: 10, teLevel: 20);
+
+        $steps = $this->stepsOf($project);
+        self::assertSame([[3, 450, 2, 0, 0, 0, null]], $this->jobsOf($steps, self::PRESSURIZED_OXIDIZERS));
+        self::assertSame([[8, 1422, 2, 0, 0, 0, null]], $this->jobsOf($steps, self::REINFORCED_CARBON_FIBER));
+        self::assertSame([[2, 11, 3, 0, 0, 0, null]], $this->jobsOf($steps, self::OXY_ORGANIC_SOLVENTS));
+    }
+
+    #[Group('issue-69')]
+    #[Group('issue-73')]
+    public function testIntermediateConsumedByASplitGroupAndAnUnsplitStepIsPlannedOnTheNeedOfEveryJob(): void
+    {
+        $project = $this->createProject(self::CORE_TEMPERATURE_REGULATOR, runs: 10, meLevel: 10, teLevel: 20);
+
+        $steps = $this->stepsOf($project);
+        self::assertSame([[12, 2400, 2, 0, 0, 0, 23], [11, 2200, 2, 0, 0, 1, 23]], $this->jobsOf($steps, self::THERMOSETTING_POLYMER));
+        self::assertSame([[5, 46, 2, 0, 0, 0, null]], $this->jobsOf($steps, self::OXY_ORGANIC_SOLVENTS));
+        self::assertSame([[4, 140, 3, 10, 20, 0, null]], $this->jobsOf($steps, self::OXYGEN_FUEL_BLOCK));
+    }
+
+    #[Group('issue-69')]
+    public function testIntermediatesOfTenScorpionsInATataraAndARaitaruAreAggregatedWithTheBonusRuleOfEachPath(): void
+    {
+        $this->pilotOwnsTataraAndRaitaru = true;
+
+        $project = $this->createProject(self::SCORPION, runs: 10, meLevel: 10, teLevel: 20);
+
+        $steps = $this->stepsOf($project);
+        self::assertSame([[7, 255, 4, 10, 20, 0, null]], $this->jobsOf($steps, self::OXYGEN_FUEL_BLOCK));
+        self::assertSame([[6, 220, 4, 10, 20, 0, null]], $this->jobsOf($steps, self::HYDROGEN_FUEL_BLOCK));
+        self::assertSame([[7, 68, 3, 0, 0, 0, null]], $this->jobsOf($steps, self::OXY_ORGANIC_SOLVENTS));
+        self::assertSame([[12, 2400, 2, 0, 0, 0, 23], [11, 2100, 2, 0, 0, 1, 23]], $this->jobsOf($steps, self::PRESSURIZED_OXIDIZERS));
+        self::assertSame(
+            [[15, 3000, 2, 0, 0, 0, 45], [15, 3000, 2, 0, 0, 1, 45], [15, 3000, 2, 0, 0, 2, 45]],
+            $this->jobsOf($steps, self::REINFORCED_CARBON_FIBER),
+        );
+        self::assertSame(
+            [[111, 333, 1, 10, 20, 0, 333], [111, 333, 1, 10, 20, 1, 333], [111, 332, 1, 10, 20, 2, 333]],
+            $this->jobsOf($steps, self::AUTO_INTEGRITY_PRESERVATION_SEAL),
+        );
+    }
+
     // ===========================================
     // regenerateSteps() without database
     // ===========================================
@@ -699,6 +748,18 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
             $this->sortedProductAndSplitIndexOf($changedSteps),
         );
         $this->assertMatchesSnapshot('nomad-1run-me10-no-structure-recalculated-per-product', $this->summaryPerProductOf($project));
+    }
+
+    #[Group('issue-69')]
+    public function testRecalculatingTheStepsOfAJustCreatedNomadChangesNoStep(): void
+    {
+        $project = $this->createProject(self::NOMAD, runs: 1, meLevel: 10, teLevel: 20);
+        $createdSteps = $this->stepsOf($project);
+
+        $changedSteps = $this->stepCalculator->recalculateStepQuantities($project);
+
+        self::assertSame([], $this->productAndSplitIndexOf($changedSteps));
+        self::assertSame($createdSteps, $this->stepsOf($project));
     }
 
     #[Group('issue-16')]
