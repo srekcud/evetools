@@ -44,7 +44,7 @@ class MiningEntry
     private int $typeId;
 
     #[ORM\Column(type: 'string', length: 255)]
-    private string $typeName;
+    private ?string $typeName;
 
     #[ORM\Column(type: 'integer')]
     private int $solarSystemId;
@@ -138,12 +138,12 @@ class MiningEntry
         return $this;
     }
 
-    public function getTypeName(): string
+    public function getTypeName(): ?string
     {
         return $this->typeName;
     }
 
-    public function setTypeName(string $typeName): static
+    public function setTypeName(?string $typeName): static
     {
         $this->typeName = $typeName;
         return $this;

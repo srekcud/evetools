@@ -19,6 +19,7 @@ use App\Service\ESI\TokenManager;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Sync\MiningSyncService;
 use App\Service\TypeNameResolver;
+use App\Tests\Unit\Service\Industry\ResolvesTypeNamesFromSde;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -36,6 +37,8 @@ use Symfony\Component\Uid\Uuid;
 #[AllowMockObjectsWithoutExpectations]
 final class MiningSyncServiceCharacterizationTest extends TestCase
 {
+    use ResolvesTypeNamesFromSde;
+
     private const TESSA_ID = 91000001;
     private const TESSA_NAME = 'Tessa Orvik';
     private const DORIN_ID = 91000002;
@@ -92,10 +95,7 @@ final class MiningSyncServiceCharacterizationTest extends TestCase
         $this->settingsRepository = $this->createStub(UserLedgerSettingsRepository::class);
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
 
-        $typeNameResolver = $this->createStub(TypeNameResolver::class);
-        $typeNameResolver->method('resolve')->willReturnCallback(
-            static fn (int $typeId): string => self::TYPE_NAMES[$typeId] ?? "Type #{$typeId}"
-        );
+        $typeNameResolver = new TypeNameResolver($this->sdeTypeRepositoryKnowing(self::TYPE_NAMES));
 
         $solarSystemRepository = $this->createStub(MapSolarSystemRepository::class);
         $solarSystemRepository->method('find')->willReturnCallback(function (int $solarSystemId): ?MapSolarSystem {
@@ -153,7 +153,7 @@ final class MiningSyncServiceCharacterizationTest extends TestCase
         );
     }
 
-    public function testSyncAllPersistsEachNewLedgerLineWithOreSystemDateQuantityAndUsage(): void
+    public function testSyncAllPersistsEachNewLedgerLineWithOreSystemDateQuantityAndUsageLeavingTheNameOfAnOreMissingFromTheSdeUnknown(): void
     {
         $this->settings->setDefaultSoldTypeIds([self::SCORDITE]);
         $this->respondWith([
@@ -174,7 +174,7 @@ final class MiningSyncServiceCharacterizationTest extends TestCase
         $this->assertSyncCounts(['imported' => 4, 'updated' => 0, 'pricesUpdated' => 0, 'errors' => []], $results);
         $this->assertSame([
             $this->entryRow(self::DORIN_ID, self::DORIN_NAME, '2026-10-07', self::PYROXERES, 'Pyroxeres', self::ALDRANETTE, 'Aldranette', 431, MiningEntry::USAGE_UNKNOWN),
-            $this->entryRow(self::DORIN_ID, self::DORIN_NAME, '2026-10-08', self::UNKNOWN_ORE, 'Type #62568', self::UNKNOWN_SYSTEM, 'System #30045349', 15_587, MiningEntry::USAGE_UNKNOWN),
+            $this->entryRow(self::DORIN_ID, self::DORIN_NAME, '2026-10-08', self::UNKNOWN_ORE, null, self::UNKNOWN_SYSTEM, 'System #30045349', 15_587, MiningEntry::USAGE_UNKNOWN),
             $this->entryRow(self::TESSA_ID, self::TESSA_NAME, '2026-10-09', self::VELDSPAR, 'Veldspar', self::ALDRANETTE, 'Aldranette', 7_413, MiningEntry::USAGE_UNKNOWN),
             $this->entryRow(self::TESSA_ID, self::TESSA_NAME, '2026-10-10', self::SCORDITE, 'Scordite', self::TAMA, 'Tama', 2_906, MiningEntry::USAGE_SOLD),
         ], $this->persistedEntryRows());
@@ -183,17 +183,17 @@ final class MiningSyncServiceCharacterizationTest extends TestCase
         }
     }
 
-    public function testSyncAllUpdatesQuantityAndResolvableTypeNameOfExistingEntriesAndLeavesTheOthersUntouched(): void
+    public function testSyncAllUpdatesQuantityAndNamesNamelessEntriesOnceTheSdeKnowsTheirTypeAndLeavesTheOthersUntouched(): void
     {
         $previousSyncedAt = new \DateTimeImmutable('2026-10-05 06:00:00+00:00');
         $pricedVeldspar = $this->existingEntry('2026-10-09', self::VELDSPAR, 'Veldspar', self::ALDRANETTE, 6_002, $previousSyncedAt);
         $pricedVeldspar->setUnitPrice(17.25);
-        $unresolvedPyroxeres = $this->existingEntry('2026-10-09', self::PYROXERES, 'Type #1224', self::TAMA, 839, $previousSyncedAt);
-        $stillUnknownOre = $this->existingEntry('2026-10-08', self::UNKNOWN_ORE, 'Type #62568', self::UNKNOWN_SYSTEM, 12_044, $previousSyncedAt);
+        $namelessPyroxeres = $this->existingEntry('2026-10-09', self::PYROXERES, null, self::TAMA, 839, $previousSyncedAt);
+        $stillUnknownOre = $this->existingEntry('2026-10-08', self::UNKNOWN_ORE, null, self::UNKNOWN_SYSTEM, 12_044, $previousSyncedAt);
         $unchangedKernite = $this->existingEntry('2026-10-07', self::KERNITE, 'Kernite', self::ALDRANETTE, 517, $previousSyncedAt);
         $existingByKey = [
             '2026-10-09|1230|30003504' => $pricedVeldspar,
-            '2026-10-09|1224|30002813' => $unresolvedPyroxeres,
+            '2026-10-09|1224|30002813' => $namelessPyroxeres,
             '2026-10-08|62568|30045349' => $stillUnknownOre,
             '2026-10-07|20|30003504' => $unchangedKernite,
         ];
@@ -218,11 +218,11 @@ final class MiningSyncServiceCharacterizationTest extends TestCase
         $this->assertSyncCounts(['imported' => 0, 'updated' => 2, 'pricesUpdated' => 0, 'errors' => []], $results);
         $this->assertSame([], $this->persisted);
         $this->assertSame([7_413, 'Veldspar', 17.25, 127_874.25], [$pricedVeldspar->getQuantity(), $pricedVeldspar->getTypeName(), $pricedVeldspar->getUnitPrice(), $pricedVeldspar->getTotalValue()]);
-        $this->assertSame([839, 'Pyroxeres', null, null], [$unresolvedPyroxeres->getQuantity(), $unresolvedPyroxeres->getTypeName(), $unresolvedPyroxeres->getUnitPrice(), $unresolvedPyroxeres->getTotalValue()]);
-        $this->assertSame([12_044, 'Type #62568'], [$stillUnknownOre->getQuantity(), $stillUnknownOre->getTypeName()]);
+        $this->assertSame([839, 'Pyroxeres', null, null], [$namelessPyroxeres->getQuantity(), $namelessPyroxeres->getTypeName(), $namelessPyroxeres->getUnitPrice(), $namelessPyroxeres->getTotalValue()]);
+        $this->assertSame([12_044, null], [$stillUnknownOre->getQuantity(), $stillUnknownOre->getTypeName()]);
         $this->assertSame([517, 'Kernite'], [$unchangedKernite->getQuantity(), $unchangedKernite->getTypeName()]);
         $this->assertGreaterThanOrEqual($before, $pricedVeldspar->getSyncedAt());
-        $this->assertGreaterThanOrEqual($before, $unresolvedPyroxeres->getSyncedAt());
+        $this->assertGreaterThanOrEqual($before, $namelessPyroxeres->getSyncedAt());
         $this->assertSame($previousSyncedAt, $stillUnknownOre->getSyncedAt());
         $this->assertSame($previousSyncedAt, $unchangedKernite->getSyncedAt());
     }
@@ -531,7 +531,7 @@ final class MiningSyncServiceCharacterizationTest extends TestCase
         );
     }
 
-    private function existingEntry(string $date, int $typeId, string $typeName, int $solarSystemId, int $quantity, \DateTimeImmutable $syncedAt): MiningEntry
+    private function existingEntry(string $date, int $typeId, ?string $typeName, int $solarSystemId, int $quantity, \DateTimeImmutable $syncedAt): MiningEntry
     {
         return (new MiningEntry())
             ->setUser($this->user)
@@ -567,7 +567,7 @@ final class MiningSyncServiceCharacterizationTest extends TestCase
         string $characterName,
         string $date,
         int $typeId,
-        string $typeName,
+        ?string $typeName,
         int $solarSystemId,
         string $solarSystemName,
         int $quantity,

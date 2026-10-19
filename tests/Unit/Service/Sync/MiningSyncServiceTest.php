@@ -197,7 +197,7 @@ class MiningSyncServiceTest extends TestCase
 
         $this->miningEntryRepository->method('findByUniqueKey')->willReturn(null);
         $this->miningEntryRepository->method('getTypeIdsWithoutPrice')->willReturn([]);
-        $this->typeNameResolver->method('resolve')->willReturn('Scordite');
+        $this->typeNameResolver->method('findName')->willReturn('Scordite');
         $this->solarSystemRepository->method('find')->willReturn(null);
         $this->settingsRepository->method('findByUser')->willReturn(null);
         $this->settingsRepository->method('getOrCreate')->willReturn(new UserLedgerSettings());
@@ -244,7 +244,7 @@ class MiningSyncServiceTest extends TestCase
         $this->miningEntryRepository->method('findByUniqueKey')->willReturn(null);
         $this->miningEntryRepository->method('getTypeIdsWithoutPrice')->willReturn([]);
 
-        $this->typeNameResolver->method('resolve')->willReturn('Scordite');
+        $this->typeNameResolver->method('findName')->willReturn('Scordite');
         $this->solarSystemRepository->method('find')->willReturn(null);
 
         $this->settingsRepository->method('findByUser')->willReturn(null);
@@ -377,7 +377,7 @@ class MiningSyncServiceTest extends TestCase
 
         $this->miningEntryRepository->method('findByUniqueKey')->willReturn(null);
         $this->miningEntryRepository->method('getTypeIdsWithoutPrice')->willReturn([]);
-        $this->typeNameResolver->method('resolve')->willReturn('Scordite');
+        $this->typeNameResolver->method('findName')->willReturn('Scordite');
         $this->solarSystemRepository->method('find')->willReturn(null);
         $this->settingsRepository->method('findByUser')->willReturn(null);
         $this->settingsRepository->method('getOrCreate')->willReturn(new UserLedgerSettings());
@@ -533,7 +533,7 @@ class MiningSyncServiceTest extends TestCase
         $this->miningEntryRepository->method('findByUniqueKey')->willReturn(null);
         $this->miningEntryRepository->method('getTypeIdsWithoutPrice')->willReturn([]);
 
-        $this->typeNameResolver->method('resolve')->willReturn('Scordite');
+        $this->typeNameResolver->method('findName')->willReturn('Scordite');
         $this->solarSystemRepository->method('find')->willReturn(null);
 
         $settings = new UserLedgerSettings();
@@ -569,7 +569,7 @@ class MiningSyncServiceTest extends TestCase
         $this->miningEntryRepository->method('findByUniqueKey')->willReturn(null);
         $this->miningEntryRepository->method('getTypeIdsWithoutPrice')->willReturn([]);
 
-        $this->typeNameResolver->method('resolve')->willReturn('Scordite');
+        $this->typeNameResolver->method('findName')->willReturn('Scordite');
         $this->solarSystemRepository->method('find')->willReturn(null);
 
         // Settings exist but typeId 17459 is NOT in defaultSoldTypeIds
@@ -594,7 +594,7 @@ class MiningSyncServiceTest extends TestCase
     // syncAll — type name resolution on update
     // ===========================================
 
-    public function testSyncAllFixesUnresolvedTypeNameOnExistingEntry(): void
+    public function testSyncAllNamesAnExistingNamelessEntryOnceTheSdeKnowsItsType(): void
     {
         $user = $this->createUserWithCharacter(12345);
 
@@ -613,7 +613,7 @@ class MiningSyncServiceTest extends TestCase
         $existing->setCharacterId(12345);
         $existing->setDate(new \DateTimeImmutable('2026-02-20'));
         $existing->setTypeId(17459);
-        $existing->setTypeName('Type #17459');
+        $existing->setTypeName(null);
         $existing->setSolarSystemId(30004759);
         $existing->setSolarSystemName('1DQ1-A');
         $existing->setQuantity(50000);
@@ -621,7 +621,7 @@ class MiningSyncServiceTest extends TestCase
         $this->miningEntryRepository->method('findByUniqueKey')->willReturn($existing);
         $this->miningEntryRepository->method('getTypeIdsWithoutPrice')->willReturn([]);
 
-        $this->typeNameResolver->method('resolve')->willReturn('Scordite');
+        $this->typeNameResolver->method('findName')->willReturn('Scordite');
         $this->settingsRepository->method('getOrCreate')->willReturn(new UserLedgerSettings());
 
         $result = $this->service->syncAll($user);
@@ -813,7 +813,7 @@ class MiningSyncServiceTest extends TestCase
     {
         $this->miningEntryRepository->method('findByUniqueKey')->willReturn(null);
         $this->miningEntryRepository->method('getTypeIdsWithoutPrice')->willReturn([]);
-        $this->typeNameResolver->method('resolve')->willReturn('Scordite');
+        $this->typeNameResolver->method('findName')->willReturn('Scordite');
         $this->solarSystemRepository->method('find')->willReturn(null);
     }
 

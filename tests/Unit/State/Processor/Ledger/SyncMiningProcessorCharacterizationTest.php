@@ -21,6 +21,7 @@ use App\Service\Mercure\MercurePublisherService;
 use App\Service\Sync\MiningSyncService;
 use App\Service\TypeNameResolver;
 use App\State\Processor\Ledger\SyncMiningProcessor;
+use App\Tests\Unit\Service\Industry\ResolvesTypeNamesFromSde;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -39,6 +40,8 @@ use Symfony\Component\Uid\Uuid;
 #[AllowMockObjectsWithoutExpectations]
 final class SyncMiningProcessorCharacterizationTest extends TestCase
 {
+    use ResolvesTypeNamesFromSde;
+
     private const SELKA_ID = 92000001;
     private const SELKA_NAME = 'Selka Rhun';
     private const OREN_ID = 92000002;
@@ -254,10 +257,9 @@ final class SyncMiningProcessorCharacterizationTest extends TestCase
         $settingsRepository->method('findByUser')->willReturn($storedSettings);
         $settingsRepository->method('getOrCreate')->willReturn($storedSettings ?? new UserLedgerSettings());
 
-        $typeNameResolver = $this->createStub(TypeNameResolver::class);
-        $typeNameResolver->method('resolve')->willReturnCallback(
-            static fn (int $typeId): string => [self::OMBER => 'Omber', self::JASPET => 'Jaspet', self::HEDBERGITE => 'Hedbergite'][$typeId]
-        );
+        $typeNameResolver = new TypeNameResolver($this->sdeTypeRepositoryKnowing(
+            [self::OMBER => 'Omber', self::JASPET => 'Jaspet', self::HEDBERGITE => 'Hedbergite'],
+        ));
 
         $miningSyncService = new MiningSyncService(
             $this->esiClient,
