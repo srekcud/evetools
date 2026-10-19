@@ -12,6 +12,7 @@ use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStepJobMatch;
 use App\Entity\Notification;
 use App\Entity\User;
+use App\Exception\EsiApiException;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryStepJobMatchRepository;
 use App\Repository\Sde\InvTypeRepository;
@@ -24,10 +25,13 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
+use Symfony\Component\ErrorHandler\BufferingLogger;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 use Symfony\Component\Uid\Uuid;
@@ -49,9 +53,13 @@ class IndustryJobSyncServiceTest extends TestCase
     private NotificationDispatcher&MockObject $notificationDispatcher;
     private IndustryJobSyncService $service;
     private array $publishedMercurePayloads = [];
+    private BufferingLogger $logger;
+    private array $persistedJobs = [];
+    private int $flushCount = 0;
 
     protected function setUp(): void
     {
+        $this->logger = new BufferingLogger();
         $this->esiClient = $this->createMock(EsiClient::class);
         $this->jobRepository = $this->createMock(CachedIndustryJobRepository::class);
         $this->invTypeRepository = $this->sdeTypeRepositoryKnowingOnlyNitrogenFuelBlock();
@@ -73,11 +81,16 @@ class IndustryJobSyncServiceTest extends TestCase
             $this->jobRepository,
             $this->invTypeRepository,
             $this->em,
-            new NullLogger(),
+            $this->logger,
             $mercurePublisher,
             $this->jobMatchRepository,
             $this->notificationDispatcher,
         );
+    }
+
+    protected function tearDown(): void
+    {
+        $this->logger->cleanLogs();
     }
 
     // ===========================================
@@ -579,9 +592,215 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->service->syncCharacterJobs($character);
     }
 
+    public function testForbiddenCorporationJobsReadMarksNoJobAsDelivered(): void
+    {
+        [$character, $corporationJob, $personalStaleJob] = $this->givenCharacterWithReadyCorporationJobAndStalePersonalJob();
+        $this->esiClient->method('getPaginated')->willThrowException(EsiApiException::forbidden());
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame('ready', $corporationJob->getStatus());
+        $this->assertNull($corporationJob->getCompletedDate());
+        $this->assertSame('active', $personalStaleJob->getStatus());
+        $this->assertNull($personalStaleJob->getCompletedDate());
+    }
+
+    public function testForbiddenCorporationJobsReadStillRecordsPersonalJobsFromEsi(): void
+    {
+        [$character] = $this->givenCharacterWithReadyCorporationJobAndStalePersonalJob();
+        $this->esiClient->method('getPaginated')->willThrowException(EsiApiException::forbidden());
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([[101, 7, 'active']], array_map(
+            static fn (CachedIndustryJob $job): array => [$job->getJobId(), $job->getRuns(), $job->getStatus()],
+            $this->persistedJobs,
+        ));
+        $this->assertSame(1, $this->flushCount);
+    }
+
+    public function testForbiddenCorporationJobsReadLogsOneWarning(): void
+    {
+        [$character] = $this->givenCharacterWithReadyCorporationJobAndStalePersonalJob();
+        $this->esiClient->method('getPaginated')->willThrowException(EsiApiException::forbidden());
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertCount(1, $this->loggedWarnings());
+    }
+
+    #[DataProvider('corporationJobsReadFailuresOtherThanForbidden')]
+    public function testCorporationJobsReadFailureOtherThanForbiddenPropagatesWithoutWriting(\Throwable $corporationJobsReadFailure): void
+    {
+        [$character, $corporationJob, $personalStaleJob] = $this->givenCharacterWithReadyCorporationJobAndStalePersonalJob();
+        $this->esiClient->method('getPaginated')->willThrowException($corporationJobsReadFailure);
+
+        $this->assertSame($corporationJobsReadFailure, $this->syncCatchingFailure($character));
+        $this->assertSame(0, $this->flushCount);
+        $this->assertSame([], $this->persistedJobs);
+        $this->assertSame('ready', $corporationJob->getStatus());
+        $this->assertNull($corporationJob->getCompletedDate());
+        $this->assertSame('active', $personalStaleJob->getStatus());
+        $this->assertNull($personalStaleJob->getCompletedDate());
+        $this->assertSame([], $this->loggedWarnings());
+    }
+
+    public static function corporationJobsReadFailuresOtherThanForbidden(): iterable
+    {
+        yield 'E2 service unavailable 503' => [EsiApiException::fromResponse(503, 'Service Unavailable')];
+        yield 'E3 error limited 420 after the client retry' => [EsiApiException::fromResponse(420, 'Error limited')];
+        yield 'unauthorized 401' => [EsiApiException::unauthorized()];
+        yield 'not found 404' => [EsiApiException::notFound()];
+        yield 'network error' => [EsiApiException::fromResponse(0, 'Network error: connection reset')];
+        yield 'non ESI failure' => [new \UnexpectedValueException('ESI cursor page has no records list')];
+    }
+
+    public function testCorporationJobStillPresentInEsiIsNotMarkedDeliveredWhilePersonalStaleJobIs(): void
+    {
+        [$character, $corporationJob, $personalStaleJob] = $this->givenCharacterWithReadyCorporationJobAndStalePersonalJob();
+        $this->esiClient->method('getPaginated')->willReturn([
+            $this->makeJobData(900, 12345, 'ready'),
+        ]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame('ready', $corporationJob->getStatus());
+        $this->assertNull($corporationJob->getCompletedDate());
+        $this->assertSame('delivered', $personalStaleJob->getStatus());
+        $this->assertSame(
+            $personalStaleJob->getEndDate()->format('c'),
+            $personalStaleJob->getCompletedDate()?->format('c'),
+        );
+        $this->assertSame([], $this->loggedWarnings());
+    }
+
+    public function testStalePersonalJobMarkedDeliveredWhenCorporationAlreadyReadByAnotherCharacterThisSync(): void
+    {
+        [$characterA, $characterB] = $this->createCharactersOfSameUser(12345, 67890);
+        $this->esiClient->method('get')->willReturn([]);
+        $this->esiClient->expects($this->once())->method('getPaginated')->willReturn([]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $personalStaleJobOfB = $this->makeCachedJob(100, $characterB, 'active', '-3 hours');
+        $this->stubActiveJobsByCharacter([$personalStaleJobOfB]);
+
+        $this->service->syncCharacterJobs($characterA);
+        $this->service->syncCharacterJobs($characterB);
+
+        $this->assertSame('delivered', $personalStaleJobOfB->getStatus());
+    }
+
+    public function testStalePersonalJobMarkedDeliveredForCharacterWithoutCorporationJobsScope(): void
+    {
+        $character = $this->createCharacterWithoutCorporationJobsScope(12345);
+        $this->esiClient->method('get')->willReturn([]);
+        $this->esiClient->expects($this->never())->method('getPaginated');
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $personalStaleJob = $this->makeCachedJob(100, $character, 'active', '-3 hours');
+        $this->stubActiveJobsByCharacter([$personalStaleJob]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame('delivered', $personalStaleJob->getStatus());
+    }
+
+    public function testCorporationJobsReadAgainBySecondCharacterAfterForbiddenRead(): void
+    {
+        [$characterA, $characterB] = $this->createCharactersOfSameUser(12345, 67890);
+        $this->esiClient->method('get')->willReturn([]);
+        $this->esiClient->expects($this->exactly(2))
+            ->method('getPaginated')
+            ->with('/corporations/98000001/industry/jobs/?include_completed=true')
+            ->willThrowException(EsiApiException::forbidden());
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $this->stubActiveJobsByCharacter([]);
+
+        $this->service->syncCharacterJobs($characterA);
+        $this->service->syncCharacterJobs($characterB);
+    }
+
+    public function testCharacterWithCorporationRolesReadsCorporationJobsAfterForbiddenReadOfAnother(): void
+    {
+        [$characterA, $characterB] = $this->createCharactersOfSameUser(12345, 67890);
+        $this->esiClient->method('get')->willReturn([]);
+        $this->esiClient->expects($this->exactly(2))
+            ->method('getPaginated')
+            ->willReturnOnConsecutiveCalls(
+                $this->throwException(EsiApiException::forbidden()),
+                [],
+            );
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $personalStaleJobOfB = $this->makeCachedJob(100, $characterB, 'active', '-3 hours');
+        $this->stubActiveJobsByCharacter([$personalStaleJobOfB]);
+
+        $this->service->syncCharacterJobs($characterA);
+        $this->service->syncCharacterJobs($characterB);
+
+        $this->assertSame('delivered', $personalStaleJobOfB->getStatus());
+    }
+
     // ===========================================
     // Helpers
     // ===========================================
+
+    private function givenCharacterWithReadyCorporationJobAndStalePersonalJob(): array
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $newPersonalJob = $this->makeJobData(101, 12345, 'active');
+        $newPersonalJob['runs'] = 7;
+        $this->esiClient->method('get')->willReturn([$newPersonalJob]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+
+        $corporationJob = $this->makeCachedJob(900, $character, 'ready', '-5 hours');
+        $personalStaleJob = $this->makeCachedJob(100, $character, 'active', '-2 days');
+        $this->jobRepository->method('findByJobId')
+            ->willReturnCallback(fn (int $jobId): ?CachedIndustryJob => $jobId === 900 ? $corporationJob : null);
+        $this->stubActiveJobsByCharacter([$corporationJob, $personalStaleJob]);
+
+        $this->em->method('persist')->willReturnCallback(function (object $entity): void {
+            $this->persistedJobs[] = $entity;
+        });
+        $this->em->method('flush')->willReturnCallback(function (): void {
+            ++$this->flushCount;
+        });
+
+        return [$character, $corporationJob, $personalStaleJob];
+    }
+
+    private function createCharacterWithoutCorporationJobsScope(int $eveCharacterId): Character
+    {
+        $character = $this->createCharacterWithUser($eveCharacterId);
+        $token = $this->createStub(EveToken::class);
+        $token->method('hasScope')->willReturnCallback(
+            static fn (string $scope): bool => $scope === 'esi-industry.read_character_jobs.v1',
+        );
+        $characterWithoutCorporationJobsScope = $this->createStub(Character::class);
+        $characterWithoutCorporationJobsScope->method('getEveCharacterId')->willReturn($eveCharacterId);
+        $characterWithoutCorporationJobsScope->method('getEveToken')->willReturn($token);
+        $characterWithoutCorporationJobsScope->method('getName')->willReturn('NoCorpScopeChar');
+        $characterWithoutCorporationJobsScope->method('getUser')->willReturn($character->getUser());
+        $characterWithoutCorporationJobsScope->method('getCorporationId')->willReturn(98000001);
+
+        return $characterWithoutCorporationJobsScope;
+    }
+
+    private function syncCatchingFailure(Character $character): ?\Throwable
+    {
+        try {
+            $this->service->syncCharacterJobs($character);
+        } catch (\Throwable $failure) {
+            return $failure;
+        }
+
+        return null;
+    }
+
+    private function loggedWarnings(): array
+    {
+        return array_values(array_filter(
+            $this->logger->cleanLogs(),
+            static fn (array $log): bool => $log[0] === LogLevel::WARNING,
+        ));
+    }
 
     private function createCharacterWithUser(int $eveCharacterId): Character
     {
