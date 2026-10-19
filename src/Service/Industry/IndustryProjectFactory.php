@@ -25,6 +25,7 @@ use Symfony\Component\Uid\Uuid;
 class IndustryProjectFactory
 {
     private const SECONDS_PER_DAY = 86400;
+    private const array NO_MATERIAL_BONUS = ['total' => 0.0, 'base' => 0.0, 'rig' => 0.0];
 
     public function __construct(
         private readonly IndustryTreeService $treeService,
@@ -63,7 +64,7 @@ class IndustryProjectFactory
         $this->collectStepsFromTree($rawSteps, $tree, $meLevel, $teLevel);
         $this->recalculateReactionQuantities($rawSteps, $user);
         $this->addTimeDataToSteps($rawSteps, $user, $project->getTeLevel());
-        $rawSteps = $this->splitLongJobs($rawSteps, $project->getMaxJobDurationDays());
+        $rawSteps = $this->planStepsJobByJob($rawSteps, $user, $project->getMaxJobDurationDays());
 
         $this->sortAndCreateSteps($project, $rawSteps);
 
@@ -101,7 +102,7 @@ class IndustryProjectFactory
             $this->collectStepsFromTree($rawSteps, $tree, $project->getMeLevel(), $project->getTeLevel());
             $this->recalculateReactionQuantities($rawSteps, $user);
             $this->addTimeDataToSteps($rawSteps, $user, $project->getTeLevel());
-            $rawSteps = $this->splitLongJobs($rawSteps, $project->getMaxJobDurationDays());
+            $rawSteps = $this->planStepsJobByJob($rawSteps, $user, $project->getMaxJobDurationDays());
 
             $this->sortAndCreateSteps($project, $rawSteps);
 
@@ -179,6 +180,7 @@ class IndustryProjectFactory
             if (isset($steps[$copyKey])) {
                 $steps[$copyKey]['quantity'] += $node['runs'];
                 $steps[$copyKey]['runs'] = $steps[$copyKey]['quantity'];
+                $steps[$copyKey]['planningLevel'] = max($steps[$copyKey]['planningLevel'], $node['depth']);
             } else {
                 $steps[$copyKey] = [
                     'blueprintTypeId' => $node['blueprintTypeId'],
@@ -191,6 +193,7 @@ class IndustryProjectFactory
                     'activityType' => 'copy',
                     'meLevel' => 0,
                     'teLevel' => 0,
+                    'planningLevel' => $node['depth'],
                 ];
             }
         }
@@ -218,6 +221,7 @@ class IndustryProjectFactory
         if (isset($steps[$key])) {
             $steps[$key]['quantity'] += $node['quantity'];
             $steps[$key]['runs'] = (int) ceil($steps[$key]['quantity'] / $steps[$key]['outputPerRun']);
+            $steps[$key]['planningLevel'] = max($steps[$key]['planningLevel'], $depth);
         } else {
             $steps[$key] = [
                 'blueprintTypeId' => $node['blueprintTypeId'],
@@ -230,6 +234,7 @@ class IndustryProjectFactory
                 'activityType' => $activityType,
                 'meLevel' => $stepMeLevel,
                 'teLevel' => $stepTeLevel,
+                'planningLevel' => $depth,
             ];
         }
 
@@ -465,6 +470,107 @@ class IndustryProjectFactory
         }
 
         return $bestMultiplier;
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $steps
+     * @return list<array<string, mixed>>
+     */
+    private function planStepsJobByJob(array $steps, User $user, float $maxJobDurationDays): array
+    {
+        $blueprintTypeIds = [];
+        $activityIds = [];
+        $activityTypeByProduct = [];
+        foreach ($steps as $step) {
+            if ($step['activityType'] === 'copy') {
+                continue;
+            }
+            $blueprintTypeIds[] = $step['blueprintTypeId'];
+            $activityIds[] = self::activityIdOf($step['activityType']);
+            $activityTypeByProduct[$step['productTypeId']] = $step['activityType'];
+        }
+        $materialsByKey = $this->materialRepository->findMaterialEntitiesForBlueprints($blueprintTypeIds, $activityIds);
+
+        uasort($steps, static fn (array $a, array $b): int => $a['planningLevel'] <=> $b['planningLevel']);
+
+        $changeOfNeedByProduct = array_fill_keys(array_keys($activityTypeByProduct), 0);
+        $plannedSteps = [];
+        foreach ($steps as $key => $step) {
+            if ($step['activityType'] === 'copy') {
+                $plannedSteps[] = $step;
+                continue;
+            }
+
+            $runsBeforeChangeOfNeed = $step['runs'];
+            if ($changeOfNeedByProduct[$step['productTypeId']] !== 0) {
+                $step['quantity'] += $changeOfNeedByProduct[$step['productTypeId']];
+                $step['runs'] = (int) ceil($step['quantity'] / $step['outputPerRun']);
+            }
+
+            $jobs = $this->splitLongJobs([$key => $step], $maxJobDurationDays);
+            $jobRuns = array_column($jobs, 'runs');
+            if ($jobRuns !== [$runsBeforeChangeOfNeed]) {
+                $materials = $materialsByKey[$step['blueprintTypeId'] . '-' . self::activityIdOf($step['activityType'])] ?? [];
+                foreach ($materials as $material) {
+                    $materialTypeId = $material->getMaterialTypeId();
+                    if (!isset($activityTypeByProduct[$materialTypeId])) {
+                        continue;
+                    }
+                    $materialBonus = $this->materialBonusOf($user, $step, $materialTypeId, $activityTypeByProduct[$materialTypeId] === 'reaction');
+                    $changeOfNeed = $this->materialsOfJobs($material->getQuantity(), $jobRuns, $step['meLevel'], $materialBonus)
+                        - $this->materialsOfJobs($material->getQuantity(), [$runsBeforeChangeOfNeed], $step['meLevel'], $materialBonus);
+                    $changeOfNeedByProduct[$materialTypeId] += $changeOfNeed;
+                }
+            }
+
+            array_push($plannedSteps, ...$jobs);
+        }
+
+        return $plannedSteps;
+    }
+
+    /**
+     * @param array<string, mixed> $consumer
+     * @return array{total: float, base: float, rig: float}
+     */
+    private function materialBonusOf(User $user, array $consumer, int $materialTypeId, bool $materialIsReaction): array
+    {
+        $consumerIsReaction = $consumer['activityType'] === 'reaction';
+
+        if ($materialIsReaction) {
+            $consumerCategory = $this->bonusService->getCategoryForProduct($consumer['productTypeId'], $consumerIsReaction);
+
+            return $consumerCategory === null
+                ? self::NO_MATERIAL_BONUS
+                : $this->bonusService->findBestStructureForCategory($user, $consumerCategory, $consumerIsReaction)['bonus'];
+        }
+
+        $consumerStructure = $this->bonusService->findBestStructureForProduct($user, $consumer['productTypeId'], $consumerIsReaction);
+        $materialCategory = $this->bonusService->getCategoryForProduct($materialTypeId, false);
+        if ($materialCategory !== null && $materialCategory !== $consumerStructure['category']) {
+            return $this->bonusService->findBestStructureForCategory($user, $materialCategory, false)['bonus'];
+        }
+
+        return $consumerStructure['bonus'];
+    }
+
+    /**
+     * @param list<int> $jobRuns
+     * @param array{total: float, base: float, rig: float} $materialBonus
+     */
+    private function materialsOfJobs(int $baseQuantityPerRun, array $jobRuns, int $meLevel, array $materialBonus): int
+    {
+        return array_sum(array_map(
+            fn (int $runs): int => $this->calculationService->calculateMaterialQuantity($baseQuantityPerRun, $runs, $meLevel, $materialBonus['base'], $materialBonus['rig']),
+            $jobRuns,
+        ));
+    }
+
+    private static function activityIdOf(string $activityType): int
+    {
+        return $activityType === 'reaction'
+            ? IndustryActivityType::Reaction->value
+            : IndustryActivityType::Manufacturing->value;
     }
 
     /**

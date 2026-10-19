@@ -129,67 +129,7 @@ class IndustryStepCalculator
                 $product = $productsByKey[$productKey] ?? null;
                 $outputPerRun = $product?->getQuantity() ?? 1;
 
-                $newTotalRuns = (int) ceil($newTotalQuantity / $outputPerRun);
-
-                // Single step (no split)
-                if (count($childSteps) === 1) {
-                    $child = $childSteps[0];
-                    if ($child->getQuantity() !== $newTotalQuantity || $child->getRuns() !== $newTotalRuns) {
-                        $child->setQuantity($newTotalQuantity);
-                        $child->setRuns($newTotalRuns);
-                        $updatedSteps[] = $child;
-                    }
-                    continue;
-                }
-
-                // Split group: redistribute runs proportionally
-                $oldTotalRuns = 0;
-                foreach ($childSteps as $child) {
-                    $oldTotalRuns += $child->getRuns();
-                }
-
-                if ($oldTotalRuns === 0) {
-                    $oldTotalRuns = 1;
-                }
-
-                $assignedRuns = 0;
-                $runsByChild = [];
-                foreach ($childSteps as $i => $child) {
-                    $isLast = ($i === count($childSteps) - 1);
-
-                    if ($isLast) {
-                        $childRuns = $newTotalRuns - $assignedRuns;
-                    } else {
-                        $childRuns = (int) round($newTotalRuns * $child->getRuns() / $oldTotalRuns);
-                    }
-                    $childRuns = max(1, $childRuns);
-                    $runsByChild[$i] = $childRuns;
-                    $assignedRuns += $childRuns;
-                }
-
-                $childIndexesBySplitIndex = array_keys($childSteps);
-                usort(
-                    $childIndexesBySplitIndex,
-                    static fn (int $a, int $b): int => $childSteps[$a]->getSplitIndex() <=> $childSteps[$b]->getSplitIndex(),
-                );
-                $quantitiesBySplitIndex = SplitGroupQuantities::share(
-                    $newTotalQuantity,
-                    $outputPerRun,
-                    array_map(static fn (int $i): int => $runsByChild[$i], $childIndexesBySplitIndex),
-                );
-                $quantityByChild = array_combine($childIndexesBySplitIndex, $quantitiesBySplitIndex);
-
-                foreach ($childSteps as $i => $child) {
-                    $childRuns = $runsByChild[$i];
-                    $childQuantity = $quantityByChild[$i];
-
-                    if ($child->getQuantity() !== $childQuantity || $child->getRuns() !== $childRuns) {
-                        $child->setQuantity($childQuantity);
-                        $child->setRuns($childRuns);
-                        $child->setTotalGroupRuns($newTotalRuns);
-                        $updatedSteps[] = $child;
-                    }
-                }
+                array_push($updatedSteps, ...SplitGroupQuantities::applyNeedToSteps($childSteps, $newTotalQuantity, $outputPerRun));
             }
         }
 

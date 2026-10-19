@@ -11,6 +11,7 @@ use App\ApiResource\Input\Industry\SplitStepInput;
 use App\Entity\IndustryProjectStep;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
+use App\Exception\BlueprintProductMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -86,6 +87,12 @@ class SplitStepProcessor implements ProcessorInterface
             $this->getOutputPerRun($step->getBlueprintTypeId(), $step->getActivityType()),
             $runsBySplitIndex,
         );
+
+        try {
+            $this->splitGroupMaterialNeeds->applyChangeOfJobs($project, $step, [$totalRuns], $runsBySplitIndex);
+        } catch (BlueprintProductMissingFromSdeException $missingProduct) {
+            throw new BadRequestHttpException($missingProduct->getMessage(), $missingProduct);
+        }
 
         // Convert the original step into the first split
         $step->setSplitGroupId($splitGroupId);

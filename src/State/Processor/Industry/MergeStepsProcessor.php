@@ -7,7 +7,9 @@ namespace App\State\Processor\Industry;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\ProjectStepResource;
+use App\Entity\IndustryProjectStep;
 use App\Entity\User;
+use App\Exception\BlueprintProductMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Service\Industry\SplitGroupMaterialNeeds;
@@ -80,6 +82,17 @@ class MergeStepsProcessor implements ProcessorInterface
         // Keep the first step (lowest splitIndex), remove the rest
         usort($siblings, fn ($a, $b) => $a->getSplitIndex() <=> $b->getSplitIndex());
         $keepStep = $siblings[0];
+
+        try {
+            $this->splitGroupMaterialNeeds->applyChangeOfJobs(
+                $project,
+                $keepStep,
+                array_map(static fn (IndustryProjectStep $sibling): int => $sibling->getRuns(), $siblings),
+                [$totalRuns],
+            );
+        } catch (BlueprintProductMissingFromSdeException $missingProduct) {
+            throw new BadRequestHttpException($missingProduct->getMessage(), $missingProduct);
+        }
 
         // Merge all job matches and purchases into the kept step
         for ($i = 1; $i < count($siblings); $i++) {
