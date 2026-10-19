@@ -191,7 +191,8 @@ class ProductionCostServiceTest extends TestCase
         $this->assertCount(0, $result['items']);
     }
 
-    public function testEstimateMaterialCostLeavesTheFailedProductsOfTheShoppingListOutOfTheCost(): void
+    #[Group('issue-119')]
+    public function testEstimateMaterialCostCurrentlyLeavesTheFailedProductsOfTheShoppingListSilentlyOutOfTheCostIssue119(): void
     {
         $project = $this->createProject(587, 2);
 
