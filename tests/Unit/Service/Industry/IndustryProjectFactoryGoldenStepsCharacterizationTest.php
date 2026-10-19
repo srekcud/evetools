@@ -268,15 +268,23 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         );
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #15. La quantité d'une réaction est recalculée
-    // avec ME 10 en dur pour tout consommateur fabriqué, même la racine à ME 0 : Quantum Microprocessor, 32 runs,
-    // ME 0, 17 Titanium Carbide par run → 17 × 32 × 0,9 = 489,6 → 490 au lieu de 17 × 32 = 544.
-    public function testReactionOfAnMeZeroRootIsCurrentlyPlannedAtMeTenIssue15(): void
+    #[Group('issue-15')]
+    public function testReactionConsumedByAnMeZeroRootIsPlannedAtTheMeOfTheRoot(): void
     {
         $project = $this->createProject(self::QUANTUM_MICROPROCESSOR, runs: 32, meLevel: 0, teLevel: 20);
 
         $steps = $this->stepsOf($project);
         self::assertSame([[32, 32, 0, 0, 20, 0, null]], $this->jobsOf($steps, self::QUANTUM_MICROPROCESSOR));
+        self::assertSame([[1, 544, 1, 0, 0, 0, null]], $this->jobsOf($steps, self::TITANIUM_CARBIDE));
+    }
+
+    #[Group('issue-15')]
+    public function testReactionConsumedByAnMeTenRootIsPlannedAtMeTen(): void
+    {
+        $project = $this->createProject(self::QUANTUM_MICROPROCESSOR, runs: 32, meLevel: 10, teLevel: 20);
+
+        $steps = $this->stepsOf($project);
+        self::assertSame([[32, 32, 0, 10, 20, 0, null]], $this->jobsOf($steps, self::QUANTUM_MICROPROCESSOR));
         self::assertSame([[1, 490, 1, 0, 0, 0, null]], $this->jobsOf($steps, self::TITANIUM_CARBIDE));
     }
 
