@@ -6,9 +6,7 @@ namespace App\Service\Industry;
 
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
-use App\Enum\IndustryActivityType;
 use App\Entity\Sde\IndustryActivityMaterial;
-use App\Exception\BlueprintProductMissingFromSdeException;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 
@@ -42,8 +40,8 @@ final class SplitGroupMaterialNeeds
                 continue;
             }
 
-            $changeOfNeed = $this->materialsOfJobs($material->getQuantity(), $jobRunsAfter, $consumer->getMeLevel(), $materialBonus)
-                - $this->materialsOfJobs($material->getQuantity(), $jobRunsBefore, $consumer->getMeLevel(), $materialBonus);
+            $changeOfNeed = SplitGroupMaterials::materialsOfJobs($this->calculationService, $material->getQuantity(), $jobRunsAfter, $consumer->getMeLevel(), $materialBonus)
+                - SplitGroupMaterials::materialsOfJobs($this->calculationService, $material->getQuantity(), $jobRunsBefore, $consumer->getMeLevel(), $materialBonus);
             if ($changeOfNeed === 0) {
                 continue;
             }
@@ -51,7 +49,7 @@ final class SplitGroupMaterialNeeds
             $newNeeds[] = [
                 'steps' => $materialSteps,
                 'need' => array_sum(array_map(static fn (IndustryProjectStep $step): int => $step->getQuantity(), $materialSteps)) + $changeOfNeed,
-                'outputPerRun' => $this->outputPerRunOf($materialSteps[0]),
+                'outputPerRun' => SplitGroupMaterials::outputPerRunOf($this->productRepository, $materialSteps[0]->getBlueprintTypeId(), $materialSteps[0]->getActivityType()),
             ];
         }
 
@@ -83,42 +81,9 @@ final class SplitGroupMaterialNeeds
      */
     private function materialsOf(IndustryProjectStep $consumer): array
     {
-        $activityId = self::activityIdOf($consumer);
+        $activityId = SplitGroupMaterials::activityIdOf($consumer->getActivityType());
         $materialsByBlueprintAndActivity = $this->materialRepository->findMaterialEntitiesForBlueprints([$consumer->getBlueprintTypeId()], [$activityId]);
 
         return $materialsByBlueprintAndActivity[$consumer->getBlueprintTypeId().'-'.$activityId] ?? [];
-    }
-
-    /**
-     * @param list<int> $jobRuns
-     * @param array{total: float, base: float, rig: float} $materialBonus
-     */
-    private function materialsOfJobs(int $baseQuantityPerRun, array $jobRuns, int $meLevel, array $materialBonus): int
-    {
-        return array_sum(array_map(
-            fn (int $runs): int => $this->calculationService->calculateMaterialQuantity($baseQuantityPerRun, $runs, $meLevel, $materialBonus['base'], $materialBonus['rig']),
-            $jobRuns,
-        ));
-    }
-
-    private function outputPerRunOf(IndustryProjectStep $materialStep): int
-    {
-        $product = $this->productRepository->findOneBy([
-            'typeId' => $materialStep->getBlueprintTypeId(),
-            'activityId' => self::activityIdOf($materialStep),
-        ]);
-
-        if ($product === null) {
-            throw new BlueprintProductMissingFromSdeException($materialStep->getBlueprintTypeId());
-        }
-
-        return $product->getQuantity();
-    }
-
-    private static function activityIdOf(IndustryProjectStep $step): int
-    {
-        return $step->getActivityType() === 'reaction'
-            ? IndustryActivityType::Reaction->value
-            : IndustryActivityType::Manufacturing->value;
     }
 }

@@ -10,12 +10,12 @@ use App\ApiResource\Industry\ProjectStepResource;
 use App\ApiResource\Input\Industry\SplitStepInput;
 use App\Entity\IndustryProjectStep;
 use App\Entity\User;
-use App\Enum\IndustryActivityType;
 use App\Exception\BlueprintProductMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\SplitGroupMaterialNeeds;
+use App\Service\Industry\SplitGroupMaterials;
 use App\Service\Industry\SplitGroupQuantities;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
@@ -82,13 +82,13 @@ class SplitStepProcessor implements ProcessorInterface
 
         $splitGroupId = Uuid::v4()->toRfc4122();
         $runsBySplitIndex = SplitGroupQuantities::runsBySplitIndex($totalRuns, $numberOfJobs);
-        $quantitiesBySplitIndex = SplitGroupQuantities::share(
-            $step->getQuantity(),
-            $this->getOutputPerRun($step->getBlueprintTypeId(), $step->getActivityType()),
-            $runsBySplitIndex,
-        );
 
         try {
+            $quantitiesBySplitIndex = SplitGroupQuantities::share(
+                $step->getQuantity(),
+                $this->getOutputPerRun($step->getBlueprintTypeId(), $step->getActivityType()),
+                $runsBySplitIndex,
+            );
             $this->splitGroupMaterialNeeds->applyChangeOfJobs($project, $step, [$totalRuns], $runsBySplitIndex);
         } catch (BlueprintProductMissingFromSdeException $missingProduct) {
             throw new BadRequestHttpException($missingProduct->getMessage(), $missingProduct);
@@ -136,20 +136,6 @@ class SplitStepProcessor implements ProcessorInterface
             return self::OUTPUT_PER_COPY_RUN;
         }
 
-        $activityId = match ($activityType) {
-            'reaction' => IndustryActivityType::Reaction->value,
-            default => IndustryActivityType::Manufacturing->value,
-        };
-
-        $product = $this->activityProductRepository->findOneBy([
-            'typeId' => $blueprintTypeId,
-            'activityId' => $activityId,
-        ]);
-
-        if ($product === null) {
-            throw new BadRequestHttpException("Product of blueprint {$blueprintTypeId} missing from the SDE");
-        }
-
-        return $product->getQuantity();
+        return SplitGroupMaterials::outputPerRunOf($this->activityProductRepository, $blueprintTypeId, $activityType);
     }
 }

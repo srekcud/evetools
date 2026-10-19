@@ -472,7 +472,7 @@ class IndustryProjectFactory
                 continue;
             }
             $blueprintTypeIds[] = $step['blueprintTypeId'];
-            $activityIds[] = self::activityIdOf($step['activityType']);
+            $activityIds[] = SplitGroupMaterials::activityIdOf($step['activityType']);
             $activityTypeByProduct[$step['productTypeId']] = $step['activityType'];
         }
         $materialsByKey = $this->materialRepository->findMaterialEntitiesForBlueprints($blueprintTypeIds, $activityIds);
@@ -496,15 +496,15 @@ class IndustryProjectFactory
             $jobs = $this->jobsOf($step, $maxJobDurationDays);
             $jobRuns = array_column($jobs, 'runs');
             if ($jobRuns !== [$runsBeforeChangeOfNeed]) {
-                $materials = $materialsByKey[$step['blueprintTypeId'] . '-' . self::activityIdOf($step['activityType'])] ?? [];
+                $materials = $materialsByKey[$step['blueprintTypeId'] . '-' . SplitGroupMaterials::activityIdOf($step['activityType'])] ?? [];
                 foreach ($materials as $material) {
                     $materialTypeId = $material->getMaterialTypeId();
                     if (!isset($activityTypeByProduct[$materialTypeId])) {
                         continue;
                     }
                     $materialBonus = $this->materialBonusOf($user, $step, $materialTypeId, $activityTypeByProduct[$materialTypeId] === 'reaction');
-                    $changeOfNeed = $this->materialsOfJobs($material->getQuantity(), $jobRuns, $step['meLevel'], $materialBonus)
-                        - $this->materialsOfJobs($material->getQuantity(), [$runsBeforeChangeOfNeed], $step['meLevel'], $materialBonus);
+                    $changeOfNeed = SplitGroupMaterials::materialsOfJobs($this->calculationService, $material->getQuantity(), $jobRuns, $step['meLevel'], $materialBonus)
+                        - SplitGroupMaterials::materialsOfJobs($this->calculationService, $material->getQuantity(), [$runsBeforeChangeOfNeed], $step['meLevel'], $materialBonus);
                     $changeOfNeedByProduct[$materialTypeId] += $changeOfNeed;
                 }
             }
@@ -547,25 +547,6 @@ class IndustryProjectFactory
         return $consumerCategory === null
             ? self::NO_MATERIAL_BONUS
             : $this->bonusService->findBestStructureForCategory($user, $consumerCategory, $consumerIsReaction)['bonus'];
-    }
-
-    /**
-     * @param list<int> $jobRuns
-     * @param array{total: float, base: float, rig: float} $materialBonus
-     */
-    private function materialsOfJobs(int $baseQuantityPerRun, array $jobRuns, int $meLevel, array $materialBonus): int
-    {
-        return array_sum(array_map(
-            fn (int $runs): int => $this->calculationService->calculateMaterialQuantity($baseQuantityPerRun, $runs, $meLevel, $materialBonus['base'], $materialBonus['rig']),
-            $jobRuns,
-        ));
-    }
-
-    private static function activityIdOf(string $activityType): int
-    {
-        return $activityType === 'reaction'
-            ? IndustryActivityType::Reaction->value
-            : IndustryActivityType::Manufacturing->value;
     }
 
     /**
