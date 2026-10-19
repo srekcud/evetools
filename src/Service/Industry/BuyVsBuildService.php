@@ -34,13 +34,13 @@ class BuyVsBuildService
      *
      * @return array{
      *     typeId: int,
-     *     typeName: string,
+     *     typeName: string|null,
      *     isT2: bool,
      *     runs: int,
      *     totalProductionCost: float,
      *     sellPrice: float|null,
      *     marginPercent: float|null,
-     *     components: list<array{typeId: int, typeName: string, quantity: int, stage: string, buildCost: float, buildMaterials: list<array{typeId: int, typeName: string, quantity: int, unitPrice: float, totalPrice: float}>, buildJobInstallCost: float, buyCostJita: float|null, buyCostStructure: float|null, verdict: string, savings: float, savingsPercent: float, meUsed: int, runs: int}>,
+     *     components: list<array{typeId: int, typeName: string|null, quantity: int, stage: string, buildCost: float, buildMaterials: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: float, totalPrice: float}>, buildJobInstallCost: float, buyCostJita: float|null, buyCostStructure: float|null, verdict: string, savings: float, savingsPercent: float, meUsed: int, runs: int}>,
      *     buildAllCost: float,
      *     buyAllCost: float,
      *     optimalMixCost: float,
@@ -59,7 +59,7 @@ class BuyVsBuildService
         ?User $user,
         ?int $reactionSolarSystemId = null,
     ): array {
-        $typeName = $this->typeNameResolver->resolve($typeId);
+        $typeName = $this->typeNameResolver->findName($typeId);
         $isT2 = $this->inventionService->isT2($typeId);
 
         // Build the full production tree WITHOUT blacklist to decompose everything
@@ -136,7 +136,7 @@ class BuyVsBuildService
 
                 $buildMaterials[] = [
                     'typeId' => $matTypeId,
-                    'typeName' => $this->typeNameResolver->resolve($matTypeId),
+                    'typeName' => $this->typeNameResolver->findName($matTypeId),
                     'quantity' => $matQty,
                     'unitPrice' => round($matUnitPrice, 2),
                     'totalPrice' => round($matTotalPrice, 2),
@@ -177,7 +177,7 @@ class BuyVsBuildService
 
             $analyzedComponents[] = [
                 'typeId' => $compTypeId,
-                'typeName' => $this->typeNameResolver->resolve($compTypeId),
+                'typeName' => $this->typeNameResolver->findName($compTypeId),
                 'quantity' => $quantity,
                 'stage' => $comp['stage'],
                 'buildCost' => round($buildCost, 2),

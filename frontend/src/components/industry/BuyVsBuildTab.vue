@@ -5,6 +5,7 @@ import { useScannerStore } from '@/stores/industry/scanner'
 import { useIndustryStore, type SearchResult } from '@/stores/industry'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import { useTypeNames } from '@/composables/useTypeNames'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
 import type { BuyVsBuildComponent } from '@/stores/industry/types'
 
@@ -17,6 +18,7 @@ const scannerStore = useScannerStore()
 const industryStore = useIndustryStore()
 const { formatIsk, formatNumber } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
+const { typeNameLabel } = useTypeNames()
 
 // Product selector
 const selectedProduct = ref<SearchResult | null>(null)
@@ -174,7 +176,7 @@ const excludedComponentNames = computed(() => {
   if (!result.value) return []
   return result.value.components
     .filter(c => effectiveVerdict(c) !== 'build')
-    .map(c => c.typeName)
+    .map(c => typeNameLabel(c.typeName, c.typeId))
 })
 
 // Savings comparison
@@ -234,7 +236,7 @@ function onCreateOptimalProject(): void {
     target: 'projects',
     prefill: {
       typeId: result.value.typeId,
-      typeName: result.value.typeName,
+      typeName: typeNameLabel(result.value.typeName, result.value.typeId),
       runs: result.value.runs,
       me: meLevel.value,
       excludedTypeIds,
@@ -343,14 +345,14 @@ const SUMMARY_LIST_LIMIT = 5
             <div class="w-12 h-12 rounded-lg border border-slate-700 bg-slate-800 overflow-hidden shrink-0">
               <img
                 :src="getTypeIconUrl(result.typeId, 64)"
-                :alt="result.typeName"
+                :alt="typeNameLabel(result.typeName, result.typeId)"
                 class="w-full h-full object-cover"
                 @error="onImageError"
               />
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <h3 class="text-lg font-bold text-slate-100">{{ result.typeName }}</h3>
+                <h3 class="text-lg font-bold text-slate-100">{{ typeNameLabel(result.typeName, result.typeId) }}</h3>
                 <span v-if="result.isT2" class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-sm">T2</span>
               </div>
               <p class="text-xs text-slate-500 mt-0.5">
@@ -465,14 +467,14 @@ const SUMMARY_LIST_LIMIT = 5
                   <div class="w-8 h-8 rounded-lg border border-slate-700 bg-slate-800 overflow-hidden shrink-0">
                     <img
                       :src="getTypeIconUrl(comp.typeId, 64)"
-                      :alt="comp.typeName"
+                      :alt="typeNameLabel(comp.typeName, comp.typeId)"
                       class="w-full h-full object-cover"
                       @error="onImageError"
                     />
                   </div>
                   <div>
                     <div class="flex items-center">
-                      <p class="text-sm font-semibold text-slate-100">{{ comp.typeName }}</p>
+                      <p class="text-sm font-semibold text-slate-100">{{ typeNameLabel(comp.typeName, comp.typeId) }}</p>
                       <span v-if="isOverridden(comp.typeId)" class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400 font-medium ml-2">
                         {{ t('industry.scanner.buyVsBuild.custom') }}
                       </span>
@@ -500,7 +502,7 @@ const SUMMARY_LIST_LIMIT = 5
                       :key="mat.typeId"
                       class="flex justify-between text-slate-400"
                     >
-                      <span class="truncate mr-2">{{ mat.typeName }}</span>
+                      <span class="truncate mr-2">{{ typeNameLabel(mat.typeName, mat.typeId) }}</span>
                       <span class="font-mono text-slate-300 shrink-0">{{ formatIsk(mat.totalPrice) }}</span>
                     </div>
                     <div class="border-t border-slate-700 pt-1 flex justify-between text-slate-500">
@@ -697,7 +699,7 @@ const SUMMARY_LIST_LIMIT = 5
                     <div class="w-5 h-5 rounded-sm bg-slate-700 border border-slate-600 overflow-hidden shrink-0">
                       <img :src="getTypeIconUrl(comp.typeId, 32)" alt="" class="w-full h-full" @error="onImageError" />
                     </div>
-                    <span class="text-sm text-slate-300 truncate">{{ comp.typeName }}</span>
+                    <span class="text-sm text-slate-300 truncate">{{ typeNameLabel(comp.typeName, comp.typeId) }}</span>
                   </div>
                   <span class="text-xs font-mono text-emerald-400 shrink-0">-{{ formatIsk(comp.savings) }}</span>
                 </div>
@@ -730,7 +732,7 @@ const SUMMARY_LIST_LIMIT = 5
                     <div class="w-5 h-5 rounded-sm bg-slate-700 border border-slate-600 overflow-hidden shrink-0">
                       <img :src="getTypeIconUrl(comp.typeId, 32)" alt="" class="w-full h-full" @error="onImageError" />
                     </div>
-                    <span class="text-sm text-slate-300 truncate">{{ comp.typeName }}</span>
+                    <span class="text-sm text-slate-300 truncate">{{ typeNameLabel(comp.typeName, comp.typeId) }}</span>
                   </div>
                   <div class="flex items-center gap-2 shrink-0">
                     <span v-if="comp.verdict === 'loss'" class="text-[10px] px-1.5 py-0.5 rounded-sm bg-red-500/10 text-red-400">{{ t('industry.scanner.buyVsBuild.loss') }}</span>

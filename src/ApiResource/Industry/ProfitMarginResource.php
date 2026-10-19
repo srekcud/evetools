@@ -40,7 +40,7 @@ class ProfitMarginResource
     #[ApiProperty(identifier: true)]
     public int $typeId;
 
-    public string $typeName;
+    public ?string $typeName;
 
     public bool $isT2 = false;
 

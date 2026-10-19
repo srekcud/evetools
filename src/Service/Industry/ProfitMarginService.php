@@ -507,9 +507,9 @@ class ProfitMarginService
         return null;
     }
 
-    private function resolveTypeName(int $typeId): string
+    private function resolveTypeName(int $typeId): ?string
     {
-        return $this->typeNameResolver->resolve($typeId);
+        return $this->typeNameResolver->findName($typeId);
     }
 
     private function resolveStructureName(int $structureId): string

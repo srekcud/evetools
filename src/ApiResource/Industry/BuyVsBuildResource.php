@@ -38,7 +38,7 @@ class BuyVsBuildResource
     #[ApiProperty(identifier: true)]
     public int $typeId;
 
-    public string $typeName = '';
+    public ?string $typeName = null;
 
     public bool $isT2 = false;
 
@@ -52,7 +52,7 @@ class BuyVsBuildResource
 
     public ?int $sellStructureId = null;
 
-    /** @var list<array{typeId: int, typeName: string, quantity: int, stage: string, buildCost: float, buildMaterials: list<array{typeId: int, typeName: string, quantity: int, unitPrice: float, totalPrice: float}>, buildJobInstallCost: float, buyCostJita: float|null, buyCostStructure: float|null, verdict: string, savings: float, savingsPercent: float, meUsed: int, runs: int}> */
+    /** @var list<array{typeId: int, typeName: string|null, quantity: int, stage: string, buildCost: float, buildMaterials: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: float, totalPrice: float}>, buildJobInstallCost: float, buyCostJita: float|null, buyCostStructure: float|null, verdict: string, savings: float, savingsPercent: float, meUsed: int, runs: int}> */
     public array $components = [];
 
     public float $buildAllCost = 0;

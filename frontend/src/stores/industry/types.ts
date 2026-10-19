@@ -369,7 +369,7 @@ export type InventionUnknownReason = 'missing_invention_probability'
 
 export interface ProfitMarginResult {
   typeId: number
-  typeName: string
+  typeName: string | null
   isT2: boolean
   runs: number
   outputQuantity: number
@@ -563,7 +563,7 @@ export type ScannerFavorite = {
 // Buy vs Build types
 export type BuyVsBuildMaterial = {
   typeId: number
-  typeName: string
+  typeName: string | null
   quantity: number
   unitPrice: number
   totalPrice: number
@@ -571,7 +571,7 @@ export type BuyVsBuildMaterial = {
 
 export type BuyVsBuildComponent = {
   typeId: number
-  typeName: string
+  typeName: string | null
   quantity: number
   stage: string
   buildCost: number
@@ -588,7 +588,7 @@ export type BuyVsBuildComponent = {
 
 export type BuyVsBuildResult = {
   typeId: number
-  typeName: string
+  typeName: string | null
   isT2: boolean
   runs: number
   totalProductionCost: number
