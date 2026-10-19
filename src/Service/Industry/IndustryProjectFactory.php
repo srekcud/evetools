@@ -305,7 +305,7 @@ class IndustryProjectFactory
 
                         $meMultiplier = 1.0;
                         if ($activityId === IndustryActivityType::Manufacturing->value) {
-                            $meMultiplier = 1 - 10 / 100;
+                            $meMultiplier = 1 - $consumer['meLevel'] / 100;
                         }
 
                         $structureBaseBonus = 0.0;
