@@ -7,6 +7,7 @@ namespace App\Service\Sync;
 use App\Entity\CachedIndustryJob;
 use App\Entity\Character;
 use App\Entity\Notification;
+use App\Exception\EsiApiException;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryStepJobMatchRepository;
 use App\Repository\Sde\InvTypeRepository;
@@ -20,6 +21,8 @@ use Symfony\Contracts\Service\ResetInterface;
 
 class IndustryJobSyncService implements ResetInterface
 {
+    private const int FORBIDDEN_STATUS_CODE = 403;
+
     /** @var array<int, bool> Track which corporations we've already synced */
     private array $syncedCorporations = [];
 
@@ -71,6 +74,7 @@ class IndustryJobSyncService implements ResetInterface
             }
 
             // Sync corporation jobs (only once per corporation per sync run)
+            $corporationJobsUnknown = false;
             $corporationId = $character->getCorporationId();
             if (
                 $token->hasScope('esi-industry.read_corporation_jobs.v1')
@@ -86,9 +90,12 @@ class IndustryJobSyncService implements ResetInterface
                     foreach ($corpJobs as $corpJob) {
                         $this->corporationJobIdsSeenThisRun[$corpJob['job_id']] = true;
                     }
-                } catch (\Throwable $e) {
-                    // May fail if character doesn't have the required corp roles
-                    $this->logger->debug('Could not fetch corporation jobs', [
+                } catch (EsiApiException $e) {
+                    if ($e->statusCode !== self::FORBIDDEN_STATUS_CODE) {
+                        throw $e;
+                    }
+                    $corporationJobsUnknown = true;
+                    $this->logger->warning('Corporation jobs forbidden, delivered marking skipped', [
                         'characterName' => $character->getName(),
                         'error' => $e->getMessage(),
                     ]);
@@ -178,7 +185,8 @@ class IndustryJobSyncService implements ResetInterface
             // Alts' jobs are left to their own sync; corporation jobs fetched earlier in this
             // run (corp endpoint is not called again) are still present in ESI.
             $now = new \DateTimeImmutable();
-            foreach ($this->jobRepository->findActiveJobsByCharacter($character) as $dbJob) {
+            $activeJobsToCheck = $corporationJobsUnknown ? [] : $this->jobRepository->findActiveJobsByCharacter($character);
+            foreach ($activeJobsToCheck as $dbJob) {
                 $jobId = $dbJob->getJobId();
                 if (in_array($jobId, $ownedEsiJobIds, true) || isset($this->corporationJobIdsSeenThisRun[$jobId])) {
                     continue;
