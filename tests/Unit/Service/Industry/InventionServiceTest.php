@@ -1203,6 +1203,28 @@ class InventionServiceTest extends TestCase
         ], $this->findOptionByDecryptorTypeId($options, self::ACCELERANT_DECRYPTOR_ID));
     }
 
+    #[Group('issue-8')]
+    public function testUnknownDecryptorTypeIdIsIgnoredAndNotPriced(): void
+    {
+        $unknownDecryptorTypeId = 99999;
+        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE);
+        $this->stubMarketPricesWithFallback(self::DATACORE_PRICES);
+
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510, $unknownDecryptorTypeId);
+
+        $this->assertInventionCostOutcome([
+            'decryptorName' => null,
+            'expectedAttempts' => 3,
+            'runs' => 10,
+            'costPerAttempt' => 2300.0,
+            'totalCost' => 6900.0,
+            'costBreakdown' => ['datacores' => 800.0, 'decryptor' => 0.0, 'copyCost' => 1000.0, 'inventionInstall' => 500.0],
+            'missingPriceTypeIds' => [],
+            'unknownReason' => null,
+        ], $result);
+        $this->assertSame([[self::DATACORE_1_TYPE_ID, self::DATACORE_2_TYPE_ID]], $this->requestedPriceTypeIdsPerCall);
+    }
+
     private function setupSabreInventionAt(?float $baseProbability, array $datacoreLines): void
     {
         $this->setupInventionChainWithDatacoreLines(self::SABRE_TYPE_ID, $baseProbability, 10, $datacoreLines);

@@ -18,6 +18,7 @@ use App\Service\TypeNameResolver;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
@@ -54,6 +55,7 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
     private const int CANDIDATE_C4 = 22514;
     private const int CANDIDATE_C5 = 22515;
     private const int CANDIDATE_C6 = 22516;
+    private const int CANDIDATE_T = 22520;
 
     private const float TRITANIUM_PRICE = 5.0;
     private const float COMPONENT_TWO_PRICE = 50.0;
@@ -72,6 +74,7 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
         self::CANDIDATE_Z => 'Candidate Z',
         self::CANDIDATE_V => 'Candidate V',
         self::CANDIDATE_U => 'Candidate U',
+        self::CANDIDATE_T => 'Candidate T',
     ];
 
     private const array GROUP_NAMES = [
@@ -290,6 +293,229 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
         $this->assertSame(0.0, $this->candidateOf(self::CANDIDATE_C6, $result)['score']);
     }
 
+    public static function inputOrdersOfTwoUnknownScoreCandidatesAndAPricedOne(): iterable
+    {
+        yield 'higher unknown type id first' => [[self::CANDIDATE_Z, self::CANDIDATE_T, self::CANDIDATE_Y]];
+        yield 'lower unknown type id first' => [[self::CANDIDATE_Y, self::CANDIDATE_T, self::CANDIDATE_Z]];
+    }
+
+    #[DataProvider('inputOrdersOfTwoUnknownScoreCandidatesAndAPricedOne')]
+    public function testTwoUnknownScoreCandidatesAreOrderedByAscendingTypeIdWhateverTheirInputOrder(array $candidateInputOrder): void
+    {
+        $materialsByCandidate = [
+            self::CANDIDATE_Z => [
+                ['materialTypeId' => self::TRITANIUM, 'quantity' => 10],
+                ['materialTypeId' => self::COMPONENT_TWO, 'quantity' => 4],
+                ['materialTypeId' => self::UNPRICED_GAS, 'quantity' => 3],
+            ],
+            self::CANDIDATE_T => [
+                ['materialTypeId' => self::TRITANIUM, 'quantity' => 10],
+                ['materialTypeId' => self::COMPONENT_TWO, 'quantity' => 4],
+            ],
+            self::CANDIDATE_Y => [
+                ['materialTypeId' => self::TRITANIUM, 'quantity' => 10],
+                ['materialTypeId' => self::COMPONENT_TWO, 'quantity' => 2],
+                ['materialTypeId' => self::UNPRICED_ISOTOPES, 'quantity' => 2],
+            ],
+        ];
+
+        $result = $this->analyzePivot(
+            sourceMaterials: [
+                ['materialTypeId' => self::COMPONENT_TWO, 'quantity' => 6],
+                ['materialTypeId' => self::TRITANIUM, 'quantity' => 20],
+            ],
+            candidates: array_combine(
+                $candidateInputOrder,
+                array_map(static fn (int $typeId): array => $materialsByCandidate[$typeId], $candidateInputOrder),
+            ),
+            jitaPrices: [
+                self::SOURCE_PRODUCT => self::SOURCE_SELL_PRICE,
+                self::TRITANIUM => self::TRITANIUM_PRICE,
+                self::COMPONENT_TWO => self::COMPONENT_TWO_PRICE,
+                self::UNPRICED_ISOTOPES => null,
+                self::UNPRICED_GAS => null,
+                self::CANDIDATE_Z => 2000.0,
+                self::CANDIDATE_T => 1100.0,
+                self::CANDIDATE_Y => 1500.0,
+            ],
+            stockByTypeId: [self::COMPONENT_TWO => 1],
+            dailyVolumes: [self::SOURCE_PRODUCT => 25.0, self::CANDIDATE_Z => 49.0, self::CANDIDATE_T => 19.0, self::CANDIDATE_Y => 999.0],
+        );
+
+        $this->assertSame([self::CANDIDATE_T, self::CANDIDATE_Y, self::CANDIDATE_Z], array_column($result['candidates'], 'typeId'));
+    }
+
+    public function testMissingComponentCostAdditionalCostProfitAndSourceSellPriceAreRoundedToTheCent(): void
+    {
+        $result = $this->analyzePivot(
+            sourceMaterials: [
+                ['materialTypeId' => self::COMPONENT_TWO, 'quantity' => 6],
+                ['materialTypeId' => self::COMPONENT_FOUR, 'quantity' => 3],
+                ['materialTypeId' => self::TRITANIUM, 'quantity' => 20],
+            ],
+            candidates: [
+                self::CANDIDATE_X => [
+                    ['materialTypeId' => self::TRITANIUM, 'quantity' => 10],
+                    ['materialTypeId' => self::COMPONENT_TWO, 'quantity' => 4],
+                    ['materialTypeId' => self::COMPONENT_FOUR, 'quantity' => 5],
+                ],
+            ],
+            jitaPrices: [
+                self::SOURCE_PRODUCT => 4000.456,
+                self::TRITANIUM => self::TRITANIUM_PRICE,
+                self::COMPONENT_TWO => 33.337,
+                self::COMPONENT_FOUR => 12.3456,
+                self::CANDIDATE_X => 1000.0,
+            ],
+            stockByTypeId: [self::COMPONENT_TWO => 1, self::COMPONENT_FOUR => 2],
+            dailyVolumes: [self::SOURCE_PRODUCT => 25.0, self::CANDIDATE_X => 99.0],
+        );
+
+        $this->assertSame(
+            [
+                'marginPercent' => 268.14,
+                'profitPerUnit' => 675.92,
+                'missingComponents' => [
+                    ['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'quantity' => 3, 'cost' => 100.01],
+                    ['typeId' => self::COMPONENT_FOUR, 'typeName' => 'Component Four', 'quantity' => 3, 'cost' => 37.04],
+                ],
+                'additionalCost' => 137.05,
+                'estimatedProfit' => 2027.77,
+            ],
+            $this->onlyKeys($this->candidateOf(self::CANDIDATE_X, $result), 'marginPercent', 'profitPerUnit', 'missingComponents', 'additionalCost', 'estimatedProfit'),
+        );
+        $this->assertSame(
+            ['marginPercent' => 994.92, 'sellPrice' => 4000.46],
+            $this->onlyKeys($result['sourceProduct'], 'marginPercent', 'sellPrice'),
+        );
+    }
+
+    public function testBuildableMaterialWhoseStockEqualsTheNeedIsNotAMissingComponent(): void
+    {
+        $result = $this->analyzePivot(
+            sourceMaterials: [
+                ['materialTypeId' => self::COMPONENT_TWO, 'quantity' => 6],
+                ['materialTypeId' => self::TRITANIUM, 'quantity' => 20],
+            ],
+            candidates: [
+                self::CANDIDATE_X => [
+                    ['materialTypeId' => self::TRITANIUM, 'quantity' => 10],
+                    ['materialTypeId' => self::COMPONENT_TWO, 'quantity' => 4],
+                ],
+            ],
+            jitaPrices: [
+                self::SOURCE_PRODUCT => self::SOURCE_SELL_PRICE,
+                self::TRITANIUM => self::TRITANIUM_PRICE,
+                self::COMPONENT_TWO => self::COMPONENT_TWO_PRICE,
+                self::CANDIDATE_X => 1000.0,
+            ],
+            stockByTypeId: [self::COMPONENT_TWO => 4],
+            dailyVolumes: [self::SOURCE_PRODUCT => 25.0, self::CANDIDATE_X => 99.0],
+        );
+
+        $this->assertSame(
+            ['coveragePercent' => 100.0, 'missingComponents' => [], 'additionalCost' => 0.0],
+            $this->onlyKeys($this->candidateOf(self::CANDIDATE_X, $result), 'coveragePercent', 'missingComponents', 'additionalCost'),
+        );
+    }
+
+    public function testCandidateSoldAtZeroIsExcludedAndSourceProductSoldAtZeroHasNoMargin(): void
+    {
+        $result = $this->analyzePivot(
+            sourceMaterials: [
+                ['materialTypeId' => self::COMPONENT_TWO, 'quantity' => 6],
+                ['materialTypeId' => self::TRITANIUM, 'quantity' => 20],
+            ],
+            candidates: [
+                self::CANDIDATE_W => [
+                    ['materialTypeId' => self::TRITANIUM, 'quantity' => 10],
+                    ['materialTypeId' => self::COMPONENT_TWO, 'quantity' => 3],
+                ],
+                self::CANDIDATE_X => [
+                    ['materialTypeId' => self::TRITANIUM, 'quantity' => 10],
+                    ['materialTypeId' => self::COMPONENT_TWO, 'quantity' => 4],
+                ],
+            ],
+            jitaPrices: [
+                self::SOURCE_PRODUCT => 0.0,
+                self::TRITANIUM => self::TRITANIUM_PRICE,
+                self::COMPONENT_TWO => self::COMPONENT_TWO_PRICE,
+                self::CANDIDATE_W => 0.0,
+                self::CANDIDATE_X => 1000.0,
+            ],
+            stockByTypeId: [self::COMPONENT_TWO => 1],
+            dailyVolumes: [self::SOURCE_PRODUCT => 25.0, self::CANDIDATE_W => 9.0, self::CANDIDATE_X => 99.0],
+        );
+
+        $this->assertSame([self::CANDIDATE_X], array_column($result['candidates'], 'typeId'));
+        $this->assertSame(
+            ['marginPercent' => null, 'sellPrice' => 0.0, 'unknownReason' => null],
+            $this->onlyKeys($result['sourceProduct'], 'marginPercent', 'sellPrice', 'unknownReason'),
+        );
+    }
+
+    public function testCandidateWithAZeroTotalCostIsExcludedAndSourceProductWithAZeroTotalCostHasNoMargin(): void
+    {
+        $result = $this->analyzePivot(
+            sourceMaterials: [
+                ['materialTypeId' => self::COMPONENT_TWO, 'quantity' => 6],
+                ['materialTypeId' => self::TRITANIUM, 'quantity' => 20],
+            ],
+            candidates: [
+                self::CANDIDATE_X => [
+                    ['materialTypeId' => self::TRITANIUM, 'quantity' => 10],
+                    ['materialTypeId' => self::COMPONENT_TWO, 'quantity' => 4],
+                ],
+            ],
+            jitaPrices: [
+                self::SOURCE_PRODUCT => self::SOURCE_SELL_PRICE,
+                self::TRITANIUM => 0.0,
+                self::COMPONENT_TWO => 0.0,
+                self::CANDIDATE_X => 1000.0,
+            ],
+            stockByTypeId: [self::COMPONENT_TWO => 1],
+            dailyVolumes: [self::SOURCE_PRODUCT => 25.0, self::CANDIDATE_X => 99.0],
+            jobInstallCostPerRun: 0.0,
+        );
+
+        $this->assertSame([], $result['candidates']);
+        $this->assertSame(
+            ['marginPercent' => null, 'sellPrice' => self::SOURCE_SELL_PRICE, 'unknownReason' => null],
+            $this->onlyKeys($result['sourceProduct'], 'marginPercent', 'sellPrice', 'unknownReason'),
+        );
+    }
+
+    public function testMarginAndProfitPerUnitCountEveryUnitOfAMultiUnitRun(): void
+    {
+        $result = $this->analyzePivot(
+            sourceMaterials: [
+                ['materialTypeId' => self::COMPONENT_TWO, 'quantity' => 6],
+                ['materialTypeId' => self::TRITANIUM, 'quantity' => 20],
+            ],
+            candidates: [
+                self::CANDIDATE_X => [
+                    ['materialTypeId' => self::TRITANIUM, 'quantity' => 10],
+                    ['materialTypeId' => self::COMPONENT_TWO, 'quantity' => 4],
+                ],
+            ],
+            jitaPrices: [
+                self::SOURCE_PRODUCT => self::SOURCE_SELL_PRICE,
+                self::TRITANIUM => self::TRITANIUM_PRICE,
+                self::COMPONENT_TWO => self::COMPONENT_TWO_PRICE,
+                self::CANDIDATE_X => 1000.0,
+            ],
+            stockByTypeId: [self::COMPONENT_TWO => 1],
+            dailyVolumes: [self::SOURCE_PRODUCT => 25.0, self::CANDIDATE_X => 99.0],
+            outputPerRun: 10,
+        );
+
+        $this->assertSame(
+            ['marginPercent' => 3510.89, 'profitPerUnit' => 902.3, 'estimatedProfit' => 2706.9],
+            $this->onlyKeys($this->candidateOf(self::CANDIDATE_X, $result), 'marginPercent', 'profitPerUnit', 'estimatedProfit'),
+        );
+        $this->assertSame(9133.83, $result['sourceProduct']['marginPercent']);
+    }
+
     private function analyzeCandidatesXWAndY(float $tritaniumPrice = self::TRITANIUM_PRICE): array
     {
         return $this->analyzePivot(
@@ -360,9 +586,16 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
         );
     }
 
-    private function analyzePivot(array $sourceMaterials, array $candidates, array $jitaPrices, array $stockByTypeId, array $dailyVolumes): array
-    {
-        $sourceBlueprint = $this->blueprintProducing(self::SOURCE_BLUEPRINT, self::SOURCE_PRODUCT);
+    private function analyzePivot(
+        array $sourceMaterials,
+        array $candidates,
+        array $jitaPrices,
+        array $stockByTypeId,
+        array $dailyVolumes,
+        float $jobInstallCostPerRun = self::JOB_INSTALL_COST_PER_RUN,
+        int $outputPerRun = 1,
+    ): array {
+        $sourceBlueprint = $this->blueprintProducing(self::SOURCE_BLUEPRINT, self::SOURCE_PRODUCT, $outputPerRun);
         $componentTwoBlueprint = $this->blueprintProducing(self::COMPONENT_TWO_BLUEPRINT, self::COMPONENT_TWO);
         $componentFourBlueprint = $this->blueprintProducing(self::COMPONENT_FOUR_BLUEPRINT, self::COMPONENT_FOUR);
 
@@ -381,7 +614,7 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
         $candidateProducts = [];
         foreach ($candidates as $candidateTypeId => $materials) {
             $candidateMaterialsByBlueprint[$candidateTypeId + self::BLUEPRINT_TYPE_ID_OFFSET] = $materials;
-            $candidateProducts[] = ['blueprintTypeId' => $candidateTypeId + self::BLUEPRINT_TYPE_ID_OFFSET, 'productTypeId' => $candidateTypeId, 'outputPerRun' => 1, 'activityId' => 1];
+            $candidateProducts[] = ['blueprintTypeId' => $candidateTypeId + self::BLUEPRINT_TYPE_ID_OFFSET, 'productTypeId' => $candidateTypeId, 'outputPerRun' => $outputPerRun, 'activityId' => 1];
         }
 
         $materialRepository = $this->createStub(IndustryActivityMaterialRepository::class);
@@ -401,7 +634,7 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
 
         $esiCostIndexService = $this->createStub(EsiCostIndexService::class);
         $esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $esiCostIndexService->method('calculateJobInstallCost')->willReturn(self::JOB_INSTALL_COST_PER_RUN);
+        $esiCostIndexService->method('calculateJobInstallCost')->willReturn($jobInstallCostPerRun);
 
         $typeNameResolver = $this->createStub(TypeNameResolver::class);
         $typeNameResolver->method('findNames')->willReturn(self::TYPE_NAMES);
@@ -440,12 +673,12 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
         );
     }
 
-    private function blueprintProducing(int $blueprintTypeId, int $productTypeId): IndustryActivityProduct
+    private function blueprintProducing(int $blueprintTypeId, int $productTypeId, int $outputPerRun = 1): IndustryActivityProduct
     {
         $blueprint = new IndustryActivityProduct();
         $blueprint->setTypeId($blueprintTypeId);
         $blueprint->setProductTypeId($productTypeId);
-        $blueprint->setQuantity(1);
+        $blueprint->setQuantity($outputPerRun);
         $blueprint->setActivityId(1);
 
         return $blueprint;
