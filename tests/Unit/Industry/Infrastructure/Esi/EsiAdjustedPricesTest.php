@@ -63,15 +63,10 @@ final class EsiAdjustedPricesTest extends TestCase
         $this->assertNull($adjustedPrices->adjustedPriceOf(self::TRITANIUM));
     }
 
-    /**
-     * EsiCostIndexService::syncAdjustedPrices() caches 0.0 when the ESI entry has no adjusted_price
-     * (EsiCostIndexService.php:59, `?? 0.0`). The adapter must not let this plausible default through (R10).
-     */
     public function testEsiEntryWithoutAdjustedPriceGivesNoAdjustedPriceRatherThanZero(): void
     {
         $this->esiCostIndexService->syncAdjustedPrices();
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #8 — the service caches 0.0 for a missing adjusted price
-        $this->assertSame(0.0, $this->esiCostIndexService->getAdjustedPrice(self::PYERITE));
+        $this->assertNull($this->esiCostIndexService->getAdjustedPrice(self::PYERITE));
 
         $adjustedPrices = new EsiAdjustedPrices($this->esiCostIndexService);
 

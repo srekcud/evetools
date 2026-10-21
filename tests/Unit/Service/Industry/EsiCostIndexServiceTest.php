@@ -806,8 +806,8 @@ class EsiCostIndexServiceTest extends TestCase
     {
         return [
             ['type_id' => self::TRITANIUM, 'adjusted_price' => 5.12, 'average_price' => 4.98],
-            ['type_id' => self::PYERITE, 'adjusted_price' => 11.75],
             ['type_id' => self::MEXALLON, 'average_price' => 60.4],
+            ['type_id' => self::PYERITE, 'adjusted_price' => 11.75],
         ];
     }
 
