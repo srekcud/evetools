@@ -9,12 +9,14 @@ use App\Service\ESI\TokenManager;
 use App\Service\Industry\EsiCostIndexService;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Cache\CacheItemInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -40,6 +42,31 @@ class EsiCostIndexServiceTest extends TestCase
     private const MEXALLON = 36;
     private const JITA = 30000142;
     private const PERIMETER = 30000144;
+    private const SYSTEM_WITHOUT_COST_INDEX = 30002510;
+
+    private const ROBOTICS = 9848;
+    private const COOLANT = 3683;
+    private const NITROGEN_FUEL_BLOCK_MATERIALS = [
+        44 => 4,
+        3683 => 22,
+        3689 => 4,
+        9832 => 9,
+        9848 => 1,
+        16272 => 170,
+        16273 => 350,
+        16275 => 20,
+        17888 => 450,
+    ];
+    private const ADJUSTED_PRICE_DIVISOR = 1_000.0;
+    private const JITA_MANUFACTURING_COST_INDEX = 0.05;
+    private const JITA_REACTION_COST_INDEX = 0.04;
+    private const PERIMETER_MANUFACTURING_COST_INDEX = 0.0734;
+    private const FACILITY_TAX_PERCENT = 10.0;
+
+    private const SECONDS_PER_MINUTE = 60;
+    private const COST_INDEX_SYNC_INTERVAL_SECONDS = 2 * 3600;
+    private const ADJUSTED_PRICE_SYNC_INTERVAL_SECONDS = 24 * 3600;
+    private const SYNC_INTERVALS_KEPT_IN_CACHE = 3;
 
     private CacheItemPoolInterface&MockObject $cache;
     private EsiCostIndexService $service;
@@ -60,7 +87,7 @@ class EsiCostIndexServiceTest extends TestCase
     // syncAdjustedPrices() / syncCostIndices() — GREEN guards (stored cache content)
     // ===========================================
 
-    public function testSyncAdjustedPricesStoresEachAdjustedPriceByTypeId(): void
+    public function testSyncAdjustedPricesStoresEachAdjustedPriceByTypeIdAndSkipsEntriesWithoutAdjustedPrice(): void
     {
         $esiCostIndexCache = new ArrayAdapter();
         $service = $this->createService([
@@ -69,15 +96,15 @@ class EsiCostIndexServiceTest extends TestCase
 
         $count = $service->syncAdjustedPrices();
 
-        $this->assertSame(3, $count);
+        $this->assertSame(2, $count);
         $this->assertSame(5.12, $esiCostIndexCache->getItem('esi_adjusted_price_' . self::TRITANIUM)->get());
         $this->assertSame(11.75, $esiCostIndexCache->getItem('esi_adjusted_price_' . self::PYERITE)->get());
-        // No adjusted_price in the ESI entry: stored as 0.0.
-        $this->assertSame(0.0, $esiCostIndexCache->getItem('esi_adjusted_price_' . self::MEXALLON)->get());
-        $this->assertSame([self::TRITANIUM => 5.12, self::PYERITE => 11.75, self::MEXALLON => 0.0], $service->getAdjustedPrices([self::TRITANIUM, self::PYERITE, self::MEXALLON]));
+        $this->assertFalse($esiCostIndexCache->getItem('esi_adjusted_price_' . self::MEXALLON)->isHit());
+        $this->assertNull($service->getAdjustedPrice(self::MEXALLON));
+        $this->assertSame([self::TRITANIUM => 5.12, self::PYERITE => 11.75], $service->getAdjustedPrices([self::TRITANIUM, self::PYERITE, self::MEXALLON]));
 
         $meta = $esiCostIndexCache->getItem('esi_adjusted_prices_meta')->get();
-        $this->assertSame(3, $meta['count']);
+        $this->assertSame(2, $meta['count']);
         $this->assertInstanceOf(\DateTimeImmutable::class, $service->getAdjustedPricesLastSync());
     }
 
@@ -140,7 +167,7 @@ class EsiCostIndexServiceTest extends TestCase
             self::COST_INDICES_PATH => [$this->jsonResponse($this->twoSystemsCostIndices())],
         ], self::CONFIGURED_ESI_BASE_URL, $esiCostIndexCache);
 
-        $this->assertSame(3, $service->syncAdjustedPrices());
+        $this->assertSame(2, $service->syncAdjustedPrices());
         $this->assertSame(2, $service->syncCostIndices());
 
         $this->assertSame(5.12, $service->getAdjustedPrice(self::TRITANIUM));
@@ -163,7 +190,7 @@ class EsiCostIndexServiceTest extends TestCase
 
         $count = $service->syncAdjustedPrices();
 
-        $this->assertSame(3, $count);
+        $this->assertSame(2, $count);
         $this->assertSame(5.12, $service->getAdjustedPrice(self::TRITANIUM));
         $this->assertSame(11.75, $service->getAdjustedPrice(self::PYERITE));
         $this->assertCount(2, $this->requestedUrls);
@@ -191,7 +218,7 @@ class EsiCostIndexServiceTest extends TestCase
             logger: new NullLogger(),
         );
 
-        $this->assertSame(3, $service->syncAdjustedPrices());
+        $this->assertSame(2, $service->syncAdjustedPrices());
         $this->assertSame(2, $service->syncCostIndices());
         $this->assertSame([
             [self::ADJUSTED_PRICES_PATH, null],
@@ -494,6 +521,178 @@ class EsiCostIndexServiceTest extends TestCase
         $this->assertSame(40000.0, $result);
     }
 
+    public function testCostIndexIsStillServedAfterAFailedSyncUpToThreeSyncIntervals(): void
+    {
+        $clock = new MockClock();
+        $service = $this->createService([
+            self::COST_INDICES_PATH => [$this->jsonResponse($this->twoSystemsCostIndices())],
+        ], self::PRODUCTION_ESI_BASE_URL, new ArrayAdapter(clock: $clock));
+        $service->syncCostIndices();
+
+        $clock->sleep(self::COST_INDEX_SYNC_INTERVAL_SECONDS + self::SECONDS_PER_MINUTE);
+
+        $this->assertSame(0.0512, $service->getCostIndex(self::JITA, 'manufacturing'));
+        $this->assertInstanceOf(\DateTimeImmutable::class, $service->getCostIndicesLastSync());
+
+        $clock->sleep(self::SYNC_INTERVALS_KEPT_IN_CACHE * self::COST_INDEX_SYNC_INTERVAL_SECONDS - self::COST_INDEX_SYNC_INTERVAL_SECONDS - self::SECONDS_PER_MINUTE);
+
+        $this->assertSame(0.0512, $service->getCostIndex(self::JITA, 'manufacturing'));
+        $this->assertSame(0.0734, $service->getCostIndex(self::PERIMETER, 'manufacturing'));
+        $this->assertInstanceOf(\DateTimeImmutable::class, $service->getCostIndicesLastSync());
+    }
+
+    public function testCostIndexExpiresOneMinutePastThreeSyncIntervals(): void
+    {
+        $clock = new MockClock();
+        $service = $this->createService([
+            self::COST_INDICES_PATH => [$this->jsonResponse($this->twoSystemsCostIndices())],
+        ], self::PRODUCTION_ESI_BASE_URL, new ArrayAdapter(clock: $clock));
+        $service->syncCostIndices();
+
+        $clock->sleep(self::SYNC_INTERVALS_KEPT_IN_CACHE * self::COST_INDEX_SYNC_INTERVAL_SECONDS + self::SECONDS_PER_MINUTE);
+
+        $this->assertNull($service->getCostIndex(self::JITA, 'manufacturing'));
+        $this->assertNull($service->getCostIndicesLastSync());
+    }
+
+    public function testAdjustedPriceIsStillServedAfterAFailedSyncUpToThreeSyncIntervals(): void
+    {
+        $clock = new MockClock();
+        $service = $this->createService([
+            self::ADJUSTED_PRICES_PATH => [$this->jsonResponse($this->threeAdjustedPrices())],
+        ], self::PRODUCTION_ESI_BASE_URL, new ArrayAdapter(clock: $clock));
+        $service->syncAdjustedPrices();
+
+        $clock->sleep(self::ADJUSTED_PRICE_SYNC_INTERVAL_SECONDS + self::SECONDS_PER_MINUTE);
+
+        $this->assertSame(5.12, $service->getAdjustedPrice(self::TRITANIUM));
+        $this->assertInstanceOf(\DateTimeImmutable::class, $service->getAdjustedPricesLastSync());
+
+        $clock->sleep(self::SYNC_INTERVALS_KEPT_IN_CACHE * self::ADJUSTED_PRICE_SYNC_INTERVAL_SECONDS - self::ADJUSTED_PRICE_SYNC_INTERVAL_SECONDS - self::SECONDS_PER_MINUTE);
+
+        $this->assertSame([self::TRITANIUM => 5.12, self::PYERITE => 11.75], $service->getAdjustedPrices([self::TRITANIUM, self::PYERITE]));
+        $this->assertInstanceOf(\DateTimeImmutable::class, $service->getAdjustedPricesLastSync());
+    }
+
+    public function testAdjustedPriceExpiresOneMinutePastThreeSyncIntervals(): void
+    {
+        $clock = new MockClock();
+        $service = $this->createService([
+            self::ADJUSTED_PRICES_PATH => [$this->jsonResponse($this->threeAdjustedPrices())],
+        ], self::PRODUCTION_ESI_BASE_URL, new ArrayAdapter(clock: $clock));
+        $service->syncAdjustedPrices();
+
+        $clock->sleep(self::SYNC_INTERVALS_KEPT_IN_CACHE * self::ADJUSTED_PRICE_SYNC_INTERVAL_SECONDS + self::SECONDS_PER_MINUTE);
+
+        $this->assertNull($service->getAdjustedPrice(self::TRITANIUM));
+        $this->assertSame([], $service->getAdjustedPrices([self::TRITANIUM, self::PYERITE]));
+        $this->assertNull($service->getAdjustedPricesLastSync());
+    }
+
+    public function testEstimateJobInstallCostOfNitrogenFuelBlockWithEveryInputKnownKeepsTheCurrentFormula(): void
+    {
+        $service = $this->createServiceWithSyncedNitrogenFuelBlockInputs();
+
+        $estimate = $service->estimateJobInstallCost($this->nitrogenFuelBlockMaterials(), 1, self::JITA, 'manufacturing', self::FACILITY_TAX_PERCENT);
+
+        $this->assertEqualsWithDelta(936.71512, $estimate['cost'], 1e-6);
+        $this->assertNull($estimate['unknownReason']);
+        $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
+    }
+
+    public function testEstimateJobInstallCostMultipliesByRunsAndReadsNullFacilityTaxAsZero(): void
+    {
+        $service = $this->createServiceWithSyncedNitrogenFuelBlockInputs();
+
+        $estimate = $service->estimateJobInstallCost($this->nitrogenFuelBlockMaterials(), 3, self::JITA, 'manufacturing', null);
+
+        $this->assertEqualsWithDelta(2554.6776, $estimate['cost'], 1e-6);
+        $this->assertNull($estimate['unknownReason']);
+        $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
+    }
+
+    public function testEstimateJobInstallCostIsUnknownWhenAMaterialHasNoAdjustedPrice(): void
+    {
+        $service = $this->createServiceWithSyncedNitrogenFuelBlockInputs(typeIdsWithoutAdjustedPrice: [self::ROBOTICS]);
+
+        $estimate = $service->estimateJobInstallCost($this->nitrogenFuelBlockMaterials(), 1, self::JITA, 'manufacturing', self::FACILITY_TAX_PERCENT);
+
+        $this->assertNull($estimate['cost']);
+        $this->assertSame('missing_adjusted_price', $estimate['unknownReason']);
+        $this->assertSame([self::ROBOTICS], $estimate['missingAdjustedPriceTypeIds']);
+    }
+
+    public function testEstimateJobInstallCostListsEachMissingAdjustedPriceTypeIdOnceInAscendingOrder(): void
+    {
+        $service = $this->createServiceWithSyncedNitrogenFuelBlockInputs(typeIdsWithoutAdjustedPrice: [self::ROBOTICS, self::COOLANT]);
+        $materialsWithRoboticsTwice = [
+            ...array_reverse($this->nitrogenFuelBlockMaterials()),
+            ['materialTypeId' => self::ROBOTICS, 'quantity' => 2],
+        ];
+
+        $estimate = $service->estimateJobInstallCost($materialsWithRoboticsTwice, 1, self::JITA, 'manufacturing', self::FACILITY_TAX_PERCENT);
+
+        $this->assertNull($estimate['cost']);
+        $this->assertSame('missing_adjusted_price', $estimate['unknownReason']);
+        $this->assertSame([self::COOLANT, self::ROBOTICS], $estimate['missingAdjustedPriceTypeIds']);
+    }
+
+    public function testEstimateJobInstallCostIsUnknownWhenTheSystemHasNoCostIndex(): void
+    {
+        $service = $this->createServiceWithSyncedNitrogenFuelBlockInputs();
+
+        $estimate = $service->estimateJobInstallCost($this->nitrogenFuelBlockMaterials(), 1, self::SYSTEM_WITHOUT_COST_INDEX, 'manufacturing', self::FACILITY_TAX_PERCENT);
+
+        $this->assertNull($estimate['cost']);
+        $this->assertSame('missing_cost_index', $estimate['unknownReason']);
+        $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
+    }
+
+    public function testEstimateJobInstallCostIsUnknownWhenTheSystemHasNoCostIndexForTheActivity(): void
+    {
+        $service = $this->createServiceWithSyncedNitrogenFuelBlockInputs();
+
+        $estimate = $service->estimateJobInstallCost($this->nitrogenFuelBlockMaterials(), 1, self::PERIMETER, 'reaction', self::FACILITY_TAX_PERCENT);
+
+        $this->assertNull($estimate['cost']);
+        $this->assertSame('missing_cost_index', $estimate['unknownReason']);
+        $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
+    }
+
+    public function testEstimateJobInstallCostReportsMissingCostIndexBeforeMissingAdjustedPriceAndStillListsTheTypeIds(): void
+    {
+        $service = $this->createServiceWithSyncedNitrogenFuelBlockInputs(typeIdsWithoutAdjustedPrice: [self::ROBOTICS]);
+
+        $estimate = $service->estimateJobInstallCost($this->nitrogenFuelBlockMaterials(), 1, self::SYSTEM_WITHOUT_COST_INDEX, 'manufacturing', self::FACILITY_TAX_PERCENT);
+
+        $this->assertNull($estimate['cost']);
+        $this->assertSame('missing_cost_index', $estimate['unknownReason']);
+        $this->assertSame([self::ROBOTICS], $estimate['missingAdjustedPriceTypeIds']);
+    }
+
+    public function testEstimateJobInstallCostOfABlueprintWithoutMaterialIsZero(): void
+    {
+        $service = $this->createServiceWithSyncedNitrogenFuelBlockInputs();
+
+        $estimate = $service->estimateJobInstallCost([], 1, self::JITA, 'manufacturing', self::FACILITY_TAX_PERCENT);
+
+        $this->assertSame(0.0, $estimate['cost']);
+        $this->assertNull($estimate['unknownReason']);
+        $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
+    }
+
+    #[Group('issue-7')]
+    public function testCalculateJobInstallCostCurrentlyReturnsZeroWithoutCostIndexIssue7(): void
+    {
+        $service = $this->createServiceWithSyncedNitrogenFuelBlockInputs();
+        $eiv = $service->calculateEiv($this->nitrogenFuelBlockMaterials());
+
+        $installCost = $service->calculateJobInstallCost($eiv, 1, self::SYSTEM_WITHOUT_COST_INDEX, 'manufacturing', self::FACILITY_TAX_PERCENT);
+
+        $this->assertEqualsWithDelta(17031.184, $eiv, 1e-6);
+        $this->assertSame(0.0, $installCost);
+    }
+
     // ===========================================
     // Helpers
     // ===========================================
@@ -560,6 +759,44 @@ class EsiCostIndexServiceTest extends TestCase
             'http_code' => 200,
             'response_headers' => ['Content-Type' => 'application/json'],
         ]);
+    }
+
+    private function createServiceWithSyncedNitrogenFuelBlockInputs(array $typeIdsWithoutAdjustedPrice = []): EsiCostIndexService
+    {
+        $adjustedPrices = [];
+        foreach (array_keys(self::NITROGEN_FUEL_BLOCK_MATERIALS) as $typeId) {
+            if (!in_array($typeId, $typeIdsWithoutAdjustedPrice, true)) {
+                $adjustedPrices[] = ['type_id' => $typeId, 'adjusted_price' => $typeId / self::ADJUSTED_PRICE_DIVISOR];
+            }
+        }
+
+        $service = $this->createService([
+            self::ADJUSTED_PRICES_PATH => [$this->jsonResponse($adjustedPrices)],
+            self::COST_INDICES_PATH => [$this->jsonResponse([
+                ['solar_system_id' => self::JITA, 'cost_indices' => [
+                    ['activity' => 'manufacturing', 'cost_index' => self::JITA_MANUFACTURING_COST_INDEX],
+                    ['activity' => 'reaction', 'cost_index' => self::JITA_REACTION_COST_INDEX],
+                ]],
+                ['solar_system_id' => self::PERIMETER, 'cost_indices' => [
+                    ['activity' => 'manufacturing', 'cost_index' => self::PERIMETER_MANUFACTURING_COST_INDEX],
+                ]],
+            ])],
+        ], self::PRODUCTION_ESI_BASE_URL, new ArrayAdapter());
+
+        $service->syncAdjustedPrices();
+        $service->syncCostIndices();
+
+        return $service;
+    }
+
+    private function nitrogenFuelBlockMaterials(): array
+    {
+        $materials = [];
+        foreach (self::NITROGEN_FUEL_BLOCK_MATERIALS as $typeId => $quantity) {
+            $materials[] = ['materialTypeId' => $typeId, 'quantity' => $quantity];
+        }
+
+        return $materials;
     }
 
     /**

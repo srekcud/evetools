@@ -267,6 +267,21 @@ class EsiCostIndexService
     }
 
     /**
+     * @param list<array{materialTypeId: int, quantity: int}> $materials
+     *
+     * @return array{cost: ?float, unknownReason: ?string, missingAdjustedPriceTypeIds: list<int>}
+     */
+    public function estimateJobInstallCost(
+        array $materials,
+        int $runs,
+        int $solarSystemId,
+        string $activity,
+        ?float $facilityTaxRate,
+    ): array {
+        return ['cost' => null, 'unknownReason' => null, 'missingAdjustedPriceTypeIds' => []];
+    }
+
+    /**
      * Get last sync time for adjusted prices.
      */
     public function getAdjustedPricesLastSync(): ?\DateTimeImmutable
