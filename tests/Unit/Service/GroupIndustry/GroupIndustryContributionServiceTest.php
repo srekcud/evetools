@@ -24,6 +24,8 @@ use PHPUnit\Framework\TestCase;
 #[AllowMockObjectsWithoutExpectations]
 class GroupIndustryContributionServiceTest extends TestCase
 {
+    private const int MORPHITE_TYPE_ID = 11399;
+
     private GroupIndustryContributionRepository&MockObject $contributionRepository;
     private JitaMarketService&MockObject $jitaMarketService;
     private EntityManagerInterface&MockObject $entityManager;
@@ -314,7 +316,141 @@ class GroupIndustryContributionServiceTest extends TestCase
 
         $value = $this->service->calculateMaterialValue(99999, 100);
 
-        $this->assertEqualsWithDelta(0.0, $value, 0.01);
+        $this->assertNull($value);
+    }
+
+    public function testCalculateMaterialValueIsUnknownWhenTheTypeIsAbsentFromTheJitaPrices(): void
+    {
+        $this->jitaMarketService
+            ->method('getCheapestPercentilePrices')
+            ->with([self::MORPHITE_TYPE_ID])
+            ->willReturn([]);
+
+        $this->assertNull($this->service->calculateMaterialValue(self::MORPHITE_TYPE_ID, 40));
+    }
+
+    public function testSubmitMaterialWithoutEnteredValueIsValuedAtJitaPriceTimesQuantity(): void
+    {
+        $this->givenNoExistingContribution();
+        $this->jitaMarketService
+            ->method('getCheapestPercentilePrices')
+            ->with([34])
+            ->willReturn([34 => 12.5]);
+        $this->entityManager->expects($this->once())->method('persist');
+        $this->entityManager->expects($this->once())->method('flush');
+
+        $contribution = $this->service->submit($this->member, $this->bomItem, ContributionType::Material, 100);
+
+        $this->assertSame(100, $contribution->getQuantity());
+        $this->assertSame(1250.0, $contribution->getEstimatedValue());
+    }
+
+    public function testSubmitMaterialWithEnteredValueKeepsTheEnteredValueWhenAJitaPriceExists(): void
+    {
+        $this->givenNoExistingContribution();
+        $this->jitaMarketService
+            ->method('getCheapestPercentilePrices')
+            ->willReturn([34 => 12.5]);
+        $this->entityManager->expects($this->once())->method('persist');
+
+        $contribution = $this->service->submit($this->member, $this->bomItem, ContributionType::Material, 100, estimatedValue: 2000.0);
+
+        $this->assertSame(2000.0, $contribution->getEstimatedValue());
+    }
+
+    public function testSubmitMaterialWithEnteredZeroValueIsValuedAtJitaPriceTimesQuantity(): void
+    {
+        $this->givenNoExistingContribution();
+        $this->jitaMarketService
+            ->method('getCheapestPercentilePrices')
+            ->with([34])
+            ->willReturn([34 => 7.25]);
+        $this->entityManager->expects($this->once())->method('persist');
+
+        $contribution = $this->service->submit($this->member, $this->bomItem, ContributionType::Material, 300, estimatedValue: 0.0);
+
+        $this->assertSame(2175.0, $contribution->getEstimatedValue());
+    }
+
+    public function testSubmitMaterialWithoutJitaPriceNorEnteredValueIsRefusedAndNothingIsPersisted(): void
+    {
+        $this->givenNoExistingContribution();
+        $this->jitaMarketService
+            ->method('getCheapestPercentilePrices')
+            ->with([self::MORPHITE_TYPE_ID])
+            ->willReturn([self::MORPHITE_TYPE_ID => null]);
+        $this->entityManager->expects($this->never())->method('persist');
+        $this->entityManager->expects($this->never())->method('flush');
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('No market price for type 11399: enter an estimated value.');
+
+        $this->service->submit($this->member, $this->morphiteBomItem(), ContributionType::Material, 100);
+    }
+
+    public function testSubmitMaterialWithoutJitaPriceUsesTheEnteredValue(): void
+    {
+        $this->givenNoExistingContribution();
+        $this->jitaMarketService
+            ->method('getCheapestPercentilePrices')
+            ->willReturn([self::MORPHITE_TYPE_ID => null]);
+        $this->entityManager->expects($this->once())->method('persist');
+        $this->entityManager->expects($this->once())->method('flush');
+
+        $contribution = $this->service->submit($this->member, $this->morphiteBomItem(), ContributionType::Material, 40, estimatedValue: 900.0);
+
+        $this->assertSame(40, $contribution->getQuantity());
+        $this->assertSame(900.0, $contribution->getEstimatedValue());
+    }
+
+    public function testSubmitMaterialWithoutJitaPriceAndEnteredZeroValueIsRefusedAndNothingIsPersisted(): void
+    {
+        $this->givenNoExistingContribution();
+        $this->jitaMarketService
+            ->method('getCheapestPercentilePrices')
+            ->with([self::MORPHITE_TYPE_ID])
+            ->willReturn([self::MORPHITE_TYPE_ID => null]);
+        $this->entityManager->expects($this->never())->method('persist');
+        $this->entityManager->expects($this->never())->method('flush');
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('No market price for type 11399: enter an estimated value.');
+
+        $this->service->submit($this->member, $this->morphiteBomItem(), ContributionType::Material, 60, estimatedValue: 0.0);
+    }
+
+    public function testSubmitMaterialWithAJitaPriceOfZeroIsAKnownPriceValuedAtZero(): void
+    {
+        $this->givenNoExistingContribution();
+        $this->jitaMarketService
+            ->method('getCheapestPercentilePrices')
+            ->with([34])
+            ->willReturn([34 => 0.0]);
+        $this->entityManager->expects($this->once())->method('persist');
+        $this->entityManager->expects($this->once())->method('flush');
+
+        $contribution = $this->service->submit($this->member, $this->bomItem, ContributionType::Material, 250);
+
+        $this->assertSame(250, $contribution->getQuantity());
+        $this->assertSame(0.0, $contribution->getEstimatedValue());
+    }
+
+    private function givenNoExistingContribution(): void
+    {
+        $this->contributionRepository
+            ->method('findByMemberBomItemAndType')
+            ->willReturn(null);
+    }
+
+    private function morphiteBomItem(): GroupIndustryBomItem
+    {
+        $morphite = new GroupIndustryBomItem();
+        $morphite->setProject($this->project);
+        $morphite->setTypeId(self::MORPHITE_TYPE_ID);
+        $morphite->setTypeName('Morphite');
+        $morphite->setRequiredQuantity(500);
+
+        return $morphite;
     }
 
     public function testCalculateMaterialValueWithKnownPrice(): void
