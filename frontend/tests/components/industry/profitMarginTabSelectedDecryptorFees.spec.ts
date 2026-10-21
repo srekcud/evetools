@@ -81,6 +81,7 @@ const SABRE_MARGIN_RESULT: ProfitMarginResult = {
   },
   dailyVolume: null,
   missingPriceTypeIds: [],
+  unknownInstallCostReasons: [],
 }
 
 const marginLabels = en.industry.margins

@@ -128,7 +128,6 @@ class ProfitMarginServiceTest extends TestCase
         $this->publicContractPriceService->method('getLowestUnitPrice')->willReturn(null);
         $this->publicContractPriceService->method('getContractCount')->willReturn(0);
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(500000.0);
     }
 
     // ===========================================
@@ -157,8 +156,8 @@ class ProfitMarginServiceTest extends TestCase
 
         // Job install cost
         $this->esiCostIndexService
-            ->method('calculateJobInstallCost')
-            ->willReturn(25000.0);
+            ->method('estimateJobInstallCost')
+            ->willReturn(self::figuredJobInstallCost(25000.0));
 
         // Sell prices
         $this->jitaMarketService
@@ -231,7 +230,7 @@ class ProfitMarginServiceTest extends TestCase
                 34 => ['weightedPrice' => 5.0, 'coverage' => 1.0, 'ordersUsed' => 1],
             ]);
 
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(50000.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn(self::figuredJobInstallCost(50000.0));
 
         // Invention cost
         $this->inventionService
@@ -311,7 +310,7 @@ class ProfitMarginServiceTest extends TestCase
             ->method('getWeightedSellPricesWithFallback')
             ->willReturn([34 => ['weightedPrice' => 5.0, 'coverage' => 1.0, 'ordersUsed' => 1]]);
 
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn(self::figuredJobInstallCost(0.0));
 
         // Sell at 1000000 ISK
         $this->jitaMarketService
@@ -358,7 +357,7 @@ class ProfitMarginServiceTest extends TestCase
             ->method('getWeightedSellPricesWithFallback')
             ->willReturn([34 => ['weightedPrice' => 10.0, 'coverage' => 1.0, 'ordersUsed' => 1]]);
 
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn(self::figuredJobInstallCost(0.0));
 
         // Sell at 2000000 ISK (cost is 1000000)
         $this->jitaMarketService
@@ -401,7 +400,7 @@ class ProfitMarginServiceTest extends TestCase
             ->method('getWeightedSellPricesWithFallback')
             ->willReturn([34 => ['weightedPrice' => 5.0, 'coverage' => 1.0, 'ordersUsed' => 1]]);
 
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn(self::figuredJobInstallCost(0.0));
 
         // Different prices at different venues
         $this->jitaMarketService
@@ -459,7 +458,7 @@ class ProfitMarginServiceTest extends TestCase
             ->method('getWeightedSellPricesWithFallback')
             ->willReturn([34 => ['weightedPrice' => 10.0, 'coverage' => 1.0, 'ordersUsed' => 1]]);
 
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn(self::figuredJobInstallCost(0.0));
 
         // Sell at 5M but cost is 10M
         $this->jitaMarketService
@@ -501,7 +500,7 @@ class ProfitMarginServiceTest extends TestCase
             ->method('getWeightedSellPricesWithFallback')
             ->willReturn([34 => ['weightedPrice' => 5.0, 'coverage' => 1.0, 'ordersUsed' => 1]]);
 
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn(self::figuredJobInstallCost(0.0));
 
         // No sell prices available
         $this->jitaMarketService->method('getWeightedSellPrice')->willReturn(null);
@@ -539,7 +538,7 @@ class ProfitMarginServiceTest extends TestCase
             ->method('getWeightedSellPricesWithFallback')
             ->willReturn([34 => ['weightedPrice' => 5.0, 'coverage' => 1.0, 'ordersUsed' => 1]]);
 
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn(self::figuredJobInstallCost(0.0));
 
         // Price is 0 (effectively no market)
         $this->jitaMarketService
@@ -579,7 +578,7 @@ class ProfitMarginServiceTest extends TestCase
 
         $this->jitaMarketService->method('getWeightedSellPricesWithFallback')
             ->willReturn([34 => ['weightedPrice' => 5.0, 'coverage' => 1.0, 'ordersUsed' => 1]]);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn(self::figuredJobInstallCost(0.0));
         $this->jitaMarketService->method('getWeightedSellPrice')->willReturn(null);
         $this->structureMarketService->method('getLowestSellPrice')->willReturn(null);
         $this->structureMarketService->method('getHighestBuyPrice')->willReturn(null);
@@ -606,7 +605,7 @@ class ProfitMarginServiceTest extends TestCase
 
         $this->jitaMarketService->method('getWeightedSellPricesWithFallback')
             ->willReturn([36 => ['weightedPrice' => 80.0, 'coverage' => 1.0, 'ordersUsed' => 2]]);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn(self::figuredJobInstallCost(0.0));
         $this->jitaMarketService->method('getWeightedSellPrice')->willReturn(null);
         $this->structureMarketService->method('getLowestSellPrice')->willReturn(null);
         $this->structureMarketService->method('getHighestBuyPrice')->willReturn(null);
@@ -653,7 +652,7 @@ class ProfitMarginServiceTest extends TestCase
 
         $this->jitaMarketService->method('getWeightedSellPricesWithFallback')
             ->willReturn([34 => ['weightedPrice' => 5.0, 'coverage' => 1.0, 'ordersUsed' => 1]]);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn(self::figuredJobInstallCost(0.0));
         $this->jitaMarketService->method('getWeightedSellPrice')->willReturn(null);
         $this->structureMarketService->method('getLowestSellPrice')->willReturn(null);
         $this->structureMarketService->method('getHighestBuyPrice')->willReturn(null);
@@ -718,7 +717,7 @@ class ProfitMarginServiceTest extends TestCase
 
         $this->jitaMarketService->method('getWeightedSellPricesWithFallback')
             ->willReturn([34 => ['weightedPrice' => 5.0, 'coverage' => 1.0, 'ordersUsed' => 1]]);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn(self::figuredJobInstallCost(0.0));
         $this->jitaMarketService->method('getWeightedSellPrice')->willReturn(null);
         $this->structureMarketService->method('getLowestSellPrice')->willReturn(null);
         $this->structureMarketService->method('getHighestBuyPrice')->willReturn(null);
@@ -749,7 +748,7 @@ class ProfitMarginServiceTest extends TestCase
 
         $this->jitaMarketService->method('getWeightedSellPricesWithFallback')
             ->willReturn([34 => ['weightedPrice' => 5.0, 'coverage' => 1.0, 'ordersUsed' => 1]]);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn(self::figuredJobInstallCost(0.0));
         $this->jitaMarketService->method('getWeightedSellPrice')->willReturn(null);
         $this->structureMarketService->method('getLowestSellPrice')->willReturn(null);
         $this->structureMarketService->method('getHighestBuyPrice')->willReturn(null);
@@ -783,10 +782,9 @@ class ProfitMarginServiceTest extends TestCase
         $this->jitaMarketService->method('getWeightedSellPricesWithFallback')
             ->willReturn([34 => ['weightedPrice' => 5.0, 'coverage' => 1.0, 'ordersUsed' => 1]]);
 
-        // calculateJobInstallCost should NOT be called when solarSystemId is null
         $this->esiCostIndexService
             ->expects($this->never())
-            ->method('calculateJobInstallCost');
+            ->method('estimateJobInstallCost');
 
         $this->jitaMarketService->method('getWeightedSellPrice')->willReturn(null);
         $this->structureMarketService->method('getLowestSellPrice')->willReturn(null);
@@ -822,7 +820,7 @@ class ProfitMarginServiceTest extends TestCase
         $this->jitaMarketService
             ->method('getWeightedSellPricesWithFallback')
             ->willReturn([34 => ['weightedPrice' => 5.0, 'coverage' => 1.0, 'ordersUsed' => 1]]);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(50000.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn(self::figuredJobInstallCost(50000.0));
         $this->inventionService->method('getCopyJobCost')->willReturn(10000.0);
 
         // Invention result when the SDE carries no success probability
@@ -965,7 +963,7 @@ class ProfitMarginServiceTest extends TestCase
             $weightedPrices[$material['typeId']] = ['weightedPrice' => $material['unitPrice'], 'coverage' => 1.0, 'ordersUsed' => 1];
         }
         $this->jitaMarketService->method('getWeightedSellPricesWithFallback')->willReturn($weightedPrices);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn($jobInstallCost);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn(self::figuredJobInstallCost($jobInstallCost));
         $this->jitaMarketService->method('getWeightedSellPrice')->willReturn(['weightedPrice' => $jitaSellPrice, 'coverage' => 1.0, 'ordersUsed' => 2]);
         $this->structureMarketService->method('getLowestSellPrice')->willReturn(null);
         $this->structureMarketService->method('getHighestBuyPrice')->willReturn(null);
@@ -1052,7 +1050,7 @@ class ProfitMarginServiceTest extends TestCase
         );
         $this->jitaMarketService->method('getWeightedSellPrice')
             ->willReturn(['weightedPrice' => 60000.0, 'coverage' => 1.0, 'ordersUsed' => 1]);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(4000.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn(self::figuredJobInstallCost(4000.0));
         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
         $this->structureMarketService->method('getLowestSellPrice')->willReturn(null);
         $this->structureMarketService->method('getHighestBuyPrice')->willReturn(null);
@@ -1133,6 +1131,11 @@ class ProfitMarginServiceTest extends TestCase
         $material->setQuantity($quantity);
 
         return $material;
+    }
+
+    private static function figuredJobInstallCost(float $cost): array
+    {
+        return ['cost' => $cost, 'unknownReason' => null, 'missingAdjustedPriceTypeIds' => []];
     }
 
     private function inventionOptionOf(array $result, ?int $decryptorTypeId): array

@@ -87,6 +87,7 @@ const SABRE_WITH_UNPRICED_MATERIALS: ProfitMarginResult = {
   margins: { jitaSell: null, structureSell: null, structureBuy: null, contractSell: null },
   dailyVolume: null,
   missingPriceTypeIds: [ROBOTICS_TYPE_ID, NITROGEN_ISOTOPES_TYPE_ID],
+  unknownInstallCostReasons: [],
 }
 
 function mountWithUnpricedMaterials(locale: 'en' | 'fr') {

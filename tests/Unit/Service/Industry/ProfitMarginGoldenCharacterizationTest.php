@@ -131,6 +131,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     /** @var list<int> */
     private array $typesWithoutAdjustedPrice = [];
     private bool $withManufacturingCostIndex = true;
+    private bool $withReactionCostIndex = true;
     private ?float $hailLInventionProbability = self::HAIL_L_INVENTION_PROBABILITY;
     /** @var list<IndustryStructureConfig> */
     private array $structureConfigs;
@@ -222,28 +223,172 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         $this->assertEqualsWithDelta(17031.184 * 0.05 * 1.20, $result['jobInstallCost'], 1e-6);
     }
 
-    public function testMissingCostIndexCurrentlyYieldsZeroInstallCostInsteadOfUnknown(): void
+    #[Group('issue-7')]
+    public function testKnownCostIndexAndAdjustedPricesKeepEveryJobInstallStepFiguredWithoutUnknownInstallCostReason(): void
+    {
+        $result = $this->analyze(self::NITROGEN_FUEL_BLOCK, runs: 1, me: 10, solarSystemId: self::MANUFACTURING_SYSTEM_ID);
+
+        $this->assertJobInstallSteps([
+            $this->jobInstallStep(self::NITROGEN_FUEL_BLOCK, 'Nitrogen Fuel Block', 'manufacturing', 851.5592, null),
+        ], $result['jobInstallSteps']);
+        $this->assertEqualsWithDelta(851.5592, $result['jobInstallCost'], 1e-6);
+        $this->assertEqualsWithDelta(154252.8492, $result['totalCost'], 1e-6);
+        $this->assertSame([], $result['unknownInstallCostReasons']);
+        $this->assertSame([], $result['missingPriceTypeIds']);
+    }
+
+    #[Group('issue-7')]
+    public function testReactionTreeWithEveryCostIndexKeepsEveryJobInstallStepFiguredWithoutUnknownInstallCostReason(): void
+    {
+        $result = $this->analyzeFerniteCarbide();
+
+        $this->assertJobInstallSteps([
+            $this->jobInstallStep(self::FERNITE_CARBIDE, 'Fernite Carbide', 'reaction', 147.52452, null),
+            $this->jobInstallStep(self::HYDROGEN_FUEL_BLOCK, 'Hydrogen Fuel Block', 'manufacturing', 936.73987, null),
+            $this->jobInstallStep(self::FERNITE_ALLOY, 'Fernite Alloy', 'reaction', 147.37052, null),
+            $this->jobInstallStep(self::HYDROGEN_FUEL_BLOCK, 'Hydrogen Fuel Block', 'manufacturing', 936.73987, null),
+            $this->jobInstallStep(self::CERAMIC_POWDER, 'Ceramic Powder', 'reaction', 147.32652, null),
+            $this->jobInstallStep(self::HYDROGEN_FUEL_BLOCK, 'Hydrogen Fuel Block', 'manufacturing', 936.73987, null),
+        ], $result['jobInstallSteps']);
+        $this->assertEqualsWithDelta(3252.44117, $result['jobInstallCost'], 1e-6);
+        $this->assertSame([], $result['unknownInstallCostReasons']);
+    }
+
+    #[Group('issue-7')]
+    public function testNitrogenFuelBlockInASystemWithoutManufacturingCostIndexHasAnUnknownJobInstallStepTotalCostAndMargins(): void
+    {
+        $this->withManufacturingCostIndex = false;
+        $this->sellNitrogenFuelBlockOnEveryVenue();
+
+        $result = $this->analyze(self::NITROGEN_FUEL_BLOCK, runs: 1, me: 10, solarSystemId: self::MANUFACTURING_SYSTEM_ID);
+
+        $this->assertSame([
+            $this->jobInstallStep(self::NITROGEN_FUEL_BLOCK, 'Nitrogen Fuel Block', 'manufacturing', null, EsiCostIndexService::UNKNOWN_REASON_MISSING_COST_INDEX),
+        ], $result['jobInstallSteps']);
+        $this->assertNull($result['jobInstallCost']);
+        $this->assertEqualsWithDelta(self::NITROGEN_FUEL_BLOCK_ONE_RUN_MATERIAL_COST, $result['materialCost'], 1e-6);
+        $this->assertNull($result['totalCost']);
+        $this->assertNull($result['costPerUnit']);
+        $this->assertSame(['jitaSell' => null, 'structureSell' => null, 'structureBuy' => null, 'contractSell' => null], $result['margins']);
+        $this->assertSame(4500.0, $result['sellPrices']['jitaSell']);
+        $this->assertSame([EsiCostIndexService::UNKNOWN_REASON_MISSING_COST_INDEX], $result['unknownInstallCostReasons']);
+        $this->assertSame([], $result['missingPriceTypeIds']);
+    }
+
+    #[Group('issue-7')]
+    public function testMaterialWithoutAdjustedPriceMakesTheJobInstallStepTotalCostAndMarginsUnknownWithoutMissingMarketPrice(): void
+    {
+        $this->typesWithoutAdjustedPrice = [self::ROBOTICS];
+        $this->sellNitrogenFuelBlockOnEveryVenue();
+
+        $result = $this->analyze(self::NITROGEN_FUEL_BLOCK, runs: 1, me: 10, solarSystemId: self::MANUFACTURING_SYSTEM_ID);
+
+        $this->assertSame([
+            $this->jobInstallStep(self::NITROGEN_FUEL_BLOCK, 'Nitrogen Fuel Block', 'manufacturing', null, EsiCostIndexService::UNKNOWN_REASON_MISSING_ADJUSTED_PRICE),
+        ], $result['jobInstallSteps']);
+        $this->assertNull($result['jobInstallCost']);
+        $this->assertNull($result['totalCost']);
+        $this->assertNull($result['costPerUnit']);
+        $this->assertSame(['jitaSell' => null, 'structureSell' => null, 'structureBuy' => null, 'contractSell' => null], $result['margins']);
+        $this->assertSame(
+            ['typeId' => self::ROBOTICS, 'typeName' => 'Robotics', 'quantity' => 1, 'unitPrice' => 98.48, 'totalPrice' => 98.48],
+            $this->materialLine($result, self::ROBOTICS),
+        );
+        $this->assertSame([EsiCostIndexService::UNKNOWN_REASON_MISSING_ADJUSTED_PRICE], $result['unknownInstallCostReasons']);
+        $this->assertSame([], $result['missingPriceTypeIds']);
+    }
+
+    #[Group('issue-7')]
+    public function testReactionTreeWithoutReactionCostIndexHasOnlyItsReactionStepsUnknownAndTheReasonListedOnce(): void
+    {
+        $this->withReactionCostIndex = false;
+
+        $result = $this->analyzeFerniteCarbide();
+
+        $this->assertJobInstallSteps([
+            $this->jobInstallStep(self::FERNITE_CARBIDE, 'Fernite Carbide', 'reaction', null, EsiCostIndexService::UNKNOWN_REASON_MISSING_COST_INDEX),
+            $this->jobInstallStep(self::HYDROGEN_FUEL_BLOCK, 'Hydrogen Fuel Block', 'manufacturing', 936.73987, null),
+            $this->jobInstallStep(self::FERNITE_ALLOY, 'Fernite Alloy', 'reaction', null, EsiCostIndexService::UNKNOWN_REASON_MISSING_COST_INDEX),
+            $this->jobInstallStep(self::HYDROGEN_FUEL_BLOCK, 'Hydrogen Fuel Block', 'manufacturing', 936.73987, null),
+            $this->jobInstallStep(self::CERAMIC_POWDER, 'Ceramic Powder', 'reaction', null, EsiCostIndexService::UNKNOWN_REASON_MISSING_COST_INDEX),
+            $this->jobInstallStep(self::HYDROGEN_FUEL_BLOCK, 'Hydrogen Fuel Block', 'manufacturing', 936.73987, null),
+        ], $result['jobInstallSteps']);
+        $this->assertNull($result['jobInstallCost']);
+        $this->assertEqualsWithDelta(521337.57, $result['materialCost'], 1e-6);
+        $this->assertNull($result['totalCost']);
+        $this->assertNull($result['costPerUnit']);
+        $this->assertSame([EsiCostIndexService::UNKNOWN_REASON_MISSING_COST_INDEX], $result['unknownInstallCostReasons']);
+    }
+
+    #[Group('issue-7')]
+    public function testUnknownInstallCostReasonsOfDifferentStepsAreListedOnceEachInAscendingOrder(): void
+    {
+        $this->withReactionCostIndex = false;
+        $this->typesWithoutAdjustedPrice = [self::ROBOTICS];
+
+        $result = $this->analyzeFerniteCarbide();
+
+        $this->assertSame(
+            [
+                [self::FERNITE_CARBIDE, null, EsiCostIndexService::UNKNOWN_REASON_MISSING_COST_INDEX],
+                [self::HYDROGEN_FUEL_BLOCK, null, EsiCostIndexService::UNKNOWN_REASON_MISSING_ADJUSTED_PRICE],
+                [self::FERNITE_ALLOY, null, EsiCostIndexService::UNKNOWN_REASON_MISSING_COST_INDEX],
+                [self::HYDROGEN_FUEL_BLOCK, null, EsiCostIndexService::UNKNOWN_REASON_MISSING_ADJUSTED_PRICE],
+                [self::CERAMIC_POWDER, null, EsiCostIndexService::UNKNOWN_REASON_MISSING_COST_INDEX],
+                [self::HYDROGEN_FUEL_BLOCK, null, EsiCostIndexService::UNKNOWN_REASON_MISSING_ADJUSTED_PRICE],
+            ],
+            array_map(static fn (array $step): array => [$step['productTypeId'], $step['installCost'], $step['unknownReason']], $result['jobInstallSteps']),
+        );
+        $this->assertSame(
+            [EsiCostIndexService::UNKNOWN_REASON_MISSING_ADJUSTED_PRICE, EsiCostIndexService::UNKNOWN_REASON_MISSING_COST_INDEX],
+            $result['unknownInstallCostReasons'],
+        );
+        $this->assertSame([], $result['missingPriceTypeIds']);
+    }
+
+    #[Group('issue-7')]
+    public function testUnknownJobInstallCostLeavesEveryDecryptorOptionInventionCostKnownButItsProductionCostAndMarginUnknown(): void
+    {
+        $this->withManufacturingCostIndex = false;
+        $this->jitaSellPriceOfProduct = 140.0;
+        $this->contractSellPriceOfProduct = 138.0;
+
+        $result = $this->analyzeHailL(runs: 1, decryptorTypeId: self::PROCESS_DECRYPTOR);
+
+        $this->assertSame([
+            $this->jobInstallStep(self::HAIL_L, 'Hail L', 'manufacturing', null, EsiCostIndexService::UNKNOWN_REASON_MISSING_COST_INDEX),
+            $this->jobInstallStep(self::RAM_AMMUNITION_TECH, 'R.A.M.- Ammunition Tech', 'manufacturing', null, EsiCostIndexService::UNKNOWN_REASON_MISSING_COST_INDEX),
+        ], $result['jobInstallSteps']);
+        $this->assertNull($result['jobInstallCost']);
+        $this->assertEqualsWithDelta(self::HAIL_L_ONE_RUN_MATERIAL_COST, $result['materialCost'], 1e-6);
+        $this->assertEqualsWithDelta(1280.574, $result['inventionCost'], 1e-6);
+        $this->assertEqualsWithDelta(self::HAIL_L_COPY_COST, $result['copyCost'], 1e-6);
+        $this->assertNull($result['totalCost']);
+        $this->assertNull($result['costPerUnit']);
+        $this->assertSame(['jitaSell' => null, 'structureSell' => null, 'structureBuy' => null, 'contractSell' => null], $result['margins']);
+        $this->assertNull($result['invention']['unknownReason']);
+        $options = $result['invention']['options'];
+        $this->assertCount(9, $options);
+        foreach ([254.424, 1280.454, 853.656, 2134.19, 853.696, 1280.574, 1280.604, 853.756, 1707.552] as $index => $inventionCost) {
+            $this->assertEqualsWithDelta($inventionCost, $options[$index]['inventionCost'], 1e-6);
+        }
+        $this->assertSame(array_fill(0, 9, null), array_column($options, 'totalProductionCost'));
+        $this->assertSame(array_fill(0, 9, null), array_column($options, 'bestMargin'));
+        $this->assertSame([EsiCostIndexService::UNKNOWN_REASON_MISSING_COST_INDEX], $result['unknownInstallCostReasons']);
+        $this->assertSame([], $result['missingPriceTypeIds']);
+    }
+
+    #[Group('issue-7')]
+    public function testWithoutManufacturingSystemThereIsNoJobInstallStepNorUnknownInstallCostReason(): void
     {
         $this->withManufacturingCostIndex = false;
 
-        $result = $this->analyze(self::NITROGEN_FUEL_BLOCK, runs: 1, me: 10, solarSystemId: self::MANUFACTURING_SYSTEM_ID);
+        $result = $this->analyze(self::NITROGEN_FUEL_BLOCK, runs: 1, me: 10, solarSystemId: null);
 
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #7 (R6, R10)
+        $this->assertSame([], $result['jobInstallSteps']);
         $this->assertSame(0.0, $result['jobInstallCost']);
-        $this->assertSame(0.0, $result['jobInstallSteps'][0]['installCost']);
         $this->assertEqualsWithDelta(self::NITROGEN_FUEL_BLOCK_ONE_RUN_MATERIAL_COST, $result['totalCost'], 1e-6);
-    }
-
-    public function testMaterialWithoutAdjustedPriceIsCurrentlyLeftOutOfEiv(): void
-    {
-        $this->typesWithoutAdjustedPrice = [self::ROBOTICS];
-
-        $result = $this->analyze(self::NITROGEN_FUEL_BLOCK, runs: 1, me: 10, solarSystemId: self::MANUFACTURING_SYSTEM_ID);
-
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #7 (R5, R10)
-        // EIV = 17 031.184 - 1 Robotics x 9.848 = 17 021.336 instead of an unknown cost.
-        $this->assertEqualsWithDelta(851.0668, $result['jobInstallCost'], 1e-6);
-        $this->assertEqualsWithDelta(self::NITROGEN_FUEL_BLOCK_ONE_RUN_MATERIAL_COST + 851.0668, $result['totalCost'], 1e-6);
+        $this->assertSame([], $result['unknownInstallCostReasons']);
     }
 
     #[Group('issue-8')]
@@ -884,6 +1029,53 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         return $bonusService;
     }
 
+    private function analyzeFerniteCarbide(): array
+    {
+        return $this->analyze(
+            self::FERNITE_CARBIDE,
+            runs: 10,
+            me: 0,
+            solarSystemId: self::MANUFACTURING_SYSTEM_ID,
+            user: $this->userWithTaxedStructureInManufacturingSystem(),
+        );
+    }
+
+    private function sellNitrogenFuelBlockOnEveryVenue(): void
+    {
+        $this->jitaSellPriceOfProduct = 4500.0;
+        $this->structureSellPriceOfProduct = 4400.0;
+        $this->structureBuyPriceOfProduct = 4000.0;
+        $this->contractSellPriceOfProduct = 4300.0;
+    }
+
+    private function jobInstallStep(int $productTypeId, string $productName, string $activityType, ?float $installCost, ?string $unknownReason): array
+    {
+        return [
+            'productTypeId' => $productTypeId,
+            'productName' => $productName,
+            'activityType' => $activityType,
+            'runs' => 1,
+            'installCost' => $installCost,
+            'unknownReason' => $unknownReason,
+        ];
+    }
+
+    private function assertJobInstallSteps(array $expected, array $steps): void
+    {
+        $this->assertSame(
+            array_map(static fn (array $step): array => array_diff_key($step, ['installCost' => true]), $expected),
+            array_map(static fn (array $step): array => array_diff_key($step, ['installCost' => true]), $steps),
+        );
+        $this->assertSame(array_map(array_keys(...), $expected), array_map(array_keys(...), $steps));
+        foreach ($expected as $index => $step) {
+            if (null === $step['installCost']) {
+                $this->assertNull($steps[$index]['installCost']);
+            } else {
+                $this->assertEqualsWithDelta($step['installCost'], $steps[$index]['installCost'], 1e-6);
+            }
+        }
+    }
+
     private function userWithTaxedStructureInManufacturingSystem(): User
     {
         return new User();
@@ -912,7 +1104,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         $cache = new ArrayAdapter();
         $costIndices = [
             'manufacturing' => $this->withManufacturingCostIndex ? self::MANUFACTURING_COST_INDEX : null,
-            'reaction' => self::REACTION_COST_INDEX,
+            'reaction' => $this->withReactionCostIndex ? self::REACTION_COST_INDEX : null,
             'copying' => self::COPYING_COST_INDEX,
             'invention' => self::INVENTION_COST_INDEX,
         ];

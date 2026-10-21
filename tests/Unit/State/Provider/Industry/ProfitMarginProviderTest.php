@@ -31,6 +31,8 @@ class ProfitMarginProviderTest extends TestCase
     private const int ROBOTICS_TYPE_ID = 9848;
     private const int MORPHITE_TYPE_ID = 11399;
     private const int NITROGEN_ISOTOPES_TYPE_ID = 17888;
+    private const int FERNITE_CARBIDE_TYPE_ID = 16673;
+    private const int HYDROGEN_FUEL_BLOCK_TYPE_ID = 4246;
 
     public function testWithoutQueryNorSettingsCurrentlyAnalyzesOneRunAtMeTenInJitaSoldAtJitaStation(): void
     {
@@ -228,6 +230,50 @@ class ProfitMarginProviderTest extends TestCase
         $this->assertSame([], $resource->missingPriceTypeIds);
     }
 
+    #[Group('issue-7')]
+    public function testUnknownJobInstallCostStepsAndReasonsReachTheResource(): void
+    {
+        $unknownFerniteCarbideReaction = ['productTypeId' => self::FERNITE_CARBIDE_TYPE_ID, 'productName' => 'Fernite Carbide', 'activityType' => 'reaction', 'runs' => 3, 'installCost' => null, 'unknownReason' => 'missing_cost_index'];
+        $figuredHydrogenFuelBlockJob = ['productTypeId' => self::HYDROGEN_FUEL_BLOCK_TYPE_ID, 'productName' => 'Hydrogen Fuel Block', 'activityType' => 'manufacturing', 'runs' => 2, 'installCost' => 1873.47974, 'unknownReason' => null];
+        $processOption = ['decryptorTypeId' => 34205, 'inventionCost' => 12805.74, 'totalProductionCost' => null, 'bestMargin' => null];
+        $profitMarginService = $this->createStub(ProfitMarginService::class);
+        $profitMarginService->method('analyze')->willReturn($this->analysis([
+            'jobInstallCost' => null,
+            'jobInstallSteps' => [$unknownFerniteCarbideReaction, $figuredHydrogenFuelBlockJob],
+            'inventionCost' => 12805.74,
+            'totalCost' => null,
+            'costPerUnit' => null,
+            'invention' => ['options' => [$processOption]],
+            'unknownInstallCostReasons' => ['missing_adjusted_price', 'missing_cost_index'],
+        ]));
+
+        $resource = $this->provider(new User(), new Request(), $profitMarginService)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+
+        $this->assertNull($resource->jobInstallCost);
+        $this->assertSame([$unknownFerniteCarbideReaction, $figuredHydrogenFuelBlockJob], $resource->jobInstallSteps);
+        $this->assertSame(508100.0, $resource->materialCost);
+        $this->assertSame(12805.74, $resource->inventionCost);
+        $this->assertNull($resource->totalCost);
+        $this->assertNull($resource->costPerUnit);
+        $this->assertSame([$processOption], $resource->invention['options'] ?? []);
+        $this->assertSame(['missing_adjusted_price', 'missing_cost_index'], $resource->unknownInstallCostReasons);
+        $this->assertSame([], $resource->missingPriceTypeIds);
+    }
+
+    #[Group('issue-7')]
+    public function testFiguredJobInstallCostReachesTheResourceWithoutUnknownInstallCostReasons(): void
+    {
+        $profitMarginService = $this->createStub(ProfitMarginService::class);
+        $profitMarginService->method('analyze')->willReturn($this->analysis());
+
+        $resource = $this->provider(new User(), new Request(), $profitMarginService)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+
+        $this->assertSame(15279.0, $resource->jobInstallCost);
+        $this->assertSame([], $resource->unknownInstallCostReasons);
+    }
+
     private function settings(User $user): IndustryUserSettings
     {
         return (new IndustryUserSettings())
@@ -276,6 +322,7 @@ class ProfitMarginProviderTest extends TestCase
             'margins' => ['jitaSell' => null, 'structureSell' => null, 'structureBuy' => null, 'contractSell' => null],
             'dailyVolume' => 0.0,
             'missingPriceTypeIds' => [],
+            'unknownInstallCostReasons' => [],
         ], $overrides);
     }
 }
