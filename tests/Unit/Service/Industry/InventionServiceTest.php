@@ -124,6 +124,16 @@ class InventionServiceTest extends TestCase
 
     private function setupInventionChain(int $t2ProductTypeId, ?float $baseProbability, int $baseRuns, array $datacoreQuantitiesByTypeId): void
     {
+        $datacoreLines = [];
+        foreach ($datacoreQuantitiesByTypeId as $datacoreTypeId => $quantity) {
+            $datacoreLines[] = [$datacoreTypeId, $quantity];
+        }
+
+        $this->setupInventionChainWithDatacoreLines($t2ProductTypeId, $baseProbability, $baseRuns, $datacoreLines);
+    }
+
+    private function setupInventionChainWithDatacoreLines(int $t2ProductTypeId, ?float $baseProbability, int $baseRuns, array $datacoreLines): void
+    {
         $t2Manufacturing = $this->createProduct(
             self::SABRE_BLUEPRINT_ID,
             IndustryActivityType::Manufacturing->value,
@@ -154,7 +164,7 @@ class InventionServiceTest extends TestCase
             });
 
         $datacores = [];
-        foreach ($datacoreQuantitiesByTypeId as $datacoreTypeId => $quantity) {
+        foreach ($datacoreLines as [$datacoreTypeId, $quantity]) {
             $datacores[] = $this->createMaterial(
                 self::THRASHER_BLUEPRINT_ID,
                 IndustryActivityType::Invention->value,
@@ -328,13 +338,8 @@ class InventionServiceTest extends TestCase
             ->willReturn([
                 self::DATACORE_1_TYPE_ID => 50000.0,
                 self::DATACORE_2_TYPE_ID => 80000.0,
+                self::ACCELERANT_DECRYPTOR_ID => 500000.0,
             ]);
-
-        // Accelerant decryptor price
-        $this->jitaMarketService
-            ->method('getPrice')
-            ->with(self::ACCELERANT_DECRYPTOR_ID)
-            ->willReturn(500000.0);
 
         $t2ManufacturingOutput = $this->createProduct(
             self::SABRE_BLUEPRINT_ID,
@@ -661,12 +666,12 @@ class InventionServiceTest extends TestCase
      */
     private function stubZeroCostsExceptDecryptorPrices(array $decryptorPrices): void
     {
-        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
-            self::DATACORE_1_TYPE_ID => 0.0,
-            self::DATACORE_2_TYPE_ID => 0.0,
-        ]);
-        $this->jitaMarketService->method('getPrice')
-            ->willReturnCallback(fn (int $typeId): float => $decryptorPrices[$typeId] ?? 0.0);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturnCallback(
+            static fn (array $typeIds): array => array_combine(
+                $typeIds,
+                array_map(static fn (int $typeId): float => $decryptorPrices[$typeId] ?? 0.0, $typeIds),
+            ),
+        );
         $this->activityProductRepository->method('findBy')->willReturn([]);
         $this->esiCostIndexService->method('getAdjustedPrice')->willReturn(0.0);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(0.0);
@@ -708,8 +713,7 @@ class InventionServiceTest extends TestCase
             ->willReturn([
                 self::DATACORE_1_TYPE_ID => 50000.0,
                 self::DATACORE_2_TYPE_ID => 80000.0,
-            ]);
-        $this->jitaMarketService->method('getPrice')->willReturn(500000.0);
+            ] + array_fill_keys(array_keys($this->service->getDecryptorOptions()), 500000.0));
         $this->activityProductRepository->method('findBy')->willReturn([]);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
     }
@@ -986,5 +990,259 @@ class InventionServiceTest extends TestCase
             $this->esiCostIndexService,
             new TypeNameResolver($invTypeRepository),
         );
+    }
+
+    private const string MISSING_MARKET_PRICE = 'missing_market_price';
+    private const int PARITY_DECRYPTOR_ID = 34204;
+    private const float INVENTION_PROBABILITY = 0.34;
+    private const array DATACORE_LINES_OF_THE_SABRE = [[self::DATACORE_1_TYPE_ID, 2], [self::DATACORE_2_TYPE_ID, 3]];
+    private const array DATACORE_PRICES = [self::DATACORE_1_TYPE_ID => 100.0, self::DATACORE_2_TYPE_ID => 200.0];
+    private const float ACCELERANT_PRICE = 50000.0;
+
+    private array $requestedPriceTypeIdsPerCall = [];
+
+    #[Group('issue-8')]
+    public function testInventionCostWithEveryPriceKnownHasNoMissingPriceTypeIds(): void
+    {
+        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE);
+        $this->stubMarketPricesWithFallback(self::DATACORE_PRICES);
+
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510);
+
+        $this->assertInventionCostOutcome([
+            'expectedAttempts' => 3,
+            'costPerAttempt' => 2300.0,
+            'totalCost' => 6900.0,
+            'costBreakdown' => ['datacores' => 800.0, 'decryptor' => 0.0, 'copyCost' => 1000.0, 'inventionInstall' => 500.0],
+            'missingPriceTypeIds' => [],
+            'unknownReason' => null,
+        ], $result);
+    }
+
+    #[Group('issue-8')]
+    public function testInventionCostChargesTheDecryptorPriceReadWithFallback(): void
+    {
+        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE);
+        $this->stubMarketPricesWithFallback(self::DATACORE_PRICES + [self::ACCELERANT_DECRYPTOR_ID => self::ACCELERANT_PRICE]);
+
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510, self::ACCELERANT_DECRYPTOR_ID);
+
+        $this->assertInventionCostOutcome([
+            'expectedAttempts' => 3,
+            'costPerAttempt' => 52300.0,
+            'totalCost' => 156900.0,
+            'costBreakdown' => ['datacores' => 800.0, 'decryptor' => 50000.0, 'copyCost' => 1000.0, 'inventionInstall' => 500.0],
+            'missingPriceTypeIds' => [],
+            'unknownReason' => null,
+        ], $result);
+    }
+
+    #[Group('issue-8')]
+    public function testInventionCostIsUnknownWhenTheDecryptorHasNoPrice(): void
+    {
+        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE);
+        $this->stubMarketPricesWithFallback(self::DATACORE_PRICES);
+
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510, self::ACCELERANT_DECRYPTOR_ID);
+
+        $this->assertInventionCostOutcome([
+            'costPerAttempt' => null,
+            'totalCost' => null,
+            'costBreakdown' => ['datacores' => 800.0, 'decryptor' => null, 'copyCost' => 1000.0, 'inventionInstall' => 500.0],
+            'missingPriceTypeIds' => [self::ACCELERANT_DECRYPTOR_ID],
+            'unknownReason' => self::MISSING_MARKET_PRICE,
+        ], $result);
+    }
+
+    #[Group('issue-8')]
+    public function testInventionCostIsUnknownWhenADatacoreHasNoPrice(): void
+    {
+        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE);
+        $this->stubMarketPricesWithFallback([self::DATACORE_2_TYPE_ID => 200.0]);
+
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510);
+
+        $this->assertInventionCostOutcome([
+            'costPerAttempt' => null,
+            'totalCost' => null,
+            'costBreakdown' => ['datacores' => null, 'decryptor' => 0.0, 'copyCost' => 1000.0, 'inventionInstall' => 500.0],
+            'datacores' => [
+                ['typeId' => self::DATACORE_1_TYPE_ID, 'typeName' => 'Datacore - Mechanical Engineering', 'quantity' => 2, 'unitPrice' => null, 'totalPrice' => null],
+                ['typeId' => self::DATACORE_2_TYPE_ID, 'typeName' => 'Datacore - Minmatar Starship Engineering', 'quantity' => 3, 'unitPrice' => 200.0, 'totalPrice' => 600.0],
+            ],
+            'missingPriceTypeIds' => [self::DATACORE_1_TYPE_ID],
+            'unknownReason' => self::MISSING_MARKET_PRICE,
+        ], $result);
+    }
+
+    #[Group('issue-8')]
+    public function testMissingInventionProbabilityTakesPrecedenceOverAMissingDatacorePrice(): void
+    {
+        $this->setupSabreInventionAt(null, self::DATACORE_LINES_OF_THE_SABRE);
+        $this->stubMarketPricesWithFallback([self::DATACORE_2_TYPE_ID => 200.0]);
+
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510);
+
+        $this->assertInventionCostOutcome([
+            'costPerAttempt' => null,
+            'totalCost' => null,
+            'missingPriceTypeIds' => [self::DATACORE_1_TYPE_ID],
+            'unknownReason' => self::MISSING_INVENTION_PROBABILITY,
+        ], $result);
+    }
+
+    #[Group('issue-8')]
+    public function testInventionCostChargesADecryptorAbsentFromTheSyncedOrderBookButPricedOnDemand(): void
+    {
+        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE);
+        $this->jitaMarketService->method('getPrice')->willReturn(null);
+        $this->stubMarketPricesWithFallback(self::DATACORE_PRICES + [self::ACCELERANT_DECRYPTOR_ID => self::ACCELERANT_PRICE]);
+
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510, self::ACCELERANT_DECRYPTOR_ID);
+
+        $this->assertInventionCostOutcome([
+            'costPerAttempt' => 52300.0,
+            'totalCost' => 156900.0,
+            'missingPriceTypeIds' => [],
+            'unknownReason' => null,
+        ], $result);
+    }
+
+    #[Group('issue-8')]
+    public function testDatacoresAndDecryptorArePricedByASingleRequestWithFallback(): void
+    {
+        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE);
+        $this->stubMarketPricesWithFallback(self::DATACORE_PRICES + [self::ACCELERANT_DECRYPTOR_ID => self::ACCELERANT_PRICE]);
+
+        $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510, self::ACCELERANT_DECRYPTOR_ID);
+
+        $this->assertSame(
+            [[self::DATACORE_2_TYPE_ID, self::DATACORE_1_TYPE_ID, self::ACCELERANT_DECRYPTOR_ID]],
+            array_map(static function (array $typeIds): array {
+                $typeIds = array_values(array_unique($typeIds));
+                sort($typeIds);
+
+                return $typeIds;
+            }, $this->requestedPriceTypeIdsPerCall),
+        );
+    }
+
+    #[Group('issue-8')]
+    public function testDatacoreWithoutPriceListedTwiceIsReportedOnceAndMissingPriceTypeIdsAreSorted(): void
+    {
+        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, [
+            [self::DATACORE_1_TYPE_ID, 2],
+            [self::DATACORE_2_TYPE_ID, 3],
+            [self::DATACORE_1_TYPE_ID, 1],
+        ]);
+        $this->stubMarketPricesWithFallback([self::ACCELERANT_DECRYPTOR_ID => self::ACCELERANT_PRICE]);
+
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510, self::ACCELERANT_DECRYPTOR_ID);
+
+        $this->assertInventionCostOutcome([
+            'costPerAttempt' => null,
+            'totalCost' => null,
+            'missingPriceTypeIds' => [self::DATACORE_2_TYPE_ID, self::DATACORE_1_TYPE_ID],
+            'unknownReason' => self::MISSING_MARKET_PRICE,
+        ], $result);
+    }
+
+    #[Group('issue-8')]
+    public function testDatacorePricedAtZeroIsAKnownPrice(): void
+    {
+        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE);
+        $this->stubMarketPricesWithFallback([self::DATACORE_1_TYPE_ID => 100.0, self::DATACORE_2_TYPE_ID => 0.0]);
+
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510);
+
+        $this->assertInventionCostOutcome([
+            'costPerAttempt' => 1700.0,
+            'totalCost' => 5100.0,
+            'missingPriceTypeIds' => [],
+            'unknownReason' => null,
+        ], $result);
+    }
+
+    #[Group('issue-8')]
+    public function testDecryptorOptionWithoutPriceHasAnUnknownCostWhileTheOtherOptionsStayPriced(): void
+    {
+        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE);
+        $this->stubMarketPricesWithFallback(self::DATACORE_PRICES + [
+            34201 => 50000.0,
+            34202 => 61000.0,
+            34203 => 72000.0,
+            34205 => 83000.0,
+            34206 => 94000.0,
+            34207 => 105000.0,
+            34208 => 116000.0,
+        ]);
+
+        $options = $this->service->buildDecryptorOptions(self::SABRE_TYPE_ID, 30002510);
+
+        $this->assertInventionCostOutcome([
+            'decryptorTypeId' => self::PARITY_DECRYPTOR_ID,
+            'costPerAttempt' => null,
+            'totalCost' => null,
+            'costBreakdown' => ['datacores' => 800.0, 'decryptor' => null, 'copyCost' => 1000.0, 'inventionInstall' => 500.0],
+            'missingPriceTypeIds' => [self::PARITY_DECRYPTOR_ID],
+            'unknownReason' => self::MISSING_MARKET_PRICE,
+        ], $this->findOptionByDecryptorTypeId($options, self::PARITY_DECRYPTOR_ID));
+        $this->assertInventionCostOutcome([
+            'decryptorTypeId' => null,
+            'costPerAttempt' => 2300.0,
+            'totalCost' => 6900.0,
+            'missingPriceTypeIds' => [],
+            'unknownReason' => null,
+        ], $options[0]);
+        $this->assertInventionCostOutcome([
+            'decryptorTypeId' => self::ACCELERANT_DECRYPTOR_ID,
+            'costPerAttempt' => 52300.0,
+            'totalCost' => 156900.0,
+            'missingPriceTypeIds' => [],
+            'unknownReason' => null,
+        ], $this->findOptionByDecryptorTypeId($options, self::ACCELERANT_DECRYPTOR_ID));
+    }
+
+    private function setupSabreInventionAt(?float $baseProbability, array $datacoreLines): void
+    {
+        $this->setupInventionChainWithDatacoreLines(self::SABRE_TYPE_ID, $baseProbability, 10, $datacoreLines);
+
+        $manufacturingOutputsByBlueprint = [
+            self::THRASHER_BLUEPRINT_ID => [$this->createProduct(self::THRASHER_BLUEPRINT_ID, IndustryActivityType::Manufacturing->value, self::THRASHER_TYPE_ID, 1)],
+            self::SABRE_BLUEPRINT_ID => [$this->createProduct(self::SABRE_BLUEPRINT_ID, IndustryActivityType::Manufacturing->value, self::SABRE_TYPE_ID, 1)],
+        ];
+        $this->activityProductRepository->method('findBy')->willReturnCallback(
+            static fn (array $criteria): array => $manufacturingOutputsByBlueprint[$criteria['typeId']] ?? [],
+        );
+        $this->esiCostIndexService->method('getAdjustedPrice')->willReturnCallback(
+            static fn (int $typeId): ?float => [self::THRASHER_TYPE_ID => 1000000.0, self::SABRE_TYPE_ID => 1250000.0][$typeId] ?? null,
+        );
+        $this->esiCostIndexService->method('getCostIndex')->willReturnCallback(
+            static fn (int $solarSystemId, string $activity): ?float => ['copying' => 0.05, 'invention' => 0.02][$activity] ?? null,
+        );
+    }
+
+    private function stubMarketPricesWithFallback(array $pricesByTypeId): void
+    {
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturnCallback(
+            function (array $typeIds) use ($pricesByTypeId): array {
+                $this->requestedPriceTypeIdsPerCall[] = $typeIds;
+
+                return array_combine(
+                    $typeIds,
+                    array_map(static fn (int $typeId): ?float => $pricesByTypeId[$typeId] ?? null, $typeIds),
+                );
+            },
+        );
+    }
+
+    private function assertInventionCostOutcome(array $expected, ?array $actual): void
+    {
+        $this->assertNotNull($actual);
+        $actualOutcome = array_intersect_key($actual, $expected);
+        ksort($expected);
+        ksort($actualOutcome);
+
+        $this->assertSame($expected, $actualOutcome);
     }
 }

@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Industry;
 
+use App\Entity\Sde\IndustryActivityMaterial;
+use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\User;
+use App\Enum\IndustryActivityType;
 use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
+use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Repository\Sde\IndustryActivityRepository;
 use App\Service\Industry\EsiCostIndexService;
 use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\IndustryTreeService;
@@ -977,5 +982,167 @@ class ProfitMarginServiceTest extends TestCase
             $salesTaxRate,
             null,
         );
+    }
+
+    private const int SABRE_BLUEPRINT_ID = 22457;
+    private const int THRASHER_BLUEPRINT_ID = 16238;
+    private const int DATACORE_MECHANICAL_ENGINEERING_TYPE_ID = 20424;
+    private const int DATACORE_MINMATAR_STARSHIP_ENGINEERING_TYPE_ID = 20172;
+    private const int ACCELERANT_DECRYPTOR_ID = 34201;
+    private const int PARITY_DECRYPTOR_ID = 34204;
+    private const array INVENTION_MARKET_PRICES_WITHOUT_PARITY = [
+        self::DATACORE_MECHANICAL_ENGINEERING_TYPE_ID => 100.0,
+        self::DATACORE_MINMATAR_STARSHIP_ENGINEERING_TYPE_ID => 200.0,
+        34201 => 30000.0,
+        34202 => 41000.0,
+        34203 => 52000.0,
+        34205 => 63000.0,
+        34206 => 74000.0,
+        34207 => 85000.0,
+        34208 => 96000.0,
+    ];
+
+    #[Group('issue-8')]
+    public function testDecryptorOptionWithoutMarketPriceHasUnknownInventionCostProductionCostAndMargin(): void
+    {
+        $result = $this->analyzeSabreInventedWith(null);
+
+        $parityOption = $this->inventionOptionOf($result, self::PARITY_DECRYPTOR_ID);
+        $this->assertSame(
+            ['inventionCost' => null, 'totalProductionCost' => null, 'bestMargin' => null],
+            array_intersect_key($parityOption, ['inventionCost' => true, 'totalProductionCost' => true, 'bestMargin' => true]),
+        );
+        $this->assertSame(2400.0, $this->inventionOptionOf($result, null)['inventionCost']);
+        $this->assertSame(11400.0, $this->inventionOptionOf($result, null)['totalProductionCost']);
+        $this->assertSame(92400.0, $this->inventionOptionOf($result, self::ACCELERANT_DECRYPTOR_ID)['inventionCost']);
+        $this->assertSame(101400.0, $this->inventionOptionOf($result, self::ACCELERANT_DECRYPTOR_ID)['totalProductionCost']);
+        $this->assertSame(2400.0, $result['inventionCost']);
+        $this->assertSame(11400.0, $result['totalCost']);
+    }
+
+    #[Group('issue-8')]
+    public function testSelectedDecryptorWithoutMarketPriceMakesTheTotalCostAndMarginsUnknown(): void
+    {
+        $result = $this->analyzeSabreInventedWith(self::PARITY_DECRYPTOR_ID);
+
+        $this->assertNull($result['inventionCost']);
+        $this->assertNull($result['totalCost']);
+        $this->assertNull($result['costPerUnit']);
+        $this->assertSame(['jitaSell' => null, 'structureSell' => null, 'structureBuy' => null, 'contractSell' => null], $result['margins']);
+        $this->assertSame('missing_market_price', $result['invention']['unknownReason']);
+        $this->assertSame(5000.0, $result['materialCost']);
+        $this->assertSame(4000.0, $result['jobInstallCost']);
+    }
+
+    private function analyzeSabreInventedWith(?int $decryptorTypeId): array
+    {
+        $this->setupDefaultMocks();
+        $this->treeService->method('buildProductionTree')->willReturn(
+            $this->buildFlatTree(self::SABRE_TYPE_ID, 'Sabre', 1, 1, [
+                ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 1000],
+            ]),
+        );
+        $this->jitaMarketService->method('getWeightedSellPricesWithFallback')
+            ->willReturn([34 => ['weightedPrice' => 5.0, 'coverage' => 1.0, 'ordersUsed' => 1]]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturnCallback(
+            static fn (array $typeIds): array => array_combine(
+                $typeIds,
+                array_map(static fn (int $typeId): ?float => self::INVENTION_MARKET_PRICES_WITHOUT_PARITY[$typeId] ?? null, $typeIds),
+            ),
+        );
+        $this->jitaMarketService->method('getWeightedSellPrice')
+            ->willReturn(['weightedPrice' => 60000.0, 'coverage' => 1.0, 'ordersUsed' => 1]);
+        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(4000.0);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+        $this->structureMarketService->method('getLowestSellPrice')->willReturn(null);
+        $this->structureMarketService->method('getHighestBuyPrice')->willReturn(null);
+
+        return $this->profitMarginServiceInventingTheSabreAt(0.34)->analyze(
+            self::SABRE_TYPE_ID, 1, 2, 4,
+            self::SELL_STRUCTURE_ID, self::SOLAR_SYSTEM_ID, $decryptorTypeId,
+            0.04, 0.06, null,
+        );
+    }
+
+    private function profitMarginServiceInventingTheSabreAt(float $inventionProbability): ProfitMarginService
+    {
+        $sabreManufacturing = $this->sdeActivityProduct(self::SABRE_BLUEPRINT_ID, IndustryActivityType::Manufacturing, self::SABRE_TYPE_ID, 1);
+        $thrasherInvention = $this->sdeActivityProduct(self::THRASHER_BLUEPRINT_ID, IndustryActivityType::Invention, self::SABRE_BLUEPRINT_ID, 10)
+            ->setProbability($inventionProbability);
+
+        $activityProductRepository = $this->createStub(IndustryActivityProductRepository::class);
+        $activityProductRepository->method('findBlueprintForProduct')->willReturnCallback(
+            static fn (int $productTypeId, int $activityId): ?IndustryActivityProduct => match ([$productTypeId, $activityId]) {
+                [self::SABRE_TYPE_ID, IndustryActivityType::Manufacturing->value] => $sabreManufacturing,
+                [self::SABRE_BLUEPRINT_ID, IndustryActivityType::Invention->value] => $thrasherInvention,
+                default => null,
+            },
+        );
+        $activityProductRepository->method('findBy')->willReturn([]);
+
+        $inventionMaterialRepository = $this->createStub(IndustryActivityMaterialRepository::class);
+        $inventionMaterialRepository->method('findByBlueprintAndActivity')->willReturn([
+            $this->sdeInventionMaterial(self::DATACORE_MECHANICAL_ENGINEERING_TYPE_ID, 2),
+            $this->sdeInventionMaterial(self::DATACORE_MINMATAR_STARSHIP_ENGINEERING_TYPE_ID, 3),
+        ]);
+
+        $invTypeRepository = $this->sdeTypeRepositoryKnowing([self::SABRE_TYPE_ID => 'Sabre']);
+        $typeNameResolver = new TypeNameResolver($invTypeRepository);
+        $inventionService = new InventionService(
+            $activityProductRepository,
+            $inventionMaterialRepository,
+            $this->createStub(IndustryActivityRepository::class),
+            $invTypeRepository,
+            $this->jitaMarketService,
+            $this->esiCostIndexService,
+            $typeNameResolver,
+        );
+
+        return new ProfitMarginService(
+            $this->treeService,
+            $this->jitaMarketService,
+            $this->structureMarketService,
+            $this->esiCostIndexService,
+            $inventionService,
+            $this->publicContractPriceService,
+            $typeNameResolver,
+            $this->cachedStructureRepository,
+            $this->blacklistService,
+            $this->structureConfigRepository,
+            $this->materialRepository,
+        );
+    }
+
+    private function sdeActivityProduct(int $blueprintTypeId, IndustryActivityType $activity, int $productTypeId, int $quantity): IndustryActivityProduct
+    {
+        $activityProduct = new IndustryActivityProduct();
+        $activityProduct->setTypeId($blueprintTypeId);
+        $activityProduct->setActivityId($activity->value);
+        $activityProduct->setProductTypeId($productTypeId);
+        $activityProduct->setQuantity($quantity);
+
+        return $activityProduct;
+    }
+
+    private function sdeInventionMaterial(int $datacoreTypeId, int $quantity): IndustryActivityMaterial
+    {
+        $material = new IndustryActivityMaterial();
+        $material->setTypeId(self::THRASHER_BLUEPRINT_ID);
+        $material->setActivityId(IndustryActivityType::Invention->value);
+        $material->setMaterialTypeId($datacoreTypeId);
+        $material->setQuantity($quantity);
+
+        return $material;
+    }
+
+    private function inventionOptionOf(array $result, ?int $decryptorTypeId): array
+    {
+        foreach ($result['invention']['options'] as $option) {
+            if ($option['decryptorTypeId'] === $decryptorTypeId) {
+                return $option;
+            }
+        }
+
+        $this->fail(sprintf('No invention option for decryptor %s', $decryptorTypeId ?? 'none'));
     }
 }
