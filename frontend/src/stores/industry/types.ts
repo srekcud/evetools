@@ -631,7 +631,7 @@ export type PivotComponentCoverage = {
   candidates: Record<number, { needed: number; status: 'covered' | 'partial' | 'none' }>
 }
 
-export type PivotUnknownReason = 'missing_material_price'
+export type PivotUnknownReason = 'missing_material_price' | 'missing_cost_index' | 'missing_adjusted_price'
 
 export type PivotCandidate = {
   typeId: number

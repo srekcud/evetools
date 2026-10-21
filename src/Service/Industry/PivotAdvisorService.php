@@ -165,16 +165,8 @@ class PivotAdvisorService
 
             $materialCost = $this->materialCostPerRun($cpMaterials, $cpIsReaction ? 0 : $me, $jitaPrices);
 
-            // Job install cost (1 run) — EIV uses ME0 quantities from SDE
-            $eiv = $this->esiCostIndexService->calculateEiv($cpMaterials);
-            $jobInstallCost = $this->esiCostIndexService->calculateJobInstallCost(
-                $eiv,
-                1,
-                $solarSystemId,
-                $activityType,
-            );
-
-            $totalCost = $materialCost === null ? null : $materialCost + $jobInstallCost;
+            $jobInstallCost = $this->esiCostIndexService->estimateJobInstallCost($cpMaterials, 1, $solarSystemId, $activityType, null);
+            $totalCost = $this->totalCostPerRun($materialCost, $jobInstallCost);
 
             // Sell price
             $sellPrice = $jitaPrices[$cpTypeId] ?? null;
@@ -255,7 +247,7 @@ class PivotAdvisorService
                 'estimatedProfit' => $profitPerUnit !== null ? round($profitPerUnit * $runs, 2) : null,
                 'score' => $score !== null ? round($score, 2) : null,
                 'blueprintTypeId' => $cpBpId,
-                'unknownReason' => $totalCost === null ? BatchProfitScannerService::UNKNOWN_REASON_MISSING_MATERIAL_PRICE : null,
+                'unknownReason' => $this->unknownCostReason($materialCost, $jobInstallCost),
                 'missingPriceTypeIds' => $this->findUnpricedMaterialTypeIds($cpMaterials, $jitaPrices),
             ];
         }
@@ -438,16 +430,8 @@ class PivotAdvisorService
 
         $materialCost = $this->materialCostPerRun($sourceMaterials, $isReaction ? 0 : $me, $jitaPrices);
 
-        // EIV uses ME0 quantities from SDE (sourceMaterials are already ME0)
-        $eiv = $this->esiCostIndexService->calculateEiv($sourceMaterials);
-        $jobInstallCost = $this->esiCostIndexService->calculateJobInstallCost(
-            $eiv,
-            1,
-            $solarSystemId,
-            $activityType,
-        );
-
-        $totalCost = $materialCost === null ? null : $materialCost + $jobInstallCost;
+        $jobInstallCost = $this->esiCostIndexService->estimateJobInstallCost($sourceMaterials, 1, $solarSystemId, $activityType, null);
+        $totalCost = $this->totalCostPerRun($materialCost, $jobInstallCost);
 
         $sellPrice = $jitaPrices[$sourceTypeId] ?? null;
         $marginPercent = null;
@@ -476,9 +460,33 @@ class PivotAdvisorService
             'sellPrice' => $sellPrice !== null ? round($sellPrice, 2) : null,
             'dailyVolume' => $dailyVolumes[$sourceTypeId] ?? 0.0,
             'keyComponents' => $keyComponents,
-            'unknownReason' => $totalCost === null ? BatchProfitScannerService::UNKNOWN_REASON_MISSING_MATERIAL_PRICE : null,
+            'unknownReason' => $this->unknownCostReason($materialCost, $jobInstallCost),
             'missingPriceTypeIds' => $this->findUnpricedMaterialTypeIds($sourceMaterials, $jitaPrices),
         ];
+    }
+
+    /**
+     * @param array{cost: float|null, unknownReason: string|null, missingAdjustedPriceTypeIds: list<int>} $jobInstallCost
+     */
+    private function totalCostPerRun(?float $materialCost, array $jobInstallCost): ?float
+    {
+        if ($materialCost === null || $jobInstallCost['cost'] === null) {
+            return null;
+        }
+
+        return $materialCost + $jobInstallCost['cost'];
+    }
+
+    /**
+     * @param array{cost: float|null, unknownReason: string|null, missingAdjustedPriceTypeIds: list<int>} $jobInstallCost
+     */
+    private function unknownCostReason(?float $materialCost, array $jobInstallCost): ?string
+    {
+        if ($materialCost === null) {
+            return BatchProfitScannerService::UNKNOWN_REASON_MISSING_MATERIAL_PRICE;
+        }
+
+        return $jobInstallCost['unknownReason'];
     }
 
     /**

@@ -478,6 +478,8 @@
   "industry": {
     "inventionUnknown": {
       "label": "Inconnu",
+      "missing_adjusted_price": "Prix ajusté ESI inconnu",
+      "missing_cost_index": "Indice de coût du système inconnu",
       "missing_invention_probability": "Probabilite de succes de l'invention absente des donnees statiques (SDE) : cout d'invention inconnu.",
       "missing_market_price": "Prix de marche inconnu pour un datacore ou le decrypteur : cout d'invention inconnu.",
       "missing_material_price": "Un materiau n'a aucun prix a Jita : cout de fabrication et marges inconnus.",
