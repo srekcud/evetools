@@ -167,7 +167,7 @@ final class BuyVsBuildProviderTest extends TestCase
         $resource = $this->provide(self::HAIL_L, [], $user, $settings);
 
         $this->assertSame(111.2, $this->componentOf($resource, self::RAM_AMMUNITION_TECH)['buildJobInstallCost']);
-        $this->assertSame(14250.0, round($resource->totalProductionCost - $resource->optimalMixCost, 2));
+        $this->assertSame(154250.0, round($resource->totalProductionCost - $resource->optimalMixCost, 2));
     }
 
     #[Group('issue-99')]
@@ -180,7 +180,7 @@ final class BuyVsBuildProviderTest extends TestCase
 
         $this->assertSame(9000.0, $this->componentOf($resource, self::FERNITE_ALLOY)['buildJobInstallCost']);
         $this->assertSame(787.5, $this->componentOf($resource, self::HYDROGEN_FUEL_BLOCK)['buildJobInstallCost']);
-        $this->assertSame(67587.5, $resource->totalProductionCost);
+        $this->assertSame(103128.5, $resource->totalProductionCost);
         $this->assertResourceIsTheAnalysisOf($resource, self::FERNITE_CARBIDE, 1, 10, self::FACTORY_SYSTEM_ID, null, 0.01, 0.02);
     }
 
@@ -195,7 +195,7 @@ final class BuyVsBuildProviderTest extends TestCase
 
         $this->assertSame(9000.0, $this->componentOf($resource, self::FERNITE_ALLOY)['buildJobInstallCost']);
         $this->assertSame(787.5, $this->componentOf($resource, self::HYDROGEN_FUEL_BLOCK)['buildJobInstallCost']);
-        $this->assertSame(67587.5, $resource->totalProductionCost);
+        $this->assertSame(103128.5, $resource->totalProductionCost);
         $this->assertResourceIsTheAnalysisOf($resource, self::FERNITE_CARBIDE, 1, 10, self::FACTORY_SYSTEM_ID, null, 0.01, 0.02);
     }
 
@@ -209,8 +209,8 @@ final class BuyVsBuildProviderTest extends TestCase
         $resource = $this->provide(self::FERNITE_CARBIDE, [], $user, $settings);
 
         $this->assertSame([self::FERNITE_ALLOY, self::CERAMIC_POWDER], $resource->buyTypeIds);
-        $this->assertSame(55787.5, $resource->optimalMixCost);
-        $this->assertSame(60507.5, $resource->totalProductionCost);
+        $this->assertSame(91328.5, $resource->optimalMixCost);
+        $this->assertSame(96048.5, $resource->totalProductionCost);
     }
 
     #[Group('issue-115')]
@@ -247,6 +247,7 @@ final class BuyVsBuildProviderTest extends TestCase
             'optimalMixCost' => 54650.0,
             'buildTypeIds' => [self::FERNITE_CARBIDE],
             'buyTypeIds' => [],
+            'missingPriceTypeIds' => [],
         ]);
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn(new User());
@@ -263,6 +264,61 @@ final class BuyVsBuildProviderTest extends TestCase
         $this->assertSame(4, $resource->runs);
         $this->assertSame(61230.5, $resource->totalProductionCost);
         $this->assertSame($components, $resource->components);
+    }
+
+    #[Group('issue-8')]
+    public function testUnknownCostsAndMissingPriceTypeIdsReachTheResource(): void
+    {
+        $components = [[
+            'typeId' => self::FERNITE_CARBIDE,
+            'typeName' => 'Fernite Carbide',
+            'quantity' => 2700,
+            'stage' => 'Reaction',
+            'buildCost' => null,
+            'buildMaterials' => [['typeId' => self::CERAMIC_POWDER, 'typeName' => 'Ceramic Powder', 'quantity' => 100, 'unitPrice' => null, 'totalPrice' => null]],
+            'buildJobInstallCost' => 4720.0,
+            'buyCostJita' => null,
+            'buyCostStructure' => null,
+            'verdict' => 'unknown',
+            'savings' => null,
+            'savingsPercent' => null,
+            'meUsed' => 0,
+            'runs' => 1,
+        ]];
+        $buyVsBuildService = $this->createStub(BuyVsBuildService::class);
+        $buyVsBuildService->method('analyze')->willReturn([
+            'typeId' => self::HAIL_L,
+            'typeName' => 'Hail L',
+            'isT2' => true,
+            'runs' => 3,
+            'totalProductionCost' => null,
+            'sellPrice' => 510.0,
+            'marginPercent' => null,
+            'components' => $components,
+            'buildAllCost' => null,
+            'buyAllCost' => null,
+            'optimalMixCost' => null,
+            'buildTypeIds' => [],
+            'buyTypeIds' => [],
+            'missingPriceTypeIds' => [self::CERAMIC_POWDER, self::FERNITE_CARBIDE],
+        ]);
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn(new User());
+        $requestStack = new RequestStack();
+        $requestStack->push(new Request(['runs' => '3']));
+        $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
+        $settingsRepository->method('findOneBy')->willReturn(null);
+
+        $resource = (new BuyVsBuildProvider($security, $requestStack, $buyVsBuildService, $settingsRepository))
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L]);
+
+        $this->assertNull($resource->totalProductionCost);
+        $this->assertNull($resource->marginPercent);
+        $this->assertNull($resource->buildAllCost);
+        $this->assertNull($resource->buyAllCost);
+        $this->assertNull($resource->optimalMixCost);
+        $this->assertSame($components, $resource->components);
+        $this->assertSame([self::CERAMIC_POWDER, self::FERNITE_CARBIDE], $resource->missingPriceTypeIds);
     }
 
     public function testAnonymousRequestIsUnauthorized(): void
@@ -320,6 +376,7 @@ final class BuyVsBuildProviderTest extends TestCase
             'optimalMixCost' => $resource->optimalMixCost,
             'buildTypeIds' => $resource->buildTypeIds,
             'buyTypeIds' => $resource->buyTypeIds,
+            'missingPriceTypeIds' => $resource->missingPriceTypeIds,
         ]);
     }
 
@@ -335,6 +392,27 @@ final class BuyVsBuildProviderTest extends TestCase
                 35 => 10.0,
                 self::FERNITE_ALLOY => 300.0,
                 self::CERAMIC_POWDER => 250.0,
+                36 => 50.0,
+                37 => 100.0,
+                38 => 800.0,
+                11399 => 10000.0,
+                4051 => 21000.0,
+                16659 => 500.0,
+                16662 => 450.0,
+                16679 => 160.0,
+                44 => 110.0,
+                3683 => 210.0,
+                3689 => 310.0,
+                9832 => 410.0,
+                self::ROBOTICS => 510.0,
+                16272 => 11.0,
+                16273 => 21.0,
+                16275 => 31.0,
+                17889 => 41.0,
+                16639 => 55.0,
+                16642 => 75.0,
+                16635 => 25.0,
+                16636 => 35.0,
             ],
             structurePrices: [
                 self::SELL_STRUCTURE_ID => [self::RAM_AMMUNITION_TECH => 25000.0],

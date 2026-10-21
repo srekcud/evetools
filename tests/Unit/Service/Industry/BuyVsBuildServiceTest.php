@@ -730,6 +730,7 @@ class BuyVsBuildServiceTest extends TestCase
             'optimalMixCost' => 125000.0,
             'buildTypeIds' => [$componentTypeId],
             'buyTypeIds' => [],
+            'missingPriceTypeIds' => [],
         ];
     }
 }

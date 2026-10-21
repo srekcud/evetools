@@ -41,6 +41,27 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
     private const int MARSHAL = 44996;
     private const int CAPITAL_JUMP_DRIVE = 21025;
     private const int PLASMA_THRUSTER = 11530;
+    private const int GRAVIMETRIC_SENSOR_CLUSTER = 11534;
+    private const int PHOTON_MICROPROCESSOR = 11541;
+    private const int TUNGSTEN_CARBIDE_ARMOR_PLATE = 11543;
+    private const int FUSION_REACTOR_UNIT = 11547;
+    private const int TESSERACT_CAPACITOR_UNIT = 11554;
+    private const int SUSTAINED_SHIELD_EMITTER = 11558;
+    private const int WETWARE_MAINFRAME = 2876;
+    private const int REINFORCED_CARBON_FIBER = 57457;
+    private const int CONSTRUCTION_BLOCKS = 3828;
+    private const int CRYSTALLINE_CARBONIDE = 16670;
+    private const int TITANIUM_CARBIDE = 16671;
+    private const int TUNGSTEN_CARBIDE = 16672;
+    private const int SYLRAMIC_FIBERS = 16678;
+    private const int PHENOLIC_COMPOSITES = 16680;
+    private const int NANOTRANSISTORS = 16681;
+    private const int HYPERSYNAPTIC_FIBERS = 16682;
+    private const int FERROGEL = 16683;
+    private const int FERMIONIC_CONDENSATES = 17317;
+    private const int PHOTONIC_METAMATERIALS = 33359;
+    private const int TERAHERTZ_METAMATERIALS = 33360;
+    private const int PLATINUM_TECHNITE = 16662;
     private const int HYDROGEN_FUEL_BLOCK = 4246;
     private const int NITROGEN_FUEL_BLOCK = 4051;
     private const int FERNITE_ALLOY = 16656;
@@ -77,15 +98,14 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
         // buildProductionTree() reads the 10 runs as 10 units: ceil(10 / 5000) = 1 run. Materials are those of one run
         // (Fernite Carbide 2940 = ceil(3000 × 0.98) instead of 29400 for 10 runs), while the revenue counts
         // 10 runs × 5000 units and the final job install cost counts 10 runs.
-        // totalProductionCost = optimal mix 346800 + root leaf Morphite 15 × 10000 + final job 307000 × 10 × 0.05.
         $this->assertSame([
             'typeId' => self::HAIL_L,
             'typeName' => 'Hail L',
             'isT2' => true,
             'runs' => 10,
-            'totalProductionCost' => 650300.0,
+            'totalProductionCost' => 683460.0,
             'sellPrice' => 500.0,
-            'marginPercent' => 3456.05,
+            'marginPercent' => 3283.52,
             'components' => [
                 [
                     'typeId' => self::FERNITE_CARBIDE,
@@ -104,6 +124,26 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
                     'verdict' => 'build',
                     'savings' => 9600.0,
                     'savingsPercent' => 5.44,
+                    'meUsed' => 0,
+                    'runs' => 1,
+                ],
+                [
+                    'typeId' => self::FULLERIDES,
+                    'typeName' => 'Fullerides',
+                    'quantity' => 1176,
+                    'stage' => 'Reaction',
+                    'buildCost' => 200000.0,
+                    'buildMaterials' => [
+                        ['typeId' => self::NITROGEN_FUEL_BLOCK, 'typeName' => 'Nitrogen Fuel Block', 'quantity' => 5, 'unitPrice' => 21000.0, 'totalPrice' => 105000.0],
+                        ['typeId' => self::CARBON_POLYMERS, 'typeName' => 'Carbon Polymers', 'quantity' => 100, 'unitPrice' => 500.0, 'totalPrice' => 50000.0],
+                        ['typeId' => self::PLATINUM_TECHNITE, 'typeName' => 'Platinum Technite', 'quantity' => 100, 'unitPrice' => 450.0, 'totalPrice' => 45000.0],
+                    ],
+                    'buildJobInstallCost' => 0.0,
+                    'buyCostJita' => 188160.0,
+                    'buyCostStructure' => null,
+                    'verdict' => 'buy',
+                    'savings' => -11840.0,
+                    'savingsPercent' => 5.92,
                     'meUsed' => 0,
                     'runs' => 1,
                 ],
@@ -129,47 +169,39 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
                     'meUsed' => 10,
                     'runs' => 1,
                 ],
-                [
-                    'typeId' => self::FULLERIDES,
-                    'typeName' => 'Fullerides',
-                    'quantity' => 1176,
-                    'stage' => 'Reaction',
-                    'buildCost' => 155000.0,
-                    'buildMaterials' => [
-                        ['typeId' => self::NITROGEN_FUEL_BLOCK, 'typeName' => 'Nitrogen Fuel Block', 'quantity' => 5, 'unitPrice' => 21000.0, 'totalPrice' => 105000.0],
-                        ['typeId' => self::CARBON_POLYMERS, 'typeName' => 'Carbon Polymers', 'quantity' => 100, 'unitPrice' => 500.0, 'totalPrice' => 50000.0],
-                        ['typeId' => 16662, 'typeName' => 'Platinum Technite', 'quantity' => 100, 'unitPrice' => 0.0, 'totalPrice' => 0.0],
-                    ],
-                    'buildJobInstallCost' => 0.0,
-                    'buyCostJita' => null,
-                    'buyCostStructure' => null,
-                    'verdict' => 'build',
-                    'savings' => -155000.0,
-                    'savingsPercent' => 100.0,
-                    'meUsed' => 0,
-                    'runs' => 1,
-                ],
             ],
-            'buildAllCost' => 374466.8,
-            'buyAllCost' => 201400.0,
-            'optimalMixCost' => 346800.0,
-            'buildTypeIds' => [self::FERNITE_CARBIDE, self::FULLERIDES],
-            'buyTypeIds' => [self::RAM_AMMUNITION_TECH],
+            'buildAllCost' => 419466.8,
+            'buyAllCost' => 389560.0,
+            'optimalMixCost' => 379960.0,
+            'buildTypeIds' => [self::FERNITE_CARBIDE],
+            'buyTypeIds' => [self::RAM_AMMUNITION_TECH, self::FULLERIDES],
+            'missingPriceTypeIds' => [],
         ], $result);
     }
 
-    public function testComponentWithoutAnyMarketPriceCurrentlyWrongCostsNothingToBuyAndIsBuilt(): void
+    #[Group('issue-8')]
+    public function testComponentWithoutAnyBuyPriceAndWithAnUnpricedMaterialHasAnUnknownVerdictAndUnknownTotals(): void
     {
-        $result = $this->analyzeHailL($this->hailLJitaPrices());
+        $result = $this->analyzeHailL(array_diff_key($this->hailLJitaPrices(), [self::FULLERIDES => true, self::PLATINUM_TECHNITE => true]));
 
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #8 (R10).
-        // Fullerides has no Jita nor structure price: its buy cost counts 0 in buyAllCost and the verdict
-        // falls back to "build". Platinum Technite has no price either and is a free build material.
         $fullerides = $this->componentOf($result, self::FULLERIDES);
-        $this->assertSame('build', $fullerides['verdict']);
+        $this->assertSame('unknown', $fullerides['verdict']);
+        $this->assertNull($fullerides['buildCost']);
         $this->assertNull($fullerides['buyCostJita']);
-        $this->assertSame(0.0, $fullerides['buildMaterials'][2]['totalPrice']);
-        $this->assertSame(201400.0, $result['buyAllCost']);
+        $this->assertNull($fullerides['buyCostStructure']);
+        $this->assertNull($fullerides['savings']);
+        $this->assertNull($fullerides['savingsPercent']);
+        $this->assertSame(
+            ['typeId' => self::PLATINUM_TECHNITE, 'typeName' => 'Platinum Technite', 'quantity' => 100, 'unitPrice' => null, 'totalPrice' => null],
+            $fullerides['buildMaterials'][2],
+        );
+        $this->assertSame([self::FERNITE_CARBIDE, self::RAM_AMMUNITION_TECH, self::FULLERIDES], array_column($result['components'], 'typeId'));
+        $this->assertNull($result['buildAllCost']);
+        $this->assertNull($result['buyAllCost']);
+        $this->assertNull($result['optimalMixCost']);
+        $this->assertNull($result['totalProductionCost']);
+        $this->assertNull($result['marginPercent']);
+        $this->assertSame([self::PLATINUM_TECHNITE, self::FULLERIDES], $result['missingPriceTypeIds']);
     }
 
     public function testMissingAdjustedPriceCurrentlyWrongLowersTheJobInstallCostSilently(): void
@@ -201,12 +233,13 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
         $this->assertSame('build', $ram['verdict']);
         $this->assertSame(0.0, $ram['savings']);
         $this->assertSame(0.0, $ram['savingsPercent']);
-        $this->assertSame([self::RAM_AMMUNITION_TECH, self::FERNITE_CARBIDE, self::FULLERIDES], $result['buildTypeIds']);
-        $this->assertSame([], $result['buyTypeIds']);
-        $this->assertSame(374466.8, $result['optimalMixCost']);
+        $this->assertSame([self::RAM_AMMUNITION_TECH, self::FERNITE_CARBIDE], $result['buildTypeIds']);
+        $this->assertSame([self::FULLERIDES], $result['buyTypeIds']);
+        $this->assertSame(407626.8, $result['optimalMixCost']);
     }
 
-    public function testWithoutAnyPriceCurrentlyWrongEveryComponentIsBoughtForFreeAndTheMarginIsUnknown(): void
+    #[Group('issue-8')]
+    public function testWithoutAnyJitaPriceEveryComponentHasAnUnknownVerdictAndEveryCostIsUnknown(): void
     {
         $service = $this->buyVsBuildServiceOnGoldenSde(
             jitaPrices: [],
@@ -218,19 +251,31 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
 
         $result = $service->analyze(self::HAIL_L, 1, 2, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, 0.03, 0.045, null);
 
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issues #8 et #7 (R10).
-        // Every cost is 0: the verdict falls back to "buy", the total production cost is 0 and the margin is null.
-        $this->assertSame(0.0, $result['totalProductionCost']);
+        $this->assertSame(
+            [
+                [self::RAM_AMMUNITION_TECH, 'unknown', null, null, null],
+                [self::FERNITE_CARBIDE, 'unknown', null, null, null],
+                [self::FULLERIDES, 'unknown', null, null, null],
+            ],
+            array_map(static fn (array $component): array => [
+                $component['typeId'], $component['verdict'], $component['buildCost'], $component['savings'], $component['savingsPercent'],
+            ], $result['components']),
+        );
+        $this->assertNull($result['buildAllCost']);
+        $this->assertNull($result['buyAllCost']);
+        $this->assertNull($result['optimalMixCost']);
+        $this->assertNull($result['totalProductionCost']);
         $this->assertSame(480.0, $result['sellPrice']);
         $this->assertNull($result['marginPercent']);
-        $this->assertSame([], $result['buildTypeIds']);
-        $this->assertSame([self::RAM_AMMUNITION_TECH, self::FERNITE_CARBIDE, self::FULLERIDES], $result['buyTypeIds']);
-        foreach ($result['components'] as $component) {
-            $this->assertSame('buy', $component['verdict']);
-            $this->assertSame(0.0, $component['buildCost']);
-            $this->assertSame(0.0, $component['savings']);
-            $this->assertSame(0.0, $component['savingsPercent']);
-        }
+        $this->assertSame(
+            [
+                self::TRITANIUM, self::PYERITE, self::MEXALLON, self::ISOGEN, self::NOCXIUM,
+                self::NITROGEN_FUEL_BLOCK, self::HYDROGEN_FUEL_BLOCK, self::MORPHITE, self::RAM_AMMUNITION_TECH,
+                self::FERNITE_ALLOY, self::CARBON_POLYMERS, self::CERAMIC_POWDER, self::PLATINUM_TECHNITE,
+                self::FERNITE_CARBIDE, self::FULLERIDES,
+            ],
+            $result['missingPriceTypeIds'],
+        );
     }
 
     #[Group('issue-98')]
@@ -242,7 +287,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
         // A structure sell price of 0 is taken as a real price: the Jita price (500) is ignored and the margin is unknown.
         $this->assertSame(0.0, $result['sellPrice']);
         $this->assertNull($result['marginPercent']);
-        $this->assertSame(512150.0, $result['totalProductionCost']);
+        $this->assertSame(545310.0, $result['totalProductionCost']);
     }
 
     #[Group('issue-98')]
@@ -274,11 +319,11 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
         $this->assertSame(176397.94, $ferniteCarbide['buyCostStructure']);
         $this->assertSame(9597.94, $ferniteCarbide['savings']);
         $this->assertSame(500.12, $result['sellPrice']);
-        $this->assertSame(517150.02, $result['totalProductionCost']);
-        $this->assertSame(374806.51, $result['buildAllCost']);
-        $this->assertSame(206397.96, $result['buyAllCost']);
-        $this->assertSame(351800.02, $result['optimalMixCost']);
-        $this->assertSame(347.27, $result['marginPercent']);
+        $this->assertSame(550310.02, $result['totalProductionCost']);
+        $this->assertSame(419806.51, $result['buildAllCost']);
+        $this->assertSame(394557.96, $result['buyAllCost']);
+        $this->assertSame(384960.02, $result['optimalMixCost']);
+        $this->assertSame(320.32, $result['marginPercent']);
     }
 
     // ===========================================
@@ -311,6 +356,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
             'optimalMixCost' => 0.0,
             'buildTypeIds' => [],
             'buyTypeIds' => [],
+            'missingPriceTypeIds' => [],
         ], $result);
     }
 
@@ -319,8 +365,8 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
     {
         $result = $this->analyzeHailL($this->hailLJitaPrices());
 
-        $this->assertSame(346800.0, $result['optimalMixCost']);
-        $this->assertSame(512150.0, $result['totalProductionCost']);
+        $this->assertSame(379960.0, $result['optimalMixCost']);
+        $this->assertSame(545310.0, $result['totalProductionCost']);
     }
 
     // ===========================================
@@ -340,6 +386,30 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
                 self::NOCXIUM => 800.0,
                 self::ZYDRINE => 1500.0,
                 self::MEGACYTE => 3000.0,
+                self::WETWARE_MAINFRAME => 1_800_000.0,
+                self::REINFORCED_CARBON_FIBER => 900.0,
+                self::PLASMA_THRUSTER => 95_000.0,
+                self::GRAVIMETRIC_SENSOR_CLUSTER => 41_000.0,
+                self::PHOTON_MICROPROCESSOR => 52_000.0,
+                self::TUNGSTEN_CARBIDE_ARMOR_PLATE => 23_000.0,
+                self::FUSION_REACTOR_UNIT => 67_000.0,
+                self::TESSERACT_CAPACITOR_UNIT => 88_000.0,
+                self::SUSTAINED_SHIELD_EMITTER => 74_000.0,
+                self::CRYSTALLINE_CARBONIDE => 110.0,
+                self::TITANIUM_CARBIDE => 95.0,
+                self::TUNGSTEN_CARBIDE => 85.0,
+                self::FERNITE_CARBIDE => 60.0,
+                self::SYLRAMIC_FIBERS => 240.0,
+                self::FULLERIDES => 160.0,
+                self::PHENOLIC_COMPOSITES => 130.0,
+                self::NANOTRANSISTORS => 520.0,
+                self::HYPERSYNAPTIC_FIBERS => 610.0,
+                self::FERROGEL => 480.0,
+                self::FERMIONIC_CONDENSATES => 1250.0,
+                self::PHOTONIC_METAMATERIALS => 1900.0,
+                self::TERAHERTZ_METAMATERIALS => 2100.0,
+                self::CONSTRUCTION_BLOCKS => 7500.0,
+                self::MORPHITE => 10000.0,
             ],
             structurePrices: [],
             adjustedPrices: [self::MORPHITE => 9000.0],
@@ -348,15 +418,9 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
 
         $result = $service->analyze(self::MARSHAL, 1, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, 0.0, 0.0, null);
 
-        // The minerals 34-40 are root leaves and Capital Jump Drive build materials, so the Jita batch prices them.
-        // Root leaves at ME 10: 9900000 × 5 + 2250000 × 10 + 612000 × 50 + 162000 × 100 + 36000 × 800
-        // + 17100 × 1500 + 6570 × 3000 = 192960000.
-        // Optimal mix: Capital Jump Drive built, 3 runs at ME 10: 162000 × 5 + 583200 × 10 + 162000 × 50 + 45563 × 100
-        // + 4558 × 800 + 2430 × 1500 + 1134 × 3000 = 29991700; the other components have no price and cost 0.
-        // Final job: EIV 1500 Morphite × 9000 × 1 run × 0.05 = 675000. Morphite and Construction Blocks have no Jita price.
-        $this->assertSame(29_991_700.0, $result['optimalMixCost']);
-        $this->assertSame(223_626_700.0, $result['totalProductionCost']);
-        $this->assertSame(34.15, $result['marginPercent']);
+        $this->assertSame(197_601_010.0, $result['optimalMixCost']);
+        $this->assertSame(407_773_510.0, $result['totalProductionCost']);
+        $this->assertSame(-26.43, $result['marginPercent']);
     }
 
     // ===========================================
@@ -500,10 +564,12 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
         return $service->analyze(self::HAIL_L, $runs, 2, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, 0.03, 0.045, null);
     }
 
-    /** @return array<int, float> Fullerides and Platinum Technite have no Jita price */
+    /** @return array<int, float> */
     private function hailLJitaPrices(): array
     {
         return [
+            self::FULLERIDES => 160.0,
+            self::PLATINUM_TECHNITE => 450.0,
             self::HAIL_L => 500.0,
             self::MORPHITE => 10000.0,
             self::RAM_AMMUNITION_TECH => 20000.0,
