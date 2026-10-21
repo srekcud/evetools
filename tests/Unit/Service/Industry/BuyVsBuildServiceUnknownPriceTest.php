@@ -265,6 +265,7 @@ final class BuyVsBuildServiceUnknownPriceTest extends TestCase
             'buildTypeIds' => [self::PHOTON_MICROPROCESSOR, self::GRAVIMETRIC_SENSOR_CLUSTER],
             'buyTypeIds' => [self::PLASMA_THRUSTER],
             'missingPriceTypeIds' => [],
+            'unknownInstallCostReasons' => [],
         ], $result);
     }
 
@@ -435,11 +436,12 @@ final class BuyVsBuildServiceUnknownPriceTest extends TestCase
         );
 
         $esiCostIndexService = $this->createStub(EsiCostIndexService::class);
-        $esiCostIndexService->method('calculateEiv')->willReturnCallback(
-            static fn (array $materials): float => (float) $materials[0]['materialTypeId'],
-        );
-        $esiCostIndexService->method('calculateJobInstallCost')->willReturnCallback(
-            static fn (float $eiv): float => self::JOB_INSTALL_COST_BY_BLUEPRINT[(int) $eiv],
+        $esiCostIndexService->method('estimateJobInstallCost')->willReturnCallback(
+            static fn (array $materials): array => [
+                'cost' => self::JOB_INSTALL_COST_BY_BLUEPRINT[$materials[0]['materialTypeId']],
+                'unknownReason' => null,
+                'missingAdjustedPriceTypeIds' => [],
+            ],
         );
 
         $inventionService = $this->createStub(InventionService::class);

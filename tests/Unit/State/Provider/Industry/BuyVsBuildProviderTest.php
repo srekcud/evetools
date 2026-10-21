@@ -53,7 +53,7 @@ final class BuyVsBuildProviderTest extends TestCase
         $this->assertSame(1, $resource->runs);
         $this->assertSame(2700, $this->componentOf($resource, self::FERNITE_CARBIDE)['quantity']);
         $this->assertSame(500.0, $resource->sellPrice);
-        $this->assertSame(4720.0, $this->componentOf($resource, self::FERNITE_CARBIDE)['buildJobInstallCost']);
+        $this->assertSame(5640.0, $this->componentOf($resource, self::FERNITE_CARBIDE)['buildJobInstallCost']);
         $this->assertResourceIsTheAnalysisOf(
             $resource,
             self::HAIL_L, 1, 10, EveConstants::JITA_SOLAR_SYSTEM_ID, null,
@@ -146,9 +146,9 @@ final class BuyVsBuildProviderTest extends TestCase
 
         $resource = $this->provide(self::FERNITE_CARBIDE, [], $user, $settings);
 
-        $this->assertSame(3600.0, $this->componentOf($resource, self::FERNITE_ALLOY)['buildJobInstallCost']);
-        $this->assertSame(3600.0, $this->componentOf($resource, self::CERAMIC_POWDER)['buildJobInstallCost']);
-        $this->assertSame(787.5, $this->componentOf($resource, self::HYDROGEN_FUEL_BLOCK)['buildJobInstallCost']);
+        $this->assertSame(4040.0, $this->componentOf($resource, self::FERNITE_ALLOY)['buildJobInstallCost']);
+        $this->assertSame(3776.0, $this->componentOf($resource, self::CERAMIC_POWDER)['buildJobInstallCost']);
+        $this->assertSame(1684.5, $this->componentOf($resource, self::HYDROGEN_FUEL_BLOCK)['buildJobInstallCost']);
         $this->assertNull($resource->sellStructureId);
         $this->assertResourceIsTheAnalysisOf(
             $resource,
@@ -166,8 +166,8 @@ final class BuyVsBuildProviderTest extends TestCase
 
         $resource = $this->provide(self::HAIL_L, [], $user, $settings);
 
-        $this->assertSame(111.2, $this->componentOf($resource, self::RAM_AMMUNITION_TECH)['buildJobInstallCost']);
-        $this->assertSame(154250.0, round($resource->totalProductionCost - $resource->optimalMixCost, 2));
+        $this->assertSame(2361.8, $this->componentOf($resource, self::RAM_AMMUNITION_TECH)['buildJobInstallCost']);
+        $this->assertSame(164050.0, round($resource->totalProductionCost - $resource->optimalMixCost, 2));
     }
 
     #[Group('issue-99')]
@@ -178,9 +178,9 @@ final class BuyVsBuildProviderTest extends TestCase
 
         $resource = $this->provide(self::FERNITE_CARBIDE, [], $user, $settings);
 
-        $this->assertSame(9000.0, $this->componentOf($resource, self::FERNITE_ALLOY)['buildJobInstallCost']);
-        $this->assertSame(787.5, $this->componentOf($resource, self::HYDROGEN_FUEL_BLOCK)['buildJobInstallCost']);
-        $this->assertSame(103128.5, $resource->totalProductionCost);
+        $this->assertSame(10100.0, $this->componentOf($resource, self::FERNITE_ALLOY)['buildJobInstallCost']);
+        $this->assertSame(1684.5, $this->componentOf($resource, self::HYDROGEN_FUEL_BLOCK)['buildJobInstallCost']);
+        $this->assertSame(106325.5, $resource->totalProductionCost);
         $this->assertResourceIsTheAnalysisOf($resource, self::FERNITE_CARBIDE, 1, 10, self::FACTORY_SYSTEM_ID, null, 0.01, 0.02);
     }
 
@@ -193,9 +193,9 @@ final class BuyVsBuildProviderTest extends TestCase
 
         $resource = $this->provide(self::FERNITE_CARBIDE, ['solarSystemId' => (string) self::FACTORY_SYSTEM_ID], $user, $settings);
 
-        $this->assertSame(9000.0, $this->componentOf($resource, self::FERNITE_ALLOY)['buildJobInstallCost']);
-        $this->assertSame(787.5, $this->componentOf($resource, self::HYDROGEN_FUEL_BLOCK)['buildJobInstallCost']);
-        $this->assertSame(103128.5, $resource->totalProductionCost);
+        $this->assertSame(10100.0, $this->componentOf($resource, self::FERNITE_ALLOY)['buildJobInstallCost']);
+        $this->assertSame(1684.5, $this->componentOf($resource, self::HYDROGEN_FUEL_BLOCK)['buildJobInstallCost']);
+        $this->assertSame(106325.5, $resource->totalProductionCost);
         $this->assertResourceIsTheAnalysisOf($resource, self::FERNITE_CARBIDE, 1, 10, self::FACTORY_SYSTEM_ID, null, 0.01, 0.02);
     }
 
@@ -209,8 +209,8 @@ final class BuyVsBuildProviderTest extends TestCase
         $resource = $this->provide(self::FERNITE_CARBIDE, [], $user, $settings);
 
         $this->assertSame([self::FERNITE_ALLOY, self::CERAMIC_POWDER], $resource->buyTypeIds);
-        $this->assertSame(91328.5, $resource->optimalMixCost);
-        $this->assertSame(96048.5, $resource->totalProductionCost);
+        $this->assertSame(92225.5, $resource->optimalMixCost);
+        $this->assertSame(97865.5, $resource->totalProductionCost);
     }
 
     #[Group('issue-115')]
@@ -248,6 +248,7 @@ final class BuyVsBuildProviderTest extends TestCase
             'buildTypeIds' => [self::FERNITE_CARBIDE],
             'buyTypeIds' => [],
             'missingPriceTypeIds' => [],
+            'unknownInstallCostReasons' => [],
         ]);
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn(new User());
@@ -301,6 +302,7 @@ final class BuyVsBuildProviderTest extends TestCase
             'buildTypeIds' => [],
             'buyTypeIds' => [],
             'missingPriceTypeIds' => [self::CERAMIC_POWDER, self::FERNITE_CARBIDE],
+            'unknownInstallCostReasons' => [],
         ]);
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn(new User());
@@ -319,6 +321,60 @@ final class BuyVsBuildProviderTest extends TestCase
         $this->assertNull($resource->optimalMixCost);
         $this->assertSame($components, $resource->components);
         $this->assertSame([self::CERAMIC_POWDER, self::FERNITE_CARBIDE], $resource->missingPriceTypeIds);
+    }
+
+    #[Group('issue-7')]
+    public function testUnknownJobInstallCostAndItsReasonsReachTheResource(): void
+    {
+        $components = [[
+            'typeId' => self::FERNITE_CARBIDE,
+            'typeName' => 'Fernite Carbide',
+            'quantity' => 2940,
+            'stage' => 'Reaction',
+            'buildCost' => null,
+            'buildMaterials' => [['typeId' => self::CERAMIC_POWDER, 'typeName' => 'Ceramic Powder', 'quantity' => 100, 'unitPrice' => 260.0, 'totalPrice' => 26000.0]],
+            'buildJobInstallCost' => null,
+            'buyCostJita' => 188160.0,
+            'buyCostStructure' => null,
+            'verdict' => 'buy',
+            'savings' => null,
+            'savingsPercent' => null,
+            'meUsed' => 0,
+            'runs' => 1,
+        ]];
+        $buyVsBuildService = $this->createStub(BuyVsBuildService::class);
+        $buyVsBuildService->method('analyze')->willReturn([
+            'typeId' => self::HAIL_L,
+            'typeName' => 'Hail L',
+            'isT2' => true,
+            'runs' => 2,
+            'totalProductionCost' => null,
+            'sellPrice' => 520.0,
+            'marginPercent' => null,
+            'components' => $components,
+            'buildAllCost' => null,
+            'buyAllCost' => 188160.0,
+            'optimalMixCost' => 188160.0,
+            'buildTypeIds' => [],
+            'buyTypeIds' => [self::FERNITE_CARBIDE],
+            'missingPriceTypeIds' => [],
+            'unknownInstallCostReasons' => ['missing_adjusted_price', 'missing_cost_index'],
+        ]);
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn(new User());
+        $requestStack = new RequestStack();
+        $requestStack->push(new Request(['runs' => '2']));
+        $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
+        $settingsRepository->method('findOneBy')->willReturn(null);
+
+        $resource = (new BuyVsBuildProvider($security, $requestStack, $buyVsBuildService, $settingsRepository))
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L]);
+
+        $this->assertNull($resource->components[0]['buildJobInstallCost']);
+        $this->assertSame($components, $resource->components);
+        $this->assertNull($resource->totalProductionCost);
+        $this->assertSame([], $resource->missingPriceTypeIds);
+        $this->assertSame(['missing_adjusted_price', 'missing_cost_index'], $resource->unknownInstallCostReasons);
     }
 
     public function testAnonymousRequestIsUnauthorized(): void
@@ -377,6 +433,7 @@ final class BuyVsBuildProviderTest extends TestCase
             'buildTypeIds' => $resource->buildTypeIds,
             'buyTypeIds' => $resource->buyTypeIds,
             'missingPriceTypeIds' => $resource->missingPriceTypeIds,
+            'unknownInstallCostReasons' => $resource->unknownInstallCostReasons,
         ]);
     }
 
@@ -419,7 +476,36 @@ final class BuyVsBuildProviderTest extends TestCase
                 self::OTHER_SELL_STRUCTURE_ID => [self::HAIL_L => 480.0, self::RAM_AMMUNITION_TECH => 23000.0],
                 EveConstants::JITA_STATION_ID => [self::HAIL_L => 450.0, self::RAM_AMMUNITION_TECH => 21000.0],
             ],
-            adjustedPrices: [34 => 4.0, 17889 => 35.0, self::HYDROGEN_FUEL_BLOCK => 18000.0, self::FERNITE_ALLOY => 280.0, self::FERNITE_CARBIDE => 50.0, 11399 => 9000.0],
+            adjustedPrices: [
+                34 => 4.0,
+                35 => 8.0,
+                36 => 40.0,
+                37 => 90.0,
+                38 => 700.0,
+                17889 => 35.0,
+                self::HYDROGEN_FUEL_BLOCK => 18000.0,
+                self::FERNITE_ALLOY => 280.0,
+                self::CERAMIC_POWDER => 230.0,
+                self::FERNITE_CARBIDE => 50.0,
+                11399 => 9000.0,
+                self::RAM_AMMUNITION_TECH => 22000.0,
+                4051 => 16000.0,
+                16659 => 390.0,
+                16662 => 350.0,
+                16679 => 145.0,
+                44 => 95.0,
+                3683 => 190.0,
+                3689 => 280.0,
+                9832 => 380.0,
+                self::ROBOTICS => 470.0,
+                16272 => 9.0,
+                16273 => 18.0,
+                16275 => 27.0,
+                16639 => 46.0,
+                16642 => 64.0,
+                16635 => 17.0,
+                16636 => 27.0,
+            ],
             costIndices: [
                 EveConstants::JITA_SOLAR_SYSTEM_ID => ['manufacturing' => 0.02, 'reaction' => 0.04],
                 self::FACTORY_SYSTEM_ID => ['manufacturing' => 0.05, 'reaction' => 0.1],

@@ -56,6 +56,7 @@ const ANALYSIS_WITH_AN_UNKNOWN_VERDICT: BuyVsBuildResult = {
   buildTypeIds: [],
   buyTypeIds: [],
   missingPriceTypeIds: [MEXALLON_TYPE_ID, PLASMA_THRUSTER_TYPE_ID],
+  unknownInstallCostReasons: [],
   sellStructureId: null,
 }
 

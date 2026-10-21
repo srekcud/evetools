@@ -158,8 +158,7 @@ class BuyVsBuildServiceTest extends TestCase
         $this->structureMarketService->method('getLowestSellPrice')->willReturn(null);
         $this->structureMarketService->method('getLowestSellPrices')->willReturn([11530 => null]);
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(1000000.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(100.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn($this->knownJobInstallCostEstimate(100.0));
 
         $result = $this->service->analyze(
             22456,
@@ -245,8 +244,7 @@ class BuyVsBuildServiceTest extends TestCase
         $this->structureMarketService->method('getLowestSellPrice')->willReturn(null);
         $this->structureMarketService->method('getLowestSellPrices')->willReturn([]);
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(50000.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(1000.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn($this->knownJobInstallCostEstimate(1000.0));
 
         $result = $this->service->analyze(
             587, 1, 10,
@@ -298,8 +296,7 @@ class BuyVsBuildServiceTest extends TestCase
         $this->structureMarketService->method('getLowestSellPrice')->willReturn(200000.0);
         $this->structureMarketService->method('getLowestSellPrices')->willReturn([]);
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn($this->knownJobInstallCostEstimate(0.0));
 
         $result = $this->service->analyze(
             587, 1, 10,
@@ -343,8 +340,7 @@ class BuyVsBuildServiceTest extends TestCase
         $this->structureMarketService->method('getLowestSellPrice')->willReturn(null);
         $this->structureMarketService->method('getLowestSellPrices')->willReturn([]);
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn($this->knownJobInstallCostEstimate(0.0));
 
         $result = $this->service->analyze(
             587, 1, 10,
@@ -443,8 +439,7 @@ class BuyVsBuildServiceTest extends TestCase
         $this->structureMarketService->method('getLowestSellPrice')->willReturn(null);
         $this->structureMarketService->method('getLowestSellPrices')->willReturn([2001 => null]);
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn($this->knownJobInstallCostEstimate(0.0));
 
         $result = $this->service->analyze(
             1001, 1, 10,
@@ -530,8 +525,7 @@ class BuyVsBuildServiceTest extends TestCase
         $this->structureMarketService->method('getLowestSellPrice')->willReturn(null);
         $this->structureMarketService->method('getLowestSellPrices')->willReturn([201 => null, 301 => null]);
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn($this->knownJobInstallCostEstimate(0.0));
 
         $result = $this->service->analyze(
             101, 1, 10,
@@ -678,14 +672,18 @@ class BuyVsBuildServiceTest extends TestCase
         $this->structureMarketService->method('getLowestSellPrice')->willReturn(null);
         $this->structureMarketService->method('getLowestSellPrices')->willReturn([$componentTypeId => null]);
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(4000.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn($this->knownJobInstallCostEstimate(4000.0));
 
         return $this->service->analyze(
             $productTypeId, 1, 10,
             self::SOLAR_SYSTEM_ID, self::SELL_STRUCTURE_ID,
             0.0, 0.0, null,
         );
+    }
+
+    private function knownJobInstallCostEstimate(float $jobInstallCost): array
+    {
+        return ['cost' => $jobInstallCost, 'unknownReason' => null, 'missingAdjustedPriceTypeIds' => []];
     }
 
     private function expectedAnalysis(
@@ -731,6 +729,7 @@ class BuyVsBuildServiceTest extends TestCase
             'buildTypeIds' => [$componentTypeId],
             'buyTypeIds' => [],
             'missingPriceTypeIds' => [],
+            'unknownInstallCostReasons' => [],
         ];
     }
 }
