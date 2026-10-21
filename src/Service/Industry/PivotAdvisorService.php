@@ -40,7 +40,7 @@ class PivotAdvisorService
      *     typeId: int,
      *     sourceProduct: array<string, mixed>,
      *     matrix: list<array<string, mixed>>,
-     *     candidates: list<array<string, mixed>>,
+     *     candidates: list<array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float, coveragePercent: float|null, missingComponents: list<array{typeId: int, typeName: string|null, quantity: int, cost: float|null}>, additionalCost: float|null, estimatedProfit: float|null, score: float|null, unknownReason: string|null, missingPriceTypeIds: list<int>}>,
      *     matrixProductIds: list<int>,
      * }
      */
@@ -163,13 +163,7 @@ class PivotAdvisorService
 
             $cpMaterials = $candidateMaterialsByBp[$cpBpId] ?? [];
 
-            // Material cost (1 run)
-            $materialCost = 0.0;
-            foreach ($cpMaterials as $mat) {
-                $adjustedQty = MaterialQuantityFormula::forJob($mat['quantity'], 1, $cpIsReaction ? 0 : $me, 0.0, 0.0);
-                $unitPrice = $jitaPrices[$mat['materialTypeId']] ?? 0.0;
-                $materialCost += $adjustedQty * $unitPrice;
-            }
+            $materialCost = $this->materialCostPerRun($cpMaterials, $cpIsReaction ? 0 : $me, $jitaPrices);
 
             // Job install cost (1 run) — EIV uses ME0 quantities from SDE
             $eiv = $this->esiCostIndexService->calculateEiv($cpMaterials);
@@ -180,18 +174,22 @@ class PivotAdvisorService
                 $activityType,
             );
 
-            $totalCost = $materialCost + $jobInstallCost;
+            $totalCost = $materialCost === null ? null : $materialCost + $jobInstallCost;
 
             // Sell price
             $sellPrice = $jitaPrices[$cpTypeId] ?? null;
-            if ($sellPrice === null || $sellPrice <= 0.0 || $totalCost <= 0.0) {
+            if ($sellPrice === null || $sellPrice <= 0.0 || ($totalCost !== null && $totalCost <= 0.0)) {
                 continue;
             }
 
-            $fees = $sellPrice * ($brokerFeeRate + $salesTaxRate);
-            $netSellPrice = $sellPrice - $fees;
-            $marginPercent = ($netSellPrice * $cpOutputPerRun - $totalCost) / $totalCost * 100;
-            $profitPerUnit = ($netSellPrice * $cpOutputPerRun - $totalCost) / $cpOutputPerRun;
+            $marginPercent = null;
+            $profitPerUnit = null;
+            if ($totalCost !== null) {
+                $fees = $sellPrice * ($brokerFeeRate + $salesTaxRate);
+                $netSellPrice = $sellPrice - $fees;
+                $marginPercent = ($netSellPrice * $cpOutputPerRun - $totalCost) / $totalCost * 100;
+                $profitPerUnit = ($netSellPrice * $cpOutputPerRun - $totalCost) / $cpOutputPerRun;
+            }
             $dailyVolume = $dailyVolumes[$cpTypeId] ?? 0.0;
 
             // Coverage (value-weighted): how much of the candidate's buildable materials
@@ -200,6 +198,7 @@ class PivotAdvisorService
             $coverageDenominator = 0.0;
             $missingComponents = [];
             $additionalCost = 0.0;
+            $isCoverageUnknown = false;
 
             foreach ($cpMaterials as $mat) {
                 $matTypeId = $mat['materialTypeId'];
@@ -208,23 +207,28 @@ class PivotAdvisorService
                 }
 
                 $neededQty = MaterialQuantityFormula::forJob($mat['quantity'], 1, $cpIsReaction ? 0 : $me, 0.0, 0.0);
-                $matPrice = $jitaPrices[$matTypeId] ?? 0.0;
-                $matCost = $neededQty * $matPrice;
-                $coverageDenominator += $matCost;
-
+                $matPrice = $jitaPrices[$matTypeId] ?? null;
                 $inStock = $userStock[$matTypeId] ?? 0;
-                $coveredQty = min($inStock, $neededQty);
-                $coverageNumerator += $coveredQty * $matPrice;
+
+                if ($matPrice === null) {
+                    $isCoverageUnknown = true;
+                } else {
+                    $coverageDenominator += $neededQty * $matPrice;
+                    $coverageNumerator += min($inStock, $neededQty) * $matPrice;
+                }
 
                 if ($inStock < $neededQty) {
                     $missingQty = $neededQty - $inStock;
-                    $missingCost = $missingQty * $matPrice;
-                    $additionalCost += $missingCost;
+                    $missingCost = null;
+                    if ($matPrice !== null) {
+                        $missingCost = round($missingQty * $matPrice, 2);
+                        $additionalCost += $missingQty * $matPrice;
+                    }
                     $missingComponents[] = [
                         'typeId' => $matTypeId,
                         'typeName' => $typeNames[$matTypeId] ?? null,
                         'quantity' => $missingQty,
-                        'cost' => round($missingCost, 2),
+                        'cost' => $missingCost,
                     ];
                 }
             }
@@ -233,29 +237,34 @@ class PivotAdvisorService
                 ? ($coverageNumerator / $coverageDenominator) * 100
                 : 0.0;
 
-            $estimatedProfit = $profitPerUnit * $runs;
-
-            // Score: coverage * margin * log10(volume + 1)
-            $score = $coveragePercent * $marginPercent * log10($dailyVolume + 1);
+            $score = null;
+            if ($marginPercent !== null && !$isCoverageUnknown) {
+                $score = $coveragePercent * $marginPercent * log10($dailyVolume + 1);
+            }
 
             $scoredCandidates[] = [
                 'typeId' => $cpTypeId,
                 'typeName' => $typeNames[$cpTypeId] ?? null,
                 'groupName' => $groupNames[$cpTypeId] ?? '',
-                'marginPercent' => round($marginPercent, 2),
-                'profitPerUnit' => round($profitPerUnit, 2),
+                'marginPercent' => $marginPercent !== null ? round($marginPercent, 2) : null,
+                'profitPerUnit' => $profitPerUnit !== null ? round($profitPerUnit, 2) : null,
                 'dailyVolume' => $dailyVolume,
-                'coveragePercent' => round($coveragePercent, 2),
+                'coveragePercent' => $isCoverageUnknown ? null : round($coveragePercent, 2),
                 'missingComponents' => $missingComponents,
-                'additionalCost' => round($additionalCost, 2),
-                'estimatedProfit' => round($estimatedProfit, 2),
-                'score' => round($score, 2),
+                'additionalCost' => $isCoverageUnknown ? null : round($additionalCost, 2),
+                'estimatedProfit' => $profitPerUnit !== null ? round($profitPerUnit * $runs, 2) : null,
+                'score' => $score !== null ? round($score, 2) : null,
                 'blueprintTypeId' => $cpBpId,
+                'unknownReason' => $totalCost === null ? BatchProfitScannerService::UNKNOWN_REASON_MISSING_MATERIAL_PRICE : null,
+                'missingPriceTypeIds' => $this->findUnpricedMaterialTypeIds($cpMaterials, $jitaPrices),
             ];
         }
 
-        // Sort by score descending, keep top N
-        usort($scoredCandidates, static fn (array $a, array $b) => $b['score'] <=> $a['score']);
+        usort($scoredCandidates, static fn (array $a, array $b): int => match (true) {
+            $a['score'] !== null && $b['score'] !== null => $b['score'] <=> $a['score'],
+            $a['score'] === null && $b['score'] === null => $a['typeId'] <=> $b['typeId'],
+            default => $a['score'] === null ? 1 : -1,
+        });
         $topCandidates = \array_slice($scoredCandidates, 0, self::MAX_CANDIDATES);
 
         // 11. Build source product summary
@@ -427,13 +436,7 @@ class PivotAdvisorService
         $me = $isT2 ? 2 : ($isReaction ? 0 : 10);
         $activityType = $isReaction ? 'reaction' : 'manufacturing';
 
-        // Material cost (1 run)
-        $materialCost = 0.0;
-        foreach ($sourceMaterials as $mat) {
-            $adjustedQty = MaterialQuantityFormula::forJob($mat['quantity'], 1, $isReaction ? 0 : $me, 0.0, 0.0);
-            $unitPrice = $jitaPrices[$mat['materialTypeId']] ?? 0.0;
-            $materialCost += $adjustedQty * $unitPrice;
-        }
+        $materialCost = $this->materialCostPerRun($sourceMaterials, $isReaction ? 0 : $me, $jitaPrices);
 
         // EIV uses ME0 quantities from SDE (sourceMaterials are already ME0)
         $eiv = $this->esiCostIndexService->calculateEiv($sourceMaterials);
@@ -444,11 +447,11 @@ class PivotAdvisorService
             $activityType,
         );
 
-        $totalCost = $materialCost + $jobInstallCost;
+        $totalCost = $materialCost === null ? null : $materialCost + $jobInstallCost;
 
         $sellPrice = $jitaPrices[$sourceTypeId] ?? null;
         $marginPercent = null;
-        if ($sellPrice !== null && $sellPrice > 0 && $totalCost > 0) {
+        if ($totalCost !== null && $sellPrice !== null && $sellPrice > 0 && $totalCost > 0) {
             $fees = $sellPrice * ($brokerFeeRate + $salesTaxRate);
             $netSellPrice = $sellPrice - $fees;
             $marginPercent = round(($netSellPrice * $outputPerRun - $totalCost) / $totalCost * 100, 2);
@@ -473,7 +476,45 @@ class PivotAdvisorService
             'sellPrice' => $sellPrice !== null ? round($sellPrice, 2) : null,
             'dailyVolume' => $dailyVolumes[$sourceTypeId] ?? 0.0,
             'keyComponents' => $keyComponents,
+            'unknownReason' => $totalCost === null ? BatchProfitScannerService::UNKNOWN_REASON_MISSING_MATERIAL_PRICE : null,
+            'missingPriceTypeIds' => $this->findUnpricedMaterialTypeIds($sourceMaterials, $jitaPrices),
         ];
+    }
+
+    /**
+     * @param list<array{materialTypeId: int, quantity: int}> $materials
+     * @param array<int, float|null> $jitaPrices
+     * @return list<int>
+     */
+    private function findUnpricedMaterialTypeIds(array $materials, array $jitaPrices): array
+    {
+        $unpricedTypeIds = [];
+        foreach ($materials as $mat) {
+            if (($jitaPrices[$mat['materialTypeId']] ?? null) === null) {
+                $unpricedTypeIds[$mat['materialTypeId']] = $mat['materialTypeId'];
+            }
+        }
+        sort($unpricedTypeIds);
+
+        return $unpricedTypeIds;
+    }
+
+    /**
+     * @param list<array{materialTypeId: int, quantity: int}> $materials
+     * @param array<int, float|null> $jitaPrices
+     */
+    private function materialCostPerRun(array $materials, int $materialEfficiency, array $jitaPrices): ?float
+    {
+        $materialCost = 0.0;
+        foreach ($materials as $mat) {
+            $unitPrice = $jitaPrices[$mat['materialTypeId']] ?? null;
+            if ($unitPrice === null) {
+                return null;
+            }
+            $materialCost += MaterialQuantityFormula::forJob($mat['quantity'], 1, $materialEfficiency, 0.0, 0.0) * $unitPrice;
+        }
+
+        return $materialCost;
     }
 
     /**

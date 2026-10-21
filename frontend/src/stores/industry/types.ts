@@ -617,7 +617,7 @@ export type PivotMissingComponent = {
   typeId: number
   typeName: string | null
   quantity: number
-  cost: number
+  cost: number | null
 }
 
 export type PivotComponentCoverage = {
@@ -627,18 +627,22 @@ export type PivotComponentCoverage = {
   candidates: Record<number, { needed: number; status: 'covered' | 'partial' | 'none' }>
 }
 
+export type PivotUnknownReason = 'missing_material_price'
+
 export type PivotCandidate = {
   typeId: number
   typeName: string | null
   groupName: string
   marginPercent: number | null
-  profitPerUnit: number
+  profitPerUnit: number | null
   dailyVolume: number
-  coveragePercent: number
+  coveragePercent: number | null
   missingComponents: PivotMissingComponent[]
-  additionalCost: number
-  estimatedProfit: number
-  score: number
+  additionalCost: number | null
+  estimatedProfit: number | null
+  score: number | null
+  unknownReason: PivotUnknownReason | null
+  missingPriceTypeIds: number[]
 }
 
 export type PivotSourceProduct = {
@@ -649,6 +653,8 @@ export type PivotSourceProduct = {
   sellPrice: number
   dailyVolume: number
   keyComponents: { typeId: number; typeName: string | null; inStock: number }[]
+  unknownReason?: PivotUnknownReason | null
+  missingPriceTypeIds?: number[]
 }
 
 export type PivotAnalysisResult = {

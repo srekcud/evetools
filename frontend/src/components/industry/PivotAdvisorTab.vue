@@ -7,7 +7,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
-import type { PivotCandidate } from '@/stores/industry/types'
+import type { PivotCandidate, PivotMissingComponent } from '@/stores/industry/types'
 
 defineProps<{
   initialTypeId?: number
@@ -51,17 +51,22 @@ const sortedCandidates = computed((): PivotCandidate[] => {
   const candidates = [...result.value.candidates]
   switch (sortBy.value) {
     case 'margin':
-      return candidates.sort((a, b) => (b.marginPercent ?? -999) - (a.marginPercent ?? -999))
+      return candidates.sort((a, b) => compareKnownFirstDescending(a.marginPercent, b.marginPercent))
     case 'coverage':
-      return candidates.sort((a, b) => b.coveragePercent - a.coveragePercent)
+      return candidates.sort((a, b) => compareKnownFirstDescending(a.coveragePercent, b.coveragePercent))
     case 'volume':
       return candidates.sort((a, b) => b.dailyVolume - a.dailyVolume)
     case 'profit':
-      return candidates.sort((a, b) => b.estimatedProfit - a.estimatedProfit)
+      return candidates.sort((a, b) => compareKnownFirstDescending(a.estimatedProfit, b.estimatedProfit))
     default: // score
-      return candidates.sort((a, b) => b.score - a.score)
+      return candidates.sort((a, b) => compareKnownFirstDescending(a.score, b.score))
   }
 })
+
+function compareKnownFirstDescending(a: number | null, b: number | null): number {
+  if (a == null || b == null) return Number(a == null) - Number(b == null)
+  return b - a
+}
 
 function onProductSelect(result: SearchResult): void {
   selectedProduct.value = result
@@ -94,9 +99,17 @@ function onCompare(candidate: PivotCandidate): void {
 }
 
 function formatMargin(percent: number | null): string {
-  if (percent == null) return 'N/A'
+  if (percent == null) return t('industry.inventionUnknown.label')
   const sign = percent >= 0 ? '+' : ''
   return `${sign}${percent.toFixed(1)}%`
+}
+
+function formatKnownIsk(amount: number | null): string {
+  return amount == null ? t('industry.inventionUnknown.label') : formatIsk(amount)
+}
+
+function isPricedShortage(component: PivotMissingComponent): boolean {
+  return component.cost != null && component.cost > 0
 }
 
 function coverageBarColor(percent: number): string {
@@ -244,6 +257,10 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
                 <div class="font-mono text-sm text-slate-300">{{ formatIsk(result.sourceProduct.sellPrice) }}</div>
               </div>
             </div>
+
+            <p v-if="result.sourceProduct.unknownReason != null" class="mb-3 text-xs text-amber-400">
+              {{ t(`industry.inventionUnknown.${result.sourceProduct.unknownReason}`) }}
+            </p>
 
             <!-- Warning message when margin < 0 -->
             <div
@@ -463,7 +480,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
                 <div class="font-mono text-sm font-bold" :class="marginColor(candidate.marginPercent)">
                   {{ formatMargin(candidate.marginPercent) }}
                 </div>
-                <div class="font-mono text-xs text-slate-500">{{ formatIsk(candidate.profitPerUnit) }} ISK</div>
+                <div v-if="candidate.profitPerUnit != null" class="font-mono text-xs text-slate-500">{{ formatIsk(candidate.profitPerUnit) }} ISK</div>
               </div>
               <div class="bg-[#1e293b] rounded-lg p-2">
                 <div class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.scanner.pivotAdvisor.dailyVol') }}</div>
@@ -476,11 +493,12 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
             <div class="mb-3">
               <div class="flex items-center justify-between mb-1">
                 <span class="text-xs text-slate-400">{{ t('industry.scanner.pivotAdvisor.componentCoverage') }}</span>
-                <span class="font-mono text-xs" :class="coverageTextColor(candidate.coveragePercent)">
+                <span v-if="candidate.coveragePercent == null" class="font-mono text-xs text-amber-400">{{ t('industry.inventionUnknown.label') }}</span>
+                <span v-else class="font-mono text-xs" :class="coverageTextColor(candidate.coveragePercent)">
                   {{ candidate.coveragePercent }}%
                 </span>
               </div>
-              <div class="h-2 rounded-full bg-slate-800 overflow-hidden">
+              <div v-if="candidate.coveragePercent != null" class="h-2 rounded-full bg-slate-800 overflow-hidden">
                 <div
                   class="h-full rounded-full transition-all duration-600"
                   :class="coverageBarColor(candidate.coveragePercent)"
@@ -499,14 +517,14 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
                   class="flex items-center justify-between text-xs"
                 >
                   <!-- Amber for partial (some stock), red for none (zero stock) -->
-                  <span :class="mc.quantity > 0 && mc.cost > 0 ? 'text-amber-400' : 'text-red-400'">
+                  <span :class="mc.quantity > 0 && isPricedShortage(mc) ? 'text-amber-400' : 'text-red-400'">
                     {{ typeNameLabel(mc.typeName, mc.typeId) }}
                   </span>
                   <span
                     class="font-mono"
-                    :class="mc.quantity > 0 && mc.cost > 0 ? 'text-amber-400' : 'text-red-400'"
+                    :class="mc.quantity > 0 && isPricedShortage(mc) ? 'text-amber-400' : 'text-red-400'"
                   >
-                    {{ mc.cost > 0
+                    {{ isPricedShortage(mc)
                       ? '+' + formatNumber(mc.quantity, 0) + ' ' + t('industry.scanner.pivotAdvisor.short')
                       : formatNumber(mc.quantity, 0) + ' ' + t('industry.scanner.pivotAdvisor.needed')
                     }}
@@ -519,13 +537,17 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
             <div class="bg-[#1e293b] rounded-lg p-2.5 mb-3 space-y-1.5">
               <div class="flex items-center justify-between text-xs">
                 <span class="text-slate-400">{{ t('industry.scanner.pivotAdvisor.additionalCost') }}</span>
-                <span class="font-mono text-amber-400">{{ formatIsk(candidate.additionalCost) }}</span>
+                <span class="font-mono text-amber-400">{{ formatKnownIsk(candidate.additionalCost) }}</span>
               </div>
               <div class="flex items-center justify-between text-xs">
                 <span class="text-slate-400">{{ t('industry.scanner.pivotAdvisor.estimatedProfit') }}</span>
-                <span class="font-mono text-emerald-400 font-bold">{{ formatIsk(candidate.estimatedProfit) }}</span>
+                <span class="font-mono text-emerald-400 font-bold">{{ formatKnownIsk(candidate.estimatedProfit) }}</span>
               </div>
             </div>
+
+            <p v-if="candidate.unknownReason != null" class="mb-3 text-xs text-amber-400">
+              {{ t(`industry.inventionUnknown.${candidate.unknownReason}`) }}
+            </p>
 
             <!-- Actions -->
             <div class="flex gap-2">
