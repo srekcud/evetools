@@ -96,7 +96,7 @@ async function mountBpcKitTab(): Promise<VueWrapper> {
 }
 
 function optionRow(wrapper: VueWrapper, rowLabel: string): DOMWrapper<Element> {
-  const row = wrapper.findAll('tbody tr').find(candidate => candidate.findAll('td').at(1)?.text() === rowLabel)
+  const row = wrapper.findAll('tbody tr').find(candidate => candidate.findAll('td')[1]?.text() === rowLabel)
   expect(row, `option row ${rowLabel}`).toBeDefined()
   return row!
 }
@@ -108,7 +108,8 @@ function breakdownDecryptorCost(row: DOMWrapper<Element>): string {
 }
 
 function totalCostCell(row: DOMWrapper<Element>): string {
-  return row.findAll('td').at(-1)!.text()
+  const cells = row.findAll('td')
+  return cells[cells.length - 1]!.text()
 }
 
 beforeEach(() => {
@@ -119,7 +120,7 @@ describe('BpcKitTab with a decryptor without market price', () => {
   it('shows the cost per attempt, total cost and decryptor cost of an unpriced option as unknown, never as a dash or zero', async () => {
     const parityRow = optionRow(await mountBpcKitTab(), 'Parity Decryptor')
 
-    expect(parityRow.findAll('td').at(6)!.text().startsWith(unknownLabel)).toBe(true)
+    expect(parityRow.findAll('td')[6]!.text().startsWith(unknownLabel)).toBe(true)
     expect(totalCostCell(parityRow)).toBe(unknownLabel)
     expect(breakdownDecryptorCost(parityRow)).toBe(unknownLabel)
     expect(parityRow.text()).not.toMatch(/---|null|NaN/)
