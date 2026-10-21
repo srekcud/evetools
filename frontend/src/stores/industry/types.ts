@@ -573,6 +573,8 @@ export type ScannerFavorite = {
 }
 
 // Buy vs Build types
+export type JobInstallCostUnknownReason = 'missing_cost_index' | 'missing_adjusted_price'
+
 export type BuyVsBuildMaterial = {
   typeId: number
   typeName: string | null
@@ -588,7 +590,7 @@ export type BuyVsBuildComponent = {
   stage: string
   buildCost: number | null
   buildMaterials: BuyVsBuildMaterial[]
-  buildJobInstallCost: number
+  buildJobInstallCost: number | null
   buyCostJita: number | null
   buyCostStructure: number | null
   verdict: 'build' | 'buy' | 'loss' | 'unknown'
@@ -613,6 +615,7 @@ export type BuyVsBuildResult = {
   buildTypeIds: number[]
   buyTypeIds: number[]
   missingPriceTypeIds: number[]
+  unknownInstallCostReasons: JobInstallCostUnknownReason[]
   sellStructureId: number | null
 }
 
@@ -631,7 +634,7 @@ export type PivotComponentCoverage = {
   candidates: Record<number, { needed: number; status: 'covered' | 'partial' | 'none' }>
 }
 
-export type PivotUnknownReason = 'missing_material_price' | 'missing_cost_index' | 'missing_adjusted_price'
+export type PivotUnknownReason = 'missing_material_price' | JobInstallCostUnknownReason
 
 export type PivotCandidate = {
   typeId: number

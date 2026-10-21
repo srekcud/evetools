@@ -399,6 +399,11 @@ const SUMMARY_LIST_LIMIT = 5
             </div>
           </div>
         </div>
+        <ul v-if="result.unknownInstallCostReasons.length > 0" class="mt-3 space-y-1 text-xs text-amber-400">
+          <li v-for="reason in result.unknownInstallCostReasons" :key="reason">
+            {{ t(`industry.inventionUnknown.${reason}`) }}
+          </li>
+        </ul>
       </div>
 
       <!-- Stage Filter Tabs -->
@@ -525,7 +530,7 @@ const SUMMARY_LIST_LIMIT = 5
                     </div>
                     <div class="border-t border-slate-700 pt-1 flex justify-between text-slate-500">
                       <span>{{ t('industry.scanner.buyVsBuild.jobInstall') }}</span>
-                      <span class="font-mono text-slate-400">{{ formatIsk(comp.buildJobInstallCost) }}</span>
+                      <span class="font-mono text-slate-400">{{ formatKnownIsk(comp.buildJobInstallCost) }}</span>
                     </div>
                   </div>
                 </div>

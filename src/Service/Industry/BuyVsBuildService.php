@@ -44,13 +44,14 @@ class BuyVsBuildService
      *     totalProductionCost: float|null,
      *     sellPrice: float|null,
      *     marginPercent: float|null,
-     *     components: list<array{typeId: int, typeName: string|null, quantity: int, stage: string, buildCost: float|null, buildMaterials: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: float|null, totalPrice: float|null}>, buildJobInstallCost: float, buyCostJita: float|null, buyCostStructure: float|null, verdict: 'build'|'buy'|'unknown', savings: float|null, savingsPercent: float|null, meUsed: int, runs: int}>,
+     *     components: list<array{typeId: int, typeName: string|null, quantity: int, stage: string, buildCost: float|null, buildMaterials: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: float|null, totalPrice: float|null}>, buildJobInstallCost: float|null, buyCostJita: float|null, buyCostStructure: float|null, verdict: 'build'|'buy'|'unknown', savings: float|null, savingsPercent: float|null, meUsed: int, runs: int}>,
      *     buildAllCost: float|null,
      *     buyAllCost: float|null,
      *     optimalMixCost: float|null,
      *     buildTypeIds: list<int>,
      *     buyTypeIds: list<int>,
      *     missingPriceTypeIds: list<int>,
+     *     unknownInstallCostReasons: list<string>,
      * }
      */
     public function analyze(
@@ -108,6 +109,7 @@ class BuyVsBuildService
         $buildTypeIds = [];
         $buyTypeIds = [];
         $missingPriceTypeIds = [];
+        $unknownInstallCostReasons = [];
 
         // Batch structure prices for all component type IDs
         $componentTypeIds = array_map(static fn (array $c) => $c['typeId'], $components);
@@ -157,8 +159,11 @@ class BuyVsBuildService
                 ];
             }
 
-            $jobInstallCost = $comp['jobInstallCost'];
-            $buildCost = $isBuildCostUnknown ? null : $matCost + $jobInstallCost;
+            $jobInstallCost = $comp['jobInstallCost']['cost'];
+            if ($comp['jobInstallCost']['unknownReason'] !== null) {
+                $unknownInstallCostReasons[] = $comp['jobInstallCost']['unknownReason'];
+            }
+            $buildCost = $isBuildCostUnknown || $jobInstallCost === null ? null : $matCost + $jobInstallCost;
 
             $savings = null;
             $savingsPercent = null;
@@ -190,7 +195,7 @@ class BuyVsBuildService
                 'stage' => $comp['stage'],
                 'buildCost' => $buildCost !== null ? round($buildCost, 2) : null,
                 'buildMaterials' => $buildMaterials,
-                'buildJobInstallCost' => round($jobInstallCost, 2),
+                'buildJobInstallCost' => $jobInstallCost !== null ? round($jobInstallCost, 2) : null,
                 'buyCostJita' => $buyCostJita !== null ? round($buyCostJita, 2) : null,
                 'buyCostStructure' => $buyCostStructure !== null ? round($buyCostStructure, 2) : null,
                 'verdict' => $verdict,
@@ -216,23 +221,18 @@ class BuyVsBuildService
             $leafMaterialCost = $this->sumOfKnownCosts($leafMaterialCost, $leafUnitPrice !== null ? $leafUnitPrice * $matQty : null);
         }
 
-        // Compute EIV from ME0 materials for the final product blueprint
-        $finalBpId = (int) $tree['blueprintTypeId'];
-        $finalActivityIdValue = $tree['activityType'] === 'reaction' ? IndustryActivityType::Reaction->value : IndustryActivityType::Manufacturing->value;
-        $finalMe0Materials = $this->materialRepository->findMaterialsForBlueprints(
-            [$finalBpId],
-            [$finalActivityIdValue],
-        );
-        $finalEiv = $this->esiCostIndexService->calculateEiv($finalMe0Materials[$finalBpId] ?? []);
-
-        $finalJobCost = $this->esiCostIndexService->calculateJobInstallCost(
-            $finalEiv,
+        $finalJobInstallCost = $this->estimateJobInstallCost(
+            (int) $tree['blueprintTypeId'],
+            (string) $tree['activityType'],
             $runs,
-            $tree['activityType'] === 'reaction' ? $reactionSolarSystemId : $solarSystemId,
-            $tree['activityType'],
+            $solarSystemId,
+            $reactionSolarSystemId,
         );
+        if ($finalJobInstallCost['unknownReason'] !== null) {
+            $unknownInstallCostReasons[] = $finalJobInstallCost['unknownReason'];
+        }
 
-        $totalProductionCost = $this->sumOfKnownCosts($this->sumOfKnownCosts($optimalMixCost, $leafMaterialCost), $finalJobCost);
+        $totalProductionCost = $this->sumOfKnownCosts($this->sumOfKnownCosts($optimalMixCost, $leafMaterialCost), $finalJobInstallCost['cost']);
 
         $marginPercent = null;
         if ($sellPrice !== null && $sellPrice > 0 && $totalProductionCost !== null && $totalProductionCost > 0) {
@@ -245,6 +245,8 @@ class BuyVsBuildService
 
         $missingPriceTypeIds = array_unique($missingPriceTypeIds);
         sort($missingPriceTypeIds);
+        $unknownInstallCostReasons = array_unique($unknownInstallCostReasons);
+        sort($unknownInstallCostReasons);
 
         return [
             'typeId' => $typeId,
@@ -261,6 +263,7 @@ class BuyVsBuildService
             'buildTypeIds' => array_values(array_unique($buildTypeIds)),
             'buyTypeIds' => array_values(array_unique($buyTypeIds)),
             'missingPriceTypeIds' => $missingPriceTypeIds,
+            'unknownInstallCostReasons' => $unknownInstallCostReasons,
         ];
     }
 
@@ -288,7 +291,7 @@ class BuyVsBuildService
      * sub-components at market price, so recursing would double-count.
      *
      * @param array<string, mixed> $node
-     * @param list<array{typeId: int, quantity: int, materials: list<array{materialTypeId: int, adjustedQuantity: int}>, materialTypeIds: list<int>, jobInstallCost: float, stage: string, meLevel: int, runs: int}> $components
+     * @param list<array{typeId: int, quantity: int, materials: list<array{materialTypeId: int, adjustedQuantity: int}>, materialTypeIds: list<int>, jobInstallCost: array{cost: float|null, unknownReason: string|null, missingAdjustedPriceTypeIds: list<int>}, stage: string, meLevel: int, runs: int}> $components
      */
     private function collectBuildableComponents(array $node, array &$components, int $solarSystemId, int $reactionSolarSystemId): void
     {
@@ -312,22 +315,14 @@ class BuyVsBuildService
                 $compMaterialTypeIds[] = (int) $subMat['typeId'];
             }
 
-            // Job install cost for this component — compute EIV from ME0 materials
             $activityType = (string) ($blueprint['activityType'] ?? 'manufacturing');
             $compRuns = (int) $blueprint['runs'];
-            $compBpId = (int) $blueprint['blueprintTypeId'];
-            $activityIdValue = $activityType === 'reaction' ? IndustryActivityType::Reaction->value : IndustryActivityType::Manufacturing->value;
-            $compMe0Materials = $this->materialRepository->findMaterialsForBlueprints(
-                [$compBpId],
-                [$activityIdValue],
-            );
-            $compEiv = $this->esiCostIndexService->calculateEiv($compMe0Materials[$compBpId] ?? []);
-
-            $jobInstallCost = $this->esiCostIndexService->calculateJobInstallCost(
-                $compEiv,
-                $compRuns,
-                $activityType === 'reaction' ? $reactionSolarSystemId : $solarSystemId,
+            $jobInstallCost = $this->estimateJobInstallCost(
+                (int) $blueprint['blueprintTypeId'],
                 $activityType,
+                $compRuns,
+                $solarSystemId,
+                $reactionSolarSystemId,
             );
 
             // ME: 10 for manufacturing, 0 for reactions (matches IndustryTreeService logic)
@@ -351,6 +346,26 @@ class BuyVsBuildService
             // included in this component's build cost via its material prices at Jita.
             // Recursing would double-count those costs in optimalMixCost.
         }
+    }
+
+    /**
+     * @return array{cost: float|null, unknownReason: string|null, missingAdjustedPriceTypeIds: list<int>}
+     */
+    private function estimateJobInstallCost(int $blueprintTypeId, string $activityType, int $runs, int $solarSystemId, int $reactionSolarSystemId): array
+    {
+        $isReaction = $activityType === 'reaction';
+        $me0Materials = $this->materialRepository->findMaterialsForBlueprints(
+            [$blueprintTypeId],
+            [$isReaction ? IndustryActivityType::Reaction->value : IndustryActivityType::Manufacturing->value],
+        );
+
+        return $this->esiCostIndexService->estimateJobInstallCost(
+            $me0Materials[$blueprintTypeId] ?? [],
+            $runs,
+            $isReaction ? $reactionSolarSystemId : $solarSystemId,
+            $activityType,
+            null,
+        );
     }
 
     /**
