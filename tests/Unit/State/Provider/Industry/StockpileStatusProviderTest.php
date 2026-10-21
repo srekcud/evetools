@@ -81,6 +81,7 @@ final class StockpileStatusProviderTest extends TestCase
             'status' => 'critical',
             'unitPrice' => 4.0,
             'stockValue' => 1600.0,
+            'deficit' => 600,
             'deficitCost' => 2400.0,
             'stage' => 'raw_material',
             'sourceProductTypeId' => 4051,
