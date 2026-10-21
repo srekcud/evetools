@@ -263,7 +263,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         $this->assertEqualsWithDelta($result['materialCost'] + $result['jobInstallCost'], $result['totalCost'], 1e-6);
     }
 
-    public function testMarginsCurrentlyDivideProfitByProductionCostAndChargeBrokerFeeOnStructureBuyOrders(): void
+    public function testMarginsChargeBrokerFeeAndSalesTaxOnSellOrdersButOnlySalesTaxOnBuyOrders(): void
     {
         $this->jitaSellPriceOfProduct = 4500.0;
         $this->structureSellPriceOfProduct = 4400.0;
@@ -274,9 +274,6 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         $result = $this->analyze(self::NITROGEN_FUEL_BLOCK, runs: 1, me: 10, solarSystemId: self::MANUFACTURING_SYSTEM_ID);
         $totalCost = $result['totalCost'];
 
-        // 40 units; fees = revenue x (broker 3.6 % + sales tax 3.6 %), none on contracts.
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #19 (margin = profit / cost, a markup)
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue à ouvrir (selling into a buy order pays no broker fee)
         $this->assertSame(self::NITROGEN_FUEL_BLOCK, $result['typeId']);
         $this->assertSame('Nitrogen Fuel Block', $result['typeName']);
         $this->assertSame(1, $result['runs']);
@@ -294,8 +291,24 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         ], $result['sellPrices']);
         $this->assertMargin(180000.0, 12960.0, $totalCost, $result['margins']['jitaSell']);
         $this->assertMargin(176000.0, 12672.0, $totalCost, $result['margins']['structureSell']);
-        $this->assertMargin(160000.0, 11520.0, $totalCost, $result['margins']['structureBuy']);
+        $this->assertMargin(160000.0, 5760.0, $totalCost, $result['margins']['structureBuy']);
         $this->assertMargin(172000.0, 0.0, $totalCost, $result['margins']['contractSell']);
+    }
+
+    public function testBuyOrderWithoutSalesTaxHasNoFeeWhileSellOrdersStillPayTheBrokerFee(): void
+    {
+        $this->brokerFeeRate = 0.05;
+        $this->salesTaxRate = 0.0;
+        $this->jitaSellPriceOfProduct = 4500.0;
+        $this->structureSellPriceOfProduct = 4400.0;
+        $this->structureBuyPriceOfProduct = 4000.0;
+
+        $result = $this->analyze(self::NITROGEN_FUEL_BLOCK, runs: 1, me: 10, solarSystemId: self::MANUFACTURING_SYSTEM_ID);
+        $totalCost = $result['totalCost'];
+
+        $this->assertMargin(180000.0, 9000.0, $totalCost, $result['margins']['jitaSell']);
+        $this->assertMargin(176000.0, 8800.0, $totalCost, $result['margins']['structureSell']);
+        $this->assertMargin(160000.0, 0.0, $totalCost, $result['margins']['structureBuy']);
     }
 
     public function testContractWithoutPriceHasNoMargin(): void
@@ -482,6 +495,23 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         // Jita: 710 000 - 7.2 % = 658 880, ahead of the structure sell order (626 400), the buy order (556 800) and the contract (625 000).
         $this->assertEqualsWithDelta($result['margins']['jitaSell']['margin'], $result['invention']['options'][0]['bestMargin'], 1e-9);
         $this->assertEqualsWithDelta((658880.0 - 652513.732561) / 652513.732561 * 100.0, $this->decryptorOption($result, self::PROCESS_DECRYPTOR)['bestMargin'], 1e-9);
+    }
+
+    public function testDecryptorOptionBestMarginIsTheBuyOrderWhenOnlyTheBrokerFeeMadeItLose(): void
+    {
+        $this->brokerFeeRate = 0.05;
+        $this->salesTaxRate = 0.02;
+        $this->jitaSellPriceOfProduct = 4150.0;
+        $this->structureSellPriceOfProduct = 4120.0;
+        $this->structureBuyPriceOfProduct = 4000.0;
+
+        $result = $this->analyzeHailL(runs: 1);
+
+        $this->assertMargin(20750000.0, 1452500.0, self::HAIL_L_ONE_RUN_TOTAL_COST, $result['margins']['jitaSell']);
+        $this->assertMargin(20600000.0, 1442000.0, self::HAIL_L_ONE_RUN_TOTAL_COST, $result['margins']['structureSell']);
+        $this->assertEqualsWithDelta((19600000.0 - self::HAIL_L_ONE_RUN_TOTAL_COST) / self::HAIL_L_ONE_RUN_TOTAL_COST * 100.0, $result['invention']['options'][0]['bestMargin'], 1e-9);
+        $this->assertEqualsWithDelta((19600000.0 - 652513.732561) / 652513.732561 * 100.0, $this->decryptorOption($result, self::PROCESS_DECRYPTOR)['bestMargin'], 1e-9);
+        $this->assertMargin(20000000.0, 400000.0, self::HAIL_L_ONE_RUN_TOTAL_COST, $result['margins']['structureBuy']);
     }
 
     #[Group('issue-108')]
