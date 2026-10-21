@@ -183,7 +183,8 @@ class StockpileService
 
             $unitPrice = $prices[$tid] ?? 0.0;
             $stockValue = $stock * ($unitPrice ?? 0.0);
-            $deficitCost = max(0, $remainingTargetQty - $stock) * ($unitPrice ?? 0.0);
+            $deficit = max(0, $remainingTargetQty - $stock);
+            $deficitCost = $deficit * ($unitPrice ?? 0.0);
             $totalInvested += $stockValue;
 
             $item = [
@@ -197,6 +198,7 @@ class StockpileService
                 'status' => $status,
                 'unitPrice' => $unitPrice,
                 'stockValue' => round($stockValue, 2),
+                'deficit' => $deficit,
                 'deficitCost' => round($deficitCost, 2),
                 'stage' => $target->getStage(),
                 'sourceProductTypeId' => $target->getSourceProductTypeId(),
