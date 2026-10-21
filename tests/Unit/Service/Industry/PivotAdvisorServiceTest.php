@@ -195,8 +195,7 @@ class PivotAdvisorServiceTest extends TestCase
         ]);
 
         // Job install cost
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(1000000.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(50000.0);
+        $this->givenAJobInstallCostPerRunOf(50000.0);
 
         $result = $this->service->analyze(
             self::SOURCE_PRODUCT,
@@ -296,8 +295,7 @@ class PivotAdvisorServiceTest extends TestCase
             ['type_id' => self::SOURCE_PRODUCT, 'group_name' => 'Group'],
             ['type_id' => self::CANDIDATE_1, 'group_name' => 'Group'],
         ]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->givenAJobInstallCostPerRunOf(0.0);
 
         $result = $this->service->analyze(
             self::SOURCE_PRODUCT,
@@ -378,8 +376,7 @@ class PivotAdvisorServiceTest extends TestCase
             ['type_id' => self::SOURCE_PRODUCT, 'group_name' => 'Group'],
             ['type_id' => self::CANDIDATE_1, 'group_name' => 'Group'],
         ]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->givenAJobInstallCostPerRunOf(0.0);
 
         $result = $this->service->analyze(
             self::SOURCE_PRODUCT,
@@ -458,8 +455,7 @@ class PivotAdvisorServiceTest extends TestCase
         $this->connection->method('fetchAllAssociative')->willReturn([
             ['type_id' => self::SOURCE_PRODUCT, 'group_name' => 'Group'],
         ]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->givenAJobInstallCostPerRunOf(0.0);
 
         $result = $this->service->analyze(
             self::SOURCE_PRODUCT,
@@ -529,8 +525,7 @@ class PivotAdvisorServiceTest extends TestCase
             ['type_id' => self::SOURCE_PRODUCT, 'group_name' => 'Group'],
             ['type_id' => self::CANDIDATE_1, 'group_name' => 'Group'],
         ]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->givenAJobInstallCostPerRunOf(0.0);
 
         $result = $this->service->analyze(
             self::SOURCE_PRODUCT,
@@ -609,8 +604,7 @@ class PivotAdvisorServiceTest extends TestCase
             ['type_id' => self::SOURCE_PRODUCT, 'group_name' => 'Destroyer'],
             ['type_id' => self::CANDIDATE_1, 'group_name' => 'Cruiser'],
         ]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->givenAJobInstallCostPerRunOf(0.0);
 
         $result = $this->service->analyze(
             self::SOURCE_PRODUCT,
@@ -856,8 +850,7 @@ class PivotAdvisorServiceTest extends TestCase
             ['type_id' => $firstCandidateTypeId, 'group_name' => 'Cruiser'],
             ['type_id' => self::CANDIDATE_2, 'group_name' => 'Battleship'],
         ]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(self::JOB_INSTALL_COST_PER_RUN);
+        $this->givenAJobInstallCostPerRunOf(self::JOB_INSTALL_COST_PER_RUN);
     }
 
     private function analyzeOnSdeKnowingPivotTypes(): array
@@ -1027,8 +1020,7 @@ class PivotAdvisorServiceTest extends TestCase
         ]);
         $this->connection->method('fetchOne')->willReturn(0);
         $this->connection->method('fetchAllAssociative')->willReturn([]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->givenAJobInstallCostPerRunOf(0.0);
 
         $this->inventionService = $this->createMock(InventionService::class);
         $this->inventionService->method('identifyT2Products')->willReturn([self::CANDIDATE_2 => true]);
@@ -1040,6 +1032,13 @@ class PivotAdvisorServiceTest extends TestCase
             self::BROKER_FEE,
             self::SALES_TAX,
             $this->user,
+        );
+    }
+
+    private function givenAJobInstallCostPerRunOf(float $jobInstallCostPerRun): void
+    {
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn(
+            ['cost' => $jobInstallCostPerRun, 'unknownReason' => null, 'missingAdjustedPriceTypeIds' => []],
         );
     }
 

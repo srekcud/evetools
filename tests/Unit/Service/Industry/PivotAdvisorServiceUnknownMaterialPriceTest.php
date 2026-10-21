@@ -633,8 +633,9 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
         $jitaMarketService->method('getCachedDailyVolumes')->willReturn($dailyVolumes);
 
         $esiCostIndexService = $this->createStub(EsiCostIndexService::class);
-        $esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $esiCostIndexService->method('calculateJobInstallCost')->willReturn($jobInstallCostPerRun);
+        $esiCostIndexService->method('estimateJobInstallCost')->willReturn(
+            ['cost' => $jobInstallCostPerRun, 'unknownReason' => null, 'missingAdjustedPriceTypeIds' => []],
+        );
 
         $typeNameResolver = $this->createStub(TypeNameResolver::class);
         $typeNameResolver->method('findNames')->willReturn(self::TYPE_NAMES);
