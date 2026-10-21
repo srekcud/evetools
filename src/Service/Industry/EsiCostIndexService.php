@@ -22,12 +22,20 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  */
 class EsiCostIndexService
 {
+    public const UNKNOWN_REASON_MISSING_COST_INDEX = 'missing_cost_index';
+    public const UNKNOWN_REASON_MISSING_ADJUSTED_PRICE = 'missing_adjusted_price';
+
+    private const SECONDS_PER_HOUR = 3600;
+    private const SYNC_INTERVALS_KEPT_IN_CACHE = 3;
+
     private const ADJUSTED_PRICE_PREFIX = 'esi_adjusted_price_';
-    private const ADJUSTED_PRICE_TTL = 86400; // 24 hours
+    private const ADJUSTED_PRICE_SYNC_INTERVAL = 24 * self::SECONDS_PER_HOUR;
+    private const ADJUSTED_PRICE_TTL = self::SYNC_INTERVALS_KEPT_IN_CACHE * self::ADJUSTED_PRICE_SYNC_INTERVAL;
     private const ADJUSTED_PRICE_META_KEY = 'esi_adjusted_prices_meta';
 
     private const COST_INDEX_PREFIX = 'esi_cost_index_';
-    private const COST_INDEX_TTL = 7200; // 2 hours
+    private const COST_INDEX_SYNC_INTERVAL = 2 * self::SECONDS_PER_HOUR;
+    private const COST_INDEX_TTL = self::SYNC_INTERVALS_KEPT_IN_CACHE * self::COST_INDEX_SYNC_INTERVAL;
     private const COST_INDEX_META_KEY = 'esi_cost_indices_meta';
 
     public function __construct(
@@ -55,11 +63,12 @@ class EsiCostIndexService
 
         $count = 0;
         foreach ($prices as $entry) {
-            $typeId = $entry['type_id'];
-            $adjustedPrice = $entry['adjusted_price'] ?? 0.0;
+            if (!isset($entry['adjusted_price'])) {
+                continue;
+            }
 
-            $cacheItem = $this->cache->getItem(self::ADJUSTED_PRICE_PREFIX . $typeId);
-            $cacheItem->set($adjustedPrice);
+            $cacheItem = $this->cache->getItem(self::ADJUSTED_PRICE_PREFIX . $entry['type_id']);
+            $cacheItem->set($entry['adjusted_price']);
             $cacheItem->expiresAfter(self::ADJUSTED_PRICE_TTL);
             $this->cache->save($cacheItem);
 
@@ -261,9 +270,7 @@ class EsiCostIndexService
             return 0.0;
         }
 
-        $taxMultiplier = 1.0 + ($facilityTaxRate ?? 0.0) / 100.0;
-
-        return $eiv * $runs * $costIndex * $taxMultiplier;
+        return $this->applyInstallCostFormula($eiv, $runs, $costIndex, $facilityTaxRate);
     }
 
     /**
@@ -278,7 +285,34 @@ class EsiCostIndexService
         string $activity,
         ?float $facilityTaxRate,
     ): array {
-        return ['cost' => null, 'unknownReason' => null, 'missingAdjustedPriceTypeIds' => []];
+        $materialTypeIds = array_column($materials, 'materialTypeId');
+        $adjustedPrices = $this->getAdjustedPrices($materialTypeIds);
+        $missingAdjustedPriceTypeIds = array_unique(array_diff($materialTypeIds, array_keys($adjustedPrices)));
+        sort($missingAdjustedPriceTypeIds);
+
+        $costIndex = $this->getCostIndex($solarSystemId, $activity);
+        if ($costIndex === null) {
+            return ['cost' => null, 'unknownReason' => self::UNKNOWN_REASON_MISSING_COST_INDEX, 'missingAdjustedPriceTypeIds' => $missingAdjustedPriceTypeIds];
+        }
+
+        if ($missingAdjustedPriceTypeIds !== []) {
+            return ['cost' => null, 'unknownReason' => self::UNKNOWN_REASON_MISSING_ADJUSTED_PRICE, 'missingAdjustedPriceTypeIds' => $missingAdjustedPriceTypeIds];
+        }
+
+        $eiv = $this->calculateEivFromPrices($materials, $adjustedPrices);
+
+        return [
+            'cost' => $this->applyInstallCostFormula($eiv, $runs, $costIndex, $facilityTaxRate),
+            'unknownReason' => null,
+            'missingAdjustedPriceTypeIds' => [],
+        ];
+    }
+
+    private function applyInstallCostFormula(float $eiv, int $runs, float $costIndex, ?float $facilityTaxRate): float
+    {
+        $taxMultiplier = 1.0 + ($facilityTaxRate ?? 0.0) / 100.0;
+
+        return $eiv * $runs * $costIndex * $taxMultiplier;
     }
 
     /**
