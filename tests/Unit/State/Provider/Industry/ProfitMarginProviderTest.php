@@ -29,6 +29,8 @@ class ProfitMarginProviderTest extends TestCase
     private const int PREFERRED_MARKET_STRUCTURE_ID = 1035466617946;
     private const int FAVORITE_MANUFACTURING_SYSTEM_ID = 30002510;
     private const int ROBOTICS_TYPE_ID = 9848;
+    private const int MORPHITE_TYPE_ID = 11399;
+    private const int NITROGEN_ISOTOPES_TYPE_ID = 17888;
 
     public function testWithoutQueryNorSettingsCurrentlyAnalyzesOneRunAtMeTenInJitaSoldAtJitaStation(): void
     {
@@ -183,6 +185,49 @@ class ProfitMarginProviderTest extends TestCase
         $this->assertSame(214350.75, $resource->totalCost);
     }
 
+    #[Group('issue-8')]
+    public function testUnknownMaterialCostAndMissingPriceTypeIdsReachTheResource(): void
+    {
+        $unpricedRobotics = ['typeId' => self::ROBOTICS_TYPE_ID, 'typeName' => 'Robotics', 'quantity' => 14, 'unitPrice' => null, 'totalPrice' => null];
+        $pricedMorphite = ['typeId' => self::MORPHITE_TYPE_ID, 'typeName' => 'Morphite', 'quantity' => 140, 'unitPrice' => 9120.5, 'totalPrice' => 1276870.0];
+        $processOption = ['decryptorTypeId' => 34205, 'inventionCost' => 12805.74, 'totalProductionCost' => null, 'bestMargin' => null];
+        $profitMarginService = $this->createStub(ProfitMarginService::class);
+        $profitMarginService->method('analyze')->willReturn($this->analysis([
+            'materialCost' => null,
+            'materials' => [$unpricedRobotics, $pricedMorphite],
+            'inventionCost' => 12805.74,
+            'totalCost' => null,
+            'costPerUnit' => null,
+            'invention' => ['options' => [$processOption]],
+            'missingPriceTypeIds' => [self::ROBOTICS_TYPE_ID, self::NITROGEN_ISOTOPES_TYPE_ID],
+        ]));
+
+        $resource = $this->provider(new User(), new Request(), $profitMarginService)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+
+        $this->assertNull($resource->materialCost);
+        $this->assertSame([$unpricedRobotics, $pricedMorphite], $resource->materials);
+        $this->assertSame(15279.0, $resource->jobInstallCost);
+        $this->assertSame(12805.74, $resource->inventionCost);
+        $this->assertNull($resource->totalCost);
+        $this->assertNull($resource->costPerUnit);
+        $this->assertSame([$processOption], $resource->invention['options'] ?? []);
+        $this->assertSame([self::ROBOTICS_TYPE_ID, self::NITROGEN_ISOTOPES_TYPE_ID], $resource->missingPriceTypeIds);
+    }
+
+    #[Group('issue-8')]
+    public function testFullyPricedAnalysisReachesTheResourceWithoutMissingPriceTypeIds(): void
+    {
+        $profitMarginService = $this->createStub(ProfitMarginService::class);
+        $profitMarginService->method('analyze')->willReturn($this->analysis());
+
+        $resource = $this->provider(new User(), new Request(), $profitMarginService)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+
+        $this->assertSame(508100.0, $resource->materialCost);
+        $this->assertSame([], $resource->missingPriceTypeIds);
+    }
+
     private function settings(User $user): IndustryUserSettings
     {
         return (new IndustryUserSettings())
@@ -230,6 +275,7 @@ class ProfitMarginProviderTest extends TestCase
             'salesTaxRate' => 0.036,
             'margins' => ['jitaSell' => null, 'structureSell' => null, 'structureBuy' => null, 'contractSell' => null],
             'dailyVolume' => 0.0,
+            'missingPriceTypeIds' => [],
         ], $overrides);
     }
 }

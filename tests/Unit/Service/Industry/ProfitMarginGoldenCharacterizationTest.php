@@ -77,6 +77,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     private const int ROBOTICS = 9848;
     private const int TRITANIUM = 34;
     private const int NITROGEN_ISOTOPES = 17888;
+    private const int MORPHITE = 11399;
 
     private const int HAIL_L_T1_BLUEPRINT = 2_000_000_001;
     private const int HAIL_L_T1_PRODUCT = 2_000_000_002;
@@ -126,6 +127,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
 
     /** @var list<int> */
     private array $leavesWithoutJitaPrice = [];
+    private array $leavesWithZeroJitaPrice = [];
     /** @var list<int> */
     private array $typesWithoutAdjustedPrice = [];
     private bool $withManufacturingCostIndex = true;
@@ -244,23 +246,124 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         $this->assertEqualsWithDelta(self::NITROGEN_FUEL_BLOCK_ONE_RUN_MATERIAL_COST + 851.0668, $result['totalCost'], 1e-6);
     }
 
-    public function testMaterialWithoutJitaPriceCurrentlyCountsAsFreeInMaterialCost(): void
+    #[Group('issue-8')]
+    public function testFullyPricedMaterialsKeepTheirCostsAndHaveNoMissingPriceTypeIds(): void
+    {
+        $result = $this->analyze(self::NITROGEN_FUEL_BLOCK, runs: 1, me: 10, solarSystemId: self::MANUFACTURING_SYSTEM_ID);
+
+        $this->assertSame(
+            ['typeId' => self::ROBOTICS, 'typeName' => 'Robotics', 'quantity' => 1, 'unitPrice' => 98.48, 'totalPrice' => 98.48],
+            $this->materialLine($result, self::ROBOTICS),
+        );
+        $this->assertEqualsWithDelta(self::NITROGEN_FUEL_BLOCK_ONE_RUN_MATERIAL_COST, $result['materialCost'], 1e-6);
+        $this->assertEqualsWithDelta(154252.8492, $result['totalCost'], 1e-6);
+        $this->assertEqualsWithDelta(3856.32123, $result['costPerUnit'], 1e-9);
+        $this->assertSame([], $result['missingPriceTypeIds']);
+    }
+
+    #[Group('issue-8')]
+    public function testMaterialWithoutJitaPriceMakesMaterialCostTotalCostAndMarginsUnknown(): void
     {
         $this->leavesWithoutJitaPrice = [self::ROBOTICS];
+        $this->jitaSellPriceOfProduct = 4500.0;
+        $this->structureSellPriceOfProduct = 4400.0;
+        $this->structureBuyPriceOfProduct = 4000.0;
+        $this->contractSellPriceOfProduct = 4300.0;
 
         $result = $this->analyze(self::NITROGEN_FUEL_BLOCK, runs: 1, me: 10, solarSystemId: self::MANUFACTURING_SYSTEM_ID);
 
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #8 (R10)
-        $robotics = $this->materialLine($result, self::ROBOTICS);
-        $this->assertSame(1, $robotics['quantity']);
-        $this->assertSame(0.0, $robotics['unitPrice']);
-        $this->assertSame(0.0, $robotics['totalPrice']);
+        $this->assertSame(
+            ['typeId' => self::ROBOTICS, 'typeName' => 'Robotics', 'quantity' => 1, 'unitPrice' => null, 'totalPrice' => null],
+            $this->materialLine($result, self::ROBOTICS),
+        );
         $this->assertSame(
             ['typeId' => self::NITROGEN_ISOTOPES, 'typeName' => 'Nitrogen Isotopes', 'quantity' => 405, 'unitPrice' => 178.88, 'totalPrice' => 405 * 178.88],
             $this->materialLine($result, self::NITROGEN_ISOTOPES),
         );
-        $this->assertEqualsWithDelta(self::NITROGEN_FUEL_BLOCK_ONE_RUN_MATERIAL_COST - 98.48, $result['materialCost'], 1e-6);
-        $this->assertEqualsWithDelta($result['materialCost'] + $result['jobInstallCost'], $result['totalCost'], 1e-6);
+        $this->assertNull($result['materialCost']);
+        $this->assertEqualsWithDelta(851.5592, $result['jobInstallCost'], 1e-6);
+        $this->assertNull($result['totalCost']);
+        $this->assertNull($result['costPerUnit']);
+        $this->assertSame(['jitaSell' => null, 'structureSell' => null, 'structureBuy' => null, 'contractSell' => null], $result['margins']);
+        $this->assertSame(4500.0, $result['sellPrices']['jitaSell']);
+        $this->assertSame([self::ROBOTICS], $result['missingPriceTypeIds']);
+    }
+
+    #[Group('issue-8')]
+    public function testMaterialWithoutJitaPriceLeavesTheSelectedDecryptorInventionCostKnownButItsProductionCostAndMarginUnknown(): void
+    {
+        $this->leavesWithoutJitaPrice = [self::MORPHITE];
+        $this->jitaSellPriceOfProduct = 140.0;
+        $this->contractSellPriceOfProduct = 138.0;
+
+        $result = $this->analyzeHailL(runs: 1, decryptorTypeId: self::PROCESS_DECRYPTOR);
+
+        $this->assertNull($result['materialCost']);
+        $this->assertEqualsWithDelta(self::HAIL_L_ONE_RUN_JOB_INSTALL_COST, $result['jobInstallCost'], 1e-6);
+        $this->assertEqualsWithDelta(1280.574, $result['inventionCost'], 1e-6);
+        $this->assertEqualsWithDelta(self::HAIL_L_COPY_COST, $result['copyCost'], 1e-6);
+        $this->assertNull($result['totalCost']);
+        $this->assertNull($result['costPerUnit']);
+        $this->assertSame(['jitaSell' => null, 'structureSell' => null, 'structureBuy' => null, 'contractSell' => null], $result['margins']);
+        $this->assertSame(self::PROCESS_DECRYPTOR, $result['invention']['selectedDecryptorTypeId']);
+        $this->assertNull($result['invention']['unknownReason']);
+        $options = $result['invention']['options'];
+        $this->assertCount(9, $options);
+        foreach ([254.424, 1280.454, 853.656, 2134.19, 853.696, 1280.574, 1280.604, 853.756, 1707.552] as $index => $inventionCost) {
+            $this->assertEqualsWithDelta($inventionCost, $options[$index]['inventionCost'], 1e-6);
+        }
+        $this->assertSame(array_fill(0, 9, null), array_column($options, 'totalProductionCost'));
+        $this->assertSame(array_fill(0, 9, null), array_column($options, 'bestMargin'));
+        $this->assertSame([self::MORPHITE], $result['missingPriceTypeIds']);
+    }
+
+    #[Group('issue-8')]
+    public function testTwoMaterialsWithoutJitaPriceAreListedByAscendingTypeId(): void
+    {
+        $this->leavesWithoutJitaPrice = [self::MORPHITE, self::TRITANIUM];
+
+        $result = $this->analyzeHailL(runs: 1);
+
+        $this->assertSame([self::MORPHITE, self::TRITANIUM], array_slice(array_column($result['materials'], 'typeId'), 0, 2));
+        $this->assertNull($this->materialLine($result, self::TRITANIUM)['totalPrice']);
+        $this->assertNull($this->materialLine($result, self::MORPHITE)['totalPrice']);
+        $this->assertNull($result['materialCost']);
+        $this->assertNull($result['totalCost']);
+        $this->assertSame([self::TRITANIUM, self::MORPHITE], $result['missingPriceTypeIds']);
+    }
+
+    #[Group('issue-8')]
+    public function testMaterialWithoutJitaPriceNeededByThreeFuelBlocksIsListedOnce(): void
+    {
+        $this->leavesWithoutJitaPrice = [self::ROBOTICS];
+
+        $result = $this->analyze(
+            self::FERNITE_CARBIDE,
+            runs: 10,
+            me: 0,
+            solarSystemId: self::MANUFACTURING_SYSTEM_ID,
+            user: $this->userWithTaxedStructureInManufacturingSystem(),
+        );
+
+        $this->assertSame(3, $this->materialLine($result, self::ROBOTICS)['quantity']);
+        $this->assertNull($result['materialCost']);
+        $this->assertSame([self::ROBOTICS], $result['missingPriceTypeIds']);
+    }
+
+    #[Group('issue-8')]
+    public function testZeroWeightedPriceIsAKnownPrice(): void
+    {
+        $this->leavesWithZeroJitaPrice = [self::ROBOTICS];
+
+        $result = $this->analyze(self::NITROGEN_FUEL_BLOCK, runs: 1, me: 10, solarSystemId: self::MANUFACTURING_SYSTEM_ID);
+
+        $this->assertSame(
+            ['typeId' => self::ROBOTICS, 'typeName' => 'Robotics', 'quantity' => 1, 'unitPrice' => 0.0, 'totalPrice' => 0.0],
+            $this->materialLine($result, self::ROBOTICS),
+        );
+        $this->assertEqualsWithDelta(153302.81, $result['materialCost'], 1e-6);
+        $this->assertEqualsWithDelta(153302.81 + 851.5592, $result['totalCost'], 1e-6);
+        $this->assertSame([], $result['missingPriceTypeIds']);
     }
 
     public function testMarginsChargeBrokerFeeAndSalesTaxOnSellOrdersButOnlySalesTaxOnBuyOrders(): void
@@ -343,7 +446,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     #[Group('issue-108')]
     public function testZeroProductionCostLeavesVenueMarginsUnknownButKeepsRevenueFeesAndProfit(): void
     {
-        $this->leavesWithoutJitaPrice = array_keys(self::NITROGEN_FUEL_BLOCK_ONE_RUN_LEAVES);
+        $this->leavesWithZeroJitaPrice = array_keys(self::NITROGEN_FUEL_BLOCK_ONE_RUN_LEAVES);
         $this->jitaSellPriceOfProduct = 4500.0;
         $this->contractSellPriceOfProduct = 4300.0;
 
@@ -836,7 +939,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
                 foreach (array_keys($typeQuantities) as $typeId) {
                     $prices[$typeId] = \in_array($typeId, $this->leavesWithoutJitaPrice, true)
                         ? null
-                        : ['weightedPrice' => self::jitaPriceOf($typeId), 'coverage' => 1.0, 'ordersUsed' => 1];
+                        : ['weightedPrice' => \in_array($typeId, $this->leavesWithZeroJitaPrice, true) ? 0.0 : self::jitaPriceOf($typeId), 'coverage' => 1.0, 'ordersUsed' => 1];
                 }
 
                 return $prices;
