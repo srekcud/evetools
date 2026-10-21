@@ -116,6 +116,7 @@ class ProfitMarginProvider implements ProviderInterface
         $resource->salesTaxRate = $data['salesTaxRate'];
         $resource->margins = $data['margins'];
         $resource->dailyVolume = $data['dailyVolume'];
+        $resource->missingPriceTypeIds = $data['missingPriceTypeIds'];
 
         return $resource;
     }

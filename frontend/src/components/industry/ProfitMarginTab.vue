@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useIndustryStore, type SearchResult, type ProfitMarginResult, type ProfitMarginInventionOption, type MarginEntry } from '@/stores/industry'
+import type { ProductionCostUnknownReason } from '@/stores/industry/types'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
@@ -60,8 +61,20 @@ const favoriteSystems = computed(() => {
   return systems
 })
 
-// Set when the backend cannot compute the invention cost (e.g. missing SDE probability)
-const inventionUnknownReason = computed(() => result.value?.invention?.unknownReason ?? null)
+const productionCostUnknownReason = computed((): ProductionCostUnknownReason | null => {
+  if (!result.value) return null
+  if (result.value.materialCost == null) return 'missing_material_price'
+  return result.value.invention?.unknownReason ?? null
+})
+
+const missingPriceTypeNames = computed((): string => {
+  if (!result.value) return ''
+  const missingPriceTypeIds = result.value.missingPriceTypeIds
+  return result.value.materials
+    .filter(material => missingPriceTypeIds.includes(material.typeId))
+    .map(material => material.typeName)
+    .join(', ')
+})
 
 // Effective total cost: use selected decryptor option if available, otherwise API result.
 // Null when the production cost is unknown.
@@ -134,10 +147,10 @@ const bestVenue = computed(() => {
 
 const productionCostUnknown = computed(() => result.value != null && effectiveTotalCost.value == null)
 
-const bestSellRevenue = computed(() => bestVenue.value?.revenue ?? 0)
+const bestSellRevenue = computed((): number | null => bestVenue.value?.revenue ?? null)
 const bestProfit = computed((): number | null => productionCostUnknown.value ? null : (bestVenue.value?.profit ?? 0))
 const bestMargin = computed((): number | null => bestVenue.value?.margin ?? null)
-const bestUnitPrice = computed(() => bestVenue.value?.unitPrice ?? 0)
+const bestUnitPrice = computed((): number | null => bestVenue.value?.unitPrice ?? null)
 
 const bestVenueLabel = computed(() => {
   if (!bestVenue.value || !result.value) return ''
@@ -151,7 +164,7 @@ const profitPerRun = computed((): number | null => {
 })
 
 const sellRows = computed((): SellRow[] => {
-  if (!result.value) return []
+  if (!result.value || productionCostUnknown.value) return []
   const r = result.value
   const rows: SellRow[] = []
   const sp = r.sellPrices
@@ -218,17 +231,20 @@ const hiddenMaterialsCount = computed(() => {
   return total - MATERIALS_COLLAPSED_LIMIT
 })
 
-const hiddenMaterialsTotal = computed(() => {
+const hiddenMaterialsTotal = computed((): number | null => {
   if (!result.value || hiddenMaterialsCount.value === 0) return 0
-  return result.value.materials
-    .slice(MATERIALS_COLLAPSED_LIMIT)
-    .reduce((sum, m) => sum + m.totalPrice, 0)
+  let total = 0
+  for (const material of result.value.materials.slice(MATERIALS_COLLAPSED_LIMIT)) {
+    if (material.totalPrice == null) return null
+    total += material.totalPrice
+  }
+  return total
 })
 
 // Cost breakdown percentages (use effective values for invention); null when the total cost is unknown
 const materialPercent = computed((): number | null => {
   if (!result.value || effectiveTotalCost.value === 0) return 0
-  if (effectiveTotalCost.value == null) return null
+  if (effectiveTotalCost.value == null || result.value.materialCost == null) return null
   return (result.value.materialCost / effectiveTotalCost.value) * 100
 })
 
@@ -262,6 +278,16 @@ function formatPercent(percent: number | null): string {
 function formatCost(cost: number | null): string {
   if (cost == null) return t('industry.inventionUnknown.label')
   return formatIsk(cost)
+}
+
+function formatFullCost(cost: number | null): string {
+  if (cost == null) return t('industry.inventionUnknown.label')
+  return formatIskFull(cost)
+}
+
+function formatAmount(amount: number | null, options: Intl.NumberFormatOptions): string {
+  if (amount == null) return t('industry.inventionUnknown.label')
+  return amount.toLocaleString(undefined, options)
 }
 
 // Invention
@@ -501,8 +527,9 @@ store.fetchUserSettings()
       />
 
       <!-- Unknown production cost: margins cannot be computed even if sell prices exist -->
-      <div v-else-if="!loading && inventionUnknownReason != null" class="eve-card p-6 text-center">
-        <p class="text-sm text-amber-400">{{ t(`industry.inventionUnknown.${inventionUnknownReason}`) }}</p>
+      <div v-else-if="!loading && productionCostUnknownReason != null" class="eve-card p-6 text-center">
+        <p class="text-sm text-amber-400">{{ t(`industry.inventionUnknown.${productionCostUnknownReason}`) }}</p>
+        <p v-if="missingPriceTypeNames !== ''" class="mt-1 text-xs text-amber-400/80">{{ t('industry.inventionUnknown.missingPriceTypes', { types: missingPriceTypeNames }) }}</p>
       </div>
 
       <!-- No market data -->
@@ -567,8 +594,8 @@ store.fetchUserSettings()
                 </div>
               </td>
               <td class="py-2.5 px-3 text-right font-mono text-slate-300">{{ mat.quantity.toLocaleString() }}</td>
-              <td class="py-2.5 px-3 text-right font-mono text-slate-400">{{ mat.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</td>
-              <td class="py-2.5 px-4 text-right font-mono text-slate-200">{{ mat.totalPrice.toLocaleString(undefined, { maximumFractionDigits: 0 }) }}</td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-400">{{ formatAmount(mat.unitPrice, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</td>
+              <td class="py-2.5 px-4 text-right font-mono text-slate-200">{{ formatAmount(mat.totalPrice, { maximumFractionDigits: 0 }) }}</td>
             </tr>
             <!-- Collapsed items hint -->
             <tr v-if="hiddenMaterialsCount > 0 && !materialsExpanded" class="hover:bg-slate-800/50">
@@ -583,7 +610,7 @@ store.fetchUserSettings()
                   {{ t('industry.costEstimation.moreItems', { count: hiddenMaterialsCount }) }}
                 </button>
               </td>
-              <td class="py-2 px-4 text-right font-mono text-slate-500">{{ hiddenMaterialsTotal.toLocaleString(undefined, { maximumFractionDigits: 0 }) }}</td>
+              <td class="py-2 px-4 text-right font-mono text-slate-500">{{ formatAmount(hiddenMaterialsTotal, { maximumFractionDigits: 0 }) }}</td>
             </tr>
             <!-- Collapse button when expanded -->
             <tr v-if="materialsExpanded && result.materials.length > MATERIALS_COLLAPSED_LIMIT" class="hover:bg-slate-800/50">
@@ -603,7 +630,7 @@ store.fetchUserSettings()
           <tfoot>
             <tr class="border-t border-slate-700 bg-slate-800/30">
               <td colspan="3" class="py-3 px-4 text-right text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.costEstimation.totalMaterialCost') }}</td>
-              <td class="py-3 px-4 text-right font-mono text-slate-100 font-bold text-base">{{ formatIskFull(result.materialCost) }}</td>
+              <td class="py-3 px-4 text-right font-mono text-slate-100 font-bold text-base">{{ formatFullCost(result.materialCost) }}</td>
             </tr>
           </tfoot>
         </table>
@@ -713,7 +740,7 @@ store.fetchUserSettings()
           <div class="grid grid-cols-4 gap-6 text-center mb-4">
             <div>
               <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costEstimation.materials') }}</div>
-              <div class="font-mono text-slate-200 text-lg">{{ formatIsk(result.materialCost) }}</div>
+              <div class="font-mono text-slate-200 text-lg">{{ formatCost(result.materialCost) }}</div>
               <div class="text-xs text-slate-600 font-mono">{{ formatPercent(materialPercent) }}</div>
             </div>
             <div>

@@ -330,8 +330,8 @@ export interface ProfitMarginMaterial {
   typeId: number
   typeName: string
   quantity: number
-  unitPrice: number
-  totalPrice: number
+  unitPrice: number | null
+  totalPrice: number | null
 }
 
 export interface ProfitMarginJobStep {
@@ -373,6 +373,8 @@ export interface ProfitMarginInventionOption {
 
 export type InventionUnknownReason = 'missing_invention_probability' | 'missing_market_price'
 
+export type ProductionCostUnknownReason = InventionUnknownReason | 'missing_material_price'
+
 export interface ProfitMarginResult {
   typeId: number
   typeName: string | null
@@ -380,7 +382,7 @@ export interface ProfitMarginResult {
   runs: number
   outputQuantity: number
   outputPerRun: number
-  materialCost: number
+  materialCost: number | null
   materials: ProfitMarginMaterial[]
   jobInstallCost: number
   jobInstallSteps: ProfitMarginJobStep[]
@@ -401,6 +403,7 @@ export interface ProfitMarginResult {
   salesTaxRate: number
   margins: Record<string, MarginEntry | null>
   dailyVolume: number | null
+  missingPriceTypeIds: number[]
 }
 
 export interface AvailableJob {

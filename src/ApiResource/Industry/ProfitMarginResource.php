@@ -50,9 +50,9 @@ class ProfitMarginResource
 
     public int $outputPerRun = 1;
 
-    public float $materialCost = 0;
+    public ?float $materialCost = 0;
 
-    /** @var list<array{typeId: int, typeName: string, quantity: int, unitPrice: float, totalPrice: float}> */
+    /** @var list<array{typeId: int, typeName: string, quantity: int, unitPrice: float|null, totalPrice: float|null}> */
     public array $materials = [];
 
     public float $jobInstallCost = 0;
@@ -91,4 +91,7 @@ class ProfitMarginResource
     public array $margins = [];
 
     public ?float $dailyVolume = null;
+
+    /** @var list<int> */
+    public array $missingPriceTypeIds = [];
 }

@@ -5,8 +5,8 @@ import { useFormatters } from '@/composables/useFormatters'
 const props = defineProps<{
   totalCost: number | null
   costPerUnit: number | null
-  bestSellRevenue: number
-  bestUnitPrice: number
+  bestSellRevenue: number | null
+  bestUnitPrice: number | null
   bestProfit: number | null
   profitPerRun: number | null
   bestMargin: number | null
@@ -45,8 +45,8 @@ function profitColor(value: number | null, muted: boolean = false): string {
     <!-- Best Sell Price -->
     <div class="eve-card p-4">
       <p class="text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.margins.bestSellPrice') }}</p>
-      <p class="text-xl font-mono text-slate-100 font-semibold">{{ formatIsk(props.bestSellRevenue) }}</p>
-      <p class="text-xs text-slate-500 font-mono mt-1">{{ t('industry.margins.perUnit') }}: <span class="text-slate-400">{{ formatIsk(props.bestUnitPrice) }} ISK</span></p>
+      <p class="text-xl font-mono text-slate-100 font-semibold">{{ formatCost(props.bestSellRevenue) }}</p>
+      <p class="text-xs text-slate-500 font-mono mt-1">{{ t('industry.margins.perUnit') }}: <span class="text-slate-400">{{ formatCost(props.bestUnitPrice) }}<template v-if="props.bestUnitPrice != null"> ISK</template></span></p>
     </div>
     <!-- Profit -->
     <div class="eve-card p-4">

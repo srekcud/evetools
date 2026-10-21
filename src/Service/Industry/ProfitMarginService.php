@@ -39,6 +39,10 @@ class ProfitMarginService
     /**
      * Analyze profit margins for producing a given item.
      *
+     * A leaf material without a Jita weighted price has a null unitPrice and totalPrice and is listed in
+     * missingPriceTypeIds (sorted); materialCost, totalCost, costPerUnit, margins and every decryptor option's
+     * totalProductionCost and bestMargin are then null, as when the invention cost is unknown.
+     *
      * @return array<string, mixed>
      */
     public function analyze(
@@ -79,14 +83,19 @@ class ProfitMarginService
 
         $weightedPrices = $this->jitaMarketService->getWeightedSellPricesWithFallback($typeQuantities);
 
-        $materialCost = 0.0;
+        $pricedMaterialCost = 0.0;
         $materialDetails = [];
+        $missingPriceTypeIds = [];
         foreach ($rawMaterials as $mat) {
             $tid = $mat['typeId'];
-            $priceData = $weightedPrices[$tid] ?? null;
-            $unitPrice = $priceData['weightedPrice'] ?? 0.0;
-            $totalPrice = $unitPrice * $mat['quantity'];
-            $materialCost += $totalPrice;
+            $unitPrice = isset($weightedPrices[$tid]) ? $weightedPrices[$tid]['weightedPrice'] : null;
+            $totalPrice = null;
+            if ($unitPrice === null) {
+                $missingPriceTypeIds[] = $tid;
+            } else {
+                $totalPrice = $unitPrice * $mat['quantity'];
+                $pricedMaterialCost += $totalPrice;
+            }
 
             $materialDetails[] = [
                 'typeId' => $tid,
@@ -96,6 +105,8 @@ class ProfitMarginService
                 'totalPrice' => $totalPrice,
             ];
         }
+        sort($missingPriceTypeIds);
+        $materialCost = $missingPriceTypeIds === [] ? $pricedMaterialCost : null;
 
         // 5. Resolve facility tax from user's structure config
         $facilityTaxRate = $this->resolveFacilityTaxRate($user, $solarSystemId);
@@ -158,7 +169,7 @@ class ProfitMarginService
                     $optionTotalProductionCost = null;
                     $optionBestMargin = null;
 
-                    if ($optionInventionCost !== null) {
+                    if ($optionInventionCost !== null && $materialCost !== null) {
                         $optionTotalProductionCost = $materialCost + $jobInstallCost + $optionInventionCost + $copyCost;
 
                         // Find best margin across all sell venues for this option
@@ -206,7 +217,7 @@ class ProfitMarginService
         $costPerUnit = null;
         $margins = ['jitaSell' => null, 'structureSell' => null, 'structureBuy' => null, 'contractSell' => null];
 
-        if ($inventionCost !== null) {
+        if ($inventionCost !== null && $materialCost !== null) {
             $totalCost = $materialCost + $jobInstallCost + $inventionCost + $copyCost;
             $costPerUnit = $outputQuantity > 0 ? $totalCost / $outputQuantity : 0.0;
 
@@ -256,6 +267,7 @@ class ProfitMarginService
             'salesTaxRate' => $salesTaxRate,
             'margins' => $margins,
             'dailyVolume' => $dailyVolume,
+            'missingPriceTypeIds' => $missingPriceTypeIds,
         ];
     }
 
