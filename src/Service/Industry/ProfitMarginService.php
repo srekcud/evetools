@@ -19,6 +19,8 @@ use App\Service\TypeNameResolver;
  */
 class ProfitMarginService
 {
+    private const float CONTRACT_FEE_RATE = 0.0;
+
     public function __construct(
         private readonly IndustryTreeService $treeService,
         private readonly JitaMarketService $jitaMarketService,
@@ -380,38 +382,13 @@ class ProfitMarginService
         float $brokerFeeRate,
         float $salesTaxRate,
     ): array {
-        return [
-            'jitaSell' => $this->computeMarginForPrice($jitaSellPrice, $outputQuantity, $totalCost, $brokerFeeRate, $salesTaxRate),
-            'structureSell' => $this->computeMarginForPrice($structureSellPrice, $outputQuantity, $totalCost, $brokerFeeRate, $salesTaxRate),
-            'structureBuy' => $this->computeMarginForPrice($structureBuyPrice, $outputQuantity, $totalCost, $brokerFeeRate, $salesTaxRate),
-            'contractSell' => $this->computeContractMargin($contractSellPrice, $outputQuantity, $totalCost),
-        ];
-    }
-
-    /**
-     * Compute margin for a contract sell price (no broker fee, no sales tax).
-     *
-     * @return array{revenue: float, fees: float, profit: float, margin: float|null}|null
-     */
-    private function computeContractMargin(
-        ?float $unitPrice,
-        int $outputQuantity,
-        float $totalCost,
-    ): ?array {
-        if ($unitPrice === null || $unitPrice <= 0.0) {
-            return null;
-        }
-
-        $grossRevenue = $unitPrice * $outputQuantity;
-        $fees = 0.0; // Contracts have no broker fee and no sales tax
-        $profit = $grossRevenue - $totalCost;
-        $margin = $totalCost > 0 ? ($profit / $totalCost) * 100.0 : null;
+        $sellOrderFeeRate = $brokerFeeRate + $salesTaxRate;
 
         return [
-            'revenue' => $grossRevenue,
-            'fees' => $fees,
-            'profit' => $profit,
-            'margin' => $margin,
+            'jitaSell' => $this->computeMarginForPrice($jitaSellPrice, $outputQuantity, $totalCost, $sellOrderFeeRate),
+            'structureSell' => $this->computeMarginForPrice($structureSellPrice, $outputQuantity, $totalCost, $sellOrderFeeRate),
+            'structureBuy' => $this->computeMarginForPrice($structureBuyPrice, $outputQuantity, $totalCost, $salesTaxRate),
+            'contractSell' => $this->computeMarginForPrice($contractSellPrice, $outputQuantity, $totalCost, self::CONTRACT_FEE_RATE),
         ];
     }
 
@@ -424,15 +401,14 @@ class ProfitMarginService
         ?float $unitPrice,
         int $outputQuantity,
         float $totalCost,
-        float $brokerFeeRate,
-        float $salesTaxRate,
+        float $feeRate,
     ): ?array {
         if ($unitPrice === null || $unitPrice <= 0.0) {
             return null;
         }
 
         $grossRevenue = $unitPrice * $outputQuantity;
-        $fees = $grossRevenue * ($brokerFeeRate + $salesTaxRate);
+        $fees = $grossRevenue * $feeRate;
         $netRevenue = $grossRevenue - $fees;
         $profit = $netRevenue - $totalCost;
         $margin = $totalCost > 0 ? ($profit / $totalCost) * 100.0 : null;
@@ -458,12 +434,16 @@ class ProfitMarginService
         float $brokerFeeRate,
         float $salesTaxRate,
     ): ?float {
-        $venueMargins = [
-            $this->computeMarginForPrice($jitaSellPrice, $outputQuantity, $totalProductionCost, $brokerFeeRate, $salesTaxRate),
-            $this->computeMarginForPrice($structureSellPrice, $outputQuantity, $totalProductionCost, $brokerFeeRate, $salesTaxRate),
-            $this->computeMarginForPrice($structureBuyPrice, $outputQuantity, $totalProductionCost, $brokerFeeRate, $salesTaxRate),
-            $this->computeContractMargin($contractSellPrice, $outputQuantity, $totalProductionCost),
-        ];
+        $venueMargins = $this->calculateMargins(
+            $jitaSellPrice,
+            $structureSellPrice,
+            $structureBuyPrice,
+            $contractSellPrice,
+            $outputQuantity,
+            $totalProductionCost,
+            $brokerFeeRate,
+            $salesTaxRate,
+        );
         $knownMargins = array_filter(
             array_map(static fn (?array $venueMargin): ?float => $venueMargin === null ? null : $venueMargin['margin'], $venueMargins),
             static fn (?float $margin): bool => $margin !== null,

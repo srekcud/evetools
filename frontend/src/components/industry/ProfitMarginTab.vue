@@ -11,7 +11,7 @@ import VenueComparisonTable from '@/components/industry/profit/VenueComparisonTa
 import type { SellRow } from '@/components/industry/profit/VenueComparisonTable.vue'
 import InventionOptionsPanel from '@/components/industry/profit/InventionOptionsPanel.vue'
 import { venueLabel } from '@/components/industry/venueLabel'
-import { venueMargin } from '@/components/industry/venueMargin'
+import { venueMargin, type SellVenue } from '@/components/industry/venueMargin'
 
 const { t } = useI18n()
 const store = useIndustryStore()
@@ -116,7 +116,7 @@ const bestVenue = computed(() => {
 
   // Recompute margins with selected decryptor's totalProductionCost
   let best: { key: string; margin: number; revenue: number; profit: number; fees: number; unitPrice: number } | null = null
-  const prices: [string, number | null][] = [
+  const prices: [SellVenue, number | null][] = [
     ['jitaSell', r.sellPrices.jitaSell],
     ['structureSell', r.sellPrices.structureSell],
     ['structureBuy', r.sellPrices.structureBuy],
@@ -124,8 +124,7 @@ const bestVenue = computed(() => {
   ]
   for (const [key, price] of prices) {
     if (price == null || r.margins[key] == null) continue
-    const isContract = key === 'contractSell'
-    const m = venueMargin(price, r.outputQuantity, totalCost, r.brokerFeeRate, r.salesTaxRate, isContract)
+    const m = venueMargin(price, r.outputQuantity, totalCost, r.brokerFeeRate, r.salesTaxRate, key)
     if (m.margin != null && (best == null || m.margin > best.margin)) {
       best = { key, ...m, margin: m.margin, unitPrice: price }
     }
@@ -161,10 +160,9 @@ const sellRows = computed((): SellRow[] => {
   const bestKey = bestVenue.value?.key ?? null
   const overrideTotalCost = selectedOption.value != null ? effectiveTotalCost.value : null
 
-  function buildRow(key: string, venue: string, tag: string, unitPrice: number, origEntry: MarginEntry, dailyVolume: number | null, contractCount: number | null = null): SellRow {
-    const isContract = key === 'contractSell'
+  function buildRow(key: SellVenue, venue: string, tag: string, unitPrice: number, origEntry: MarginEntry, dailyVolume: number | null, contractCount: number | null = null): SellRow {
     if (overrideTotalCost != null) {
-      const recomputed = venueMargin(unitPrice, r.outputQuantity, overrideTotalCost, r.brokerFeeRate, r.salesTaxRate, isContract)
+      const recomputed = venueMargin(unitPrice, r.outputQuantity, overrideTotalCost, r.brokerFeeRate, r.salesTaxRate, key)
       return {
         key, venue, tag, unitPrice,
         revenue: recomputed.revenue,
