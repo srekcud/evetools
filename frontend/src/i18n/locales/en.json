@@ -642,6 +642,7 @@
         "verdictBuild": "BUILD",
         "verdictBuy": "BUY",
         "verdictLoss": "Building at a loss",
+        "verdictUnknown": "Unknown price",
         "save": "Save",
         "details": "Details",
         "buildMeTe": "Build ME/TE",

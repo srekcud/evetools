@@ -17,6 +17,10 @@ use App\Service\TypeNameResolver;
  */
 class BuyVsBuildService
 {
+    private const string VERDICT_BUILD = 'build';
+    private const string VERDICT_BUY = 'buy';
+    private const string VERDICT_UNKNOWN = 'unknown';
+
     public function __construct(
         private readonly IndustryTreeService $treeService,
         private readonly JitaMarketService $jitaMarketService,
@@ -37,15 +41,16 @@ class BuyVsBuildService
      *     typeName: string|null,
      *     isT2: bool,
      *     runs: int,
-     *     totalProductionCost: float,
+     *     totalProductionCost: float|null,
      *     sellPrice: float|null,
      *     marginPercent: float|null,
-     *     components: list<array{typeId: int, typeName: string|null, quantity: int, stage: string, buildCost: float, buildMaterials: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: float, totalPrice: float}>, buildJobInstallCost: float, buyCostJita: float|null, buyCostStructure: float|null, verdict: string, savings: float, savingsPercent: float, meUsed: int, runs: int}>,
-     *     buildAllCost: float,
-     *     buyAllCost: float,
-     *     optimalMixCost: float,
+     *     components: list<array{typeId: int, typeName: string|null, quantity: int, stage: string, buildCost: float|null, buildMaterials: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: float|null, totalPrice: float|null}>, buildJobInstallCost: float, buyCostJita: float|null, buyCostStructure: float|null, verdict: 'build'|'buy'|'unknown', savings: float|null, savingsPercent: float|null, meUsed: int, runs: int}>,
+     *     buildAllCost: float|null,
+     *     buyAllCost: float|null,
+     *     optimalMixCost: float|null,
      *     buildTypeIds: list<int>,
      *     buyTypeIds: list<int>,
+     *     missingPriceTypeIds: list<int>,
      * }
      */
     public function analyze(
@@ -102,6 +107,7 @@ class BuyVsBuildService
         $optimalMixCost = 0.0;
         $buildTypeIds = [];
         $buyTypeIds = [];
+        $missingPriceTypeIds = [];
 
         // Batch structure prices for all component type IDs
         $componentTypeIds = array_map(static fn (array $c) => $c['typeId'], $components);
@@ -121,58 +127,60 @@ class BuyVsBuildService
             $unitBuyPriceStructure = $structurePrices[$compTypeId] ?? null;
             $buyCostStructure = $unitBuyPriceStructure !== null ? $unitBuyPriceStructure * $quantity : null;
 
-            // Best buy cost: prefer structure, fall back to Jita
-            $buyCost = $buyCostStructure ?? $buyCostJita ?? 0.0;
+            $buyCost = $buyCostStructure ?? $buyCostJita;
+            if ($buyCost === null) {
+                $missingPriceTypeIds[] = $compTypeId;
+            }
 
-            // Build materials with resolved names and prices
             $buildMaterials = [];
             $matCost = 0.0;
+            $isBuildCostUnknown = false;
             foreach ($comp['materials'] as $mat) {
                 $matTypeId = $mat['materialTypeId'];
                 $matQty = $mat['adjustedQuantity'];
-                $matUnitPrice = $jitaPrices[$matTypeId] ?? 0.0;
-                $matTotalPrice = $matUnitPrice * $matQty;
-                $matCost += $matTotalPrice;
+                $matUnitPrice = $jitaPrices[$matTypeId] ?? null;
+                $matTotalPrice = null;
+                if ($matUnitPrice === null) {
+                    $isBuildCostUnknown = true;
+                    $missingPriceTypeIds[] = $matTypeId;
+                } else {
+                    $matTotalPrice = $matUnitPrice * $matQty;
+                    $matCost += $matTotalPrice;
+                }
 
                 $buildMaterials[] = [
                     'typeId' => $matTypeId,
                     'typeName' => $this->typeNameResolver->findName($matTypeId),
                     'quantity' => $matQty,
-                    'unitPrice' => round($matUnitPrice, 2),
-                    'totalPrice' => round($matTotalPrice, 2),
+                    'unitPrice' => $matUnitPrice !== null ? round($matUnitPrice, 2) : null,
+                    'totalPrice' => $matTotalPrice !== null ? round($matTotalPrice, 2) : null,
                 ];
             }
 
             $jobInstallCost = $comp['jobInstallCost'];
-            $buildCost = $matCost + $jobInstallCost;
+            $buildCost = $isBuildCostUnknown ? null : $matCost + $jobInstallCost;
 
-            // Savings: difference between buy and build
-            $savings = $buyCost - $buildCost;
-
-            // Savings percent relative to the more expensive option
-            $maxCost = max($buildCost, $buyCost);
-            $savingsPercent = $maxCost > 0 ? round(abs($savings) / $maxCost * 100, 2) : 0.0;
-
-            // Determine verdict (lowercase to match frontend types)
-            if ($buyCost <= 0.0 && $buildCost <= 0.0) {
-                $verdict = 'buy'; // fallback
-            } elseif ($buyCost <= 0.0) {
-                $verdict = 'build'; // No market price, must build
-            } elseif ($buildCost <= $buyCost) {
-                $verdict = 'build';
-            } else {
-                $verdict = 'buy';
+            $savings = null;
+            $savingsPercent = null;
+            if ($buildCost !== null && $buyCost !== null) {
+                $savings = $buyCost - $buildCost;
+                $maxCost = max($buildCost, $buyCost);
+                $savingsPercent = $maxCost > 0 ? round(abs($savings) / $maxCost * 100, 2) : 0.0;
             }
 
-            $buildAllCost += $buildCost;
-            $buyAllCost += $buyCost;
+            $verdict = $this->verdictOf($buildCost, $buyCost);
 
-            if ($verdict === 'build') {
-                $optimalMixCost += $buildCost;
+            $buildAllCost = $this->sumOfKnownCosts($buildAllCost, $buildCost);
+            $buyAllCost = $this->sumOfKnownCosts($buyAllCost, $buyCost);
+
+            if ($verdict === self::VERDICT_BUILD) {
+                $optimalMixCost = $this->sumOfKnownCosts($optimalMixCost, $buildCost);
                 $buildTypeIds[] = $compTypeId;
-            } else {
-                $optimalMixCost += $buyCost;
+            } elseif ($verdict === self::VERDICT_BUY) {
+                $optimalMixCost = $this->sumOfKnownCosts($optimalMixCost, $buyCost);
                 $buyTypeIds[] = $compTypeId;
+            } else {
+                $optimalMixCost = null;
             }
 
             $analyzedComponents[] = [
@@ -180,27 +188,32 @@ class BuyVsBuildService
                 'typeName' => $this->typeNameResolver->findName($compTypeId),
                 'quantity' => $quantity,
                 'stage' => $comp['stage'],
-                'buildCost' => round($buildCost, 2),
+                'buildCost' => $buildCost !== null ? round($buildCost, 2) : null,
                 'buildMaterials' => $buildMaterials,
                 'buildJobInstallCost' => round($jobInstallCost, 2),
                 'buyCostJita' => $buyCostJita !== null ? round($buyCostJita, 2) : null,
                 'buyCostStructure' => $buyCostStructure !== null ? round($buyCostStructure, 2) : null,
                 'verdict' => $verdict,
-                'savings' => round($savings, 2),
+                'savings' => $savings !== null ? round($savings, 2) : null,
                 'savingsPercent' => $savingsPercent,
                 'meUsed' => $comp['meLevel'],
                 'runs' => $comp['runs'],
             ];
         }
 
-        // Sort by savings descending
-        usort($analyzedComponents, static fn (array $a, array $b) => $b['savings'] <=> $a['savings']);
+        usort($analyzedComponents, static fn (array $a, array $b): int => match (true) {
+            $a['savings'] !== null && $b['savings'] !== null => $b['savings'] <=> $a['savings'],
+            $a['savings'] === null && $b['savings'] === null => $a['typeId'] <=> $b['typeId'],
+            default => $a['savings'] === null ? 1 : -1,
+        });
 
-        // Calculate margin for the final product using optimal mix cost
-        // Add leaf material costs + final product job install cost
         $leafMaterialCost = 0.0;
         foreach ($leafMaterials as $matTypeId => $matQty) {
-            $leafMaterialCost += ($jitaPrices[$matTypeId] ?? 0.0) * $matQty;
+            $leafUnitPrice = $jitaPrices[$matTypeId] ?? null;
+            if ($leafUnitPrice === null) {
+                $missingPriceTypeIds[] = $matTypeId;
+            }
+            $leafMaterialCost = $this->sumOfKnownCosts($leafMaterialCost, $leafUnitPrice !== null ? $leafUnitPrice * $matQty : null);
         }
 
         // Compute EIV from ME0 materials for the final product blueprint
@@ -219,10 +232,10 @@ class BuyVsBuildService
             $tree['activityType'],
         );
 
-        $totalProductionCost = $optimalMixCost + $leafMaterialCost + $finalJobCost;
+        $totalProductionCost = $this->sumOfKnownCosts($this->sumOfKnownCosts($optimalMixCost, $leafMaterialCost), $finalJobCost);
 
         $marginPercent = null;
-        if ($sellPrice !== null && $sellPrice > 0 && $totalProductionCost > 0) {
+        if ($sellPrice !== null && $sellPrice > 0 && $totalProductionCost !== null && $totalProductionCost > 0) {
             $grossRevenue = $sellPrice * $outputQuantity;
             $fees = $grossRevenue * ($brokerFeeRate + $salesTaxRate);
             $netRevenue = $grossRevenue - $fees;
@@ -230,21 +243,43 @@ class BuyVsBuildService
             $marginPercent = round(($profit / $totalProductionCost) * 100, 2);
         }
 
+        $missingPriceTypeIds = array_unique($missingPriceTypeIds);
+        sort($missingPriceTypeIds);
+
         return [
             'typeId' => $typeId,
             'typeName' => $typeName,
             'isT2' => $isT2,
             'runs' => $runs,
-            'totalProductionCost' => round($totalProductionCost, 2),
+            'totalProductionCost' => $totalProductionCost !== null ? round($totalProductionCost, 2) : null,
             'sellPrice' => $sellPrice !== null ? round($sellPrice, 2) : null,
             'marginPercent' => $marginPercent,
             'components' => $analyzedComponents,
-            'buildAllCost' => round($buildAllCost, 2),
-            'buyAllCost' => round($buyAllCost, 2),
-            'optimalMixCost' => round($optimalMixCost, 2),
+            'buildAllCost' => $buildAllCost !== null ? round($buildAllCost, 2) : null,
+            'buyAllCost' => $buyAllCost !== null ? round($buyAllCost, 2) : null,
+            'optimalMixCost' => $optimalMixCost !== null ? round($optimalMixCost, 2) : null,
             'buildTypeIds' => array_values(array_unique($buildTypeIds)),
             'buyTypeIds' => array_values(array_unique($buyTypeIds)),
+            'missingPriceTypeIds' => $missingPriceTypeIds,
         ];
+    }
+
+    /**
+     * @return self::VERDICT_*
+     */
+    private function verdictOf(?float $buildCost, ?float $buyCost): string
+    {
+        return match (true) {
+            $buildCost === null && $buyCost === null => self::VERDICT_UNKNOWN,
+            $buildCost === null => self::VERDICT_BUY,
+            $buyCost === null, $buildCost <= $buyCost => self::VERDICT_BUILD,
+            default => self::VERDICT_BUY,
+        };
+    }
+
+    private function sumOfKnownCosts(?float $total, ?float $cost): ?float
+    {
+        return $total === null || $cost === null ? null : $total + $cost;
     }
 
     /**

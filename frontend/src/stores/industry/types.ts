@@ -574,8 +574,8 @@ export type BuyVsBuildMaterial = {
   typeId: number
   typeName: string | null
   quantity: number
-  unitPrice: number
-  totalPrice: number
+  unitPrice: number | null
+  totalPrice: number | null
 }
 
 export type BuyVsBuildComponent = {
@@ -583,14 +583,14 @@ export type BuyVsBuildComponent = {
   typeName: string | null
   quantity: number
   stage: string
-  buildCost: number
+  buildCost: number | null
   buildMaterials: BuyVsBuildMaterial[]
   buildJobInstallCost: number
   buyCostJita: number | null
   buyCostStructure: number | null
-  verdict: 'build' | 'buy' | 'loss'
-  savings: number
-  savingsPercent: number
+  verdict: 'build' | 'buy' | 'loss' | 'unknown'
+  savings: number | null
+  savingsPercent: number | null
   meUsed: number
   runs: number
 }
@@ -600,15 +600,16 @@ export type BuyVsBuildResult = {
   typeName: string | null
   isT2: boolean
   runs: number
-  totalProductionCost: number
-  sellPrice: number
-  marginPercent: number
+  totalProductionCost: number | null
+  sellPrice: number | null
+  marginPercent: number | null
   components: BuyVsBuildComponent[]
-  buildAllCost: number
-  buyAllCost: number
-  optimalMixCost: number
+  buildAllCost: number | null
+  buyAllCost: number | null
+  optimalMixCost: number | null
   buildTypeIds: number[]
   buyTypeIds: number[]
+  missingPriceTypeIds: number[]
   sellStructureId: number | null
 }
 

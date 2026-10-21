@@ -73,7 +73,7 @@ watch(result, () => {
   userOverrides.value = new Map()
 })
 
-function effectiveVerdict(comp: BuyVsBuildComponent): 'build' | 'buy' | 'loss' {
+function effectiveVerdict(comp: BuyVsBuildComponent): BuyVsBuildComponent['verdict'] {
   return userOverrides.value.get(comp.typeId) ?? comp.verdict
 }
 
@@ -140,18 +140,18 @@ const buildList = computed(() => {
   if (!result.value) return []
   return result.value.components
     .filter(c => effectiveVerdict(c) === 'build')
-    .sort((a, b) => b.savings - a.savings)
+    .sort((a, b) => compareKnownFirstDescending(a.savings, b.savings))
 })
 
 const buyList = computed(() => {
   if (!result.value) return []
   return result.value.components
     .filter(c => effectiveVerdict(c) === 'buy' || effectiveVerdict(c) === 'loss')
-    .sort((a, b) => b.savings - a.savings)
+    .sort((a, b) => compareKnownFirstDescending(a.savings, b.savings))
 })
 
-const buildTotalSavings = computed(() => buildList.value.reduce((sum, c) => sum + c.savings, 0))
-const buyTotalSavings = computed(() => buyList.value.reduce((sum, c) => sum + Math.abs(c.savings), 0))
+const buildTotalSavings = computed(() => sumOfKnownAmounts(buildList.value.map(c => c.savings)))
+const buyTotalSavings = computed(() => sumOfKnownAmounts(buyList.value.map(c => absoluteAmount(c.savings))))
 
 const hasOverrides = computed(() => userOverrides.value.size > 0)
 
@@ -163,13 +163,11 @@ const overrideCounts = computed(() => {
   return { total: userOverrides.value.size, build, buy }
 })
 
-const computedOptimalMixCost = computed(() => {
-  if (!result.value) return 0
-  return result.value.components.reduce((sum, c) => {
-    const v = effectiveVerdict(c)
-    const buyCost = c.buyCostStructure ?? c.buyCostJita ?? 0
-    return sum + (v === 'build' ? c.buildCost : buyCost)
-  }, 0)
+const computedOptimalMixCost = computed((): number | null => {
+  if (!result.value) return null
+  return sumOfKnownAmounts(result.value.components.map(c =>
+    effectiveVerdict(c) === 'build' ? c.buildCost : c.buyCostStructure ?? c.buyCostJita,
+  ))
 })
 
 const excludedComponentNames = computed(() => {
@@ -180,21 +178,39 @@ const excludedComponentNames = computed(() => {
 })
 
 // Savings comparison
-const savingsVsBuildAll = computed(() => {
-  if (!result.value) return { amount: 0, percent: 0 }
-  const diff = result.value.buildAllCost - computedOptimalMixCost.value
-  const pct = result.value.buildAllCost > 0 ? (diff / result.value.buildAllCost) * 100 : 0
-  return { amount: diff, percent: pct }
-})
+const savingsVsBuildAll = computed(() => savingsVersus(result.value?.buildAllCost ?? null))
+const savingsVsBuyAll = computed(() => savingsVersus(result.value?.buyAllCost ?? null))
 
-const savingsVsBuyAll = computed(() => {
-  if (!result.value) return { amount: 0, percent: 0 }
-  const diff = result.value.buyAllCost - computedOptimalMixCost.value
-  const pct = result.value.buyAllCost > 0 ? (diff / result.value.buyAllCost) * 100 : 0
+function savingsVersus(strategyCost: number | null): { amount: number | null; percent: number | null } {
+  if (strategyCost == null || computedOptimalMixCost.value == null) return { amount: null, percent: null }
+  const diff = strategyCost - computedOptimalMixCost.value
+  const pct = strategyCost > 0 ? (diff / strategyCost) * 100 : 0
   return { amount: diff, percent: pct }
-})
+}
 
-function formatMargin(percent: number): string {
+function sumOfKnownAmounts(amounts: (number | null)[]): number | null {
+  return amounts.reduce<number | null>((sum, amount) => sum == null || amount == null ? null : sum + amount, 0)
+}
+
+function absoluteAmount(amount: number | null): number | null {
+  return amount == null ? null : Math.abs(amount)
+}
+
+function compareKnownFirstDescending(a: number | null, b: number | null): number {
+  if (a == null || b == null) return Number(a == null) - Number(b == null)
+  return b - a
+}
+
+function formatKnownIsk(amount: number | null): string {
+  return amount == null ? t('industry.inventionUnknown.label') : formatIsk(amount)
+}
+
+function formatKnownPercent(percent: number | null): string {
+  return percent == null ? '' : `(${percent.toFixed(1)}%)`
+}
+
+function formatMargin(percent: number | null): string {
+  if (percent == null) return t('industry.inventionUnknown.label')
   const sign = percent >= 0 ? '+' : ''
   return `${sign}${percent.toFixed(1)}%`
 }
@@ -211,19 +227,21 @@ function stageLabelColor(stage: string): string {
   return 'text-slate-400'
 }
 
-function verdictClasses(verdict: 'build' | 'buy' | 'loss'): string {
+function verdictClasses(verdict: BuyVsBuildComponent['verdict']): string {
   switch (verdict) {
     case 'build': return 'bg-emerald-500/10 border border-emerald-500/20'
     case 'buy': return 'bg-amber-500/10 border border-amber-500/20'
     case 'loss': return 'bg-red-500/10 border border-red-500/20'
+    case 'unknown': return 'bg-slate-800/50 border border-slate-700'
   }
 }
 
-function verdictSavingsColor(verdict: 'build' | 'buy' | 'loss'): string {
+function verdictSavingsColor(verdict: BuyVsBuildComponent['verdict']): string {
   switch (verdict) {
     case 'build': return 'text-emerald-300/80'
     case 'buy': return 'text-amber-300/80'
     case 'loss': return 'text-red-300/80'
+    case 'unknown': return 'text-slate-400'
   }
 }
 
@@ -364,7 +382,7 @@ const SUMMARY_LIST_LIMIT = 5
           <div class="flex items-center gap-6">
             <div class="text-right">
               <p class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.scanner.buyVsBuild.totalProductionCost') }}</p>
-              <p class="text-lg font-mono text-slate-100 font-semibold">{{ formatIsk(result.totalProductionCost) }}</p>
+              <p class="text-lg font-mono text-slate-100 font-semibold">{{ formatKnownIsk(result.totalProductionCost) }}</p>
             </div>
             <div class="w-px h-10 bg-slate-700"></div>
             <div class="text-right">
@@ -375,7 +393,7 @@ const SUMMARY_LIST_LIMIT = 5
             <div class="w-px h-10 bg-slate-700"></div>
             <div class="text-right">
               <p class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.scanner.buyVsBuild.margin') }}</p>
-              <p class="text-lg font-mono font-bold" :class="result.marginPercent >= 0 ? 'text-emerald-400' : 'text-red-400'">
+              <p class="text-lg font-mono font-bold" :class="result.marginPercent == null ? 'text-slate-400' : result.marginPercent >= 0 ? 'text-emerald-400' : 'text-red-400'">
                 {{ formatMargin(result.marginPercent) }}
               </p>
             </div>
@@ -495,7 +513,7 @@ const SUMMARY_LIST_LIMIT = 5
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
                     {{ t('industry.scanner.buyVsBuild.buildCost') }}
                   </p>
-                  <p class="text-lg font-mono text-slate-100 font-semibold mb-2">{{ formatIsk(comp.buildCost) }}</p>
+                  <p class="text-lg font-mono text-slate-100 font-semibold mb-2">{{ formatKnownIsk(comp.buildCost) }}</p>
                   <div class="space-y-1 text-xs">
                     <div
                       v-for="mat in comp.buildMaterials.slice(0, 3)"
@@ -503,7 +521,7 @@ const SUMMARY_LIST_LIMIT = 5
                       class="flex justify-between text-slate-400"
                     >
                       <span class="truncate mr-2">{{ typeNameLabel(mat.typeName, mat.typeId) }}</span>
-                      <span class="font-mono text-slate-300 shrink-0">{{ formatIsk(mat.totalPrice) }}</span>
+                      <span class="font-mono text-slate-300 shrink-0">{{ formatKnownIsk(mat.totalPrice) }}</span>
                     </div>
                     <div class="border-t border-slate-700 pt-1 flex justify-between text-slate-500">
                       <span>{{ t('industry.scanner.buyVsBuild.jobInstall') }}</span>
@@ -548,14 +566,17 @@ const SUMMARY_LIST_LIMIT = 5
                 <div class="flex items-center gap-2">
                   <template v-if="!isOverridden(comp.typeId)">
                     <span :class="['text-sm', verdictSavingsColor(effectiveVerdict(comp))]">
-                      <template v-if="comp.verdict === 'loss'">
+                      <template v-if="comp.verdict === 'unknown'">
+                        {{ t('industry.scanner.buyVsBuild.verdictUnknown') }}
+                      </template>
+                      <template v-else-if="comp.verdict === 'loss'">
                         {{ t('industry.scanner.buyVsBuild.verdictLoss') }}
-                        <span class="font-mono font-semibold">({{ formatIsk(-comp.savings) }})</span>
+                        <span class="font-mono font-semibold">({{ formatKnownIsk(absoluteAmount(comp.savings)) }})</span>
                       </template>
                       <template v-else>
                         {{ t('industry.scanner.buyVsBuild.save') }}
-                        <span class="font-mono font-semibold">{{ formatIsk(Math.abs(comp.savings)) }}</span>
-                        <span class="opacity-60">({{ comp.savingsPercent.toFixed(1) }}%)</span>
+                        <span class="font-mono font-semibold">{{ formatKnownIsk(absoluteAmount(comp.savings)) }}</span>
+                        <span class="opacity-60">{{ formatKnownPercent(comp.savingsPercent) }}</span>
                       </template>
                     </span>
                   </template>
@@ -627,7 +648,7 @@ const SUMMARY_LIST_LIMIT = 5
                 </svg>
                 <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold">{{ t('industry.scanner.buyVsBuild.buildEverything') }}</p>
               </div>
-              <p class="text-2xl font-mono text-slate-100 font-bold mb-1">{{ formatIsk(result.buildAllCost) }}</p>
+              <p class="text-2xl font-mono text-slate-100 font-bold mb-1">{{ formatKnownIsk(result.buildAllCost) }}</p>
               <p class="text-xs text-slate-500">{{ t('industry.scanner.buyVsBuild.iskTotalProduction') }}</p>
             </div>
             <!-- Buy All -->
@@ -638,7 +659,7 @@ const SUMMARY_LIST_LIMIT = 5
                 </svg>
                 <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold">{{ t('industry.scanner.buyVsBuild.buyEverything') }}</p>
               </div>
-              <p class="text-2xl font-mono text-slate-100 font-bold mb-1">{{ formatIsk(result.buyAllCost) }}</p>
+              <p class="text-2xl font-mono text-slate-100 font-bold mb-1">{{ formatKnownIsk(result.buyAllCost) }}</p>
               <p class="text-xs text-slate-500">{{ t('industry.scanner.buyVsBuild.iskTotalMarket') }}</p>
             </div>
             <!-- Optimal Mix -->
@@ -649,7 +670,7 @@ const SUMMARY_LIST_LIMIT = 5
                 </svg>
                 <p class="text-xs text-cyan-400 uppercase tracking-wider font-semibold">{{ hasOverrides ? t('industry.scanner.buyVsBuild.yourMix') : t('industry.scanner.buyVsBuild.optimalMix') }}</p>
               </div>
-              <p class="text-2xl font-mono text-cyan-400 font-bold mb-1">{{ formatIsk(computedOptimalMixCost) }}</p>
+              <p class="text-2xl font-mono text-cyan-400 font-bold mb-1">{{ formatKnownIsk(computedOptimalMixCost) }}</p>
               <p class="text-xs text-slate-500">{{ t('industry.scanner.buyVsBuild.iskOptimized') }}</p>
             </div>
           </div>
@@ -667,14 +688,14 @@ const SUMMARY_LIST_LIMIT = 5
                   <p class="text-sm text-slate-200 font-semibold">{{ t('industry.scanner.buyVsBuild.optimalSaves') }}</p>
                   <p class="text-xs text-slate-500">
                     {{ t('industry.scanner.buyVsBuild.vsBuildAll') }}:
-                    <span class="text-emerald-400 font-mono">{{ formatIsk(savingsVsBuildAll.amount) }} ({{ savingsVsBuildAll.percent.toFixed(1) }}%)</span>
+                    <span class="text-emerald-400 font-mono">{{ formatKnownIsk(savingsVsBuildAll.amount) }} {{ formatKnownPercent(savingsVsBuildAll.percent) }}</span>
                     &middot;
                     {{ t('industry.scanner.buyVsBuild.vsBuyAll') }}:
-                    <span class="text-emerald-400 font-mono">{{ formatIsk(savingsVsBuyAll.amount) }} ({{ savingsVsBuyAll.percent.toFixed(1) }}%)</span>
+                    <span class="text-emerald-400 font-mono">{{ formatKnownIsk(savingsVsBuyAll.amount) }} {{ formatKnownPercent(savingsVsBuyAll.percent) }}</span>
                   </p>
                 </div>
               </div>
-              <p class="text-3xl font-mono text-emerald-400 font-bold">{{ formatIsk(savingsVsBuyAll.amount) }}</p>
+              <p class="text-3xl font-mono text-emerald-400 font-bold">{{ formatKnownIsk(savingsVsBuyAll.amount) }}</p>
             </div>
           </div>
 
@@ -701,7 +722,7 @@ const SUMMARY_LIST_LIMIT = 5
                     </div>
                     <span class="text-sm text-slate-300 truncate">{{ typeNameLabel(comp.typeName, comp.typeId) }}</span>
                   </div>
-                  <span class="text-xs font-mono text-emerald-400 shrink-0">-{{ formatIsk(comp.savings) }}</span>
+                  <span class="text-xs font-mono text-emerald-400 shrink-0">{{ comp.savings == null ? formatKnownIsk(null) : `-${formatIsk(comp.savings)}` }}</span>
                 </div>
                 <div v-if="buildList.length > SUMMARY_LIST_LIMIT" class="flex items-center justify-between text-slate-500">
                   <span class="text-xs">+{{ buildList.length - SUMMARY_LIST_LIMIT }} {{ t('industry.scanner.buyVsBuild.more') }}</span>
@@ -709,7 +730,7 @@ const SUMMARY_LIST_LIMIT = 5
               </div>
               <div class="border-t border-slate-700 pt-2 mt-3 flex justify-between">
                 <span class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.scanner.buyVsBuild.totalSavings') }}</span>
-                <span class="text-sm font-mono text-emerald-400 font-bold">{{ formatIsk(buildTotalSavings) }}</span>
+                <span class="text-sm font-mono text-emerald-400 font-bold">{{ formatKnownIsk(buildTotalSavings) }}</span>
               </div>
             </div>
 
@@ -736,7 +757,7 @@ const SUMMARY_LIST_LIMIT = 5
                   </div>
                   <div class="flex items-center gap-2 shrink-0">
                     <span v-if="comp.verdict === 'loss'" class="text-[10px] px-1.5 py-0.5 rounded-sm bg-red-500/10 text-red-400">{{ t('industry.scanner.buyVsBuild.loss') }}</span>
-                    <span class="text-xs font-mono" :class="comp.verdict === 'loss' ? 'text-red-400' : 'text-amber-400'">-{{ formatIsk(Math.abs(comp.savings)) }}</span>
+                    <span class="text-xs font-mono" :class="comp.verdict === 'loss' ? 'text-red-400' : 'text-amber-400'">{{ comp.savings == null ? formatKnownIsk(null) : `-${formatIsk(Math.abs(comp.savings))}` }}</span>
                   </div>
                 </div>
                 <div v-if="buyList.length > SUMMARY_LIST_LIMIT" class="flex items-center justify-between text-slate-500">
@@ -745,7 +766,7 @@ const SUMMARY_LIST_LIMIT = 5
               </div>
               <div class="border-t border-slate-700 pt-2 mt-3 flex justify-between">
                 <span class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.scanner.buyVsBuild.totalSavings') }}</span>
-                <span class="text-sm font-mono text-amber-400 font-bold">{{ formatIsk(buyTotalSavings) }}</span>
+                <span class="text-sm font-mono text-amber-400 font-bold">{{ formatKnownIsk(buyTotalSavings) }}</span>
               </div>
             </div>
           </div>

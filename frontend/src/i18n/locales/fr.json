@@ -642,6 +642,7 @@
         "verdictBuild": "PRODUIRE",
         "verdictBuy": "ACHETER",
         "verdictLoss": "Production a perte",
+        "verdictUnknown": "Prix inconnu",
         "save": "Economie",
         "details": "Details",
         "buildMeTe": "ME/TE Production",

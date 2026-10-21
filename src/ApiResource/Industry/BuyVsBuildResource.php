@@ -44,7 +44,7 @@ class BuyVsBuildResource
 
     public int $runs = 1;
 
-    public float $totalProductionCost = 0;
+    public ?float $totalProductionCost = null;
 
     public ?float $sellPrice = null;
 
@@ -52,18 +52,21 @@ class BuyVsBuildResource
 
     public ?int $sellStructureId = null;
 
-    /** @var list<array{typeId: int, typeName: string|null, quantity: int, stage: string, buildCost: float, buildMaterials: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: float, totalPrice: float}>, buildJobInstallCost: float, buyCostJita: float|null, buyCostStructure: float|null, verdict: string, savings: float, savingsPercent: float, meUsed: int, runs: int}> */
+    /** @var list<array{typeId: int, typeName: string|null, quantity: int, stage: string, buildCost: float|null, buildMaterials: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: float|null, totalPrice: float|null}>, buildJobInstallCost: float, buyCostJita: float|null, buyCostStructure: float|null, verdict: string, savings: float|null, savingsPercent: float|null, meUsed: int, runs: int}> */
     public array $components = [];
 
-    public float $buildAllCost = 0;
+    public ?float $buildAllCost = null;
 
-    public float $buyAllCost = 0;
+    public ?float $buyAllCost = null;
 
-    public float $optimalMixCost = 0;
+    public ?float $optimalMixCost = null;
 
     /** @var list<int> */
     public array $buildTypeIds = [];
 
     /** @var list<int> */
     public array $buyTypeIds = [];
+
+    /** @var list<int> */
+    public array $missingPriceTypeIds = [];
 }
