@@ -198,6 +198,7 @@ final class StockpileStatusCharacterizationTest extends TestCase
                 'status' => 'critical',
                 'unitPrice' => 0.125,
                 'stockValue' => 5.63,
+                'deficit' => 75,
                 'deficitCost' => 9.38,
                 'stage' => 'intermediate',
                 'sourceProductTypeId' => self::WIDGET_SOURCE,
