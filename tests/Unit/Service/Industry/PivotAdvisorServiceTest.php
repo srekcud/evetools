@@ -771,6 +771,8 @@ class PivotAdvisorServiceTest extends TestCase
                 'additionalCost' => 75000.0,
                 'estimatedProfit' => 250450.0,
                 'score' => 7445.56,
+                'unknownReason' => null,
+                'missingPriceTypeIds' => [],
             ],
             [
                 'typeId' => self::CANDIDATE_2,
@@ -784,6 +786,8 @@ class PivotAdvisorServiceTest extends TestCase
                 'additionalCost' => 4000.0,
                 'estimatedProfit' => 74700.0,
                 'score' => 6456.2,
+                'unknownReason' => null,
+                'missingPriceTypeIds' => [],
             ],
         ], $result['candidates']);
         $this->assertSame([self::SOURCE_PRODUCT, self::ROBOTICS_TYPE_ID, self::CANDIDATE_2], $result['matrixProductIds']);
