@@ -112,11 +112,16 @@ class ProfitMarginService
         $facilityTaxRate = $this->resolveFacilityTaxRate($user, $solarSystemId);
 
         // 6. Calculate job install costs for all manufacturing/reaction nodes
-        $jobInstallCost = 0.0;
         $jobInstallSteps = [];
         if ($solarSystemId !== null) {
-            $this->collectJobInstallCosts($tree, $solarSystemId, $facilityTaxRate, $jobInstallCost, $jobInstallSteps);
+            $this->collectJobInstallCosts($tree, $solarSystemId, $facilityTaxRate, $jobInstallSteps);
         }
+        $unknownInstallCostReasons = array_values(array_unique(array_filter(
+            array_column($jobInstallSteps, 'unknownReason'),
+            static fn (?string $unknownReason): bool => $unknownReason !== null,
+        )));
+        sort($unknownInstallCostReasons);
+        $jobInstallCost = $unknownInstallCostReasons === [] ? (float) array_sum(array_column($jobInstallSteps, 'installCost')) : null;
 
         // 7. Sell prices (needed before invention for decryptor margin comparison)
         $jitaSellData = $this->jitaMarketService->getWeightedSellPrice($typeId, $outputQuantity);
@@ -169,7 +174,7 @@ class ProfitMarginService
                     $optionTotalProductionCost = null;
                     $optionBestMargin = null;
 
-                    if ($optionInventionCost !== null && $materialCost !== null) {
+                    if ($optionInventionCost !== null && $materialCost !== null && $jobInstallCost !== null) {
                         $optionTotalProductionCost = $materialCost + $jobInstallCost + $optionInventionCost + $copyCost;
 
                         // Find best margin across all sell venues for this option
@@ -217,7 +222,7 @@ class ProfitMarginService
         $costPerUnit = null;
         $margins = ['jitaSell' => null, 'structureSell' => null, 'structureBuy' => null, 'contractSell' => null];
 
-        if ($inventionCost !== null && $materialCost !== null) {
+        if ($inventionCost !== null && $materialCost !== null && $jobInstallCost !== null) {
             $totalCost = $materialCost + $jobInstallCost + $inventionCost + $copyCost;
             $costPerUnit = $outputQuantity > 0 ? $totalCost / $outputQuantity : 0.0;
 
@@ -268,6 +273,7 @@ class ProfitMarginService
             'margins' => $margins,
             'dailyVolume' => $dailyVolume,
             'missingPriceTypeIds' => $missingPriceTypeIds,
+            'unknownInstallCostReasons' => $unknownInstallCostReasons,
         ];
     }
 
@@ -310,9 +316,9 @@ class ProfitMarginService
      * Recursively collect job install costs for manufacturing/reaction nodes.
      *
      * @param array<string, mixed> $node
-     * @param list<array{productTypeId: int, productName: string, activityType: string, runs: int, installCost: float}> $steps
+     * @param list<array{productTypeId: int, productName: string, activityType: string, runs: int, installCost: float|null, unknownReason: string|null}> $steps
      */
-    private function collectJobInstallCosts(array $node, int $solarSystemId, ?float $facilityTaxRate, float &$totalCost, array &$steps): void
+    private function collectJobInstallCosts(array $node, int $solarSystemId, ?float $facilityTaxRate, array &$steps): void
     {
         $activityType = (string) ($node['activityType'] ?? 'manufacturing');
 
@@ -327,30 +333,28 @@ class ProfitMarginService
                 [$blueprintTypeId],
                 [$activityIdValue],
             );
-            $eiv = $this->esiCostIndexService->calculateEiv($me0Materials[$blueprintTypeId] ?? []);
-
-            $installCost = $this->esiCostIndexService->calculateJobInstallCost(
-                $eiv,
+            $installCost = $this->esiCostIndexService->estimateJobInstallCost(
+                $me0Materials[$blueprintTypeId] ?? [],
                 $nodeRuns,
                 $solarSystemId,
                 $activityType,
                 $facilityTaxRate,
             );
 
-            $totalCost += $installCost;
             $steps[] = [
                 'productTypeId' => $productTypeId,
                 'productName' => (string) $node['productTypeName'],
                 'activityType' => $activityType,
                 'runs' => $nodeRuns,
-                'installCost' => $installCost,
+                'installCost' => $installCost['cost'],
+                'unknownReason' => $installCost['unknownReason'],
             ];
         }
 
         // Recurse into children
         foreach ($node['materials'] as $material) {
             if (($material['isBuildable'] ?? false) && isset($material['blueprint'])) {
-                $this->collectJobInstallCosts($material['blueprint'], $solarSystemId, $facilityTaxRate, $totalCost, $steps);
+                $this->collectJobInstallCosts($material['blueprint'], $solarSystemId, $facilityTaxRate, $steps);
             }
         }
     }

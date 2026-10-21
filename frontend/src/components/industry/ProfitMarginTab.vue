@@ -61,10 +61,11 @@ const favoriteSystems = computed(() => {
   return systems
 })
 
-const productionCostUnknownReason = computed((): ProductionCostUnknownReason | null => {
-  if (!result.value) return null
-  if (result.value.materialCost == null) return 'missing_material_price'
-  return result.value.invention?.unknownReason ?? null
+const productionCostUnknownReasons = computed((): ProductionCostUnknownReason[] => {
+  if (!result.value) return []
+  const pricingUnknownReason = result.value.materialCost == null ? 'missing_material_price' : result.value.invention?.unknownReason
+  if (pricingUnknownReason == null) return result.value.unknownInstallCostReasons
+  return [pricingUnknownReason, ...result.value.unknownInstallCostReasons]
 })
 
 const missingPriceTypeNames = computed((): string => {
@@ -250,7 +251,7 @@ const materialPercent = computed((): number | null => {
 
 const jobInstallPercent = computed((): number | null => {
   if (!result.value || effectiveTotalCost.value === 0) return 0
-  if (effectiveTotalCost.value == null) return null
+  if (effectiveTotalCost.value == null || result.value.jobInstallCost == null) return null
   return (result.value.jobInstallCost / effectiveTotalCost.value) * 100
 })
 
@@ -527,8 +528,8 @@ store.fetchUserSettings()
       />
 
       <!-- Unknown production cost: margins cannot be computed even if sell prices exist -->
-      <div v-else-if="!loading && productionCostUnknownReason != null" class="eve-card p-6 text-center">
-        <p class="text-sm text-amber-400">{{ t(`industry.inventionUnknown.${productionCostUnknownReason}`) }}</p>
+      <div v-else-if="!loading && productionCostUnknownReasons.length > 0" class="eve-card p-6 text-center">
+        <p v-for="reason in productionCostUnknownReasons" :key="reason" class="text-sm text-amber-400">{{ t(`industry.inventionUnknown.${reason}`) }}</p>
         <p v-if="missingPriceTypeNames !== ''" class="mt-1 text-xs text-amber-400/80">{{ t('industry.inventionUnknown.missingPriceTypes', { types: missingPriceTypeNames }) }}</p>
       </div>
 
@@ -692,13 +693,13 @@ store.fetchUserSettings()
                 </span>
               </td>
               <td class="py-2.5 px-3 text-right font-mono text-slate-300">{{ step.runs }}</td>
-              <td class="py-2.5 px-4 text-right font-mono text-slate-200">{{ step.installCost.toLocaleString(undefined, { maximumFractionDigits: 0 }) }}</td>
+              <td class="py-2.5 px-4 text-right font-mono text-slate-200">{{ formatAmount(step.installCost, { maximumFractionDigits: 0 }) }}</td>
             </tr>
           </tbody>
           <tfoot>
             <tr class="border-t border-slate-700 bg-slate-800/30">
               <td colspan="4" class="py-3 px-4 text-right text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.margins.totalJobInstallCost') }}</td>
-              <td class="py-3 px-4 text-right font-mono text-slate-100 font-bold text-base">{{ formatIskFull(result.jobInstallCost) }}</td>
+              <td class="py-3 px-4 text-right font-mono text-slate-100 font-bold text-base">{{ formatFullCost(result.jobInstallCost) }}</td>
             </tr>
           </tfoot>
         </table>
@@ -745,7 +746,7 @@ store.fetchUserSettings()
             </div>
             <div>
               <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costEstimation.jobInstall') }}</div>
-              <div class="font-mono text-slate-200 text-lg">{{ formatIsk(result.jobInstallCost) }}</div>
+              <div class="font-mono text-slate-200 text-lg">{{ formatCost(result.jobInstallCost) }}</div>
               <div class="text-xs text-slate-600 font-mono">{{ formatPercent(jobInstallPercent) }}</div>
             </div>
             <div v-if="result.isT2">
@@ -763,7 +764,7 @@ store.fetchUserSettings()
           <!-- Breakdown bar (only meaningful when the total cost is known) -->
           <div v-if="materialPercent != null && jobInstallPercent != null && inventionPercent != null" class="h-3 rounded-full overflow-hidden flex bg-slate-800">
             <div class="bg-blue-500/60" :style="{ width: materialPercent + '%' }" :title="`Materials: ${formatIsk(result.materialCost)} (${materialPercent.toFixed(1)}%)`"></div>
-            <div class="bg-amber-500/60" :style="{ width: jobInstallPercent + '%' }" :title="`Job Install: ${formatIsk(result.jobInstallCost)} (${jobInstallPercent.toFixed(1)}%)`"></div>
+            <div class="bg-amber-500/60" :style="{ width: jobInstallPercent + '%' }" :title="`Job Install: ${formatCost(result.jobInstallCost)} (${jobInstallPercent.toFixed(1)}%)`"></div>
             <div v-if="result.isT2" class="bg-purple-500/60" :style="{ width: inventionPercent + '%' }" :title="`Invention: ${formatCost(effectiveInventionPlusCopy)} (${inventionPercent.toFixed(1)}%)`"></div>
           </div>
           <div class="flex items-center gap-4 mt-2 text-xs">

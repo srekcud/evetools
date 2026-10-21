@@ -55,9 +55,9 @@ class ProfitMarginResource
     /** @var list<array{typeId: int, typeName: string, quantity: int, unitPrice: float|null, totalPrice: float|null}> */
     public array $materials = [];
 
-    public float $jobInstallCost = 0;
+    public ?float $jobInstallCost = null;
 
-    /** @var list<array{productTypeId: int, productName: string, activityType: string, runs: int, installCost: float}> */
+    /** @var list<array{productTypeId: int, productName: string, activityType: string, runs: int, installCost: float|null, unknownReason: string|null}> */
     public array $jobInstallSteps = [];
 
     /** Null when the invention success probability is unknown (see invention.unknownReason). */
@@ -94,4 +94,7 @@ class ProfitMarginResource
 
     /** @var list<int> */
     public array $missingPriceTypeIds = [];
+
+    /** @var list<string> */
+    public array $unknownInstallCostReasons = [];
 }
