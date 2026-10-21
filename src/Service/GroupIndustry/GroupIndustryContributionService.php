@@ -38,8 +38,8 @@ class GroupIndustryContributionService
     ): GroupIndustryContribution {
         $this->validateAntiDuplicate($member, $bomItem, $type);
 
-        if ($estimatedValue === null && $type === ContributionType::Material) {
-            $estimatedValue = $this->calculateMaterialValue($bomItem->getTypeId(), $quantity);
+        if ($type === ContributionType::Material) {
+            $estimatedValue = $this->resolveMaterialValue($bomItem->getTypeId(), $quantity, $estimatedValue);
         }
 
         $contribution = new GroupIndustryContribution();
@@ -163,16 +163,26 @@ class GroupIndustryContributionService
      * Calculate the Ravworks-style value for a material contribution.
      * Uses the cheapest 5% percentile of Jita sell orders.
      */
-    public function calculateMaterialValue(int $typeId, int $quantity): float
+    public function calculateMaterialValue(int $typeId, int $quantity): ?float
     {
         $prices = $this->jitaMarketService->getCheapestPercentilePrices([$typeId]);
         $price = $prices[$typeId] ?? null;
 
         if ($price === null) {
-            return 0.0;
+            return null;
         }
 
         return $price * $quantity;
+    }
+
+    private function resolveMaterialValue(int $typeId, int $quantity, ?float $enteredValue): float
+    {
+        if ($enteredValue !== null && $enteredValue > 0) {
+            return $enteredValue;
+        }
+
+        return $this->calculateMaterialValue($typeId, $quantity)
+            ?? throw new \DomainException(sprintf('No market price for type %d: enter an estimated value.', $typeId));
     }
 
     private function incrementFulfillment(GroupIndustryBomItem $bomItem, int $quantity): void

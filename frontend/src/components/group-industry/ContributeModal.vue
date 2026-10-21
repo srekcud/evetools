@@ -71,6 +71,16 @@ const autoEstimatedValue = computed(() => {
   return selectedBomItem.value.estimatedPrice * quantity.value
 })
 
+const materialPriceIsUnknown = computed(() =>
+  selectedType.value === 'material'
+  && selectedBomItem.value !== null
+  && selectedBomItem.value.estimatedPrice == null
+)
+
+const requiresEnteredValue = computed(() =>
+  selectedType.value === 'bpc' || selectedType.value === 'line_rental' || materialPriceIsUnknown.value
+)
+
 const displayedValue = computed(() => {
   if (selectedType.value === 'material' && autoEstimatedValue.value != null) {
     return autoEstimatedValue.value
@@ -81,7 +91,7 @@ const displayedValue = computed(() => {
 const isFormValid = computed(() => {
   if (!selectedBomItemId.value && selectedType.value !== 'line_rental') return false
   if (quantity.value <= 0) return false
-  if (selectedType.value === 'bpc' && estimatedValue.value <= 0) return false
+  if ((selectedType.value === 'bpc' || materialPriceIsUnknown.value) && estimatedValue.value <= 0) return false
   return true
 })
 
@@ -133,7 +143,7 @@ async function submit(): Promise<void> {
     input.bomItemId = selectedBomItemId.value
   }
 
-  if (selectedType.value === 'bpc' || selectedType.value === 'line_rental') {
+  if (requiresEnteredValue.value) {
     input.estimatedValue = estimatedValue.value
   } else if (autoEstimatedValue.value != null) {
     input.estimatedValue = autoEstimatedValue.value
@@ -293,7 +303,7 @@ async function submit(): Promise<void> {
               </div>
 
               <!-- Manual estimated value for BPC / Line Rental -->
-              <div v-if="selectedType === 'bpc' || selectedType === 'line_rental'">
+              <div v-if="requiresEnteredValue">
                 <label class="text-sm font-medium text-slate-300 mb-1.5 block">
                   {{ t('groupIndustry.contribute.estimatedValue') }} (ISK)
                 </label>
@@ -312,7 +322,7 @@ async function submit(): Promise<void> {
                 <p class="text-3xl font-mono font-bold text-emerald-400" style="font-variant-numeric: tabular-nums;">
                   {{ formatIskFull(displayedValue) }}
                 </p>
-                <p v-if="selectedType === 'material'" class="text-xs text-slate-500 mt-2">Method: Jita weighted sell price</p>
+                <p v-if="autoEstimatedValue != null" class="text-xs text-slate-500 mt-2">Method: Jita weighted sell price</p>
               </div>
 
               <!-- Notes -->
