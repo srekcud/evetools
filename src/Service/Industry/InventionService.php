@@ -25,6 +25,9 @@ class InventionService
     public const BASE_INVENTION_TE = 4;
 
     public const UNKNOWN_REASON_MISSING_PROBABILITY = 'missing_invention_probability';
+    public const UNKNOWN_REASON_MISSING_MARKET_PRICE = 'missing_market_price';
+
+    public const NO_DECRYPTOR_NAME = 'No Decryptor';
 
     /**
      * Standard decryptors with their modifiers.
@@ -228,11 +231,12 @@ class InventionService
      *     me: int,
      *     te: int,
      *     runs: int,
-     *     costPerAttempt: float,
+     *     costPerAttempt: ?float,
      *     totalCost: ?float,
-     *     costBreakdown: array{datacores: float, decryptor: float, copyCost: float, inventionInstall: float},
-     *     datacores: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: float, totalPrice: float}>,
+     *     costBreakdown: array{datacores: ?float, decryptor: ?float, copyCost: float, inventionInstall: float},
+     *     datacores: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: ?float, totalPrice: ?float}>,
      *     decryptorName: ?string,
+     *     missingPriceTypeIds: list<int>,
      *     unknownReason: ?string
      * }|null
      */
@@ -260,16 +264,17 @@ class InventionService
         $teModifier = 0;
         $runModifier = 0;
         $decryptorName = null;
-        $decryptorPrice = 0.0;
+        $pricedTypeIds = array_map(fn (array $m) => $m['typeId'], $inventionData['materials']);
+        $isDecryptorUsed = $decryptorTypeId !== null && isset(self::DECRYPTORS[$decryptorTypeId]);
 
-        if ($decryptorTypeId !== null && isset(self::DECRYPTORS[$decryptorTypeId])) {
+        if ($isDecryptorUsed) {
             $decryptor = self::DECRYPTORS[$decryptorTypeId];
             $probabilityMultiplier = $decryptor['probabilityMultiplier'];
             $meModifier = $decryptor['meModifier'];
             $teModifier = $decryptor['teModifier'];
             $runModifier = $decryptor['runModifier'];
             $decryptorName = $decryptor['name'];
-            $decryptorPrice = $this->jitaMarketService->getPrice($decryptorTypeId) ?? 0.0;
+            $pricedTypeIds[] = $decryptorTypeId;
         }
 
         $me = self::BASE_INVENTION_ME + $meModifier;
@@ -277,15 +282,28 @@ class InventionService
         $runs = $baseRuns + $runModifier;
 
         // Cost per attempt: datacores + decryptor + T1 BPC copy cost + invention install
-        $datacoreTypeIds = array_map(fn (array $m) => $m['typeId'], $inventionData['materials']);
-        $datacorePrices = $this->jitaMarketService->getPricesWithFallback($datacoreTypeIds);
+        $marketPrices = $this->jitaMarketService->getPricesWithFallback($pricedTypeIds);
+        $missingPriceTypeIds = [];
+
+        $decryptorPrice = 0.0;
+        if ($isDecryptorUsed) {
+            $decryptorPrice = $marketPrices[$decryptorTypeId] ?? null;
+            if ($decryptorPrice === null) {
+                $missingPriceTypeIds[] = $decryptorTypeId;
+            }
+        }
 
         $datacores = [];
         $datacoreTotalCost = 0.0;
         foreach ($inventionData['materials'] as $material) {
-            $unitPrice = $datacorePrices[$material['typeId']] ?? 0.0;
-            $totalPrice = $unitPrice * $material['quantity'];
-            $datacoreTotalCost += $totalPrice;
+            $unitPrice = $marketPrices[$material['typeId']] ?? null;
+            $totalPrice = null;
+            if ($unitPrice === null) {
+                $missingPriceTypeIds[] = $material['typeId'];
+            } else {
+                $totalPrice = $unitPrice * $material['quantity'];
+                $datacoreTotalCost += $totalPrice;
+            }
             $datacores[] = [
                 'typeId' => $material['typeId'],
                 'typeName' => $material['typeName'],
@@ -305,18 +323,23 @@ class InventionService
             ? 0.02 * $t2Eiv * $inventionCostIndex * $inventionTaxMultiplier
             : 0.0;
 
-        $costPerAttempt = $datacoreTotalCost + $decryptorPrice + $copyCost + $inventionInstallCost;
+        $isDatacoreCostUnknown = in_array(null, array_column($datacores, 'unitPrice'), true);
+        $datacoreCost = $isDatacoreCostUnknown ? null : $datacoreTotalCost;
+        $costPerAttempt = $missingPriceTypeIds === []
+            ? $datacoreTotalCost + $decryptorPrice + $copyCost + $inventionInstallCost
+            : null;
 
         $effectiveProbability = null;
         $expectedAttempts = null;
         $totalCost = null;
-        $unknownReason = self::UNKNOWN_REASON_MISSING_PROBABILITY;
         if ($baseProbability !== null) {
             $effectiveProbability = $baseProbability * $probabilityMultiplier;
             $expectedAttempts = (int) ceil($desiredSuccesses / $effectiveProbability);
-            $totalCost = $expectedAttempts * $costPerAttempt;
-            $unknownReason = null;
+            $totalCost = $costPerAttempt === null ? null : $expectedAttempts * $costPerAttempt;
         }
+
+        $missingPriceTypeIds = array_unique($missingPriceTypeIds);
+        sort($missingPriceTypeIds);
 
         return [
             'baseProbability' => $baseProbability,
@@ -328,14 +351,19 @@ class InventionService
             'costPerAttempt' => $costPerAttempt,
             'totalCost' => $totalCost,
             'costBreakdown' => [
-                'datacores' => $datacoreTotalCost,
+                'datacores' => $datacoreCost,
                 'decryptor' => $decryptorPrice,
                 'copyCost' => $copyCost,
                 'inventionInstall' => $inventionInstallCost,
             ],
             'datacores' => $datacores,
             'decryptorName' => $decryptorName,
-            'unknownReason' => $unknownReason,
+            'missingPriceTypeIds' => $missingPriceTypeIds,
+            'unknownReason' => match (true) {
+                $baseProbability === null => self::UNKNOWN_REASON_MISSING_PROBABILITY,
+                $missingPriceTypeIds !== [] => self::UNKNOWN_REASON_MISSING_MARKET_PRICE,
+                default => null,
+            },
         ];
     }
 
@@ -353,7 +381,7 @@ class InventionService
      *         baseProbability: ?float,
      *         unknownReason: ?string,
      *         desiredSuccesses: int,
-     *         datacores: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: float, totalPrice: float}>,
+     *         datacores: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: ?float, totalPrice: ?float}>,
      *         decryptorOptions: list<array{
      *             decryptorTypeId: ?int,
      *             decryptorName: string,
@@ -361,10 +389,12 @@ class InventionService
      *             te: int,
      *             runs: int,
      *             probability: ?float,
-     *             costPerAttempt: float,
+     *             costPerAttempt: ?float,
      *             expectedAttempts: ?int,
      *             totalCost: ?float,
-     *             costBreakdown: array{datacores: float, decryptor: float, copyCost: float, inventionInstall: float}
+     *             costBreakdown: array{datacores: ?float, decryptor: ?float, copyCost: float, inventionInstall: float},
+     *             missingPriceTypeIds: list<int>,
+     *             unknownReason: ?string
      *         }>
      *     }>,
      *     summary: array{totalInventionCost: ?float, bestDecryptorTypeId: ?int, totalBpcKitCost: ?float}
@@ -486,7 +516,7 @@ class InventionService
     /**
      * Build all decryptor options (including "no decryptor") for a T2 item.
      *
-     * @return list<array{decryptorTypeId: ?int, decryptorName: string, me: int, te: int, runs: int, probability: ?float, costPerAttempt: float, expectedAttempts: ?int, totalCost: ?float, costBreakdown: array{datacores: float, decryptor: float, copyCost: float, inventionInstall: float}}>
+     * @return list<array{decryptorTypeId: ?int, decryptorName: string, me: int, te: int, runs: int, probability: ?float, costPerAttempt: ?float, expectedAttempts: ?int, totalCost: ?float, costBreakdown: array{datacores: ?float, decryptor: ?float, copyCost: float, inventionInstall: float}, missingPriceTypeIds: list<int>, unknownReason: ?string}>
      */
     public function buildDecryptorOptions(
         int $t2TypeId,
@@ -496,32 +526,7 @@ class InventionService
     ): array {
         $options = [];
 
-        // "No decryptor" option first
-        $noDecryptor = $this->calculateInventionCost(
-            $t2TypeId,
-            $solarSystemId,
-            null,
-            $desiredSuccesses,
-            $facilityTaxRate,
-        );
-
-        if ($noDecryptor !== null) {
-            $options[] = [
-                'decryptorTypeId' => null,
-                'decryptorName' => 'No Decryptor',
-                'me' => $noDecryptor['me'],
-                'te' => $noDecryptor['te'],
-                'runs' => $noDecryptor['runs'],
-                'probability' => $noDecryptor['effectiveProbability'],
-                'costPerAttempt' => $noDecryptor['costPerAttempt'],
-                'expectedAttempts' => $noDecryptor['expectedAttempts'],
-                'totalCost' => $noDecryptor['totalCost'],
-                'costBreakdown' => $noDecryptor['costBreakdown'],
-            ];
-        }
-
-        // Each decryptor option
-        foreach (self::DECRYPTORS as $decryptorTypeId => $decryptor) {
+        foreach ([null, ...array_keys(self::DECRYPTORS)] as $decryptorTypeId) {
             $result = $this->calculateInventionCost(
                 $t2TypeId,
                 $solarSystemId,
@@ -533,7 +538,7 @@ class InventionService
             if ($result !== null) {
                 $options[] = [
                     'decryptorTypeId' => $decryptorTypeId,
-                    'decryptorName' => $decryptor['name'],
+                    'decryptorName' => $decryptorTypeId === null ? self::NO_DECRYPTOR_NAME : self::DECRYPTORS[$decryptorTypeId]['name'],
                     'me' => $result['me'],
                     'te' => $result['te'],
                     'runs' => $result['runs'],
@@ -542,6 +547,8 @@ class InventionService
                     'expectedAttempts' => $result['expectedAttempts'],
                     'totalCost' => $result['totalCost'],
                     'costBreakdown' => $result['costBreakdown'],
+                    'missingPriceTypeIds' => $result['missingPriceTypeIds'],
+                    'unknownReason' => $result['unknownReason'],
                 ];
             }
         }

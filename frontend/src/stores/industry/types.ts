@@ -371,7 +371,7 @@ export interface ProfitMarginInventionOption {
   bestMargin: number | null
 }
 
-export type InventionUnknownReason = 'missing_invention_probability'
+export type InventionUnknownReason = 'missing_invention_probability' | 'missing_market_price'
 
 export interface ProfitMarginResult {
   typeId: number
@@ -487,8 +487,8 @@ export interface BpcKitDatacore {
   typeId: number
   typeName: string | null
   quantity: number
-  unitPrice: number
-  totalPrice: number
+  unitPrice: number | null
+  totalPrice: number | null
 }
 
 export interface BpcKitDecryptorOption {
@@ -498,15 +498,17 @@ export interface BpcKitDecryptorOption {
   te: number
   runs: number
   probability: number | null
-  costPerAttempt: number
+  costPerAttempt: number | null
   expectedAttempts: number | null
   totalCost: number | null
   costBreakdown: {
-    datacores: number
-    decryptor: number
+    datacores: number | null
+    decryptor: number | null
     copyCost: number
     inventionInstall: number
   }
+  missingPriceTypeIds: number[]
+  unknownReason: InventionUnknownReason | null
 }
 
 export interface BpcKitInvention {

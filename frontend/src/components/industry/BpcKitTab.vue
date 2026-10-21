@@ -115,6 +115,11 @@ function formatProbability(probability: number | null): string {
   return `${(probability * 100).toFixed(1)}%`
 }
 
+function formatCost(cost: number | null): string {
+  if (cost == null) return t('industry.inventionUnknown.label')
+  return formatIsk(cost)
+}
+
 function isSelected(option: BpcKitDecryptorOption): boolean {
   if (selectedDecryptorTypeId.value === undefined) {
     return isBestOption(option)
@@ -355,18 +360,18 @@ onMounted(() => {
 
                 <!-- Cost per attempt (with tooltip) -->
                 <td class="py-2.5 px-3 text-right font-mono relative" :class="isBestOption(option) ? 'text-slate-100 font-semibold' : 'text-slate-300'">
-                  {{ formatIsk(option.costPerAttempt) }}
+                  {{ formatCost(option.costPerAttempt) }}
                   <!-- Cost breakdown tooltip -->
                   <div class="hidden group-hover:block absolute right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-3 w-56 text-xs z-50">
                     <div class="space-y-1.5">
                       <div class="flex justify-between">
                         <span class="text-slate-400">{{ t('industry.bpcKitTab.datacoresLabel') }}</span>
-                        <span class="font-mono text-slate-200">{{ formatIsk(option.costBreakdown.datacores) }}</span>
+                        <span class="font-mono text-slate-200">{{ formatCost(option.costBreakdown.datacores) }}</span>
                       </div>
                       <div class="flex justify-between">
                         <span class="text-slate-400">{{ t('industry.bpcKitTab.decryptor') }}</span>
-                        <span class="font-mono" :class="option.costBreakdown.decryptor > 0 ? 'text-slate-200' : 'text-slate-500'">
-                          {{ option.costBreakdown.decryptor > 0 ? formatIsk(option.costBreakdown.decryptor) : '--' }}
+                        <span class="font-mono" :class="option.costBreakdown.decryptor === 0 ? 'text-slate-500' : 'text-slate-200'">
+                          {{ option.costBreakdown.decryptor === 0 ? '--' : formatCost(option.costBreakdown.decryptor) }}
                         </span>
                       </div>
                       <div class="flex justify-between">
@@ -379,7 +384,7 @@ onMounted(() => {
                       </div>
                       <div class="border-t border-slate-700 pt-1.5 flex justify-between font-semibold">
                         <span class="text-slate-300">Total</span>
-                        <span class="font-mono text-slate-100">{{ formatIsk(option.costPerAttempt) }}</span>
+                        <span class="font-mono text-slate-100">{{ formatCost(option.costPerAttempt) }}</span>
                       </div>
                     </div>
                   </div>
@@ -395,7 +400,7 @@ onMounted(() => {
                   isBestOption(option) ? 'text-emerald-400 font-bold' : 'text-slate-200',
                   isSelected(option) && !isBestOption(option) ? 'text-cyan-400 font-semibold' : '',
                 ]">
-                  {{ option.totalCost != null ? formatIsk(option.totalCost) : t('industry.inventionUnknown.label') }}
+                  {{ formatCost(option.totalCost) }}
                 </td>
               </tr>
             </tbody>

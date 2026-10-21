@@ -149,7 +149,7 @@ class ProfitMarginService
                 );
 
                 // Resolve selected decryptor name
-                $selectedDecryptorName = $inventionResult['decryptorName'] ?? 'No Decryptor';
+                $selectedDecryptorName = $inventionResult['decryptorName'] ?? InventionService::NO_DECRYPTOR_NAME;
 
                 // Transform decryptor options to match frontend contract
                 $options = [];
