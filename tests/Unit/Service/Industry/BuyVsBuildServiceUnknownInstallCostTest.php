@@ -322,6 +322,52 @@ final class BuyVsBuildServiceUnknownInstallCostTest extends TestCase
         $this->assertSame(['missing_adjusted_price', 'missing_cost_index'], $result['unknownInstallCostReasons']);
     }
 
+    public function testEachComponentInstallCostUsesTheCostIndexOfTheSystemOfItsActivity(): void
+    {
+        $result = $this->analyzeHailLWithReactionSystem(self::FACTORY_SYSTEM_ID, self::REACTION_ONLY_SYSTEM_ID);
+
+        $this->assertSame(
+            [
+                [self::FERNITE_CARBIDE, 11280.0, 165780.0, 188160.0, 'build', 22380.0, 11.89],
+                [self::RAM_AMMUNITION_TECH, 2361.8, 53506.8, 60000.0, 'build', 6493.2, 10.82],
+                [self::FULLERIDES, 12320.0, 206820.0, 205800.0, 'buy', -1020.0, 0.49],
+            ],
+            $this->installCostAndVerdictOfEachComponent($result),
+        );
+        $this->assertSame(425086.8, $result['optimalMixCost']);
+        $this->assertSame(596136.8, $result['totalProductionCost']);
+        $this->assertSame([], $result['unknownInstallCostReasons']);
+    }
+
+    public function testWithoutReactionCostIndexInTheReactionSystemOnlyReactionsHaveAnUnknownInstallCostWhileManufacturingUsesItsOwnSystem(): void
+    {
+        $result = $this->analyzeHailLWithReactionSystem(self::FACTORY_SYSTEM_ID, self::MANUFACTURING_ONLY_SYSTEM_ID);
+
+        $this->assertSame(
+            [
+                [self::RAM_AMMUNITION_TECH, 2361.8, 53506.8, 60000.0, 'build', 6493.2, 10.82],
+                [self::FERNITE_CARBIDE, null, null, 188160.0, 'buy', null, null],
+                [self::FULLERIDES, null, null, 205800.0, 'buy', null, null],
+            ],
+            $this->installCostAndVerdictOfEachComponent($result),
+        );
+        $this->assertNull($result['buildAllCost']);
+        $this->assertSame(447466.8, $result['optimalMixCost']);
+        $this->assertSame(618516.8, $result['totalProductionCost']);
+        $this->assertSame(['missing_cost_index'], $result['unknownInstallCostReasons']);
+    }
+
+    private function analyzeHailLWithReactionSystem(int $solarSystemId, int $reactionSolarSystemId): array
+    {
+        return $this->buyVsBuildServiceOnGoldenSde(
+            jitaPrices: self::JITA_PRICES,
+            structurePrices: [],
+            adjustedPrices: self::ADJUSTED_PRICES,
+            costIndices: self::COST_INDICES,
+            isT2: true,
+        )->analyze(self::HAIL_L, self::RUNS, self::ME_LEVEL, $solarSystemId, self::SELL_STRUCTURE_ID, self::BROKER_FEE_RATE, self::SALES_TAX_RATE, null, $reactionSolarSystemId);
+    }
+
     private function analyzeHailL(
         int $solarSystemId,
         array $jitaPrices = self::JITA_PRICES,
