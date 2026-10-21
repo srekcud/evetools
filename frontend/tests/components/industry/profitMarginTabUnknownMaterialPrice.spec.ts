@@ -114,7 +114,8 @@ function materialPriceCells(wrapper: VueWrapper, typeName: string): string[] {
 function lastCellOfRowContaining(wrapper: VueWrapper, text: string): string {
   const row = wrapper.findAll('tr').find(candidate => candidate.text().includes(text))
   expect(row, `row ${text}`).toBeDefined()
-  return row!.findAll('td').at(-1)!.text()
+  const cells = row!.findAll('td')
+  return cells[cells.length - 1]!.text()
 }
 
 function summaryCardAmount(wrapper: VueWrapper, label: string): string {

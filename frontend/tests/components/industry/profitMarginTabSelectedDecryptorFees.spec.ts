@@ -80,6 +80,7 @@ const SABRE_MARGIN_RESULT: ProfitMarginResult = {
     structureBuy: { revenue: 160_000, fees: 3_200, profit: 25_800, margin: 19.69 },
   },
   dailyVolume: null,
+  missingPriceTypeIds: [],
 }
 
 const marginLabels = en.industry.margins
