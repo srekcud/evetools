@@ -134,8 +134,14 @@ function saveCostsButton(wrapper: Awaited<ReturnType<typeof mountLoadedCostEstim
   return button!
 }
 
+const JOB_INSTALL_TABLE_INDEX = 1
+
+function jobInstallTable(wrapper: Awaited<ReturnType<typeof mountLoadedCostEstimationTab>>) {
+  return wrapper.findAll('table')[JOB_INSTALL_TABLE_INDEX]
+}
+
 function stepCells(wrapper: Awaited<ReturnType<typeof mountLoadedCostEstimationTab>>, stepIndex: number) {
-  return wrapper.findAll('tbody tr')[stepIndex].findAll('td').map(cell => cell.text())
+  return jobInstallTable(wrapper).findAll('tbody tr')[stepIndex].findAll('td').map(cell => cell.text())
 }
 
 beforeEach(() => {
@@ -156,7 +162,7 @@ describe('CostEstimationTab with an unknown job install cost', () => {
     const totalCostCard = summaryCard(wrapper, labels.totalProductionCost)
     expect(totalCostCard.find('p:nth-of-type(2)').text()).toBe(unknownLabel)
     expect(totalCostCard.find('p:nth-of-type(3)').text()).toContain(`${labels.perUnit}: ${unknownLabel}`)
-    expect(wrapper.find('tfoot').text()).toContain(unknownLabel)
+    expect(jobInstallTable(wrapper).find('tfoot').text()).toContain(unknownLabel)
   })
 
   it.each([
