@@ -163,6 +163,57 @@ final class CachedIndustryJobRepositoryTest extends IntegrationTestCase
         self::assertSame([300, 301, 302], $this->jobIdsOf($this->repository->findActiveJobsByCharacter($character)));
     }
 
+    #[Group('issue-216')]
+    public function testCompletionNotificationOfAJobIsReservedOnlyOnce(): void
+    {
+        $this->createJob(status: 'ready', jobId: 100, cost: 1_250_000.0);
+        $this->createJob(status: 'ready', jobId: 101, cost: 875_000.5);
+        $this->flushAndClear();
+
+        $firstClaim = $this->repository->claimCompletionNotification(100, new \DateTimeImmutable('2026-10-22 18:30:00'));
+        $secondClaim = $this->repository->claimCompletionNotification(100, new \DateTimeImmutable('2026-10-22 19:00:00'));
+
+        self::assertTrue($firstClaim);
+        self::assertFalse($secondClaim);
+        self::assertSame(
+            [100 => '2026-10-22 18:30:00', 101 => null],
+            $this->completionNotifiedAtOf(100, 101),
+        );
+    }
+
+    #[Group('issue-216')]
+    public function testReleasedCompletionNotificationCanBeReservedAgain(): void
+    {
+        $this->createJob(status: 'ready', jobId: 100, cost: 1_250_000.0);
+        $this->createJob(status: 'delivered', jobId: 101, cost: 875_000.5);
+        $this->flushAndClear();
+        $this->repository->claimCompletionNotification(100, new \DateTimeImmutable('2026-10-22 18:30:00'));
+        $this->repository->claimCompletionNotification(101, new \DateTimeImmutable('2026-10-22 18:45:00'));
+
+        $this->repository->releaseCompletionNotification(100);
+
+        self::assertSame(
+            [100 => null, 101 => '2026-10-22 18:45:00'],
+            $this->completionNotifiedAtOf(100, 101),
+        );
+        self::assertTrue($this->repository->claimCompletionNotification(100, new \DateTimeImmutable('2026-10-22 20:15:00')));
+        self::assertSame(
+            [100 => '2026-10-22 20:15:00', 101 => '2026-10-22 18:45:00'],
+            $this->completionNotifiedAtOf(100, 101),
+        );
+    }
+
+    private function completionNotifiedAtOf(int ...$jobIds): array
+    {
+        $this->em->clear();
+        $completionNotifiedAtByJobId = [];
+        foreach ($jobIds as $jobId) {
+            $completionNotifiedAtByJobId[$jobId] = $this->repository->findByJobId($jobId)?->getCompletionNotifiedAt()?->format('Y-m-d H:i:s');
+        }
+
+        return $completionNotifiedAtByJobId;
+    }
+
     /**
      * @param list<Character>|null $characters
      *

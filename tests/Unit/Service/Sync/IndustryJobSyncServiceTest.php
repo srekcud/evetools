@@ -45,6 +45,8 @@ class IndustryJobSyncServiceTest extends TestCase
     use ResolvesTypeNamesFromSde;
 
     private const int TYPE_ID_MISSING_FROM_SDE = 1000;
+    private const int TRITANIUM_TYPE_ID = 34;
+    private const string TRITANIUM_NAME = 'Tritanium';
     private const string CHARACTER_JOBS_SCOPE = 'esi-industry.read_character_jobs.v1';
     private const string CORPORATION_JOBS_SCOPE = 'esi-industry.read_corporation_jobs.v1';
 
@@ -60,16 +62,40 @@ class IndustryJobSyncServiceTest extends TestCase
     private array $persistedJobs = [];
     private int $flushCount = 0;
     private array $jobMatches = [];
+    private array $reservedCompletionNotificationJobIds = [];
+    private array $completionNotificationEvents = [];
+    private array $dispatchedNotifications = [];
+    private array $notificationRecipients = [];
 
     protected function setUp(): void
     {
         $this->logger = new BufferingLogger();
         $this->esiClient = $this->createMock(EsiClient::class);
         $this->jobRepository = $this->createMock(CachedIndustryJobRepository::class);
-        $this->invTypeRepository = $this->sdeTypeRepositoryKnowingOnlyNitrogenFuelBlock();
+        $this->invTypeRepository = $this->sdeTypeRepositoryKnowing([
+            self::NITROGEN_FUEL_BLOCK_TYPE_ID => self::NITROGEN_FUEL_BLOCK_NAME,
+            self::TRITANIUM_TYPE_ID => self::TRITANIUM_NAME,
+        ]);
         $this->em = $this->createMock(EntityManagerInterface::class);
         $this->jobMatchRepository = $this->createStub(IndustryStepJobMatchRepository::class);
         $this->notificationDispatcher = $this->createMock(NotificationDispatcher::class);
+        $this->jobRepository->method('claimCompletionNotification')->willReturnCallback(
+            function (int $jobId, \DateTimeImmutable $claimedAt): bool {
+                $this->completionNotificationEvents[] = ['claim', $jobId];
+                if (in_array($jobId, $this->reservedCompletionNotificationJobIds, true)) {
+                    return false;
+                }
+                $this->reservedCompletionNotificationJobIds[] = $jobId;
+
+                return true;
+            },
+        );
+        $this->jobRepository->method('releaseCompletionNotification')->willReturnCallback(
+            function (int $jobId): void {
+                $this->completionNotificationEvents[] = ['release', $jobId];
+                $this->reservedCompletionNotificationJobIds = array_values(array_diff($this->reservedCompletionNotificationJobIds, [$jobId]));
+            },
+        );
 
         $mercureHub = $this->createStub(HubInterface::class);
         $mercureHub->method('publish')->willReturnCallback(function (Update $update): string {
@@ -1050,9 +1076,301 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->assertSame(['ready', '2026-10-23T06:15:00+00:00', 640_000.25, 3], $this->jobStateOf($jobMatch));
     }
 
+    #[Group('issue-216')]
+    #[DataProvider('jobsToNotify')]
+    public function testJobToNotifyIsReservedThenNotifiedOnce(?string $cachedStatus, string $esiStatus, string $expectedMessage): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->esiClient->method('get')->willReturn([$this->makeTritaniumJobData(100, 12345, $esiStatus)]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $cachedJobs = $cachedStatus === null ? [] : [$this->makeCachedJob(100, $character, $cachedStatus, '-1 hour')];
+        $this->stubCachedJobs($cachedJobs);
+        $this->stubActiveJobsByCharacter($cachedJobs);
+        $this->recordDispatchedNotifications();
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([['claim', 100], ['dispatch', 100]], $this->completionNotificationEvents);
+        $this->assertSame([100], $this->reservedCompletionNotificationJobIds);
+        $this->assertSame([$character->getUser()], $this->notificationRecipients);
+        $this->assertSame([[
+            Notification::CATEGORY_INDUSTRY,
+            Notification::LEVEL_SUCCESS,
+            'Job completed: Tritanium',
+            $expectedMessage,
+            [
+                'jobId' => 100,
+                'productTypeId' => 34,
+                'productName' => 'Tritanium',
+                'runs' => 10,
+                'activityId' => 1,
+            ],
+            '/industry',
+        ]], $this->dispatchedNotifications);
+        $this->assertSame([100], $this->jobIdsOfMercureJobCompletedNotifications());
+    }
+
+    public static function jobsToNotify(): iterable
+    {
+        yield 'E1 cached active job read ready' => ['active', 'ready', 'Tritanium Manufacturing (10x) ready to deliver'];
+        yield 'E2 unknown job read ready' => [null, 'ready', 'Tritanium Manufacturing (10x) ready to deliver'];
+        yield 'E4 cached active job read delivered' => ['active', 'delivered', 'Tritanium Manufacturing (10x) delivered'];
+        yield 'E6 cached ready job never reserved read ready' => ['ready', 'ready', 'Tritanium Manufacturing (10x) ready to deliver'];
+        yield 'E7 cached paused job read ready' => ['paused', 'ready', 'Tritanium Manufacturing (10x) ready to deliver'];
+    }
+
+    #[Group('issue-216')]
+    #[DataProvider('jobsWhoseNotificationIsAlreadyReserved')]
+    public function testJobWhoseNotificationIsAlreadyReservedIsNotNotifiedAgain(string $cachedStatus, ?string $cachedCompletionNotifiedAt): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->esiClient->method('get')->willReturn([$this->makeTritaniumJobData(100, 12345, 'ready')]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $cachedJob = $this->makeCachedJob(100, $character, $cachedStatus, '-1 hour');
+        $cachedJob->setCompletionNotifiedAt($cachedCompletionNotifiedAt === null ? null : new \DateTimeImmutable($cachedCompletionNotifiedAt));
+        $this->stubCachedJobs([$cachedJob]);
+        $this->stubActiveJobsByCharacter([$cachedJob]);
+        $this->reservedCompletionNotificationJobIds = [100];
+        $this->recordDispatchedNotifications();
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([], $this->dispatchedNotifications);
+        $this->assertSame([], $this->jobIdsOfMercureJobCompletedNotifications());
+        $this->assertSame([100], $this->reservedCompletionNotificationJobIds);
+        $this->assertNotContains(['release', 100], $this->completionNotificationEvents);
+    }
+
+    public static function jobsWhoseNotificationIsAlreadyReserved(): iterable
+    {
+        yield 'E5 cached ready job already reserved' => ['ready', '2026-10-22 09:15:00'];
+        yield 'E8 cached active job reserved meanwhile by another sync' => ['active', null];
+    }
+
+    #[Group('issue-216')]
+    public function testFailedSendReleasesItsReservationKeepsEarlierOnesAndPropagates(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $failedJobData = $this->makeJobData(101, 12345, 'ready', self::NITROGEN_FUEL_BLOCK_TYPE_ID);
+        $failedJobData['runs'] = 4;
+        $this->esiClient->method('get')->willReturn([$this->makeTritaniumJobData(100, 12345, 'ready'), $failedJobData]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $cachedJobs = [
+            $this->makeCachedJob(100, $character, 'active', '-1 hour'),
+            $this->makeCachedJob(101, $character, 'active', '-2 hours'),
+        ];
+        $this->stubCachedJobs($cachedJobs);
+        $this->stubActiveJobsByCharacter($cachedJobs);
+        $sendFailure = new \RuntimeException('Push endpoint unreachable');
+        $this->recordDispatchedNotifications(failingJobId: 101, failure: $sendFailure);
+
+        $this->assertSame($sendFailure, $this->syncCatchingFailure($character));
+
+        $this->assertSame([100], $this->reservedCompletionNotificationJobIds);
+        $this->assertSame(
+            [['claim', 100], ['dispatch', 100], ['claim', 101], ['dispatch', 101], ['release', 101]],
+            $this->completionNotificationEvents,
+        );
+        $this->assertSame([100], array_map(
+            static fn (array $notification): int => $notification[4]['jobId'],
+            $this->dispatchedNotifications,
+        ));
+        $this->assertSame(['Push endpoint unreachable'], $this->mercureSyncErrorMessages());
+    }
+
+    #[Group('issue-216')]
+    public function testJobCreatedDeliveredIsReservedWithoutNotification(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->esiClient->method('get')->willReturn([$this->makeTritaniumJobData(100, 12345, 'delivered')]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $this->stubCachedJobs([]);
+        $this->stubActiveJobsByCharacter([]);
+        $this->em->method('persist')->willReturnCallback(function (object $entity): void {
+            $this->persistedJobs[] = $entity;
+        });
+        $this->recordDispatchedNotifications();
+        $syncStartedAt = new \DateTimeImmutable();
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([[100, 10, 'delivered']], array_map(
+            static fn (CachedIndustryJob $job): array => [$job->getJobId(), $job->getRuns(), $job->getStatus()],
+            $this->persistedJobs,
+        ));
+        $this->assertReservedDuringSync($this->persistedJobs[0], $syncStartedAt);
+        $this->assertSame([], $this->completionNotificationEvents);
+        $this->assertSame([], $this->dispatchedNotifications);
+        $this->assertSame([], $this->jobIdsOfMercureJobCompletedNotifications());
+    }
+
+    #[Group('issue-216')]
+    public function testStaleJobMarkedDeliveredBySyncIsReservedWithoutNotification(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->esiClient->method('get')->willReturn([]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $staleJob = $this->makeCachedJob(100, $character, 'active', '2026-10-21 16:40:00');
+        $staleJob->setRuns(10);
+        $this->stubActiveJobsByCharacter([$staleJob]);
+        $this->recordDispatchedNotifications();
+        $syncStartedAt = new \DateTimeImmutable();
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame('delivered', $staleJob->getStatus());
+        $this->assertReservedDuringSync($staleJob, $syncStartedAt);
+        $this->assertSame([], $this->completionNotificationEvents);
+        $this->assertSame([], $this->dispatchedNotifications);
+        $this->assertSame([], $this->jobIdsOfMercureJobCompletedNotifications());
+    }
+
+    #[Group('issue-216')]
+    public function testCorpmateJobReadReadyByCorporationEndpointIsNeitherReservedNorNotified(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->esiClient->method('get')->willReturn([]);
+        $this->esiClient->method('getPaginated')->willReturn([$this->makeTritaniumJobData(200, 99999, 'ready')]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $this->stubCachedJobs([]);
+        $this->stubActiveJobsByCharacter([]);
+        $this->recordDispatchedNotifications();
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([], $this->completionNotificationEvents);
+        $this->assertSame([], $this->dispatchedNotifications);
+        $this->assertSame([], $this->jobIdsOfMercureJobCompletedNotifications());
+    }
+
+    #[Group('issue-216')]
+    public function testJobReadCancelledThenRevertedIsNeitherReservedNorNotified(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->esiClient->method('get')->willReturnOnConsecutiveCalls(
+            [$this->makeTritaniumJobData(100, 12345, 'cancelled')],
+            [$this->makeTritaniumJobData(100, 12345, 'reverted')],
+        );
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $cachedJob = $this->makeCachedJob(100, $character, 'active', '+4 hours');
+        $this->stubCachedJobs([$cachedJob]);
+        $this->stubActiveJobsByCharacter([$cachedJob]);
+        $this->recordDispatchedNotifications();
+
+        $this->service->syncCharacterJobs($character);
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame('reverted', $cachedJob->getStatus());
+        $this->assertSame([], $this->completionNotificationEvents);
+        $this->assertSame([], $this->dispatchedNotifications);
+        $this->assertSame([], $this->jobIdsOfMercureJobCompletedNotifications());
+    }
+
+    #[Group('issue-216')]
+    public function testProjectProgressCoversOnlyNotifiedJobs(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $jobReservedByAnotherSyncData = $this->makeJobData(101, 12345, 'ready', self::NITROGEN_FUEL_BLOCK_TYPE_ID);
+        $jobReservedByAnotherSyncData['runs'] = 4;
+        $this->esiClient->method('get')->willReturn([$this->makeTritaniumJobData(100, 12345, 'ready'), $jobReservedByAnotherSyncData]);
+        $cachedJobs = [
+            $this->makeCachedJob(100, $character, 'active', '-1 hour'),
+            $this->makeCachedJob(101, $character, 'active', '-3 hours'),
+        ];
+        $this->stubCachedJobs($cachedJobs);
+        $this->stubActiveJobsByCharacter($cachedJobs);
+        $this->givenJobMatchOnStep(100, $this->makeStep('manual')->setProductTypeId(self::TRITANIUM_TYPE_ID));
+        $this->givenJobMatchOnStep(101, $this->makeStep('manual')->setProductTypeId(self::NITROGEN_FUEL_BLOCK_TYPE_ID));
+        $this->reservedCompletionNotificationJobIds = [101];
+        $this->recordDispatchedNotifications();
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame(
+            ['Project "Capital Batch": Tritanium completed'],
+            array_column($this->mercureNotificationsOf('industry-project'), 'message'),
+        );
+    }
+
+    #[Group('issue-216')]
+    public function testJobOfUserWithoutIdIsNeitherReservedNorNotified(): void
+    {
+        $user = $this->createStub(User::class);
+        $user->method('getId')->willReturn(null);
+        $token = $this->createStub(EveToken::class);
+        $token->method('hasScope')->willReturn(true);
+        $character = $this->createStub(Character::class);
+        $character->method('getEveCharacterId')->willReturn(12345);
+        $character->method('getEveToken')->willReturn($token);
+        $character->method('getName')->willReturn('UnsavedChar');
+        $character->method('getUser')->willReturn($user);
+        $character->method('getCorporationId')->willReturn(98000001);
+        $user->method('getCharacters')->willReturn(new ArrayCollection([$character]));
+        $this->esiClient->method('get')->willReturn([$this->makeTritaniumJobData(100, 12345, 'ready')]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $cachedJob = $this->makeCachedJob(100, $character, 'active', '-1 hour');
+        $this->stubCachedJobs([$cachedJob]);
+        $this->stubActiveJobsByCharacter([$cachedJob]);
+        $this->recordDispatchedNotifications();
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame('ready', $cachedJob->getStatus());
+        $this->assertSame([], $this->completionNotificationEvents);
+        $this->assertSame([], $this->dispatchedNotifications);
+    }
+
     // ===========================================
     // Helpers
     // ===========================================
+
+    private function makeTritaniumJobData(int $jobId, int $installerId, string $status): array
+    {
+        $jobData = $this->makeJobData($jobId, $installerId, $status, self::TRITANIUM_TYPE_ID);
+        $jobData['runs'] = 10;
+        $jobData['cost'] = 2_340_000.0;
+
+        return $jobData;
+    }
+
+    private function recordDispatchedNotifications(?int $failingJobId = null, ?\Throwable $failure = null): void
+    {
+        $this->notificationDispatcher->method('dispatch')->willReturnCallback(
+            function (User $recipient, mixed ...$notification) use ($failingJobId, $failure): void {
+                $jobId = $notification[4]['jobId'];
+                $this->completionNotificationEvents[] = ['dispatch', $jobId];
+                if ($jobId === $failingJobId && $failure !== null) {
+                    throw $failure;
+                }
+                $this->notificationRecipients[] = $recipient;
+                $this->dispatchedNotifications[] = $notification;
+            },
+        );
+    }
+
+    private function assertReservedDuringSync(CachedIndustryJob $job, \DateTimeImmutable $syncStartedAt): void
+    {
+        $completionNotifiedAt = $job->getCompletionNotifiedAt();
+        $this->assertNotNull($completionNotifiedAt);
+        $this->assertGreaterThanOrEqual($syncStartedAt, $completionNotifiedAt);
+        $this->assertLessThanOrEqual(new \DateTimeImmutable(), $completionNotifiedAt);
+    }
+
+    private function jobIdsOfMercureJobCompletedNotifications(): array
+    {
+        return array_map(
+            static fn (array $notification): int => $notification['data']['jobId'],
+            $this->mercureNotificationsOf('industry-job-completed'),
+        );
+    }
+
+    private function mercureSyncErrorMessages(): array
+    {
+        return array_column(array_values(array_filter(
+            $this->publishedMercurePayloads,
+            static fn (array $payload): bool => $payload['syncType'] === 'industry-jobs' && $payload['status'] === 'error',
+        )), 'message');
+    }
 
     private function givenMatchedCachedJob(Character $character): CachedIndustryJob
     {
