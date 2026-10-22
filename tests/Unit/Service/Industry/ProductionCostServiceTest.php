@@ -42,6 +42,8 @@ class ProductionCostServiceTest extends TestCase
     private const int PYERITE_TYPE_ID = 35;
     private const string ROBOTICS_FAILURE_REASON = 'No blueprint or reaction found for product type ID 9848';
     private const float NPC_STATION_FACILITY_TAX_PERCENT = 0.25;
+    private const int STEP_A_PRODUCT_TYPE_ID = 587;
+    private const int STEP_B_PRODUCT_TYPE_ID = 11399;
     private const int TYPE_MISSING_FROM_SDE_ID = 123456;
     private const string TYPE_MISSING_FROM_SDE_REASON = 'Types missing from the SDE: 123456';
 
@@ -101,6 +103,8 @@ class ProductionCostServiceTest extends TestCase
         int $runs,
         ?IndustryStructureConfig $structureConfig = null,
         int $blueprintTypeId = 0,
+        bool $purchased = false,
+        bool $inStock = false,
     ): IndustryProjectStep&MockObject {
         $step = $this->createMock(IndustryProjectStep::class);
         $step->method('getActivityType')->willReturn($activityType);
@@ -109,6 +113,8 @@ class ProductionCostServiceTest extends TestCase
         $step->method('getId')->willReturn(Uuid::v4());
         $step->method('getStructureConfig')->willReturn($structureConfig);
         $step->method('getBlueprintTypeId')->willReturn($blueprintTypeId);
+        $step->method('isPurchased')->willReturn($purchased);
+        $step->method('isInStock')->willReturn($inStock);
 
         return $step;
     }
@@ -613,6 +619,125 @@ class ProductionCostServiceTest extends TestCase
         self::assertSame(0.0412, $result['steps'][0]['costIndex']);
         self::assertSame('missing_adjusted_price', $result['steps'][0]['unknownReason']);
         self::assertSame([self::PYERITE_TYPE_ID], $result['steps'][0]['missingAdjustedPriceTypeIds']);
+    }
+
+    #[Group('issue-127')]
+    public function testEstimateJobInstallCostsIgnoresAPurchasedStep(): void
+    {
+        $project = $this->projectWithStepsAAndB(purchasedB: true);
+        $calls = $this->recordInstallCostEstimatesOfStepsAAndB();
+
+        $result = $this->service->estimateJobInstallCosts($project);
+
+        self::assertSame(1000.0, $result['total']);
+        self::assertCount(1, $result['steps']);
+        self::assertSame(self::STEP_A_PRODUCT_TYPE_ID, $result['steps'][0]['productTypeId']);
+        self::assertSame(1000.0, $result['steps'][0]['installCost']);
+        self::assertSame([
+            [[['materialTypeId' => 34, 'quantity' => 100000]], 10, 30002510, 'manufacturing', null],
+        ], $calls->getArrayCopy());
+    }
+
+    #[Group('issue-127')]
+    public function testEstimateJobInstallCostsIgnoresAStepFullyInStock(): void
+    {
+        $project = $this->projectWithStepsAAndB(inStockB: true);
+        $calls = $this->recordInstallCostEstimatesOfStepsAAndB();
+
+        $result = $this->service->estimateJobInstallCosts($project);
+
+        self::assertSame(1000.0, $result['total']);
+        self::assertCount(1, $result['steps']);
+        self::assertSame(self::STEP_A_PRODUCT_TYPE_ID, $result['steps'][0]['productTypeId']);
+        self::assertSame([
+            [[['materialTypeId' => 34, 'quantity' => 100000]], 10, 30002510, 'manufacturing', null],
+        ], $calls->getArrayCopy());
+    }
+
+    #[Group('issue-127')]
+    public function testEstimateJobInstallCostsStillCountsAStepPartiallyInStock(): void
+    {
+        $project = $this->projectWithStepsAAndB();
+        $calls = $this->recordInstallCostEstimatesOfStepsAAndB();
+
+        $result = $this->service->estimateJobInstallCosts($project);
+
+        self::assertSame(1500.0, $result['total']);
+        self::assertCount(2, $result['steps']);
+        self::assertSame(self::STEP_B_PRODUCT_TYPE_ID, $result['steps'][1]['productTypeId']);
+        self::assertSame(500.0, $result['steps'][1]['installCost']);
+        self::assertCount(2, $calls);
+    }
+
+    #[Group('issue-127')]
+    public function testEstimateJobInstallCostsOfAPurchasedStepInASystemWithoutCostIndexStaysKnown(): void
+    {
+        $project = $this->projectWithStepsAAndB(purchasedB: true);
+        $this->recordInstallCostEstimates(fn (array $materials): array => $materials[0]['quantity'] === 100000
+            ? $this->installCostOf(1000.0)
+            : $this->unknownInstallCost('missing_cost_index'));
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(0.0412);
+
+        $result = $this->service->estimateJobInstallCosts($project);
+
+        self::assertSame(1000.0, $result['total']);
+        self::assertCount(1, $result['steps']);
+    }
+
+    #[Group('issue-127')]
+    public function testEstimateTotalCostIgnoresTheJobInstallCostOfAPurchasedStep(): void
+    {
+        $project = $this->projectWithStepsAAndB(purchasedB: true);
+        $this->recordInstallCostEstimatesOfStepsAAndB();
+        $this->shoppingListBuilder->method('getShoppingList')->willReturn([
+            'materials' => [['typeId' => self::PYERITE_TYPE_ID, 'typeName' => 'Pyerite', 'quantity' => 2000]],
+            'failedProducts' => [],
+        ]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([self::PYERITE_TYPE_ID => 5.0]);
+
+        $result = $this->service->estimateTotalCost($project);
+
+        self::assertSame(10000.0, $result['materialCost']);
+        self::assertSame(1000.0, $result['jobInstallCost']);
+        self::assertSame(11000.0, $result['totalCost']);
+        self::assertCount(1, $result['jobInstallSteps']);
+    }
+
+    private function projectWithStepsAAndB(bool $purchasedB = false, bool $inStockB = false): IndustryProject&MockObject
+    {
+        $config = $this->createStructureConfig(30002510);
+        $stepA = $this->createStep('manufacturing', self::STEP_A_PRODUCT_TYPE_ID, 10, $config, 586);
+        $stepB = $this->createStep('manufacturing', self::STEP_B_PRODUCT_TYPE_ID, 5, $config, 11398, $purchasedB, $inStockB);
+
+        $project = $this->createProject(self::STEP_A_PRODUCT_TYPE_ID, 10);
+        $project->method('getSteps')->willReturn(new ArrayCollection([$stepA, $stepB]));
+
+        $this->materialRepository->method('findMaterialsForBlueprints')
+            ->willReturnCallback(static fn (array $blueprintTypeIds): array => match ($blueprintTypeIds[0]) {
+                586 => [586 => [['materialTypeId' => 34, 'quantity' => 100000]]],
+                11398 => [11398 => [['materialTypeId' => 34, 'quantity' => 20000]]],
+                default => [],
+            });
+        $this->calculationService->method('resolveTypeName')->willReturn('Type');
+        $this->solarSystemRepository->method('findBySolarSystemId')->willReturn(null);
+        $this->userSettingsRepository->method('findOneBy')->willReturn(null);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(0.0412);
+
+        $outputProduct = new IndustryActivityProduct();
+        $outputProduct->setTypeId(586);
+        $outputProduct->setActivityId(IndustryActivityType::Manufacturing->value);
+        $outputProduct->setProductTypeId(self::STEP_A_PRODUCT_TYPE_ID);
+        $outputProduct->setQuantity(1);
+        $this->productRepository->method('findBlueprintForProduct')->willReturn($outputProduct);
+
+        return $project;
+    }
+
+    private function recordInstallCostEstimatesOfStepsAAndB(): \ArrayObject
+    {
+        return $this->recordInstallCostEstimates(fn (array $materials): array => $this->installCostOf(
+            $materials[0]['quantity'] === 100000 ? 1000.0 : 500.0,
+        ));
     }
 
     private function projectWithOneRifterManufacturingStep(float $bpoCost, ?array $installCostEstimate = null, ?float $costIndex = 0.0412): IndustryProject&MockObject
