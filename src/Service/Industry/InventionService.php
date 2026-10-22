@@ -9,7 +9,6 @@ use App\Constant\EveConstants;
 use App\Enum\IndustryActivityType;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
-use App\Repository\Sde\IndustryActivityRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\JitaMarketService;
 use App\Service\TypeNameResolver;
@@ -49,7 +48,6 @@ class InventionService
     public function __construct(
         private readonly IndustryActivityProductRepository $activityProductRepository,
         private readonly IndustryActivityMaterialRepository $activityMaterialRepository,
-        private readonly IndustryActivityRepository $activityRepository,
         private readonly InvTypeRepository $invTypeRepository,
         private readonly JitaMarketService $jitaMarketService,
         private readonly EsiCostIndexService $esiCostIndexService,
@@ -139,7 +137,7 @@ class InventionService
      * The probability is null when the SDE does not carry it: the invention chain still exists,
      * but its success rate (and therefore its cost) is unknown.
      *
-     * @return array{t1BlueprintTypeId: int, t2BlueprintTypeId: int, probability: ?float, baseRuns: int, materials: list<array{typeId: int, typeName: string|null, quantity: int}>, inventionTime: int}|null
+     * @return array{t1BlueprintTypeId: int, t2BlueprintTypeId: int, probability: ?float, baseRuns: int, materials: list<array{typeId: int, typeName: string|null, quantity: int}>}|null
      */
     public function getInventionData(int $t2TypeId): ?array
     {
@@ -191,20 +189,12 @@ class InventionService
             ];
         }
 
-        // Get invention time from the activity table
-        $inventionActivity = $this->activityRepository->findOneBy([
-            'typeId' => $t1BlueprintTypeId,
-            'activityId' => IndustryActivityType::Invention->value,
-        ]);
-        $inventionTime = $inventionActivity?->getTime() ?? 0;
-
         return [
             't1BlueprintTypeId' => $t1BlueprintTypeId,
             't2BlueprintTypeId' => $t2BlueprintTypeId,
             'probability' => $baseProbability,
             'baseRuns' => $baseRuns,
             'materials' => $materials,
-            'inventionTime' => $inventionTime,
         ];
     }
 

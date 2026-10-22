@@ -81,13 +81,11 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     private const int HAIL_L_INVENTED_BPC_RUNS = 10;
     private const int NUCLEAR_PHYSICS_PER_ATTEMPT = 1;
     private const int MECHANICAL_ENGINEERING_PER_ATTEMPT = 2;
-    private const int HAIL_L_INVENTION_TIME = 63_900;
     private const int HAIL_L_CRATE = 990_001;
     private const int DATACORE_RESEARCH_KIT = 990_002;
     private const int PROTOTYPE_AMMUNITION_L = 990_003;
     private const float PROTOTYPE_AMMUNITION_L_BASE_PROBABILITY = 0.4;
     private const int PROTOTYPE_AMMUNITION_L_INVENTED_BPC_RUNS = 5;
-    private const int PROTOTYPE_AMMUNITION_L_INVENTION_TIME = 48_000;
 
     private const array INVENTION_TYPE_NAMES = [
         self::DEPLETED_URANIUM_L => 'Depleted Uranium L',
@@ -640,7 +638,6 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
             0.5,
             10,
             [self::DATACORE_NUCLEAR_PHYSICS => 3, self::DATACORE_MECHANICAL_ENGINEERING => 4],
-            self::PROTOTYPE_AMMUNITION_L_INVENTION_TIME,
         );
         $service = $this->serviceInventing(self::HAIL_L_BASE_PROBABILITY);
         $project = $this->projectOf([[self::PROTOTYPE_AMMUNITION_L, 5, 0, 0]]);
@@ -734,7 +731,6 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
             self::PROTOTYPE_AMMUNITION_L_BASE_PROBABILITY,
             self::PROTOTYPE_AMMUNITION_L_INVENTED_BPC_RUNS,
             [self::DATACORE_NUCLEAR_PHYSICS => 3, self::DATACORE_MECHANICAL_ENGINEERING => 4],
-            self::PROTOTYPE_AMMUNITION_L_INVENTION_TIME,
         );
         $service = $this->serviceInventing(self::HAIL_L_BASE_PROBABILITY);
         $project = $this->projectOf([[self::HAIL_L, 1, 2, 4], [self::PROTOTYPE_AMMUNITION_L, 3, 0, 0]]);
@@ -1418,7 +1414,6 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
             $hailLBaseProbability,
             $hailLInventedBpcRuns,
             [self::DATACORE_NUCLEAR_PHYSICS => self::NUCLEAR_PHYSICS_PER_ATTEMPT, self::DATACORE_MECHANICAL_ENGINEERING => self::MECHANICAL_ENGINEERING_PER_ATTEMPT],
-            self::HAIL_L_INVENTION_TIME,
         );
         $inventionService = $this->createMock(InventionService::class);
         $inventionService->method('getInventionData')->willReturnCallback(
@@ -1450,7 +1445,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         );
     }
 
-    private static function inventionFromDepletedUraniumL(int $t2TypeId, ?float $baseProbability, int $inventedBpcRuns, array $datacoreQuantitiesPerAttempt, int $inventionTime): array
+    private static function inventionFromDepletedUraniumL(int $t2TypeId, ?float $baseProbability, int $inventedBpcRuns, array $datacoreQuantitiesPerAttempt): array
     {
         return [
             't1BlueprintTypeId' => self::DEPLETED_URANIUM_L_BLUEPRINT,
@@ -1466,7 +1461,6 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
                 array_keys($datacoreQuantitiesPerAttempt),
                 $datacoreQuantitiesPerAttempt,
             ),
-            'inventionTime' => $inventionTime,
         ];
     }
 

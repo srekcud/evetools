@@ -6,14 +6,12 @@ namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
-use App\Entity\Sde\IndustryActivity;
 use App\Entity\Sde\IndustryActivityMaterial;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\Sde\InvType;
 use App\Enum\IndustryActivityType;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
-use App\Repository\Sde\IndustryActivityRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\Industry\EsiCostIndexService;
 use App\Service\Industry\InventionService;
@@ -32,7 +30,6 @@ class InventionServiceTest extends TestCase
 
     private IndustryActivityProductRepository&MockObject $activityProductRepository;
     private IndustryActivityMaterialRepository&MockObject $activityMaterialRepository;
-    private IndustryActivityRepository&MockObject $activityRepository;
     private InvTypeRepository&MockObject $invTypeRepository;
     private JitaMarketService&MockObject $jitaMarketService;
     private EsiCostIndexService&MockObject $esiCostIndexService;
@@ -53,7 +50,6 @@ class InventionServiceTest extends TestCase
     {
         $this->activityProductRepository = $this->createMock(IndustryActivityProductRepository::class);
         $this->activityMaterialRepository = $this->createMock(IndustryActivityMaterialRepository::class);
-        $this->activityRepository = $this->createMock(IndustryActivityRepository::class);
         $this->invTypeRepository = $this->createMock(InvTypeRepository::class);
         $this->jitaMarketService = $this->createMock(JitaMarketService::class);
         $this->esiCostIndexService = $this->createMock(EsiCostIndexService::class);
@@ -62,7 +58,6 @@ class InventionServiceTest extends TestCase
         $this->service = new InventionService(
             $this->activityProductRepository,
             $this->activityMaterialRepository,
-            $this->activityRepository,
             $this->invTypeRepository,
             $this->jitaMarketService,
             $this->esiCostIndexService,
@@ -97,16 +92,6 @@ class InventionServiceTest extends TestCase
         $material->setQuantity($quantity);
 
         return $material;
-    }
-
-    private function createActivity(int $blueprintTypeId, int $activityId, int $time): IndustryActivity
-    {
-        $activity = new IndustryActivity();
-        $activity->setTypeId($blueprintTypeId);
-        $activity->setActivityId($activityId);
-        $activity->setTime($time);
-
-        return $activity;
     }
 
     /**
@@ -176,14 +161,6 @@ class InventionServiceTest extends TestCase
         $this->activityMaterialRepository
             ->method('findByBlueprintAndActivity')
             ->willReturn($datacores);
-
-        // Invention activity time
-        $inventionActivity = $this->createActivity(
-            self::THRASHER_BLUEPRINT_ID,
-            IndustryActivityType::Invention->value,
-            102000, // ~28 hours
-        );
-        $this->activityRepository->method('findOneBy')->willReturn($inventionActivity);
 
         // Type names for datacores
         $dc1Type = $this->createMock(InvType::class);
@@ -257,7 +234,6 @@ class InventionServiceTest extends TestCase
         $this->assertSame(self::DATACORE_1_TYPE_ID, $data['materials'][0]['typeId']);
         $this->assertSame('Datacore - Mechanical Engineering', $data['materials'][0]['typeName']);
         $this->assertSame(2, $data['materials'][0]['quantity']);
-        $this->assertSame(102000, $data['inventionTime']);
     }
 
     public function testGetInventionDataReturnsNullForNonT2(): void
@@ -950,7 +926,6 @@ class InventionServiceTest extends TestCase
         return new InventionService(
             $this->activityProductRepository,
             $this->activityMaterialRepository,
-            $this->activityRepository,
             $invTypeRepository,
             $this->jitaMarketService,
             $this->esiCostIndexService,
