@@ -8,6 +8,7 @@ use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStepJobMatch;
 use App\Entity\IndustryStepPurchase;
+use App\Entity\IndustryStructureConfig;
 use App\Entity\Sde\IndustryActivity;
 use App\Entity\Sde\IndustryActivityMaterial;
 use App\Entity\Sde\IndustryActivityProduct;
@@ -54,11 +55,14 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
 
     private const float MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT = 2.0;
     private const float MAX_JOB_DURATION_DAYS_SPLITTING_THE_FRIGATE_IN_TWO_JOBS = 1800 / 86400;
+    private const float MAX_JOB_DURATION_DAYS_SPLITTING_THE_COMPONENT_IN_TWO_JOBS = 4800 / 86400;
 
     private const int ROOT_ESI_JOB_ID = 999_992_001;
     private const int MANUAL_ROOT_ESI_JOB_ID = 999_992_002;
     private const int SECOND_ROOT_JOB_ESI_JOB_ID = 999_992_003;
     private const int UNSPLIT_ROOT_ESI_JOB_ID = 999_992_004;
+    private const int FIRST_ROOT_JOB_ESI_JOB_ID = 999_992_005;
+    private const int SECOND_COMPONENT_JOB_ESI_JOB_ID = 999_992_006;
 
     private User $pilot;
     private IndustryProjectFactory $factory;
@@ -239,16 +243,7 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
     public function testChangingTheRunsKeepsAProductAddedByHandWithItsPurchaseAfterTheStepsOfThePlan(): void
     {
         $project = $this->factory->createProject($this->pilot, self::FRIGATE_TYPE_ID, 5, 10, self::MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT, 20);
-        $addedByHand = (new IndustryProjectStep())
-            ->setBlueprintTypeId(self::MODULE_BLUEPRINT_TYPE_ID)
-            ->setProductTypeId(self::MODULE_TYPE_ID)
-            ->setRuns(3)
-            ->setQuantity(3)
-            ->setDepth(0)
-            ->setActivityType('manufacturing')
-            ->setSortOrder(2)
-            ->setMeLevel(0)
-            ->setTeLevel(0);
+        $addedByHand = $this->stepAddedByHand(self::MODULE_BLUEPRINT_TYPE_ID, self::MODULE_TYPE_ID, 'manufacturing', 3, 2);
         $addedByHand->addPurchase($this->purchase(self::MINERAL_TYPE_ID, 75, 6.5));
         $project->addStep($addedByHand);
         $this->em->flush();
@@ -271,6 +266,152 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
             $this->jobsOfProduct($project, self::MODULE_TYPE_ID),
         );
         self::assertSame(1, $this->purchaseCount());
+    }
+
+    #[Group('issue-21')]
+    public function testChangingTheRunsOfASplitRootKeepsEachJobMatchOnTheJobOfTheSameSplitIndex(): void
+    {
+        $project = $this->factory->createProject($this->pilot, self::FRIGATE_TYPE_ID, 5, 10, self::MAX_JOB_DURATION_DAYS_SPLITTING_THE_FRIGATE_IN_TWO_JOBS, 20);
+        $project = $this->reloaded($project);
+        [$firstJob] = $this->rootJobsInSplitIndexOrder($project);
+        $firstJob->setInStockQuantity(4);
+        $project = $this->reloaded($project);
+        [$firstJob, $secondJob] = $this->rootJobsInSplitIndexOrder($project);
+        $firstJob->addJobMatch($this->jobMatch(self::FIRST_ROOT_JOB_ESI_JOB_ID, 3));
+        $secondJob->addJobMatch($this->jobMatch(self::SECOND_ROOT_JOB_ESI_JOB_ID, 2));
+        $this->em->flush();
+        $firstJobId = $this->idOf($firstJob);
+        $secondJobId = $this->idOf($secondJob);
+
+        $project->setRuns(6);
+        $this->factory->regenerateSteps($project);
+        $project = $this->reloaded($project);
+
+        self::assertSame(
+            [
+                [$firstJobId, 3, 0, 6, [self::FIRST_ROOT_JOB_ESI_JOB_ID], [], 4, false, 'auto'],
+                [$secondJobId, 3, 1, 6, [self::SECOND_ROOT_JOB_ESI_JOB_ID], [], 0, false, 'auto'],
+            ],
+            $this->jobsOfProduct($project, self::FRIGATE_TYPE_ID),
+        );
+    }
+
+    #[Group('issue-21')]
+    public function testMergingTheSecondJobIntoAPurchasedFirstJobKeepsItPurchased(): void
+    {
+        $project = $this->factory->createProject($this->pilot, self::FRIGATE_TYPE_ID, 5, 10, self::MAX_JOB_DURATION_DAYS_SPLITTING_THE_FRIGATE_IN_TWO_JOBS, 20);
+        [$firstJob] = $this->rootJobsInSplitIndexOrder($project);
+        $firstJob->setPurchased(true);
+        $this->em->flush();
+        $firstJobId = $this->idOf($firstJob);
+
+        $project->setMaxJobDurationDays(self::MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT);
+        $this->factory->regenerateSteps($project);
+        $project = $this->reloaded($project);
+
+        self::assertSame(
+            [[$firstJobId, 5, 0, null, [], [], 0, true, 'auto']],
+            $this->jobsOfProduct($project, self::FRIGATE_TYPE_ID),
+        );
+    }
+
+    #[Group('issue-21')]
+    public function testMergingTheSecondJobOfTheComponentGivesItsJobMatchPurchaseAndStockToTheComponentNotToTheRoot(): void
+    {
+        $project = $this->factory->createProject($this->pilot, self::FRIGATE_TYPE_ID, 5, 10, self::MAX_JOB_DURATION_DAYS_SPLITTING_THE_COMPONENT_IN_TWO_JOBS, 20);
+        $componentJobs = $this->jobsOfProduct($project, self::COMPONENT_TYPE_ID);
+        self::assertSame([[9, 0, 18], [9, 1, 18]], array_map(static fn (array $job): array => [$job[1], $job[2], $job[3]], $componentJobs));
+        self::assertCount(1, $this->jobsOfProduct($project, self::FRIGATE_TYPE_ID));
+        $secondComponentJob = $this->em->find(IndustryProjectStep::class, $componentJobs[1][0]);
+        self::assertNotNull($secondComponentJob);
+        $secondComponentJob->setInStockQuantity(5);
+        $secondComponentJob->addJobMatch($this->jobMatch(self::SECOND_COMPONENT_JOB_ESI_JOB_ID, 9));
+        $secondComponentJob->addPurchase($this->purchase(self::MINERAL_TYPE_ID, 90, 4.25));
+        $this->em->flush();
+
+        $project->setMaxJobDurationDays(self::MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT);
+        $this->factory->regenerateSteps($project);
+        $project = $this->reloaded($project);
+
+        self::assertSame(
+            [[$componentJobs[0][0], 18, 0, null, [self::SECOND_COMPONENT_JOB_ESI_JOB_ID], [[self::MINERAL_TYPE_ID, 90]], 5, false, 'auto']],
+            $this->jobsOfProduct($project, self::COMPONENT_TYPE_ID),
+        );
+        self::assertSame([[], [], 0], array_slice($this->jobsOfProduct($project, self::FRIGATE_TYPE_ID)[0], 4, 3));
+    }
+
+    #[Group('issue-21')]
+    public function testACopyStepOfAPlannedBlueprintIsKeptOutOfThePlanAsACopy(): void
+    {
+        $project = $this->factory->createProject($this->pilot, self::FRIGATE_TYPE_ID, 5, 10, self::MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT, 20);
+        $componentStepId = $this->idOf($this->stepOfProduct($project, self::COMPONENT_TYPE_ID));
+        $copyStep = $this->stepAddedByHand(self::COMPONENT_BLUEPRINT_TYPE_ID, self::COMPONENT_BLUEPRINT_TYPE_ID, 'copy', 2, 2);
+        $copyStep->addPurchase($this->purchase(self::MINERAL_TYPE_ID, 12, 3.75));
+        $project->addStep($copyStep);
+        $this->em->flush();
+        $copyStepId = $this->idOf($copyStep);
+
+        $this->factory->regenerateSteps($project);
+        $project = $this->reloaded($project);
+
+        self::assertSame(
+            [
+                [0, self::COMPONENT_BLUEPRINT_TYPE_ID, self::COMPONENT_TYPE_ID, 'manufacturing', 1, 18, 18, 10, 20, null, 0, null],
+                [1, self::FRIGATE_BLUEPRINT_TYPE_ID, self::FRIGATE_TYPE_ID, 'manufacturing', 0, 5, 5, 10, 20, null, 0, null],
+                [2, self::COMPONENT_BLUEPRINT_TYPE_ID, self::COMPONENT_BLUEPRINT_TYPE_ID, 'copy', 0, 2, 2, 0, 0, null, 0, null],
+            ],
+            $this->persistedStepsOf($project),
+        );
+        self::assertSame(
+            [[$copyStepId, 2, 0, null, [], [[self::MINERAL_TYPE_ID, 12]], 0, false, 'auto']],
+            $this->jobsOfProduct($project, self::COMPONENT_BLUEPRINT_TYPE_ID),
+        );
+        self::assertSame($componentStepId, $this->jobsOfProduct($project, self::COMPONENT_TYPE_ID)[0][0]);
+    }
+
+    #[Group('issue-21')]
+    public function testRegenerationResetsTheStructureOfAKeptStepToThePlan(): void
+    {
+        $project = $this->factory->createProject($this->pilot, self::FRIGATE_TYPE_ID, 5, 10, self::MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT, 20);
+        $structure = (new IndustryStructureConfig())
+            ->setUser($this->pilot)
+            ->setName('Test Raitaru')
+            ->setSecurityType('highsec')
+            ->setStructureType('station');
+        $this->em->persist($structure);
+        $rootStep = $this->stepOfProduct($project, self::FRIGATE_TYPE_ID);
+        $rootStep->setStructureConfig($structure);
+        $this->em->flush();
+        $rootStepId = $this->idOf($rootStep);
+
+        $this->factory->regenerateSteps($project);
+        $project = $this->reloaded($project);
+
+        $regenerated = $this->stepOfProduct($project, self::FRIGATE_TYPE_ID);
+        self::assertSame([$rootStepId, 5, 10, 20], [$this->idOf($regenerated), $regenerated->getRuns(), $regenerated->getMeLevel(), $regenerated->getTeLevel()]);
+        self::assertNull($regenerated->getStructureConfig());
+    }
+
+    #[Group('issue-21')]
+    public function testStepsOutOfThePlanArePlacedAfterThePlanInTheOrderOfTheirFormerSortOrder(): void
+    {
+        $project = $this->factory->createProject($this->pilot, self::FRIGATE_TYPE_ID, 5, 10, self::MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT, 20);
+        $project->addStep($this->stepAddedByHand(self::MODULE_BLUEPRINT_TYPE_ID, self::MODULE_TYPE_ID, 'manufacturing', 4, 5));
+        $project->addStep($this->stepAddedByHand(self::COMPONENT_BLUEPRINT_TYPE_ID, self::COMPONENT_BLUEPRINT_TYPE_ID, 'copy', 1, 3));
+        $this->em->flush();
+
+        $this->factory->regenerateSteps($project);
+        $project = $this->reloaded($project);
+
+        self::assertSame(
+            [
+                [0, self::COMPONENT_BLUEPRINT_TYPE_ID, self::COMPONENT_TYPE_ID, 'manufacturing', 1, 18, 18, 10, 20, null, 0, null],
+                [1, self::FRIGATE_BLUEPRINT_TYPE_ID, self::FRIGATE_TYPE_ID, 'manufacturing', 0, 5, 5, 10, 20, null, 0, null],
+                [2, self::COMPONENT_BLUEPRINT_TYPE_ID, self::COMPONENT_BLUEPRINT_TYPE_ID, 'copy', 0, 1, 1, 0, 0, null, 0, null],
+                [3, self::MODULE_BLUEPRINT_TYPE_ID, self::MODULE_TYPE_ID, 'manufacturing', 0, 4, 4, 0, 0, null, 0, null],
+            ],
+            $this->persistedStepsOf($project),
+        );
     }
 
     /**
@@ -360,6 +501,20 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
         self::assertNotNull($id);
 
         return $id->toRfc4122();
+    }
+
+    private function stepAddedByHand(int $blueprintTypeId, int $productTypeId, string $activityType, int $runs, int $sortOrder): IndustryProjectStep
+    {
+        return (new IndustryProjectStep())
+            ->setBlueprintTypeId($blueprintTypeId)
+            ->setProductTypeId($productTypeId)
+            ->setRuns($runs)
+            ->setQuantity($runs)
+            ->setDepth(0)
+            ->setActivityType($activityType)
+            ->setSortOrder($sortOrder)
+            ->setMeLevel(0)
+            ->setTeLevel(0);
     }
 
     private function jobMatch(int $esiJobId, int $runs): IndustryStepJobMatch

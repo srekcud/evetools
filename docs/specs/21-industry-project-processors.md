@@ -44,7 +44,7 @@
 
 Changer les runs, le ME, le TE ou la durée maximale de job d'un projet (ou `app:industry:regenerate-steps`) recalcule le plan comme aujourd'hui, puis l'applique aux étapes existantes au lieu de les remplacer.
 
-- **R6 — Correspondance.** Une étape planifiée correspond à l'étape existante de même blueprint et de même activité, de même rang dans l'ordre des `splitIndex`. L'étape existante est mise à jour sur place (même identifiant) avec les valeurs du plan : produit, runs, quantité, profondeur, ordre, groupe découpé, ME, TE.
+- **R6 — Correspondance.** Une étape planifiée correspond à l'étape existante de même blueprint et de même activité, de même rang dans l'ordre des `splitIndex`. L'étape existante est mise à jour sur place (même identifiant) avec les valeurs du plan : produit, runs, quantité, profondeur, ordre, groupe découpé, ME, TE ; sa structure est remise à vide comme pour une étape neuve.
 - **R7 — Ce qui est gardé.** Une étape mise à jour garde ses jobs matchés, ses achats, son stock en main, son statut acheté et son mode de match.
 - **R8 — Plus de jobs qu'avant.** Une étape planifiée sans étape existante de même rang est créée.
 - **R9 — Moins de jobs qu'avant.** Une étape existante en excédent (même blueprint et activité, rang au-delà du plan) est supprimée après avoir donné à la dernière étape gardée de même blueprint et activité ses jobs matchés et ses achats ; son stock s'ajoute au sien, et l'étape gardée est achetée si l'une des deux l'était.
