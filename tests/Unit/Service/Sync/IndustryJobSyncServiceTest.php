@@ -317,7 +317,7 @@ class IndustryJobSyncServiceTest extends TestCase
     }
 
     #[Group('issue-209')]
-    public function testStalePausedJobMissingFromEsiIsMarkedDeliveredAtItsEndDate(): void
+    public function testPausedJobPastItsEndDateMissingFromEsiStaysPausedWithoutCompletionDate(): void
     {
         $character = $this->createCharacterWithUser(12345);
         $this->esiClient->method('get')->willReturn([]);
@@ -327,8 +327,26 @@ class IndustryJobSyncServiceTest extends TestCase
 
         $this->service->syncCharacterJobs($character);
 
-        $this->assertSame('delivered', $pausedJob->getStatus());
-        $this->assertEquals(new \DateTimeImmutable('2026-10-01 08:30:00'), $pausedJob->getCompletedDate());
+        $this->assertSame('paused', $pausedJob->getStatus());
+        $this->assertNull($pausedJob->getCompletedDate());
+    }
+
+    #[Group('issue-209')]
+    public function testActiveJobPastItsEndDateIsStillMarkedDeliveredWhileAPausedJobOfTheSameSyncStaysPaused(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->esiClient->method('get')->willReturn([]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $pausedJob = $this->makeCachedJob(302, $character, 'paused', '2026-10-01 08:30:00');
+        $activeJob = $this->makeCachedJob(303, $character, 'active', '2026-10-05 14:15:00');
+        $this->stubActiveJobsByCharacter([$pausedJob, $activeJob]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame('delivered', $activeJob->getStatus());
+        $this->assertEquals(new \DateTimeImmutable('2026-10-05 14:15:00'), $activeJob->getCompletedDate());
+        $this->assertSame('paused', $pausedJob->getStatus());
+        $this->assertNull($pausedJob->getCompletedDate());
     }
 
     #[Group('issue-209')]

@@ -11,7 +11,7 @@ L'ESI renvoie six statuts de job : `active`, `paused`, `ready`, `delivered`, `ca
 
 - **R1 — Job sans production.** Un job `cancelled` ou `reverted` n'a rien produit : il n'est jamais matché sur une étape (ni runs couverts, ni structure déduite). Les liens manuels existants ne changent pas.
 - **R2 — Job en cours.** Un job `active`, `paused` ou `ready` est en cours : il occupe un slot de sa catégorie dans le Slot Tracker, comme aujourd'hui `active` (fin future) et `ready`.
-- **R3 — Marquage « livré » d'un job en pause.** Un job `paused` du personnage, absent de l'ESI, date de fin passée, est marqué « livré » comme un job `active` ou `ready`, aux mêmes conditions (specs #122 et #207 : jobs perso et corpo connus). Raison : l'ESI renvoie toujours un job non terminé ; un job qui disparaît n'est plus en pause.
+- **R3 — Pas de marquage « livré » d'un job en pause.** Un job `paused` du personnage, absent de l'ESI, n'est jamais marqué « livré » : sa date de fin n'est plus fiable (la pause la décale) et son sort est inconnu (livré, annulé ou rétabli). Il garde son dernier statut connu, `paused`, jusqu'à ce que l'ESI le renvoie avec un autre statut. Les jobs `active` et `ready` suivent le marquage comme aujourd'hui.
 - **R4 — Inchangé.** Un job `paused` n'apparaît pas dans la timeline du Slot Tracker (seuls les jobs `active` à fin future y sont). Les compteurs Mercure de fin de sync ne changent pas.
 
 ## Exemples chiffrés
@@ -27,7 +27,7 @@ Personnage A, 1 slot de fabrication max ou plus. Blueprint 1001, étape de fabri
 | E5 | `findActiveJobsByCharacter` sur jobs `active`, `paused`, `ready`, `delivered`, `cancelled`, `reverted` | `active`, `ready` | `active`, `paused`, `ready` |
 | E6 | Slot Tracker : 1 job `paused` de fabrication (fin future) + 1 job `active` de fabrication (fin future) | 1 slot de fabrication utilisé | 2 slots utilisés |
 | E7 | Slot Tracker : 1 job `paused` de fabrication, fin passée | 0 slot utilisé | 1 slot utilisé (un job en pause garde son slot, sa date de fin n'est plus fiable) |
-| E8 | Sync : job 300 `paused` en base, fin passée, absent de l'ESI, jobs perso et corpo connus | reste `paused` | `delivered`, date de complétion = date de fin |
+| E8 | Sync : job 300 `paused` en base, fin passée, absent de l'ESI, jobs perso et corpo connus | reste `paused` | reste `paused`, sans date de complétion (alors que `findActiveJobsByCharacter` le renvoie désormais) |
 | E9 | Sync : job 301 `paused` en base, fin future, absent de l'ESI | reste `paused` | inchangé |
 
 ## Cas limites
@@ -43,7 +43,7 @@ Personnage A, 1 slot de fabrication max ou plus. Blueprint 1001, étape de fabri
 
 ## Décisions prises en autonomie (mode nuit)
 
-- R3 : `paused` suit le marquage « livré » plutôt que de rester `paused` indéfiniment (l'ESI ne fait disparaître que les jobs terminés depuis plus de 90 jours).
+- R3 : un job `paused` disparu de l'ESI reste `paused` plutôt que d'être marqué « livré » (première version de la spec, rejetée en revue `esi-reviewer` : date de fin non fiable, sort inconnu, une livraison inventée serait ensuite matchée comme production). Pas de nouveau statut « inconnu » : décision structurelle hors brief, le dernier statut connu n'invente rien.
 - E7 : un job `paused` à fin passée occupe toujours son slot (la pause décale la fin réelle) ; seul un job `active` à fin passée est considéré terminé, comme aujourd'hui.
 - Nom de l'entité : `CachedIndustryJob::hasNoOutput()` remplace `isCancelled()` (seul appelant : le matcher) ; constantes de statut ajoutées à `CachedIndustryJob`.
 
