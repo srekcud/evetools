@@ -7,6 +7,7 @@ namespace App\Service\Sync;
 use App\Entity\CachedIndustryJob;
 use App\Entity\Character;
 use App\Entity\Notification;
+use App\Entity\User;
 use App\Exception\EsiApiException;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryStepJobMatchRepository;
@@ -22,6 +23,8 @@ use Symfony\Contracts\Service\ResetInterface;
 class IndustryJobSyncService implements ResetInterface
 {
     private const int FORBIDDEN_STATUS_CODE = 403;
+
+    private const array COMPLETED_STATUSES = [CachedIndustryJob::STATUS_READY, CachedIndustryJob::STATUS_DELIVERED];
 
     /** @var array<int, bool> Track which corporations we've already synced */
     private array $syncedCorporations = [];
@@ -114,9 +117,6 @@ class IndustryJobSyncService implements ResetInterface
                 $jobsByJobId[$jobData['job_id']] = $jobData;
             }
 
-            // Track newly completed jobs for notifications
-            $newlyCompletedJobs = [];
-
             // Build a lookup of EVE character ID → Character entity for installer attribution
             $installerLookup = [];
             $user = $character->getUser();
@@ -141,10 +141,6 @@ class IndustryJobSyncService implements ResetInterface
                 $existing = $this->jobRepository->findByJobId($jobData['job_id']);
 
                 if ($existing !== null) {
-                    // Check if job just completed (was active, now ready)
-                    $wasActive = $existing->getStatus() === 'active';
-                    $isNowReady = $jobData['status'] === 'ready';
-
                     // Update existing job - fix character attribution
                     $existing->setCharacter($installerCharacter);
                     $existing->setStatus($jobData['status']);
@@ -155,11 +151,6 @@ class IndustryJobSyncService implements ResetInterface
                     }
                     $existing->setCachedAt(new \DateTimeImmutable());
                     $syncedJobsByJobId[$jobData['job_id']] = $existing;
-
-                    // Track newly ready jobs
-                    if ($wasActive && $isNowReady) {
-                        $newlyCompletedJobs[] = $jobData;
-                    }
                     continue;
                 }
 
@@ -177,6 +168,9 @@ class IndustryJobSyncService implements ResetInterface
                 $job->setEndDate(new \DateTimeImmutable($jobData['end_date']));
                 if (isset($jobData['completed_date'])) {
                     $job->setCompletedDate(new \DateTimeImmutable($jobData['completed_date']));
+                }
+                if ($jobData['status'] === CachedIndustryJob::STATUS_DELIVERED) {
+                    $job->setCompletionNotifiedAt(new \DateTimeImmutable());
                 }
 
                 $this->entityManager->persist($job);
@@ -197,9 +191,10 @@ class IndustryJobSyncService implements ResetInterface
                     if ($dbJob->getStatus() === CachedIndustryJob::STATUS_PAUSED || $dbJob->getEndDate() > $now) {
                         continue;
                     }
-                    $dbJob->setStatus('delivered');
+                    $dbJob->setStatus(CachedIndustryJob::STATUS_DELIVERED);
                     $dbJob->setCompletedDate($dbJob->getEndDate());
                     $dbJob->setCachedAt($now);
+                    $dbJob->setCompletionNotifiedAt($now);
                     $syncedJobsByJobId[$jobId] = $dbJob;
                     $this->logger->info('Stale industry job marked as delivered', [
                         'jobId' => $jobId,
@@ -212,6 +207,12 @@ class IndustryJobSyncService implements ResetInterface
             foreach ($this->jobMatchRepository->findByEsiJobIds(array_keys($syncedJobsByJobId)) as $jobMatch) {
                 $jobMatch->copyJobState($syncedJobsByJobId[$jobMatch->getEsiJobId()]);
             }
+
+            $jobIdsToNotify = array_keys(array_filter(
+                $syncedJobsByJobId,
+                static fn (CachedIndustryJob $job): bool => $job->getCompletionNotifiedAt() === null
+                    && in_array($job->getStatus(), self::COMPLETED_STATUSES, true),
+            ));
 
             $this->entityManager->flush();
 
@@ -233,51 +234,13 @@ class IndustryJobSyncService implements ResetInterface
                     'ready' => count($readyJobs),
                 ]);
 
-                // Send individual notifications for newly completed jobs
-                $user = $character->getUser();
-                foreach ($newlyCompletedJobs as $jobData) {
-                    $productTypeId = $jobData['product_type_id'] ?? $jobData['blueprint_type_id'];
-                    $productName = $this->getTypeName($productTypeId);
-                    $productLabel = $productName ?? UnknownTypeName::label($productTypeId);
-                    $activityName = $this->getActivityName($jobData['activity_id']);
-                    // Keep existing Mercure sync progress for backward compat
-                    $this->mercurePublisher->publishSyncProgress(
-                        $userId,
-                        'industry-job-completed',
-                        'notification',
-                        null,
-                        sprintf('%s - %s completed!', $productLabel, $activityName),
-                        [
-                            'jobId' => $jobData['job_id'],
-                            'productTypeId' => $jobData['product_type_id'] ?? $jobData['blueprint_type_id'],
-                            'productName' => $productName,
-                            'runs' => $jobData['runs'],
-                            'activityId' => $jobData['activity_id'],
-                        ]
-                    );
-
-                    // Dispatch notification to hub
-                    if ($user !== null) {
-                        $this->notificationDispatcher->dispatch(
-                            $user,
-                            Notification::CATEGORY_INDUSTRY,
-                            Notification::LEVEL_SUCCESS,
-                            sprintf('Job completed: %s', $productLabel),
-                            sprintf('%s %s (%dx) ready to deliver', $productLabel, $activityName, $jobData['runs']),
-                            [
-                                'jobId' => $jobData['job_id'],
-                                'productTypeId' => $jobData['product_type_id'] ?? $jobData['blueprint_type_id'],
-                                'productName' => $productName,
-                                'runs' => $jobData['runs'],
-                                'activityId' => $jobData['activity_id'],
-                            ],
-                            '/industry',
-                        );
-                    }
+                if ($user !== null) {
+                    $notifiedJobs = $this->sendCompletionNotifications($user, $userId, array_map(
+                        static fn (int $jobId): array => $jobsByJobId[$jobId],
+                        $jobIdsToNotify,
+                    ));
+                    $this->notifyProjectProgress($userId, $notifiedJobs);
                 }
-
-                // Notify project pipeline progress
-                $this->notifyProjectProgress($userId, $newlyCompletedJobs);
             }
         } catch (\Throwable $e) {
             if ($userId !== null) {
@@ -285,6 +248,69 @@ class IndustryJobSyncService implements ResetInterface
             }
             throw $e;
         }
+    }
+
+    /**
+     * @param list<array<string, mixed>> $jobsToNotify
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function sendCompletionNotifications(User $user, string $userId, array $jobsToNotify): array
+    {
+        $notifiedJobs = [];
+        foreach ($jobsToNotify as $jobData) {
+            if (!$this->jobRepository->claimCompletionNotification($jobData['job_id'], new \DateTimeImmutable())) {
+                continue;
+            }
+            try {
+                $this->sendCompletionNotification($user, $userId, $jobData);
+            } catch (\Throwable $sendFailure) {
+                $this->jobRepository->releaseCompletionNotification($jobData['job_id']);
+                throw $sendFailure;
+            }
+            $notifiedJobs[] = $jobData;
+        }
+
+        return $notifiedJobs;
+    }
+
+    /** @param array<string, mixed> $jobData */
+    private function sendCompletionNotification(User $user, string $userId, array $jobData): void
+    {
+        $productTypeId = $jobData['product_type_id'] ?? $jobData['blueprint_type_id'];
+        $productName = $this->getTypeName($productTypeId);
+        $productLabel = $productName ?? UnknownTypeName::label($productTypeId);
+        $activityName = $this->getActivityName($jobData['activity_id']);
+        $notificationData = [
+            'jobId' => $jobData['job_id'],
+            'productTypeId' => $productTypeId,
+            'productName' => $productName,
+            'runs' => $jobData['runs'],
+            'activityId' => $jobData['activity_id'],
+        ];
+        $this->mercurePublisher->publishSyncProgress(
+            $userId,
+            'industry-job-completed',
+            'notification',
+            null,
+            sprintf('%s - %s completed!', $productLabel, $activityName),
+            $notificationData,
+        );
+        $this->notificationDispatcher->dispatch(
+            $user,
+            Notification::CATEGORY_INDUSTRY,
+            Notification::LEVEL_SUCCESS,
+            sprintf('Job completed: %s', $productLabel),
+            sprintf(
+                '%s %s (%dx) %s',
+                $productLabel,
+                $activityName,
+                $jobData['runs'],
+                $jobData['status'] === CachedIndustryJob::STATUS_DELIVERED ? 'delivered' : 'ready to deliver',
+            ),
+            $notificationData,
+            '/industry',
+        );
     }
 
     private function getTypeName(int $typeId): ?string

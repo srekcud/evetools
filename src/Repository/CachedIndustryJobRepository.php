@@ -7,6 +7,7 @@ namespace App\Repository;
 use App\Entity\CachedIndustryJob;
 use App\Entity\Character;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -43,11 +44,26 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
 
     public function claimCompletionNotification(int $jobId, \DateTimeImmutable $claimedAt): bool
     {
-        return false;
+        return $this->createQueryBuilder('j')
+            ->update()
+            ->set('j.completionNotifiedAt', ':claimedAt')
+            ->where('j.jobId = :jobId')
+            ->andWhere('j.completionNotifiedAt IS NULL')
+            ->setParameter('claimedAt', $claimedAt, Types::DATETIME_IMMUTABLE)
+            ->setParameter('jobId', $jobId)
+            ->getQuery()
+            ->execute() === 1;
     }
 
     public function releaseCompletionNotification(int $jobId): void
     {
+        $this->createQueryBuilder('j')
+            ->update()
+            ->set('j.completionNotifiedAt', 'NULL')
+            ->where('j.jobId = :jobId')
+            ->setParameter('jobId', $jobId)
+            ->getQuery()
+            ->execute();
     }
 
     public function deleteByCharacter(Character $character): void

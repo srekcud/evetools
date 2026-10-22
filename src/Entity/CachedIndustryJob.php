@@ -21,6 +21,7 @@ class CachedIndustryJob
     public const string STATUS_ACTIVE = 'active';
     public const string STATUS_PAUSED = 'paused';
     public const string STATUS_READY = 'ready';
+    public const string STATUS_DELIVERED = 'delivered';
     public const string STATUS_CANCELLED = 'cancelled';
     public const string STATUS_REVERTED = 'reverted';
 
