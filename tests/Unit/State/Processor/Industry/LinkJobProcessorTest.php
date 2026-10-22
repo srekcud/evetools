@@ -504,9 +504,6 @@ class LinkJobProcessorTest extends TestCase
             $projectRepository ?? $this->projectRepository,
             $stepRepository ?? $this->stepRepository,
             $this->jobRepository,
-            $this->structureConfigRepository,
-            $this->calculationService,
-            $stepCalculator,
             $this->mapper,
             $this->entityManager,
             new IndustryJobMatcher(
