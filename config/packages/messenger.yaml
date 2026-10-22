@@ -32,7 +32,6 @@ framework:
             App\Message\SyncUserPveData: async
             App\Message\SyncUserMiningData: async
             App\Message\SyncAnsiblexGates: async
-            App\Message\SyncStructureMarket: async
             App\Message\SyncPublicContracts: async
             App\Message\SyncAdjustedPrices: async
             App\Message\SyncCostIndices: async
