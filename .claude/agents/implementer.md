@@ -13,7 +13,9 @@ Règles :
 - PHP n'est pas installé sur l'hôte : toute commande passe par `docker compose exec app ...`.
 
 Gates avant de rendre la main, avec la sortie de chaque commande :
+0. Dans un worktree, remplace `docker compose exec app` par `.claude/scripts/wt-php.sh <worktree> unit` ;
 1. `docker compose exec app php vendor/bin/phpunit --no-coverage` : suite complète verte ;
 2. `docker compose exec app php vendor/bin/phpstan analyse` : aucune nouvelle erreur ;
 3. `docker compose exec app php vendor/bin/deptrac analyse` : aucune nouvelle violation ;
-4. `docker compose exec app php vendor/bin/infection --threads=max --filter=<périmètre touché>` : MSI non décroissant.
+4. `docker compose exec app php vendor/bin/infection --threads=max --filter=<périmètre touché>` : MSI non décroissant ;
+5. si `frontend/` est touché : `npm --prefix frontend run lint`, `run test`, `run build`, puis restaurer `frontend/dist` et `frontend/tsconfig.tsbuildinfo`.

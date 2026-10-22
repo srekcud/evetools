@@ -18,4 +18,6 @@ Règles :
 - Lance les tests que tu écris et montre la sortie :
   - dans le dépôt principal : `docker compose exec app php vendor/bin/phpunit --no-coverage --fail-on-incomplete --filter <...>` ;
   - dans un worktree : `.claude/scripts/wt-php.sh <worktree> unit vendor/bin/phpunit …`, et `… integration …` pour `tests/Integration/`. Si le mode `integration` refuse de démarrer, arrête-toi et signale-le. Ne cherche pas d'identifiants par un autre chemin.
+- Frontend : si tu touches `frontend/tests/`, lance aussi `npm --prefix <racine>/frontend run build` (type-check des specs). Pas de `Array.prototype.at()` (lib TS du projet) ; toute fixture typée existante reçoit les nouveaux champs obligatoires.
+- Avant de rendre la main en phase rouge, cherche les autres tests qui figent la forme ou la valeur touchée : `grep -rn "<clé ou méthode modifiée>" tests frontend/tests` et `grep -rn "Currently.*Issue<N>\|CARACTÉRISATION" tests`. Mets-les à jour dans le même lot et liste-les.
 - Rapport en français ; noms de tests, identifiants et messages de commit proposés en anglais.
