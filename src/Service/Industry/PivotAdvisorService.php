@@ -138,7 +138,7 @@ class PivotAdvisorService
         $t2ProductIds = $this->inventionService->identifyT2Products($candidateProducts);
 
         // Also check if source is T2
-        $sourceIsT2 = $this->isT2Product($sourceTypeId, $sourceBpId);
+        $sourceIsT2 = $this->isT2Product($sourceBpId);
         $sourceIsReaction = $sourceActivityId === IndustryActivityType::Reaction->value;
 
         // 9. Resolve type names and group names
@@ -353,7 +353,7 @@ class PivotAdvisorService
     /**
      * Check if a single product is T2 (its blueprint is produced via invention).
      */
-    private function isT2Product(int $productTypeId, int $blueprintTypeId): bool
+    private function isT2Product(int $blueprintTypeId): bool
     {
         $conn = $this->entityManager->getConnection();
         $sql = <<<SQL
@@ -571,7 +571,7 @@ class PivotAdvisorService
         // Find blueprint to check T2
         $bp = $this->productRepository->findBlueprintForProduct($sourceTypeId, IndustryActivityType::Manufacturing->value);
         if ($bp !== null) {
-            $isT2 = $this->isT2Product($sourceTypeId, $bp->getTypeId());
+            $isT2 = $this->isT2Product($bp->getTypeId());
         }
 
         $allTypeIds = [$sourceTypeId];

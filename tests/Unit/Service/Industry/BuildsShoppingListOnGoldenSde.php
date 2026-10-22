@@ -110,7 +110,6 @@ trait BuildsShoppingListOnGoldenSde
         $bonusService = new IndustryBonusService($rigCategoryRepository, $structureConfigRepository, $invTypeRepository, $activityProductRepository);
         $treeService = new IndustryTreeService($activityProductRepository, $activityMaterialRepository, $invTypeRepository, $entityManager, $bonusService);
         $calculationService = new IndustryCalculationService(
-            $invTypeRepository,
             new TypeNameResolver($invTypeRepository),
             $bonusService,
             $structureConfigRepository,

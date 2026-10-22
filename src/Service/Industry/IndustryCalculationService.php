@@ -13,7 +13,6 @@ use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Enum\IndustryActivityType;
-use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\StaStationRepository;
 use App\Service\TypeNameResolver;
 use Doctrine\ORM\EntityManagerInterface;
@@ -25,7 +24,6 @@ class IndustryCalculationService
     private array $blueprintSkillCache = [];
 
     public function __construct(
-        private readonly InvTypeRepository $invTypeRepository,
         private readonly TypeNameResolver $typeNameResolver,
         private readonly IndustryBonusService $bonusService,
         private readonly IndustryStructureConfigRepository $structureConfigRepository,

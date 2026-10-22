@@ -26,7 +26,6 @@ class IndustryCalculationTest extends TestCase
     protected function setUp(): void
     {
         $this->calculationService = new IndustryCalculationService(
-            $this->createMock(\App\Repository\Sde\InvTypeRepository::class),
             $this->createMock(\App\Service\TypeNameResolver::class),
             $this->createMock(\App\Service\Industry\IndustryBonusService::class),
             $this->createMock(\App\Repository\IndustryStructureConfigRepository::class),

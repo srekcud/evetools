@@ -28,7 +28,6 @@ class BuyVsBuildService
         private readonly EsiCostIndexService $esiCostIndexService,
         private readonly InventionService $inventionService,
         private readonly TypeNameResolver $typeNameResolver,
-        private readonly IndustryBlacklistService $blacklistService,
         private readonly IndustryActivityMaterialRepository $materialRepository,
     ) {
     }

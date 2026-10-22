@@ -20,7 +20,6 @@ use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
-use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\StaStationRepository;
 use App\Service\Industry\IndustryBonusService;
 use App\Service\Industry\IndustryCalculationService;
@@ -1163,7 +1162,6 @@ class IndustryJobMatcherTest extends TestCase
 
         // Steps carry a structure config, bonus service stubbed => no structure/rig bonus.
         $realCalculationService = new IndustryCalculationService(
-            $this->createStub(InvTypeRepository::class),
             $this->createStub(TypeNameResolver::class),
             $this->createStub(IndustryBonusService::class),
             $this->createStub(IndustryStructureConfigRepository::class),

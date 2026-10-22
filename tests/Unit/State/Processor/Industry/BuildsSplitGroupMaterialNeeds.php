@@ -191,7 +191,6 @@ trait BuildsSplitGroupMaterialNeeds
         $settingsRepository->method('findOneBy')->willReturn(null);
 
         return new IndustryCalculationService(
-            $typeRepository,
             new TypeNameResolver($typeRepository),
             $bonusService,
             $this->createStub(IndustryStructureConfigRepository::class),

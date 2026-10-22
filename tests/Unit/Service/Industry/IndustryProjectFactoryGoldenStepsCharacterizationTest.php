@@ -141,7 +141,6 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
         $settingsRepository->method('findOneBy')->willReturn(null);
         $calculationService = new IndustryCalculationService(
-            $typeRepository,
             new TypeNameResolver($typeRepository),
             $bonusService,
             $this->createStub(IndustryStructureConfigRepository::class),

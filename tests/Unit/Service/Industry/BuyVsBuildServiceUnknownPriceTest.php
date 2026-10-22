@@ -7,7 +7,6 @@ namespace App\Tests\Unit\Service\Industry;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Service\Industry\BuyVsBuildService;
 use App\Service\Industry\EsiCostIndexService;
-use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\IndustryTreeService;
 use App\Service\Industry\InventionService;
 use App\Service\JitaMarketService;
@@ -465,7 +464,6 @@ final class BuyVsBuildServiceUnknownPriceTest extends TestCase
                 self::NOCXIUM => 'Nocxium',
                 self::ZYDRINE => 'Zydrine',
             ])),
-            $this->createStub(IndustryBlacklistService::class),
             $materialRepository,
         );
 

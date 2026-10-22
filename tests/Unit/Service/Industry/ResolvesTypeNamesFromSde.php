@@ -64,7 +64,6 @@ trait ResolvesTypeNamesFromSde
         $invTypeRepository = $this->sdeTypeRepositoryKnowing($typeNamesByTypeId);
 
         return new IndustryCalculationService(
-            $invTypeRepository,
             new TypeNameResolver($invTypeRepository),
             $this->createStub(IndustryBonusService::class),
             $this->createStub(IndustryStructureConfigRepository::class),

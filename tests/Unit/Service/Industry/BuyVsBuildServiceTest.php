@@ -7,7 +7,6 @@ namespace App\Tests\Unit\Service\Industry;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Service\Industry\BuyVsBuildService;
 use App\Service\Industry\EsiCostIndexService;
-use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\IndustryTreeService;
 use App\Service\Industry\InventionService;
 use App\Service\JitaMarketService;
@@ -27,7 +26,6 @@ class BuyVsBuildServiceTest extends TestCase
     private StructureMarketService&MockObject $structureMarketService;
     private EsiCostIndexService&MockObject $esiCostIndexService;
     private InventionService&MockObject $inventionService;
-    private IndustryBlacklistService&MockObject $blacklistService;
     private IndustryActivityMaterialRepository&MockObject $materialRepository;
     private BuyVsBuildService $service;
 
@@ -44,7 +42,6 @@ class BuyVsBuildServiceTest extends TestCase
         $this->structureMarketService = $this->createMock(StructureMarketService::class);
         $this->esiCostIndexService = $this->createMock(EsiCostIndexService::class);
         $this->inventionService = $this->createMock(InventionService::class);
-        $this->blacklistService = $this->createMock(IndustryBlacklistService::class);
         $this->materialRepository = $this->createMock(IndustryActivityMaterialRepository::class);
 
         $this->service = new BuyVsBuildService(
@@ -68,7 +65,6 @@ class BuyVsBuildServiceTest extends TestCase
                 self::LIQUID_OZONE_TYPE_ID => 'Liquid Ozone',
                 self::MECHANICAL_PARTS_TYPE_ID => 'Mechanical Parts',
             ])),
-            $this->blacklistService,
             $this->materialRepository,
         );
     }

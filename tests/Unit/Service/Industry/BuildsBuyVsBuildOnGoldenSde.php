@@ -17,7 +17,6 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\Industry\BuyVsBuildService;
 use App\Service\Industry\EsiCostIndexService;
-use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\IndustryBonusService;
 use App\Service\Industry\IndustryTreeService;
 use App\Service\Industry\InventionService;
@@ -160,7 +159,6 @@ trait BuildsBuyVsBuildOnGoldenSde
             $this->esiCostIndexServiceSyncedWith($adjustedPrices, $costIndices),
             $inventionService,
             new TypeNameResolver($invTypeRepository),
-            $this->createStub(IndustryBlacklistService::class),
             $activityMaterialRepository,
         );
     }
