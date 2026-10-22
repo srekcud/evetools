@@ -6,7 +6,6 @@ namespace App\Service\Industry;
 
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
-use App\Repository\IndustryUserSettingsRepository;
 use App\Constant\EveConstants;
 use App\Enum\IndustryActivityType;
 use App\Industry\Domain\ActivityKind;
@@ -27,7 +26,7 @@ class ProductionCostService
         private readonly EsiCostIndexService $esiCostIndexService,
         private readonly IndustryShoppingListBuilder $shoppingListBuilder,
         private readonly IndustryCalculationService $calculationService,
-        private readonly IndustryUserSettingsRepository $userSettingsRepository,
+        private readonly ProjectStepSolarSystemResolver $solarSystemResolver,
         private readonly IndustryActivityMaterialRepository $materialRepository,
         private readonly IndustryActivityProductRepository $productRepository,
         private readonly MapSolarSystemRepository $solarSystemRepository,
@@ -97,7 +96,7 @@ class ProductionCostService
                 continue;
             }
 
-            $solarSystemId = $this->resolveSolarSystemForStep($step, $project);
+            $solarSystemId = $this->solarSystemResolver->forStep($step);
             $activityKind = $activityType === 'reaction' ? ActivityKind::Reaction : ActivityKind::Manufacturing;
             $facilityTaxRate = $step->getStructureConfig() !== null
                 ? $step->getStructureConfig()->getFacilityTaxRate()
@@ -175,38 +174,6 @@ class ProductionCostService
             'jobInstallSteps' => $jobInstallResult['steps'],
             'failedProducts' => $materialResult['failedProducts'],
         ];
-    }
-
-    /**
-     * Resolve the solar system for a given step, with fallback chain:
-     * 1. Step's structure config solarSystemId
-     * 2. User's favorite system (manufacturing or reaction)
-     * 3. Default: Jita (30000142)
-     */
-    private function resolveSolarSystemForStep(IndustryProjectStep $step, IndustryProject $project): int
-    {
-        // 1. Step's assigned structure config
-        $structureConfig = $step->getStructureConfig();
-        if ($structureConfig !== null && $structureConfig->getSolarSystemId() !== null) {
-            return $structureConfig->getSolarSystemId();
-        }
-
-        // 2. User's favorite system for this activity type
-        $user = $project->getUser();
-        $settings = $this->userSettingsRepository->findOneBy(['user' => $user]);
-        if ($settings !== null) {
-            $isReaction = $step->getActivityType() === 'reaction';
-            $favoriteSystemId = $isReaction
-                ? $settings->getFavoriteReactionSystemId()
-                : $settings->getFavoriteManufacturingSystemId();
-
-            if ($favoriteSystemId !== null) {
-                return $favoriteSystemId;
-            }
-        }
-
-        // 3. Default fallback
-        return EveConstants::JITA_SOLAR_SYSTEM_ID;
     }
 
     /**

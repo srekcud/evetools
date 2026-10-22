@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Service\Industry;
 
-use App\Entity\IndustryProject;
 use App\Constant\EveConstants;
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectStep;
+use App\Industry\Domain\ActivityKind;
 use App\Enum\IndustryActivityType;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -52,6 +54,8 @@ class InventionService
         private readonly JitaMarketService $jitaMarketService,
         private readonly EsiCostIndexService $esiCostIndexService,
         private readonly TypeNameResolver $typeNameResolver,
+        private readonly ProjectStepSolarSystemResolver $solarSystemResolver,
+        private readonly FacilityTaxRateResolver $facilityTaxRateResolver,
     ) {
     }
 
@@ -387,7 +391,7 @@ class InventionService
     public function getBpcKitBreakdown(IndustryProject $project, int $desiredBpcCount = 1): array
     {
         $productTypeId = $project->getProductTypeId();
-        $solarSystemId = $this->resolveSolarSystemForProject($project);
+        ['solarSystemId' => $solarSystemId, 'facilityTaxRate' => $facilityTaxRate] = $this->resolveInstallContext($project);
 
         // Check if this is a T2 item (has invention path in SDE)
         $inventionData = $this->getInventionData($productTypeId);
@@ -396,8 +400,6 @@ class InventionService
         $inventions = [];
         $totalInventionCost = $isT2 ? null : 0.0;
         $bestDecryptorTypeId = null;
-
-        $facilityTaxRate = $this->resolveFacilityTaxRate($project);
 
         if ($isT2) {
             // T2 item: calculate invention costs with all decryptor options
@@ -457,8 +459,7 @@ class InventionService
      */
     public function getProjectCopyCosts(IndustryProject $project): array
     {
-        $solarSystemId = $this->resolveSolarSystemForProject($project);
-        $facilityTaxRate = $this->resolveFacilityTaxRate($project);
+        ['solarSystemId' => $solarSystemId, 'facilityTaxRate' => $facilityTaxRate] = $this->resolveInstallContext($project);
 
         $copies = [];
         $totalCopyCost = 0.0;
@@ -542,35 +543,42 @@ class InventionService
     }
 
     /**
-     * Resolve the solar system for a project from its root step's structure config.
+     * @return array{solarSystemId: int, facilityTaxRate: ?float}
      */
-    private function resolveSolarSystemForProject(IndustryProject $project): int
+    private function resolveInstallContext(IndustryProject $project): array
     {
-        // Try the root step (depth 0) structure config
-        foreach ($project->getSteps() as $step) {
-            if ($step->getDepth() === 0) {
-                $config = $step->getStructureConfig();
-                if ($config !== null && $config->getSolarSystemId() !== null) {
-                    return $config->getSolarSystemId();
-                }
-            }
+        $rootStep = $this->findRootStep($project);
+        if ($rootStep === null) {
+            return [
+                'solarSystemId' => EveConstants::JITA_SOLAR_SYSTEM_ID,
+                'facilityTaxRate' => $this->facilityTaxRateResolver->percentFor(null, EveConstants::JITA_SOLAR_SYSTEM_ID, ActivityKind::Invention),
+            ];
         }
 
-        return EveConstants::JITA_SOLAR_SYSTEM_ID;
+        $solarSystemId = $this->solarSystemResolver->forStep($rootStep);
+        $structureConfig = $rootStep->getStructureConfig();
+
+        return [
+            'solarSystemId' => $solarSystemId,
+            'facilityTaxRate' => $structureConfig !== null
+                ? $structureConfig->getFacilityTaxRate()
+                : $this->facilityTaxRateResolver->percentFor($project->getUser(), $solarSystemId, ActivityKind::Invention),
+        ];
     }
 
-    /**
-     * Resolve the facility tax rate for a project from its root step's structure config.
-     */
-    private function resolveFacilityTaxRate(IndustryProject $project): ?float
+    private function findRootStep(IndustryProject $project): ?IndustryProjectStep
     {
+        $rootStep = null;
         foreach ($project->getSteps() as $step) {
-            if ($step->getDepth() === 0) {
-                return $step->getStructureConfig()?->getFacilityTaxRate();
+            if ($step->getDepth() !== 0 || $step->getActivityType() === 'copy') {
+                continue;
+            }
+            if ($rootStep === null || $step->getSortOrder() < $rootStep->getSortOrder()) {
+                $rootStep = $step;
             }
         }
 
-        return null;
+        return $rootStep;
     }
 
     /**
