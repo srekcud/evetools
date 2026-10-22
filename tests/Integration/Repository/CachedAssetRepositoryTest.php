@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Integration\Repository;
 
 use App\Entity\CachedAsset;
+use App\Entity\Character;
 use App\Repository\CachedAssetRepository;
 use App\Tests\Integration\IntegrationTestCase;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Corporation asset finders against PostgreSQL, with the rows an ESI
@@ -191,6 +193,33 @@ final class CachedAssetRepositoryTest extends IntegrationTestCase
             ->setSolarSystemName('Jita')
             ->setCorporationId($corporationId)
             ->setIsCorporationAsset(true));
+    }
+
+    #[Group('issue-115')]
+    public function testFindByCharacterAndLocationSortsUnknownTypeNamesLast(): void
+    {
+        $character = $this->createCharacter();
+        foreach ([[8_001, 34, 'Tritanium', 8_800], [8_002, 9848, null, 6_300], [8_003, 35, 'Pyerite', 2_100]] as [$itemId, $typeId, $typeName, $quantity]) {
+            $this->em->persist((new CachedAsset())
+                ->setItemId($itemId)
+                ->setTypeId($typeId)
+                ->setTypeName($typeName)
+                ->setQuantity($quantity)
+                ->setLocationId(self::JITA_STATION_ID)
+                ->setLocationName('Jita IV - Moon 4 - Caldari Navy Assembly Plant')
+                ->setLocationType('station')
+                ->setLocationFlag('Hangar')
+                ->setCharacter($character)
+                ->setIsCorporationAsset(false));
+        }
+        $this->flushAndClear();
+
+        $assets = $this->repository->findByCharacterAndLocation($this->em->find(Character::class, $character->getId()), self::JITA_STATION_ID);
+
+        self::assertSame(
+            [[35, 'Pyerite', 2_100], [34, 'Tritanium', 8_800], [9848, null, 6_300]],
+            array_map(static fn (CachedAsset $a): array => [$a->getTypeId(), $a->getTypeName(), $a->getQuantity()], $assets),
+        );
     }
 
     /**

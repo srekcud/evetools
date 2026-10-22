@@ -10,9 +10,11 @@ use App\Entity\EveToken;
 use App\Entity\Sde\MapSolarSystem;
 use App\Exception\EsiApiException;
 use App\Repository\CachedStructureRepository;
+use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\ESI\AssetsService;
 use App\Service\ESI\EsiClient;
+use App\Service\TypeNameResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\Stub;
@@ -139,6 +141,7 @@ class AssetsServiceContainerLocationTest extends TestCase
             $this->createCachedStructureRepository(),
             $this->createStub(EntityManagerInterface::class),
             new NullLogger(),
+            new TypeNameResolver($this->createSdeTypeRepositoryKnowingNoType()),
         );
 
         return $assetsService->getCharacterAssets($character);
@@ -444,6 +447,14 @@ class AssetsServiceContainerLocationTest extends TestCase
         });
 
         return $esiClient;
+    }
+
+    private function createSdeTypeRepositoryKnowingNoType(): InvTypeRepository&Stub
+    {
+        $repository = $this->createStub(InvTypeRepository::class);
+        $repository->method('findByTypeIds')->willReturn([]);
+
+        return $repository;
     }
 
     private function createSolarSystemRepository(): MapSolarSystemRepository&Stub

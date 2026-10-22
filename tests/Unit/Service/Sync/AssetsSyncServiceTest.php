@@ -23,6 +23,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
@@ -449,6 +450,34 @@ class AssetsSyncServiceTest extends TestCase
             ],
             $this->divisionNamesByItemId(),
         );
+    }
+
+    #[Group('issue-115')]
+    public function testSyncCharacterAssetsCachesAnAssetWithAnUnknownTypeNameWithoutName(): void
+    {
+        $character = new Character();
+        $this->assetsService->method('getCharacterAssets')->willReturn([
+            new AssetDto(
+                itemId: 1_050_000_000_501,
+                typeId: 9848,
+                typeName: null,
+                quantity: 4321,
+                locationId: 60003760,
+                locationName: 'Jita IV - Moon 4 - Caldari Navy Assembly Plant',
+                locationType: 'station',
+                locationFlag: 'Hangar',
+                solarSystemId: 30000142,
+                solarSystemName: 'Jita',
+            ),
+        ]);
+        $this->recordCacheDeletionsAndWrites();
+
+        $this->service->syncCharacterAssets($character);
+
+        self::assertCount(1, $this->persistedAssets);
+        self::assertNull($this->persistedAssets[0]->getTypeName());
+        self::assertSame(9848, $this->persistedAssets[0]->getTypeId());
+        self::assertSame(4321, $this->persistedAssets[0]->getQuantity());
     }
 
     public function testSyncCharacterAssetsCachesEveryEsiFieldAsAPersonalAsset(): void

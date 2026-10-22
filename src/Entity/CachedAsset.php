@@ -29,8 +29,8 @@ class CachedAsset
     #[ORM\Column(type: 'integer')]
     private int $typeId;
 
-    #[ORM\Column(type: 'string', length: 255)]
-    private string $typeName;
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    private ?string $typeName;
 
     #[ORM\Column(type: 'integer')]
     private int $quantity;
@@ -110,12 +110,12 @@ class CachedAsset
         return $this;
     }
 
-    public function getTypeName(): string
+    public function getTypeName(): ?string
     {
         return $this->typeName;
     }
 
-    public function setTypeName(string $typeName): static
+    public function setTypeName(?string $typeName): static
     {
         $this->typeName = $typeName;
 

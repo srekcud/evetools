@@ -12,7 +12,7 @@ class AssetItemResource
 
     public int $typeId;
 
-    public string $typeName;
+    public ?string $typeName;
 
     public ?int $categoryId = null;
 

@@ -9,7 +9,7 @@ final readonly class AssetDto
     public function __construct(
         public int $itemId,
         public int $typeId,
-        public string $typeName,
+        public ?string $typeName,
         public int $quantity,
         public int $locationId,
         public string $locationName,

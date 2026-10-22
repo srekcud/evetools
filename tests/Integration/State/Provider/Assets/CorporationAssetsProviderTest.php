@@ -14,6 +14,7 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Service\Assets\VisibleCorporationAssetsFinder;
 use App\State\Provider\Assets\CorporationAssetsProvider;
 use App\Tests\Integration\IntegrationTestCase;
+use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -153,6 +154,25 @@ final class CorporationAssetsProviderTest extends IntegrationTestCase
         self::assertSame([], $result->items);
     }
 
+    #[Group('issue-115')]
+    public function testAnAssetWhoseTypeNameIsUnknownIsExposedWithoutTypeName(): void
+    {
+        $this->createCorporationAsset(1_040_000_000_103, 9848, null, 6_300, self::OFFICE_ITEM_ID, 'item', 'CorpSAG1', 'Materials');
+        $this->flushAndClear();
+        $this->allowDivisions([1]);
+
+        $result = $this->listCorporationAssetsAs($this->member, divisionName: 'Materials');
+
+        $unknownTypeAssets = array_values(array_filter(
+            $result->items,
+            static fn (AssetItemResource $item): bool => $item->itemId === 1_040_000_000_103,
+        ));
+        self::assertCount(1, $unknownTypeAssets);
+        self::assertNull($unknownTypeAssets[0]->typeName);
+        self::assertSame(9848, $unknownTypeAssets[0]->typeId);
+        self::assertSame(6_300, $unknownTypeAssets[0]->quantity);
+    }
+
     /** @param int[] $divisionNumbers */
     private function allowDivisions(array $divisionNumbers): void
     {
@@ -195,7 +215,7 @@ final class CorporationAssetsProviderTest extends IntegrationTestCase
     private function createCorporationAsset(
         int $itemId,
         int $typeId,
-        string $typeName,
+        ?string $typeName,
         int $quantity,
         int $locationId,
         string $locationType,
