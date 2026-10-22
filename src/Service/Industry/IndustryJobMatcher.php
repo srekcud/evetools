@@ -143,6 +143,7 @@ class IndustryJobMatcher
         $stepStructureCorrected = false;
 
         $step->addJobMatch($this->createJobMatch($job, $step, $project, $stepStructureCorrected));
+        $step->setJobMatchMode(self::JOB_MATCH_MODE_MANUAL);
 
         $this->persistAndRecalculate($project, $stepStructureCorrected);
     }
