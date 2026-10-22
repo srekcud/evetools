@@ -88,23 +88,6 @@ class CachedAssetRepository extends ServiceEntityRepository
     }
 
     /**
-     * @return CachedAsset[]
-     */
-    public function findByCorporationAndDivision(int $corporationId, string $divisionName): array
-    {
-        return $this->createQueryBuilder('a')
-            ->where('a.corporationId = :corporationId')
-            ->andWhere('a.divisionName = :divisionName')
-            ->andWhere('a.isCorporationAsset = true')
-            ->setParameter('corporationId', $corporationId)
-            ->setParameter('divisionName', $divisionName)
-            ->orderBy('a.locationName', 'ASC')
-            ->addOrderBy('a.typeName', 'ASC')
-            ->getQuery()
-            ->getResult();
-    }
-
-    /**
      * @param int[] $divisionNumbers Division numbers (1-7)
      * @return CachedAsset[]
      */

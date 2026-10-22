@@ -309,12 +309,6 @@ class CorporationAssetsProviderTest extends TestCase
         $this->cachedAssetRepository->method('findByCorporationId')->willReturnCallback(
             static fn (int $corporationId): array => $inCorporation($corporationId),
         );
-        $this->cachedAssetRepository->method('findByCorporationAndDivision')->willReturnCallback(
-            static fn (int $corporationId, string $divisionName): array => array_values(array_filter(
-                $inCorporation($corporationId),
-                static fn (CachedAsset $asset): bool => $asset->getDivisionName() === $divisionName,
-            )),
-        );
         $this->cachedAssetRepository->method('findByCorporationAndDivisions')->willReturnCallback(
             static fn (int $corporationId, array $divisionNumbers): array => array_values(array_filter(
                 $inCorporation($corporationId),
