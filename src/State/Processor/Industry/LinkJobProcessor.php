@@ -9,14 +9,11 @@ use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\ProjectStepResource;
 use App\ApiResource\Input\Industry\LinkJobInput;
 use App\Entity\CachedIndustryJob;
-use App\Entity\IndustryStepJobMatch;
 use App\Entity\User;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
-use App\Repository\IndustryStructureConfigRepository;
-use App\Service\Industry\IndustryCalculationService;
-use App\Service\Industry\IndustryStepCalculator;
+use App\Service\Industry\IndustryJobMatcher;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -35,11 +32,9 @@ class LinkJobProcessor implements ProcessorInterface
         private readonly IndustryProjectRepository $projectRepository,
         private readonly IndustryProjectStepRepository $stepRepository,
         private readonly CachedIndustryJobRepository $jobRepository,
-        private readonly IndustryStructureConfigRepository $structureConfigRepository,
-        private readonly IndustryCalculationService $calculationService,
-        private readonly IndustryStepCalculator $stepCalculator,
         private readonly IndustryResourceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,
+        private readonly IndustryJobMatcher $jobMatcher,
     ) {
     }
 
@@ -75,6 +70,14 @@ class LinkJobProcessor implements ProcessorInterface
             throw new BadRequestHttpException('Job blueprint does not match step blueprint');
         }
 
+        if ($job->hasNoOutput()) {
+            throw new BadRequestHttpException("ESI job {$esiJobId} has no output");
+        }
+
+        if (!$this->jobMatcher->isJobOfStepActivity($job, $step)) {
+            throw new BadRequestHttpException('Job activity does not match step activity');
+        }
+
         // Validate that the job is not already linked to another step
         $existingMatch = $this->entityManager->createQuery(
             'SELECT m FROM App\Entity\IndustryStepJobMatch m WHERE m.esiJobId = :esiJobId'
@@ -84,39 +87,7 @@ class LinkJobProcessor implements ProcessorInterface
             throw new BadRequestHttpException("ESI job {$esiJobId} is already linked to a step");
         }
 
-        // Create the match
-        $match = new IndustryStepJobMatch();
-        $match->setEsiJobId($esiJobId);
-        $match->copyJobState($job);
-        $match->setCharacterName($job->getCharacter()->getName());
-
-        // Capture facility info from ESI job
-        $stationId = $job->getStationId();
-        if ($stationId !== null) {
-            $match->setFacilityId($stationId);
-            $match->setFacilityName($this->calculationService->resolveFacilityName($stationId));
-
-            $currentConfig = $step->getStructureConfig();
-            if ($currentConfig?->getLocationId() !== $stationId) {
-                $facilityConfig = $this->structureConfigRepository
-                    ->findByUserAndLocationId($user, $stationId);
-                if ($facilityConfig !== null && $facilityConfig->getId() !== $currentConfig?->getId()) {
-                    // Record what was planned before correction
-                    $match->setPlannedStructureName($currentConfig?->getName() ?? 'Aucune structure');
-                    $currentBonus = $this->calculationService->getStructureBonusForStep($step);
-                    $match->setPlannedMaterialBonus($currentBonus['materialBonus']['total']);
-
-                    // Auto-correct
-                    $step->setStructureConfig($facilityConfig);
-                    $this->entityManager->flush();
-                    $this->stepCalculator->recalculateStepQuantities($project);
-                }
-            }
-        }
-
-        $step->addJobMatch($match);
-
-        $this->entityManager->flush();
+        $this->jobMatcher->linkJobToStep($job, $step);
 
         return $this->mapper->stepToResource($step);
     }

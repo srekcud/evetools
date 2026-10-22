@@ -7,6 +7,7 @@ namespace App\State\Provider\Industry;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\AvailableJobResource;
+use App\Entity\CachedIndustryJob;
 use App\Entity\User;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryProjectRepository;
@@ -91,7 +92,8 @@ class AvailableJobsProvider implements ProviderInterface
 
         // Build resources
         $resources = [];
-        foreach ($jobs as $job) {
+        $jobsWithOutput = array_filter($jobs, static fn (CachedIndustryJob $job): bool => !$job->hasNoOutput());
+        foreach ($jobsWithOutput as $job) {
             $resource = new AvailableJobResource();
             $resource->esiJobId = $job->getJobId();
             $resource->blueprintTypeId = $job->getBlueprintTypeId();

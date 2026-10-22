@@ -8,6 +8,7 @@ use App\Entity\CachedIndustryJob;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStepJobMatch;
+use App\Enum\IndustryActivityType;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -23,6 +24,13 @@ class IndustryJobMatcher
 {
     private const string JOB_MATCH_MODE_MANUAL = 'manual';
     private const string JOB_MATCH_MODE_NONE = 'none';
+    private const int ESI_REACTION_ACTIVITY_ID = 9;
+    private const array JOB_ACTIVITY_IDS_BY_STEP_ACTIVITY_TYPE = [
+        'manufacturing' => [IndustryActivityType::Manufacturing->value],
+        'reaction' => [self::ESI_REACTION_ACTIVITY_ID, IndustryActivityType::Reaction->value],
+        'copy' => [IndustryActivityType::Copying->value],
+        'invention' => [IndustryActivityType::Invention->value],
+    ];
 
     public function __construct(
         private readonly IndustryStepCalculator $stepCalculator,
@@ -118,6 +126,29 @@ class IndustryJobMatcher
             }
         }
 
+        $this->persistAndRecalculate($project, $stepsToRecalculate);
+    }
+
+    public function isJobOfStepActivity(CachedIndustryJob $job, IndustryProjectStep $step): bool
+    {
+        $stepActivityType = $step->getActivityType();
+
+        return array_key_exists($stepActivityType, self::JOB_ACTIVITY_IDS_BY_STEP_ACTIVITY_TYPE)
+            && in_array($job->getActivityId(), self::JOB_ACTIVITY_IDS_BY_STEP_ACTIVITY_TYPE[$stepActivityType], true);
+    }
+
+    public function linkJobToStep(CachedIndustryJob $job, IndustryProjectStep $step): void
+    {
+        $project = $step->getProject();
+        $stepStructureCorrected = false;
+
+        $step->addJobMatch($this->createJobMatch($job, $step, $project, $stepStructureCorrected));
+
+        $this->persistAndRecalculate($project, $stepStructureCorrected);
+    }
+
+    private function persistAndRecalculate(IndustryProject $project, bool $stepsToRecalculate): void
+    {
         $this->entityManager->flush();
 
         if ($stepsToRecalculate) {
