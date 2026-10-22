@@ -29,7 +29,7 @@ final readonly class JobInstallCostEstimator
         ?float $costIndex,
         int $runs,
         string $activity,
-        ?float $facilityTaxRate,
+        ?float $facilityTaxPercent,
     ): array {
         $activityKind = match ($activity) {
             'manufacturing' => ActivityKind::Manufacturing,
@@ -65,7 +65,7 @@ final readonly class JobInstallCostEstimator
             $estimatedItemValue,
             $costIndex,
             Multiplier::one(),
-            ($facilityTaxRate ?? 0.0) / self::PERCENT,
+            ($facilityTaxPercent ?? 0.0) / self::PERCENT,
             false,
         );
 

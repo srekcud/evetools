@@ -52,7 +52,7 @@ class IndustryResourceMapper
         $resource->rigs = $structure->getRigs();
         $resource->isDefault = $structure->isDefault();
         $resource->isCorporationStructure = $structure->isCorporationStructure();
-        $resource->facilityTaxRate = $structure->getFacilityTaxRate();
+        $resource->facilityTaxRate = $structure->getFacilityTaxPercent();
         $resource->manufacturingMaterialBonus = $structure->getManufacturingMaterialBonus();
         $resource->reactionMaterialBonus = $structure->getReactionMaterialBonus();
         $resource->manufacturingTimeBonus = $structure->getManufacturingTimeBonus();

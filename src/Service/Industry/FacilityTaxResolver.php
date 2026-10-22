@@ -11,7 +11,7 @@ use App\Industry\Application\ProductionCostCalculator;
 use App\Industry\Application\StructureSelector;
 use App\Industry\Domain\ActivityKind;
 
-final readonly class FacilityTaxRateResolver
+final readonly class FacilityTaxResolver
 {
     private const int PERCENT_PER_FRACTION = 100;
 

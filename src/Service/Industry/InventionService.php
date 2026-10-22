@@ -55,7 +55,7 @@ class InventionService
         private readonly EsiCostIndexService $esiCostIndexService,
         private readonly TypeNameResolver $typeNameResolver,
         private readonly ProjectStepSolarSystemResolver $solarSystemResolver,
-        private readonly FacilityTaxRateResolver $facilityTaxRateResolver,
+        private readonly FacilityTaxResolver $facilityTaxResolver,
     ) {
     }
 
@@ -69,7 +69,7 @@ class InventionService
         int $blueprintTypeId,
         int $runs,
         int $solarSystemId,
-        ?float $facilityTaxRate = null,
+        ?float $facilityTaxPercent = null,
     ): float {
         $eiv = $this->calculateBlueprintEiv($blueprintTypeId);
         if ($eiv <= 0.0) {
@@ -81,7 +81,7 @@ class InventionService
             return 0.0;
         }
 
-        $taxMultiplier = 1.0 + ($facilityTaxRate ?? 0.0) / 100.0;
+        $taxMultiplier = 1.0 + ($facilityTaxPercent ?? 0.0) / 100.0;
 
         return 0.02 * $eiv * $runs * $costIndex * $taxMultiplier;
     }
@@ -230,7 +230,7 @@ class InventionService
         int $solarSystemId,
         ?int $decryptorTypeId = null,
         int $desiredSuccesses = 1,
-        ?float $facilityTaxRate = null,
+        ?float $facilityTaxPercent = null,
     ): ?array {
         $inventionData = $this->getInventionData($t2TypeId);
 
@@ -298,14 +298,14 @@ class InventionService
             ];
         }
 
-        $copyCost = $this->getCopyJobCost($t1BlueprintTypeId, 1, $solarSystemId, $facilityTaxRate);
+        $copyCost = $this->getCopyJobCost($t1BlueprintTypeId, 1, $solarSystemId, $facilityTaxPercent);
 
         $inventionInstallEstimate = $this->esiCostIndexService->estimateJobInstallCost(
             $this->activityMaterialRepository->findMaterialsForBlueprints([$t2BlueprintTypeId], [IndustryActivityType::Manufacturing->value])[$t2BlueprintTypeId] ?? [],
             1,
             $solarSystemId,
             'invention',
-            $facilityTaxRate,
+            $facilityTaxPercent,
         );
         $inventionInstallCost = $inventionInstallEstimate['cost'];
 
@@ -391,7 +391,7 @@ class InventionService
     public function getBpcKitBreakdown(IndustryProject $project, int $desiredBpcCount = 1): array
     {
         $productTypeId = $project->getProductTypeId();
-        ['solarSystemId' => $solarSystemId, 'facilityTaxRate' => $facilityTaxRate] = $this->resolveInstallContext($project);
+        ['solarSystemId' => $solarSystemId, 'facilityTaxPercent' => $facilityTaxPercent] = $this->resolveInstallContext($project);
 
         // Check if this is a T2 item (has invention path in SDE)
         $inventionData = $this->getInventionData($productTypeId);
@@ -407,7 +407,7 @@ class InventionService
                 $productTypeId,
                 $solarSystemId,
                 $desiredBpcCount,
-                $facilityTaxRate,
+                $facilityTaxPercent,
             );
 
             // Get datacores info from the "no decryptor" result (materials are the same regardless)
@@ -416,7 +416,7 @@ class InventionService
                 $solarSystemId,
                 null,
                 $desiredBpcCount,
-                $facilityTaxRate,
+                $facilityTaxPercent,
             );
 
             $productName = $this->typeNameResolver->findName($productTypeId);
@@ -459,7 +459,7 @@ class InventionService
      */
     public function getProjectCopyCosts(IndustryProject $project): array
     {
-        ['solarSystemId' => $solarSystemId, 'facilityTaxRate' => $facilityTaxRate] = $this->resolveInstallContext($project);
+        ['solarSystemId' => $solarSystemId, 'facilityTaxPercent' => $facilityTaxPercent] = $this->resolveInstallContext($project);
 
         $copies = [];
         $totalCopyCost = 0.0;
@@ -476,7 +476,7 @@ class InventionService
                 $blueprintTypeId,
                 $stepRuns,
                 $solarSystemId,
-                $facilityTaxRate,
+                $facilityTaxPercent,
             );
             $totalCopyCost += $copyCost;
 
@@ -507,7 +507,7 @@ class InventionService
         int $t2TypeId,
         int $solarSystemId,
         int $desiredSuccesses = 1,
-        ?float $facilityTaxRate = null,
+        ?float $facilityTaxPercent = null,
     ): array {
         $options = [];
 
@@ -517,7 +517,7 @@ class InventionService
                 $solarSystemId,
                 $decryptorTypeId,
                 $desiredSuccesses,
-                $facilityTaxRate,
+                $facilityTaxPercent,
             );
 
             if ($result !== null) {
@@ -543,7 +543,7 @@ class InventionService
     }
 
     /**
-     * @return array{solarSystemId: int, facilityTaxRate: ?float}
+     * @return array{solarSystemId: int, facilityTaxPercent: ?float}
      */
     private function resolveInstallContext(IndustryProject $project): array
     {
@@ -551,7 +551,7 @@ class InventionService
         if ($rootStep === null) {
             return [
                 'solarSystemId' => EveConstants::JITA_SOLAR_SYSTEM_ID,
-                'facilityTaxRate' => $this->facilityTaxRateResolver->percentFor(null, EveConstants::JITA_SOLAR_SYSTEM_ID, ActivityKind::Invention),
+                'facilityTaxPercent' => $this->facilityTaxResolver->percentFor(null, EveConstants::JITA_SOLAR_SYSTEM_ID, ActivityKind::Invention),
             ];
         }
 
@@ -560,9 +560,9 @@ class InventionService
 
         return [
             'solarSystemId' => $solarSystemId,
-            'facilityTaxRate' => $structureConfig !== null
-                ? $structureConfig->getFacilityTaxRate()
-                : $this->facilityTaxRateResolver->percentFor($project->getUser(), $solarSystemId, ActivityKind::Invention),
+            'facilityTaxPercent' => $structureConfig !== null
+                ? $structureConfig->getFacilityTaxPercent()
+                : $this->facilityTaxResolver->percentFor($project->getUser(), $solarSystemId, ActivityKind::Invention),
         ];
     }
 

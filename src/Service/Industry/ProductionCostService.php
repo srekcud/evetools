@@ -30,7 +30,7 @@ class ProductionCostService
         private readonly IndustryActivityMaterialRepository $materialRepository,
         private readonly IndustryActivityProductRepository $productRepository,
         private readonly MapSolarSystemRepository $solarSystemRepository,
-        private readonly FacilityTaxRateResolver $facilityTaxRateResolver,
+        private readonly FacilityTaxResolver $facilityTaxResolver,
     ) {
     }
 
@@ -98,9 +98,9 @@ class ProductionCostService
 
             $solarSystemId = $this->solarSystemResolver->forStep($step);
             $activityKind = $activityType === 'reaction' ? ActivityKind::Reaction : ActivityKind::Manufacturing;
-            $facilityTaxRate = $step->getStructureConfig() !== null
-                ? $step->getStructureConfig()->getFacilityTaxRate()
-                : $this->facilityTaxRateResolver->percentFor($project->getUser(), $solarSystemId, $activityKind);
+            $facilityTaxPercent = $step->getStructureConfig() !== null
+                ? $step->getStructureConfig()->getFacilityTaxPercent()
+                : $this->facilityTaxResolver->percentFor($project->getUser(), $solarSystemId, $activityKind);
 
             $activityIdValue = $activityType === 'reaction' ? IndustryActivityType::Reaction->value : IndustryActivityType::Manufacturing->value;
             $me0Materials = $this->materialRepository->findMaterialsForBlueprints(
@@ -113,7 +113,7 @@ class ProductionCostService
                 $step->getRuns(),
                 $solarSystemId,
                 $activityType,
-                $facilityTaxRate,
+                $facilityTaxPercent,
             );
 
             if ($estimate['cost'] === null) {

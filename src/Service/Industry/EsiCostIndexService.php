@@ -15,7 +15,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  * Both endpoints are public (no auth required).
  *
  * Used to estimate industry job install costs:
- *   install_cost = EIV * runs * system_cost_index * (1 + facility_tax_rate / 100)
+ *   install_cost = EIV * runs * system_cost_index * (1 + facility_tax_percent / 100)
  *
  * Where EIV (Estimated Item Value) = sum(adjustedPrice(inputMaterial) * quantity)
  * for all input materials at ME0 (raw SDE quantities).
@@ -199,11 +199,11 @@ class EsiCostIndexService
         int $runs,
         int $solarSystemId,
         string $activity,
-        ?float $facilityTaxRate,
+        ?float $facilityTaxPercent,
     ): array {
         $adjustedPrices = $this->getAdjustedPrices(array_column($materials, 'materialTypeId'));
         $costIndex = $this->getCostIndex($solarSystemId, $activity);
 
-        return $this->jobInstallCostEstimator->estimate($materials, $adjustedPrices, $costIndex, $runs, $activity, $facilityTaxRate);
+        return $this->jobInstallCostEstimator->estimate($materials, $adjustedPrices, $costIndex, $runs, $activity, $facilityTaxPercent);
     }
 }

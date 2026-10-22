@@ -46,7 +46,7 @@ class IndustryStructureConfig
 
     public const string NPC_STATION_STRUCTURE_TYPE = 'station';
 
-    public const float NPC_STATION_FACILITY_TAX_RATE = 0.25;
+    public const float NPC_STATION_FACILITY_TAX_PERCENT = 0.25;
 
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME)]
@@ -90,9 +90,9 @@ class IndustryStructureConfig
     #[ORM\Column]
     private bool $isCorporationStructure = false;
 
-    /** Facility tax rate as a percentage (e.g. 3.5 means 3.5%) */
-    #[ORM\Column(type: 'float', nullable: true)]
-    private ?float $facilityTaxRate = null;
+    /** Facility tax as a percentage (e.g. 3.5 means 3.5%) */
+    #[ORM\Column(name: 'facility_tax_rate', type: 'float', nullable: true)]
+    private ?float $facilityTaxPercent = null;
 
     /** Soft-deleted (hidden from user but preserved for corp sharing) */
     #[ORM\Column]
@@ -237,13 +237,13 @@ class IndustryStructureConfig
         return $this;
     }
 
-    public function getFacilityTaxRate(): ?float
+    public function getFacilityTaxPercent(): ?float
     {
         if ($this->isNpcStation()) {
-            return self::NPC_STATION_FACILITY_TAX_RATE;
+            return self::NPC_STATION_FACILITY_TAX_PERCENT;
         }
 
-        return $this->facilityTaxRate;
+        return $this->facilityTaxPercent;
     }
 
     public function isNpcStation(): bool
@@ -251,9 +251,9 @@ class IndustryStructureConfig
         return isset($this->structureType) && $this->structureType === self::NPC_STATION_STRUCTURE_TYPE;
     }
 
-    public function setFacilityTaxRate(?float $facilityTaxRate): self
+    public function setFacilityTaxPercent(?float $facilityTaxPercent): self
     {
-        $this->facilityTaxRate = $facilityTaxRate;
+        $this->facilityTaxPercent = $facilityTaxPercent;
         return $this;
     }
 

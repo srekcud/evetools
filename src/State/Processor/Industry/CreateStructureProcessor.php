@@ -54,7 +54,7 @@ class CreateStructureProcessor implements ProcessorInterface
         $structure->setSecurityType($data->securityType);
         $structure->setStructureType($data->structureType);
         $structure->setRigs($data->rigs);
-        $structure->setFacilityTaxRate($data->facilityTaxRate);
+        $structure->setFacilityTaxPercent($data->facilityTaxRate);
         $structure->setIsDefault($data->isDefault);
 
         $cachedStructure = $data->locationId !== null && $data->locationId > 0

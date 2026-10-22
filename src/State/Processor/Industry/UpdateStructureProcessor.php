@@ -66,12 +66,12 @@ class UpdateStructureProcessor implements ProcessorInterface
             $leavesNpcStation = $structure->isNpcStation() && $data->structureType !== IndustryStructureConfig::NPC_STATION_STRUCTURE_TYPE;
             $structure->setStructureType($data->structureType);
             if ($leavesNpcStation) {
-                $structure->setFacilityTaxRate(null);
+                $structure->setFacilityTaxPercent(null);
             }
         }
 
         if ($data->facilityTaxRate !== null) {
-            $structure->setFacilityTaxRate($data->facilityTaxRate);
+            $structure->setFacilityTaxPercent($data->facilityTaxRate);
         }
 
         if ($data->rigs !== null) {

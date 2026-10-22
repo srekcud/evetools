@@ -75,7 +75,7 @@ final readonly class ConfiguredProductionStructures implements UserProductionStr
             $this->structureBonusReader->materialMultiplierOf($structureTypeId) ?? Multiplier::one(),
             $this->rigsOf($configuration->getRigs(), StructureType::Refinery === $type ? ActivityKind::Reaction : ActivityKind::Manufacturing),
             $this->structureBonusReader->costMultiplierOf($structureTypeId) ?? Multiplier::one(),
-            ($configuration->getFacilityTaxRate() ?? self::UNSET_FACILITY_TAX_PERCENT) / self::PERCENT,
+            ($configuration->getFacilityTaxPercent() ?? self::UNSET_FACILITY_TAX_PERCENT) / self::PERCENT,
         );
     }
 

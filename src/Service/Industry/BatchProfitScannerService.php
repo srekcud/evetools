@@ -131,7 +131,7 @@ class BatchProfitScannerService
         private readonly IndustryActivitySkillRepository $activitySkillRepository,
         private readonly CachedCharacterSkillRepository $characterSkillRepository,
         private readonly JobInstallCostEstimator $jobInstallCostEstimator,
-        private readonly FacilityTaxRateResolver $facilityTaxRateResolver,
+        private readonly FacilityTaxResolver $facilityTaxResolver,
     ) {
     }
 
@@ -282,8 +282,8 @@ class BatchProfitScannerService
         // Pre-load cost indices once (same solar system for all products)
         $manufacturingCostIndex = $this->esiCostIndexService->getCostIndex($solarSystemId, 'manufacturing');
         $reactionCostIndex = $this->esiCostIndexService->getCostIndex($solarSystemId, 'reaction');
-        $manufacturingFacilityTax = $this->facilityTaxRateResolver->percentFor($user, $solarSystemId, ActivityKind::Manufacturing);
-        $reactionFacilityTax = $this->facilityTaxRateResolver->percentFor($user, $solarSystemId, ActivityKind::Reaction);
+        $manufacturingFacilityTax = $this->facilityTaxResolver->percentFor($user, $solarSystemId, ActivityKind::Manufacturing);
+        $reactionFacilityTax = $this->facilityTaxResolver->percentFor($user, $solarSystemId, ActivityKind::Reaction);
 
         // 11. Calculate profit for each product
         $results = [];

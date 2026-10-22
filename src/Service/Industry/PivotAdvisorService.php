@@ -31,7 +31,7 @@ class PivotAdvisorService
         private readonly TypeNameResolver $typeNameResolver,
         private readonly EntityManagerInterface $entityManager,
         private readonly InventionService $inventionService,
-        private readonly FacilityTaxRateResolver $facilityTaxRateResolver,
+        private readonly FacilityTaxResolver $facilityTaxResolver,
     ) {
     }
 
@@ -68,8 +68,8 @@ class PivotAdvisorService
         $sourceOutputPerRun = $sourceBlueprint->getQuantity();
         $sourceActivityId = $sourceBlueprint->getActivityId();
         $facilityTaxByActivity = [
-            'manufacturing' => $this->facilityTaxRateResolver->percentFor($user, $solarSystemId, ActivityKind::Manufacturing),
-            'reaction' => $this->facilityTaxRateResolver->percentFor($user, $solarSystemId, ActivityKind::Reaction),
+            'manufacturing' => $this->facilityTaxResolver->percentFor($user, $solarSystemId, ActivityKind::Manufacturing),
+            'reaction' => $this->facilityTaxResolver->percentFor($user, $solarSystemId, ActivityKind::Reaction),
         ];
 
         // 2. Get source blueprint materials
