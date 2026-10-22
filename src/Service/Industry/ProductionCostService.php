@@ -93,6 +93,10 @@ class ProductionCostService
                 continue;
             }
 
+            if ($step->isPurchased() || $step->isInStock()) {
+                continue;
+            }
+
             $solarSystemId = $this->resolveSolarSystemForStep($step, $project);
             $activityKind = $activityType === 'reaction' ? ActivityKind::Reaction : ActivityKind::Manufacturing;
             $facilityTaxRate = $step->getStructureConfig() !== null
