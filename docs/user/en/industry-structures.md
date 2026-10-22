@@ -30,6 +30,7 @@ Form fields:
 | **Structure type** | **NPC Station (no bonus)**, Raitaru, Azbel, Sotiyo (Engineering Complexes, for manufacturing), Athanor, Tatara (refineries, for reactions). |
 | **Security** | **High-Sec (x1.0)**, **Low-Sec (x1.9)**, **Null-Sec (x2.1)**. The multiplier applies to the rig bonus. The values shown are the manufacturing ones; for reaction rigs, project calculations apply ×1.0, ×1.0 and ×1.1. Default: Null-Sec. |
 | **Rigs (material bonus)** | Up to 3 rigs. Type at least 2 characters. The list only offers rigs matching the structure size: manufacturing rigs for an Engineering Complex, reaction rigs for a refinery. Each rig shows its ME bonus (and TE if it has one) and the product categories it targets. |
+| **Facility tax (%)** | Optional, from 0 to 50 (for example `3.5` for 3.5%). Out of range, the form refuses to save. Left empty, the field reads "not set" and the tax counts as **0%** in calculations. An **NPC Station** has no field: the form shows "0.25% (set by the game)". |
 
 The **Calculated bonus (base structure + rigs x security)** box gives a preview before saving. Confirm with **Add**.
 
@@ -52,7 +53,7 @@ The **Favorite systems** block offers one system for **Manufacturing** and one f
 
 These systems are used for:
 
-- **step job install costs**: the cost index used is the one of the favorite system for the activity. Without a favorite system, Jita's is used;
+- **step job install costs**: the cost index used is the one of the system of the step's attached structure when it is imported; otherwise the favorite system's for the activity; without a favorite system, Jita's;
 - **the analysis tabs** **Margins**, **Batch Scan**, **Buy vs Build** and **Pivot**: the favorite manufacturing system is the default system. Without one, Jita is used.
 
 They are also used to choose the structure of a step (see below). Only imported structures know their system: a structure entered by hand is never picked as the favorite system's structure.
@@ -71,6 +72,14 @@ In a project tree:
 
 - **Unconfigured**: a job linked to the step ran in a structure that is not in your list, or that was entered by hand. Import it so that its bonuses are taken into account.
 - **Suboptimal — Better : …**: another of your structures gives a better material bonus for this product.
+
+## Facility tax in a job's cost
+
+A job's install cost adds three terms computed on the same base (the job's estimated item value): the system cost (base × cost index), the **facility tax** (base × the structure's rate) and the 4% SCC surcharge. The tax is therefore an extra term, it does not multiply the cost index.
+
+- **Step with an attached structure**: the tax entered on that structure applies.
+- **Step or tool without an attached structure**: the tax is the one of the structure picked in the system (rules above), and failing that 0.25%, the NPC station tax.
+- **Tax not set**: it counts as 0%, which underestimates the real cost. Enter the rate shown in game for the structure.
 
 ## Known pitfalls
 

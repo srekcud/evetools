@@ -30,6 +30,7 @@ Les champs du formulaire :
 | **Type de structure** | **Station NPC (aucun bonus)**, Raitaru, Azbel, Sotiyo (Engineering Complex, pour la fabrication), Athanor, Tatara (raffineries, pour les réactions). |
 | **Sécurité** | **High-Sec (x1.0)**, **Low-Sec (x1.9)**, **Null-Sec (x2.1)**. Le multiplicateur s'applique au bonus des rigs. Les valeurs affichées sont celles de la fabrication ; pour les rigs de réaction, le calcul des projets applique ×1,0, ×1,0 et ×1,1. Valeur par défaut : Null-Sec. |
 | **Rigs (bonus matériaux)** | 3 rigs au plus. Tapez au moins 2 caractères. La liste ne propose que les rigs de la taille de la structure : rigs de fabrication pour un Engineering Complex, rigs de réaction pour une raffinerie. Chaque rig affiche son bonus ME (et TE s'il en a) et les catégories de produits qu'il cible. |
+| **Taxe d'installation (%)** | Facultatif, de 0 à 50 (par exemple `3.5` pour 3,5 %). Hors bornes, le formulaire refuse l'enregistrement. Laissé vide, le champ s'affiche « non saisie » et la taxe compte pour **0 %** dans les calculs. Pour une **Station NPC**, il n'y a pas de champ : le formulaire indique « 0,25 % (fixée par le jeu) ». |
 
 Le cadre **Bonus calculé (base structure + rigs x sécurité)** donne un aperçu avant d'enregistrer. Validez avec **Ajouter**.
 
@@ -52,7 +53,7 @@ Le bloc **Systèmes favoris** propose un système pour la **Fabrication** et un 
 
 Ces systèmes servent à :
 
-- **le coût d'installation des étapes** : le cost index utilisé est celui du système favori de l'activité. Sans système favori, c'est celui de Jita ;
+- **le coût d'installation des étapes** : le cost index utilisé est celui du système de la structure associée à l'étape quand elle est importée ; sinon celui du système favori de l'activité ; sans système favori, celui de Jita ;
 - **les onglets d'analyse** **Marges**, **Scan**, **Achat vs Prod** et **Pivot** : le système de fabrication favori est le système par défaut. Sans système favori, c'est Jita.
 
 Ils servent enfin à choisir la structure d'une étape (voir ci-dessous). Seules les structures importées connaissent leur système : une structure saisie à la main n'est jamais retenue comme structure du système favori.
@@ -71,6 +72,14 @@ Dans l'arbre d'un projet :
 
 - **Non configure** : un job lié à l'étape a tourné dans une structure qui n'est pas dans votre liste, ou qui y a été saisie à la main. Importez-la pour que ses bonus soient pris en compte.
 - **Sous-optimal — Meilleur : …** : une autre de vos structures donne un meilleur bonus matériaux pour ce produit.
+
+## La taxe d'installation dans le coût d'un job
+
+Le coût d'installation d'un job additionne trois termes calculés sur la même base (la valeur estimée des objets du job) : le coût système (base × cost index), la **taxe d'installation** (base × taux de la structure) et la surcharge SCC de 4 %. La taxe est donc un terme en plus, elle ne multiplie pas le cost index.
+
+- **Étape avec structure associée** : on applique la taxe saisie sur cette structure.
+- **Étape ou outil sans structure associée** : la taxe est celle de la structure retenue dans le système (règles ci-dessus), et à défaut 0,25 %, la taxe d'une station NPC.
+- **Taxe non saisie** : elle compte pour 0 %, ce qui sous-estime le coût réel. Saisissez le taux affiché en jeu pour la structure.
 
 ## Pièges connus
 
