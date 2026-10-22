@@ -5,151 +5,134 @@ declare(strict_types=1);
 namespace App\Service\Industry;
 
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectStep;
+use App\Entity\Sde\IndustryActivityMaterial;
+use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\User;
+use App\Exception\TypeMissingFromSdeException;
+use App\Repository\Sde\IndustryActivityMaterialRepository;
+use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Repository\Sde\InvTypeRepository;
 
-/**
- * Builds the raw-material shopping list for an industry project.
- *
- * Traverses the production tree, skips buildable intermediates (unless
- * purchased/in-stock), and computes extra quantities when steps use
- * suboptimal structures.
- */
 class IndustryShoppingListBuilder
 {
+    private const float BONUS_TOLERANCE = 0.001;
+
     public function __construct(
-        private readonly IndustryTreeService $treeService,
         private readonly IndustryBlacklistService $blacklistService,
         private readonly IndustryBonusService $bonusService,
         private readonly IndustryCalculationService $calculationService,
+        private readonly IndustryActivityMaterialRepository $materialRepository,
+        private readonly IndustryActivityProductRepository $productRepository,
+        private readonly InvTypeRepository $typeRepository,
     ) {
     }
 
     /**
-     * Get a shopping list of raw materials from the production tree.
-     * Includes extraQuantity per material when steps use suboptimal structures.
-     *
      * @return array{materials: list<array<string, mixed>>, failedProducts: list<array{typeId: int, reason: string}>}
      */
     public function getShoppingList(IndustryProject $project): array
     {
+        $stepsByProduct = ProductionStepGraph::productionStepsByProduct($project);
         $user = $project->getUser();
-        $excludedTypeIds = $this->blacklistService->resolveBlacklistedTypeIds($user);
+        $productionSteps = array_merge(...$stepsByProduct);
+        $blueprintTypeIds = array_map(static fn (IndustryProjectStep $step): int => $step->getBlueprintTypeId(), $productionSteps);
+        $activityIds = array_map(static fn (IndustryProjectStep $step): int => SplitGroupMaterials::activityIdOf($step->getActivityType()), $productionSteps);
+        $materialsByKey = $this->materialRepository->findMaterialEntitiesForBlueprints($blueprintTypeIds, $activityIds);
+        $productsByKey = $this->productRepository->findProductsForBlueprints($blueprintTypeIds, $activityIds);
 
-        $purchasedTypeIds = [];
-        $inStockQuantities = [];
-        foreach ($project->getSteps() as $step) {
-            if ($step->getActivityType() === 'copy') {
-                continue;
-            }
-            $typeId = $step->getProductTypeId();
-            $inStockQuantities[$typeId] = ($inStockQuantities[$typeId] ?? 0) + $step->getInStockQuantity();
-            if ($step->isPurchased()) {
-                $purchasedTypeIds[] = $typeId;
-            }
-        }
-
-        $rootProducts = [];
-        foreach ($project->getSteps() as $step) {
-            if ($step->getDepth() === 0 && $step->getActivityType() !== 'copy') {
-                $key = $step->getProductTypeId();
-                if (!isset($rootProducts[$key])) {
-                    $rootProducts[$key] = [
-                        'typeId' => $step->getProductTypeId(),
-                        'runs' => $step->getRuns(),
-                        'meLevel' => $step->getMeLevel(),
-                    ];
-                } else {
-                    // Accumulate runs across multiple steps of the same product
-                    $rootProducts[$key]['runs'] += $step->getRuns();
-                }
-            }
-        }
-
-        if (empty($rootProducts)) {
-            $rootProducts[$project->getProductTypeId()] = [
-                'typeId' => $project->getProductTypeId(),
-                'runs' => $project->getRuns(),
-                'meLevel' => $project->getMeLevel(),
-            ];
-        }
-
-        // Build structure bonus overrides from actual step configs
-        $structureBonusOverrides = [];
-        $hasSuboptimal = false;
-        foreach ($project->getSteps() as $step) {
-            if ($step->getActivityType() === 'copy') {
-                continue;
-            }
-            $productTypeId = $step->getProductTypeId();
-            if (isset($structureBonusOverrides[$productTypeId])) {
-                continue; // Already computed for this product
-            }
-            $structureData = $this->calculationService->getStructureBonusForStep($step);
-            $actualBonus = $structureData['materialBonus'];
-            $structureBonusOverrides[$productTypeId] = $actualBonus['total'];
-
-            // Check if this differs from the best available
-            $isReaction = $step->getActivityType() === 'reaction';
-            $bestData = $this->bonusService->findBestStructureForProduct($user, $productTypeId, $isReaction);
-            if (abs($actualBonus['total'] - $bestData['bonus']['total']) > 0.001) {
-                $hasSuboptimal = true;
-            }
-        }
-
-        $rawMaterials = [];
         $failedProducts = [];
-        $optimalStockQty = $inStockQuantities;
+        foreach ($stepsByProduct as $productTypeId => $steps) {
+            if (array_any($steps, static fn (IndustryProjectStep $step): bool => !isset($productsByKey[ProductionStepGraph::blueprintKeyOf($step)]))) {
+                $failedProducts[$productTypeId] = ['typeId' => $productTypeId, 'reason' => "No blueprint or reaction found for product type ID {$productTypeId}"];
+                unset($stepsByProduct[$productTypeId]);
+            }
+        }
 
-        foreach ($rootProducts as $typeId => $product) {
-            try {
-                $tree = $this->treeService->buildProductionTree(
-                    $product['typeId'],
-                    $product['runs'],
-                    $product['meLevel'],
-                    $excludedTypeIds,
-                    $user,
-                );
-                $this->collectRawMaterials($rawMaterials, $tree, $purchasedTypeIds, $optimalStockQty, $excludedTypeIds, $user, []);
-            } catch (\RuntimeException $exception) {
-                $failedProducts[$typeId] = ['typeId' => $product['typeId'], 'reason' => $exception->getMessage()];
+        $typeNames = $this->typeNamesOf($stepsByProduct, $materialsByKey);
+        foreach ($stepsByProduct as $productTypeId => $steps) {
+            $missingTypeIds = array_keys(array_diff_key(array_flip($this->typeIdsOfJobs($productTypeId, $steps, $materialsByKey)), $typeNames));
+            if ($missingTypeIds !== []) {
+                $failedProducts[$productTypeId] = ['typeId' => $productTypeId, 'reason' => (new TypeMissingFromSdeException($missingTypeIds))->getMessage()];
             }
         }
         ksort($failedProducts);
 
-        // If any step uses a suboptimal structure, compute actual quantities and delta
-        if ($hasSuboptimal) {
-            $actualRawMaterials = [];
-            $actualStockQty = $inStockQuantities;
-
-            foreach (array_diff_key($rootProducts, $failedProducts) as $product) {
-                $actualTree = $this->treeService->buildProductionTree(
-                    $product['typeId'],
-                    $product['runs'],
-                    $product['meLevel'],
-                    $excludedTypeIds,
-                    $user,
-                    $structureBonusOverrides,
-                );
-                $this->collectRawMaterials($actualRawMaterials, $actualTree, $purchasedTypeIds, $actualStockQty, $excludedTypeIds, $user, $structureBonusOverrides);
+        $materialBonusByStep = [];
+        $bestMaterialBonusByStep = [];
+        $hasSuboptimalStructure = false;
+        foreach ($productionSteps as $step) {
+            $materialBonusByStep[spl_object_id($step)] = $this->calculationService->getStructureBonusForStep($step)['materialBonus'];
+            $bestMaterialBonusByStep[spl_object_id($step)] = $this->bestMaterialBonusOf($user, $step);
+            if (abs($materialBonusByStep[spl_object_id($step)]['total'] - $bestMaterialBonusByStep[spl_object_id($step)]['total']) > self::BONUS_TOLERANCE) {
+                $hasSuboptimalStructure = true;
             }
-
-            // Build lookup: typeId => actual quantity
-            $actualByType = [];
-            foreach ($actualRawMaterials as $mat) {
-                $actualByType[$mat['typeId']] = ($actualByType[$mat['typeId']] ?? 0) + $mat['quantity'];
-            }
-
-            // Compute extraQuantity as delta
-            foreach ($rawMaterials as &$mat) {
-                $actualQty = $actualByType[$mat['typeId']] ?? $mat['quantity'];
-                $mat['extraQuantity'] = max(0, $actualQty - $mat['quantity']);
-            }
-            unset($mat);
         }
 
-        usort($rawMaterials, fn (array $a, array $b) => strcasecmp($a['typeName'], $b['typeName']));
+        $blacklistedTypeIds = array_flip($this->blacklistService->resolveBlacklistedTypeIds($user));
+        $changeOfNeedByProduct = [];
+        $bestQuantities = [];
+        $actualQuantities = [];
 
-        return ['materials' => $rawMaterials, 'failedProducts' => array_values($failedProducts)];
+        foreach (ProductionStepGraph::productsFromConsumersToMaterials($project, $stepsByProduct, $materialsByKey) as $productTypeId) {
+            $jobs = $stepsByProduct[$productTypeId];
+            usort($jobs, static fn (IndustryProjectStep $a, IndustryProjectStep $b): int => $a->getSplitIndex() <=> $b->getSplitIndex());
+            $isRoot = !\array_key_exists($productTypeId, $changeOfNeedByProduct);
+            $changeOfNeed = $isRoot ? 0 : $changeOfNeedByProduct[$productTypeId];
+            $stock = $isRoot ? 0 : self::inStockQuantityOf($jobs);
+            $quantityToProvide = max(0, self::persistedNeedOf($jobs) + $changeOfNeed - $stock);
+            $isFailed = isset($failedProducts[$productTypeId]);
+            $isBought = !$isFailed && (isset($blacklistedTypeIds[$productTypeId]) || self::hasPurchasedJob($jobs));
+
+            if ($isBought && $quantityToProvide > 0) {
+                $bestQuantities[$productTypeId] = $quantityToProvide;
+                $actualQuantities[$productTypeId] = $quantityToProvide;
+            }
+
+            $effectiveRunsOfJobs = match (true) {
+                $isBought => array_fill(0, \count($jobs), 0),
+                $isFailed, $changeOfNeed === 0 && $stock === 0 => array_map(static fn (IndustryProjectStep $job): int => $job->getRuns(), $jobs),
+                default => SplitGroupQuantities::runsBySplitIndex(
+                    (int) ceil($quantityToProvide / $this->outputPerRunOf($jobs[0], $productsByKey)),
+                    \count($jobs),
+                ),
+            };
+
+            foreach ($jobs as $index => $job) {
+                $effectiveRuns = $effectiveRunsOfJobs[$index];
+                $materialBonus = $materialBonusByStep[spl_object_id($job)];
+                $bestMaterialBonus = $bestMaterialBonusByStep[spl_object_id($job)];
+
+                foreach ($materialsByKey[ProductionStepGraph::blueprintKeyOf($job)] ?? [] as $material) {
+                    $materialTypeId = $material->getMaterialTypeId();
+                    if (isset($stepsByProduct[$materialTypeId])) {
+                        $changeOfNeedByProduct[$materialTypeId] = ($changeOfNeedByProduct[$materialTypeId] ?? 0)
+                            + $this->materialQuantityOf($material, $job, $effectiveRuns, $materialBonus)
+                            - $this->materialQuantityOf($material, $job, $job->getRuns(), $materialBonus);
+                        continue;
+                    }
+
+                    if ($isFailed || $effectiveRuns === 0) {
+                        continue;
+                    }
+
+                    $bestQuantities[$materialTypeId] = ($bestQuantities[$materialTypeId] ?? 0) + $this->materialQuantityOf($material, $job, $effectiveRuns, $bestMaterialBonus);
+                    $actualQuantities[$materialTypeId] = ($actualQuantities[$materialTypeId] ?? 0) + $this->materialQuantityOf($material, $job, $effectiveRuns, $materialBonus);
+                }
+            }
+        }
+
+        $materials = [];
+        foreach ($bestQuantities as $typeId => $quantity) {
+            $material = ['typeId' => $typeId, 'typeName' => $typeNames[$typeId], 'quantity' => $quantity];
+            if ($hasSuboptimalStructure) {
+                $material['extraQuantity'] = max(0, $actualQuantities[$typeId] - $quantity);
+            }
+            $materials[] = $material;
+        }
+        usort($materials, static fn (array $a, array $b): int => strcasecmp($a['typeName'], $b['typeName']));
+
+        return ['materials' => $materials, 'failedProducts' => array_values($failedProducts)];
     }
 
     /**
@@ -169,66 +152,87 @@ class IndustryShoppingListBuilder
     }
 
     /**
-     * @param list<array<string, mixed>> $materials
-     * @param array<string, mixed> $node
-     * @param list<int> $purchasedTypeIds
-     * @param array<int, int> $inStockQuantities
-     * @param list<int> $excludedTypeIds
-     * @param array<int, float> $structureBonusOverrides
+     * @param array<int, list<IndustryProjectStep>> $stepsByProduct
+     * @param array<string, list<IndustryActivityMaterial>> $materialsByKey
+     * @return array<int, string>
      */
-    private function collectRawMaterials(array &$materials, array $node, array $purchasedTypeIds, array &$inStockQuantities, array $excludedTypeIds, User $user, array $structureBonusOverrides): void
+    private function typeNamesOf(array $stepsByProduct, array $materialsByKey): array
     {
-        foreach ($node['materials'] as $material) {
-            $typeId = (int) $material['typeId'];
-            $neededQuantity = (int) $material['quantity'];
-
-            $availableStock = $inStockQuantities[$typeId] ?? 0;
-            $isPartlyInStock = false;
-            if ($availableStock > 0) {
-                if ($availableStock >= $neededQuantity) {
-                    $inStockQuantities[$typeId] -= $neededQuantity;
-                    continue;
-                }
-                $neededQuantity -= $availableStock;
-                $inStockQuantities[$typeId] = 0;
-                $isPartlyInStock = true;
-            }
-
-            if (in_array($typeId, $purchasedTypeIds, true)) {
-                $this->addToMaterialList($materials, $typeId, $material['typeName'], $neededQuantity);
-                continue;
-            }
-
-            if (($material['isBuildable'] ?? false) && isset($material['blueprint'])) {
-                $subtree = $isPartlyInStock
-                    ? $this->treeService->buildIntermediateTree(
-                        $typeId,
-                        $neededQuantity,
-                        $excludedTypeIds,
-                        $user,
-                        $structureBonusOverrides,
-                    )
-                    : $material['blueprint'];
-                $this->collectRawMaterials($materials, $subtree, $purchasedTypeIds, $inStockQuantities, $excludedTypeIds, $user, $structureBonusOverrides);
-            } else {
-                $this->addToMaterialList($materials, $typeId, $material['typeName'], $neededQuantity);
-            }
+        $typeIds = [];
+        foreach ($stepsByProduct as $productTypeId => $steps) {
+            array_push($typeIds, ...$this->typeIdsOfJobs($productTypeId, $steps, $materialsByKey));
         }
+
+        $typeNames = [];
+        foreach ($this->typeRepository->findByTypeIds($typeIds) as $typeId => $type) {
+            $typeNames[$typeId] = $type->getTypeName();
+        }
+
+        return $typeNames;
     }
 
-    /** @param list<array<string, mixed>> $materials */
-    private function addToMaterialList(array &$materials, int $typeId, string $typeName, int $quantity): void
+    /**
+     * @param list<IndustryProjectStep> $jobs
+     * @param array<string, list<IndustryActivityMaterial>> $materialsByKey
+     * @return list<int>
+     */
+    private function typeIdsOfJobs(int $productTypeId, array $jobs, array $materialsByKey): array
     {
-        foreach ($materials as &$mat) {
-            if ($mat['typeId'] === $typeId) {
-                $mat['quantity'] += $quantity;
-                return;
+        $typeIds = [$productTypeId];
+        foreach ($jobs as $job) {
+            foreach ($materialsByKey[ProductionStepGraph::blueprintKeyOf($job)] ?? [] as $material) {
+                $typeIds[] = $material->getMaterialTypeId();
             }
         }
-        $materials[] = [
-            'typeId' => $typeId,
-            'typeName' => $typeName,
-            'quantity' => $quantity,
-        ];
+
+        return $typeIds;
+    }
+
+    /**
+     * @return array{total: float, base: float, rig: float}
+     */
+    private function bestMaterialBonusOf(User $user, IndustryProjectStep $step): array
+    {
+        return $this->bonusService->findBestStructureForProduct($user, $step->getProductTypeId(), $step->getActivityType() === 'reaction')['bonus'];
+    }
+
+    /**
+     * @param array{total: float, base: float, rig: float} $materialBonus
+     */
+    private function materialQuantityOf(IndustryActivityMaterial $material, IndustryProjectStep $job, int $runs, array $materialBonus): int
+    {
+        return $this->calculationService->calculateMaterialQuantity($material->getQuantity(), $runs, $job->getMeLevel(), $materialBonus['base'], $materialBonus['rig']);
+    }
+
+    /**
+     * @param array<string, IndustryActivityProduct> $productsByKey
+     */
+    private function outputPerRunOf(IndustryProjectStep $job, array $productsByKey): int
+    {
+        return $productsByKey[ProductionStepGraph::blueprintKeyOf($job)]->getQuantity();
+    }
+
+    /**
+     * @param list<IndustryProjectStep> $jobs
+     */
+    private static function persistedNeedOf(array $jobs): int
+    {
+        return array_sum(array_map(static fn (IndustryProjectStep $job): int => $job->getQuantity(), $jobs));
+    }
+
+    /**
+     * @param list<IndustryProjectStep> $jobs
+     */
+    private static function inStockQuantityOf(array $jobs): int
+    {
+        return array_sum(array_map(static fn (IndustryProjectStep $job): int => $job->getInStockQuantity(), $jobs));
+    }
+
+    /**
+     * @param list<IndustryProjectStep> $jobs
+     */
+    private static function hasPurchasedJob(array $jobs): bool
+    {
+        return array_any($jobs, static fn (IndustryProjectStep $job): bool => $job->isPurchased());
     }
 }
