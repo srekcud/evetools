@@ -32,6 +32,13 @@ use Symfony\Component\Mercure\HubInterface;
 #[CoversClass(IndustryProjectFactory::class)]
 class IndustryProjectFactoryTest extends TestCase
 {
+    private const int QUANTUM_MICROPROCESSOR = 11540;
+    private const int QUANTUM_MICROPROCESSOR_BLUEPRINT = 11541;
+    private const int TITANIUM_CARBIDE = 16671;
+    private const int PHENOLIC_COMPOSITES = 16680;
+    private const int NANOTRANSISTORS = 16681;
+    private const int QUANTUM_MICROPROCESSOR_RUNS = 32;
+
     private IndustryTreeService&MockObject $treeService;
     private IndustryBlacklistService&MockObject $blacklistService;
     private IndustryBonusService&MockObject $bonusService;
@@ -660,5 +667,90 @@ class IndustryProjectFactoryTest extends TestCase
         // First step should be deeper (depth 1), second should be root (depth 0)
         $this->assertSame(1, $steps[0]->getDepth());
         $this->assertSame(0, $steps[1]->getDepth());
+    }
+
+    public function testCreatedProjectRemembersItsExcludedComponentsOnceWithoutTheBlacklist(): void
+    {
+        $this->blacklistService->method('resolveBlacklistedTypeIds')->willReturn([self::NANOTRANSISTORS]);
+        $this->capturesTheExclusionsOfTheTree();
+
+        $project = $this->factory->createProject($this->createUser(), self::QUANTUM_MICROPROCESSOR, self::QUANTUM_MICROPROCESSOR_RUNS, 10, 2.0, 20, null, [self::TITANIUM_CARBIDE, self::PHENOLIC_COMPOSITES, self::TITANIUM_CARBIDE]);
+
+        $this->assertTrue(array_is_list($project->getExcludedTypeIds()));
+        $this->assertEqualsCanonicalizing([self::TITANIUM_CARBIDE, self::PHENOLIC_COMPOSITES], $project->getExcludedTypeIds());
+    }
+
+    public function testCreatedProjectTreeExcludesTheBlacklistAndTheExcludedComponents(): void
+    {
+        $this->blacklistService->method('resolveBlacklistedTypeIds')->willReturn([self::NANOTRANSISTORS]);
+        $exclusionsOfTheTree = $this->capturesTheExclusionsOfTheTree();
+
+        $this->factory->createProject($this->createUser(), self::QUANTUM_MICROPROCESSOR, self::QUANTUM_MICROPROCESSOR_RUNS, 10, 2.0, 20, null, [self::TITANIUM_CARBIDE, self::PHENOLIC_COMPOSITES, self::TITANIUM_CARBIDE]);
+
+        $this->assertSame([self::TITANIUM_CARBIDE, self::PHENOLIC_COMPOSITES, self::NANOTRANSISTORS], $this->sorted($exclusionsOfTheTree->getArrayCopy()));
+    }
+
+    public function testExcludedComponentAlsoBlacklistedIsExcludedOnceFromTheTree(): void
+    {
+        $this->blacklistService->method('resolveBlacklistedTypeIds')->willReturn([self::NANOTRANSISTORS]);
+        $exclusionsOfTheTree = $this->capturesTheExclusionsOfTheTree();
+
+        $project = $this->factory->createProject($this->createUser(), self::QUANTUM_MICROPROCESSOR, self::QUANTUM_MICROPROCESSOR_RUNS, 10, 2.0, 20, null, [self::NANOTRANSISTORS, self::PHENOLIC_COMPOSITES]);
+
+        $this->assertSame([self::PHENOLIC_COMPOSITES, self::NANOTRANSISTORS], $this->sorted($exclusionsOfTheTree->getArrayCopy()));
+        $this->assertEqualsCanonicalizing([self::NANOTRANSISTORS, self::PHENOLIC_COMPOSITES], $project->getExcludedTypeIds());
+    }
+
+    public function testCreatedProjectWithoutExcludedComponentRemembersNone(): void
+    {
+        $this->blacklistService->method('resolveBlacklistedTypeIds')->willReturn([self::NANOTRANSISTORS]);
+        $exclusionsOfTheTree = $this->capturesTheExclusionsOfTheTree();
+
+        $project = $this->factory->createProject($this->createUser(), self::QUANTUM_MICROPROCESSOR, self::QUANTUM_MICROPROCESSOR_RUNS, 10, 2.0, 20);
+
+        $this->assertSame([], $project->getExcludedTypeIds());
+        $this->assertSame([self::NANOTRANSISTORS], $exclusionsOfTheTree->getArrayCopy());
+    }
+
+    public function testRegeneratedStepsExcludeTheBlacklistAndTheExcludedComponentsOfTheProject(): void
+    {
+        $this->blacklistService->method('resolveBlacklistedTypeIds')->willReturn([self::NANOTRANSISTORS]);
+        $exclusionsOfTheTree = $this->capturesTheExclusionsOfTheTree();
+        $project = (new IndustryProject())
+            ->setUser($this->createUser())
+            ->setProductTypeId(self::QUANTUM_MICROPROCESSOR)
+            ->setRuns(self::QUANTUM_MICROPROCESSOR_RUNS)
+            ->setMeLevel(10)
+            ->setTeLevel(20)
+            ->setMaxJobDurationDays(2.0)
+            ->setExcludedTypeIds([self::TITANIUM_CARBIDE]);
+
+        $this->factory->regenerateSteps($project);
+
+        $this->assertSame([self::TITANIUM_CARBIDE, self::NANOTRANSISTORS], $this->sorted($exclusionsOfTheTree->getArrayCopy()));
+    }
+
+    private function capturesTheExclusionsOfTheTree(): \ArrayObject
+    {
+        $exclusionsOfTheTree = new \ArrayObject();
+        $this->invTypeRepository->method('find')->willReturn($this->createStub(InvType::class));
+        $this->treeService->method('buildProductionTree')->willReturnCallback(
+            function (int $productTypeId, int $runs, int $meLevel, array $excludedTypeIds) use ($exclusionsOfTheTree): array {
+                $exclusionsOfTheTree->exchangeArray($excludedTypeIds);
+
+                return $this->buildFlatTreeNode(self::QUANTUM_MICROPROCESSOR_BLUEPRINT, $productTypeId, 'Quantum Microprocessor', $runs);
+            },
+        );
+        $this->setupDefaultMocks();
+
+        return $exclusionsOfTheTree;
+    }
+
+    private function sorted(array $typeIds): array
+    {
+        $sortedTypeIds = array_values($typeIds);
+        sort($sortedTypeIds);
+
+        return $sortedTypeIds;
     }
 }

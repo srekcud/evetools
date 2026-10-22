@@ -79,6 +79,13 @@ const ANALYSIS_WITH_AN_UNKNOWN_BUY_COST: BuyVsBuildResult = {
   missingData: [{ reason: 'market_price', typeId: PLASMA_THRUSTER_TYPE_ID }],
 }
 
+const ANALYSIS_WITHOUT_SELL_PRICE: BuyVsBuildResult = {
+  ...ANALYSIS_WITH_AN_UNKNOWN_BUY_COST,
+  sellPrice: null,
+  marginPercent: null,
+  sellStructureId: null,
+}
+
 function mountWithAnalysis(analysis: BuyVsBuildResult, locale: 'en' | 'fr') {
   useScannerStore().buyVsBuildResult = analysis
   const i18n = createI18n({ legacy: false, locale, messages: { en, fr } })
@@ -164,5 +171,16 @@ describe('BuyVsBuildTab with unknown prices', () => {
     expect(verdictBar).toContain(unknownLabel)
     expect(verdictBar).not.toMatch(/\(0[.,]0%\)/)
     expect(summaryAmount(wrapper, labels.buyEverything)).toBe(unknownLabel)
+  })
+
+  it.each([
+    ['en', en, 'Unknown'],
+    ['fr', fr, 'Inconnu'],
+  ] as const)('shows the margin of a product without sell price as unknown, never as 0 nor NaN (%s)', (locale, messages, unknownLabel) => {
+    const labels = messages.industry.scanner.buyVsBuild
+    const wrapper = mountWithAnalysis(ANALYSIS_WITHOUT_SELL_PRICE, locale)
+
+    expect(amountUnder(wrapper, 'div.text-right', labels.margin)).toBe(unknownLabel)
+    expect(wrapper.text()).not.toContain('NaN')
   })
 })

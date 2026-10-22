@@ -79,6 +79,21 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     private const int UNKNOWN_BLUEPRINT_TYPE_ID = 999_999_999;
 
     private const float DEFAULT_MAX_JOB_DURATION_DAYS = 2.0;
+
+    private const array PRODUCTS_OF_A_QUANTUM_MICROPROCESSOR_WITHOUT_TITANIUM_CARBIDE_NOR_PHENOLIC_COMPOSITES = [
+        'Ferrofluid',
+        'Helium Fuel Block',
+        'Hydrogen Fuel Block',
+        'Nanotransistors',
+        'Neo Mercurite',
+        'Nitrogen Fuel Block',
+        'Nonlinear Metamaterials',
+        'Oxygen Fuel Block',
+        'Platinum Technite',
+        'Quantum Microprocessor',
+        'Sulfuric Acid',
+        'Titanium Chromide',
+    ];
     private const float MAX_JOB_DURATION_DAYS_THAT_SPLITS_NOTHING = 10_000.0;
 
     private const array ACTIVITY_ORDER = ['reaction' => 0, 'copy' => 1, 'manufacturing' => 2];
@@ -588,6 +603,30 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         );
     }
 
+    public function testComponentsExcludedFromAProjectAreNeitherPlannedNorAreTheirOwnIntermediates(): void
+    {
+        $project = $this->factory->createProject($this->pilot, self::QUANTUM_MICROPROCESSOR, 32, 10, self::DEFAULT_MAX_JOB_DURATION_DAYS, 20, null, [self::TITANIUM_CARBIDE, self::PHENOLIC_COMPOSITES, self::TITANIUM_CARBIDE]);
+
+        self::assertSame(self::PRODUCTS_OF_A_QUANTUM_MICROPROCESSOR_WITHOUT_TITANIUM_CARBIDE_NOR_PHENOLIC_COMPOSITES, $this->sortedProductNamesOf($project));
+    }
+
+    public function testRegeneratedStepsOfAProjectPlanNeitherItsExcludedComponentsNorTheBlacklist(): void
+    {
+        $this->pilot->setIndustryBlacklistTypeIds([self::TITANIUM_CARBIDE]);
+        $project = (new IndustryProject())
+            ->setUser($this->pilot)
+            ->setProductTypeId(self::QUANTUM_MICROPROCESSOR)
+            ->setRuns(32)
+            ->setMeLevel(10)
+            ->setTeLevel(20)
+            ->setMaxJobDurationDays(self::DEFAULT_MAX_JOB_DURATION_DAYS)
+            ->setExcludedTypeIds([self::PHENOLIC_COMPOSITES]);
+
+        $this->factory->regenerateSteps($project);
+
+        self::assertSame(self::PRODUCTS_OF_A_QUANTUM_MICROPROCESSOR_WITHOUT_TITANIUM_CARBIDE_NOR_PHENOLIC_COMPOSITES, $this->sortedProductNamesOf($project));
+    }
+
     // ===========================================
     // regenerateSteps() without database
     // ===========================================
@@ -919,6 +958,14 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     // ===========================================
     // Helpers
     // ===========================================
+
+    private function sortedProductNamesOf(IndustryProject $project): array
+    {
+        $productNames = array_values(array_unique(array_column($this->stepsOf($project), 'product')));
+        sort($productNames);
+
+        return $productNames;
+    }
 
     private function createProject(int $productTypeId, int $runs, int $meLevel, int $teLevel, float $maxJobDurationDays = self::DEFAULT_MAX_JOB_DURATION_DAYS): IndustryProject
     {

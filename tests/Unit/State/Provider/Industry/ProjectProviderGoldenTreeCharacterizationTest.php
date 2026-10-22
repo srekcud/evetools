@@ -447,6 +447,25 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
         );
     }
 
+    public function testComponentExcludedFromTheProjectAndBlacklistedIntermediateAreBothShownAsNonBuildableMaterialsWithoutSubtree(): void
+    {
+        $this->blacklistedTypeIds = [self::HYDROGEN_FUEL_BLOCK];
+        $this->project->setExcludedTypeIds([self::FERNITE_ALLOY]);
+
+        $tree = $this->treeOfProject(self::FERNITE_CARBIDE, runs: 1, meLevel: 0);
+
+        self::assertSame([], $this->blueprintNodesOf($tree, self::HYDROGEN_FUEL_BLOCK));
+        self::assertSame([], $this->blueprintNodesOf($tree, self::FERNITE_ALLOY));
+        self::assertSame(
+            [
+                ['typeId' => self::HYDROGEN_FUEL_BLOCK, 'typeName' => 'Hydrogen Fuel Block', 'quantity' => 5, 'isBuildable' => false, 'activityType' => null],
+                ['typeId' => self::FERNITE_ALLOY, 'typeName' => 'Fernite Alloy', 'quantity' => 100, 'isBuildable' => false, 'activityType' => null],
+            ],
+            [$tree['materials'][0], $tree['materials'][1]],
+        );
+        self::assertCount(1, $this->blueprintNodesOf($tree, self::CERAMIC_POWDER));
+    }
+
     public function testTreeIsNullWhenTheProductHasNoBlueprintNorReaction(): void
     {
         $resource = $this->provideProject(self::ROBOTICS, runs: 1, meLevel: 10);

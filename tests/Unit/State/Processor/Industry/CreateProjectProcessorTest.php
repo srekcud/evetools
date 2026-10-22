@@ -41,6 +41,9 @@ final class CreateProjectProcessorTest extends TestCase
     private const int ACOLYTE_I = 2203;
     private const int SABRE = 22456;
     private const int ISHTAR = 12005;
+    private const int QUANTUM_MICROPROCESSOR = 11540;
+    private const int TITANIUM_CARBIDE = 16671;
+    private const int PHENOLIC_COMPOSITES = 16680;
     private const int PROJECT_RUNS = 10;
     private const int OUTPUT_QUANTITY_PER_RUN = 1;
     private const int PREFERRED_MARKET_STRUCTURE_ID = 1035466617946;
@@ -245,6 +248,45 @@ final class CreateProjectProcessorTest extends TestCase
         self::assertSame(12, $factoryArguments['runs']);
         self::assertSame(10, $factoryArguments['meLevel']);
         self::assertSame(20, $factoryArguments['teLevel']);
+    }
+
+    public function testComponentsExcludedFromTheProjectAreGivenToTheFactory(): void
+    {
+        $excludedTypeIdsGivenToTheFactory = null;
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn($this->createStub(User::class));
+        $projectFactory = $this->createStub(IndustryProjectFactory::class);
+        $projectFactory->method('createProject')->willReturnCallback(
+            function (User $user, int $productTypeId, int $runs, int $meLevel, float $maxJobDurationDays, int $teLevel, ?string $name, array $excludedTypeIds = []) use (&$excludedTypeIdsGivenToTheFactory): IndustryProject {
+                $excludedTypeIdsGivenToTheFactory = $excludedTypeIds;
+
+                return $this->projectFor($productTypeId);
+            },
+        );
+        $mapper = $this->createStub(IndustryResourceMapper::class);
+        $mapper->method('projectToResource')->willReturn(new ProjectResource());
+        $productionCostService = $this->createStub(ProductionCostService::class);
+        $productionCostService->method('estimateJobInstallCosts')->willReturn(['total' => self::ESTIMATED_JOB_COST, 'steps' => []]);
+        $productionCostService->method('estimateMaterialCost')->willReturn(['total' => 400_000.0, 'items' => [], 'failedProducts' => []]);
+        $processor = new CreateProjectProcessor(
+            $security,
+            $projectFactory,
+            $mapper,
+            $productionCostService,
+            $this->createStub(JitaMarketService::class),
+            $this->createStub(StructureMarketService::class),
+            $this->createStub(IndustryActivityProductRepository::class),
+            $this->createStub(EntityManagerInterface::class),
+            $this->settingsRepositoryReturning(null),
+            new NullLogger(),
+        );
+        $input = $this->inputFor(self::QUANTUM_MICROPROCESSOR);
+        $input->excludedTypeIds = [self::TITANIUM_CARBIDE, self::PHENOLIC_COMPOSITES, self::TITANIUM_CARBIDE];
+
+        $processor->process($input, new Post());
+
+        self::assertIsArray($excludedTypeIdsGivenToTheFactory);
+        self::assertEqualsCanonicalizing([self::TITANIUM_CARBIDE, self::PHENOLIC_COMPOSITES], array_values(array_unique($excludedTypeIdsGivenToTheFactory)));
     }
 
     private function createProjectArgumentsFor(int $productTypeId, int $runs, int $meLevel, int $teLevel): array
