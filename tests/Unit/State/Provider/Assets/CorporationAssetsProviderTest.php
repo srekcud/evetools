@@ -13,6 +13,7 @@ use App\Entity\User;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Service\Assets\VisibleCorporationAssetsFinder;
 use App\State\Provider\Assets\CorporationAssetsProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\Stub;
@@ -71,8 +72,7 @@ class CorporationAssetsProviderTest extends TestCase
 
         $this->provider = new CorporationAssetsProvider(
             $this->security,
-            $this->cachedAssetRepository,
-            $this->visibilityRepository,
+            new VisibleCorporationAssetsFinder($this->cachedAssetRepository, $this->visibilityRepository),
             $invTypeRepository,
             $this->requestStack,
         );

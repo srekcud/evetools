@@ -9,8 +9,8 @@ use App\Entity\CachedAsset;
 use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryProject;
 use App\Entity\User;
-use App\Repository\CachedAssetRepository;
 use App\Repository\GroupIndustryBomItemRepository;
+use App\Service\Assets\VisibleCorporationAssetsFinder;
 use App\Service\GroupIndustry\GroupIndustryContainerService;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\Stub;
@@ -20,17 +20,17 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(GroupIndustryContainerService::class)]
 class GroupIndustryContainerServiceTest extends TestCase
 {
-    private CachedAssetRepository&Stub $assetRepository;
+    private VisibleCorporationAssetsFinder&Stub $visibleAssetsFinder;
     private GroupIndustryBomItemRepository&Stub $bomItemRepository;
     private GroupIndustryContainerService $service;
 
     protected function setUp(): void
     {
-        $this->assetRepository = $this->createStub(CachedAssetRepository::class);
+        $this->visibleAssetsFinder = $this->createStub(VisibleCorporationAssetsFinder::class);
         $this->bomItemRepository = $this->createStub(GroupIndustryBomItemRepository::class);
 
         $this->service = new GroupIndustryContainerService(
-            $this->assetRepository,
+            $this->visibleAssetsFinder,
             $this->bomItemRepository,
         );
     }
@@ -86,7 +86,7 @@ class GroupIndustryContainerServiceTest extends TestCase
 
         // Corp assets exist but no container with matching name
         $someAsset = $this->createCorpAsset(1001, 'Some Other Container', 999, 0, null);
-        $this->assetRepository->method('findByCorporationId')->willReturn([$someAsset]);
+        $this->visibleAssetsFinder->method('findVisibleAssets')->willReturn([$someAsset]);
 
         $result = $this->service->verifyContainer($project);
 
@@ -110,7 +110,7 @@ class GroupIndustryContainerServiceTest extends TestCase
         // Item inside container: locationId = container's itemId
         $itemInContainer->setLocationId($container->getItemId());
 
-        $this->assetRepository->method('findByCorporationId')->willReturn([$container, $itemInContainer]);
+        $this->visibleAssetsFinder->method('findVisibleAssets')->willReturn([$container, $itemInContainer]);
 
         $result = $this->service->verifyContainer($project);
 
@@ -130,7 +130,7 @@ class GroupIndustryContainerServiceTest extends TestCase
         $itemInContainer = $this->createCorpAsset(5002, null, 34, 500, null);
         $itemInContainer->setLocationId($container->getItemId());
 
-        $this->assetRepository->method('findByCorporationId')->willReturn([$container, $itemInContainer]);
+        $this->visibleAssetsFinder->method('findVisibleAssets')->willReturn([$container, $itemInContainer]);
 
         $result = $this->service->verifyContainer($project);
 
@@ -150,7 +150,7 @@ class GroupIndustryContainerServiceTest extends TestCase
         $differentItem = $this->createCorpAsset(5002, null, 35, 999, null); // Pyerite, not Tritanium
         $differentItem->setLocationId($container->getItemId());
 
-        $this->assetRepository->method('findByCorporationId')->willReturn([$container, $differentItem]);
+        $this->visibleAssetsFinder->method('findVisibleAssets')->willReturn([$container, $differentItem]);
 
         $result = $this->service->verifyContainer($project);
 
@@ -179,7 +179,7 @@ class GroupIndustryContainerServiceTest extends TestCase
         $item2 = $this->createCorpAsset(5004, null, 34, 700, null);
         $item2->setLocationId($container2->getItemId());
 
-        $this->assetRepository->method('findByCorporationId')->willReturn([
+        $this->visibleAssetsFinder->method('findVisibleAssets')->willReturn([
             $container1, $container2, $item1, $item2,
         ]);
 
@@ -209,7 +209,7 @@ class GroupIndustryContainerServiceTest extends TestCase
         $pye->setLocationId($container->getItemId());
         // No Mexallon in container
 
-        $this->assetRepository->method('findByCorporationId')->willReturn([$container, $trit, $pye]);
+        $this->visibleAssetsFinder->method('findVisibleAssets')->willReturn([$container, $trit, $pye]);
 
         $result = $this->service->verifyContainer($project);
 
@@ -233,7 +233,7 @@ class GroupIndustryContainerServiceTest extends TestCase
         $item = $this->createCorpAsset(5002, null, 34, 500, null);
         $item->setLocationId($container->getItemId());
 
-        $this->assetRepository->method('findByCorporationId')->willReturn([$container, $item]);
+        $this->visibleAssetsFinder->method('findVisibleAssets')->willReturn([$container, $item]);
 
         $result = $this->service->verifyContainer($project);
         $resource = $result[0];

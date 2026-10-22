@@ -6,13 +6,13 @@ namespace App\Service\GroupIndustry;
 
 use App\ApiResource\GroupIndustry\GroupContainerVerificationResource;
 use App\Entity\GroupIndustryProject;
-use App\Repository\CachedAssetRepository;
 use App\Repository\GroupIndustryBomItemRepository;
+use App\Service\Assets\VisibleCorporationAssetsFinder;
 
 class GroupIndustryContainerService
 {
     public function __construct(
-        private readonly CachedAssetRepository $assetRepository,
+        private readonly VisibleCorporationAssetsFinder $visibleAssetsFinder,
         private readonly GroupIndustryBomItemRepository $bomItemRepository,
     ) {
     }
@@ -56,7 +56,7 @@ class GroupIndustryContainerService
      */
     private function getContainerQuantities(int $corporationId, string $containerName): array
     {
-        $corpAssets = $this->assetRepository->findByCorporationId($corporationId);
+        $corpAssets = $this->visibleAssetsFinder->findVisibleAssets($corporationId);
 
         // Step 1: Find all containers matching the name
         $containerItemIds = [];

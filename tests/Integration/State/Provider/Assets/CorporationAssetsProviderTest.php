@@ -10,9 +10,8 @@ use App\ApiResource\Assets\CorporationAssetsResource;
 use App\Entity\CachedAsset;
 use App\Entity\CorpAssetVisibility;
 use App\Entity\User;
-use App\Repository\CachedAssetRepository;
-use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Service\Assets\VisibleCorporationAssetsFinder;
 use App\State\Provider\Assets\CorporationAssetsProvider;
 use App\Tests\Integration\IntegrationTestCase;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -175,8 +174,7 @@ final class CorporationAssetsProviderTest extends IntegrationTestCase
 
         $provider = new CorporationAssetsProvider(
             $security,
-            self::getContainer()->get(CachedAssetRepository::class),
-            self::getContainer()->get(CorpAssetVisibilityRepository::class),
+            self::getContainer()->get(VisibleCorporationAssetsFinder::class),
             self::getContainer()->get(InvTypeRepository::class),
             $requestStack,
         );

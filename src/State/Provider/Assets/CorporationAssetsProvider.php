@@ -10,9 +10,8 @@ use App\ApiResource\Assets\AssetItemResource;
 use App\ApiResource\Assets\CorporationAssetsResource;
 use App\Entity\CachedAsset;
 use App\Entity\User;
-use App\Repository\CachedAssetRepository;
-use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Service\Assets\VisibleCorporationAssetsFinder;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -25,8 +24,7 @@ class CorporationAssetsProvider implements ProviderInterface
 {
     public function __construct(
         private readonly Security $security,
-        private readonly CachedAssetRepository $cachedAssetRepository,
-        private readonly CorpAssetVisibilityRepository $visibilityRepository,
+        private readonly VisibleCorporationAssetsFinder $visibleAssetsFinder,
         private readonly InvTypeRepository $invTypeRepository,
         private readonly RequestStack $requestStack,
     ) {
@@ -49,11 +47,7 @@ class CorporationAssetsProvider implements ProviderInterface
         $request = $this->requestStack->getCurrentRequest();
         $divisionName = $request?->query->get('divisionName');
 
-        // Divisions are a whitelist: until a director allows some, members see nothing
-        $allowedDivisions = $this->visibilityRepository->findByCorporationId($corporationId)?->getVisibleDivisions() ?? [];
-        $assets = $allowedDivisions === []
-            ? []
-            : $this->findVisibleAssets($corporationId, $allowedDivisions, $divisionName);
+        $assets = $this->visibleAssetsFinder->findVisibleAssets($corporationId, $divisionName);
 
         // Resolve categoryId from SDE for each unique typeId
         $categoryMap = $this->resolveCategoryIds($assets);
@@ -63,27 +57,6 @@ class CorporationAssetsProvider implements ProviderInterface
         $resource->items = array_map(fn (CachedAsset $asset) => $this->toItemResource($asset, $categoryMap), $assets);
 
         return $resource;
-    }
-
-    /**
-     * Hangar rows of the allowed CorpSAG divisions, plus what sits inside their containers
-     * (contents carry the container's flag, not the hangar's).
-     *
-     * @param int[] $allowedDivisions
-     * @return CachedAsset[]
-     */
-    private function findVisibleAssets(int $corporationId, array $allowedDivisions, ?string $divisionName): array
-    {
-        $hangarAssets = $divisionName === null
-            ? $this->cachedAssetRepository->findByCorporationAndDivisions($corporationId, $allowedDivisions)
-            : $this->cachedAssetRepository->findByCorporationDivisionNameAndFlags($corporationId, $divisionName, $allowedDivisions);
-
-        $containerContents = $this->cachedAssetRepository->findContentsOfContainers(
-            $corporationId,
-            array_map(static fn (CachedAsset $asset): int => $asset->getItemId(), $hangarAssets),
-        );
-
-        return [...$hangarAssets, ...$containerContents];
     }
 
     /**
