@@ -70,14 +70,15 @@ function formatCost(cost: number | null): string {
 }
 
 const costBreakdown = computed(() => {
-  if (!costData.value || costData.value.materialCost === null || costData.value.totalCost === null) return null
+  if (!costData.value || costData.value.materialCost === null || costData.value.jobInstallCost === null || costData.value.totalCost === null) return null
   const { materialCost, jobInstallCost, bpoCost, totalCost } = costData.value
-  if (totalCost === 0) return { materialPercent: 0, jobInstallPercent: 0, bpcPercent: 0, materialCost }
+  if (totalCost === 0) return { materialPercent: 0, jobInstallPercent: 0, bpcPercent: 0, materialCost, jobInstallCost }
   return {
     materialPercent: (materialCost / totalCost) * 100,
     jobInstallPercent: (jobInstallCost / totalCost) * 100,
     bpcPercent: (bpoCost / totalCost) * 100,
     materialCost,
+    jobInstallCost,
   }
 })
 
@@ -128,13 +129,13 @@ async function refreshPrices() {
 }
 
 async function saveCostsToProject() {
-  if (!costData.value || costData.value.materialCost === null || !store.currentProject) return
-  const { materialCost } = costData.value
+  if (!costData.value || costData.value.materialCost === null || costData.value.jobInstallCost === null || !store.currentProject) return
+  const { materialCost, jobInstallCost } = costData.value
   savingCosts.value = true
   try {
     await store.updateProject(props.projectId, {
       materialCost: Math.ceil(materialCost),
-      jobsCost: Math.ceil(costData.value.jobInstallCost),
+      jobsCost: Math.ceil(jobInstallCost),
     } as never)
   } finally {
     savingCosts.value = false
@@ -213,7 +214,7 @@ defineExpose({ activate, loadCostEstimation })
         <!-- Job Install Cost -->
         <div class="eve-card p-4">
           <p class="text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.costEstimation.jobInstallCost') }}</p>
-          <p class="text-xl font-mono text-slate-100 font-semibold">{{ costData.jobInstallCost.toLocaleString(undefined, { maximumFractionDigits: 0 }) }}</p>
+          <p class="text-xl font-mono text-slate-100 font-semibold">{{ formatCost(costData.jobInstallCost) }}</p>
           <p class="text-xs text-slate-600 mt-1">{{ t('industry.costEstimation.estimatedFromEsi') }}</p>
         </div>
         <!-- Invention Cost (only for T2) -->
@@ -377,15 +378,15 @@ defineExpose({ activate, loadCostEstimation })
                 </span>
               </td>
               <td class="py-2.5 px-3 text-slate-300">{{ step.systemName }}</td>
-              <td class="py-2.5 px-3 text-right font-mono text-slate-400">{{ (step.costIndex * 100).toFixed(2) }}%</td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-400">{{ step.costIndex === null ? t('industry.costEstimation.unknown') : `${(step.costIndex * 100).toFixed(2)}%` }}</td>
               <td class="py-2.5 px-3 text-right font-mono text-slate-300">{{ step.runs }}</td>
-              <td class="py-2.5 px-4 text-right font-mono text-slate-200">{{ step.installCost.toLocaleString(undefined, { maximumFractionDigits: 0 }) }}</td>
+              <td class="py-2.5 px-4 text-right font-mono text-slate-200">{{ formatCost(step.installCost) }}</td>
             </tr>
           </tbody>
           <tfoot>
             <tr class="border-t border-slate-700 bg-slate-800/30">
               <td colspan="6" class="py-3 px-4 text-right text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.costEstimation.totalJobInstallCost') }}</td>
-              <td class="py-3 px-4 text-right font-mono text-slate-100 font-bold text-base">{{ formatIskFull(costData.jobInstallCost) }}</td>
+              <td class="py-3 px-4 text-right font-mono text-slate-100 font-bold text-base">{{ costData.jobInstallCost === null ? t('industry.costEstimation.unknown') : formatIskFull(costData.jobInstallCost) }}</td>
             </tr>
           </tfoot>
         </table>
@@ -540,7 +541,7 @@ defineExpose({ activate, loadCostEstimation })
               <div
                 class="bg-amber-500/60"
                 :style="{ width: costBreakdown.jobInstallPercent + '%' }"
-                :title="`${t('industry.costEstimation.jobInstall')}: ${formatIsk(costData.jobInstallCost)} (${costBreakdown.jobInstallPercent.toFixed(1)}%)`"
+                :title="`${t('industry.costEstimation.jobInstall')}: ${formatIsk(costBreakdown.jobInstallCost)} (${costBreakdown.jobInstallPercent.toFixed(1)}%)`"
               ></div>
               <div
                 class="bg-purple-500/60"
@@ -575,7 +576,7 @@ defineExpose({ activate, loadCostEstimation })
           <button
             v-if="project?.status !== 'completed'"
             @click="saveCostsToProject"
-            :disabled="savingCosts || costData.materialCost === null"
+            :disabled="savingCosts || costData.materialCost === null || costData.jobInstallCost === null"
             class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-colors"
           >
             <LoadingSpinner v-if="savingCosts" size="sm" />

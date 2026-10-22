@@ -441,15 +441,17 @@ export interface CostEstimationStep {
   productName: string | null
   solarSystemId: number
   systemName: string
-  costIndex: number
+  costIndex: number | null
   runs: number
-  installCost: number
+  installCost: number | null
+  unknownReason: JobInstallCostUnknownReason | null
+  missingAdjustedPriceTypeIds: number[]
 }
 
 export interface CostEstimation {
   id: string
   materialCost: number | null
-  jobInstallCost: number
+  jobInstallCost: number | null
   bpoCost: number
   totalCost: number | null
   perUnit: number | null

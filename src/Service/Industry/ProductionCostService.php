@@ -9,6 +9,7 @@ use App\Entity\IndustryProjectStep;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Constant\EveConstants;
 use App\Enum\IndustryActivityType;
+use App\Industry\Domain\ActivityKind;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
@@ -30,6 +31,7 @@ class ProductionCostService
         private readonly IndustryActivityMaterialRepository $materialRepository,
         private readonly IndustryActivityProductRepository $productRepository,
         private readonly MapSolarSystemRepository $solarSystemRepository,
+        private readonly FacilityTaxRateResolver $facilityTaxRateResolver,
     ) {
     }
 
@@ -76,11 +78,12 @@ class ProductionCostService
     /**
      * Estimate job install costs for all manufacturing/reaction steps in the project.
      *
-     * @return array{total: float, steps: list<array{stepId: string, productTypeId: int, productName: string|null, solarSystemId: int, systemName: string, costIndex: float, runs: int, installCost: float}>}
+     * @return array{total: float|null, steps: list<array{stepId: string, productTypeId: int, productName: string|null, solarSystemId: int, systemName: string, costIndex: float|null, runs: int, installCost: float|null, unknownReason: string|null, missingAdjustedPriceTypeIds: list<int>}>}
      */
     public function estimateJobInstallCosts(IndustryProject $project): array
     {
         $total = 0.0;
+        $isTotalUnknown = false;
         $stepResults = [];
 
         foreach ($project->getSteps() as $step) {
@@ -90,45 +93,48 @@ class ProductionCostService
                 continue;
             }
 
-            $esiActivity = $activityType; // ESI uses 'manufacturing' and 'reaction' directly
             $solarSystemId = $this->resolveSolarSystemForStep($step, $project);
-            $facilityTaxRate = $step->getStructureConfig()?->getFacilityTaxRate();
+            $activityKind = $activityType === 'reaction' ? ActivityKind::Reaction : ActivityKind::Manufacturing;
+            $facilityTaxRate = $step->getStructureConfig() !== null
+                ? $step->getStructureConfig()->getFacilityTaxRate()
+                : $this->facilityTaxRateResolver->percentFor($project->getUser(), $solarSystemId, $activityKind);
 
-            // Compute EIV from ME0 materials for this step's blueprint
             $activityIdValue = $activityType === 'reaction' ? IndustryActivityType::Reaction->value : IndustryActivityType::Manufacturing->value;
             $me0Materials = $this->materialRepository->findMaterialsForBlueprints(
                 [$step->getBlueprintTypeId()],
                 [$activityIdValue],
             );
-            $eiv = $this->esiCostIndexService->calculateEiv($me0Materials[$step->getBlueprintTypeId()] ?? []);
 
-            $installCost = $this->esiCostIndexService->calculateJobInstallCost(
-                $eiv,
+            $estimate = $this->esiCostIndexService->estimateJobInstallCost(
+                $me0Materials[$step->getBlueprintTypeId()] ?? [],
                 $step->getRuns(),
                 $solarSystemId,
-                $esiActivity,
+                $activityType,
                 $facilityTaxRate,
             );
 
-            $costIndex = $this->esiCostIndexService->getCostIndex($solarSystemId, $esiActivity);
-            $systemName = $this->resolveSystemName($solarSystemId);
-
-            $total += $installCost;
+            if ($estimate['cost'] === null) {
+                $isTotalUnknown = true;
+            } else {
+                $total += $estimate['cost'];
+            }
 
             $stepResults[] = [
                 'stepId' => $step->getId()?->toRfc4122() ?? '',
                 'productTypeId' => $step->getProductTypeId(),
                 'productName' => $this->calculationService->resolveTypeName($step->getProductTypeId()),
                 'solarSystemId' => $solarSystemId,
-                'systemName' => $systemName,
-                'costIndex' => $costIndex ?? 0.0,
+                'systemName' => $this->resolveSystemName($solarSystemId),
+                'costIndex' => $this->esiCostIndexService->getCostIndex($solarSystemId, $activityType),
                 'runs' => $step->getRuns(),
-                'installCost' => $installCost,
+                'installCost' => $estimate['cost'],
+                'unknownReason' => $estimate['unknownReason'],
+                'missingAdjustedPriceTypeIds' => $estimate['missingAdjustedPriceTypeIds'],
             ];
         }
 
         return [
-            'total' => $total,
+            'total' => $isTotalUnknown ? null : $total,
             'steps' => $stepResults,
         ];
     }
@@ -136,7 +142,7 @@ class ProductionCostService
     /**
      * Estimate the total production cost with full breakdown.
      *
-     * @return array{materialCost: float|null, jobInstallCost: float, bpoCost: float, totalCost: float|null, perUnit: float|null, materials: list<array{typeId: int, typeName: string, quantity: int, unitPrice: float, totalPrice: float}>, jobInstallSteps: list<array{stepId: string, productTypeId: int, productName: string|null, solarSystemId: int, systemName: string, costIndex: float, runs: int, installCost: float}>, failedProducts: list<array{typeId: int, reason: string}>}
+     * @return array{materialCost: float|null, jobInstallCost: float|null, bpoCost: float, totalCost: float|null, perUnit: float|null, materials: list<array{typeId: int, typeName: string, quantity: int, unitPrice: float, totalPrice: float}>, jobInstallSteps: list<array{stepId: string, productTypeId: int, productName: string|null, solarSystemId: int, systemName: string, costIndex: float|null, runs: int, installCost: float|null, unknownReason: string|null, missingAdjustedPriceTypeIds: list<int>}>, failedProducts: list<array{typeId: int, reason: string}>}
      */
     public function estimateTotalCost(IndustryProject $project): array
     {
@@ -144,7 +150,7 @@ class ProductionCostService
         $jobInstallResult = $this->estimateJobInstallCosts($project);
         $bpoCost = $project->getBpoCost() ?? 0.0;
 
-        $totalCost = $materialResult['total'] === null
+        $totalCost = $materialResult['total'] === null || $jobInstallResult['total'] === null
             ? null
             : $materialResult['total'] + $jobInstallResult['total'] + $bpoCost;
 

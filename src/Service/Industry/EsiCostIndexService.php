@@ -25,7 +25,6 @@ class EsiCostIndexService
     public const UNKNOWN_REASON_MISSING_COST_INDEX = 'missing_cost_index';
     public const UNKNOWN_REASON_MISSING_ADJUSTED_PRICE = 'missing_adjusted_price';
 
-    private const PERCENT = 100.0;
     private const SECONDS_PER_HOUR = 3600;
     private const SYNC_INTERVALS_KEPT_IN_CACHE = 3;
 
@@ -191,55 +190,6 @@ class EsiCostIndexService
     }
 
     /**
-     * Calculate Estimated Item Value (EIV) from blueprint input materials at ME0.
-     * EIV = sum(adjustedPrice(materialTypeId) * quantity).
-     *
-     * @param list<array{materialTypeId: int, quantity: int}> $materials ME0 materials from SDE
-     */
-    public function calculateEiv(array $materials): float
-    {
-        $eiv = 0.0;
-        foreach ($materials as $material) {
-            $adjustedPrice = $this->getAdjustedPrice($material['materialTypeId']);
-            if ($adjustedPrice !== null) {
-                $eiv += $adjustedPrice * $material['quantity'];
-            }
-        }
-
-        return $eiv;
-    }
-
-    /**
-     * Calculate the estimated job install cost.
-     *
-     * Formula: eiv * runs * system_cost_index * (1 + facility_tax_rate / 100)
-     *
-     * @param float $eiv Estimated Item Value (sum of adjustedPrice * quantity for ME0 materials)
-     * @param int $runs Number of runs
-     * @param int $solarSystemId Solar system where the job runs
-     * @param string $activity Activity type (manufacturing, reaction, etc.)
-     * @param float|null $facilityTaxRate Facility tax rate as percentage (e.g. 10 for 10%). Null = 0.
-     */
-    public function calculateJobInstallCost(
-        float $eiv,
-        int $runs,
-        int $solarSystemId,
-        string $activity,
-        ?float $facilityTaxRate = null,
-    ): float {
-        if ($eiv <= 0.0) {
-            return 0.0;
-        }
-
-        $costIndex = $this->getCostIndex($solarSystemId, $activity);
-        if ($costIndex === null) {
-            return 0.0;
-        }
-
-        return $this->applyInstallCostFormula($eiv, $runs, $costIndex, $facilityTaxRate);
-    }
-
-    /**
      * @param list<array{materialTypeId: int, quantity: int}> $materials
      *
      * @return array{cost: ?float, unknownReason: ?string, missingAdjustedPriceTypeIds: list<int>}
@@ -255,12 +205,5 @@ class EsiCostIndexService
         $costIndex = $this->getCostIndex($solarSystemId, $activity);
 
         return $this->jobInstallCostEstimator->estimate($materials, $adjustedPrices, $costIndex, $runs, $activity, $facilityTaxRate);
-    }
-
-    private function applyInstallCostFormula(float $eiv, int $runs, float $costIndex, ?float $facilityTaxRate): float
-    {
-        $taxMultiplier = 1.0 + ($facilityTaxRate ?? 0.0) / self::PERCENT;
-
-        return $eiv * $runs * $costIndex * $taxMultiplier;
     }
 }
