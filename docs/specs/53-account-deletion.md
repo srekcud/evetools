@@ -22,7 +22,7 @@ L'utilisateur, tous ses personnages, leurs tokens ESI et toutes les données per
 ### R4 — Membership de l'utilisateur dans un projet qu'il ne possède pas, ou dont il a transféré la propriété (Q2)
 - Une demande `pending` (membre non encore accepté) est supprimée.
 - Une ligne `accepted` ou `removed` est conservée et anonymisée : `user` à `NULL`, statut `removed`, rôle `member` (comme un **Membre retiré**).
-- Ses contributions `approved` sont conservées ; ses contributions `pending` et `rejected` sont supprimées.
+- Ses contributions `approved` sont conservées sans leur note (texte libre, mise à `null`) ; ses contributions `pending` et `rejected` sont supprimées.
 - Le **payout** des autres membres et les totaux de la distribution sont inchangés ; la ligne anonymisée reste dans la distribution sous **Compte supprimé** (« Pilote supprimé »).
 
 ### R5 — Données partagées anonymisées
@@ -33,7 +33,7 @@ L'utilisateur, tous ses personnages, leurs tokens ESI et toutes les données per
 ### R6 — Hors base, après commit
 - **Cache ESI (Q3)** : le pool `esi.cache` devient tag-aware ; chaque réponse authentifiée est taguée `esi_character_<uuid du personnage>` ; à la suppression, `invalidateTags` sur les tags de tous les personnages du compte.
 - **EVE SSO (Q4)** : pour chaque refresh token, `POST https://login.eveonline.com/v2/oauth/revoke` (`revocation_endpoint` des métadonnées `/.well-known/oauth-authorization-server`), auth `client_secret_basic`, corps `token_type_hint=refresh_token&token=<refresh token déchiffré>`. Best-effort : un échec (statut ≠ 2xx, erreur réseau, token indéchiffrable) est journalisé en `warning` sans le token ni aucune donnée personnelle hormis l'id de personnage EVE, et n'empêche ni la suppression ni les autres révocations.
-- **JWT** : le token de la requête est ajouté à la blocklist (même mécanisme que `POST /api/auth/logout`, logique partagée) ; les autres JWT du compte tombent en `401` faute d'utilisateur.
+- **JWT** : le token de la requête est ajouté à la blocklist (même mécanisme que `POST /api/auth/logout`, logique partagée) ; les autres JWT du compte tombent en `401` faute d'utilisateur. Un échec de la blocklist après suppression est journalisé et ne fait pas échouer la requête (le JWT tombe en `401` de toute façon).
 
 ### R7 — Atomicité
 Toute la partie base (transferts, anonymisations, suppressions) se fait dans une seule transaction : si une étape échoue, rien n'est modifié. La révocation SSO, l'invalidation du cache et la blocklist JWT ont lieu après le commit.

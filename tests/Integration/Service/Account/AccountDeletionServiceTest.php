@@ -269,6 +269,33 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         );
     }
 
+    public function testKeptApprovedContributionOfTheDeletedAccountLosesItsNoteWhileOtherNotesAreKept(): void
+    {
+        $kaelen = $this->createAccount('Kaelen Voss', 'refresh-token-kaelen-main');
+        $brann = $this->createAccount('Brann Holt', 'refresh-token-brann-main');
+        $project = $this->createProject($brann, 'Sabre doctrine');
+        $brannMember = $this->addMember($project, $brann, GroupMemberRole::Owner, GroupMemberStatus::Accepted, '2025-12-01 09:00:00');
+        $kaelenMember = $this->addMember($project, $kaelen, GroupMemberRole::Member, GroupMemberStatus::Accepted, '2026-01-02 09:00:00');
+        $kaelenContribution = $this->addContribution($project, $kaelenMember, 1_000_000.0, ContributionStatus::Approved, ContributionType::Material, 250_000)
+            ->setNote('Hauled by Kaelen Voss from his Amarr hangar');
+        $brannContribution = $this->addContribution($project, $brannMember, 3_000_000.0, ContributionStatus::Approved, ContributionType::LineRental, 4)
+            ->setNote('Two Raitaru lines of Brann Holt');
+        $this->em->flush();
+        $kaelenContributionId = (string) $kaelenContribution->getId();
+        $brannContributionId = (string) $brannContribution->getId();
+
+        $this->deleteAccount((string) $kaelen->getId());
+
+        self::assertSame(
+            ['note' => null, 'estimated_value' => 1_000_000.0],
+            $this->noteAndValueOf($kaelenContributionId),
+        );
+        self::assertSame(
+            ['note' => 'Two Raitaru lines of Brann Holt', 'estimated_value' => 3_000_000.0],
+            $this->noteAndValueOf($brannContributionId),
+        );
+    }
+
     public function testDistributionIsUnchangedAndTheDeletedAccountHasNoCharacterName(): void
     {
         $kaelen = $this->createAccount('Kaelen Voss', 'refresh-token-kaelen-main');
@@ -741,6 +768,17 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         }
 
         return $contributions;
+    }
+
+    private function noteAndValueOf(string $contributionId): array
+    {
+        $row = $this->connection()->fetchAssociative(
+            'SELECT note, estimated_value FROM group_industry_contributions WHERE id = ?',
+            [$contributionId],
+        );
+        \assert(\is_array($row));
+
+        return ['note' => $row['note'], 'estimated_value' => (float) $row['estimated_value']];
     }
 
     private function distributionOf(string $projectId): DistributionResult
