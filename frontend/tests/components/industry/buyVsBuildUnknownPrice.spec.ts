@@ -29,6 +29,10 @@ const PLASMA_THRUSTER_WITHOUT_ANY_PRICE: BuyVsBuildComponent = {
   savingsPercent: null,
   meUsed: 10,
   runs: 1,
+  missingData: [
+    { reason: 'market_price', typeId: MEXALLON_TYPE_ID },
+    { reason: 'market_price', typeId: PLASMA_THRUSTER_TYPE_ID },
+  ],
 }
 
 const PLASMA_THRUSTER_WITHOUT_BUY_PRICE: BuyVsBuildComponent = {
@@ -39,6 +43,7 @@ const PLASMA_THRUSTER_WITHOUT_BUY_PRICE: BuyVsBuildComponent = {
     { typeId: MEXALLON_TYPE_ID, typeName: 'Mexallon', quantity: 20, unitPrice: 50, totalPrice: 1000 },
   ],
   verdict: 'build',
+  missingData: [{ reason: 'market_price', typeId: PLASMA_THRUSTER_TYPE_ID }],
 }
 
 const ANALYSIS_WITH_AN_UNKNOWN_VERDICT: BuyVsBuildResult = {
@@ -55,8 +60,10 @@ const ANALYSIS_WITH_AN_UNKNOWN_VERDICT: BuyVsBuildResult = {
   optimalMixCost: null,
   buildTypeIds: [],
   buyTypeIds: [],
-  missingPriceTypeIds: [MEXALLON_TYPE_ID, PLASMA_THRUSTER_TYPE_ID],
-  unknownInstallCostReasons: [],
+  missingData: [
+    { reason: 'market_price', typeId: MEXALLON_TYPE_ID },
+    { reason: 'market_price', typeId: PLASMA_THRUSTER_TYPE_ID },
+  ],
   sellStructureId: null,
 }
 
@@ -69,7 +76,7 @@ const ANALYSIS_WITH_AN_UNKNOWN_BUY_COST: BuyVsBuildResult = {
   buyAllCost: null,
   optimalMixCost: 1700,
   buildTypeIds: [PLASMA_THRUSTER_TYPE_ID],
-  missingPriceTypeIds: [PLASMA_THRUSTER_TYPE_ID],
+  missingData: [{ reason: 'market_price', typeId: PLASMA_THRUSTER_TYPE_ID }],
 }
 
 function mountWithAnalysis(analysis: BuyVsBuildResult, locale: 'en' | 'fr') {

@@ -21,14 +21,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
-/**
- * Characterization of GET /industry/buy-vs-build/{typeId} before the migration of BuyVsBuildService
- * (docs/specs/industry-engine.md §7, rank 2): query parameters, user settings and their defaults.
- *
- * The provider runs on the real BuyVsBuildService over the SDE extract of the goldens. Each analysis
- * parameter changes the output (cost index per system, sell prices per structure, ME on quantities),
- * so the resource is compared with a direct analysis made with the expected parameters.
- */
 #[CoversClass(BuyVsBuildProvider::class)]
 final class BuyVsBuildProviderTest extends TestCase
 {
@@ -48,12 +40,13 @@ final class BuyVsBuildProviderTest extends TestCase
     #[Group('issue-100')]
     public function testWithoutParametersNorSettingsAnalyzesOneRunAtMe10InJitaWithDefaultFees(): void
     {
-        $resource = $this->provide(self::HAIL_L, [], new User(), null);
+        $resource = $this->provide(self::HAIL_L, [], $this->goldenUser(), null);
 
         $this->assertSame(1, $resource->runs);
-        $this->assertSame(2700, $this->componentOf($resource, self::FERNITE_CARBIDE)['quantity']);
+        $this->assertSame(2940, $this->componentOf($resource, self::FERNITE_CARBIDE)['quantity']);
         $this->assertSame(500.0, $resource->sellPrice);
-        $this->assertSame(5640.0, $this->componentOf($resource, self::FERNITE_CARBIDE)['buildJobInstallCost']);
+        $this->assertSame(11632.5, $this->componentOf($resource, self::FERNITE_CARBIDE)['buildJobInstallCost']);
+        $this->assertSame(559297.9, $resource->totalProductionCost);
         $this->assertResourceIsTheAnalysisOf(
             $resource,
             self::HAIL_L, 1, 10, EveConstants::JITA_SOLAR_SYSTEM_ID, null,
@@ -64,7 +57,7 @@ final class BuyVsBuildProviderTest extends TestCase
     #[Group('issue-100')]
     public function testWithoutStructureParameterNorPreferredMarketStructureNoStructureIsChosenAndJitaPricesApply(): void
     {
-        $resource = $this->provide(self::HAIL_L, [], new User(), null);
+        $resource = $this->provide(self::HAIL_L, [], $this->goldenUser(), null);
 
         $this->assertNull($resource->sellStructureId);
         $this->assertSame(500.0, $resource->sellPrice);
@@ -75,7 +68,7 @@ final class BuyVsBuildProviderTest extends TestCase
     #[Group('issue-100')]
     public function testPreferredMarketStructureIsExposedAsTheSellStructure(): void
     {
-        $user = (new User())->setPreferredMarketStructureId(self::SELL_STRUCTURE_ID);
+        $user = $this->goldenUser()->setPreferredMarketStructureId(self::SELL_STRUCTURE_ID);
 
         $resource = $this->provide(self::HAIL_L, [], $user, null);
 
@@ -86,7 +79,7 @@ final class BuyVsBuildProviderTest extends TestCase
     #[Group('issue-100')]
     public function testStructureQueryParameterIsExposedAsTheSellStructureOverThePreferredMarketStructure(): void
     {
-        $user = (new User())->setPreferredMarketStructureId(self::OTHER_SELL_STRUCTURE_ID);
+        $user = $this->goldenUser()->setPreferredMarketStructureId(self::OTHER_SELL_STRUCTURE_ID);
 
         $resource = $this->provide(self::HAIL_L, ['structureId' => (string) self::SELL_STRUCTURE_ID], $user, null);
 
@@ -97,7 +90,7 @@ final class BuyVsBuildProviderTest extends TestCase
 
     public function testUserSettingsGiveTheFeesTheFavoriteManufacturingSystemAndThePreferredStructure(): void
     {
-        $user = (new User())->setPreferredMarketStructureId(self::SELL_STRUCTURE_ID);
+        $user = $this->goldenUser()->setPreferredMarketStructureId(self::SELL_STRUCTURE_ID);
         $settings = $this->settingsOf($user, favoriteManufacturingSystemId: self::FACTORY_SYSTEM_ID);
 
         $resource = $this->provide(self::HAIL_L, [], $user, $settings);
@@ -108,7 +101,7 @@ final class BuyVsBuildProviderTest extends TestCase
 
     public function testQueryParametersOverrideTheSettingsAndRunsAreAtLeastOne(): void
     {
-        $user = (new User())->setPreferredMarketStructureId(self::SELL_STRUCTURE_ID);
+        $user = $this->goldenUser()->setPreferredMarketStructureId(self::SELL_STRUCTURE_ID);
         $settings = $this->settingsOf($user, favoriteManufacturingSystemId: EveConstants::JITA_SOLAR_SYSTEM_ID);
 
         $resource = $this->provide(
@@ -126,7 +119,7 @@ final class BuyVsBuildProviderTest extends TestCase
     #[Group('issue-100')]
     public function testRunsQueryParameterIsForwardedAsRuns(): void
     {
-        $resource = $this->provide(self::HAIL_L, ['runs' => '10'], new User(), null);
+        $resource = $this->provide(self::HAIL_L, ['runs' => '10'], $this->goldenUser(), null);
 
         $this->assertSame(10, $resource->runs);
         $this->assertSame(500.0, $resource->sellPrice);
@@ -140,15 +133,15 @@ final class BuyVsBuildProviderTest extends TestCase
     #[Group('issue-99')]
     public function testReactionJobsTakeTheFavoriteReactionSystemAndManufacturingJobsTheFavoriteManufacturingSystem(): void
     {
-        $user = new User();
+        $user = $this->goldenUser();
         $settings = $this->settingsOf($user, favoriteManufacturingSystemId: self::FACTORY_SYSTEM_ID)
             ->setFavoriteReactionSystemId(EveConstants::JITA_SOLAR_SYSTEM_ID);
 
         $resource = $this->provide(self::FERNITE_CARBIDE, [], $user, $settings);
 
-        $this->assertSame(4040.0, $this->componentOf($resource, self::FERNITE_ALLOY)['buildJobInstallCost']);
-        $this->assertSame(3776.0, $this->componentOf($resource, self::CERAMIC_POWDER)['buildJobInstallCost']);
-        $this->assertSame(1684.5, $this->componentOf($resource, self::HYDROGEN_FUEL_BLOCK)['buildJobInstallCost']);
+        $this->assertSame(8332.5, $this->componentOf($resource, self::FERNITE_ALLOY)['buildJobInstallCost']);
+        $this->assertSame(7788.0, $this->componentOf($resource, self::CERAMIC_POWDER)['buildJobInstallCost']);
+        $this->assertSame(3157.95, $this->componentOf($resource, self::HYDROGEN_FUEL_BLOCK)['buildJobInstallCost']);
         $this->assertNull($resource->sellStructureId);
         $this->assertResourceIsTheAnalysisOf(
             $resource,
@@ -160,57 +153,59 @@ final class BuyVsBuildProviderTest extends TestCase
     #[Group('issue-99')]
     public function testManufacturingProductKeepsTheFavoriteManufacturingSystemWhenAFavoriteReactionSystemIsSet(): void
     {
-        $user = new User();
+        $user = $this->goldenUser();
         $settings = $this->settingsOf($user, favoriteManufacturingSystemId: self::FACTORY_SYSTEM_ID)
             ->setFavoriteReactionSystemId(EveConstants::JITA_SOLAR_SYSTEM_ID);
 
         $resource = $this->provide(self::HAIL_L, [], $user, $settings);
 
-        $this->assertSame(2361.8, $this->componentOf($resource, self::RAM_AMMUNITION_TECH)['buildJobInstallCost']);
-        $this->assertSame(164050.0, round($resource->totalProductionCost - $resource->optimalMixCost, 2));
+        $this->assertSame(4369.33, $this->componentOf($resource, self::RAM_AMMUNITION_TECH)['buildJobInstallCost']);
+        $this->assertSame(11632.5, $this->componentOf($resource, self::FERNITE_CARBIDE)['buildJobInstallCost']);
+        $this->assertSame(374792.5, $resource->optimalMixCost);
+        $this->assertSame(573813.72, $resource->totalProductionCost);
     }
 
     #[Group('issue-99')]
     public function testWithoutFavoriteReactionSystemReactionJobsFallBackToTheFavoriteManufacturingSystem(): void
     {
-        $user = new User();
+        $user = $this->goldenUser();
         $settings = $this->settingsOf($user, favoriteManufacturingSystemId: self::FACTORY_SYSTEM_ID);
 
         $resource = $this->provide(self::FERNITE_CARBIDE, [], $user, $settings);
 
-        $this->assertSame(10100.0, $this->componentOf($resource, self::FERNITE_ALLOY)['buildJobInstallCost']);
-        $this->assertSame(1684.5, $this->componentOf($resource, self::HYDROGEN_FUEL_BLOCK)['buildJobInstallCost']);
-        $this->assertSame(106325.5, $resource->totalProductionCost);
+        $this->assertSame(14392.5, $this->componentOf($resource, self::FERNITE_ALLOY)['buildJobInstallCost']);
+        $this->assertSame(3157.95, $this->componentOf($resource, self::HYDROGEN_FUEL_BLOCK)['buildJobInstallCost']);
+        $this->assertSame(113791.45, $resource->totalProductionCost);
         $this->assertResourceIsTheAnalysisOf($resource, self::FERNITE_CARBIDE, 1, 10, self::FACTORY_SYSTEM_ID, null, 0.01, 0.02);
     }
 
     #[Group('issue-99')]
     public function testSolarSystemQueryParameterAppliesToReactionJobsOverTheFavoriteReactionSystem(): void
     {
-        $user = new User();
+        $user = $this->goldenUser();
         $settings = $this->settingsOf($user, favoriteManufacturingSystemId: EveConstants::JITA_SOLAR_SYSTEM_ID)
             ->setFavoriteReactionSystemId(EveConstants::JITA_SOLAR_SYSTEM_ID);
 
         $resource = $this->provide(self::FERNITE_CARBIDE, ['solarSystemId' => (string) self::FACTORY_SYSTEM_ID], $user, $settings);
 
-        $this->assertSame(10100.0, $this->componentOf($resource, self::FERNITE_ALLOY)['buildJobInstallCost']);
-        $this->assertSame(1684.5, $this->componentOf($resource, self::HYDROGEN_FUEL_BLOCK)['buildJobInstallCost']);
-        $this->assertSame(106325.5, $resource->totalProductionCost);
+        $this->assertSame(14392.5, $this->componentOf($resource, self::FERNITE_ALLOY)['buildJobInstallCost']);
+        $this->assertSame(3157.95, $this->componentOf($resource, self::HYDROGEN_FUEL_BLOCK)['buildJobInstallCost']);
+        $this->assertSame(113791.45, $resource->totalProductionCost);
         $this->assertResourceIsTheAnalysisOf($resource, self::FERNITE_CARBIDE, 1, 10, self::FACTORY_SYSTEM_ID, null, 0.01, 0.02);
     }
 
     #[Group('issue-99')]
     public function testFinalReactionJobOfAReactionProductTakesTheFavoriteReactionSystem(): void
     {
-        $user = new User();
+        $user = $this->goldenUser();
         $settings = $this->settingsOf($user, favoriteManufacturingSystemId: self::FACTORY_SYSTEM_ID)
             ->setFavoriteReactionSystemId(EveConstants::JITA_SOLAR_SYSTEM_ID);
 
         $resource = $this->provide(self::FERNITE_CARBIDE, [], $user, $settings);
 
         $this->assertSame([self::FERNITE_ALLOY, self::CERAMIC_POWDER], $resource->buyTypeIds);
-        $this->assertSame(92225.5, $resource->optimalMixCost);
-        $this->assertSame(97865.5, $resource->totalProductionCost);
+        $this->assertSame(93698.95, $resource->optimalMixCost);
+        $this->assertSame(105331.45, $resource->totalProductionCost);
     }
 
     #[Group('issue-115')]
@@ -231,6 +226,7 @@ final class BuyVsBuildProviderTest extends TestCase
             'savingsPercent' => 31.0,
             'meUsed' => 10,
             'runs' => 2,
+            'missingData' => [],
         ]];
         $buyVsBuildService = $this->createStub(BuyVsBuildService::class);
         $buyVsBuildService->method('analyze')->willReturn([
@@ -247,11 +243,10 @@ final class BuyVsBuildProviderTest extends TestCase
             'optimalMixCost' => 54650.0,
             'buildTypeIds' => [self::FERNITE_CARBIDE],
             'buyTypeIds' => [],
-            'missingPriceTypeIds' => [],
-            'unknownInstallCostReasons' => [],
+            'missingData' => [],
         ]);
         $security = $this->createStub(Security::class);
-        $security->method('getUser')->willReturn(new User());
+        $security->method('getUser')->willReturn($this->goldenUser());
         $requestStack = new RequestStack();
         $requestStack->push(new Request(['runs' => '4']));
         $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
@@ -268,7 +263,7 @@ final class BuyVsBuildProviderTest extends TestCase
     }
 
     #[Group('issue-8')]
-    public function testUnknownCostsAndMissingPriceTypeIdsReachTheResource(): void
+    public function testUnknownCostsAndTheirMissingDataReachTheResource(): void
     {
         $components = [[
             'typeId' => self::FERNITE_CARBIDE,
@@ -285,6 +280,10 @@ final class BuyVsBuildProviderTest extends TestCase
             'savingsPercent' => null,
             'meUsed' => 0,
             'runs' => 1,
+            'missingData' => [
+                ['reason' => 'market_price', 'typeId' => self::CERAMIC_POWDER],
+                ['reason' => 'market_price', 'typeId' => self::FERNITE_CARBIDE],
+            ],
         ]];
         $buyVsBuildService = $this->createStub(BuyVsBuildService::class);
         $buyVsBuildService->method('analyze')->willReturn([
@@ -301,11 +300,13 @@ final class BuyVsBuildProviderTest extends TestCase
             'optimalMixCost' => null,
             'buildTypeIds' => [],
             'buyTypeIds' => [],
-            'missingPriceTypeIds' => [self::CERAMIC_POWDER, self::FERNITE_CARBIDE],
-            'unknownInstallCostReasons' => [],
+            'missingData' => [
+                ['reason' => 'market_price', 'typeId' => self::CERAMIC_POWDER],
+                ['reason' => 'market_price', 'typeId' => self::FERNITE_CARBIDE],
+            ],
         ]);
         $security = $this->createStub(Security::class);
-        $security->method('getUser')->willReturn(new User());
+        $security->method('getUser')->willReturn($this->goldenUser());
         $requestStack = new RequestStack();
         $requestStack->push(new Request(['runs' => '3']));
         $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
@@ -320,11 +321,17 @@ final class BuyVsBuildProviderTest extends TestCase
         $this->assertNull($resource->buyAllCost);
         $this->assertNull($resource->optimalMixCost);
         $this->assertSame($components, $resource->components);
-        $this->assertSame([self::CERAMIC_POWDER, self::FERNITE_CARBIDE], $resource->missingPriceTypeIds);
+        $this->assertSame(
+            [
+                ['reason' => 'market_price', 'typeId' => self::CERAMIC_POWDER],
+                ['reason' => 'market_price', 'typeId' => self::FERNITE_CARBIDE],
+            ],
+            $resource->missingData,
+        );
     }
 
     #[Group('issue-7')]
-    public function testUnknownJobInstallCostAndItsReasonsReachTheResource(): void
+    public function testUnknownJobInstallCostAndItsMissingDataReachTheResource(): void
     {
         $components = [[
             'typeId' => self::FERNITE_CARBIDE,
@@ -341,6 +348,10 @@ final class BuyVsBuildProviderTest extends TestCase
             'savingsPercent' => null,
             'meUsed' => 0,
             'runs' => 1,
+            'missingData' => [
+                ['reason' => 'adjusted_price', 'typeId' => self::CERAMIC_POWDER],
+                ['reason' => 'cost_index', 'typeId' => null],
+            ],
         ]];
         $buyVsBuildService = $this->createStub(BuyVsBuildService::class);
         $buyVsBuildService->method('analyze')->willReturn([
@@ -357,11 +368,13 @@ final class BuyVsBuildProviderTest extends TestCase
             'optimalMixCost' => 188160.0,
             'buildTypeIds' => [],
             'buyTypeIds' => [self::FERNITE_CARBIDE],
-            'missingPriceTypeIds' => [],
-            'unknownInstallCostReasons' => ['missing_adjusted_price', 'missing_cost_index'],
+            'missingData' => [
+                ['reason' => 'adjusted_price', 'typeId' => self::CERAMIC_POWDER],
+                ['reason' => 'cost_index', 'typeId' => null],
+            ],
         ]);
         $security = $this->createStub(Security::class);
-        $security->method('getUser')->willReturn(new User());
+        $security->method('getUser')->willReturn($this->goldenUser());
         $requestStack = new RequestStack();
         $requestStack->push(new Request(['runs' => '2']));
         $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
@@ -373,8 +386,25 @@ final class BuyVsBuildProviderTest extends TestCase
         $this->assertNull($resource->components[0]['buildJobInstallCost']);
         $this->assertSame($components, $resource->components);
         $this->assertNull($resource->totalProductionCost);
-        $this->assertSame([], $resource->missingPriceTypeIds);
-        $this->assertSame(['missing_adjusted_price', 'missing_cost_index'], $resource->unknownInstallCostReasons);
+        $this->assertSame(
+            [
+                ['reason' => 'adjusted_price', 'typeId' => self::CERAMIC_POWDER],
+                ['reason' => 'cost_index', 'typeId' => null],
+            ],
+            $resource->missingData,
+        );
+    }
+
+    public function testMeQueryParameterIsForwardedForAProductThatIsNotInvented(): void
+    {
+        $resource = $this->provide(self::RAM_AMMUNITION_TECH, ['me' => '0'], $this->goldenUser(), null);
+
+        $this->assertSame(58272.25, $resource->totalProductionCost);
+        $this->assertResourceIsTheAnalysisOf(
+            $resource,
+            self::RAM_AMMUNITION_TECH, 1, 0, EveConstants::JITA_SOLAR_SYSTEM_ID, null,
+            EveConstants::DEFAULT_BROKER_FEE_RATE, EveConstants::DEFAULT_SALES_TAX_RATE,
+        );
     }
 
     public function testAnonymousRequestIsUnauthorized(): void
@@ -384,11 +414,6 @@ final class BuyVsBuildProviderTest extends TestCase
         $this->provide(self::HAIL_L, [], null, null);
     }
 
-    // ===========================================
-    // Helpers
-    // ===========================================
-
-    /** @param array<string, string> $query */
     private function provide(int $typeId, array $query, ?User $user, ?IndustryUserSettings $settings): BuyVsBuildResource
     {
         $security = $this->createStub(Security::class);
@@ -432,8 +457,7 @@ final class BuyVsBuildProviderTest extends TestCase
             'optimalMixCost' => $resource->optimalMixCost,
             'buildTypeIds' => $resource->buildTypeIds,
             'buyTypeIds' => $resource->buyTypeIds,
-            'missingPriceTypeIds' => $resource->missingPriceTypeIds,
-            'unknownInstallCostReasons' => $resource->unknownInstallCostReasons,
+            'missingData' => $resource->missingData,
         ]);
     }
 
@@ -466,6 +490,8 @@ final class BuyVsBuildProviderTest extends TestCase
                 16273 => 21.0,
                 16275 => 31.0,
                 17889 => 41.0,
+                self::STUB_DATACORE_A => 3300.0,
+                self::STUB_DATACORE_B => 3900.0,
                 16639 => 55.0,
                 16642 => 75.0,
                 16635 => 25.0,
@@ -482,7 +508,7 @@ final class BuyVsBuildProviderTest extends TestCase
                 36 => 40.0,
                 37 => 90.0,
                 38 => 700.0,
-                17889 => 35.0,
+                17889 => 36.0,
                 self::HYDROGEN_FUEL_BLOCK => 18000.0,
                 self::FERNITE_ALLOY => 280.0,
                 self::CERAMIC_POWDER => 230.0,
@@ -507,8 +533,8 @@ final class BuyVsBuildProviderTest extends TestCase
                 16636 => 27.0,
             ],
             costIndices: [
-                EveConstants::JITA_SOLAR_SYSTEM_ID => ['manufacturing' => 0.02, 'reaction' => 0.04],
-                self::FACTORY_SYSTEM_ID => ['manufacturing' => 0.05, 'reaction' => 0.1],
+                EveConstants::JITA_SOLAR_SYSTEM_ID => ['manufacturing' => 0.02, 'reaction' => 0.04, 'copying' => 0.01, 'invention' => 0.03],
+                self::FACTORY_SYSTEM_ID => ['manufacturing' => 0.05, 'reaction' => 0.1, 'copying' => 0.03, 'invention' => 0.06],
             ],
         );
     }
@@ -522,7 +548,6 @@ final class BuyVsBuildProviderTest extends TestCase
             ->setSalesTaxRate(0.02);
     }
 
-    /** @return array<string, mixed> */
     private function componentOf(BuyVsBuildResource $resource, int $typeId): array
     {
         foreach ($resource->components as $component) {

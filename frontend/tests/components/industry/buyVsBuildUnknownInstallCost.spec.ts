@@ -11,6 +11,7 @@ const HAIL_L_TYPE_ID = 12779
 const RAM_AMMUNITION_TECH_TYPE_ID = 11476
 const FERNITE_CARBIDE_TYPE_ID = 16673
 const CERAMIC_POWDER_TYPE_ID = 16660
+const HAIL_L_T1_BLUEPRINT_TYPE_ID = 2_000_000_001
 
 const FERNITE_CARBIDE_WITH_AN_UNKNOWN_INSTALL_COST: BuyVsBuildComponent = {
   typeId: FERNITE_CARBIDE_TYPE_ID,
@@ -31,6 +32,10 @@ const FERNITE_CARBIDE_WITH_AN_UNKNOWN_INSTALL_COST: BuyVsBuildComponent = {
   savingsPercent: null,
   meUsed: 0,
   runs: 1,
+  missingData: [
+    { reason: 'adjusted_price', typeId: CERAMIC_POWDER_TYPE_ID },
+    { reason: 'cost_index', typeId: null },
+  ],
 }
 
 const RAM_WITH_A_KNOWN_INSTALL_COST: BuyVsBuildComponent = {
@@ -51,6 +56,7 @@ const RAM_WITH_A_KNOWN_INSTALL_COST: BuyVsBuildComponent = {
   savingsPercent: 10.82,
   meUsed: 10,
   runs: 1,
+  missingData: [],
 }
 
 const ANALYSIS_WITH_AN_UNKNOWN_INSTALL_COST: BuyVsBuildResult = {
@@ -67,14 +73,16 @@ const ANALYSIS_WITH_AN_UNKNOWN_INSTALL_COST: BuyVsBuildResult = {
   optimalMixCost: 241_666.8,
   buildTypeIds: [RAM_AMMUNITION_TECH_TYPE_ID],
   buyTypeIds: [FERNITE_CARBIDE_TYPE_ID],
-  missingPriceTypeIds: [],
-  unknownInstallCostReasons: ['missing_adjusted_price', 'missing_cost_index'],
+  missingData: [
+    { reason: 'adjusted_price', typeId: CERAMIC_POWDER_TYPE_ID },
+    { reason: 'cost_index', typeId: null },
+  ],
   sellStructureId: null,
 }
 
 const ANALYSIS_WITH_ONLY_A_MISSING_COST_INDEX: BuyVsBuildResult = {
   ...ANALYSIS_WITH_AN_UNKNOWN_INSTALL_COST,
-  unknownInstallCostReasons: ['missing_cost_index'],
+  missingData: [{ reason: 'cost_index', typeId: null }],
 }
 
 const ANALYSIS_WITH_KNOWN_INSTALL_COSTS: BuyVsBuildResult = {
@@ -86,7 +94,14 @@ const ANALYSIS_WITH_KNOWN_INSTALL_COSTS: BuyVsBuildResult = {
   buyAllCost: 60_000,
   optimalMixCost: 53_506.8,
   buyTypeIds: [],
-  unknownInstallCostReasons: [],
+  missingData: [],
+}
+
+const ANALYSIS_WITHOUT_INVENTION_PROBABILITY: BuyVsBuildResult = {
+  ...ANALYSIS_WITH_KNOWN_INSTALL_COSTS,
+  totalProductionCost: null,
+  marginPercent: null,
+  missingData: [{ reason: 'invention_probability', typeId: HAIL_L_T1_BLUEPRINT_TYPE_ID }],
 }
 
 const COST_INDEX_REASON_LABELS = { en: 'System cost index unknown', fr: 'Indice de coût du système inconnu' } as const
@@ -141,6 +156,17 @@ describe('BuyVsBuildTab with an unknown job install cost', () => {
     const wrapper = mountWithAnalysis(ANALYSIS_WITH_ONLY_A_MISSING_COST_INDEX, locale)
 
     expect(wrapper.text()).toContain(COST_INDEX_REASON_LABELS[locale])
+    expect(wrapper.text()).not.toContain(ADJUSTED_PRICE_REASON_LABELS[locale])
+  })
+
+  it.each([
+    ['en', en],
+    ['fr', fr],
+  ] as const)('lists the missing invention probability with its label and no install cost reason (%s)', (locale, messages) => {
+    const wrapper = mountWithAnalysis(ANALYSIS_WITHOUT_INVENTION_PROBABILITY, locale)
+
+    expect(wrapper.text()).toContain(messages.industry.inventionUnknown.missing_invention_probability)
+    expect(wrapper.text()).not.toContain(COST_INDEX_REASON_LABELS[locale])
     expect(wrapper.text()).not.toContain(ADJUSTED_PRICE_REASON_LABELS[locale])
   })
 

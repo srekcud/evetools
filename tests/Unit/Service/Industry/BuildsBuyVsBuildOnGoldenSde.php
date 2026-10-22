@@ -4,125 +4,108 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Industry;
 
-use App\Entity\Sde\IndustryActivityMaterial;
-use App\Entity\Sde\IndustryActivityProduct;
-use App\Entity\Sde\InvGroup;
-use App\Entity\Sde\InvType;
-use App\Enum\IndustryActivityType;
-use App\Repository\IndustryRigCategoryRepository;
-use App\Repository\IndustryStructureConfigRepository;
-use App\Repository\Sde\IndustryActivityMaterialRepository;
-use App\Repository\Sde\IndustryActivityProductRepository;
-use App\Repository\Sde\InvTypeRepository;
+use App\Entity\User;
+use App\Industry\Application\ProductionCostCalculator;
+use App\Industry\Application\RigCategories;
+use App\Industry\Application\UserProductionStructures;
+use App\Industry\Infrastructure\Esi\EsiAdjustedPrices;
+use App\Industry\Infrastructure\Esi\EsiSystemCostIndices;
+use App\Industry\Infrastructure\Market\JitaMarketPrices;
+use App\Industry\Infrastructure\Sde\SdeBlueprintCatalog;
+use App\Industry\Infrastructure\Sde\SdeInventionCatalog;
 use App\Service\ESI\EsiClient;
 use App\Service\Industry\BuyVsBuildService;
 use App\Service\Industry\EsiCostIndexService;
-use App\Service\Industry\IndustryBonusService;
-use App\Service\Industry\IndustryTreeService;
-use App\Service\Industry\InventionService;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
-use Doctrine\DBAL\Connection;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Uid\Uuid;
 
-/**
- * Wires the real BuyVsBuildService, IndustryTreeService, IndustryBonusService and EsiCostIndexService
- * on the SDE extract of the goldens (tests/Fixtures/Golden/sde-blueprint-recipes.json).
- * Stubbed boundaries only: SDE repositories, Jita and structure markets, ESI (adjusted prices, cost indices).
- *
- * The extract has no blueprint typeId: each recipe gets a synthetic one (product typeId + offset).
- */
 trait BuildsBuyVsBuildOnGoldenSde
 {
-    private const int SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET = 900_000_000;
-    private const string SDE_RECIPES_FIXTURE = __DIR__.'/../../../Fixtures/Golden/sde-blueprint-recipes.json';
-    private const int UNCATEGORIZED_GROUP_ID = 999_999_001;
+    use StubsGoldenSdeRepositories;
 
-    /**
-     * @param array<int, float>              $jitaPrices      typeId => Jita sell price, an absent typeId has no price
-     * @param array<int, array<int, float>>  $structurePrices structureId => (typeId => lowest sell price)
-     * @param array<int, float>              $adjustedPrices  typeId => ESI adjusted price
-     * @param array<int, array<string, float>> $costIndices   solarSystemId => (activity => cost index)
-     */
+    private const string GOLDEN_USER_ID = '01928c3e-7a00-7000-8000-0000000000b2';
+
     private function buyVsBuildServiceOnGoldenSde(
         array $jitaPrices,
         array $structurePrices,
         array $adjustedPrices,
         array $costIndices,
-        bool $isT2 = false,
         ?StructureMarketService $structureMarket = null,
     ): BuyVsBuildService {
-        $recipes = self::goldenRecipes();
-        $typeNames = self::goldenTypeNames();
+        if ([] === $this->recipes) {
+            $this->loadGoldenSde();
+        }
 
-        $invTypeRepository = $this->createStub(InvTypeRepository::class);
-        $invTypeRepository->method('find')->willReturnCallback(
-            static fn (int $typeId): ?InvType => isset($typeNames[$typeId]) ? self::invType($typeId, $typeNames[$typeId]) : null,
+        $productRepository = $this->sdeProductRepository();
+        $materialRepository = $this->sdeMaterialRepository();
+        $blueprintCatalog = new SdeBlueprintCatalog($productRepository, $this->sdeActivityTimeRepository(), $materialRepository, $this->sdeBlueprintRepository());
+        $jitaMarketService = $this->jitaMarketServiceAt($jitaPrices);
+        $esiCostIndexService = $this->esiCostIndexServiceSyncedWith($adjustedPrices, $costIndices);
+
+        return new BuyVsBuildService(
+            new ProductionCostCalculator(
+                $blueprintCatalog,
+                new SdeInventionCatalog($productRepository, $materialRepository),
+                new JitaMarketPrices($jitaMarketService),
+                new EsiAdjustedPrices($esiCostIndexService),
+                new EsiSystemCostIndices($esiCostIndexService),
+                $this->rigCategoriesWithoutAny(),
+            ),
+            $blueprintCatalog,
+            $this->userProductionStructuresWithoutAny(),
+            $jitaMarketService,
+            $structureMarket ?? $this->structureMarketAt($structurePrices),
+            new TypeNameResolver($this->sdeInvTypeRepository()),
         );
+    }
 
-        $activityProductRepository = $this->createStub(IndustryActivityProductRepository::class);
-        $activityProductRepository->method('findBlueprintForProduct')->willReturnCallback(
-            static function (int $productTypeId, int $activityId = 1) use ($recipes): ?IndustryActivityProduct {
-                $recipe = $recipes[$productTypeId] ?? null;
-                if ($recipe === null || self::activityIdOf($recipe['activity']) !== $activityId) {
-                    return null;
-                }
+    private function goldenUser(): User
+    {
+        $user = new User();
+        (new \ReflectionProperty(User::class, 'id'))->setValue($user, Uuid::fromString(self::GOLDEN_USER_ID));
 
-                return (new IndustryActivityProduct())
-                    ->setTypeId(self::blueprintTypeIdOf($productTypeId))
-                    ->setActivityId($activityId)
-                    ->setProductTypeId($productTypeId)
-                    ->setQuantity($recipe['outputPerRun']);
-            },
-        );
+        return $user;
+    }
 
-        $activityMaterialRepository = $this->createStub(IndustryActivityMaterialRepository::class);
-        $activityMaterialRepository->method('findBy')->willReturnCallback(
-            static function (array $criteria) use ($recipes): array {
-                $materials = [];
-                foreach (self::baseMaterialsOf($recipes, $criteria['typeId'], $criteria['activityId']) as $materialTypeId => $baseQuantity) {
-                    $materials[] = (new IndustryActivityMaterial())
-                        ->setTypeId($criteria['typeId'])
-                        ->setActivityId($criteria['activityId'])
-                        ->setMaterialTypeId($materialTypeId)
-                        ->setQuantity($baseQuantity);
-                }
+    private static function marketPriceMissing(int $typeId): array
+    {
+        return ['reason' => 'market_price', 'typeId' => $typeId];
+    }
 
-                return $materials;
-            },
-        );
-        $activityMaterialRepository->method('findMaterialsForBlueprints')->willReturnCallback(
-            static function (array $blueprintTypeIds, array $activityIds) use ($recipes): array {
-                $materialsByBlueprint = [];
-                foreach ($blueprintTypeIds as $blueprintTypeId) {
-                    foreach ($activityIds as $activityId) {
-                        foreach (self::baseMaterialsOf($recipes, $blueprintTypeId, $activityId) as $materialTypeId => $baseQuantity) {
-                            $materialsByBlueprint[$blueprintTypeId][] = ['materialTypeId' => $materialTypeId, 'quantity' => $baseQuantity];
-                        }
-                    }
-                }
+    private static function adjustedPriceMissing(int $typeId): array
+    {
+        return ['reason' => 'adjusted_price', 'typeId' => $typeId];
+    }
 
-                return $materialsByBlueprint;
-            },
-        );
+    private static function costIndexMissing(): array
+    {
+        return ['reason' => 'cost_index', 'typeId' => null];
+    }
 
-        $connection = $this->createStub(Connection::class);
-        $connection->method('fetchOne')->willReturn(0);
-        $entityManager = $this->createStub(EntityManagerInterface::class);
-        $entityManager->method('getConnection')->willReturn($connection);
+    private static function inventionProbabilityMissing(int $t1BlueprintTypeId): array
+    {
+        return ['reason' => 'invention_probability', 'typeId' => $t1BlueprintTypeId];
+    }
 
-        $rigCategoryRepository = $this->createStub(IndustryRigCategoryRepository::class);
-        $rigCategoryRepository->method('buildGroupCategoryMap')->willReturn([]);
-        $structureConfigRepository = $this->createStub(IndustryStructureConfigRepository::class);
-        $structureConfigRepository->method('findByUser')->willReturn([]);
-        $bonusService = new IndustryBonusService($rigCategoryRepository, $structureConfigRepository, $invTypeRepository, $activityProductRepository);
-
-        $treeService = new IndustryTreeService($activityProductRepository, $activityMaterialRepository, $invTypeRepository, $entityManager, $bonusService);
-
+    private function jitaMarketServiceAt(array $jitaPrices): JitaMarketService
+    {
         $jitaMarketService = $this->createStub(JitaMarketService::class);
+        $jitaMarketService->method('getWeightedSellPricesWithFallback')->willReturnCallback(
+            static function (array $typeQuantities) use ($jitaPrices): array {
+                $prices = [];
+                foreach (array_keys($typeQuantities) as $typeId) {
+                    $prices[$typeId] = \array_key_exists($typeId, $jitaPrices)
+                        ? ['weightedPrice' => $jitaPrices[$typeId], 'coverage' => 1.0, 'ordersUsed' => 1]
+                        : null;
+                }
+
+                return $prices;
+            },
+        );
         $jitaMarketService->method('getPricesWithFallback')->willReturnCallback(
             static function (array $typeIds) use ($jitaPrices): array {
                 $prices = [];
@@ -134,6 +117,11 @@ trait BuildsBuyVsBuildOnGoldenSde
             },
         );
 
+        return $jitaMarketService;
+    }
+
+    private function structureMarketAt(array $structurePrices): StructureMarketService
+    {
         $structureMarketService = $this->createStub(StructureMarketService::class);
         $structureMarketService->method('getLowestSellPrice')->willReturnCallback(
             static fn (int $structureId, int $typeId): ?float => $structurePrices[$structureId][$typeId] ?? null,
@@ -149,24 +137,25 @@ trait BuildsBuyVsBuildOnGoldenSde
             },
         );
 
-        $inventionService = $this->createStub(InventionService::class);
-        $inventionService->method('isT2')->willReturn($isT2);
-
-        return new BuyVsBuildService(
-            $treeService,
-            $jitaMarketService,
-            $structureMarket ?? $structureMarketService,
-            $this->esiCostIndexServiceSyncedWith($adjustedPrices, $costIndices),
-            $inventionService,
-            new TypeNameResolver($invTypeRepository),
-            $activityMaterialRepository,
-        );
+        return $structureMarketService;
     }
 
-    /**
-     * @param array<int, float>                $adjustedPrices
-     * @param array<int, array<string, float>> $costIndices
-     */
+    private function rigCategoriesWithoutAny(): RigCategories
+    {
+        $rigCategories = $this->createStub(RigCategories::class);
+        $rigCategories->method('categoryOf')->willReturn(null);
+
+        return $rigCategories;
+    }
+
+    private function userProductionStructuresWithoutAny(): UserProductionStructures
+    {
+        $productionStructures = $this->createStub(UserProductionStructures::class);
+        $productionStructures->method('configuredBy')->willReturn([]);
+
+        return $productionStructures;
+    }
+
     private function esiCostIndexServiceSyncedWith(array $adjustedPrices, array $costIndices): EsiCostIndexService
     {
         $esiAdjustedPrices = [];
@@ -193,71 +182,5 @@ trait BuildsBuyVsBuildOnGoldenSde
         $esiCostIndexService->syncCostIndices();
 
         return $esiCostIndexService;
-    }
-
-    private static function blueprintTypeIdOf(int $productTypeId): int
-    {
-        return $productTypeId + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET;
-    }
-
-    private static function activityIdOf(string $activity): int
-    {
-        return $activity === 'reaction' ? IndustryActivityType::Reaction->value : IndustryActivityType::Manufacturing->value;
-    }
-
-    /**
-     * @param array<int, array{activity: string, outputPerRun: int, materials: array<int|string, int>}> $recipes
-     *
-     * @return array<int, int> materialTypeId => base quantity per run
-     */
-    private static function baseMaterialsOf(array $recipes, int $blueprintTypeId, int $activityId): array
-    {
-        $recipe = $recipes[$blueprintTypeId - self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET] ?? null;
-        if ($recipe === null || self::activityIdOf($recipe['activity']) !== $activityId) {
-            return [];
-        }
-
-        $materials = [];
-        foreach ($recipe['materials'] as $materialTypeId => $baseQuantity) {
-            $materials[(int) $materialTypeId] = $baseQuantity;
-        }
-
-        return $materials;
-    }
-
-    private static function invType(int $typeId, string $typeName): InvType
-    {
-        return (new InvType())
-            ->setTypeId($typeId)
-            ->setTypeName($typeName)
-            ->setGroup((new InvGroup())->setGroupId(self::UNCATEGORIZED_GROUP_ID)->setGroupName('Uncategorized'));
-    }
-
-    /** @return array<int, array{activity: string, outputPerRun: int, materials: array<int|string, int>}> */
-    private static function goldenRecipes(): array
-    {
-        $recipes = [];
-        foreach (self::sdeFixture()['recipes'] as $productTypeId => $recipe) {
-            $recipes[(int) $productTypeId] = $recipe;
-        }
-
-        return $recipes;
-    }
-
-    /** @return array<int, string> */
-    private static function goldenTypeNames(): array
-    {
-        $typeNames = [];
-        foreach (self::sdeFixture()['typeNames'] as $typeId => $typeName) {
-            $typeNames[(int) $typeId] = $typeName;
-        }
-
-        return $typeNames;
-    }
-
-    /** @return array{recipes: array<string, mixed>, typeNames: array<string, string>} */
-    private static function sdeFixture(): array
-    {
-        return json_decode((string) file_get_contents(self::SDE_RECIPES_FIXTURE), true, flags: JSON_THROW_ON_ERROR);
     }
 }
