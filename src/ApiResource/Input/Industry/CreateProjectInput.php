@@ -8,6 +8,8 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 class CreateProjectInput
 {
+    private const int MAX_EXCLUDED_COMPONENTS = 500;
+
     #[Assert\NotNull]
     #[Assert\Positive]
     public int $typeId;
@@ -29,6 +31,7 @@ class CreateProjectInput
     public ?string $name = null;
 
     /** @var list<int> */
-    #[Assert\All([new Assert\Positive()])]
+    #[Assert\Count(max: self::MAX_EXCLUDED_COMPONENTS)]
+    #[Assert\All([new Assert\Type('int'), new Assert\Positive()])]
     public array $excludedTypeIds = [];
 }
