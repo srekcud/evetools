@@ -33,6 +33,11 @@ final class AvailableJobsProviderTest extends TestCase
     private const int NITROGEN_FUEL_BLOCK_BLUEPRINT_TYPE_ID = 4314;
     private const int ROBOTICS_JOB_ID = 700_009_848;
     private const int NITROGEN_FUEL_BLOCK_JOB_ID = 700_004_051;
+    private const int MANUFACTURING_BLUEPRINT_TYPE_ID = 1001;
+    private const int CANCELLED_JOB_ID = 300;
+    private const int REVERTED_JOB_ID = 301;
+    private const int DELIVERED_JOB_ID = 305;
+    private const int ACTIVE_JOB_ID = 308;
 
     public function testJobProducingATypeMissingFromTheSdeIsListedWithAnUnknownTypeNameAndStaysLinkedToItsStep(): void
     {
@@ -75,6 +80,38 @@ final class AvailableJobsProviderTest extends TestCase
         self::assertNull($jobs[1]->linkedToStepId);
     }
 
+    #[Group('issue-188')]
+    public function testAvailableJobsExcludeJobsWithoutOutput(): void
+    {
+        $pilot = new User();
+        $character = (new Character())->setName('Aurora Industrialist')->setUser($pilot);
+        $pilot->addCharacter($character);
+        $project = (new IndustryProject())
+            ->setUser($pilot)
+            ->setProductTypeId(self::NITROGEN_FUEL_BLOCK_TYPE_ID)
+            ->setRuns(10);
+        $project->addStep((new IndustryProjectStep())
+            ->setBlueprintTypeId(self::MANUFACTURING_BLUEPRINT_TYPE_ID)
+            ->setProductTypeId(self::NITROGEN_FUEL_BLOCK_TYPE_ID)
+            ->setQuantity(400)
+            ->setRuns(10)
+            ->setDepth(0)
+            ->setActivityType('manufacturing')
+            ->setSortOrder(0));
+
+        $jobs = $this->provider($pilot, $project, [
+            $this->job($character, self::ACTIVE_JOB_ID, self::MANUFACTURING_BLUEPRINT_TYPE_ID, self::NITROGEN_FUEL_BLOCK_TYPE_ID, 10, 1_250_000.75, '2026-10-20T08:00:00+00:00'),
+            $this->job($character, self::DELIVERED_JOB_ID, self::MANUFACTURING_BLUEPRINT_TYPE_ID, self::NITROGEN_FUEL_BLOCK_TYPE_ID, 10, 1_250_000.75, '2026-10-19T08:00:00+00:00', 'delivered'),
+            $this->job($character, self::REVERTED_JOB_ID, self::MANUFACTURING_BLUEPRINT_TYPE_ID, self::NITROGEN_FUEL_BLOCK_TYPE_ID, 10, 1_250_000.75, '2026-10-18T08:00:00+00:00', 'reverted'),
+            $this->job($character, self::CANCELLED_JOB_ID, self::MANUFACTURING_BLUEPRINT_TYPE_ID, self::NITROGEN_FUEL_BLOCK_TYPE_ID, 10, 1_250_000.75, '2026-10-17T08:00:00+00:00', 'cancelled'),
+        ])->provide(new GetCollection(), ['id' => self::PROJECT_ID]);
+
+        self::assertSame(
+            [[self::ACTIVE_JOB_ID, 'active'], [self::DELIVERED_JOB_ID, 'delivered']],
+            array_map(static fn ($availableJob): array => [$availableJob->esiJobId, $availableJob->status], $jobs),
+        );
+    }
+
     /**
      * @param list<CachedIndustryJob> $jobs
      */
@@ -103,6 +140,7 @@ final class AvailableJobsProviderTest extends TestCase
         int $runs,
         float $cost,
         string $startDate,
+        string $status = 'active',
     ): CachedIndustryJob {
         $start = new \DateTimeImmutable($startDate);
 
@@ -114,7 +152,7 @@ final class AvailableJobsProviderTest extends TestCase
             ->setProductTypeId($productTypeId)
             ->setRuns($runs)
             ->setCost($cost)
-            ->setStatus('active')
+            ->setStatus($status)
             ->setStartDate($start)
             ->setEndDate($start->modify('+2 days'));
     }
