@@ -128,6 +128,7 @@ class IndustryJobSyncService implements ResetInterface
 
             // Track which ESI job IDs belong to the user's characters (not corpmates)
             $syncedJobsByJobId = [];
+            $playerJobsByJobId = [];
 
             foreach ($jobsByJobId as $jobData) {
                 // Resolve the actual installer character — skip jobs from corpmates
@@ -137,6 +138,7 @@ class IndustryJobSyncService implements ResetInterface
                     continue;
                 }
                 $installerCharacter = $installerLookup[$installerId];
+                $playerJobsByJobId[$jobData['job_id']] = $jobData;
 
                 $existing = $this->jobRepository->findByJobId($jobData['job_id']);
 
@@ -222,14 +224,14 @@ class IndustryJobSyncService implements ResetInterface
             ]);
 
             // Count active jobs
-            $activeJobs = array_filter($jobsByJobId, fn($j) => $j['status'] === 'active');
-            $readyJobs = array_filter($jobsByJobId, fn($j) => $j['status'] === 'ready');
+            $activeJobs = array_filter($playerJobsByJobId, static fn (array $job): bool => $job['status'] === CachedIndustryJob::STATUS_ACTIVE);
+            $readyJobs = array_filter($playerJobsByJobId, static fn (array $job): bool => $job['status'] === CachedIndustryJob::STATUS_READY);
 
             // Notify sync completed
             if ($userId !== null) {
                 $message = sprintf('%d active jobs, %d ready to deliver', count($activeJobs), count($readyJobs));
                 $this->mercurePublisher->syncCompleted($userId, 'industry-jobs', $message, [
-                    'total' => count($jobsByJobId),
+                    'total' => count($playerJobsByJobId),
                     'active' => count($activeJobs),
                     'ready' => count($readyJobs),
                 ]);
