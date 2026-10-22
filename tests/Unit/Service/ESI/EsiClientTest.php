@@ -13,12 +13,13 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
-use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Cache\Adapter\TagAwareAdapter;
+use Symfony\Component\Cache\Adapter\TagAwareAdapterInterface;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -284,7 +285,7 @@ final class EsiClientTest extends TestCase
                 'Expires' => $this->httpDate($issuedAt + self::EXPIRES_AFTER_SECONDS),
             ]),
             $this->notModifiedResponse(),
-        ], new ArrayAdapter(clock: $clock));
+        ], new TagAwareAdapter(new ArrayAdapter(clock: $clock)));
 
         $firstResult = $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
         $clock->sleep(self::EXPIRES_AFTER_SECONDS + 1);
@@ -307,7 +308,7 @@ final class EsiClientTest extends TestCase
                 'Expires' => $this->httpDate($issuedAt + self::EXPIRES_AFTER_SECONDS),
             ]),
             $this->notModifiedResponse(),
-        ], new ArrayAdapter(clock: $clock));
+        ], new TagAwareAdapter(new ArrayAdapter(clock: $clock)));
         $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
         $clock->sleep(self::EXPIRES_AFTER_SECONDS + 1);
         $conditionalRequestsStart = count($this->recordedRequests);
@@ -336,7 +337,7 @@ final class EsiClientTest extends TestCase
             ]),
             $this->errorLimitedResponse(),
             $this->notModifiedResponse(),
-        ], new ArrayAdapter(clock: $clock));
+        ], new TagAwareAdapter(new ArrayAdapter(clock: $clock)));
         $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
         $clock->sleep(self::EXPIRES_AFTER_SECONDS + 1);
         $conditionalRequestsStart = count($this->recordedRequests);
@@ -631,7 +632,7 @@ final class EsiClientTest extends TestCase
                 'ETag' => '"etag-v1"',
                 'Expires' => $this->httpDate($issuedAt + self::EXPIRES_AFTER_SECONDS),
             ]),
-        ], new ArrayAdapter(clock: $clock));
+        ], new TagAwareAdapter(new ArrayAdapter(clock: $clock)));
         $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
 
         $clock->sleep(self::EXPIRES_AFTER_SECONDS - 1);
@@ -655,7 +656,7 @@ final class EsiClientTest extends TestCase
                 'ETag' => '"etag-v1"',
                 'Expires' => $this->httpDate($revalidatedAt + self::EXPIRES_AFTER_SECONDS),
             ]),
-        ], new ArrayAdapter(clock: $clock));
+        ], new TagAwareAdapter(new ArrayAdapter(clock: $clock)));
         $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
 
         $clock->sleep(self::EXPIRES_AFTER_SECONDS + 1);
@@ -684,7 +685,7 @@ final class EsiClientTest extends TestCase
                 'ETag' => '"etag-v1"',
                 'Expires' => $this->httpDate($revalidatedAt + self::EXPIRES_AFTER_SECONDS),
             ]),
-        ], new ArrayAdapter(clock: $clock));
+        ], new TagAwareAdapter(new ArrayAdapter(clock: $clock)));
         $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
         $clock->sleep(self::EXPIRES_AFTER_SECONDS + 1);
         $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
@@ -715,7 +716,7 @@ final class EsiClientTest extends TestCase
                 'ETag' => '"etag-v2"',
                 'Expires' => $this->httpDate($revalidatedAt + self::EXPIRES_AFTER_SECONDS),
             ]),
-        ], new ArrayAdapter(clock: $clock));
+        ], new TagAwareAdapter(new ArrayAdapter(clock: $clock)));
         $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
 
         $clock->sleep(self::EXPIRES_AFTER_SECONDS + 1);
@@ -1339,7 +1340,7 @@ final class EsiClientTest extends TestCase
                 'X-Esi-Error-Limit-Remain' => '19',
             ]),
             $this->jsonResponse(['name' => 'Jita']),
-        ], new ArrayAdapter(clock: $clock), $this->createRecordingLogger($logRecords));
+        ], new TagAwareAdapter(new ArrayAdapter(clock: $clock)), $this->createRecordingLogger($logRecords));
         $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
         $clock->sleep(self::EXPIRES_AFTER_SECONDS + 1);
 
@@ -1432,7 +1433,7 @@ final class EsiClientTest extends TestCase
                 'Expires' => $this->httpDate($replacedAt + self::EXPIRES_AFTER_SECONDS),
             ]),
             $this->jsonResponse([['type_id' => 34, 'quantity' => 500]]),
-        ], new ArrayAdapter(clock: $clock));
+        ], new TagAwareAdapter(new ArrayAdapter(clock: $clock)));
         $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
         $clock->sleep(self::EXPIRES_AFTER_SECONDS + 1);
         $esiClient->getWithCache('/characters/2112000001/assets/', $this->createEveToken());
@@ -1450,7 +1451,7 @@ final class EsiClientTest extends TestCase
         $esiClient = $this->createEsiClient([
             $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]]),
             $this->jsonResponse([['type_id' => 35, 'quantity' => 2]]),
-        ], new ArrayAdapter());
+        ], new TagAwareAdapter(new ArrayAdapter()));
         $firstPilotToken = $this->createEveTokenForCharacter('0190a6f0-0000-7000-8000-000000000001');
         $secondPilotToken = $this->createEveTokenForCharacter('0190a6f0-0000-7000-8000-000000000002');
 
@@ -1469,7 +1470,7 @@ final class EsiClientTest extends TestCase
         $esiClient = $this->createEsiClient([
             $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]]),
             $this->jsonResponse([['blueprint_id' => 1000000001, 'runs' => 10]]),
-        ], new ArrayAdapter());
+        ], new TagAwareAdapter(new ArrayAdapter()));
         $pilotToken = $this->createEveTokenForCharacter('0190a6f0-0000-7000-8000-000000000001');
 
         $assets = $esiClient->getWithCache('/characters/2112000001/assets/', $pilotToken);
@@ -1485,7 +1486,7 @@ final class EsiClientTest extends TestCase
         $esiClient = $this->createEsiClient([
             $this->jsonResponse(['name' => 'Jita']),
             $this->jsonResponse(['name' => 'Amarr']),
-        ], new ArrayAdapter());
+        ], new TagAwareAdapter(new ArrayAdapter()));
 
         $jita = $esiClient->getWithCache('/universe/systems/30000142/');
         $amarr = $esiClient->getWithCache('/universe/systems/30002187/');
@@ -1493,6 +1494,56 @@ final class EsiClientTest extends TestCase
         $this->assertSame(['name' => 'Jita'], $jita);
         $this->assertSame(['name' => 'Amarr'], $amarr);
         $this->assertCount(2, $this->recordedRequests);
+    }
+
+    #[Group('issue-53')]
+    public function testCacheTagForCharacterIsEsiCharacterFollowedByTheCharacterUuid(): void
+    {
+        $this->assertSame(
+            'esi_character_0190a6f0-0000-7000-8000-000000000053',
+            EsiClient::cacheTagForCharacter(Uuid::fromString('0190a6f0-0000-7000-8000-000000000053')),
+        );
+    }
+
+    #[Group('issue-53')]
+    public function testInvalidatingTheCacheTagOfACharacterForgetsItsFreshAndRevalidationCopiesButNotThoseOfAnotherCharacter(): void
+    {
+        $esiCache = new TagAwareAdapter(new ArrayAdapter());
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]], 200, ['ETag' => '"etag-deleted-pilot"']),
+            $this->jsonResponse([['type_id' => 35, 'quantity' => 2]], 200, ['ETag' => '"etag-other-pilot"']),
+            $this->jsonResponse([['type_id' => 36, 'quantity' => 70]]),
+        ], $esiCache);
+        $deletedPilotToken = $this->createEveTokenForCharacter('0190a6f0-0000-7000-8000-000000000053');
+        $otherPilotToken = $this->createEveTokenForCharacter('0190a6f0-0000-7000-8000-000000000054');
+        $esiClient->getWithCache('/characters/2112000053/assets/', $deletedPilotToken);
+        $esiClient->getWithCache('/characters/2112000054/assets/', $otherPilotToken);
+
+        $esiCache->invalidateTags([EsiClient::cacheTagForCharacter(Uuid::fromString('0190a6f0-0000-7000-8000-000000000053'))]);
+        $deletedPilotAssets = $esiClient->getWithCache('/characters/2112000053/assets/', $deletedPilotToken);
+        $otherPilotAssets = $esiClient->getWithCache('/characters/2112000054/assets/', $otherPilotToken);
+
+        $this->assertSame([['type_id' => 36, 'quantity' => 70]], $deletedPilotAssets);
+        $this->assertSame([['type_id' => 35, 'quantity' => 2]], $otherPilotAssets);
+        $this->assertCount(3, $this->recordedRequests);
+        $this->assertSame(self::BASE_URL . '/characters/2112000053/assets/', $this->recordedRequests[2]['url']);
+        $this->assertArrayNotHasKey('if-none-match', $this->recordedRequests[2]['headers']);
+    }
+
+    #[Group('issue-53')]
+    public function testInvalidatingTheCacheTagOfACharacterKeepsPublicResponses(): void
+    {
+        $esiCache = new TagAwareAdapter(new ArrayAdapter());
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse(['name' => 'Jita']),
+        ], $esiCache);
+        $esiClient->getWithCache('/universe/systems/30000142/');
+
+        $esiCache->invalidateTags([EsiClient::cacheTagForCharacter(Uuid::fromString('0190a6f0-0000-7000-8000-000000000053'))]);
+        $jita = $esiClient->getWithCache('/universe/systems/30000142/');
+
+        $this->assertSame(['name' => 'Jita'], $jita);
+        $this->assertCount(1, $this->recordedRequests);
     }
 
     // ---------------------------------------------------------------
@@ -2018,7 +2069,7 @@ final class EsiClientTest extends TestCase
             return $response;
         });
 
-        return $this->newEsiClient($httpClient, $this->createStub(CacheItemPoolInterface::class), $logger);
+        return $this->newEsiClient($httpClient, $this->createStub(TagAwareAdapterInterface::class), $logger);
     }
 
     /**
@@ -2066,7 +2117,7 @@ final class EsiClientTest extends TestCase
      */
     private function createEsiClient(
         array $responses,
-        ?CacheItemPoolInterface $esiCache = null,
+        ?TagAwareAdapterInterface $esiCache = null,
         ?LoggerInterface $logger = null,
     ): EsiClient {
         $this->recordedRequests = [];
@@ -2088,7 +2139,7 @@ final class EsiClientTest extends TestCase
             return $response;
         });
 
-        return $this->newEsiClient($httpClient, $esiCache ?? $this->createStub(CacheItemPoolInterface::class), $logger);
+        return $this->newEsiClient($httpClient, $esiCache ?? $this->createStub(TagAwareAdapterInterface::class), $logger);
     }
 
     /**
@@ -2096,7 +2147,7 @@ final class EsiClientTest extends TestCase
      * the constructor takes one, so the tests that do not measure a wait also run against an
      * EsiClient without clock (red phase of issue #83).
      */
-    private function newEsiClient(MockHttpClient $httpClient, CacheItemPoolInterface $esiCache, ?LoggerInterface $logger): EsiClient
+    private function newEsiClient(MockHttpClient $httpClient, TagAwareAdapterInterface $esiCache, ?LoggerInterface $logger): EsiClient
     {
         $tokenManager = $this->createStub(TokenManager::class);
         $tokenManager->method('getValidAccessToken')->willReturn(self::ACCESS_TOKEN);

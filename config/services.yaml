@@ -42,6 +42,11 @@ services:
             $clientSecret: '%eve_client_secret%'
             $callbackUrl: '%eve_callback_url%'
 
+    App\Service\ESI\EveSsoTokenRevoker:
+        arguments:
+            $clientId: '%eve_client_id%'
+            $clientSecret: '%eve_client_secret%'
+
     App\Service\ESI\EsiClient:
         arguments:
             $esiCache: '@esi.cache'
@@ -51,6 +56,15 @@ services:
     App\Security\JwtBlacklistListener:
         arguments:
             $jwtBlacklist: '@jwt.blacklist'
+
+    App\Security\JwtBlacklist:
+        arguments:
+            $jwtBlacklist: '@jwt.blacklist'
+            $jwtTokenTtl: '%lexik_jwt_authentication.token_ttl%'
+
+    App\Service\Account\AccountDeletionService:
+        arguments:
+            $esiCache: '@esi.cache'
 
     App\Security\OAuthStateSigner:
         arguments:

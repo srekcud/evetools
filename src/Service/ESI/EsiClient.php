@@ -659,6 +659,11 @@ class EsiClient
         }
     }
 
+    public static function cacheTagForCharacter(\Symfony\Component\Uid\Uuid $characterId): string
+    {
+        return 'esi_character_' . $characterId->toRfc4122();
+    }
+
     private function getCacheKey(string $endpoint, ?EveToken $token): string
     {
         $key = 'esi_' . md5($endpoint);

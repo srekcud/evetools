@@ -25,6 +25,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Cache\Adapter\TagAwareAdapter;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -490,7 +491,7 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
 
         return new ScanLootSalesProcessor(
             security: $security,
-            esiClient: new EsiClient($this->createSimulatedEsi($corpProjectResponsesByKey), new ArrayAdapter(), $tokenManager, 'https://esi.test/latest', new NullLogger()),
+            esiClient: new EsiClient($this->createSimulatedEsi($corpProjectResponsesByKey), new TagAwareAdapter(new ArrayAdapter()), $tokenManager, 'https://esi.test/latest', new NullLogger()),
             tokenManager: $tokenManager,
             incomeRepository: $incomeRepository,
             settingsRepository: $settingsRepository,

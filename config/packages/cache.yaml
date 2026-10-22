@@ -13,7 +13,8 @@ framework:
             doctrine.system_cache_pool:
                 adapter: cache.adapter.system
             esi.cache:
-                adapter: cache.adapter.redis
+                adapter: cache.adapter.redis_tag_aware
+                tags: true
                 default_lifetime: 300
             jwt.blacklist:
                 adapter: cache.adapter.redis
@@ -39,6 +40,7 @@ when@test:
                     adapter: cache.adapter.array
                 esi.cache:
                     adapter: cache.adapter.array
+                    tags: true
                 jwt.blacklist:
                     adapter: cache.adapter.array
                 structure_market.cache:

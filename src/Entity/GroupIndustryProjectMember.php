@@ -62,6 +62,10 @@ class GroupIndustryProjectMember
         return $this;
     }
 
+    public function anonymize(): void
+    {
+    }
+
     public function getUser(): User
     {
         return $this->user;
