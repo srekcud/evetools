@@ -2,7 +2,7 @@
 
 ## Contexte
 
-`IndustryStepCalculator::recalculateStepQuantities()` (appelé par `UpdateStepProcessor`, `AdaptStockProcessor`, `LinkJobProcessor`, `IndustryJobMatcher`) parcourt les étapes profondeur par profondeur et remet les besoins à zéro à chaque profondeur. Un intermédiaire consommé par des étapes de profondeurs différentes ne garde que le besoin de la dernière profondeur qui le consomme. Sur Fernite Carbide (Tatara), le Hydrogen Fuel Block ne garde que les 5 unités du job racine et perd les 10 des réactions (`testRecalculatedFuelBlockOfFerniteCarbideCurrentlyKeepsOnlyTheNeedOfTheRootIssue16`).
+`IndustryStepCalculator::recalculateStepQuantities()` (appelé par `UpdateStepProcessor`, `LinkJobProcessor`, `IndustryJobMatcher`) parcourt les étapes profondeur par profondeur et remet les besoins à zéro à chaque profondeur. Un intermédiaire consommé par des étapes de profondeurs différentes ne garde que le besoin de la dernière profondeur qui le consomme. Sur Fernite Carbide (Tatara), le Hydrogen Fuel Block ne garde que les 5 unités du job racine et perd les 10 des réactions (`testRecalculatedFuelBlockOfFerniteCarbideCurrentlyKeepsOnlyTheNeedOfTheRootIssue16`).
 
 ## Règles métier
 

@@ -13,11 +13,8 @@ use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\EmptyInput;
-use App\ApiResource\Input\Industry\ApplyStockInput;
 use App\ApiResource\Input\Industry\CreateProjectInput;
 use App\ApiResource\Input\Industry\UpdateProjectInput;
-use App\State\Processor\Industry\AdaptStockProcessor;
-use App\State\Processor\Industry\ApplyStockProcessor;
 use App\State\Processor\Industry\CreateProjectProcessor;
 use App\State\Processor\Industry\DeleteProjectProcessor;
 use App\State\Processor\Industry\MatchJobsProcessor;
@@ -73,18 +70,6 @@ use App\State\Provider\Industry\ShoppingListProvider;
             input: EmptyInput::class,
             output: MatchJobsResultResource::class,
             openapi: new Model\Operation(summary: 'Match ESI jobs', description: 'Matches project steps with ESI industry jobs', tags: ['Industry - Projects']),
-        ),
-        new Post(
-            uriTemplate: '/industry/projects/{id}/apply-stock',
-            processor: ApplyStockProcessor::class,
-            input: ApplyStockInput::class,
-            openapi: new Model\Operation(summary: 'Apply stock', description: 'Applies parsed inventory stock to project steps', tags: ['Industry - Projects']),
-        ),
-        new Post(
-            uriTemplate: '/industry/projects/{id}/adapt-stock',
-            processor: AdaptStockProcessor::class,
-            input: EmptyInput::class,
-            openapi: new Model\Operation(summary: 'Adapt plan to stock', description: 'Recalculates step runs based on in-stock quantities', tags: ['Industry - Projects']),
         ),
     ],
     security: "is_granted('ROLE_USER')",
