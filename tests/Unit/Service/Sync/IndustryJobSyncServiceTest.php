@@ -570,7 +570,7 @@ class IndustryJobSyncServiceTest extends TestCase
         // Corporation endpoint returns B's job during A's sync, then nothing after the reset
         $this->esiClient->method('get')->willReturn([]);
         $this->esiClient->method('getPaginated')->willReturnOnConsecutiveCalls(
-            [$this->makeJobData(8001, 67890, 'active')],
+            [array_merge($this->makeJobData(8001, 67890, 'active'), ['end_date' => (new \DateTimeImmutable('-1 hour'))->format('c')])],
             [],
         );
         $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
@@ -1271,6 +1271,8 @@ class IndustryJobSyncServiceTest extends TestCase
         $job->setCharacter($character);
         $job->setStatus($status);
         $job->setEndDate(new \DateTimeImmutable($endDate));
+        $job->setRuns(5);
+        $job->setCost(100_000.0);
 
         return $job;
     }
