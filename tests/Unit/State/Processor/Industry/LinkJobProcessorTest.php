@@ -45,6 +45,7 @@ use Symfony\Component\Uid\Uuid;
  * is the same for them. Any other job id is answered exactly like a job that does not exist.
  */
 #[CoversClass(LinkJobProcessor::class)]
+#[CoversClass(IndustryJobMatcher::class)]
 #[AllowMockObjectsWithoutExpectations]
 class LinkJobProcessorTest extends TestCase
 {
