@@ -195,7 +195,7 @@ tentatives      = runs T2 voulus / (P × runs par BPC)
 
 | Mode | Runs | Surplus | Consommateurs |
 |---|---|---|---|
-| **Plan** | entiers par lot (R3), plafond BPC | explicite | projets, liste d'achats, stockpile, Group Industry |
+| **Plan** | entiers par lot (R3), plafond BPC | explicite | projets, liste d'achats, stockpile, Group Industry, Buy vs Build |
 | **Coût marginal** | fractionnaires : `demande / unités par run` | aucun | Profit Margins, scanner, pivot |
 
 En mode coût marginal, un intermédiaire n'est payé qu'au prorata de la demande. Exemple Hail L (§4.2) : la demande racine en R.A.M. n'est pas arrondie non plus (D4b), soit `10 × 1 × 0,98 × 0,99 × 0,9496 = 9,2130192` unités ; à 100 unités par run, elle compte pour 0,092130192 run, sans surplus (le mode plan, lui, demande 10 unités et produit 1 run de 100, soit 90 de surplus).
