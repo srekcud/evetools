@@ -22,6 +22,7 @@ use App\Service\Industry\FacilityTaxRateResolver;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryShoppingListBuilder;
 use App\Service\Industry\ProductionCostService;
+use App\Service\Industry\ProjectStepSolarSystemResolver;
 use App\Service\JitaMarketService;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -73,7 +74,7 @@ class ProductionCostServiceTest extends TestCase
             $this->esiCostIndexService,
             $this->shoppingListBuilder,
             $this->calculationService,
-            $this->userSettingsRepository,
+            new ProjectStepSolarSystemResolver($this->userSettingsRepository),
             $this->materialRepository,
             $this->productRepository,
             $this->solarSystemRepository,
@@ -908,7 +909,7 @@ class ProductionCostServiceTest extends TestCase
             $this->esiCostIndexService,
             $this->shoppingListBuilder,
             $this->calculationServiceOnSdeKnowingOnlyNitrogenFuelBlock(),
-            $this->userSettingsRepository,
+            new ProjectStepSolarSystemResolver($this->userSettingsRepository),
             $this->materialRepository,
             $this->productRepository,
             $this->solarSystemRepository,

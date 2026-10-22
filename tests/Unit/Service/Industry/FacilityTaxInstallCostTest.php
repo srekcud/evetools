@@ -22,6 +22,7 @@ use App\Service\Industry\FacilityTaxRateResolver;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryShoppingListBuilder;
 use App\Service\Industry\ProductionCostService;
+use App\Service\Industry\ProjectStepSolarSystemResolver;
 use App\Service\JitaMarketService;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -97,7 +98,7 @@ final class FacilityTaxInstallCostTest extends TestCase
             new EsiCostIndexService($this->createStub(EsiClient::class), $this->costIndexCache, new NullLogger()),
             $this->createStub(IndustryShoppingListBuilder::class),
             $this->createStub(IndustryCalculationService::class),
-            $this->createStub(IndustryUserSettingsRepository::class),
+            new ProjectStepSolarSystemResolver($this->createStub(IndustryUserSettingsRepository::class)),
             $materialRepository,
             $this->createStub(IndustryActivityProductRepository::class),
             $this->createStub(MapSolarSystemRepository::class),
