@@ -59,7 +59,8 @@ class IndustryJobSyncService implements ResetInterface
             $allJobs = [];
 
             // Sync personal jobs
-            if ($token->hasScope('esi-industry.read_character_jobs.v1')) {
+            $personalJobsUnknown = !$token->hasScope('esi-industry.read_character_jobs.v1');
+            if (!$personalJobsUnknown) {
                 $characterId = $character->getEveCharacterId();
                 $personalJobs = $this->esiClient->get(
                     "/characters/{$characterId}/industry/jobs/?include_completed=true",
@@ -184,7 +185,7 @@ class IndustryJobSyncService implements ResetInterface
             // from ESI with an end_date in the past are effectively delivered/expired.
             // Alts' jobs are left to their own sync; corporation jobs fetched earlier in this
             // run (corp endpoint is not called again) are still present in ESI.
-            if (!$corporationJobsUnknown) {
+            if (!$personalJobsUnknown && !$corporationJobsUnknown) {
                 $now = new \DateTimeImmutable();
                 foreach ($this->jobRepository->findActiveJobsByCharacter($character) as $dbJob) {
                     $jobId = $dbJob->getJobId();
