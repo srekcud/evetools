@@ -292,6 +292,118 @@ final class InstallCostTest extends TestCase
         }
     }
 
+    public function testFacilityTaxRateAtTheUpperBoundIsAccepted(): void
+    {
+        $installCost = InstallCost::forJob(
+            ActivityKind::Manufacturing,
+            Cost::known(new Isk(1000000.0)),
+            0.05,
+            Multiplier::one(),
+            0.5,
+            false,
+        );
+
+        $this->assertKnownCost(500000, $installCost->facilityTax, 'facility tax');
+        $this->assertKnownCost(590000, $installCost->total, 'total');
+    }
+
+    public function testCostIndexAtTheUpperBoundIsAccepted(): void
+    {
+        $installCost = InstallCost::forJob(
+            ActivityKind::Manufacturing,
+            Cost::known(new Isk(1000000.0)),
+            1.0,
+            Multiplier::one(),
+            0.0,
+            false,
+        );
+
+        $this->assertKnownCost(1000000, $installCost->systemCost, 'system cost');
+        $this->assertKnownCost(1040000, $installCost->total, 'total');
+    }
+
+    #[DataProvider('rateAboveTheUpperBoundProvider')]
+    public function testRefusesARateAboveItsUpperBound(float $systemCostIndex, float $facilityTaxRate): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        InstallCost::forJob(
+            ActivityKind::Manufacturing,
+            Cost::known(new Isk(1000000.0)),
+            $systemCostIndex,
+            Multiplier::one(),
+            $facilityTaxRate,
+            false,
+        );
+    }
+
+    /**
+     * @return iterable<string, array{float, float}>
+     */
+    public static function rateAboveTheUpperBoundProvider(): iterable
+    {
+        yield 'facility tax just above 0.5' => [0.05, 0.5001];
+        yield 'facility tax given in percent' => [0.05, 3.5];
+        yield 'cost index just above 1' => [1.0001, 0.10];
+        yield 'cost index of 5' => [5.0, 0.10];
+    }
+
+    #[DataProvider('rateAboveTheUpperBoundWithoutComputableAmountProvider')]
+    public function testRefusesARateAboveItsUpperBoundEvenWhenTheEivHidesIt(
+        Cost $estimatedItemValue,
+        float $systemCostIndex,
+        float $facilityTaxRate,
+    ): void {
+        $this->expectException(\InvalidArgumentException::class);
+
+        InstallCost::forJob(
+            ActivityKind::Manufacturing,
+            $estimatedItemValue,
+            $systemCostIndex,
+            Multiplier::one(),
+            $facilityTaxRate,
+            false,
+        );
+    }
+
+    /**
+     * @return iterable<string, array{Cost, float, float}>
+     */
+    public static function rateAboveTheUpperBoundWithoutComputableAmountProvider(): iterable
+    {
+        $estimatedItemValues = [
+            'unknown EIV' => Cost::unknown(MissingData::adjustedPrice(35)),
+            'zero EIV' => Cost::known(new Isk(0.0)),
+        ];
+        $ratesAboveTheUpperBound = [
+            'facility tax just above 0.5' => [0.05, 0.5001],
+            'cost index just above 1' => [1.0001, 0.10],
+        ];
+
+        foreach ($estimatedItemValues as $eivName => $estimatedItemValue) {
+            foreach ($ratesAboveTheUpperBound as $rateName => [$systemCostIndex, $facilityTaxRate]) {
+                yield "{$rateName}, {$eivName}" => [$estimatedItemValue, $systemCostIndex, $facilityTaxRate];
+            }
+        }
+    }
+
+    public function testMissingCostIndexStaysUnknownWithAFacilityTaxRateAtTheUpperBound(): void
+    {
+        $installCost = InstallCost::forJob(
+            ActivityKind::Manufacturing,
+            Cost::known(new Isk(1000000.0)),
+            null,
+            Multiplier::one(),
+            0.5,
+            false,
+        );
+
+        $this->assertFalse($installCost->systemCost->isKnown());
+        $this->assertEquals([MissingData::costIndex()], $installCost->systemCost->missingData);
+        $this->assertKnownCost(500000, $installCost->facilityTax, 'facility tax');
+        $this->assertFalse($installCost->total->isKnown());
+    }
+
     private function assertKnownCost(int|float $expectedAmount, Cost $cost, string $part): void
     {
         $this->assertTrue($cost->isKnown(), "{$part} should be known");
