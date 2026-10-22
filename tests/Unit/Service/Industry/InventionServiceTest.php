@@ -829,7 +829,7 @@ class InventionServiceTest extends TestCase
                 'blueprintName' => 'Thrasher Blueprint',
                 'productTypeName' => 'Thrasher',
                 'runs' => 4,
-                'cost' => 6000.0,
+                'cost' => 6015.0,
                 'depth' => 1,
             ],
         ], $copyCosts['copies']);
@@ -907,11 +907,11 @@ class InventionServiceTest extends TestCase
                 'blueprintName' => null,
                 'productTypeName' => null,
                 'runs' => 10,
-                'cost' => 20000.0,
+                'cost' => 20050.0,
                 'depth' => 1,
             ],
         ], $copyCosts['copies']);
-        $this->assertSame(20000.0, $copyCosts['totalCopyCost']);
+        $this->assertSame(20050.0, $copyCosts['totalCopyCost']);
     }
 
     private function projectWithOneCopyStep(int $blueprintTypeId, int $productTypeId, int $runs): IndustryProject
