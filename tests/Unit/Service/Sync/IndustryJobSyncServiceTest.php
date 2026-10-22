@@ -49,6 +49,11 @@ class IndustryJobSyncServiceTest extends TestCase
     private const string TRITANIUM_NAME = 'Tritanium';
     private const string CHARACTER_JOBS_SCOPE = 'esi-industry.read_character_jobs.v1';
     private const string CORPORATION_JOBS_SCOPE = 'esi-industry.read_corporation_jobs.v1';
+    private const int CHARACTER_A_ID = 12345;
+    private const int ALT_B_ID = 67890;
+    private const int FIRST_CORPMATE_ID = 55501;
+    private const int SECOND_CORPMATE_ID = 55502;
+    private const int THIRD_CORPMATE_ID = 55503;
 
     private EsiClient&MockObject $esiClient;
     private CachedIndustryJobRepository&MockObject $jobRepository;
@@ -58,6 +63,7 @@ class IndustryJobSyncServiceTest extends TestCase
     private NotificationDispatcher&MockObject $notificationDispatcher;
     private IndustryJobSyncService $service;
     private array $publishedMercurePayloads = [];
+    private array $publishedMercureUpdates = [];
     private BufferingLogger $logger;
     private array $persistedJobs = [];
     private int $flushCount = 0;
@@ -99,7 +105,9 @@ class IndustryJobSyncServiceTest extends TestCase
 
         $mercureHub = $this->createStub(HubInterface::class);
         $mercureHub->method('publish')->willReturnCallback(function (Update $update): string {
-            $this->publishedMercurePayloads[] = json_decode($update->getData(), true, flags: JSON_THROW_ON_ERROR);
+            $payload = json_decode($update->getData(), true, flags: JSON_THROW_ON_ERROR);
+            $this->publishedMercurePayloads[] = $payload;
+            $this->publishedMercureUpdates[] = [$update->getTopics()[0], $payload];
 
             return 'published';
         });
@@ -1367,9 +1375,168 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->assertSame([], $this->dispatchedNotifications);
     }
 
+    #[Group('issue-210')]
+    public function testSyncCompletedCountsOnlyJobsInstalledByCharactersOfTheUser(): void
+    {
+        [$characterA] = $this->createCharactersOfSameUser(self::CHARACTER_A_ID, self::ALT_B_ID);
+        $this->esiClient->method('get')->willReturn([$this->makeJobData(100, self::CHARACTER_A_ID, 'active')]);
+        $this->esiClient->method('getPaginated')->willReturn($this->corporationJobsOfE1());
+        $this->stubActiveJobsByCharacter([]);
+
+        $this->service->syncCharacterJobs($characterA);
+
+        $this->assertSame(
+            [[$this->userTopicOf($characterA), '2 active jobs, 1 ready to deliver', ['total' => 3, 'active' => 2, 'ready' => 1]]],
+            $this->industryJobsSyncCompletedEvents(),
+        );
+    }
+
+    #[Group('issue-210')]
+    public function testSyncCompletedCountsOnlyOwnCorporationJobsForCharacterWithoutPersonalJobsScope(): void
+    {
+        [$characterA] = $this->createCharactersOfSameUserWithScopes([
+            self::CHARACTER_A_ID => [self::CORPORATION_JOBS_SCOPE],
+            self::ALT_B_ID => [self::CHARACTER_JOBS_SCOPE, self::CORPORATION_JOBS_SCOPE],
+        ]);
+        $this->esiClient->expects($this->never())->method('get');
+        $this->esiClient->method('getPaginated')->willReturn($this->corporationJobsOfE1());
+        $this->stubActiveJobsByCharacter([]);
+
+        $this->service->syncCharacterJobs($characterA);
+
+        $this->assertSame(
+            [[$this->userTopicOf($characterA), '1 active jobs, 1 ready to deliver', ['total' => 2, 'active' => 1, 'ready' => 1]]],
+            $this->industryJobsSyncCompletedEvents(),
+        );
+    }
+
+    #[Group('issue-210')]
+    public function testSyncCompletedCountsAltJobReadByCorporationEndpoint(): void
+    {
+        [$characterA] = $this->createCharactersOfSameUser(self::CHARACTER_A_ID, self::ALT_B_ID);
+        $this->esiClient->method('get')->willReturn([$this->makeJobData(100, self::CHARACTER_A_ID, 'active')]);
+        $this->esiClient->method('getPaginated')->willReturn([
+            ...$this->corporationJobsOfE1(),
+            $this->makeJobData(905, self::ALT_B_ID, 'ready'),
+        ]);
+        $this->stubActiveJobsByCharacter([]);
+
+        $this->service->syncCharacterJobs($characterA);
+
+        $this->assertSame(
+            [[$this->userTopicOf($characterA), '2 active jobs, 2 ready to deliver', ['total' => 4, 'active' => 2, 'ready' => 2]]],
+            $this->industryJobsSyncCompletedEvents(),
+        );
+    }
+
+    #[Group('issue-210')]
+    public function testSyncCompletedCountsOnceAJobReadByPersonalAndCorporationEndpoints(): void
+    {
+        [$characterA] = $this->createCharactersOfSameUser(self::CHARACTER_A_ID, self::ALT_B_ID);
+        $this->esiClient->method('get')->willReturn([
+            $this->makeJobData(100, self::CHARACTER_A_ID, 'active'),
+            $this->makeJobData(900, self::CHARACTER_A_ID, 'active'),
+        ]);
+        $this->esiClient->method('getPaginated')->willReturn($this->corporationJobsOfE1());
+        $this->stubActiveJobsByCharacter([]);
+
+        $this->service->syncCharacterJobs($characterA);
+
+        $this->assertSame(
+            [[$this->userTopicOf($characterA), '2 active jobs, 1 ready to deliver', ['total' => 3, 'active' => 2, 'ready' => 1]]],
+            $this->industryJobsSyncCompletedEvents(),
+        );
+    }
+
+    #[Group('issue-210')]
+    public function testSyncCompletedDoesNotCountStaleJobMarkedDeliveredBySync(): void
+    {
+        [$characterA] = $this->createCharactersOfSameUser(self::CHARACTER_A_ID, self::ALT_B_ID);
+        $staleJob = $this->makeCachedJob(110, $characterA, 'active', '-2 days');
+        $this->esiClient->method('get')->willReturn([$this->makeJobData(100, self::CHARACTER_A_ID, 'active')]);
+        $this->esiClient->method('getPaginated')->willReturn([]);
+        $this->stubActiveJobsByCharacter([$staleJob]);
+
+        $this->service->syncCharacterJobs($characterA);
+
+        $this->assertSame('delivered', $staleJob->getStatus());
+        $this->assertSame(
+            [[$this->userTopicOf($characterA), '1 active jobs, 0 ready to deliver', ['total' => 1, 'active' => 1, 'ready' => 0]]],
+            $this->industryJobsSyncCompletedEvents(),
+        );
+    }
+
+    #[Group('issue-210')]
+    public function testSyncCompletedCountsPausedAndDeliveredJobsOnlyInTotal(): void
+    {
+        [$characterA] = $this->createCharactersOfSameUser(self::CHARACTER_A_ID, self::ALT_B_ID);
+        $this->esiClient->method('get')->willReturn([$this->makeJobData(100, self::CHARACTER_A_ID, 'active')]);
+        $this->esiClient->method('getPaginated')->willReturn([
+            ...$this->corporationJobsOfE1(),
+            $this->makeJobData(906, self::CHARACTER_A_ID, 'paused'),
+            $this->makeJobData(907, self::CHARACTER_A_ID, 'delivered'),
+        ]);
+        $this->stubActiveJobsByCharacter([]);
+
+        $this->service->syncCharacterJobs($characterA);
+
+        $this->assertSame(
+            [[$this->userTopicOf($characterA), '2 active jobs, 1 ready to deliver', ['total' => 5, 'active' => 2, 'ready' => 1]]],
+            $this->industryJobsSyncCompletedEvents(),
+        );
+    }
+
+    #[Group('issue-210')]
+    public function testSyncCompletedCountsNoJobWhenOnlyCorpmateJobsAreRead(): void
+    {
+        [$characterA] = $this->createCharactersOfSameUser(self::CHARACTER_A_ID, self::ALT_B_ID);
+        $this->esiClient->method('get')->willReturn([]);
+        $this->esiClient->method('getPaginated')->willReturn([
+            $this->makeJobData(902, self::FIRST_CORPMATE_ID, 'active'),
+            $this->makeJobData(903, self::SECOND_CORPMATE_ID, 'active'),
+            $this->makeJobData(904, self::THIRD_CORPMATE_ID, 'ready'),
+        ]);
+        $this->stubActiveJobsByCharacter([]);
+
+        $this->service->syncCharacterJobs($characterA);
+
+        $this->assertSame(
+            [[$this->userTopicOf($characterA), '0 active jobs, 0 ready to deliver', ['total' => 0, 'active' => 0, 'ready' => 0]]],
+            $this->industryJobsSyncCompletedEvents(),
+        );
+    }
+
     // ===========================================
     // Helpers
     // ===========================================
+
+    private function corporationJobsOfE1(): array
+    {
+        return [
+            $this->makeJobData(900, self::CHARACTER_A_ID, 'active'),
+            $this->makeJobData(901, self::CHARACTER_A_ID, 'ready'),
+            $this->makeJobData(902, self::FIRST_CORPMATE_ID, 'active'),
+            $this->makeJobData(903, self::SECOND_CORPMATE_ID, 'active'),
+            $this->makeJobData(904, self::THIRD_CORPMATE_ID, 'ready'),
+        ];
+    }
+
+    private function userTopicOf(Character $character): string
+    {
+        return sprintf('/user/%s/sync/industry-jobs', $character->getUser()->getId()->toRfc4122());
+    }
+
+    private function industryJobsSyncCompletedEvents(): array
+    {
+        $events = [];
+        foreach ($this->publishedMercureUpdates as [$topic, $payload]) {
+            if ($payload['syncType'] === 'industry-jobs' && $payload['status'] === 'completed') {
+                $events[] = [$topic, $payload['message'], $payload['data']];
+            }
+        }
+
+        return $events;
+    }
 
     private function makeTritaniumJobData(int $jobId, int $installerId, string $status): array
     {
