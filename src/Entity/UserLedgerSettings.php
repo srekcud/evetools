@@ -194,20 +194,4 @@ class UserLedgerSettings
     {
         return $this->updatedAt;
     }
-
-    /**
-     * Check if corp project contributions should be counted in PVE stats.
-     */
-    public function shouldCountCorpProjectInPve(): bool
-    {
-        return $this->corpProjectAccounting === self::CORP_PROJECT_ACCOUNTING_PVE;
-    }
-
-    /**
-     * Check if corp project contributions should be counted in mining stats.
-     */
-    public function shouldCountCorpProjectInMining(): bool
-    {
-        return $this->corpProjectAccounting === self::CORP_PROJECT_ACCOUNTING_MINING;
-    }
 }
