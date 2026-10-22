@@ -190,6 +190,8 @@ final class FacilityTaxInstallCostTest extends TestCase
                 ->setBlueprintTypeId(self::MERLIN_BLUEPRINT_TYPE_ID)
                 ->setActivityType('manufacturing')
                 ->setRuns(5)
+                ->setQuantity(5)
+                ->setInStockQuantity(0)
                 ->setStructureConfig($unindexedStation),
         );
 
@@ -229,6 +231,8 @@ final class FacilityTaxInstallCostTest extends TestCase
                 ->setBlueprintTypeId($blueprintTypeId)
                 ->setActivityType('manufacturing')
                 ->setRuns($runs)
+                ->setQuantity($runs)
+                ->setInStockQuantity(0)
                 ->setStructureConfig($structure),
         );
 
