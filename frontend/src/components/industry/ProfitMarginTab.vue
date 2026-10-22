@@ -5,6 +5,7 @@ import { useIndustryStore, type SearchResult, type ProfitMarginResult, type Prof
 import type { JobInstallCostUnknownReason, MissingDataReason, ProductionCostUnknownReason } from '@/stores/industry/types'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import { useFavoriteSystems } from '@/composables/useFavoriteSystems'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import CostSummaryCards from '@/components/industry/profit/CostSummaryCards.vue'
@@ -45,21 +46,7 @@ const loading = computed(() => store.marginLoading)
 
 const isT2 = computed(() => selectedProduct.value?.isT2 ?? false)
 
-// Favorite systems from user settings for the solar system selector
-const favoriteSystems = computed(() => {
-  const settings = store.userSettings
-  if (!settings) return []
-  const systems: { id: number; name: string }[] = []
-  if (settings.favoriteManufacturingSystemId != null && settings.favoriteManufacturingSystemName != null) {
-    systems.push({ id: settings.favoriteManufacturingSystemId, name: settings.favoriteManufacturingSystemName })
-  }
-  if (settings.favoriteReactionSystemId != null && settings.favoriteReactionSystemName != null) {
-    if (!systems.find(s => s.id === settings.favoriteReactionSystemId)) {
-      systems.push({ id: settings.favoriteReactionSystemId!, name: settings.favoriteReactionSystemName! })
-    }
-  }
-  return systems
-})
+const favoriteSystems = useFavoriteSystems()
 
 const JOB_INSTALL_COST_UNKNOWN_REASONS: Partial<Record<MissingDataReason, JobInstallCostUnknownReason>> = {
   cost_index: 'missing_cost_index',

@@ -5,6 +5,7 @@ import { useScannerStore } from '@/stores/industry/scanner'
 import { useIndustryStore, type SearchResult } from '@/stores/industry'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import { useFavoriteSystems } from '@/composables/useFavoriteSystems'
 import { useTypeNames } from '@/composables/useTypeNames'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
 import type { PivotCandidate, PivotMissingComponent } from '@/stores/industry/types'
@@ -26,21 +27,7 @@ const runs = ref(1)
 const selectedSystemId = ref<number | null>(null)
 const sortBy = ref<string>('score')
 
-// Favorite systems from user settings (same pattern as BuyVsBuildTab)
-const favoriteSystems = computed(() => {
-  const settings = industryStore.userSettings
-  if (!settings) return []
-  const systems: { id: number; name: string }[] = []
-  if (settings.favoriteManufacturingSystemId != null && settings.favoriteManufacturingSystemName != null) {
-    systems.push({ id: settings.favoriteManufacturingSystemId, name: settings.favoriteManufacturingSystemName })
-  }
-  if (settings.favoriteReactionSystemId != null && settings.favoriteReactionSystemName != null) {
-    if (!systems.find(s => s.id === settings.favoriteReactionSystemId)) {
-      systems.push({ id: settings.favoriteReactionSystemId!, name: settings.favoriteReactionSystemName! })
-    }
-  }
-  return systems
-})
+const favoriteSystems = useFavoriteSystems()
 
 const result = computed(() => scannerStore.pivotResult)
 const loading = computed(() => scannerStore.pivotLoading)

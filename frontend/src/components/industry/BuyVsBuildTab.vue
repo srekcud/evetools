@@ -5,6 +5,7 @@ import { useScannerStore } from '@/stores/industry/scanner'
 import { useIndustryStore, type SearchResult } from '@/stores/industry'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import { useFavoriteSystems } from '@/composables/useFavoriteSystems'
 import { useTypeNames } from '@/composables/useTypeNames'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
 import type { BuyVsBuildComponent } from '@/stores/industry/types'
@@ -31,21 +32,7 @@ const selectedSystemId = ref<number | null>(null)
 const stageFilter = ref<'all' | 'T2 Component' | 'T1 Component' | 'Reaction'>('all')
 const userOverrides = ref<Map<number, 'build' | 'buy'>>(new Map())
 
-// Favorite systems from user settings
-const favoriteSystems = computed(() => {
-  const settings = industryStore.userSettings
-  if (!settings) return []
-  const systems: { id: number; name: string }[] = []
-  if (settings.favoriteManufacturingSystemId != null && settings.favoriteManufacturingSystemName != null) {
-    systems.push({ id: settings.favoriteManufacturingSystemId, name: settings.favoriteManufacturingSystemName })
-  }
-  if (settings.favoriteReactionSystemId != null && settings.favoriteReactionSystemName != null) {
-    if (!systems.find(s => s.id === settings.favoriteReactionSystemId)) {
-      systems.push({ id: settings.favoriteReactionSystemId!, name: settings.favoriteReactionSystemName! })
-    }
-  }
-  return systems
-})
+const favoriteSystems = useFavoriteSystems()
 
 function onProductSelect(result: SearchResult): void {
   selectedProduct.value = result
