@@ -14,7 +14,6 @@ use App\Entity\User;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryProjectFactory;
-use App\Service\Industry\InventionService;
 use App\Service\Industry\ProductionCostService;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
@@ -34,7 +33,6 @@ class CreateProjectProcessor implements ProcessorInterface
         private readonly Security $security,
         private readonly IndustryProjectFactory $projectFactory,
         private readonly IndustryResourceMapper $mapper,
-        private readonly InventionService $inventionService,
         private readonly ProductionCostService $productionCostService,
         private readonly JitaMarketService $jitaMarketService,
         private readonly StructureMarketService $structureMarketService,
@@ -56,21 +54,13 @@ class CreateProjectProcessor implements ProcessorInterface
         assert($data instanceof CreateProjectInput);
 
         try {
-            $meLevel = $data->meLevel;
-            $teLevel = $data->teLevel;
-
-            if ($this->inventionService->isT2($data->typeId)) {
-                $meLevel = InventionService::BASE_INVENTION_ME;
-                $teLevel = InventionService::BASE_INVENTION_TE;
-            }
-
             $project = $this->projectFactory->createProject(
                 $user,
                 $data->typeId,
                 $data->runs,
-                $meLevel,
+                $data->meLevel,
                 $data->maxJobDurationDays,
-                $teLevel,
+                $data->teLevel,
                 $data->name
             );
         } catch (\InvalidArgumentException|\RuntimeException $e) {

@@ -192,8 +192,8 @@ function addProductToList() {
     typeId: selectedProduct.value.typeId,
     typeName: cleanTypeName(selectedProduct.value.typeName),
     runs: runs.value,
-    meLevel: isT2 ? 2 : meLevel.value,
-    teLevel: isT2 ? 4 : teLevel.value,
+    meLevel: meLevel.value,
+    teLevel: teLevel.value,
     isT2,
   })
 }
@@ -629,11 +629,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
                     type="number"
                     min="0"
                     max="10"
-                    :readonly="selectedProduct?.isT2"
-                    :class="[
-                      'w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 text-center focus:outline-hidden focus:border-cyan-500 font-mono',
-                      selectedProduct?.isT2 ? 'cursor-not-allowed opacity-60' : '',
-                    ]"
+                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 text-center focus:outline-hidden focus:border-cyan-500 font-mono"
                   />
                 </div>
                 <div>
@@ -646,11 +642,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
                     type="number"
                     min="0"
                     max="20"
-                    :readonly="selectedProduct?.isT2"
-                    :class="[
-                      'w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 text-center focus:outline-hidden focus:border-cyan-500 font-mono',
-                      selectedProduct?.isT2 ? 'cursor-not-allowed opacity-60' : '',
-                    ]"
+                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 text-center focus:outline-hidden focus:border-cyan-500 font-mono"
                   />
                 </div>
               </div>
