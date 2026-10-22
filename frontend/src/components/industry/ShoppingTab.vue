@@ -71,7 +71,6 @@ const transportCostPerM3 = ref(1200)
 
 // Reactive refs for the composable
 const projectIdRef = computed(() => props.projectId)
-const treeRef = computed(() => store.currentProject?.tree)
 const stepsRef = computed(() => store.currentProject?.steps ?? [])
 
 const productNamesByTypeId = computed(() => {
@@ -86,7 +85,6 @@ const productNamesByTypeId = computed(() => {
 const stock = useShoppingStockAnalysis(
   projectIdRef,
   shoppingList,
-  treeRef,
   stepsRef,
   (pid, sid, qty) => store.toggleStepInStock(pid, sid, qty),
   (id) => store.fetchProject(id),

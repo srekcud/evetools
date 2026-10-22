@@ -3,7 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import { useShoppingStockAnalysis } from '@/composables/useShoppingStockAnalysis'
-import type { IndustryProjectStep, ProductionTreeNode, ShoppingListItem } from '@/stores/industry/types'
+import type { IndustryProjectStep, ShoppingListItem } from '@/stores/industry/types'
 
 const PROJECT_ID = 'project-173'
 
@@ -153,60 +153,6 @@ const INTERMEDIATE_COPY_STEP = step({
   activityType: 'copy',
 })
 
-function treeNode(overrides: Partial<ProductionTreeNode> & Pick<ProductionTreeNode, 'blueprintTypeId' | 'productTypeId' | 'productTypeName' | 'quantity' | 'runs' | 'depth' | 'activityType' | 'materials'>): ProductionTreeNode {
-  return {
-    hasCopy: false,
-    structureBonus: 0,
-    structureName: null,
-    productCategory: null,
-    ...overrides,
-  }
-}
-
-const TREE = treeNode({
-  blueprintTypeId: ROOT_BLUEPRINT_TYPE_ID,
-  productTypeId: ROOT_TYPE_ID,
-  productTypeName: ROOT_NAME,
-  quantity: 1,
-  runs: 1,
-  depth: 0,
-  activityType: 'manufacturing',
-  materials: [{
-    typeId: INTERMEDIATE_TYPE_ID,
-    typeName: INTERMEDIATE_NAME,
-    quantity: INTERMEDIATE_QUANTITY,
-    isBuildable: true,
-    blueprint: treeNode({
-      blueprintTypeId: INTERMEDIATE_BLUEPRINT_TYPE_ID,
-      productTypeId: INTERMEDIATE_TYPE_ID,
-      productTypeName: INTERMEDIATE_NAME,
-      quantity: INTERMEDIATE_QUANTITY,
-      runs: 100,
-      depth: 1,
-      activityType: 'manufacturing',
-      materials: [
-        {
-          typeId: CHILD_TYPE_ID,
-          typeName: CHILD_NAME,
-          quantity: CHILD_QUANTITY,
-          isBuildable: true,
-          blueprint: treeNode({
-            blueprintTypeId: CHILD_BLUEPRINT_TYPE_ID,
-            productTypeId: CHILD_TYPE_ID,
-            productTypeName: CHILD_NAME,
-            quantity: CHILD_QUANTITY,
-            runs: 2,
-            depth: 2,
-            activityType: 'reaction',
-            materials: [],
-          }),
-        },
-        { typeId: RAW_MATERIAL_TYPE_ID, typeName: RAW_MATERIAL_NAME, quantity: RAW_MATERIAL_QUANTITY, isBuildable: false },
-      ],
-    }),
-  }],
-})
-
 const RAW_MATERIAL_LINE: ShoppingListItem = {
   typeId: RAW_MATERIAL_TYPE_ID,
   typeName: RAW_MATERIAL_NAME,
@@ -242,7 +188,6 @@ function mountStockAnalysis(initialSteps: IndustryProjectStep[]) {
       analysis = useShoppingStockAnalysis(
         ref(PROJECT_ID),
         ref([RAW_MATERIAL_LINE]),
-        ref(TREE),
         steps,
         toggleStepInStock,
         fetchProject,

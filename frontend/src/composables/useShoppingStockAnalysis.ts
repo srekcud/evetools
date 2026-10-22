@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { parseEveStock } from '@/composables/useStockAnalysis'
 import type { ParsedStockItem, IntermediateInStock, RelevantStockItem } from '@/composables/useStockAnalysis'
-import type { ShoppingListItem, ProductionTreeNode, IndustryProjectStep } from '@/stores/industry/types'
+import type { ShoppingListItem, IndustryProjectStep } from '@/stores/industry/types'
 
 /**
  * Encapsulates stock analysis logic for ShoppingTab:
@@ -15,7 +15,6 @@ import type { ShoppingListItem, ProductionTreeNode, IndustryProjectStep } from '
 export function useShoppingStockAnalysis(
   projectId: Ref<string>,
   shoppingList: Ref<ShoppingListItem[]>,
-  _tree: Ref<ProductionTreeNode | null | undefined>,
   steps: Ref<IndustryProjectStep[]>,
   toggleStepInStock: (projectId: string, stepId: string, qty: number) => Promise<void>,
   fetchProject: (id: string) => Promise<void>,
