@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Service\Industry;
 use App\Service\Industry\BatchProfitScannerService;
 use App\Service\Industry\EsiCostIndexService;
 use App\Service\Industry\InventionService;
+use App\Service\Industry\JobInstallCostEstimator;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
@@ -101,6 +102,7 @@ class BatchProfitScannerServiceTest extends TestCase
             $this->bpcPriceRepository,
             $this->activitySkillRepository,
             $this->characterSkillRepository,
+            new JobInstallCostEstimator(),
         );
     }
 
@@ -156,7 +158,6 @@ class BatchProfitScannerServiceTest extends TestCase
         // EIV = 1850000, costIndex = 0.01 => jobInstallCost = 1850000 * 0.01 = 18500
         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([34 => 5.0, 35 => 12.0]);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(0.01);
-        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(1850000.0);
 
         // exportCostPerM3 = 0 so importCost = 0
         $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.036, 0.036, 0.0, null);
@@ -180,6 +181,9 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->assertGreaterThan(0.0, $result[0]['profitPerUnit']);
         $this->assertSame(15.0, $result[0]['dailyVolume']);
         $this->assertGreaterThan(0.0, $result[0]['iskPerDay']);
+        $this->assertSame(562500.0, $result[0]['profitPerUnit']);
+        $this->assertSame(32.01, $result[0]['marginPercent']);
+        $this->assertSame(8437500.0, $result[0]['iskPerDay']);
     }
 
     public function testScanFiltersNegativeMargin(): void
@@ -207,9 +211,7 @@ class BatchProfitScannerServiceTest extends TestCase
             587 => 5000000.0,
         ]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 5.0]);
-        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
-        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+        $this->givenZeroEstimatedItemValue();
 
         // Filter: min margin 10%
         $result = $this->service->scan('all', 10.0, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.036, 0.036, 0.0, null);
@@ -239,9 +241,7 @@ class BatchProfitScannerServiceTest extends TestCase
 
         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 100000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 2.0]);
-        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
-        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+        $this->givenZeroEstimatedItemValue();
 
         // Filter: minDailyVolume = 5
         $result = $this->service->scan('all', null, 5.0, 'jita', null, self::SOLAR_SYSTEM_ID, 0.036, 0.036, 0.0, null);
@@ -269,9 +269,7 @@ class BatchProfitScannerServiceTest extends TestCase
 
         $this->jitaMarketService->method('getPrices')->willReturn([200 => 10.0, 101 => 50000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([101 => 100.0]);
-        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
-        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+        $this->givenZeroEstimatedItemValue();
 
         $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
 
@@ -315,9 +313,7 @@ class BatchProfitScannerServiceTest extends TestCase
         // Cheap materials, expensive product to ensure positive margin even with export cost
         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
-        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
-        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+        $this->givenZeroEstimatedItemValue();
 
         $exportCostPerM3 = 10.0;
         $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, $exportCostPerM3, null);
@@ -360,9 +356,7 @@ class BatchProfitScannerServiceTest extends TestCase
 
         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
-        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
-        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+        $this->givenZeroEstimatedItemValue();
 
         $exportCostPerM3 = 1200.0;
         $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, $exportCostPerM3, null);
@@ -402,9 +396,7 @@ class BatchProfitScannerServiceTest extends TestCase
             587 => 50000000.0, // High sell price to ensure positive margin
         ]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
-        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
-        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+        $this->givenZeroEstimatedItemValue();
 
         $exportCostPerM3 = 10.0;
         $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, $exportCostPerM3, null);
@@ -451,9 +443,7 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->solarSystemRepository->method('find')->willReturn($solarSystem);
 
         $this->jitaMarketService->method('getAverageDailyVolumesForRegion')->willReturn([587 => 20.0]);
-        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
-        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+        $this->givenZeroEstimatedItemValue();
 
         $result = $this->service->scan('all', null, null, 'structure', $structureId, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
 
@@ -485,9 +475,7 @@ class BatchProfitScannerServiceTest extends TestCase
         // 100 units per run, unit sell price = 500 ISK, revenue per run = 50000 ISK
         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 2001 => 500.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([2001 => 5000.0]);
-        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
-        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+        $this->givenZeroEstimatedItemValue();
 
         $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
 
@@ -527,9 +515,7 @@ class BatchProfitScannerServiceTest extends TestCase
 
         $this->jitaMarketService->method('getPrices')->willReturn([587 => 2500000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
-        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
-        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+        $this->givenZeroEstimatedItemValue();
 
         $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
 
@@ -565,6 +551,7 @@ class BatchProfitScannerServiceTest extends TestCase
             $this->bpcPriceRepository,
             $this->activitySkillRepository,
             $this->characterSkillRepository,
+            new JobInstallCostEstimator(),
         );
 
         $this->connection->method('fetchAllAssociative')->willReturnCallback(
@@ -587,9 +574,7 @@ class BatchProfitScannerServiceTest extends TestCase
             11393 => 80000000.0,
         ]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0, 11393 => 5.0]);
-        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
-        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+        $this->givenZeroEstimatedItemValue();
 
         // Filter: t2_ships only (categoryId=6, onlyT2=true)
         $result = $this->service->scan('t2_ships', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
@@ -625,6 +610,7 @@ class BatchProfitScannerServiceTest extends TestCase
             $this->bpcPriceRepository,
             $this->activitySkillRepository,
             $this->characterSkillRepository,
+            new JobInstallCostEstimator(),
         );
 
         $this->connection->method('fetchFirstColumn')->willReturn([]);
@@ -640,9 +626,7 @@ class BatchProfitScannerServiceTest extends TestCase
 
         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
-        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
-        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+        $this->givenZeroEstimatedItemValue();
 
         $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
 
@@ -683,6 +667,7 @@ class BatchProfitScannerServiceTest extends TestCase
             $this->bpcPriceRepository,
             $this->activitySkillRepository,
             $this->characterSkillRepository,
+            new JobInstallCostEstimator(),
         );
 
         $this->connection->method('fetchFirstColumn')->willReturn([]);
@@ -698,9 +683,7 @@ class BatchProfitScannerServiceTest extends TestCase
 
         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
-        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
-        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+        $this->givenZeroEstimatedItemValue();
 
         $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, $user);
 
@@ -735,9 +718,7 @@ class BatchProfitScannerServiceTest extends TestCase
 
         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
-        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
-        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+        $this->givenZeroEstimatedItemValue();
 
         $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
 
@@ -1060,7 +1041,6 @@ class BatchProfitScannerServiceTest extends TestCase
 
     /**
      * T1 frigates (group 25), manufacturing, 1 unit per run; every material is 0.01 m3.
-     * No adjusted price and no cost index, so the job install cost is 0.
      *
      * @param array<int, array{0: int, 1: array<int, int>}> $frigatesByBlueprint blueprintTypeId => [productTypeId, [materialTypeId => base quantity]]
      */
@@ -1084,9 +1064,15 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->connection->method('fetchAllAssociative')->willReturnCallback(
             fn (string $sql): array => str_contains($sql, 'group_id') ? $productMetadata : array_values($materialVolumes)
         );
-        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
-        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+        $this->givenZeroEstimatedItemValue();
+    }
+
+    private function givenZeroEstimatedItemValue(): void
+    {
+        $this->esiCostIndexService->method('getAdjustedPrices')->willReturnCallback(
+            static fn (array $typeIds): array => array_fill_keys($typeIds, 0.0),
+        );
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(0.0);
     }
 
     /**
@@ -1162,6 +1148,7 @@ class BatchProfitScannerServiceTest extends TestCase
             $this->bpcPriceRepository,
             $this->activitySkillRepository,
             $this->characterSkillRepository,
+            new JobInstallCostEstimator(),
         );
 
         $this->productRepository->method('findAllManufacturableProducts')->willReturn([
@@ -1218,9 +1205,7 @@ class BatchProfitScannerServiceTest extends TestCase
             self::JAGUAR_TYPE_ID => 4.0,
             self::REACTION_PRODUCT_TYPE_ID => 300.0,
         ]);
-        $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
-        $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+        $this->givenZeroEstimatedItemValue();
 
         return $scanner->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.036, 0.036, self::EXPORT_COST_PER_M3, null);
     }

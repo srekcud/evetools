@@ -273,45 +273,6 @@ class EsiCostIndexServiceTest extends TestCase
     }
 
     // ===========================================
-    // calculateEivFromPrices() tests
-    // ===========================================
-
-    public function testCalculateEivFromPricesWithKnownPrices(): void
-    {
-        $materials = [
-            ['materialTypeId' => 34, 'quantity' => 100],
-            ['materialTypeId' => 35, 'quantity' => 50],
-        ];
-        $prices = [34 => 5.0, 35 => 12.0];
-
-        $eiv = $this->service->calculateEivFromPrices($materials, $prices);
-
-        // 100*5.0 + 50*12.0 = 500 + 600 = 1100
-        $this->assertSame(1100.0, $eiv);
-    }
-
-    public function testCalculateEivFromPricesDefaultsToZeroForMissingPrice(): void
-    {
-        $materials = [
-            ['materialTypeId' => 34, 'quantity' => 200],
-            ['materialTypeId' => 99999, 'quantity' => 50],
-        ];
-        $prices = [34 => 10.0]; // 99999 not in map, defaults to 0.0
-
-        $eiv = $this->service->calculateEivFromPrices($materials, $prices);
-
-        // 200*10.0 + 50*0.0 = 2000
-        $this->assertSame(2000.0, $eiv);
-    }
-
-    public function testCalculateEivFromPricesWithEmptyMaterials(): void
-    {
-        $eiv = $this->service->calculateEivFromPrices([], [34 => 5.0]);
-
-        $this->assertSame(0.0, $eiv);
-    }
-
-    // ===========================================
     // calculateEiv() tests
     // ===========================================
 

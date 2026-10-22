@@ -19,6 +19,7 @@ use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\Industry\BatchProfitScannerService;
 use App\Service\Industry\EsiCostIndexService;
 use App\Service\Industry\InventionService;
+use App\Service\Industry\JobInstallCostEstimator;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
@@ -66,8 +67,14 @@ class BatchProfitScanRulesTest extends TestCase
     private array $jitaDailyVolumes = [];
     private array $regionDailyVolumes = [];
     private array $structurePrices = [];
-    private array $adjustedPrices = [];
-    private array $costIndices = ['manufacturing' => null, 'reaction' => null];
+    private array $adjustedPrices = [
+        self::TRITANIUM_TYPE_ID => 0.0,
+        self::PYERITE_TYPE_ID => 0.0,
+        self::MORPHITE_TYPE_ID => 0.0,
+        self::HAFNIUM_TYPE_ID => 0.0,
+        self::HYDROCARBONS_TYPE_ID => 0.0,
+    ];
+    private array $costIndices = ['manufacturing' => 0.0, 'reaction' => 0.0];
     private array $t2ProductIds = [];
     private array $factionBlueprintIds = [];
     private array $requiredSkillsByActivity = [];
@@ -95,10 +102,10 @@ class BatchProfitScanRulesTest extends TestCase
             'typeName' => 'Type 3831',
             'groupName' => 'Shield Extender',
             'categoryLabel' => 'T1 Modules',
-            'marginPercent' => 42.5,
-            'profitPerUnit' => 1839.28,
+            'marginPercent' => 42.39,
+            'profitPerUnit' => 1835.88,
             'dailyVolume' => 37.0,
-            'iskPerDay' => 68053.45,
+            'iskPerDay' => 67927.65,
             'materialCost' => 107.91,
             'importCost' => 154.35,
             'exportCost' => 4061.73,
@@ -128,7 +135,7 @@ class BatchProfitScanRulesTest extends TestCase
         $ferrogel = $this->scan()[0];
 
         $this->assertSame(197000.0, $ferrogel['materialCost']);
-        $this->assertSame(294.53, $ferrogel['profitPerUnit']);
+        $this->assertSame(218.53, $ferrogel['profitPerUnit']);
         $this->assertSame(0, $ferrogel['meUsed']);
         $this->assertSame('reaction', $ferrogel['activityType']);
         $this->assertSame('Reaction', $ferrogel['categoryLabel']);
@@ -149,6 +156,76 @@ class BatchProfitScanRulesTest extends TestCase
         $this->assertSame(68544.0, $shieldExtenderII['materialCost']);
         $this->assertSame(2, $shieldExtenderII['meUsed']);
         $this->assertSame('T2 Modules', $shieldExtenderII['categoryLabel']);
+    }
+
+    public function testSystemWithoutManufacturingCostIndexKeepsTheProductWithUnknownMarginAndKnownMaterialCost(): void
+    {
+        $this->givenModuleSoldAt(5301, 100.0, 10.0);
+        $this->adjustedPrices = [self::TRITANIUM_TYPE_ID => 4.0];
+        $this->costIndices = ['manufacturing' => null, 'reaction' => 0.0711];
+
+        $result = $this->scan();
+
+        $this->assertCount(1, $result);
+        $this->assertSame(5301, $result[0]['typeId']);
+        $this->assertNull($result[0]['marginPercent']);
+        $this->assertNull($result[0]['profitPerUnit']);
+        $this->assertNull($result[0]['iskPerDay']);
+        $this->assertSame('missing_cost_index', $result[0]['unknownReason']);
+        $this->assertSame(45.0, $result[0]['materialCost']);
+        $this->assertSame([], $result[0]['missingPriceTypeIds']);
+    }
+
+    public function testMaterialWithoutAdjustedPriceButWithJitaPriceLeavesMarginUnknownAndMaterialCostKnown(): void
+    {
+        $this->givenProduct(5401 + 10000, 5401, self::MANUFACTURING, 1, [
+            self::TRITANIUM_TYPE_ID => 10,
+            self::PYERITE_TYPE_ID => 20,
+        ]);
+        $this->givenType(5401, '38', 'Shield Extender', '7', '5.0');
+        $this->jitaPrices = [self::TRITANIUM_TYPE_ID => 5.0, self::PYERITE_TYPE_ID => 11.0, 5401 => 400.0];
+        $this->jitaDailyVolumes = [5401 => 10.0];
+        $this->adjustedPrices = [self::TRITANIUM_TYPE_ID => 4.0];
+        $this->costIndices = ['manufacturing' => 0.0437, 'reaction' => 0.0711];
+
+        $result = $this->scan();
+
+        $this->assertCount(1, $result);
+        $this->assertNull($result[0]['marginPercent']);
+        $this->assertNull($result[0]['profitPerUnit']);
+        $this->assertNull($result[0]['iskPerDay']);
+        $this->assertSame('missing_adjusted_price', $result[0]['unknownReason']);
+        $this->assertSame(243.0, $result[0]['materialCost']);
+        $this->assertSame([], $result[0]['missingPriceTypeIds']);
+    }
+
+    public function testMissingMaterialPriceTakesPrecedenceOverMissingCostIndex(): void
+    {
+        $this->givenModuleSoldAt(5501, 100.0, 10.0);
+        unset($this->jitaPrices[self::TRITANIUM_TYPE_ID]);
+        $this->adjustedPrices = [self::TRITANIUM_TYPE_ID => 4.0];
+        $this->costIndices = ['manufacturing' => null, 'reaction' => 0.0711];
+
+        $result = $this->scan();
+
+        $this->assertCount(1, $result);
+        $this->assertSame('missing_material_price', $result[0]['unknownReason']);
+        $this->assertNull($result[0]['materialCost']);
+        $this->assertNull($result[0]['marginPercent']);
+        $this->assertSame([self::TRITANIUM_TYPE_ID], $result[0]['missingPriceTypeIds']);
+    }
+
+    public function testMinimumMarginExcludesAProductOfASystemWithoutCostIndex(): void
+    {
+        $this->givenModuleSoldAt(5601, 100.0, 10.0);
+        $this->adjustedPrices = [self::TRITANIUM_TYPE_ID => 4.0];
+        $this->costIndices = ['manufacturing' => null, 'reaction' => 0.0711];
+
+        $withoutFilter = $this->scan();
+        $withMinMargin = $this->scan(minMarginPercent: 10.0);
+
+        $this->assertSame([5601], array_column($withoutFilter, 'typeId'));
+        $this->assertSame([], $withMinMargin);
     }
 
     public function testProductsWithKnownMarginsAreRankedByIskPerDayBeforeProductsWithoutSalePrice(): void
@@ -539,16 +616,6 @@ class BatchProfitScanRulesTest extends TestCase
         $esiCostIndexService->method('getCostIndex')->willReturnCallback(
             fn (int $solarSystemId, string $activity): ?float => $solarSystemId === self::SOLAR_SYSTEM_ID ? $this->costIndices[$activity] : null,
         );
-        $esiCostIndexService->method('calculateEivFromPrices')->willReturnCallback(
-            static function (array $materials, array $adjustedPrices): float {
-                $eiv = 0.0;
-                foreach ($materials as $material) {
-                    $eiv += ($adjustedPrices[$material['materialTypeId']] ?? 0.0) * $material['quantity'];
-                }
-
-                return $eiv;
-            },
-        );
 
         $typeNameResolver = $this->createStub(TypeNameResolver::class);
         $typeNameResolver->method('findNames')->willReturnCallback(
@@ -606,6 +673,7 @@ class BatchProfitScanRulesTest extends TestCase
             $this->createStub(IndustryBpcPriceRepository::class),
             $activitySkillRepository,
             $characterSkillRepository,
+            new JobInstallCostEstimator(),
         );
     }
 
