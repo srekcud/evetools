@@ -66,7 +66,8 @@ class IndustryProjectFactory
         $this->addTimeDataToSteps($rawSteps, $user, $project->getTeLevel());
         $rawSteps = $this->planStepsJobByJob($rawSteps, $user, $project->getMaxJobDurationDays());
 
-        $this->sortAndCreateSteps($project, $rawSteps);
+        $this->sortRawSteps($rawSteps);
+        $this->applyPlanToExistingSteps($project, $rawSteps);
 
         $this->entityManager->persist($project);
         $this->entityManager->flush();
@@ -84,11 +85,6 @@ class IndustryProjectFactory
         }
 
         try {
-            foreach ($project->getSteps()->toArray() as $step) {
-                $project->getSteps()->removeElement($step);
-                $this->entityManager->remove($step);
-            }
-
             $excludedTypeIds = $this->blacklistService->resolveBlacklistedTypeIds($user);
             $tree = $this->treeService->buildProductionTree(
                 $project->getProductTypeId(),
@@ -103,7 +99,8 @@ class IndustryProjectFactory
             $this->addTimeDataToSteps($rawSteps, $user, $project->getTeLevel());
             $rawSteps = $this->planStepsJobByJob($rawSteps, $user, $project->getMaxJobDurationDays());
 
-            $this->sortAndCreateSteps($project, $rawSteps);
+            $this->sortRawSteps($rawSteps);
+            $this->applyPlanToExistingSteps($project, $rawSteps);
 
             $this->entityManager->flush();
 
@@ -122,11 +119,9 @@ class IndustryProjectFactory
     }
 
     /**
-     * Sort raw steps and create entities on the project.
-     *
      * @param list<array<string, mixed>> $rawSteps
      */
-    private function sortAndCreateSteps(IndustryProject $project, array &$rawSteps): void
+    private function sortRawSteps(array &$rawSteps): void
     {
         $activityOrder = ['reaction' => 0, 'copy' => 1, 'manufacturing' => 2];
         usort($rawSteps, function (array $a, array $b) use ($activityOrder) {
@@ -144,25 +139,86 @@ class IndustryProjectFactory
             }
             return ($a['splitIndex'] ?? 0) <=> ($b['splitIndex'] ?? 0);
         });
+    }
 
-        foreach ($rawSteps as $index => $data) {
-            $step = new IndustryProjectStep();
-            $step->setBlueprintTypeId($data['blueprintTypeId']);
-            $step->setProductTypeId($data['productTypeId']);
-            $step->setQuantity($data['quantity']);
-            $step->setRuns($data['runs']);
-            $step->setDepth($data['depth']);
-            $step->setActivityType($data['activityType']);
-            $step->setSortOrder($index);
-            $step->setSplitGroupId($data['splitGroupId'] ?? null);
-            $step->setSplitIndex($data['splitIndex'] ?? 0);
-            $step->setTotalGroupRuns($data['totalGroupRuns'] ?? null);
+    /**
+     * @param array<string, mixed> $plannedStep
+     */
+    private function applyPlannedStep(IndustryProject $project, IndustryProjectStep $step, array $plannedStep, int $sortOrder): void
+    {
+        $step->setBlueprintTypeId($plannedStep['blueprintTypeId']);
+        $step->setProductTypeId($plannedStep['productTypeId']);
+        $step->setQuantity($plannedStep['quantity']);
+        $step->setRuns($plannedStep['runs']);
+        $step->setDepth($plannedStep['depth']);
+        $step->setActivityType($plannedStep['activityType']);
+        $step->setSortOrder($sortOrder);
+        $step->setSplitGroupId($plannedStep['splitGroupId'] ?? null);
+        $step->setSplitIndex($plannedStep['splitIndex'] ?? 0);
+        $step->setTotalGroupRuns($plannedStep['totalGroupRuns'] ?? null);
+        $step->setStructureConfig(null);
 
-            $step->setMeLevel($data['meLevel'] ?? ($data['depth'] === 0 ? $project->getMeLevel() : 10));
-            $step->setTeLevel($data['teLevel'] ?? ($data['depth'] === 0 ? $project->getTeLevel() : 20));
+        $step->setMeLevel($plannedStep['meLevel'] ?? ($plannedStep['depth'] === 0 ? $project->getMeLevel() : 10));
+        $step->setTeLevel($plannedStep['teLevel'] ?? ($plannedStep['depth'] === 0 ? $project->getTeLevel() : 20));
+    }
 
+    /**
+     * @param list<array<string, mixed>> $rawSteps
+     */
+    private function applyPlanToExistingSteps(IndustryProject $project, array $rawSteps): void
+    {
+        $existingStepsByKey = $this->existingStepsByKeyInSplitIndexOrder($project);
+        $lastKeptStepByKey = [];
+
+        foreach ($rawSteps as $sortOrder => $plannedStep) {
+            $key = self::stepKey($plannedStep['blueprintTypeId'], $plannedStep['activityType']);
+            $existingStepsByKey[$key] ??= [];
+            $step = array_shift($existingStepsByKey[$key]) ?? new IndustryProjectStep();
+            $this->applyPlannedStep($project, $step, $plannedStep, $sortOrder);
             $project->addStep($step);
+            $lastKeptStepByKey[$key] = $step;
         }
+
+        $stepsOutOfPlan = [];
+        foreach ($existingStepsByKey as $key => $remainingSteps) {
+            foreach ($remainingSteps as $remainingStep) {
+                if (isset($lastKeptStepByKey[$key])) {
+                    $lastKeptStepByKey[$key]->absorb($remainingStep);
+                    $project->getSteps()->removeElement($remainingStep);
+                    $this->entityManager->remove($remainingStep);
+                } else {
+                    $stepsOutOfPlan[] = $remainingStep;
+                }
+            }
+        }
+
+        usort($stepsOutOfPlan, static fn (IndustryProjectStep $a, IndustryProjectStep $b): int => $a->getSortOrder() <=> $b->getSortOrder());
+        foreach ($stepsOutOfPlan as $index => $stepOutOfPlan) {
+            $stepOutOfPlan->setSortOrder(count($rawSteps) + $index);
+        }
+    }
+
+    /**
+     * @return array<string, list<IndustryProjectStep>>
+     */
+    private function existingStepsByKeyInSplitIndexOrder(IndustryProject $project): array
+    {
+        $existingStepsByKey = [];
+        foreach ($project->getSteps() as $step) {
+            $existingStepsByKey[self::stepKey($step->getBlueprintTypeId(), $step->getActivityType())][] = $step;
+        }
+
+        foreach ($existingStepsByKey as &$steps) {
+            usort($steps, static fn (IndustryProjectStep $a, IndustryProjectStep $b): int => $a->getSplitIndex() <=> $b->getSplitIndex());
+        }
+        unset($steps);
+
+        return $existingStepsByKey;
+    }
+
+    private static function stepKey(int $blueprintTypeId, string $activityType): string
+    {
+        return $blueprintTypeId . '_' . $activityType;
     }
 
     /**
@@ -175,7 +231,7 @@ class IndustryProjectFactory
     private function collectStepsFromTree(array &$steps, array $node, int $rootMeLevel = 0, int $rootTeLevel = 0): void
     {
         if (!empty($node['hasCopy'])) {
-            $copyKey = $node['blueprintTypeId'] . '_copy';
+            $copyKey = self::stepKey($node['blueprintTypeId'], 'copy');
             if (isset($steps[$copyKey])) {
                 $steps[$copyKey]['quantity'] += $node['runs'];
                 $steps[$copyKey]['runs'] = $steps[$copyKey]['quantity'];
@@ -198,7 +254,7 @@ class IndustryProjectFactory
         }
 
         $activityType = $node['activityType'];
-        $key = $node['blueprintTypeId'] . '_' . $activityType;
+        $key = self::stepKey($node['blueprintTypeId'], $activityType);
         $outputPerRun = $node['outputPerRun'] ?? 1;
 
         // Determine ME/TE for this step based on depth and activity type

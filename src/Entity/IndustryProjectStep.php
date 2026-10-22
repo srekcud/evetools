@@ -349,6 +349,22 @@ class IndustryProjectStep
         return $this;
     }
 
+    public function absorb(self $excessStep): static
+    {
+        foreach ($excessStep->jobMatches->toArray() as $jobMatch) {
+            $excessStep->jobMatches->removeElement($jobMatch);
+            $this->addJobMatch($jobMatch);
+        }
+        foreach ($excessStep->purchases->toArray() as $purchase) {
+            $excessStep->purchases->removeElement($purchase);
+            $this->addPurchase($purchase);
+        }
+        $this->inStockQuantity += $excessStep->inStockQuantity;
+        $this->purchased = $this->purchased || $excessStep->purchased;
+
+        return $this;
+    }
+
     /**
      * Get total purchase cost for this step.
      */
