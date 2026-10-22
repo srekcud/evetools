@@ -16,14 +16,6 @@ class CorporationService
     }
 
     /**
-     * @return array<string, mixed>
-     */
-    public function getCorporationInfo(int $corporationId): array
-    {
-        return $this->esiClient->getWithCache("/corporations/{$corporationId}/");
-    }
-
-    /**
      * @return array<int, string>
      *
      * @throws EveAuthRequiredException when the character has no ESI token
@@ -50,24 +42,5 @@ class CorporationService
         }
 
         return $divisions;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    public function getCorporationWithDivisions(Character $character): array
-    {
-        $corporationId = $character->getCorporationId();
-        $info = $this->getCorporationInfo($corporationId);
-        $divisions = $this->getDivisions($character);
-
-        return [
-            'id' => $corporationId,
-            'name' => $info['name'],
-            'ticker' => $info['ticker'],
-            'member_count' => $info['member_count'],
-            'alliance_id' => $info['alliance_id'] ?? null,
-            'divisions' => $divisions,
-        ];
     }
 }

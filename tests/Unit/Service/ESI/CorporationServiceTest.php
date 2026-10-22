@@ -135,56 +135,6 @@ class CorporationServiceTest extends TestCase
     }
 
     // ===========================================
-    // getCorporationWithDivisions (internal caller)
-    // ===========================================
-
-    public function testGetCorporationWithDivisionsReturnsCorporationInfoAndDivisions(): void
-    {
-        $director = $this->createDirector($this->createStub(EveToken::class));
-
-        $this->esiClient->method('getWithCache')
-            ->with('/corporations/98000001/')
-            ->willReturn(['name' => 'Test Corp', 'ticker' => 'TEST', 'member_count' => 42, 'alliance_id' => 99000001]);
-        $this->esiClient->method('get')->willReturn([
-            'hangar' => [['division' => 1, 'name' => 'Minerals']],
-        ]);
-
-        $corporation = $this->corporationService->getCorporationWithDivisions($director);
-
-        $this->assertSame([
-            'id' => self::CORPORATION_ID,
-            'name' => 'Test Corp',
-            'ticker' => 'TEST',
-            'member_count' => 42,
-            'alliance_id' => 99000001,
-            'divisions' => [1 => 'Minerals'],
-        ], $corporation);
-    }
-
-    public function testGetCorporationWithDivisionsPropagatesDivisionsFailure(): void
-    {
-        $director = $this->createDirector($this->createStub(EveToken::class));
-        $esiFailure = EsiApiException::fromResponse(503, 'ESI request failed', self::DIVISIONS_ENDPOINT);
-
-        $this->esiClient->method('getWithCache')
-            ->willReturn(['name' => 'Test Corp', 'ticker' => 'TEST', 'member_count' => 42]);
-        $this->esiClient->method('get')->willThrowException($esiFailure);
-
-        try {
-            $corporation = $this->corporationService->getCorporationWithDivisions($director);
-        } catch (EsiApiException $caught) {
-            $this->assertSame($esiFailure, $caught);
-
-            return;
-        }
-
-        $this->fail(sprintf(
-            'getCorporationWithDivisions() must propagate the divisions failure, it returned divisions %s instead',
-            json_encode($corporation['divisions']),
-        ));
-    }
-
-    // ===========================================
     // Helpers
     // ===========================================
 
