@@ -574,26 +574,58 @@ class EsiCostIndexServiceTest extends TestCase
         $this->assertSame([], $service->getAdjustedPrices([self::TRITANIUM, self::PYERITE]));
     }
 
-    public function testEstimateJobInstallCostOfNitrogenFuelBlockWithEveryInputKnownKeepsTheCurrentFormula(): void
+    public function testEstimateJobInstallCostOfNitrogenFuelBlockWithEveryInputKnownAddsSystemFacilityTaxAndSccSurchargeOnTheBase(): void
     {
         $service = $this->createServiceWithSyncedNitrogenFuelBlockInputs();
 
         $estimate = $service->estimateJobInstallCost($this->nitrogenFuelBlockMaterials(), 1, self::JITA, 'manufacturing', self::FACILITY_TAX_PERCENT);
 
-        $this->assertEqualsWithDelta(936.71512, $estimate['cost'], 1e-6);
+        $this->assertEqualsWithDelta(3235.92496, $estimate['cost'], 1e-6);
         $this->assertNull($estimate['unknownReason']);
         $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
     }
 
-    public function testEstimateJobInstallCostMultipliesByRunsAndReadsNullFacilityTaxAsZero(): void
+    public function testEstimateJobInstallCostMultipliesTheBaseByRunsAndReadsNullFacilityTaxAsZeroWithSccSurcharge(): void
     {
         $service = $this->createServiceWithSyncedNitrogenFuelBlockInputs();
 
         $estimate = $service->estimateJobInstallCost($this->nitrogenFuelBlockMaterials(), 3, self::JITA, 'manufacturing', null);
 
-        $this->assertEqualsWithDelta(2554.6776, $estimate['cost'], 1e-6);
+        $this->assertEqualsWithDelta(4598.41968, $estimate['cost'], 1e-6);
         $this->assertNull($estimate['unknownReason']);
         $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
+    }
+
+    public function testEstimateJobInstallCostOfNitrogenFuelBlockWithNullFacilityTaxStillAddsSccSurcharge(): void
+    {
+        $service = $this->createServiceWithSyncedNitrogenFuelBlockInputs();
+
+        $estimate = $service->estimateJobInstallCost($this->nitrogenFuelBlockMaterials(), 1, self::JITA, 'manufacturing', null);
+
+        $this->assertEqualsWithDelta(1532.80656, $estimate['cost'], 1e-6);
+        $this->assertNull($estimate['unknownReason']);
+        $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
+    }
+
+    public function testEstimateJobInstallCostOfNitrogenFuelBlockReactionUsesTheReactionCostIndex(): void
+    {
+        $service = $this->createServiceWithSyncedNitrogenFuelBlockInputs();
+
+        $estimate = $service->estimateJobInstallCost($this->nitrogenFuelBlockMaterials(), 1, self::JITA, 'reaction', self::FACILITY_TAX_PERCENT);
+
+        $this->assertEqualsWithDelta(3065.61312, $estimate['cost'], 1e-6);
+        $this->assertNull($estimate['unknownReason']);
+        $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
+    }
+
+    public function testEstimateJobInstallCostTreatsAnExplicitZeroFacilityTaxAsNull(): void
+    {
+        $service = $this->createServiceWithSyncedNitrogenFuelBlockInputs();
+
+        $estimate = $service->estimateJobInstallCost($this->nitrogenFuelBlockMaterials(), 1, self::JITA, 'manufacturing', 0.0);
+
+        $this->assertEqualsWithDelta(1532.80656, $estimate['cost'], 1e-6);
+        $this->assertNull($estimate['unknownReason']);
     }
 
     public function testEstimateJobInstallCostIsUnknownWhenAMaterialHasNoAdjustedPrice(): void
