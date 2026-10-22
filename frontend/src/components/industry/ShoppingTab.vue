@@ -345,10 +345,13 @@ async function syncStructureMarket() {
   }
 }
 
+const isMaterialCostKnown = computed(() =>
+  failedProducts.value.length === 0 && shoppingList.value.every(item => item.bestPrice !== null),
+)
+
 async function applyAsMaterialCost() {
-  if (!shoppingTotals.value || !store.currentProject) return
-  const costToApply = missingTotals.value.price > 0 ? missingTotals.value.price : shoppingTotals.value.best
-  const roundedCost = roundUpToMillion(costToApply)
+  if (!shoppingTotals.value || !store.currentProject || !isMaterialCostKnown.value) return
+  const roundedCost = roundUpToMillion(shoppingTotals.value.best)
   await store.updateProject(props.projectId, { materialCost: roundedCost })
 }
 
@@ -611,8 +614,10 @@ defineExpose({
         </div>
         <button
           v-if="shoppingTotals && shoppingTotals.best > 0 && store.currentProject?.status !== 'completed'"
+          :disabled="!isMaterialCostKnown"
+          :title="isMaterialCostKnown ? undefined : t('industry.shoppingTab.materialCostUnknown')"
           @click="applyAsMaterialCost"
-          class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 shrink-0"
+          class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white text-sm font-medium flex items-center gap-2 shrink-0"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />

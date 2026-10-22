@@ -1163,6 +1163,7 @@
       "suboptimalExtra": "due to suboptimal structures",
       "priceInfo": "Volume-weighted prices (Jita Sell + import vs {structure} Sell). Best single-order price shown for comparison.",
       "applyAsMaterialCost": "Apply as material cost",
+      "materialCostUnknown": "Some materials have no price or could not be resolved: the total cost is unknown",
       "loadingSuggestions": "Loading purchase suggestions...",
       "purchaseSuggestions": "Purchase suggestions (ESI wallet)",
       "noWalletMatch": "No wallet transactions matching project materials.",

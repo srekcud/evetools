@@ -1163,6 +1163,7 @@
       "suboptimalExtra": "du a des structures sous-optimales",
       "priceInfo": "Prix ponderes par volume (Jita Sell + import vs {structure} Sell). Prix unitaire le plus bas affiche en comparaison.",
       "applyAsMaterialCost": "Appliquer comme cout materiaux",
+      "materialCostUnknown": "Certains materiaux n'ont pas de prix ou n'ont pas pu etre resolus : le cout total est inconnu",
       "loadingSuggestions": "Chargement des suggestions d'achats...",
       "purchaseSuggestions": "Suggestions d'achats (wallet ESI)",
       "noWalletMatch": "Aucune transaction wallet correspondant aux materiaux du projet.",
