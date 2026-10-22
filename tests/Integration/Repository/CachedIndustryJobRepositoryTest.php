@@ -8,6 +8,7 @@ use App\Entity\CachedIndustryJob;
 use App\Entity\Character;
 use App\Repository\CachedIndustryJobRepository;
 use App\Tests\Integration\IntegrationTestCase;
+use PHPUnit\Framework\Attributes\Group;
 
 final class CachedIndustryJobRepositoryTest extends IntegrationTestCase
 {
@@ -134,6 +135,34 @@ final class CachedIndustryJobRepositoryTest extends IntegrationTestCase
         self::assertSame([1, 2, 3], $this->runsOf($this->find()));
     }
 
+    #[Group('issue-209')]
+    public function testExcludesRevertedAndCancelledJobsAndKeepsDeliveredAndActiveOnes(): void
+    {
+        $this->createJob(startDate: '2026-03-01', runs: 10, status: 'reverted', jobId: 200, cost: 3_400_000.0);
+        $this->createJob(startDate: '2026-03-02', runs: 10, status: 'cancelled', jobId: 201, cost: 2_150_000.0);
+        $this->createJob(startDate: '2026-03-03', runs: 10, status: 'delivered', jobId: 202, cost: 1_875_000.25);
+        $this->createJob(startDate: '2026-03-04', runs: 10, status: 'active', jobId: 203, cost: 990_000.75);
+        $this->flushAndClear();
+
+        self::assertSame([202, 203], $this->jobIdsOf($this->find()));
+    }
+
+    #[Group('issue-209')]
+    public function testActiveJobsByCharacterAreTheActivePausedAndReadyOnes(): void
+    {
+        $this->createJob(startDate: '2026-04-01', status: 'active', jobId: 300, cost: 410_000.0);
+        $this->createJob(startDate: '2026-04-02', status: 'paused', jobId: 301, cost: 520_000.0);
+        $this->createJob(startDate: '2026-04-03', status: 'ready', jobId: 302, cost: 630_000.0);
+        $this->createJob(startDate: '2026-04-04', status: 'delivered', jobId: 303, cost: 740_000.0);
+        $this->createJob(startDate: '2026-04-05', status: 'cancelled', jobId: 304, cost: 850_000.0);
+        $this->createJob(startDate: '2026-04-06', status: 'reverted', jobId: 305, cost: 960_000.0);
+        $this->flushAndClear();
+
+        $character = $this->em->find(Character::class, $this->character->getId());
+
+        self::assertSame([300, 301, 302], $this->jobIdsOf($this->repository->findActiveJobsByCharacter($character)));
+    }
+
     /**
      * @param list<Character>|null $characters
      *
@@ -162,6 +191,16 @@ final class CachedIndustryJobRepositoryTest extends IntegrationTestCase
      *
      * @return list<int>
      */
+    private function jobIdsOf(array $jobs): array
+    {
+        return array_values(array_map(static fn (CachedIndustryJob $job) => $job->getJobId(), $jobs));
+    }
+
+    /**
+     * @param CachedIndustryJob[] $jobs
+     *
+     * @return list<int>
+     */
     private function activitiesOf(array $jobs): array
     {
         return array_values(array_map(static fn (CachedIndustryJob $job) => $job->getActivityId(), $jobs));
@@ -174,17 +213,19 @@ final class CachedIndustryJobRepositoryTest extends IntegrationTestCase
         int $blueprintTypeId = self::BLUEPRINT_TYPE_ID,
         string $status = 'active',
         ?Character $character = null,
+        ?int $jobId = null,
+        float $cost = 1_000.0,
     ): void {
         $start = new \DateTimeImmutable($startDate);
 
         $job = (new CachedIndustryJob())
             ->setCharacter($character ?? $this->character)
-            ->setJobId($this->nextJobId++)
+            ->setJobId($jobId ?? $this->nextJobId++)
             ->setActivityId($activityId)
             ->setBlueprintTypeId($blueprintTypeId)
             ->setProductTypeId($blueprintTypeId + 1)
             ->setRuns($runs)
-            ->setCost(1_000.0)
+            ->setCost($cost)
             ->setStatus($status)
             ->setStartDate($start)
             ->setEndDate($start->modify('+1 day'));

@@ -476,6 +476,49 @@ class SlotTrackerServiceTest extends TestCase
         $this->assertSame(1, $result['timeline'][0]['jobId']);
     }
 
+    #[Group('issue-209')]
+    public function testPausedManufacturingJobOccupiesASlotNextToAnActiveOne(): void
+    {
+        $char = $this->createCharacterMock(1001, 'Paused Builder', true);
+        $this->characterRepository->method('findByUser')->willReturn([$char]);
+        $pausedJob = $this->createJobMock(400, 34, 1, 10, '-1 day', '+30 days', null, 'paused');
+        $activeJob = $this->createJobMock(401, 35, 1, 4, '-1 day', '+20 days', null, 'active');
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([$pausedJob, $activeJob]);
+        $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn(
+            $this->buildSkillMap([CachedCharacterSkill::SKILL_MASS_PRODUCTION => 5])
+        );
+        $this->typeNameResolver->method('findNames')->willReturn([34 => 'Tritanium', 35 => 'Pyerite']);
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+        $this->calculationService->method('resolveFacilityName')->willReturn(null);
+
+        $result = $this->service->getSlotStatus($this->user);
+
+        $this->assertSame(2, $result['globalKpis']['manufacturing']['used']);
+        $this->assertSame(2, $result['characters'][0]['slots']['manufacturing']['used']);
+        $this->assertSame([401], array_column($result['timeline'], 'jobId'));
+    }
+
+    #[Group('issue-209')]
+    public function testPausedManufacturingJobPastItsEndDateStillOccupiesASlot(): void
+    {
+        $char = $this->createCharacterMock(1002, 'Offline Structure Owner', true);
+        $this->characterRepository->method('findByUser')->willReturn([$char]);
+        $pausedJob = $this->createJobMock(402, 36, 1, 7, '-10 days', '-2 days', null, 'paused');
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([$pausedJob]);
+        $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn(
+            $this->buildSkillMap([CachedCharacterSkill::SKILL_MASS_PRODUCTION => 5])
+        );
+        $this->typeNameResolver->method('findNames')->willReturn([36 => 'Mexallon']);
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+        $this->calculationService->method('resolveFacilityName')->willReturn(null);
+
+        $result = $this->service->getSlotStatus($this->user);
+
+        $this->assertSame(1, $result['globalKpis']['manufacturing']['used']);
+        $this->assertSame(1, $result['characters'][0]['slots']['manufacturing']['used']);
+        $this->assertSame([], $result['timeline']);
+    }
+
     public function testSkillsMayBeStaleWhenUsedExceedsMax(): void
     {
         // 1 character with 5 active reaction jobs but no skills synced (max = 1 base)

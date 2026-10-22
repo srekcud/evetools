@@ -26,6 +26,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
@@ -313,6 +314,36 @@ class IndustryJobSyncServiceTest extends TestCase
         // Job should remain active — endDate is in the future, could be an ESI glitch
         $this->assertSame('active', $futureJob->getStatus());
         $this->assertNull($futureJob->getCompletedDate());
+    }
+
+    #[Group('issue-209')]
+    public function testStalePausedJobMissingFromEsiIsMarkedDeliveredAtItsEndDate(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->esiClient->method('get')->willReturn([]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $pausedJob = $this->makeCachedJob(300, $character, 'paused', '2026-10-01 08:30:00');
+        $this->stubActiveJobsByCharacter([$pausedJob]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame('delivered', $pausedJob->getStatus());
+        $this->assertEquals(new \DateTimeImmutable('2026-10-01 08:30:00'), $pausedJob->getCompletedDate());
+    }
+
+    #[Group('issue-209')]
+    public function testPausedJobWithFutureEndDateMissingFromEsiStaysPaused(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->esiClient->method('get')->willReturn([]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $pausedJob = $this->makeCachedJob(301, $character, 'paused', '+3 days');
+        $this->stubActiveJobsByCharacter([$pausedJob]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame('paused', $pausedJob->getStatus());
+        $this->assertNull($pausedJob->getCompletedDate());
     }
 
     // ===========================================
@@ -992,7 +1023,7 @@ class IndustryJobSyncServiceTest extends TestCase
             fn (Character $character): array => array_values(array_filter(
                 $jobs,
                 fn (CachedIndustryJob $job): bool => $job->getCharacter() === $character
-                    && in_array($job->getStatus(), ['active', 'ready'], true),
+                    && in_array($job->getStatus(), ['active', 'paused', 'ready'], true),
             )),
         );
     }

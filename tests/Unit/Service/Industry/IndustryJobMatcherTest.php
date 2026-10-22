@@ -165,6 +165,7 @@ class IndustryJobMatcherTest extends TestCase
         string $status = 'active',
         ?int $stationId = null,
         ?Character $character = null,
+        float $cost = 1_250_000.5,
     ): CachedIndustryJob {
         $job = new CachedIndustryJob();
         $job->setJobId($jobId);
@@ -175,7 +176,7 @@ class IndustryJobMatcherTest extends TestCase
         $job->setActivityId(1);
         $job->setBlueprintTypeId(self::BLUEPRINT_TYPE_ID);
         $job->setProductTypeId(self::PRODUCT_TYPE_ID);
-        $job->setCost(1_250_000.5);
+        $job->setCost($cost);
         $job->setStartDate(new \DateTimeImmutable('2026-09-10 12:00:00'));
         $job->setEndDate(new \DateTimeImmutable('2026-09-12 12:00:00'));
 
@@ -729,6 +730,81 @@ class IndustryJobMatcherTest extends TestCase
         $this->assertSame([5002], $this->matchedJobIds($step));
         $this->assertSame($plannedStructure, $step->getStructureConfig());
         $this->assertNull($step->getJobMatches()->first()->getPlannedStructureName());
+    }
+
+    #[Group('issue-209')]
+    public function testRevertedJobIsNotMatchedAndCoversNoRuns(): void
+    {
+        $step = $this->createStep(runs: 10, quantity: 10);
+        $project = $this->createProject($step);
+        $this->givenJobsForBlueprint(
+            self::BLUEPRINT_TYPE_ID,
+            $this->createJob(jobId: 200, runs: 10, status: 'reverted', cost: 3_400_000.0),
+        );
+
+        $this->matcher->matchEsiJobs($project);
+
+        $this->assertSame([], $this->matchedJobIds($step));
+        $this->assertSame(0, $this->matchedRuns($step));
+        $this->assertSame(10, $step->getRuns());
+        $this->assertSame(10, $step->getQuantity());
+    }
+
+    #[Group('issue-209')]
+    public function testRevertedJobInAnotherStructureDoesNotSwitchStepStructure(): void
+    {
+        $plannedStructure = $this->createStructureConfig('Planned Raitaru', self::STRUCTURE_LOCATION_ID);
+        $actualStructure = $this->createStructureConfig('Actual Azbel', self::OTHER_STRUCTURE_LOCATION_ID);
+        $step = $this->createStep(runs: 10, quantity: 10);
+        $step->setStructureConfig($plannedStructure);
+        $project = $this->createProject($step);
+        $this->givenJobsForBlueprint(
+            self::BLUEPRINT_TYPE_ID,
+            $this->createJob(jobId: 200, runs: 10, status: 'reverted', stationId: self::OTHER_STRUCTURE_LOCATION_ID, cost: 3_400_000.0),
+        );
+        $this->structureConfigRepository->method('findByUserAndLocationId')->willReturn($actualStructure);
+        $this->calculationService->method('getStructureBonusForStep')
+            ->willReturn(['materialBonus' => ['total' => 2.4]]);
+
+        $this->matcher->matchEsiJobs($project);
+
+        $this->assertSame($plannedStructure, $step->getStructureConfig());
+        $this->assertSame([], $this->matchedJobIds($step));
+    }
+
+    #[Group('issue-209')]
+    public function testCancelledJobIsStillNotMatched(): void
+    {
+        $step = $this->createStep(runs: 10, quantity: 10);
+        $project = $this->createProject($step);
+        $this->givenJobsForBlueprint(
+            self::BLUEPRINT_TYPE_ID,
+            $this->createJob(jobId: 201, runs: 10, status: 'cancelled', cost: 2_150_000.0),
+        );
+
+        $this->matcher->matchEsiJobs($project);
+
+        $this->assertSame([], $this->matchedJobIds($step));
+        $this->assertSame(0, $this->matchedRuns($step));
+    }
+
+    #[Group('issue-209')]
+    public function testDeliveredJobIsStillMatchedWithItsRunsAndCost(): void
+    {
+        $step = $this->createStep(runs: 10, quantity: 10);
+        $project = $this->createProject($step);
+        $this->givenJobsForBlueprint(
+            self::BLUEPRINT_TYPE_ID,
+            $this->createJob(jobId: 202, runs: 10, status: 'delivered', cost: 1_875_000.25),
+        );
+
+        $this->matcher->matchEsiJobs($project);
+
+        $match = $step->getJobMatches()->first();
+        $this->assertSame([202], $this->matchedJobIds($step));
+        $this->assertSame(10, $this->matchedRuns($step));
+        $this->assertSame('delivered', $match->getStatus());
+        $this->assertSame(1_875_000.25, $match->getCost());
     }
 
     // ===========================================
