@@ -5,6 +5,14 @@ declare(strict_types=1);
 namespace App\Service\Industry;
 
 use App\Exception\EsiApiException;
+use App\Industry\Domain\ActivityKind;
+use App\Industry\Domain\EivMaterial;
+use App\Industry\Domain\EstimatedItemValue;
+use App\Industry\Domain\InstallCost;
+use App\Industry\Domain\Isk;
+use App\Industry\Domain\Multiplier;
+use App\Industry\Domain\Quantity;
+use App\Industry\Domain\Runs;
 use App\Service\ESI\EsiClient;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
@@ -25,6 +33,7 @@ class EsiCostIndexService
     public const UNKNOWN_REASON_MISSING_COST_INDEX = 'missing_cost_index';
     public const UNKNOWN_REASON_MISSING_ADJUSTED_PRICE = 'missing_adjusted_price';
 
+    private const PERCENT = 100.0;
     private const SECONDS_PER_HOUR = 3600;
     private const SYNC_INTERVALS_KEPT_IN_CACHE = 3;
 
@@ -265,6 +274,11 @@ class EsiCostIndexService
         string $activity,
         ?float $facilityTaxRate,
     ): array {
+        $activityKind = match ($activity) {
+            'manufacturing' => ActivityKind::Manufacturing,
+            'reaction' => ActivityKind::Reaction,
+            default => throw new \InvalidArgumentException(sprintf('Unsupported install cost activity "%s".', $activity)),
+        };
         $materialTypeIds = array_column($materials, 'materialTypeId');
         $adjustedPrices = $this->getAdjustedPrices($materialTypeIds);
         $missingAdjustedPriceTypeIds = array_unique(array_diff($materialTypeIds, array_keys($adjustedPrices)));
@@ -279,10 +293,28 @@ class EsiCostIndexService
             return ['cost' => null, 'unknownReason' => self::UNKNOWN_REASON_MISSING_ADJUSTED_PRICE, 'missingAdjustedPriceTypeIds' => $missingAdjustedPriceTypeIds];
         }
 
-        $eiv = $this->calculateEivFromPrices($materials, $adjustedPrices);
+        $estimatedItemValue = EstimatedItemValue::of(
+            new Runs($runs),
+            array_map(
+                static fn (array $material): EivMaterial => new EivMaterial(
+                    $material['materialTypeId'],
+                    new Quantity($material['quantity']),
+                    new Isk($adjustedPrices[$material['materialTypeId']]),
+                ),
+                $materials,
+            ),
+        );
+        $installCost = InstallCost::forJob(
+            $activityKind,
+            $estimatedItemValue,
+            $costIndex,
+            Multiplier::one(),
+            ($facilityTaxRate ?? 0.0) / self::PERCENT,
+            false,
+        );
 
         return [
-            'cost' => $this->applyInstallCostFormula($eiv, $runs, $costIndex, $facilityTaxRate),
+            'cost' => $installCost->total->amount()->amount,
             'unknownReason' => null,
             'missingAdjustedPriceTypeIds' => [],
         ];
@@ -290,7 +322,7 @@ class EsiCostIndexService
 
     private function applyInstallCostFormula(float $eiv, int $runs, float $costIndex, ?float $facilityTaxRate): float
     {
-        $taxMultiplier = 1.0 + ($facilityTaxRate ?? 0.0) / 100.0;
+        $taxMultiplier = 1.0 + ($facilityTaxRate ?? 0.0) / self::PERCENT;
 
         return $eiv * $runs * $costIndex * $taxMultiplier;
     }
