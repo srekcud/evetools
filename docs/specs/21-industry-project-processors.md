@@ -22,10 +22,53 @@
 
 ## Hors périmètre
 
-- ME/TE forcés pour un T2 à la création, et régénération des étapes (perte des liens de jobs) quand les runs changent : à décider avec Sylvain.
 - Frais de courtage propres à une structure.
+- ME, TE et structure saisis sur une étape : la régénération les remet aux valeurs du plan, comme aujourd'hui.
+- Runs saisis sur un intermédiaire réécrits par la cascade (#185) et arbre construit au PATCH (#204).
 
-## Décision prise en autonomie
+## Suite décidée par Sylvain le 2026-10-22
+
+### Lot 2 — ME/TE d'un projet T2
+
+- **R4 — Saisie respectée.** La création d'un projet transmet à la fabrique les ME et TE saisis, T2 compris (aujourd'hui forcés à ME 2 / TE 4, `InventionService::BASE_INVENTION_ME/TE`).
+- **R5 — Formulaire.** Choisir un produit T2 pré-remplit ME 2 / TE 4 ; les deux champs restent modifiables et la valeur saisie est envoyée telle quelle.
+
+| # | Cas | Aujourd'hui | Attendu |
+|---|---|---|---|
+| E6 | Projet T2, ME 4, TE 8 saisis | projet ME 2 / TE 4 | projet et étape racine ME 4 / TE 8 |
+| E7 | Projet T2, ME 2, TE 4 (pré-remplissage gardé) | ME 2 / TE 4 | inchangé |
+| E8 | Projet T1, ME 10, TE 20 | ME 10 / TE 20 | inchangé |
+| E9 | Formulaire : T2 choisi, ME passé à 3 | champ en lecture seule, 2 envoyé | 3 envoyé |
+
+### Lot 3 — Régénération des étapes
+
+Changer les runs, le ME, le TE ou la durée maximale de job d'un projet (ou `app:industry:regenerate-steps`) recalcule le plan comme aujourd'hui, puis l'applique aux étapes existantes au lieu de les remplacer.
+
+- **R6 — Correspondance.** Une étape planifiée correspond à l'étape existante de même blueprint et de même activité, de même rang dans l'ordre des `splitIndex`. L'étape existante est mise à jour sur place (même identifiant) avec les valeurs du plan : produit, runs, quantité, profondeur, ordre, groupe découpé, ME, TE.
+- **R7 — Ce qui est gardé.** Une étape mise à jour garde ses jobs matchés, ses achats, son stock en main, son statut acheté et son mode de match.
+- **R8 — Plus de jobs qu'avant.** Une étape planifiée sans étape existante de même rang est créée.
+- **R9 — Moins de jobs qu'avant.** Une étape existante en excédent (même blueprint et activité, rang au-delà du plan) est supprimée après avoir donné à la dernière étape gardée de même blueprint et activité ses jobs matchés et ses achats ; son stock s'ajoute au sien, et l'étape gardée est achetée si l'une des deux l'était.
+- **R10 — Étape hors plan.** Une étape existante dont le blueprint et l'activité n'apparaissent pas dans le plan (produit ajouté à la main au projet) est gardée telle quelle, placée après les étapes du plan.
+
+Exemples sur la recette des tests d'intégration (frégate : 4 composants par run ; composant : 10 minéraux par run ; 600 s par run) :
+
+| # | Cas | Aujourd'hui | Attendu |
+|---|---|---|---|
+| E10 | Frégate 5 runs, un job matché (5 runs) et un achat sur l'étape racine ; runs passés à 10 | étapes remplacées, job matché et achat supprimés | même étape racine, 10 runs, job matché et achat gardés ; composant 36 runs |
+| E11 | Composant : stock 7, acheté ; régénération sans changement | nouvelle étape, stock 0, non achetée | même étape, stock 7, achetée, 18 runs, ME 10 / TE 20 |
+| E12 | Étape racine en mode `manual` ; ME changé | mode `auto` | mode `manual`, job matché gardé |
+| E13 | Racine découpée en 2 jobs, job matché sur le job 1 ; durée maximale relevée, plus de découpage | tout supprimé | une seule étape (celle du job 0), qui porte le job matché du job 1 ; le job 1 est supprimé |
+| E14 | Racine non découpée avec un job matché ; durée maximale baissée, 2 jobs | tout supprimé | l'étape existante devient le job 0 et garde son job matché ; le job 1 est créé |
+| E15 | Produit ajouté à la main avec un achat ; runs du projet changés | étape et achat supprimés | étape et achat gardés, après les étapes du plan |
+
+## Décisions prises en autonomie (lots 2 et 3, mode nuit)
+
+- R4 sans repli : une saisie absente vaut 0 comme pour un T1 (ME 0 est atteignable en T2 avec un decryptor) ; le pré-remplissage 2/4 est fait par le formulaire.
+- R6 : mise à jour sur place plutôt que transfert vers de nouvelles étapes, pour garder les identifiants des étapes.
+- R10 : une étape hors plan est gardée plutôt que supprimée, pour ne perdre aucune donnée saisie.
+- ME, TE et structure d'une étape restent remis aux valeurs du plan : les garder demanderait de recalculer les quantités en dehors du plan (#185).
+
+## Décision prise en autonomie (lot 1)
 
 Spec validée en mode nuit. Choix conservateurs : les réglages existants (un seul courtage, une seule taxe) remplacent les taux codés en dur ; une estimation impossible reste inconnue et journalisée plutôt que de faire échouer la création.
 
