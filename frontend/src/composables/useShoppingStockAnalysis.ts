@@ -1,4 +1,4 @@
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import type { Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTypeNames } from '@/composables/useTypeNames'
@@ -6,26 +6,16 @@ import { parseEveStock } from '@/composables/useStockAnalysis'
 import type { ParsedStockItem, IntermediateInStock, RelevantStockItem } from '@/composables/useStockAnalysis'
 import type { ShoppingListItem, ProductionTreeNode, IndustryProjectStep } from '@/stores/industry/types'
 
-interface ChildInfo {
-  typeId: number
-  typeName: string
-  blueprintTypeId: number
-  activityType: string
-  quantityPerUnit: number
-  isBuildable: boolean
-}
-
 /**
  * Encapsulates stock analysis logic for ShoppingTab:
  * - Parsing pasted stock text
  * - Persisting stock to localStorage
- * - Cascade stock to children intermediate steps
  * - Analyzing stock against shopping list items
  */
 export function useShoppingStockAnalysis(
   projectId: Ref<string>,
   shoppingList: Ref<ShoppingListItem[]>,
-  tree: Ref<ProductionTreeNode | null | undefined>,
+  _tree: Ref<ProductionTreeNode | null | undefined>,
   steps: Ref<IndustryProjectStep[]>,
   toggleStepInStock: (projectId: string, stepId: string, qty: number) => Promise<void>,
   fetchProject: (id: string) => Promise<void>,
@@ -41,15 +31,9 @@ export function useShoppingStockAnalysis(
   const stockAnalysisError = ref<string | null>(null)
   const stockAnalysisLoading = ref(false)
   const showClearStockModal = ref(false)
-  const parentChildrenMap = ref<Map<string, ChildInfo[]>>(new Map())
   const stockPurchaseWarnings = ref<Array<{ name: string; stockQty: number; purchasedQty: number }>>([])
 
   const hasAnyStock = computed(() => parsedStock.value.length > 0)
-
-  // Rebuild parent-children map when tree changes
-  watch(tree, (newTree) => {
-    if (newTree) buildParentChildrenMap(newTree)
-  }, { immediate: true })
 
   // Stock persistence
   function getStockStorageKey(): string {
@@ -166,58 +150,6 @@ export function useShoppingStockAnalysis(
     relevantStock.value = results
   }
 
-  function buildParentChildrenMap(treeNode: ProductionTreeNode) {
-    parentChildrenMap.value.clear()
-    function traverse(node: ProductionTreeNode) {
-      const key = `${node.blueprintTypeId}_${node.activityType}`
-      const children: ChildInfo[] = []
-      for (const mat of node.materials) {
-        children.push({
-          typeId: mat.typeId,
-          typeName: mat.typeName,
-          blueprintTypeId: mat.blueprint?.blueprintTypeId ?? 0,
-          activityType: mat.blueprint?.activityType ?? '',
-          quantityPerUnit: node.quantity > 0 ? mat.quantity / node.quantity : 0,
-          isBuildable: mat.isBuildable,
-        })
-        if (mat.isBuildable && mat.blueprint) traverse(mat.blueprint)
-      }
-      if (children.length > 0) parentChildrenMap.value.set(key, children)
-    }
-    traverse(treeNode)
-  }
-
-  async function cascadeStockToChildren(blueprintTypeId: number, activityType: string, parentQuantityInStock: number) {
-    const key = `${blueprintTypeId}_${activityType}`
-    const children = parentChildrenMap.value.get(key)
-    if (!children || parentQuantityInStock <= 0) return
-
-    for (const child of children) {
-      const childQuantityNeeded = Math.ceil(parentQuantityInStock * child.quantityPerUnit)
-      if (child.isBuildable && child.blueprintTypeId > 0) {
-        const childStep = steps.value.find(
-          s => s.blueprintTypeId === child.blueprintTypeId && s.activityType === child.activityType,
-        )
-        if (childStep && childStep.depth > 0) {
-          const newInStock = Math.min(childStep.inStockQuantity + childQuantityNeeded, childStep.quantity)
-          if (newInStock > childStep.inStockQuantity) {
-            await toggleStepInStock(projectId.value, childStep.id, newInStock)
-          }
-        }
-        await cascadeStockToChildren(child.blueprintTypeId, child.activityType, childQuantityNeeded)
-      } else {
-        const existingIdx = parsedStock.value.findIndex(
-          p => p.name.toLowerCase() === child.typeName.toLowerCase(),
-        )
-        if (existingIdx >= 0) {
-          parsedStock.value[existingIdx].quantity += childQuantityNeeded
-        } else {
-          parsedStock.value.push({ name: child.typeName, quantity: childQuantityNeeded })
-        }
-      }
-    }
-  }
-
   async function analyzeStock() {
     stockAnalysisError.value = null
 
@@ -286,33 +218,28 @@ export function useShoppingStockAnalysis(
         .map(s => s.productTypeId),
     )
 
-    let cascadeTriggered = false
+    let stepStockChanged = false
     for (const newItem of newItems) {
-      const matchingStep = allSteps.find(
-        s => s.productTypeName?.toLowerCase() === newItem.name.toLowerCase() &&
+      const productionSteps = allSteps
+        .filter(s => s.productTypeName?.toLowerCase() === newItem.name.toLowerCase() &&
           (s.activityType === 'manufacturing' || s.activityType === 'reaction') &&
           !rootProductTypeIds.has(s.productTypeId) &&
           s.depth > 0 &&
-          !s.purchased &&
-          !s.inStock,
-      )
+          !s.purchased)
+        .sort((a, b) => a.splitIndex - b.splitIndex)
 
-      if (matchingStep && newItem.quantity > 0) {
-        const oldQuantity = (parsedStock.value.find(p => p.name.toLowerCase() === newItem.name.toLowerCase())?.quantity ?? 0) - newItem.quantity
-        const addedQuantity = Math.max(0, newItem.quantity - Math.max(0, oldQuantity))
-        if (addedQuantity > 0) {
-          const newInStock = Math.min(matchingStep.inStockQuantity + addedQuantity, matchingStep.quantity)
-          if (newInStock > matchingStep.inStockQuantity) {
-            await toggleStepInStock(projectId.value, matchingStep.id, newInStock)
-          }
-          await cascadeStockToChildren(matchingStep.blueprintTypeId, matchingStep.activityType, addedQuantity)
-          cascadeTriggered = true
+      let remainingQuantity = newItem.quantity
+      for (const productionStep of productionSteps) {
+        const newInStock = Math.min(remainingQuantity, productionStep.quantity)
+        remainingQuantity -= newInStock
+        if (newInStock !== productionStep.inStockQuantity) {
+          await toggleStepInStock(projectId.value, productionStep.id, newInStock)
+          stepStockChanged = true
         }
       }
     }
 
-    if (cascadeTriggered) {
-      saveStockToStorage()
+    if (stepStockChanged) {
       await fetchProject(projectId.value)
     }
 

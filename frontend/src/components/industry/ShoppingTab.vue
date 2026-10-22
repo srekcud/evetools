@@ -143,9 +143,15 @@ const enrichedShoppingList = computed<EnrichedShoppingItem[]>(() => {
     stockMap.set(key, (stockMap.get(key) ?? 0) + item.quantity)
   }
 
+  const stepStockByTypeId = new Map<number, number>()
+  for (const step of stepsRef.value) {
+    stepStockByTypeId.set(step.productTypeId, (stepStockByTypeId.get(step.productTypeId) ?? 0) + step.inStockQuantity)
+  }
+
   return shoppingList.value.map(item => {
     const key = item.typeName.toLowerCase()
-    const inStock = (stockMap.get(key) ?? 0) + (item.purchasedQuantity ?? 0)
+    const pastedStockNotInSteps = Math.max(0, (stockMap.get(key) ?? 0) - (stepStockByTypeId.get(item.typeId) ?? 0))
+    const inStock = pastedStockNotInSteps + (item.purchasedQuantity ?? 0)
     const totalNeeded = item.quantity + (item.extraQuantity ?? 0)
     const missing = Math.max(0, totalNeeded - inStock)
     let status: 'ok' | 'partial' | 'missing' = 'missing'
