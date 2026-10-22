@@ -8,6 +8,8 @@ use App\Constant\EveConstants;
 use App\Message\SyncPublicContracts;
 use App\Service\Admin\SyncTracker;
 use App\Service\ESI\EsiClient;
+use App\Service\Industry\PublicContractPriceService;
+use Psr\Cache\CacheItemInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -16,9 +18,8 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 #[AsMessageHandler]
 final readonly class SyncPublicContractsHandler
 {
-    private const CACHE_PREFIX = 'public_contract_prices_';
     private const CACHE_TTL = 3600; // 1 hour
-    private const META_KEY = 'public_contract_prices_meta';
+    private const ITEMS_CACHE_PREFIX = 'public_contract_items_';
     private const ITEMS_BATCH_SIZE = 50;
 
     public function __construct(
@@ -36,10 +37,14 @@ final readonly class SyncPublicContractsHandler
         $this->logger->info('Starting public contracts sync for The Forge');
 
         try {
-            $count = $this->sync();
+            [$count, $unreadContracts] = $this->sync();
 
-            $this->logger->info('Public contracts sync completed', ['types' => $count]);
-            $this->syncTracker->complete('public-contracts', $count . ' types indexed');
+            $this->logger->info('Public contracts sync completed', ['types' => $count, 'unreadContracts' => $unreadContracts]);
+            $summary = $count . ' types indexed';
+            if ($unreadContracts > 0) {
+                $summary .= ', ' . $unreadContracts . ' contracts unread';
+            }
+            $this->syncTracker->complete('public-contracts', $summary);
         } catch (\Throwable $e) {
             $this->logger->error('Public contracts sync failed', [
                 'error' => $e->getMessage(),
@@ -48,7 +53,10 @@ final readonly class SyncPublicContractsHandler
         }
     }
 
-    private function sync(): int
+    /**
+     * @return array{int, int}
+     */
+    private function sync(): array
     {
         // 1. Fetch all pages of public contracts for The Forge
         /** @var list<array<string, mixed>> $contracts */
@@ -136,23 +144,44 @@ final readonly class SyncPublicContractsHandler
         foreach ($priceIndex as $typeId => $entries) {
             usort($entries, fn (array $a, array $b): int => $a['unitPrice'] <=> $b['unitPrice']);
 
-            $cacheItem = $this->cache->getItem(self::CACHE_PREFIX . $typeId);
+            $cacheItem = $this->cache->getItem(PublicContractPriceService::CACHE_PREFIX . $typeId);
             $cacheItem->set($entries);
             $cacheItem->expiresAfter(self::CACHE_TTL);
             $this->cache->save($cacheItem);
         }
 
         // 6. Store metadata
-        $metaItem = $this->cache->getItem(self::META_KEY);
+        $metaItem = $this->cache->getItem(PublicContractPriceService::META_KEY);
+        $this->removeTypesWithoutContract($metaItem, array_keys($priceIndex));
         $metaItem->set([
             'syncedAt' => new \DateTimeImmutable(),
             'typesCount' => count($priceIndex),
+            'typeIds' => array_keys($priceIndex),
             'contractsProcessed' => count($itemExchangeContracts),
         ]);
         $metaItem->expiresAfter(self::CACHE_TTL);
         $this->cache->save($metaItem);
 
-        return count($priceIndex);
+        return [count($priceIndex), count($itemExchangeContracts) - count($contractItems)];
+    }
+
+    /**
+     * @param list<int> $indexedTypeIds
+     */
+    private function removeTypesWithoutContract(CacheItemInterface $previousMetaItem, array $indexedTypeIds): void
+    {
+        if (!$previousMetaItem->isHit()) {
+            return;
+        }
+
+        /** @var array{typeIds?: list<int>} $previousMeta */
+        $previousMeta = $previousMetaItem->get();
+        $typeIdsWithoutContract = array_diff($previousMeta['typeIds'] ?? [], $indexedTypeIds);
+
+        $this->cache->deleteItems(array_map(
+            static fn (int $typeId): string => PublicContractPriceService::CACHE_PREFIX . $typeId,
+            $typeIdsWithoutContract,
+        ));
     }
 
     /**
@@ -165,17 +194,30 @@ final readonly class SyncPublicContractsHandler
     private function fetchContractItems(array $contracts): array
     {
         $result = [];
+        $contractsToFetch = [];
 
-        foreach (array_chunk($contracts, self::ITEMS_BATCH_SIZE) as $batch) {
+        foreach ($contracts as $contract) {
+            $contractId = (int) $contract['contract_id'];
+            $itemsCacheItem = $this->cache->getItem(self::ITEMS_CACHE_PREFIX . $contractId);
+            if ($itemsCacheItem->isHit()) {
+                /** @var list<array<string, mixed>> $cachedItems */
+                $cachedItems = $itemsCacheItem->get();
+                $result[$contractId] = $cachedItems;
+                continue;
+            }
+
+            $contractsToFetch[$contractId] = $contract;
+        }
+
+        foreach (array_chunk($contractsToFetch, self::ITEMS_BATCH_SIZE, true) as $batch) {
             $endpoints = [];
-            foreach ($batch as $contract) {
-                $contractId = (int) $contract['contract_id'];
+            foreach (array_keys($batch) as $contractId) {
                 $endpoints[$contractId] = '/contracts/public/items/' . $contractId . '/';
             }
 
             foreach ($this->esiClient->getBatch($endpoints) as $contractId => $items) {
                 if ($items === null) {
-                    $this->logger->debug('Skipping public contract whose items could not be fetched', [
+                    $this->logger->warning('Skipping public contract whose items could not be fetched', [
                         'contractId' => $contractId,
                     ]);
                     continue;
@@ -183,9 +225,27 @@ final readonly class SyncPublicContractsHandler
 
                 /** @var list<array<string, mixed>> $items */
                 $result[$contractId] = $items;
+                $this->cacheItemsUntilContractExpires($batch[$contractId], $items);
             }
         }
 
         return $result;
+    }
+
+    /**
+     * @param array<string, mixed> $contract
+     * @param list<array<string, mixed>> $items
+     */
+    private function cacheItemsUntilContractExpires(array $contract, array $items): void
+    {
+        $dateExpired = $contract['date_expired'] ?? null;
+        if ($dateExpired === null) {
+            return;
+        }
+
+        $itemsCacheItem = $this->cache->getItem(self::ITEMS_CACHE_PREFIX . $contract['contract_id']);
+        $itemsCacheItem->set($items);
+        $itemsCacheItem->expiresAt(new \DateTimeImmutable($dateExpired));
+        $this->cache->save($itemsCacheItem);
     }
 }

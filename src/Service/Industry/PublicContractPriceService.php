@@ -17,7 +17,8 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  */
 class PublicContractPriceService
 {
-    private const CACHE_PREFIX = 'public_contract_prices_';
+    public const CACHE_PREFIX = 'public_contract_prices_';
+    public const META_KEY = 'public_contract_prices_meta';
 
     public function __construct(
         #[Autowire(service: 'public_contracts.cache')]
@@ -30,14 +31,7 @@ class PublicContractPriceService
      */
     public function getLowestUnitPrice(int $typeId): ?float
     {
-        $cacheItem = $this->cache->getItem(self::CACHE_PREFIX . $typeId);
-
-        if (!$cacheItem->isHit()) {
-            return null;
-        }
-
-        /** @var list<array{unitPrice: float, quantity: int, contractId: int}> $contracts */
-        $contracts = $cacheItem->get();
+        $contracts = $this->indexedContracts($typeId);
 
         if (empty($contracts)) {
             return null;
@@ -50,17 +44,29 @@ class PublicContractPriceService
     /**
      * Get the number of active mono-item contracts for a type.
      */
-    public function getContractCount(int $typeId): int
+    public function getContractCount(int $typeId): ?int
     {
+        $contracts = $this->indexedContracts($typeId);
+
+        return null === $contracts ? null : count($contracts);
+    }
+
+    /**
+     * @return list<array{unitPrice: float, quantity: int, contractId: int}>|null
+     */
+    private function indexedContracts(int $typeId): ?array
+    {
+        if (!$this->cache->getItem(self::META_KEY)->isHit()) {
+            return null;
+        }
+
         $cacheItem = $this->cache->getItem(self::CACHE_PREFIX . $typeId);
 
         if (!$cacheItem->isHit()) {
-            return 0;
+            return [];
         }
 
-        /** @var list<array{unitPrice: float, quantity: int, contractId: int}> $contracts */
-        $contracts = $cacheItem->get();
-
-        return count($contracts);
+        /** @var list<array{unitPrice: float, quantity: int, contractId: int}> */
+        return $cacheItem->get();
     }
 }

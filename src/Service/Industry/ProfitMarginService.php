@@ -266,7 +266,7 @@ class ProfitMarginService
     }
 
     /**
-     * @return array{jitaSell: ?float, structureSell: ?float, structureBuy: ?float, contractSell: ?float, contractCount: int, structureId: int, structureName: string}
+     * @return array{jitaSell: ?float, structureSell: ?float, structureBuy: ?float, contractSell: ?float, contractCount: ?int, structureId: int, structureName: string}
      */
     private function sellPrices(int $typeId, int $outputQuantity, int $sellStructureId): array
     {
