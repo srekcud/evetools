@@ -22,8 +22,21 @@ Projet en cours, réponse de la liste d'achats avec `totals.best` = 123 456 789.
 | E3 | `materialCost` null, stock mémorisé en localStorage, chargement du projet (`loadPersistedStock` + `reanalyzeStock`) | `PATCH materialCost 124 000 000` | aucun `PATCH` |
 | E4 | `materialCost` null, clic sur « Appliquer comme coût matériaux », rien en stock | — | `PATCH materialCost 124 000 000` (garde-fou) |
 
-## Hors périmètre (voir « Blocages » du journal)
+## Lot 2 — Le bouton applique le coût total, seulement s'il est connu (décision de Sylvain, 2026-10-23, option A)
 
-- Discontinuité de `applyAsMaterialCost` entre 99 % et 100 % du besoin en stock (manquant > 0 → coût du manquant ; manquant = 0 → coût total).
-- `totals.best` qui ignore les matériaux sans prix dans le montant appliqué par le bouton.
-- Coûts matériaux déjà écrits en silence en prod : indiscernables d'une saisie, laissés tels quels.
+- **R3 — Montant.** « Appliquer comme coût matériaux » écrit `roundUpToMillion(totals.best)`, quel que soit le stock collé ou acheté : le coût matériaux d'un projet ne dépend pas de ce qui est déjà en stock (même base que `estimatedMaterialCost`).
+- **R4 — Coût inconnu.** Si une ligne n'a pas de `bestPrice`, ou si `failedProducts` n'est pas vide (#119), le bouton est désactivé, son `title` donne la raison, et aucun `PATCH` n'est envoyé.
+- **R5 — Inchangé.** Bouton masqué pour un projet terminé ou quand `totals.best` vaut 0.
+
+Ligne A : `quantity` 100, `bestPrice` 123 456 789, `totals.best` 123 456 789.
+
+| # | Cas | Aujourd'hui | Attendu |
+|---|---|---|---|
+| E5 | 99 A en stock collé | `PATCH materialCost 2 000 000` | `PATCH materialCost 124 000 000` |
+| E6 | 100 A en stock collé | `PATCH 124 000 000` | inchangé (garde-fou) |
+| E7 | Ligne A + ligne B sans `bestPrice` | `PATCH 124 000 000` | bouton désactivé avec raison, aucun `PATCH` au clic |
+| E8 | Ligne A, `failedProducts` non vide | `PATCH 124 000 000` | bouton désactivé avec raison, aucun `PATCH` |
+
+## Hors périmètre
+
+- Coûts matériaux déjà écrits en silence en prod : indiscernables d'une saisie, laissés tels quels (recommandation acceptée par défaut).
