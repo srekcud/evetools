@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Industry;
 
 use App\Entity\User;
+use App\Industry\Domain\ActivityKind;
 use App\Enum\IndustryActivityType;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedStructureRepository;
@@ -130,6 +131,7 @@ class BatchProfitScannerService
         private readonly IndustryActivitySkillRepository $activitySkillRepository,
         private readonly CachedCharacterSkillRepository $characterSkillRepository,
         private readonly JobInstallCostEstimator $jobInstallCostEstimator,
+        private readonly FacilityTaxRateResolver $facilityTaxRateResolver,
     ) {
     }
 
@@ -280,6 +282,8 @@ class BatchProfitScannerService
         // Pre-load cost indices once (same solar system for all products)
         $manufacturingCostIndex = $this->esiCostIndexService->getCostIndex($solarSystemId, 'manufacturing');
         $reactionCostIndex = $this->esiCostIndexService->getCostIndex($solarSystemId, 'reaction');
+        $manufacturingFacilityTax = $this->facilityTaxRateResolver->percentFor($user, $solarSystemId, ActivityKind::Manufacturing);
+        $reactionFacilityTax = $this->facilityTaxRateResolver->percentFor($user, $solarSystemId, ActivityKind::Reaction);
 
         // 11. Calculate profit for each product
         $results = [];
@@ -317,7 +321,8 @@ class BatchProfitScannerService
             $importCost = $materialVolume * $exportCostPerM3;
 
             $costIndex = $isReaction ? $reactionCostIndex : $manufacturingCostIndex;
-            $jobInstallEstimate = $this->jobInstallCostEstimator->estimate($materials, $adjustedPrices, $costIndex, 1, $activityType, null);
+            $facilityTax = $isReaction ? $reactionFacilityTax : $manufacturingFacilityTax;
+            $jobInstallEstimate = $this->jobInstallCostEstimator->estimate($materials, $adjustedPrices, $costIndex, 1, $activityType, $facilityTax);
             $jobInstallCost = $jobInstallEstimate['cost'];
 
             // Export cost: only when selling remotely (Jita), not at local structure

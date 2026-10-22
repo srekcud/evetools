@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Industry;
 
 use App\Entity\User;
+use App\Industry\Domain\ActivityKind;
 use App\Enum\IndustryActivityType;
 use App\Repository\CachedAssetRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
@@ -30,6 +31,7 @@ class PivotAdvisorService
         private readonly TypeNameResolver $typeNameResolver,
         private readonly EntityManagerInterface $entityManager,
         private readonly InventionService $inventionService,
+        private readonly FacilityTaxRateResolver $facilityTaxRateResolver,
     ) {
     }
 
@@ -65,6 +67,10 @@ class PivotAdvisorService
         $sourceBpId = $sourceBlueprint->getTypeId();
         $sourceOutputPerRun = $sourceBlueprint->getQuantity();
         $sourceActivityId = $sourceBlueprint->getActivityId();
+        $facilityTaxByActivity = [
+            'manufacturing' => $this->facilityTaxRateResolver->percentFor($user, $solarSystemId, ActivityKind::Manufacturing),
+            'reaction' => $this->facilityTaxRateResolver->percentFor($user, $solarSystemId, ActivityKind::Reaction),
+        ];
 
         // 2. Get source blueprint materials
         $materialsByBp = $this->materialRepository->findMaterialsForBlueprints([$sourceBpId], $activityIds);
@@ -86,7 +92,7 @@ class PivotAdvisorService
         }
 
         if (empty($buildableMaterials)) {
-            return $this->buildResultWithSourceOnly($sourceTypeId, $sourceMaterials, $sourceOutputPerRun, $sourceActivityId, $solarSystemId, $brokerFeeRate, $salesTaxRate, $user);
+            return $this->buildResultWithSourceOnly($sourceTypeId, $sourceMaterials, $sourceOutputPerRun, $sourceActivityId, $solarSystemId, $brokerFeeRate, $salesTaxRate, $user, $facilityTaxByActivity);
         }
 
         $buildableMaterialTypeIds = array_map(fn (array $m) => $m['materialTypeId'], $buildableMaterials);
@@ -104,7 +110,7 @@ class PivotAdvisorService
         ));
 
         if (empty($candidateProducts)) {
-            return $this->buildResultWithSourceOnly($sourceTypeId, $sourceMaterials, $sourceOutputPerRun, $sourceActivityId, $solarSystemId, $brokerFeeRate, $salesTaxRate, $user);
+            return $this->buildResultWithSourceOnly($sourceTypeId, $sourceMaterials, $sourceOutputPerRun, $sourceActivityId, $solarSystemId, $brokerFeeRate, $salesTaxRate, $user, $facilityTaxByActivity);
         }
 
         // 6. Batch-fetch candidate materials
@@ -165,7 +171,7 @@ class PivotAdvisorService
 
             $materialCost = $this->materialCostPerRun($cpMaterials, $cpIsReaction ? 0 : $me, $jitaPrices);
 
-            $jobInstallCost = $this->esiCostIndexService->estimateJobInstallCost($cpMaterials, 1, $solarSystemId, $activityType, null);
+            $jobInstallCost = $this->esiCostIndexService->estimateJobInstallCost($cpMaterials, 1, $solarSystemId, $activityType, $facilityTaxByActivity[$activityType]);
             $totalCost = $this->totalCostPerRun($materialCost, $jobInstallCost);
 
             // Sell price
@@ -276,6 +282,7 @@ class PivotAdvisorService
             $groupNames,
             $buildableMaterials,
             $userStock,
+            $facilityTaxByActivity,
         );
 
         // 12. Build matrix
@@ -406,6 +413,7 @@ class PivotAdvisorService
      * @param array<int, string> $typeNames
      * @param array<int, string> $groupNames
      * @param array<int, int> $userStock
+     * @param array<string, float> $facilityTaxByActivity
      * @return array<string, mixed>
      */
     private function buildSourceProductSummary(
@@ -424,13 +432,14 @@ class PivotAdvisorService
         array $groupNames,
         array $buildableMaterials,
         array $userStock,
+        array $facilityTaxByActivity,
     ): array {
         $me = $isT2 ? 2 : ($isReaction ? 0 : 10);
         $activityType = $isReaction ? 'reaction' : 'manufacturing';
 
         $materialCost = $this->materialCostPerRun($sourceMaterials, $isReaction ? 0 : $me, $jitaPrices);
 
-        $jobInstallCost = $this->esiCostIndexService->estimateJobInstallCost($sourceMaterials, 1, $solarSystemId, $activityType, null);
+        $jobInstallCost = $this->esiCostIndexService->estimateJobInstallCost($sourceMaterials, 1, $solarSystemId, $activityType, $facilityTaxByActivity[$activityType]);
         $totalCost = $this->totalCostPerRun($materialCost, $jobInstallCost);
 
         $sellPrice = $jitaPrices[$sourceTypeId] ?? null;
@@ -553,6 +562,7 @@ class PivotAdvisorService
      * Build result when source has no buildable materials (only raw materials).
      *
      * @param list<array{materialTypeId: int, quantity: int}> $sourceMaterials
+     * @param array<string, float> $facilityTaxByActivity
      * @return array{typeId: int, sourceProduct: array<string, mixed>, matrix: list<mixed>, candidates: list<mixed>, matrixProductIds: list<int>}
      */
     private function buildResultWithSourceOnly(
@@ -564,6 +574,7 @@ class PivotAdvisorService
         float $brokerFeeRate,
         float $salesTaxRate,
         User $user,
+        array $facilityTaxByActivity,
     ): array {
         $isReaction = $activityId === IndustryActivityType::Reaction->value;
         $isT2 = false;
@@ -602,6 +613,7 @@ class PivotAdvisorService
             $groupNames,
             [], // no buildable materials
             $userStock,
+            $facilityTaxByActivity,
         );
 
         return [

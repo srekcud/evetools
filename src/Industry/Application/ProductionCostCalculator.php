@@ -33,7 +33,7 @@ use App\Industry\Domain\Runs;
 final readonly class ProductionCostCalculator
 {
     /** Install tax of an NPC station, used when no structure of the user can run the job (spec R6). */
-    private const float NPC_STATION_FACILITY_TAX_RATE = 0.0025;
+    public const float NPC_STATION_FACILITY_TAX_RATE = 0.0025;
 
     /** One T1 blueprint copy of one run is consumed per invention attempt (spec R6). */
     private const int COPY_RUNS_PER_ATTEMPT = 1;
