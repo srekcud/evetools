@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useIndustryStore, type SearchResult, type ProfitMarginResult, type ProfitMarginInventionOption, type MarginEntry } from '@/stores/industry'
-import type { ProductionCostUnknownReason } from '@/stores/industry/types'
+import type { JobInstallCostUnknownReason, MissingDataReason, ProductionCostUnknownReason } from '@/stores/industry/types'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
@@ -61,16 +61,33 @@ const favoriteSystems = computed(() => {
   return systems
 })
 
+const JOB_INSTALL_COST_UNKNOWN_REASONS: Partial<Record<MissingDataReason, JobInstallCostUnknownReason>> = {
+  cost_index: 'missing_cost_index',
+  adjusted_price: 'missing_adjusted_price',
+}
+
+const unknownInstallCostReasons = computed((): JobInstallCostUnknownReason[] => {
+  if (!result.value) return []
+  const reasons = new Set<JobInstallCostUnknownReason>()
+  for (const missing of result.value.missingData) {
+    const reason = JOB_INSTALL_COST_UNKNOWN_REASONS[missing.reason]
+    if (reason != null) reasons.add(reason)
+  }
+  return [...reasons]
+})
+
 const productionCostUnknownReasons = computed((): ProductionCostUnknownReason[] => {
   if (!result.value) return []
   const pricingUnknownReason = result.value.materialCost == null ? 'missing_material_price' : result.value.invention?.unknownReason
-  if (pricingUnknownReason == null) return result.value.unknownInstallCostReasons
-  return [pricingUnknownReason, ...result.value.unknownInstallCostReasons]
+  if (pricingUnknownReason == null) return unknownInstallCostReasons.value
+  return [pricingUnknownReason, ...unknownInstallCostReasons.value]
 })
 
 const missingPriceTypeNames = computed((): string => {
   if (!result.value) return ''
-  const missingPriceTypeIds = result.value.missingPriceTypeIds
+  const missingPriceTypeIds = result.value.missingData
+    .filter(missing => missing.reason === 'market_price')
+    .map(missing => missing.typeId)
   return result.value.materials
     .filter(material => missingPriceTypeIds.includes(material.typeId))
     .map(material => material.typeName)
@@ -255,20 +272,10 @@ const jobInstallPercent = computed((): number | null => {
   return (result.value.jobInstallCost / effectiveTotalCost.value) * 100
 })
 
-const effectiveInventionPlusCopy = computed((): number | null => {
-  if (selectedOption.value != null) {
-    // The option's inventionCost already includes copy cost amortized
-    return selectedOption.value.inventionCost
-  }
-  if (!result.value) return 0
-  if (result.value.inventionCost == null) return null
-  return result.value.inventionCost + result.value.copyCost
-})
-
 const inventionPercent = computed((): number | null => {
   if (!result.value || effectiveTotalCost.value === 0) return 0
-  if (effectiveTotalCost.value == null || effectiveInventionPlusCopy.value == null) return null
-  return (effectiveInventionPlusCopy.value / effectiveTotalCost.value) * 100
+  if (effectiveTotalCost.value == null || effectiveInventionCost.value == null) return null
+  return (effectiveInventionCost.value / effectiveTotalCost.value) * 100
 })
 
 function formatPercent(percent: number | null): string {
@@ -692,7 +699,7 @@ store.fetchUserSettings()
                   }}
                 </span>
               </td>
-              <td class="py-2.5 px-3 text-right font-mono text-slate-300">{{ step.runs }}</td>
+              <td class="py-2.5 px-3 text-right font-mono text-slate-300">{{ step.runs.toLocaleString() }}</td>
               <td class="py-2.5 px-4 text-right font-mono text-slate-200">{{ formatAmount(step.installCost, { maximumFractionDigits: 0 }) }}</td>
             </tr>
           </tbody>
@@ -751,7 +758,7 @@ store.fetchUserSettings()
             </div>
             <div v-if="result.isT2">
               <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.margins.inventionCostLabel') }}</div>
-              <div class="font-mono text-slate-200 text-lg">{{ formatCost(effectiveInventionPlusCopy) }}</div>
+              <div class="font-mono text-slate-200 text-lg">{{ formatCost(effectiveInventionCost) }}</div>
               <div class="text-xs text-slate-600 font-mono">{{ formatPercent(inventionPercent) }}</div>
             </div>
             <div>
@@ -765,7 +772,7 @@ store.fetchUserSettings()
           <div v-if="materialPercent != null && jobInstallPercent != null && inventionPercent != null" class="h-3 rounded-full overflow-hidden flex bg-slate-800">
             <div class="bg-blue-500/60" :style="{ width: materialPercent + '%' }" :title="`Materials: ${formatIsk(result.materialCost)} (${materialPercent.toFixed(1)}%)`"></div>
             <div class="bg-amber-500/60" :style="{ width: jobInstallPercent + '%' }" :title="`Job Install: ${formatCost(result.jobInstallCost)} (${jobInstallPercent.toFixed(1)}%)`"></div>
-            <div v-if="result.isT2" class="bg-purple-500/60" :style="{ width: inventionPercent + '%' }" :title="`Invention: ${formatCost(effectiveInventionPlusCopy)} (${inventionPercent.toFixed(1)}%)`"></div>
+            <div v-if="result.isT2" class="bg-purple-500/60" :style="{ width: inventionPercent + '%' }" :title="`Invention: ${formatCost(effectiveInventionCost)} (${inventionPercent.toFixed(1)}%)`"></div>
           </div>
           <div class="flex items-center gap-4 mt-2 text-xs">
             <span class="flex items-center gap-1.5">

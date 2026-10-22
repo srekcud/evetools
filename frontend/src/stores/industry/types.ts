@@ -326,6 +326,13 @@ export interface UserSettings {
 
 // Profit Margin types
 
+export type MissingDataReason = 'market_price' | 'adjusted_price' | 'cost_index' | 'invention_probability'
+
+export interface MissingData {
+  reason: MissingDataReason
+  typeId: number | null
+}
+
 export interface ProfitMarginMaterial {
   typeId: number
   typeName: string
@@ -340,7 +347,7 @@ export interface ProfitMarginJobStep {
   activityType: string
   runs: number
   installCost: number | null
-  unknownReason: JobInstallCostUnknownReason | null
+  missingData: MissingData[]
 }
 
 export interface ProfitMarginSellPrices {
@@ -388,7 +395,6 @@ export interface ProfitMarginResult {
   jobInstallCost: number | null
   jobInstallSteps: ProfitMarginJobStep[]
   inventionCost: number | null
-  copyCost: number
   totalCost: number | null
   costPerUnit: number | null
   invention: {
@@ -404,8 +410,7 @@ export interface ProfitMarginResult {
   salesTaxRate: number
   margins: Record<string, MarginEntry | null>
   dailyVolume: number | null
-  missingPriceTypeIds: number[]
-  unknownInstallCostReasons: JobInstallCostUnknownReason[]
+  missingData: MissingData[]
 }
 
 export interface AvailableJob {
