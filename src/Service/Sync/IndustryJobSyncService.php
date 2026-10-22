@@ -192,7 +192,7 @@ class IndustryJobSyncService implements ResetInterface
                     if (in_array($jobId, $ownedEsiJobIds, true) || isset($this->corporationJobIdsSeenThisRun[$jobId])) {
                         continue;
                     }
-                    if ($dbJob->getEndDate() > $now) {
+                    if ($dbJob->getStatus() === CachedIndustryJob::STATUS_PAUSED || $dbJob->getEndDate() > $now) {
                         continue;
                     }
                     $dbJob->setStatus('delivered');
