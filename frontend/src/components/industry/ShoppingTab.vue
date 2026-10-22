@@ -308,15 +308,6 @@ async function loadShoppingList() {
       shoppingPriceError.value = response.priceError
       missingVolumeTypeIds.value = response.missingVolumeTypeIds
       failedProducts.value = response.failedProducts
-
-      if (
-        store.currentProject &&
-        (store.currentProject.materialCost === null || store.currentProject.materialCost === 0) &&
-        response.totals.best > 0
-      ) {
-        const roundedCost = roundUpToMillion(response.totals.best)
-        await store.updateProject(props.projectId, { materialCost: roundedCost })
-      }
     } else {
       shoppingList.value = []
       shoppingTotals.value = null
