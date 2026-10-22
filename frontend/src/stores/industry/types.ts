@@ -603,6 +603,7 @@ export type BuyVsBuildComponent = {
   savingsPercent: number | null
   meUsed: number
   runs: number
+  missingData: MissingData[]
 }
 
 export type BuyVsBuildResult = {
@@ -619,8 +620,7 @@ export type BuyVsBuildResult = {
   optimalMixCost: number | null
   buildTypeIds: number[]
   buyTypeIds: number[]
-  missingPriceTypeIds: number[]
-  unknownInstallCostReasons: JobInstallCostUnknownReason[]
+  missingData: MissingData[]
   sellStructureId: number | null
 }
 

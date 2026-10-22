@@ -7,8 +7,9 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFavoriteSystems } from '@/composables/useFavoriteSystems'
 import { useTypeNames } from '@/composables/useTypeNames'
+import { useUnknownInstallCostReasons } from '@/composables/useUnknownInstallCostReasons'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
-import type { BuyVsBuildComponent } from '@/stores/industry/types'
+import type { BuyVsBuildComponent, ProductionCostUnknownReason } from '@/stores/industry/types'
 
 defineProps<{
   initialTypeId?: number
@@ -55,6 +56,14 @@ async function onAnalyze(): Promise<void> {
 const result = computed(() => scannerStore.buyVsBuildResult)
 const loading = computed(() => scannerStore.buyVsBuildLoading)
 const error = computed(() => scannerStore.buyVsBuildError)
+
+const unknownInstallCostReasons = useUnknownInstallCostReasons(() => result.value?.missingData ?? [])
+
+const unknownCostReasons = computed((): ProductionCostUnknownReason[] => {
+  if (!result.value) return []
+  const isInventionProbabilityMissing = result.value.missingData.some(missing => missing.reason === 'invention_probability')
+  return isInventionProbabilityMissing ? ['missing_invention_probability', ...unknownInstallCostReasons.value] : unknownInstallCostReasons.value
+})
 
 watch(result, () => {
   userOverrides.value = new Map()
@@ -275,6 +284,7 @@ const SUMMARY_LIST_LIMIT = 5
             <h3 class="text-lg font-bold text-slate-100">{{ t('industry.scanner.buyVsBuild.title') }}</h3>
           </div>
           <p class="text-sm text-slate-500">{{ t('industry.scanner.buyVsBuild.subtitle') }}</p>
+          <p class="text-xs text-slate-500 mt-1">{{ t('industry.scanner.buyVsBuild.blacklistNotApplied') }}</p>
         </div>
       </div>
 
@@ -386,8 +396,8 @@ const SUMMARY_LIST_LIMIT = 5
             </div>
           </div>
         </div>
-        <ul v-if="result.unknownInstallCostReasons.length > 0" class="mt-3 space-y-1 text-xs text-amber-400">
-          <li v-for="reason in result.unknownInstallCostReasons" :key="reason">
+        <ul v-if="unknownCostReasons.length > 0" class="mt-3 space-y-1 text-xs text-amber-400">
+          <li v-for="reason in unknownCostReasons" :key="reason">
             {{ t(`industry.inventionUnknown.${reason}`) }}
           </li>
         </ul>

@@ -2,10 +2,11 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useIndustryStore, type SearchResult, type ProfitMarginResult, type ProfitMarginInventionOption, type MarginEntry } from '@/stores/industry'
-import type { JobInstallCostUnknownReason, MissingDataReason, ProductionCostUnknownReason } from '@/stores/industry/types'
+import type { ProductionCostUnknownReason } from '@/stores/industry/types'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFavoriteSystems } from '@/composables/useFavoriteSystems'
+import { useUnknownInstallCostReasons } from '@/composables/useUnknownInstallCostReasons'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import CostSummaryCards from '@/components/industry/profit/CostSummaryCards.vue'
@@ -48,20 +49,7 @@ const isT2 = computed(() => selectedProduct.value?.isT2 ?? false)
 
 const favoriteSystems = useFavoriteSystems()
 
-const JOB_INSTALL_COST_UNKNOWN_REASONS: Partial<Record<MissingDataReason, JobInstallCostUnknownReason>> = {
-  cost_index: 'missing_cost_index',
-  adjusted_price: 'missing_adjusted_price',
-}
-
-const unknownInstallCostReasons = computed((): JobInstallCostUnknownReason[] => {
-  if (!result.value) return []
-  const reasons = new Set<JobInstallCostUnknownReason>()
-  for (const missing of result.value.missingData) {
-    const reason = JOB_INSTALL_COST_UNKNOWN_REASONS[missing.reason]
-    if (reason != null) reasons.add(reason)
-  }
-  return [...reasons]
-})
+const unknownInstallCostReasons = useUnknownInstallCostReasons(() => result.value?.missingData ?? [])
 
 const productionCostUnknownReasons = computed((): ProductionCostUnknownReason[] => {
   if (!result.value) return []

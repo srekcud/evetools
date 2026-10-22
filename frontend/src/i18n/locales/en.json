@@ -625,6 +625,7 @@
         "totalProductionCost": "Total Production Cost",
         "sellPriceLabel": "Sell Price (C-J6MT)",
         "noSellStructure": "No market structure chosen: Jita prices only",
+        "blacklistNotApplied": "Your industry blacklist does not apply here: every component is compared with buying it",
         "margin": "Margin",
         "allStages": "All Stages",
         "t2Components": "T2 Components",
