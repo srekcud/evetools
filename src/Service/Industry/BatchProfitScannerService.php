@@ -129,6 +129,7 @@ class BatchProfitScannerService
         private readonly IndustryBpcPriceRepository $bpcPriceRepository,
         private readonly IndustryActivitySkillRepository $activitySkillRepository,
         private readonly CachedCharacterSkillRepository $characterSkillRepository,
+        private readonly JobInstallCostEstimator $jobInstallCostEstimator,
     ) {
     }
 
@@ -315,10 +316,9 @@ class BatchProfitScannerService
             // Import cost: transport materials from Jita to production site
             $importCost = $materialVolume * $exportCostPerM3;
 
-            // Job install cost (1 run) — EIV uses ME0 quantities from SDE with pre-loaded prices
-            $eiv = $this->esiCostIndexService->calculateEivFromPrices($materials, $adjustedPrices);
             $costIndex = $isReaction ? $reactionCostIndex : $manufacturingCostIndex;
-            $jobInstallCost = ($eiv > 0.0 && $costIndex !== null) ? $eiv * $costIndex : 0.0;
+            $jobInstallEstimate = $this->jobInstallCostEstimator->estimate($materials, $adjustedPrices, $costIndex, 1, $activityType, null);
+            $jobInstallCost = $jobInstallEstimate['cost'];
 
             // Export cost: only when selling remotely (Jita), not at local structure
             $exportCost = 0.0;
@@ -327,7 +327,10 @@ class BatchProfitScannerService
                 $exportCost = $exportVolume * $exportCostPerM3;
             }
 
-            $totalCost = $materialCost + $jobInstallCost + $importCost + $exportCost;
+            $totalCost = $materialCost + $importCost + $exportCost;
+            if ($jobInstallCost !== null) {
+                $totalCost += $jobInstallCost;
+            }
 
             // Add BPC cost if the user has set a manual price for this blueprint
             $bpcCostPerRun = $bpcPrices[$blueprintTypeId] ?? null;
@@ -341,7 +344,8 @@ class BatchProfitScannerService
                 default => $jitaPrices[$typeId] ?? null,
             };
 
-            $isCostUnknown = $missingPriceTypeIds !== [];
+            $isMaterialCostUnknown = $missingPriceTypeIds !== [];
+            $isCostUnknown = $isMaterialCostUnknown || $jobInstallCost === null;
 
             $isSalePriceUnknown = $sellPrice === null;
 
@@ -384,7 +388,7 @@ class BatchProfitScannerService
                 'profitPerUnit' => $netProfitPerUnit !== null ? round($netProfitPerUnit, 2) : null,
                 'dailyVolume' => $dailyVolume,
                 'iskPerDay' => $iskPerDay !== null ? round($iskPerDay, 2) : null,
-                'materialCost' => $isCostUnknown ? null : round($materialCost, 2),
+                'materialCost' => $isMaterialCostUnknown ? null : round($materialCost, 2),
                 'importCost' => round($importCost, 2),
                 'exportCost' => round($exportCost, 2),
                 'sellPrice' => $sellPrice !== null ? round($sellPrice, 2) : null,
@@ -396,7 +400,8 @@ class BatchProfitScannerService
                 'missingSkillCount' => $this->countMissingSkills($blueprintTypeId, $requiredSkillsByBlueprint, $userSkillsByCharacter),
                 'unknownReason' => match (true) {
                     $isSalePriceUnknown => self::UNKNOWN_REASON_MISSING_SALE_PRICE,
-                    $isCostUnknown => self::UNKNOWN_REASON_MISSING_MATERIAL_PRICE,
+                    $isMaterialCostUnknown => self::UNKNOWN_REASON_MISSING_MATERIAL_PRICE,
+                    $isCostUnknown => $jobInstallEstimate['unknownReason'],
                     default => null,
                 },
                 'missingPriceTypeIds' => array_keys($missingPriceTypeIds),

@@ -5,14 +5,6 @@ declare(strict_types=1);
 namespace App\Service\Industry;
 
 use App\Exception\EsiApiException;
-use App\Industry\Domain\ActivityKind;
-use App\Industry\Domain\EivMaterial;
-use App\Industry\Domain\EstimatedItemValue;
-use App\Industry\Domain\InstallCost;
-use App\Industry\Domain\Isk;
-use App\Industry\Domain\Multiplier;
-use App\Industry\Domain\Quantity;
-use App\Industry\Domain\Runs;
 use App\Service\ESI\EsiClient;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
@@ -50,6 +42,7 @@ class EsiCostIndexService
         #[Autowire(service: 'esi_cost_index.cache')]
         private readonly CacheItemPoolInterface $cache,
         private readonly LoggerInterface $logger,
+        private readonly JobInstallCostEstimator $jobInstallCostEstimator = new JobInstallCostEstimator(),
     ) {
     }
 
@@ -160,22 +153,6 @@ class EsiCostIndexService
     }
 
     /**
-     * Calculate EIV using pre-loaded adjusted prices (avoids individual cache lookups).
-     *
-     * @param list<array{materialTypeId: int, quantity: int}> $materials ME0 materials from SDE
-     * @param array<int, float> $adjustedPrices Pre-loaded prices map from getAdjustedPrices()
-     */
-    public function calculateEivFromPrices(array $materials, array $adjustedPrices): float
-    {
-        $eiv = 0.0;
-        foreach ($materials as $material) {
-            $eiv += ($adjustedPrices[$material['materialTypeId']] ?? 0.0) * $material['quantity'];
-        }
-
-        return $eiv;
-    }
-
-    /**
      * Get the adjusted price for a type ID from cache.
      */
     public function getAdjustedPrice(int $typeId): ?float
@@ -274,51 +251,10 @@ class EsiCostIndexService
         string $activity,
         ?float $facilityTaxRate,
     ): array {
-        $activityKind = match ($activity) {
-            'manufacturing' => ActivityKind::Manufacturing,
-            'reaction' => ActivityKind::Reaction,
-            'invention' => ActivityKind::Invention,
-            default => throw new \InvalidArgumentException(sprintf('Unsupported install cost activity "%s".', $activity)),
-        };
-        $materialTypeIds = array_column($materials, 'materialTypeId');
-        $adjustedPrices = $this->getAdjustedPrices($materialTypeIds);
-        $missingAdjustedPriceTypeIds = array_unique(array_diff($materialTypeIds, array_keys($adjustedPrices)));
-        sort($missingAdjustedPriceTypeIds);
-
+        $adjustedPrices = $this->getAdjustedPrices(array_column($materials, 'materialTypeId'));
         $costIndex = $this->getCostIndex($solarSystemId, $activity);
-        if ($costIndex === null) {
-            return ['cost' => null, 'unknownReason' => self::UNKNOWN_REASON_MISSING_COST_INDEX, 'missingAdjustedPriceTypeIds' => $missingAdjustedPriceTypeIds];
-        }
 
-        if ($missingAdjustedPriceTypeIds !== []) {
-            return ['cost' => null, 'unknownReason' => self::UNKNOWN_REASON_MISSING_ADJUSTED_PRICE, 'missingAdjustedPriceTypeIds' => $missingAdjustedPriceTypeIds];
-        }
-
-        $estimatedItemValue = EstimatedItemValue::of(
-            new Runs($runs),
-            array_map(
-                static fn (array $material): EivMaterial => new EivMaterial(
-                    $material['materialTypeId'],
-                    new Quantity($material['quantity']),
-                    new Isk($adjustedPrices[$material['materialTypeId']]),
-                ),
-                $materials,
-            ),
-        );
-        $installCost = InstallCost::forJob(
-            $activityKind,
-            $estimatedItemValue,
-            $costIndex,
-            Multiplier::one(),
-            ($facilityTaxRate ?? 0.0) / self::PERCENT,
-            false,
-        );
-
-        return [
-            'cost' => $installCost->total->amount()->amount,
-            'unknownReason' => null,
-            'missingAdjustedPriceTypeIds' => [],
-        ];
+        return $this->jobInstallCostEstimator->estimate($materials, $adjustedPrices, $costIndex, $runs, $activity, $facilityTaxRate);
     }
 
     private function applyInstallCostFormula(float $eiv, int $runs, float $costIndex, ?float $facilityTaxRate): float
