@@ -60,6 +60,9 @@ class LinkJobProcessorTest extends TestCase
     private const int REVERTED_JOB_ID = 301;
     private const int ACTIVE_JOB_ID = 302;
     private const int DELIVERED_JOB_ID = 305;
+    private const int FIRST_ACTIVE_JOB_ID = 400;
+    private const int SECOND_ACTIVE_JOB_ID = 401;
+    private const int SPEC_STEP_RUNS = 20;
     private const float SPEC_JOB_COST = 1_250_000.75;
     private const int SPEC_JOB_RUNS = 10;
     private const int RAITARU_LOCATION_ID = 60001;
@@ -458,6 +461,113 @@ class LinkJobProcessorTest extends TestCase
         self::assertSame(10, $match->getRuns());
     }
 
+    public static function jobMatchModesBeforeLink(): iterable
+    {
+        yield 'auto mode' => ['auto'];
+        yield 'none mode' => ['none'];
+        yield 'manual mode' => ['manual'];
+    }
+
+    #[Group('issue-187')]
+    #[DataProvider('jobMatchModesBeforeLink')]
+    public function testManualLinkSwitchesStepToManualJobMatchMode(string $jobMatchModeBeforeLink): void
+    {
+        $this->givenSpecStepS();
+        $this->step->setJobMatchMode($jobMatchModeBeforeLink);
+        $this->givenUsersJobsOnBlueprint1001();
+
+        $this->link(self::DELIVERED_JOB_ID);
+
+        self::assertSame([self::DELIVERED_JOB_ID], $this->matchedJobIds($this->step));
+        self::assertSame('manual', $this->step->getJobMatchMode());
+    }
+
+    #[Group('issue-187')]
+    public function testManualLinkToPurchasedStepSwitchesItToManualJobMatchMode(): void
+    {
+        $this->givenSpecStepS();
+        $this->step->setPurchased(true);
+        $this->givenUsersJobsOnBlueprint1001();
+
+        $this->link(self::DELIVERED_JOB_ID);
+
+        self::assertSame([self::DELIVERED_JOB_ID], $this->matchedJobIds($this->step));
+        self::assertSame('manual', $this->step->getJobMatchMode());
+    }
+
+    #[Group('issue-187')]
+    public function testRefusedLinkOfCancelledJobLeavesStepInAutoJobMatchMode(): void
+    {
+        $this->givenSpecStepS();
+        $this->givenSpecJob(self::CANCELLED_JOB_ID, 'cancelled', self::ACTIVITY_MANUFACTURING);
+
+        $error = $this->captureLinkError(self::CANCELLED_JOB_ID);
+
+        self::assertSame(400, $error->getStatusCode());
+        self::assertSame('ESI job 300 has no output', $error->getMessage());
+        self::assertCount(0, $this->step->getJobMatches());
+        self::assertSame('auto', $this->step->getJobMatchMode());
+    }
+
+    #[Group('issue-187')]
+    public function testJobLinkedByHandIsKeptAloneWhenJobsAreMatchedAgain(): void
+    {
+        $this->givenSpecStepS();
+        $this->givenUsersJobsOnBlueprint1001();
+
+        $this->link(self::DELIVERED_JOB_ID);
+        $linkedMatch = $this->onlyJobMatch();
+        $this->createJobMatcher()->matchEsiJobs($this->project);
+
+        self::assertSame([$linkedMatch], array_values($this->step->getJobMatches()->toArray()));
+        self::assertSame([self::DELIVERED_JOB_ID], $this->matchedJobIds($this->step));
+        self::assertSame(10, $linkedMatch->getRuns());
+        self::assertSame(self::SPEC_STEP_RUNS, $this->step->getRuns());
+        self::assertSame('manual', $this->step->getJobMatchMode());
+    }
+
+    #[Group('issue-187')]
+    public function testJobMatchedAutomaticallyBeforeAManualLinkIsKeptWithItWhenJobsAreMatchedAgain(): void
+    {
+        $this->givenSpecStepS();
+        $automaticMatch = (new IndustryStepJobMatch())
+            ->setEsiJobId(self::FIRST_ACTIVE_JOB_ID)
+            ->setRuns(10)
+            ->setStatus('active')
+            ->setCost(980_000.25);
+        $this->step->addJobMatch($automaticMatch);
+        $this->givenUsersJobsOnBlueprint1001();
+
+        $this->link(self::DELIVERED_JOB_ID);
+        [, $linkedMatch] = array_values($this->step->getJobMatches()->toArray());
+        $this->createJobMatcher()->matchEsiJobs($this->project);
+
+        self::assertSame([$automaticMatch, $linkedMatch], array_values($this->step->getJobMatches()->toArray()));
+        self::assertSame([self::FIRST_ACTIVE_JOB_ID, self::DELIVERED_JOB_ID], $this->matchedJobIds($this->step));
+        self::assertSame(980_000.25, $automaticMatch->getCost());
+        self::assertSame('manual', $this->step->getJobMatchMode());
+    }
+
+    #[Group('issue-187')]
+    public function testJobLinkedByHandIsReservedAndOtherAutoStepOfSameBlueprintGetsTheOtherJobs(): void
+    {
+        $this->givenSpecStepS();
+        $stepT = (new IndustryProjectStep())
+            ->setBlueprintTypeId(self::MANUFACTURING_BLUEPRINT_TYPE_ID)
+            ->setActivityType('manufacturing')
+            ->setRuns(self::SPEC_STEP_RUNS)
+            ->setQuantity(self::SPEC_STEP_RUNS);
+        $this->project->addStep($stepT);
+        $this->givenUsersJobsOnBlueprint1001();
+
+        $this->link(self::DELIVERED_JOB_ID);
+        $this->createJobMatcher()->matchEsiJobs($this->project);
+
+        self::assertSame([self::DELIVERED_JOB_ID], $this->matchedJobIds($this->step));
+        self::assertSame([self::FIRST_ACTIVE_JOB_ID, self::SECOND_ACTIVE_JOB_ID], $this->matchedJobIds($stepT));
+        self::assertSame('auto', $stepT->getJobMatchMode());
+    }
+
     // ===========================================
     // Helpers
     // ===========================================
@@ -497,8 +607,6 @@ class LinkJobProcessorTest extends TestCase
         ?IndustryProjectStepRepository $stepRepository = null,
         ?IndustryStepCalculator $stepCalculator = null,
     ): LinkJobProcessor {
-        $stepCalculator ??= $this->createStub(IndustryStepCalculator::class);
-
         return new LinkJobProcessor(
             $security ?? $this->security,
             $projectRepository ?? $this->projectRepository,
@@ -506,14 +614,65 @@ class LinkJobProcessorTest extends TestCase
             $this->jobRepository,
             $this->mapper,
             $this->entityManager,
-            new IndustryJobMatcher(
-                $stepCalculator,
-                $this->calculationService,
-                $this->jobRepository,
-                $this->structureConfigRepository,
-                $this->entityManager,
-            ),
+            $this->createJobMatcher($stepCalculator),
         );
+    }
+
+    private function createJobMatcher(?IndustryStepCalculator $stepCalculator = null): IndustryJobMatcher
+    {
+        return new IndustryJobMatcher(
+            $stepCalculator ?? $this->createStub(IndustryStepCalculator::class),
+            $this->calculationService,
+            $this->jobRepository,
+            $this->structureConfigRepository,
+            $this->entityManager,
+        );
+    }
+
+    private function givenSpecStepS(): void
+    {
+        $this->givenStepS();
+        $this->step->setRuns(self::SPEC_STEP_RUNS)->setQuantity(self::SPEC_STEP_RUNS);
+        $this->project->setJobsStartDate(new \DateTimeImmutable('2026-10-15 00:00:00'));
+        $this->project->addStep($this->step);
+    }
+
+    private function givenUsersJobsOnBlueprint1001(): void
+    {
+        $jobs = [
+            self::DELIVERED_JOB_ID => $this->createSpecJob(self::DELIVERED_JOB_ID, 'delivered', 1_250_000.75, '2026-10-20 09:00:00'),
+            self::FIRST_ACTIVE_JOB_ID => $this->createSpecJob(self::FIRST_ACTIVE_JOB_ID, 'active', 1_310_000.5, '2026-10-21 10:00:00'),
+            self::SECOND_ACTIVE_JOB_ID => $this->createSpecJob(self::SECOND_ACTIVE_JOB_ID, 'active', 1_420_000.25, '2026-10-22 11:00:00'),
+        ];
+
+        $this->jobRepository->method('findByJobId')
+            ->willReturnCallback(static fn (int $requestedJobId) => $jobs[$requestedJobId] ?? null);
+        $this->jobRepository->method('findManufacturingJobsByBlueprint')
+            ->willReturnCallback(static fn (int $blueprintTypeId) => $blueprintTypeId === self::MANUFACTURING_BLUEPRINT_TYPE_ID ? array_values($jobs) : []);
+    }
+
+    private function createSpecJob(int $jobId, string $status, float $cost, string $startDate): CachedIndustryJob
+    {
+        return (new CachedIndustryJob())
+            ->setCharacter($this->mainCharacter)
+            ->setJobId($jobId)
+            ->setActivityId(self::ACTIVITY_MANUFACTURING)
+            ->setBlueprintTypeId(self::MANUFACTURING_BLUEPRINT_TYPE_ID)
+            ->setProductTypeId(self::MANUFACTURING_BLUEPRINT_TYPE_ID + 500)
+            ->setRuns(self::SPEC_JOB_RUNS)
+            ->setCost($cost)
+            ->setStatus($status)
+            ->setStartDate(new \DateTimeImmutable($startDate))
+            ->setEndDate((new \DateTimeImmutable($startDate))->modify('+1 day'));
+    }
+
+    /** @return list<int> */
+    private function matchedJobIds(IndustryProjectStep $step): array
+    {
+        return array_values(array_map(
+            static fn (IndustryStepJobMatch $match): int => $match->getEsiJobId(),
+            $step->getJobMatches()->toArray(),
+        ));
     }
 
     private function givenSpecJob(
