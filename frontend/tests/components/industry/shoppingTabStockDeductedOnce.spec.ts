@@ -128,7 +128,7 @@ function project(steps: IndustryProjectStep[]): IndustryProject {
   }
 }
 
-function shoppingLine(typeId: number, typeName: string, quantity: number, unitPrice: number): ShoppingListItem {
+function shoppingLine(typeId: number, typeName: string, quantity: number, unitPrice: number, purchasedQuantity = 0): ShoppingListItem {
   return {
     typeId,
     typeName,
@@ -144,7 +144,7 @@ function shoppingLine(typeId: number, typeName: string, quantity: number, unitPr
     bestLocation: 'jita',
     bestPrice: unitPrice * quantity,
     savings: null,
-    purchasedQuantity: 0,
+    purchasedQuantity,
     extraQuantity: 0,
     jitaWeightedUnitPrice: null,
     jitaWeightedTotal: null,
@@ -183,10 +183,14 @@ interface ShoppingTabExposed {
   enrichedShoppingList: EnrichedShoppingItem[]
 }
 
-async function mountShoppingTab(steps: IndustryProjectStep[], materials: ShoppingListItem[]) {
-  vi.mocked(apiRequest).mockImplementation(async (url: string) => {
+async function mountShoppingTab(
+  steps: IndustryProjectStep[],
+  materials: ShoppingListItem[],
+  respond: (url: string, options?: RequestInit) => unknown = url => { throw new Error(`Unexpected request ${url}`) },
+) {
+  vi.mocked(apiRequest).mockImplementation(async (url: string, options?: RequestInit) => {
     if (url.includes('/shopping-list')) return shoppingListResponse(materials)
-    throw new Error(`Unexpected request ${url}`)
+    return respond(url, options)
   })
   useProjectsStore().currentProject = project(steps)
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -261,5 +265,80 @@ describe('ShoppingTab stock deduction', () => {
 
     expect(vi.mocked(apiRequest).mock.calls.filter(([, options]) => options?.method === 'PATCH')).toEqual([])
     expect(missingOf(exposed, INTERMEDIATE_TYPE_ID)).toBe(60)
+  })
+
+  it('does not count intermediate step stock as pasted stock when nothing is pasted', async () => {
+    const { exposed } = await mountShoppingTab(
+      [ROOT_STEP, intermediateStep({ inStockQuantity: 40 })],
+      [shoppingLine(INTERMEDIATE_TYPE_ID, INTERMEDIATE_NAME, 60, 1_270_000)],
+    )
+
+    expect(missingOf(exposed, INTERMEDIATE_TYPE_ID)).toBe(60)
+  })
+
+  it('deducts the pasted intermediate stock exceeding its step stock', async () => {
+    persistPastedStock(INTERMEDIATE_NAME, 70)
+    const { exposed } = await mountShoppingTab(
+      [ROOT_STEP, intermediateStep({ inStockQuantity: 40 })],
+      [shoppingLine(INTERMEDIATE_TYPE_ID, INTERMEDIATE_NAME, 60, 1_280_000)],
+    )
+
+    exposed.loadPersistedStock()
+    await flushPromises()
+
+    expect(missingOf(exposed, INTERMEDIATE_TYPE_ID)).toBe(30)
+  })
+
+  it('deducts the purchased quantity of an intermediate whose pasted stock is in its step', async () => {
+    persistPastedStock(INTERMEDIATE_NAME, 40)
+    const { exposed } = await mountShoppingTab(
+      [ROOT_STEP, intermediateStep({ inStockQuantity: 40 })],
+      [shoppingLine(INTERMEDIATE_TYPE_ID, INTERMEDIATE_NAME, 60, 1_290_000, 25)],
+    )
+
+    exposed.loadPersistedStock()
+    await flushPromises()
+
+    expect(missingOf(exposed, INTERMEDIATE_TYPE_ID)).toBe(35)
+  })
+
+  it('subtracts the stock of every split group step from the pasted intermediate stock', async () => {
+    persistPastedStock(INTERMEDIATE_NAME, 70)
+    const { exposed } = await mountShoppingTab(
+      [
+        ROOT_STEP,
+        intermediateStep({ id: 'step-intermediate-split-0', quantity: 60, runs: 60, inStockQuantity: 60, splitGroupId: 'split-intermediate', splitIndex: 0, totalGroupRuns: 100 }),
+        intermediateStep({ id: 'step-intermediate-split-1', quantity: 40, runs: 40, inStockQuantity: 10, splitGroupId: 'split-intermediate', splitIndex: 1, totalGroupRuns: 100 }),
+      ],
+      [shoppingLine(INTERMEDIATE_TYPE_ID, INTERMEDIATE_NAME, 30, 1_300_000)],
+    )
+
+    exposed.loadPersistedStock()
+    await flushPromises()
+
+    expect(missingOf(exposed, INTERMEDIATE_TYPE_ID)).toBe(30)
+  })
+
+  it('updates the step stock of a pasted manufactured intermediate then reloads the project', async () => {
+    const stepWithPastedStock = intermediateStep({ inStockQuantity: 40 })
+    const { wrapper } = await mountShoppingTab(
+      [ROOT_STEP, intermediateStep({})],
+      [shoppingLine(INTERMEDIATE_TYPE_ID, INTERMEDIATE_NAME, 100, 1_320_000), shoppingLine(RAW_MATERIAL_TYPE_ID, RAW_MATERIAL_NAME, 900, 4.25)],
+      (_url, options) => {
+        if (options?.method === 'PATCH') return { ...stepWithPastedStock }
+        return project([ROOT_STEP, { ...stepWithPastedStock }])
+      },
+    )
+    const configPanel = wrapper.findComponent({ name: 'ShoppingConfigPanel' })
+
+    configPanel.vm.$emit('update:pasted-stock', `${INTERMEDIATE_NAME}\t40`)
+    await flushPromises()
+    configPanel.vm.$emit('analyze-stock')
+    await flushPromises()
+
+    expect(vi.mocked(apiRequest).mock.calls.filter(([url]) => !url.includes('/shopping-list'))).toEqual([
+      [`/industry/projects/${PROJECT_ID}/steps/step-intermediate`, { method: 'PATCH', body: JSON.stringify({ inStockQuantity: 40 }) }],
+      [`/industry/projects/${PROJECT_ID}`],
+    ])
   })
 })

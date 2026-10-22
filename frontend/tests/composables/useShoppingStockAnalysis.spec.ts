@@ -131,6 +131,28 @@ const SECOND_SPLIT_INTERMEDIATE_STEP = step({
   totalGroupRuns: 100,
 })
 
+const ROOT_PRODUCT_SUBCOMPONENT_STEP = step({
+  id: 'step-root-product-depth-1',
+  blueprintTypeId: ROOT_BLUEPRINT_TYPE_ID,
+  productTypeId: ROOT_TYPE_ID,
+  productTypeName: ROOT_NAME,
+  quantity: 3,
+  runs: 3,
+  depth: 1,
+  activityType: 'manufacturing',
+})
+
+const INTERMEDIATE_COPY_STEP = step({
+  id: 'step-intermediate-copy',
+  blueprintTypeId: INTERMEDIATE_BLUEPRINT_TYPE_ID,
+  productTypeId: INTERMEDIATE_TYPE_ID,
+  productTypeName: INTERMEDIATE_NAME,
+  quantity: 5,
+  runs: 5,
+  depth: 1,
+  activityType: 'copy',
+})
+
 function treeNode(overrides: Partial<ProductionTreeNode> & Pick<ProductionTreeNode, 'blueprintTypeId' | 'productTypeId' | 'productTypeName' | 'quantity' | 'runs' | 'depth' | 'activityType' | 'materials'>): ProductionTreeNode {
   return {
     hasCopy: false,
@@ -241,7 +263,7 @@ function mountStockAnalysis(initialSteps: IndustryProjectStep[]) {
     return steps.value.find(s => s.id === stepId)?.inStockQuantity
   }
 
-  return { analysis, toggleStepInStock, paste, inStockQuantityOf }
+  return { analysis, toggleStepInStock, fetchProject, paste, inStockQuantityOf }
 }
 
 beforeEach(() => {
@@ -314,5 +336,95 @@ describe('useShoppingStockAnalysis', () => {
 
     expect(toggleStepInStock.mock.calls).toEqual([])
     expect(analysis.parsedStock.value).toEqual([{ name: ROOT_NAME, quantity: 1 }])
+  })
+
+  it('reloads the project once after an intermediate step stock changes', async () => {
+    const { fetchProject, paste } = mountStockAnalysis([ROOT_STEP, INTERMEDIATE_STEP, CHILD_STEP])
+
+    await paste(`${INTERMEDIATE_NAME}\t40`)
+
+    expect(fetchProject.mock.calls).toEqual([[PROJECT_ID]])
+  })
+
+  it('does not reload the project when the same intermediate stock is pasted again', async () => {
+    const { fetchProject, paste } = mountStockAnalysis([ROOT_STEP, INTERMEDIATE_STEP, CHILD_STEP])
+    await paste(`${INTERMEDIATE_NAME}\t40`)
+    fetchProject.mockClear()
+
+    await paste(`${INTERMEDIATE_NAME}\t40`)
+
+    expect(fetchProject.mock.calls).toEqual([])
+  })
+
+  it('does not reload the project when the root product is pasted', async () => {
+    const { fetchProject, paste } = mountStockAnalysis([ROOT_STEP, INTERMEDIATE_STEP, CHILD_STEP])
+
+    await paste(`${ROOT_NAME}\t1`)
+
+    expect(fetchProject.mock.calls).toEqual([])
+  })
+
+  it('lowers the split group steps when a smaller intermediate quantity is pasted', async () => {
+    const { toggleStepInStock, paste } = mountStockAnalysis([
+      ROOT_STEP,
+      { ...FIRST_SPLIT_INTERMEDIATE_STEP, inStockQuantity: 60, inStock: true },
+      { ...SECOND_SPLIT_INTERMEDIATE_STEP, inStockQuantity: 10 },
+      CHILD_STEP,
+    ])
+
+    await paste(`${INTERMEDIATE_NAME}\t50`)
+
+    expect(toggleStepInStock.mock.calls).toEqual([
+      [PROJECT_ID, FIRST_SPLIT_INTERMEDIATE_STEP.id, 50],
+      [PROJECT_ID, SECOND_SPLIT_INTERMEDIATE_STEP.id, 0],
+    ])
+  })
+
+  it('updates only the split group step whose stock changes', async () => {
+    const { toggleStepInStock, paste } = mountStockAnalysis([
+      ROOT_STEP,
+      { ...FIRST_SPLIT_INTERMEDIATE_STEP, inStockQuantity: 60, inStock: true },
+      SECOND_SPLIT_INTERMEDIATE_STEP,
+      CHILD_STEP,
+    ])
+
+    await paste(`${INTERMEDIATE_NAME}\t70`)
+
+    expect(toggleStepInStock.mock.calls).toEqual([[PROJECT_ID, SECOND_SPLIT_INTERMEDIATE_STEP.id, 10]])
+  })
+
+  it('sends no step update for a deeper step producing the root product', async () => {
+    const { toggleStepInStock, paste } = mountStockAnalysis([ROOT_STEP, ROOT_PRODUCT_SUBCOMPONENT_STEP, INTERMEDIATE_STEP])
+
+    await paste(`${ROOT_NAME}\t2`)
+
+    expect(toggleStepInStock.mock.calls).toEqual([])
+  })
+
+  it('ignores a copy step of the pasted intermediate', async () => {
+    const { toggleStepInStock, paste } = mountStockAnalysis([ROOT_STEP, INTERMEDIATE_COPY_STEP, INTERMEDIATE_STEP, CHILD_STEP])
+
+    await paste(`${INTERMEDIATE_NAME}\t40`)
+
+    expect(toggleStepInStock.mock.calls).toEqual([[PROJECT_ID, INTERMEDIATE_STEP.id, 40]])
+  })
+
+  it('matches the pasted intermediate name regardless of case', async () => {
+    const { toggleStepInStock, paste } = mountStockAnalysis([ROOT_STEP, INTERMEDIATE_STEP, CHILD_STEP])
+
+    await paste(`${INTERMEDIATE_NAME.toLowerCase()}\t40`)
+
+    expect(toggleStepInStock.mock.calls).toEqual([[PROJECT_ID, INTERMEDIATE_STEP.id, 40]])
+  })
+
+  it('replaces the stock of an intermediate step already fully in stock', async () => {
+    const { toggleStepInStock, paste, inStockQuantityOf } = mountStockAnalysis([ROOT_STEP, INTERMEDIATE_STEP, CHILD_STEP])
+    await paste(`${INTERMEDIATE_NAME}\t${INTERMEDIATE_QUANTITY}`)
+    toggleStepInStock.mockClear()
+
+    await paste(`${INTERMEDIATE_NAME}\t30`)
+
+    expect(toggleStepInStock.mock.calls).toEqual([[PROJECT_ID, INTERMEDIATE_STEP.id, 30]])
+    expect(inStockQuantityOf(INTERMEDIATE_STEP.id)).toBe(30)
   })
 })
