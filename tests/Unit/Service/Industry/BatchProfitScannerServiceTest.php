@@ -33,6 +33,7 @@ use PHPUnit\Framework\TestCase;
 class BatchProfitScannerServiceTest extends TestCase
 {
     use ResolvesTypeNamesFromSde;
+    use CreatesUserWithId;
 
     private const array SCAN_SDE_TYPE_NAMES = [
         34 => 'Tritanium',
@@ -184,9 +185,9 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->assertGreaterThan(0.0, $result[0]['profitPerUnit']);
         $this->assertSame(15.0, $result[0]['dailyVolume']);
         $this->assertGreaterThan(0.0, $result[0]['iskPerDay']);
-        $this->assertSame(562500.0, $result[0]['profitPerUnit']);
-        $this->assertSame(32.01, $result[0]['marginPercent']);
-        $this->assertSame(8437500.0, $result[0]['iskPerDay']);
+        $this->assertSame(557875.0, $result[0]['profitPerUnit']);
+        $this->assertSame(31.66, $result[0]['marginPercent']);
+        $this->assertSame(8368125.0, $result[0]['iskPerDay']);
     }
 
     public function testScanFiltersNegativeMargin(): void
@@ -642,8 +643,7 @@ class BatchProfitScannerServiceTest extends TestCase
 
     public function testScanIncludesBpcCostInTotalCost(): void
     {
-        $user = $this->createMock(\App\Entity\User::class);
-        $user->method('getCharacters')->willReturn(new \Doctrine\Common\Collections\ArrayCollection());
+        $user = $this->userWithId();
 
         // Setup BPC price mock to return a price for blueprint 586
         $this->bpcPriceRepository = $this->createMock(IndustryBpcPriceRepository::class);

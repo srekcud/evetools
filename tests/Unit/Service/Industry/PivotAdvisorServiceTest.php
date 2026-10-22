@@ -92,6 +92,7 @@ class PivotAdvisorServiceTest extends TestCase
             $this->typeNameResolver,
             $this->entityManager,
             $this->inventionService,
+            new FacilityTaxRateResolver(new InMemoryUserProductionStructures()),
         );
     }
 
