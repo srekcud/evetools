@@ -29,7 +29,6 @@ class JitaMarketService
     private const SYNC_BATCH_SIZE = 20;
     private const ON_DEMAND_BATCH_SIZE = 10;
     private const VOLUME_CACHE_PREFIX = 'jita_volume_';
-    private const REGIONAL_VOLUME_CACHE_FORMAT = 'volume_%d_%d';
     private const REGIONAL_VOLUME_CACHE_FORMAT_PREFIX = 'volume_%d_';
     private const VOLUME_CACHE_TTL = 86400; // 24 hours
     private const VOLUME_HISTORY_DAYS = 30;
@@ -446,25 +445,6 @@ class JitaMarketService
         $result = [];
         foreach ($typeIds as $typeId) {
             $cacheItem = $this->cache->getItem(self::VOLUME_CACHE_PREFIX . $typeId);
-            $result[$typeId] = $cacheItem->isHit() ? (float) $cacheItem->get() : 0.0;
-        }
-
-        return $result;
-    }
-
-    /**
-     * Get cached daily volumes for a specific region (no ESI fetch for uncached types).
-     * Returns 0.0 for types without cached volume data.
-     *
-     * @param int[] $typeIds
-     * @return array<int, float> typeId => avgDailyVolume
-     */
-    public function getCachedDailyVolumesForRegion(int $regionId, array $typeIds): array
-    {
-        $result = [];
-        foreach ($typeIds as $typeId) {
-            $cacheKey = sprintf(self::REGIONAL_VOLUME_CACHE_FORMAT, $regionId, $typeId);
-            $cacheItem = $this->cache->getItem($cacheKey);
             $result[$typeId] = $cacheItem->isHit() ? (float) $cacheItem->get() : 0.0;
         }
 
