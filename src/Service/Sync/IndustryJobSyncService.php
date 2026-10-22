@@ -127,7 +127,7 @@ class IndustryJobSyncService implements ResetInterface
             }
 
             // Track which ESI job IDs belong to the user's characters (not corpmates)
-            $ownedEsiJobIds = [];
+            $syncedJobsByJobId = [];
 
             foreach ($jobsByJobId as $jobData) {
                 // Resolve the actual installer character — skip jobs from corpmates
@@ -137,7 +137,6 @@ class IndustryJobSyncService implements ResetInterface
                     continue;
                 }
                 $installerCharacter = $installerLookup[$installerId];
-                $ownedEsiJobIds[] = $jobData['job_id'];
 
                 $existing = $this->jobRepository->findByJobId($jobData['job_id']);
 
@@ -150,10 +149,12 @@ class IndustryJobSyncService implements ResetInterface
                     $existing->setCharacter($installerCharacter);
                     $existing->setStatus($jobData['status']);
                     $existing->setStationId($jobData['facility_id'] ?? $jobData['station_id'] ?? null);
+                    $existing->setEndDate(new \DateTimeImmutable($jobData['end_date']));
                     if (isset($jobData['completed_date'])) {
                         $existing->setCompletedDate(new \DateTimeImmutable($jobData['completed_date']));
                     }
                     $existing->setCachedAt(new \DateTimeImmutable());
+                    $syncedJobsByJobId[$jobData['job_id']] = $existing;
 
                     // Track newly ready jobs
                     if ($wasActive && $isNowReady) {
@@ -179,6 +180,7 @@ class IndustryJobSyncService implements ResetInterface
                 }
 
                 $this->entityManager->persist($job);
+                $syncedJobsByJobId[$jobData['job_id']] = $job;
             }
 
             // Mark stale jobs of the synced character as delivered: jobs in DB that disappeared
@@ -189,7 +191,7 @@ class IndustryJobSyncService implements ResetInterface
                 $now = new \DateTimeImmutable();
                 foreach ($this->jobRepository->findActiveJobsByCharacter($character) as $dbJob) {
                     $jobId = $dbJob->getJobId();
-                    if (in_array($jobId, $ownedEsiJobIds, true) || isset($this->corporationJobIdsSeenThisRun[$jobId])) {
+                    if (isset($syncedJobsByJobId[$jobId]) || isset($this->corporationJobIdsSeenThisRun[$jobId])) {
                         continue;
                     }
                     if ($dbJob->getStatus() === CachedIndustryJob::STATUS_PAUSED || $dbJob->getEndDate() > $now) {
@@ -198,12 +200,17 @@ class IndustryJobSyncService implements ResetInterface
                     $dbJob->setStatus('delivered');
                     $dbJob->setCompletedDate($dbJob->getEndDate());
                     $dbJob->setCachedAt($now);
+                    $syncedJobsByJobId[$jobId] = $dbJob;
                     $this->logger->info('Stale industry job marked as delivered', [
                         'jobId' => $jobId,
                         'characterName' => $character->getName(),
                         'endDate' => $dbJob->getEndDate()->format('c'),
                     ]);
                 }
+            }
+
+            foreach ($this->jobMatchRepository->findByEsiJobIds(array_keys($syncedJobsByJobId)) as $jobMatch) {
+                $jobMatch->copyJobState($syncedJobsByJobId[$jobMatch->getEsiJobId()]);
             }
 
             $this->entityManager->flush();

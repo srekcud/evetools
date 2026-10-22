@@ -189,6 +189,15 @@ class IndustryStepJobMatch
         return $this;
     }
 
+    public function copyJobState(CachedIndustryJob $job): static
+    {
+        $this->status = $job->getStatus();
+        $this->endDate = $job->getEndDate();
+        $this->cost = $job->getCost();
+        $this->runs = $job->getRuns();
+        return $this;
+    }
+
     public function getMatchedAt(): \DateTimeImmutable
     {
         return $this->matchedAt;

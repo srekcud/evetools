@@ -87,10 +87,7 @@ class LinkJobProcessor implements ProcessorInterface
         // Create the match
         $match = new IndustryStepJobMatch();
         $match->setEsiJobId($esiJobId);
-        $match->setCost($job->getCost());
-        $match->setStatus($job->getStatus());
-        $match->setEndDate($job->getEndDate());
-        $match->setRuns($job->getRuns());
+        $match->copyJobState($job);
         $match->setCharacterName($job->getCharacter()->getName());
 
         // Capture facility info from ESI job
