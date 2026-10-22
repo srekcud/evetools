@@ -71,6 +71,40 @@ final class CostEstimationProviderTest extends TestCase
         self::assertSame([], $resource->failedProducts);
     }
 
+    #[Group('issue-7')]
+    public function testCostEstimationWithAnUnknownJobInstallStepExposesUnknownJobTotalTotalAndPerUnitCostsAndTheUnknownStep(): void
+    {
+        $unknownStep = [
+            'stepId' => 'step-unindexed',
+            'productTypeId' => self::RIFTER_TYPE_ID,
+            'productName' => 'Rifter',
+            'solarSystemId' => 30_002_510,
+            'systemName' => 'Unindexed',
+            'costIndex' => null,
+            'runs' => 2,
+            'installCost' => null,
+            'unknownReason' => 'missing_cost_index',
+            'missingAdjustedPriceTypeIds' => [],
+        ];
+
+        $resource = $this->provideFor([
+            'materialCost' => 8700.0,
+            'jobInstallCost' => null,
+            'bpoCost' => 1000.0,
+            'totalCost' => null,
+            'perUnit' => null,
+            'materials' => [$this->pyeriteMaterial()],
+            'jobInstallSteps' => [$unknownStep],
+            'failedProducts' => [],
+        ]);
+
+        self::assertSame(8700.0, $resource->materialCost);
+        self::assertNull($resource->jobInstallCost);
+        self::assertNull($resource->totalCost);
+        self::assertNull($resource->perUnit);
+        self::assertSame([$unknownStep], $resource->jobInstallSteps);
+    }
+
     private function provideFor(array $estimation): CostEstimationResource
     {
         $user = new User();

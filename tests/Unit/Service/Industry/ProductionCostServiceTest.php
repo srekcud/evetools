@@ -18,10 +18,12 @@ use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\Industry\EsiCostIndexService;
+use App\Service\Industry\FacilityTaxRateResolver;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryShoppingListBuilder;
 use App\Service\Industry\ProductionCostService;
 use App\Service\JitaMarketService;
+use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use Doctrine\Common\Collections\ArrayCollection;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -33,11 +35,13 @@ use Symfony\Component\Uid\Uuid;
 class ProductionCostServiceTest extends TestCase
 {
     use ResolvesTypeNamesFromSde;
+    use CreatesUserWithId;
 
     private const int RIFTER_TYPE_ID = 587;
     private const int RIFTER_BLUEPRINT_TYPE_ID = 691;
     private const int PYERITE_TYPE_ID = 35;
     private const string ROBOTICS_FAILURE_REASON = 'No blueprint or reaction found for product type ID 9848';
+    private const float NPC_STATION_FACILITY_TAX_PERCENT = 0.25;
     private const int TYPE_MISSING_FROM_SDE_ID = 123456;
     private const string TYPE_MISSING_FROM_SDE_REASON = 'Types missing from the SDE: 123456';
 
@@ -71,6 +75,7 @@ class ProductionCostServiceTest extends TestCase
             $this->materialRepository,
             $this->productRepository,
             $this->solarSystemRepository,
+            $this->facilityTaxRateResolver(),
         );
     }
 
@@ -80,7 +85,7 @@ class ProductionCostServiceTest extends TestCase
 
     private function createProject(int $productTypeId, int $runs, ?float $bpoCost = null): IndustryProject&MockObject
     {
-        $user = $this->createMock(User::class);
+        $user = $this->userWithId();
         $project = $this->createMock(IndustryProject::class);
         $project->method('getProductTypeId')->willReturn($productTypeId);
         $project->method('getRuns')->willReturn($runs);
@@ -106,6 +111,35 @@ class ProductionCostServiceTest extends TestCase
         $step->method('getBlueprintTypeId')->willReturn($blueprintTypeId);
 
         return $step;
+    }
+
+    private function facilityTaxRateResolver(): FacilityTaxRateResolver
+    {
+        return new FacilityTaxRateResolver(new InMemoryUserProductionStructures());
+    }
+
+    private function installCostOf(float $cost): array
+    {
+        return ['cost' => $cost, 'unknownReason' => null, 'missingAdjustedPriceTypeIds' => []];
+    }
+
+    private function unknownInstallCost(string $reason, array $missingAdjustedPriceTypeIds = []): array
+    {
+        return ['cost' => null, 'unknownReason' => $reason, 'missingAdjustedPriceTypeIds' => $missingAdjustedPriceTypeIds];
+    }
+
+    private function recordInstallCostEstimates(callable $estimate): \ArrayObject
+    {
+        $calls = new \ArrayObject();
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturnCallback(
+            function (array $materials, int $runs, int $solarSystemId, string $activity, ?float $facilityTaxRate) use ($calls, $estimate): array {
+                $calls->append([$materials, $runs, $solarSystemId, $activity, $facilityTaxRate]);
+
+                return $estimate($materials);
+            },
+        );
+
+        return $calls;
     }
 
     private function createStructureConfig(int $solarSystemId, ?float $facilityTaxRate = null): IndustryStructureConfig
@@ -280,31 +314,9 @@ class ProductionCostServiceTest extends TestCase
                 };
             });
 
-        // calculateEiv returns the EIV, then calculateJobInstallCost uses it
-        $this->esiCostIndexService
-            ->method('calculateEiv')
-            ->willReturnCallback(function (array $materials): float {
-                $total = 0.0;
-                foreach ($materials as $mat) {
-                    // Simulate: Tritanium adjusted price = 5.0
-                    if ($mat['materialTypeId'] === 34) {
-                        $total += 5.0 * $mat['quantity'];
-                    }
-                }
-
-                return $total;
-            });
-
-        $this->esiCostIndexService
-            ->method('calculateJobInstallCost')
-            ->willReturnCallback(function (float $eiv): float {
-                // Simulate: 500000 EIV -> 150000, 100000 EIV -> 30000
-                return match (true) {
-                    $eiv >= 500000.0 => 150000.0,
-                    $eiv >= 100000.0 => 30000.0,
-                    default => 0.0,
-                };
-            });
+        $calls = $this->recordInstallCostEstimates(fn (array $materials): array => $this->installCostOf(
+            $materials[0]['quantity'] === 100000 ? 150000.0 : 30000.0,
+        ));
 
         $this->esiCostIndexService
             ->method('getCostIndex')
@@ -326,6 +338,11 @@ class ProductionCostServiceTest extends TestCase
         $this->assertCount(2, $result['steps']); // copy step excluded
         $this->assertSame(587, $result['steps'][0]['productTypeId']);
         $this->assertSame(150000.0, $result['steps'][0]['installCost']);
+        $this->assertSame(0.05, $result['steps'][0]['costIndex']);
+        $this->assertSame([
+            [[['materialTypeId' => 34, 'quantity' => 100000]], 10, 30002510, 'manufacturing', 10.0],
+            [[['materialTypeId' => 34, 'quantity' => 20000]], 5, 30002510, 'manufacturing', 10.0],
+        ], $calls->getArrayCopy());
     }
 
     public function testEstimateJobInstallCostsIncludesReactionSteps(): void
@@ -339,8 +356,7 @@ class ProductionCostServiceTest extends TestCase
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
             30002 => [['materialTypeId' => 200, 'quantity' => 1000]],
         ]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(50000.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(5000.0);
+        $calls = $this->recordInstallCostEstimates(fn (array $materials): array => $this->installCostOf(5000.0));
         $this->esiCostIndexService->method('getCostIndex')->willReturn(0.02);
         $this->calculationService->method('resolveTypeName')->willReturn('RCF');
         $this->solarSystemRepository->method('findBySolarSystemId')->willReturn(null);
@@ -351,6 +367,9 @@ class ProductionCostServiceTest extends TestCase
         $this->assertSame(5000.0, $result['total']);
         $this->assertCount(1, $result['steps']);
         $this->assertSame(30003, $result['steps'][0]['productTypeId']);
+        $this->assertSame([
+            [[['materialTypeId' => 200, 'quantity' => 1000]], 20, 30002510, 'reaction', null],
+        ], $calls->getArrayCopy());
     }
 
     public function testEstimateJobInstallCostsFallsBackToJitaSolarSystem(): void
@@ -366,14 +385,18 @@ class ProductionCostServiceTest extends TestCase
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
             586 => [['materialTypeId' => 34, 'quantity' => 100000]],
         ]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(500000.0);
 
-        // Should use JITA_SOLAR_SYSTEM_ID (30000142 = Jita) as fallback
         $this->esiCostIndexService
             ->expects($this->once())
-            ->method('calculateJobInstallCost')
-            ->with(500000.0, 1, EveConstants::JITA_SOLAR_SYSTEM_ID, 'manufacturing', null)
-            ->willReturn(1000.0);
+            ->method('estimateJobInstallCost')
+            ->with(
+                [['materialTypeId' => 34, 'quantity' => 100000]],
+                1,
+                EveConstants::JITA_SOLAR_SYSTEM_ID,
+                'manufacturing',
+                self::NPC_STATION_FACILITY_TAX_PERCENT,
+            )
+            ->willReturn($this->installCostOf(1000.0));
 
         $this->esiCostIndexService->method('getCostIndex')->willReturn(0.01);
         $this->calculationService->method('resolveTypeName')->willReturn('Rifter');
@@ -410,8 +433,7 @@ class ProductionCostServiceTest extends TestCase
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
             586 => [['materialTypeId' => 34, 'quantity' => 100000]],
         ]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(500000.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(25000.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn($this->installCostOf(25000.0));
         $this->esiCostIndexService->method('getCostIndex')->willReturn(0.05);
         $this->calculationService->method('resolveTypeName')->willReturn('Rifter');
         $this->solarSystemRepository->method('findBySolarSystemId')->willReturn(null);
@@ -456,8 +478,7 @@ class ProductionCostServiceTest extends TestCase
         ]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 10.0]);
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn($this->installCostOf(0.0));
         $this->esiCostIndexService->method('getCostIndex')->willReturn(0.0);
         $this->calculationService->method('resolveTypeName')->willReturn('Component');
         $this->solarSystemRepository->method('findBySolarSystemId')->willReturn(null);
@@ -489,8 +510,7 @@ class ProductionCostServiceTest extends TestCase
         $this->shoppingListBuilder->method('getShoppingList')->willReturn(['materials' => [], 'failedProducts' => []]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([]);
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(0.0);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn($this->installCostOf(0.0));
         $this->esiCostIndexService->method('getCostIndex')->willReturn(0.0);
         $this->calculationService->method('resolveTypeName')->willReturn('Rifter');
         $this->solarSystemRepository->method('findBySolarSystemId')->willReturn(null);
@@ -552,7 +572,50 @@ class ProductionCostServiceTest extends TestCase
         self::assertSame([], $result['failedProducts']);
     }
 
-    private function projectWithOneRifterManufacturingStep(float $bpoCost): IndustryProject&MockObject
+    #[Group('issue-7')]
+    public function testEstimateTotalCostWithAnUnknownStepHasUnknownJobTotalAndTotalAndPerUnitCostsAndKnownMaterialCost(): void
+    {
+        $project = $this->projectWithOneRifterManufacturingStep(
+            1000.0,
+            $this->unknownInstallCost('missing_cost_index'),
+            null,
+        );
+        $this->stubShoppingList(
+            [['typeId' => self::PYERITE_TYPE_ID, 'typeName' => 'Pyerite', 'quantity' => 1200]],
+            [],
+        );
+
+        $result = $this->service->estimateTotalCost($project);
+
+        self::assertSame(8700.0, $result['materialCost']);
+        self::assertNull($result['jobInstallCost']);
+        self::assertSame(1000.0, $result['bpoCost']);
+        self::assertNull($result['totalCost']);
+        self::assertNull($result['perUnit']);
+        self::assertNull($result['jobInstallSteps'][0]['installCost']);
+        self::assertNull($result['jobInstallSteps'][0]['costIndex']);
+        self::assertSame('missing_cost_index', $result['jobInstallSteps'][0]['unknownReason']);
+        self::assertSame([], $result['jobInstallSteps'][0]['missingAdjustedPriceTypeIds']);
+    }
+
+    #[Group('issue-7')]
+    public function testEstimateJobInstallCostsOfAStepWithAMaterialWithoutAdjustedPriceCarriesTheMissingType(): void
+    {
+        $project = $this->projectWithOneRifterManufacturingStep(
+            1000.0,
+            $this->unknownInstallCost('missing_adjusted_price', [self::PYERITE_TYPE_ID]),
+        );
+
+        $result = $this->service->estimateJobInstallCosts($project);
+
+        self::assertNull($result['total']);
+        self::assertNull($result['steps'][0]['installCost']);
+        self::assertSame(0.0412, $result['steps'][0]['costIndex']);
+        self::assertSame('missing_adjusted_price', $result['steps'][0]['unknownReason']);
+        self::assertSame([self::PYERITE_TYPE_ID], $result['steps'][0]['missingAdjustedPriceTypeIds']);
+    }
+
+    private function projectWithOneRifterManufacturingStep(float $bpoCost, ?array $installCostEstimate = null, ?float $costIndex = 0.0412): IndustryProject&MockObject
     {
         $step = $this->createStep('manufacturing', self::RIFTER_TYPE_ID, 2, $this->createStructureConfig(30002510), self::RIFTER_BLUEPRINT_TYPE_ID);
         $project = $this->createProject(self::RIFTER_TYPE_ID, 2, $bpoCost);
@@ -561,9 +624,8 @@ class ProductionCostServiceTest extends TestCase
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
             self::RIFTER_BLUEPRINT_TYPE_ID => [['materialTypeId' => self::PYERITE_TYPE_ID, 'quantity' => 600]],
         ]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(83_000.0);
-        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(5000.0);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(0.0412);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn($installCostEstimate ?? $this->installCostOf(5000.0));
+        $this->esiCostIndexService->method('getCostIndex')->willReturn($costIndex);
         $this->calculationService->method('resolveTypeName')->willReturn('Rifter');
         $this->solarSystemRepository->method('findBySolarSystemId')->willReturn(null);
         $this->userSettingsRepository->method('findOneBy')->willReturn(null);
@@ -613,13 +675,18 @@ class ProductionCostServiceTest extends TestCase
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
             586 => [['materialTypeId' => 34, 'quantity' => 100000]],
         ]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(500000.0);
 
         $this->esiCostIndexService
             ->expects($this->once())
-            ->method('calculateJobInstallCost')
-            ->with(500000.0, 1, 30004759, 'manufacturing', null)
-            ->willReturn(2000.0);
+            ->method('estimateJobInstallCost')
+            ->with(
+                [['materialTypeId' => 34, 'quantity' => 100000]],
+                1,
+                30004759,
+                'manufacturing',
+                self::NPC_STATION_FACILITY_TAX_PERCENT,
+            )
+            ->willReturn($this->installCostOf(2000.0));
 
         $this->esiCostIndexService->method('getCostIndex')->willReturn(0.05);
         $this->calculationService->method('resolveTypeName')->willReturn('Rifter');
@@ -645,13 +712,18 @@ class ProductionCostServiceTest extends TestCase
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
             30002 => [['materialTypeId' => 200, 'quantity' => 1000]],
         ]);
-        $this->esiCostIndexService->method('calculateEiv')->willReturn(50000.0);
 
         $this->esiCostIndexService
             ->expects($this->once())
-            ->method('calculateJobInstallCost')
-            ->with(50000.0, 10, 30001234, 'reaction', null)
-            ->willReturn(500.0);
+            ->method('estimateJobInstallCost')
+            ->with(
+                [['materialTypeId' => 200, 'quantity' => 1000]],
+                10,
+                30001234,
+                'reaction',
+                self::NPC_STATION_FACILITY_TAX_PERCENT,
+            )
+            ->willReturn($this->installCostOf(500.0));
 
         $this->esiCostIndexService->method('getCostIndex')->willReturn(0.01);
         $this->calculationService->method('resolveTypeName')->willReturn('RCF');
@@ -678,18 +750,12 @@ class ProductionCostServiceTest extends TestCase
                 4314 => [4314 => [['materialTypeId' => 44, 'quantity' => 400]]],
                 default => [],
             });
-        $this->esiCostIndexService->method('calculateEiv')
-            ->willReturnCallback(static fn (array $materials): float => match ($materials[0]['materialTypeId'] ?? null) {
-                34 => 200_000.0,
-                44 => 260_000.0,
-                default => 0.0,
-            });
-        $this->esiCostIndexService->method('calculateJobInstallCost')
-            ->willReturnCallback(static fn (float $eiv): float => match ($eiv) {
-                200_000.0 => 12_400.0,
-                260_000.0 => 9_870.0,
-                default => 0.0,
-            });
+        $calls = $this->recordInstallCostEstimates(fn (array $materials): array => $this->installCostOf(
+            match ($materials[0]['materialTypeId']) {
+                34 => 12_400.0,
+                44 => 9_870.0,
+            },
+        ));
         $this->esiCostIndexService->method('getCostIndex')->willReturn(0.0525);
 
         $solarSystem = $this->createMock(MapSolarSystem::class);
@@ -705,6 +771,7 @@ class ProductionCostServiceTest extends TestCase
             $this->materialRepository,
             $this->productRepository,
             $this->solarSystemRepository,
+            $this->facilityTaxRateResolver(),
         );
 
         $result = $service->estimateJobInstallCosts($project);
@@ -717,5 +784,9 @@ class ProductionCostServiceTest extends TestCase
         self::assertSame(12_400.0, $result['steps'][0]['installCost']);
         self::assertSame(self::NITROGEN_FUEL_BLOCK_NAME, $result['steps'][1]['productName']);
         self::assertSame(9_870.0, $result['steps'][1]['installCost']);
+        self::assertSame([
+            [[['materialTypeId' => 34, 'quantity' => 50_000]], 30, 30004759, 'manufacturing', 0.25],
+            [[['materialTypeId' => 44, 'quantity' => 400]], 40, 30004759, 'manufacturing', 0.25],
+        ], $calls->getArrayCopy());
     }
 }

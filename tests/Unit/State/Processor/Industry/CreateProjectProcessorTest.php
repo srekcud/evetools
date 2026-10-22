@@ -187,6 +187,33 @@ final class CreateProjectProcessorTest extends TestCase
         self::assertEqualsWithDelta(self::ESTIMATED_JOB_COST, $project->getEstimatedJobCost(), 0.001);
     }
 
+    #[Group('issue-7')]
+    public function testUnknownJobInstallCostOfAProjectWithAnUnknownStepLeavesTheEstimatedJobCostUnknown(): void
+    {
+        $user = $this->createStub(User::class);
+        $user->method('getPreferredMarketStructureId')->willReturn(null);
+        $project = $this->projectFor(self::RIFTER);
+        $productionCostService = $this->createStub(ProductionCostService::class);
+        $productionCostService->method('estimateJobInstallCosts')->willReturn(['total' => null, 'steps' => []]);
+        $productionCostService->method('estimateMaterialCost')->willReturn(['total' => 8700.0, 'items' => [], 'failedProducts' => []]);
+        $jitaMarketService = $this->createStub(JitaMarketService::class);
+        $jitaMarketService->method('getPrice')->willReturn(null);
+        $processor = $this->processor(
+            $user,
+            $project,
+            $productionCostService,
+            $jitaMarketService,
+            $this->createStub(StructureMarketService::class),
+            $this->settingsRepositoryReturning($this->userSettings()),
+            new NullLogger(),
+        );
+
+        $processor->process($this->inputFor(self::RIFTER), new Post());
+
+        self::assertNull($project->getEstimatedJobCost());
+        self::assertEqualsWithDelta(8700.0, $project->getEstimatedMaterialCost(), 0.001);
+    }
+
     #[Group('issue-21')]
     public function testT2ProjectIsCreatedWithTheEnteredMeAndTe(): void
     {
