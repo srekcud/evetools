@@ -41,6 +41,15 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    public function claimCompletionNotification(int $jobId, \DateTimeImmutable $claimedAt): bool
+    {
+        return false;
+    }
+
+    public function releaseCompletionNotification(int $jobId): void
+    {
+    }
+
     public function deleteByCharacter(Character $character): void
     {
         $this->createQueryBuilder('j')

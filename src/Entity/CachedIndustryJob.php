@@ -72,6 +72,9 @@ class CachedIndustryJob
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $cachedAt;
 
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $completionNotifiedAt = null;
+
     public function __construct()
     {
         $this->cachedAt = new \DateTimeImmutable();
@@ -227,6 +230,17 @@ class CachedIndustryJob
     public function setCachedAt(\DateTimeImmutable $cachedAt): static
     {
         $this->cachedAt = $cachedAt;
+        return $this;
+    }
+
+    public function getCompletionNotifiedAt(): ?\DateTimeImmutable
+    {
+        return $this->completionNotifiedAt;
+    }
+
+    public function setCompletionNotifiedAt(?\DateTimeImmutable $completionNotifiedAt): static
+    {
+        $this->completionNotifiedAt = $completionNotifiedAt;
         return $this;
     }
 }
