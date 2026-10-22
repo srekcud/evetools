@@ -1293,6 +1293,53 @@ class IndustryJobSyncServiceTest extends TestCase
     }
 
     #[Group('issue-216')]
+    public function testJobsReadAfterARefusedReservationAreStillNotifiedAndCountedInProjectProgress(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $nitrogenFuelBlockJobData = $this->makeJobData(101, 12345, 'ready', self::NITROGEN_FUEL_BLOCK_TYPE_ID);
+        $nitrogenFuelBlockJobData['runs'] = 4;
+        $productMissingFromSdeJobData = $this->makeJobData(102, 12345, 'delivered');
+        $productMissingFromSdeJobData['runs'] = 7;
+        $this->esiClient->method('get')->willReturn([
+            $this->makeTritaniumJobData(100, 12345, 'ready'),
+            $nitrogenFuelBlockJobData,
+            $productMissingFromSdeJobData,
+        ]);
+        $cachedJobs = [
+            $this->makeCachedJob(100, $character, 'active', '-1 hour'),
+            $this->makeCachedJob(101, $character, 'active', '-2 hours'),
+            $this->makeCachedJob(102, $character, 'active', '-3 hours'),
+        ];
+        $this->stubCachedJobs($cachedJobs);
+        $this->stubActiveJobsByCharacter($cachedJobs);
+        $jobMatchLookups = [];
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturnCallback(
+            static function (array $esiJobIds) use (&$jobMatchLookups): array {
+                $jobMatchLookups[] = $esiJobIds;
+
+                return [];
+            },
+        );
+        $this->reservedCompletionNotificationJobIds = [100];
+        $this->recordDispatchedNotifications();
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame(
+            [
+                ['Job completed: Nitrogen Fuel Block', 'Nitrogen Fuel Block Manufacturing (4x) ready to deliver'],
+                ['Job completed: type 1000 (name missing from the SDE)', 'type 1000 (name missing from the SDE) Manufacturing (7x) delivered'],
+            ],
+            array_map(
+                static fn (array $notification): array => [$notification[2], $notification[3]],
+                $this->dispatchedNotifications,
+            ),
+        );
+        $this->assertSame([100, 101, 102], $this->reservedCompletionNotificationJobIds);
+        $this->assertSame([[100, 101, 102], [101, 102]], $jobMatchLookups);
+    }
+
+    #[Group('issue-216')]
     public function testJobOfUserWithoutIdIsNeitherReservedNorNotified(): void
     {
         $user = $this->createStub(User::class);
