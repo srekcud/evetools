@@ -17,6 +17,10 @@ final readonly class InstallCost
 
     private const float ALPHA_CLONE_TAX_RATE = 0.0025;
 
+    private const float MAX_FACILITY_TAX_RATE = 0.5;
+
+    private const float MAX_COST_INDEX = 1.0;
+
     private function __construct(
         public Cost $systemCost,
         public Cost $facilityTax,
@@ -38,9 +42,9 @@ final readonly class InstallCost
         bool $alphaClone,
     ): self {
         if (null !== $systemCostIndex) {
-            self::assertRate($systemCostIndex, 'cost index');
+            self::assertRate($systemCostIndex, 'cost index', self::MAX_COST_INDEX);
         }
-        self::assertRate($facilityTaxRate, 'facility tax rate');
+        self::assertRate($facilityTaxRate, 'facility tax rate', self::MAX_FACILITY_TAX_RATE);
 
         $base = match ($activity) {
             ActivityKind::Manufacturing, ActivityKind::Reaction => $estimatedItemValue,
@@ -64,10 +68,10 @@ final readonly class InstallCost
         );
     }
 
-    private static function assertRate(float $rate, string $name): void
+    private static function assertRate(float $rate, string $name, float $maximum): void
     {
-        if (!is_finite($rate) || $rate < 0.0) {
-            throw new \InvalidArgumentException(\sprintf('The %s must be finite and not negative, got %F.', $name, $rate));
+        if (!is_finite($rate) || $rate < 0.0 || $rate > $maximum) {
+            throw new \InvalidArgumentException(\sprintf('The %s must be finite and between 0 and %s, got %s.', $name, $maximum, var_export($rate, true)));
         }
     }
 }
