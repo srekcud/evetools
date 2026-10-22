@@ -18,7 +18,13 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(columns: ['status'])]
 class CachedIndustryJob
 {
+    public const string STATUS_ACTIVE = 'active';
+    public const string STATUS_PAUSED = 'paused';
+    public const string STATUS_READY = 'ready';
     public const string STATUS_CANCELLED = 'cancelled';
+    public const string STATUS_REVERTED = 'reverted';
+
+    public const array STATUSES_WITHOUT_OUTPUT = [self::STATUS_CANCELLED, self::STATUS_REVERTED];
 
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
@@ -164,9 +170,9 @@ class CachedIndustryJob
         return $this;
     }
 
-    public function isCancelled(): bool
+    public function hasNoOutput(): bool
     {
-        return $this->status === self::STATUS_CANCELLED;
+        return in_array($this->status, self::STATUSES_WITHOUT_OUTPUT, true);
     }
 
     public function getStartDate(): \DateTimeImmutable

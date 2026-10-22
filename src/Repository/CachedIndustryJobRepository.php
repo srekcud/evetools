@@ -35,7 +35,7 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
             ->where('j.character = :character')
             ->andWhere('j.status IN (:statuses)')
             ->setParameter('character', $character)
-            ->setParameter('statuses', ['active', 'ready'])
+            ->setParameter('statuses', [CachedIndustryJob::STATUS_ACTIVE, CachedIndustryJob::STATUS_PAUSED, CachedIndustryJob::STATUS_READY])
             ->orderBy('j.endDate', 'ASC')
             ->getQuery()
             ->getResult();
@@ -72,10 +72,10 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
             ->where('j.blueprintTypeId = :bpId')
             ->andWhere('j.activityId IN (1, 9, 11)')
             ->andWhere('j.character IN (:chars)')
-            ->andWhere('j.status != :cancelled')
+            ->andWhere('j.status NOT IN (:statusesWithoutOutput)')
             ->setParameter('bpId', $blueprintTypeId)
             ->setParameter('chars', $characterIds)
-            ->setParameter('cancelled', CachedIndustryJob::STATUS_CANCELLED);
+            ->setParameter('statusesWithoutOutput', CachedIndustryJob::STATUSES_WITHOUT_OUTPUT);
 
         if ($startedAfter !== null) {
             $qb->andWhere('j.startDate >= :startedAfter')

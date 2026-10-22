@@ -63,7 +63,7 @@ class IndustryJobMatcher
             }
 
             // Find all jobs for this blueprint (no run count filter)
-            $jobs = $this->withoutCancelledJobs($this->jobRepository->findManufacturingJobsByBlueprint(
+            $jobs = $this->onlyJobsWithOutput($this->jobRepository->findManufacturingJobsByBlueprint(
                 $step->getBlueprintTypeId(),
                 $characterIds,
                 null,
@@ -188,9 +188,9 @@ class IndustryJobMatcher
      *
      * @return CachedIndustryJob[]
      */
-    private function withoutCancelledJobs(array $jobs): array
+    private function onlyJobsWithOutput(array $jobs): array
     {
-        return array_filter($jobs, static fn (CachedIndustryJob $job): bool => !$job->isCancelled());
+        return array_filter($jobs, static fn (CachedIndustryJob $job): bool => !$job->hasNoOutput());
     }
 
     /**
