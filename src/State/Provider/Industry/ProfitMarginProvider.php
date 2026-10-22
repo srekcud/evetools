@@ -9,10 +9,12 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\ProfitMarginResource;
 use App\Constant\EveConstants;
 use App\Entity\User;
+use App\Industry\Application\Decryptors;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Service\Industry\ProfitMarginService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
@@ -26,6 +28,7 @@ class ProfitMarginProvider implements ProviderInterface
         private readonly RequestStack $requestStack,
         private readonly ProfitMarginService $profitMarginService,
         private readonly IndustryUserSettingsRepository $settingsRepository,
+        private readonly Decryptors $decryptors,
     ) {
     }
 
@@ -73,6 +76,9 @@ class ProfitMarginProvider implements ProviderInterface
 
         // Decryptor
         $decryptorTypeId = $decryptorTypeIdParam !== null ? (int) $decryptorTypeIdParam : null;
+        if ($decryptorTypeId !== null && !$this->isDecryptor($decryptorTypeId)) {
+            throw new BadRequestHttpException(sprintf('Type %d is not a decryptor.', $decryptorTypeId));
+        }
 
         $result = $this->profitMarginService->analyze(
             $typeId,
@@ -88,6 +94,17 @@ class ProfitMarginProvider implements ProviderInterface
         );
 
         return $this->mapToResource($result);
+    }
+
+    private function isDecryptor(int $typeId): bool
+    {
+        foreach ($this->decryptors->all() as $decryptor) {
+            if ($decryptor->typeId === $typeId) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -107,7 +124,6 @@ class ProfitMarginProvider implements ProviderInterface
         $resource->jobInstallCost = $data['jobInstallCost'];
         $resource->jobInstallSteps = $data['jobInstallSteps'];
         $resource->inventionCost = $data['inventionCost'];
-        $resource->copyCost = $data['copyCost'];
         $resource->totalCost = $data['totalCost'];
         $resource->costPerUnit = $data['costPerUnit'];
         $resource->invention = $data['invention'];
@@ -116,8 +132,7 @@ class ProfitMarginProvider implements ProviderInterface
         $resource->salesTaxRate = $data['salesTaxRate'];
         $resource->margins = $data['margins'];
         $resource->dailyVolume = $data['dailyVolume'];
-        $resource->missingPriceTypeIds = $data['missingPriceTypeIds'];
-        $resource->unknownInstallCostReasons = $data['unknownInstallCostReasons'];
+        $resource->missingData = $data['missingData'];
 
         return $resource;
     }

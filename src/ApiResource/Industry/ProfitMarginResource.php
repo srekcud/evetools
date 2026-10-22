@@ -50,24 +50,21 @@ class ProfitMarginResource
 
     public int $outputPerRun = 1;
 
-    public ?float $materialCost = 0;
+    public ?float $materialCost = null;
 
-    /** @var list<array{typeId: int, typeName: string, quantity: int, unitPrice: float|null, totalPrice: float|null}> */
+    /** @var list<array{typeId: int, typeName: ?string, quantity: float, unitPrice: float|null, totalPrice: float|null}> */
     public array $materials = [];
 
     public ?float $jobInstallCost = null;
 
-    /** @var list<array{productTypeId: int, productName: string, activityType: string, runs: int, installCost: float|null, unknownReason: string|null}> */
+    /** @var list<array{productTypeId: int, productName: ?string, activityType: string, runs: float, installCost: float|null, missingData: list<array{reason: string, typeId: ?int}>}> */
     public array $jobInstallSteps = [];
 
-    /** Null when the invention success probability is unknown (see invention.unknownReason). */
-    public ?float $inventionCost = 0;
+    public ?float $inventionCost = null;
 
-    public float $copyCost = 0;
+    public ?float $totalCost = null;
 
-    public ?float $totalCost = 0;
-
-    public ?float $costPerUnit = 0;
+    public ?float $costPerUnit = null;
 
     /** @var array<string, mixed>|null */
     public ?array $invention = null;
@@ -92,9 +89,6 @@ class ProfitMarginResource
 
     public ?float $dailyVolume = null;
 
-    /** @var list<int> */
-    public array $missingPriceTypeIds = [];
-
-    /** @var list<string> */
-    public array $unknownInstallCostReasons = [];
+    /** @var list<array{reason: string, typeId: ?int}> */
+    public array $missingData = [];
 }

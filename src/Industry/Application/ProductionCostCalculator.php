@@ -6,6 +6,7 @@ namespace App\Industry\Application;
 
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\BlueprintCatalog;
+use App\Industry\Domain\BlueprintEfficiency;
 use App\Industry\Domain\Cost;
 use App\Industry\Domain\EivMaterial;
 use App\Industry\Domain\EstimatedItemValue;
@@ -48,6 +49,7 @@ final readonly class ProductionCostCalculator
         private MarketPrices $marketPrices,
         private AdjustedPrices $adjustedPrices,
         private SystemCostIndices $costIndices,
+        private RigCategories $rigCategories,
     ) {
         $this->planner = new ProductionPlanner($blueprints);
     }
@@ -56,9 +58,14 @@ final readonly class ProductionCostCalculator
     {
         $recipe = $this->recipeOf($request->productTypeId);
         $selector = new StructureSelector($request->structures, $request->favoriteSystems);
+        $inventionRecipe = $this->inventions->inventionOf($request->productTypeId);
+        $invention = null === $inventionRecipe ? null : $this->inventionCost($inventionRecipe, $request, $selector);
+        $targetEfficiency = null === $invention
+            ? $request->efficiency
+            : new BlueprintEfficiency($invention->outcome->materialEfficiency, $invention->outcome->timeEfficiency);
         $planRequest = new PlanRequest(
-            [new PlanTarget($request->productTypeId, $request->runs, $request->efficiency)],
-            new StructureMaterialModifiers($selector, $request->productCategories),
+            [new PlanTarget($request->productTypeId, $request->runs, $targetEfficiency)],
+            new StructureMaterialModifiers($selector, $this->rigCategories),
             blacklist: $request->blacklist,
         );
 
@@ -70,7 +77,6 @@ final readonly class ProductionCostCalculator
         $leaves = $this->leafCosts($leafQuantities);
         $materialCost = self::sum(array_map(static fn (LeafCost $leaf): Cost => $leaf->cost, $leaves));
         $installCost = self::sum(array_map(static fn (JobCost $job): Cost => $job->installCost->total, $jobs));
-        $invention = $this->inventionCost($request, $selector);
 
         $totalCost = $materialCost->plus($installCost);
         if (null !== $invention) {
@@ -106,7 +112,7 @@ final readonly class ProductionCostCalculator
                 $recipe,
                 $job->runs->value,
                 EstimatedItemValue::of($job->runs, $this->eivMaterials($recipe)),
-                self::structureChoiceOf($recipe, $selector, $request),
+                $this->structureChoiceOf($recipe, $selector),
                 $request,
             );
         }
@@ -127,7 +133,7 @@ final readonly class ProductionCostCalculator
             $targetRecipe,
             $request->runs->value,
             EstimatedItemValue::of($request->runs, $this->eivMaterials($targetRecipe)),
-            self::structureChoiceOf($targetRecipe, $selector, $request),
+            $this->structureChoiceOf($targetRecipe, $selector),
             $request,
         )];
         foreach ($marginalCostPlan->fractionalRuns as $productTypeId => $fractionalRuns) {
@@ -136,7 +142,7 @@ final readonly class ProductionCostCalculator
                 $recipe,
                 $fractionalRuns,
                 EstimatedItemValue::of(new Runs(1), $this->eivMaterials($recipe))->times($fractionalRuns),
-                self::structureChoiceOf($recipe, $selector, $request),
+                $this->structureChoiceOf($recipe, $selector),
                 $request,
             );
         }
@@ -145,11 +151,11 @@ final readonly class ProductionCostCalculator
     }
 
     /**
-     * Same choice as the material modifier of the job; the planner already refused a product without rig category.
+     * Same choice as the material modifier of the job.
      */
-    private static function structureChoiceOf(Recipe $recipe, StructureSelector $selector, ProductionCostRequest $request): StructureChoice
+    private function structureChoiceOf(Recipe $recipe, StructureSelector $selector): StructureChoice
     {
-        return $selector->select($recipe->activity, $request->productCategories[$recipe->productTypeId]);
+        return $selector->select($recipe->activity, $this->rigCategories->categoryOf($recipe->productTypeId, $recipe->activity));
     }
 
     private function jobCost(Recipe $recipe, float $runs, Cost $estimatedItemValue, StructureChoice $structureChoice, ProductionCostRequest $request): JobCost
@@ -167,16 +173,13 @@ final readonly class ProductionCostCalculator
     }
 
     /**
-     * Expected invention of the T2 blueprint copies (R8); null when the product is not invented.
+     * Expected invention of the T2 blueprint copies (R8).
      */
-    private function inventionCost(ProductionCostRequest $request, StructureSelector $selector): ?InventionCost
+    private function inventionCost(InventionRecipe $inventionRecipe, ProductionCostRequest $request, StructureSelector $selector): InventionCost
     {
-        $inventionRecipe = $this->inventions->inventionOf($request->productTypeId);
-        if (null === $inventionRecipe) {
-            return null;
-        }
         $settings = $request->invention
             ?? throw new \DomainException(\sprintf('Product %d is invented: its invention settings are required.', $request->productTypeId));
+        $outcome = InventionOutcome::of($inventionRecipe->baseRuns, $settings->decryptor);
 
         $datacoresCost = self::sum($this->bought(self::quantitiesOf($inventionRecipe->datacores)));
         $decryptorCost = null === $settings->decryptor
@@ -207,14 +210,12 @@ final readonly class ProductionCostCalculator
                 $settings->encryptionSkillLevel,
                 $settings->decryptor,
             );
-        $expectation = InventionExpectation::of(
-            $inventionRecipe->t1BlueprintTypeId,
-            $chance,
-            InventionOutcome::of($inventionRecipe->baseRuns, $settings->decryptor),
-            $attemptCost,
-        );
+        $expectation = InventionExpectation::of($inventionRecipe->t1BlueprintTypeId, $chance, $outcome, $attemptCost);
 
         return new InventionCost(
+            $inventionRecipe,
+            $chance,
+            $outcome,
             $datacoresCost,
             $decryptorCost,
             $inventionInstallCost,

@@ -6,6 +6,8 @@ namespace App\Industry\Application;
 
 use App\Industry\Domain\Cost;
 use App\Industry\Domain\InstallCost;
+use App\Industry\Domain\InventionChance;
+use App\Industry\Domain\InventionOutcome;
 
 /**
  * Expected invention cost of the T2 blueprint copies needed by the production (spec R8).
@@ -17,6 +19,9 @@ final readonly class InventionCost
      * @param ?float $expectedAttempts null when the SDE has no invention probability
      */
     public function __construct(
+        public InventionRecipe $recipe,
+        public ?InventionChance $chance,
+        public InventionOutcome $outcome,
         public Cost $datacoresCost,
         public Cost $decryptorCost,
         public InstallCost $inventionInstallCost,

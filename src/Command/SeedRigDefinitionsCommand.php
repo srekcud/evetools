@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Constant\StructureRigTargets;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -24,35 +25,6 @@ class SeedRigDefinitionsCommand extends Command
     // Manufacturing rig attributes
     private const ATTR_MANUFACTURING_MATERIAL_BONUS = 2594;
     private const ATTR_MANUFACTURING_TIME_BONUS = 2593;
-
-    // Mapping rig name patterns to target categories (order matters - more specific first)
-    private const RIG_CATEGORY_MAPPINGS = [
-        // Manufacturing rigs - specific first
-        'Advanced Large Ship Manufacturing' => ['advanced_large_ship'],
-        'Advanced Medium Ship Manufacturing' => ['advanced_medium_ship'],
-        'Advanced Small Ship Manufacturing' => ['advanced_small_ship'],
-        'Basic Large Ship Manufacturing' => ['basic_large_ship'],
-        'Basic Medium Ship Manufacturing' => ['basic_medium_ship'],
-        'Basic Small Ship Manufacturing' => ['basic_small_ship'],
-        'Capital Ship Manufacturing' => ['capital_ship'],
-        'Basic Capital Component Manufacturing' => ['basic_capital_component'],
-        'Advanced Component Manufacturing' => ['advanced_component'],
-        'Structure and Component Manufacturing' => ['structure', 'structure_component', 'basic_capital_component', 'advanced_component'],
-        'Ship Manufacturing Efficiency' => ['basic_small_ship', 'basic_medium_ship', 'basic_large_ship', 'advanced_small_ship', 'advanced_medium_ship', 'advanced_large_ship', 'capital_ship'],
-        'Structure Manufacturing' => ['structure', 'structure_component'],
-        'Equipment and Consumable Manufacturing' => ['equipment', 'ammunition', 'drone', 'fighter'],
-        'Equipment Manufacturing' => ['equipment'],
-        'Ammunition Manufacturing' => ['ammunition'],
-        'Drone and Fighter Manufacturing' => ['drone', 'fighter'],
-        // Reaction rigs
-        'Composite Reactor Material' => ['composite_reaction'],
-        'Composite Reactor Time' => ['composite_reaction'],
-        'Hybrid Reactor Material' => ['hybrid_reaction'],
-        'Hybrid Reactor Time' => ['hybrid_reaction'],
-        'Biochemical Reactor Material' => ['biochemical_reaction'],
-        'Biochemical Reactor Time' => ['biochemical_reaction'],
-        'Reactor Efficiency' => ['composite_reaction', 'biochemical_reaction', 'hybrid_reaction'],
-    ];
 
     public function __construct(
         private readonly Connection $connection,
@@ -122,7 +94,7 @@ class SeedRigDefinitionsCommand extends Command
             $timeBonus = abs((float) $rig['time_bonus']);
 
             // Determine target categories based on rig name
-            $targetCategories = $this->determineTargetCategories($rigName);
+            $targetCategories = StructureRigTargets::categoriesOf($rigName);
             $isReaction = $this->isReactionRig($rigName);
 
             if (empty($targetCategories)) {
@@ -153,18 +125,6 @@ class SeedRigDefinitionsCommand extends Command
         $io->success(sprintf('Inserted %d rig definitions (%d skipped)', $inserted, $skipped));
 
         return Command::SUCCESS;
-    }
-
-    /** @return list<string> */
-    private function determineTargetCategories(string $rigName): array
-    {
-        foreach (self::RIG_CATEGORY_MAPPINGS as $pattern => $categories) {
-            if (str_contains($rigName, $pattern)) {
-                return $categories;
-            }
-        }
-
-        return [];
     }
 
     private function isReactionRig(string $rigName): bool

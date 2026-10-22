@@ -5,44 +5,55 @@ declare(strict_types=1);
 namespace App\Service\Industry;
 
 use App\Entity\User;
-use App\Enum\IndustryActivityType;
+use App\Industry\Application\CostMode;
+use App\Industry\Application\Decryptors;
+use App\Industry\Application\FavoriteSystems;
+use App\Industry\Application\InventionCost;
+use App\Industry\Application\InventionSettings;
+use App\Industry\Application\JobCost;
+use App\Industry\Application\LeafCost;
+use App\Industry\Application\ProductionCost;
+use App\Industry\Application\ProductionCostCalculator;
+use App\Industry\Application\ProductionCostRequest;
+use App\Industry\Application\UserProductionStructures;
+use App\Industry\Domain\ActivityKind;
+use App\Industry\Domain\BlueprintEfficiency;
+use App\Industry\Domain\Cost;
+use App\Industry\Domain\Decryptor;
+use App\Industry\Domain\MaterialEfficiency;
+use App\Industry\Domain\MissingData;
+use App\Industry\Domain\RecipeMaterial;
+use App\Industry\Domain\Runs;
+use App\Industry\Domain\TimeEfficiency;
 use App\Repository\CachedStructureRepository;
-use App\Repository\IndustryStructureConfigRepository;
-use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
 
-/**
- * Computes prospective profit margins for manufacturing/reaction items:
- * production cost (materials + job install + invention/copy) vs sell price at Jita, a player structure, and public contracts.
- */
 class ProfitMarginService
 {
     private const float CONTRACT_FEE_RATE = 0.0;
 
+    private const int INVENTION_SKILL_LEVEL_WITHOUT_SKILLS = 0;
+
+    private const float NO_INVENTION_COST = 0.0;
+
+    private const string MARKET_PRICE_REASON = 'market_price';
+
     public function __construct(
-        private readonly IndustryTreeService $treeService,
+        private readonly ProductionCostCalculator $productionCosts,
+        private readonly UserProductionStructures $productionStructures,
+        private readonly Decryptors $decryptors,
         private readonly JitaMarketService $jitaMarketService,
         private readonly StructureMarketService $structureMarketService,
-        private readonly EsiCostIndexService $esiCostIndexService,
-        private readonly InventionService $inventionService,
         private readonly PublicContractPriceService $publicContractPriceService,
         private readonly TypeNameResolver $typeNameResolver,
         private readonly CachedStructureRepository $cachedStructureRepository,
         private readonly IndustryBlacklistService $blacklistService,
-        private readonly IndustryStructureConfigRepository $structureConfigRepository,
-        private readonly IndustryActivityMaterialRepository $materialRepository,
     ) {
     }
 
     /**
-     * Analyze profit margins for producing a given item.
-     *
-     * A leaf material without a Jita weighted price has a null unitPrice and totalPrice and is listed in
-     * missingPriceTypeIds (sorted); materialCost, totalCost, costPerUnit, margins and every decryptor option's
-     * totalProductionCost and bestMargin are then null, as when the invention cost is unknown.
-     *
      * @return array<string, mixed>
      */
     public function analyze(
@@ -57,455 +68,274 @@ class ProfitMarginService
         float $salesTaxRate,
         ?User $user,
     ): array {
-        $typeName = $this->resolveTypeName($typeId);
-        $isT2 = $this->inventionService->isT2($typeId);
+        $decryptors = $this->decryptors->all();
+        $costOf = $this->costFunction(
+            $typeId,
+            $runs,
+            new BlueprintEfficiency(new MaterialEfficiency($meLevel), new TimeEfficiency($teLevel)),
+            $solarSystemId,
+            $user,
+        );
 
-        // Resolve excluded type IDs from user blacklist
-        $excludedTypeIds = $user !== null ? $this->blacklistService->resolveBlacklistedTypeIds($user) : [];
+        $productionCost = $costOf(self::decryptorOf($decryptors, $decryptorTypeId));
+        $outputQuantity = $productionCost->producedQuantity->value;
 
-        // 1. Build production tree
-        $tree = $this->treeService->buildProductionTree($typeId, $runs, $meLevel, $excludedTypeIds, $user);
+        $sellPrices = $this->sellPrices($typeId, $outputQuantity, $sellStructureId);
+        $marginsOf = fn (Cost $totalCost): array => $this->marginsOf($sellPrices, $outputQuantity, $totalCost, $brokerFeeRate, $salesTaxRate);
 
-        // 2. Calculate output quantity
-        $outputPerRun = (int) $tree['outputPerRun'];
-        $outputQuantity = $runs * $outputPerRun;
-
-        // 3. Collect leaf materials (items that are bought, not built)
-        $rawMaterials = [];
-        $this->collectLeafMaterials($rawMaterials, $tree);
-
-        // 4. Price materials at Jita weighted
-        $typeQuantities = [];
-        foreach ($rawMaterials as &$mat) {
-            $typeQuantities[$mat['typeId']] = $mat['quantity'];
-        }
-        unset($mat);
-
-        $weightedPrices = $this->jitaMarketService->getWeightedSellPricesWithFallback($typeQuantities);
-
-        $pricedMaterialCost = 0.0;
-        $materialDetails = [];
-        $missingPriceTypeIds = [];
-        foreach ($rawMaterials as $mat) {
-            $tid = $mat['typeId'];
-            $unitPrice = isset($weightedPrices[$tid]) ? $weightedPrices[$tid]['weightedPrice'] : null;
-            $totalPrice = null;
-            if ($unitPrice === null) {
-                $missingPriceTypeIds[] = $tid;
-            } else {
-                $totalPrice = $unitPrice * $mat['quantity'];
-                $pricedMaterialCost += $totalPrice;
-            }
-
-            $materialDetails[] = [
-                'typeId' => $tid,
-                'typeName' => $mat['typeName'],
-                'quantity' => $mat['quantity'],
-                'unitPrice' => $unitPrice,
-                'totalPrice' => $totalPrice,
-            ];
-        }
-        sort($missingPriceTypeIds);
-        $materialCost = $missingPriceTypeIds === [] ? $pricedMaterialCost : null;
-
-        // 5. Resolve facility tax from user's structure config
-        $facilityTaxRate = $this->resolveFacilityTaxRate($user, $solarSystemId);
-
-        // 6. Calculate job install costs for all manufacturing/reaction nodes
-        $jobInstallSteps = [];
-        if ($solarSystemId !== null) {
-            $this->collectJobInstallCosts($tree, $solarSystemId, $facilityTaxRate, $jobInstallSteps);
-        }
-        $unknownInstallCostReasons = array_values(array_unique(array_filter(
-            array_column($jobInstallSteps, 'unknownReason'),
-            static fn (?string $unknownReason): bool => $unknownReason !== null,
-        )));
-        sort($unknownInstallCostReasons);
-        $jobInstallCost = $unknownInstallCostReasons === [] ? (float) array_sum(array_column($jobInstallSteps, 'installCost')) : null;
-
-        // 7. Sell prices (needed before invention for decryptor margin comparison)
-        $jitaSellData = $this->jitaMarketService->getWeightedSellPrice($typeId, $outputQuantity);
-        $jitaSellPrice = $jitaSellData['weightedPrice'] ?? null;
-
-        $structureSellPrice = $this->structureMarketService->getLowestSellPrice($sellStructureId, $typeId);
-        $structureBuyPrice = $this->structureMarketService->getHighestBuyPrice($sellStructureId, $typeId);
-
-        $contractSellPrice = $this->publicContractPriceService->getLowestUnitPrice($typeId);
-        $contractCount = $this->publicContractPriceService->getContractCount($typeId);
-
-        $structureName = $this->resolveStructureName($sellStructureId);
-
-        // 8. Invention cost (T2 only); null when the invention success probability is unknown
-        $inventionCost = 0.0;
-        $copyCost = 0.0;
-        $inventionDetails = null;
-
-        if ($isT2 && $solarSystemId !== null) {
-            // Calculate invention cost with selected decryptor
-            $inventionResult = $this->inventionService->calculateInventionCost(
-                $typeId,
-                $solarSystemId,
-                $decryptorTypeId,
-                1, // 1 successful invention
-                $facilityTaxRate,
-            );
-
-            if ($inventionResult !== null) {
-                $inventionCost = $inventionResult['totalCost'];
-
-                // Copy cost for intermediate T1 BPCs in the tree
-                $this->collectCopyCosts($tree, $solarSystemId, $facilityTaxRate, $copyCost);
-
-                // Build all decryptor options for comparison
-                $decryptorOptions = $this->inventionService->buildDecryptorOptions(
-                    $typeId,
-                    $solarSystemId,
-                    1,
-                    $facilityTaxRate,
-                );
-
-                // Resolve selected decryptor name
-                $selectedDecryptorName = $inventionResult['decryptorName'] ?? InventionService::NO_DECRYPTOR_NAME;
-
-                // Transform decryptor options to match frontend contract
-                $options = [];
-                foreach ($decryptorOptions as $option) {
-                    $optionInventionCost = $option['totalCost'];
-                    $optionTotalProductionCost = null;
-                    $optionBestMargin = null;
-
-                    if ($optionInventionCost !== null && $materialCost !== null && $jobInstallCost !== null) {
-                        $optionTotalProductionCost = $materialCost + $jobInstallCost + $optionInventionCost + $copyCost;
-
-                        // Find best margin across all sell venues for this option
-                        $optionBestMargin = $this->findBestMarginForCost(
-                            $jitaSellPrice,
-                            $structureSellPrice,
-                            $structureBuyPrice,
-                            $contractSellPrice,
-                            $outputQuantity,
-                            $optionTotalProductionCost,
-                            $brokerFeeRate,
-                            $salesTaxRate,
-                        );
-                    }
-
-                    $options[] = [
-                        'decryptorTypeId' => $option['decryptorTypeId'],
-                        'decryptorName' => $option['decryptorName'],
-                        'me' => $option['me'],
-                        'te' => $option['te'],
-                        'runs' => $option['runs'],
-                        'probability' => $option['probability'],
-                        'inventionCost' => $optionInventionCost,
-                        'totalProductionCost' => $optionTotalProductionCost,
-                        'bestMargin' => $optionBestMargin,
-                    ];
-                }
-
-                $inventionDetails = [
-                    'baseProbability' => $inventionResult['baseProbability'],
-                    'unknownReason' => $inventionResult['unknownReason'] ?? null,
-                    'datacores' => array_map(fn (array $d) => $d['typeName'], $inventionResult['datacores']),
-                    'selectedDecryptorTypeId' => $decryptorTypeId,
-                    'selectedDecryptorName' => $selectedDecryptorName,
-                    'options' => $options,
-                ];
-            } else {
-                // Copy cost for intermediate T1 BPCs in the tree (even if invention data is null)
-                $this->collectCopyCosts($tree, $solarSystemId, $facilityTaxRate, $copyCost);
-            }
-        }
-
-        // 9. Total cost (unknown as soon as the invention cost is unknown)
-        $totalCost = null;
-        $costPerUnit = null;
-        $margins = ['jitaSell' => null, 'structureSell' => null, 'structureBuy' => null, 'contractSell' => null];
-
-        if ($inventionCost !== null && $materialCost !== null && $jobInstallCost !== null) {
-            $totalCost = $materialCost + $jobInstallCost + $inventionCost + $copyCost;
-            $costPerUnit = $outputQuantity > 0 ? $totalCost / $outputQuantity : 0.0;
-
-            // 10. Calculate margins
-            $margins = $this->calculateMargins(
-                $jitaSellPrice,
-                $structureSellPrice,
-                $structureBuyPrice,
-                $contractSellPrice,
-                $outputQuantity,
-                $totalCost,
-                $brokerFeeRate,
-                $salesTaxRate,
-            );
-        }
-
-        // 11. Daily volume
         $volumes = $this->jitaMarketService->getAverageDailyVolumes([$typeId]);
-        $dailyVolume = $volumes[$typeId] ?? null;
 
         return [
             'typeId' => $typeId,
-            'typeName' => $typeName,
-            'isT2' => $isT2,
+            'typeName' => $this->typeNameResolver->findName($typeId),
+            'isT2' => null !== $productionCost->invention,
             'runs' => $runs,
             'outputQuantity' => $outputQuantity,
-            'outputPerRun' => $outputPerRun,
-            'materialCost' => $materialCost,
-            'materials' => $materialDetails,
-            'jobInstallCost' => $jobInstallCost,
-            'jobInstallSteps' => $jobInstallSteps,
-            'inventionCost' => $inventionCost,
-            'copyCost' => $copyCost,
-            'totalCost' => $totalCost,
-            'costPerUnit' => $costPerUnit,
-            'invention' => $inventionDetails,
-            'sellPrices' => [
-                'jitaSell' => $jitaSellPrice,
-                'structureSell' => $structureSellPrice,
-                'structureBuy' => $structureBuyPrice,
-                'contractSell' => $contractSellPrice,
-                'contractCount' => $contractCount,
-                'structureId' => $sellStructureId,
-                'structureName' => $structureName,
-            ],
+            'outputPerRun' => intdiv($outputQuantity, $runs),
+            'materialCost' => self::amountOf($productionCost->materialCost),
+            'materials' => $this->materialsOf($productionCost),
+            'jobInstallCost' => self::amountOf($productionCost->installCost),
+            'jobInstallSteps' => $this->jobInstallStepsOf($productionCost),
+            'inventionCost' => null === $productionCost->invention ? self::NO_INVENTION_COST : self::amountOf($productionCost->invention->total),
+            'totalCost' => self::amountOf($productionCost->totalCost),
+            'costPerUnit' => self::amountOf($productionCost->costPerUnit),
+            'invention' => null === $productionCost->invention
+                ? null
+                : $this->inventionDetails($productionCost->invention, $decryptorTypeId, $decryptors, $productionCost, $costOf, $marginsOf),
+            'sellPrices' => $sellPrices,
             'brokerFeeRate' => $brokerFeeRate,
             'salesTaxRate' => $salesTaxRate,
-            'margins' => $margins,
-            'dailyVolume' => $dailyVolume,
-            'missingPriceTypeIds' => $missingPriceTypeIds,
-            'unknownInstallCostReasons' => $unknownInstallCostReasons,
+            'margins' => $marginsOf($productionCost->totalCost),
+            'dailyVolume' => $volumes[$typeId] ?? null,
+            'missingData' => MissingDataPresenter::of($productionCost->totalCost),
         ];
     }
 
     /**
-     * Recursively collect leaf materials (not buildable) from the production tree.
-     *
-     * @param list<array{typeId: int, typeName: string, quantity: int}> $materials
-     * @param array<string, mixed> $node
+     * @return \Closure(?Decryptor): ProductionCost
      */
-    private function collectLeafMaterials(array &$materials, array $node): void
+    private function costFunction(int $typeId, int $runs, BlueprintEfficiency $efficiency, ?int $solarSystemId, ?User $user): \Closure
     {
-        foreach ($node['materials'] as $material) {
-            if (($material['isBuildable'] ?? false) && isset($material['blueprint'])) {
-                $this->collectLeafMaterials($materials, $material['blueprint']);
-            } else {
-                $this->addToMaterialList($materials, (int) $material['typeId'], (string) $material['typeName'], (int) $material['quantity']);
-            }
-        }
+        $structures = null === $user ? [] : $this->productionStructures->configuredBy(self::idOf($user));
+        $blacklist = null === $user ? [] : $this->blacklistService->resolveBlacklistedTypeIds($user);
+        $favoriteSystems = null === $solarSystemId ? FavoriteSystems::none() : new FavoriteSystems($solarSystemId, $solarSystemId);
+
+        return fn (?Decryptor $decryptor): ProductionCost => $this->productionCosts->costOf(new ProductionCostRequest(
+            $typeId,
+            new Runs($runs),
+            $efficiency,
+            CostMode::MarginalCost,
+            $structures,
+            $favoriteSystems,
+            $blacklist,
+            new InventionSettings(
+                self::INVENTION_SKILL_LEVEL_WITHOUT_SKILLS,
+                self::INVENTION_SKILL_LEVEL_WITHOUT_SKILLS,
+                self::INVENTION_SKILL_LEVEL_WITHOUT_SKILLS,
+                $decryptor,
+            ),
+        ));
     }
 
     /**
-     * @param list<array{typeId: int, typeName: string, quantity: int}> $materials
+     * @param list<Decryptor> $decryptors
      */
-    private function addToMaterialList(array &$materials, int $typeId, string $typeName, int $quantity): void
+    private static function decryptorOf(array $decryptors, ?int $decryptorTypeId): ?Decryptor
     {
-        foreach ($materials as &$mat) {
-            if ($mat['typeId'] === $typeId) {
-                $mat['quantity'] += $quantity;
-                return;
+        if (null === $decryptorTypeId) {
+            return null;
+        }
+        foreach ($decryptors as $decryptor) {
+            if ($decryptor->typeId === $decryptorTypeId) {
+                return $decryptor;
             }
         }
-        $materials[] = [
-            'typeId' => $typeId,
-            'typeName' => $typeName,
-            'quantity' => $quantity,
-        ];
+
+        throw new \InvalidArgumentException(\sprintf('Type %d is not a decryptor.', $decryptorTypeId));
+    }
+
+    private static function idOf(User $user): string
+    {
+        $userId = $user->getId() ?? throw new \LogicException('A user without id has no configured structure.');
+
+        return $userId->toRfc4122();
+    }
+
+    private static function amountOf(Cost $cost): ?float
+    {
+        return $cost->isKnown() ? $cost->amount()->amount : null;
     }
 
     /**
-     * Recursively collect job install costs for manufacturing/reaction nodes.
-     *
-     * @param array<string, mixed> $node
-     * @param list<array{productTypeId: int, productName: string, activityType: string, runs: int, installCost: float|null, unknownReason: string|null}> $steps
+     * @return list<array{typeId: int, typeName: ?string, quantity: float, unitPrice: ?float, totalPrice: ?float}>
      */
-    private function collectJobInstallCosts(array $node, int $solarSystemId, ?float $facilityTaxRate, array &$steps): void
+    private function materialsOf(ProductionCost $productionCost): array
     {
-        $activityType = (string) ($node['activityType'] ?? 'manufacturing');
+        $names = $this->typeNameResolver->findNames(array_keys($productionCost->leaves));
 
-        if ($activityType === 'manufacturing' || $activityType === 'reaction') {
-            $productTypeId = (int) $node['productTypeId'];
-            $nodeRuns = (int) $node['runs'];
-            $blueprintTypeId = (int) $node['blueprintTypeId'];
+        return array_values(array_map(
+            static fn (LeafCost $leaf): array => [
+                'typeId' => $leaf->typeId,
+                'typeName' => $names[$leaf->typeId] ?? null,
+                'quantity' => $leaf->quantity,
+                'unitPrice' => $leaf->unitPrice?->amount,
+                'totalPrice' => self::amountOf($leaf->cost),
+            ],
+            $productionCost->leaves,
+        ));
+    }
 
-            // Compute EIV from ME0 materials for this node's blueprint
-            $activityIdValue = $activityType === 'reaction' ? IndustryActivityType::Reaction->value : IndustryActivityType::Manufacturing->value;
-            $me0Materials = $this->materialRepository->findMaterialsForBlueprints(
-                [$blueprintTypeId],
-                [$activityIdValue],
-            );
-            $installCost = $this->esiCostIndexService->estimateJobInstallCost(
-                $me0Materials[$blueprintTypeId] ?? [],
-                $nodeRuns,
-                $solarSystemId,
-                $activityType,
-                $facilityTaxRate,
-            );
+    /**
+     * @return list<array{productTypeId: int, productName: ?string, activityType: string, runs: float, installCost: ?float, missingData: list<array{reason: string, typeId: ?int}>}>
+     */
+    private function jobInstallStepsOf(ProductionCost $productionCost): array
+    {
+        $names = $this->typeNameResolver->findNames(array_map(static fn (JobCost $job): int => $job->productTypeId, $productionCost->jobs));
 
-            $steps[] = [
-                'productTypeId' => $productTypeId,
-                'productName' => (string) $node['productTypeName'],
-                'activityType' => $activityType,
-                'runs' => $nodeRuns,
-                'installCost' => $installCost['cost'],
-                'unknownReason' => $installCost['unknownReason'],
+        return array_map(
+            static fn (JobCost $job): array => [
+                'productTypeId' => $job->productTypeId,
+                'productName' => $names[$job->productTypeId] ?? null,
+                'activityType' => ActivityKind::Reaction === $job->activity ? 'reaction' : 'manufacturing',
+                'runs' => $job->runs,
+                'installCost' => self::amountOf($job->installCost->total),
+                'missingData' => MissingDataPresenter::of($job->installCost->total),
+            ],
+            $productionCost->jobs,
+        );
+    }
+
+    /**
+     * @param list<Decryptor>                                                                                   $decryptors
+     * @param \Closure(?Decryptor): ProductionCost                                                              $costOf
+     * @param \Closure(Cost): array<string, array{revenue: float, fees: float, profit: float, margin: ?float}|null> $marginsOf
+     *
+     * @return array<string, mixed>
+     */
+    private function inventionDetails(
+        InventionCost $invention,
+        ?int $selectedDecryptorTypeId,
+        array $decryptors,
+        ProductionCost $selectedProductionCost,
+        \Closure $costOf,
+        \Closure $marginsOf,
+    ): array {
+        $options = [];
+        foreach ([null, ...$decryptors] as $decryptor) {
+            $optionCost = $decryptor?->typeId === $selectedDecryptorTypeId ? $selectedProductionCost : $costOf($decryptor);
+            $optionInvention = $optionCost->invention ?? throw new \LogicException('Every decryptor option of an invented product is invented.');
+            $options[] = [
+                'decryptorTypeId' => $decryptor?->typeId,
+                'decryptorName' => $this->decryptorNameOf($decryptor?->typeId),
+                'me' => $optionInvention->outcome->materialEfficiency->value,
+                'te' => $optionInvention->outcome->timeEfficiency->value,
+                'runs' => $optionInvention->outcome->runs->value,
+                'probability' => $optionInvention->chance?->value,
+                'inventionCost' => self::amountOf($optionInvention->total),
+                'totalProductionCost' => self::amountOf($optionCost->totalCost),
+                'bestMargin' => self::bestMarginOf($marginsOf($optionCost->totalCost)),
             ];
         }
 
-        // Recurse into children
-        foreach ($node['materials'] as $material) {
-            if (($material['isBuildable'] ?? false) && isset($material['blueprint'])) {
-                $this->collectJobInstallCosts($material['blueprint'], $solarSystemId, $facilityTaxRate, $steps);
-            }
-        }
+        return [
+            'baseProbability' => $invention->recipe->baseProbability,
+            'unknownReason' => self::inventionUnknownReasonOf($invention),
+            'datacores' => array_map(
+                fn (RecipeMaterial $datacore): ?string => $this->typeNameResolver->findName($datacore->typeId),
+                $invention->recipe->datacores,
+            ),
+            'selectedDecryptorTypeId' => $selectedDecryptorTypeId,
+            'selectedDecryptorName' => $this->decryptorNameOf($selectedDecryptorTypeId),
+            'options' => $options,
+        ];
     }
 
-    /**
-     * Recursively collect copy costs for nodes that have a copy activity.
-     *
-     * @param array<string, mixed> $node
-     */
-    private function collectCopyCosts(array $node, int $solarSystemId, ?float $facilityTaxRate, float &$totalCost): void
+    private function decryptorNameOf(?int $decryptorTypeId): ?string
     {
-        if ($node['hasCopy'] ?? false) {
-            $copyCost = $this->inventionService->getCopyJobCost(
-                $node['blueprintTypeId'],
-                $node['runs'],
-                $solarSystemId,
-                $facilityTaxRate,
-            );
-            $totalCost += $copyCost;
-        }
+        return null === $decryptorTypeId ? InventionService::NO_DECRYPTOR_NAME : $this->typeNameResolver->findName($decryptorTypeId);
+    }
 
-        foreach ($node['materials'] as $material) {
-            if (($material['isBuildable'] ?? false) && isset($material['blueprint'])) {
-                $this->collectCopyCosts($material['blueprint'], $solarSystemId, $facilityTaxRate, $totalCost);
-            }
+    private static function inventionUnknownReasonOf(InventionCost $invention): ?string
+    {
+        if (null === $invention->chance) {
+            return InventionService::UNKNOWN_REASON_MISSING_PROBABILITY;
         }
+        $missingReasons = array_map(static fn (MissingData $missingData): string => $missingData->reason, $invention->total->missingData);
+
+        return \in_array(self::MARKET_PRICE_REASON, $missingReasons, true) ? InventionService::UNKNOWN_REASON_MISSING_MARKET_PRICE : null;
     }
 
     /**
-     * Calculate margins for each sell venue.
-     *
-     * @return array<string, array{revenue: float, fees: float, profit: float, margin: float|null}|null>
+     * @return array{jitaSell: ?float, structureSell: ?float, structureBuy: ?float, contractSell: ?float, contractCount: int, structureId: int, structureName: string}
      */
-    private function calculateMargins(
-        ?float $jitaSellPrice,
-        ?float $structureSellPrice,
-        ?float $structureBuyPrice,
-        ?float $contractSellPrice,
-        int $outputQuantity,
-        float $totalCost,
-        float $brokerFeeRate,
-        float $salesTaxRate,
-    ): array {
+    private function sellPrices(int $typeId, int $outputQuantity, int $sellStructureId): array
+    {
+        $jitaSellData = $this->jitaMarketService->getWeightedSellPrice($typeId, $outputQuantity);
+
+        return [
+            'jitaSell' => $jitaSellData['weightedPrice'] ?? null,
+            'structureSell' => $this->structureMarketService->getLowestSellPrice($sellStructureId, $typeId),
+            'structureBuy' => $this->structureMarketService->getHighestBuyPrice($sellStructureId, $typeId),
+            'contractSell' => $this->publicContractPriceService->getLowestUnitPrice($typeId),
+            'contractCount' => $this->publicContractPriceService->getContractCount($typeId),
+            'structureId' => $sellStructureId,
+            'structureName' => $this->resolveStructureName($sellStructureId),
+        ];
+    }
+
+    /**
+     * @param array{jitaSell: ?float, structureSell: ?float, structureBuy: ?float, contractSell: ?float} $sellPrices
+     *
+     * @return array<string, array{revenue: float, fees: float, profit: float, margin: ?float}|null>
+     */
+    private function marginsOf(array $sellPrices, int $outputQuantity, Cost $totalCost, float $brokerFeeRate, float $salesTaxRate): array
+    {
+        if (!$totalCost->isKnown()) {
+            return ['jitaSell' => null, 'structureSell' => null, 'structureBuy' => null, 'contractSell' => null];
+        }
+        $cost = $totalCost->amount()->amount;
         $sellOrderFeeRate = $brokerFeeRate + $salesTaxRate;
 
         return [
-            'jitaSell' => $this->computeMarginForPrice($jitaSellPrice, $outputQuantity, $totalCost, $sellOrderFeeRate),
-            'structureSell' => $this->computeMarginForPrice($structureSellPrice, $outputQuantity, $totalCost, $sellOrderFeeRate),
-            'structureBuy' => $this->computeMarginForPrice($structureBuyPrice, $outputQuantity, $totalCost, $salesTaxRate),
-            'contractSell' => $this->computeMarginForPrice($contractSellPrice, $outputQuantity, $totalCost, self::CONTRACT_FEE_RATE),
+            'jitaSell' => self::marginForPrice($sellPrices['jitaSell'], $outputQuantity, $cost, $sellOrderFeeRate),
+            'structureSell' => self::marginForPrice($sellPrices['structureSell'], $outputQuantity, $cost, $sellOrderFeeRate),
+            'structureBuy' => self::marginForPrice($sellPrices['structureBuy'], $outputQuantity, $cost, $salesTaxRate),
+            'contractSell' => self::marginForPrice($sellPrices['contractSell'], $outputQuantity, $cost, self::CONTRACT_FEE_RATE),
         ];
     }
 
     /**
-     * Compute margin for a single sell price point.
-     *
-     * @return array{revenue: float, fees: float, profit: float, margin: float|null}|null
+     * @return array{revenue: float, fees: float, profit: float, margin: ?float}|null
      */
-    private function computeMarginForPrice(
-        ?float $unitPrice,
-        int $outputQuantity,
-        float $totalCost,
-        float $feeRate,
-    ): ?array {
-        if ($unitPrice === null || $unitPrice <= 0.0) {
+    private static function marginForPrice(?float $unitPrice, int $outputQuantity, float $totalCost, float $feeRate): ?array
+    {
+        if (null === $unitPrice || $unitPrice <= 0.0) {
             return null;
         }
 
         $grossRevenue = $unitPrice * $outputQuantity;
         $fees = $grossRevenue * $feeRate;
-        $netRevenue = $grossRevenue - $fees;
-        $profit = $netRevenue - $totalCost;
-        $margin = $totalCost > 0 ? ($profit / $totalCost) * 100.0 : null;
+        $profit = $grossRevenue - $fees - $totalCost;
 
         return [
             'revenue' => $grossRevenue,
             'fees' => $fees,
             'profit' => $profit,
-            'margin' => $margin,
+            'margin' => $totalCost > 0 ? ($profit / $totalCost) * 100.0 : null,
         ];
     }
 
     /**
-     * Find the best margin percentage across all sell venues for a given total production cost.
+     * @param array<string, array{revenue: float, fees: float, profit: float, margin: ?float}|null> $venueMargins
      */
-    private function findBestMarginForCost(
-        ?float $jitaSellPrice,
-        ?float $structureSellPrice,
-        ?float $structureBuyPrice,
-        ?float $contractSellPrice,
-        int $outputQuantity,
-        float $totalProductionCost,
-        float $brokerFeeRate,
-        float $salesTaxRate,
-    ): ?float {
-        $venueMargins = $this->calculateMargins(
-            $jitaSellPrice,
-            $structureSellPrice,
-            $structureBuyPrice,
-            $contractSellPrice,
-            $outputQuantity,
-            $totalProductionCost,
-            $brokerFeeRate,
-            $salesTaxRate,
-        );
+    private static function bestMarginOf(array $venueMargins): ?float
+    {
         $knownMargins = array_filter(
-            array_map(static fn (?array $venueMargin): ?float => $venueMargin === null ? null : $venueMargin['margin'], $venueMargins),
-            static fn (?float $margin): bool => $margin !== null,
+            array_map(static fn (?array $venueMargin): ?float => $venueMargin['margin'] ?? null, $venueMargins),
+            static fn (?float $margin): bool => null !== $margin,
         );
 
-        return $knownMargins === [] ? null : max($knownMargins);
-    }
-
-    /**
-     * Resolve the facility tax rate from the user's structure config for the given solar system.
-     * Falls back to default structure config, then null (0% tax).
-     */
-    private function resolveFacilityTaxRate(?User $user, ?int $solarSystemId): ?float
-    {
-        if ($user === null) {
-            return null;
-        }
-
-        $structures = $this->structureConfigRepository->findByUser($user);
-
-        if (empty($structures)) {
-            return null;
-        }
-
-        // Try to find a structure in the requested solar system
-        if ($solarSystemId !== null) {
-            foreach ($structures as $structure) {
-                if ($structure->getSolarSystemId() === $solarSystemId) {
-                    return $structure->getFacilityTaxRate();
-                }
-            }
-        }
-
-        // Fall back to the user's default structure
-        foreach ($structures as $structure) {
-            if ($structure->isDefault()) {
-                return $structure->getFacilityTaxRate();
-            }
-        }
-
-        return null;
-    }
-
-    private function resolveTypeName(int $typeId): ?string
-    {
-        return $this->typeNameResolver->findName($typeId);
+        return [] === $knownMargins ? null : max($knownMargins);
     }
 
     private function resolveStructureName(int $structureId): string

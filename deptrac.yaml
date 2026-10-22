@@ -97,7 +97,9 @@ deptrac:
             - { type: php_internal, value: '.*' }
 
   # Permissive: dependencies point from entry points towards persistence.
-  # The flat folders never import the Industry layers: none of them lists an Industry* layer.
+  # The flat folders never import the Industry layers, except the strangler consumers (ADR-0009): Service uses the
+  # Application and its Domain value objects, StateProvider validates its input against the Application ports.
+  # No flat folder imports IndustryInfrastructure, wired by the container.
   # Entity -> Repository is allowed because of #[ORM\Entity(repositoryClass: ...)].
   # ApiResource -> State* is allowed because of provider:/processor: attributes.
   ruleset:
@@ -107,9 +109,9 @@ deptrac:
     Dto: [Enum, Constant, Vendor]
     Entity: [Repository, Enum, Constant, Exception, Dto, Vendor]
     Repository: [Entity, Enum, Constant, Exception, Dto, Vendor]
-    Service: [Entity, Repository, Message, Enum, Constant, Exception, Dto, Vendor]
+    Service: [Entity, Repository, Message, Enum, Constant, Exception, Dto, IndustryApplication, IndustryDomain, Vendor]
     ApiResource: [StateProvider, StateProcessor, Entity, Enum, Constant, Exception, Dto, Vendor]
-    StateProvider: [ApiResource, Service, Repository, Entity, Security, Enum, Constant, Exception, Dto, Vendor]
+    StateProvider: [ApiResource, Service, Repository, Entity, Security, Enum, Constant, Exception, Dto, IndustryApplication, Vendor]
     StateProcessor: [ApiResource, Service, Repository, Entity, Message, Security, Enum, Constant, Exception, Dto, Vendor]
     Message: [Enum, Constant, Dto, Vendor]
     MessageHandler: [Message, Service, Repository, Entity, Enum, Constant, Exception, Dto, Vendor]
@@ -123,4 +125,4 @@ deptrac:
     IndustryDomain: ~
     IndustryApplication: [IndustryDomain]
     # Adapters of the Domain ports over the SDE / ESI persistence.
-    IndustryInfrastructure: [IndustryDomain, IndustryApplication, Entity, Repository, Service, Vendor]
+    IndustryInfrastructure: [IndustryDomain, IndustryApplication, Entity, Repository, Service, Constant, Vendor]

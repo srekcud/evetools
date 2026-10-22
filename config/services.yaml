@@ -73,6 +73,9 @@ services:
     App\Industry\Application\MarketPrices: '@App\Industry\Infrastructure\Market\JitaMarketPrices'
     App\Industry\Application\AdjustedPrices: '@App\Industry\Infrastructure\Esi\EsiAdjustedPrices'
     App\Industry\Application\SystemCostIndices: '@App\Industry\Infrastructure\Esi\EsiSystemCostIndices'
+    App\Industry\Application\RigCategories: '@App\Industry\Infrastructure\Sde\SdeRigCategories'
+    App\Industry\Application\UserProductionStructures: '@App\Industry\Infrastructure\Doctrine\ConfiguredProductionStructures'
+    App\Industry\Application\Decryptors: '@App\Industry\Infrastructure\Sde\SdeDecryptors'
 
 when@test:
     services:
@@ -100,4 +103,13 @@ when@test:
             public: true
         App\Industry\Application\SystemCostIndices:
             alias: App\Industry\Infrastructure\Esi\EsiSystemCostIndices
+            public: true
+        App\Industry\Application\RigCategories:
+            alias: App\Industry\Infrastructure\Sde\SdeRigCategories
+            public: true
+        App\Industry\Application\UserProductionStructures:
+            alias: App\Industry\Infrastructure\Doctrine\ConfiguredProductionStructures
+            public: true
+        App\Industry\Application\Decryptors:
+            alias: App\Industry\Infrastructure\Sde\SdeDecryptors
             public: true
