@@ -277,6 +277,7 @@ class EsiCostIndexService
         $activityKind = match ($activity) {
             'manufacturing' => ActivityKind::Manufacturing,
             'reaction' => ActivityKind::Reaction,
+            'invention' => ActivityKind::Invention,
             default => throw new \InvalidArgumentException(sprintf('Unsupported install cost activity "%s".', $activity)),
         };
         $materialTypeIds = array_column($materials, 'materialTypeId');

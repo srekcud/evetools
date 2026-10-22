@@ -513,10 +513,11 @@ export interface BpcKitDecryptorOption {
     datacores: number | null
     decryptor: number | null
     copyCost: number
-    inventionInstall: number
+    inventionInstall: number | null
   }
   missingPriceTypeIds: number[]
-  unknownReason: InventionUnknownReason | null
+  missingAdjustedPriceTypeIds: number[]
+  unknownReason: InventionUnknownReason | JobInstallCostUnknownReason | null
 }
 
 export interface BpcKitInvention {

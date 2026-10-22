@@ -213,10 +213,11 @@ class InventionService
      *     runs: int,
      *     costPerAttempt: ?float,
      *     totalCost: ?float,
-     *     costBreakdown: array{datacores: ?float, decryptor: ?float, copyCost: float, inventionInstall: float},
+     *     costBreakdown: array{datacores: ?float, decryptor: ?float, copyCost: float, inventionInstall: ?float},
      *     datacores: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: ?float, totalPrice: ?float}>,
      *     decryptorName: ?string,
      *     missingPriceTypeIds: list<int>,
+     *     missingAdjustedPriceTypeIds: list<int>,
      *     unknownReason: ?string
      * }|null
      */
@@ -295,17 +296,18 @@ class InventionService
 
         $copyCost = $this->getCopyJobCost($t1BlueprintTypeId, 1, $solarSystemId, $facilityTaxRate);
 
-        // Invention install cost: 0.02 x EIV(T2 blueprint) x system_cost_index x (1 + tax)
-        $t2Eiv = $this->calculateBlueprintEiv($t2BlueprintTypeId);
-        $inventionCostIndex = $this->esiCostIndexService->getCostIndex($solarSystemId, 'invention');
-        $inventionTaxMultiplier = 1.0 + ($facilityTaxRate ?? 0.0) / 100.0;
-        $inventionInstallCost = $inventionCostIndex !== null && $t2Eiv > 0
-            ? 0.02 * $t2Eiv * $inventionCostIndex * $inventionTaxMultiplier
-            : 0.0;
+        $inventionInstallEstimate = $this->esiCostIndexService->estimateJobInstallCost(
+            $this->activityMaterialRepository->findMaterialsForBlueprints([$t2BlueprintTypeId], [IndustryActivityType::Manufacturing->value])[$t2BlueprintTypeId] ?? [],
+            1,
+            $solarSystemId,
+            'invention',
+            $facilityTaxRate,
+        );
+        $inventionInstallCost = $inventionInstallEstimate['cost'];
 
         $isDatacoreCostUnknown = in_array(null, array_column($datacores, 'unitPrice'), true);
         $datacoreCost = $isDatacoreCostUnknown ? null : $datacoreTotalCost;
-        $costPerAttempt = $missingPriceTypeIds === []
+        $costPerAttempt = $missingPriceTypeIds === [] && $inventionInstallCost !== null
             ? $datacoreTotalCost + $decryptorPrice + $copyCost + $inventionInstallCost
             : null;
 
@@ -339,10 +341,11 @@ class InventionService
             'datacores' => $datacores,
             'decryptorName' => $decryptorName,
             'missingPriceTypeIds' => $missingPriceTypeIds,
+            'missingAdjustedPriceTypeIds' => $inventionInstallEstimate['missingAdjustedPriceTypeIds'],
             'unknownReason' => match (true) {
                 $baseProbability === null => self::UNKNOWN_REASON_MISSING_PROBABILITY,
                 $missingPriceTypeIds !== [] => self::UNKNOWN_REASON_MISSING_MARKET_PRICE,
-                default => null,
+                default => $inventionInstallEstimate['unknownReason'],
             },
         ];
     }
@@ -372,8 +375,9 @@ class InventionService
      *             costPerAttempt: ?float,
      *             expectedAttempts: ?int,
      *             totalCost: ?float,
-     *             costBreakdown: array{datacores: ?float, decryptor: ?float, copyCost: float, inventionInstall: float},
+     *             costBreakdown: array{datacores: ?float, decryptor: ?float, copyCost: float, inventionInstall: ?float},
      *             missingPriceTypeIds: list<int>,
+     *             missingAdjustedPriceTypeIds: list<int>,
      *             unknownReason: ?string
      *         }>
      *     }>,
@@ -496,7 +500,7 @@ class InventionService
     /**
      * Build all decryptor options (including "no decryptor") for a T2 item.
      *
-     * @return list<array{decryptorTypeId: ?int, decryptorName: string, me: int, te: int, runs: int, probability: ?float, costPerAttempt: ?float, expectedAttempts: ?int, totalCost: ?float, costBreakdown: array{datacores: ?float, decryptor: ?float, copyCost: float, inventionInstall: float}, missingPriceTypeIds: list<int>, unknownReason: ?string}>
+     * @return list<array{decryptorTypeId: ?int, decryptorName: string, me: int, te: int, runs: int, probability: ?float, costPerAttempt: ?float, expectedAttempts: ?int, totalCost: ?float, costBreakdown: array{datacores: ?float, decryptor: ?float, copyCost: float, inventionInstall: ?float}, missingPriceTypeIds: list<int>, missingAdjustedPriceTypeIds: list<int>, unknownReason: ?string}>
      */
     public function buildDecryptorOptions(
         int $t2TypeId,
@@ -528,6 +532,7 @@ class InventionService
                     'totalCost' => $result['totalCost'],
                     'costBreakdown' => $result['costBreakdown'],
                     'missingPriceTypeIds' => $result['missingPriceTypeIds'],
+                    'missingAdjustedPriceTypeIds' => $result['missingAdjustedPriceTypeIds'],
                     'unknownReason' => $result['unknownReason'],
                 ];
             }

@@ -380,7 +380,7 @@ onMounted(() => {
                       </div>
                       <div class="flex justify-between">
                         <span class="text-slate-400">{{ t('industry.bpcKitTab.installCost') }}</span>
-                        <span class="font-mono text-slate-200">{{ formatIsk(option.costBreakdown.inventionInstall) }}</span>
+                        <span class="font-mono text-slate-200">{{ formatCost(option.costBreakdown.inventionInstall) }}</span>
                       </div>
                       <div class="border-t border-slate-700 pt-1.5 flex justify-between font-semibold">
                         <span class="text-slate-300">Total</span>
