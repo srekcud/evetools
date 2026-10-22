@@ -106,7 +106,7 @@ class GroupIndustryDistributionService
             $profitPart = $totalCosts * $marginRatio;
             $payoutTotal = $totalCosts + $profitPart;
 
-            $characterName = $member->getUser()->getMainCharacter()?->getName() ?? 'Unknown';
+            $characterName = PilotName::of($member->getUser());
 
             $result[] = new MemberDistribution(
                 memberId: $memberId,

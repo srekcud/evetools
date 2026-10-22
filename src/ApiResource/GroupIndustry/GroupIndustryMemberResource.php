@@ -89,9 +89,9 @@ class GroupIndustryMemberResource
     #[ApiProperty(identifier: true)]
     public string $id;
 
-    public string $characterName;
+    public ?string $characterName = null;
 
-    public int $characterId;
+    public ?int $characterId = null;
 
     public ?int $corporationId = null;
 

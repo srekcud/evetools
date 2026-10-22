@@ -46,8 +46,8 @@ class CorpAssetVisibilityProvider implements ProviderInterface
         $allDivisions = $this->cachedAssetRepository->findDistinctDivisions($corporationId);
 
         // Fallback: if no cached assets yet, try ESI with the Director's token
-        if (empty($allDivisions) && $visibility !== null) {
-            $directorUser = $visibility->getConfiguredBy();
+        $directorUser = $visibility?->getConfiguredBy();
+        if (empty($allDivisions) && $directorUser !== null) {
             foreach ($directorUser->getCharacters() as $directorCharacter) {
                 if ($directorCharacter->getCorporationId() === $corporationId && $directorCharacter->getEveToken() !== null) {
                     $allDivisions = $this->corporationService->getDivisions($directorCharacter);
@@ -62,7 +62,7 @@ class CorpAssetVisibilityProvider implements ProviderInterface
             : array_keys($allDivisions);
         $resource->allDivisions = $allDivisions;
         $resource->isDirector = false;
-        $resource->configuredByName = $visibility?->getConfiguredBy()->getMainCharacter()?->getName();
+        $resource->configuredByName = $directorUser?->getMainCharacter()?->getName();
         $resource->updatedAt = $visibility?->getUpdatedAt()->format('c');
 
         return $resource;

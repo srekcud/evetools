@@ -40,7 +40,7 @@ class Character
     private ?string $allianceName = null;
 
     #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'characters')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?User $user = null;
 
     #[ORM\OneToOne(targetEntity: EveToken::class, mappedBy: 'character', cascade: ['persist', 'remove'])]

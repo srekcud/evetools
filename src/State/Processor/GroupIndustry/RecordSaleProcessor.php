@@ -14,6 +14,7 @@ use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
+use App\Service\GroupIndustry\PilotName;
 use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -129,7 +130,7 @@ class RecordSaleProcessor implements ProcessorInterface
         $resource->totalPrice = $sale->getTotalPrice();
         $resource->venue = $sale->getVenue();
         $resource->soldAt = $sale->getSoldAt()->format(\DateTimeInterface::ATOM);
-        $resource->recordedByCharacterName = $sale->getRecordedBy()->getMainCharacter()?->getName() ?? 'Unknown';
+        $resource->recordedByCharacterName = PilotName::of($sale->getRecordedBy());
         $resource->createdAt = $sale->getCreatedAt()->format(\DateTimeInterface::ATOM);
 
         return $resource;

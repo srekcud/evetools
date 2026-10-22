@@ -11,9 +11,12 @@ use App\Entity\GroupIndustryContribution;
 use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Enum\GroupMemberStatus;
+use App\Service\GroupIndustry\PilotName;
 
 class GroupIndustryResourceMapper
 {
+    private const int CHARACTER_ID_WITHOUT_MAIN_CHARACTER = 0;
+
     /**
      * @param int|null $acceptedMembersCount precomputed by collection providers; counted from the members otherwise
      */
@@ -77,7 +80,7 @@ class GroupIndustryResourceMapper
         $resource = new GroupIndustryContributionResource();
         $resource->id = $contribution->getId()->toString();
         $resource->memberId = $contribution->getMember()->getId()->toString();
-        $resource->memberCharacterName = $contribution->getMember()->getUser()->getMainCharacter()?->getName() ?? 'Unknown';
+        $resource->memberCharacterName = PilotName::of($contribution->getMember()->getUser());
         $resource->bomItemId = $contribution->getBomItem()?->getId()?->toString();
         $resource->bomItemTypeName = $contribution->getBomItem()?->getTypeName();
         $resource->type = $contribution->getType()->value;
@@ -98,10 +101,11 @@ class GroupIndustryResourceMapper
     {
         $resource = new GroupIndustryMemberResource();
         $resource->id = $member->getId()->toString();
-        $resource->characterName = $member->getUser()->getMainCharacter()?->getName() ?? 'Unknown';
-        $resource->characterId = $member->getUser()->getMainCharacter()?->getEveCharacterId() ?? 0;
-        $resource->corporationId = $member->getUser()->getCorporationId();
-        $resource->corporationName = $member->getUser()->getCorporationName();
+        $user = $member->getUser();
+        $resource->characterName = PilotName::of($user);
+        $resource->characterId = $user === null ? null : ($user->getMainCharacter()?->getEveCharacterId() ?? self::CHARACTER_ID_WITHOUT_MAIN_CHARACTER);
+        $resource->corporationId = $user?->getCorporationId();
+        $resource->corporationName = $user?->getCorporationName();
         $resource->role = $member->getRole()->value;
         $resource->status = $member->getStatus()->value;
         $resource->totalContributionValue = $totalContributionValue;

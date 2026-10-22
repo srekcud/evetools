@@ -46,8 +46,8 @@ class GroupIndustrySale
     private \DateTimeImmutable $soldAt;
 
     #[ORM\ManyToOne(targetEntity: User::class)]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private User $recordedBy;
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?User $recordedBy = null;
 
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
@@ -150,7 +150,7 @@ class GroupIndustrySale
         return $this;
     }
 
-    public function getRecordedBy(): User
+    public function getRecordedBy(): ?User
     {
         return $this->recordedBy;
     }

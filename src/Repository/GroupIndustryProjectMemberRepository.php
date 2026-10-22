@@ -7,6 +7,7 @@ namespace App\Repository;
 use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
+use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -143,6 +144,25 @@ class GroupIndustryProjectMemberRepository extends ServiceEntityRepository
         }
 
         return $counts;
+    }
+
+    public function findOwnershipSuccessor(GroupIndustryProject $project, User $leavingOwner): ?GroupIndustryProjectMember
+    {
+        return $this->createQueryBuilder('m')
+            ->addSelect('CASE WHEN m.role = :admin THEN 0 ELSE 1 END AS HIDDEN rolePriority')
+            ->andWhere('m.project = :project')
+            ->andWhere('m.status = :accepted')
+            ->andWhere('m.user IS NOT NULL')
+            ->andWhere('m.user != :leavingOwner')
+            ->setParameter('admin', GroupMemberRole::Admin->value)
+            ->setParameter('project', $project)
+            ->setParameter('accepted', GroupMemberStatus::Accepted->value)
+            ->setParameter('leavingOwner', $leavingOwner)
+            ->orderBy('rolePriority', 'ASC')
+            ->addOrderBy('m.joinedAt', 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 
     /**

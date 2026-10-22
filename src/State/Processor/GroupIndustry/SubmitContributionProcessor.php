@@ -15,6 +15,7 @@ use App\Repository\GroupIndustryBomItemRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
 use App\Service\GroupIndustry\GroupIndustryContributionService;
+use App\Service\GroupIndustry\PilotName;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -105,7 +106,7 @@ class SubmitContributionProcessor implements ProcessorInterface
             [
                 'contributionId' => $contribution->getId()->toRfc4122(),
                 'type' => $contribution->getType()->value,
-                'characterName' => $member->getUser()->getMainCharacter()?->getName() ?? 'Unknown',
+                'characterName' => PilotName::of($member->getUser()),
                 'bomItemName' => $contribution->getBomItem()?->getTypeName(),
                 'quantity' => $contribution->getQuantity(),
                 'value' => $contribution->getEstimatedValue(),

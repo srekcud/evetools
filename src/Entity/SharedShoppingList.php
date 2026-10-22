@@ -32,7 +32,7 @@ class SharedShoppingList
     private \DateTimeImmutable $expiresAt;
 
     #[ORM\ManyToOne(targetEntity: User::class)]
-    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     private ?User $createdBy = null;
 
     public function __construct()

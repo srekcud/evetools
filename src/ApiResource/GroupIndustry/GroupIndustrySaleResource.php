@@ -66,7 +66,7 @@ class GroupIndustrySaleResource
 
     public string $soldAt;
 
-    public string $recordedByCharacterName;
+    public ?string $recordedByCharacterName = null;
 
     public string $createdAt;
 }

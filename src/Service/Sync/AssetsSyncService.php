@@ -253,9 +253,8 @@ class AssetsSyncService
     public function getCorpAssetsCharacter(int $corporationId): ?Character
     {
         // Prefer the Director who configured visibility
-        $visibility = $this->visibilityRepository->findByCorporationId($corporationId);
-        if ($visibility !== null) {
-            $directorUser = $visibility->getConfiguredBy();
+        $directorUser = $this->visibilityRepository->findByCorporationId($corporationId)?->getConfiguredBy();
+        if ($directorUser !== null) {
             foreach ($directorUser->getCharacters() as $character) {
                 if ($character->getCorporationId() === $corporationId) {
                     $token = $character->getEveToken();

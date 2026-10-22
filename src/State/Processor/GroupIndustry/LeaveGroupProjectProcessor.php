@@ -11,6 +11,7 @@ use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
+use App\Service\GroupIndustry\PilotName;
 use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -73,7 +74,7 @@ class LeaveGroupProjectProcessor implements ProcessorInterface
             'member_left',
             [
                 'memberId' => $member->getId()->toRfc4122(),
-                'characterName' => $member->getUser()->getMainCharacter()?->getName() ?? 'Unknown',
+                'characterName' => PilotName::of($member->getUser()),
             ],
         );
     }

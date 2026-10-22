@@ -29,8 +29,8 @@ class GroupIndustryProjectMember
     private GroupIndustryProject $project;
 
     #[ORM\ManyToOne(targetEntity: User::class)]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private User $user;
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?User $user = null;
 
     #[ORM\Column(type: 'string', length: 10, enumType: GroupMemberRole::class)]
     private GroupMemberRole $role = GroupMemberRole::Member;
@@ -64,9 +64,12 @@ class GroupIndustryProjectMember
 
     public function anonymize(): void
     {
+        $this->user = null;
+        $this->status = GroupMemberStatus::Removed;
+        $this->role = GroupMemberRole::Member;
     }
 
-    public function getUser(): User
+    public function getUser(): ?User
     {
         return $this->user;
     }

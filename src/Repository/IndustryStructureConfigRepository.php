@@ -113,4 +113,20 @@ class IndustryStructureConfigRepository extends ServiceEntityRepository
 
         return $result;
     }
+
+    public function removeUserFromHiddenByUsers(string $userId): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            <<<'SQL'
+                UPDATE industry_structure_configs
+                SET hidden_by_users = (
+                    SELECT COALESCE(json_agg(hidden_user_id), '[]'::json)
+                    FROM json_array_elements_text(hidden_by_users) AS hidden_user_id
+                    WHERE hidden_user_id <> :userId
+                )
+                WHERE hidden_by_users::jsonb @> jsonb_build_array(CAST(:userId AS text))
+                SQL,
+            ['userId' => $userId],
+        );
+    }
 }

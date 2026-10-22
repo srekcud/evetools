@@ -71,11 +71,6 @@ services:
             $secret: '%env(APP_SECRET)%'
             $ttl: 600
 
-    App\Controller\Auth\EveOAuthController:
-        arguments:
-            $jwtBlacklist: '@jwt.blacklist'
-            $jwtTokenTtl: '%lexik_jwt_authentication.token_ttl%'
-
     # SDE Import Service
     App\Service\Sde\SdeImportService:
         arguments:

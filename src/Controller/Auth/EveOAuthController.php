@@ -6,6 +6,7 @@ namespace App\Controller\Auth;
 
 use App\Entity\User;
 use App\Message\SyncCharacterAssets;
+use App\Security\JwtBlacklist;
 use App\Security\OAuthStateSigner;
 use App\Service\ESI\AuthenticationService;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
@@ -16,7 +17,6 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Bundle\SecurityBundle\Security;
-use Psr\Cache\CacheItemPoolInterface;
 
 #[Route('/auth')]
 class EveOAuthController extends AbstractController
@@ -24,11 +24,10 @@ class EveOAuthController extends AbstractController
     public function __construct(
         private readonly AuthenticationService $authService,
         private readonly JWTTokenManagerInterface $jwtManager,
-        private readonly CacheItemPoolInterface $jwtBlacklist,
+        private readonly JwtBlacklist $jwtBlacklist,
         private readonly OAuthStateSigner $oauthStateSigner,
         private readonly MessageBusInterface $messageBus,
         private readonly Security $security,
-        private readonly int $jwtTokenTtl,
     ) {
     }
 
@@ -158,18 +157,7 @@ class EveOAuthController extends AbstractController
     #[Route('/logout', name: 'auth_logout', methods: ['POST'])]
     public function logout(Request $request): JsonResponse
     {
-        $authHeader = $request->headers->get('Authorization');
-
-        if ($authHeader !== null && str_starts_with($authHeader, 'Bearer ')) {
-            $token = substr($authHeader, 7);
-            $tokenId = hash('sha256', $token);
-
-            // Add token to blacklist
-            $cacheItem = $this->jwtBlacklist->getItem('jwt_blacklist_' . $tokenId);
-            $cacheItem->set(true);
-            $cacheItem->expiresAfter($this->jwtTokenTtl);
-            $this->jwtBlacklist->save($cacheItem);
-        }
+        $this->jwtBlacklist->blockBearerOf($request);
 
         return new JsonResponse([
             'message' => 'Logged out successfully',

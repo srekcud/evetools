@@ -6,8 +6,11 @@ namespace App\ApiResource\Me;
 
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\OpenApi\Model;
+use App\State\Processor\Me\DeleteAccountProcessor;
+use App\State\Provider\Me\AccountDeleteProvider;
 use App\State\Provider\Me\UserProvider;
 
 #[ApiResource(
@@ -18,6 +21,12 @@ use App\State\Provider\Me\UserProvider;
             uriTemplate: '/me',
             provider: UserProvider::class,
             openapi: new Model\Operation(summary: 'Get current user', description: 'Returns the authenticated user with their characters', tags: ['Account & Characters']),
+        ),
+        new Delete(
+            uriTemplate: '/me',
+            provider: AccountDeleteProvider::class,
+            processor: DeleteAccountProcessor::class,
+            openapi: new Model\Operation(summary: 'Delete the current account', description: 'Deletes the authenticated user, their characters and personal data; collaborative contributions and sales are kept anonymized', tags: ['Account & Characters']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

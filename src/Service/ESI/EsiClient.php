@@ -6,10 +6,13 @@ namespace App\Service\ESI;
 
 use App\Entity\EveToken;
 use App\Exception\EsiApiException;
+use Psr\Cache\CacheItemInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Clock\NativeClock;
+use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\Cache\ItemInterface;
 use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -169,6 +172,7 @@ class EsiClient
     public function getWithCache(string $endpoint, ?EveToken $token = null): array
     {
         $cacheKey = $this->getCacheKey($endpoint, $token);
+        $cacheTags = $this->getCacheTags($token);
         $freshItem = $this->esiCache->getItem($cacheKey);
         if ($freshItem->isHit()) {
             return $freshItem->get()['data'];
@@ -180,7 +184,7 @@ class EsiClient
 
         if ($stale === null) {
             try {
-                return $this->cacheResponse($cacheKey, $this->requestWithRetry('GET', $endpoint, $token), $endpoint);
+                return $this->cacheResponse($cacheKey, $cacheTags, $this->requestWithRetry('GET', $endpoint, $token), $endpoint);
             } catch (TransportExceptionInterface $e) {
                 throw EsiApiException::fromResponse(0, 'Network error: ' . $e->getMessage(), $endpoint);
             }
@@ -189,14 +193,14 @@ class EsiClient
         try {
             $response = $this->conditionalGet($endpoint, $token, $stale['etag']);
             if ($response->getStatusCode() !== 304) {
-                return $this->cacheResponse($cacheKey, $response, $endpoint);
+                return $this->cacheResponse($cacheKey, $cacheTags, $response, $endpoint);
             }
         } catch (TransportExceptionInterface) {
             // ESI unreachable: the stale copy is better than no data.
             return $stale['data'];
         }
 
-        $this->storeInCache($cacheKey, $stale['data'], $stale['etag'], $this->responseHeaders($response));
+        $this->storeInCache($cacheKey, $cacheTags, $stale['data'], $stale['etag'], $this->responseHeaders($response));
 
         return $stale['data'];
     }
@@ -589,14 +593,15 @@ class EsiClient
     }
 
     /**
+     * @param list<string> $cacheTags
      * @return array<mixed>
      */
-    private function cacheResponse(string $cacheKey, ResponseInterface $response, string $endpoint): array
+    private function cacheResponse(string $cacheKey, array $cacheTags, ResponseInterface $response, string $endpoint): array
     {
         $data = $this->handleResponse($response, $endpoint);
         $headers = $this->responseHeaders($response);
 
-        $this->storeInCache($cacheKey, $data, $headers['etag'][0] ?? null, $headers);
+        $this->storeInCache($cacheKey, $cacheTags, $data, $headers['etag'][0] ?? null, $headers);
 
         return $data;
     }
@@ -605,13 +610,14 @@ class EsiClient
      * The fresh item expires with ESI's Expires; the revalidation item outlives it so the
      * ETag can still be sent once the data is stale.
      *
+     * @param list<string> $cacheTags
      * @param array<mixed> $data
      * @param array<string, list<string>> $headers
      */
-    private function storeInCache(string $cacheKey, array $data, ?string $etag, array $headers): void
+    private function storeInCache(string $cacheKey, array $cacheTags, array $data, ?string $etag, array $headers): void
     {
         $freshItem = $this->esiCache->getItem($cacheKey);
-        $freshItem->set(['data' => $data]);
+        $this->tagCacheItem($freshItem->set(['data' => $data]), $cacheTags);
         $expiresAt = $this->expiresAt($headers);
         if ($expiresAt !== null) {
             $freshItem->expiresAt($expiresAt);
@@ -622,7 +628,7 @@ class EsiClient
 
         $revalidationItem = $this->esiCache->getItem($this->getRevalidationCacheKey($cacheKey));
         if ($etag !== null) {
-            $revalidationItem->set(['data' => $data, 'etag' => $etag]);
+            $this->tagCacheItem($revalidationItem->set(['data' => $data, 'etag' => $etag]), $cacheTags);
             $revalidationItem->expiresAfter(self::REVALIDATION_TTL_SECONDS);
             $this->esiCache->save($revalidationItem);
         } else {
@@ -659,9 +665,35 @@ class EsiClient
         }
     }
 
-    public static function cacheTagForCharacter(\Symfony\Component\Uid\Uuid $characterId): string
+    public static function cacheTagForCharacter(Uuid $characterId): string
     {
         return 'esi_character_' . $characterId->toRfc4122();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function getCacheTags(?EveToken $token): array
+    {
+        $characterId = $token?->getCharacter()?->getId();
+
+        return $characterId === null ? [] : [self::cacheTagForCharacter($characterId)];
+    }
+
+    /**
+     * @param list<string> $cacheTags
+     */
+    private function tagCacheItem(CacheItemInterface $item, array $cacheTags): void
+    {
+        if ($cacheTags === []) {
+            return;
+        }
+
+        if (!$item instanceof ItemInterface) {
+            throw new \LogicException('The ESI cache pool must be tag-aware to cache authenticated responses.');
+        }
+
+        $item->tag($cacheTags);
     }
 
     private function getCacheKey(string $endpoint, ?EveToken $token): string

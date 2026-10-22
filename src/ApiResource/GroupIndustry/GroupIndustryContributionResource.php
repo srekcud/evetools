@@ -71,7 +71,7 @@ class GroupIndustryContributionResource
     #[ApiProperty(identifier: true)]
     public string $id;
 
-    public string $memberCharacterName;
+    public ?string $memberCharacterName = null;
 
     public string $memberId;
 

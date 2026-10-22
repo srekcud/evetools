@@ -8,7 +8,7 @@ class MemberDistribution
 {
     public function __construct(
         public readonly string $memberId,
-        public readonly string $characterName,
+        public readonly ?string $characterName,
         public readonly float $totalCostsEngaged,
         public readonly float $materialCosts,
         public readonly float $jobInstallCosts,

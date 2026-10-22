@@ -50,7 +50,7 @@ class GroupIndustryDistributionResource
     /**
      * @var list<array{
      *     memberId: string,
-     *     characterName: string,
+     *     characterName: string|null,
      *     totalCostsEngaged: float,
      *     materialCosts: float,
      *     jobInstallCosts: float,

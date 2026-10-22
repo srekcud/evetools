@@ -13,6 +13,7 @@ use App\Enum\GroupMemberStatus;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
 use App\Repository\GroupIndustrySaleRepository;
+use App\Service\GroupIndustry\PilotName;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -101,7 +102,7 @@ class GroupSaleCollectionProvider implements ProviderInterface
         $resource->totalPrice = $sale->getTotalPrice();
         $resource->venue = $sale->getVenue();
         $resource->soldAt = $sale->getSoldAt()->format(\DateTimeInterface::ATOM);
-        $resource->recordedByCharacterName = $sale->getRecordedBy()->getMainCharacter()?->getName() ?? 'Unknown';
+        $resource->recordedByCharacterName = PilotName::of($sale->getRecordedBy());
         $resource->createdAt = $sale->getCreatedAt()->format(\DateTimeInterface::ATOM);
 
         return $resource;

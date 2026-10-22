@@ -28,8 +28,8 @@ class CorpAssetVisibility
     private array $visibleDivisions = [];
 
     #[ORM\ManyToOne(targetEntity: User::class)]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private User $configuredBy;
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?User $configuredBy = null;
 
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $updatedAt;
@@ -68,7 +68,7 @@ class CorpAssetVisibility
         return $this;
     }
 
-    public function getConfiguredBy(): User
+    public function getConfiguredBy(): ?User
     {
         return $this->configuredBy;
     }
