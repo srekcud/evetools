@@ -99,10 +99,6 @@ export const useStepsStore = defineStore('industry-steps', () => {
     return updateStep(projectId, stepId, { teLevel })
   }
 
-  async function updateStepStructure(projectId: string, stepId: string, structureConfigId: string | null) {
-    return updateStep(projectId, stepId, { structureConfigId })
-  }
-
   async function createStep(projectId: string, typeId: number, runs: number, meLevel?: number, teLevel?: number) {
     try {
       const body: Record<string, unknown> = { typeId, runs }
@@ -269,7 +265,6 @@ export const useStepsStore = defineStore('industry-steps', () => {
     updateStepRuns,
     updateStepMeLevel,
     updateStepTeLevel,
-    updateStepStructure,
     createStep,
     addChildJob,
     deleteStep,

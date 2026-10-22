@@ -82,7 +82,6 @@ export interface IndustryProjectStep {
 
   // Backward-compatible computed fields (populated by enrichStep())
   inStock: boolean
-  isSplit: boolean
   esiJobId: number | null
   esiJobCost: number | null
   esiJobStatus: string | null
@@ -96,7 +95,6 @@ export interface IndustryProjectStep {
   manualJobData: boolean
   recommendedStructureName: string | null
   structureBonus: number | null
-  estimatedDurationDays: number | null
   similarJobs: SimilarEsiJob[]
 }
 

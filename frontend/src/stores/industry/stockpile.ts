@@ -25,39 +25,6 @@ export const useStockpileStore = defineStore('industry-stockpile', () => {
     }
   }
 
-  async function createTarget(data: {
-    typeId: number
-    typeName: string
-    targetQuantity: number
-    stage: string
-  }): Promise<void> {
-    error.value = null
-    try {
-      await apiRequest<StockpileTarget>('/industry/stockpile-targets', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      })
-      await fetchTargets()
-      await fetchStockpileStatus()
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to create target'
-    }
-  }
-
-  async function updateTarget(id: string, targetQuantity: number): Promise<void> {
-    error.value = null
-    try {
-      await apiRequest<StockpileTarget>(`/industry/stockpile-targets/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ targetQuantity }),
-      })
-      await fetchTargets()
-      await fetchStockpileStatus()
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to update target'
-    }
-  }
-
   async function deleteTarget(id: string): Promise<void> {
     error.value = null
     try {
@@ -166,9 +133,6 @@ export const useStockpileStore = defineStore('industry-stockpile', () => {
     statusLoading,
     importLoading,
     error,
-    fetchTargets,
-    createTarget,
-    updateTarget,
     deleteTarget,
     clearAllTargets,
     fetchStockpileStatus,

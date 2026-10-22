@@ -121,10 +121,6 @@ export function useIndustryStore() {
     // Steps store
     toggleStepPurchased: stepsStore.toggleStepPurchased,
     toggleStepInStock: stepsStore.toggleStepInStock,
-    updateStepJobData: (projectId: string, stepId: string, data: Record<string, unknown>) =>
-      stepsStore.updateStep(projectId, stepId, data),
-    clearStepJobData: (projectId: string, stepId: string) =>
-      stepsStore.updateStep(projectId, stepId, { clearJobData: true }),
     createStep: stepsStore.createStep,
     addChildJob: stepsStore.addChildJob,
     deleteStep: stepsStore.deleteStep,

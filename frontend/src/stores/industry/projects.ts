@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiRequest } from '@/services/api'
-import type { IndustryProject, IndustryProjectStep, SearchResult, ShoppingListResponse, CostEstimation, BpcKit, CopyCosts, ProfitMarginResult } from './types'
+import type { IndustryProject, SearchResult, ShoppingListResponse, CostEstimation, BpcKit, CopyCosts, ProfitMarginResult } from './types'
 import { enrichProject, enrichStep, formatErrorMessage } from './compat'
 
 export const useProjectsStore = defineStore('industry-projects', () => {
@@ -163,47 +163,6 @@ export const useProjectsStore = defineStore('industry-projects', () => {
     }
   }
 
-  async function applyStock(projectId: string, items: { typeName: string; quantity: number }[]) {
-    try {
-      const data = await apiRequest<IndustryProject['steps']>(
-        `/industry/projects/${projectId}/apply-stock`,
-        {
-          method: 'POST',
-          body: JSON.stringify({ items }),
-        },
-      )
-      // Update steps in current project
-      if (currentProject.value?.id === projectId && currentProject.value.steps && Array.isArray(data)) {
-        for (const updatedStep of (data as IndustryProjectStep[]).map(enrichStep)) {
-          const idx = currentProject.value.steps.findIndex(s => s.id === updatedStep.id)
-          if (idx !== -1) {
-            currentProject.value.steps[idx] = updatedStep
-          }
-        }
-      }
-      return data
-    } catch (e) {
-      error.value = formatErrorMessage(e, 'Échec de l\'application du stock')
-      throw e
-    }
-  }
-
-  async function adaptStock(projectId: string) {
-    try {
-      const data = enrichProject(await apiRequest<IndustryProject>(
-        `/industry/projects/${projectId}/adapt-stock`,
-        { method: 'POST', body: '{}' },
-      ))
-      if (currentProject.value?.id === projectId) {
-        currentProject.value = data
-      }
-      return data
-    } catch (e) {
-      error.value = formatErrorMessage(e, 'Échec de l\'adaptation du plan')
-      throw e
-    }
-  }
-
   async function fetchCostEstimation(projectId: string): Promise<CostEstimation | null> {
     try {
       const data = await apiRequest<CostEstimation>(
@@ -313,8 +272,6 @@ export const useProjectsStore = defineStore('industry-projects', () => {
     fetchCostEstimation,
     fetchBpcKit,
     fetchCopyCosts,
-    applyStock,
-    adaptStock,
     analyzeMargin,
     clearError,
   }

@@ -28,9 +28,6 @@ export function enrichStep(step: IndustryProjectStep): IndustryProjectStep {
   const effectiveStock = step.purchasedQuantity > 0 ? step.purchasedQuantity : step.inStockQuantity
   step.inStock = effectiveStock >= step.quantity && effectiveStock > 0
 
-  // isSplit: derived from splitGroupId
-  step.isSplit = step.splitGroupId !== null
-
   // ESI job fields: derived from jobMatches array
   if (step.jobMatches && step.jobMatches.length > 0) {
     const firstMatch = step.jobMatches[0]
@@ -73,13 +70,6 @@ export function enrichStep(step: IndustryProjectStep): IndustryProjectStep {
   // Structure fields
   step.recommendedStructureName = step.structureConfigName
   step.structureBonus = step.structureMaterialBonus
-
-  // Duration estimate
-  if (step.timePerRun !== null && step.runs > 0) {
-    step.estimatedDurationDays = (step.timePerRun * step.runs) / 86400
-  } else {
-    step.estimatedDurationDays = null
-  }
 
   return step
 }
