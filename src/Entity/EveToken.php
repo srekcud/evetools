@@ -152,11 +152,6 @@ class EveToken
         return $this->updatedAt;
     }
 
-    public function isExpired(): bool
-    {
-        return $this->accessTokenExpiresAt <= new \DateTimeImmutable();
-    }
-
     public function isExpiringSoon(int $seconds = 300): bool
     {
         $threshold = new \DateTimeImmutable("+{$seconds} seconds");

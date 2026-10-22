@@ -82,19 +82,6 @@ class TokenManagerTest extends TestCase
         $this->assertSame($original, $this->tokenManager->decryptRefreshToken($encrypted2));
     }
 
-    public function testIsAccessTokenExpired(): void
-    {
-        $expiredToken = new EveToken();
-        $expiredToken->setAccessTokenExpiresAt(new \DateTimeImmutable('-1 hour'));
-
-        $this->assertTrue($this->tokenManager->isAccessTokenExpired($expiredToken));
-
-        $validToken = new EveToken();
-        $validToken->setAccessTokenExpiresAt(new \DateTimeImmutable('+1 hour'));
-
-        $this->assertFalse($this->tokenManager->isAccessTokenExpired($validToken));
-    }
-
     public function testIsAccessTokenExpiringSoon(): void
     {
         // Token expiring in 2 minutes (less than default 5 minutes threshold)

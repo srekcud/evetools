@@ -192,11 +192,6 @@ class TokenManager
         return [];
     }
 
-    public function isAccessTokenExpired(EveToken $token): bool
-    {
-        return $token->isExpired();
-    }
-
     public function isAccessTokenExpiringSoon(EveToken $token, int $seconds = 300): bool
     {
         return $token->isExpiringSoon($seconds);
