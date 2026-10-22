@@ -703,10 +703,26 @@ class ProductionCostServiceTest extends TestCase
         self::assertCount(1, $result['jobInstallSteps']);
     }
 
-    private function projectWithStepsAAndB(bool $purchasedB = false, bool $inStockB = false): IndustryProject&MockObject
+    #[Group('issue-127')]
+    public function testEstimateJobInstallCostsKeepsCountingTheStepsAfterAPurchasedStep(): void
+    {
+        $project = $this->projectWithStepsAAndB(purchasedA: true);
+        $calls = $this->recordInstallCostEstimatesOfStepsAAndB();
+
+        $result = $this->service->estimateJobInstallCosts($project);
+
+        self::assertSame(500.0, $result['total']);
+        self::assertCount(1, $result['steps']);
+        self::assertSame(self::STEP_B_PRODUCT_TYPE_ID, $result['steps'][0]['productTypeId']);
+        self::assertSame([
+            [[['materialTypeId' => 34, 'quantity' => 20000]], 5, 30002510, 'manufacturing', null],
+        ], $calls->getArrayCopy());
+    }
+
+    private function projectWithStepsAAndB(bool $purchasedB = false, bool $inStockB = false, bool $purchasedA = false): IndustryProject&MockObject
     {
         $config = $this->createStructureConfig(30002510);
-        $stepA = $this->createStep('manufacturing', self::STEP_A_PRODUCT_TYPE_ID, 10, $config, 586);
+        $stepA = $this->createStep('manufacturing', self::STEP_A_PRODUCT_TYPE_ID, 10, $config, 586, $purchasedA);
         $stepB = $this->createStep('manufacturing', self::STEP_B_PRODUCT_TYPE_ID, 5, $config, 11398, $purchasedB, $inStockB);
 
         $project = $this->createProject(self::STEP_A_PRODUCT_TYPE_ID, 10);
