@@ -5,36 +5,61 @@ declare(strict_types=1);
 namespace App\Service\Industry;
 
 use App\Entity\User;
-use App\Enum\IndustryActivityType;
-use App\Repository\Sde\IndustryActivityMaterialRepository;
+use App\Industry\Application\CostMode;
+use App\Industry\Application\FavoriteSystems;
+use App\Industry\Application\InventionSettings;
+use App\Industry\Application\LeafCost;
+use App\Industry\Application\ProductionCost;
+use App\Industry\Application\ProductionCostCalculator;
+use App\Industry\Application\ProductionCostRequest;
+use App\Industry\Application\ProductionStructure;
+use App\Industry\Application\UserProductionStructures;
+use App\Industry\Domain\ActivityKind;
+use App\Industry\Domain\BlueprintCatalog;
+use App\Industry\Domain\BlueprintEfficiency;
+use App\Industry\Domain\Cost;
+use App\Industry\Domain\Isk;
+use App\Industry\Domain\MaterialEfficiency;
+use App\Industry\Domain\ProductionPlanner;
+use App\Industry\Domain\Recipe;
+use App\Industry\Domain\RecipeMaterial;
+use App\Industry\Domain\Runs;
+use App\Industry\Domain\TimeEfficiency;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
 
-/**
- * Analyzes whether intermediate components should be built or bought
- * for a given production item, based on Jita prices and production costs.
- */
 class BuyVsBuildService
 {
     private const string VERDICT_BUILD = 'build';
     private const string VERDICT_BUY = 'buy';
     private const string VERDICT_UNKNOWN = 'unknown';
 
+    private const string STAGE_REACTION = 'Reaction';
+    private const string STAGE_T2_COMPONENT = 'T2 Component';
+    private const string STAGE_T1_COMPONENT = 'T1 Component';
+
+    private const int INVENTION_SKILL_LEVEL_WITHOUT_SKILLS = 0;
+
+    private const int ROOT_JOB_TIME_EFFICIENCY = 0;
+
+    private const int DISPLAYED_DECIMALS = 2;
+
+    private const float PERCENT = 100.0;
+
+    private const float NO_SAVINGS_PERCENT = 0.0;
+
     public function __construct(
-        private readonly IndustryTreeService $treeService,
+        private readonly ProductionCostCalculator $productionCosts,
+        private readonly BlueprintCatalog $blueprints,
+        private readonly UserProductionStructures $productionStructures,
         private readonly JitaMarketService $jitaMarketService,
         private readonly StructureMarketService $structureMarketService,
-        private readonly EsiCostIndexService $esiCostIndexService,
-        private readonly InventionService $inventionService,
         private readonly TypeNameResolver $typeNameResolver,
-        private readonly IndustryActivityMaterialRepository $materialRepository,
     ) {
     }
 
     /**
-     * Analyze buy-vs-build for all intermediate components of a product.
-     *
      * @return array{
      *     typeId: int,
      *     typeName: string|null,
@@ -43,14 +68,13 @@ class BuyVsBuildService
      *     totalProductionCost: float|null,
      *     sellPrice: float|null,
      *     marginPercent: float|null,
-     *     components: list<array{typeId: int, typeName: string|null, quantity: int, stage: string, buildCost: float|null, buildMaterials: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: float|null, totalPrice: float|null}>, buildJobInstallCost: float|null, buyCostJita: float|null, buyCostStructure: float|null, verdict: 'build'|'buy'|'unknown', savings: float|null, savingsPercent: float|null, meUsed: int, runs: int}>,
+     *     components: list<array{typeId: int, typeName: string|null, quantity: int, stage: string, buildCost: float|null, buildMaterials: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: float|null, totalPrice: float|null}>, buildJobInstallCost: float|null, buyCostJita: float|null, buyCostStructure: float|null, verdict: string, savings: float|null, savingsPercent: float|null, meUsed: int, runs: int, missingData: list<array{reason: string, typeId: ?int}>}>,
      *     buildAllCost: float|null,
      *     buyAllCost: float|null,
      *     optimalMixCost: float|null,
      *     buildTypeIds: list<int>,
      *     buyTypeIds: list<int>,
-     *     missingPriceTypeIds: list<int>,
-     *     unknownInstallCostReasons: list<string>,
+     *     missingData: list<array{reason: string, typeId: ?int}>,
      * }
      */
     public function analyze(
@@ -64,347 +88,265 @@ class BuyVsBuildService
         ?User $user,
         ?int $reactionSolarSystemId = null,
     ): array {
-        $typeName = $this->typeNameResolver->findName($typeId);
-        $isT2 = $this->inventionService->isT2($typeId);
+        $structures = null === $user ? [] : $this->productionStructures->configuredBy(self::idOf($user));
+        $favoriteSystems = new FavoriteSystems($solarSystemId, $reactionSolarSystemId ?? $solarSystemId);
+        $componentRecipes = $this->componentRecipesOf($typeId);
 
-        // Build the full production tree WITHOUT blacklist to decompose everything
-        $tree = $this->treeService->buildProductionTree($typeId, $runs, $meLevel, [], $user);
+        $rootCost = $this->costOf(
+            $typeId,
+            new Runs($runs),
+            new BlueprintEfficiency(new MaterialEfficiency($meLevel), new TimeEfficiency(self::ROOT_JOB_TIME_EFFICIENCY)),
+            array_keys($componentRecipes),
+            $structures,
+            $favoriteSystems,
+        );
 
-        $outputPerRun = (int) $tree['outputPerRun'];
-        $outputQuantity = $runs * $outputPerRun;
-
-        // Collect all buildable intermediate components from the tree
-        $components = [];
-        $reactionSolarSystemId ??= $solarSystemId;
-        $this->collectBuildableComponents($tree, $components, $solarSystemId, $reactionSolarSystemId);
-
-        $leafMaterials = [];
-        $this->collectLeafMaterialsFromTree($tree, $leafMaterials);
-
-        // Collect all type IDs for batch pricing
-        $allTypeIds = [$typeId, ...array_keys($leafMaterials)];
-        foreach ($components as $comp) {
-            $allTypeIds[] = $comp['typeId'];
-            foreach ($comp['materialTypeIds'] as $matId) {
-                $allTypeIds[] = $matId;
-            }
-        }
-        $allTypeIds = array_unique($allTypeIds);
-
-        // Batch Jita prices
-        $jitaPrices = $this->jitaMarketService->getPricesWithFallback($allTypeIds);
-
-        // Sell price for the final product
-        $structureSellPrice = $sellStructureId !== null
-            ? $this->structureMarketService->getLowestSellPrice($sellStructureId, $typeId)
-            : null;
-        $sellPrice = $structureSellPrice ?? ($jitaPrices[$typeId] ?? null);
-
-        // Analyze each buildable component
-        $analyzedComponents = [];
-        $buildAllCost = 0.0;
-        $buyAllCost = 0.0;
-        $optimalMixCost = 0.0;
-        $buildTypeIds = [];
-        $buyTypeIds = [];
-        $missingPriceTypeIds = [];
-        $unknownInstallCostReasons = [];
-
-        // Batch structure prices for all component type IDs
-        $componentTypeIds = array_map(static fn (array $c) => $c['typeId'], $components);
-        $structurePrices = $sellStructureId !== null && $componentTypeIds !== []
-            ? $this->structureMarketService->getLowestSellPrices($sellStructureId, $componentTypeIds)
+        $structureBuyPrices = null !== $sellStructureId && [] !== $componentRecipes
+            ? $this->structureMarketService->getLowestSellPrices($sellStructureId, array_keys($componentRecipes))
             : [];
 
-        foreach ($components as $comp) {
-            $compTypeId = $comp['typeId'];
-            $quantity = $comp['quantity'];
+        $zero = Cost::known(new Isk(0.0));
+        $buildAllCost = $zero;
+        $buyAllCost = $zero;
+        $optimalMixCost = $zero;
+        $componentsMissingData = $zero;
+        $buildTypeIds = [];
+        $buyTypeIds = [];
+        $components = [];
 
-            // Buy cost Jita = Jita price * quantity
-            $unitBuyPriceJita = $jitaPrices[$compTypeId] ?? null;
-            $buyCostJita = $unitBuyPriceJita !== null ? $unitBuyPriceJita * $quantity : null;
+        foreach ($componentRecipes as $componentTypeId => $componentRecipe) {
+            $rootLeaf = $rootCost->leaves[$componentTypeId]
+                ?? throw new \LogicException(\sprintf('Component %d is blacklisted in the root job, so it is bought there.', $componentTypeId));
+            $quantity = (int) $rootLeaf->quantity;
+            $componentRuns = (int) ceil($quantity / $componentRecipe->outputPerRun->value);
+            $efficiency = self::defaultEfficiencyOf($componentRecipe);
+            $componentCost = $this->costOf(
+                $componentTypeId,
+                new Runs($componentRuns),
+                $efficiency,
+                array_map(static fn (RecipeMaterial $material): int => $material->typeId, $componentRecipe->materials),
+                $structures,
+                $favoriteSystems,
+            );
 
-            // Buy cost Structure
-            $unitBuyPriceStructure = $structurePrices[$compTypeId] ?? null;
-            $buyCostStructure = $unitBuyPriceStructure !== null ? $unitBuyPriceStructure * $quantity : null;
+            $structureBuyPrice = $structureBuyPrices[$componentTypeId] ?? null;
+            $buyCostStructure = null === $structureBuyPrice ? null : Cost::known(new Isk($structureBuyPrice * $quantity));
+            $buildCost = $componentCost->totalCost;
+            $buyCost = $buyCostStructure ?? $rootLeaf->cost;
+            $verdict = self::verdictOf($buildCost, $buyCost);
+            $savings = $buildCost->isKnown() && $buyCost->isKnown() ? $buyCost->amount()->amount - $buildCost->amount()->amount : null;
 
-            $buyCost = $buyCostStructure ?? $buyCostJita;
-            if ($buyCost === null) {
-                $missingPriceTypeIds[] = $compTypeId;
+            $buildAllCost = $buildAllCost->plus($buildCost);
+            $buyAllCost = $buyAllCost->plus($buyCost);
+            $optimalMixCost = $optimalMixCost->plus(match ($verdict) {
+                self::VERDICT_BUILD => $buildCost,
+                self::VERDICT_BUY => $buyCost,
+                self::VERDICT_UNKNOWN => $buildCost->plus($buyCost),
+            });
+            if (self::VERDICT_BUILD === $verdict) {
+                $buildTypeIds[] = $componentTypeId;
+            } elseif (self::VERDICT_BUY === $verdict) {
+                $buyTypeIds[] = $componentTypeId;
             }
+            $componentMissingData = $buildCost->plus($buyCost);
+            $componentsMissingData = $componentsMissingData->plus($componentMissingData);
 
-            $buildMaterials = [];
-            $matCost = 0.0;
-            $isBuildCostUnknown = false;
-            foreach ($comp['materials'] as $mat) {
-                $matTypeId = $mat['materialTypeId'];
-                $matQty = $mat['adjustedQuantity'];
-                $matUnitPrice = $jitaPrices[$matTypeId] ?? null;
-                $matTotalPrice = null;
-                if ($matUnitPrice === null) {
-                    $isBuildCostUnknown = true;
-                    $missingPriceTypeIds[] = $matTypeId;
-                } else {
-                    $matTotalPrice = $matUnitPrice * $matQty;
-                    $matCost += $matTotalPrice;
-                }
-
-                $buildMaterials[] = [
-                    'typeId' => $matTypeId,
-                    'typeName' => $this->typeNameResolver->findName($matTypeId),
-                    'quantity' => $matQty,
-                    'unitPrice' => $matUnitPrice !== null ? round($matUnitPrice, 2) : null,
-                    'totalPrice' => $matTotalPrice !== null ? round($matTotalPrice, 2) : null,
-                ];
-            }
-
-            $jobInstallCost = $comp['jobInstallCost']['cost'];
-            if ($comp['jobInstallCost']['unknownReason'] !== null) {
-                $unknownInstallCostReasons[] = $comp['jobInstallCost']['unknownReason'];
-            }
-            $buildCost = $isBuildCostUnknown || $jobInstallCost === null ? null : $matCost + $jobInstallCost;
-
-            $savings = null;
-            $savingsPercent = null;
-            if ($buildCost !== null && $buyCost !== null) {
-                $savings = $buyCost - $buildCost;
-                $maxCost = max($buildCost, $buyCost);
-                $savingsPercent = $maxCost > 0 ? round(abs($savings) / $maxCost * 100, 2) : 0.0;
-            }
-
-            $verdict = $this->verdictOf($buildCost, $buyCost);
-
-            $buildAllCost = $this->sumOfKnownCosts($buildAllCost, $buildCost);
-            $buyAllCost = $this->sumOfKnownCosts($buyAllCost, $buyCost);
-
-            if ($verdict === self::VERDICT_BUILD) {
-                $optimalMixCost = $this->sumOfKnownCosts($optimalMixCost, $buildCost);
-                $buildTypeIds[] = $compTypeId;
-            } elseif ($verdict === self::VERDICT_BUY) {
-                $optimalMixCost = $this->sumOfKnownCosts($optimalMixCost, $buyCost);
-                $buyTypeIds[] = $compTypeId;
-            } else {
-                $optimalMixCost = null;
-            }
-
-            $analyzedComponents[] = [
-                'typeId' => $compTypeId,
-                'typeName' => $this->typeNameResolver->findName($compTypeId),
+            $components[] = [
+                'typeId' => $componentTypeId,
+                'typeName' => $this->typeNameResolver->findName($componentTypeId),
                 'quantity' => $quantity,
-                'stage' => $comp['stage'],
-                'buildCost' => $buildCost !== null ? round($buildCost, 2) : null,
-                'buildMaterials' => $buildMaterials,
-                'buildJobInstallCost' => $jobInstallCost !== null ? round($jobInstallCost, 2) : null,
-                'buyCostJita' => $buyCostJita !== null ? round($buyCostJita, 2) : null,
-                'buyCostStructure' => $buyCostStructure !== null ? round($buyCostStructure, 2) : null,
+                'stage' => $this->stageOf($componentRecipe),
+                'buildCost' => self::roundedAmountOf($buildCost),
+                'buildMaterials' => $this->buildMaterialsOf($componentCost),
+                'buildJobInstallCost' => self::roundedAmountOf($componentCost->installCost),
+                'buyCostJita' => self::roundedAmountOf($rootLeaf->cost),
+                'buyCostStructure' => null === $buyCostStructure ? null : self::roundedAmountOf($buyCostStructure),
                 'verdict' => $verdict,
-                'savings' => $savings !== null ? round($savings, 2) : null,
-                'savingsPercent' => $savingsPercent,
-                'meUsed' => $comp['meLevel'],
-                'runs' => $comp['runs'],
+                'savings' => null === $savings ? null : round($savings, self::DISPLAYED_DECIMALS),
+                'savingsPercent' => null === $savings ? null : self::savingsPercentOf($savings, $buildCost, $buyCost),
+                'meUsed' => $efficiency->materialEfficiency->value,
+                'runs' => $componentRuns,
+                'missingData' => MissingDataPresenter::of($componentMissingData),
             ];
         }
 
-        usort($analyzedComponents, static fn (array $a, array $b): int => match (true) {
-            $a['savings'] !== null && $b['savings'] !== null => $b['savings'] <=> $a['savings'],
-            $a['savings'] === null && $b['savings'] === null => $a['typeId'] <=> $b['typeId'],
-            default => $a['savings'] === null ? 1 : -1,
+        usort($components, static fn (array $a, array $b): int => match (true) {
+            null !== $a['savings'] && null !== $b['savings'] => $b['savings'] <=> $a['savings'],
+            null === $a['savings'] && null === $b['savings'] => $a['typeId'] <=> $b['typeId'],
+            default => null === $a['savings'] ? 1 : -1,
         });
 
-        $leafMaterialCost = 0.0;
-        foreach ($leafMaterials as $matTypeId => $matQty) {
-            $leafUnitPrice = $jitaPrices[$matTypeId] ?? null;
-            if ($leafUnitPrice === null) {
-                $missingPriceTypeIds[] = $matTypeId;
-            }
-            $leafMaterialCost = $this->sumOfKnownCosts($leafMaterialCost, $leafUnitPrice !== null ? $leafUnitPrice * $matQty : null);
-        }
-
-        $finalJobInstallCost = $this->estimateJobInstallCost(
-            (int) $tree['blueprintTypeId'],
-            (string) $tree['activityType'],
-            $runs,
-            $solarSystemId,
-            $reactionSolarSystemId,
-        );
-        if ($finalJobInstallCost['unknownReason'] !== null) {
-            $unknownInstallCostReasons[] = $finalJobInstallCost['unknownReason'];
-        }
-
-        $totalProductionCost = $this->sumOfKnownCosts($this->sumOfKnownCosts($optimalMixCost, $leafMaterialCost), $finalJobInstallCost['cost']);
-
-        $marginPercent = null;
-        if ($sellPrice !== null && $sellPrice > 0 && $totalProductionCost !== null && $totalProductionCost > 0) {
-            $grossRevenue = $sellPrice * $outputQuantity;
-            $fees = $grossRevenue * ($brokerFeeRate + $salesTaxRate);
-            $netRevenue = $grossRevenue - $fees;
-            $profit = $netRevenue - $totalProductionCost;
-            $marginPercent = round(($profit / $totalProductionCost) * 100, 2);
-        }
-
-        $missingPriceTypeIds = array_unique($missingPriceTypeIds);
-        sort($missingPriceTypeIds);
-        $unknownInstallCostReasons = array_unique($unknownInstallCostReasons);
-        sort($unknownInstallCostReasons);
+        $rootCostOutsideComponents = self::rootCostOutsideComponents($rootCost, $componentRecipes);
+        $totalProductionCost = $optimalMixCost->plus($rootCostOutsideComponents);
+        $sellPrice = $this->sellPriceOf($typeId, $sellStructureId);
 
         return [
             'typeId' => $typeId,
-            'typeName' => $typeName,
-            'isT2' => $isT2,
+            'typeName' => $this->typeNameResolver->findName($typeId),
+            'isT2' => null !== $rootCost->invention,
             'runs' => $runs,
-            'totalProductionCost' => $totalProductionCost !== null ? round($totalProductionCost, 2) : null,
-            'sellPrice' => $sellPrice !== null ? round($sellPrice, 2) : null,
-            'marginPercent' => $marginPercent,
-            'components' => $analyzedComponents,
-            'buildAllCost' => $buildAllCost !== null ? round($buildAllCost, 2) : null,
-            'buyAllCost' => $buyAllCost !== null ? round($buyAllCost, 2) : null,
-            'optimalMixCost' => $optimalMixCost !== null ? round($optimalMixCost, 2) : null,
-            'buildTypeIds' => array_values(array_unique($buildTypeIds)),
-            'buyTypeIds' => array_values(array_unique($buyTypeIds)),
-            'missingPriceTypeIds' => $missingPriceTypeIds,
-            'unknownInstallCostReasons' => $unknownInstallCostReasons,
+            'totalProductionCost' => self::roundedAmountOf($totalProductionCost),
+            'sellPrice' => null === $sellPrice ? null : round($sellPrice, self::DISPLAYED_DECIMALS),
+            'marginPercent' => self::marginPercentOf($sellPrice, $rootCost->producedQuantity->value, $totalProductionCost, $brokerFeeRate + $salesTaxRate),
+            'components' => $components,
+            'buildAllCost' => self::roundedAmountOf($buildAllCost),
+            'buyAllCost' => self::roundedAmountOf($buyAllCost),
+            'optimalMixCost' => self::roundedAmountOf($optimalMixCost),
+            'buildTypeIds' => $buildTypeIds,
+            'buyTypeIds' => $buyTypeIds,
+            'missingData' => MissingDataPresenter::of($componentsMissingData->plus($rootCostOutsideComponents)),
         ];
+    }
+
+    /**
+     * @return array<int, Recipe> by component typeId, in the order of the product recipe
+     */
+    private function componentRecipesOf(int $typeId): array
+    {
+        $recipe = $this->blueprints->recipeFor($typeId)
+            ?? throw new \DomainException(\sprintf('Product %d has no blueprint nor reaction: it cannot be built.', $typeId));
+
+        $componentRecipes = [];
+        foreach ($recipe->materials as $material) {
+            $componentRecipe = $this->blueprints->recipeFor($material->typeId);
+            if (null !== $componentRecipe) {
+                $componentRecipes[$material->typeId] = $componentRecipe;
+            }
+        }
+
+        return $componentRecipes;
+    }
+
+    /**
+     * @param list<int>                 $boughtTypeIds
+     * @param list<ProductionStructure> $structures
+     */
+    private function costOf(int $typeId, Runs $runs, BlueprintEfficiency $efficiency, array $boughtTypeIds, array $structures, FavoriteSystems $favoriteSystems): ProductionCost
+    {
+        return $this->productionCosts->costOf(new ProductionCostRequest(
+            $typeId,
+            $runs,
+            $efficiency,
+            CostMode::Plan,
+            $structures,
+            $favoriteSystems,
+            $boughtTypeIds,
+            new InventionSettings(
+                self::INVENTION_SKILL_LEVEL_WITHOUT_SKILLS,
+                self::INVENTION_SKILL_LEVEL_WITHOUT_SKILLS,
+                self::INVENTION_SKILL_LEVEL_WITHOUT_SKILLS,
+                null,
+            ),
+        ));
+    }
+
+    private static function defaultEfficiencyOf(Recipe $recipe): BlueprintEfficiency
+    {
+        return ActivityKind::Reaction === $recipe->activity
+            ? new BlueprintEfficiency(
+                new MaterialEfficiency(ProductionPlanner::REACTION_EFFICIENCY_LEVEL),
+                new TimeEfficiency(ProductionPlanner::REACTION_EFFICIENCY_LEVEL),
+            )
+            : new BlueprintEfficiency(
+                new MaterialEfficiency(ProductionPlanner::MANUFACTURED_INTERMEDIATE_ME),
+                new TimeEfficiency(ProductionPlanner::MANUFACTURED_INTERMEDIATE_TE),
+            );
+    }
+
+    private function stageOf(Recipe $componentRecipe): string
+    {
+        if (ActivityKind::Reaction === $componentRecipe->activity) {
+            return self::STAGE_REACTION;
+        }
+        foreach ($componentRecipe->materials as $material) {
+            if (ActivityKind::Reaction === $this->blueprints->recipeFor($material->typeId)?->activity) {
+                return self::STAGE_T2_COMPONENT;
+            }
+        }
+
+        return self::STAGE_T1_COMPONENT;
+    }
+
+    /**
+     * @return list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: float|null, totalPrice: float|null}>
+     */
+    private function buildMaterialsOf(ProductionCost $componentCost): array
+    {
+        return array_values(array_map(
+            fn (LeafCost $leaf): array => [
+                'typeId' => $leaf->typeId,
+                'typeName' => $this->typeNameResolver->findName($leaf->typeId),
+                'quantity' => (int) $leaf->quantity,
+                'unitPrice' => null === $leaf->unitPrice ? null : round($leaf->unitPrice->amount, self::DISPLAYED_DECIMALS),
+                'totalPrice' => self::roundedAmountOf($leaf->cost),
+            ],
+            $componentCost->leaves,
+        ));
     }
 
     /**
      * @return self::VERDICT_*
      */
-    private function verdictOf(?float $buildCost, ?float $buyCost): string
+    private static function verdictOf(Cost $buildCost, Cost $buyCost): string
     {
         return match (true) {
-            $buildCost === null && $buyCost === null => self::VERDICT_UNKNOWN,
-            $buildCost === null => self::VERDICT_BUY,
-            $buyCost === null, $buildCost <= $buyCost => self::VERDICT_BUILD,
+            !$buildCost->isKnown() && !$buyCost->isKnown() => self::VERDICT_UNKNOWN,
+            !$buildCost->isKnown() => self::VERDICT_BUY,
+            !$buyCost->isKnown() => self::VERDICT_BUILD,
+            $buildCost->amount()->equals($buyCost->amount()), $buildCost->amount()->amount < $buyCost->amount()->amount => self::VERDICT_BUILD,
             default => self::VERDICT_BUY,
         };
     }
 
-    private function sumOfKnownCosts(?float $total, ?float $cost): ?float
+    private static function savingsPercentOf(float $savings, Cost $buildCost, Cost $buyCost): float
     {
-        return $total === null || $cost === null ? null : $total + $cost;
+        $highestCost = max($buildCost->amount()->amount, $buyCost->amount()->amount);
+
+        return $highestCost > 0.0 ? round(abs($savings) / $highestCost * self::PERCENT, self::DISPLAYED_DECIMALS) : self::NO_SAVINGS_PERCENT;
     }
 
     /**
-     * Collect buildable intermediate components from the top level of the production tree.
-     * Only depth-1 components are collected; their build costs already include buying
-     * sub-components at market price, so recursing would double-count.
-     *
-     * @param array<string, mixed> $node
-     * @param list<array{typeId: int, quantity: int, materials: list<array{materialTypeId: int, adjustedQuantity: int}>, materialTypeIds: list<int>, jobInstallCost: array{cost: float|null, unknownReason: string|null, missingAdjustedPriceTypeIds: list<int>}, stage: string, meLevel: int, runs: int}> $components
+     * @param array<int, Recipe> $componentRecipes
      */
-    private function collectBuildableComponents(array $node, array &$components, int $solarSystemId, int $reactionSolarSystemId): void
+    private static function rootCostOutsideComponents(ProductionCost $rootCost, array $componentRecipes): Cost
     {
-        foreach ($node['materials'] as $material) {
-            if (!($material['isBuildable'] ?? false) || !isset($material['blueprint'])) {
-                continue;
-            }
-
-            $blueprint = $material['blueprint'];
-            $compTypeId = (int) $material['typeId'];
-            $quantity = (int) $material['quantity'];
-
-            // Collect the materials needed to build this component
-            $compMaterials = [];
-            $compMaterialTypeIds = [];
-            foreach ($blueprint['materials'] as $subMat) {
-                $compMaterials[] = [
-                    'materialTypeId' => (int) $subMat['typeId'],
-                    'adjustedQuantity' => (int) $subMat['quantity'],
-                ];
-                $compMaterialTypeIds[] = (int) $subMat['typeId'];
-            }
-
-            $activityType = (string) ($blueprint['activityType'] ?? 'manufacturing');
-            $compRuns = (int) $blueprint['runs'];
-            $jobInstallCost = $this->estimateJobInstallCost(
-                (int) $blueprint['blueprintTypeId'],
-                $activityType,
-                $compRuns,
-                $solarSystemId,
-                $reactionSolarSystemId,
-            );
-
-            // ME: 10 for manufacturing, 0 for reactions (matches IndustryTreeService logic)
-            $meLevel = $activityType === 'manufacturing' ? 10 : 0;
-
-            // Classify stage
-            $stage = $this->classifyStage($activityType, $blueprint);
-
-            $components[] = [
-                'typeId' => $compTypeId,
-                'quantity' => $quantity,
-                'materials' => $compMaterials,
-                'materialTypeIds' => $compMaterialTypeIds,
-                'jobInstallCost' => $jobInstallCost,
-                'stage' => $stage,
-                'meLevel' => $meLevel,
-                'runs' => $compRuns,
-            ];
-
-            // Do NOT recurse deeper: sub-component costs (T1 parts, reactions) are already
-            // included in this component's build cost via its material prices at Jita.
-            // Recursing would double-count those costs in optimalMixCost.
+        $cost = Cost::known(new Isk(0.0));
+        foreach (array_diff_key($rootCost->leaves, $componentRecipes) as $leaf) {
+            $cost = $cost->plus($leaf->cost);
         }
+        $cost = $cost->plus($rootCost->installCost);
+
+        return null === $rootCost->invention ? $cost : $cost->plus($rootCost->invention->total);
     }
 
-    /**
-     * @return array{cost: float|null, unknownReason: string|null, missingAdjustedPriceTypeIds: list<int>}
-     */
-    private function estimateJobInstallCost(int $blueprintTypeId, string $activityType, int $runs, int $solarSystemId, int $reactionSolarSystemId): array
+    private function sellPriceOf(int $typeId, ?int $sellStructureId): ?float
     {
-        $isReaction = $activityType === 'reaction';
-        $me0Materials = $this->materialRepository->findMaterialsForBlueprints(
-            [$blueprintTypeId],
-            [$isReaction ? IndustryActivityType::Reaction->value : IndustryActivityType::Manufacturing->value],
-        );
+        $structureSellPrice = null === $sellStructureId ? null : $this->structureMarketService->getLowestSellPrice($sellStructureId, $typeId);
 
-        return $this->esiCostIndexService->estimateJobInstallCost(
-            $me0Materials[$blueprintTypeId] ?? [],
-            $runs,
-            $isReaction ? $reactionSolarSystemId : $solarSystemId,
-            $activityType,
-            null,
-        );
+        return $structureSellPrice ?? $this->jitaMarketService->getPricesWithFallback([$typeId])[$typeId] ?? null;
     }
 
-    /**
-     * Collect raw (leaf) materials from the tree that are NOT buildable.
-     * Aggregates by typeId.
-     *
-     * @param array<string, mixed> $node
-     * @param array<int, int> $leafMaterials typeId => totalQuantity
-     */
-    private function collectLeafMaterialsFromTree(array $node, array &$leafMaterials): void
+    private static function marginPercentOf(?float $sellPrice, int $outputQuantity, Cost $totalProductionCost, float $sellOrderFeeRate): ?float
     {
-        foreach ($node['materials'] as $material) {
-            if (($material['isBuildable'] ?? false) && isset($material['blueprint'])) {
-                // Skip buildable components, their leaf materials are handled by the component analysis
-                continue;
-            }
-
-            $typeId = (int) $material['typeId'];
-            $quantity = (int) $material['quantity'];
-            $leafMaterials[$typeId] = ($leafMaterials[$typeId] ?? 0) + $quantity;
+        if (null === $sellPrice || $sellPrice <= 0.0 || !$totalProductionCost->isKnown() || $totalProductionCost->amount()->amount <= 0.0) {
+            return null;
         }
+        $totalCost = $totalProductionCost->amount()->amount;
+        $grossRevenue = $sellPrice * $outputQuantity;
+        $netRevenue = $grossRevenue - $grossRevenue * $sellOrderFeeRate;
+
+        return round(($netRevenue - $totalCost) / $totalCost * self::PERCENT, self::DISPLAYED_DECIMALS);
     }
 
-    /**
-     * Classify the production stage of a component.
-     *
-     * @param array<string, mixed> $blueprint
-     */
-    private function classifyStage(string $activityType, array $blueprint): string
+    private static function roundedAmountOf(Cost $cost): ?float
     {
-        if ($activityType === 'reaction') {
-            return 'Reaction';
-        }
+        return $cost->isKnown() ? round($cost->amount()->amount, self::DISPLAYED_DECIMALS) : null;
+    }
 
-        foreach ($blueprint['materials'] as $material) {
-            if (isset($material['blueprint']) && $material['blueprint']['activityType'] === 'reaction') {
-                return 'T2 Component';
-            }
-        }
+    private static function idOf(User $user): string
+    {
+        $userId = $user->getId() ?? throw new \LogicException('A user without id has no configured structure.');
 
-        return 'T1 Component';
+        return $userId->toRfc4122();
     }
 }

@@ -12,11 +12,11 @@ namespace App\Industry\Domain;
 final readonly class ProductionPlanner
 {
     /** Current default of the application for manufactured intermediates (spec R3). */
-    private const int MANUFACTURED_INTERMEDIATE_ME = 10;
-    private const int MANUFACTURED_INTERMEDIATE_TE = 20;
+    public const int MANUFACTURED_INTERMEDIATE_ME = 10;
+    public const int MANUFACTURED_INTERMEDIATE_TE = 20;
 
     /** Reaction formulas cannot be researched (spec R2). */
-    private const int REACTION_EFFICIENCY_LEVEL = 0;
+    public const int REACTION_EFFICIENCY_LEVEL = 0;
 
     private const int PERCENT = 100;
 
