@@ -61,8 +61,7 @@ const SABRE_WITH_UNPRICED_MATERIALS: ProfitMarginResult = {
   ],
   jobInstallCost: 5_000,
   jobInstallSteps: [],
-  inventionCost: 25_000,
-  copyCost: 1_000,
+  inventionCost: 26_000,
   totalCost: null,
   costPerUnit: null,
   invention: {
@@ -86,8 +85,10 @@ const SABRE_WITH_UNPRICED_MATERIALS: ProfitMarginResult = {
   salesTaxRate: 0.02,
   margins: { jitaSell: null, structureSell: null, structureBuy: null, contractSell: null },
   dailyVolume: null,
-  missingPriceTypeIds: [ROBOTICS_TYPE_ID, NITROGEN_ISOTOPES_TYPE_ID],
-  unknownInstallCostReasons: [],
+  missingData: [
+    { reason: 'market_price', typeId: ROBOTICS_TYPE_ID },
+    { reason: 'market_price', typeId: NITROGEN_ISOTOPES_TYPE_ID },
+  ],
 }
 
 function mountWithUnpricedMaterials(locale: 'en' | 'fr') {

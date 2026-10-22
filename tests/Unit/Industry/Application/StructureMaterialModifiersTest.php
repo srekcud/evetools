@@ -18,6 +18,7 @@ use App\Industry\Domain\Recipe;
 use App\Industry\Domain\Runs;
 use App\Industry\Domain\SecurityClass;
 use App\Industry\Domain\TimeEfficiency;
+use App\Tests\Unit\Industry\Application\Double\InMemoryRigCategories;
 use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use App\Tests\Unit\Industry\Domain\Double\InMemoryBlueprintCatalog;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -28,18 +29,16 @@ use PHPUnit\Framework\TestCase;
  * JobMaterialModifiers of the Application: the structure of each job is chosen by the StructureSelector (D3),
  * then mod_matériaux = role bonus × rig (security included) is composed with the Domain classes (spec R2, R4).
  *
- * Inputs: the category of each job product (IndustryRigCategory, null when the product has none) and the structures
- * assigned to steps, by product typeId. Configuration of the goldens §4.2 / §4.3: Raitaru nullsec with
+ * Inputs: the port RigCategories (IndustryRigCategory of each job product, looked up for the activity of its job; null
+ * when no rig targets its group) and the structures assigned to steps, by product typeId. Configuration of the goldens §4.2 / §4.3: Raitaru nullsec with
  * M-Set Ammunition ME II (2.4 %), Tatara nullsec with L-Set Reactor Efficiency II (2.4 %).
  */
 #[CoversClass(StructureMaterialModifiers::class)]
 final class StructureMaterialModifiersTest extends TestCase
 {
     private const int HAIL_L_TYPE_ID = 12779;
-    private const int RAM_AMMUNITION_TECH_TYPE_ID = 11476;
     private const int FERNITE_CARBIDE_TYPE_ID = 16673;
     private const int CERAMIC_POWDER_TYPE_ID = 16660;
-    private const int HYDROGEN_FUEL_BLOCK_TYPE_ID = 4246;
 
     private const string GOLDEN_DIRECTORY = __DIR__.'/../../../Fixtures/Golden';
 
@@ -101,14 +100,24 @@ final class StructureMaterialModifiersTest extends TestCase
         $this->assertEqualsWithDelta(1.0, $modifiers->forJob(self::recipeOf('Fernite Carbide'))->value, 1e-12);
     }
 
-    public function testProductMissingFromTheCategoriesIsAnExplicitError(): void
+    public function testProductWhoseGroupNoRigTargetsGetsTheRoleBonusOnly(): void
     {
-        // "No rig category" is an explicit null; a product absent from the input is missing data, not "no bonus".
-        $modifiers = new StructureMaterialModifiers(self::goldenSelector(), [self::HAIL_L_TYPE_ID => 'ammunition']);
+        // Game rule: a rig only reduces the materials of the groups it targets; null is that rule, not a default.
+        $modifiers = new StructureMaterialModifiers(self::goldenSelector(), new InMemoryRigCategories());
 
-        $this->expectException(\DomainException::class);
+        $this->assertEqualsWithDelta(0.99, $modifiers->forJob(self::recipeOf('Hail L'))->value, 1e-12);
+        $this->assertEqualsWithDelta(1.0, $modifiers->forJob(self::recipeOf('Fernite Carbide'))->value, 1e-12);
+    }
 
-        $modifiers->forJob(self::recipeOf('Fernite Carbide'));
+    public function testCategoryIsLookedUpForTheActivityOfTheJob(): void
+    {
+        // Fernite Carbide is a reaction: its category is the one of its formula group, never of a manufacturing lookup.
+        $modifiers = new StructureMaterialModifiers(
+            self::goldenSelector(),
+            new InMemoryRigCategories(manufacturing: [self::FERNITE_CARBIDE_TYPE_ID => 'ammunition']),
+        );
+
+        $this->assertEqualsWithDelta(1.0, $modifiers->forJob(self::recipeOf('Fernite Carbide'))->value, 1e-12);
     }
 
     public function testFerniteCarbidePlanWithTheChosenStructuresBuysTheGoldenLeaves(): void
@@ -145,18 +154,18 @@ final class StructureMaterialModifiersTest extends TestCase
     }
 
     /**
-     * @return array<int, ?string> category of each job product, null when no rig targets its group
+     * R.A.M.- Ammunition Tech and Hydrogen Fuel Block: no rig targets their group, absent hence null.
      */
-    private static function goldenProductCategories(): array
+    private static function goldenProductCategories(): InMemoryRigCategories
     {
-        return [
-            self::HAIL_L_TYPE_ID => 'ammunition',
-            self::RAM_AMMUNITION_TECH_TYPE_ID => null,
-            self::FERNITE_CARBIDE_TYPE_ID => 'composite_reaction',
-            self::CERAMIC_POWDER_TYPE_ID => 'composite_reaction',
-            InMemoryBlueprintCatalog::typeIdOf('Fernite Alloy') => 'composite_reaction',
-            self::HYDROGEN_FUEL_BLOCK_TYPE_ID => null,
-        ];
+        return new InMemoryRigCategories(
+            manufacturing: [self::HAIL_L_TYPE_ID => 'ammunition'],
+            reaction: [
+                self::FERNITE_CARBIDE_TYPE_ID => 'composite_reaction',
+                self::CERAMIC_POWDER_TYPE_ID => 'composite_reaction',
+                InMemoryBlueprintCatalog::typeIdOf('Fernite Alloy') => 'composite_reaction',
+            ],
+        );
     }
 
     private static function recipeOf(string $productName): Recipe

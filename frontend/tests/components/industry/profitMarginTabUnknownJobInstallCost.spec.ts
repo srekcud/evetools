@@ -26,7 +26,7 @@ const FERNITE_CARBIDE_REACTION_WITHOUT_COST_INDEX: ProfitMarginJobStep = {
   activityType: 'reaction',
   runs: 3,
   installCost: null,
-  unknownReason: 'missing_cost_index',
+  missingData: [{ reason: 'cost_index', typeId: null }],
 }
 
 const HYDROGEN_FUEL_BLOCK_JOB_FIGURED: ProfitMarginJobStep = {
@@ -35,7 +35,7 @@ const HYDROGEN_FUEL_BLOCK_JOB_FIGURED: ProfitMarginJobStep = {
   activityType: 'manufacturing',
   runs: 2,
   installCost: 1_873.47974,
-  unknownReason: null,
+  missingData: [],
 }
 
 const FERNITE_ALLOY_REACTION_WITHOUT_ADJUSTED_PRICE: ProfitMarginJobStep = {
@@ -44,7 +44,7 @@ const FERNITE_ALLOY_REACTION_WITHOUT_ADJUSTED_PRICE: ProfitMarginJobStep = {
   activityType: 'reaction',
   runs: 4,
   installCost: null,
-  unknownReason: 'missing_adjusted_price',
+  missingData: [{ reason: 'adjusted_price', typeId: HYDROGEN_FUEL_BLOCK_TYPE_ID }],
 }
 
 const FERNITE_CARBIDE_WITH_AN_UNKNOWN_JOB_INSTALL_COST: ProfitMarginResult = {
@@ -62,7 +62,6 @@ const FERNITE_CARBIDE_WITH_AN_UNKNOWN_JOB_INSTALL_COST: ProfitMarginResult = {
   jobInstallCost: null,
   jobInstallSteps: [FERNITE_CARBIDE_REACTION_WITHOUT_COST_INDEX, HYDROGEN_FUEL_BLOCK_JOB_FIGURED],
   inventionCost: 0,
-  copyCost: 0,
   totalCost: null,
   costPerUnit: null,
   invention: null,
@@ -79,21 +78,23 @@ const FERNITE_CARBIDE_WITH_AN_UNKNOWN_JOB_INSTALL_COST: ProfitMarginResult = {
   salesTaxRate: 0.045,
   margins: { jitaSell: null, structureSell: null, structureBuy: null, contractSell: null },
   dailyVolume: 125_000,
-  missingPriceTypeIds: [],
-  unknownInstallCostReasons: ['missing_cost_index'],
+  missingData: [{ reason: 'cost_index', typeId: null }],
 }
 
 const FERNITE_CARBIDE_WITH_BOTH_UNKNOWN_INSTALL_COST_REASONS: ProfitMarginResult = {
   ...FERNITE_CARBIDE_WITH_AN_UNKNOWN_JOB_INSTALL_COST,
   jobInstallSteps: [FERNITE_CARBIDE_REACTION_WITHOUT_COST_INDEX, HYDROGEN_FUEL_BLOCK_JOB_FIGURED, FERNITE_ALLOY_REACTION_WITHOUT_ADJUSTED_PRICE],
-  unknownInstallCostReasons: ['missing_adjusted_price', 'missing_cost_index'],
+  missingData: [
+    { reason: 'cost_index', typeId: null },
+    { reason: 'adjusted_price', typeId: HYDROGEN_FUEL_BLOCK_TYPE_ID },
+  ],
 }
 
 const FERNITE_CARBIDE_WITH_FIGURED_JOB_INSTALL_COSTS: ProfitMarginResult = {
   ...FERNITE_CARBIDE_WITH_AN_UNKNOWN_JOB_INSTALL_COST,
   jobInstallCost: 2_315.04926,
   jobInstallSteps: [
-    { ...FERNITE_CARBIDE_REACTION_WITHOUT_COST_INDEX, installCost: 441.56952, unknownReason: null },
+    { ...FERNITE_CARBIDE_REACTION_WITHOUT_COST_INDEX, installCost: 441.56952, missingData: [] },
     HYDROGEN_FUEL_BLOCK_JOB_FIGURED,
   ],
   totalCost: 1_566_327.75926,
@@ -104,7 +105,7 @@ const FERNITE_CARBIDE_WITH_FIGURED_JOB_INSTALL_COSTS: ProfitMarginResult = {
     structureBuy: { revenue: 1_623_000, fees: 73_035, profit: -16_362.75926, margin: -1.04 },
     contractSell: null,
   },
-  unknownInstallCostReasons: [],
+  missingData: [],
 }
 
 const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
@@ -145,11 +146,10 @@ const HAIL_L_WITH_AN_UNKNOWN_JOB_INSTALL_COST: ProfitMarginResult = {
   ],
   jobInstallCost: null,
   jobInstallSteps: [
-    { productTypeId: HAIL_L_TYPE_ID, productName: 'Hail L', activityType: 'manufacturing', runs: 1, installCost: null, unknownReason: 'missing_cost_index' },
-    { productTypeId: RAM_AMMUNITION_TECH_TYPE_ID, productName: 'R.A.M.- Ammunition Tech', activityType: 'manufacturing', runs: 1, installCost: null, unknownReason: 'missing_cost_index' },
+    { productTypeId: HAIL_L_TYPE_ID, productName: 'Hail L', activityType: 'manufacturing', runs: 1, installCost: null, missingData: [{ reason: 'cost_index', typeId: null }] },
+    { productTypeId: RAM_AMMUNITION_TECH_TYPE_ID, productName: 'R.A.M.- Ammunition Tech', activityType: 'manufacturing', runs: 1, installCost: null, missingData: [{ reason: 'cost_index', typeId: null }] },
   ],
   inventionCost: 254.424,
-  copyCost: 42.928116,
   totalCost: null,
   costPerUnit: null,
   invention: {
@@ -173,8 +173,7 @@ const HAIL_L_WITH_AN_UNKNOWN_JOB_INSTALL_COST: ProfitMarginResult = {
   salesTaxRate: 0.036,
   margins: { jitaSell: null, structureSell: null, structureBuy: null, contractSell: null },
   dailyVolume: 48_000,
-  missingPriceTypeIds: [],
-  unknownInstallCostReasons: ['missing_cost_index'],
+  missingData: [{ reason: 'cost_index', typeId: null }],
 }
 
 function mountWith(analysis: ProfitMarginResult, locale: 'en' | 'fr') {

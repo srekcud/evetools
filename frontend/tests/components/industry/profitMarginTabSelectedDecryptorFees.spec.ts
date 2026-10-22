@@ -52,8 +52,7 @@ const SABRE_MARGIN_RESULT: ProfitMarginResult = {
   materials: [],
   jobInstallCost: 5_000,
   jobInstallSteps: [],
-  inventionCost: 25_000,
-  copyCost: 1_000,
+  inventionCost: 26_000,
   totalCost: 131_000,
   costPerUnit: 3_275,
   invention: {
@@ -80,19 +79,22 @@ const SABRE_MARGIN_RESULT: ProfitMarginResult = {
     structureBuy: { revenue: 160_000, fees: 3_200, profit: 25_800, margin: 19.69 },
   },
   dailyVolume: null,
-  missingPriceTypeIds: [],
-  unknownInstallCostReasons: [],
+  missingData: [],
 }
 
 const marginLabels = en.industry.margins
 
-async function mountProfitMarginWithAttainmentSelected(): Promise<VueWrapper> {
+function mountProfitMargin(): VueWrapper {
   vi.mocked(apiRequest).mockResolvedValue(null)
   useProjectsStore().marginResult = SABRE_MARGIN_RESULT
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })
-  const wrapper = mount(ProfitMarginTab, {
+  return mount(ProfitMarginTab, {
     global: { plugins: [i18n], stubs: { ProductSearch: true } },
   })
+}
+
+async function mountProfitMarginWithAttainmentSelected(): Promise<VueWrapper> {
+  const wrapper = mountProfitMargin()
   const attainmentRow = wrapper.findAll('tbody tr').find(row => row.text().includes('Attainment Decryptor'))
   expect(attainmentRow, 'Attainment Decryptor row').toBeDefined()
   await attainmentRow!.trigger('click')
@@ -109,8 +111,22 @@ function figuresOf(row: DOMWrapper<Element>): string[] {
   return row.findAll('td').slice(2, 6).map(cell => cell.text())
 }
 
+function costSummaryAmount(wrapper: VueWrapper, label: string): string {
+  const cell = wrapper.findAll('div.grid-cols-4 > div').find(candidate => candidate.find('div').text() === label)
+  expect(cell, `cost summary ${label}`).toBeDefined()
+  return cell!.findAll('div')[1]!.text()
+}
+
 beforeEach(() => {
   setActivePinia(createPinia())
+})
+
+describe('ProfitMarginTab without a selected decryptor', () => {
+  it('shows the invention cost of the analysis as is, the T1 copies being part of each invention attempt', () => {
+    const wrapper = mountProfitMargin()
+
+    expect(costSummaryAmount(wrapper, marginLabels.inventionCostLabel)).toBe('26.00 K')
+  })
 })
 
 describe('ProfitMarginTab with a selected decryptor', () => {

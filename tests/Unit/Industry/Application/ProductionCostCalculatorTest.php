@@ -20,8 +20,10 @@ use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\BlueprintCatalog;
 use App\Industry\Domain\BlueprintEfficiency;
 use App\Industry\Domain\Cost;
+use App\Industry\Domain\Decryptor;
 use App\Industry\Domain\MaterialEfficiency;
 use App\Industry\Domain\MissingData;
+use App\Industry\Domain\Multiplier;
 use App\Industry\Domain\Quantity;
 use App\Industry\Domain\Recipe;
 use App\Industry\Domain\RecipeMaterial;
@@ -31,6 +33,7 @@ use App\Industry\Domain\TimeEfficiency;
 use App\Tests\Unit\Industry\Application\Double\InMemoryAdjustedPrices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryInventionCatalog;
 use App\Tests\Unit\Industry\Application\Double\InMemoryMarketPrices;
+use App\Tests\Unit\Industry\Application\Double\InMemoryRigCategories;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use App\Tests\Unit\Industry\Domain\Double\InMemoryBlueprintCatalog;
@@ -46,7 +49,9 @@ use PHPUnit\Framework\TestCase;
  *   system of the chosen structure, otherwise of the favorite system of the activity (port SystemCostIndices),
  *   cost role bonus and facility tax of the structure; without structure, an NPC station (tax 0.25 %, no bonus);
  * - for a T2, the invention (R8): expected attempts × (datacores + decryptor + invention install + install of the
- *   1-run T1 copy consumed per attempt).
+ *   1-run T1 copy consumed per attempt); the target is built from the invented BPC, at its ME / TE (2 + ΔME, 4 + ΔTE
+ *   of the decryptor), whatever the efficiency of the request (decision (c), #143).
+ * The IndustryRigCategory of each job product comes from the port RigCategories, looked up for the job activity.
  *
  * Hail L (§4.2, golden hail-l-10runs-me2-raitaru-nullsec.json): 10 runs ME 2 TE 4, Raitaru nullsec with M-Set
  * Ammunition ME II (2.4 %), cost role bonus 0.97, facility tax 1 %, manufacturing cost index 0.05; R.A.M. ME 10 in the
@@ -83,6 +88,7 @@ final class ProductionCostCalculatorTest extends TestCase
     private const int FIRST_DATACORE = 20424;
     private const int SECOND_DATACORE = 20418;
     private const float HOBGOBLIN_II_BASE_PROBABILITY = 0.34;
+    private const int PROCESS_DECRYPTOR = 34205;
 
     private const float ISK_TOLERANCE = 1.0;
     private const float FLOAT_TOLERANCE = 1e-6;
@@ -328,10 +334,69 @@ final class ProductionCostCalculatorTest extends TestCase
         $this->assertKnownCost(960400.0, $productionCost->materialCost);
         $this->assertNotNull($productionCost->invention);
         $this->assertNull($productionCost->invention->expectedAttempts);
+        // Unknown chance, never 0; the invented BPC stays known (ME 2, TE 4, 10 runs).
+        $this->assertNull($productionCost->invention->chance);
+        $this->assertSame(2, $productionCost->invention->outcome->materialEfficiency->value);
+        $this->assertSame(4, $productionCost->invention->outcome->timeEfficiency->value);
+        $this->assertSame(10, $productionCost->invention->outcome->runs->value);
         $this->assertKnownCost(280187.175, $productionCost->invention->attemptCost);
         $this->assertFalse($productionCost->invention->total->isKnown());
         $this->assertEquals([MissingData::inventionProbability(self::HOBGOBLIN_I_BLUEPRINT)], $productionCost->totalCost->missingData);
         $this->assertFalse($productionCost->costPerUnit->isKnown());
+    }
+
+    public function testInventedTargetIsBuiltAtTheMaterialEfficiencyOfTheInventedBlueprintCopyNotOfTheRequest(): void
+    {
+        // #143: Process (ΔME +3) gives a BPC at ME 2 + 3 = 5; the ME 2 of the request is ignored.
+        $productionCost = self::hobgoblinIICalculator(self::HOBGOBLIN_II_BASE_PROBABILITY)
+            ->costOf(self::hobgoblinIIRequest(self::processDecryptor(), requestedMaterialEfficiency: 2));
+
+        // Tritanium 10 × 2 000 × 0.95 = 19 000 (ME 2: 19 600); Morphite 10 × 10 × 0.95 = 95 (ME 2: 98).
+        $this->assertEqualsWithDelta(19000.0, $productionCost->leaves[self::TRITANIUM]->quantity, self::FLOAT_TOLERANCE);
+        $this->assertEqualsWithDelta(95.0, $productionCost->leaves[self::MORPHITE]->quantity, self::FLOAT_TOLERANCE);
+        // 19 000 × 4 + 95 × 9 000 = 931 000 (ME 2: 960 400).
+        $this->assertKnownCost(931000.0, $productionCost->materialCost);
+        // The EIV does not depend on the ME: 70 950 as without decryptor.
+        $this->assertKnownCost(70950.0, $productionCost->installCost);
+
+        // Attempt: 280 000 datacores + 50 000 Process + 176.3 + 10.875 = 330 187.175;
+        // P = 0.34 × (1 + 8/30 + 4/40) × 1.1 = 0.511133333, 10 runs / (P × 10 runs per BPC) = 1.956436677 attempts.
+        $this->assertNotNull($productionCost->invention);
+        $this->assertKnownCost(50000.0, $productionCost->invention->decryptorCost);
+        $this->assertEqualsWithDelta(1.956436677, $productionCost->invention->expectedAttempts, self::FLOAT_TOLERANCE);
+        $this->assertKnownCost(645990.30, $productionCost->invention->total);
+        // 931 000 + 70 950 + 645 990.30 = 1 647 940.30 for 10 units.
+        $this->assertKnownCost(1647940.30, $productionCost->totalCost);
+        $this->assertEqualsWithDelta(164794.029933, $productionCost->costPerUnit->amount()->amount, self::FLOAT_TOLERANCE);
+    }
+
+    public function testInventedTargetWithoutDecryptorIsBuiltAtMaterialEfficiencyTwoEvenWhenTheRequestAsksTen(): void
+    {
+        // The provider sends ME 10 by default: wrong for a T2 never researched. ME 2 gives 960 400, ME 10 would give 882 000.
+        $productionCost = self::hobgoblinIICalculator(self::HOBGOBLIN_II_BASE_PROBABILITY)
+            ->costOf(self::hobgoblinIIRequest(requestedMaterialEfficiency: 10));
+
+        $this->assertEqualsWithDelta(19600.0, $productionCost->leaves[self::TRITANIUM]->quantity, self::FLOAT_TOLERANCE);
+        $this->assertEqualsWithDelta(98.0, $productionCost->leaves[self::MORPHITE]->quantity, self::FLOAT_TOLERANCE);
+        $this->assertKnownCost(960400.0, $productionCost->materialCost);
+        $this->assertKnownCost(1634335.31, $productionCost->totalCost);
+    }
+
+    public function testInventionCostExposesItsRecipeChanceAndInventedBlueprintCopy(): void
+    {
+        // Profit Margins shows the base probability, the datacores, the probability, the ME, TE and runs of each option.
+        $productionCost = self::hobgoblinIICalculator(self::HOBGOBLIN_II_BASE_PROBABILITY)
+            ->costOf(self::hobgoblinIIRequest(self::processDecryptor()));
+
+        $invention = $productionCost->invention;
+        $this->assertNotNull($invention);
+        $this->assertEquals(self::hobgoblinIIInventionRecipe(self::HOBGOBLIN_II_BASE_PROBABILITY), $invention->recipe);
+        $this->assertNotNull($invention->chance);
+        $this->assertEqualsWithDelta(0.511133333, $invention->chance->value, self::FLOAT_TOLERANCE);
+        // Process: runs 10 + 0, ME 2 + 3, TE 4 + 6.
+        $this->assertSame(10, $invention->outcome->runs->value);
+        $this->assertSame(5, $invention->outcome->materialEfficiency->value);
+        $this->assertSame(10, $invention->outcome->timeEfficiency->value);
     }
 
     private static function hailLCalculator(
@@ -346,6 +411,7 @@ final class ProductionCostCalculatorTest extends TestCase
             $costIndices ?? new InMemorySystemCostIndices([
                 self::RAITARU_SYSTEM_ID => [ActivityKind::Manufacturing->name => 0.05],
             ]),
+            new InMemoryRigCategories(manufacturing: [self::HAIL_L => 'ammunition']),
         );
     }
 
@@ -367,7 +433,6 @@ final class ProductionCostCalculatorTest extends TestCase
                 ProductionStructures::manufacturingRig(2.4, 'ammunition'),
             )],
             favoriteSystems: FavoriteSystems::none(),
-            productCategories: [self::HAIL_L => 'ammunition', self::RAM_AMMUNITION_TECH => null],
             blacklist: [self::FERNITE_CARBIDE, self::FULLERIDES],
         );
     }
@@ -375,29 +440,19 @@ final class ProductionCostCalculatorTest extends TestCase
     /**
      * Synthetic T2: Hobgoblin II from 2 000 Tritanium and 10 Morphite per run, invented from the Hobgoblin I Blueprint
      * (Hobgoblin I: 2 500 Tritanium per run), 10 runs per invented BPC, 2 + 2 datacores per attempt.
-     * Favorite manufacturing system indices: manufacturing 0.04, invention 0.06, copying 0.03.
+     * Favorite manufacturing system indices: manufacturing 0.04, invention 0.06, copying 0.03. No rig targets any group.
      */
     private static function hobgoblinIICalculator(?float $baseProbability): ProductionCostCalculator
     {
         return new ProductionCostCalculator(
             self::hobgoblinCatalog(),
-            new InMemoryInventionCatalog([
-                self::HOBGOBLIN_II => new InventionRecipe(
-                    t1BlueprintTypeId: self::HOBGOBLIN_I_BLUEPRINT,
-                    t1ProductTypeId: self::HOBGOBLIN_I,
-                    baseProbability: $baseProbability,
-                    baseRuns: new Runs(10),
-                    datacores: [
-                        new RecipeMaterial(self::FIRST_DATACORE, new Quantity(2)),
-                        new RecipeMaterial(self::SECOND_DATACORE, new Quantity(2)),
-                    ],
-                ),
-            ]),
+            new InMemoryInventionCatalog([self::HOBGOBLIN_II => self::hobgoblinIIInventionRecipe($baseProbability)]),
             new InMemoryMarketPrices([
                 self::TRITANIUM => 4.0,
                 self::MORPHITE => 9000.0,
                 self::FIRST_DATACORE => 80000.0,
                 self::SECOND_DATACORE => 60000.0,
+                self::PROCESS_DECRYPTOR => 50000.0,
             ]),
             new InMemoryAdjustedPrices([self::TRITANIUM => 3.0, self::MORPHITE => 8000.0]),
             new InMemorySystemCostIndices([
@@ -407,26 +462,49 @@ final class ProductionCostCalculatorTest extends TestCase
                     ActivityKind::Copying->name => 0.03,
                 ],
             ]),
+            new InMemoryRigCategories(),
         );
     }
 
-    private static function hobgoblinIIRequest(): ProductionCostRequest
+    private static function hobgoblinIIInventionRecipe(?float $baseProbability): InventionRecipe
+    {
+        return new InventionRecipe(
+            t1BlueprintTypeId: self::HOBGOBLIN_I_BLUEPRINT,
+            t1ProductTypeId: self::HOBGOBLIN_I,
+            baseProbability: $baseProbability,
+            baseRuns: new Runs(10),
+            datacores: [
+                new RecipeMaterial(self::FIRST_DATACORE, new Quantity(2)),
+                new RecipeMaterial(self::SECOND_DATACORE, new Quantity(2)),
+            ],
+        );
+    }
+
+    /**
+     * @param int $requestedMaterialEfficiency ignored for an invented product: the invented BPC sets the ME
+     */
+    private static function hobgoblinIIRequest(?Decryptor $decryptor = null, int $requestedMaterialEfficiency = 2): ProductionCostRequest
     {
         return new ProductionCostRequest(
             productTypeId: self::HOBGOBLIN_II,
             runs: new Runs(10),
-            efficiency: new BlueprintEfficiency(new MaterialEfficiency(2), new TimeEfficiency(4)),
+            efficiency: new BlueprintEfficiency(new MaterialEfficiency($requestedMaterialEfficiency), new TimeEfficiency(4)),
             mode: CostMode::MarginalCost,
             structures: [],
             favoriteSystems: new FavoriteSystems(self::FAVORITE_MANUFACTURING_SYSTEM_ID, null),
-            productCategories: [self::HOBGOBLIN_II => null],
             invention: new InventionSettings(
                 firstScienceSkillLevel: 4,
                 secondScienceSkillLevel: 4,
                 encryptionSkillLevel: 4,
-                decryptor: null,
+                decryptor: $decryptor,
             ),
         );
+    }
+
+    /** SDE attributes 1112 / 1124 / 1113 / 1114 of the Process Decryptor: ×1.1, runs +0, ME +3, TE +6. */
+    private static function processDecryptor(): Decryptor
+    {
+        return new Decryptor(self::PROCESS_DECRYPTOR, new Multiplier(1.1), 0, 3, 6);
     }
 
     private static function hobgoblinCatalog(): BlueprintCatalog
