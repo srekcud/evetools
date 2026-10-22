@@ -6,6 +6,7 @@ namespace App\Tests\Unit\ApiResource\Input\Industry;
 
 use App\ApiResource\Input\Industry\CreateProjectInput;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Validator\ConstraintViolationListInterface;
 use Symfony\Component\Validator\Validation;
@@ -16,6 +17,8 @@ final class CreateProjectInputValidationTest extends TestCase
 {
     private const int TITANIUM_CARBIDE = 16671;
     private const int PHENOLIC_COMPOSITES = 16680;
+    private const int MAXIMUM_EXCLUDED_COMPONENTS = 500;
+    private const int FIRST_TYPE_ID = 34;
 
     private ValidatorInterface $validator;
 
@@ -48,6 +51,35 @@ final class CreateProjectInputValidationTest extends TestCase
         $violations = $this->validateExcludedTypeIds([self::TITANIUM_CARBIDE, -5]);
 
         self::assertSame(['excludedTypeIds[1]'], $this->propertyPathsOf($violations));
+    }
+
+    #[DataProvider('excludedComponentsThatAreNotIntegers')]
+    public function testExcludedComponentThatIsNotAnIntegerIsRejected(mixed $excludedComponent): void
+    {
+        $violations = $this->validateExcludedTypeIds([$excludedComponent]);
+
+        self::assertSame(['excludedTypeIds[0]'], array_values(array_unique($this->propertyPathsOf($violations))));
+    }
+
+    public static function excludedComponentsThatAreNotIntegers(): \Generator
+    {
+        yield 'text' => ['abc'];
+        yield 'decimal' => [1.5];
+        yield 'numeric text' => ['16671'];
+    }
+
+    public function testMoreExcludedComponentsThanTheMaximumAreRejected(): void
+    {
+        $violations = $this->validateExcludedTypeIds(range(self::FIRST_TYPE_ID, self::FIRST_TYPE_ID + self::MAXIMUM_EXCLUDED_COMPONENTS));
+
+        self::assertSame(['excludedTypeIds'], $this->propertyPathsOf($violations));
+    }
+
+    public function testTheMaximumNumberOfExcludedComponentsIsAccepted(): void
+    {
+        $violations = $this->validateExcludedTypeIds(range(self::FIRST_TYPE_ID, self::FIRST_TYPE_ID + self::MAXIMUM_EXCLUDED_COMPONENTS - 1));
+
+        self::assertCount(0, $violations);
     }
 
     private function validateExcludedTypeIds(array $excludedTypeIds): ConstraintViolationListInterface

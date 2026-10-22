@@ -52,6 +52,7 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
     private const int MINERALS_PER_COMPONENT_RUN = 10;
     private const int MINERALS_PER_MODULE_RUN = 25;
     private const int BASE_TIME_PER_RUN_SECONDS = 600;
+    private const int MODULES_PER_FRIGATE_RUN = 2;
 
     private const float MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT = 2.0;
     private const float MAX_JOB_DURATION_DAYS_SPLITTING_THE_FRIGATE_IN_TWO_JOBS = 1800 / 86400;
@@ -412,6 +413,26 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
             ],
             $this->persistedStepsOf($project),
         );
+    }
+
+    public function testExcludedComponentsAreRememberedOnceAndNeverPlannedAtCreationNorAtRegeneration(): void
+    {
+        $this->em->persist((new IndustryActivityMaterial())->setTypeId(self::FRIGATE_BLUEPRINT_TYPE_ID)->setActivityId(IndustryActivityType::Manufacturing->value)->setMaterialTypeId(self::MODULE_TYPE_ID)->setQuantity(self::MODULES_PER_FRIGATE_RUN));
+        $this->em->flush();
+
+        $projectId = $this->factory->createProject($this->pilot, self::FRIGATE_TYPE_ID, 5, 10, self::MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT, 20, null, [self::COMPONENT_TYPE_ID, self::MODULE_TYPE_ID, self::COMPONENT_TYPE_ID])->getId();
+        $this->flushAndClear();
+        $project = $this->em->find(IndustryProject::class, $projectId);
+        self::assertNotNull($project);
+
+        self::assertSame([self::COMPONENT_TYPE_ID, self::MODULE_TYPE_ID], $project->getExcludedTypeIds());
+        self::assertSame([self::FRIGATE_TYPE_ID], array_column($this->persistedStepsOf($project), 2));
+
+        $this->factory->regenerateSteps($project);
+        $project = $this->reloaded($project);
+
+        self::assertSame([self::COMPONENT_TYPE_ID, self::MODULE_TYPE_ID], $project->getExcludedTypeIds());
+        self::assertSame([self::FRIGATE_TYPE_ID], array_column($this->persistedStepsOf($project), 2));
     }
 
     /**

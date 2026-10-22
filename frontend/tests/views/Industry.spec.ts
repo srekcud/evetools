@@ -241,4 +241,40 @@ describe('Industry create project form opened from buy vs build', () => {
       [],
     )
   })
+
+  it('sends no excluded component when a second intent transmits none', async () => {
+    const wrapper = await mountWithBuyVsBuildIntent(widowIntent())
+    useIndustryStore().navigationIntent = {
+      target: 'projects',
+      prefill: { typeId: SABRE.typeId, typeName: SABRE.typeName, runs: SABRE_RUNS, me: ENTERED_ME },
+    }
+    await flushPromises()
+
+    await buttonNamed(wrapper, en.industry.createProject.create).trigger('click')
+    await flushPromises()
+
+    expect(createProject).toHaveBeenCalledTimes(1)
+    expect(createProject).toHaveBeenCalledWith(SABRE.typeId, SABRE_RUNS, ENTERED_ME, 0, DEFAULT_MAX_JOB_DURATION_DAYS, null, [])
+  })
+
+  it('sends no excluded component once the form is closed and opened again', async () => {
+    const wrapper = await mountWithBuyVsBuildIntent(widowIntent())
+
+    await buttonNamed(wrapper, en.common.actions.cancel).trigger('click')
+    await buttonNamed(wrapper, en.industry.createProject.newProject).trigger('click')
+    await chooseProduct(wrapper, SABRE)
+    await buttonNamed(wrapper, en.industry.createProject.create).trigger('click')
+    await flushPromises()
+
+    expect(createProject).toHaveBeenCalledTimes(1)
+    expect(createProject).toHaveBeenCalledWith(
+      SABRE.typeId,
+      1,
+      INVENTED_BLUEPRINT_ME,
+      INVENTED_BLUEPRINT_TE,
+      DEFAULT_MAX_JOB_DURATION_DAYS,
+      null,
+      [],
+    )
+  })
 })

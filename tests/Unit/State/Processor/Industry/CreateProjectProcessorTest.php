@@ -285,8 +285,7 @@ final class CreateProjectProcessorTest extends TestCase
 
         $processor->process($input, new Post());
 
-        self::assertIsArray($excludedTypeIdsGivenToTheFactory);
-        self::assertEqualsCanonicalizing([self::TITANIUM_CARBIDE, self::PHENOLIC_COMPOSITES], array_values(array_unique($excludedTypeIdsGivenToTheFactory)));
+        self::assertSame([self::TITANIUM_CARBIDE, self::PHENOLIC_COMPOSITES, self::TITANIUM_CARBIDE], $excludedTypeIdsGivenToTheFactory);
     }
 
     private function createProjectArgumentsFor(int $productTypeId, int $runs, int $meLevel, int $teLevel): array

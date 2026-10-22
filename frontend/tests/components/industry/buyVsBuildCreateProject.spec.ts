@@ -105,6 +105,24 @@ const WIDOW_ANALYSIS: BuyVsBuildResult = {
   sellStructureId: 1_035_466_617_946,
 }
 
+const NITROGEN_FUEL_BLOCK_ANALYSIS: BuyVsBuildResult = {
+  typeId: 4051,
+  typeName: 'Nitrogen Fuel Block',
+  isT2: false,
+  runs: 40,
+  totalProductionCost: 39_452.95,
+  sellPrice: 15_000,
+  marginPercent: 1375.17,
+  components: [],
+  buildAllCost: 0,
+  buyAllCost: 0,
+  optimalMixCost: 0,
+  buildTypeIds: [],
+  buyTypeIds: [],
+  missingData: [],
+  sellStructureId: null,
+}
+
 function mountWithAnalysis(analysis: BuyVsBuildResult) {
   useScannerStore().buyVsBuildResult = analysis
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -189,5 +207,15 @@ describe('BuyVsBuildTab create project from the chosen mix', () => {
 
     expect(excludedTypeIdsOfTheIntent()).toEqual([TITANIUM_CARBIDE_TYPE_ID])
     expect(exclusionNotice(wrapper)).toBe('Excludes: Titanium Carbide')
+  })
+
+  it('tells that a product which is not T2 is not T2', async () => {
+    const wrapper = mountWithAnalysis(NITROGEN_FUEL_BLOCK_ANALYSIS)
+
+    await createTheProject(wrapper)
+
+    const intent = useIndustryStore().navigationIntent
+    if (intent === null || intent.target !== 'projects' || !intent.prefill) throw new Error('No project intent with prefill')
+    expect(intent.prefill.isT2).toBe(false)
   })
 })

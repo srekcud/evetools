@@ -680,6 +680,16 @@ class IndustryProjectFactoryTest extends TestCase
         $this->assertEqualsCanonicalizing([self::TITANIUM_CARBIDE, self::PHENOLIC_COMPOSITES], $project->getExcludedTypeIds());
     }
 
+    public function testCreatedProjectRemembersItsExcludedComponentsInTheirFirstOrderAsAList(): void
+    {
+        $this->blacklistService->method('resolveBlacklistedTypeIds')->willReturn([self::NANOTRANSISTORS]);
+        $this->capturesTheExclusionsOfTheTree();
+
+        $project = $this->factory->createProject($this->createUser(), self::QUANTUM_MICROPROCESSOR, self::QUANTUM_MICROPROCESSOR_RUNS, 10, 2.0, 20, null, [self::PHENOLIC_COMPOSITES, self::PHENOLIC_COMPOSITES, self::TITANIUM_CARBIDE]);
+
+        $this->assertSame([self::PHENOLIC_COMPOSITES, self::TITANIUM_CARBIDE], $project->getExcludedTypeIds());
+    }
+
     public function testCreatedProjectTreeExcludesTheBlacklistAndTheExcludedComponents(): void
     {
         $this->blacklistService->method('resolveBlacklistedTypeIds')->willReturn([self::NANOTRANSISTORS]);
