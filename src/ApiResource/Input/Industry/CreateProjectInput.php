@@ -27,4 +27,8 @@ class CreateProjectInput
 
     #[Assert\Length(max: 255)]
     public ?string $name = null;
+
+    /** @var list<int> */
+    #[Assert\All([new Assert\Positive()])]
+    public array $excludedTypeIds = [];
 }

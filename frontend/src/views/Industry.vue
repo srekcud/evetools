@@ -27,6 +27,9 @@ const store = useIndustryStore()
 const adminStore = useAdminStore()
 const isAdmin = ref(false)
 
+const INVENTED_BLUEPRINT_ME = 2
+const INVENTED_BLUEPRINT_TE = 4
+
 // Create project form
 interface ProductToAdd {
   typeId: number
@@ -41,6 +44,7 @@ const selectedProduct = ref<SearchResult | null>(null)
 const runs = ref(1)
 const meLevel = ref(0)
 const teLevel = ref(0)
+const excludedTypeIds = ref<number[]>([])
 const projectName = ref('')
 const productsToAdd = ref<ProductToAdd[]>([])
 const isCreating = ref(false)
@@ -55,6 +59,7 @@ function openCreateModal() {
   runs.value = 1
   meLevel.value = 0
   teLevel.value = 0
+  excludedTypeIds.value = []
   projectName.value = ''
   productsToAdd.value = []
   showCreateModal.value = true
@@ -147,14 +152,16 @@ watch(() => store.navigationIntent, (intent) => {
     if (intent.prefill) {
       // Open modal with prefilled data
       showCreateModal.value = true
+      const isT2 = intent.prefill.isT2 ?? false
       selectedProduct.value = {
         typeId: intent.prefill.typeId,
         typeName: intent.prefill.typeName,
-        isT2: false,
+        isT2,
       }
       runs.value = intent.prefill.runs ?? 1
       meLevel.value = intent.prefill.me ?? 0
-      teLevel.value = intent.prefill.te ?? 0
+      teLevel.value = intent.prefill.te ?? (isT2 ? INVENTED_BLUEPRINT_TE : 0)
+      excludedTypeIds.value = intent.prefill.excludedTypeIds ?? []
     }
   } else if (intent.target === 'margins') {
     mainTab.value = 'margins'
@@ -178,9 +185,10 @@ watch(() => store.navigationIntent, (intent) => {
 
 function onProductSelect(result: SearchResult) {
   selectedProduct.value = result
+  excludedTypeIds.value = []
   if (result.isT2) {
-    meLevel.value = 2
-    teLevel.value = 4
+    meLevel.value = INVENTED_BLUEPRINT_ME
+    teLevel.value = INVENTED_BLUEPRINT_TE
   }
 }
 
@@ -223,6 +231,7 @@ async function createProject() {
       firstProduct.teLevel,
       store.defaultMaxJobDurationDays,
       projectName.value.trim() || null,
+      excludedTypeIds.value,
     )
 
     // Add remaining products as additional steps (with their own ME/TE)
@@ -236,6 +245,7 @@ async function createProject() {
     runs.value = 1
     meLevel.value = 0
     teLevel.value = 0
+    excludedTypeIds.value = []
     projectName.value = ''
     productsToAdd.value = []
     showCreateModal.value = false

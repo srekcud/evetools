@@ -52,7 +52,7 @@ class ProjectProvider implements ProviderInterface
         );
 
         // Build production tree
-        $excludedTypeIds = $this->blacklistService->resolveBlacklistedTypeIds($user);
+        $excludedTypeIds = $project->excludedTypeIdsWithBlacklist($this->blacklistService->resolveBlacklistedTypeIds($user));
         try {
             $tree = $this->treeService->buildProductionTree(
                 $project->getProductTypeId(),

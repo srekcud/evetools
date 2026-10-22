@@ -817,7 +817,7 @@ export type SlotTrackerData = {
 
 // Cross-tab navigation intent for the Industry cockpit
 export type NavigationIntent =
-  | { target: 'projects'; openCreateModal?: boolean; prefill?: { typeId: number; typeName: string; runs?: number; me?: number; te?: number; excludedTypeIds?: number[] } }
+  | { target: 'projects'; openCreateModal?: boolean; prefill?: { typeId: number; typeName: string; runs?: number; me?: number; te?: number; isT2?: boolean; excludedTypeIds?: number[] } }
   | { target: 'margins'; typeId: number }
   | { target: 'batch' }
   | { target: 'buy-vs-build'; typeId: number }

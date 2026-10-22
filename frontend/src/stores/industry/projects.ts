@@ -42,12 +42,13 @@ export const useProjectsStore = defineStore('industry-projects', () => {
     teLevel: number = 0,
     maxJobDurationDays: number = 2.0,
     name?: string | null,
+    excludedTypeIds: number[] = [],
   ) {
     error.value = null
     try {
       const project = enrichProject(await apiRequest<IndustryProject>('/industry/projects', {
         method: 'POST',
-        body: JSON.stringify({ typeId, runs, meLevel, teLevel, maxJobDurationDays, name }),
+        body: JSON.stringify({ typeId, runs, meLevel, teLevel, maxJobDurationDays, name, excludedTypeIds }),
       }))
       projects.value.unshift(project)
       return project

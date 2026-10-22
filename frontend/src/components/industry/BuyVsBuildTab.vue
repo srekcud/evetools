@@ -73,6 +73,11 @@ function effectiveVerdict(comp: BuyVsBuildComponent): BuyVsBuildComponent['verdi
   return userOverrides.value.get(comp.typeId) ?? comp.verdict
 }
 
+function isBought(comp: BuyVsBuildComponent): boolean {
+  const verdict = effectiveVerdict(comp)
+  return verdict === 'buy' || verdict === 'loss'
+}
+
 function setOverride(comp: BuyVsBuildComponent, choice: 'build' | 'buy'): void {
   const newMap = new Map(userOverrides.value)
   if (choice === comp.verdict) {
@@ -142,7 +147,7 @@ const buildList = computed(() => {
 const buyList = computed(() => {
   if (!result.value) return []
   return result.value.components
-    .filter(c => effectiveVerdict(c) === 'buy' || effectiveVerdict(c) === 'loss')
+    .filter(isBought)
     .sort((a, b) => compareKnownFirstDescending(a.savings, b.savings))
 })
 
@@ -162,14 +167,14 @@ const overrideCounts = computed(() => {
 const computedOptimalMixCost = computed((): number | null => {
   if (!result.value) return null
   return sumOfKnownAmounts(result.value.components.map(c =>
-    effectiveVerdict(c) === 'build' ? c.buildCost : c.buyCostStructure ?? c.buyCostJita,
+    isBought(c) ? c.buyCostStructure ?? c.buyCostJita : c.buildCost,
   ))
 })
 
 const excludedComponentNames = computed(() => {
   if (!result.value) return []
   return result.value.components
-    .filter(c => effectiveVerdict(c) !== 'build')
+    .filter(isBought)
     .map(c => typeNameLabel(c.typeName, c.typeId))
 })
 
@@ -244,7 +249,7 @@ function verdictSavingsColor(verdict: BuyVsBuildComponent['verdict']): string {
 function onCreateOptimalProject(): void {
   if (!result.value) return
   const excludedTypeIds = result.value.components
-    .filter(c => effectiveVerdict(c) !== 'build')
+    .filter(isBought)
     .map(c => c.typeId)
   industryStore.navigationIntent = {
     target: 'projects',
@@ -253,6 +258,7 @@ function onCreateOptimalProject(): void {
       typeName: typeNameLabel(result.value.typeName, result.value.typeId),
       runs: result.value.runs,
       me: meLevel.value,
+      isT2: result.value.isT2,
       excludedTypeIds,
     },
   }
@@ -591,7 +597,7 @@ const SUMMARY_LIST_LIMIT = 5
                     @click.stop="setOverride(comp, 'build')"
                     :class="[
                       'px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1 transition-colors',
-                      effectiveVerdict(comp) === 'build' ? 'bg-emerald-500/20 text-emerald-400' : 'text-slate-500 hover:text-slate-300'
+                      !isBought(comp) ? 'bg-emerald-500/20 text-emerald-400' : 'text-slate-500 hover:text-slate-300'
                     ]"
                   >
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -603,7 +609,7 @@ const SUMMARY_LIST_LIMIT = 5
                     @click.stop="setOverride(comp, 'buy')"
                     :class="[
                       'px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1 transition-colors',
-                      effectiveVerdict(comp) !== 'build' ? 'bg-amber-500/20 text-amber-400' : 'text-slate-500 hover:text-slate-300'
+                      isBought(comp) ? 'bg-amber-500/20 text-amber-400' : 'text-slate-500 hover:text-slate-300'
                     ]"
                   >
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

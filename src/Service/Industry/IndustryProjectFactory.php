@@ -42,15 +42,15 @@ class IndustryProjectFactory
     ) {
     }
 
-    public function createProject(User $user, int $productTypeId, int $runs, int $meLevel, float $maxJobDurationDays = 2.0, int $teLevel = 0, ?string $name = null): IndustryProject
+    /**
+     * @param list<int> $excludedTypeIds
+     */
+    public function createProject(User $user, int $productTypeId, int $runs, int $meLevel, float $maxJobDurationDays = 2.0, int $teLevel = 0, ?string $name = null, array $excludedTypeIds = []): IndustryProject
     {
         $type = $this->invTypeRepository->find($productTypeId);
         if ($type === null) {
             throw new \InvalidArgumentException("Unknown type ID {$productTypeId}");
         }
-
-        $excludedTypeIds = $this->blacklistService->resolveBlacklistedTypeIds($user);
-        $tree = $this->treeService->buildProductionTree($productTypeId, $runs, $meLevel, $excludedTypeIds, $user);
 
         $project = new IndustryProject();
         $project->setUser($user);
@@ -60,6 +60,9 @@ class IndustryProjectFactory
         $project->setMeLevel($meLevel);
         $project->setTeLevel($teLevel);
         $project->setMaxJobDurationDays($maxJobDurationDays);
+        $project->setExcludedTypeIds(array_values(array_unique($excludedTypeIds)));
+
+        $tree = $this->productionTreeOf($project);
 
         $rawSteps = [];
         $this->collectStepsFromTree($rawSteps, $tree, $meLevel, $teLevel);
@@ -85,14 +88,7 @@ class IndustryProjectFactory
         }
 
         try {
-            $excludedTypeIds = $this->blacklistService->resolveBlacklistedTypeIds($user);
-            $tree = $this->treeService->buildProductionTree(
-                $project->getProductTypeId(),
-                $project->getRuns(),
-                $project->getMeLevel(),
-                $excludedTypeIds,
-                $user,
-            );
+            $tree = $this->productionTreeOf($project);
 
             $rawSteps = [];
             $this->collectStepsFromTree($rawSteps, $tree, $project->getMeLevel(), $project->getTeLevel());
@@ -116,6 +112,22 @@ class IndustryProjectFactory
             }
             throw $e;
         }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function productionTreeOf(IndustryProject $project): array
+    {
+        $user = $project->getUser();
+
+        return $this->treeService->buildProductionTree(
+            $project->getProductTypeId(),
+            $project->getRuns(),
+            $project->getMeLevel(),
+            $project->excludedTypeIdsWithBlacklist($this->blacklistService->resolveBlacklistedTypeIds($user)),
+            $user,
+        );
     }
 
     /**

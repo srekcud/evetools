@@ -343,6 +343,15 @@ class IndustryProject
         return $this;
     }
 
+    /**
+     * @param list<int> $blacklistedTypeIds
+     * @return list<int>
+     */
+    public function excludedTypeIdsWithBlacklist(array $blacklistedTypeIds): array
+    {
+        return array_values(array_unique([...$blacklistedTypeIds, ...$this->excludedTypeIds]));
+    }
+
     /** @return array<array{typeId: int, typeName: string, quantity: int}>|null */
     public function getInventionMaterials(): ?array
     {

@@ -61,7 +61,8 @@ class CreateProjectProcessor implements ProcessorInterface
                 $data->meLevel,
                 $data->maxJobDurationDays,
                 $data->teLevel,
-                $data->name
+                $data->name,
+                $data->excludedTypeIds,
             );
         } catch (\InvalidArgumentException|\RuntimeException $e) {
             throw new BadRequestHttpException($e->getMessage());
