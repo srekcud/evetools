@@ -7,38 +7,19 @@ namespace App\Tests\Unit\Service\Industry;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStructureConfig;
-use App\Entity\Sde\IndustryActivity;
-use App\Entity\Sde\IndustryActivityMaterial;
-use App\Entity\Sde\IndustryActivityProduct;
-use App\Entity\Sde\InvType;
 use App\Entity\User;
-use App\Enum\IndustryActivityType;
-use App\Repository\CachedCharacterSkillRepository;
-use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryRigCategoryRepository;
 use App\Repository\IndustryStructureConfigRepository;
-use App\Repository\IndustryUserSettingsRepository;
-use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
-use App\Repository\Sde\IndustryActivityRepository;
 use App\Repository\Sde\InvTypeRepository;
-use App\Repository\Sde\StaStationRepository;
-use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\IndustryBonusService;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryProjectFactory;
 use App\Service\Industry\IndustryStepCalculator;
-use App\Service\Industry\IndustryTreeService;
 use App\Service\Industry\SplitGroupQuantities;
-use App\Service\Mercure\MercurePublisherService;
-use App\Service\TypeNameResolver;
-use Doctrine\DBAL\Connection;
-use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
-use Symfony\Component\Mercure\HubInterface;
 
 /**
  * Characterization of the steps written by IndustryProjectFactory (createProject, splitLongJobs) and rewritten by
@@ -61,9 +42,9 @@ use Symfony\Component\Mercure\HubInterface;
 #[CoversClass(SplitGroupQuantities::class)]
 final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCase
 {
-    private const string GOLDEN_DIR = __DIR__.'/../../../Fixtures/Golden/';
+    use BuildsProjectOnGoldenSde;
+
     private const string SNAPSHOT_DIR = __DIR__.'/../../../Fixtures/Characterization/IndustryProjectFactory/';
-    private const int BLUEPRINT_TYPE_ID_OFFSET = 1_000_000;
 
     private const int NITROGEN_FUEL_BLOCK = 4051;
     private const int HYDROGEN_FUEL_BLOCK = 4246;
@@ -114,8 +95,6 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     private array $sde;
 
     private bool $pilotOwnsTataraAndRaitaru = false;
-    /** @var list<int> */
-    private array $typeIdsWithoutBaseTime = [];
 
     private User $pilot;
     private IndustryProjectFactory $factory;
@@ -127,43 +106,10 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         $this->sde = json_decode((string) file_get_contents(self::GOLDEN_DIR.'sde-blueprint-recipes.json'), true, flags: \JSON_THROW_ON_ERROR);
         $this->pilot = new User();
 
-        $connection = $this->createStub(Connection::class);
-        $connection->method('fetchOne')->willReturn(0);
-        $connection->method('fetchAllAssociative')->willReturn([]);
-        $entityManager = $this->createStub(EntityManagerInterface::class);
-        $entityManager->method('getConnection')->willReturn($connection);
-
-        $typeRepository = $this->typeRepositoryOnGoldenSde();
-        $productRepository = $this->productRepositoryOnGoldenSde();
-        $materialRepository = $this->materialRepositoryOnGoldenSde();
         $bonusService = $this->bonusServiceOfThePilot();
-
-        $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
-        $settingsRepository->method('findOneBy')->willReturn(null);
-        $calculationService = new IndustryCalculationService(
-            new TypeNameResolver($typeRepository),
-            $bonusService,
-            $this->createStub(IndustryStructureConfigRepository::class),
-            $settingsRepository,
-            $entityManager,
-            $this->createStub(StaStationRepository::class),
-            $this->createStub(CachedStructureRepository::class),
-        );
-
-        $this->factory = new IndustryProjectFactory(
-            new IndustryTreeService($productRepository, $materialRepository, $typeRepository, $entityManager, $bonusService),
-            new IndustryBlacklistService($entityManager),
-            $bonusService,
-            $calculationService,
-            $this->createStub(CachedCharacterSkillRepository::class),
-            $typeRepository,
-            $materialRepository,
-            $this->activityRepositoryOnGoldenSde(),
-            $entityManager,
-            new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
-        );
-        $this->stepCalculator = new IndustryStepCalculator($calculationService, $materialRepository, $productRepository, $entityManager);
-        $this->calculationService = $calculationService;
+        $this->calculationService = $this->calculationServiceOnGoldenSde($bonusService, $this->createStub(IndustryStructureConfigRepository::class));
+        $this->factory = $this->projectFactoryOnGoldenSde($bonusService, $this->calculationService);
+        $this->stepCalculator = new IndustryStepCalculator($this->calculationService, $this->materialRepositoryOnGoldenSde(), $this->productRepositoryOnGoldenSde(), $this->entityManagerWithoutRows());
     }
 
     // ===========================================
@@ -996,7 +942,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     {
         return (new IndustryProjectStep())
             ->setProductTypeId($productTypeId)
-            ->setBlueprintTypeId($blueprintTypeId ?? $productTypeId + self::BLUEPRINT_TYPE_ID_OFFSET)
+            ->setBlueprintTypeId($blueprintTypeId ?? $productTypeId + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET)
             ->setTotalGroupRuns($totalGroupRuns)
             ->setActivityType($activityType)
             ->setRuns($runs)
@@ -1237,135 +1183,6 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         self::assertSame(json_decode((string) file_get_contents($snapshotFile), true, flags: \JSON_THROW_ON_ERROR), $actual);
     }
 
-    private function typeRepositoryOnGoldenSde(): InvTypeRepository
-    {
-        $typeRepository = $this->createStub(InvTypeRepository::class);
-        $typeRepository->method('find')->willReturnCallback(
-            fn (int $typeId): ?InvType => isset($this->sde['typeNames'][(string) $typeId])
-                ? (new InvType())->setTypeId($typeId)->setTypeName($this->sde['typeNames'][(string) $typeId])
-                : null,
-        );
-
-        return $typeRepository;
-    }
-
-    private function productRepositoryOnGoldenSde(): IndustryActivityProductRepository
-    {
-        $productRepository = $this->createStub(IndustryActivityProductRepository::class);
-        $productRepository->method('findBlueprintForProduct')->willReturnCallback(
-            function (int $productTypeId, int $activityId): ?IndustryActivityProduct {
-                $recipe = $this->recipeOfProduct($productTypeId);
-                if ($recipe === null || self::activityIdOf($recipe['activity']) !== $activityId) {
-                    return null;
-                }
-
-                return $this->activityProduct($productTypeId, $recipe);
-            },
-        );
-        $productRepository->method('findProductsForBlueprints')->willReturnCallback(
-            function (array $blueprintTypeIds, array $activityIds): array {
-                $products = [];
-                foreach ($blueprintTypeIds as $blueprintTypeId) {
-                    $productTypeId = $blueprintTypeId - self::BLUEPRINT_TYPE_ID_OFFSET;
-                    $recipe = $this->recipeOfProduct($productTypeId);
-                    if ($recipe !== null && in_array(self::activityIdOf($recipe['activity']), $activityIds, true)) {
-                        $products[$blueprintTypeId.'-'.self::activityIdOf($recipe['activity'])] = $this->activityProduct($productTypeId, $recipe);
-                    }
-                }
-
-                return $products;
-            },
-        );
-
-        return $productRepository;
-    }
-
-    private function materialRepositoryOnGoldenSde(): IndustryActivityMaterialRepository
-    {
-        $materialRepository = $this->createStub(IndustryActivityMaterialRepository::class);
-        $materialRepository->method('findBy')->willReturnCallback(
-            fn (array $criteria): array => $this->activityMaterials($criteria['typeId'], $criteria['activityId']),
-        );
-        $materialRepository->method('findMaterialEntitiesForBlueprints')->willReturnCallback(
-            function (array $blueprintTypeIds, array $activityIds): array {
-                $materialsByBlueprint = [];
-                foreach (array_unique($blueprintTypeIds) as $blueprintTypeId) {
-                    foreach (array_unique($activityIds) as $activityId) {
-                        $materials = $this->activityMaterials($blueprintTypeId, $activityId);
-                        if ($materials !== []) {
-                            $materialsByBlueprint[$blueprintTypeId.'-'.$activityId] = $materials;
-                        }
-                    }
-                }
-
-                return $materialsByBlueprint;
-            },
-        );
-
-        return $materialRepository;
-    }
-
-    private function activityRepositoryOnGoldenSde(): IndustryActivityRepository
-    {
-        $activityRepository = $this->createStub(IndustryActivityRepository::class);
-        $activityRepository->method('findByTypeIdsAndActivityIds')->willReturnCallback(
-            function (array $blueprintTypeIds, array $activityIds): array {
-                $activities = [];
-                foreach ($blueprintTypeIds as $blueprintTypeId) {
-                    if (in_array($blueprintTypeId - self::BLUEPRINT_TYPE_ID_OFFSET, $this->typeIdsWithoutBaseTime, true)) {
-                        continue;
-                    }
-                    $recipe = $this->recipeOfProduct($blueprintTypeId - self::BLUEPRINT_TYPE_ID_OFFSET);
-                    $activityId = $recipe === null ? null : self::activityIdOf($recipe['activity']);
-                    if ($activityId !== null && in_array($activityId, $activityIds, true)) {
-                        $activities[$blueprintTypeId.'-'.$activityId] = (new IndustryActivity())
-                            ->setTypeId($blueprintTypeId)
-                            ->setActivityId($activityId)
-                            ->setTime($recipe['baseTimeSeconds']);
-                    }
-                }
-
-                return $activities;
-            },
-        );
-
-        return $activityRepository;
-    }
-
-    /**
-     * @return list<IndustryActivityMaterial>
-     */
-    private function activityMaterials(int $blueprintTypeId, int $activityId): array
-    {
-        $recipe = $this->recipeOfProduct($blueprintTypeId - self::BLUEPRINT_TYPE_ID_OFFSET);
-        if ($recipe === null || self::activityIdOf($recipe['activity']) !== $activityId) {
-            return [];
-        }
-
-        $materials = [];
-        foreach ($recipe['materials'] as $materialTypeId => $baseQuantityPerRun) {
-            $materials[] = (new IndustryActivityMaterial())
-                ->setTypeId($blueprintTypeId)
-                ->setActivityId($activityId)
-                ->setMaterialTypeId((int) $materialTypeId)
-                ->setQuantity($baseQuantityPerRun);
-        }
-
-        return $materials;
-    }
-
-    /**
-     * @param array{activity: string, outputPerRun: int} $recipe
-     */
-    private function activityProduct(int $productTypeId, array $recipe): IndustryActivityProduct
-    {
-        return (new IndustryActivityProduct())
-            ->setTypeId($productTypeId + self::BLUEPRINT_TYPE_ID_OFFSET)
-            ->setActivityId(self::activityIdOf($recipe['activity']))
-            ->setProductTypeId($productTypeId)
-            ->setQuantity($recipe['outputPerRun']);
-    }
-
     /**
      * @return array{name: string, activity: string, outputPerRun: int, baseTimeSeconds: int, materials: array<string, int>}|null
      */
@@ -1475,10 +1292,5 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
                 return ['structure' => null, 'bonus' => ['total' => 0.0, 'base' => 0.0, 'rig' => 0.0], 'category' => null];
             }
         };
-    }
-
-    private static function activityIdOf(string $activity): int
-    {
-        return $activity === 'reaction' ? IndustryActivityType::Reaction->value : IndustryActivityType::Manufacturing->value;
     }
 }
