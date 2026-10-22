@@ -127,6 +127,7 @@ class LinkJobProcessorTest extends TestCase
         self::assertSame(self::JOB_COST, $match->getCost());
         self::assertSame(self::STEP_RUNS, $match->getRuns());
         self::assertSame('active', $match->getStatus());
+        self::assertEquals(new \DateTimeImmutable('2026-10-02 12:00:00'), $match->getEndDate());
         self::assertSame('Main Pilot', $match->getCharacterName());
         self::assertSame(self::STEP_RUNS, $this->step->getRuns());
     }

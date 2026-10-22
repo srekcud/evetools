@@ -59,6 +59,7 @@ class IndustryJobSyncServiceTest extends TestCase
     private BufferingLogger $logger;
     private array $persistedJobs = [];
     private int $flushCount = 0;
+    private array $jobMatches = [];
 
     protected function setUp(): void
     {
@@ -546,7 +547,7 @@ class IndustryJobSyncServiceTest extends TestCase
         $project->method('getId')->willReturn(Uuid::fromString('0193a5c2-7b1e-7c4d-9f2a-3e8b6d1c5a40'));
         $project->method('getName')->willReturn('Batch');
         $step = (new IndustryProjectStep())->setProject($project)->setProductTypeId(self::TYPE_ID_MISSING_FROM_SDE);
-        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([(new IndustryStepJobMatch())->setStep($step)]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([(new IndustryStepJobMatch())->setEsiJobId(7002)->setStep($step)]);
 
         $this->service->syncCharacterJobs($character);
 
@@ -854,9 +855,272 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->assertSame('delivered', $personalStaleJobOfB->getStatus());
     }
 
+    #[Group('issue-208')]
+    public function testDeliveredJobRefreshesJobMatchOfManualStep(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $cachedJob = $this->givenMatchedCachedJob($character);
+        $jobMatch = $this->givenJobMatchOnStep(100, $this->makeStep('manual'));
+        $this->esiClient->method('get')->willReturn([$this->makeEsiJobOfMatch(100, 12345, 'delivered', '2026-10-20T12:00:00Z')]);
+        $this->stubCachedJobs([$cachedJob]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame(['delivered', '2026-10-20T12:00:00+00:00', 1_500_000.50, 10], $this->jobStateOf($jobMatch));
+    }
+
+    #[Group('issue-208')]
+    public function testReadyJobRefreshesJobMatchOfPurchasedStep(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $cachedJob = $this->givenMatchedCachedJob($character);
+        $jobMatch = $this->givenJobMatchOnStep(100, $this->makeStep('auto')->setPurchased(true));
+        $this->esiClient->method('get')->willReturn([$this->makeEsiJobOfMatch(100, 12345, 'ready', '2026-10-20T12:00:00Z')]);
+        $this->stubCachedJobs([$cachedJob]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame(['ready', '2026-10-20T12:00:00+00:00', 1_500_000.50, 10], $this->jobStateOf($jobMatch));
+    }
+
+    #[Group('issue-208')]
+    public function testDeliveredJobRefreshesJobMatchOfAutoStepWithoutMatchingJobsAgain(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $cachedJob = $this->givenMatchedCachedJob($character);
+        $jobMatch = $this->givenJobMatchOnStep(100, $this->makeStep('auto'));
+        $this->esiClient->method('get')->willReturn([$this->makeEsiJobOfMatch(100, 12345, 'delivered', '2026-10-20T12:00:00Z')]);
+        $this->stubCachedJobs([$cachedJob]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame(['delivered', '2026-10-20T12:00:00+00:00', 1_500_000.50, 10], $this->jobStateOf($jobMatch));
+    }
+
+    #[Group('issue-208')]
+    public function testNewEndDateFromEsiRefreshesCachedJobAndJobMatch(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $cachedJob = $this->givenMatchedCachedJob($character);
+        $jobMatch = $this->givenJobMatchOnStep(100, $this->makeStep('manual'));
+        $this->esiClient->method('get')->willReturn([$this->makeEsiJobOfMatch(100, 12345, 'active', '2026-10-21T08:30:00Z')]);
+        $this->stubCachedJobs([$cachedJob]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame('2026-10-21T08:30:00+00:00', $cachedJob->getEndDate()->format('c'));
+        $this->assertSame(['active', '2026-10-21T08:30:00+00:00', 1_500_000.50, 10], $this->jobStateOf($jobMatch));
+    }
+
+    #[Group('issue-208')]
+    public function testStaleJobMarkedDeliveredBySyncRefreshesJobMatch(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $cachedJob = $this->givenMatchedCachedJob($character);
+        $jobMatch = $this->givenJobMatchOnStep(100, $this->makeStep('manual'));
+        $this->esiClient->method('get')->willReturn([]);
+        $this->esiClient->method('getPaginated')->willReturn([]);
+        $this->stubActiveJobsByCharacter([$cachedJob]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame(['delivered', '2026-10-20T12:00:00+00:00', 1_500_000.50, 10], $this->jobStateOf($jobMatch));
+    }
+
+    #[Group('issue-208')]
+    public function testJobMatchOfCorpmateJobReadByCorporationEndpointIsNotRefreshed(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $corpmateCachedJob = $this->makeCachedJob(200, $this->createCharacterWithUser(99999), 'delivered', '2026-10-19T16:45:00Z');
+        $corpmateCachedJob->setCost(2_750_000.75)->setRuns(4);
+        $jobMatch = $this->givenJobMatchOnStep(200, $this->makeStep('manual'));
+        $this->esiClient->method('get')->willReturn([]);
+        $this->esiClient->method('getPaginated')->willReturn([$this->makeEsiJobOfMatch(200, 99999, 'delivered', '2026-10-19T16:45:00Z')]);
+        $this->stubCachedJobs([$corpmateCachedJob]);
+        $this->stubActiveJobsByCharacter([]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame(['active', '2026-10-20T12:00:00+00:00', 1_500_000.50, 10], $this->jobStateOf($jobMatch));
+    }
+
+    #[Group('issue-208')]
+    public function testJobMatchOfUnreadPersonalJobIsNotRefreshedWithoutPersonalJobsScope(): void
+    {
+        [$character] = $this->createCharactersOfSameUserWithScopes([12345 => [self::CORPORATION_JOBS_SCOPE]]);
+        $cachedJob = $this->givenMatchedCachedJob($character)->setStatus('ready');
+        $jobMatch = $this->givenJobMatchOnStep(100, $this->makeStep('manual'));
+        $this->esiClient->expects($this->never())->method('get');
+        $this->esiClient->method('getPaginated')->willReturn([]);
+        $this->stubCachedJobs([$cachedJob]);
+        $this->stubActiveJobsByCharacter([$cachedJob]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame(['active', '2026-10-20T12:00:00+00:00', 1_500_000.50, 10], $this->jobStateOf($jobMatch));
+    }
+
+    #[Group('issue-208')]
+    public function testJobMatchTakesCostAndRunsOfCachedJobWhenTheyDiverge(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $cachedJob = $this->givenMatchedCachedJob($character);
+        $jobMatch = $this->givenJobMatchOnStep(100, $this->makeStep('manual'))->setCost(900_000.0)->setRuns(5);
+        $this->esiClient->method('get')->willReturn([$this->makeEsiJobOfMatch(100, 12345, 'active', '2026-10-20T12:00:00Z')]);
+        $this->stubCachedJobs([$cachedJob]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame(1_500_000.50, $jobMatch->getCost());
+        $this->assertSame(10, $jobMatch->getRuns());
+    }
+
+    #[Group('issue-208')]
+    public function testRefreshKeepsCharacterFacilityPlannedStructureAndMatchDateOfJobMatch(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $cachedJob = $this->givenMatchedCachedJob($character);
+        $jobMatch = $this->givenJobMatchOnStep(100, $this->makeStep('manual'));
+        $this->esiClient->method('get')->willReturn([$this->makeEsiJobOfMatch(100, 12345, 'delivered', '2026-10-20T12:00:00Z')]);
+        $this->stubCachedJobs([$cachedJob]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame(
+            ['Main Industrialist', 1_035_466_617_946, 'Sotiyo Kemerk', 'Azbel Planned', 1.0, '2026-10-15T09:00:00+00:00'],
+            [
+                $jobMatch->getCharacterName(),
+                $jobMatch->getFacilityId(),
+                $jobMatch->getFacilityName(),
+                $jobMatch->getPlannedStructureName(),
+                $jobMatch->getPlannedMaterialBonus(),
+                $jobMatch->getMatchedAt()->format('c'),
+            ],
+        );
+    }
+
+    #[Group('issue-208')]
+    public function testJobMatchedOnTwoStepsIsRefreshedOnBoth(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $cachedJob = $this->givenMatchedCachedJob($character);
+        $firstJobMatch = $this->givenJobMatchOnStep(100, $this->makeStep('manual'));
+        $secondJobMatch = $this->givenJobMatchOnStep(100, $this->makeStep('auto'));
+        $this->esiClient->method('get')->willReturn([$this->makeEsiJobOfMatch(100, 12345, 'delivered', '2026-10-20T12:00:00Z')]);
+        $this->stubCachedJobs([$cachedJob]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame('delivered', $firstJobMatch->getStatus());
+        $this->assertSame('delivered', $secondJobMatch->getStatus());
+    }
+
+    #[Group('issue-208')]
+    public function testAltJobReadByCorporationEndpointRefreshesItsJobMatch(): void
+    {
+        [$characterA, $characterB] = $this->createCharactersOfSameUser(12345, 67890);
+        $altCachedJob = $this->makeCachedJob(400, $characterB, 'active', '2026-10-23T06:15:00Z');
+        $altCachedJob->setCost(640_000.25)->setRuns(3);
+        $jobMatch = $this->givenJobMatchOnStep(400, $this->makeStep('manual'));
+        $this->esiClient->method('get')->willReturn([]);
+        $this->esiClient->method('getPaginated')->willReturn([$this->makeEsiJobOfMatch(400, 67890, 'ready', '2026-10-23T06:15:00Z')]);
+        $this->stubCachedJobs([$altCachedJob]);
+        $this->stubActiveJobsByCharacter([]);
+
+        $this->service->syncCharacterJobs($characterA);
+
+        $this->assertSame(['ready', '2026-10-23T06:15:00+00:00', 640_000.25, 3], $this->jobStateOf($jobMatch));
+    }
+
     // ===========================================
     // Helpers
     // ===========================================
+
+    private function givenMatchedCachedJob(Character $character): CachedIndustryJob
+    {
+        $cachedJob = $this->makeCachedJob(100, $character, 'active', '2026-10-20T12:00:00Z');
+        $cachedJob->setCost(1_500_000.50)->setRuns(10);
+
+        return $cachedJob;
+    }
+
+    private function makeStep(string $jobMatchMode): IndustryProjectStep
+    {
+        $project = $this->createStub(IndustryProject::class);
+        $project->method('getId')->willReturn(Uuid::fromString('0193a5c2-7b1e-7c4d-9f2a-3e8b6d1c5a41'));
+        $project->method('getName')->willReturn('Capital Batch');
+
+        return (new IndustryProjectStep())
+            ->setProject($project)
+            ->setProductTypeId(self::TYPE_ID_MISSING_FROM_SDE)
+            ->setJobMatchMode($jobMatchMode);
+    }
+
+    private function givenJobMatchOnStep(int $esiJobId, IndustryProjectStep $step): IndustryStepJobMatch
+    {
+        $jobMatch = (new IndustryStepJobMatch())
+            ->setEsiJobId($esiJobId)
+            ->setStatus('active')
+            ->setEndDate(new \DateTimeImmutable('2026-10-20T12:00:00Z'))
+            ->setCost(1_500_000.50)
+            ->setRuns(10)
+            ->setCharacterName('Main Industrialist')
+            ->setFacilityId(1_035_466_617_946)
+            ->setFacilityName('Sotiyo Kemerk')
+            ->setPlannedStructureName('Azbel Planned')
+            ->setPlannedMaterialBonus(1.0)
+            ->setMatchedAt(new \DateTimeImmutable('2026-10-15T09:00:00Z'));
+        $step->addJobMatch($jobMatch);
+        $this->jobMatches[] = $jobMatch;
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturnCallback(
+            fn (array $esiJobIds): array => array_values(array_filter(
+                $this->jobMatches,
+                static fn (IndustryStepJobMatch $match): bool => in_array($match->getEsiJobId(), $esiJobIds, true),
+            )),
+        );
+
+        return $jobMatch;
+    }
+
+    /**
+     * @param list<CachedIndustryJob> $cachedJobs
+     */
+    private function stubCachedJobs(array $cachedJobs): void
+    {
+        $this->jobRepository->method('findByJobId')->willReturnCallback(
+            static function (int $jobId) use ($cachedJobs): ?CachedIndustryJob {
+                foreach ($cachedJobs as $cachedJob) {
+                    if ($cachedJob->getJobId() === $jobId) {
+                        return $cachedJob;
+                    }
+                }
+
+                return null;
+            },
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function makeEsiJobOfMatch(int $jobId, int $installerId, string $status, string $endDate): array
+    {
+        $esiJob = $this->makeJobData($jobId, $installerId, $status);
+        $esiJob['end_date'] = $endDate;
+        $esiJob['runs'] = 10;
+        $esiJob['cost'] = 1_500_000.50;
+
+        return $esiJob;
+    }
+
+    /**
+     * @return array{string, ?string, ?float, int}
+     */
+    private function jobStateOf(IndustryStepJobMatch $jobMatch): array
+    {
+        return [$jobMatch->getStatus(), $jobMatch->getEndDate()?->format('c'), $jobMatch->getCost(), $jobMatch->getRuns()];
+    }
+
 
     private function givenCharacterWithReadyCorporationJobAndStalePersonalJob(): array
     {
