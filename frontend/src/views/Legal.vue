@@ -136,7 +136,14 @@ import { APP_VERSION } from '@/version'
             <h3 class="text-lg font-semibold text-slate-200 mb-3">7. Data Retention</h3>
             <ul class="list-disc list-inside space-y-1.5 text-slate-400 leading-relaxed">
               <li>Data is retained as long as your account is active</li>
-              <li>Upon account deletion: immediate erasure of all associated data</li>
+              <li>
+                You can delete your account at any time from the
+                <RouterLink to="/characters" class="text-cyan-400 hover:text-cyan-300 transition-colors">Characters</RouterLink>
+                page (Danger zone). Deletion is immediate.
+              </li>
+              <li>Upon account deletion: your characters, EVE SSO tokens and all your personal data are erased, and the technical copies of your ESI data held in cache are deleted</li>
+              <li>Your approved contributions and the sales you recorded in other members' group projects are kept, without any link to you, and shown as "Deleted pilot"</li>
+              <li>Your EVE SSO tokens are revoked with CCP on a best-effort basis; you can also revoke EVE Tools yourself from the authorized applications page of your EVE Online account</li>
             </ul>
           </div>
 
@@ -157,9 +164,9 @@ import { APP_VERSION } from '@/version'
             <ul class="list-disc list-inside space-y-1.5 text-slate-400 leading-relaxed">
               <li><span class="font-medium text-slate-300">Right of access:</span> view your data</li>
               <li><span class="font-medium text-slate-300">Right to rectification:</span> game data is automatically updated from ESI</li>
-              <li><span class="font-medium text-slate-300">Right to erasure:</span> delete your account and all associated data</li>
+              <li><span class="font-medium text-slate-300">Right to erasure:</span> delete your account immediately from the <RouterLink to="/characters" class="text-cyan-400 hover:text-cyan-300 transition-colors">Characters</RouterLink> page; contributions and sales in other members' group projects are kept anonymized ("Deleted pilot")</li>
               <li><span class="font-medium text-slate-300">Right to data portability:</span> export your data upon request</li>
-              <li><span class="font-medium text-slate-300">Right to object:</span> revoke OAuth access via the EVE Online website</li>
+              <li><span class="font-medium text-slate-300">Right to object:</span> revoke OAuth access from the authorized applications page of your EVE Online account; account deletion also revokes your EVE SSO tokens with CCP</li>
             </ul>
             <div class="mt-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
               <p class="text-slate-400 text-sm leading-relaxed">

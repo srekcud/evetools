@@ -75,7 +75,7 @@ export type BomItem = {
 
 export type GroupContribution = {
   id: string
-  memberCharacterName: string
+  memberCharacterName: string | null
   memberId: string
   bomItemId: string | null
   bomItemTypeName: string | null
@@ -95,8 +95,8 @@ export type GroupContribution = {
 
 export type GroupMember = {
   id: string
-  characterName: string
-  characterId: number
+  characterName: string | null
+  characterId: number | null
   corporationId: number | null
   corporationName: string | null
   role: GroupMemberRole
@@ -117,7 +117,7 @@ export type GroupSale = {
   totalPrice: number
   venue: string | null
   soldAt: string
-  recordedByCharacterName: string
+  recordedByCharacterName: string | null
   createdAt: string
 }
 
@@ -125,7 +125,7 @@ export type GroupSale = {
 
 export type MemberDistribution = {
   memberId: string
-  characterName: string
+  characterName: string | null
   totalCostsEngaged: number
   materialCosts: number
   jobInstallCosts: number

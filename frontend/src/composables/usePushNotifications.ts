@@ -58,23 +58,23 @@ export function usePushNotifications() {
     }
   }
 
-  async function unsubscribe(): Promise<void> {
+  async function unsubscribeBrowser(): Promise<void> {
     if (!isSupported.value) return
 
     try {
       const registration = await navigator.serviceWorker.getRegistration('/sw-notifications.js')
-      if (registration) {
-        const subscription = await registration.pushManager.getSubscription()
-        if (subscription) {
-          await subscription.unsubscribe()
-        }
-      }
-
-      const store = useNotificationsStore()
-      await store.unregisterPush()
+      const subscription = await registration?.pushManager.getSubscription()
+      await subscription?.unsubscribe()
     } catch (e) {
       console.error('Push: Failed to unsubscribe:', e)
     }
+  }
+
+  async function unsubscribe(): Promise<void> {
+    if (!isSupported.value) return
+
+    await unsubscribeBrowser()
+    await useNotificationsStore().unregisterPush()
   }
 
   return {
@@ -83,6 +83,7 @@ export function usePushNotifications() {
     requestPermission,
     subscribe,
     unsubscribe,
+    unsubscribeBrowser,
   }
 }
 

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
+import { usePilotName } from '@/composables/usePilotName'
 import { safeJsonParse } from '@/services/api'
 import { useTypeNames } from '@/composables/useTypeNames'
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -17,6 +18,7 @@ import CorpVisibilityPanel from '@/components/assets/CorpVisibilityPanel.vue'
 import type { Asset, CorpAssetVisibility } from '@/types'
 
 const { t } = useI18n()
+const { pilotName } = usePilotName()
 const route = useRoute()
 const authStore = useAuthStore()
 const { typeNameLabel } = useTypeNames()
@@ -54,7 +56,7 @@ const noDivisionsShared = computed(() =>
   && !isDirector.value
   && visibility.value != null
   && visibility.value.visibleDivisions.length === 0
-  && visibility.value.configuredByName == null
+  && visibility.value.updatedAt == null
 )
 
 const hasSharedDivisions = computed(() =>
@@ -502,9 +504,9 @@ watch([selectedCharacterId, viewMode], () => {
                   </span>
                 </div>
               </div>
-              <p v-if="visibility?.configuredByName" class="text-xs text-slate-500 mt-1">
-                {{ t('assets.visibility.configuredBy', { name: visibility.configuredByName }) }}
-                <span v-if="visibility.updatedAt"> &mdash; {{ formatDate(visibility.updatedAt) }}</span>
+              <p v-if="visibility?.updatedAt" class="text-xs text-slate-500 mt-1">
+                {{ t('assets.visibility.configuredBy', { name: pilotName(visibility.configuredByName) }) }}
+                <span> &mdash; {{ formatDate(visibility.updatedAt) }}</span>
               </p>
             </div>
           </div>

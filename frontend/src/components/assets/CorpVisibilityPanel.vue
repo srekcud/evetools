@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { usePilotName } from '@/composables/usePilotName'
 import type { CorpAssetVisibility } from '@/types'
 
 const props = defineProps<{
@@ -12,6 +13,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { pilotName } = usePilotName()
 
 const isExpanded = ref(false)
 const isSaving = ref(false)
@@ -112,8 +114,8 @@ defineExpose({ onSaveComplete, onSaveError })
         <!-- Success indicator -->
         <span v-if="saveSuccess" class="text-xs text-emerald-400">{{ t('assets.visibility.saved') }}</span>
         <!-- Configured by info (collapsed state) -->
-        <span v-if="!isExpanded && props.visibility.configuredByName" class="text-xs text-slate-500 hidden sm:inline">
-          {{ t('assets.visibility.configuredBy', { name: props.visibility.configuredByName }) }}
+        <span v-if="!isExpanded && props.visibility.updatedAt" class="text-xs text-slate-500 hidden sm:inline">
+          {{ t('assets.visibility.configuredBy', { name: pilotName(props.visibility.configuredByName) }) }}
         </span>
         <!-- Chevron -->
         <svg
@@ -163,8 +165,8 @@ defineExpose({ onSaveComplete, onSaveError })
       <!-- Footer: metadata + save -->
       <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2">
         <div class="text-xs text-slate-500 space-y-0.5">
-          <div v-if="props.visibility.configuredByName">
-            {{ t('assets.visibility.configuredBy', { name: props.visibility.configuredByName }) }}
+          <div v-if="props.visibility.updatedAt">
+            {{ t('assets.visibility.configuredBy', { name: pilotName(props.visibility.configuredByName) }) }}
           </div>
           <div v-if="props.visibility.updatedAt">
             {{ t('assets.visibility.lastUpdate') }}: {{ formatDate(props.visibility.updatedAt) }}

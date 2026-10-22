@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import { usePilotName } from '@/composables/usePilotName'
 import type { GroupMember } from '@/stores/group-industry/types'
 
 const props = defineProps<{
@@ -13,6 +14,7 @@ const props = defineProps<{
 const store = useGroupDistributionStore()
 const { formatDate } = useFormatters()
 const { getCharacterPortraitUrl, onImageError } = useEveImages()
+const { pilotName } = usePilotName()
 
 const pendingMembers = computed(() =>
   store.members.filter(m => m.status === 'pending'),
@@ -69,11 +71,11 @@ async function handleReject(member: GroupMember): Promise<void> {
               <div class="flex items-center gap-2.5">
                 <img
                   :src="getCharacterPortraitUrl(member.characterId, 32)"
-                  :alt="member.characterName"
+                  :alt="pilotName(member.characterName)"
                   class="w-8 h-8 rounded-full border border-slate-700"
                   @error="onImageError"
                 />
-                <span class="text-slate-200 font-medium">{{ member.characterName }}</span>
+                <span class="text-slate-200 font-medium">{{ pilotName(member.characterName) }}</span>
               </div>
             </td>
             <!-- Corporation -->

@@ -66,7 +66,8 @@
     "confirm": {
       "areYouSure": "Are you sure?",
       "cannotUndo": "This action cannot be undone."
-    }
+    },
+    "deletedPilot": "Deleted pilot"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -182,7 +183,27 @@
     "confirmDeleteMessage": "Are you sure you want to remove this character? All associated data will be deleted.",
     "confirmSetMain": "Set as main?",
     "confirmSetMainMessage": "This character will become your main character. Corporation data will be based on this character.",
-    "done": "Done"
+    "done": "Done",
+    "deleteAccount": {
+      "dangerZone": "Danger zone",
+      "description": "Permanently delete your EVE Tools account. This action cannot be undone.",
+      "button": "Delete my account",
+      "confirmTitle": "Delete my account",
+      "confirmSubtitle": "This action is immediate and cannot be undone.",
+      "deletedTitle": "Deleted",
+      "deletedCharacters": "All your characters",
+      "deletedTokens": "Your EVE SSO tokens (revoked with CCP)",
+      "deletedPersonalData": "Your personal data (assets, skills, jobs, transactions, PI, alerts, notifications, settings)",
+      "deletedPersonalProjects": "Your personal industry projects",
+      "anonymizedTitle": "Kept and anonymized as \"Deleted pilot\"",
+      "anonymizedContributions": "Your approved contributions to other members' group projects",
+      "anonymizedSales": "The sales you recorded in group projects",
+      "anonymizedOwnership": "Group projects you own are transferred to their oldest admin, otherwise to their oldest member, otherwise deleted",
+      "typeToConfirm": "Type {name} to confirm",
+      "confirmLabel": "Delete permanently",
+      "failed": "Account deletion failed. You are still logged in.",
+      "succeeded": "Your account has been deleted."
+    }
   },
   "pi": {
     "title": "Planetary Interaction",

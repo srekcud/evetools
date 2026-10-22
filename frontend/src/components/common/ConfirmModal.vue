@@ -12,6 +12,8 @@ interface Props {
   confirmLabel?: string
   confirmColor?: 'red' | 'emerald' | 'cyan'
   isLoading?: boolean
+  confirmDisabled?: boolean
+  size?: 'sm' | 'md'
   icon?: 'delete' | 'check'
 }
 
@@ -21,6 +23,8 @@ const props = withDefaults(defineProps<Props>(), {
   confirmLabel: undefined,
   confirmColor: 'red',
   isLoading: false,
+  confirmDisabled: false,
+  size: 'sm',
   icon: 'delete',
 })
 
@@ -45,8 +49,8 @@ function colors() {
     <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center">
       <div class="absolute inset-0 bg-slate-950/80" @click="emit('cancel')"></div>
       <div
-        class="relative bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm mx-4"
-        :class="[colors().border, colors().shadow, 'border']"
+        class="relative bg-slate-900 rounded-2xl shadow-2xl w-full mx-4"
+        :class="[colors().border, colors().shadow, 'border', size === 'md' ? 'max-w-lg' : 'max-w-sm']"
       >
         <div class="p-6 text-center">
           <div
@@ -65,6 +69,7 @@ function colors() {
           <h3 class="text-lg font-semibold text-slate-100 mb-2">{{ title }}</h3>
           <p v-if="subtitle" class="text-sm text-slate-400 mb-1">{{ subtitle }}</p>
           <p v-if="message" class="text-xs text-slate-500">{{ message }}</p>
+          <slot />
         </div>
         <div class="px-6 pb-6 flex items-center gap-3">
           <button
@@ -73,7 +78,7 @@ function colors() {
           >{{ t('common.actions.cancel') }}</button>
           <button
             @click="emit('confirm')"
-            :disabled="isLoading"
+            :disabled="isLoading || confirmDisabled"
             class="flex-1 px-4 py-2.5 disabled:bg-slate-700 disabled:text-slate-500 rounded-lg text-white text-sm font-medium transition-colors flex items-center justify-center gap-2"
             :class="colors().btn"
           >

@@ -7,6 +7,8 @@ import MainLayout from '@/layouts/MainLayout.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import MainCharacterCard from '@/components/characters/MainCharacterCard.vue'
 import CharacterCard from '@/components/characters/CharacterCard.vue'
+import ConfirmModal from '@/components/common/ConfirmModal.vue'
+import { useAccountDeletion } from '@/composables/useAccountDeletion'
 
 const { t } = useI18n()
 
@@ -34,6 +36,7 @@ interface SkillQueue {
 }
 
 const authStore = useAuthStore()
+const { isDeleting, deleteAccount } = useAccountDeletion()
 
 const characters = ref<Character[]>([])
 const wallets = ref<Map<string, number | null>>(new Map())
@@ -44,6 +47,8 @@ const error = ref('')
 const showDeleteModal = ref(false)
 const showSetMainModal = ref(false)
 const selectedCharacter = ref<Character | null>(null)
+const showDeleteAccountModal = ref(false)
+const typedMainCharacterName = ref('')
 
 const mainCharacter = computed(() => characters.value.find(c => c.isMain))
 const altCharacters = computed(() => characters.value.filter(c => !c.isMain))
@@ -53,6 +58,21 @@ const altsBySameCorp = computed(() =>
 const altsByDifferentCorp = computed(() =>
   altCharacters.value.filter(c => c.corporationId !== mainCharacter.value?.corporationId)
 )
+const isAccountDeletionConfirmed = computed(() =>
+  mainCharacter.value != null && typedMainCharacterName.value.trim() === mainCharacter.value.name
+)
+
+const DELETED_DATA_KEYS = [
+  'characters.deleteAccount.deletedCharacters',
+  'characters.deleteAccount.deletedTokens',
+  'characters.deleteAccount.deletedPersonalData',
+  'characters.deleteAccount.deletedPersonalProjects',
+]
+const ANONYMIZED_DATA_KEYS = [
+  'characters.deleteAccount.anonymizedContributions',
+  'characters.deleteAccount.anonymizedSales',
+  'characters.deleteAccount.anonymizedOwnership',
+]
 
 onMounted(async () => {
   await Promise.all([fetchCharacters(), fetchWallets(), fetchSkillQueues()])
@@ -195,6 +215,16 @@ async function setAsMain() {
   } finally {
     isLoading.value = false
   }
+}
+
+function openDeleteAccountModal(): void {
+  typedMainCharacterName.value = ''
+  showDeleteAccountModal.value = true
+}
+
+async function confirmDeleteAccount(): Promise<void> {
+  if (!isAccountDeletionConfirmed.value || isDeleting.value) return
+  await deleteAccount()
 }
 
 async function reauthorize(character: Character) {
@@ -352,7 +382,59 @@ async function reauthorize(character: Character) {
             {{ t('characters.addCharacter') }}
           </button>
         </div>
+
+        <section v-if="mainCharacter" class="mt-12 rounded-2xl border border-red-500/30 bg-red-500/5 p-6">
+          <h2 class="text-xs font-semibold text-red-400 uppercase tracking-widest mb-2">
+            {{ t('characters.deleteAccount.dangerZone') }}
+          </h2>
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <p class="text-sm text-slate-400">{{ t('characters.deleteAccount.description') }}</p>
+            <button
+              @click="openDeleteAccountModal"
+              class="shrink-0 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-600/30 rounded-lg text-sm font-medium transition-colors"
+            >
+              {{ t('characters.deleteAccount.button') }}
+            </button>
+          </div>
+        </section>
       </template>
+
+    <ConfirmModal
+      :show="showDeleteAccountModal"
+      :title="t('characters.deleteAccount.confirmTitle')"
+      :subtitle="t('characters.deleteAccount.confirmSubtitle')"
+      :confirm-label="t('characters.deleteAccount.confirmLabel')"
+      :is-loading="isDeleting"
+      :confirm-disabled="!isAccountDeletionConfirmed"
+      size="md"
+      @confirm="confirmDeleteAccount"
+      @cancel="showDeleteAccountModal = false"
+    >
+      <div class="mt-4 space-y-4 text-left text-sm">
+        <div>
+          <p class="font-medium text-red-400 mb-1">{{ t('characters.deleteAccount.deletedTitle') }}</p>
+          <ul class="list-disc list-inside space-y-1 text-slate-400">
+            <li v-for="key in DELETED_DATA_KEYS" :key="key">{{ t(key) }}</li>
+          </ul>
+        </div>
+        <div>
+          <p class="font-medium text-amber-400 mb-1">{{ t('characters.deleteAccount.anonymizedTitle') }}</p>
+          <ul class="list-disc list-inside space-y-1 text-slate-400">
+            <li v-for="key in ANONYMIZED_DATA_KEYS" :key="key">{{ t(key) }}</li>
+          </ul>
+        </div>
+        <label class="block">
+          <span class="block text-slate-300 mb-1.5">{{ t('characters.deleteAccount.typeToConfirm', { name: mainCharacter?.name }) }}</span>
+          <input
+            v-model="typedMainCharacterName"
+            type="text"
+            autocomplete="off"
+            class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-red-500"
+            @keydown.enter="confirmDeleteAccount"
+          />
+        </label>
+      </div>
+    </ConfirmModal>
 
     <!-- Delete Modal -->
     <Teleport to="body">

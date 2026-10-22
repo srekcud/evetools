@@ -32,7 +32,10 @@ export function useEveImages() {
   /**
    * Get character portrait URL
    */
-  function getCharacterPortraitUrl(characterId: number, size: ImageSize = 64): string {
+  function getCharacterPortraitUrl(characterId: number | null, size: ImageSize = 64): string {
+    if (characterId == null) {
+      return FALLBACK_ICON_DATA_URI
+    }
     return `${EVE_IMAGE_SERVER}/characters/${characterId}/portrait?size=${size}`
   }
 

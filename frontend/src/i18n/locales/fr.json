@@ -66,7 +66,8 @@
     "confirm": {
       "areYouSure": "Etes-vous sur ?",
       "cannotUndo": "Cette action est irreversible."
-    }
+    },
+    "deletedPilot": "Pilote supprimé"
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -182,7 +183,27 @@
     "confirmDeleteMessage": "Voulez-vous vraiment retirer ce personnage ? Toutes ses donnees seront supprimees.",
     "confirmSetMain": "Definir comme principal ?",
     "confirmSetMainMessage": "Ce personnage deviendra votre personnage principal. Les donnees de corporation seront basees sur celui-ci.",
-    "done": "Termine"
+    "done": "Termine",
+    "deleteAccount": {
+      "dangerZone": "Zone de danger",
+      "description": "Supprime définitivement votre compte EVE Tools. Cette action est irréversible.",
+      "button": "Supprimer mon compte",
+      "confirmTitle": "Supprimer mon compte",
+      "confirmSubtitle": "La suppression est immédiate et irréversible.",
+      "deletedTitle": "Supprimé",
+      "deletedCharacters": "Tous vos personnages",
+      "deletedTokens": "Vos tokens EVE SSO (révoqués auprès de CCP)",
+      "deletedPersonalData": "Vos données personnelles (assets, compétences, jobs, transactions, PI, alertes, notifications, réglages)",
+      "deletedPersonalProjects": "Vos projets industriels personnels",
+      "anonymizedTitle": "Conservé et anonymisé en « Pilote supprimé »",
+      "anonymizedContributions": "Vos contributions approuvées aux projets collaboratifs des autres membres",
+      "anonymizedSales": "Les ventes que vous avez enregistrées dans les projets collaboratifs",
+      "anonymizedOwnership": "Les projets collaboratifs dont vous êtes propriétaire sont transférés à leur plus ancien admin, sinon à leur plus ancien membre, sinon supprimés",
+      "typeToConfirm": "Saisissez {name} pour confirmer",
+      "confirmLabel": "Supprimer définitivement",
+      "failed": "La suppression du compte a échoué. Vous êtes toujours connecté.",
+      "succeeded": "Votre compte a été supprimé."
+    }
   },
   "pi": {
     "title": "Interaction Planetaire",

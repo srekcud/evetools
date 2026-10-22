@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useGroupContributionStore } from '@/stores/group-industry/contribution'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import { usePilotName } from '@/composables/usePilotName'
 import type { ContributionType, ContributionStatus } from '@/stores/group-industry/types'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
@@ -17,6 +18,7 @@ const props = defineProps<{
 const store = useGroupContributionStore()
 const { formatIsk, formatNumber } = useFormatters()
 const { getCharacterPortraitUrl, getTypeIconUrl, onImageError } = useEveImages()
+const { pilotName } = usePilotName()
 
 const typeFilter = ref<ContributionType | 'all'>('all')
 const statusFilter = ref<ContributionStatus | 'all'>('all')
@@ -160,11 +162,11 @@ onMounted(() => {
                 <div class="flex items-center gap-2.5">
                   <img
                     :src="getCharacterPortraitUrl(0, 32)"
-                    :alt="contrib.memberCharacterName"
+                    :alt="pilotName(contrib.memberCharacterName)"
                     class="w-8 h-8 rounded-full border border-slate-700"
                     @error="onImageError"
                   />
-                  <span class="text-slate-200 font-medium">{{ contrib.memberCharacterName }}</span>
+                  <span class="text-slate-200 font-medium">{{ pilotName(contrib.memberCharacterName) }}</span>
                 </div>
               </td>
               <!-- Type Badge -->

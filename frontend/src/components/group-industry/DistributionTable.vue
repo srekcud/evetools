@@ -4,12 +4,14 @@ import { useI18n } from 'vue-i18n'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import { usePilotName } from '@/composables/usePilotName'
 
 const { t } = useI18n()
 
 const store = useGroupDistributionStore()
 const { formatIsk } = useFormatters()
 const { getCharacterPortraitUrl, onImageError } = useEveImages()
+const { pilotName } = usePilotName()
 
 const expandedMemberId = ref<string | null>(null)
 
@@ -116,7 +118,7 @@ const BREAKDOWN_COLORS: Record<string, string> = {
           >
             <div class="flex items-center gap-2">
               <span class="w-3 h-3 rounded-sm" :style="{ background: getMemberColor(i) }"></span>
-              <span class="text-slate-300">{{ member.characterName }}</span>
+              <span class="text-slate-300">{{ pilotName(member.characterName) }}</span>
             </div>
             <span class="font-mono text-slate-400">{{ member.sharePercent.toFixed(1) }}%</span>
           </div>
@@ -146,12 +148,12 @@ const BREAKDOWN_COLORS: Record<string, string> = {
                   <div class="flex items-center gap-2.5">
                     <img
                       :src="getCharacterPortraitUrl(0, 32)"
-                      :alt="member.characterName"
+                      :alt="pilotName(member.characterName)"
                       class="w-8 h-8 rounded-full border border-slate-700"
                       @error="onImageError"
                     />
                     <div>
-                      <span class="text-slate-200 font-medium">{{ member.characterName }}</span>
+                      <span class="text-slate-200 font-medium">{{ pilotName(member.characterName) }}</span>
                       <div class="flex items-center gap-1 mt-0.5">
                         <svg
                           class="w-3 h-3 text-cyan-400 transition-transform"
