@@ -31,12 +31,10 @@ class EsiCostIndexService
     private const ADJUSTED_PRICE_PREFIX = 'esi_adjusted_price_';
     private const ADJUSTED_PRICE_SYNC_INTERVAL = 24 * self::SECONDS_PER_HOUR;
     private const ADJUSTED_PRICE_TTL = self::SYNC_INTERVALS_KEPT_IN_CACHE * self::ADJUSTED_PRICE_SYNC_INTERVAL;
-    private const ADJUSTED_PRICE_META_KEY = 'esi_adjusted_prices_meta';
 
     private const COST_INDEX_PREFIX = 'esi_cost_index_';
     private const COST_INDEX_SYNC_INTERVAL = 2 * self::SECONDS_PER_HOUR;
     private const COST_INDEX_TTL = self::SYNC_INTERVALS_KEPT_IN_CACHE * self::COST_INDEX_SYNC_INTERVAL;
-    private const COST_INDEX_META_KEY = 'esi_cost_indices_meta';
 
     public function __construct(
         private readonly EsiClient $esiClient,
@@ -75,15 +73,6 @@ class EsiCostIndexService
             $count++;
         }
 
-        // Store metadata
-        $metaItem = $this->cache->getItem(self::ADJUSTED_PRICE_META_KEY);
-        $metaItem->set([
-            'syncedAt' => new \DateTimeImmutable(),
-            'count' => $count,
-        ]);
-        $metaItem->expiresAfter(self::ADJUSTED_PRICE_TTL);
-        $this->cache->save($metaItem);
-
         $this->logger->info('ESI adjusted prices cached', ['count' => $count]);
 
         return $count;
@@ -121,15 +110,6 @@ class EsiCostIndexService
 
             $count++;
         }
-
-        // Store metadata
-        $metaItem = $this->cache->getItem(self::COST_INDEX_META_KEY);
-        $metaItem->set([
-            'syncedAt' => new \DateTimeImmutable(),
-            'count' => $count,
-        ]);
-        $metaItem->expiresAfter(self::COST_INDEX_TTL);
-        $this->cache->save($metaItem);
 
         $this->logger->info('ESI system cost indices cached', ['count' => $count]);
 
@@ -313,39 +293,5 @@ class EsiCostIndexService
         $taxMultiplier = 1.0 + ($facilityTaxRate ?? 0.0) / 100.0;
 
         return $eiv * $runs * $costIndex * $taxMultiplier;
-    }
-
-    /**
-     * Get last sync time for adjusted prices.
-     */
-    public function getAdjustedPricesLastSync(): ?\DateTimeImmutable
-    {
-        $cacheItem = $this->cache->getItem(self::ADJUSTED_PRICE_META_KEY);
-
-        if (!$cacheItem->isHit()) {
-            return null;
-        }
-
-        /** @var array{syncedAt: \DateTimeImmutable, count: int} $meta */
-        $meta = $cacheItem->get();
-
-        return $meta['syncedAt'];
-    }
-
-    /**
-     * Get last sync time for cost indices.
-     */
-    public function getCostIndicesLastSync(): ?\DateTimeImmutable
-    {
-        $cacheItem = $this->cache->getItem(self::COST_INDEX_META_KEY);
-
-        if (!$cacheItem->isHit()) {
-            return null;
-        }
-
-        /** @var array{syncedAt: \DateTimeImmutable, count: int} $meta */
-        $meta = $cacheItem->get();
-
-        return $meta['syncedAt'];
     }
 }

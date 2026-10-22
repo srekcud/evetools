@@ -102,10 +102,6 @@ class EsiCostIndexServiceTest extends TestCase
         $this->assertFalse($esiCostIndexCache->getItem('esi_adjusted_price_' . self::MEXALLON)->isHit());
         $this->assertNull($service->getAdjustedPrice(self::MEXALLON));
         $this->assertSame([self::TRITANIUM => 5.12, self::PYERITE => 11.75], $service->getAdjustedPrices([self::TRITANIUM, self::PYERITE, self::MEXALLON]));
-
-        $meta = $esiCostIndexCache->getItem('esi_adjusted_prices_meta')->get();
-        $this->assertSame(2, $meta['count']);
-        $this->assertInstanceOf(\DateTimeImmutable::class, $service->getAdjustedPricesLastSync());
     }
 
     public function testSyncCostIndicesStoresOneCostIndexPerSystemAndActivity(): void
@@ -123,10 +119,6 @@ class EsiCostIndexServiceTest extends TestCase
         $this->assertSame(0.0734, $service->getCostIndex(self::PERIMETER, 'manufacturing'));
         $this->assertSame(0.0021, $service->getCostIndex(self::PERIMETER, 'invention'));
         $this->assertNull($service->getCostIndex(self::PERIMETER, 'reaction'));
-
-        $meta = $esiCostIndexCache->getItem('esi_cost_indices_meta')->get();
-        $this->assertSame(2, $meta['count']);
-        $this->assertInstanceOf(\DateTimeImmutable::class, $service->getCostIndicesLastSync());
     }
 
     public function testSyncAdjustedPricesServerErrorThrowsAndStoresNothing(): void
@@ -144,7 +136,6 @@ class EsiCostIndexServiceTest extends TestCase
         }
 
         $this->assertFalse($esiCostIndexCache->getItem('esi_adjusted_price_' . self::TRITANIUM)->isHit());
-        $this->assertNull($service->getAdjustedPricesLastSync());
     }
 
     // ===========================================
@@ -532,13 +523,11 @@ class EsiCostIndexServiceTest extends TestCase
         $clock->sleep(self::COST_INDEX_SYNC_INTERVAL_SECONDS + self::SECONDS_PER_MINUTE);
 
         $this->assertSame(0.0512, $service->getCostIndex(self::JITA, 'manufacturing'));
-        $this->assertInstanceOf(\DateTimeImmutable::class, $service->getCostIndicesLastSync());
 
         $clock->sleep(self::SYNC_INTERVALS_KEPT_IN_CACHE * self::COST_INDEX_SYNC_INTERVAL_SECONDS - self::COST_INDEX_SYNC_INTERVAL_SECONDS - self::SECONDS_PER_MINUTE);
 
         $this->assertSame(0.0512, $service->getCostIndex(self::JITA, 'manufacturing'));
         $this->assertSame(0.0734, $service->getCostIndex(self::PERIMETER, 'manufacturing'));
-        $this->assertInstanceOf(\DateTimeImmutable::class, $service->getCostIndicesLastSync());
     }
 
     public function testCostIndexExpiresOneMinutePastThreeSyncIntervals(): void
@@ -552,7 +541,6 @@ class EsiCostIndexServiceTest extends TestCase
         $clock->sleep(self::SYNC_INTERVALS_KEPT_IN_CACHE * self::COST_INDEX_SYNC_INTERVAL_SECONDS + self::SECONDS_PER_MINUTE);
 
         $this->assertNull($service->getCostIndex(self::JITA, 'manufacturing'));
-        $this->assertNull($service->getCostIndicesLastSync());
     }
 
     public function testAdjustedPriceIsStillServedAfterAFailedSyncUpToThreeSyncIntervals(): void
@@ -566,12 +554,10 @@ class EsiCostIndexServiceTest extends TestCase
         $clock->sleep(self::ADJUSTED_PRICE_SYNC_INTERVAL_SECONDS + self::SECONDS_PER_MINUTE);
 
         $this->assertSame(5.12, $service->getAdjustedPrice(self::TRITANIUM));
-        $this->assertInstanceOf(\DateTimeImmutable::class, $service->getAdjustedPricesLastSync());
 
         $clock->sleep(self::SYNC_INTERVALS_KEPT_IN_CACHE * self::ADJUSTED_PRICE_SYNC_INTERVAL_SECONDS - self::ADJUSTED_PRICE_SYNC_INTERVAL_SECONDS - self::SECONDS_PER_MINUTE);
 
         $this->assertSame([self::TRITANIUM => 5.12, self::PYERITE => 11.75], $service->getAdjustedPrices([self::TRITANIUM, self::PYERITE]));
-        $this->assertInstanceOf(\DateTimeImmutable::class, $service->getAdjustedPricesLastSync());
     }
 
     public function testAdjustedPriceExpiresOneMinutePastThreeSyncIntervals(): void
@@ -586,7 +572,6 @@ class EsiCostIndexServiceTest extends TestCase
 
         $this->assertNull($service->getAdjustedPrice(self::TRITANIUM));
         $this->assertSame([], $service->getAdjustedPrices([self::TRITANIUM, self::PYERITE]));
-        $this->assertNull($service->getAdjustedPricesLastSync());
     }
 
     public function testEstimateJobInstallCostOfNitrogenFuelBlockWithEveryInputKnownKeepsTheCurrentFormula(): void
