@@ -308,7 +308,7 @@ final class ConfiguredProductionStructuresTest extends TestCase
             ->setSecurityType($securityType)
             ->setSolarSystemId(self::SOLAR_SYSTEM_ID)
             ->setRigs($rigs)
-            ->setFacilityTaxRate($facilityTaxPercent);
+            ->setFacilityTaxPercent($facilityTaxPercent);
         (new \ReflectionProperty(IndustryStructureConfig::class, 'createdAt'))->setValue($configuration, new \DateTimeImmutable($createdAt));
         $this->configurations[] = $configuration;
 

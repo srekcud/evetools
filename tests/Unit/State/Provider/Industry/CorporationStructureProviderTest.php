@@ -106,13 +106,13 @@ class CorporationStructureProviderTest extends TestCase
         $this->assertNull($sharedConfig['facilityTaxRate']);
     }
 
-    private function sharedConfigOfStructureTaxedAt(?float $facilityTaxRate): array
+    private function sharedConfigOfStructureTaxedAt(?float $facilityTaxPercent): array
     {
         $currentUser = $this->createUser();
         $this->security->method('getUser')->willReturn($currentUser);
 
         $sharedStructure = $this->createCorporationStructure($this->createUser(), self::VISIBLE_LOCATION_ID, 'Corp Raitaru');
-        $sharedStructure->setFacilityTaxRate($facilityTaxRate);
+        $sharedStructure->setFacilityTaxPercent($facilityTaxPercent);
 
         $this->structureConfigRepository->method('findCorporationSharedStructures')
             ->willReturn([self::VISIBLE_LOCATION_ID => $sharedStructure]);

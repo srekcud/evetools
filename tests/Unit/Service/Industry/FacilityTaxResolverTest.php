@@ -9,14 +9,14 @@ use App\Industry\Application\StructureType;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\Multiplier;
 use App\Industry\Domain\SecurityClass;
-use App\Service\Industry\FacilityTaxRateResolver;
+use App\Service\Industry\FacilityTaxResolver;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
-#[CoversClass(FacilityTaxRateResolver::class)]
-final class FacilityTaxRateResolverTest extends TestCase
+#[CoversClass(FacilityTaxResolver::class)]
+final class FacilityTaxResolverTest extends TestCase
 {
     use CreatesUserWithId;
 
@@ -48,7 +48,7 @@ final class FacilityTaxRateResolverTest extends TestCase
             self::USER_ID => [ProductionStructures::raitaruWithFacilityTax('raitaru', SecurityClass::NullSec, self::REQUESTED_SOLAR_SYSTEM_ID, 0.05)],
         ]);
 
-        $percent = (new FacilityTaxRateResolver($structures))->percentFor(null, self::REQUESTED_SOLAR_SYSTEM_ID, ActivityKind::Manufacturing);
+        $percent = (new FacilityTaxResolver($structures))->percentFor(null, self::REQUESTED_SOLAR_SYSTEM_ID, ActivityKind::Manufacturing);
 
         $this->assertSame(0.25, $percent);
         $this->assertSame([], $structures->requestedUserIds);
@@ -97,7 +97,7 @@ final class FacilityTaxRateResolverTest extends TestCase
     {
         $structures = new InMemoryUserProductionStructures();
 
-        (new FacilityTaxRateResolver($structures))->percentFor($this->userWithId(self::USER_ID), self::REQUESTED_SOLAR_SYSTEM_ID, ActivityKind::Manufacturing);
+        (new FacilityTaxResolver($structures))->percentFor($this->userWithId(self::USER_ID), self::REQUESTED_SOLAR_SYSTEM_ID, ActivityKind::Manufacturing);
 
         $this->assertSame([self::USER_ID], $structures->requestedUserIds);
     }
@@ -108,17 +108,17 @@ final class FacilityTaxRateResolverTest extends TestCase
             '0192f3a4-0000-7000-8000-000000000001' => [ProductionStructures::raitaruWithFacilityTax('raitaru', SecurityClass::NullSec, self::REQUESTED_SOLAR_SYSTEM_ID, 0.05)],
         ]);
 
-        $percent = (new FacilityTaxRateResolver($structures))->percentFor($this->userWithId(self::USER_ID), self::REQUESTED_SOLAR_SYSTEM_ID, ActivityKind::Manufacturing);
+        $percent = (new FacilityTaxResolver($structures))->percentFor($this->userWithId(self::USER_ID), self::REQUESTED_SOLAR_SYSTEM_ID, ActivityKind::Manufacturing);
 
         $this->assertSame(0.25, $percent);
     }
 
-    private function resolverOf(array $structures): FacilityTaxRateResolver
+    private function resolverOf(array $structures): FacilityTaxResolver
     {
-        return new FacilityTaxRateResolver(new InMemoryUserProductionStructures([self::USER_ID => $structures]));
+        return new FacilityTaxResolver(new InMemoryUserProductionStructures([self::USER_ID => $structures]));
     }
 
-    private function raitaruConfiguredAt(string $configuredAt, float $facilityTaxRate): ProductionStructure
+    private function raitaruConfiguredAt(string $configuredAt, float $facilityTaxPercent): ProductionStructure
     {
         return new ProductionStructure(
             'raitaru-' . $configuredAt,
@@ -129,7 +129,7 @@ final class FacilityTaxRateResolverTest extends TestCase
             new Multiplier(ProductionStructures::ENGINEERING_COMPLEX_MATERIAL_ROLE_BONUS),
             [],
             new Multiplier(ProductionStructures::RAITARU_COST_ROLE_BONUS),
-            $facilityTaxRate,
+            $facilityTaxPercent,
         );
     }
 }

@@ -10,7 +10,7 @@ use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\BatchProfitScannerService;
 use App\Service\Industry\EsiCostIndexService;
-use App\Service\Industry\FacilityTaxRateResolver;
+use App\Service\Industry\FacilityTaxResolver;
 use App\Service\Industry\InventionService;
 use App\Service\Industry\PivotAdvisorService;
 use App\Service\JitaMarketService;
@@ -450,7 +450,7 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
 
         $esiCostIndexService = $this->createStub(EsiCostIndexService::class);
         $esiCostIndexService->method('estimateJobInstallCost')->willReturnCallback(
-            static fn (array $materials, int $runs, int $solarSystemId, string $activity, ?float $facilityTaxRate = null): array => self::estimatedJobInstallCost(
+            static fn (array $materials, int $runs, int $solarSystemId, string $activity, ?float $facilityTaxPercent = null): array => self::estimatedJobInstallCost(
                 $materials,
                 $runs,
                 $solarSystemId === self::SOLAR_SYSTEM_ID ? ($costIndexByActivity[$activity] ?? null) : null,
@@ -482,7 +482,7 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
             $typeNameResolver,
             $entityManager,
             $inventionService,
-            new FacilityTaxRateResolver(new InMemoryUserProductionStructures()),
+            new FacilityTaxResolver(new InMemoryUserProductionStructures()),
         );
 
         return $service->analyze(

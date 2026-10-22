@@ -10,7 +10,7 @@ use App\Repository\CachedAssetRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\EsiCostIndexService;
-use App\Service\Industry\FacilityTaxRateResolver;
+use App\Service\Industry\FacilityTaxResolver;
 use App\Service\Industry\InventionService;
 use App\Service\Industry\PivotAdvisorService;
 use App\Service\JitaMarketService;
@@ -92,7 +92,7 @@ class PivotAdvisorServiceTest extends TestCase
             $this->typeNameResolver,
             $this->entityManager,
             $this->inventionService,
-            new FacilityTaxRateResolver(new InMemoryUserProductionStructures()),
+            new FacilityTaxResolver(new InMemoryUserProductionStructures()),
         );
     }
 
@@ -884,7 +884,7 @@ class PivotAdvisorServiceTest extends TestCase
             new TypeNameResolver($this->sdeTypeRepositoryKnowing($typeNamesByTypeId)),
             $this->entityManager,
             $this->inventionService,
-            new FacilityTaxRateResolver($productionStructures),
+            new FacilityTaxResolver($productionStructures),
         );
     }
 
@@ -1137,8 +1137,8 @@ class PivotAdvisorServiceTest extends TestCase
             public array $requests = [];
         };
         $this->esiCostIndexService->method('estimateJobInstallCost')->willReturnCallback(
-            function (array $materials, int $runs, int $solarSystemId, string $activity, ?float $facilityTaxRate) use ($recorder): array {
-                $recorder->requests[] = [$activity, $facilityTaxRate];
+            function (array $materials, int $runs, int $solarSystemId, string $activity, ?float $facilityTaxPercent) use ($recorder): array {
+                $recorder->requests[] = [$activity, $facilityTaxPercent];
 
                 return ['cost' => 0.0, 'unknownReason' => null, 'missingAdjustedPriceTypeIds' => []];
             },

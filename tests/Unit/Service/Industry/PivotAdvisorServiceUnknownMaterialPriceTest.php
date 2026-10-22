@@ -10,7 +10,7 @@ use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\BatchProfitScannerService;
 use App\Service\Industry\EsiCostIndexService;
-use App\Service\Industry\FacilityTaxRateResolver;
+use App\Service\Industry\FacilityTaxResolver;
 use App\Service\Industry\InventionService;
 use App\Service\Industry\PivotAdvisorService;
 use App\Service\JitaMarketService;
@@ -664,7 +664,7 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
             $typeNameResolver,
             $entityManager,
             $inventionService,
-            new FacilityTaxRateResolver(new InMemoryUserProductionStructures()),
+            new FacilityTaxResolver(new InMemoryUserProductionStructures()),
         );
 
         return $service->analyze(

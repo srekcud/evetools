@@ -18,7 +18,7 @@ use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\Industry\EsiCostIndexService;
-use App\Service\Industry\FacilityTaxRateResolver;
+use App\Service\Industry\FacilityTaxResolver;
 use App\Service\Industry\InventionService;
 use App\Service\Industry\ProjectStepSolarSystemResolver;
 use App\Service\JitaMarketService;
@@ -73,7 +73,7 @@ class InventionServiceTest extends TestCase
             $this->esiCostIndexService,
             $this->typeNameResolver,
             new ProjectStepSolarSystemResolver($this->userSettingsRepository),
-            new FacilityTaxRateResolver(new InMemoryUserProductionStructures()),
+            new FacilityTaxResolver(new InMemoryUserProductionStructures()),
         );
     }
 
@@ -951,7 +951,7 @@ class InventionServiceTest extends TestCase
             $this->esiCostIndexService,
             new TypeNameResolver($invTypeRepository),
             new ProjectStepSolarSystemResolver($this->userSettingsRepository),
-            new FacilityTaxRateResolver(new InMemoryUserProductionStructures()),
+            new FacilityTaxResolver(new InMemoryUserProductionStructures()),
         );
     }
 
@@ -1366,8 +1366,8 @@ class InventionServiceTest extends TestCase
             ->with([self::SABRE_BLUEPRINT_ID], [IndustryActivityType::Manufacturing->value])
             ->willReturn([self::SABRE_BLUEPRINT_ID => self::SABRE_MANUFACTURING_MATERIALS]);
         $this->esiCostIndexService->method('estimateJobInstallCost')->willReturnCallback(
-            function (array $materials, int $runs, int $solarSystemId, string $activity, ?float $facilityTaxRate) use ($estimate): array {
-                $this->installEstimateCalls[] = [$materials, $runs, $solarSystemId, $activity, $facilityTaxRate];
+            function (array $materials, int $runs, int $solarSystemId, string $activity, ?float $facilityTaxPercent) use ($estimate): array {
+                $this->installEstimateCalls[] = [$materials, $runs, $solarSystemId, $activity, $facilityTaxPercent];
 
                 return $estimate;
             },
@@ -1527,11 +1527,11 @@ class InventionServiceTest extends TestCase
             ->setStructureConfig($structureConfig);
     }
 
-    private function structureConfig(int $solarSystemId, float $facilityTaxRate): IndustryStructureConfig
+    private function structureConfig(int $solarSystemId, float $facilityTaxPercent): IndustryStructureConfig
     {
         return (new IndustryStructureConfig())
             ->setSolarSystemId($solarSystemId)
-            ->setFacilityTaxRate($facilityTaxRate);
+            ->setFacilityTaxPercent($facilityTaxPercent);
     }
 
     private function installEstimateSolarSystemsAndTaxes(): array

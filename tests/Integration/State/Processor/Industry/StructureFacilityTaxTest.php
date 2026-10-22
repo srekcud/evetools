@@ -45,7 +45,7 @@ final class StructureFacilityTaxTest extends IntegrationTestCase
         $resource = $this->create(['name' => 'Home Raitaru', 'structureType' => 'raitaru', 'facilityTaxRate' => 5]);
 
         self::assertSame(5.0, $this->exposedFacilityTaxRate($resource));
-        self::assertSame(5.0, $this->storedStructure($resource->id)->getFacilityTaxRate());
+        self::assertSame(5.0, $this->storedStructure($resource->id)->getFacilityTaxPercent());
     }
 
     public function testCreatingARaitaruWithoutFacilityTaxLeavesItNotEntered(): void
@@ -53,7 +53,7 @@ final class StructureFacilityTaxTest extends IntegrationTestCase
         $resource = $this->create(['name' => 'Untaxed Raitaru', 'structureType' => 'raitaru']);
 
         self::assertNull($this->exposedFacilityTaxRate($resource));
-        self::assertNull($this->storedStructure($resource->id)->getFacilityTaxRate());
+        self::assertNull($this->storedStructure($resource->id)->getFacilityTaxPercent());
     }
 
     public function testCreatingAnAzbelExposesADecimalFacilityTax(): void
@@ -84,7 +84,7 @@ final class StructureFacilityTaxTest extends IntegrationTestCase
         $resource = $this->update($raitaru, ['facilityTaxRate' => 7.5]);
 
         self::assertSame(7.5, $this->exposedFacilityTaxRate($resource));
-        self::assertSame(7.5, $this->storedStructure($resource->id)->getFacilityTaxRate());
+        self::assertSame(7.5, $this->storedStructure($resource->id)->getFacilityTaxPercent());
     }
 
     public function testPatchingARaitaruWithoutFacilityTaxKeepsTheStoredOne(): void
@@ -94,7 +94,7 @@ final class StructureFacilityTaxTest extends IntegrationTestCase
         $resource = $this->update($raitaru, ['name' => 'X']);
 
         self::assertSame(2.0, $this->exposedFacilityTaxRate($resource));
-        self::assertSame(2.0, $this->storedStructure($resource->id)->getFacilityTaxRate());
+        self::assertSame(2.0, $this->storedStructure($resource->id)->getFacilityTaxPercent());
     }
 
     public function testCreatingAnNpcStationExposesTheFacilityTaxFixedByTheGame(): void
@@ -125,7 +125,7 @@ final class StructureFacilityTaxTest extends IntegrationTestCase
         $resource = $this->updateById($station->id, ['structureType' => 'raitaru']);
 
         self::assertNull($this->exposedFacilityTaxRate($resource));
-        self::assertNull($this->storedStructure($resource->id)->getFacilityTaxRate());
+        self::assertNull($this->storedStructure($resource->id)->getFacilityTaxPercent());
     }
 
     public function testNpcStationTurnedIntoARaitaruTakesTheSubmittedFacilityTax(): void
@@ -135,7 +135,7 @@ final class StructureFacilityTaxTest extends IntegrationTestCase
         $resource = $this->updateById($station->id, ['structureType' => 'raitaru', 'facilityTaxRate' => 4]);
 
         self::assertSame(4.0, $this->exposedFacilityTaxRate($resource));
-        self::assertSame(4.0, $this->storedStructure($resource->id)->getFacilityTaxRate());
+        self::assertSame(4.0, $this->storedStructure($resource->id)->getFacilityTaxPercent());
     }
 
     private function create(array $payload): StructureConfigResource
@@ -165,7 +165,7 @@ final class StructureFacilityTaxTest extends IntegrationTestCase
         return $exposed['facilityTaxRate'];
     }
 
-    private function storeStructure(string $name, string $structureType, ?float $facilityTaxRate): IndustryStructureConfig
+    private function storeStructure(string $name, string $structureType, ?float $facilityTaxPercent): IndustryStructureConfig
     {
         $structure = (new IndustryStructureConfig())
             ->setUser($this->pilot)
@@ -173,7 +173,7 @@ final class StructureFacilityTaxTest extends IntegrationTestCase
             ->setSecurityType('nullsec')
             ->setStructureType($structureType)
             ->setRigs([])
-            ->setFacilityTaxRate($facilityTaxRate);
+            ->setFacilityTaxPercent($facilityTaxPercent);
         $this->em->persist($structure);
         $this->em->flush();
 

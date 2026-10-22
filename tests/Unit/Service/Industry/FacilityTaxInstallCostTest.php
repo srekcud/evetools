@@ -18,7 +18,7 @@ use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use App\Service\ESI\EsiClient;
 use App\Service\Industry\EsiCostIndexService;
-use App\Service\Industry\FacilityTaxRateResolver;
+use App\Service\Industry\FacilityTaxResolver;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryShoppingListBuilder;
 use App\Service\Industry\ProductionCostService;
@@ -102,7 +102,7 @@ final class FacilityTaxInstallCostTest extends TestCase
             $materialRepository,
             $this->createStub(IndustryActivityProductRepository::class),
             $this->createStub(MapSolarSystemRepository::class),
-            new FacilityTaxRateResolver(new InMemoryUserProductionStructures($structuresByUserId)),
+            new FacilityTaxResolver(new InMemoryUserProductionStructures($structuresByUserId)),
         );
     }
 
@@ -207,7 +207,7 @@ final class FacilityTaxInstallCostTest extends TestCase
         self::assertNull($result['total']);
     }
 
-    private function structure(string $name, string $structureType, int $solarSystemId, ?float $facilityTaxRate): IndustryStructureConfig
+    private function structure(string $name, string $structureType, int $solarSystemId, ?float $facilityTaxPercent): IndustryStructureConfig
     {
         return (new IndustryStructureConfig())
             ->setUser(new User())
@@ -216,7 +216,7 @@ final class FacilityTaxInstallCostTest extends TestCase
             ->setStructureType($structureType)
             ->setSolarSystemId($solarSystemId)
             ->setRigs([])
-            ->setFacilityTaxRate($facilityTaxRate);
+            ->setFacilityTaxPercent($facilityTaxPercent);
     }
 
     private function projectWithManufacturingStep(int $productTypeId, int $blueprintTypeId, int $runs, ?IndustryStructureConfig $structure, ?User $owner = null): IndustryProject

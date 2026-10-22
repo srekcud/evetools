@@ -85,7 +85,7 @@ class IndustryResourceMapperTest extends TestCase
         $station->setName('Hek VIII');
         $station->setStructureType('station');
         $station->setSecurityType('lowsec');
-        $station->setFacilityTaxRate(10.0);
+        $station->setFacilityTaxPercent(10.0);
 
         $exposed = get_object_vars($mapper->structureToResource($station));
 

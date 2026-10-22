@@ -18,7 +18,7 @@ use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\Industry\EsiCostIndexService;
-use App\Service\Industry\FacilityTaxRateResolver;
+use App\Service\Industry\FacilityTaxResolver;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryShoppingListBuilder;
 use App\Service\Industry\ProductionCostService;
@@ -120,9 +120,9 @@ class ProductionCostServiceTest extends TestCase
         return $step;
     }
 
-    private function facilityTaxRateResolver(): FacilityTaxRateResolver
+    private function facilityTaxRateResolver(): FacilityTaxResolver
     {
-        return new FacilityTaxRateResolver(new InMemoryUserProductionStructures());
+        return new FacilityTaxResolver(new InMemoryUserProductionStructures());
     }
 
     private function installCostOf(float $cost): array
@@ -139,8 +139,8 @@ class ProductionCostServiceTest extends TestCase
     {
         $calls = new \ArrayObject();
         $this->esiCostIndexService->method('estimateJobInstallCost')->willReturnCallback(
-            function (array $materials, int $runs, int $solarSystemId, string $activity, ?float $facilityTaxRate) use ($calls, $estimate): array {
-                $calls->append([$materials, $runs, $solarSystemId, $activity, $facilityTaxRate]);
+            function (array $materials, int $runs, int $solarSystemId, string $activity, ?float $facilityTaxPercent) use ($calls, $estimate): array {
+                $calls->append([$materials, $runs, $solarSystemId, $activity, $facilityTaxPercent]);
 
                 return $estimate($materials);
             },
@@ -149,11 +149,11 @@ class ProductionCostServiceTest extends TestCase
         return $calls;
     }
 
-    private function createStructureConfig(int $solarSystemId, ?float $facilityTaxRate = null): IndustryStructureConfig
+    private function createStructureConfig(int $solarSystemId, ?float $facilityTaxPercent = null): IndustryStructureConfig
     {
         $config = $this->createMock(IndustryStructureConfig::class);
         $config->method('getSolarSystemId')->willReturn($solarSystemId);
-        $config->method('getFacilityTaxRate')->willReturn($facilityTaxRate);
+        $config->method('getFacilityTaxPercent')->willReturn($facilityTaxPercent);
 
         return $config;
     }
