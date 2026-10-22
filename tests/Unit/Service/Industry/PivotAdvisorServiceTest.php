@@ -10,16 +10,21 @@ use App\Repository\CachedAssetRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\EsiCostIndexService;
+use App\Service\Industry\FacilityTaxRateResolver;
 use App\Service\Industry\InventionService;
 use App\Service\Industry\PivotAdvisorService;
 use App\Service\JitaMarketService;
 use App\Service\TypeNameResolver;
+use App\Industry\Domain\SecurityClass;
+use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
+use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(PivotAdvisorService::class)]
 class PivotAdvisorServiceTest extends TestCase
@@ -39,6 +44,7 @@ class PivotAdvisorServiceTest extends TestCase
     private PivotAdvisorService $service;
 
     private const SOLAR_SYSTEM_ID = 30002510;
+    private const string USER_ID = '0192f3a4-7b1c-7d2e-8f3a-4b5c6d7e8f90';
     private const BROKER_FEE = 0.036;
     private const SALES_TAX = 0.036;
 
@@ -68,6 +74,7 @@ class PivotAdvisorServiceTest extends TestCase
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->connection = $this->createMock(Connection::class);
         $this->user = $this->createMock(User::class);
+        $this->user->method('getId')->willReturn(Uuid::fromString(self::USER_ID));
 
         $this->inventionService = $this->createMock(InventionService::class);
 
@@ -865,7 +872,7 @@ class PivotAdvisorServiceTest extends TestCase
         );
     }
 
-    private function pivotAdvisorOnSdeKnowing(array $typeNamesByTypeId): PivotAdvisorService
+    private function pivotAdvisorOnSdeKnowing(array $typeNamesByTypeId, InMemoryUserProductionStructures $productionStructures = new InMemoryUserProductionStructures()): PivotAdvisorService
     {
         return new PivotAdvisorService(
             $this->materialRepository,
@@ -876,6 +883,7 @@ class PivotAdvisorServiceTest extends TestCase
             new TypeNameResolver($this->sdeTypeRepositoryKnowing($typeNamesByTypeId)),
             $this->entityManager,
             $this->inventionService,
+            new FacilityTaxRateResolver($productionStructures),
         );
     }
 
@@ -965,6 +973,49 @@ class PivotAdvisorServiceTest extends TestCase
         $this->assertSame(400.0, $result['sourceProduct']['marginPercent']);
     }
 
+    public function testInstallCostOfEveryActivityUsesTheNpcStationFacilityTaxWhenTheUserHasNoStructure(): void
+    {
+        $this->givenManufacturingAndReactionCandidatesOfAManufacturingSource();
+        $installCostRequests = $this->givenJobInstallCostsRecorded();
+
+        $this->pivotAdvisorOnSdeKnowing([])->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, self::BROKER_FEE, self::SALES_TAX, $this->user);
+
+        $this->assertSame([['manufacturing', 0.25], ['manufacturing', 0.25], ['reaction', 0.25]], $this->sorted($installCostRequests));
+    }
+
+    public function testInstallCostOfEachActivityUsesTheFacilityTaxOfTheUserStructureAbleToRunIt(): void
+    {
+        $this->givenManufacturingAndReactionCandidatesOfAManufacturingSource();
+        $installCostRequests = $this->givenJobInstallCostsRecorded();
+        $productionStructures = new InMemoryUserProductionStructures([self::USER_ID => [
+            ProductionStructures::tataraWithFacilityTax('tatara', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, 0.02),
+        ]]);
+
+        $this->pivotAdvisorOnSdeKnowing([], $productionStructures)->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, self::BROKER_FEE, self::SALES_TAX, $this->user);
+
+        $this->assertSame([['manufacturing', 0.25], ['manufacturing', 0.25], ['reaction', 2.0]], $this->sorted($installCostRequests));
+    }
+
+    public function testInstallCostOfAReactionSourceProductUsesTheFacilityTaxOfTheUserRefinery(): void
+    {
+        $sourceFormula = $this->createBlueprintProduct(self::SOURCE_BLUEPRINT, self::SOURCE_PRODUCT, 1, 11);
+        $this->productRepository->method('findBlueprintForProduct')->willReturnCallback(
+            static fn (int $typeId, int $activityId): ?IndustryActivityProduct => self::SOURCE_PRODUCT === $typeId && 11 === $activityId ? $sourceFormula : null,
+        );
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
+            self::SOURCE_BLUEPRINT => [['materialTypeId' => self::RAW_MAT, 'quantity' => 33]],
+        ]);
+        $this->jitaMarketService->method('getPrices')->willReturn([self::SOURCE_PRODUCT => 50000.0, self::RAW_MAT => 6.0]);
+        $installCostRequests = $this->givenJobInstallCostsRecorded();
+        $productionStructures = new InMemoryUserProductionStructures([self::USER_ID => [
+            ProductionStructures::tataraWithFacilityTax('tatara', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, 0.02),
+        ]]);
+
+        $this->pivotAdvisorOnSdeKnowing([], $productionStructures)->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, self::BROKER_FEE, self::SALES_TAX, $this->user);
+
+        $this->assertSame([['reaction', 2.0]], $installCostRequests->requests);
+    }
+
     private function analyzeT1T2AndReactionCandidates(): array
     {
         $sourceBlueprint = $this->createBlueprintProduct(self::SOURCE_BLUEPRINT, self::SOURCE_PRODUCT, 1, 1);
@@ -1033,6 +1084,74 @@ class PivotAdvisorServiceTest extends TestCase
             self::SALES_TAX,
             $this->user,
         );
+    }
+
+    private function givenManufacturingAndReactionCandidatesOfAManufacturingSource(): void
+    {
+        $sourceBlueprint = $this->createBlueprintProduct(self::SOURCE_BLUEPRINT, self::SOURCE_PRODUCT, 1, 1);
+        $componentBlueprint = $this->createBlueprintProduct(99001, self::BUILDABLE_MAT_A, 1, 1);
+        $this->productRepository->method('findBlueprintForProduct')->willReturnCallback(
+            static fn (int $typeId, int $activityId): ?IndustryActivityProduct => match (true) {
+                1 !== $activityId => null,
+                self::SOURCE_PRODUCT === $typeId => $sourceBlueprint,
+                self::BUILDABLE_MAT_A === $typeId => $componentBlueprint,
+                default => null,
+            },
+        );
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturnCallback(
+            static fn (array $blueprintTypeIds): array => [self::SOURCE_BLUEPRINT] === $blueprintTypeIds
+                ? [self::SOURCE_BLUEPRINT => [
+                    ['materialTypeId' => self::BUILDABLE_MAT_A, 'quantity' => 7],
+                    ['materialTypeId' => self::RAW_MAT, 'quantity' => 33],
+                ]]
+                : [
+                    self::CANDIDATE_1_BP => [['materialTypeId' => self::BUILDABLE_MAT_A, 'quantity' => 33]],
+                    self::REACTION_CANDIDATE_FORMULA => [['materialTypeId' => self::BUILDABLE_MAT_A, 'quantity' => 41]],
+                ],
+        );
+        $this->materialRepository->method('findProductsUsingMaterials')->willReturn([
+            ['blueprintTypeId' => self::CANDIDATE_1_BP, 'productTypeId' => self::CANDIDATE_1, 'outputPerRun' => 1, 'activityId' => 1],
+            ['blueprintTypeId' => self::REACTION_CANDIDATE_FORMULA, 'productTypeId' => self::REACTION_CANDIDATE, 'outputPerRun' => 1, 'activityId' => 11],
+        ]);
+        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([]);
+        $this->jitaMarketService->method('getPrices')->willReturn([
+            self::SOURCE_PRODUCT => 50000.0,
+            self::BUILDABLE_MAT_A => 1300.0,
+            self::RAW_MAT => 6.0,
+            self::CANDIDATE_1 => 100000.0,
+            self::REACTION_CANDIDATE => 70000.0,
+        ]);
+        $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([
+            self::SOURCE_PRODUCT => 12.0,
+            self::CANDIDATE_1 => 9.0,
+            self::REACTION_CANDIDATE => 40.0,
+        ]);
+        $this->connection->method('fetchOne')->willReturn(0);
+        $this->connection->method('fetchAllAssociative')->willReturn([]);
+    }
+
+    private function givenJobInstallCostsRecorded(): object
+    {
+        $recorder = new class {
+            public array $requests = [];
+        };
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturnCallback(
+            function (array $materials, int $runs, int $solarSystemId, string $activity, ?float $facilityTaxRate) use ($recorder): array {
+                $recorder->requests[] = [$activity, $facilityTaxRate];
+
+                return ['cost' => 0.0, 'unknownReason' => null, 'missingAdjustedPriceTypeIds' => []];
+            },
+        );
+
+        return $recorder;
+    }
+
+    private function sorted(object $installCostRequests): array
+    {
+        $requests = $installCostRequests->requests;
+        sort($requests);
+
+        return $requests;
     }
 
     private function givenAJobInstallCostPerRunOf(float $jobInstallCostPerRun): void

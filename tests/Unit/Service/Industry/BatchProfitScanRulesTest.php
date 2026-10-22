@@ -18,17 +18,22 @@ use App\Repository\Sde\IndustryActivitySkillRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\Industry\BatchProfitScannerService;
 use App\Service\Industry\EsiCostIndexService;
+use App\Service\Industry\FacilityTaxRateResolver;
 use App\Service\Industry\InventionService;
 use App\Service\Industry\JobInstallCostEstimator;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
+use App\Industry\Domain\SecurityClass;
+use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
+use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(BatchProfitScannerService::class)]
 class BatchProfitScanRulesTest extends TestCase
@@ -36,6 +41,7 @@ class BatchProfitScanRulesTest extends TestCase
     private const int MANUFACTURING = 1;
     private const int REACTION = 11;
     private const int SOLAR_SYSTEM_ID = 30002510;
+    private const string USER_ID = '0192f3a4-7b1c-7d2e-8f3a-4b5c6d7e8f90';
 
     private const int TRITANIUM_TYPE_ID = 34;
     private const int PYERITE_TYPE_ID = 35;
@@ -81,6 +87,7 @@ class BatchProfitScanRulesTest extends TestCase
     private array $skillsByCharacter = [];
     private array $cachedStructures = [];
     private array $solarSystems = [];
+    private array $structuresByUserId = [];
 
     public function testProfitableT1ModuleReportsEveryFigureRoundedToTheCent(): void
     {
@@ -102,10 +109,10 @@ class BatchProfitScanRulesTest extends TestCase
             'typeName' => 'Type 3831',
             'groupName' => 'Shield Extender',
             'categoryLabel' => 'T1 Modules',
-            'marginPercent' => 42.39,
-            'profitPerUnit' => 1835.88,
+            'marginPercent' => 42.38,
+            'profitPerUnit' => 1835.67,
             'dailyVolume' => 37.0,
-            'iskPerDay' => 67927.65,
+            'iskPerDay' => 67919.78,
             'materialCost' => 107.91,
             'importCost' => 154.35,
             'exportCost' => 4061.73,
@@ -135,10 +142,49 @@ class BatchProfitScanRulesTest extends TestCase
         $ferrogel = $this->scan()[0];
 
         $this->assertSame(197000.0, $ferrogel['materialCost']);
-        $this->assertSame(218.53, $ferrogel['profitPerUnit']);
+        $this->assertSame(213.78, $ferrogel['profitPerUnit']);
         $this->assertSame(0, $ferrogel['meUsed']);
         $this->assertSame('reaction', $ferrogel['activityType']);
         $this->assertSame('Reaction', $ferrogel['categoryLabel']);
+    }
+
+    public function testManufacturingInstallCostUsesTheFacilityTaxOfTheUserStructureInTheSystem(): void
+    {
+        $this->givenProduct(self::SHIELD_EXTENDER_BLUEPRINT_ID, self::SHIELD_EXTENDER_TYPE_ID, self::MANUFACTURING, 1, [
+            self::TRITANIUM_TYPE_ID => 19,
+            self::PYERITE_TYPE_ID => 1,
+        ]);
+        $this->givenType(self::SHIELD_EXTENDER_TYPE_ID, '38', 'Shield Extender', '7', '5.0');
+        $this->jitaPrices = [self::TRITANIUM_TYPE_ID => 5.3713, self::PYERITE_TYPE_ID => 11.23, self::SHIELD_EXTENDER_TYPE_ID => 1000.0];
+        $this->adjustedPrices = [self::TRITANIUM_TYPE_ID => 4.0, self::PYERITE_TYPE_ID => 9.0];
+        $this->costIndices = ['manufacturing' => 0.0437, 'reaction' => 0.0711];
+        $this->structuresByUserId = [self::USER_ID => [
+            ProductionStructures::raitaruWithFacilityTax('raitaru', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, 0.05),
+        ]];
+
+        $shieldExtender = $this->scan(user: $this->userWithCharacterSkills([]))[0];
+
+        $this->assertSame(880.72, $shieldExtender['profitPerUnit']);
+    }
+
+    public function testReactionInstallCostUsesTheFacilityTaxOfTheUserRefineryInTheSystem(): void
+    {
+        $this->givenProduct(self::FERROGEL_FORMULA_ID, self::FERROGEL_TYPE_ID, self::REACTION, 100, [
+            self::HAFNIUM_TYPE_ID => 100,
+            self::HYDROCARBONS_TYPE_ID => 100,
+        ]);
+        $this->givenType(self::FERROGEL_TYPE_ID, '429', 'Composite', '4', '1.0');
+        $this->jitaPrices = [self::HAFNIUM_TYPE_ID => 1450.0, self::HYDROCARBONS_TYPE_ID => 520.0, self::FERROGEL_TYPE_ID => 2400.0];
+        $this->adjustedPrices = [self::HAFNIUM_TYPE_ID => 1400.0, self::HYDROCARBONS_TYPE_ID => 500.0];
+        $this->costIndices = ['manufacturing' => 0.0437, 'reaction' => 0.0713];
+        $this->structuresByUserId = [self::USER_ID => [
+            ProductionStructures::raitaruWithFacilityTax('raitaru', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, 0.05),
+            ProductionStructures::tataraWithFacilityTax('tatara', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, 0.02),
+        ]];
+
+        $ferrogel = $this->scan(user: $this->userWithCharacterSkills([]))[0];
+
+        $this->assertSame(180.53, $ferrogel['profitPerUnit']);
     }
 
     public function testT2ModuleMaterialsUseMaterialEfficiencyTwo(): void
@@ -521,6 +567,7 @@ class BatchProfitScanRulesTest extends TestCase
         }
 
         $user = $this->createStub(User::class);
+        $user->method('getId')->willReturn(Uuid::fromString(self::USER_ID));
         $user->method('getCharacters')->willReturn(new ArrayCollection($characters));
 
         return $user;
@@ -674,6 +721,7 @@ class BatchProfitScanRulesTest extends TestCase
             $activitySkillRepository,
             $characterSkillRepository,
             new JobInstallCostEstimator(),
+            new FacilityTaxRateResolver(new InMemoryUserProductionStructures($this->structuresByUserId)),
         );
     }
 

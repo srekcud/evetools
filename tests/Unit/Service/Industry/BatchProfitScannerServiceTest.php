@@ -6,11 +6,13 @@ namespace App\Tests\Unit\Service\Industry;
 
 use App\Service\Industry\BatchProfitScannerService;
 use App\Service\Industry\EsiCostIndexService;
+use App\Service\Industry\FacilityTaxRateResolver;
 use App\Service\Industry\InventionService;
 use App\Service\Industry\JobInstallCostEstimator;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
+use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryBpcPriceRepository;
@@ -103,6 +105,7 @@ class BatchProfitScannerServiceTest extends TestCase
             $this->activitySkillRepository,
             $this->characterSkillRepository,
             new JobInstallCostEstimator(),
+            new FacilityTaxRateResolver(new InMemoryUserProductionStructures()),
         );
     }
 
@@ -552,6 +555,7 @@ class BatchProfitScannerServiceTest extends TestCase
             $this->activitySkillRepository,
             $this->characterSkillRepository,
             new JobInstallCostEstimator(),
+            new FacilityTaxRateResolver(new InMemoryUserProductionStructures()),
         );
 
         $this->connection->method('fetchAllAssociative')->willReturnCallback(
@@ -611,6 +615,7 @@ class BatchProfitScannerServiceTest extends TestCase
             $this->activitySkillRepository,
             $this->characterSkillRepository,
             new JobInstallCostEstimator(),
+            new FacilityTaxRateResolver(new InMemoryUserProductionStructures()),
         );
 
         $this->connection->method('fetchFirstColumn')->willReturn([]);
@@ -668,6 +673,7 @@ class BatchProfitScannerServiceTest extends TestCase
             $this->activitySkillRepository,
             $this->characterSkillRepository,
             new JobInstallCostEstimator(),
+            new FacilityTaxRateResolver(new InMemoryUserProductionStructures()),
         );
 
         $this->connection->method('fetchFirstColumn')->willReturn([]);
@@ -1149,6 +1155,7 @@ class BatchProfitScannerServiceTest extends TestCase
             $this->activitySkillRepository,
             $this->characterSkillRepository,
             new JobInstallCostEstimator(),
+            new FacilityTaxRateResolver(new InMemoryUserProductionStructures()),
         );
 
         $this->productRepository->method('findAllManufacturableProducts')->willReturn([

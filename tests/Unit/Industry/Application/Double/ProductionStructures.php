@@ -94,6 +94,25 @@ final class ProductionStructures
         );
     }
 
+    public static function tataraWithFacilityTax(
+        string $id,
+        SecurityClass $security,
+        ?int $solarSystemId,
+        float $facilityTaxRate,
+    ): ProductionStructure {
+        return new ProductionStructure(
+            $id,
+            StructureType::Refinery,
+            $security,
+            $solarSystemId,
+            new \DateTimeImmutable('2026-01-01 00:00:00'),
+            Multiplier::one(),
+            [],
+            Multiplier::one(),
+            $facilityTaxRate,
+        );
+    }
+
     /** Manufacturing material rig: ×1.0 highsec / ×1.9 lowsec / ×2.1 nullsec. */
     public static function manufacturingRig(float $reductionPercent, string ...$targetedCategories): StructureRig
     {

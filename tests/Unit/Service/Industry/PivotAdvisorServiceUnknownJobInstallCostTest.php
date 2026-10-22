@@ -5,16 +5,17 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\Sde\IndustryActivityProduct;
-use App\Entity\User;
 use App\Repository\CachedAssetRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\BatchProfitScannerService;
 use App\Service\Industry\EsiCostIndexService;
+use App\Service\Industry\FacilityTaxRateResolver;
 use App\Service\Industry\InventionService;
 use App\Service\Industry\PivotAdvisorService;
 use App\Service\JitaMarketService;
 use App\Service\TypeNameResolver;
+use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -25,6 +26,7 @@ use PHPUnit\Framework\TestCase;
 #[Group('issue-7')]
 final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
 {
+    use CreatesUserWithId;
     private const int SOLAR_SYSTEM_ID = 30002510;
     private const float BROKER_FEE_RATE = 0.036;
     private const float SALES_TAX_RATE = 0.036;
@@ -480,6 +482,7 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
             $typeNameResolver,
             $entityManager,
             $inventionService,
+            new FacilityTaxRateResolver(new InMemoryUserProductionStructures()),
         );
 
         return $service->analyze(
@@ -488,7 +491,7 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
             self::SOLAR_SYSTEM_ID,
             self::BROKER_FEE_RATE,
             self::SALES_TAX_RATE,
-            $this->createStub(User::class),
+            $this->userWithId(),
         );
     }
 
