@@ -6,6 +6,7 @@ namespace App\Tests\Unit\State\Provider\Industry;
 
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
+use App\Entity\IndustryStepJobMatch;
 use App\Entity\IndustryStepPurchase;
 use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
@@ -295,6 +296,135 @@ class IndustryResourceMapperTest extends TestCase
             array_column($resource->rootProducts, 'typeName'),
         );
         self::assertSame('Nitrogen Fuel Block + Hydrogen Fuel Block', $resource->displayName);
+    }
+
+    #[Group('issue-183')]
+    public function testProjectWithUnknownMaterialCostHasUnknownTotalCostAndProfit(): void
+    {
+        $project = $this->project(self::NITROGEN_FUEL_BLOCK_TYPE_ID, null)
+            ->setMaterialCost(null)
+            ->setEstimatedMaterialCost(null)
+            ->setEstimatedJobCost(5_000.0)
+            ->setEstimatedTaxAmount(3_000.0)
+            ->setEstimatedSellPrice(100_000.0);
+
+        $resource = $this->mapperOnSdeKnowingOnlyNitrogenFuelBlock()->projectToResource($project);
+
+        self::assertNull($resource->totalCost);
+        self::assertNull($resource->profit);
+        self::assertNull($resource->profitPercent);
+    }
+
+    #[Group('issue-183')]
+    public function testProjectWithUnknownJobsCostHasUnknownTotalCostAndProfit(): void
+    {
+        $project = $this->project(self::NITROGEN_FUEL_BLOCK_TYPE_ID, null)
+            ->setEstimatedMaterialCost(50_000.0)
+            ->setEstimatedJobCost(null)
+            ->setTaxAmount(3_000.0)
+            ->setSellPrice(100_000.0);
+
+        $resource = $this->mapperOnSdeKnowingOnlyNitrogenFuelBlock()->projectToResource($project);
+
+        self::assertNull($resource->totalCost);
+        self::assertNull($resource->profit);
+        self::assertNull($resource->profitPercent);
+    }
+
+    #[Group('issue-183')]
+    public function testProjectWithUnknownTaxAmountHasUnknownTotalCostAndProfit(): void
+    {
+        $project = $this->project(self::NITROGEN_FUEL_BLOCK_TYPE_ID, null)
+            ->setMaterialCost(50_000.0)
+            ->setEstimatedJobCost(5_000.0)
+            ->setTaxAmount(null)
+            ->setEstimatedTaxAmount(null)
+            ->setSellPrice(100_000.0);
+
+        $resource = $this->mapperOnSdeKnowingOnlyNitrogenFuelBlock()->projectToResource($project);
+
+        self::assertNull($resource->totalCost);
+        self::assertNull($resource->profit);
+        self::assertNull($resource->profitPercent);
+    }
+
+    #[Group('issue-183')]
+    public function testProjectWithAllCostsKnownKeepsItsTotalCostAndProfit(): void
+    {
+        $project = $this->project(self::NITROGEN_FUEL_BLOCK_TYPE_ID, null)
+            ->setBpoCost(null)
+            ->setTransportCost(null)
+            ->setMaterialCost(50_000.0)
+            ->setEstimatedJobCost(5_000.0)
+            ->setTaxAmount(3_000.0)
+            ->setSellPrice(100_000.0);
+
+        $resource = $this->mapperOnSdeKnowingOnlyNitrogenFuelBlock()->projectToResource($project);
+
+        self::assertSame(58_000.0, $resource->totalCost);
+        self::assertSame(42_000.0, $resource->profit);
+        self::assertEqualsWithDelta(72.413793, $resource->profitPercent, 0.000001);
+    }
+
+    #[Group('issue-183')]
+    public function testProjectWithRealJobsCostAndNoEstimatedJobsCostKeepsItsTotalCost(): void
+    {
+        $project = $this->project(self::NITROGEN_FUEL_BLOCK_TYPE_ID, null)
+            ->setMaterialCost(50_000.0)
+            ->setEstimatedJobCost(null)
+            ->setTaxAmount(3_000.0)
+            ->setSellPrice(100_000.0);
+        $step = $this->rootStep($project, self::NITROGEN_FUEL_BLOCK_TYPE_ID, self::NITROGEN_FUEL_BLOCK_BLUEPRINT_TYPE_ID, 40, 10, 20);
+        $step->addJobMatch(
+            (new IndustryStepJobMatch())
+                ->setEsiJobId(700_000_001)
+                ->setRuns(40)
+                ->setCost(4_000.0)
+                ->setStatus('delivered')
+                ->setCharacterName('Test Pilot'),
+        );
+
+        $resource = $this->mapperOnSdeKnowingOnlyNitrogenFuelBlock()->projectToResource($project);
+
+        self::assertSame(4_000.0, $resource->jobsCost);
+        self::assertSame(57_000.0, $resource->totalCost);
+        self::assertSame(43_000.0, $resource->profit);
+    }
+
+    #[Group('issue-183')]
+    public function testProjectWithUnknownMaterialCostAndNoSellPriceKeepsTheEntityProfit(): void
+    {
+        $project = $this->project(self::NITROGEN_FUEL_BLOCK_TYPE_ID, null)
+            ->setMaterialCost(null)
+            ->setEstimatedMaterialCost(null)
+            ->setEstimatedJobCost(5_000.0)
+            ->setTaxAmount(3_000.0)
+            ->setSellPrice(null)
+            ->setEstimatedSellPrice(null);
+
+        $resource = $this->mapperOnSdeKnowingOnlyNitrogenFuelBlock()->projectToResource($project);
+
+        self::assertNull($resource->totalCost);
+        self::assertNull($resource->profit);
+        self::assertNull($resource->profitPercent);
+    }
+
+    #[Group('issue-183')]
+    public function testPersonalUseProjectWithUnknownMaterialCostKeepsTheEntityProfit(): void
+    {
+        $project = $this->project(self::NITROGEN_FUEL_BLOCK_TYPE_ID, null)
+            ->setPersonalUse(true)
+            ->setMaterialCost(null)
+            ->setEstimatedMaterialCost(null)
+            ->setEstimatedJobCost(5_000.0)
+            ->setTaxAmount(3_000.0)
+            ->setSellPrice(100_000.0);
+
+        $resource = $this->mapperOnSdeKnowingOnlyNitrogenFuelBlock()->projectToResource($project);
+
+        self::assertNull($resource->totalCost);
+        self::assertSame(97_000.0, $resource->profit);
+        self::assertEqualsWithDelta(3233.333333, $resource->profitPercent, 0.000001);
     }
 
     private function mapperOnSdeKnowingOnlyNitrogenFuelBlock(): IndustryResourceMapper

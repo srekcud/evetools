@@ -120,10 +120,10 @@ final class ProjectCollectionProviderTest extends IntegrationTestCase
 
         // Real jobs cost (2M) wins over the estimated 7M because it is > 0
         self::assertSame(2_000_000.0, $jackdaw->jobsCost);
-        // estimated material 200M + jobs 2M
-        self::assertSame(202_000_000.0, $jackdaw->totalCost);
-        // estimated sell price 300M - 202M
-        self::assertSame(98_000_000.0, $jackdaw->profit);
+        // estimated material 200M + jobs 2M + estimated tax 3M
+        self::assertSame(205_000_000.0, $jackdaw->totalCost);
+        // estimated sell price 300M - 205M
+        self::assertSame(95_000_000.0, $jackdaw->profit);
         self::assertSame('Jackdaw batch', $jackdaw->displayName);
         self::assertSame([[
             'typeId' => self::JACKDAW_TYPE_ID,
@@ -140,9 +140,7 @@ final class ProjectCollectionProviderTest extends IntegrationTestCase
         $ishtar = $this->projectsById($this->listProjectsAs($this->pilot))[$this->ishtarProjectId];
 
         self::assertSame(4_000_000.0, $ishtar->jobsCost);
-        // material 150M + jobs 4M
-        self::assertSame(154_000_000.0, $ishtar->totalCost);
-        // sell price 250M - 154M, taken from IndustryProject::getProfit()
+        self::assertNull($ishtar->totalCost);
         self::assertSame(96_000_000.0, $ishtar->profit);
         self::assertTrue($ishtar->personalUse);
     }
@@ -250,6 +248,7 @@ final class ProjectCollectionProviderTest extends IntegrationTestCase
             ->setName('Jackdaw batch')
             ->setEstimatedMaterialCost(200_000_000.0)
             ->setEstimatedJobCost(7_000_000.0)
+            ->setEstimatedTaxAmount(3_000_000.0)
             ->setEstimatedSellPrice(300_000_000.0)
             ->setEstimatedSellPriceSource('jita');
 
