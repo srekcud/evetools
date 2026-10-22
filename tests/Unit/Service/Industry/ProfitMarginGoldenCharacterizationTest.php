@@ -122,18 +122,6 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     private const int SYNTHETIC_MAX_PRODUCTION_LIMIT = 100;
     private const int SYNTHETIC_ACTIVITY_TIME = 600;
 
-    /** One run at ME 10 without structure bonus, leaf typeId => quantity. */
-    private const array NITROGEN_FUEL_BLOCK_ONE_RUN_LEAVES = [
-        44 => 4,
-        3683 => 20,
-        3689 => 4,
-        9832 => 9,
-        self::ROBOTICS => 1,
-        16272 => 153,
-        16273 => 315,
-        16275 => 18,
-        self::NITROGEN_ISOTOPES => 405,
-    ];
     private const float NITROGEN_FUEL_BLOCK_ONE_RUN_MATERIAL_COST = 153280.656;
     /** EIV(ME 0) 17 031.184 x (cost index 0.05 + NPC tax 0.25 % + SCC 4 %), no structure (R6). */
     private const float NITROGEN_FUEL_BLOCK_ONE_RUN_INSTALL_COST = 1575.38452;
@@ -468,29 +456,6 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         $this->assertNull($result['margins']['structureSell']);
         $this->assertNull($result['margins']['structureBuy']);
         $this->assertNotNull($result['margins']['contractSell']);
-    }
-
-    public function testProductWithoutAnyKnownCostHasUnknownCostAndNoMarginIssue8(): void
-    {
-        $this->leavesWithoutJitaPrice = array_keys(self::NITROGEN_FUEL_BLOCK_ONE_RUN_LEAVES);
-        $this->jitaSellPriceOfProduct = 4500.0;
-        $this->contractSellPriceOfProduct = 4300.0;
-
-        $result = $this->analyze(self::NITROGEN_FUEL_BLOCK, runs: 1, me: 10, solarSystemId: null);
-
-        // R10: no leaf price and no system to read a cost index from: an unknown cost, not a 0 ISK cost with a 0 % margin.
-        $this->assertNull($result['materialCost']);
-        $this->assertNull($result['jobInstallCost']);
-        $this->assertNull($result['totalCost']);
-        $this->assertNull($result['costPerUnit']);
-        $this->assertSame(['jitaSell' => null, 'structureSell' => null, 'structureBuy' => null, 'contractSell' => null], $result['margins']);
-        $this->assertMissingData(
-            [
-                ...array_map(static fn (int $typeId): array => ['market_price', $typeId], array_keys(self::NITROGEN_FUEL_BLOCK_ONE_RUN_LEAVES)),
-                ['cost_index', null],
-            ],
-            $result,
-        );
     }
 
     public function testDailyVolumeIsTheJitaAverageDailyVolumeOfTheProduct(): void
@@ -882,20 +847,6 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         }
     }
 
-    public function testT2WithoutSolarSystemHasUnknownInventionAndInstallCostIssue18(): void
-    {
-        $result = $this->analyzeHailL(runs: 1, solarSystemId: null);
-
-        // R6, R8, R10: no structure and no system, so no cost index for any job: unknown costs, never 0.
-        $this->assertTrue($result['isT2']);
-        $this->assertEqualsWithDelta(self::HAIL_L_ONE_RUN_MATERIAL_COST, $result['materialCost'], 1e-6);
-        $this->assertNull($result['jobInstallCost']);
-        $this->assertNull($result['inventionCost']);
-        $this->assertNull($result['totalCost']);
-        $this->assertNull($result['costPerUnit']);
-        $this->assertMissingData([['cost_index', null]], $result);
-    }
-
     // ===========================================
     // Fernite Carbide: reaction, 10000 units per run, 10 runs, Tatara + reactor rig II nullsec
     // ===========================================
@@ -1033,13 +984,13 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
      *
      * @return array<string, mixed>
      */
-    private function analyzeHailL(int $runs, ?int $decryptorTypeId = null, ?int $solarSystemId = self::MANUFACTURING_SYSTEM_ID): array
+    private function analyzeHailL(int $runs, ?int $decryptorTypeId = null): array
     {
         return $this->analyze(
             self::HAIL_L,
             runs: $runs,
             me: 2,
-            solarSystemId: $solarSystemId,
+            solarSystemId: self::MANUFACTURING_SYSTEM_ID,
             decryptorTypeId: $decryptorTypeId,
             user: $this->user(),
             blacklistedTypeIds: [self::FERNITE_CARBIDE, self::FULLERIDES],
@@ -1076,7 +1027,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         int $typeId,
         int $runs,
         int $me,
-        ?int $solarSystemId,
+        int $solarSystemId,
         ?int $decryptorTypeId = null,
         ?User $user = null,
         array $blacklistedTypeIds = [],
