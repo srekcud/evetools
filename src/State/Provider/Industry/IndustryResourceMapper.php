@@ -144,25 +144,29 @@ class IndustryResourceMapper
         $resource->estimatedSellPriceSource = $project->getEstimatedSellPriceSource();
         $resource->estimatedTaxAmount = $project->getEstimatedTaxAmount();
 
-        // Calculate total cost and profit using estimated values as fallback
-        // when "real" values haven't been filled by the user
-        $effectiveTaxAmount = $project->getTaxAmount() ?? $project->getEstimatedTaxAmount() ?? 0.0;
-        $effectiveJobsCost = $project->getJobsCost() > 0 ? $project->getJobsCost() : ($project->getEstimatedJobCost() ?? 0.0);
+        $effectiveTaxAmount = $project->getTaxAmount() ?? $project->getEstimatedTaxAmount();
+        $effectiveJobsCost = $project->getJobsCost() > 0 ? $project->getJobsCost() : $project->getEstimatedJobCost();
         $effectiveSellPrice = $project->getSellPrice() ?? $project->getEstimatedSellPrice();
+        $effectiveMaterialCost = $project->getMaterialCost() ?? $project->getEstimatedMaterialCost();
 
-        $effectiveMaterialCost = $project->getMaterialCost() ?? $project->getEstimatedMaterialCost() ?? 0.0;
-
-        $resource->totalCost = ($project->getBpoCost() ?? 0)
-            + $effectiveMaterialCost
-            + ($project->getTransportCost() ?? 0)
-            + $effectiveJobsCost
-            + $effectiveTaxAmount;
+        $resource->totalCost = $effectiveMaterialCost === null || $effectiveJobsCost === null || $effectiveTaxAmount === null
+            ? null
+            : ($project->getBpoCost() ?? 0)
+                + $effectiveMaterialCost
+                + ($project->getTransportCost() ?? 0)
+                + $effectiveJobsCost
+                + $effectiveTaxAmount;
 
         if ($effectiveSellPrice !== null && !$project->isPersonalUse()) {
-            $resource->profit = $effectiveSellPrice - $resource->totalCost;
-            $resource->profitPercent = $resource->totalCost > 0
-                ? ($resource->profit / $resource->totalCost) * 100
-                : null;
+            if ($resource->totalCost === null) {
+                $resource->profit = null;
+                $resource->profitPercent = null;
+            } else {
+                $resource->profit = $effectiveSellPrice - $resource->totalCost;
+                $resource->profitPercent = $resource->totalCost > 0
+                    ? ($resource->profit / $resource->totalCost) * 100
+                    : null;
+            }
         } else {
             $resource->profit = $project->getProfit();
             $resource->profitPercent = $project->getProfitPercent();
