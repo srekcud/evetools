@@ -9,11 +9,16 @@ use App\MessageHandler\SyncPublicContractsHandler;
 use App\Service\Admin\SyncTracker;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
+use App\Service\Industry\PublicContractPriceService;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\Group;
 use Psr\Cache\CacheItemPoolInterface;
+use Psr\Log\AbstractLogger;
+use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -51,12 +56,15 @@ final class SyncPublicContractsHandlerTest extends TestCase
     /** @var list<array{string, string, ?string}> */
     private array $syncTrackerCalls = [];
 
+    private array $handlerLogRecords = [];
+
     protected function setUp(): void
     {
         $this->publicContractsCache = new ArrayAdapter();
         $this->requestedUrls = [];
         $this->esiEvents = [];
         $this->syncTrackerCalls = [];
+        $this->handlerLogRecords = [];
     }
 
     // ---------------------------------------------------------------
@@ -119,7 +127,7 @@ final class SyncPublicContractsHandlerTest extends TestCase
         ], $this->storedContractPrices(self::TRITANIUM));
         $this->assertSame([
             ['start', self::SYNC_TYPE, null],
-            ['complete', self::SYNC_TYPE, '1 types indexed'],
+            ['complete', self::SYNC_TYPE, '1 types indexed, 1 contracts unread'],
         ], $this->syncTrackerCalls);
     }
 
@@ -304,8 +312,189 @@ final class SyncPublicContractsHandlerTest extends TestCase
         $this->assertSame(1, $meta['typesCount']);
         $this->assertSame([
             ['start', self::SYNC_TYPE, null],
-            ['complete', self::SYNC_TYPE, '1 types indexed'],
+            ['complete', self::SYNC_TYPE, '1 types indexed, 1 contracts unread'],
         ], $this->syncTrackerCalls);
+    }
+
+    #[Group('issue-217')]
+    public function testTypeWithoutContractAnyMoreIsRemovedFromTheIndexWhileTheOthersAreRefreshed(): void
+    {
+        $firstSync = $this->createHandler([
+            self::THE_FORGE_CONTRACTS_PATH => [[
+                $this->makeContract(20001, 'item_exchange', 500_000.0),
+                $this->makeContract(20007, 'item_exchange', 2_000_000.0),
+            ]],
+            '/contracts/public/items/20001/' => [['type_id' => self::TRITANIUM, 'quantity' => 50, 'is_included' => true]],
+            '/contracts/public/items/20007/' => [['type_id' => self::PYERITE, 'quantity' => 250, 'is_included' => true]],
+        ], self::PRODUCTION_ESI_BASE_URL);
+        $firstSync(new SyncPublicContracts());
+
+        $secondSync = $this->createHandler([
+            self::THE_FORGE_CONTRACTS_PATH => [[
+                $this->makeContract(20001, 'item_exchange', 500_000.0),
+                $this->makeContract(20010, 'item_exchange', 160_000.0),
+            ]],
+            '/contracts/public/items/20001/' => [['type_id' => self::TRITANIUM, 'quantity' => 50, 'is_included' => true]],
+            '/contracts/public/items/20010/' => [['type_id' => self::TRITANIUM, 'quantity' => 40, 'is_included' => true]],
+        ], self::PRODUCTION_ESI_BASE_URL);
+        $secondSync(new SyncPublicContracts());
+
+        $publicContractPriceService = new PublicContractPriceService($this->publicContractsCache);
+        $this->assertNull($this->storedContractPrices(self::PYERITE));
+        $this->assertSame(0, $publicContractPriceService->getContractCount(self::PYERITE));
+        $this->assertNull($publicContractPriceService->getLowestUnitPrice(self::PYERITE));
+        $this->assertSame([
+            ['unitPrice' => 4_000.0, 'quantity' => 40, 'contractId' => 20010],
+            ['unitPrice' => 10_000.0, 'quantity' => 50, 'contractId' => 20001],
+        ], $this->storedContractPrices(self::TRITANIUM));
+        $this->assertSame(2, $publicContractPriceService->getContractCount(self::TRITANIUM));
+    }
+
+    #[Group('issue-217')]
+    public function testContractWhoseItemsCannotBeReadIsLoggedAsWarningAndCountedAsUnreadAtTheEndOfTheSync(): void
+    {
+        $handler = $this->createHandler([
+            self::THE_FORGE_CONTRACTS_PATH => [[
+                $this->makeContract(20001, 'item_exchange', 500_000.0),
+                $this->makeContract(20002, 'item_exchange', 900_000.0),
+                $this->makeContract(20003, 'item_exchange', 1_200_000.0),
+            ]],
+            '/contracts/public/items/20001/' => [['type_id' => self::TRITANIUM, 'quantity' => 50, 'is_included' => true]],
+            '/contracts/public/items/20002/' => new MockResponse('{"error":"Internal server error"}', ['http_code' => 500]),
+            '/contracts/public/items/20003/' => [['type_id' => self::PYERITE, 'quantity' => 150, 'is_included' => true]],
+        ], self::PRODUCTION_ESI_BASE_URL);
+
+        $handler(new SyncPublicContracts());
+
+        $this->assertSame([20002], $this->contractIdsLoggedAtLevel(LogLevel::WARNING));
+        $this->assertSame([
+            ['start', self::SYNC_TYPE, null],
+            ['complete', self::SYNC_TYPE, '2 types indexed, 1 contracts unread'],
+        ], $this->syncTrackerCalls);
+        $this->assertSame([
+            ['unitPrice' => 8_000.0, 'quantity' => 150, 'contractId' => 20003],
+        ], $this->storedContractPrices(self::PYERITE));
+    }
+
+    #[Group('issue-217')]
+    public function testNextSyncReadsOnlyTheItemsOfContractsNotAlreadyInTheItemsCache(): void
+    {
+        $firstSync = $this->createHandler([
+            self::THE_FORGE_CONTRACTS_PATH => [[
+                $this->makeContract(20001, 'item_exchange', 500_000.0),
+                $this->makeContract(20003, 'item_exchange', 300_000.0),
+            ]],
+            '/contracts/public/items/20001/' => [['type_id' => self::TRITANIUM, 'quantity' => 50, 'is_included' => true]],
+            '/contracts/public/items/20003/' => [['type_id' => self::TRITANIUM, 'quantity' => 60, 'is_included' => true]],
+        ], self::PRODUCTION_ESI_BASE_URL);
+        $firstSync(new SyncPublicContracts());
+        $this->requestedUrls = [];
+
+        $secondSync = $this->createHandler([
+            self::THE_FORGE_CONTRACTS_PATH => [[
+                $this->makeContract(20001, 'item_exchange', 500_000.0),
+                $this->makeContract(20003, 'item_exchange', 300_000.0),
+                $this->makeContract(20009, 'item_exchange', 640_000.0),
+            ]],
+            '/contracts/public/items/20001/' => [['type_id' => self::TRITANIUM, 'quantity' => 50, 'is_included' => true]],
+            '/contracts/public/items/20003/' => [['type_id' => self::TRITANIUM, 'quantity' => 60, 'is_included' => true]],
+            '/contracts/public/items/20009/' => [['type_id' => self::MEXALLON, 'quantity' => 80, 'is_included' => true]],
+        ], self::PRODUCTION_ESI_BASE_URL);
+        $secondSync(new SyncPublicContracts());
+
+        $this->assertSame([20009], $this->contractIdsWhoseItemsWereRequested());
+        $this->assertSame([
+            ['unitPrice' => 5_000.0, 'quantity' => 60, 'contractId' => 20003],
+            ['unitPrice' => 10_000.0, 'quantity' => 50, 'contractId' => 20001],
+        ], $this->storedContractPrices(self::TRITANIUM));
+        $this->assertSame([
+            ['unitPrice' => 8_000.0, 'quantity' => 80, 'contractId' => 20009],
+        ], $this->storedContractPrices(self::MEXALLON));
+        $this->assertSame([
+            ['start', self::SYNC_TYPE, null],
+            ['complete', self::SYNC_TYPE, '1 types indexed'],
+            ['start', self::SYNC_TYPE, null],
+            ['complete', self::SYNC_TYPE, '2 types indexed'],
+        ], $this->syncTrackerCalls);
+    }
+
+    #[Group('issue-217')]
+    public function testContractWhoseItemsFailedToBeReadIsRequestedAgainAtTheNextSync(): void
+    {
+        $firstSync = $this->createHandler([
+            self::THE_FORGE_CONTRACTS_PATH => [[
+                $this->makeContract(20001, 'item_exchange', 500_000.0),
+                $this->makeContract(20002, 'item_exchange', 900_000.0),
+            ]],
+            '/contracts/public/items/20001/' => [['type_id' => self::TRITANIUM, 'quantity' => 50, 'is_included' => true]],
+            '/contracts/public/items/20002/' => new MockResponse('{"error":"Internal server error"}', ['http_code' => 500]),
+        ], self::PRODUCTION_ESI_BASE_URL);
+        $firstSync(new SyncPublicContracts());
+        $this->assertFalse($this->publicContractsCache->getItem('public_contract_items_20002')->isHit());
+        $this->requestedUrls = [];
+
+        $secondSync = $this->createHandler([
+            self::THE_FORGE_CONTRACTS_PATH => [[
+                $this->makeContract(20001, 'item_exchange', 500_000.0),
+                $this->makeContract(20002, 'item_exchange', 900_000.0),
+            ]],
+            '/contracts/public/items/20001/' => [['type_id' => self::TRITANIUM, 'quantity' => 50, 'is_included' => true]],
+            '/contracts/public/items/20002/' => [['type_id' => self::PYERITE, 'quantity' => 300, 'is_included' => true]],
+        ], self::PRODUCTION_ESI_BASE_URL);
+        $secondSync(new SyncPublicContracts());
+
+        $this->assertSame([20002], $this->contractIdsWhoseItemsWereRequested());
+        $this->assertSame([
+            ['unitPrice' => 3_000.0, 'quantity' => 300, 'contractId' => 20002],
+        ], $this->storedContractPrices(self::PYERITE));
+    }
+
+    #[Group('issue-217')]
+    public function testContractItemsAreCachedUntilTheContractExpires(): void
+    {
+        $clock = new MockClock();
+        $this->publicContractsCache = new ArrayAdapter(clock: $clock);
+        $contractExpiresAt = $clock->now()->modify('+2 hours');
+        $mexallonItems = [['type_id' => self::MEXALLON, 'quantity' => 30, 'is_included' => true]];
+        $handler = $this->createHandler([
+            self::THE_FORGE_CONTRACTS_PATH => [[
+                $this->makeContract(20011, 'item_exchange', 210_000.0, $contractExpiresAt->format('c')),
+            ]],
+            '/contracts/public/items/20011/' => $mexallonItems,
+        ], self::PRODUCTION_ESI_BASE_URL);
+
+        $handler(new SyncPublicContracts());
+
+        $itemsEntry = $this->publicContractsCache->getItem('public_contract_items_20011');
+        $this->assertTrue($itemsEntry->isHit());
+        $this->assertSame($mexallonItems, $itemsEntry->get());
+        $clock->sleep(7_140);
+        $this->assertTrue($this->publicContractsCache->getItem('public_contract_items_20011')->isHit());
+        $clock->sleep(120);
+        $this->assertFalse($this->publicContractsCache->getItem('public_contract_items_20011')->isHit());
+    }
+
+    #[Group('issue-217')]
+    public function testContractWithoutExpiryDateIsNeverPutInTheItemsCache(): void
+    {
+        $isogenContract = $this->makeContract(20012, 'item_exchange', 350_000.0);
+        unset($isogenContract['date_expired']);
+        $esiResponses = [
+            self::THE_FORGE_CONTRACTS_PATH => [[$isogenContract]],
+            '/contracts/public/items/20012/' => [['type_id' => self::ISOGEN, 'quantity' => 70, 'is_included' => true]],
+        ];
+        $firstSync = $this->createHandler($esiResponses, self::PRODUCTION_ESI_BASE_URL);
+        $firstSync(new SyncPublicContracts());
+        $this->requestedUrls = [];
+
+        $secondSync = $this->createHandler($esiResponses, self::PRODUCTION_ESI_BASE_URL);
+        $secondSync(new SyncPublicContracts());
+
+        $this->assertFalse($this->publicContractsCache->getItem('public_contract_items_20012')->isHit());
+        $this->assertSame([20012], $this->contractIdsWhoseItemsWereRequested());
+        $this->assertSame([
+            ['unitPrice' => 5_000.0, 'quantity' => 70, 'contractId' => 20012],
+        ], $this->storedContractPrices(self::ISOGEN));
     }
 
     // ---------------------------------------------------------------
@@ -375,7 +564,7 @@ final class SyncPublicContractsHandlerTest extends TestCase
         return new SyncPublicContractsHandler(
             esiClient: $esiClient,
             cache: $this->publicContractsCache,
-            logger: new NullLogger(),
+            logger: $this->createRecordingLogger(),
             syncTracker: $syncTracker,
         );
     }
@@ -530,5 +719,33 @@ final class SyncPublicContractsHandlerTest extends TestCase
             'date_expired' => $dateExpired ?? (new \DateTimeImmutable('+7 days'))->format('c'),
             'date_issued' => (new \DateTimeImmutable('-1 day'))->format('c'),
         ];
+    }
+
+    private function createRecordingLogger(): AbstractLogger
+    {
+        $handlerLogRecords = &$this->handlerLogRecords;
+
+        return new class($handlerLogRecords) extends AbstractLogger {
+            public function __construct(private array &$records)
+            {
+            }
+
+            public function log($level, string|\Stringable $message, array $context = []): void
+            {
+                $this->records[] = [$level, (string) $message, $context];
+            }
+        };
+    }
+
+    private function contractIdsLoggedAtLevel(string $level): array
+    {
+        $contractIds = [];
+        foreach ($this->handlerLogRecords as [$recordLevel, , $context]) {
+            if ($recordLevel === $level && \array_key_exists('contractId', $context)) {
+                $contractIds[] = $context['contractId'];
+            }
+        }
+
+        return $contractIds;
     }
 }

@@ -194,6 +194,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     private ?float $structureBuyPriceOfProduct = null;
     private ?float $contractSellPriceOfProduct = null;
     private int $contractCountOfProduct = 0;
+    private bool $publicContractsNeverSynced = false;
     private float $brokerFeeRate = self::BROKER_FEE_RATE;
     private float $salesTaxRate = self::SALES_TAX_RATE;
 
@@ -387,6 +388,20 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         $this->assertMargin(180000.0, 9000.0, self::NITROGEN_FUEL_BLOCK_ONE_RUN_TOTAL_COST, $result['margins']['jitaSell']);
         $this->assertMargin(176000.0, 8800.0, self::NITROGEN_FUEL_BLOCK_ONE_RUN_TOTAL_COST, $result['margins']['structureSell']);
         $this->assertMargin(160000.0, 0.0, self::NITROGEN_FUEL_BLOCK_ONE_RUN_TOTAL_COST, $result['margins']['structureBuy']);
+    }
+
+    #[Group('issue-217')]
+    public function testContractCountAndContractSellAreUnknownWhenPublicContractsWereNeverSynced(): void
+    {
+        $this->publicContractsNeverSynced = true;
+        $this->jitaSellPriceOfProduct = 4500.0;
+
+        $result = $this->analyze(self::NITROGEN_FUEL_BLOCK, runs: 1, me: 10, solarSystemId: self::MANUFACTURING_SYSTEM_ID);
+
+        $this->assertNull($result['sellPrices']['contractCount']);
+        $this->assertNull($result['sellPrices']['contractSell']);
+        $this->assertNull($result['margins']['contractSell']);
+        $this->assertSame(4500.0, $result['sellPrices']['jitaSell']);
     }
 
     public function testContractWithoutPriceHasNoMargin(): void
@@ -1001,9 +1016,13 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         $structureMarketService = $this->createStub(StructureMarketService::class);
         $structureMarketService->method('getLowestSellPrice')->willReturn($this->structureSellPriceOfProduct);
         $structureMarketService->method('getHighestBuyPrice')->willReturn($this->structureBuyPriceOfProduct);
-        $publicContractPriceService = $this->createStub(PublicContractPriceService::class);
-        $publicContractPriceService->method('getLowestUnitPrice')->willReturn($this->contractSellPriceOfProduct);
-        $publicContractPriceService->method('getContractCount')->willReturn($this->contractCountOfProduct);
+        $publicContractPriceService = $this->publicContractsNeverSynced
+            ? new PublicContractPriceService(new ArrayAdapter())
+            : $this->createStub(PublicContractPriceService::class);
+        if (!$this->publicContractsNeverSynced) {
+            $publicContractPriceService->method('getLowestUnitPrice')->willReturn($this->contractSellPriceOfProduct);
+            $publicContractPriceService->method('getContractCount')->willReturn($this->contractCountOfProduct);
+        }
         $cachedStructureRepository = $this->createStub(CachedStructureRepository::class);
         $cachedStructureRepository->method('findByStructureId')->willReturnCallback(
             fn (int $structureId): ?CachedStructure => self::SELL_STRUCTURE_ID === $structureId && null !== $this->cachedSellStructureName
