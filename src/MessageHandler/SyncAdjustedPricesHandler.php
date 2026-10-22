@@ -38,6 +38,8 @@ final readonly class SyncAdjustedPricesHandler
                 'error' => $e->getMessage(),
             ]);
             $this->syncTracker->fail('adjusted-prices', $e->getMessage());
+
+            throw $e;
         }
     }
 }

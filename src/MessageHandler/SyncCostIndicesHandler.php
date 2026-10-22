@@ -38,6 +38,8 @@ final readonly class SyncCostIndicesHandler
                 'error' => $e->getMessage(),
             ]);
             $this->syncTracker->fail('cost-indices', $e->getMessage());
+
+            throw $e;
         }
     }
 }
