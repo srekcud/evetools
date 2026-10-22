@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Enum\GroupMemberRole;
 use App\Enum\GroupProjectStatus;
 use App\Repository\GroupIndustryProjectRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -117,6 +118,17 @@ class GroupIndustryProject
     {
         $this->owner = $owner;
         return $this;
+    }
+
+    public function transferOwnershipTo(GroupIndustryProjectMember $member): void
+    {
+        $newOwner = $member->getUser();
+        if ($member->getProject() !== $this || $newOwner === null) {
+            throw new \DomainException('Ownership can only be transferred to a member of the project with an account.');
+        }
+
+        $member->setRole(GroupMemberRole::Owner);
+        $this->owner = $newOwner;
     }
 
     public function getName(): ?string

@@ -9,6 +9,8 @@ use ApiPlatform\State\ProcessorInterface;
 use App\Entity\User;
 use App\Security\JwtBlacklist;
 use App\Service\Account\AccountDeletionService;
+use Psr\Cache\CacheException;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -23,6 +25,7 @@ final class DeleteAccountProcessor implements ProcessorInterface
         private readonly AccountDeletionService $accountDeletionService,
         private readonly JwtBlacklist $jwtBlacklist,
         private readonly RequestStack $requestStack,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -37,8 +40,16 @@ final class DeleteAccountProcessor implements ProcessorInterface
         $this->accountDeletionService->delete($user);
 
         $request = $this->requestStack->getCurrentRequest();
-        if ($request !== null) {
+        if ($request === null) {
+            return;
+        }
+
+        try {
             $this->jwtBlacklist->blockBearerOf($request);
+        } catch (CacheException $exception) {
+            $this->logger->warning('JWT of the deleted account could not be added to the blocklist: {error}', [
+                'error' => $exception->getMessage(),
+            ]);
         }
     }
 }

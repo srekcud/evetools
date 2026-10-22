@@ -29,8 +29,13 @@ final class AccountDeleteProvider implements ProviderInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
+        $userId = $user->getId();
+        if ($userId === null) {
+            throw new \LogicException('The authenticated user has no id.');
+        }
+
         $resource = new UserResource();
-        $resource->id = (string) $user->getId()?->toRfc4122();
+        $resource->id = $userId->toRfc4122();
 
         return $resource;
     }

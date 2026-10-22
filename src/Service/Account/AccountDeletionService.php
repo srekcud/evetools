@@ -10,7 +10,6 @@ use App\Entity\GroupIndustryProjectMember;
 use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
-use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\IndustryStructureConfigRepository;
@@ -38,7 +37,7 @@ class AccountDeletionService
         $this->entityManager->wrapInTransaction(function () use ($user): void {
             $deletedProjects = $this->handOverOwnedProjects($user);
             $this->anonymizeMemberships($user, $deletedProjects);
-            $this->structureConfigRepository()->removeUserFromHiddenByUsers((string) $user->getId()?->toRfc4122());
+            $this->structureConfigRepository()->removeUserFromHiddenByUsers($this->idOf($user));
             $this->entityManager->remove($user);
         });
 
@@ -97,17 +96,15 @@ class AccountDeletionService
 
         foreach ($this->entityManager->getRepository(GroupIndustryProject::class)->findBy(['owner' => $user]) as $project) {
             $successor = $memberRepository->findOwnershipSuccessor($project, $user);
-            $newOwner = $successor?->getUser();
 
-            if ($successor === null || $newOwner === null) {
+            if ($successor === null) {
                 $this->entityManager->remove($project);
                 $deletedProjects[] = $project;
 
                 continue;
             }
 
-            $successor->setRole(GroupMemberRole::Owner);
-            $project->setOwner($newOwner);
+            $project->transferOwnershipTo($successor);
         }
 
         return $deletedProjects;
@@ -131,12 +128,12 @@ class AccountDeletionService
                 continue;
             }
 
-            $unapprovedContributions = $contributionRepository->findBy([
-                'member' => $membership,
-                'status' => [ContributionStatus::Pending, ContributionStatus::Rejected],
-            ]);
-            foreach ($unapprovedContributions as $contribution) {
-                $this->entityManager->remove($contribution);
+            foreach ($contributionRepository->findBy(['member' => $membership]) as $contribution) {
+                if ($contribution->getStatus() === ContributionStatus::Approved) {
+                    $contribution->setNote(null);
+                } else {
+                    $this->entityManager->remove($contribution);
+                }
             }
 
             $membership->anonymize();
@@ -161,5 +158,15 @@ class AccountDeletionService
         }
 
         return $repository;
+    }
+
+    private function idOf(User $user): string
+    {
+        $userId = $user->getId();
+        if ($userId === null) {
+            throw new \LogicException('Only a persisted user account can be deleted.');
+        }
+
+        return $userId->toRfc4122();
     }
 }

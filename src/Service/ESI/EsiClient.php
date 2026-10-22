@@ -291,6 +291,11 @@ class EsiClient
         }
     }
 
+    public static function cacheTagForCharacter(Uuid $characterId): string
+    {
+        return 'esi_character_' . $characterId->toRfc4122();
+    }
+
     /**
      * Launches every request before reading any response, then replays the 420/429 keys once,
      * together, after a single wait. A key whose request fails maps to null.
@@ -663,11 +668,6 @@ class EsiClient
         } catch (TransportExceptionInterface) {
             return [];
         }
-    }
-
-    public static function cacheTagForCharacter(Uuid $characterId): string
-    {
-        return 'esi_character_' . $characterId->toRfc4122();
     }
 
     /**
