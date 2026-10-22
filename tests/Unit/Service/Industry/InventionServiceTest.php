@@ -546,20 +546,6 @@ class InventionServiceTest extends TestCase
     }
 
     // ===========================================
-    // getDecryptorOptions() returns static data
-    // ===========================================
-
-    public function testGetDecryptorOptionsReturnsAllEightDecryptors(): void
-    {
-        $options = $this->service->getDecryptorOptions();
-
-        $this->assertCount(8, $options);
-        $this->assertArrayHasKey(self::ACCELERANT_DECRYPTOR_ID, $options);
-        $this->assertSame('Accelerant Decryptor', $options[self::ACCELERANT_DECRYPTOR_ID]['name']);
-        $this->assertSame(1.2, $options[self::ACCELERANT_DECRYPTOR_ID]['probabilityMultiplier']);
-    }
-
-    // ===========================================
     // Decryptor modifiers per typeId (issue #70)
     // Reference: SDE dgmTypeAttributes 1112 (probability), 1113 (ME), 1114 (TE), 1124 (max runs)
     // ===========================================
@@ -577,26 +563,6 @@ class InventionServiceTest extends TestCase
         yield 'Symmetry' => [34206, 'Symmetry Decryptor', 1.0, 1, 8, 2];
         yield 'Optimized Attainment' => [34207, 'Optimized Attainment Decryptor', 1.9, 1, -2, 2];
         yield 'Optimized Augmentation' => [34208, 'Optimized Augmentation Decryptor', 0.9, 2, 0, 7];
-    }
-
-    #[DataProvider('decryptorModifiersFromSde')]
-    public function testGetDecryptorOptionsMatchesSdeModifiersForEachTypeId(
-        int $decryptorTypeId,
-        string $decryptorName,
-        float $probabilityMultiplier,
-        int $meModifier,
-        int $teModifier,
-        int $runModifier,
-    ): void {
-        $decryptors = $this->service->getDecryptorOptions();
-
-        $this->assertSame([
-            'name' => $decryptorName,
-            'probabilityMultiplier' => $probabilityMultiplier,
-            'meModifier' => $meModifier,
-            'teModifier' => $teModifier,
-            'runModifier' => $runModifier,
-        ], $decryptors[$decryptorTypeId]);
     }
 
     #[DataProvider('decryptorModifiersFromSde')]
@@ -713,7 +679,7 @@ class InventionServiceTest extends TestCase
             ->willReturn([
                 self::DATACORE_1_TYPE_ID => 50000.0,
                 self::DATACORE_2_TYPE_ID => 80000.0,
-            ] + array_fill_keys(array_keys($this->service->getDecryptorOptions()), 500000.0));
+            ] + array_fill_keys(array_column(iterator_to_array(self::decryptorModifiersFromSde()), 0), 500000.0));
         $this->activityProductRepository->method('findBy')->willReturn([]);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
     }

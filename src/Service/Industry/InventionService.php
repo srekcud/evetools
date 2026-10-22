@@ -209,16 +209,6 @@ class InventionService
     }
 
     /**
-     * Return all standard decryptors with their modifiers.
-     *
-     * @return array<int, array{name: string, probabilityMultiplier: float, meModifier: int, teModifier: int, runModifier: int}>
-     */
-    public function getDecryptorOptions(): array
-    {
-        return self::DECRYPTORS;
-    }
-
-    /**
      * Calculate the full invention cost for producing T2 BPCs.
      *
      * When the SDE carries no success probability, the probability-derived fields
