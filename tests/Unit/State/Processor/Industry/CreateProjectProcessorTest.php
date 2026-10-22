@@ -15,7 +15,6 @@ use App\Exception\TypeMissingFromSdeException;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryProjectFactory;
-use App\Service\Industry\InventionService;
 use App\Service\Industry\ProductionCostService;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
@@ -40,6 +39,8 @@ final class CreateProjectProcessorTest extends TestCase
     private const int RIFTER = 587;
     private const int HAMMERHEAD_I = 2185;
     private const int ACOLYTE_I = 2203;
+    private const int SABRE = 22456;
+    private const int ISHTAR = 12005;
     private const int PROJECT_RUNS = 10;
     private const int OUTPUT_QUANTITY_PER_RUN = 1;
     private const int PREFERRED_MARKET_STRUCTURE_ID = 1035466617946;
@@ -58,7 +59,6 @@ final class CreateProjectProcessorTest extends TestCase
             $security,
             $projectFactory,
             $this->createStub(IndustryResourceMapper::class),
-            $this->createStub(InventionService::class),
             $this->createStub(ProductionCostService::class),
             $this->createStub(JitaMarketService::class),
             $this->createStub(StructureMarketService::class),
@@ -187,6 +187,80 @@ final class CreateProjectProcessorTest extends TestCase
         self::assertEqualsWithDelta(self::ESTIMATED_JOB_COST, $project->getEstimatedJobCost(), 0.001);
     }
 
+    #[Group('issue-21')]
+    public function testT2ProjectIsCreatedWithTheEnteredMeAndTe(): void
+    {
+        $factoryArguments = $this->createProjectArgumentsFor(self::SABRE, runs: 3, meLevel: 4, teLevel: 8);
+
+        self::assertSame(self::SABRE, $factoryArguments['productTypeId']);
+        self::assertSame(3, $factoryArguments['runs']);
+        self::assertSame(4, $factoryArguments['meLevel']);
+        self::assertSame(8, $factoryArguments['teLevel']);
+    }
+
+    #[Group('issue-21')]
+    public function testT2ProjectKeepsThePrefilledInventedBlueprintMeAndTe(): void
+    {
+        $factoryArguments = $this->createProjectArgumentsFor(self::ISHTAR, runs: 5, meLevel: 2, teLevel: 4);
+
+        self::assertSame(self::ISHTAR, $factoryArguments['productTypeId']);
+        self::assertSame(5, $factoryArguments['runs']);
+        self::assertSame(2, $factoryArguments['meLevel']);
+        self::assertSame(4, $factoryArguments['teLevel']);
+    }
+
+    #[Group('issue-21')]
+    public function testT1ProjectIsCreatedWithTheEnteredMeAndTe(): void
+    {
+        $factoryArguments = $this->createProjectArgumentsFor(self::RIFTER, runs: 12, meLevel: 10, teLevel: 20);
+
+        self::assertSame(self::RIFTER, $factoryArguments['productTypeId']);
+        self::assertSame(12, $factoryArguments['runs']);
+        self::assertSame(10, $factoryArguments['meLevel']);
+        self::assertSame(20, $factoryArguments['teLevel']);
+    }
+
+    private function createProjectArgumentsFor(int $productTypeId, int $runs, int $meLevel, int $teLevel): array
+    {
+        $factoryArguments = [];
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn($this->createStub(User::class));
+        $projectFactory = $this->createStub(IndustryProjectFactory::class);
+        $projectFactory->method('createProject')->willReturnCallback(
+            function (User $user, int $productTypeId, int $runs, int $meLevel, float $maxJobDurationDays, int $teLevel) use (&$factoryArguments): IndustryProject {
+                $factoryArguments = ['productTypeId' => $productTypeId, 'runs' => $runs, 'meLevel' => $meLevel, 'teLevel' => $teLevel];
+
+                return $this->projectFor($productTypeId);
+            },
+        );
+        $mapper = $this->createStub(IndustryResourceMapper::class);
+        $mapper->method('projectToResource')->willReturn(new ProjectResource());
+        $productionCostService = $this->createStub(ProductionCostService::class);
+        $productionCostService->method('estimateJobInstallCosts')->willReturn(['total' => self::ESTIMATED_JOB_COST, 'steps' => []]);
+        $productionCostService->method('estimateMaterialCost')->willReturn(['total' => 400_000.0, 'items' => [], 'failedProducts' => []]);
+        $processor = new CreateProjectProcessor(
+            $security,
+            $projectFactory,
+            $mapper,
+            $productionCostService,
+            $this->createStub(JitaMarketService::class),
+            $this->createStub(StructureMarketService::class),
+            $this->createStub(IndustryActivityProductRepository::class),
+            $this->createStub(EntityManagerInterface::class),
+            $this->settingsRepositoryReturning(null),
+            new NullLogger(),
+        );
+        $input = new CreateProjectInput();
+        $input->typeId = $productTypeId;
+        $input->runs = $runs;
+        $input->meLevel = $meLevel;
+        $input->teLevel = $teLevel;
+
+        $processor->process($input, new Post());
+
+        return $factoryArguments;
+    }
+
     private function createProjectWithSellPrices(
         int $productTypeId,
         float $jitaPrice,
@@ -244,7 +318,6 @@ final class CreateProjectProcessorTest extends TestCase
             $security,
             $projectFactory,
             $mapper,
-            $this->createStub(InventionService::class),
             $productionCostService,
             $jitaMarketService,
             $structureMarketService,
