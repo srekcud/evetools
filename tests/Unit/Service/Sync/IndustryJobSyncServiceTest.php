@@ -44,6 +44,8 @@ class IndustryJobSyncServiceTest extends TestCase
     use ResolvesTypeNamesFromSde;
 
     private const int TYPE_ID_MISSING_FROM_SDE = 1000;
+    private const string CHARACTER_JOBS_SCOPE = 'esi-industry.read_character_jobs.v1';
+    private const string CORPORATION_JOBS_SCOPE = 'esi-industry.read_corporation_jobs.v1';
 
     private EsiClient&MockObject $esiClient;
     private CachedIndustryJobRepository&MockObject $jobRepository;
@@ -703,6 +705,71 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->assertSame('delivered', $personalStaleJob->getStatus());
     }
 
+    public function testStalePersonalJobStaysActiveForCharacterWithoutAnyJobsScope(): void
+    {
+        [$character] = $this->createCharactersOfSameUserWithScopes([12345 => []]);
+        $this->esiClient->expects($this->never())->method('get');
+        $this->esiClient->expects($this->never())->method('getPaginated');
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $personalStaleJob = $this->makeCachedJob(100, $character, 'active', '-1 day');
+        $this->stubActiveJobsByCharacter([$personalStaleJob]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame('active', $personalStaleJob->getStatus());
+        $this->assertNull($personalStaleJob->getCompletedDate());
+    }
+
+    public function testStalePersonalJobStaysActiveWhileCorporationJobIsRecordedForCharacterWithCorporationJobsScopeOnly(): void
+    {
+        [$character] = $this->createCharactersOfSameUserWithScopes([12345 => [self::CORPORATION_JOBS_SCOPE]]);
+        $this->esiClient->expects($this->never())->method('get');
+        $corporationJobData = $this->makeJobData(900, 12345, 'ready');
+        $corporationJobData['runs'] = 3;
+        $this->esiClient->expects($this->once())
+            ->method('getPaginated')
+            ->with('/corporations/98000001/industry/jobs/?include_completed=true')
+            ->willReturn([$corporationJobData]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $this->jobRepository->method('findByJobId')->willReturn(null);
+        $personalStaleJob = $this->makeCachedJob(100, $character, 'active', '-1 day');
+        $this->stubActiveJobsByCharacter([$personalStaleJob]);
+        $this->em->method('persist')->willReturnCallback(function (object $entity): void {
+            $this->persistedJobs[] = $entity;
+        });
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame('active', $personalStaleJob->getStatus());
+        $this->assertNull($personalStaleJob->getCompletedDate());
+        $this->assertSame([[900, 3, 'ready']], array_map(
+            static fn (CachedIndustryJob $job): array => [$job->getJobId(), $job->getRuns(), $job->getStatus()],
+            $this->persistedJobs,
+        ));
+    }
+
+    public function testStalePersonalJobStaysActiveForCharacterWithCorporationJobsScopeOnlyWhenCorporationAlreadyReadThisSync(): void
+    {
+        [$characterB, $characterA] = $this->createCharactersOfSameUserWithScopes([
+            67890 => [self::CHARACTER_JOBS_SCOPE, self::CORPORATION_JOBS_SCOPE],
+            12345 => [self::CORPORATION_JOBS_SCOPE],
+        ]);
+        $this->esiClient->expects($this->once())
+            ->method('get')
+            ->with('/characters/67890/industry/jobs/?include_completed=true')
+            ->willReturn([]);
+        $this->esiClient->expects($this->once())->method('getPaginated')->willReturn([]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $personalStaleJobOfA = $this->makeCachedJob(100, $characterA, 'active', '-1 day');
+        $this->stubActiveJobsByCharacter([$personalStaleJobOfA]);
+
+        $this->service->syncCharacterJobs($characterB);
+        $this->service->syncCharacterJobs($characterA);
+
+        $this->assertSame('active', $personalStaleJobOfA->getStatus());
+        $this->assertNull($personalStaleJobOfA->getCompletedDate());
+    }
+
     public function testCorporationJobsReadAgainBySecondCharacterAfterForbiddenRead(): void
     {
         [$characterA, $characterB] = $this->createCharactersOfSameUser(12345, 67890);
@@ -825,7 +892,7 @@ class IndustryJobSyncServiceTest extends TestCase
     }
 
     /**
-     * @return list<Character> characters sharing one user, in the given order
+     * @return list<Character>
      */
     private function createCharactersOfSameUser(int ...$eveCharacterIds): array
     {
@@ -838,6 +905,38 @@ class IndustryJobSyncServiceTest extends TestCase
 
         $characters = [];
         foreach ($eveCharacterIds as $eveCharacterId) {
+            $character = $this->createStub(Character::class);
+            $character->method('getEveCharacterId')->willReturn($eveCharacterId);
+            $character->method('getEveToken')->willReturn($token);
+            $character->method('getName')->willReturn("Char{$eveCharacterId}");
+            $character->method('getUser')->willReturn($user);
+            $character->method('getCorporationId')->willReturn(98000001);
+            $characters[] = $character;
+        }
+
+        $user->method('getCharacters')->willReturn(new ArrayCollection($characters));
+
+        return $characters;
+    }
+
+    /**
+     * @param array<int, list<string>> $scopesByEveCharacterId
+     *
+     * @return list<Character>
+     */
+    private function createCharactersOfSameUserWithScopes(array $scopesByEveCharacterId): array
+    {
+        $user = $this->createStub(User::class);
+        $user->method('getId')->willReturn(Uuid::v4());
+
+        $characters = [];
+        foreach ($scopesByEveCharacterId as $eveCharacterId => $scopes) {
+            $token = $this->createStub(EveToken::class);
+            $token->method('isExpiringSoon')->willReturn(false);
+            $token->method('hasScope')->willReturnCallback(
+                static fn (string $scope): bool => in_array($scope, $scopes, true),
+            );
+
             $character = $this->createStub(Character::class);
             $character->method('getEveCharacterId')->willReturn($eveCharacterId);
             $character->method('getEveToken')->willReturn($token);
