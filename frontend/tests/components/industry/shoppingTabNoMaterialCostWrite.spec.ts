@@ -5,7 +5,7 @@ import en from '@/i18n/locales/en.json'
 import ShoppingTab from '@/components/industry/ShoppingTab.vue'
 import { apiRequest } from '@/services/api'
 import { useProjectsStore } from '@/stores/industry/projects'
-import type { IndustryProject, ShoppingListItem, ShoppingListResponse } from '@/stores/industry/types'
+import type { IndustryProject, ShoppingListFailedProduct, ShoppingListItem, ShoppingListResponse } from '@/stores/industry/types'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -104,9 +104,30 @@ interface ShoppingTabExposed {
   reanalyzeStock: () => Promise<void>
 }
 
-function mountShoppingTab(materialCost: number | null) {
+const PYERITE_FOR_100_RUNS: ShoppingListItem = { ...PYERITE, quantity: 100 }
+
+const TRITANIUM_WITHOUT_PRICE: ShoppingListItem = {
+  ...PYERITE,
+  typeId: 34,
+  typeName: 'Tritanium',
+  quantity: 250,
+  jitaUnitPrice: null,
+  jitaTotal: null,
+  jitaWithImport: null,
+  structureTotal: null,
+  bestLocation: null,
+  bestPrice: null,
+}
+
+const FAILED_PRODUCT: ShoppingListFailedProduct = { typeId: 12005, reason: 'blueprint not found' }
+
+function shoppingListOf(materials: ShoppingListItem[], failedProducts: ShoppingListFailedProduct[] = []): ShoppingListResponse {
+  return { ...SHOPPING_LIST, materials, failedProducts }
+}
+
+function mountShoppingTab(materialCost: number | null, shoppingList: ShoppingListResponse = SHOPPING_LIST) {
   vi.mocked(apiRequest).mockImplementation(async (url: string, options?: RequestInit) => {
-    if (url.includes('/shopping-list')) return SHOPPING_LIST
+    if (url.includes('/shopping-list')) return shoppingList
     if (options?.method === 'PATCH') return { ...activeProject(null), ...JSON.parse(String(options.body)) }
     throw new Error(`Unexpected request ${url}`)
   })
@@ -120,6 +141,18 @@ function mountShoppingTab(materialCost: number | null) {
     props: { projectId: PROJECT_ID },
   })
   return { wrapper, exposed: wrapper.vm as unknown as ShoppingTabExposed }
+}
+
+function applyButton(wrapper: ReturnType<typeof mountShoppingTab>['wrapper']) {
+  const buttons = wrapper.findAll('button').filter(button => button.text() === en.industry.shoppingTab.applyAsMaterialCost)
+  expect(buttons).toHaveLength(1)
+  return buttons[0]
+}
+
+function materialCostUnknownReason(): string {
+  const reason = (en.industry.shoppingTab as Record<string, string>).materialCostUnknown
+  expect(reason).toBeTruthy()
+  return reason
 }
 
 function projectWrites() {
@@ -183,5 +216,65 @@ describe('ShoppingTab material cost', () => {
     expect(writes).toHaveLength(1)
     expect(writes[0][1]?.method).toBe('PATCH')
     expect(JSON.parse(String(writes[0][1]?.body))).toEqual({ materialCost: ROUNDED_MATERIAL_COST })
+  })
+
+  it('writes the full rounded total as material cost when 99 of 100 Pyerite are pasted in stock', async () => {
+    localStorage.setItem(STOCK_STORAGE_KEY, JSON.stringify({ raw: 'Pyerite\t99', parsed: [{ name: 'Pyerite', quantity: 99 }] }))
+    const { wrapper, exposed } = mountShoppingTab(null, shoppingListOf([PYERITE_FOR_100_RUNS]))
+    exposed.loadPersistedStock()
+    await exposed.loadShoppingList()
+    await flushPromises()
+    vi.mocked(apiRequest).mockClear()
+
+    await applyButton(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(projectWrites()).toHaveLength(1)
+    expect(JSON.parse(String(projectWrites()[0][1]?.body))).toEqual({ materialCost: ROUNDED_MATERIAL_COST })
+  })
+
+  it('writes the full rounded total as material cost when 100 of 100 Pyerite are pasted in stock', async () => {
+    localStorage.setItem(STOCK_STORAGE_KEY, JSON.stringify({ raw: 'Pyerite\t100', parsed: [{ name: 'Pyerite', quantity: 100 }] }))
+    const { wrapper, exposed } = mountShoppingTab(null, shoppingListOf([PYERITE_FOR_100_RUNS]))
+    exposed.loadPersistedStock()
+    await exposed.loadShoppingList()
+    await flushPromises()
+    vi.mocked(apiRequest).mockClear()
+
+    await applyButton(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(projectWrites()).toHaveLength(1)
+    expect(JSON.parse(String(projectWrites()[0][1]?.body))).toEqual({ materialCost: ROUNDED_MATERIAL_COST })
+  })
+
+  it('disables the apply button with the unknown cost reason when a material has no best price', async () => {
+    const { wrapper, exposed } = mountShoppingTab(null, shoppingListOf([PYERITE_FOR_100_RUNS, TRITANIUM_WITHOUT_PRICE]))
+    await exposed.loadShoppingList()
+    await flushPromises()
+    vi.mocked(apiRequest).mockClear()
+
+    const button = applyButton(wrapper)
+    await button.trigger('click')
+    await flushPromises()
+
+    expect(button.attributes('disabled')).toBeDefined()
+    expect(button.attributes('title')).toBe(materialCostUnknownReason())
+    expect(projectWrites()).toEqual([])
+  })
+
+  it('disables the apply button with the unknown cost reason when a product failed to resolve', async () => {
+    const { wrapper, exposed } = mountShoppingTab(null, shoppingListOf([PYERITE_FOR_100_RUNS], [FAILED_PRODUCT]))
+    await exposed.loadShoppingList()
+    await flushPromises()
+    vi.mocked(apiRequest).mockClear()
+
+    const button = applyButton(wrapper)
+    await button.trigger('click')
+    await flushPromises()
+
+    expect(button.attributes('disabled')).toBeDefined()
+    expect(button.attributes('title')).toBe(materialCostUnknownReason())
+    expect(projectWrites()).toEqual([])
   })
 })
