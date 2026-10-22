@@ -755,6 +755,24 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->assertSame('delivered', $personalStaleJob->getStatus());
     }
 
+    public function testReadyPersonalJobPastItsEndDateReadFromEsiStaysReadyWithoutCompletionDate(): void
+    {
+        $character = $this->createCharacterWithoutCorporationJobsScope(12345);
+        $this->esiClient->method('get')->willReturn([
+            array_merge($this->makeJobData(500, 12345, 'ready'), ['end_date' => '2026-10-18T14:20:00Z']),
+        ]);
+        $this->esiClient->expects($this->never())->method('getPaginated');
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $readyPersonalJob = $this->makeCachedJob(500, $character, 'ready', '2026-10-18T14:20:00Z');
+        $this->stubCachedJobs([$readyPersonalJob]);
+        $this->stubActiveJobsByCharacter([$readyPersonalJob]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame('ready', $readyPersonalJob->getStatus());
+        $this->assertNull($readyPersonalJob->getCompletedDate());
+    }
+
     public function testStalePersonalJobStaysActiveForCharacterWithoutAnyJobsScope(): void
     {
         [$character] = $this->createCharactersOfSameUserWithScopes([12345 => []]);
