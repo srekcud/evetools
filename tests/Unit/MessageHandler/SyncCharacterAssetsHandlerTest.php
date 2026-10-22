@@ -14,6 +14,7 @@ use App\Repository\CachedAssetRepository;
 use App\Repository\CachedStructureRepository;
 use App\Repository\CharacterRepository;
 use App\Repository\CorpAssetVisibilityRepository;
+use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\ESI\AssetsService;
 use App\Service\ESI\CorporationService;
@@ -21,6 +22,7 @@ use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Sync\AssetsSyncService;
+use App\Service\TypeNameResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -118,6 +120,7 @@ final class SyncCharacterAssetsHandlerTest extends TestCase
             $this->createStub(CachedStructureRepository::class),
             $entityManager,
             new NullLogger(),
+            new TypeNameResolver($this->createStub(InvTypeRepository::class)),
         );
         $characterRepository = $this->createStub(CharacterRepository::class);
         $characterRepository->method('find')->willReturn($character);
