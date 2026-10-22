@@ -277,6 +277,7 @@ class InventionServiceTest extends TestCase
             ->method('findBy')
             ->willReturn([$t2ManufacturingOutput]);
 
+        $this->stubInventionInstallEstimate($this->knownInstallEstimate(0.0));
         $this->esiCostIndexService->method('getAdjustedPrice')->willReturn(1000000.0);
         $this->esiCostIndexService
             ->method('getCostIndex')
@@ -327,6 +328,7 @@ class InventionServiceTest extends TestCase
             ->method('findBy')
             ->willReturn([$t2ManufacturingOutput]);
 
+        $this->stubInventionInstallEstimate($this->knownInstallEstimate(0.0));
         $this->esiCostIndexService->method('getAdjustedPrice')->willReturn(1000000.0);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(0.01);
 
@@ -369,6 +371,7 @@ class InventionServiceTest extends TestCase
         ]);
         $this->jitaMarketService->method('getPrice')->willReturn(null);
 
+        $this->stubInventionInstallEstimate($this->knownInstallEstimate(0.0));
         $this->activityProductRepository->method('findBy')->willReturn([]);
         $this->esiCostIndexService->method('getAdjustedPrice')->willReturn(0.0);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(0.01);
@@ -457,6 +460,7 @@ class InventionServiceTest extends TestCase
         ]);
         $this->jitaMarketService->method('getPrice')->willReturn(100000.0);
 
+        $this->stubInventionInstallEstimate($this->knownInstallEstimate(0.0));
         $this->activityProductRepository->method('findBy')->willReturn([]);
         $this->esiCostIndexService->method('getAdjustedPrice')->willReturn(0.0);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(0.01);
@@ -496,6 +500,7 @@ class InventionServiceTest extends TestCase
             self::DATACORE_2_TYPE_ID => 0.0,
         ]);
         $this->jitaMarketService->method('getPrice')->willReturn(0.0);
+        $this->stubInventionInstallEstimate($this->knownInstallEstimate(0.0));
         $this->activityProductRepository->method('findBy')->willReturn([]);
         $this->esiCostIndexService->method('getAdjustedPrice')->willReturn(0.0);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(0.0);
@@ -614,6 +619,7 @@ class InventionServiceTest extends TestCase
                 array_map(static fn (int $typeId): float => $decryptorPrices[$typeId] ?? 0.0, $typeIds),
             ),
         );
+        $this->stubInventionInstallEstimate($this->knownInstallEstimate(0.0));
         $this->activityProductRepository->method('findBy')->willReturn([]);
         $this->esiCostIndexService->method('getAdjustedPrice')->willReturn(0.0);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(0.0);
@@ -656,6 +662,7 @@ class InventionServiceTest extends TestCase
                 self::DATACORE_1_TYPE_ID => 50000.0,
                 self::DATACORE_2_TYPE_ID => 80000.0,
             ] + array_fill_keys(array_column(iterator_to_array(self::decryptorModifiersFromSde()), 0), 500000.0));
+        $this->stubInventionInstallEstimate($this->knownInstallEstimate(0.0));
         $this->activityProductRepository->method('findBy')->willReturn([]);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
     }
@@ -838,6 +845,7 @@ class InventionServiceTest extends TestCase
             self::DATACORE_1_TYPE_ID => 50000.0,
             self::ROBOTICS_TYPE_ID => 70000.0,
         ]);
+        $this->stubInventionInstallEstimate($this->knownInstallEstimate(0.0));
         $this->activityProductRepository->method('findBy')->willReturn([]);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
 
@@ -940,7 +948,21 @@ class InventionServiceTest extends TestCase
     private const array DATACORE_PRICES = [self::DATACORE_1_TYPE_ID => 100.0, self::DATACORE_2_TYPE_ID => 200.0];
     private const float ACCELERANT_PRICE = 50000.0;
 
+    private const array SABRE_MANUFACTURING_MATERIALS = [
+        ['materialTypeId' => 11399, 'quantity' => 3],
+        ['materialTypeId' => 11478, 'quantity' => 7],
+    ];
+    private const int MORPHITE_TYPE_ID = 11399;
+    private const int HYPERSYNAPTIC_FIBERS_TYPE_ID = 11478;
+    private const string MISSING_COST_INDEX = 'missing_cost_index';
+    private const string MISSING_ADJUSTED_PRICE = 'missing_adjusted_price';
+    private const array ALL_DECRYPTOR_PRICES = [
+        34201 => 50000.0, 34202 => 61000.0, 34203 => 72000.0, 34204 => 83000.0,
+        34205 => 94000.0, 34206 => 105000.0, 34207 => 116000.0, 34208 => 127000.0,
+    ];
+
     private array $requestedPriceTypeIdsPerCall = [];
+    private array $installEstimateCalls = [];
 
     #[Group('issue-8')]
     public function testInventionCostWithEveryPriceKnownHasNoMissingPriceTypeIds(): void
@@ -1166,9 +1188,137 @@ class InventionServiceTest extends TestCase
         $this->assertSame([[self::DATACORE_1_TYPE_ID, self::DATACORE_2_TYPE_ID]], $this->requestedPriceTypeIdsPerCall);
     }
 
-    private function setupSabreInventionAt(?float $baseProbability, array $datacoreLines): void
+    #[Group('issue-7')]
+    public function testInventionInstallIsTheEstimateOfTheIndustryCoreAddedToTheCostPerAttempt(): void
+    {
+        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE, $this->knownInstallEstimate(500.0));
+        $this->stubMarketPricesWithFallback(self::DATACORE_PRICES);
+
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510);
+
+        $this->assertInventionCostOutcome([
+            'expectedAttempts' => 3,
+            'costPerAttempt' => 2300.0,
+            'totalCost' => 6900.0,
+            'costBreakdown' => ['datacores' => 800.0, 'decryptor' => 0.0, 'copyCost' => 1000.0, 'inventionInstall' => 500.0],
+            'missingAdjustedPriceTypeIds' => [],
+            'unknownReason' => null,
+        ], $result);
+        $this->assertCount(1, $this->installEstimateCalls);
+    }
+
+    #[Group('issue-7')]
+    public function testInventionInstallIsEstimatedOnTheManufacturingMaterialsOfTheT2BlueprintForOneRunInTheRequestedSystemWithTheReceivedTax(): void
+    {
+        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE);
+        $this->stubMarketPricesWithFallback(self::DATACORE_PRICES);
+
+        $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510, null, 1, 10.0);
+
+        $this->assertSame(
+            [[self::SABRE_MANUFACTURING_MATERIALS, 1, 30002510, 'invention', 10.0]],
+            $this->installEstimateCalls,
+        );
+    }
+
+    #[Group('issue-7')]
+    public function testInventionCostIsUnknownWhenTheInventionInstallHasNoCostIndex(): void
+    {
+        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE, $this->unknownInstallEstimate(self::MISSING_COST_INDEX));
+        $this->stubMarketPricesWithFallback(self::DATACORE_PRICES);
+
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510);
+
+        $this->assertInventionCostOutcome([
+            'costPerAttempt' => null,
+            'totalCost' => null,
+            'costBreakdown' => ['datacores' => 800.0, 'decryptor' => 0.0, 'copyCost' => 1000.0, 'inventionInstall' => null],
+            'missingPriceTypeIds' => [],
+            'missingAdjustedPriceTypeIds' => [],
+            'unknownReason' => self::MISSING_COST_INDEX,
+        ], $result);
+    }
+
+    #[Group('issue-7')]
+    public function testInventionCostIsUnknownWhenAManufacturingMaterialHasNoAdjustedPrice(): void
+    {
+        $this->setupSabreInventionAt(
+            self::INVENTION_PROBABILITY,
+            self::DATACORE_LINES_OF_THE_SABRE,
+            $this->unknownInstallEstimate(self::MISSING_ADJUSTED_PRICE, [self::MORPHITE_TYPE_ID, self::HYPERSYNAPTIC_FIBERS_TYPE_ID]),
+        );
+        $this->stubMarketPricesWithFallback(self::DATACORE_PRICES);
+
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510);
+
+        $this->assertInventionCostOutcome([
+            'costPerAttempt' => null,
+            'totalCost' => null,
+            'costBreakdown' => ['datacores' => 800.0, 'decryptor' => 0.0, 'copyCost' => 1000.0, 'inventionInstall' => null],
+            'missingPriceTypeIds' => [],
+            'missingAdjustedPriceTypeIds' => [self::MORPHITE_TYPE_ID, self::HYPERSYNAPTIC_FIBERS_TYPE_ID],
+            'unknownReason' => self::MISSING_ADJUSTED_PRICE,
+        ], $result);
+    }
+
+    #[Group('issue-7')]
+    public function testMissingInventionProbabilityTakesPrecedenceOverAnUnknownInventionInstall(): void
+    {
+        $this->setupSabreInventionAt(null, self::DATACORE_LINES_OF_THE_SABRE, $this->unknownInstallEstimate(self::MISSING_COST_INDEX));
+        $this->stubMarketPricesWithFallback(self::DATACORE_PRICES);
+
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510);
+
+        $this->assertInventionCostOutcome([
+            'costPerAttempt' => null,
+            'totalCost' => null,
+            'unknownReason' => self::MISSING_INVENTION_PROBABILITY,
+        ], $result);
+    }
+
+    #[Group('issue-7')]
+    public function testMissingMarketPriceTakesPrecedenceOverAnUnknownInventionInstall(): void
+    {
+        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE, $this->unknownInstallEstimate(self::MISSING_COST_INDEX));
+        $this->stubMarketPricesWithFallback([self::DATACORE_2_TYPE_ID => 200.0]);
+
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510);
+
+        $this->assertInventionCostOutcome([
+            'costPerAttempt' => null,
+            'totalCost' => null,
+            'missingPriceTypeIds' => [self::DATACORE_1_TYPE_ID],
+            'unknownReason' => self::MISSING_MARKET_PRICE,
+        ], $result);
+    }
+
+    #[Group('issue-7')]
+    public function testBpcKitTotalInventionCostIsUnknownWhenTheInventionInstallIsUnknownForEveryOption(): void
+    {
+        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE, $this->unknownInstallEstimate(self::MISSING_COST_INDEX));
+        $this->stubMarketPricesWithFallback(self::DATACORE_PRICES + self::ALL_DECRYPTOR_PRICES);
+        $project = new IndustryProject();
+        $project->setProductTypeId(self::SABRE_TYPE_ID);
+
+        $breakdown = $this->service->getBpcKitBreakdown($project);
+
+        $options = $breakdown['inventions'][0]['decryptorOptions'];
+        $this->assertCount(9, $options);
+        foreach ($options as $option) {
+            $this->assertNull($option['totalCost'], $option['decryptorName']);
+            $this->assertNull($option['costBreakdown']['inventionInstall'], $option['decryptorName']);
+            $this->assertSame(self::MISSING_COST_INDEX, $option['unknownReason'], $option['decryptorName']);
+        }
+        $this->assertSame(
+            ['totalInventionCost' => null, 'bestDecryptorTypeId' => null, 'totalBpcKitCost' => null],
+            $breakdown['summary'],
+        );
+    }
+
+    private function setupSabreInventionAt(?float $baseProbability, array $datacoreLines, ?array $installEstimate = null): void
     {
         $this->setupInventionChainWithDatacoreLines(self::SABRE_TYPE_ID, $baseProbability, 10, $datacoreLines);
+        $this->stubInventionInstallEstimate($installEstimate ?? $this->knownInstallEstimate(500.0));
 
         $manufacturingOutputsByBlueprint = [
             self::THRASHER_BLUEPRINT_ID => [$this->createProduct(self::THRASHER_BLUEPRINT_ID, IndustryActivityType::Manufacturing->value, self::THRASHER_TYPE_ID, 1)],
@@ -1182,6 +1332,31 @@ class InventionServiceTest extends TestCase
         );
         $this->esiCostIndexService->method('getCostIndex')->willReturnCallback(
             static fn (int $solarSystemId, string $activity): ?float => ['copying' => 0.05, 'invention' => 0.02][$activity] ?? null,
+        );
+    }
+
+    private function knownInstallEstimate(float $cost): array
+    {
+        return ['cost' => $cost, 'unknownReason' => null, 'missingAdjustedPriceTypeIds' => []];
+    }
+
+    private function unknownInstallEstimate(string $unknownReason, array $missingAdjustedPriceTypeIds = []): array
+    {
+        return ['cost' => null, 'unknownReason' => $unknownReason, 'missingAdjustedPriceTypeIds' => $missingAdjustedPriceTypeIds];
+    }
+
+    private function stubInventionInstallEstimate(array $estimate): void
+    {
+        $this->activityMaterialRepository
+            ->method('findMaterialsForBlueprints')
+            ->with([self::SABRE_BLUEPRINT_ID], [IndustryActivityType::Manufacturing->value])
+            ->willReturn([self::SABRE_BLUEPRINT_ID => self::SABRE_MANUFACTURING_MATERIALS]);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturnCallback(
+            function (array $materials, int $runs, int $solarSystemId, string $activity, ?float $facilityTaxRate) use ($estimate): array {
+                $this->installEstimateCalls[] = [$materials, $runs, $solarSystemId, $activity, $facilityTaxRate];
+
+                return $estimate;
+            },
         );
     }
 

@@ -15,6 +15,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 const PROJECT_ID = 'project-8'
 const ACCELERANT_DECRYPTOR_TYPE_ID = 34201
 const PARITY_DECRYPTOR_TYPE_ID = 34204
+const PROCESS_DECRYPTOR_TYPE_ID = 34205
 
 const NO_DECRYPTOR_OPTION: BpcKitDecryptorOption = {
   decryptorTypeId: null,
@@ -28,6 +29,7 @@ const NO_DECRYPTOR_OPTION: BpcKitDecryptorOption = {
   totalCost: 6_900,
   costBreakdown: { datacores: 800, decryptor: 0, copyCost: 1_000, inventionInstall: 500 },
   missingPriceTypeIds: [],
+  missingAdjustedPriceTypeIds: [],
   unknownReason: null,
 }
 
@@ -43,6 +45,7 @@ const ACCELERANT_OPTION: BpcKitDecryptorOption = {
   totalCost: 156_900,
   costBreakdown: { datacores: 800, decryptor: 50_000, copyCost: 1_000, inventionInstall: 500 },
   missingPriceTypeIds: [],
+  missingAdjustedPriceTypeIds: [],
   unknownReason: null,
 }
 
@@ -58,7 +61,24 @@ const PARITY_OPTION_WITHOUT_PRICE: BpcKitDecryptorOption = {
   totalCost: null,
   costBreakdown: { datacores: 800, decryptor: null, copyCost: 1_000, inventionInstall: 500 },
   missingPriceTypeIds: [PARITY_DECRYPTOR_TYPE_ID],
+  missingAdjustedPriceTypeIds: [],
   unknownReason: 'missing_market_price',
+}
+
+const PROCESS_OPTION_WITHOUT_INSTALL_COST: BpcKitDecryptorOption = {
+  decryptorTypeId: PROCESS_DECRYPTOR_TYPE_ID,
+  decryptorName: 'Process Decryptor',
+  me: 5,
+  te: 10,
+  runs: 10,
+  probability: 0.374,
+  costPerAttempt: null,
+  expectedAttempts: 3,
+  totalCost: null,
+  costBreakdown: { datacores: 800, decryptor: 70_000, copyCost: 1_000, inventionInstall: null },
+  missingPriceTypeIds: [],
+  missingAdjustedPriceTypeIds: [11399, 11478],
+  unknownReason: 'missing_adjusted_price',
 }
 
 const SABRE_BPC_KIT: BpcKit = {
@@ -75,7 +95,7 @@ const SABRE_BPC_KIT: BpcKit = {
         { typeId: 20424, typeName: 'Datacore - Mechanical Engineering', quantity: 2, unitPrice: 100, totalPrice: 200 },
         { typeId: 20172, typeName: 'Datacore - Minmatar Starship Engineering', quantity: 3, unitPrice: 200, totalPrice: 600 },
       ],
-      decryptorOptions: [NO_DECRYPTOR_OPTION, ACCELERANT_OPTION, PARITY_OPTION_WITHOUT_PRICE],
+      decryptorOptions: [NO_DECRYPTOR_OPTION, ACCELERANT_OPTION, PARITY_OPTION_WITHOUT_PRICE, PROCESS_OPTION_WITHOUT_INSTALL_COST],
     },
   ],
   summary: { totalInventionCost: 6_900, bestDecryptorTypeId: null, totalBpcKitCost: 6_900 },
@@ -107,6 +127,12 @@ function breakdownDecryptorCost(row: DOMWrapper<Element>): string {
   return label!.element.nextElementSibling?.textContent?.trim() ?? ''
 }
 
+function breakdownInstallCost(row: DOMWrapper<Element>): string {
+  const label = row.findAll('span').find(span => span.text() === bpcKitLabels.installCost)
+  expect(label, 'install cost breakdown label').toBeDefined()
+  return label!.element.nextElementSibling?.textContent?.trim() ?? ''
+}
+
 function totalCostCell(row: DOMWrapper<Element>): string {
   const cells = row.findAll('td')
   return cells[cells.length - 1]!.text()
@@ -133,5 +159,22 @@ describe('BpcKitTab with a decryptor without market price', () => {
     expect(totalCostCell(optionRow(wrapper, 'Accelerant Decryptor'))).toBe('156.90 K')
     expect(breakdownDecryptorCost(optionRow(wrapper, bpcKitLabels.none))).toBe('--')
     expect(totalCostCell(optionRow(wrapper, bpcKitLabels.none))).toBe('6.90 K')
+  })
+})
+
+describe('BpcKitTab with an invention install cost that cannot be estimated', () => {
+  it('shows the install cost, cost per attempt and total cost of the option as unknown, never as zero', async () => {
+    const processRow = optionRow(await mountBpcKitTab(), 'Process Decryptor')
+
+    expect(breakdownInstallCost(processRow)).toBe(unknownLabel)
+    expect(processRow.findAll('td')[6]!.text().startsWith(unknownLabel)).toBe(true)
+    expect(totalCostCell(processRow)).toBe(unknownLabel)
+    expect(processRow.text()).not.toMatch(/---|null|NaN/)
+  })
+
+  it('keeps showing the install cost of an option whose install cost is known', async () => {
+    const wrapper = await mountBpcKitTab()
+
+    expect(breakdownInstallCost(optionRow(wrapper, 'Accelerant Decryptor'))).toBe('500')
   })
 })

@@ -58,6 +58,9 @@ class EsiCostIndexServiceTest extends TestCase
         17888 => 450,
     ];
     private const ADJUSTED_PRICE_DIVISOR = 1_000.0;
+    private const MORPHITE = 11399;
+    private const MORPHITE_ADJUSTED_PRICE = 10_000_000.0;
+    private const JITA_INVENTION_COST_INDEX = 0.08;
     private const JITA_MANUFACTURING_COST_INDEX = 0.05;
     private const JITA_REACTION_COST_INDEX = 0.04;
     private const PERIMETER_MANUFACTURING_COST_INDEX = 0.0734;
@@ -698,6 +701,50 @@ class EsiCostIndexServiceTest extends TestCase
         $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
     }
 
+    public function testEstimateJobInstallCostOfNitrogenFuelBlockInventionAddsSystemFacilityTaxAndSccSurchargeOnTheBase(): void
+    {
+        $service = $this->createServiceWithSyncedNitrogenFuelBlockInputs();
+
+        $estimate = $service->estimateJobInstallCost($this->nitrogenFuelBlockMaterials(), 1, self::JITA, 'invention', self::FACILITY_TAX_PERCENT);
+
+        $this->assertEqualsWithDelta(74.9372096, $estimate['cost'], 1e-6);
+        $this->assertNull($estimate['unknownReason']);
+        $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
+    }
+
+    public function testEstimateJobInstallCostOfNitrogenFuelBlockInventionReadsNullFacilityTaxAsZeroWithSccSurcharge(): void
+    {
+        $service = $this->createServiceWithSyncedNitrogenFuelBlockInputs();
+
+        $estimate = $service->estimateJobInstallCost($this->nitrogenFuelBlockMaterials(), 1, self::JITA, 'invention', null);
+
+        $this->assertEqualsWithDelta(40.8748416, $estimate['cost'], 1e-6);
+        $this->assertNull($estimate['unknownReason']);
+        $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
+    }
+
+    public function testEstimateJobInstallCostOfInventionWithOneMaterialOfTenMillionAdjustedPriceMatchesTheReferenceVector(): void
+    {
+        $service = $this->createServiceWithSyncedNitrogenFuelBlockInputs();
+
+        $estimate = $service->estimateJobInstallCost([['materialTypeId' => self::MORPHITE, 'quantity' => 1]], 1, self::JITA, 'invention', 5.0);
+
+        $this->assertEqualsWithDelta(34_000.0, $estimate['cost'], 1e-6);
+        $this->assertNull($estimate['unknownReason']);
+        $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
+    }
+
+    public function testEstimateJobInstallCostOfInventionIsUnknownWhenTheSystemHasNoInventionCostIndex(): void
+    {
+        $service = $this->createServiceWithSyncedNitrogenFuelBlockInputs();
+
+        $estimate = $service->estimateJobInstallCost($this->nitrogenFuelBlockMaterials(), 1, self::PERIMETER, 'invention', self::FACILITY_TAX_PERCENT);
+
+        $this->assertNull($estimate['cost']);
+        $this->assertSame('missing_cost_index', $estimate['unknownReason']);
+        $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
+    }
+
     #[Group('issue-7')]
     public function testCalculateJobInstallCostCurrentlyReturnsZeroWithoutCostIndexIssue7(): void
     {
@@ -786,6 +833,7 @@ class EsiCostIndexServiceTest extends TestCase
                 $adjustedPrices[] = ['type_id' => $typeId, 'adjusted_price' => $typeId / self::ADJUSTED_PRICE_DIVISOR];
             }
         }
+        $adjustedPrices[] = ['type_id' => self::MORPHITE, 'adjusted_price' => self::MORPHITE_ADJUSTED_PRICE];
 
         $service = $this->createService([
             self::ADJUSTED_PRICES_PATH => [$this->jsonResponse($adjustedPrices)],
@@ -793,6 +841,7 @@ class EsiCostIndexServiceTest extends TestCase
                 ['solar_system_id' => self::JITA, 'cost_indices' => [
                     ['activity' => 'manufacturing', 'cost_index' => self::JITA_MANUFACTURING_COST_INDEX],
                     ['activity' => 'reaction', 'cost_index' => self::JITA_REACTION_COST_INDEX],
+                    ['activity' => 'invention', 'cost_index' => self::JITA_INVENTION_COST_INDEX],
                 ]],
                 ['solar_system_id' => self::PERIMETER, 'cost_indices' => [
                     ['activity' => 'manufacturing', 'cost_index' => self::PERIMETER_MANUFACTURING_COST_INDEX],
