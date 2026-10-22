@@ -15,7 +15,7 @@ export interface Asset {
   id: string
   itemId: number
   typeId: number
-  typeName: string
+  typeName: string | null
   categoryId: number | null
   quantity: number
   locationId: number

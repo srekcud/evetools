@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useEveImages } from '@/composables/useEveImages'
+import { useTypeNames } from '@/composables/useTypeNames'
 import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import type { Asset } from '@/types'
 
@@ -22,6 +23,7 @@ const emit = defineEmits<{
 }>()
 
 const { getTypeIconUrl, onImageError } = useEveImages()
+const { typeNameLabel } = useTypeNames()
 
 function isContainer(asset: Asset): boolean {
   return props.containerContents.has(asset.itemId)
@@ -36,10 +38,11 @@ function formatNumber(n: number): string {
 }
 
 function getDisplayName(asset: Asset): string {
+  const typeName = typeNameLabel(asset.typeName, asset.typeId)
   if (asset.itemName) {
-    return `${asset.itemName} (${asset.typeName})`
+    return `${asset.itemName} (${typeName})`
   }
-  return asset.typeName
+  return typeName
 }
 </script>
 
@@ -86,7 +89,7 @@ function getDisplayName(asset: Asset): string {
           <div class="flex items-center gap-3">
             <img
               :src="getTypeIconUrl(asset.typeId, 32, asset.categoryId ?? undefined)"
-              :alt="asset.typeName"
+              :alt="typeNameLabel(asset.typeName, asset.typeId)"
               class="w-8 h-8 rounded-sm"
               @error="onImageError"
             />
@@ -127,7 +130,7 @@ function getDisplayName(asset: Asset): string {
             <div class="flex items-center gap-3">
               <img
                 :src="getTypeIconUrl(item.typeId, 32, item.categoryId ?? undefined)"
-                :alt="item.typeName"
+                :alt="typeNameLabel(item.typeName, item.typeId)"
                 class="w-6 h-6 rounded-sm"
                 @error="onImageError"
               />

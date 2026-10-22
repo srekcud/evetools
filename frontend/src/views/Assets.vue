@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
 import { safeJsonParse } from '@/services/api'
+import { useTypeNames } from '@/composables/useTypeNames'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import AssetsFilterBar from '@/components/assets/AssetsFilterBar.vue'
@@ -18,6 +19,7 @@ import type { Asset, CorpAssetVisibility } from '@/types'
 const { t } = useI18n()
 const route = useRoute()
 const authStore = useAuthStore()
+const { typeNameLabel } = useTypeNames()
 const syncStore = useSyncStore()
 
 // Tab state
@@ -162,7 +164,7 @@ const filteredAssets = computed(() => {
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase()
     result = result.filter(a =>
-      a.typeName.toLowerCase().includes(query) ||
+      typeNameLabel(a.typeName, a.typeId).toLowerCase().includes(query) ||
       a.locationName.toLowerCase().includes(query) ||
       (a.solarSystemName && a.solarSystemName.toLowerCase().includes(query))
     )

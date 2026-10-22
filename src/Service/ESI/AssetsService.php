@@ -10,6 +10,8 @@ use App\Entity\Character;
 use App\Entity\EveToken;
 use App\Repository\CachedStructureRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
+use App\Service\TypeNameResolver;
+use App\Service\UnknownTypeName;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -24,6 +26,7 @@ class AssetsService
         private readonly CachedStructureRepository $cachedStructureRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
+        private readonly TypeNameResolver $typeNameResolver,
     ) {
     }
 
@@ -109,7 +112,7 @@ class AssetsService
             $assets[] = new AssetDto(
                 itemId: $itemId,
                 typeId: $typeId,
-                typeName: $typeNames[$typeId] ?? "Type #{$typeId}",
+                typeName: $typeNames[$typeId] ?? null,
                 quantity: $raw['quantity'],
                 locationId: $locationId,
                 locationName: $info['name'] ?? "Location #{$locationId}",
@@ -164,7 +167,7 @@ class AssetsService
         }
 
         $containerTypeId = $container['type_id'];
-        $containerName = $itemNames[$containerId] ?? $typeNames[$containerTypeId] ?? "Type #{$containerTypeId}";
+        $containerName = $itemNames[$containerId] ?? $typeNames[$containerTypeId] ?? UnknownTypeName::label($containerTypeId);
 
         return [...$root, 'name' => "{$containerName} — {$root['name']}"];
     }
@@ -221,6 +224,11 @@ class AssetsService
             foreach ($data as $item) {
                 $names[$item['id']] = $item['name'];
             }
+        }
+
+        $missingTypeIds = array_values(array_diff($typeIds, array_keys($names)));
+        if ($missingTypeIds !== []) {
+            $names += $this->typeNameResolver->findNames($missingTypeIds);
         }
 
         return $names;
