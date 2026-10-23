@@ -898,10 +898,7 @@ class SlotTrackerServiceTest extends TestCase
 
     private function runningJob(int $jobId, int $productTypeId, int $activityId, string $cachedAt): CachedIndustryJob&MockObject
     {
-        $job = $this->createJobMock($jobId, $productTypeId, $activityId, $jobId - 700, '2026-10-22 08:00:00', '2099-01-01 00:00:00');
-        $job->method('getCachedAt')->willReturn(new \DateTimeImmutable($cachedAt));
-
-        return $job;
+        return $this->createJobMock($jobId, $productTypeId, $activityId, $jobId - 700, '2026-10-22 08:00:00', '2099-01-01 00:00:00', cachedAt: $cachedAt);
     }
 
     private function roboticsComponentTarget(int $targetQuantity): IndustryStockpileTarget
@@ -978,6 +975,7 @@ class SlotTrackerServiceTest extends TestCase
         string $endDate,
         ?int $stationId = null,
         string $status = 'active',
+        string $cachedAt = 'now',
     ): CachedIndustryJob&MockObject {
         $job = $this->createMock(CachedIndustryJob::class);
         $job->method('getJobId')->willReturn($jobId);
@@ -989,6 +987,7 @@ class SlotTrackerServiceTest extends TestCase
         $job->method('getEndDate')->willReturn(new \DateTimeImmutable($endDate));
         $job->method('getStationId')->willReturn($stationId);
         $job->method('getStatus')->willReturn($status);
+        $job->method('getCachedAt')->willReturn(new \DateTimeImmutable($cachedAt));
 
         return $job;
     }
