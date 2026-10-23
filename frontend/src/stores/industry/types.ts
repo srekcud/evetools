@@ -52,6 +52,7 @@ export interface IndustryProjectStep {
   productTypeName: string | null
   quantity: number
   runs: number
+  runsFixed: boolean
   depth: number
   activityType: string
   sortOrder: number

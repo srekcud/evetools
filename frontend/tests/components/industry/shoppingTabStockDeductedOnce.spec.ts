@@ -25,6 +25,7 @@ const RAW_MATERIAL_NAME = 'Tritanium'
 function step(overrides: Partial<IndustryProjectStep> & Pick<IndustryProjectStep, 'id' | 'blueprintTypeId' | 'productTypeId' | 'productTypeName' | 'quantity' | 'runs' | 'depth'>): IndustryProjectStep {
   return {
     activityType: 'manufacturing',
+    runsFixed: false,
     sortOrder: 0,
     purchased: false,
     inStockQuantity: 0,

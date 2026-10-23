@@ -87,9 +87,11 @@ export const useStepsStore = defineStore('industry-steps', () => {
     }
   }
 
-  async function updateStepRuns(projectId: string, stepId: string, runs: number) {
+  async function updateStepRuns(projectId: string, stepId: string, runs: number, _overproduce = false) {
     return updateStep(projectId, stepId, { runs })
   }
+
+  async function releaseStepRuns(_projectId: string, _stepId: string) {}
 
   async function updateStepMeLevel(projectId: string, stepId: string, meLevel: number) {
     return updateStep(projectId, stepId, { meLevel })
@@ -263,6 +265,7 @@ export const useStepsStore = defineStore('industry-steps', () => {
     toggleStepInStock,
     updateStep,
     updateStepRuns,
+    releaseStepRuns,
     updateStepMeLevel,
     updateStepTeLevel,
     createStep,
