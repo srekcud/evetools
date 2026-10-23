@@ -26,6 +26,7 @@ const regeneratingSteps = ref(false)
 const matchJobsLoading = ref(false)
 const matchJobsWarning = ref<string | null>(null)
 const showAvailableJobs = ref(false)
+const overproduceOffers = ref<Record<string, number>>({})
 
 // Mercure sync progress
 const industryProjectProgress = computed(() => syncStore.getSyncProgress('industry-project'))
@@ -66,6 +67,22 @@ async function addChildJobHandler(splitGroupId: string | null, stepId: string | 
 
 async function updateStepRuns(stepId: string, runs: number) {
   await store.updateStepRuns(props.projectId, stepId, runs)
+  const updatedStep = store.currentProject?.steps?.find(s => s.id === stepId)
+  if (updatedStep && updatedStep.runs < runs) {
+    overproduceOffers.value[stepId] = runs
+  } else {
+    delete overproduceOffers.value[stepId]
+  }
+}
+
+async function overproduceStepRuns(stepId: string, runs: number) {
+  await store.updateStepRuns(props.projectId, stepId, runs, true)
+  delete overproduceOffers.value[stepId]
+}
+
+async function releaseStepRuns(stepId: string) {
+  await stepsStore.releaseStepRuns(props.projectId, stepId)
+  delete overproduceOffers.value[stepId]
 }
 
 async function updateStepMe(stepId: string, meLevel: number) {
@@ -302,8 +319,11 @@ defineExpose({
         <StepTree
           :steps="store.currentProject.steps"
           :readonly="store.currentProject.status === 'completed'"
+          :overproduce-offers="overproduceOffers"
           @toggle-purchased="togglePurchased"
           @update-step-runs="updateStepRuns"
+          @overproduce-step-runs="overproduceStepRuns"
+          @release-step-runs="releaseStepRuns"
           @update-step-me="updateStepMe"
           @update-step-te="updateStepTe"
           @delete-step="deleteStepHandler"

@@ -1084,7 +1084,10 @@
       "addJob": "Ajouter un job",
       "deleteStep": "Supprimer l'etape",
       "deleteStepTitle": "Supprimer cette etape ?",
-      "deleteStepConfirm": "Cette etape et ses sous-etapes seront supprimees."
+      "deleteStepConfirm": "Cette etape et ses sous-etapes seront supprimees.",
+      "overproduceRuns": "Surproduire {runs} runs",
+      "fixedRuns": "Runs fixés",
+      "automaticRuns": "Calcul automatique"
     },
     "structures": {
       "title": "Structures de production",

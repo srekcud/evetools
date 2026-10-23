@@ -12,11 +12,14 @@ const { t } = useI18n()
 const props = defineProps<{
   steps: IndustryProjectStep[]
   readonly?: boolean
+  overproduceOffers?: Record<string, number>
 }>()
 
 const emit = defineEmits<{
   'toggle-purchased': [stepId: string, purchased: boolean]
   'update-step-runs': [stepId: string, runs: number]
+  'overproduce-step-runs': [stepId: string, runs: number]
+  'release-step-runs': [stepId: string]
   'update-step-me': [stepId: string, meLevel: number]
   'update-step-te': [stepId: string, teLevel: number]
   'delete-step': [stepId: string]
@@ -656,6 +659,23 @@ function mergeGroup(stepId: string) {
                   <span v-else class="text-xs text-slate-600" :title="isLinkedToEsi(step) ? t('industry.stepTree.linkedToEsi') : t('industry.table.projectCompleted')">
                     ({{ step.runs }} runs)
                   </span>
+                  <button
+                    v-if="overproduceOffers?.[step.id] !== undefined"
+                    data-testid="overproduce-step-runs"
+                    @click.stop="emit('overproduce-step-runs', step.id, overproduceOffers[step.id])"
+                    class="text-xs px-1.5 py-0.5 rounded-sm bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/30"
+                  >{{ t('industry.stepTree.overproduceRuns', { runs: overproduceOffers[step.id] }) }}</button>
+                  <span
+                    v-if="step.runsFixed"
+                    data-testid="fixed-step-runs"
+                    class="text-xs px-1.5 py-0.5 rounded-sm bg-violet-500/20 text-violet-400"
+                  >{{ t('industry.stepTree.fixedRuns') }}</span>
+                  <button
+                    v-if="step.runsFixed && !readonly && !isLinkedToEsi(step)"
+                    data-testid="release-step-runs"
+                    @click.stop="emit('release-step-runs', step.id)"
+                    class="text-xs px-1.5 py-0.5 rounded-sm bg-slate-700/50 text-slate-300 hover:bg-slate-700 border border-slate-600"
+                  >{{ t('industry.stepTree.automaticRuns') }}</button>
                   <!-- Split index -->
                   <span v-if="splitGroup.children.length > 1" class="text-xs text-slate-500">Split {{ stepIdx + 1 }}/{{ splitGroup.children.length }}</span>
                   <!-- ME/TE (not relevant for copy steps) -->

@@ -1084,7 +1084,10 @@
       "addJob": "Add job",
       "deleteStep": "Delete step",
       "deleteStepTitle": "Delete this step?",
-      "deleteStepConfirm": "This step and its sub-steps will be deleted."
+      "deleteStepConfirm": "This step and its sub-steps will be deleted.",
+      "overproduceRuns": "Overproduce {runs} runs",
+      "fixedRuns": "Fixed runs",
+      "automaticRuns": "Automatic calculation"
     },
     "structures": {
       "title": "Production structures",
