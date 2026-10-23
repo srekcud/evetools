@@ -17,10 +17,10 @@ export function useAccountDeletion() {
 
   const isDeleting = ref(false)
 
-  async function deleteAccount(): Promise<boolean> {
+  async function deleteAccount(typedName: string): Promise<boolean> {
     isDeleting.value = true
     try {
-      await apiRequest<null>('/me', { method: 'DELETE' })
+      await apiRequest<null>('/me', { method: 'DELETE', body: JSON.stringify({ confirmation: typedName }) })
     } catch (e) {
       console.error('Account deletion failed:', e)
       showToast(t('characters.deleteAccount.failed'), 'error')

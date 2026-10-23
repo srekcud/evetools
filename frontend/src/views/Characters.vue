@@ -224,7 +224,7 @@ function openDeleteAccountModal(): void {
 
 async function confirmDeleteAccount(): Promise<void> {
   if (!isAccountDeletionConfirmed.value || isDeleting.value) return
-  await deleteAccount()
+  await deleteAccount(typedMainCharacterName.value.trim())
 }
 
 async function reauthorize(character: Character) {

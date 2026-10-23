@@ -11,7 +11,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 final class EveSsoTokenRevoker
 {
     private const string EVE_REVOCATION_URL = 'https://login.eveonline.com/v2/oauth/revoke';
-    private const int REQUEST_TIMEOUT = 15;
+    private const int REQUEST_TIMEOUT_SECONDS = 5;
     private const int FIRST_SUCCESS_STATUS = 200;
     private const int LAST_SUCCESS_STATUS = 299;
 
@@ -32,7 +32,7 @@ final class EveSsoTokenRevoker
                     'token_type_hint' => 'refresh_token',
                     'token' => $refreshToken,
                 ],
-                'timeout' => self::REQUEST_TIMEOUT,
+                'timeout' => self::REQUEST_TIMEOUT_SECONDS,
             ])->getStatusCode();
         } catch (TransportExceptionInterface $exception) {
             $this->logger->warning('EVE SSO refresh token revocation failed for character {eveCharacterId}: {error}', [

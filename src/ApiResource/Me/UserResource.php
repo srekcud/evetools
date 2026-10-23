@@ -9,6 +9,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\OpenApi\Model;
+use App\ApiResource\Input\DeleteAccountInput;
 use App\State\Processor\Me\DeleteAccountProcessor;
 use App\State\Provider\Me\AccountDeleteProvider;
 use App\State\Provider\Me\UserProvider;
@@ -24,9 +25,11 @@ use App\State\Provider\Me\UserProvider;
         ),
         new Delete(
             uriTemplate: '/me',
+            input: DeleteAccountInput::class,
+            deserialize: true,
             provider: AccountDeleteProvider::class,
             processor: DeleteAccountProcessor::class,
-            openapi: new Model\Operation(summary: 'Delete the current account', description: 'Deletes the authenticated user, their characters and personal data; collaborative contributions and sales are kept anonymized', tags: ['Account & Characters']),
+            openapi: new Model\Operation(summary: 'Delete the current account', description: 'Deletes the authenticated user, their characters and personal data; collaborative contributions and sales are kept anonymized. The body must confirm the deletion with the exact name of the main character: {"confirmation": "<main character name>"}', tags: ['Account & Characters']),
         ),
     ],
     security: "is_granted('ROLE_USER')",
