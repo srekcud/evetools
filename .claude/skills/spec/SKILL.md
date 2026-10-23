@@ -7,7 +7,7 @@ argument-hint: <numéro d'issue>
 
 Issue : $ARGUMENTS
 
-1. Lis l'issue (`gh issue view $ARGUMENTS`), `docs/glossary.md`, les ADR pertinentes et le code concerné. Vérifie tout ce qui est vérifiable avant de poser une question.
+1. Lis l'issue (`gh issue view $ARGUMENTS --json title,body,comments` : sans `--json`, `gh` échoue sur l'API Projects classic), `docs/glossary.md`, les ADR pertinentes et le code concerné. Vérifie tout ce qui est vérifiable avant de poser une question.
 2. **Interroge Sylvain** par petits groupes de questions (2 ou 3 à la fois), en adaptant les suivantes aux réponses. Couvre :
    - le comportement attendu, avec des exemples chiffrés (entrée → sortie attendue) ;
    - les cas limites (produit à plusieurs unités par run, arrondis, données ESI manquantes, réactions…) ;
