@@ -6,6 +6,7 @@ namespace App\Tests\Integration\Service\Industry;
 
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
+use App\Entity\IndustryRigCategory;
 use App\Entity\IndustryStepJobMatch;
 use App\Entity\IndustryStepPurchase;
 use App\Entity\IndustryStructureConfig;
@@ -48,6 +49,28 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
     private const int MODULE_TYPE_ID = 999_992_201;
     private const int MODULE_BLUEPRINT_TYPE_ID = 999_992_202;
 
+    private const int DESTROYER_GROUP_ID = 999_992_420;
+    private const int HULL_COMPONENT_GROUP_ID = 999_992_335;
+    private const int SUB_COMPONENT_GROUP_ID = 999_992_336;
+    private const int DESTROYER_TYPE_ID = 999_992_301;
+    private const int DESTROYER_BLUEPRINT_TYPE_ID = 999_992_302;
+    private const int HULL_COMPONENT_TYPE_ID = 999_992_311;
+    private const int HULL_COMPONENT_BLUEPRINT_TYPE_ID = 999_992_312;
+    private const int SUB_COMPONENT_TYPE_ID = 999_992_321;
+    private const int SUB_COMPONENT_BLUEPRINT_TYPE_ID = 999_992_322;
+
+    private const int HULL_COMPONENTS_PER_DESTROYER_RUN = 3;
+    private const int SUB_COMPONENTS_PER_HULL_COMPONENT_RUN = 7;
+    private const int MINERALS_PER_SUB_COMPONENT_RUN = 15;
+    private const int DESTROYER_BASE_TIME_PER_RUN_SECONDS = 900;
+    private const int HULL_COMPONENT_BASE_TIME_PER_RUN_SECONDS = 600;
+    private const int SUB_COMPONENT_BASE_TIME_PER_RUN_SECONDS = 30;
+
+    private const string HULL_COMPONENT_RIG_CATEGORY = 'advanced_component';
+    private const string HULL_COMPONENT_MATERIAL_RIG = 'Standup M-Set Advanced Component Manufacturing Material Efficiency I';
+    private const string HIGHSEC_RAITARU = 'Highsec Raitaru';
+    private const string NULLSEC_RAITARU = 'Nullsec Raitaru';
+
     private const int COMPONENTS_PER_FRIGATE_RUN = 4;
     private const int MINERALS_PER_COMPONENT_RUN = 10;
     private const int MINERALS_PER_MODULE_RUN = 25;
@@ -57,6 +80,8 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
     private const float MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT = 2.0;
     private const float MAX_JOB_DURATION_DAYS_SPLITTING_THE_FRIGATE_IN_TWO_JOBS = 1800 / 86400;
     private const float MAX_JOB_DURATION_DAYS_SPLITTING_THE_COMPONENT_IN_TWO_JOBS = 4800 / 86400;
+    private const float MAX_JOB_DURATION_DAYS_SPLITTING_THE_HULL_COMPONENT_AT_TE_10_ONLY = 7000 / 86400;
+    private const float MAX_JOB_DURATION_DAYS_SPLITTING_THE_HULL_COMPONENT_IN_TWO_JOBS = 4000 / 86400;
 
     private const int ROOT_ESI_JOB_ID = 999_992_001;
     private const int MANUAL_ROOT_ESI_JOB_ID = 999_992_002;
@@ -77,6 +102,7 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
         $pilot->setMainCharacter($character);
         $this->pilot = $pilot;
         $this->seedFrigateRecipe();
+        $this->seedDestroyerRecipe();
         $this->em->flush();
 
         $container = self::getContainer();
@@ -139,7 +165,7 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
     }
 
     #[Group('issue-21')]
-    public function testRegenerationKeepsTheStockAndPurchasedStatusOfAStepAndResetsItsMeAndTeToThePlan(): void
+    public function testRegenerationKeepsTheStockThePurchasedStatusTheMeAndTheTeOfAStep(): void
     {
         $project = $this->factory->createProject($this->pilot, self::FRIGATE_TYPE_ID, 5, 10, self::MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT, 20);
         $componentStep = $this->stepOfProduct($project, self::COMPONENT_TYPE_ID);
@@ -151,7 +177,7 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
         $project = $this->reloaded($project);
 
         $regenerated = $this->stepOfProduct($project, self::COMPONENT_TYPE_ID);
-        self::assertSame([18, 10, 20], [$regenerated->getRuns(), $regenerated->getMeLevel(), $regenerated->getTeLevel()]);
+        self::assertSame([18, 8, 16], [$regenerated->getRuns(), $regenerated->getMeLevel(), $regenerated->getTeLevel()]);
         self::assertSame([$componentStepId, 7, true], [$this->idOf($regenerated), $regenerated->getInStockQuantity(), $regenerated->isPurchased()]);
     }
 
@@ -371,7 +397,7 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
     }
 
     #[Group('issue-21')]
-    public function testRegenerationResetsTheStructureOfAKeptStepToThePlan(): void
+    public function testRegenerationKeepsTheStructureOfTheRootStep(): void
     {
         $project = $this->factory->createProject($this->pilot, self::FRIGATE_TYPE_ID, 5, 10, self::MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT, 20);
         $structure = (new IndustryStructureConfig())
@@ -390,7 +416,7 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
 
         $regenerated = $this->stepOfProduct($project, self::FRIGATE_TYPE_ID);
         self::assertSame([$rootStepId, 5, 10, 20], [$this->idOf($regenerated), $regenerated->getRuns(), $regenerated->getMeLevel(), $regenerated->getTeLevel()]);
-        self::assertNull($regenerated->getStructureConfig());
+        self::assertSame('Test Raitaru', $regenerated->getStructureConfig()?->getName());
     }
 
     #[Group('issue-21')]
@@ -412,6 +438,109 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
                 [3, self::MODULE_BLUEPRINT_TYPE_ID, self::MODULE_TYPE_ID, 'manufacturing', 0, 4, 4, 0, 0, null, 0, null],
             ],
             $this->persistedStepsOf($project),
+        );
+    }
+
+    #[Group('issue-21')]
+    public function testChangingTheRunsKeepsTheMeOfTheHullComponentAndPlansItsSubComponentsWithIt(): void
+    {
+        $project = $this->factory->createProject($this->pilot, self::DESTROYER_TYPE_ID, 5, 10, self::MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT, 20);
+        $this->stepOfProduct($project, self::HULL_COMPONENT_TYPE_ID)->setMeLevel(8);
+        $this->em->flush();
+
+        $project->setRuns(6);
+        $this->factory->regenerateSteps($project);
+        $project = $this->reloaded($project);
+
+        self::assertSame(
+            [
+                [0, self::SUB_COMPONENT_BLUEPRINT_TYPE_ID, self::SUB_COMPONENT_TYPE_ID, 'manufacturing', 2, 110, 110, 10, 20, null, 0, null],
+                [1, self::HULL_COMPONENT_BLUEPRINT_TYPE_ID, self::HULL_COMPONENT_TYPE_ID, 'manufacturing', 1, 17, 17, 8, 20, null, 0, null],
+                [2, self::DESTROYER_BLUEPRINT_TYPE_ID, self::DESTROYER_TYPE_ID, 'manufacturing', 0, 6, 6, 10, 20, null, 0, null],
+            ],
+            $this->persistedStepsOf($project),
+        );
+    }
+
+    #[Group('issue-21')]
+    public function testRegenerationKeepsTheStructureOfTheHullComponentAndPlansItsSubComponentsWithItsMaterialBonus(): void
+    {
+        $highsecRaitaru = $this->raitaru(self::HIGHSEC_RAITARU, 'highsec');
+        $this->raitaru(self::NULLSEC_RAITARU, 'nullsec');
+        $this->em->flush();
+        $project = $this->factory->createProject($this->pilot, self::DESTROYER_TYPE_ID, 5, 10, self::MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT, 20);
+        $this->stepOfProduct($project, self::HULL_COMPONENT_TYPE_ID)->setStructureConfig($highsecRaitaru);
+        $this->em->flush();
+
+        $this->factory->regenerateSteps($project);
+        $project = $this->reloaded($project);
+
+        self::assertSame(
+            [
+                [0, self::SUB_COMPONENT_BLUEPRINT_TYPE_ID, self::SUB_COMPONENT_TYPE_ID, 'manufacturing', 2, 80, 80, 10, 20, null, 0, null],
+                [1, self::HULL_COMPONENT_BLUEPRINT_TYPE_ID, self::HULL_COMPONENT_TYPE_ID, 'manufacturing', 1, 13, 13, 10, 20, null, 0, null],
+                [2, self::DESTROYER_BLUEPRINT_TYPE_ID, self::DESTROYER_TYPE_ID, 'manufacturing', 0, 5, 5, 10, 20, null, 0, null],
+            ],
+            $this->persistedStepsOf($project),
+        );
+        self::assertSame([[0, 13, 13, 10, 20, self::HIGHSEC_RAITARU]], $this->settingsOfJobsOfProduct($project, self::HULL_COMPONENT_TYPE_ID));
+    }
+
+    #[Group('issue-21')]
+    public function testRegenerationSplitsTheHullComponentWithItsTe(): void
+    {
+        $project = $this->factory->createProject($this->pilot, self::DESTROYER_TYPE_ID, 5, 10, self::MAX_JOB_DURATION_DAYS_SPLITTING_THE_HULL_COMPONENT_AT_TE_10_ONLY, 20);
+        self::assertSame([[0, 14, 14, 10, 20, null]], $this->settingsOfJobsOfProduct($project, self::HULL_COMPONENT_TYPE_ID));
+        $this->stepOfProduct($project, self::HULL_COMPONENT_TYPE_ID)->setTeLevel(10);
+        $this->em->flush();
+
+        $this->factory->regenerateSteps($project);
+        $project = $this->reloaded($project);
+
+        self::assertSame(
+            [[0, 7, 7, 10, 10, null], [1, 7, 7, 10, 10, null]],
+            $this->settingsOfJobsOfProduct($project, self::HULL_COMPONENT_TYPE_ID),
+        );
+        self::assertSame([[0, 90, 90, 10, 20, null]], $this->settingsOfJobsOfProduct($project, self::SUB_COMPONENT_TYPE_ID));
+    }
+
+    #[Group('issue-21')]
+    public function testChangingTheRunsGivesTheRootStepTheMeAndTeOfTheProject(): void
+    {
+        $project = $this->factory->createProject($this->pilot, self::DESTROYER_TYPE_ID, 5, 10, self::MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT, 20);
+        $this->stepOfProduct($project, self::DESTROYER_TYPE_ID)->setMeLevel(8)->setTeLevel(14);
+        $this->em->flush();
+
+        $project->setRuns(6);
+        $this->factory->regenerateSteps($project);
+        $project = $this->reloaded($project);
+
+        self::assertSame(
+            [
+                [0, self::SUB_COMPONENT_BLUEPRINT_TYPE_ID, self::SUB_COMPONENT_TYPE_ID, 'manufacturing', 2, 108, 108, 10, 20, null, 0, null],
+                [1, self::HULL_COMPONENT_BLUEPRINT_TYPE_ID, self::HULL_COMPONENT_TYPE_ID, 'manufacturing', 1, 17, 17, 10, 20, null, 0, null],
+                [2, self::DESTROYER_BLUEPRINT_TYPE_ID, self::DESTROYER_TYPE_ID, 'manufacturing', 0, 6, 6, 10, 20, null, 0, null],
+            ],
+            $this->persistedStepsOf($project),
+        );
+    }
+
+    #[Group('issue-21')]
+    public function testASecondJobCreatedByLoweringTheMaximumJobDurationTakesTheMeTeAndStructureOfTheFirstJob(): void
+    {
+        $highsecRaitaru = $this->raitaru(self::HIGHSEC_RAITARU, 'highsec');
+        $this->em->flush();
+        $project = $this->factory->createProject($this->pilot, self::DESTROYER_TYPE_ID, 5, 10, self::MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT, 20);
+        $this->stepOfProduct($project, self::HULL_COMPONENT_TYPE_ID)->setMeLevel(8)->setTeLevel(16)->setStructureConfig($highsecRaitaru);
+        $this->em->flush();
+
+        $project->setMaxJobDurationDays(self::MAX_JOB_DURATION_DAYS_SPLITTING_THE_HULL_COMPONENT_IN_TWO_JOBS);
+        $this->factory->regenerateSteps($project);
+        $project = $this->reloaded($project);
+
+        self::assertSame(
+            [[0, 7, 7, 8, 16, self::HIGHSEC_RAITARU], [1, 7, 7, 8, 16, self::HIGHSEC_RAITARU]],
+            $this->settingsOfJobsOfProduct($project, self::HULL_COMPONENT_TYPE_ID),
         );
     }
 
@@ -489,6 +618,35 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
         usort($jobs, static fn (array $a, array $b): int => $a[2] <=> $b[2]);
 
         return $jobs;
+    }
+
+    /**
+     * @return list<array{int, int, int, int, int, string|null}>
+     */
+    private function settingsOfJobsOfProduct(IndustryProject $project, int $productTypeId): array
+    {
+        $jobs = [];
+        foreach ($project->getSteps() as $step) {
+            if ($step->getProductTypeId() === $productTypeId) {
+                $jobs[] = [$step->getSplitIndex(), $step->getRuns(), $step->getQuantity(), $step->getMeLevel(), $step->getTeLevel(), $step->getStructureConfig()?->getName()];
+            }
+        }
+        usort($jobs, static fn (array $a, array $b): int => $a[0] <=> $b[0]);
+
+        return $jobs;
+    }
+
+    private function raitaru(string $name, string $securityType): IndustryStructureConfig
+    {
+        $raitaru = (new IndustryStructureConfig())
+            ->setUser($this->pilot)
+            ->setName($name)
+            ->setSecurityType($securityType)
+            ->setStructureType('raitaru')
+            ->setRigs([self::HULL_COMPONENT_MATERIAL_RIG]);
+        $this->em->persist($raitaru);
+
+        return $raitaru;
     }
 
     /**
@@ -587,12 +745,26 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
         $this->manufacturingRecipe(self::MODULE_BLUEPRINT_TYPE_ID, self::MODULE_TYPE_ID, self::MINERAL_TYPE_ID, self::MINERALS_PER_MODULE_RUN);
     }
 
-    private function manufacturingRecipe(int $blueprintTypeId, int $productTypeId, int $materialTypeId, int $baseQuantityPerRun): void
+    private function seedDestroyerRecipe(): void
+    {
+        $category = $this->em->find(InvCategory::class, self::SHIP_CATEGORY_ID);
+        self::assertNotNull($category);
+        $this->type(self::DESTROYER_TYPE_ID, 'Test Destroyer', $this->group(self::DESTROYER_GROUP_ID, 'Test Destroyer', $category));
+        $this->type(self::HULL_COMPONENT_TYPE_ID, 'Test Hull Component', $this->group(self::HULL_COMPONENT_GROUP_ID, 'Test Hull Component', $category));
+        $this->type(self::SUB_COMPONENT_TYPE_ID, 'Test Sub-Component', $this->group(self::SUB_COMPONENT_GROUP_ID, 'Test Sub-Component', $category));
+        $this->em->persist((new IndustryRigCategory())->setGroupId(self::HULL_COMPONENT_GROUP_ID)->setCategory(self::HULL_COMPONENT_RIG_CATEGORY));
+
+        $this->manufacturingRecipe(self::DESTROYER_BLUEPRINT_TYPE_ID, self::DESTROYER_TYPE_ID, self::HULL_COMPONENT_TYPE_ID, self::HULL_COMPONENTS_PER_DESTROYER_RUN, self::DESTROYER_BASE_TIME_PER_RUN_SECONDS);
+        $this->manufacturingRecipe(self::HULL_COMPONENT_BLUEPRINT_TYPE_ID, self::HULL_COMPONENT_TYPE_ID, self::SUB_COMPONENT_TYPE_ID, self::SUB_COMPONENTS_PER_HULL_COMPONENT_RUN, self::HULL_COMPONENT_BASE_TIME_PER_RUN_SECONDS);
+        $this->manufacturingRecipe(self::SUB_COMPONENT_BLUEPRINT_TYPE_ID, self::SUB_COMPONENT_TYPE_ID, self::MINERAL_TYPE_ID, self::MINERALS_PER_SUB_COMPONENT_RUN, self::SUB_COMPONENT_BASE_TIME_PER_RUN_SECONDS);
+    }
+
+    private function manufacturingRecipe(int $blueprintTypeId, int $productTypeId, int $materialTypeId, int $baseQuantityPerRun, int $baseTimePerRunSeconds = self::BASE_TIME_PER_RUN_SECONDS): void
     {
         $manufacturing = IndustryActivityType::Manufacturing->value;
         $this->em->persist((new IndustryActivityProduct())->setTypeId($blueprintTypeId)->setActivityId($manufacturing)->setProductTypeId($productTypeId)->setQuantity(1));
         $this->em->persist((new IndustryActivityMaterial())->setTypeId($blueprintTypeId)->setActivityId($manufacturing)->setMaterialTypeId($materialTypeId)->setQuantity($baseQuantityPerRun));
-        $this->em->persist((new IndustryActivity())->setTypeId($blueprintTypeId)->setActivityId($manufacturing)->setTime(self::BASE_TIME_PER_RUN_SECONDS));
+        $this->em->persist((new IndustryActivity())->setTypeId($blueprintTypeId)->setActivityId($manufacturing)->setTime($baseTimePerRunSeconds));
     }
 
     private function group(int $groupId, string $name, InvCategory $category): InvGroup
