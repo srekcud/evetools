@@ -20,6 +20,7 @@ use App\State\Provider\Me\WalletProvider;
             openapi: new Model\Operation(summary: 'Get wallet balances', description: 'Returns ISK balances for all characters', tags: ['Account & Characters']),
         ),
     ],
+    normalizationContext: ['skip_null_values' => false],
     security: "is_granted('ROLE_USER')",
 )]
 class WalletResource
