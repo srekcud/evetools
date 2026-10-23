@@ -46,14 +46,14 @@ class CachedIndustryJob
     #[ORM\Column(type: 'integer')]
     private int $blueprintTypeId;
 
-    #[ORM\Column(type: 'integer')]
-    private int $productTypeId;
+    #[ORM\Column(type: 'integer', nullable: true)]
+    private ?int $productTypeId = null;
 
     #[ORM\Column(type: 'integer')]
     private int $runs;
 
-    #[ORM\Column(type: 'float')]
-    private float $cost;
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $cost = null;
 
     #[ORM\Column(type: 'string', length: 50)]
     private string $status;
@@ -130,12 +130,12 @@ class CachedIndustryJob
         return $this;
     }
 
-    public function getProductTypeId(): int
+    public function getProductTypeId(): ?int
     {
         return $this->productTypeId;
     }
 
-    public function setProductTypeId(int $productTypeId): static
+    public function setProductTypeId(?int $productTypeId): static
     {
         $this->productTypeId = $productTypeId;
         return $this;
@@ -152,12 +152,17 @@ class CachedIndustryJob
         return $this;
     }
 
-    public function getCost(): float
+    public function getDisplayedTypeId(): int
+    {
+        return $this->productTypeId ?? $this->blueprintTypeId;
+    }
+
+    public function getCost(): ?float
     {
         return $this->cost;
     }
 
-    public function setCost(float $cost): static
+    public function setCost(?float $cost): static
     {
         $this->cost = $cost;
         return $this;
