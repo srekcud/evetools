@@ -21,6 +21,7 @@ import MemberTable from '@/components/group-industry/MemberTable.vue'
 import PendingRequestsTable from '@/components/group-industry/PendingRequestsTable.vue'
 import ShareLinkCard from '@/components/group-industry/ShareLinkCard.vue'
 import type { BomItem, GroupProject, GroupProjectStatus } from '@/stores/group-industry/types'
+import { nextProjectStatus } from './nextProjectStatus'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -56,10 +57,16 @@ const editError = ref<string | null>(null)
 const showDeleteConfirm = ref(false)
 const isDeleting = ref(false)
 
+const showCompleteConfirm = ref(false)
+const isAdvancingStatus = ref(false)
+const statusError = ref<string | null>(null)
+
 const project = computed(() => projectStore.currentProject)
 const isOwnerOrAdmin = computed(() =>
   project.value?.myRole === 'owner' || project.value?.myRole === 'admin'
 )
+const isCompleted = computed(() => project.value?.status === 'completed')
+const nextStatus = computed(() => (project.value ? nextProjectStatus(project.value.status) : null))
 
 const statusConfig: Record<GroupProjectStatus, { bg: string; text: string; border: string }> = {
   draft: { bg: 'bg-slate-700', text: 'text-slate-400', border: 'border-slate-600' },
@@ -167,6 +174,28 @@ async function handleEditSave(): Promise<void> {
     editError.value = e instanceof Error ? e.message : t('groupIndustry.detail.editError')
     isEditSaving.value = false
   }
+}
+
+function requestNextStatus(): void {
+  statusError.value = null
+  if (nextStatus.value === 'completed') {
+    showCompleteConfirm.value = true
+    return
+  }
+  advanceStatus()
+}
+
+async function advanceStatus(): Promise<void> {
+  if (!nextStatus.value) return
+  isAdvancingStatus.value = true
+  statusError.value = null
+  try {
+    await projectStore.updateProject(projectId.value, { status: nextStatus.value })
+    showCompleteConfirm.value = false
+  } catch (e) {
+    statusError.value = e instanceof Error ? e.message : t('groupIndustry.detail.editError')
+  }
+  isAdvancingStatus.value = false
 }
 
 async function handleDeleteProject(): Promise<void> {
@@ -287,6 +316,14 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
               {{ t('groupIndustry.detail.shareLink') }}
             </button>
             <button
+              v-if="isOwnerOrAdmin && nextStatus"
+              class="px-3 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-all hover:-translate-y-px disabled:opacity-50"
+              :disabled="isAdvancingStatus"
+              @click="requestNextStatus"
+            >
+              {{ t('groupIndustry.detail.nextStatus', { status: t(`groupIndustry.status.${nextStatus}`) }) }}
+            </button>
+            <button
               v-if="isOwnerOrAdmin"
               class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm transition-all hover:-translate-y-px"
               :title="t('groupIndustry.detail.edit')"
@@ -295,7 +332,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
             </button>
             <button
-              v-if="isOwnerOrAdmin"
+              v-if="isOwnerOrAdmin && !isCompleted"
               class="px-3 py-2 bg-slate-700 hover:bg-red-600/80 rounded-lg text-slate-400 hover:text-white text-sm transition-all hover:-translate-y-px"
               :title="t('groupIndustry.detail.delete')"
               @click="showDeleteConfirm = true"
@@ -304,6 +341,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
             </button>
           </div>
         </div>
+        <p v-if="statusError && !showCompleteConfirm" class="mt-3 text-sm text-red-400">{{ statusError }}</p>
       </div>
 
       <!-- Tab Bar -->
@@ -391,6 +429,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
         <ContributionTable :project-id="projectId" :is-admin="isOwnerOrAdmin">
           <template #actions>
             <button
+              v-if="!isCompleted"
               @click="openContributeModal()"
               class="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all hover:-translate-y-px"
             >
@@ -579,6 +618,43 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 {{ t('common.actions.delete') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <Teleport to="body">
+      <div v-if="showCompleteConfirm" class="fixed inset-0 z-50">
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" @click="showCompleteConfirm = false"></div>
+        <div class="relative flex items-center justify-center min-h-screen p-4 pointer-events-none">
+          <div class="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm pointer-events-auto">
+            <div class="px-6 py-5 border-b border-slate-800">
+              <h2 class="text-lg font-bold text-slate-100">{{ t('groupIndustry.detail.completeConfirm.title') }}</h2>
+            </div>
+
+            <div class="px-6 py-5">
+              <p class="text-sm text-slate-400">{{ t('groupIndustry.detail.completeConfirm.message') }}</p>
+              <p v-if="statusError" class="mt-3 text-sm text-red-400">{{ statusError }}</p>
+            </div>
+
+            <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-end gap-3">
+              <button
+                class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-sm font-medium transition-colors"
+                @click="showCompleteConfirm = false"
+              >
+                {{ t('common.actions.cancel') }}
+              </button>
+              <button
+                class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all disabled:opacity-50"
+                :disabled="isAdvancingStatus"
+                @click="advanceStatus"
+              >
+                <svg v-if="isAdvancingStatus" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {{ t('groupIndustry.detail.completeConfirm.confirm') }}
               </button>
             </div>
           </div>

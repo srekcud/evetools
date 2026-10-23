@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Enum\ContributionStatus;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupProjectStatus;
 use App\Repository\GroupIndustryProjectRepository;
@@ -151,6 +152,22 @@ class GroupIndustryProject
     {
         $this->status = $status;
         return $this;
+    }
+
+    public function isCompleted(): bool
+    {
+        return $this->status === GroupProjectStatus::Completed;
+    }
+
+    public function isDeletable(): bool
+    {
+        if ($this->isCompleted() || !$this->sales->isEmpty()) {
+            return false;
+        }
+
+        return !$this->contributions->exists(
+            static fn (int $key, GroupIndustryContribution $contribution): bool => $contribution->getStatus() === ContributionStatus::Approved,
+        );
     }
 
     public function getShortLinkCode(): string

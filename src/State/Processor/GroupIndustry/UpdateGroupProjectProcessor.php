@@ -64,6 +64,10 @@ class UpdateGroupProjectProcessor implements ProcessorInterface
 
         $oldStatus = $project->getStatus();
 
+        if ($project->isCompleted() && ($data->brokerFeePercent !== null || $data->salesTaxPercent !== null)) {
+            throw new BadRequestHttpException('Cannot change the fees of a completed project');
+        }
+
         if ($data->name !== null) {
             $name = trim($data->name);
             $project->setName($name !== '' ? $name : null);

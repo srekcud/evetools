@@ -64,6 +64,10 @@ class ReviewContributionProcessor implements ProcessorInterface
 
         $this->accessChecker->assertAdminOrOwner($user, $project);
 
+        if ($project->isCompleted()) {
+            throw new BadRequestHttpException('Cannot review a contribution of a completed project');
+        }
+
         $contribution = $this->contributionRepository->find(Uuid::fromString($contributionId));
         if ($contribution === null || $contribution->getProject() !== $project) {
             throw new NotFoundHttpException('Contribution not found');

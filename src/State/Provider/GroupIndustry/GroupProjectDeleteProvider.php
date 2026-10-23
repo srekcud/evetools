@@ -11,6 +11,7 @@ use App\Entity\User;
 use App\Repository\GroupIndustryProjectRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Uid\Uuid;
@@ -42,6 +43,10 @@ class GroupProjectDeleteProvider implements ProviderInterface
 
         if ($project->getOwner() !== $user) {
             throw new AccessDeniedHttpException('Only the project owner can delete this project');
+        }
+
+        if (!$project->isDeletable()) {
+            throw new BadRequestHttpException('A completed project, or one with an approved contribution or a sale, cannot be deleted');
         }
 
         $resource = new GroupIndustryProjectResource();

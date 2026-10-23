@@ -2086,6 +2086,12 @@
       "deleteConfirm": {
         "title": "Supprimer le projet",
         "message": "Etes-vous sur de vouloir supprimer ce projet ? Cette action est irreversible. Toutes les contributions, ventes et donnees de distribution seront definitivement perdues."
+      },
+      "nextStatus": "Passer à {status}",
+      "completeConfirm": {
+        "title": "Terminer le projet",
+        "message": "Terminer le projet fige ses comptes : plus de contribution, de revue, de vente ni de changement de frais, et il ne pourra plus être supprimé. Cette action est irréversible.",
+        "confirm": "Terminer"
       }
     }
   },

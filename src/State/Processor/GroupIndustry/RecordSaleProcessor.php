@@ -60,6 +60,10 @@ class RecordSaleProcessor implements ProcessorInterface
 
         $this->assertUserIsAdminOrOwner($user, $project);
 
+        if ($project->isCompleted()) {
+            throw new BadRequestHttpException('Cannot record a sale on a completed project');
+        }
+
         if ($data->quantity <= 0) {
             throw new BadRequestHttpException('Quantity must be positive');
         }

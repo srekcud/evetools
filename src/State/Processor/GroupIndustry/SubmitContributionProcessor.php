@@ -71,6 +71,10 @@ class SubmitContributionProcessor implements ProcessorInterface
             throw new AccessDeniedHttpException('You must be an accepted member to contribute');
         }
 
+        if ($project->isCompleted()) {
+            throw new BadRequestHttpException('Cannot contribute to a completed project');
+        }
+
         // Resolve BOM item
         if ($data->bomItemId === null) {
             throw new BadRequestHttpException('bomItemId is required');
