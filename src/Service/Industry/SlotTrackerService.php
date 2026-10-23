@@ -48,6 +48,8 @@ class SlotTrackerService
         'science' => ['final_product'],
     ];
 
+    private const string JOBS_STALE_AFTER = '-1 hour';
+
     public function __construct(
         private readonly CharacterRepository $characterRepository,
         private readonly CachedIndustryJobRepository $jobRepository,
@@ -60,7 +62,7 @@ class SlotTrackerService
     }
 
     /**
-     * @return array{globalKpis: array<string, array{used: int, max: int, percent: float}>, characters: list<array<string, mixed>>, timeline: list<array<string, mixed>>, skillsMayBeStale: bool}
+     * @return array{globalKpis: array<string, array{used: int, max: int, percent: float}>, characters: list<array<string, mixed>>, timeline: list<array<string, mixed>>, skillsMayBeStale: bool, unknownSkillsCharacterCount: int}
      */
     public function getSlotStatus(User $user): array
     {
@@ -92,6 +94,7 @@ class SlotTrackerService
         $globalMax = ['manufacturing' => 0, 'reaction' => 0, 'science' => 0];
         $allTimelineJobs = [];
         $charactersOutput = [];
+        $unknownSkillsCharacterCount = 0;
 
         foreach ($characterData as $data) {
             /** @var Character $character */
@@ -99,8 +102,10 @@ class SlotTrackerService
             /** @var CachedIndustryJob[] $jobs */
             $jobs = $data['jobs'];
 
-            $skills = $this->skillRepository->findSlotSkillsForCharacter($character);
-            $maxSlots = self::calculateMaxSlots($skills);
+            $skillsUnknown = !$this->skillRepository->hasCachedSkills($character);
+            $maxSlots = $skillsUnknown
+                ? null
+                : self::calculateMaxSlots($this->skillRepository->findSlotSkillsForCharacter($character));
 
             // Count used slots per category
             // Exclude active jobs whose endDate is in the past — they are
@@ -163,12 +168,17 @@ class SlotTrackerService
             usort($jobEntries, static fn (array $a, array $b) => $a['timeLeftSeconds'] <=> $b['timeLeftSeconds']);
 
             // Free slots with suggestions
-            $freeSlots = $this->buildFreeSlots($usedSlots, $maxSlots, $stockpileTargets, $assetQuantities, $typeNames);
+            $freeSlots = $maxSlots === null
+                ? []
+                : $this->buildFreeSlots($usedSlots, $maxSlots, $stockpileTargets, $assetQuantities, $typeNames);
 
-            // Aggregate globals
-            foreach (['manufacturing', 'reaction', 'science'] as $cat) {
-                $globalUsed[$cat] += $usedSlots[$cat];
-                $globalMax[$cat] += $maxSlots[$cat];
+            if ($maxSlots === null) {
+                ++$unknownSkillsCharacterCount;
+            } else {
+                foreach (['manufacturing', 'reaction', 'science'] as $cat) {
+                    $globalUsed[$cat] += $usedSlots[$cat];
+                    $globalMax[$cat] += $maxSlots[$cat];
+                }
             }
 
             $charactersOutput[] = [
@@ -176,10 +186,12 @@ class SlotTrackerService
                 'characterName' => $character->getName(),
                 'isMain' => $character->isMain(),
                 'slots' => [
-                    'manufacturing' => ['used' => $usedSlots['manufacturing'], 'max' => $maxSlots['manufacturing']],
-                    'reaction' => ['used' => $usedSlots['reaction'], 'max' => $maxSlots['reaction']],
-                    'science' => ['used' => $usedSlots['science'], 'max' => $maxSlots['science']],
+                    'manufacturing' => ['used' => $usedSlots['manufacturing'], 'max' => $maxSlots['manufacturing'] ?? null],
+                    'reaction' => ['used' => $usedSlots['reaction'], 'max' => $maxSlots['reaction'] ?? null],
+                    'science' => ['used' => $usedSlots['science'], 'max' => $maxSlots['science'] ?? null],
                 ],
+                'skillsUnknown' => $skillsUnknown,
+                'jobsStale' => $this->areJobsStale($character, $jobs, $now),
                 'jobs' => $jobEntries,
                 'freeSlots' => $freeSlots,
             ];
@@ -199,7 +211,7 @@ class SlotTrackerService
 
         // Detect stale skills: in-game you can never have more active jobs
         // than available slots, so used > max means skill data is missing/outdated
-        $skillsMayBeStale = false;
+        $skillsMayBeStale = $unknownSkillsCharacterCount > 0;
         foreach (['manufacturing', 'reaction', 'science'] as $cat) {
             if ($globalUsed[$cat] > $globalMax[$cat]) {
                 $skillsMayBeStale = true;
@@ -225,7 +237,26 @@ class SlotTrackerService
             'characters' => $charactersOutput,
             'timeline' => $allTimelineJobs,
             'skillsMayBeStale' => $skillsMayBeStale,
+            'unknownSkillsCharacterCount' => $unknownSkillsCharacterCount,
         ];
+    }
+
+    /**
+     * @param CachedIndustryJob[] $jobs
+     */
+    private function areJobsStale(Character $character, array $jobs, \DateTimeImmutable $now): bool
+    {
+        if (!$character->isAuthValid()) {
+            return true;
+        }
+
+        if ($jobs === []) {
+            return false;
+        }
+
+        $newestCachedAt = max(array_map(static fn (CachedIndustryJob $job): \DateTimeImmutable => $job->getCachedAt(), $jobs));
+
+        return $newestCachedAt < $now->modify(self::JOBS_STALE_AFTER);
     }
 
     /**

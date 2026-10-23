@@ -34,4 +34,6 @@ class SlotTrackerResource
     public array $timeline = [];
 
     public bool $skillsMayBeStale = false;
+
+    public int $unknownSkillsCharacterCount = 0;
 }

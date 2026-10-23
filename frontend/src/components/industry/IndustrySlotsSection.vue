@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import UnknownValue from '@/components/common/UnknownValue.vue'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { useSlotsStore } from '@/stores/industry/slots'
@@ -124,7 +125,7 @@ function freeSlotSuggestionLabel(entry: FreeSlotEntry): string {
 
 // Slot types where all slots are occupied (used >= max and max > 0), excluding types already shown in freeSlots
 function occupiedSlotTypes(char: SlotTrackerCharacter): SlotActivity[] {
-  return SLOT_ACTIVITIES.filter(a => char.slots[a].used > 0 && char.slots[a].used >= char.slots[a].max && char.slots[a].max > 0)
+  return SLOT_ACTIVITIES.filter(a => char.slots[a].used > 0 && char.slots[a].max !== null && char.slots[a].used >= char.slots[a].max && char.slots[a].max > 0)
 }
 
 // "Last sync" display
@@ -273,6 +274,11 @@ onMounted(() => {
       </button>
     </div>
 
+    <p
+      v-if="slotsStore.data && slotsStore.data.unknownSkillsCharacterCount > 0"
+      class="text-xs text-amber-300"
+    >{{ t('industry.slots.partialKpis', { count: slotsStore.data.unknownSkillsCharacterCount }) }}</p>
+
     <!-- GLOBAL SUMMARY - 3 KPI CARDS -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 card-enter" style="animation-delay: 80ms;">
       <div
@@ -358,7 +364,7 @@ onMounted(() => {
                     :class="SLOT_ACTIVITY_COLORS[activity].dot"
                   ></span>
                   <span :class="{ 'font-medium': isSlotActive(char, activity) }">
-                    {{ char.slots[activity].used }}/{{ char.slots[activity].max }} {{ activityLabel(activity) }}
+                    {{ char.slots[activity].used }}/<UnknownValue v-if="char.slots[activity].max === null" /><template v-else>{{ char.slots[activity].max }}</template> {{ activityLabel(activity) }}
                   </span>
                 </span>
               </template>
@@ -374,6 +380,10 @@ onMounted(() => {
             v-else
             class="text-[10px] px-2 py-0.5 rounded-full bg-slate-600/40 text-slate-400 border border-slate-600/50 font-medium uppercase tracking-wider"
           >{{ t('industry.slots.alt') }}</span>
+          <span
+            v-if="char.jobsStale"
+            class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20 font-medium uppercase tracking-wider"
+          >{{ t('industry.slots.jobsStale') }}</span>
         </div>
       </div>
 

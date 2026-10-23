@@ -787,6 +787,8 @@ export type SlotActivity = 'manufacturing' | 'reaction' | 'science'
 
 export type SlotUsage = { used: number; max: number; percent?: number }
 
+export type CharacterSlotUsage = { used: number; max: number | null }
+
 export type SlotTrackerJob = {
   jobId: number; productTypeId: number; productTypeName: string | null
   activityType: string; runs: number; progress: number
@@ -801,7 +803,8 @@ export type FreeSlotEntry = {
 
 export type SlotTrackerCharacter = {
   characterId: number; characterName: string; isMain: boolean
-  slots: Record<SlotActivity, SlotUsage>
+  slots: Record<SlotActivity, CharacterSlotUsage>
+  skillsUnknown: boolean; jobsStale: boolean
   jobs: SlotTrackerJob[]; freeSlots: FreeSlotEntry[]
 }
 
@@ -814,6 +817,7 @@ export type SlotTrackerData = {
   globalKpis: Record<SlotActivity, SlotUsage & { percent: number }>
   characters: SlotTrackerCharacter[]; timeline: TimelineJob[]
   skillsMayBeStale: boolean
+  unknownSkillsCharacterCount: number
 }
 
 // Cross-tab navigation intent for the Industry cockpit

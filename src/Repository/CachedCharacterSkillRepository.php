@@ -67,7 +67,13 @@ class CachedCharacterSkillRepository extends ServiceEntityRepository
 
     public function hasCachedSkills(Character $character): bool
     {
-        return false;
+        return $this->createQueryBuilder('s')
+            ->select('1')
+            ->where('s.character = :character')
+            ->setParameter('character', $character)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult() !== null;
     }
 
     /**
