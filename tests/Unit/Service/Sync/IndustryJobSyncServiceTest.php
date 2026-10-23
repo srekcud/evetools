@@ -966,6 +966,58 @@ class IndustryJobSyncServiceTest extends TestCase
     }
 
     #[Group('issue-213')]
+    public function testProgressPublishedToCharacterWithoutCorporationRolesServedByWarmCacheCountsOnlyJobsOfItsUser(): void
+    {
+        $characterA = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $characterD = $this->createCharacterWithUser(self::CHARACTER_D_WITHOUT_ROLES_ID);
+        $this->esiClient->method('get')->willReturn([]);
+        $this->givenCorporationJobsReadOutcomes(
+            $this->corporationJobsResponse($this->corporationJobsOfSpec213()),
+            EsiApiException::forbidden(),
+        );
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $this->stubCachedJobs([]);
+        $this->stubActiveJobsByCharacter([]);
+        $this->service->syncCharacterJobs($characterA);
+        $this->forgetRecordedSideEffects();
+
+        $this->service->syncCharacterJobs($characterD);
+
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
+        $this->assertSame(
+            [
+                [$this->userTopicOf($characterD), 30, 'Personal jobs fetched...'],
+                [$this->userTopicOf($characterD), 60, 'Processing 1 jobs...'],
+            ],
+            $this->industryJobsSyncProgressEvents(),
+        );
+    }
+
+    #[Group('issue-213')]
+    public function testPersonalJobStatusWinsOverCorporationJobServedByCacheForTheSameJob(): void
+    {
+        $characterA = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $characterC = $this->createCharacterWithUser(self::CHARACTER_C_ID);
+        $personalJobOfA = $this->corporationJobOfSpec213(self::CORPORATION_JOB_OF_A_ID, self::CHARACTER_A_ID, 'ready', self::RIFTER_TYPE_ID, 10, 1_250_000.75);
+        $this->esiClient->method('get')->willReturnCallback(
+            static fn (string $endpoint): array => str_starts_with($endpoint, '/characters/' . self::CHARACTER_A_ID . '/')
+                ? [$personalJobOfA]
+                : [],
+        );
+        $this->givenCorporationJobs($this->corporationJobsOfSpec213());
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $cachedJobOfA = $this->makeCachedJob(self::CORPORATION_JOB_OF_A_ID, $characterA, 'active', '+1 day');
+        $this->stubCachedJobs([$cachedJobOfA]);
+        $this->stubActiveJobsByCharacter([$cachedJobOfA]);
+        $this->service->syncCharacterJobs($characterC);
+
+        $this->service->syncCharacterJobs($characterA);
+
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
+        $this->assertSame('ready', $cachedJobOfA->getStatus());
+    }
+
+    #[Group('issue-213')]
     public function testCorporationJobPastItsEndDateServedByCacheIsUpdatedNotMarkedDelivered(): void
     {
         $characterA = $this->createCharacterWithUser(self::CHARACTER_A_ID);
@@ -2065,6 +2117,18 @@ class IndustryJobSyncServiceTest extends TestCase
     private function userTopicOf(Character $character): string
     {
         return sprintf('/user/%s/sync/industry-jobs', $character->getUser()->getId()->toRfc4122());
+    }
+
+    private function industryJobsSyncProgressEvents(): array
+    {
+        $events = [];
+        foreach ($this->publishedMercureUpdates as [$topic, $payload]) {
+            if ($payload['syncType'] === 'industry-jobs' && $payload['status'] === 'in_progress') {
+                $events[] = [$topic, $payload['progress'], $payload['message']];
+            }
+        }
+
+        return $events;
     }
 
     private function industryJobsSyncCompletedEvents(): array
