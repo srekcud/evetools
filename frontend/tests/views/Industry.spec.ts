@@ -29,6 +29,7 @@ const RIFTER_ME = 1
 const SUSTAINED_SHIELD_EMITTER_TYPE_ID = 11558
 const TITANIUM_CARBIDE_TYPE_ID = 16671
 const BOUGHT_WIDOW_COMPONENT_TYPE_IDS = [SUSTAINED_SHIELD_EMITTER_TYPE_ID, TITANIUM_CARBIDE_TYPE_ID]
+const MAXIMUM_PROJECT_RUNS = 100000
 
 const stubbedChildren = {
   MainLayout: { template: '<div><slot /></div>' },
@@ -122,6 +123,12 @@ beforeEach(() => {
 })
 
 describe('Industry create project form', () => {
+  it('caps the project runs at 100000', async () => {
+    const wrapper = await mountWithCreateModalOpen()
+
+    expect(runsInput(wrapper).attributes('max')).toBe(String(MAXIMUM_PROJECT_RUNS))
+  })
+
   it('prefills the invented blueprint ME 2 and TE 4 when a T2 product is chosen', async () => {
     const wrapper = await mountWithCreateModalOpen()
 

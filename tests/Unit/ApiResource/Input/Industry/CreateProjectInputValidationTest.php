@@ -7,6 +7,7 @@ namespace App\Tests\Unit\ApiResource\Input\Industry;
 use App\ApiResource\Input\Industry\CreateProjectInput;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Validator\ConstraintViolationListInterface;
 use Symfony\Component\Validator\Validation;
@@ -19,6 +20,10 @@ final class CreateProjectInputValidationTest extends TestCase
     private const int PHENOLIC_COMPOSITES = 16680;
     private const int MAXIMUM_EXCLUDED_COMPONENTS = 500;
     private const int FIRST_TYPE_ID = 34;
+    private const int MAXIMUM_PROJECT_RUNS = 100000;
+    private const int PROJECT_RUNS_ABOVE_THE_MAXIMUM = 100001;
+    private const float MINIMUM_MAX_JOB_DURATION_DAYS = 0.5;
+    private const float MAX_JOB_DURATION_DAYS_BELOW_THE_MINIMUM = 0.4;
 
     private ValidatorInterface $validator;
 
@@ -80,6 +85,38 @@ final class CreateProjectInputValidationTest extends TestCase
         $violations = $this->validateExcludedTypeIds(range(self::FIRST_TYPE_ID, self::FIRST_TYPE_ID + self::MAXIMUM_EXCLUDED_COMPONENTS - 1));
 
         self::assertCount(0, $violations);
+    }
+
+    #[Group('issue-21')]
+    public function testTheMaximumProjectRunsAreAccepted(): void
+    {
+        $violations = $this->validator->validatePropertyValue(new CreateProjectInput(), 'runs', self::MAXIMUM_PROJECT_RUNS);
+
+        self::assertCount(0, $violations);
+    }
+
+    #[Group('issue-21')]
+    public function testProjectRunsAboveTheMaximumAreRejected(): void
+    {
+        $violations = $this->validator->validatePropertyValue(new CreateProjectInput(), 'runs', self::PROJECT_RUNS_ABOVE_THE_MAXIMUM);
+
+        self::assertSame(['runs'], $this->propertyPathsOf($violations));
+    }
+
+    #[Group('issue-21')]
+    public function testTheMinimumMaxJobDurationIsAccepted(): void
+    {
+        $violations = $this->validator->validatePropertyValue(new CreateProjectInput(), 'maxJobDurationDays', self::MINIMUM_MAX_JOB_DURATION_DAYS);
+
+        self::assertCount(0, $violations);
+    }
+
+    #[Group('issue-21')]
+    public function testMaxJobDurationBelowTheMinimumIsRejected(): void
+    {
+        $violations = $this->validator->validatePropertyValue(new CreateProjectInput(), 'maxJobDurationDays', self::MAX_JOB_DURATION_DAYS_BELOW_THE_MINIMUM);
+
+        self::assertSame(['maxJobDurationDays'], $this->propertyPathsOf($violations));
     }
 
     private function validateExcludedTypeIds(array $excludedTypeIds): ConstraintViolationListInterface

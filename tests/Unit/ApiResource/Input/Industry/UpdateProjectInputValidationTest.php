@@ -21,6 +21,10 @@ final class UpdateProjectInputValidationTest extends TestCase
     private const int DATACORE_QUANTITY = 4;
     private const string UNKNOWN_TYPE_NAME_PATH = 'inventionMaterials[0][typeName]';
     private const string UNKNOWN_PROJECT_STATUS = 'bogus';
+    private const int MAXIMUM_PROJECT_RUNS = 100000;
+    private const int PROJECT_RUNS_ABOVE_THE_MAXIMUM = 100001;
+    private const float MINIMUM_MAX_JOB_DURATION_DAYS = 0.5;
+    private const float MAX_JOB_DURATION_DAYS_BELOW_THE_MINIMUM = 0.4;
 
     private ValidatorInterface $validator;
 
@@ -79,6 +83,38 @@ final class UpdateProjectInputValidationTest extends TestCase
         $violations = $this->validator->validatePropertyValue(new UpdateProjectInput(), 'status', $projectStatus->value);
 
         self::assertCount(0, $violations);
+    }
+
+    #[Group('issue-21')]
+    public function testPatchingTheMaximumProjectRunsIsAccepted(): void
+    {
+        $violations = $this->validator->validatePropertyValue(new UpdateProjectInput(), 'runs', self::MAXIMUM_PROJECT_RUNS);
+
+        self::assertCount(0, $violations);
+    }
+
+    #[Group('issue-21')]
+    public function testPatchingProjectRunsAboveTheMaximumIsRejected(): void
+    {
+        $violations = $this->validator->validatePropertyValue(new UpdateProjectInput(), 'runs', self::PROJECT_RUNS_ABOVE_THE_MAXIMUM);
+
+        self::assertSame(['runs'], $this->propertyPathsOf($violations));
+    }
+
+    #[Group('issue-21')]
+    public function testPatchingTheMinimumMaxJobDurationIsAccepted(): void
+    {
+        $violations = $this->validator->validatePropertyValue(new UpdateProjectInput(), 'maxJobDurationDays', self::MINIMUM_MAX_JOB_DURATION_DAYS);
+
+        self::assertCount(0, $violations);
+    }
+
+    #[Group('issue-21')]
+    public function testPatchingMaxJobDurationBelowTheMinimumIsRejected(): void
+    {
+        $violations = $this->validator->validatePropertyValue(new UpdateProjectInput(), 'maxJobDurationDays', self::MAX_JOB_DURATION_DAYS_BELOW_THE_MINIMUM);
+
+        self::assertSame(['maxJobDurationDays'], $this->propertyPathsOf($violations));
     }
 
     public static function projectStatuses(): \Generator
