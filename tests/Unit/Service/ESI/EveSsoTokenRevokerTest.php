@@ -22,6 +22,7 @@ final class EveSsoTokenRevokerTest extends TestCase
     private const string CLIENT_SECRET = 'evetools-client-secret';
     private const string REFRESH_TOKEN = 'decrypted-refresh-token-of-kaelen';
     private const int EVE_CHARACTER_ID = 2_112_000_053;
+    private const float REVOCATION_TIMEOUT_SECONDS = 5.0;
 
     private array $recordedRequests = [];
 
@@ -49,6 +50,14 @@ final class EveSsoTokenRevokerTest extends TestCase
         );
         parse_str($this->recordedRequests[0]['body'], $form);
         self::assertSame(['token_type_hint' => 'refresh_token', 'token' => self::REFRESH_TOKEN], $form);
+    }
+
+    public function testRevocationRequestTimesOutAfterFiveSeconds(): void
+    {
+        $this->revoker(new MockResponse('', ['http_code' => 200]))->revoke(self::REFRESH_TOKEN, self::EVE_CHARACTER_ID);
+
+        self::assertCount(1, $this->recordedRequests);
+        self::assertSame(self::REVOCATION_TIMEOUT_SECONDS, $this->recordedRequests[0]['timeout']);
     }
 
     public function testSuccessfulRevocationLogsNoWarning(): void
@@ -94,6 +103,7 @@ final class EveSsoTokenRevokerTest extends TestCase
                 'url' => $url,
                 'headers' => $options['normalized_headers'] ?? [],
                 'body' => is_string($options['body'] ?? null) ? $options['body'] : '',
+                'timeout' => $options['timeout'] ?? null,
             ];
 
             return $response;

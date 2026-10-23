@@ -39,6 +39,7 @@ vi.mock('@/composables/usePushNotifications', () => ({
 }))
 
 const labels = en.characters.deleteAccount
+const MAIN_CHARACTER_NAME = 'Kaelen Vorn'
 
 function mountAccountDeletion(): ReturnType<typeof useAccountDeletion> {
   const pinia = createPinia()
@@ -82,6 +83,21 @@ beforeEach(() => {
 })
 
 describe('useAccountDeletion', () => {
+  it('sends the typed main character name as the confirmation of the deletion', async () => {
+    const { deleteAccount } = mountAccountDeletion()
+    signIn()
+    spyOnSessionTeardown()
+    vi.mocked(apiRequest).mockResolvedValue(null)
+
+    await deleteAccount(MAIN_CHARACTER_NAME)
+
+    expect(apiRequest).toHaveBeenCalledTimes(1)
+    expect(apiRequest).toHaveBeenCalledWith('/me', {
+      method: 'DELETE',
+      body: JSON.stringify({ confirmation: 'Kaelen Vorn' }),
+    })
+  })
+
   it('deletes the account then unsubscribes push, closes Mercure, logs out locally and redirects to login with a toast', async () => {
     const { deleteAccount, isDeleting } = mountAccountDeletion()
     signIn()
@@ -91,7 +107,7 @@ describe('useAccountDeletion', () => {
       return null
     })
 
-    const deleted = await deleteAccount()
+    const deleted = await deleteAccount(MAIN_CHARACTER_NAME)
 
     expect(deleted).toBe(true)
     expect(calls).toEqual([
@@ -115,7 +131,7 @@ describe('useAccountDeletion', () => {
     vi.mocked(apiRequest).mockRejectedValue(new Error('API error: 500'))
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
-    const deleted = await deleteAccount()
+    const deleted = await deleteAccount(MAIN_CHARACTER_NAME)
 
     expect(deleted).toBe(false)
     expect(calls).toEqual([`toast error ${labels.failed}`])
