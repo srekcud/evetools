@@ -164,10 +164,10 @@ async function toggleColony(colonyId: string): Promise<void> {
         <PiKpiCards
           :total-colonies="statsData?.totalColonies ?? planetaryStore.colonies.length"
           :total-characters="totalCharacterCount"
-          :active-extractors="statsData?.activeExtractors ?? 0"
-          :expired-extractors="statsData?.expiredExtractors ?? 0"
-          :total-extractors="statsData?.totalExtractors ?? 0"
-          :expiring-extractors="statsData?.expiringExtractors ?? 0"
+          :active-extractors="statsData?.activeExtractors ?? null"
+          :expired-extractors="statsData?.expiredExtractors ?? null"
+          :total-extractors="statsData?.totalExtractors ?? null"
+          :expiring-extractors="statsData?.expiringExtractors ?? null"
           :estimated-daily-isk="statsData?.estimatedDailyIsk ?? planetaryStore.totalDailyIsk"
         />
 

@@ -162,10 +162,10 @@ const activeDays = computed(() => {
   return uniqueDays.size
 })
 
-const iskPerActiveDay = computed(() => {
+const iskPerActiveDay = computed((): number | null => {
+  if (miningStats.value === null) return null
   if (activeDays.value === 0) return 0
-  const backendTotal = miningStats.value?.totals.totalValue ?? 0
-  return backendTotal / activeDays.value
+  return miningStats.value.totals.totalValue / activeDays.value
 })
 
 const mainSystem = computed(() => {
@@ -177,19 +177,16 @@ const mainSystem = computed(() => {
     systemCounts[entry.solarSystemId].value += entry.totalValue || 0
   }
 
-  let maxSystem = { name: '-', value: 0, percent: 0 }
+  let maxSystem = { name: '-', value: 0 }
   for (const sys of Object.values(systemCounts)) {
     if (sys.value > maxSystem.value) {
-      maxSystem = { ...sys, percent: 0 }
+      maxSystem = { ...sys }
     }
   }
 
-  const backendTotal = miningStats.value?.totals.totalValue ?? 0
-  if (backendTotal > 0) {
-    maxSystem.percent = (maxSystem.value / backendTotal) * 100
-  }
-
-  return maxSystem
+  if (miningStats.value === null) return { ...maxSystem, percent: null }
+  const backendTotal = miningStats.value.totals.totalValue
+  return { ...maxSystem, percent: backendTotal > 0 ? (maxSystem.value / backendTotal) * 100 : 0 }
 })
 
 // Table ref for page reset
@@ -381,6 +378,7 @@ defineExpose({
       :isk-per-active-day="iskPerActiveDay"
       :active-days="activeDays"
       :mining-stats="miningStats"
+      :loading="ledgerStore.isLoading"
       :main-system="mainSystem"
     />
 

@@ -58,16 +58,16 @@ function toggleSort(field: SortField) {
   }
 }
 
-function getSortValue(project: IndustryProject, field: SortField): number | string {
+function getSortValue(project: IndustryProject, field: SortField): number | string | null {
   switch (field) {
     case 'name': return projectDisplayName(project).toLowerCase()
     case 'status': return project.status
     case 'runs': return project.runs
-    case 'materials': return project.materialCost ?? project.estimatedMaterialCost ?? 0
-    case 'jobCost': return project.jobsCost ?? project.estimatedJobCost ?? 0
-    case 'taxes': return project.taxAmount ?? project.estimatedTaxAmount ?? 0
-    case 'sellPrice': return project.sellPrice ?? project.estimatedSellPrice ?? 0
-    case 'profit': return project.profit ?? 0
+    case 'materials': return project.materialCost ?? project.estimatedMaterialCost
+    case 'jobCost': return project.jobsCost ?? project.estimatedJobCost
+    case 'taxes': return project.taxAmount ?? project.estimatedTaxAmount
+    case 'sellPrice': return project.sellPrice ?? project.estimatedSellPrice
+    case 'profit': return project.profit
   }
 }
 
@@ -77,6 +77,9 @@ const sortedProjects = computed(() => {
   return projects.sort((a, b) => {
     const va = getSortValue(a, sortField.value)
     const vb = getSortValue(b, sortField.value)
+    if (va === null || vb === null) {
+      return Number(va === null) - Number(vb === null)
+    }
     if (typeof va === 'string' && typeof vb === 'string') {
       return va.localeCompare(vb) * dir
     }

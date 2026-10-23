@@ -8,6 +8,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { projectProfitTotal } from '@/utils/projectProfitTotal'
+import UnknownValue from '@/components/common/UnknownValue.vue'
 import type { IndustryProject } from '@/stores/industry/types'
 
 const { t } = useI18n()
@@ -94,8 +95,8 @@ const slotsAvailableColor = computed(() => {
 })
 
 // --- KPI 4: Pipeline Health ---
-const pipelineHealth = computed(() =>
-  stockpileStore.stockpileStatus?.kpis.pipelineHealth ?? 0,
+const pipelineHealth = computed((): number | null =>
+  stockpileStore.stockpileStatus?.kpis.pipelineHealth ?? null,
 )
 
 const allStockpileItems = computed(() => {
@@ -114,22 +115,25 @@ const hasStockpileTargets = computed(() =>
 )
 
 const pipelineDashOffset = computed(() =>
-  RING_CIRCUMFERENCE * (1 - pipelineHealth.value / 100),
+  RING_CIRCUMFERENCE * (1 - (pipelineHealth.value === null ? 0 : pipelineHealth.value / 100)),
 )
 
 const pipelineRingColor = computed(() => {
+  if (pipelineHealth.value === null) return '#64748b'
   if (pipelineHealth.value >= 80) return '#34d399'
   if (pipelineHealth.value >= 50) return '#fbbf24'
   return '#f87171'
 })
 
 const pipelineTextColor = computed(() => {
+  if (pipelineHealth.value === null) return 'text-slate-500'
   if (pipelineHealth.value >= 80) return 'text-emerald-400'
   if (pipelineHealth.value >= 50) return 'text-amber-400'
   return 'text-red-400'
 })
 
 const pipelineGlowClass = computed(() => {
+  if (pipelineHealth.value === null) return ''
   if (pipelineHealth.value >= 80) return 'ring-glow-emerald'
   if (pipelineHealth.value >= 50) return 'ring-glow-amber'
   return 'ring-glow-red'
@@ -351,7 +355,8 @@ function cleanTypeName(name: string): string {
     <!-- KPI 4: Pipeline Health -->
     <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
       <p class="text-xs text-slate-500 uppercase tracking-wider mb-3">{{ t('industry.dashboard.pipelineHealth') }}</p>
-      <div v-if="hasStockpileTargets" class="flex items-center gap-3">
+      <p v-if="pipelineHealth === null" class="text-2xl font-bold text-slate-500"><UnknownValue /></p>
+      <div v-else-if="hasStockpileTargets" class="flex items-center gap-3">
         <div class="relative w-12 h-12 flex-shrink-0" :class="pipelineGlowClass">
           <svg viewBox="0 0 48 48" class="w-12 h-12" style="transform: rotate(-90deg)">
             <circle cx="24" cy="24" :r="RING_RADIUS" fill="none" stroke="rgb(30 41 59)" stroke-width="4" />

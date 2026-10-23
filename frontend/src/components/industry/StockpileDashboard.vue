@@ -5,6 +5,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useStockpileStore } from '@/stores/industry/stockpile'
 import type { StockpileStage } from '@/stores/industry/types'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
+import UnknownValue from '@/components/common/UnknownValue.vue'
 import StockpileColumn from '@/components/industry/StockpileColumn.vue'
 import StockpileImportPanel from '@/components/industry/StockpileImportPanel.vue'
 import StockpileShoppingList from '@/components/industry/StockpileShoppingList.vue'
@@ -33,17 +34,19 @@ const stageColors: Record<StockpileStage, string> = {
 const RING_RADIUS = 24
 const CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS // ~150.8
 
-const pipelineHealth = computed(() => stockpileStore.stockpileStatus?.kpis.pipelineHealth ?? 0)
+const pipelineHealth = computed((): number | null => stockpileStore.stockpileStatus?.kpis.pipelineHealth ?? null)
 
-const dashOffset = computed(() => CIRCUMFERENCE * (1 - pipelineHealth.value / 100))
+const dashOffset = computed(() => CIRCUMFERENCE * (1 - (pipelineHealth.value === null ? 0 : pipelineHealth.value / 100)))
 
 const healthRingColor = computed(() => {
+  if (pipelineHealth.value === null) return '#64748b'
   if (pipelineHealth.value >= 80) return '#34d399' // emerald-400
   if (pipelineHealth.value >= 50) return '#fbbf24' // amber-400
   return '#f87171' // red-400
 })
 
 const healthTextColor = computed(() => {
+  if (pipelineHealth.value === null) return 'text-slate-500'
   if (pipelineHealth.value >= 80) return 'text-emerald-400'
   if (pipelineHealth.value >= 50) return 'text-amber-400'
   return 'text-red-400'
@@ -208,7 +211,8 @@ onMounted(async () => {
               </svg>
               <div class="absolute inset-0 flex items-center justify-center">
                 <span class="font-mono text-sm font-bold" :class="healthTextColor">
-                  {{ pipelineHealth }}%
+                  <UnknownValue v-if="pipelineHealth === null" />
+                  <template v-else>{{ pipelineHealth }}%</template>
                 </span>
               </div>
             </div>
@@ -216,7 +220,10 @@ onMounted(async () => {
               <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">
                 {{ t('industry.stockpile.kpi.pipelineHealth') }}
               </div>
-              <div class="text-lg font-bold" :class="healthTextColor">{{ pipelineHealth }}%</div>
+              <div class="text-lg font-bold" :class="healthTextColor">
+                <UnknownValue v-if="pipelineHealth === null" />
+                <template v-else>{{ pipelineHealth }}%</template>
+              </div>
               <div class="text-xs text-slate-500">
                 {{ t('industry.stockpile.kpi.targetsMet', { met: targetsMet, total: totalTargets }) }}
               </div>

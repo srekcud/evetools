@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useFormatters } from '@/composables/useFormatters'
+import UnknownValue from './UnknownValue.vue'
 
 defineProps<{
   value: number | null
@@ -7,9 +8,10 @@ defineProps<{
   short?: boolean
 }>()
 
-const { formatIsk } = useFormatters()
+const { formatIsk, formatIskShort } = useFormatters()
 </script>
 
 <template>
-  <span>{{ formatIsk(value) }}</span>
+  <UnknownValue v-if="loading || value === null" :loading="loading" />
+  <span v-else>{{ short ? formatIskShort(value) : formatIsk(value) }}</span>
 </template>

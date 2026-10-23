@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
+import UnknownValue from '@/components/common/UnknownValue.vue'
 
 const { t } = useI18n()
 const { formatIsk } = useFormatters()
@@ -8,10 +9,10 @@ const { formatIsk } = useFormatters()
 defineProps<{
   totalColonies: number
   totalCharacters: number
-  activeExtractors: number
-  expiredExtractors: number
-  totalExtractors: number
-  expiringExtractors: number
+  activeExtractors: number | null
+  expiredExtractors: number | null
+  totalExtractors: number | null
+  expiringExtractors: number | null
   estimatedDailyIsk: number
 }>()
 </script>
@@ -39,12 +40,18 @@ defineProps<{
         </svg>
       </div>
       <div class="mt-2 flex items-baseline gap-3">
-        <span class="text-3xl font-bold text-emerald-400 font-mono-tech">{{ activeExtractors }}</span>
-        <span v-if="expiredExtractors > 0" class="text-sm text-red-400 font-medium">
+        <span class="text-3xl font-bold text-emerald-400 font-mono-tech">
+          <UnknownValue v-if="activeExtractors === null" />
+          <template v-else>{{ activeExtractors }}</template>
+        </span>
+        <span v-if="expiredExtractors !== null && expiredExtractors > 0" class="text-sm text-red-400 font-medium">
           {{ t('pi.kpi.expired', expiredExtractors) }}
         </span>
       </div>
-      <div class="mt-1 text-xs text-slate-500">{{ t('pi.kpi.totalExtractors', { count: totalExtractors }) }}</div>
+      <div class="mt-1 text-xs text-slate-500">
+        <UnknownValue v-if="totalExtractors === null" />
+        <template v-else>{{ t('pi.kpi.totalExtractors', { count: totalExtractors }) }}</template>
+      </div>
     </div>
 
     <!-- Expirent bientot -->
@@ -55,7 +62,10 @@ defineProps<{
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       </div>
-      <div class="mt-2 text-3xl font-bold text-amber-400 font-mono-tech">{{ expiringExtractors }}</div>
+      <div class="mt-2 text-3xl font-bold text-amber-400 font-mono-tech">
+        <UnknownValue v-if="expiringExtractors === null" />
+        <template v-else>{{ expiringExtractors }}</template>
+      </div>
       <div class="mt-1 text-xs text-slate-500">{{ t('pi.kpi.inNext24h') }}</div>
     </div>
 
