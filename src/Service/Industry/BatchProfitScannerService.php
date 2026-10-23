@@ -155,6 +155,7 @@ class BatchProfitScannerService
         float $salesTaxRate,
         float $exportCostPerM3,
         ?User $user,
+        int $reactionSolarSystemId,
     ): array {
         // 1. Fetch all manufacturable products
         $allProducts = $this->productRepository->findAllManufacturableProducts();
@@ -279,11 +280,11 @@ class BatchProfitScannerService
         }
         $adjustedPrices = $this->esiCostIndexService->getAdjustedPrices(array_keys($allMaterialTypeIds));
 
-        // Pre-load cost indices once (same solar system for all products)
+        // Pre-load cost indices once (one solar system per activity for all products)
         $manufacturingCostIndex = $this->esiCostIndexService->getCostIndex($solarSystemId, 'manufacturing');
-        $reactionCostIndex = $this->esiCostIndexService->getCostIndex($solarSystemId, 'reaction');
+        $reactionCostIndex = $this->esiCostIndexService->getCostIndex($reactionSolarSystemId, 'reaction');
         $manufacturingFacilityTax = $this->facilityTaxResolver->percentFor($user, $solarSystemId, ActivityKind::Manufacturing);
-        $reactionFacilityTax = $this->facilityTaxResolver->percentFor($user, $solarSystemId, ActivityKind::Reaction);
+        $reactionFacilityTax = $this->facilityTaxResolver->percentFor($user, $reactionSolarSystemId, ActivityKind::Reaction);
 
         // 11. Calculate profit for each product
         $results = [];

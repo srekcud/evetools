@@ -11,6 +11,7 @@ use App\Constant\EveConstants;
 use App\Entity\User;
 use App\Industry\Application\Decryptors;
 use App\Repository\IndustryUserSettingsRepository;
+use App\Service\Industry\AnalysisSolarSystems;
 use App\Service\Industry\ProfitMarginService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -68,11 +69,7 @@ class ProfitMarginProvider implements ProviderInterface
             $structureId = EveConstants::JITA_STATION_ID;
         }
 
-        // Resolve solar system ID: query param > user's favorite manufacturing system
-        $solarSystemId = $solarSystemIdParam !== null ? (int) $solarSystemIdParam : null;
-        if ($solarSystemId === null) {
-            $solarSystemId = $settings?->getFavoriteManufacturingSystemId() ?? EveConstants::JITA_SOLAR_SYSTEM_ID;
-        }
+        $solarSystems = AnalysisSolarSystems::resolve($solarSystemIdParam !== null ? (int) $solarSystemIdParam : null, $settings);
 
         // Decryptor
         $decryptorTypeId = $decryptorTypeIdParam !== null ? (int) $decryptorTypeIdParam : null;
@@ -86,11 +83,12 @@ class ProfitMarginProvider implements ProviderInterface
             $me,
             $te,
             $structureId,
-            $solarSystemId,
+            $solarSystems->manufacturingSolarSystemId,
             $decryptorTypeId,
             $brokerFeeRate,
             $salesTaxRate,
             $user,
+            $solarSystems->reactionSolarSystemId,
         );
 
         return $this->mapToResource($result);

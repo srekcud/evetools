@@ -10,6 +10,7 @@ use App\ApiResource\Industry\BatchScanResultResource;
 use App\Constant\EveConstants;
 use App\Entity\User;
 use App\Repository\IndustryUserSettingsRepository;
+use App\Service\Industry\AnalysisSolarSystems;
 use App\Service\Industry\BatchProfitScannerService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -65,10 +66,7 @@ class BatchScanProvider implements ProviderInterface
             $structureId = $user->getPreferredMarketStructureId();
         }
 
-        // Resolve solar system ID
-        $solarSystemId = $solarSystemIdParam !== null
-            ? (int) $solarSystemIdParam
-            : ($settings?->getFavoriteManufacturingSystemId() ?? EveConstants::JITA_SOLAR_SYSTEM_ID);
+        $solarSystems = AnalysisSolarSystems::resolve($solarSystemIdParam !== null ? (int) $solarSystemIdParam : null, $settings);
 
         $results = $this->scannerService->scan(
             $category,
@@ -76,11 +74,12 @@ class BatchScanProvider implements ProviderInterface
             $minDailyVolume,
             $sellVenue,
             $structureId,
-            $solarSystemId,
+            $solarSystems->manufacturingSolarSystemId,
             $brokerFeeRate,
             $salesTaxRate,
             $exportCostPerM3,
             $user,
+            $solarSystems->reactionSolarSystemId,
         );
 
         return array_map([$this, 'mapToResource'], $results);

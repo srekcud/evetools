@@ -67,6 +67,7 @@ class ProfitMarginService
         float $brokerFeeRate,
         float $salesTaxRate,
         ?User $user,
+        int $reactionSolarSystemId,
     ): array {
         $decryptors = $this->decryptors->all();
         $costOf = $this->costFunction(
@@ -74,6 +75,7 @@ class ProfitMarginService
             $runs,
             new BlueprintEfficiency(new MaterialEfficiency($meLevel), new TimeEfficiency($teLevel)),
             $solarSystemId,
+            $reactionSolarSystemId,
             $user,
         );
 
@@ -114,11 +116,11 @@ class ProfitMarginService
     /**
      * @return \Closure(?Decryptor): ProductionCost
      */
-    private function costFunction(int $typeId, int $runs, BlueprintEfficiency $efficiency, int $solarSystemId, ?User $user): \Closure
+    private function costFunction(int $typeId, int $runs, BlueprintEfficiency $efficiency, int $solarSystemId, int $reactionSolarSystemId, ?User $user): \Closure
     {
         $structures = null === $user ? [] : $this->productionStructures->configuredBy(self::idOf($user));
         $blacklist = null === $user ? [] : $this->blacklistService->resolveBlacklistedTypeIds($user);
-        $favoriteSystems = new FavoriteSystems($solarSystemId, $solarSystemId);
+        $favoriteSystems = new FavoriteSystems($solarSystemId, $reactionSolarSystemId);
 
         return fn (?Decryptor $decryptor): ProductionCost => $this->productionCosts->costOf(new ProductionCostRequest(
             $typeId,
