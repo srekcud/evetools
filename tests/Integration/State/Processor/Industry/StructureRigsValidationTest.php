@@ -35,6 +35,10 @@ final class StructureRigsValidationTest extends IntegrationTestCase
     private const string M_COMPOSITE_REACTOR_RIG = 'Standup M-Set Composite Reactor Material Efficiency I';
     private const string XL_SHIP_RIG = 'Standup XL-Set Ship Manufacturing Efficiency II';
     private const string UNKNOWN_RIG = 'Standup M-Set Inexistant I';
+    private const string M_HYBRID_REACTOR_RIG = 'Standup M-Set Hybrid Reactor Material Efficiency II';
+    private const string L_REACTOR_EFFICIENCY_I_RIG = 'Standup L-Set Reactor Efficiency I';
+    private const string L_REACTOR_EFFICIENCY_II_RIG = 'Standup L-Set Reactor Efficiency II';
+    private const string L_STRUCTURE_RIG = 'Standup L-Set Structure Manufacturing Efficiency I';
 
     private User $pilot;
 
@@ -140,6 +144,42 @@ final class StructureRigsValidationTest extends IntegrationTestCase
 
         self::assertSame([self::XL_SHIP_RIG], $resource->rigs);
         self::assertSame([self::XL_SHIP_RIG], $this->storedStructure($resource->id)->getRigs());
+    }
+
+    public function testCreatingAnAthanorAcceptsAMediumReactorRig(): void
+    {
+        $resource = $this->create(['name' => 'Moon Athanor', 'structureType' => 'athanor', 'rigs' => [self::M_HYBRID_REACTOR_RIG]]);
+
+        self::assertSame([self::M_HYBRID_REACTOR_RIG], $resource->rigs);
+        self::assertSame([self::M_HYBRID_REACTOR_RIG], $this->storedStructure($resource->id)->getRigs());
+    }
+
+    public function testCreatingATataraAcceptsALargeReactorRig(): void
+    {
+        $resource = $this->create(['name' => 'Reacting Tatara', 'structureType' => 'tatara', 'rigs' => [self::L_REACTOR_EFFICIENCY_II_RIG]]);
+
+        self::assertSame([self::L_REACTOR_EFFICIENCY_II_RIG], $resource->rigs);
+        self::assertSame([self::L_REACTOR_EFFICIENCY_II_RIG], $this->storedStructure($resource->id)->getRigs());
+    }
+
+    public function testCreatingATataraWithALargeManufacturingRigIsRejectedOnRigsAndStoresNothing(): void
+    {
+        $rejection = $this->rejectionOf(fn () => $this->create([
+            'name' => 'Manufacturing Tatara',
+            'structureType' => 'tatara',
+            'rigs' => [self::L_STRUCTURE_RIG],
+        ]));
+
+        $this->assertRejectedOnRigs($rejection);
+        self::assertSame([], $this->storedStructuresOfPilot());
+    }
+
+    public function testCreatingALegacyRefineryAcceptsALargeReactorRig(): void
+    {
+        $resource = $this->create(['name' => 'Legacy Refinery', 'structureType' => 'refinery', 'rigs' => [self::L_REACTOR_EFFICIENCY_I_RIG]]);
+
+        self::assertSame([self::L_REACTOR_EFFICIENCY_I_RIG], $resource->rigs);
+        self::assertSame([self::L_REACTOR_EFFICIENCY_I_RIG], $this->storedStructure($resource->id)->getRigs());
     }
 
     public function testPatchingAnAzbelWithFourLargeRigsIsRejectedOnRigsAndLeavesItUnchanged(): void
