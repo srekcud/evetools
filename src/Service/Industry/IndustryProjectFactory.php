@@ -68,7 +68,7 @@ class IndustryProjectFactory
         $rawSteps = [];
         $this->collectStepsFromTree($rawSteps, $tree, $meLevel, $teLevel);
         $this->addTimeDataToSteps($rawSteps, $user);
-        $rawSteps = $this->planStepsJobByJob($rawSteps, $user, $project->getMaxJobDurationDays(), []);
+        $rawSteps = $this->planStepsJobByJob($rawSteps, $user, $project->getMaxJobDurationDays(), [], []);
 
         $this->sortRawSteps($rawSteps);
         $this->applyPlanToExistingSteps($project, $rawSteps);
@@ -96,7 +96,7 @@ class IndustryProjectFactory
             $this->collectStepsFromTree($rawSteps, $tree, $project->getMeLevel(), $project->getTeLevel());
             $rawSteps = array_map(fn (array $rawStep): array => $this->withSettingsOfExistingStep($rawStep, $settingsOfExistingSteps), $rawSteps);
             $this->addTimeDataToSteps($rawSteps, $user);
-            $rawSteps = $this->planStepsJobByJob($rawSteps, $user, $project->getMaxJobDurationDays(), $settingsOfExistingSteps);
+            $rawSteps = $this->planStepsJobByJob($rawSteps, $user, $project->getMaxJobDurationDays(), $settingsOfExistingSteps, $this->existingJobsWithFixedRunsByKey($project));
 
             $this->sortRawSteps($rawSteps);
             $this->applyPlanToExistingSteps($project, $rawSteps);
@@ -469,9 +469,10 @@ class IndustryProjectFactory
     /**
      * @param array<string, array<string, mixed>> $steps
      * @param array<string, list<array{meLevel: int, teLevel: int, structureConfig: IndustryStructureConfig|null}>> $settingsOfExistingSteps
+     * @param array<string, list<IndustryProjectStep>> $existingJobsWithFixedRunsByKey
      * @return list<array<string, mixed>>
      */
-    private function planStepsJobByJob(array $steps, User $user, float $maxJobDurationDays, array $settingsOfExistingSteps): array
+    private function planStepsJobByJob(array $steps, User $user, float $maxJobDurationDays, array $settingsOfExistingSteps, array $existingJobsWithFixedRunsByKey): array
     {
         $activityTypeByProduct = [];
         foreach ($steps as $step) {
@@ -496,7 +497,11 @@ class IndustryProjectFactory
                 $step['runs'] = (int) ceil($step['quantity'] / $step['outputPerRun']);
             }
 
-            $jobs = array_map(fn (array $job): array => $this->withSettingsOfExistingStep($job, $settingsOfExistingSteps), $this->jobsOf($step, $maxJobDurationDays));
+            $existingJobsWithFixedRuns = $existingJobsWithFixedRunsByKey[self::stepKey($step['blueprintTypeId'], $step['activityType'])] ?? null;
+            $plannedJobs = $existingJobsWithFixedRuns === null
+                ? $this->jobsOf($step, $maxJobDurationDays)
+                : self::jobsKeepingFixedRuns($step, $existingJobsWithFixedRuns);
+            $jobs = array_map(fn (array $job): array => $this->withSettingsOfExistingStep($job, $settingsOfExistingSteps), $plannedJobs);
             $materials = $materialsByKey[$step['blueprintTypeId'] . '-' . SplitGroupMaterials::activityIdOf($step['activityType'])] ?? [];
             foreach ($jobs as $job) {
                 $this->addNeedOfJobs($needByProduct, $user, $job, [$job['runs']], $materials, $activityTypeByProduct);
@@ -582,6 +587,36 @@ class IndustryProjectFactory
         return $consumerCategory === null
             ? self::NO_MATERIAL_BONUS
             : $this->bonusService->findBestStructureForCategory($user, $consumerCategory, $consumerIsReaction)['bonus'];
+    }
+
+    /**
+     * @return array<string, list<IndustryProjectStep>>
+     */
+    private function existingJobsWithFixedRunsByKey(IndustryProject $project): array
+    {
+        return array_filter(
+            $this->existingStepsByKeyInSplitIndexOrder($project),
+            static fn (array $jobs): bool => array_filter($jobs, static fn (IndustryProjectStep $job): bool => $job->isRunsFixed()) !== [],
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $step
+     * @param list<IndustryProjectStep> $existingJobs
+     * @return list<array<string, mixed>>
+     */
+    private static function jobsKeepingFixedRuns(array $step, array $existingJobs): array
+    {
+        SplitGroupQuantities::applyNeedToSteps($existingJobs, $step['quantity'], $step['outputPerRun']);
+
+        return array_map(static fn (IndustryProjectStep $existingJob): array => [
+            ...$step,
+            'runs' => $existingJob->getRuns(),
+            'quantity' => $existingJob->getQuantity(),
+            'splitGroupId' => $existingJob->getSplitGroupId(),
+            'splitIndex' => $existingJob->getSplitIndex(),
+            'totalGroupRuns' => $existingJob->getTotalGroupRuns(),
+        ], $existingJobs);
     }
 
     /**

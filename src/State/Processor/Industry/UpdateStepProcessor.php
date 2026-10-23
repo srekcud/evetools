@@ -8,12 +8,15 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\ProjectStepResource;
 use App\ApiResource\Input\Industry\UpdateStepInput;
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectStep;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryStepCalculator;
+use App\Service\Industry\SplitGroupQuantities;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -100,9 +103,16 @@ class UpdateStepProcessor implements ProcessorInterface
         }
 
         if ($data->runs !== null && $data->runs >= 1) {
-            $step->setRuns($data->runs);
             $quantityPerRun = $this->getQuantityPerRun($step->getBlueprintTypeId(), $step->getActivityType());
-            $step->setQuantity($data->runs * $quantityPerRun);
+            $needRuns = $this->stepCalculator->needRunsOf($project, $step);
+            $runs = $needRuns === null ? $data->runs : $this->fixRunsEnteredOnTheJob($project, $step, $data->runs, $needRuns, $data->overproduce === true);
+            $step->setRuns($runs);
+            $step->setQuantity($runs * $quantityPerRun);
+            $needsCascade = true;
+        }
+
+        if ($data->runsFixed === false) {
+            $this->releaseFixedRunsOfTheGroup($project, $step);
             $needsCascade = true;
         }
 
@@ -123,6 +133,63 @@ class UpdateStepProcessor implements ProcessorInterface
         }
 
         return $this->mapper->stepToResource($step);
+    }
+
+    private function fixRunsEnteredOnTheJob(IndustryProject $project, IndustryProjectStep $job, int $enteredRuns, int $needRuns, bool $overproduce): int
+    {
+        $otherJobs = array_filter($this->jobsOfTheGroupOf($project, $job), static fn (IndustryProjectStep $otherJob): bool => $otherJob !== $job);
+        $job->setRunsFixed(true);
+
+        if ($overproduce) {
+            foreach ($otherJobs as $otherJob) {
+                $otherJob->setRunsFixed(true);
+            }
+
+            return $enteredRuns;
+        }
+
+        $runsKeptForTheOtherJobs = array_sum(array_map(
+            static fn (IndustryProjectStep $otherJob): int => $otherJob->isRunsFixed() ? $otherJob->getRuns() : 1,
+            $otherJobs,
+        ));
+
+        return max(1, min($enteredRuns, $needRuns - $runsKeptForTheOtherJobs));
+    }
+
+    private function releaseFixedRunsOfTheGroup(IndustryProject $project, IndustryProjectStep $step): void
+    {
+        $jobs = $this->jobsOfTheGroupOf($project, $step);
+        foreach ($jobs as $job) {
+            $job->setRunsFixed(false);
+        }
+
+        $needRuns = $this->stepCalculator->needRunsOf($project, $step);
+        if ($needRuns === null) {
+            return;
+        }
+
+        foreach (SplitGroupQuantities::runsBySplitIndex($needRuns, \count($jobs)) as $splitIndex => $runs) {
+            $jobs[$splitIndex]->setRuns($runs);
+        }
+    }
+
+    /**
+     * @return list<IndustryProjectStep>
+     */
+    private function jobsOfTheGroupOf(IndustryProject $project, IndustryProjectStep $step): array
+    {
+        $splitGroupId = $step->getSplitGroupId();
+        if ($splitGroupId === null) {
+            return [$step];
+        }
+
+        $jobs = array_values(array_filter(
+            $project->getSteps()->toArray(),
+            static fn (IndustryProjectStep $job): bool => $job->getSplitGroupId() === $splitGroupId,
+        ));
+        usort($jobs, static fn (IndustryProjectStep $a, IndustryProjectStep $b): int => $a->getSplitIndex() <=> $b->getSplitIndex());
+
+        return $jobs;
     }
 
     private function getQuantityPerRun(int $blueprintTypeId, string $activityType): int

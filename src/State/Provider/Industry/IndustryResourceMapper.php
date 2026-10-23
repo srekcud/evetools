@@ -233,6 +233,7 @@ class IndustryResourceMapper
         $resource->splitIndex = $step->getSplitIndex();
         $resource->totalGroupRuns = $step->getTotalGroupRuns();
         $resource->purchased = $step->isPurchased();
+        $resource->runsFixed = $step->isRunsFixed();
         $resource->inStockQuantity = $step->getInStockQuantity();
         $resource->meLevel = $step->getMeLevel();
         $resource->teLevel = $step->getTeLevel();

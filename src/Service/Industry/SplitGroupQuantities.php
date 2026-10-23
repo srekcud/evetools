@@ -42,40 +42,76 @@ final class SplitGroupQuantities
         return $quantities;
     }
 
+    public static function runsOfNeed(int $need, int $outputPerRun): int
+    {
+        return (int) ceil($need / $outputPerRun);
+    }
+
     /**
      * @param list<IndustryProjectStep> $steps
      * @return list<IndustryProjectStep>
      */
     public static function applyNeedToSteps(array $steps, int $need, int $outputPerRun): array
     {
-        $totalRuns = (int) ceil($need / $outputPerRun);
+        $totalRuns = self::runsOfNeed($need, $outputPerRun);
 
         if (count($steps) === 1) {
             $step = $steps[0];
-            if ($step->getQuantity() === $need && $step->getRuns() === $totalRuns) {
+            $stepRuns = $step->isRunsFixed() ? $step->getRuns() : $totalRuns;
+            $stepQuantity = $step->isRunsFixed() ? $stepRuns * $outputPerRun : $need;
+            if ($step->getQuantity() === $stepQuantity && $step->getRuns() === $stepRuns) {
                 return [];
             }
-            $step->setQuantity($need);
-            $step->setRuns($totalRuns);
+            $step->setQuantity($stepQuantity);
+            $step->setRuns($stepRuns);
 
             return [$step];
         }
 
-        $oldTotalRuns = 0;
-        foreach ($steps as $step) {
-            $oldTotalRuns += $step->getRuns();
+        $fixedSteps = array_filter($steps, static fn (IndustryProjectStep $step): bool => $step->isRunsFixed());
+        $stepsNotFixed = array_diff_key($steps, $fixedSteps);
+        $runsOfFixedSteps = array_map(static fn (IndustryProjectStep $step): int => $step->getRuns(), $fixedSteps);
+        $fixedRuns = array_sum($runsOfFixedSteps);
+
+        $runsByStep = $runsOfFixedSteps + self::runsProrataOfCurrentRuns($stepsNotFixed, $totalRuns - $fixedRuns);
+        $quantityByStep = array_map(static fn (int $runs): int => $runs * $outputPerRun, $runsOfFixedSteps)
+            + self::quantitiesInSplitIndexOrder($stepsNotFixed, $runsByStep, max(0, $need - $fixedRuns * $outputPerRun), $outputPerRun);
+        $groupHasFixedRuns = $fixedSteps !== [];
+        $totalGroupRuns = $groupHasFixedRuns ? array_sum($runsByStep) : $totalRuns;
+
+        $changedSteps = [];
+        foreach ($steps as $i => $step) {
+            $stepRuns = $runsByStep[$i];
+            $stepQuantity = $quantityByStep[$i];
+
+            if ($step->getQuantity() !== $stepQuantity || $step->getRuns() !== $stepRuns || ($groupHasFixedRuns && $step->getTotalGroupRuns() !== $totalGroupRuns)) {
+                $step->setQuantity($stepQuantity);
+                $step->setRuns($stepRuns);
+                $step->setTotalGroupRuns($totalGroupRuns);
+                $changedSteps[] = $step;
+            }
         }
+
+        return $changedSteps;
+    }
+
+    /**
+     * @param array<int, IndustryProjectStep> $steps
+     * @return array<int, int>
+     */
+    private static function runsProrataOfCurrentRuns(array $steps, int $totalRuns): array
+    {
+        $oldTotalRuns = array_sum(array_map(static fn (IndustryProjectStep $step): int => $step->getRuns(), $steps));
 
         if ($oldTotalRuns === 0) {
             $oldTotalRuns = 1;
         }
 
+        $lastIndex = array_key_last($steps);
         $assignedRuns = 0;
         $runsByStep = [];
         foreach ($steps as $i => $step) {
-            $isLast = ($i === count($steps) - 1);
-
-            if ($isLast) {
+            if ($i === $lastIndex) {
                 $stepRuns = $totalRuns - $assignedRuns;
             } else {
                 $stepRuns = (int) round($totalRuns * $step->getRuns() / $oldTotalRuns);
@@ -85,6 +121,16 @@ final class SplitGroupQuantities
             $assignedRuns += $stepRuns;
         }
 
+        return $runsByStep;
+    }
+
+    /**
+     * @param array<int, IndustryProjectStep> $steps
+     * @param array<int, int> $runsByStep
+     * @return array<int, int>
+     */
+    private static function quantitiesInSplitIndexOrder(array $steps, array $runsByStep, int $need, int $outputPerRun): array
+    {
         $stepIndexesBySplitIndex = array_keys($steps);
         usort(
             $stepIndexesBySplitIndex,
@@ -95,21 +141,7 @@ final class SplitGroupQuantities
             $outputPerRun,
             array_map(static fn (int $i): int => $runsByStep[$i], $stepIndexesBySplitIndex),
         );
-        $quantityByStep = array_combine($stepIndexesBySplitIndex, $quantitiesBySplitIndex);
 
-        $changedSteps = [];
-        foreach ($steps as $i => $step) {
-            $stepRuns = $runsByStep[$i];
-            $stepQuantity = $quantityByStep[$i];
-
-            if ($step->getQuantity() !== $stepQuantity || $step->getRuns() !== $stepRuns) {
-                $step->setQuantity($stepQuantity);
-                $step->setRuns($stepRuns);
-                $step->setTotalGroupRuns($totalRuns);
-                $changedSteps[] = $step;
-            }
-        }
-
-        return $changedSteps;
+        return array_combine($stepIndexesBySplitIndex, $quantitiesBySplitIndex);
     }
 }
