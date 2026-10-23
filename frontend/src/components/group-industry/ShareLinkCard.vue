@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { groupJoinUrl } from '@/views/GroupIndustry/groupJoinUrl'
 
 const props = defineProps<{
   shortLinkCode: string
@@ -8,7 +9,7 @@ const props = defineProps<{
 const copied = ref(false)
 
 const joinUrl = computed(() =>
-  `${window.location.origin}/join/${props.shortLinkCode}`,
+  groupJoinUrl(window.location.origin, props.shortLinkCode),
 )
 
 async function copyToClipboard(): Promise<void> {

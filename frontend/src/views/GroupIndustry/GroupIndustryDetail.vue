@@ -22,6 +22,7 @@ import PendingRequestsTable from '@/components/group-industry/PendingRequestsTab
 import ShareLinkCard from '@/components/group-industry/ShareLinkCard.vue'
 import type { BomItem, GroupProject, GroupProjectStatus } from '@/stores/group-industry/types'
 import { nextProjectStatus } from './nextProjectStatus'
+import { groupJoinUrl } from './groupJoinUrl'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -132,7 +133,7 @@ function goBack(): void {
 
 async function copyShareLink(): Promise<void> {
   if (!project.value) return
-  const link = `${window.location.origin}/group-industry/join/${project.value.shortLinkCode}`
+  const link = groupJoinUrl(window.location.origin, project.value.shortLinkCode)
   try {
     await navigator.clipboard.writeText(link)
     showToast('Link copied!', 'success')
