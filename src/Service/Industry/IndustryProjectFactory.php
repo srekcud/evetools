@@ -6,6 +6,7 @@ namespace App\Service\Industry;
 
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
+use App\Entity\IndustryStructureConfig;
 use App\Entity\Sde\IndustryActivityMaterial;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
@@ -66,8 +67,8 @@ class IndustryProjectFactory
 
         $rawSteps = [];
         $this->collectStepsFromTree($rawSteps, $tree, $meLevel, $teLevel);
-        $this->addTimeDataToSteps($rawSteps, $user, $project->getTeLevel());
-        $rawSteps = $this->planStepsJobByJob($rawSteps, $user, $project->getMaxJobDurationDays());
+        $this->addTimeDataToSteps($rawSteps, $user);
+        $rawSteps = $this->planStepsJobByJob($rawSteps, $user, $project->getMaxJobDurationDays(), []);
 
         $this->sortRawSteps($rawSteps);
         $this->applyPlanToExistingSteps($project, $rawSteps);
@@ -88,12 +89,14 @@ class IndustryProjectFactory
         }
 
         try {
+            $settingsOfExistingSteps = $this->settingsOfExistingStepsByKeyInSplitIndexOrder($project);
             $tree = $this->productionTreeOf($project);
 
             $rawSteps = [];
             $this->collectStepsFromTree($rawSteps, $tree, $project->getMeLevel(), $project->getTeLevel());
-            $this->addTimeDataToSteps($rawSteps, $user, $project->getTeLevel());
-            $rawSteps = $this->planStepsJobByJob($rawSteps, $user, $project->getMaxJobDurationDays());
+            $rawSteps = array_map(fn (array $rawStep): array => $this->withSettingsOfExistingStep($rawStep, $settingsOfExistingSteps), $rawSteps);
+            $this->addTimeDataToSteps($rawSteps, $user);
+            $rawSteps = $this->planStepsJobByJob($rawSteps, $user, $project->getMaxJobDurationDays(), $settingsOfExistingSteps);
 
             $this->sortRawSteps($rawSteps);
             $this->applyPlanToExistingSteps($project, $rawSteps);
@@ -112,6 +115,46 @@ class IndustryProjectFactory
             }
             throw $e;
         }
+    }
+
+    /**
+     * @return array<string, list<array{meLevel: int, teLevel: int, structureConfig: IndustryStructureConfig|null}>>
+     */
+    private function settingsOfExistingStepsByKeyInSplitIndexOrder(IndustryProject $project): array
+    {
+        return array_map(
+            static fn (array $steps): array => array_map(
+                static fn (IndustryProjectStep $step): array => [
+                    'meLevel' => $step->getMeLevel(),
+                    'teLevel' => $step->getTeLevel(),
+                    'structureConfig' => $step->getStructureConfig(),
+                ],
+                $steps,
+            ),
+            $this->existingStepsByKeyInSplitIndexOrder($project),
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $plannedStep
+     * @param array<string, list<array{meLevel: int, teLevel: int, structureConfig: IndustryStructureConfig|null}>> $settingsOfExistingSteps
+     * @return array<string, mixed>
+     */
+    private function withSettingsOfExistingStep(array $plannedStep, array $settingsOfExistingSteps): array
+    {
+        $settingsBySplitIndex = $settingsOfExistingSteps[self::stepKey($plannedStep['blueprintTypeId'], $plannedStep['activityType'])] ?? [];
+        $settings = $settingsBySplitIndex[$plannedStep['splitIndex'] ?? 0] ?? $settingsBySplitIndex[0] ?? null;
+        if ($settings === null) {
+            return $plannedStep;
+        }
+
+        $plannedStep['structureConfig'] = $settings['structureConfig'];
+        if ($plannedStep['activityType'] === 'manufacturing' && $plannedStep['depth'] !== 0) {
+            $plannedStep['meLevel'] = $settings['meLevel'];
+            $plannedStep['teLevel'] = $settings['teLevel'];
+        }
+
+        return $plannedStep;
     }
 
     /**
@@ -168,7 +211,7 @@ class IndustryProjectFactory
         $step->setSplitGroupId($plannedStep['splitGroupId'] ?? null);
         $step->setSplitIndex($plannedStep['splitIndex'] ?? 0);
         $step->setTotalGroupRuns($plannedStep['totalGroupRuns'] ?? null);
-        $step->setStructureConfig(null);
+        $step->setStructureConfig($plannedStep['structureConfig']);
 
         $step->setMeLevel($plannedStep['meLevel'] ?? ($plannedStep['depth'] === 0 ? $project->getMeLevel() : 10));
         $step->setTeLevel($plannedStep['teLevel'] ?? ($plannedStep['depth'] === 0 ? $project->getTeLevel() : 20));
@@ -260,6 +303,7 @@ class IndustryProjectFactory
                     'activityType' => 'copy',
                     'meLevel' => 0,
                     'teLevel' => 0,
+                    'structureConfig' => null,
                     'planningLevel' => $node['depth'],
                 ];
             }
@@ -301,6 +345,7 @@ class IndustryProjectFactory
                 'activityType' => $activityType,
                 'meLevel' => $stepMeLevel,
                 'teLevel' => $stepTeLevel,
+                'structureConfig' => null,
                 'planningLevel' => $depth,
             ];
         }
@@ -315,7 +360,7 @@ class IndustryProjectFactory
     /**
      * @param array<string, array<string, mixed>> $steps
      */
-    private function addTimeDataToSteps(array &$steps, User $user, int $projectTeLevel = 20): void
+    private function addTimeDataToSteps(array &$steps, User $user): void
     {
         // Preload all skills for all characters (one query per character)
         $characterSkillLevels = $this->loadAllCharacterSkills($user);
@@ -353,22 +398,13 @@ class IndustryProjectFactory
             }
 
             $isReaction = $step['activityType'] === 'reaction';
-            $timeBonusData = $this->bonusService->findBestStructureForProductTimeBonus(
-                $user,
-                $step['productTypeId'],
-                $isReaction
-            );
-            $structureTimeBonus = $timeBonusData['bonus'];
-
-            if ($isReaction) {
-                $teLevel = 0;
-            } else {
-                $teLevel = ($step['depth'] ?? 0) === 0 ? $projectTeLevel : 20;
-            }
+            $structureTimeBonus = $step['structureConfig'] === null
+                ? $this->bonusService->findBestStructureForProductTimeBonus($user, $step['productTypeId'], $isReaction)['bonus']
+                : $this->calculationService->assignedStructureBonusOf($step['structureConfig'], $step['productTypeId'], $isReaction)['timeBonus'];
 
             $adjustedTimePerRun = $this->bonusService->calculateAdjustedTimePerRun(
                 $baseTimePerRun,
-                $teLevel,
+                $step['teLevel'],
                 $structureTimeBonus
             );
 
@@ -432,9 +468,10 @@ class IndustryProjectFactory
 
     /**
      * @param array<string, array<string, mixed>> $steps
+     * @param array<string, list<array{meLevel: int, teLevel: int, structureConfig: IndustryStructureConfig|null}>> $settingsOfExistingSteps
      * @return list<array<string, mixed>>
      */
-    private function planStepsJobByJob(array $steps, User $user, float $maxJobDurationDays): array
+    private function planStepsJobByJob(array $steps, User $user, float $maxJobDurationDays, array $settingsOfExistingSteps): array
     {
         $activityTypeByProduct = [];
         foreach ($steps as $step) {
@@ -459,9 +496,11 @@ class IndustryProjectFactory
                 $step['runs'] = (int) ceil($step['quantity'] / $step['outputPerRun']);
             }
 
-            $jobs = $this->jobsOf($step, $maxJobDurationDays);
+            $jobs = array_map(fn (array $job): array => $this->withSettingsOfExistingStep($job, $settingsOfExistingSteps), $this->jobsOf($step, $maxJobDurationDays));
             $materials = $materialsByKey[$step['blueprintTypeId'] . '-' . SplitGroupMaterials::activityIdOf($step['activityType'])] ?? [];
-            $this->addNeedOfJobs($needByProduct, $user, $step, array_column($jobs, 'runs'), $materials, $activityTypeByProduct);
+            foreach ($jobs as $job) {
+                $this->addNeedOfJobs($needByProduct, $user, $job, [$job['runs']], $materials, $activityTypeByProduct);
+            }
 
             array_push($plannedSteps, ...$jobs);
         }
@@ -513,6 +552,10 @@ class IndustryProjectFactory
      */
     private function materialBonusOf(User $user, array $consumer, int $materialTypeId, bool $materialIsReaction): array
     {
+        if ($consumer['structureConfig'] !== null) {
+            return $this->calculationService->assignedStructureBonusOf($consumer['structureConfig'], $consumer['productTypeId'], $consumer['activityType'] === 'reaction')['materialBonus'];
+        }
+
         if ($materialIsReaction) {
             return $this->reactionMaterialBonusOf($user, $consumer);
         }

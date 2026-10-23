@@ -82,6 +82,27 @@ class IndustryCalculationService
     }
 
     /**
+     * @return array{materialBonus: array{total: float, base: float, rig: float}, timeBonus: float}
+     */
+    public function assignedStructureBonusOf(IndustryStructureConfig $structureConfig, int $productTypeId, bool $isReaction): array
+    {
+        $category = $this->bonusService->getCategoryForProduct($productTypeId, $isReaction);
+        if ($category) {
+            return [
+                'materialBonus' => $this->bonusService->calculateStructureBonusForCategory($structureConfig, $category),
+                'timeBonus' => $this->bonusService->calculateStructureTimeBonusForCategory($structureConfig, $category),
+            ];
+        }
+
+        $baseMaterialBonus = $this->bonusService->getBaseMaterialBonus($structureConfig, $isReaction);
+
+        return [
+            'materialBonus' => ['total' => $baseMaterialBonus, 'base' => $baseMaterialBonus, 'rig' => 0.0],
+            'timeBonus' => $this->bonusService->getBaseTimeBonus($structureConfig, $isReaction),
+        ];
+    }
+
+    /**
      * Get the structure bonus for a step, using the step's assigned structure or finding the best one.
      *
      * Returns materialBonus as an array with separate base/rig values for multiplicative stacking.
@@ -96,21 +117,12 @@ class IndustryCalculationService
         $isReaction = $step->getActivityType() === 'reaction';
 
         if ($structureConfig !== null) {
-            $category = $this->bonusService->getCategoryForProduct($step->getProductTypeId(), $isReaction);
-            if ($category) {
-                $materialBonus = $this->bonusService->calculateStructureBonusForCategory($structureConfig, $category);
-                $timeBonus = $this->bonusService->calculateStructureTimeBonusForCategory($structureConfig, $category);
-            } else {
-                // No rig category (e.g. Deployables) — apply base structure bonus only
-                $baseMat = $this->bonusService->getBaseMaterialBonus($structureConfig, $isReaction);
-                $materialBonus = ['total' => $baseMat, 'base' => $baseMat, 'rig' => 0.0];
-                $timeBonus = $this->bonusService->getBaseTimeBonus($structureConfig, $isReaction);
-            }
+            $assignedStructureBonus = $this->assignedStructureBonusOf($structureConfig, $step->getProductTypeId(), $isReaction);
 
             return [
                 'structure' => $structureConfig,
-                'materialBonus' => $materialBonus,
-                'timeBonus' => $timeBonus,
+                'materialBonus' => $assignedStructureBonus['materialBonus'],
+                'timeBonus' => $assignedStructureBonus['timeBonus'],
                 'name' => $structureConfig->getName(),
                 'favoriteSystemWithoutSuitableStructure' => false,
             ];
