@@ -100,11 +100,11 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
             'marginPercent' => 261.09,
             'profitPerUnit' => 671.0,
             'dailyVolume' => 99.0,
-            'coveragePercent' => 25.0,
-            'missingComponents' => [['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'quantity' => 3, 'cost' => 150.0]],
-            'additionalCost' => 150.0,
+            'coveragePercent' => 9.09,
+            'missingComponents' => [['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'quantity' => 10, 'cost' => 500.0]],
+            'additionalCost' => 500.0,
             'estimatedProfit' => 2013.0,
-            'score' => 13054.47,
+            'score' => 4747.08,
             'unknownReason' => null,
             'missingPriceTypeIds' => [],
         ], $this->candidateOf(self::CANDIDATE_X, $result));
@@ -121,9 +121,9 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
             'marginPercent' => null,
             'profitPerUnit' => null,
             'dailyVolume' => 999.0,
-            'coveragePercent' => 50.0,
-            'missingComponents' => [['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'quantity' => 1, 'cost' => 50.0]],
-            'additionalCost' => 50.0,
+            'coveragePercent' => 16.67,
+            'missingComponents' => [['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'quantity' => 5, 'cost' => 250.0]],
+            'additionalCost' => 250.0,
             'estimatedProfit' => null,
             'score' => null,
             'unknownReason' => BatchProfitScannerService::UNKNOWN_REASON_MISSING_MATERIAL_PRICE,
@@ -154,7 +154,7 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
         $result = $this->analyzeCandidatesXWAndY(tritaniumPrice: 0.0);
 
         $this->assertSame(
-            ['marginPercent' => 337.74, 'score' => 16886.79, 'unknownReason' => null, 'missingPriceTypeIds' => []],
+            ['marginPercent' => 337.74, 'score' => 6140.65, 'unknownReason' => null, 'missingPriceTypeIds' => []],
             $this->onlyKeys($this->candidateOf(self::CANDIDATE_X, $result), 'marginPercent', 'score', 'unknownReason', 'missingPriceTypeIds'),
         );
     }
@@ -173,8 +173,8 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
                 'dailyVolume' => 49.0,
                 'coveragePercent' => null,
                 'missingComponents' => [
-                    ['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'quantity' => 3, 'cost' => 150.0],
-                    ['typeId' => self::COMPONENT_FOUR, 'typeName' => 'Component Four', 'quantity' => 3, 'cost' => null],
+                    ['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'quantity' => 10, 'cost' => 500.0],
+                    ['typeId' => self::COMPONENT_FOUR, 'typeName' => 'Component Four', 'quantity' => 12, 'cost' => null],
                 ],
                 'additionalCost' => null,
                 'estimatedProfit' => null,
@@ -378,10 +378,10 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
                 'marginPercent' => 268.14,
                 'profitPerUnit' => 675.92,
                 'missingComponents' => [
-                    ['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'quantity' => 3, 'cost' => 100.01],
-                    ['typeId' => self::COMPONENT_FOUR, 'typeName' => 'Component Four', 'quantity' => 3, 'cost' => 37.04],
+                    ['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'quantity' => 10, 'cost' => 333.37],
+                    ['typeId' => self::COMPONENT_FOUR, 'typeName' => 'Component Four', 'quantity' => 12, 'cost' => 148.15],
                 ],
-                'additionalCost' => 137.05,
+                'additionalCost' => 481.52,
                 'estimatedProfit' => 2027.77,
             ],
             $this->onlyKeys($this->candidateOf(self::CANDIDATE_X, $result), 'marginPercent', 'profitPerUnit', 'missingComponents', 'additionalCost', 'estimatedProfit'),
@@ -411,7 +411,7 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
                 self::COMPONENT_TWO => self::COMPONENT_TWO_PRICE,
                 self::CANDIDATE_X => 1000.0,
             ],
-            stockByTypeId: [self::COMPONENT_TWO => 4],
+            stockByTypeId: [self::COMPONENT_TWO => 11],
             dailyVolumes: [self::SOURCE_PRODUCT => 25.0, self::CANDIDATE_X => 99.0],
         );
 
@@ -512,7 +512,7 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
         );
 
         $this->assertSame(
-            ['marginPercent' => 3510.89, 'profitPerUnit' => 902.3, 'estimatedProfit' => 2706.9],
+            ['marginPercent' => 3510.89, 'profitPerUnit' => 902.3, 'estimatedProfit' => 27069.0],
             $this->onlyKeys($this->candidateOf(self::CANDIDATE_X, $result), 'marginPercent', 'profitPerUnit', 'estimatedProfit'),
         );
         $this->assertSame(9133.83, $result['sourceProduct']['marginPercent']);

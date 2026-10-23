@@ -128,11 +128,11 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
         'marginPercent' => 262.5,
         'profitPerUnit' => 672.0,
         'dailyVolume' => 99.0,
-        'coveragePercent' => 25.0,
-        'missingComponents' => [['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'quantity' => 3, 'cost' => 150.0]],
-        'additionalCost' => 150.0,
+        'coveragePercent' => 9.09,
+        'missingComponents' => [['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'quantity' => 10, 'cost' => 500.0]],
+        'additionalCost' => 500.0,
         'estimatedProfit' => 2016.0,
-        'score' => 13125.0,
+        'score' => 4772.73,
         'unknownReason' => null,
         'missingPriceTypeIds' => [],
     ];
@@ -144,11 +144,11 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
         'marginPercent' => 420.01,
         'profitPerUnit' => 899.45,
         'dailyVolume' => 9.0,
-        'coveragePercent' => 33.33,
-        'missingComponents' => [['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'quantity' => 2, 'cost' => 100.0]],
-        'additionalCost' => 100.0,
+        'coveragePercent' => 11.11,
+        'missingComponents' => [['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'quantity' => 8, 'cost' => 400.0]],
+        'additionalCost' => 400.0,
         'estimatedProfit' => 2698.35,
-        'score' => 14000.31,
+        'score' => 4666.77,
         'unknownReason' => null,
         'missingPriceTypeIds' => [],
     ];
@@ -164,7 +164,7 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
             costIndexByActivity: ['manufacturing' => self::MANUFACTURING_COST_INDEX, 'reaction' => self::REACTION_COST_INDEX],
         );
 
-        $this->assertSame([self::CANDIDATE_W_FIGURED, self::CANDIDATE_X_FIGURED], $result['candidates']);
+        $this->assertSame([self::CANDIDATE_X_FIGURED, self::CANDIDATE_W_FIGURED], $result['candidates']);
     }
 
     public function testSourceProductWithAKnownCostIndexAndAdjustedPricesHasAMarginWithTheEstimatedJobInstallCost(): void
@@ -248,9 +248,9 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
             'marginPercent' => null,
             'profitPerUnit' => null,
             'dailyVolume' => 999.0,
-            'coveragePercent' => 25.0,
-            'missingComponents' => [['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'quantity' => 3, 'cost' => 150.0]],
-            'additionalCost' => 150.0,
+            'coveragePercent' => 9.09,
+            'missingComponents' => [['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'quantity' => 10, 'cost' => 500.0]],
+            'additionalCost' => 500.0,
             'estimatedProfit' => null,
             'score' => null,
             'unknownReason' => EsiCostIndexService::UNKNOWN_REASON_MISSING_ADJUSTED_PRICE,
@@ -262,8 +262,8 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
     {
         $result = $this->analyzeCandidatesXWAndVWhoseMexallonHasNoAdjustedPrice();
 
-        $this->assertSame([self::CANDIDATE_W, self::CANDIDATE_X, self::CANDIDATE_V], array_column($result['candidates'], 'typeId'));
-        $this->assertSame([14000.31, 13125.0, null], array_column($result['candidates'], 'score'));
+        $this->assertSame([self::CANDIDATE_X, self::CANDIDATE_W, self::CANDIDATE_V], array_column($result['candidates'], 'typeId'));
+        $this->assertSame([4772.73, 4666.77, null], array_column($result['candidates'], 'score'));
         $this->assertSame(
             ['marginPercent' => 810.92, 'unknownReason' => null],
             $this->onlyKeys($result['sourceProduct'], 'marginPercent', 'unknownReason'),
@@ -308,8 +308,8 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
         $result = $this->analyzeManufacturingCandidatesAndAReactionCandidateWithoutReactionCostIndex();
 
         $this->assertSame([
-            self::CANDIDATE_W_FIGURED,
             self::CANDIDATE_X_FIGURED,
+            self::CANDIDATE_W_FIGURED,
             [
                 'typeId' => self::REACTION_CANDIDATE_R,
                 'typeName' => 'Reaction Candidate R',
@@ -317,9 +317,9 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
                 'marginPercent' => null,
                 'profitPerUnit' => null,
                 'dailyVolume' => 499.0,
-                'coveragePercent' => 50.0,
-                'missingComponents' => [['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'quantity' => 1, 'cost' => 50.0]],
-                'additionalCost' => 50.0,
+                'coveragePercent' => 16.67,
+                'missingComponents' => [['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'quantity' => 5, 'cost' => 250.0]],
+                'additionalCost' => 250.0,
                 'estimatedProfit' => null,
                 'score' => null,
                 'unknownReason' => EsiCostIndexService::UNKNOWN_REASON_MISSING_COST_INDEX,

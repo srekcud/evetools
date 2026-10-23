@@ -1162,6 +1162,113 @@ class PivotAdvisorServiceTest extends TestCase
         );
     }
 
+    #[Group('issue-123')]
+    public function testEstimatedProfitCoversTheRequestedRunsOfACandidateProducingManyUnitsPerRun(): void
+    {
+        $result = $this->analyzeCandidateProducing(100, 10, 91379.0, self::COMPONENT_STOCK);
+
+        $candidate = $this->candidateOf(self::CANDIDATE_1, $result);
+        $this->assertSame(5.0, $candidate['profitPerUnit']);
+        $this->assertSame(5000.0, $candidate['estimatedProfit']);
+    }
+
+    #[Group('issue-123')]
+    public function testEstimatedProfitOfACandidateProducingOneUnitPerRunIsTheProfitPerUnitTimesTheRuns(): void
+    {
+        $result = $this->analyzeCandidateProducing(1, 10, 2.0, self::COMPONENT_STOCK);
+
+        $candidate = $this->candidateOf(self::CANDIDATE_1, $result);
+        $this->assertSame(5.0, $candidate['profitPerUnit']);
+        $this->assertSame(50.0, $candidate['estimatedProfit']);
+    }
+
+    #[Group('issue-123')]
+    public function testMissingComponentsAndCoverageOfACandidateCoverTheRequestedRuns(): void
+    {
+        $result = $this->analyzeCandidateProducing(100, 10, 91379.0, self::COMPONENT_STOCK);
+
+        $candidate = $this->candidateOf(self::CANDIDATE_1, $result);
+        $this->assertSame(
+            [['typeId' => self::BUILDABLE_MAT_A, 'typeName' => null, 'quantity' => 60, 'cost' => 6000.0]],
+            $candidate['missingComponents'],
+        );
+        $this->assertSame(6000.0, $candidate['additionalCost']);
+        $this->assertSame(33.33, $candidate['coveragePercent']);
+    }
+
+    #[Group('issue-123')]
+    public function testMissingComponentsAndCoverageOfACandidateForOneRunKeepTheMe10Quantity(): void
+    {
+        $result = $this->analyzeCandidateProducing(100, 1, 91379.0, self::COMPONENT_STOCK);
+
+        $candidate = $this->candidateOf(self::CANDIDATE_1, $result);
+        $this->assertSame([], $candidate['missingComponents']);
+        $this->assertSame(0.0, $candidate['additionalCost']);
+        $this->assertSame(100.0, $candidate['coveragePercent']);
+    }
+
+    #[Group('issue-123')]
+    public function testEstimatedProfitOfACandidateWithAnUnknownProfitPerUnitStaysUnknownForTheRequestedRuns(): void
+    {
+        $result = $this->analyzeCandidateProducing(100, 10, 91379.0, self::COMPONENT_STOCK, withRawMaterialPrice: false);
+
+        $candidate = $this->candidateOf(self::CANDIDATE_1, $result);
+        $this->assertNull($candidate['profitPerUnit']);
+        $this->assertNull($candidate['estimatedProfit']);
+    }
+
+    private const int COMPONENT_STOCK = 30;
+
+    private function analyzeCandidateProducing(int $outputPerRun, int $runs, float $jobInstallCostPerRun, int $componentStock, bool $withRawMaterialPrice = true): array
+    {
+        $sourceBlueprint = $this->createBlueprintProduct(self::SOURCE_BLUEPRINT, self::SOURCE_PRODUCT, 1, 1);
+        $componentBlueprint = $this->createBlueprintProduct(99001, self::BUILDABLE_MAT_A, 1, 1);
+        $this->productRepository->method('findBlueprintForProduct')->willReturnCallback(
+            static fn (int $typeId, int $activityId): ?IndustryActivityProduct => match (true) {
+                $activityId !== 1 => null,
+                $typeId === self::SOURCE_PRODUCT => $sourceBlueprint,
+                $typeId === self::BUILDABLE_MAT_A => $componentBlueprint,
+                default => null,
+            },
+        );
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturnCallback(
+            static fn (array $blueprintTypeIds): array => $blueprintTypeIds === [self::SOURCE_BLUEPRINT]
+                ? [self::SOURCE_BLUEPRINT => [
+                    ['materialTypeId' => self::BUILDABLE_MAT_A, 'quantity' => 7],
+                    ['materialTypeId' => self::RAW_MAT, 'quantity' => 20],
+                ]]
+                : [self::CANDIDATE_1_BP => [
+                    ['materialTypeId' => self::BUILDABLE_MAT_A, 'quantity' => 10],
+                    ['materialTypeId' => self::RAW_MAT, 'quantity' => 3],
+                ]],
+        );
+        $this->materialRepository->method('findProductsUsingMaterials')->willReturn([
+            ['blueprintTypeId' => self::CANDIDATE_1_BP, 'productTypeId' => self::CANDIDATE_1, 'outputPerRun' => $outputPerRun, 'activityId' => 1],
+        ]);
+        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([self::BUILDABLE_MAT_A => $componentStock]);
+        $this->jitaMarketService->method('getPrices')->willReturn([
+            self::SOURCE_PRODUCT => 900000.0,
+            self::BUILDABLE_MAT_A => 100.0,
+            self::CANDIDATE_1 => 1000.0,
+        ] + ($withRawMaterialPrice ? [self::RAW_MAT => 7.0] : []));
+        $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([
+            self::SOURCE_PRODUCT => 12.0,
+            self::CANDIDATE_1 => 9.0,
+        ]);
+        $this->connection->method('fetchOne')->willReturn(0);
+        $this->connection->method('fetchAllAssociative')->willReturn([]);
+        $this->givenAJobInstallCostPerRunOf($jobInstallCostPerRun);
+
+        return $this->service->analyze(
+            self::SOURCE_PRODUCT,
+            $runs,
+            self::SOLAR_SYSTEM_ID,
+            self::BROKER_FEE,
+            self::SALES_TAX,
+            $this->user,
+        );
+    }
+
     private function candidateOf(int $typeId, array $result): array
     {
         foreach ($result['candidates'] as $candidate) {
