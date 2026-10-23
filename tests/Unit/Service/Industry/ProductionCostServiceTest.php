@@ -18,13 +18,11 @@ use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\Industry\EsiCostIndexService;
-use App\Service\Industry\FacilityTaxResolver;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryShoppingListBuilder;
 use App\Service\Industry\ProductionCostService;
-use App\Service\Industry\ProjectStepSolarSystemResolver;
+use App\Service\Industry\ProjectStepStructureResolver;
 use App\Service\JitaMarketService;
-use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use Doctrine\Common\Collections\ArrayCollection;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -56,6 +54,7 @@ class ProductionCostServiceTest extends TestCase
     private IndustryActivityMaterialRepository&MockObject $materialRepository;
     private IndustryActivityProductRepository&MockObject $productRepository;
     private MapSolarSystemRepository&MockObject $solarSystemRepository;
+    private ?IndustryStructureConfig $structureRetainedForTheBonus = null;
     private ProductionCostService $service;
 
     protected function setUp(): void
@@ -64,6 +63,15 @@ class ProductionCostServiceTest extends TestCase
         $this->esiCostIndexService = $this->createMock(EsiCostIndexService::class);
         $this->shoppingListBuilder = $this->createMock(IndustryShoppingListBuilder::class);
         $this->calculationService = $this->createMock(IndustryCalculationService::class);
+        $this->calculationService->method('getStructureBonusForStep')->willReturnCallback(
+            fn (IndustryProjectStep $step): array => [
+                'structure' => $step->getStructureConfig() ?? $this->structureRetainedForTheBonus,
+                'materialBonus' => ['total' => 0.0, 'base' => 0.0, 'rig' => 0.0],
+                'timeBonus' => 0.0,
+                'name' => null,
+                'favoriteSystemWithoutSuitableStructure' => false,
+            ],
+        );
         $this->userSettingsRepository = $this->createMock(IndustryUserSettingsRepository::class);
         $this->materialRepository = $this->createMock(IndustryActivityMaterialRepository::class);
         $this->productRepository = $this->createMock(IndustryActivityProductRepository::class);
@@ -74,11 +82,10 @@ class ProductionCostServiceTest extends TestCase
             $this->esiCostIndexService,
             $this->shoppingListBuilder,
             $this->calculationService,
-            new ProjectStepSolarSystemResolver($this->userSettingsRepository),
+            new ProjectStepStructureResolver($this->userSettingsRepository, $this->calculationService),
             $this->materialRepository,
             $this->productRepository,
             $this->solarSystemRepository,
-            $this->facilityTaxRateResolver(),
         );
     }
 
@@ -118,11 +125,6 @@ class ProductionCostServiceTest extends TestCase
         $step->method('isInStock')->willReturn($inStock);
 
         return $step;
-    }
-
-    private function facilityTaxRateResolver(): FacilityTaxResolver
-    {
-        return new FacilityTaxResolver(new InMemoryUserProductionStructures());
     }
 
     private function installCostOf(float $cost): array
@@ -839,6 +841,30 @@ class ProductionCostServiceTest extends TestCase
         $this->assertSame(30004759, $result['steps'][0]['solarSystemId']);
     }
 
+    #[Group('issue-133')]
+    public function testStepWithoutStructureEstimatesTheInstallCostInTheSolarSystemAndWithTheFacilityTaxOfTheStructureRetainedForTheBonus(): void
+    {
+        $step = $this->createStep('manufacturing', 587, 1, null, 586);
+        $project = $this->createProject(587, 1);
+        $project->method('getSteps')->willReturn(new ArrayCollection([$step]));
+        $this->structureRetainedForTheBonus = $this->createStructureConfig(30002187, 3.0);
+        $this->userSettingsRepository->method('findOneBy')->willReturn(null);
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
+            586 => [['materialTypeId' => 34, 'quantity' => 100000]],
+        ]);
+        $calls = $this->recordInstallCostEstimates(fn (array $materials): array => $this->installCostOf(2500.0));
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(0.05);
+        $this->calculationService->method('resolveTypeName')->willReturn('Rifter');
+        $this->solarSystemRepository->method('findBySolarSystemId')->willReturn(null);
+
+        $result = $this->service->estimateJobInstallCosts($project);
+
+        $this->assertSame(30002187, $result['steps'][0]['solarSystemId']);
+        $this->assertSame([
+            [[['materialTypeId' => 34, 'quantity' => 100000]], 1, 30002187, 'manufacturing', 3.0],
+        ], $calls->getArrayCopy());
+    }
+
     public function testReactionStepUsesFavoriteReactionSystem(): void
     {
         $step = $this->createStep('reaction', 30003, 10, null, 30002);
@@ -909,11 +935,10 @@ class ProductionCostServiceTest extends TestCase
             $this->esiCostIndexService,
             $this->shoppingListBuilder,
             $this->calculationServiceOnSdeKnowingOnlyNitrogenFuelBlock(),
-            new ProjectStepSolarSystemResolver($this->userSettingsRepository),
+            new ProjectStepStructureResolver($this->userSettingsRepository, $this->calculationService),
             $this->materialRepository,
             $this->productRepository,
             $this->solarSystemRepository,
-            $this->facilityTaxRateResolver(),
         );
 
         $result = $service->estimateJobInstallCosts($project);

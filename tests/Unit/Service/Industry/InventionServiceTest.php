@@ -18,12 +18,11 @@ use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\Industry\EsiCostIndexService;
-use App\Service\Industry\FacilityTaxResolver;
+use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\InventionService;
-use App\Service\Industry\ProjectStepSolarSystemResolver;
+use App\Service\Industry\ProjectStepStructureResolver;
 use App\Service\JitaMarketService;
 use App\Service\TypeNameResolver;
-use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -43,6 +42,7 @@ class InventionServiceTest extends TestCase
     private EsiCostIndexService&MockObject $esiCostIndexService;
     private IndustryUserSettingsRepository&MockObject $userSettingsRepository;
     private TypeNameResolver $typeNameResolver;
+    private ?IndustryStructureConfig $structureRetainedForTheBonus = null;
     private InventionService $service;
 
     // EVE type IDs for realistic test data
@@ -72,14 +72,29 @@ class InventionServiceTest extends TestCase
             $this->jitaMarketService,
             $this->esiCostIndexService,
             $this->typeNameResolver,
-            new ProjectStepSolarSystemResolver($this->userSettingsRepository),
-            new FacilityTaxResolver(new InMemoryUserProductionStructures()),
+            $this->projectStepStructureResolver(),
         );
     }
 
     // ===========================================
     // Helper methods
     // ===========================================
+
+    private function projectStepStructureResolver(): ProjectStepStructureResolver
+    {
+        $calculationService = $this->createStub(IndustryCalculationService::class);
+        $calculationService->method('getStructureBonusForStep')->willReturnCallback(
+            fn (IndustryProjectStep $step): array => [
+                'structure' => $step->getStructureConfig() ?? $this->structureRetainedForTheBonus,
+                'materialBonus' => ['total' => 0.0, 'base' => 0.0, 'rig' => 0.0],
+                'timeBonus' => 0.0,
+                'name' => null,
+                'favoriteSystemWithoutSuitableStructure' => false,
+            ],
+        );
+
+        return new ProjectStepStructureResolver($this->userSettingsRepository, $calculationService);
+    }
 
     private function createProduct(int $blueprintTypeId, int $activityId, int $productTypeId, int $quantity, ?float $probability = null): IndustryActivityProduct
     {
@@ -950,8 +965,7 @@ class InventionServiceTest extends TestCase
             $this->jitaMarketService,
             $this->esiCostIndexService,
             new TypeNameResolver($invTypeRepository),
-            new ProjectStepSolarSystemResolver($this->userSettingsRepository),
-            new FacilityTaxResolver(new InMemoryUserProductionStructures()),
+            $this->projectStepStructureResolver(),
         );
     }
 
@@ -1501,6 +1515,25 @@ class InventionServiceTest extends TestCase
         $this->service->getBpcKitBreakdown($project);
 
         $this->assertSame([[self::JITA_SOLAR_SYSTEM_ID, self::NPC_STATION_FACILITY_TAX_PERCENT]], $this->installEstimateSolarSystemsAndTaxes());
+    }
+
+    #[Group('issue-133')]
+    public function testBpcKitOfARootStepWithoutStructureUsesTheSolarSystemAndFacilityTaxOfTheStructureRetainedForTheBonus(): void
+    {
+        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE);
+        $this->stubMarketPricesWithFallback(self::DATACORE_PRICES);
+        $this->userSettingsRepository->method('findOneBy')->willReturn(
+            (new IndustryUserSettings())->setFavoriteManufacturingSystemId(self::JITA_SOLAR_SYSTEM_ID),
+        );
+        $this->structureRetainedForTheBonus = $this->structureConfig(self::AMARR_SOLAR_SYSTEM_ID, 3.0);
+        $project = $this->projectOf(
+            $this->rootStep('copy', 0, null),
+            $this->rootStep('manufacturing', 1, null),
+        );
+
+        $this->service->getBpcKitBreakdown($project);
+
+        $this->assertSame([[self::AMARR_SOLAR_SYSTEM_ID, 3.0]], $this->installEstimateSolarSystemsAndTaxes());
     }
 
     private function projectOf(IndustryProjectStep ...$steps): IndustryProject
