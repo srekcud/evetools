@@ -189,6 +189,7 @@ final readonly class MercurePublisherService
 
         $payload = [
             'action' => $action,
+            'projectId' => $projectId,
             'data' => $data,
             'timestamp' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
         ];

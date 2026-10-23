@@ -34,6 +34,7 @@ export const useSyncStore = defineStore('sync', () => {
   const isConnected = ref(false)
   const connectionError = ref<string | null>(null)
   const syncStatus = ref<Record<string, SyncProgress>>({})
+  const groupProjectEvents = ref<Record<string, GroupProjectEvent>>({})
   const reconnectAttempts = ref(0)
 
   // Config
@@ -137,6 +138,14 @@ export const useSyncStore = defineStore('sync', () => {
             return
           }
 
+          if (data.action && data.projectId && !data.syncType) {
+            groupProjectEvents.value = {
+              ...groupProjectEvents.value,
+              [data.projectId]: { action: data.action, data: data.data, timestamp: data.timestamp },
+            }
+            return
+          }
+
           // Default: sync progress message
           const syncData = data as SyncProgress
           syncStatus.value = {
@@ -202,8 +211,8 @@ export const useSyncStore = defineStore('sync', () => {
     return syncStatus.value[syncType] ?? null
   }
 
-  function getGroupProjectEvent(_projectId: string): GroupProjectEvent | null {
-    return null
+  function getGroupProjectEvent(projectId: string): GroupProjectEvent | null {
+    return groupProjectEvents.value[projectId] ?? null
   }
 
   function isLoading(syncType: string): boolean {

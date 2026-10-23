@@ -23,6 +23,7 @@ import ShareLinkCard from '@/components/group-industry/ShareLinkCard.vue'
 import type { BomItem, GroupProject, GroupProjectStatus } from '@/stores/group-industry/types'
 import { nextProjectStatus } from './nextProjectStatus'
 import { groupJoinUrl } from './groupJoinUrl'
+import { groupProjectRefreshes, type GroupProjectRefresh } from './groupProjectRefreshes'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -88,29 +89,21 @@ onMounted(async () => {
   ])
 })
 
-// Watch for Mercure events that should trigger refetches
+const refreshGroupProject: Record<GroupProjectRefresh, (id: string) => Promise<void>> = {
+  bom: projectStore.fetchBom,
+  contributions: contributionStore.fetchContributions,
+  members: distributionStore.fetchMembers,
+  projectDetail: projectStore.fetchProjectDetail,
+  sales: distributionStore.fetchSales,
+  distribution: distributionStore.fetchDistribution,
+}
+
 watch(
-  () => syncStore.getSyncProgress(`group-project-${projectId.value}`),
-  (progress) => {
-    if (!progress) return
-    if (progress.status === 'completed') {
-      // Refresh relevant data based on event type
-      const eventType = progress.data?.eventType as string | undefined
-      if (eventType === 'contribution_submitted' || eventType === 'contribution_approved' || eventType === 'contribution_rejected') {
-        projectStore.fetchBom(projectId.value)
-        contributionStore.fetchContributions(projectId.value)
-      } else if (eventType === 'member_joined' || eventType === 'member_left') {
-        distributionStore.fetchMembers(projectId.value)
-        projectStore.fetchProjectDetail(projectId.value)
-      } else if (eventType === 'sale_recorded') {
-        distributionStore.fetchSales(projectId.value)
-        distributionStore.fetchDistribution(projectId.value)
-      } else {
-        // Generic refresh
-        projectStore.fetchProjectDetail(projectId.value)
-        projectStore.fetchBom(projectId.value)
-      }
-      syncStore.clearSyncStatus(`group-project-${projectId.value}`)
+  () => syncStore.getGroupProjectEvent(projectId.value),
+  (event) => {
+    if (!event) return
+    for (const refresh of groupProjectRefreshes(event.action)) {
+      refreshGroupProject[refresh](projectId.value)
     }
   },
 )
