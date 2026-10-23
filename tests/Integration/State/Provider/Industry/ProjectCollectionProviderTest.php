@@ -145,14 +145,11 @@ final class ProjectCollectionProviderTest extends IntegrationTestCase
         self::assertTrue($ishtar->personalUse);
     }
 
-    public function testTotalProfitSumsEntityProfitOfEachProject(): void
+    public function testProjectListNoLongerExposesATotalProfit(): void
     {
         $list = $this->listProjectsAs($this->pilot);
 
-        // CARACTÉRISATION : comportement actuel, suspecté faux (hors périmètre de l'issue #32) :
-        // le total ignore le profit estimé du Jackdaw (98M) affiché par ligne, car il somme
-        // IndustryProject::getProfit() qui vaut null sans sellPrice réel. Sabre 480.5M + Ishtar 96M.
-        self::assertSame(576_500_000.0, $list->totalProfit);
+        self::assertFalse(property_exists($list, 'totalProfit'));
     }
 
     private function listProjectsAs(User $user): ProjectListResource
