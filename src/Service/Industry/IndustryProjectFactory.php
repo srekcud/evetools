@@ -483,6 +483,10 @@ class IndustryProjectFactory
             }
         }
         $materialsByKey = $this->materialsOfSteps($steps);
+        $blueprintTypeIdsWithCopyStep = array_column(
+            array_filter($steps, static fn (array $step): bool => $step['activityType'] === 'copy'),
+            'blueprintTypeId',
+        );
 
         uasort($steps, static fn (array $a, array $b): int => $a['planningLevel'] <=> $b['planningLevel']);
 
@@ -501,7 +505,7 @@ class IndustryProjectFactory
 
             $existingJobsWithFixedRuns = $existingJobsWithFixedRunsByKey[self::stepKey($step['blueprintTypeId'], $step['activityType'])] ?? null;
             $plannedJobs = $existingJobsWithFixedRuns === null
-                ? $this->jobsOf($step, $maxJobDurationDays)
+                ? $this->jobsOf($step, $maxJobDurationDays, $this->bpcMaxRunsOf($step, $blueprintTypeIdsWithCopyStep))
                 : self::jobsKeepingFixedRuns($step, $existingJobsWithFixedRuns);
             $jobs = array_map(fn (array $job): array => $this->withSettingsOfExistingStep($job, $settingsOfExistingSteps), $plannedJobs);
             $materials = $materialsByKey[$step['blueprintTypeId'] . '-' . SplitGroupMaterials::activityIdOf($step['activityType'])] ?? [];
@@ -623,22 +627,59 @@ class IndustryProjectFactory
 
     /**
      * @param array<string, mixed> $step
-     * @return list<array<string, mixed>>
+     * @param list<int> $blueprintTypeIdsWithCopyStep
      */
-    private function jobsOf(array $step, float $maxJobDurationDays): array
+    private function bpcMaxRunsOf(array $step, array $blueprintTypeIdsWithCopyStep): ?int
+    {
+        if ($step['activityType'] !== 'manufacturing' || !in_array($step['blueprintTypeId'], $blueprintTypeIdsWithCopyStep, true)) {
+            return null;
+        }
+
+        $industryBlueprint = $this->blueprintRepository->findBy(['typeId' => $step['blueprintTypeId']])[0] ?? null;
+        if ($industryBlueprint === null) {
+            throw new \RuntimeException("No industry blueprint in the SDE for blueprint {$step['blueprintTypeId']}: its BPC max runs is unknown");
+        }
+
+        $bpcMaxRuns = $industryBlueprint->getMaxProductionLimit();
+        if ($bpcMaxRuns <= 0) {
+            throw new \RuntimeException("Invalid max production limit {$bpcMaxRuns} in the SDE for blueprint {$step['blueprintTypeId']}");
+        }
+
+        return $bpcMaxRuns;
+    }
+
+    /**
+     * @param array<string, mixed> $step
+     */
+    private static function maxRunsPerJob(array $step, float $maxJobDurationDays, ?int $bpcMaxRuns): ?int
     {
         $timePerRun = $step['timePerRun'];
         $maxDurationSeconds = $maxJobDurationDays * self::SECONDS_PER_DAY;
+        $limits = $bpcMaxRuns === null ? [] : [$bpcMaxRuns];
+
+        if ($timePerRun !== null && $timePerRun * $step['runs'] > $maxDurationSeconds) {
+            $limits[] = max(1, (int) floor($maxDurationSeconds / $timePerRun));
+        }
+
+        return $limits === [] ? null : min($limits);
+    }
+
+    /**
+     * @param array<string, mixed> $step
+     * @return list<array<string, mixed>>
+     */
+    private function jobsOf(array $step, float $maxJobDurationDays, ?int $bpcMaxRuns): array
+    {
+        $maxRunsPerJob = self::maxRunsPerJob($step, $maxJobDurationDays, $bpcMaxRuns);
         $totalRuns = $step['runs'];
 
-        if ($timePerRun === null || $timePerRun * $totalRuns <= $maxDurationSeconds) {
+        if ($maxRunsPerJob === null) {
             return [$step];
         }
 
-        $maxRunsPerJob = max(1, (int) floor($maxDurationSeconds / $timePerRun));
         $numJobs = (int) ceil($totalRuns / $maxRunsPerJob);
 
-        if ($numJobs === 1) {
+        if ($numJobs < 2) {
             return [$step];
         }
 
