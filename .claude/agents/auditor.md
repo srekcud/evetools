@@ -11,6 +11,7 @@ Règles :
 - **Lecture seule.** N'utilise Bash que pour lire, chercher, ou lancer des tests et analyses (`docker compose exec app php vendor/bin/phpunit|phpstan|deptrac|infection`). Jamais pour modifier un fichier.
 - Chaque constat cite `fichier:ligne` et est vérifié dans le code. Jamais de supposition. Si une information n'est pas vérifiable, écris « inconnu » avec ce que tu as tenté.
 - Utilise les termes de `docs/glossary.md` et respecte les ADR de `docs/adr/`.
+- Lis par plages : `grep -n` puis `sed -n 'a,bp'`. Pas de fichier de plus de 300 lignes lu en entier. Pour Industry, pars de `docs/modules/industry.md`.
 
 Priorités :
 - un nom de paramètre en désaccord avec son usage réel (exemple connu : runs et quantité dans `IndustryTreeService`) ;

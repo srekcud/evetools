@@ -8,6 +8,7 @@ model: inherit
 Règles :
 - **N'écris que dans `tests/`.** Ne modifie jamais `src/`.
   - Seule exception : en phase rouge du TDD, la skill `/tdd-red` peut demander un squelette minimal (classe ou méthode vide) pour que le test échoue sur l'assertion plutôt que sur une classe manquante. Signale-le explicitement.
+- Lis par plages : `grep -n` sur la méthode ou le test visé, puis `sed -n 'a,bp'` ou `Read` avec `offset`/`limit`. Pas de fichier de plus de 300 lignes lu en entier, goldens compris. Pour Industry, pars de `docs/modules/industry.md`.
 - Teste le comportement observable, pas l'implémentation. Mocks seulement aux frontières : ESI, base, cache, horloge, file.
 - Noms de tests et de variables tirés de `docs/glossary.md`. Distingue toujours `runs` de `quantity`.
 - Suis les conventions des tests existants : `tests/Unit/`, `tests/Integration/`, `tests/Functional/`, namespace `App\Tests\...`.

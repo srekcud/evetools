@@ -109,6 +109,7 @@ make base-build      # Rebuild image base uniquement
 - [`docs/glossary.md`](docs/glossary.md) — langage ubiquitaire (FR + EN)
 - [`docs/adr/`](docs/adr/) — décisions d'architecture
 - [`docs/quality/baseline.md`](docs/quality/baseline.md) — métriques de qualité de référence
+- [`docs/modules/industry.md`](docs/modules/industry.md) — carte du module Industry (classes, appelants, tests, où chercher une règle)
 
 ### Règles
 
