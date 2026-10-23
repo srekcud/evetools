@@ -435,6 +435,77 @@ class GroupIndustryContributionServiceTest extends TestCase
         $this->assertSame(0.0, $contribution->getEstimatedValue());
     }
 
+    public function testSubmitJobInstallWithoutEnteredValueIsRefusedAndNothingIsPersisted(): void
+    {
+        $this->assertSubmissionIsRefused(ContributionType::JobInstall, 1, null);
+    }
+
+    public function testSubmitJobInstallWithAnEnteredZeroValueIsRefusedAndNothingIsPersisted(): void
+    {
+        $this->assertSubmissionIsRefused(ContributionType::JobInstall, 1, 0.0);
+    }
+
+    public function testSubmitJobInstallWithAnEnteredValueIsRecordedAtThatValueAndPending(): void
+    {
+        $contribution = $this->submitAndExpectOnePersist(ContributionType::JobInstall, 2, 1834250.5);
+
+        $this->assertSame(ContributionType::JobInstall, $contribution->getType());
+        $this->assertSame(2, $contribution->getQuantity());
+        $this->assertSame(1834250.5, $contribution->getEstimatedValue());
+        $this->assertSame(ContributionStatus::Pending, $contribution->getStatus());
+    }
+
+    public function testSubmitBpcWithoutEnteredValueIsRefusedAndNothingIsPersisted(): void
+    {
+        $this->assertSubmissionIsRefused(ContributionType::Bpc, 1, null);
+    }
+
+    public function testSubmitLineRentalWithoutEnteredValueIsRefusedAndNothingIsPersisted(): void
+    {
+        $this->assertSubmissionIsRefused(ContributionType::LineRental, 1, null);
+    }
+
+    public function testSubmitLineRentalWithAnEnteredZeroValueIsRecordedAsAFreeRental(): void
+    {
+        $contribution = $this->submitAndExpectOnePersist(ContributionType::LineRental, 3, 0.0);
+
+        $this->assertSame(ContributionType::LineRental, $contribution->getType());
+        $this->assertSame(3, $contribution->getQuantity());
+        $this->assertSame(0.0, $contribution->getEstimatedValue());
+        $this->assertSame(ContributionStatus::Pending, $contribution->getStatus());
+    }
+
+    public function testSubmitLineRentalWithAnEnteredValueIsRecordedAtThatValue(): void
+    {
+        $contribution = $this->submitAndExpectOnePersist(ContributionType::LineRental, 4, 75000.0);
+
+        $this->assertSame(4, $contribution->getQuantity());
+        $this->assertSame(75000.0, $contribution->getEstimatedValue());
+        $this->assertSame(ContributionStatus::Pending, $contribution->getStatus());
+    }
+
+    private function assertSubmissionIsRefused(ContributionType $type, int $quantity, ?float $estimatedValue): void
+    {
+        $this->givenNoExistingContribution();
+        $this->jitaMarketService->expects($this->never())->method('getCheapestPercentilePrices');
+        $this->entityManager->expects($this->never())->method('persist');
+        $this->entityManager->expects($this->never())->method('flush');
+
+        $this->expectException(\DomainException::class);
+
+        $this->service->submit($this->member, $this->bomItem, $type, $quantity, $estimatedValue);
+    }
+
+    private function submitAndExpectOnePersist(ContributionType $type, int $quantity, float $estimatedValue): GroupIndustryContribution
+    {
+        $this->givenNoExistingContribution();
+        $this->jitaMarketService->expects($this->never())->method('getCheapestPercentilePrices');
+        $this->entityManager->expects($this->once())->method('persist');
+        $this->entityManager->expects($this->once())->method('flush');
+
+        return $this->service->submit($this->member, $this->bomItem, $type, $quantity, $estimatedValue);
+    }
+
     private function givenNoExistingContribution(): void
     {
         $this->contributionRepository

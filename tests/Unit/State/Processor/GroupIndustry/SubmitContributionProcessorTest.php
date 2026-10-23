@@ -153,6 +153,24 @@ class SubmitContributionProcessorTest extends TestCase
         self::assertSame('pending', $resource->status);
     }
 
+    public function testJobInstallContributionWithoutEnteredValueIsABadRequestAndNoContributionIsCreated(): void
+    {
+        $this->entityManager->expects($this->never())->method('persist');
+        $this->entityManager->expects($this->never())->method('flush');
+        $this->hub->expects($this->never())->method('publish');
+
+        $input = new SubmitContributionInput();
+        $input->type = 'job_install';
+        $input->bomItemId = $this->morphite->getId()->toRfc4122();
+        $input->quantity = 1;
+
+        $this->expectException(BadRequestHttpException::class);
+
+        $this->processor->process($input, new Post(), [
+            'projectId' => $this->project->getId()->toRfc4122(),
+        ]);
+    }
+
     private function submitMorphite(int $quantity, ?float $estimatedValue): GroupIndustryContributionResource
     {
         $input = new SubmitContributionInput();
