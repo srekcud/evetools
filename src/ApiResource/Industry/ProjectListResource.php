@@ -13,6 +13,4 @@ class ProjectListResource
 
     /** @var ProjectResource[] */
     public array $projects = [];
-
-    public float $totalProfit = 0.0;
 }

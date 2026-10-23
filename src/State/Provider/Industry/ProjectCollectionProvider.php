@@ -35,15 +35,11 @@ class ProjectCollectionProvider implements ProviderInterface
         $projects = $this->projectRepository->findByUserWithStepsAndJobMatches($user);
 
         $resource = new ProjectListResource();
-        $totalProfit = 0.0;
 
         foreach ($projects as $project) {
             $projectResource = $this->mapper->projectToResource($project);
             $resource->projects[] = $projectResource;
-            $totalProfit += $project->getProfit() ?? 0;
         }
-
-        $resource->totalProfit = $totalProfit;
 
         return $resource;
     }

@@ -7,6 +7,7 @@ import { useStockpileStore } from '@/stores/industry/stockpile'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
+import { projectProfitTotal } from '@/utils/projectProfitTotal'
 import type { IndustryProject } from '@/stores/industry/types'
 
 const { t } = useI18n()
@@ -39,9 +40,8 @@ const activeProjects = computed(() =>
 const activeProjectCount = computed(() => activeProjects.value.length)
 
 // --- KPI 2: Estimated Profit ---
-const estimatedProfit = computed(() =>
-  activeProjects.value.reduce((sum, p) => sum + (p.profit ?? 0), 0),
-)
+const activeProfitTotal = computed(() => projectProfitTotal(activeProjects.value))
+const estimatedProfit = computed(() => activeProfitTotal.value.total)
 
 // --- KPI 3: Slots Used ---
 const slotsData = computed(() => slotsStore.data)
@@ -311,6 +311,9 @@ function cleanTypeName(name: string): string {
         <template v-else>&mdash;</template>
       </p>
       <p class="text-xs text-slate-600 mt-1">{{ t('industry.dashboard.acrossActiveProjects') }}</p>
+      <p v-if="activeProfitTotal.unknownProfitCount > 0" class="text-xs text-slate-500 mt-1">
+        {{ t('industry.dashboard.unknownProfitExcluded', { count: activeProfitTotal.unknownProfitCount }, activeProfitTotal.unknownProfitCount) }}
+      </p>
     </div>
 
     <!-- KPI 3: Slots Used -->

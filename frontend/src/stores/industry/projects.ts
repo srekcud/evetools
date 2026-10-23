@@ -13,7 +13,6 @@ export const useProjectsStore = defineStore('industry-projects', () => {
   const copyCosts = ref<CopyCosts | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
-  const totalProfit = ref(0)
   const defaultMaxJobDurationDays = ref(2.0)
 
   function setDefaultMaxJobDurationDays(days: number) {
@@ -64,10 +63,8 @@ export const useProjectsStore = defineStore('industry-projects', () => {
     try {
       const data = await apiRequest<{
         projects: IndustryProject[]
-        totalProfit: number
       }>('/industry/projects')
       projects.value = data.projects.map(enrichProject)
-      totalProfit.value = data.totalProfit
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to fetch projects'
     } finally {
@@ -259,7 +256,6 @@ export const useProjectsStore = defineStore('industry-projects', () => {
     marginLoading,
     isLoading,
     error,
-    totalProfit,
     defaultMaxJobDurationDays,
     setDefaultMaxJobDurationDays,
     searchProducts,

@@ -96,7 +96,6 @@ export function useIndustryStore() {
     get isLoading() { return projectsStore.isLoading },
     get error() { return projectsStore.error },
     set error(v) { projectsStore.error = v },
-    get totalProfit() { return projectsStore.totalProfit },
     get costEstimation() { return projectsStore.costEstimation },
     get bpcKit() { return projectsStore.bpcKit },
     get copyCosts() { return projectsStore.copyCosts },

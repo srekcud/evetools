@@ -6,6 +6,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { parseIskValue } from '@/composables/useIskParser'
+import { projectProfitTotal } from '@/utils/projectProfitTotal'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
 
 const { t } = useI18n()
@@ -35,6 +36,8 @@ const displayedProjects = computed(() => {
   }
   return store.projects
 })
+
+const displayedTotal = computed(() => projectProfitTotal(displayedProjects.value))
 
 // Helper to clean type names (remove BPC suffix if present)
 function cleanTypeName(name: string): string {
@@ -576,9 +579,12 @@ function formatRootProducts(project: IndustryProject): string {
         <tr class="border-t border-slate-600 font-semibold text-slate-200">
           <td colspan="8" class="py-3.5 px-4 text-right">{{ t('industry.table.totalProfit') }}</td>
           <td class="py-3.5 px-3 text-right">
-            <span class="font-mono text-lg tabular-nums" :class="profitClass(store.totalProfit)">
-              {{ formatValue(store.totalProfit) }}
+            <span class="font-mono text-lg tabular-nums" :class="profitClass(displayedTotal.total)">
+              {{ formatValue(displayedTotal.total) }}
             </span>
+            <p v-if="displayedTotal.unknownProfitCount > 0" class="text-xs font-normal text-slate-500">
+              {{ t('industry.table.unknownProfitExcluded', { count: displayedTotal.unknownProfitCount }, displayedTotal.unknownProfitCount) }}
+            </p>
           </td>
           <td></td>
         </tr>

@@ -537,6 +537,7 @@
     "dashboard": {
       "activeProjects": "Active Projects",
       "estimatedProfit": "Estimated Profit",
+      "unknownProfitExcluded": "{count} project with unknown profit excluded | {count} projects with unknown profit excluded",
       "slotsUsed": "Slots Used",
       "pipelineHealth": "Pipeline Health",
       "acrossActiveProjects": "across all active projects",
@@ -884,6 +885,7 @@
       "details": "Details",
       "duplicate": "Duplicate",
       "totalProfit": "Total profit",
+      "unknownProfitExcluded": "{count} project with unknown profit excluded | {count} projects with unknown profit excluded",
       "jobCost": "Job Cost",
       "legendEditable": "value",
       "legendEditableDesc": "editable (double-click)",
