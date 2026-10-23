@@ -204,7 +204,7 @@ class PivotAdvisorService
                     continue;
                 }
 
-                $neededQty = MaterialQuantityFormula::forJob($mat['quantity'], 1, $cpIsReaction ? 0 : $me, 0.0, 0.0);
+                $neededQty = MaterialQuantityFormula::forJob($mat['quantity'], $runs, $cpIsReaction ? 0 : $me, 0.0, 0.0);
                 $matPrice = $jitaPrices[$matTypeId] ?? null;
                 $inStock = $userStock[$matTypeId] ?? 0;
 
@@ -250,7 +250,7 @@ class PivotAdvisorService
                 'coveragePercent' => $isCoverageUnknown ? null : round($coveragePercent, 2),
                 'missingComponents' => $missingComponents,
                 'additionalCost' => $isCoverageUnknown ? null : round($additionalCost, 2),
-                'estimatedProfit' => $profitPerUnit !== null ? round($profitPerUnit * $runs, 2) : null,
+                'estimatedProfit' => $profitPerUnit !== null ? round($profitPerUnit * $cpOutputPerRun * $runs, 2) : null,
                 'score' => $score !== null ? round($score, 2) : null,
                 'blueprintTypeId' => $cpBpId,
                 'unknownReason' => $this->unknownCostReason($materialCost, $jobInstallCost),
