@@ -61,6 +61,7 @@ surplus           = quantité produite − (demande − stock)
 |---|---|---|---|
 | **BPO** | Blueprint Original | Blueprint original, aux runs illimités, qu'on peut rechercher en ME et en TE. | `IndustryProject::$bpoCost` |
 | **BPC** | Blueprint Copy | Copie de blueprint aux runs limités. Elle est obtenue par copie d'un BPO, ou par invention pour un T2. | `ContributionType::Bpc`, `IndustryBpcPrice` |
+| **Plafond de runs d'un BPC** | BPC max runs | Nombre maximal de runs d'un job lancé sur une copie de blueprint : `maxProductionLimit` du SDE. Au-delà, l'étape de fabrication est découpée en groupe découpé, runs répartis également (spec #234). | `IndustryBlueprint::$maxProductionLimit`, `PlanRequest::$blueprintCopyMaxRuns` |
 | **ME** | Material Efficiency | Niveau de recherche (0 à 10) qui réduit les matériaux de `ME %`. Par défaut dans evetools : saisi par l'utilisateur à la profondeur 0, et ME 10 aux profondeurs supérieures. | `$meLevel` |
 | **TE** | Time Efficiency | Niveau de recherche (0 à 20, par pas de 2) qui réduit la durée du job de `TE %`. Par défaut : TE 20 aux profondeurs supérieures à 0. | `$teLevel` |
 | **Invention** | Invention | Activité qui transforme un BPC T1 en BPC T2 avec une probabilité de succès, en consommant des datacores (et éventuellement un decryptor). | `IndustryActivityType::Invention`, `InventionService` |
