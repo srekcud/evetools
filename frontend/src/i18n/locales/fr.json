@@ -2,6 +2,7 @@
   "common": {
     "unknownTypeName": "Nom inconnu (#{typeId})",
     "unknownName": "Nom inconnu",
+    "unknownValue": "Valeur inconnue",
     "actions": {
       "save": "Enregistrer",
       "cancel": "Annuler",
