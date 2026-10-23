@@ -206,6 +206,9 @@ trait BuildsProjectOnGoldenSde
                         return $service;
                     }
                 }
+                if (str_starts_with($type, 'App\\Service\\Industry\\') && class_exists($type)) {
+                    return self::autowired($type, $services);
+                }
 
                 throw new \LogicException(\sprintf('The golden harness has no %s for $%s of %s', $type, $parameter->getName(), $class));
             },

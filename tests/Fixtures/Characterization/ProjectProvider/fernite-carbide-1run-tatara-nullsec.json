@@ -19,7 +19,7 @@
                 "blueprintTypeId": 1004246,
                 "productTypeId": 4246,
                 "productTypeName": "Hydrogen Fuel Block",
-                "quantity": 5,
+                "quantity": 15,
                 "runs": 1,
                 "outputPerRun": 40,
                 "depth": 1,
@@ -117,86 +117,7 @@
                         "typeName": "Hydrogen Fuel Block",
                         "quantity": 5,
                         "isBuildable": true,
-                        "activityType": "manufacturing",
-                        "blueprint": {
-                            "blueprintTypeId": 1004246,
-                            "productTypeId": 4246,
-                            "productTypeName": "Hydrogen Fuel Block",
-                            "quantity": 5,
-                            "runs": 1,
-                            "outputPerRun": 40,
-                            "depth": 2,
-                            "activityType": "manufacturing",
-                            "hasCopy": false,
-                            "materials": [
-                                {
-                                    "typeId": 44,
-                                    "typeName": "Enriched Uranium",
-                                    "quantity": 4,
-                                    "isBuildable": false,
-                                    "activityType": null
-                                },
-                                {
-                                    "typeId": 3683,
-                                    "typeName": "Oxygen",
-                                    "quantity": 20,
-                                    "isBuildable": false,
-                                    "activityType": null
-                                },
-                                {
-                                    "typeId": 3689,
-                                    "typeName": "Mechanical Parts",
-                                    "quantity": 4,
-                                    "isBuildable": false,
-                                    "activityType": null
-                                },
-                                {
-                                    "typeId": 9832,
-                                    "typeName": "Coolant",
-                                    "quantity": 9,
-                                    "isBuildable": false,
-                                    "activityType": null
-                                },
-                                {
-                                    "typeId": 9848,
-                                    "typeName": "Robotics",
-                                    "quantity": 1,
-                                    "isBuildable": false,
-                                    "activityType": null
-                                },
-                                {
-                                    "typeId": 16272,
-                                    "typeName": "Heavy Water",
-                                    "quantity": 152,
-                                    "isBuildable": false,
-                                    "activityType": null
-                                },
-                                {
-                                    "typeId": 16273,
-                                    "typeName": "Liquid Ozone",
-                                    "quantity": 312,
-                                    "isBuildable": false,
-                                    "activityType": null
-                                },
-                                {
-                                    "typeId": 16275,
-                                    "typeName": "Strontium Clathrates",
-                                    "quantity": 18,
-                                    "isBuildable": false,
-                                    "activityType": null
-                                },
-                                {
-                                    "typeId": 17889,
-                                    "typeName": "Hydrogen Isotopes",
-                                    "quantity": 401,
-                                    "isBuildable": false,
-                                    "activityType": null
-                                }
-                            ],
-                            "structureBonus": 1.0,
-                            "structureName": "Raitaru",
-                            "productCategory": "ammunition"
-                        }
+                        "activityType": "manufacturing"
                     },
                     {
                         "typeId": 16639,
@@ -240,86 +161,7 @@
                         "typeName": "Hydrogen Fuel Block",
                         "quantity": 5,
                         "isBuildable": true,
-                        "activityType": "manufacturing",
-                        "blueprint": {
-                            "blueprintTypeId": 1004246,
-                            "productTypeId": 4246,
-                            "productTypeName": "Hydrogen Fuel Block",
-                            "quantity": 5,
-                            "runs": 1,
-                            "outputPerRun": 40,
-                            "depth": 2,
-                            "activityType": "manufacturing",
-                            "hasCopy": false,
-                            "materials": [
-                                {
-                                    "typeId": 44,
-                                    "typeName": "Enriched Uranium",
-                                    "quantity": 4,
-                                    "isBuildable": false,
-                                    "activityType": null
-                                },
-                                {
-                                    "typeId": 3683,
-                                    "typeName": "Oxygen",
-                                    "quantity": 20,
-                                    "isBuildable": false,
-                                    "activityType": null
-                                },
-                                {
-                                    "typeId": 3689,
-                                    "typeName": "Mechanical Parts",
-                                    "quantity": 4,
-                                    "isBuildable": false,
-                                    "activityType": null
-                                },
-                                {
-                                    "typeId": 9832,
-                                    "typeName": "Coolant",
-                                    "quantity": 9,
-                                    "isBuildable": false,
-                                    "activityType": null
-                                },
-                                {
-                                    "typeId": 9848,
-                                    "typeName": "Robotics",
-                                    "quantity": 1,
-                                    "isBuildable": false,
-                                    "activityType": null
-                                },
-                                {
-                                    "typeId": 16272,
-                                    "typeName": "Heavy Water",
-                                    "quantity": 152,
-                                    "isBuildable": false,
-                                    "activityType": null
-                                },
-                                {
-                                    "typeId": 16273,
-                                    "typeName": "Liquid Ozone",
-                                    "quantity": 312,
-                                    "isBuildable": false,
-                                    "activityType": null
-                                },
-                                {
-                                    "typeId": 16275,
-                                    "typeName": "Strontium Clathrates",
-                                    "quantity": 18,
-                                    "isBuildable": false,
-                                    "activityType": null
-                                },
-                                {
-                                    "typeId": 17889,
-                                    "typeName": "Hydrogen Isotopes",
-                                    "quantity": 401,
-                                    "isBuildable": false,
-                                    "activityType": null
-                                }
-                            ],
-                            "structureBonus": 1.0,
-                            "structureName": "Raitaru",
-                            "productCategory": "ammunition"
-                        }
+                        "activityType": "manufacturing"
                     },
                     {
                         "typeId": 16635,
