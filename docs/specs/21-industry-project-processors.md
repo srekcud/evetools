@@ -23,7 +23,6 @@
 ## Hors périmètre
 
 - Frais de courtage propres à une structure.
-- ME, TE et structure saisis sur une étape : la régénération les remet aux valeurs du plan, comme aujourd'hui.
 - Runs saisis sur un intermédiaire réécrits par la cascade (#185) et arbre construit au PATCH (#204).
 
 ## Suite décidée par Sylvain le 2026-10-22
@@ -66,7 +65,25 @@ Exemples sur la recette des tests d'intégration (frégate : 4 composants par ru
 - R4 sans repli : une saisie absente vaut 0 comme pour un T1 (ME 0 est atteignable en T2 avec un decryptor) ; le pré-remplissage 2/4 est fait par le formulaire.
 - R6 : mise à jour sur place plutôt que transfert vers de nouvelles étapes, pour garder les identifiants des étapes.
 - R10 : une étape hors plan est gardée plutôt que supprimée, pour ne perdre aucune donnée saisie.
-- ME, TE et structure d'une étape restent remis aux valeurs du plan : les garder demanderait de recalculer les quantités en dehors du plan (#185).
+- Lot 3 : ME, TE et structure d'une étape remis aux valeurs du plan. Remplacé par le lot 4.
+
+### Lot 4 — Le plan reprend le ME, le TE et la structure des étapes (option B, décidée par Sylvain le 2026-10-23)
+
+- **R11 — Réglages repris.** À la régénération, une étape planifiée qui correspond à une étape existante (R6) reprend son ME, son TE et sa structure au lieu des défauts (ME 10 / TE 20, meilleure structure). Une étape créée par R8 reprend ceux de l'étape existante de même blueprint et activité de rang 0. Une étape sans étape existante garde les défauts.
+- **R12 — Le plan les utilise.** Les matériaux des jobs d'une étape sont calculés avec son ME et, si elle a une structure, le bonus matériaux de cette structure pour la catégorie du produit de l'étape (`IndustryCalculationService::getStructureBonusForStep()`, même règle que le recalcul d'une étape). Sa durée par run (donc son découpage) utilise son TE et, si elle a une structure, le bonus de temps de cette structure.
+- **R13 — Racine.** L'étape racine (produit du projet, profondeur 0) prend toujours le ME et le TE du projet ; sa structure est reprise.
+- **R14 — Inchangé.** Réaction : ME 0 et TE 0 ; copie : ME 0 et TE 0 ; création d'un projet : défauts comme aujourd'hui.
+
+Exemples sur la recette des tests d'intégration, étendue d'un niveau (frégate ← composant ← sous-composant ← minéral) :
+
+| # | Cas | Aujourd'hui (lot 3) | Attendu |
+|---|---|---|---|
+| E16 | Composant passé à ME 8, puis runs du projet changés | composant remis à ME 10, sous-composants calculés à ME 10 | composant ME 8, sous-composants calculés à ME 8 |
+| E17 | Composant avec une structure au bonus matériaux connu, régénération | structure retirée, meilleure structure appliquée | structure gardée, ses sous-composants calculés avec son bonus |
+| E18 | Composant passé à TE 10 avec une durée maximale qui le découpe à TE 10 mais pas à TE 20 | TE 20, pas de découpage | TE 10, groupe découpé |
+| E19 | Racine passée à ME 8 par l'étape, puis runs du projet changés (projet ME 10) | ME 10 | ME 10 (R13) |
+
+Décision prise en autonomie : la règle de bonus d'une structure assignée est celle du recalcul d'une étape (catégorie du produit de l'étape), sans trancher #133.
 
 ## Décision prise en autonomie (lot 1)
 
