@@ -14,6 +14,7 @@ use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
+use App\Enum\GroupProjectStatus;
 use App\Repository\GroupIndustryBomItemRepository;
 use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
@@ -119,6 +120,36 @@ class SubmitContributionProcessorTest extends TestCase
         self::assertSame('material', $resource->type);
         self::assertSame(40, $resource->quantity);
         self::assertSame(900.0, $resource->estimatedValue);
+        self::assertSame('pending', $resource->status);
+    }
+
+    public function testMaterialContributionOnACompletedProjectIsABadRequestAndNoContributionIsCreated(): void
+    {
+        $this->project->setStatus(GroupProjectStatus::Completed);
+
+        $this->entityManager->expects($this->never())->method('persist');
+        $this->entityManager->expects($this->never())->method('flush');
+        $this->hub->expects($this->never())->method('publish');
+
+        $this->expectException(BadRequestHttpException::class);
+
+        $this->submitMorphite(10, 1250.0);
+    }
+
+    public function testMaterialContributionOnASellingProjectIsRecordedAsPending(): void
+    {
+        $this->project->setStatus(GroupProjectStatus::Selling);
+
+        $this->entityManager->expects($this->once())->method('persist')->willReturnCallback(
+            fn (GroupIndustryContribution $contribution) => $this->assignId($contribution),
+        );
+        $this->entityManager->expects($this->once())->method('flush');
+
+        $resource = $this->submitMorphite(25, 980.0);
+
+        self::assertSame('material', $resource->type);
+        self::assertSame(25, $resource->quantity);
+        self::assertSame(980.0, $resource->estimatedValue);
         self::assertSame('pending', $resource->status);
     }
 

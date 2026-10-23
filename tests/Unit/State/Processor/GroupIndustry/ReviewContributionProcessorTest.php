@@ -16,6 +16,7 @@ use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
+use App\Enum\GroupProjectStatus;
 use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
@@ -339,7 +340,60 @@ class ReviewContributionProcessorTest extends TestCase
         $this->review($this->owner, $contribution, 'approved');
     }
 
+    public function testOwnerCannotApproveAPendingContributionOnACompletedProject(): void
+    {
+        $this->project->setStatus(GroupProjectStatus::Completed);
+        $contributor = $this->addMember($this->createStub(User::class), GroupMemberRole::Member);
+        $contribution = $this->pendingContributionOf($contributor);
+
+        $this->assertReviewOnCompletedProjectIsRefused($contribution, 'approved');
+    }
+
+    public function testOwnerCannotRejectAPendingContributionOnACompletedProject(): void
+    {
+        $this->project->setStatus(GroupProjectStatus::Completed);
+        $contributor = $this->addMember($this->createStub(User::class), GroupMemberRole::Member);
+        $contribution = $this->pendingContributionOf($contributor);
+
+        $this->assertReviewOnCompletedProjectIsRefused($contribution, 'rejected');
+    }
+
+    public function testOwnerCanApproveAPendingContributionOnAnInProgressProject(): void
+    {
+        $this->project->setStatus(GroupProjectStatus::InProgress);
+        $contributor = $this->addMember($this->createStub(User::class), GroupMemberRole::Member);
+        $contribution = $this->pendingContributionOf($contributor);
+
+        $this->entityManager->expects($this->once())->method('flush');
+        $this->expectOneMercureEvent('contribution_approved');
+
+        $resource = $this->review($this->owner, $contribution, 'approved');
+
+        self::assertSame('approved', $resource->status);
+        self::assertSame(ContributionStatus::Approved, $contribution->getStatus());
+        self::assertSame(3500, $this->bomItem->getFulfilledQuantity());
+    }
+
     // --- Helpers --------------------------------------------------------------------------
+
+    private function assertReviewOnCompletedProjectIsRefused(GroupIndustryContribution $contribution, string $decision): void
+    {
+        $this->entityManager->expects($this->never())->method('flush');
+        $this->hub->expects($this->never())->method('publish');
+
+        $refusal = null;
+        try {
+            $this->review($this->owner, $contribution, $decision);
+        } catch (BadRequestHttpException $e) {
+            $refusal = $e;
+        }
+
+        self::assertInstanceOf(BadRequestHttpException::class, $refusal);
+
+        self::assertSame(ContributionStatus::Pending, $contribution->getStatus());
+        self::assertNull($contribution->getReviewedBy());
+        self::assertSame(self::ALREADY_FULFILLED_QUANTITY, $this->bomItem->getFulfilledQuantity());
+    }
 
     private function assertSelfReviewIsRefused(User $reviewer, GroupIndustryContribution $contribution, string $decision): void
     {
