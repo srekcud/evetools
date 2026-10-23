@@ -101,12 +101,15 @@ Cache TTL: derived from `Expires` header, defaults to 5 minutes.
 #### `getPaginated(string $endpoint, ?EveToken $token = null): array`
 Handles paginated ESI endpoints automatically. Reads `X-Pages` header, fetches all pages, and merges results into a single array. Each request goes through the error-budget throttle (see below).
 
-**No 420 retry here**: the first non-2xx page throws `EsiApiException`, and the pages already read are discarded. A plain `get()` on a paginated endpoint silently returns page 1 only — always use `getPaginated()` for endpoints that send `X-Pages`.
+Each page is replayed once after a 420/429 (like `get()`); the first page still failing throws `EsiApiException`, and the pages already read are discarded. A plain `get()` on a paginated endpoint silently returns page 1 only — always use `getPaginated()` for endpoints that send `X-Pages`.
 
 ```php
 // Returns ALL assets across all pages
 $rawAssets = $this->esiClient->getPaginated("/characters/{$characterId}/assets/", $token);
 ```
+
+#### `getPaginatedWithExpiry(string $endpoint, ?EveToken $token = null): PaginatedEsiResponse`
+Same pages as `getPaginated()` (which returns its `items`), plus `expiresAt`: the earliest `Expires` of the pages, or `null` when one page has none or an unreadable one. Used by `IndustryJobSyncService` to cache corporation jobs per corporation in `esi.cache` until ESI's `Expires` (spec #213); no cache when `expiresAt` is `null`.
 
 #### `post(string $endpoint, array $body, ?EveToken $token = null): array`
 POST request with JSON body. Used for endpoints like `POST /universe/names/`.
@@ -126,11 +129,8 @@ The client automatically handles ESI error budget via `x-esi-error-limit-remain`
 | < 20 | **Soft throttle**: `usleep((20 - remain) * 100ms)` |
 | >= 20 | No throttle |
 
-**420 Error Limited**: retried once, after sleeping `max(x-esi-error-limit-reset, 1)` seconds, **only** by `get()`, `getWithCache()` and `post()` (shared `handleResponse()`). `getPaginated()`, `getScalar()`, `getScalarBatch()` and `postEmpty()` do not retry: they throw (or return `null` for `getScalarBatch()`).
+**420 / 429**: replayed once, identically, by `requestWithRetry()` (`get()`, `getUnversioned()`, `getScalar()`, `getWithCache()`, `getPaginated()` per page, `post()`), after sleeping `Retry-After` (429, capped at 60 s) or `max(x-esi-error-limit-reset, 1)` seconds. `getBatch()`/`getScalarBatch()` replay the failed keys once, together, after a single wait (`null` if they fail again). `postEmpty()` does not retry.
 
-> Known bug: the 420 retry of `post()` re-sends the request as a **GET** without body (`handleResponse()` calls `rawGet()`).
-
-**429 Rate Limited**: no retry and no `Retry-After` handling. The client throws `EsiApiException` with status 429 (`'Rate limit exceeded'`).
 
 ### Error Handling
 
@@ -756,8 +756,8 @@ https://esi.evetech.net/latest
 | 401 | Unauthorized | Token invalid/expired. Not retried: `EsiApiException` (401). Refresh happens only before the request (see section 3) |
 | 403 | Forbidden | Missing scope or missing in-game role |
 | 404 | Not Found | Entity does not exist |
-| 420 | Error Limited | Sleep and retry once in `get()`/`getWithCache()`/`post()` only (see section 2) |
-| 429 | Rate Limited | Too many requests (different from 420). No retry: `EsiApiException` (429) |
+| 420 | Error Limited | Sleep and replay once (see section 2), then `EsiApiException` (420) |
+| 429 | Rate Limited | Too many requests (different from 420). Sleep `Retry-After` and replay once, then `EsiApiException` (429) |
 | 500 | Internal Server Error | ESI bug |
 | 502 | Bad Gateway | ESI proxy issue |
 | 503 | Service Unavailable | ESI down for maintenance |
