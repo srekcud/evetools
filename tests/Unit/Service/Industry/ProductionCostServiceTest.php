@@ -377,7 +377,7 @@ class ProductionCostServiceTest extends TestCase
         $this->assertCount(1, $result['steps']);
         $this->assertSame(30003, $result['steps'][0]['productTypeId']);
         $this->assertSame([
-            [[['materialTypeId' => 200, 'quantity' => 1000]], 20, 30002510, 'reaction', null],
+            [[['materialTypeId' => 200, 'quantity' => 1000]], 20, 30002510, 'reaction', 0.0],
         ], $calls->getArrayCopy());
     }
 
@@ -637,7 +637,7 @@ class ProductionCostServiceTest extends TestCase
         self::assertSame(self::STEP_A_PRODUCT_TYPE_ID, $result['steps'][0]['productTypeId']);
         self::assertSame(1000.0, $result['steps'][0]['installCost']);
         self::assertSame([
-            [[['materialTypeId' => 34, 'quantity' => 100000]], 10, 30002510, 'manufacturing', null],
+            [[['materialTypeId' => 34, 'quantity' => 100000]], 10, 30002510, 'manufacturing', 0.0],
         ], $calls->getArrayCopy());
     }
 
@@ -653,7 +653,7 @@ class ProductionCostServiceTest extends TestCase
         self::assertCount(1, $result['steps']);
         self::assertSame(self::STEP_A_PRODUCT_TYPE_ID, $result['steps'][0]['productTypeId']);
         self::assertSame([
-            [[['materialTypeId' => 34, 'quantity' => 100000]], 10, 30002510, 'manufacturing', null],
+            [[['materialTypeId' => 34, 'quantity' => 100000]], 10, 30002510, 'manufacturing', 0.0],
         ], $calls->getArrayCopy());
     }
 
@@ -718,7 +718,7 @@ class ProductionCostServiceTest extends TestCase
         self::assertCount(1, $result['steps']);
         self::assertSame(self::STEP_B_PRODUCT_TYPE_ID, $result['steps'][0]['productTypeId']);
         self::assertSame([
-            [[['materialTypeId' => 34, 'quantity' => 20000]], 5, 30002510, 'manufacturing', null],
+            [[['materialTypeId' => 34, 'quantity' => 20000]], 5, 30002510, 'manufacturing', 0.0],
         ], $calls->getArrayCopy());
     }
 

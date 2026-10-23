@@ -225,16 +225,17 @@ final class FacilityTaxInstallCostTest extends TestCase
         self::assertNull($result['total']);
     }
 
-    private function structure(string $name, string $structureType, int $solarSystemId, ?float $facilityTaxPercent): IndustryStructureConfig
+    private function structure(string $name, string $structureType, ?int $solarSystemId, ?float $facilityTaxPercent): IndustryStructureConfig
     {
-        return (new IndustryStructureConfig())
+        $structure = (new IndustryStructureConfig())
             ->setUser(new User())
             ->setName($name)
             ->setSecurityType('highsec')
             ->setStructureType($structureType)
-            ->setSolarSystemId($solarSystemId)
             ->setRigs([])
             ->setFacilityTaxPercent($facilityTaxPercent);
+
+        return $solarSystemId === null ? $structure : $structure->setSolarSystemId($solarSystemId);
     }
 
     private function projectWithManufacturingStep(int $productTypeId, int $blueprintTypeId, int $runs, ?IndustryStructureConfig $structure, ?User $owner = null): IndustryProject
