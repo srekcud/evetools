@@ -78,7 +78,7 @@ class IndustryJobSyncService
             $corporationJobsUnknown = false;
             if ($token->hasScope('esi-industry.read_corporation_jobs.v1')) {
                 try {
-                    $allJobs = array_merge($allJobs, $this->corporationJobs($character->getCorporationId(), $token));
+                    $allJobs = array_merge($this->corporationJobs($character->getCorporationId(), $token), $allJobs);
                 } catch (EsiApiException $e) {
                     if ($e->statusCode !== self::FORBIDDEN_STATUS_CODE) {
                         throw $e;
@@ -89,11 +89,6 @@ class IndustryJobSyncService
                         'error' => $e->getMessage(),
                     ]);
                 }
-            }
-
-            // Update progress
-            if ($userId !== null) {
-                $this->mercurePublisher->syncProgress($userId, 'industry-jobs', 60, sprintf('Processing %d jobs...', count($allJobs)));
             }
 
             // Deduplicate by job_id (in case a personal job is also in corp jobs)
@@ -122,8 +117,15 @@ class IndustryJobSyncService
                     // Job belongs to a corpmate, not one of the user's characters — skip
                     continue;
                 }
-                $installerCharacter = $installerLookup[$installerId];
                 $playerJobsByJobId[$jobData['job_id']] = $jobData;
+            }
+
+            if ($userId !== null) {
+                $this->mercurePublisher->syncProgress($userId, 'industry-jobs', 60, sprintf('Processing %d jobs...', count($playerJobsByJobId)));
+            }
+
+            foreach ($playerJobsByJobId as $jobData) {
+                $installerCharacter = $installerLookup[$jobData['installer_id']];
 
                 $existing = $this->jobRepository->findByJobId($jobData['job_id']);
 
