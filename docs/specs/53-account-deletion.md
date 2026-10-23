@@ -45,6 +45,16 @@ Toute la partie base (transferts, anonymisations, suppressions) se fait dans une
 - `Legal.vue` (§7 et §9) décrit la suppression immédiate, l'anonymisation des contributions et ventes de projets collaboratifs, la purge du cache ESI et la révocation des tokens EVE SSO, et pointe vers la page Personnages.
 - Toutes les chaînes en i18n FR et EN.
 
+### R8b — Confirmation côté serveur (décision Sylvain, 2026-10-23)
+- `DELETE /api/me` porte un corps JSON `{"confirmation": "<nom du personnage principal>"}` (DTO d'entrée, `deserialize: true`, l'opération DELETE d'API Platform ne désérialise pas par défaut).
+- Le processor compare `confirmation` au nom du personnage principal de l'utilisateur, à l'identique (pas de normalisation de casse ni d'espaces ; le frontend envoie déjà la saisie sans espaces de bord).
+- `confirmation` absent, `null`, vide ou différent, ou utilisateur sans personnage principal : `422` (violation sur `confirmation`), rien n'est supprimé, le JWT n'est pas bloqué.
+- Corps illisible (JSON invalide, `Content-Type` absent) : erreur `4xx` d'API Platform avant le processor, rien n'est supprimé.
+- Le frontend envoie le nom saisi (trimé) dans le corps.
+
+### R6b — Délai de révocation (décision Sylvain, 2026-10-23)
+Le timeout de chaque appel de révocation EVE SSO passe de 15 s à 5 s par personnage (constante nommée dans `EveSsoTokenRevoker`).
+
 ### R9 — Inchangé
 Messenger : les handlers ignorent déjà un personnage ou un utilisateur disparu. Données non personnelles conservées (SDE, marché, Ansiblex, structures, historiques de prix).
 
@@ -72,6 +82,11 @@ Utilisateurs : **A** (supprimé), **B**, **C**, **D**. Projet collaboratif P.
 | E16 | Réponse ESI authentifiée de A en cache (fraîche et copie de revalidation), réponse de B en cache | après suppression, celles de A absentes, celle de B présente |
 | E17 | `SyncCharacterAssetsHandler` reçoit un message pour un personnage de A après suppression | aucun effet, aucune exception |
 | E18 | Requête de révocation | `POST` sur l'URL ci-dessus, Basic auth `client_id:client_secret`, corps `token_type_hint=refresh_token&token=<token déchiffré>` |
+| E19 | `DELETE /api/me` de A (main « Kaelen Vorn ») avec `{"confirmation": "Kaelen Vorn"}` | `204`, `delete(A)` appelé, JWT bloqué |
+| E20 | corps `{}`, `{"confirmation": null}`, `{"confirmation": ""}`, `{"confirmation": "kaelen vorn"}`, `{"confirmation": "Kaelen Vorn "}`, nom d'un alt de A | `422`, `delete` jamais appelé, JWT non bloqué |
+| E21 | A sans personnage principal, `{"confirmation": "Kaelen Vorn"}` | `422`, rien supprimé |
+| E22 | Révocation d'un token | option `timeout` = 5 |
+| E23 | Frontend : `deleteAccount("Kaelen Vorn")` | `DELETE /me` avec corps `{"confirmation":"Kaelen Vorn"}` |
 
 ## 4. Cas limites
 - A n'a qu'un personnage, ou n'a pas de token : la suppression réussit sans appel de révocation.
@@ -91,6 +106,8 @@ Utilisateurs : **A** (supprimé), **B**, **C**, **D**. Projet collaboratif P.
 - D2 : les contributions `rejected` du compte supprimé sont supprimées comme les `pending` (aucun effet sur le payout).
 - D3 : les règles de la note de design non couvertes par Q1-Q4 (listes partagées supprimées, visibilité corpo anonymisée, `hidden_by_users`, FK `characters.user_id` en `CASCADE`) sont reprises telles quelles.
 - D4 : un nom de compte supprimé est `null` dans l'API, le libellé « Pilote supprimé » est porté par le frontend (i18n).
+
+- D5 (2026-10-23) : « absent » = champ `confirmation` absent ou `null` → `422` ; un corps non désérialisable reste refusé par API Platform (`400`/`415`), sans suppression.
 
 ## 7. Glossaire
 Ajout : **Compte supprimé** / Deleted account.
