@@ -11,6 +11,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 10,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 18000,
    "materials": {
     "34": 3900000,
@@ -30,6 +31,7 @@
    "activity": "manufacturing",
    "outputPerRun": 40,
    "maxProductionLimit": 200,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 900,
    "materials": {
     "44": 4,
@@ -48,6 +50,7 @@
    "activity": "manufacturing",
    "outputPerRun": 40,
    "maxProductionLimit": 200,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 900,
    "materials": {
     "44": 4,
@@ -66,6 +69,7 @@
    "activity": "manufacturing",
    "outputPerRun": 40,
    "maxProductionLimit": 200,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 900,
    "materials": {
     "44": 4,
@@ -84,6 +88,7 @@
    "activity": "manufacturing",
    "outputPerRun": 40,
    "maxProductionLimit": 200,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 900,
    "materials": {
     "44": 4,
@@ -102,6 +107,7 @@
    "activity": "manufacturing",
    "outputPerRun": 100,
    "maxProductionLimit": 200,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 2500,
    "materials": {
     "34": 556,
@@ -116,6 +122,7 @@
    "activity": "manufacturing",
    "outputPerRun": 100,
    "maxProductionLimit": 200,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 2500,
    "materials": {
     "34": 556,
@@ -130,6 +137,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 4000,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 150,
    "materials": {
     "16673": 13,
@@ -142,6 +150,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 4000,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 150,
    "materials": {
     "16671": 13,
@@ -154,6 +163,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 4000,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 150,
    "materials": {
     "16671": 22,
@@ -166,6 +176,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 8000,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 75,
    "materials": {
     "16671": 17,
@@ -179,6 +190,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 8000,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 75,
    "materials": {
     "16670": 17,
@@ -192,6 +204,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 20000,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 25,
    "materials": {
     "16672": 44,
@@ -203,6 +216,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 20000,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 25,
    "materials": {
     "16671": 44,
@@ -214,6 +228,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 2000,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 300,
    "materials": {
     "16670": 9,
@@ -225,6 +240,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 2000,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 300,
    "materials": {
     "16671": 9,
@@ -236,6 +252,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 4000,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 150,
    "materials": {
     "16671": 27,
@@ -249,6 +266,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 4000,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 150,
    "materials": {
     "16672": 27,
@@ -262,6 +280,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 4000,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 150,
    "materials": {
     "16671": 22,
@@ -274,6 +293,7 @@
    "activity": "manufacturing",
    "outputPerRun": 5000,
    "maxProductionLimit": 10,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 14400,
    "materials": {
     "11399": 15,
@@ -287,6 +307,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4312": 5,
@@ -299,6 +320,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4247": 5,
@@ -311,6 +333,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4246": 5,
@@ -323,6 +346,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4051": 5,
@@ -335,6 +359,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4312": 5,
@@ -347,6 +372,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4247": 5,
@@ -359,6 +385,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4246": 5,
@@ -371,6 +398,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4051": 5,
@@ -383,6 +411,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4051": 5,
@@ -395,6 +424,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4312": 5,
@@ -407,6 +437,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4312": 5,
@@ -419,6 +450,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4051": 5,
@@ -431,6 +463,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4051": 5,
@@ -443,6 +476,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4247": 5,
@@ -455,6 +489,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4247": 5,
@@ -467,6 +502,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4246": 5,
@@ -479,6 +515,7 @@
    "activity": "reaction",
    "outputPerRun": 10000,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4247": 5,
@@ -491,6 +528,7 @@
    "activity": "reaction",
    "outputPerRun": 10000,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4312": 5,
@@ -503,6 +541,7 @@
    "activity": "reaction",
    "outputPerRun": 10000,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4051": 5,
@@ -515,6 +554,7 @@
    "activity": "reaction",
    "outputPerRun": 10000,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4246": 5,
@@ -527,6 +567,7 @@
    "activity": "reaction",
    "outputPerRun": 6000,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4247": 5,
@@ -539,6 +580,7 @@
    "activity": "reaction",
    "outputPerRun": 3000,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4051": 5,
@@ -551,6 +593,7 @@
    "activity": "reaction",
    "outputPerRun": 2200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4312": 5,
@@ -564,6 +607,7 @@
    "activity": "reaction",
    "outputPerRun": 1500,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4051": 5,
@@ -577,6 +621,7 @@
    "activity": "reaction",
    "outputPerRun": 750,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4312": 5,
@@ -590,6 +635,7 @@
    "activity": "reaction",
    "outputPerRun": 400,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4246": 5,
@@ -604,6 +650,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4247": 5,
@@ -618,6 +665,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 10,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 18000,
    "materials": {
     "34": 9600000,
@@ -638,6 +686,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4312": 5,
@@ -650,6 +699,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4246": 5,
@@ -662,6 +712,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4312": 5,
@@ -674,6 +725,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 1,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 1500000,
    "materials": {
     "21009": 20,
@@ -692,6 +744,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 40,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 16000,
    "materials": {
     "34": 40500,
@@ -710,6 +763,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 40,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 16000,
    "materials": {
     "34": 45000,
@@ -728,6 +782,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 40,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 16000,
    "materials": {
     "34": 60000,
@@ -746,6 +801,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 40,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 16000,
    "materials": {
     "34": 54000,
@@ -763,6 +819,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 40,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 16000,
    "materials": {
     "34": 30000,
@@ -780,6 +837,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 1,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 360000,
    "materials": {
     "640": 1,
@@ -801,6 +859,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 1,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 3600000,
    "materials": {
     "3828": 2250,
@@ -822,6 +881,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 800,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 750,
    "materials": {
     "16673": 2222,
@@ -834,6 +894,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 800,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 750,
    "materials": {
     "16673": 2222,
@@ -847,6 +908,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 800,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 750,
    "materials": {
     "16673": 2222,
@@ -858,6 +920,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 800,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 750,
    "materials": {
     "16673": 2222,
@@ -870,6 +933,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 800,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 750,
    "materials": {
     "16673": 1667,
@@ -883,6 +947,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 400,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 1500,
    "materials": {
     "16673": 889,
@@ -894,6 +959,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 800,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 750,
    "materials": {
     "16673": 1333,
@@ -906,6 +972,7 @@
    "activity": "reaction",
    "outputPerRun": 1000,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "34": 1000,
@@ -919,6 +986,7 @@
    "activity": "reaction",
    "outputPerRun": 250,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "35": 800,
@@ -932,6 +1000,7 @@
    "activity": "reaction",
    "outputPerRun": 120,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "36": 600,
@@ -945,6 +1014,7 @@
    "activity": "reaction",
    "outputPerRun": 160,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "37": 300,
@@ -958,6 +1028,7 @@
    "activity": "reaction",
    "outputPerRun": 120,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "38": 200,
@@ -971,6 +1042,7 @@
    "activity": "reaction",
    "outputPerRun": 160,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "39": 25,
@@ -984,6 +1056,7 @@
    "activity": "reaction",
    "outputPerRun": 120,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "38": 400,
@@ -997,6 +1070,7 @@
    "activity": "reaction",
    "outputPerRun": 160,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "39": 30,
@@ -1010,6 +1084,7 @@
    "activity": "reaction",
    "outputPerRun": 100,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "40": 80,
@@ -1023,6 +1098,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4246": 5,
@@ -1035,6 +1111,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4247": 5,
@@ -1047,6 +1124,7 @@
    "activity": "reaction",
    "outputPerRun": 300,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4312": 5,
@@ -1059,6 +1137,7 @@
    "activity": "reaction",
    "outputPerRun": 300,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4247": 5,
@@ -1071,6 +1150,7 @@
    "activity": "reaction",
    "outputPerRun": 300,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4246": 5,
@@ -1083,6 +1163,7 @@
    "activity": "reaction",
    "outputPerRun": 300,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4051": 5,
@@ -1095,6 +1176,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 10,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 18000,
    "materials": {
     "34": 10560000,
@@ -1115,6 +1197,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 1,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 18000,
    "materials": {
     "34": 11000000,
@@ -1141,6 +1224,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4246": 5,
@@ -1153,6 +1237,7 @@
    "activity": "reaction",
    "outputPerRun": 10,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4312": 5,
@@ -1165,6 +1250,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4312": 5,
@@ -1177,6 +1263,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "16659": 200,
@@ -1189,6 +1276,7 @@
    "activity": "reaction",
    "outputPerRun": 200,
    "maxProductionLimit": 1000,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "57453": 200,
@@ -1201,6 +1289,7 @@
    "activity": "reaction",
    "outputPerRun": 20,
    "maxProductionLimit": 100,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4246": 5,
@@ -1214,6 +1303,7 @@
    "activity": "reaction",
    "outputPerRun": 10,
    "maxProductionLimit": 100,
+   "hasCopyActivity": false,
    "baseTimeSeconds": 10800,
    "materials": {
     "4246": 5,
@@ -1227,6 +1317,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 200,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 10800,
    "materials": {
     "57456": 10,
@@ -1240,6 +1331,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 40,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 16000,
    "materials": {
     "2867": 2,
@@ -1263,6 +1355,7 @@
    "activity": "manufacturing",
    "outputPerRun": 3,
    "maxProductionLimit": 200,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 1800,
    "materials": {
     "2312": 4,
@@ -1275,6 +1368,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 40,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 8000,
    "materials": {
     "2401": 100,
@@ -1288,6 +1382,7 @@
    "activity": "manufacturing",
    "outputPerRun": 3,
    "maxProductionLimit": 200,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 1800,
    "materials": {
     "2319": 8,
@@ -1300,6 +1395,7 @@
    "activity": "manufacturing",
    "outputPerRun": 1,
    "maxProductionLimit": 40,
+   "hasCopyActivity": true,
    "baseTimeSeconds": 16000,
    "materials": {
     "2868": 20,

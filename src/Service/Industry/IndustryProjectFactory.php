@@ -13,6 +13,7 @@ use App\Enum\IndustryActivityType;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityRepository;
+use App\Repository\Sde\IndustryBlueprintRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -40,6 +41,7 @@ class IndustryProjectFactory
         private readonly IndustryActivityRepository $activityRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly MercurePublisherService $mercurePublisher,
+        private readonly IndustryBlueprintRepository $blueprintRepository,
     ) {
     }
 
