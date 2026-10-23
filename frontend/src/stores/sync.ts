@@ -14,6 +14,12 @@ export interface SyncProgress {
   timestamp: string
 }
 
+export interface GroupProjectEvent {
+  action: string
+  data: Record<string, unknown> | null
+  timestamp: string
+}
+
 export interface MercureToken {
   token: string
   topics: string[]
@@ -196,6 +202,10 @@ export const useSyncStore = defineStore('sync', () => {
     return syncStatus.value[syncType] ?? null
   }
 
+  function getGroupProjectEvent(_projectId: string): GroupProjectEvent | null {
+    return null
+  }
+
   function isLoading(syncType: string): boolean {
     const status = syncStatus.value[syncType]
     return status?.status === 'started' || status?.status === 'in_progress'
@@ -252,6 +262,7 @@ export const useSyncStore = defineStore('sync', () => {
     connect,
     disconnect,
     getSyncProgress,
+    getGroupProjectEvent,
     isLoading,
     clearSyncStatus,
     clearAllSyncStatus,

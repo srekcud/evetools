@@ -405,6 +405,25 @@ class MercurePublisherServiceTest extends TestCase
         $this->assertTrue($publishedUpdates[0]->isPrivate());
     }
 
+    public function testPublishGroupProjectEventNamesItsProjectInThePayload(): void
+    {
+        $publishedUpdates = $this->capturePublishedUpdates();
+
+        $this->service->publishGroupProjectEvent('0b6f3c2e-8d41-4a7b-9e15-5c2d7f80a3a1', 'sale_recorded', ['saleId' => 's-7']);
+
+        $this->assertCount(1, $publishedUpdates);
+        $this->assertSame(['/group-project/0b6f3c2e-8d41-4a7b-9e15-5c2d7f80a3a1/events'], $publishedUpdates[0]->getTopics());
+        $this->assertTrue($publishedUpdates[0]->isPrivate());
+        $payload = json_decode($publishedUpdates[0]->getData(), true);
+        $payloadKeys = array_keys($payload);
+        sort($payloadKeys);
+        $this->assertSame(['action', 'data', 'projectId', 'timestamp'], $payloadKeys);
+        $this->assertSame('sale_recorded', $payload['action']);
+        $this->assertSame('0b6f3c2e-8d41-4a7b-9e15-5c2d7f80a3a1', $payload['projectId']);
+        $this->assertSame(['saleId' => 's-7'], $payload['data']);
+        $this->assertNotFalse(\DateTimeImmutable::createFromFormat(\DateTimeInterface::ATOM, $payload['timestamp']));
+    }
+
     // ===========================================
     // publishEscalationEvent() tests
     // ===========================================
