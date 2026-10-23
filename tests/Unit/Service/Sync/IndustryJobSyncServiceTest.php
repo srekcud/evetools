@@ -17,6 +17,7 @@ use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryStepJobMatchRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\EsiClient;
+use App\Service\ESI\PaginatedEsiResponse;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
 use App\Service\Sync\IndustryJobSyncService;
@@ -32,11 +33,12 @@ use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\ErrorHandler\BufferingLogger;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 use Symfony\Component\Uid\Uuid;
-use Symfony\Contracts\Service\ResetInterface;
 
 #[CoversClass(IndustryJobSyncService::class)]
 #[AllowMockObjectsWithoutExpectations]
@@ -61,6 +63,20 @@ class IndustryJobSyncServiceTest extends TestCase
     private const int MANUFACTURING_JOB_ID = 500;
     private const int ME_RESEARCH_JOB_ID = 501;
     private const int ME_RESEARCH_ACTIVITY_ID = 4;
+    private const int CORPORATION_ID = 98000001;
+    private const int OTHER_CORPORATION_ID = 98000002;
+    private const string CORPORATION_JOBS_ENDPOINT = '/corporations/98000001/industry/jobs/?include_completed=true';
+    private const string OTHER_CORPORATION_JOBS_ENDPOINT = '/corporations/98000002/industry/jobs/?include_completed=true';
+    private const int CHARACTER_C_ID = 55501;
+    private const int CHARACTER_D_WITHOUT_ROLES_ID = 55600;
+    private const int CHARACTER_E_OF_OTHER_CORPORATION_ID = 55700;
+    private const int CORPORATION_JOB_OF_A_ID = 700;
+    private const int CORPORATION_JOB_OF_C_ID = 701;
+    private const int CORPORATION_JOB_OF_D_ID = 702;
+    private const int CORPORATION_JOB_OF_OUTSIDER_ID = 703;
+    private const int CORPORATION_JOB_OF_E_ID = 710;
+    private const int PERSONAL_JOB_OF_D_ID = 100;
+    private const int ESI_EXPIRES_AFTER_SECONDS = 300;
 
     private EsiClient&MockObject $esiClient;
     private CachedIndustryJobRepository&MockObject $jobRepository;
@@ -79,6 +95,10 @@ class IndustryJobSyncServiceTest extends TestCase
     private array $completionNotificationEvents = [];
     private array $dispatchedNotifications = [];
     private array $notificationRecipients = [];
+    private ArrayAdapter $esiCache;
+    private MockClock $esiCacheClock;
+    private array $corporationJobsReads = [];
+    private array $corporationJobsReadOutcomes = [];
 
     protected function setUp(): void
     {
@@ -123,6 +143,22 @@ class IndustryJobSyncServiceTest extends TestCase
 
         $mercurePublisher = new MercurePublisherService($mercureHub, new NullLogger());
 
+        $this->esiCacheClock = new MockClock();
+        $this->esiCache = new ArrayAdapter(clock: $this->esiCacheClock);
+        $this->esiClient->method('getPaginatedWithExpiry')->willReturnCallback(
+            function (string $endpoint): PaginatedEsiResponse {
+                $this->corporationJobsReads[] = $endpoint;
+                $outcome = count($this->corporationJobsReadOutcomes) > 1
+                    ? array_shift($this->corporationJobsReadOutcomes)
+                    : ($this->corporationJobsReadOutcomes[0] ?? $this->corporationJobsResponse([]));
+                if ($outcome instanceof \Throwable) {
+                    throw $outcome;
+                }
+
+                return $outcome;
+            },
+        );
+
         $this->service = new IndustryJobSyncService(
             $this->esiClient,
             $this->jobRepository,
@@ -132,6 +168,7 @@ class IndustryJobSyncServiceTest extends TestCase
             $mercurePublisher,
             $this->jobMatchRepository,
             $this->notificationDispatcher,
+            $this->esiCache,
         );
     }
 
@@ -501,7 +538,7 @@ class IndustryJobSyncServiceTest extends TestCase
         // Personal endpoints of A and B return nothing; the corporation endpoint (called once,
         // during A's sync) returns a job installed by B
         $this->esiClient->method('get')->willReturn([]);
-        $this->esiClient->expects($this->once())->method('getPaginated')->willReturn([
+        $this->givenCorporationJobs([
             $this->makeJobData(8001, 67890, 'active'),
         ]);
         $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
@@ -516,6 +553,7 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->service->syncCharacterJobs($characterA);
         $this->service->syncCharacterJobs($characterB);
 
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
         $this->assertSame('active', $corporationJobOfB->getStatus());
         $this->assertNull($corporationJobOfB->getCompletedDate());
         $this->assertSame('delivered', $personalStaleJobOfB->getStatus());
@@ -602,95 +640,359 @@ class IndustryJobSyncServiceTest extends TestCase
         );
     }
 
-    // ===========================================
-    // resetCorporationTracking
-    // ===========================================
-
-    public function testResetCorporationTrackingForgetsSeenCorporationJobs(): void
+    #[Group('issue-213')]
+    public function testCorporationJobsReadOnceForMainAndAltSyncedByTwoMessagesAndAltReceivesThem(): void
     {
-        [$characterA, $characterB] = $this->createCharactersOfSameUser(12345, 67890);
-
-        // Corporation endpoint returns B's job during A's sync, then nothing after the reset
+        [$characterA, $altB] = $this->createCharactersOfSameUser(self::CHARACTER_A_ID, self::ALT_B_ID);
         $this->esiClient->method('get')->willReturn([]);
-        $this->esiClient->method('getPaginated')->willReturnOnConsecutiveCalls(
-            [array_merge($this->makeJobData(8001, 67890, 'active'), ['end_date' => (new \DateTimeImmutable('-1 hour'))->format('c')])],
-            [],
+        $this->givenCorporationJobs($this->corporationJobsOfSpec213());
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $this->stubCachedJobs([]);
+        $this->stubActiveJobsByCharacter([]);
+
+        $this->service->syncCharacterJobs($characterA);
+        $this->service->syncCharacterJobs($altB);
+
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
+        $this->assertSame(
+            [
+                [$this->userTopicOf($characterA), '1 active jobs, 0 ready to deliver', ['total' => 1, 'active' => 1, 'ready' => 0]],
+                [$this->userTopicOf($altB), '1 active jobs, 0 ready to deliver', ['total' => 1, 'active' => 1, 'ready' => 0]],
+            ],
+            $this->industryJobsSyncCompletedEvents(),
+        );
+    }
+
+    #[Group('issue-213')]
+    public function testSecondSyncOfSameCharacterServedByCacheStillReceivesItsCorporationJobs(): void
+    {
+        $characterA = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $this->esiClient->method('get')->willReturn([]);
+        $this->givenCorporationJobs($this->corporationJobsOfSpec213());
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $this->stubCachedJobs([]);
+        $this->stubActiveJobsByCharacter([]);
+
+        $this->service->syncCharacterJobs($characterA);
+        $this->service->syncCharacterJobs($characterA);
+
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
+        $this->assertSame(
+            [
+                [$this->userTopicOf($characterA), '1 active jobs, 0 ready to deliver', ['total' => 1, 'active' => 1, 'ready' => 0]],
+                [$this->userTopicOf($characterA), '1 active jobs, 0 ready to deliver', ['total' => 1, 'active' => 1, 'ready' => 0]],
+            ],
+            $this->industryJobsSyncCompletedEvents(),
+        );
+    }
+
+    #[Group('issue-213')]
+    public function testCorporationJobsReadOnceForCharactersOfTwoUsersOfSameCorporation(): void
+    {
+        $characterA = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $characterC = $this->createCharacterWithUser(self::CHARACTER_C_ID);
+        $this->esiClient->method('get')->willReturn([]);
+        $this->givenCorporationJobs($this->corporationJobsOfSpec213());
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $this->stubCachedJobs([]);
+        $this->stubActiveJobsByCharacter([]);
+
+        $this->service->syncCharacterJobs($characterA);
+        $this->service->syncCharacterJobs($characterC);
+
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
+    }
+
+    #[Group('issue-213')]
+    public function testCharacterOfAnotherUserServedByCacheRecordsCountsAndNotifiesOnlyItsOwnCorporationJob(): void
+    {
+        [$characterA] = $this->createCharactersOfSameUser(self::CHARACTER_A_ID, self::ALT_B_ID);
+        $characterC = $this->createCharacterWithUser(self::CHARACTER_C_ID);
+        $characterD = $this->createCharacterWithUser(self::CHARACTER_D_WITHOUT_ROLES_ID);
+        $this->esiClient->method('get')->willReturn([]);
+        $this->givenCorporationJobs($this->corporationJobsOfSpec213());
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $corporationJobOfA = $this->makeCachedJob(self::CORPORATION_JOB_OF_A_ID, $characterA, 'active', '+1 day');
+        $corporationJobOfD = $this->makeCachedJob(self::CORPORATION_JOB_OF_D_ID, $characterD, 'active', '+1 day');
+        $this->stubCachedJobs([$corporationJobOfA, $corporationJobOfD]);
+        $this->stubActiveJobsByCharacter([$corporationJobOfA, $corporationJobOfD]);
+        $this->recordPersistedJobs();
+        $this->recordDispatchedNotifications();
+        $this->service->syncCharacterJobs($characterA);
+        $corporationJobOfABeforeSyncOfC = $this->cachedJobSnapshot($corporationJobOfA);
+        $corporationJobOfDBeforeSyncOfC = $this->cachedJobSnapshot($corporationJobOfD);
+        $this->forgetRecordedSideEffects();
+
+        $this->service->syncCharacterJobs($characterC);
+
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
+        $this->assertSame(
+            [[self::CORPORATION_JOB_OF_C_ID, 4, 'ready', self::TRITANIUM_TYPE_ID, 2_340_000.0]],
+            array_map(
+                static fn (CachedIndustryJob $job): array => [$job->getJobId(), $job->getRuns(), $job->getStatus(), $job->getProductTypeId(), $job->getCost()],
+                $this->persistedJobs,
+            ),
+        );
+        $this->assertSame($characterC, $this->persistedJobs[0]->getCharacter());
+        $this->assertSame($corporationJobOfABeforeSyncOfC, $this->cachedJobSnapshot($corporationJobOfA));
+        $this->assertSame($corporationJobOfDBeforeSyncOfC, $this->cachedJobSnapshot($corporationJobOfD));
+        $this->assertSame(
+            [[$this->userTopicOf($characterC), '0 active jobs, 1 ready to deliver', ['total' => 1, 'active' => 0, 'ready' => 1]]],
+            $this->industryJobsSyncCompletedEvents(),
+        );
+        $userIdOfC = $characterC->getUser()->getId()->toRfc4122();
+        $this->assertSame(
+            ["/user/{$userIdOfC}/sync/industry-jobs", "/user/{$userIdOfC}/sync/industry-job-completed"],
+            array_values(array_unique(array_column($this->publishedMercureUpdates, 0))),
+        );
+        $this->assertSame([self::CORPORATION_JOB_OF_C_ID], $this->jobIdsOfMercureJobCompletedNotifications());
+        $this->assertSame([$characterC->getUser()], $this->notificationRecipients);
+        $this->assertSame(
+            [[self::CORPORATION_JOB_OF_C_ID, 'Tritanium Manufacturing (4x) ready to deliver']],
+            array_map(
+                static fn (array $notification): array => [$notification[4]['jobId'], $notification[3]],
+                $this->dispatchedNotifications,
+            ),
+        );
+    }
+
+    #[Group('issue-213')]
+    public function testCorporationJobsReadAgainOnceEsiExpiresHasPassed(): void
+    {
+        $characterA = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $characterC = $this->createCharacterWithUser(self::CHARACTER_C_ID);
+        $this->esiClient->method('get')->willReturn([]);
+        $this->givenCorporationJobs($this->corporationJobsOfSpec213());
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $this->stubCachedJobs([]);
+        $this->stubActiveJobsByCharacter([]);
+
+        $this->service->syncCharacterJobs($characterA);
+        $this->esiCacheClock->sleep(self::ESI_EXPIRES_AFTER_SECONDS + 1);
+        $this->service->syncCharacterJobs($characterC);
+
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT, self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
+    }
+
+    #[Group('issue-213')]
+    public function testCorporationJobsStillServedByCacheJustBeforeEsiExpires(): void
+    {
+        $characterA = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $characterC = $this->createCharacterWithUser(self::CHARACTER_C_ID);
+        $this->esiClient->method('get')->willReturn([]);
+        $this->givenCorporationJobs($this->corporationJobsOfSpec213());
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $this->stubCachedJobs([]);
+        $this->stubActiveJobsByCharacter([]);
+
+        $this->service->syncCharacterJobs($characterA);
+        $this->esiCacheClock->sleep(self::ESI_EXPIRES_AFTER_SECONDS - 1);
+        $this->service->syncCharacterJobs($characterC);
+
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
+    }
+
+    #[Group('issue-213')]
+    public function testCorporationJobsWhoseEsiExpiresIsAlreadyPastAtReceptionAreReadAgainByNextCharacter(): void
+    {
+        $characterA = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $characterC = $this->createCharacterWithUser(self::CHARACTER_C_ID);
+        $this->esiClient->method('get')->willReturn([]);
+        $this->givenCorporationJobsReadOutcomes(
+            new PaginatedEsiResponse($this->corporationJobsOfSpec213(), new \DateTimeImmutable('-1 second')),
         );
         $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
-
-        $corporationJobOfB = $this->makeCachedJob(8001, $characterB, 'active', '-1 hour');
-        $this->jobRepository->method('findByJobId')
-            ->willReturnCallback(fn (int $jobId): ?CachedIndustryJob => $jobId === 8001 ? $corporationJobOfB : null);
-        $this->stubActiveJobsByCharacter([$corporationJobOfB]);
+        $this->stubCachedJobs([]);
+        $this->stubActiveJobsByCharacter([]);
 
         $this->service->syncCharacterJobs($characterA);
-        $this->service->resetCorporationTracking();
-        $this->service->syncCharacterJobs($characterB);
+        $this->service->syncCharacterJobs($characterC);
 
-        $this->assertSame('delivered', $corporationJobOfB->getStatus());
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT, self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
+    }
+
+    #[Group('issue-213')]
+    public function testCorporationJobsWithoutEsiExpiresAreNotCachedAndReadAgainByNextCharacter(): void
+    {
+        $characterA = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $characterC = $this->createCharacterWithUser(self::CHARACTER_C_ID);
+        $this->esiClient->method('get')->willReturn([]);
+        $this->givenCorporationJobsReadOutcomes(new PaginatedEsiResponse($this->corporationJobsOfSpec213(), null));
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $this->stubCachedJobs([]);
+        $this->stubActiveJobsByCharacter([]);
+
+        $this->service->syncCharacterJobs($characterA);
+        $this->service->syncCharacterJobs($characterC);
+
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT, self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
+        $this->assertSame([], $this->storedCacheEntries());
+    }
+
+    #[Group('issue-213')]
+    public function testForbiddenCorporationJobsReadOnEmptyCacheCachesNothingAndNextCharacterReadsEsi(): void
+    {
+        $characterA = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $characterD = $this->createCharacterWithUser(self::CHARACTER_D_WITHOUT_ROLES_ID);
+        $this->esiClient->method('get')->willReturn([]);
+        $this->givenCorporationJobsReadOutcomes(
+            EsiApiException::forbidden(),
+            $this->corporationJobsResponse($this->corporationJobsOfSpec213()),
+        );
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $this->stubCachedJobs([]);
+        $personalStaleJobOfD = $this->makeCachedJob(self::PERSONAL_JOB_OF_D_ID, $characterD, 'active', '-3 hours');
+        $this->stubActiveJobsByCharacter([$personalStaleJobOfD]);
+
+        $this->service->syncCharacterJobs($characterD);
+
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
+        $this->assertSame([], $this->storedCacheEntries());
+        $this->assertSame('active', $personalStaleJobOfD->getStatus());
+        $this->assertNull($personalStaleJobOfD->getCompletedDate());
+        $this->assertCount(1, $this->loggedWarnings());
+
+        $this->service->syncCharacterJobs($characterA);
+
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT, self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
+    }
+
+    #[Group('issue-213')]
+    public function testCharacterWithoutCorporationRolesServedByWarmCacheMakesNoCallLogsNoWarningAndMarksStalePersonalJobDelivered(): void
+    {
+        $characterA = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $characterD = $this->createCharacterWithUser(self::CHARACTER_D_WITHOUT_ROLES_ID);
+        $this->esiClient->method('get')->willReturn([]);
+        $this->givenCorporationJobsReadOutcomes(
+            $this->corporationJobsResponse($this->corporationJobsOfSpec213()),
+            EsiApiException::forbidden(),
+        );
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $corporationJobOfD = $this->makeCachedJob(self::CORPORATION_JOB_OF_D_ID, $characterD, 'active', '+1 day');
+        $personalStaleJobOfD = $this->makeCachedJob(self::PERSONAL_JOB_OF_D_ID, $characterD, 'active', '-3 hours');
+        $this->stubCachedJobs([$corporationJobOfD]);
+        $this->stubActiveJobsByCharacter([$corporationJobOfD, $personalStaleJobOfD]);
+        $this->service->syncCharacterJobs($characterA);
+        $this->loggedWarnings();
+
+        $this->service->syncCharacterJobs($characterD);
+
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
+        $this->assertSame([], $this->loggedWarnings());
+        $this->assertSame(['active', 6, 3_100_000.5], [$corporationJobOfD->getStatus(), $corporationJobOfD->getRuns(), $corporationJobOfD->getCost()]);
+        $this->assertSame('delivered', $personalStaleJobOfD->getStatus());
         $this->assertSame(
-            $corporationJobOfB->getEndDate()->format('c'),
-            $corporationJobOfB->getCompletedDate()?->format('c'),
+            $personalStaleJobOfD->getEndDate()->format('c'),
+            $personalStaleJobOfD->getCompletedDate()?->format('c'),
         );
     }
 
-    public function testResetCorporationTrackingMakesNextSyncFetchCorporationJobsAgain(): void
+    #[Group('issue-213')]
+    public function testCharacterWithoutCorporationJobsScopeNeitherReadsCorporationJobsNorReceivesThemFromWarmCache(): void
     {
-        $character = $this->createCharacterWithUser(12345);
-
+        [$characterA, $characterWithoutCorporationJobsScope] = $this->createCharactersOfSameUserWithScopes([
+            self::CHARACTER_A_ID => [self::CHARACTER_JOBS_SCOPE, self::CORPORATION_JOBS_SCOPE],
+            self::ALT_B_ID => [self::CHARACTER_JOBS_SCOPE],
+        ]);
         $this->esiClient->method('get')->willReturn([]);
-        $this->esiClient->expects($this->exactly(2))
-            ->method('getPaginated')
-            ->with('/corporations/98000001/industry/jobs/?include_completed=true')
-            ->willReturn([]);
+        $this->givenCorporationJobs($this->corporationJobsOfSpec213());
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $this->stubCachedJobs([]);
         $this->stubActiveJobsByCharacter([]);
+        $this->service->syncCharacterJobs($characterA);
+        $this->forgetRecordedSideEffects();
 
-        $this->service->syncCharacterJobs($character);
-        $this->service->resetCorporationTracking();
-        $this->service->syncCharacterJobs($character);
+        $this->service->syncCharacterJobs($characterWithoutCorporationJobsScope);
+
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
+        $this->assertSame(
+            [[$this->userTopicOf($characterWithoutCorporationJobsScope), '0 active jobs, 0 ready to deliver', ['total' => 0, 'active' => 0, 'ready' => 0]]],
+            $this->industryJobsSyncCompletedEvents(),
+        );
     }
 
-    public function testCorporationJobsFetchedOnlyOnceForTwoCharactersOfSameCorporationInOneSyncRun(): void
+    #[Group('issue-213')]
+    public function testCharacterOfAnotherCorporationReadsItsOwnCorporationJobsInsteadOfTheCachedOnes(): void
     {
-        [$characterA, $characterB] = $this->createCharactersOfSameUser(12345, 67890);
-
+        $characterA = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $characterE = $this->createCharacterWithUser(self::CHARACTER_E_OF_OTHER_CORPORATION_ID, self::OTHER_CORPORATION_ID);
         $this->esiClient->method('get')->willReturn([]);
-        $this->esiClient->expects($this->once())
-            ->method('getPaginated')
-            ->with('/corporations/98000001/industry/jobs/?include_completed=true')
-            ->willReturn([]);
+        $corporationJobOfE = $this->makeJobData(self::CORPORATION_JOB_OF_E_ID, self::CHARACTER_E_OF_OTHER_CORPORATION_ID, 'ready', self::RIFTER_BLUEPRINT_TYPE_ID);
+        $corporationJobOfE['runs'] = 3;
+        $this->givenCorporationJobsReadOutcomes(
+            $this->corporationJobsResponse($this->corporationJobsOfSpec213()),
+            $this->corporationJobsResponse([$corporationJobOfE]),
+        );
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $this->stubCachedJobs([]);
         $this->stubActiveJobsByCharacter([]);
+        $this->recordPersistedJobs();
+        $this->service->syncCharacterJobs($characterA);
+        $this->forgetRecordedSideEffects();
+
+        $this->service->syncCharacterJobs($characterE);
+
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT, self::OTHER_CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
+        $this->assertSame([[self::CORPORATION_JOB_OF_E_ID, 3, 'ready']], array_map(
+            static fn (CachedIndustryJob $job): array => [$job->getJobId(), $job->getRuns(), $job->getStatus()],
+            $this->persistedJobs,
+        ));
+        $this->assertSame(
+            [[$this->userTopicOf($characterE), '0 active jobs, 1 ready to deliver', ['total' => 1, 'active' => 0, 'ready' => 1]]],
+            $this->industryJobsSyncCompletedEvents(),
+        );
+    }
+
+    #[Group('issue-213')]
+    public function testCorporationJobsReadFailureOnEmptyCachePropagatesCachesNothingAndNextSyncReadsAgain(): void
+    {
+        $characterA = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $this->esiClient->method('get')->willReturn([]);
+        $serviceUnavailable = EsiApiException::fromResponse(503, 'Service Unavailable');
+        $this->givenCorporationJobsReadOutcomes(
+            $serviceUnavailable,
+            $this->corporationJobsResponse($this->corporationJobsOfSpec213()),
+        );
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $this->stubCachedJobs([]);
+        $this->stubActiveJobsByCharacter([]);
+
+        $this->assertSame($serviceUnavailable, $this->syncCatchingFailure($characterA));
+        $this->assertSame([], $this->storedCacheEntries());
 
         $this->service->syncCharacterJobs($characterA);
-        $this->service->syncCharacterJobs($characterB);
+
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT, self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
     }
 
-    // ===========================================
-    // ResetInterface — issue #29: corporation tracking must not outlive one scheduled sync
-    // ===========================================
-
-    public function testServiceImplementsResetInterfaceAndResetClearsCorporationTracking(): void
+    #[Group('issue-213')]
+    public function testCorporationJobPastItsEndDateServedByCacheIsUpdatedNotMarkedDelivered(): void
     {
-        $this->assertInstanceOf(ResetInterface::class, $this->service);
-
-        $character = $this->createCharacterWithUser(12345);
-
+        $characterA = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $characterC = $this->createCharacterWithUser(self::CHARACTER_C_ID);
         $this->esiClient->method('get')->willReturn([]);
-        $this->esiClient->expects($this->exactly(2))
-            ->method('getPaginated')
-            ->with('/corporations/98000001/industry/jobs/?include_completed=true')
-            ->willReturn([]);
-        $this->stubActiveJobsByCharacter([]);
+        $corporationJobsWithJobOfAPastItsEndDate = $this->corporationJobsOfSpec213();
+        $corporationJobsWithJobOfAPastItsEndDate[0]['end_date'] = '2026-10-20T08:00:00Z';
+        $this->givenCorporationJobs($corporationJobsWithJobOfAPastItsEndDate);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $corporationJobOfA = $this->makeCachedJob(self::CORPORATION_JOB_OF_A_ID, $characterA, 'active', '2026-10-20T08:00:00Z');
+        $this->stubCachedJobs([$corporationJobOfA]);
+        $this->stubActiveJobsByCharacter([$corporationJobOfA]);
+        $this->service->syncCharacterJobs($characterC);
 
-        $this->service->syncCharacterJobs($character);
-        $this->service->reset();
-        $this->service->syncCharacterJobs($character);
+        $this->service->syncCharacterJobs($characterA);
+
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
+        $this->assertSame('active', $corporationJobOfA->getStatus());
+        $this->assertNull($corporationJobOfA->getCompletedDate());
+        $this->assertSame(10, $corporationJobOfA->getRuns());
+        $this->assertSame(1_250_000.75, $corporationJobOfA->getCost());
     }
 
     public function testForbiddenCorporationJobsReadMarksNoJobAsDelivered(): void
     {
         [$character, $corporationJob, $personalStaleJob] = $this->givenCharacterWithReadyCorporationJobAndStalePersonalJob();
-        $this->esiClient->method('getPaginated')->willThrowException(EsiApiException::forbidden());
+        $this->givenCorporationJobsReadOutcomes(EsiApiException::forbidden());
 
         $this->service->syncCharacterJobs($character);
 
@@ -703,7 +1005,7 @@ class IndustryJobSyncServiceTest extends TestCase
     public function testForbiddenCorporationJobsReadStillRecordsPersonalJobsFromEsi(): void
     {
         [$character] = $this->givenCharacterWithReadyCorporationJobAndStalePersonalJob();
-        $this->esiClient->method('getPaginated')->willThrowException(EsiApiException::forbidden());
+        $this->givenCorporationJobsReadOutcomes(EsiApiException::forbidden());
 
         $this->service->syncCharacterJobs($character);
 
@@ -717,7 +1019,7 @@ class IndustryJobSyncServiceTest extends TestCase
     public function testForbiddenCorporationJobsReadLogsOneWarning(): void
     {
         [$character] = $this->givenCharacterWithReadyCorporationJobAndStalePersonalJob();
-        $this->esiClient->method('getPaginated')->willThrowException(EsiApiException::forbidden());
+        $this->givenCorporationJobsReadOutcomes(EsiApiException::forbidden());
 
         $this->service->syncCharacterJobs($character);
 
@@ -728,7 +1030,7 @@ class IndustryJobSyncServiceTest extends TestCase
     public function testCorporationJobsReadFailureOtherThanForbiddenPropagatesWithoutWriting(\Throwable $corporationJobsReadFailure): void
     {
         [$character, $corporationJob, $personalStaleJob] = $this->givenCharacterWithReadyCorporationJobAndStalePersonalJob();
-        $this->esiClient->method('getPaginated')->willThrowException($corporationJobsReadFailure);
+        $this->givenCorporationJobsReadOutcomes($corporationJobsReadFailure);
 
         $this->assertSame($corporationJobsReadFailure, $this->syncCatchingFailure($character));
         $this->assertSame(0, $this->flushCount);
@@ -753,7 +1055,7 @@ class IndustryJobSyncServiceTest extends TestCase
     public function testCorporationJobStillPresentInEsiIsNotMarkedDeliveredWhilePersonalStaleJobIs(): void
     {
         [$character, $corporationJob, $personalStaleJob] = $this->givenCharacterWithReadyCorporationJobAndStalePersonalJob();
-        $this->esiClient->method('getPaginated')->willReturn([
+        $this->givenCorporationJobs([
             $this->makeJobData(900, 12345, 'ready'),
         ]);
 
@@ -773,7 +1075,7 @@ class IndustryJobSyncServiceTest extends TestCase
     {
         [$characterA, $characterB] = $this->createCharactersOfSameUser(12345, 67890);
         $this->esiClient->method('get')->willReturn([]);
-        $this->esiClient->expects($this->once())->method('getPaginated')->willReturn([]);
+        $this->givenCorporationJobs([]);
         $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
         $personalStaleJobOfB = $this->makeCachedJob(100, $characterB, 'active', '-3 hours');
         $this->stubActiveJobsByCharacter([$personalStaleJobOfB]);
@@ -781,6 +1083,7 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->service->syncCharacterJobs($characterA);
         $this->service->syncCharacterJobs($characterB);
 
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
         $this->assertSame('delivered', $personalStaleJobOfB->getStatus());
     }
 
@@ -788,13 +1091,13 @@ class IndustryJobSyncServiceTest extends TestCase
     {
         $character = $this->createCharacterWithoutCorporationJobsScope(12345);
         $this->esiClient->method('get')->willReturn([]);
-        $this->esiClient->expects($this->never())->method('getPaginated');
         $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
         $personalStaleJob = $this->makeCachedJob(100, $character, 'active', '-3 hours');
         $this->stubActiveJobsByCharacter([$personalStaleJob]);
 
         $this->service->syncCharacterJobs($character);
 
+        $this->assertSame([], $this->corporationJobsReads);
         $this->assertSame('delivered', $personalStaleJob->getStatus());
     }
 
@@ -804,7 +1107,6 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->esiClient->method('get')->willReturn([
             array_merge($this->makeJobData(500, 12345, 'ready'), ['end_date' => '2026-10-18T14:20:00Z']),
         ]);
-        $this->esiClient->expects($this->never())->method('getPaginated');
         $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
         $readyPersonalJob = $this->makeCachedJob(500, $character, 'ready', '2026-10-18T14:20:00Z');
         $this->stubCachedJobs([$readyPersonalJob]);
@@ -812,6 +1114,7 @@ class IndustryJobSyncServiceTest extends TestCase
 
         $this->service->syncCharacterJobs($character);
 
+        $this->assertSame([], $this->corporationJobsReads);
         $this->assertSame('ready', $readyPersonalJob->getStatus());
         $this->assertNull($readyPersonalJob->getCompletedDate());
     }
@@ -820,13 +1123,13 @@ class IndustryJobSyncServiceTest extends TestCase
     {
         [$character] = $this->createCharactersOfSameUserWithScopes([12345 => []]);
         $this->esiClient->expects($this->never())->method('get');
-        $this->esiClient->expects($this->never())->method('getPaginated');
         $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
         $personalStaleJob = $this->makeCachedJob(100, $character, 'active', '-1 day');
         $this->stubActiveJobsByCharacter([$personalStaleJob]);
 
         $this->service->syncCharacterJobs($character);
 
+        $this->assertSame([], $this->corporationJobsReads);
         $this->assertSame('active', $personalStaleJob->getStatus());
         $this->assertNull($personalStaleJob->getCompletedDate());
     }
@@ -837,10 +1140,7 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->esiClient->expects($this->never())->method('get');
         $corporationJobData = $this->makeJobData(900, 12345, 'ready');
         $corporationJobData['runs'] = 3;
-        $this->esiClient->expects($this->once())
-            ->method('getPaginated')
-            ->with('/corporations/98000001/industry/jobs/?include_completed=true')
-            ->willReturn([$corporationJobData]);
+        $this->givenCorporationJobs([$corporationJobData]);
         $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
         $this->jobRepository->method('findByJobId')->willReturn(null);
         $personalStaleJob = $this->makeCachedJob(100, $character, 'active', '-1 day');
@@ -851,6 +1151,7 @@ class IndustryJobSyncServiceTest extends TestCase
 
         $this->service->syncCharacterJobs($character);
 
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
         $this->assertSame('active', $personalStaleJob->getStatus());
         $this->assertNull($personalStaleJob->getCompletedDate());
         $this->assertSame([[900, 3, 'ready']], array_map(
@@ -859,7 +1160,8 @@ class IndustryJobSyncServiceTest extends TestCase
         ));
     }
 
-    public function testStalePersonalJobStaysActiveForCharacterWithCorporationJobsScopeOnlyWhenCorporationAlreadyReadThisSync(): void
+    #[Group('issue-213')]
+    public function testStalePersonalJobStaysActiveForCharacterWithCorporationJobsScopeOnlyWhenCorporationJobsServedByCache(): void
     {
         [$characterB, $characterA] = $this->createCharactersOfSameUserWithScopes([
             67890 => [self::CHARACTER_JOBS_SCOPE, self::CORPORATION_JOBS_SCOPE],
@@ -869,7 +1171,7 @@ class IndustryJobSyncServiceTest extends TestCase
             ->method('get')
             ->with('/characters/67890/industry/jobs/?include_completed=true')
             ->willReturn([]);
-        $this->esiClient->expects($this->once())->method('getPaginated')->willReturn([]);
+        $this->givenCorporationJobs([]);
         $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
         $personalStaleJobOfA = $this->makeCachedJob(100, $characterA, 'active', '-1 day');
         $this->stubActiveJobsByCharacter([$personalStaleJobOfA]);
@@ -877,6 +1179,7 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->service->syncCharacterJobs($characterB);
         $this->service->syncCharacterJobs($characterA);
 
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
         $this->assertSame('active', $personalStaleJobOfA->getStatus());
         $this->assertNull($personalStaleJobOfA->getCompletedDate());
     }
@@ -885,27 +1188,21 @@ class IndustryJobSyncServiceTest extends TestCase
     {
         [$characterA, $characterB] = $this->createCharactersOfSameUser(12345, 67890);
         $this->esiClient->method('get')->willReturn([]);
-        $this->esiClient->expects($this->exactly(2))
-            ->method('getPaginated')
-            ->with('/corporations/98000001/industry/jobs/?include_completed=true')
-            ->willThrowException(EsiApiException::forbidden());
+        $this->givenCorporationJobsReadOutcomes(EsiApiException::forbidden());
         $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
         $this->stubActiveJobsByCharacter([]);
 
         $this->service->syncCharacterJobs($characterA);
         $this->service->syncCharacterJobs($characterB);
+
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT, self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
     }
 
     public function testCharacterWithCorporationRolesReadsCorporationJobsAfterForbiddenReadOfAnother(): void
     {
         [$characterA, $characterB] = $this->createCharactersOfSameUser(12345, 67890);
         $this->esiClient->method('get')->willReturn([]);
-        $this->esiClient->expects($this->exactly(2))
-            ->method('getPaginated')
-            ->willReturnOnConsecutiveCalls(
-                $this->throwException(EsiApiException::forbidden()),
-                [],
-            );
+        $this->givenCorporationJobsReadOutcomes(EsiApiException::forbidden(), $this->corporationJobsResponse([]));
         $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
         $personalStaleJobOfB = $this->makeCachedJob(100, $characterB, 'active', '-3 hours');
         $this->stubActiveJobsByCharacter([$personalStaleJobOfB]);
@@ -913,6 +1210,7 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->service->syncCharacterJobs($characterA);
         $this->service->syncCharacterJobs($characterB);
 
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT, self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
         $this->assertSame('delivered', $personalStaleJobOfB->getStatus());
     }
 
@@ -980,7 +1278,7 @@ class IndustryJobSyncServiceTest extends TestCase
         $cachedJob = $this->givenMatchedCachedJob($character);
         $jobMatch = $this->givenJobMatchOnStep(100, $this->makeStep('manual'));
         $this->esiClient->method('get')->willReturn([]);
-        $this->esiClient->method('getPaginated')->willReturn([]);
+        $this->givenCorporationJobs([]);
         $this->stubActiveJobsByCharacter([$cachedJob]);
 
         $this->service->syncCharacterJobs($character);
@@ -996,7 +1294,7 @@ class IndustryJobSyncServiceTest extends TestCase
         $corpmateCachedJob->setCost(2_750_000.75)->setRuns(4);
         $jobMatch = $this->givenJobMatchOnStep(200, $this->makeStep('manual'));
         $this->esiClient->method('get')->willReturn([]);
-        $this->esiClient->method('getPaginated')->willReturn([$this->makeEsiJobOfMatch(200, 99999, 'delivered', '2026-10-19T16:45:00Z')]);
+        $this->givenCorporationJobs([$this->makeEsiJobOfMatch(200, 99999, 'delivered', '2026-10-19T16:45:00Z')]);
         $this->stubCachedJobs([$corpmateCachedJob]);
         $this->stubActiveJobsByCharacter([]);
 
@@ -1012,7 +1310,7 @@ class IndustryJobSyncServiceTest extends TestCase
         $cachedJob = $this->givenMatchedCachedJob($character)->setStatus('ready');
         $jobMatch = $this->givenJobMatchOnStep(100, $this->makeStep('manual'));
         $this->esiClient->expects($this->never())->method('get');
-        $this->esiClient->method('getPaginated')->willReturn([]);
+        $this->givenCorporationJobs([]);
         $this->stubCachedJobs([$cachedJob]);
         $this->stubActiveJobsByCharacter([$cachedJob]);
 
@@ -1087,7 +1385,7 @@ class IndustryJobSyncServiceTest extends TestCase
         $altEsiJob = $this->makeEsiJobOfMatch(400, 67890, 'ready', '2026-10-23T06:15:00Z');
         $altEsiJob['cost'] = 640_000.25;
         $altEsiJob['runs'] = 3;
-        $this->esiClient->method('getPaginated')->willReturn([$altEsiJob]);
+        $this->givenCorporationJobs([$altEsiJob]);
         $this->stubCachedJobs([$altCachedJob]);
         $this->stubActiveJobsByCharacter([]);
 
@@ -1250,7 +1548,7 @@ class IndustryJobSyncServiceTest extends TestCase
     {
         $character = $this->createCharacterWithUser(12345);
         $this->esiClient->method('get')->willReturn([]);
-        $this->esiClient->method('getPaginated')->willReturn([$this->makeTritaniumJobData(200, 99999, 'ready')]);
+        $this->givenCorporationJobs([$this->makeTritaniumJobData(200, 99999, 'ready')]);
         $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
         $this->stubCachedJobs([]);
         $this->stubActiveJobsByCharacter([]);
@@ -1392,7 +1690,7 @@ class IndustryJobSyncServiceTest extends TestCase
     {
         [$characterA] = $this->createCharactersOfSameUser(self::CHARACTER_A_ID, self::ALT_B_ID);
         $this->esiClient->method('get')->willReturn([$this->makeJobData(100, self::CHARACTER_A_ID, 'active')]);
-        $this->esiClient->method('getPaginated')->willReturn($this->corporationJobsOfE1());
+        $this->givenCorporationJobs($this->corporationJobsOfE1());
         $this->stubActiveJobsByCharacter([]);
 
         $this->service->syncCharacterJobs($characterA);
@@ -1411,7 +1709,7 @@ class IndustryJobSyncServiceTest extends TestCase
             self::ALT_B_ID => [self::CHARACTER_JOBS_SCOPE, self::CORPORATION_JOBS_SCOPE],
         ]);
         $this->esiClient->expects($this->never())->method('get');
-        $this->esiClient->method('getPaginated')->willReturn($this->corporationJobsOfE1());
+        $this->givenCorporationJobs($this->corporationJobsOfE1());
         $this->stubActiveJobsByCharacter([]);
 
         $this->service->syncCharacterJobs($characterA);
@@ -1427,7 +1725,7 @@ class IndustryJobSyncServiceTest extends TestCase
     {
         [$characterA] = $this->createCharactersOfSameUser(self::CHARACTER_A_ID, self::ALT_B_ID);
         $this->esiClient->method('get')->willReturn([$this->makeJobData(100, self::CHARACTER_A_ID, 'active')]);
-        $this->esiClient->method('getPaginated')->willReturn([
+        $this->givenCorporationJobs([
             ...$this->corporationJobsOfE1(),
             $this->makeJobData(905, self::ALT_B_ID, 'ready'),
         ]);
@@ -1449,7 +1747,7 @@ class IndustryJobSyncServiceTest extends TestCase
             $this->makeJobData(100, self::CHARACTER_A_ID, 'active'),
             $this->makeJobData(900, self::CHARACTER_A_ID, 'active'),
         ]);
-        $this->esiClient->method('getPaginated')->willReturn($this->corporationJobsOfE1());
+        $this->givenCorporationJobs($this->corporationJobsOfE1());
         $this->stubActiveJobsByCharacter([]);
 
         $this->service->syncCharacterJobs($characterA);
@@ -1466,7 +1764,7 @@ class IndustryJobSyncServiceTest extends TestCase
         [$characterA] = $this->createCharactersOfSameUser(self::CHARACTER_A_ID, self::ALT_B_ID);
         $staleJob = $this->makeCachedJob(110, $characterA, 'active', '-2 days');
         $this->esiClient->method('get')->willReturn([$this->makeJobData(100, self::CHARACTER_A_ID, 'active')]);
-        $this->esiClient->method('getPaginated')->willReturn([]);
+        $this->givenCorporationJobs([]);
         $this->stubActiveJobsByCharacter([$staleJob]);
 
         $this->service->syncCharacterJobs($characterA);
@@ -1483,7 +1781,7 @@ class IndustryJobSyncServiceTest extends TestCase
     {
         [$characterA] = $this->createCharactersOfSameUser(self::CHARACTER_A_ID, self::ALT_B_ID);
         $this->esiClient->method('get')->willReturn([$this->makeJobData(100, self::CHARACTER_A_ID, 'active')]);
-        $this->esiClient->method('getPaginated')->willReturn([
+        $this->givenCorporationJobs([
             ...$this->corporationJobsOfE1(),
             $this->makeJobData(906, self::CHARACTER_A_ID, 'paused'),
             $this->makeJobData(907, self::CHARACTER_A_ID, 'delivered'),
@@ -1503,7 +1801,7 @@ class IndustryJobSyncServiceTest extends TestCase
     {
         [$characterA] = $this->createCharactersOfSameUser(self::CHARACTER_A_ID, self::ALT_B_ID);
         $this->esiClient->method('get')->willReturn([]);
-        $this->esiClient->method('getPaginated')->willReturn([
+        $this->givenCorporationJobs([
             $this->makeJobData(902, self::FIRST_CORPMATE_ID, 'active'),
             $this->makeJobData(903, self::SECOND_CORPMATE_ID, 'active'),
             $this->makeJobData(904, self::THIRD_CORPMATE_ID, 'ready'),
@@ -1633,6 +1931,79 @@ class IndustryJobSyncServiceTest extends TestCase
     // ===========================================
     // Helpers
     // ===========================================
+
+    private function givenCorporationJobs(array $corporationJobs): void
+    {
+        $this->givenCorporationJobsReadOutcomes($this->corporationJobsResponse($corporationJobs));
+    }
+
+    private function givenCorporationJobsReadOutcomes(PaginatedEsiResponse|\Throwable ...$outcomes): void
+    {
+        $this->corporationJobsReadOutcomes = $outcomes;
+    }
+
+    private function corporationJobsResponse(array $corporationJobs): PaginatedEsiResponse
+    {
+        return new PaginatedEsiResponse(
+            $corporationJobs,
+            new \DateTimeImmutable(sprintf('+%d seconds', self::ESI_EXPIRES_AFTER_SECONDS)),
+        );
+    }
+
+    private function corporationJobsOfSpec213(): array
+    {
+        return [
+            $this->corporationJobOfSpec213(self::CORPORATION_JOB_OF_A_ID, self::CHARACTER_A_ID, 'active', self::RIFTER_TYPE_ID, 10, 1_250_000.75),
+            $this->corporationJobOfSpec213(self::CORPORATION_JOB_OF_C_ID, self::CHARACTER_C_ID, 'ready', self::TRITANIUM_TYPE_ID, 4, 2_340_000.0),
+            $this->corporationJobOfSpec213(self::CORPORATION_JOB_OF_D_ID, self::CHARACTER_D_WITHOUT_ROLES_ID, 'active', self::NITROGEN_FUEL_BLOCK_TYPE_ID, 6, 3_100_000.5),
+            $this->corporationJobOfSpec213(self::CORPORATION_JOB_OF_OUTSIDER_ID, self::THIRD_CORPMATE_ID, 'active', self::TYPE_ID_MISSING_FROM_SDE, 8, 450_000.0),
+        ];
+    }
+
+    private function corporationJobOfSpec213(int $jobId, int $installerId, string $status, int $productTypeId, int $runs, float $cost): array
+    {
+        $jobData = $this->makeJobData($jobId, $installerId, $status, $productTypeId);
+        $jobData['runs'] = $runs;
+        $jobData['cost'] = $cost;
+
+        return $jobData;
+    }
+
+    private function recordPersistedJobs(): void
+    {
+        $this->em->method('persist')->willReturnCallback(function (object $entity): void {
+            $this->persistedJobs[] = $entity;
+        });
+    }
+
+    private function storedCacheEntries(): array
+    {
+        return array_filter($this->esiCache->getValues(), static fn (mixed $value): bool => $value !== null);
+    }
+
+    private function forgetRecordedSideEffects(): void
+    {
+        $this->persistedJobs = [];
+        $this->publishedMercurePayloads = [];
+        $this->publishedMercureUpdates = [];
+        $this->dispatchedNotifications = [];
+        $this->notificationRecipients = [];
+        $this->completionNotificationEvents = [];
+    }
+
+    private function cachedJobSnapshot(CachedIndustryJob $job): array
+    {
+        return [
+            $job->getStatus(),
+            $job->getCharacter(),
+            $job->getRuns(),
+            $job->getCost(),
+            $job->getEndDate()->format('c'),
+            $job->getCompletedDate()?->format('c'),
+            $job->getCachedAt()->format('U.u'),
+            $job->getCompletionNotifiedAt()?->format('c'),
+        ];
+    }
 
     private function givenNoCachedJobAndRecordedPersists(): void
     {
@@ -1902,7 +2273,7 @@ class IndustryJobSyncServiceTest extends TestCase
         ));
     }
 
-    private function createCharacterWithUser(int $eveCharacterId): Character
+    private function createCharacterWithUser(int $eveCharacterId, int $corporationId = self::CORPORATION_ID): Character
     {
         $user = $this->createStub(User::class);
         $userId = Uuid::v4();
@@ -1917,7 +2288,7 @@ class IndustryJobSyncServiceTest extends TestCase
         $character->method('getEveToken')->willReturn($token);
         $character->method('getName')->willReturn('TestChar');
         $character->method('getUser')->willReturn($user);
-        $character->method('getCorporationId')->willReturn(98000001);
+        $character->method('getCorporationId')->willReturn($corporationId);
 
         $user->method('getCharacters')->willReturn(new ArrayCollection([$character]));
 

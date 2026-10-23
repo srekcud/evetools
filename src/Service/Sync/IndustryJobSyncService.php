@@ -17,6 +17,7 @@ use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
 use App\Service\UnknownTypeName;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\Service\ResetInterface;
 
@@ -41,6 +42,7 @@ class IndustryJobSyncService implements ResetInterface
         private readonly MercurePublisherService $mercurePublisher,
         private readonly IndustryStepJobMatchRepository $jobMatchRepository,
         private readonly NotificationDispatcher $notificationDispatcher,
+        private readonly CacheItemPoolInterface $esiCache,
     ) {
     }
 

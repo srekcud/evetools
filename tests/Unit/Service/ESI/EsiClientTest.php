@@ -851,6 +851,99 @@ final class EsiClientTest extends TestCase
         $this->assertSame([], $logRecords);
     }
 
+    #[Group('issue-213')]
+    public function testGetPaginatedWithExpiryReturnsItemsOfAllPagesAndTheEarliestExpiresOfThePages(): void
+    {
+        $issuedAt = time();
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['job_id' => 700, 'runs' => 10]], 200, [
+                'X-Pages' => '2',
+                'Expires' => $this->httpDate($issuedAt + 300),
+            ]),
+            $this->jsonResponse([['job_id' => 701, 'runs' => 4]], 200, [
+                'X-Pages' => '2',
+                'Expires' => $this->httpDate($issuedAt + 240),
+            ]),
+        ]);
+
+        $response = $esiClient->getPaginatedWithExpiry('/corporations/98000001/industry/jobs/?include_completed=true', $this->createEveToken());
+
+        $this->assertSame([['job_id' => 700, 'runs' => 10], ['job_id' => 701, 'runs' => 4]], $response->items);
+        $this->assertSame($issuedAt + 240, $response->expiresAt?->getTimestamp());
+        $this->assertSame([
+            self::BASE_URL . '/corporations/98000001/industry/jobs/?include_completed=true&page=1',
+            self::BASE_URL . '/corporations/98000001/industry/jobs/?include_completed=true&page=2',
+        ], array_column($this->recordedRequests, 'url'));
+        $this->assertSame(
+            ['Authorization: Bearer ' . self::ACCESS_TOKEN],
+            $this->recordedRequests[1]['headers']['authorization'],
+        );
+    }
+
+    #[Group('issue-213')]
+    public function testGetPaginatedWithExpiryReturnsItemsOfAllPagesAndUnknownExpiryWhenAPageHasNoExpires(): void
+    {
+        $issuedAt = time();
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['job_id' => 702, 'runs' => 6]], 200, [
+                'X-Pages' => '2',
+                'Expires' => $this->httpDate($issuedAt + 300),
+            ]),
+            $this->jsonResponse([['job_id' => 703, 'runs' => 8]], 200, ['X-Pages' => '2']),
+        ]);
+
+        $response = $esiClient->getPaginatedWithExpiry('/corporations/98000001/industry/jobs/?include_completed=true', $this->createEveToken());
+
+        $this->assertSame([['job_id' => 702, 'runs' => 6], ['job_id' => 703, 'runs' => 8]], $response->items);
+        $this->assertNull($response->expiresAt);
+    }
+
+    #[Group('issue-213')]
+    public function testGetPaginatedWithExpiryReturnsUnknownExpiryWhenAPageHasAnUnreadableExpires(): void
+    {
+        $issuedAt = time();
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['job_id' => 704, 'runs' => 12]], 200, [
+                'X-Pages' => '2',
+                'Expires' => 'not a date',
+            ]),
+            $this->jsonResponse([['job_id' => 705, 'runs' => 2]], 200, [
+                'X-Pages' => '2',
+                'Expires' => $this->httpDate($issuedAt + 300),
+            ]),
+        ]);
+
+        $response = $esiClient->getPaginatedWithExpiry('/corporations/98000001/industry/jobs/?include_completed=true', $this->createEveToken());
+
+        $this->assertSame([['job_id' => 704, 'runs' => 12], ['job_id' => 705, 'runs' => 2]], $response->items);
+        $this->assertNull($response->expiresAt);
+    }
+
+    #[Group('issue-213')]
+    public function testGetPaginatedReturnsItemsOfAllPagesWhateverTheirExpires(): void
+    {
+        $issuedAt = time();
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['type_id' => 34, 'quantity' => 1000]], 200, [
+                'X-Pages' => '3',
+                'Expires' => $this->httpDate($issuedAt + 300),
+            ]),
+            $this->jsonResponse([['type_id' => 35, 'quantity' => 500]], 200, ['X-Pages' => '3']),
+            $this->jsonResponse([['type_id' => 36, 'quantity' => 250]], 200, [
+                'X-Pages' => '3',
+                'Expires' => 'not a date',
+            ]),
+        ]);
+
+        $result = $esiClient->getPaginated('/characters/2112000001/assets/');
+
+        $this->assertSame([
+            ['type_id' => 34, 'quantity' => 1000],
+            ['type_id' => 35, 'quantity' => 500],
+            ['type_id' => 36, 'quantity' => 250],
+        ], $result);
+    }
+
     // ---------------------------------------------------------------
     // Issue #43 -- post() and postEmpty()
     // ---------------------------------------------------------------

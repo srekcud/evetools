@@ -244,6 +244,11 @@ class EsiClient
         return $allData;
     }
 
+    public function getPaginatedWithExpiry(string $endpoint, ?EveToken $token = null): PaginatedEsiResponse
+    {
+        throw new \LogicException('Not implemented');
+    }
+
     /**
      * POST without JSON body (for UI endpoints that take query params).
      */

@@ -52,6 +52,10 @@ services:
             $esiCache: '@esi.cache'
             $baseUrl: '%esi_base_url%'
 
+    App\Service\Sync\IndustryJobSyncService:
+        arguments:
+            $esiCache: '@esi.cache'
+
     # Security
     App\Security\JwtBlacklistListener:
         arguments:

@@ -14,6 +14,7 @@ use App\Repository\CharacterRepository;
 use App\Repository\IndustryStepJobMatchRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\EsiClient;
+use App\Service\ESI\PaginatedEsiResponse;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
 use App\Service\Sync\IndustryJobSyncService;
@@ -21,9 +22,11 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\ErrorHandler\BufferingLogger;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Uid\Uuid;
@@ -38,18 +41,13 @@ final class SyncCharacterIndustryJobsHandlerTest extends TestCase
     private const int EVE_CHARACTER_ID = 2119000777;
     private const int CORPORATION_ID = 98000431;
 
-    public function testResetsCorporationTrackingThenSyncsTheCharacterNamedByTheMessage(): void
+    public function testSyncsTheCharacterNamedByTheMessage(): void
     {
         $character = $this->character(self::CHARACTER_ID);
         $otherCharacter = $this->character(self::OTHER_CHARACTER_ID);
 
         $serviceCalls = [];
         $industryJobSyncService = $this->createStub(IndustryJobSyncService::class);
-        $industryJobSyncService->method('resetCorporationTracking')->willReturnCallback(
-            static function () use (&$serviceCalls): void {
-                $serviceCalls[] = 'resetCorporationTracking';
-            },
-        );
         $industryJobSyncService->method('syncCharacterJobs')->willReturnCallback(
             static function (Character $syncedCharacter) use (&$serviceCalls, $character, $otherCharacter): void {
                 $serviceCalls[] = match ($syncedCharacter) {
@@ -68,13 +66,12 @@ final class SyncCharacterIndustryJobsHandlerTest extends TestCase
 
         $handler(new SyncCharacterIndustryJobs(self::CHARACTER_ID));
 
-        self::assertSame(['resetCorporationTracking', 'syncCharacterJobs:' . self::CHARACTER_ID], $serviceCalls);
+        self::assertSame(['syncCharacterJobs:' . self::CHARACTER_ID], $serviceCalls);
     }
 
     public function testCharacterDeletedSinceDispatchIsSkippedWithAWarning(): void
     {
         $industryJobSyncService = $this->createMock(IndustryJobSyncService::class);
-        $industryJobSyncService->expects($this->never())->method('resetCorporationTracking');
         $industryJobSyncService->expects($this->never())->method('syncCharacterJobs');
 
         $logger = new BufferingLogger();
@@ -106,14 +103,15 @@ final class SyncCharacterIndustryJobsHandlerTest extends TestCase
         $handler(new SyncCharacterIndustryJobs(self::CHARACTER_ID));
     }
 
-    public function testEachHandledMessageFetchesCorporationJobsAgain(): void
+    #[Group('issue-213')]
+    public function testTwoHandledMessagesForCharactersOfSameCorporationReadCorporationJobsOnce(): void
     {
         $esiClient = $this->createMock(EsiClient::class);
         $esiClient->method('get')->willReturn([]);
-        $esiClient->expects($this->exactly(2))
-            ->method('getPaginated')
+        $esiClient->expects($this->once())
+            ->method('getPaginatedWithExpiry')
             ->with('/corporations/' . self::CORPORATION_ID . '/industry/jobs/?include_completed=true')
-            ->willReturn([]);
+            ->willReturn(new PaginatedEsiResponse([], new \DateTimeImmutable('+300 seconds')));
 
         $jobRepository = $this->createStub(CachedIndustryJobRepository::class);
         $jobRepository->method('findActiveJobsByCharacter')->willReturn([]);
@@ -127,16 +125,18 @@ final class SyncCharacterIndustryJobsHandlerTest extends TestCase
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
             $this->createStub(IndustryStepJobMatchRepository::class),
             $this->createStub(NotificationDispatcher::class),
+            new ArrayAdapter(),
         );
 
+        [$character, $alt] = $this->charactersOfCorporation(self::CHARACTER_ID, self::OTHER_CHARACTER_ID);
         $handler = new SyncCharacterIndustryJobsHandler(
-            $this->repositoryHolding([self::CHARACTER_ID => $this->characterOfCorporation()]),
+            $this->repositoryHolding([self::CHARACTER_ID => $character, self::OTHER_CHARACTER_ID => $alt]),
             $industryJobSyncService,
             new NullLogger(),
         );
 
         $handler(new SyncCharacterIndustryJobs(self::CHARACTER_ID));
-        $handler(new SyncCharacterIndustryJobs(self::CHARACTER_ID));
+        $handler(new SyncCharacterIndustryJobs(self::OTHER_CHARACTER_ID));
     }
 
     /** @param array<string, Character> $charactersById */
@@ -158,7 +158,7 @@ final class SyncCharacterIndustryJobsHandlerTest extends TestCase
         return $character;
     }
 
-    private function characterOfCorporation(): Character
+    private function charactersOfCorporation(string ...$characterIds): array
     {
         $user = $this->createStub(User::class);
         $user->method('getId')->willReturn(Uuid::fromString('0199a1f0-0000-7000-8000-0000000000f6'));
@@ -166,16 +166,21 @@ final class SyncCharacterIndustryJobsHandlerTest extends TestCase
         $token = $this->createStub(EveToken::class);
         $token->method('hasScope')->willReturn(true);
 
-        $character = $this->createStub(Character::class);
-        $character->method('getId')->willReturn(Uuid::fromString(self::CHARACTER_ID));
-        $character->method('getEveCharacterId')->willReturn(self::EVE_CHARACTER_ID);
-        $character->method('getEveToken')->willReturn($token);
-        $character->method('getName')->willReturn('Industrialist ' . self::EVE_CHARACTER_ID);
-        $character->method('getUser')->willReturn($user);
-        $character->method('getCorporationId')->willReturn(self::CORPORATION_ID);
+        $characters = [];
+        foreach ($characterIds as $index => $characterId) {
+            $eveCharacterId = self::EVE_CHARACTER_ID + $index;
+            $character = $this->createStub(Character::class);
+            $character->method('getId')->willReturn(Uuid::fromString($characterId));
+            $character->method('getEveCharacterId')->willReturn($eveCharacterId);
+            $character->method('getEveToken')->willReturn($token);
+            $character->method('getName')->willReturn('Industrialist ' . $eveCharacterId);
+            $character->method('getUser')->willReturn($user);
+            $character->method('getCorporationId')->willReturn(self::CORPORATION_ID);
+            $characters[] = $character;
+        }
 
-        $user->method('getCharacters')->willReturn(new ArrayCollection([$character]));
+        $user->method('getCharacters')->willReturn(new ArrayCollection($characters));
 
-        return $character;
+        return $characters;
     }
 }
