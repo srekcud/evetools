@@ -11,6 +11,8 @@
 - **R3 — Jobs corpo inconnus : pas de marquage « livré ».** Après un 403 (R1), aucun job du personnage n'est marqué « livré » dans cette sync : on ne sait pas lesquels sont des jobs corpo encore présents dans l'ESI. Les jobs perso lus sont créés et mis à jour normalement.
 - **R4 — Jobs corpo connus : inchangé.** Corporation lue dans cette sync (par ce personnage ou un autre avant lui), ou personnage sans le scope corpo : marquage « livré » comme aujourd'hui.
 
+- **Depuis #213.** Les jobs corpo lus sont mis en cache par corporation jusqu'à l'`Expires` de l'ESI. Un personnage sans rôles corpo dont la corporation est en cache ne fait aucun appel : pas de 403, jobs corpo connus, R4 s'applique (spec #213 R5). R1 à R3 ne valent que cache vide ou expiré.
+
 ## Exemples chiffrés
 
 Personnage A, scope corpo, job corpo 900 en base (statut `ready`, fin passée, installé par A), absent des jobs perso ; job perso 100 en base (`active`, fin passée), absent de l'ESI.
