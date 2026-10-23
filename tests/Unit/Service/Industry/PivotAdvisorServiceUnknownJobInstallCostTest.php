@@ -492,6 +492,7 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
             self::BROKER_FEE_RATE,
             self::SALES_TAX_RATE,
             $this->userWithId(),
+            self::SOLAR_SYSTEM_ID,
         );
     }
 

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Provider\Industry;
 
 use ApiPlatform\Metadata\GetCollection;
+use App\Constant\EveConstants;
+use App\Entity\IndustryUserSettings;
 use App\Entity\User;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Service\Industry\BatchProfitScannerService;
@@ -105,6 +107,77 @@ class BatchScanProviderTest extends TestCase
         $this->assertSame(7350.0, $robotics->profitPerUnit);
         $this->assertSame(2352000.0, $robotics->iskPerDay);
         $this->assertSame(32600.0, $robotics->materialCost);
+    }
+
+    #[Group('issue-128')]
+    public function testScannerReceivesTheFavoriteManufacturingAndReactionSystems(): void
+    {
+        $settings = $this->settings(30002510, 30000144);
+
+        $this->assertSame([30002510, 30000144], $this->solarSystemsReceivedByTheScanner(new Request(), $settings));
+    }
+
+    #[Group('issue-128')]
+    public function testScannerReceivesTheRequestedSystemForManufacturingAndReaction(): void
+    {
+        $settings = $this->settings(30002510, 30000144);
+
+        $this->assertSame([30002187, 30002187], $this->solarSystemsReceivedByTheScanner(new Request(['solarSystemId' => '30002187']), $settings));
+    }
+
+    #[Group('issue-128')]
+    public function testScannerReceivesTheManufacturingSystemForReactionWithoutFavoriteReactionSystem(): void
+    {
+        $settings = $this->settings(30002510, null);
+
+        $this->assertSame([30002510, 30002510], $this->solarSystemsReceivedByTheScanner(new Request(), $settings));
+    }
+
+    #[Group('issue-128')]
+    public function testScannerReceivesJitaForManufacturingAndReactionWithoutSettings(): void
+    {
+        $this->assertSame([EveConstants::JITA_SOLAR_SYSTEM_ID, EveConstants::JITA_SOLAR_SYSTEM_ID], $this->solarSystemsReceivedByTheScanner(new Request(), null));
+    }
+
+    private function settings(?int $favoriteManufacturingSystemId, ?int $favoriteReactionSystemId): IndustryUserSettings
+    {
+        return (new IndustryUserSettings())
+            ->setFavoriteManufacturingSystemId($favoriteManufacturingSystemId)
+            ->setFavoriteReactionSystemId($favoriteReactionSystemId);
+    }
+
+    /**
+     * @return array{int, int|null}
+     */
+    private function solarSystemsReceivedByTheScanner(Request $request, ?IndustryUserSettings $settings): array
+    {
+        $receivedArguments = [];
+        $scanner = $this->createStub(BatchProfitScannerService::class);
+        $scanner->method('scan')->willReturnCallback(
+            function (mixed ...$arguments) use (&$receivedArguments): array {
+                $receivedArguments = $arguments;
+
+                return [];
+            },
+        );
+
+        $this->providerFor($scanner, $request, $settings)->provide(new GetCollection());
+
+        return [$receivedArguments[5], $receivedArguments[10] ?? null];
+    }
+
+    private function providerFor(BatchProfitScannerService $scanner, Request $request, ?IndustryUserSettings $settings): BatchScanProvider
+    {
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn($this->createStub(User::class));
+
+        $requestStack = new RequestStack();
+        $requestStack->push($request);
+
+        $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
+        $settingsRepository->method('findOneBy')->willReturn($settings);
+
+        return new BatchScanProvider($security, $requestStack, $scanner, $settingsRepository);
     }
 
     /**

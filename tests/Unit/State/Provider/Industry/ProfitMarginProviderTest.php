@@ -32,6 +32,8 @@ class ProfitMarginProviderTest extends TestCase
     private const int HAIL_L_TYPE_ID = 12779;
     private const int PREFERRED_MARKET_STRUCTURE_ID = 1035466617946;
     private const int FAVORITE_MANUFACTURING_SYSTEM_ID = 30002510;
+    private const int FAVORITE_REACTION_SYSTEM_ID = 30000144;
+    private const int REQUESTED_SYSTEM_ID = 30002187;
     private const int ROBOTICS_TYPE_ID = 9848;
     private const int MORPHITE_TYPE_ID = 11399;
     private const int NITROGEN_ISOTOPES_TYPE_ID = 17888;
@@ -60,6 +62,7 @@ class ProfitMarginProviderTest extends TestCase
                 0.036,
                 0.036,
                 $user,
+                EveConstants::JITA_SOLAR_SYSTEM_ID,
             )
             ->willReturn($this->analysis());
 
@@ -146,6 +149,7 @@ class ProfitMarginProviderTest extends TestCase
                 0.015,
                 0.0225,
                 $user,
+                self::FAVORITE_MANUFACTURING_SYSTEM_ID,
             )
             ->willReturn($this->analysis());
 
@@ -171,6 +175,7 @@ class ProfitMarginProviderTest extends TestCase
                 0.015,
                 0.0225,
                 $user,
+                EveConstants::JITA_SOLAR_SYSTEM_ID,
             )
             ->willReturn($this->analysis());
 
@@ -181,6 +186,60 @@ class ProfitMarginProviderTest extends TestCase
         ]);
 
         $this->provider($user, $request, $profitMarginService, $settings)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+    }
+
+    #[Group('issue-128')]
+    public function testFavoriteReactionSystemReachesTheServiceBesideTheFavoriteManufacturingSystem(): void
+    {
+        $user = new User();
+        $settings = $this->settings($user)->setFavoriteReactionSystemId(self::FAVORITE_REACTION_SYSTEM_ID);
+        $profitMarginService = $this->createMock(ProfitMarginService::class);
+        $profitMarginService->expects($this->once())
+            ->method('analyze')
+            ->with(
+                self::HAIL_L_TYPE_ID,
+                1,
+                10,
+                20,
+                EveConstants::JITA_STATION_ID,
+                self::FAVORITE_MANUFACTURING_SYSTEM_ID,
+                null,
+                0.015,
+                0.0225,
+                $user,
+                self::FAVORITE_REACTION_SYSTEM_ID,
+            )
+            ->willReturn($this->analysis());
+
+        $this->provider($user, new Request(), $profitMarginService, $settings)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+    }
+
+    #[Group('issue-128')]
+    public function testQuerySystemAppliesToManufacturingAndReactionWhateverTheFavoriteSystems(): void
+    {
+        $user = new User();
+        $settings = $this->settings($user)->setFavoriteReactionSystemId(self::FAVORITE_REACTION_SYSTEM_ID);
+        $profitMarginService = $this->createMock(ProfitMarginService::class);
+        $profitMarginService->expects($this->once())
+            ->method('analyze')
+            ->with(
+                self::HAIL_L_TYPE_ID,
+                1,
+                10,
+                20,
+                EveConstants::JITA_STATION_ID,
+                self::REQUESTED_SYSTEM_ID,
+                null,
+                0.015,
+                0.0225,
+                $user,
+                self::REQUESTED_SYSTEM_ID,
+            )
+            ->willReturn($this->analysis());
+
+        $this->provider($user, new Request(['solarSystemId' => (string) self::REQUESTED_SYSTEM_ID]), $profitMarginService, $settings)
             ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
     }
 

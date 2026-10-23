@@ -52,6 +52,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
 
     private const int MANUFACTURING_SYSTEM_ID = 30000142;
     private const int OTHER_SYSTEM_ID = 30002510;
+    private const int REACTION_SYSTEM_ID = 30000144;
     private const int SELL_STRUCTURE_ID = 1035466617946;
     private const int PRICE_TYPE_ID_MODULO = 100_000;
     private const float JITA_PRICE_DIVISOR = 100.0;
@@ -59,6 +60,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     private const float MANUFACTURING_COST_INDEX = 0.05;
     private const float OTHER_SYSTEM_MANUFACTURING_COST_INDEX = 0.08;
     private const float REACTION_COST_INDEX = 0.04;
+    private const float REACTION_SYSTEM_REACTION_COST_INDEX = 0.07;
     private const float COPYING_COST_INDEX = 0.03;
     private const float INVENTION_COST_INDEX = 0.06;
     private const string USER_ID = '01928c3e-7a00-7000-8000-000000000001';
@@ -869,6 +871,24 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     }
 
     #[Group('issue-7')]
+    #[Group('issue-128')]
+    public function testReactionStepsTakeTheCostIndexOfTheReactionSolarSystemAndManufacturingStepsKeepTheManufacturingOne(): void
+    {
+        $result = $this->analyzeFerniteCarbide(self::REACTION_SYSTEM_ID);
+
+        $this->assertJobInstallSteps(
+            [
+                [self::FERNITE_CARBIDE, 'reaction', 10.0, 3771.93375, []],
+                [self::CERAMIC_POWDER, 'reaction', 5.0, 1883.435625, []],
+                [self::FERNITE_ALLOY, 'reaction', 5.0, 1883.998125, []],
+                [self::HYDROGEN_FUEL_BLOCK, 'manufacturing', 2.5, self::FERNITE_CARBIDE_HYDROGEN_FUEL_BLOCK_INSTALL_COST, []],
+            ],
+            $result['jobInstallSteps'],
+        );
+        $this->assertSame([], $result['missingData']);
+        $this->assertEqualsWithDelta(11477.9328625, $result['jobInstallCost'], 1e-6);
+    }
+
     public function testReactionTreeWithoutReactionCostIndexHasOnlyItsReactionStepsUnknownAndTheReasonListedOnce(): void
     {
         $this->withReactionCostIndex = false;
@@ -975,7 +995,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function analyzeFerniteCarbide(): array
+    private function analyzeFerniteCarbide(?int $reactionSolarSystemId = null): array
     {
         return $this->analyze(
             self::FERNITE_CARBIDE,
@@ -983,6 +1003,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
             me: 0,
             solarSystemId: self::MANUFACTURING_SYSTEM_ID,
             user: $this->user(),
+            reactionSolarSystemId: $reactionSolarSystemId,
         );
     }
 
@@ -1006,6 +1027,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         ?int $decryptorTypeId = null,
         ?User $user = null,
         array $blacklistedTypeIds = [],
+        ?int $reactionSolarSystemId = null,
     ): array {
         $productRepository = $this->sdeProductRepository();
         $materialRepository = $this->sdeMaterialRepository();
@@ -1062,6 +1084,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
             $this->brokerFeeRate,
             $this->salesTaxRate,
             $user,
+            $reactionSolarSystemId ?? $solarSystemId,
         );
     }
 
@@ -1142,6 +1165,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
                 $cache->save($cache->getItem('esi_cost_index_'.self::MANUFACTURING_SYSTEM_ID.'_'.$activity)->set($costIndex));
             }
         }
+        $cache->save($cache->getItem('esi_cost_index_'.self::REACTION_SYSTEM_ID.'_reaction')->set(self::REACTION_SYSTEM_REACTION_COST_INDEX));
         $cache->save($cache->getItem('esi_cost_index_'.self::OTHER_SYSTEM_ID.'_manufacturing')->set(self::OTHER_SYSTEM_MANUFACTURING_COST_INDEX));
         foreach (array_keys($this->typeNames) as $typeId) {
             if (!\in_array((int) $typeId, $this->typesWithoutAdjustedPrice, true)) {

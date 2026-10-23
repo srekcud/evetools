@@ -114,7 +114,7 @@ class BatchProfitScannerServiceTest extends TestCase
     {
         $this->productRepository->method('findAllManufacturableProducts')->willReturn([]);
 
-        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.036, 0.036, 0.0, null);
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.036, 0.036, 0.0, null, self::SOLAR_SYSTEM_ID);
 
         $this->assertSame([], $result);
     }
@@ -164,7 +164,7 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->esiCostIndexService->method('getCostIndex')->willReturn(0.01);
 
         // exportCostPerM3 = 0 so importCost = 0
-        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.036, 0.036, 0.0, null);
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.036, 0.036, 0.0, null, self::SOLAR_SYSTEM_ID);
 
         $this->assertCount(1, $result);
         $this->assertSame(587, $result[0]['typeId']);
@@ -218,7 +218,7 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->givenZeroEstimatedItemValue();
 
         // Filter: min margin 10%
-        $result = $this->service->scan('all', 10.0, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.036, 0.036, 0.0, null);
+        $result = $this->service->scan('all', 10.0, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.036, 0.036, 0.0, null, self::SOLAR_SYSTEM_ID);
 
         // Should filter out items below 10% margin (or include if above)
         // With ME10: mat cost = ceil(1000000*0.9) * 10 = 9000000, sell = 5000000
@@ -248,7 +248,7 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->givenZeroEstimatedItemValue();
 
         // Filter: minDailyVolume = 5
-        $result = $this->service->scan('all', null, 5.0, 'jita', null, self::SOLAR_SYSTEM_ID, 0.036, 0.036, 0.0, null);
+        $result = $this->service->scan('all', null, 5.0, 'jita', null, self::SOLAR_SYSTEM_ID, 0.036, 0.036, 0.0, null, self::SOLAR_SYSTEM_ID);
 
         // Volume is 2.0, below 5.0 threshold
         $this->assertCount(0, $result);
@@ -275,7 +275,7 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([101 => 100.0]);
         $this->givenZeroEstimatedItemValue();
 
-        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null, self::SOLAR_SYSTEM_ID);
 
         $this->assertCount(1, $result);
         $this->assertSame(0, $result[0]['meUsed']); // Reaction = ME 0
@@ -320,7 +320,7 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->givenZeroEstimatedItemValue();
 
         $exportCostPerM3 = 10.0;
-        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, $exportCostPerM3, null);
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, $exportCostPerM3, null, self::SOLAR_SYSTEM_ID);
 
         $this->assertCount(1, $result);
 
@@ -363,7 +363,7 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->givenZeroEstimatedItemValue();
 
         $exportCostPerM3 = 1200.0;
-        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, $exportCostPerM3, null);
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, $exportCostPerM3, null, self::SOLAR_SYSTEM_ID);
 
         $this->assertCount(1, $result);
 
@@ -403,7 +403,7 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->givenZeroEstimatedItemValue();
 
         $exportCostPerM3 = 10.0;
-        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, $exportCostPerM3, null);
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, $exportCostPerM3, null, self::SOLAR_SYSTEM_ID);
 
         $this->assertCount(1, $result);
 
@@ -449,7 +449,7 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->jitaMarketService->method('getAverageDailyVolumesForRegion')->willReturn([587 => 20.0]);
         $this->givenZeroEstimatedItemValue();
 
-        $result = $this->service->scan('all', null, null, 'structure', $structureId, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+        $result = $this->service->scan('all', null, null, 'structure', $structureId, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null, self::SOLAR_SYSTEM_ID);
 
         $this->assertCount(1, $result);
         // Sell price should be from structure (3M), not Jita (100K)
@@ -481,7 +481,7 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([2001 => 5000.0]);
         $this->givenZeroEstimatedItemValue();
 
-        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null, self::SOLAR_SYSTEM_ID);
 
         $this->assertCount(1, $result);
         $this->assertSame('Scourge Heavy Missile', $result[0]['typeName']);
@@ -521,7 +521,7 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
         $this->givenZeroEstimatedItemValue();
 
-        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null, self::SOLAR_SYSTEM_ID);
 
         // totalCost = 0 (no materials, no job cost, no transport), product is skipped
         // because the code checks $totalCost <= 0.0
@@ -582,7 +582,7 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->givenZeroEstimatedItemValue();
 
         // Filter: t2_ships only (categoryId=6, onlyT2=true)
-        $result = $this->service->scan('t2_ships', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+        $result = $this->service->scan('t2_ships', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null, self::SOLAR_SYSTEM_ID);
 
         // Only Jaguar (T2) should remain, Rifter (T1) filtered out
         $this->assertCount(1, $result);
@@ -634,7 +634,7 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
         $this->givenZeroEstimatedItemValue();
 
-        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null, self::SOLAR_SYSTEM_ID);
 
         $this->assertCount(1, $result);
         $this->assertTrue($result[0]['isFactionBlueprint']);
@@ -691,7 +691,7 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
         $this->givenZeroEstimatedItemValue();
 
-        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, $user);
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, $user, self::SOLAR_SYSTEM_ID);
 
         $this->assertCount(1, $result);
         $this->assertTrue($result[0]['isFactionBlueprint']);
@@ -726,7 +726,7 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
         $this->givenZeroEstimatedItemValue();
 
-        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null, self::SOLAR_SYSTEM_ID);
 
         $this->assertCount(1, $result);
         $this->assertFalse($result[0]['isFactionBlueprint']);
@@ -763,7 +763,7 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([self::SLASHER_TYPE_ID => 50.0]);
 
         $exportCostPerM3 = 1.0;
-        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, $exportCostPerM3, null);
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, $exportCostPerM3, null, self::SOLAR_SYSTEM_ID);
 
         $this->assertCount(1, $result);
         $slasher = $result[0];
@@ -798,7 +798,7 @@ class BatchProfitScannerServiceTest extends TestCase
         ]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([self::SLASHER_TYPE_ID => 50.0]);
 
-        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null, self::SOLAR_SYSTEM_ID);
 
         $this->assertCount(1, $result);
         $this->assertSame(self::SLASHER_TYPE_ID, $result[0]['typeId']);
@@ -812,7 +812,7 @@ class BatchProfitScannerServiceTest extends TestCase
     {
         $this->givenRifterFullyPricedAndSlasherWithUnpricedMorphite();
 
-        $result = $this->service->scan('all', 10.0, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+        $result = $this->service->scan('all', 10.0, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null, self::SOLAR_SYSTEM_ID);
 
         // An unknown margin never satisfies a minimum margin: only the fully priced Rifter remains
         $this->assertSame([self::RIFTER_TYPE_ID], array_column($result, 'typeId'));
@@ -840,7 +840,7 @@ class BatchProfitScannerServiceTest extends TestCase
             self::SLASHER_TYPE_ID => 50.0,
         ]);
 
-        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null, self::SOLAR_SYSTEM_ID);
 
         // Rifter iskPerDay = 4600, Breacher iskPerDay = (1000 - 900 * 5) * 10 = -35000, Slasher unknown: last
         $this->assertSame(
@@ -853,7 +853,7 @@ class BatchProfitScannerServiceTest extends TestCase
     {
         $this->givenRifterFullyPricedAndSlasherWithUnpricedMorphite();
 
-        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null, self::SOLAR_SYSTEM_ID);
         $rifter = $this->rowOf(self::RIFTER_TYPE_ID, $result);
 
         $this->assertArrayHasKey('unknownReason', $rifter);
@@ -867,7 +867,7 @@ class BatchProfitScannerServiceTest extends TestCase
         // Guard: the fix must not change a product whose materials are all priced
         $this->givenRifterFullyPricedAndSlasherWithUnpricedMorphite();
 
-        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null, self::SOLAR_SYSTEM_ID);
         $rifter = $this->rowOf(self::RIFTER_TYPE_ID, $result);
 
         // ME10: ceil(100 * 0.9) = 90 Tritanium * 5 + ceil(10 * 0.9) = 9 Pyerite * 10 = 540
@@ -884,7 +884,7 @@ class BatchProfitScannerServiceTest extends TestCase
         // Guard: the minimum margin filter still keeps a priced product above the threshold
         $this->givenRifterFullyPricedAndSlasherWithUnpricedMorphite();
 
-        $result = $this->service->scan('all', 85.0, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+        $result = $this->service->scan('all', 85.0, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null, self::SOLAR_SYSTEM_ID);
 
         $this->assertContains(self::RIFTER_TYPE_ID, array_column($result, 'typeId'));
         $this->assertSame(85.19, $this->rowOf(self::RIFTER_TYPE_ID, $result)['marginPercent']);
@@ -909,7 +909,7 @@ class BatchProfitScannerServiceTest extends TestCase
         ]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([self::RIFTER_TYPE_ID => 10.0]);
 
-        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null, self::SOLAR_SYSTEM_ID);
 
         $this->assertCount(1, $result);
         $rifter = $result[0];
@@ -950,7 +950,7 @@ class BatchProfitScannerServiceTest extends TestCase
             self::SLASHER_TYPE_ID => 50.0,
         ]);
 
-        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null, self::SOLAR_SYSTEM_ID);
 
         // Rifter iskPerDay = 4600, Breacher iskPerDay = (1000 - 900 * 5) * 10 = -35000, Slasher unknown: last
         $this->assertSame(
@@ -976,8 +976,8 @@ class BatchProfitScannerServiceTest extends TestCase
             self::SLASHER_TYPE_ID => 50.0,
         ]);
 
-        $withoutFilter = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
-        $withMinMargin = $this->service->scan('all', 10.0, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+        $withoutFilter = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null, self::SOLAR_SYSTEM_ID);
+        $withMinMargin = $this->service->scan('all', 10.0, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null, self::SOLAR_SYSTEM_ID);
 
         // Without filter the unpriced Slasher is listed; an unknown margin never satisfies a minimum margin
         $this->assertSame([self::RIFTER_TYPE_ID, self::SLASHER_TYPE_ID], array_column($withoutFilter, 'typeId'));
@@ -991,7 +991,7 @@ class BatchProfitScannerServiceTest extends TestCase
     {
         $this->givenRifterFullyPricedAndSlasherWithUnpricedMorphite();
 
-        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null, self::SOLAR_SYSTEM_ID);
 
         $this->assertSame(['Rifter', 'Slasher'], array_column($result, 'typeName'));
     }
@@ -1014,7 +1014,7 @@ class BatchProfitScannerServiceTest extends TestCase
             self::ROBOTICS_TYPE_ID => 7.0,
         ]);
 
-        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null, self::SOLAR_SYSTEM_ID);
 
         $this->assertSame([self::ROBOTICS_TYPE_ID, self::RIFTER_TYPE_ID], array_column($result, 'typeId'));
         $this->assertSame([null, 'Rifter'], array_column($result, 'typeName'));
@@ -1214,6 +1214,6 @@ class BatchProfitScannerServiceTest extends TestCase
         ]);
         $this->givenZeroEstimatedItemValue();
 
-        return $scanner->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.036, 0.036, self::EXPORT_COST_PER_M3, null);
+        return $scanner->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.036, 0.036, self::EXPORT_COST_PER_M3, null, self::SOLAR_SYSTEM_ID);
     }
 }

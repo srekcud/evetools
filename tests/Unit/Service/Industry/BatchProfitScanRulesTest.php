@@ -32,6 +32,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -41,6 +42,7 @@ class BatchProfitScanRulesTest extends TestCase
     private const int MANUFACTURING = 1;
     private const int REACTION = 11;
     private const int SOLAR_SYSTEM_ID = 30002510;
+    private const int REACTION_SOLAR_SYSTEM_ID = 30000144;
     private const string USER_ID = '0192f3a4-7b1c-7d2e-8f3a-4b5c6d7e8f90';
 
     private const int TRITANIUM_TYPE_ID = 34;
@@ -81,6 +83,7 @@ class BatchProfitScanRulesTest extends TestCase
         self::HYDROCARBONS_TYPE_ID => 0.0,
     ];
     private array $costIndices = ['manufacturing' => 0.0, 'reaction' => 0.0];
+    private array $reactionSystemCostIndices = ['manufacturing' => 0.0, 'reaction' => 0.0];
     private array $t2ProductIds = [];
     private array $factionBlueprintIds = [];
     private array $requiredSkillsByActivity = [];
@@ -185,6 +188,67 @@ class BatchProfitScanRulesTest extends TestCase
         $ferrogel = $this->scan(user: $this->userWithCharacterSkills([]))[0];
 
         $this->assertSame(180.53, $ferrogel['profitPerUnit']);
+    }
+
+    #[Group('issue-128')]
+    public function testReactionUsesTheCostIndexOfTheReactionSolarSystem(): void
+    {
+        $this->givenFerrogelReactionPricedAsInTheReactionCostIndexExample();
+        $this->costIndices = ['manufacturing' => 0.0437, 'reaction' => 0.0211];
+        $this->reactionSystemCostIndices = ['manufacturing' => 0.0911, 'reaction' => 0.0713];
+
+        $ferrogel = $this->scan(reactionSolarSystemId: self::REACTION_SOLAR_SYSTEM_ID)[0];
+
+        $this->assertSame(213.78, $ferrogel['profitPerUnit']);
+    }
+
+    #[Group('issue-128')]
+    public function testReactionInstallCostUsesTheFacilityTaxOfTheUserRefineryInTheReactionSolarSystem(): void
+    {
+        $this->givenFerrogelReactionPricedAsInTheReactionCostIndexExample();
+        $this->costIndices = ['manufacturing' => 0.0437, 'reaction' => 0.0713];
+        $this->reactionSystemCostIndices = ['manufacturing' => 0.0911, 'reaction' => 0.0713];
+        $this->structuresByUserId = [self::USER_ID => [
+            ProductionStructures::tataraWithFacilityTax('tatara-manufacturing-system', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, 0.07),
+            ProductionStructures::tataraWithFacilityTax('tatara-reaction-system', SecurityClass::NullSec, self::REACTION_SOLAR_SYSTEM_ID, 0.02),
+        ]];
+
+        $ferrogel = $this->scan(user: $this->userWithCharacterSkills([]), reactionSolarSystemId: self::REACTION_SOLAR_SYSTEM_ID)[0];
+
+        $this->assertSame(180.53, $ferrogel['profitPerUnit']);
+    }
+
+    #[Group('issue-128')]
+    public function testManufacturingKeepsTheManufacturingSolarSystemWhenTheReactionSolarSystemDiffers(): void
+    {
+        $this->givenProduct(self::SHIELD_EXTENDER_BLUEPRINT_ID, self::SHIELD_EXTENDER_TYPE_ID, self::MANUFACTURING, 1, [
+            self::TRITANIUM_TYPE_ID => 19,
+            self::PYERITE_TYPE_ID => 1,
+        ]);
+        $this->givenType(self::SHIELD_EXTENDER_TYPE_ID, '38', 'Shield Extender', '7', '5.0');
+        $this->jitaPrices = [self::TRITANIUM_TYPE_ID => 5.3713, self::PYERITE_TYPE_ID => 11.23, self::SHIELD_EXTENDER_TYPE_ID => 1000.0];
+        $this->adjustedPrices = [self::TRITANIUM_TYPE_ID => 4.0, self::PYERITE_TYPE_ID => 9.0];
+        $this->costIndices = ['manufacturing' => 0.0437, 'reaction' => 0.0711];
+        $this->reactionSystemCostIndices = ['manufacturing' => 0.0911, 'reaction' => 0.0713];
+        $this->structuresByUserId = [self::USER_ID => [
+            ProductionStructures::raitaruWithFacilityTax('raitaru-manufacturing-system', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, 0.05),
+            ProductionStructures::raitaruWithFacilityTax('raitaru-reaction-system', SecurityClass::NullSec, self::REACTION_SOLAR_SYSTEM_ID, 0.09),
+        ]];
+
+        $shieldExtender = $this->scan(user: $this->userWithCharacterSkills([]), reactionSolarSystemId: self::REACTION_SOLAR_SYSTEM_ID)[0];
+
+        $this->assertSame(880.72, $shieldExtender['profitPerUnit']);
+    }
+
+    private function givenFerrogelReactionPricedAsInTheReactionCostIndexExample(): void
+    {
+        $this->givenProduct(self::FERROGEL_FORMULA_ID, self::FERROGEL_TYPE_ID, self::REACTION, 100, [
+            self::HAFNIUM_TYPE_ID => 100,
+            self::HYDROCARBONS_TYPE_ID => 100,
+        ]);
+        $this->givenType(self::FERROGEL_TYPE_ID, '429', 'Composite', '4', '1.0');
+        $this->jitaPrices = [self::HAFNIUM_TYPE_ID => 1450.0, self::HYDROCARBONS_TYPE_ID => 520.0, self::FERROGEL_TYPE_ID => 2400.0];
+        $this->adjustedPrices = [self::HAFNIUM_TYPE_ID => 1400.0, self::HYDROCARBONS_TYPE_ID => 500.0];
     }
 
     public function testT2ModuleMaterialsUseMaterialEfficiencyTwo(): void
@@ -605,6 +669,7 @@ class BatchProfitScanRulesTest extends TestCase
         float $salesTaxRate = 0.0,
         float $exportCostPerM3 = 0.0,
         ?User $user = null,
+        int $reactionSolarSystemId = self::SOLAR_SYSTEM_ID,
     ): array {
         return $this->scanner()->scan(
             $category,
@@ -617,6 +682,7 @@ class BatchProfitScanRulesTest extends TestCase
             $salesTaxRate,
             $exportCostPerM3,
             $user,
+            $reactionSolarSystemId,
         );
     }
 
@@ -661,7 +727,11 @@ class BatchProfitScanRulesTest extends TestCase
             fn (array $typeIds): array => $this->onlyRequested($this->adjustedPrices, $typeIds),
         );
         $esiCostIndexService->method('getCostIndex')->willReturnCallback(
-            fn (int $solarSystemId, string $activity): ?float => $solarSystemId === self::SOLAR_SYSTEM_ID ? $this->costIndices[$activity] : null,
+            fn (int $solarSystemId, string $activity): ?float => match ($solarSystemId) {
+                self::SOLAR_SYSTEM_ID => $this->costIndices[$activity],
+                self::REACTION_SOLAR_SYSTEM_ID => $this->reactionSystemCostIndices[$activity],
+                default => null,
+            },
         );
 
         $typeNameResolver = $this->createStub(TypeNameResolver::class);

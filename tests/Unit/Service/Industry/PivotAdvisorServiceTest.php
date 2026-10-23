@@ -44,6 +44,7 @@ class PivotAdvisorServiceTest extends TestCase
     private PivotAdvisorService $service;
 
     private const SOLAR_SYSTEM_ID = 30002510;
+    private const int REACTION_SOLAR_SYSTEM_ID = 30000144;
     private const string USER_ID = '0192f3a4-7b1c-7d2e-8f3a-4b5c6d7e8f90';
     private const BROKER_FEE = 0.036;
     private const SALES_TAX = 0.036;
@@ -212,6 +213,7 @@ class PivotAdvisorServiceTest extends TestCase
             self::BROKER_FEE,
             self::SALES_TAX,
             $this->user,
+            self::SOLAR_SYSTEM_ID,
         );
 
         // Verify structure
@@ -312,6 +314,7 @@ class PivotAdvisorServiceTest extends TestCase
             self::BROKER_FEE,
             self::SALES_TAX,
             $this->user,
+            self::SOLAR_SYSTEM_ID,
         );
 
         $this->assertCount(1, $result['candidates']);
@@ -393,6 +396,7 @@ class PivotAdvisorServiceTest extends TestCase
             self::BROKER_FEE,
             self::SALES_TAX,
             $this->user,
+            self::SOLAR_SYSTEM_ID,
         );
 
         $candidate = $result['candidates'][0];
@@ -472,6 +476,7 @@ class PivotAdvisorServiceTest extends TestCase
             self::BROKER_FEE,
             self::SALES_TAX,
             $this->user,
+            self::SOLAR_SYSTEM_ID,
         );
 
         $this->assertEmpty($result['candidates']);
@@ -542,6 +547,7 @@ class PivotAdvisorServiceTest extends TestCase
             self::BROKER_FEE,
             self::SALES_TAX,
             $this->user,
+            self::SOLAR_SYSTEM_ID,
         );
 
         $candidate = $result['candidates'][0];
@@ -621,6 +627,7 @@ class PivotAdvisorServiceTest extends TestCase
             self::BROKER_FEE,
             self::SALES_TAX,
             $this->user,
+            self::SOLAR_SYSTEM_ID,
         );
 
         // Matrix rows = buildable materials (A and B, not RAW_MAT)
@@ -734,6 +741,7 @@ class PivotAdvisorServiceTest extends TestCase
             self::BROKER_FEE,
             self::SALES_TAX,
             $this->user,
+            self::SOLAR_SYSTEM_ID,
         );
 
         $this->assertSame([
@@ -870,6 +878,7 @@ class PivotAdvisorServiceTest extends TestCase
             self::BROKER_FEE,
             self::SALES_TAX,
             $this->user,
+            self::SOLAR_SYSTEM_ID,
         );
     }
 
@@ -979,7 +988,7 @@ class PivotAdvisorServiceTest extends TestCase
         $this->givenManufacturingAndReactionCandidatesOfAManufacturingSource();
         $installCostRequests = $this->givenJobInstallCostsRecorded();
 
-        $this->pivotAdvisorOnSdeKnowing([])->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, self::BROKER_FEE, self::SALES_TAX, $this->user);
+        $this->pivotAdvisorOnSdeKnowing([])->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, self::BROKER_FEE, self::SALES_TAX, $this->user, self::SOLAR_SYSTEM_ID);
 
         $this->assertSame([['manufacturing', 0.25], ['manufacturing', 0.25], ['reaction', 0.25]], $this->sorted($installCostRequests));
     }
@@ -992,7 +1001,7 @@ class PivotAdvisorServiceTest extends TestCase
             ProductionStructures::tataraWithFacilityTax('tatara', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, 0.02),
         ]]);
 
-        $this->pivotAdvisorOnSdeKnowing([], $productionStructures)->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, self::BROKER_FEE, self::SALES_TAX, $this->user);
+        $this->pivotAdvisorOnSdeKnowing([], $productionStructures)->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, self::BROKER_FEE, self::SALES_TAX, $this->user, self::SOLAR_SYSTEM_ID);
 
         $this->assertSame([['manufacturing', 0.25], ['manufacturing', 0.25], ['reaction', 2.0]], $this->sorted($installCostRequests));
     }
@@ -1012,9 +1021,49 @@ class PivotAdvisorServiceTest extends TestCase
             ProductionStructures::tataraWithFacilityTax('tatara', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, 0.02),
         ]]);
 
-        $this->pivotAdvisorOnSdeKnowing([], $productionStructures)->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, self::BROKER_FEE, self::SALES_TAX, $this->user);
+        $this->pivotAdvisorOnSdeKnowing([], $productionStructures)->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, self::BROKER_FEE, self::SALES_TAX, $this->user, self::SOLAR_SYSTEM_ID);
 
         $this->assertSame([['reaction', 2.0]], $installCostRequests->requests);
+    }
+
+    #[Group('issue-128')]
+    public function testInstallCostOfAReactionCandidateIsEstimatedInTheReactionSolarSystemAndOfAManufacturingCandidateInTheManufacturingOne(): void
+    {
+        $this->givenManufacturingAndReactionCandidatesOfAManufacturingSource();
+        $installCostRequests = $this->givenJobInstallCostsRecorded();
+        $productionStructures = new InMemoryUserProductionStructures([self::USER_ID => [
+            ProductionStructures::tataraWithFacilityTax('tatara-manufacturing-system', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, 0.07),
+            ProductionStructures::tataraWithFacilityTax('tatara-reaction-system', SecurityClass::NullSec, self::REACTION_SOLAR_SYSTEM_ID, 0.02),
+        ]]);
+
+        $this->pivotAdvisorOnSdeKnowing([], $productionStructures)->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, self::BROKER_FEE, self::SALES_TAX, $this->user, self::REACTION_SOLAR_SYSTEM_ID);
+
+        $this->assertSame(
+            [[30000144, 'reaction', 2.0], [30002510, 'manufacturing', 0.25], [30002510, 'manufacturing', 0.25]],
+            $this->sortedWithSolarSystem($installCostRequests),
+        );
+    }
+
+    #[Group('issue-128')]
+    public function testInstallCostOfAReactionSourceProductIsEstimatedInTheReactionSolarSystem(): void
+    {
+        $sourceFormula = $this->createBlueprintProduct(self::SOURCE_BLUEPRINT, self::SOURCE_PRODUCT, 1, 11);
+        $this->productRepository->method('findBlueprintForProduct')->willReturnCallback(
+            static fn (int $typeId, int $activityId): ?IndustryActivityProduct => self::SOURCE_PRODUCT === $typeId && 11 === $activityId ? $sourceFormula : null,
+        );
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
+            self::SOURCE_BLUEPRINT => [['materialTypeId' => self::RAW_MAT, 'quantity' => 33]],
+        ]);
+        $this->jitaMarketService->method('getPrices')->willReturn([self::SOURCE_PRODUCT => 50000.0, self::RAW_MAT => 6.0]);
+        $installCostRequests = $this->givenJobInstallCostsRecorded();
+        $productionStructures = new InMemoryUserProductionStructures([self::USER_ID => [
+            ProductionStructures::tataraWithFacilityTax('tatara-manufacturing-system', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, 0.07),
+            ProductionStructures::tataraWithFacilityTax('tatara-reaction-system', SecurityClass::NullSec, self::REACTION_SOLAR_SYSTEM_ID, 0.02),
+        ]]);
+
+        $this->pivotAdvisorOnSdeKnowing([], $productionStructures)->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, self::BROKER_FEE, self::SALES_TAX, $this->user, self::REACTION_SOLAR_SYSTEM_ID);
+
+        $this->assertSame([[30000144, 'reaction', 2.0]], $installCostRequests->requestsWithSolarSystem);
     }
 
     private function analyzeT1T2AndReactionCandidates(): array
@@ -1084,6 +1133,7 @@ class PivotAdvisorServiceTest extends TestCase
             self::BROKER_FEE,
             self::SALES_TAX,
             $this->user,
+            self::SOLAR_SYSTEM_ID,
         );
     }
 
@@ -1135,16 +1185,26 @@ class PivotAdvisorServiceTest extends TestCase
     {
         $recorder = new class {
             public array $requests = [];
+            public array $requestsWithSolarSystem = [];
         };
         $this->esiCostIndexService->method('estimateJobInstallCost')->willReturnCallback(
             function (array $materials, int $runs, int $solarSystemId, string $activity, ?float $facilityTaxPercent) use ($recorder): array {
                 $recorder->requests[] = [$activity, $facilityTaxPercent];
+                $recorder->requestsWithSolarSystem[] = [$solarSystemId, $activity, $facilityTaxPercent];
 
                 return ['cost' => 0.0, 'unknownReason' => null, 'missingAdjustedPriceTypeIds' => []];
             },
         );
 
         return $recorder;
+    }
+
+    private function sortedWithSolarSystem(object $installCostRequests): array
+    {
+        $requests = $installCostRequests->requestsWithSolarSystem;
+        sort($requests);
+
+        return $requests;
     }
 
     private function sorted(object $installCostRequests): array
@@ -1266,6 +1326,7 @@ class PivotAdvisorServiceTest extends TestCase
             self::BROKER_FEE,
             self::SALES_TAX,
             $this->user,
+            self::SOLAR_SYSTEM_ID,
         );
     }
 
