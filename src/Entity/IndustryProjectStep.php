@@ -57,6 +57,9 @@ class IndustryProjectStep
     #[ORM\Column(type: 'boolean')]
     private bool $purchased = false;
 
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $runsFixed = false;
+
     #[ORM\Column(type: 'integer')]
     private int $inStockQuantity = 0;
 
@@ -217,6 +220,17 @@ class IndustryProjectStep
     public function setPurchased(bool $purchased): static
     {
         $this->purchased = $purchased;
+        return $this;
+    }
+
+    public function isRunsFixed(): bool
+    {
+        return $this->runsFixed;
+    }
+
+    public function setRunsFixed(bool $runsFixed): static
+    {
+        $this->runsFixed = $runsFixed;
         return $this;
     }
 

@@ -48,6 +48,7 @@ Recette des tests d'intégration de `IndustryProjectFactoryRegenerationTest` ; �
 - G3/G6 : un job non fixé garde au moins 1 run (un groupe découpé a au moins deux jobs avec des runs) ; le reste est réparti au prorata, règle existante.
 - G5 : le retour au calcul automatique vaut pour tout le groupe et répartit également, comme le plan.
 - G7 : une étape fixée n'est pas redécoupée par la régénération, pour ne pas déplacer des runs saisis.
+- G1 : la quantité d'un job fixé vaut runs × unités par run, même au-delà du besoin (surproduction).
 - G8 : le plafond est appliqué par le serveur ; le formulaire propose la surproduction d'après la réponse, sans connaître le besoin.
 
 ## Glossaire

@@ -106,6 +106,8 @@ class ProjectStepResource
 
     public bool $purchased = false;
 
+    public bool $runsFixed = false;
+
     public int $inStockQuantity = 0;
 
     public int $meLevel;

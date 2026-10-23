@@ -16,6 +16,10 @@ class UpdateStepInput
     #[Assert\Positive]
     public ?int $runs = null;
 
+    public ?bool $overproduce = null;
+
+    public ?bool $runsFixed = null;
+
     #[Assert\Range(min: 0, max: 10)]
     public ?int $meLevel = null;
 
