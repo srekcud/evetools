@@ -78,7 +78,7 @@ const materialPriceIsUnknown = computed(() =>
 )
 
 const requiresEnteredValue = computed(() =>
-  selectedType.value === 'bpc' || selectedType.value === 'line_rental' || materialPriceIsUnknown.value
+  selectedType.value === 'job_install' || selectedType.value === 'bpc' || selectedType.value === 'line_rental' || materialPriceIsUnknown.value
 )
 
 const displayedValue = computed(() => {
@@ -91,7 +91,7 @@ const displayedValue = computed(() => {
 const isFormValid = computed(() => {
   if (!selectedBomItemId.value && selectedType.value !== 'line_rental') return false
   if (quantity.value <= 0) return false
-  if ((selectedType.value === 'bpc' || materialPriceIsUnknown.value) && estimatedValue.value <= 0) return false
+  if ((selectedType.value === 'job_install' || selectedType.value === 'bpc' || materialPriceIsUnknown.value) && estimatedValue.value <= 0) return false
   return true
 })
 

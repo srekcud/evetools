@@ -38,9 +38,11 @@ class GroupIndustryContributionService
     ): GroupIndustryContribution {
         $this->validateAntiDuplicate($member, $bomItem, $type);
 
-        if ($type === ContributionType::Material) {
-            $estimatedValue = $this->resolveMaterialValue($bomItem->getTypeId(), $quantity, $estimatedValue);
-        }
+        $estimatedValue = match ($type) {
+            ContributionType::Material => $this->resolveMaterialValue($bomItem->getTypeId(), $quantity, $estimatedValue),
+            ContributionType::JobInstall, ContributionType::Bpc => $this->requirePositiveEnteredValue($type, $estimatedValue),
+            ContributionType::LineRental => $this->requireEnteredValue($type, $estimatedValue),
+        };
 
         $contribution = new GroupIndustryContribution();
         $contribution->setProject($member->getProject());
@@ -48,7 +50,7 @@ class GroupIndustryContributionService
         $contribution->setBomItem($bomItem);
         $contribution->setType($type);
         $contribution->setQuantity($quantity);
-        $contribution->setEstimatedValue($estimatedValue ?? 0.0);
+        $contribution->setEstimatedValue($estimatedValue);
         $contribution->setStatus(ContributionStatus::Pending);
         $contribution->setIsAutoDetected(false);
         $contribution->setIsVerified(false);
@@ -183,6 +185,22 @@ class GroupIndustryContributionService
 
         return $this->calculateMaterialValue($typeId, $quantity)
             ?? throw new \DomainException(sprintf('No market price for type %d: enter an estimated value.', $typeId));
+    }
+
+    private function requireEnteredValue(ContributionType $type, ?float $enteredValue): float
+    {
+        return $enteredValue
+            ?? throw new \DomainException(sprintf('An estimated value is required for a %s contribution.', $type->value));
+    }
+
+    private function requirePositiveEnteredValue(ContributionType $type, ?float $enteredValue): float
+    {
+        $value = $this->requireEnteredValue($type, $enteredValue);
+        if ($value <= 0) {
+            throw new \DomainException(sprintf('The estimated value of a %s contribution must be positive.', $type->value));
+        }
+
+        return $value;
     }
 
     private function incrementFulfillment(GroupIndustryBomItem $bomItem, int $quantity): void
