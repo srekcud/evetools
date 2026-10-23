@@ -31,7 +31,6 @@ final readonly class SyncCharacterIndustryJobsHandler
             return;
         }
 
-        $this->industryJobSyncService->resetCorporationTracking();
         $this->industryJobSyncService->syncCharacterJobs($character);
     }
 }

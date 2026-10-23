@@ -50,7 +50,6 @@ class MatchProjectJobsCommand extends Command
         $io->info("Syncing ESI jobs for: {$productName}");
 
         // Sync jobs from ESI first
-        $this->jobSyncService->resetCorporationTracking();
         $syncedCount = 0;
         foreach ($project->getUser()->getCharacters() as $character) {
             try {

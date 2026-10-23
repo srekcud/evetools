@@ -48,7 +48,6 @@ class MatchJobsProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $this->jobSyncService->resetCorporationTracking();
         $syncedCount = 0;
         $warning = null;
 

@@ -210,7 +210,13 @@ class EsiClient
      */
     public function getPaginated(string $endpoint, ?EveToken $token = null): array
     {
+        return $this->getPaginatedWithExpiry($endpoint, $token)->items;
+    }
+
+    public function getPaginatedWithExpiry(string $endpoint, ?EveToken $token = null): PaginatedEsiResponse
+    {
         $allData = [];
+        $pageExpirations = [];
         $page = 1;
         $pages = 1;
 
@@ -229,6 +235,7 @@ class EsiClient
                 if ($statusCode >= 200 && $statusCode < 300) {
                     $data = $response->toArray();
                     $allData = array_merge($allData, $data);
+                    $pageExpirations[] = $this->expiresAt($headers);
                 } else {
                     // Consume body to prevent curl handle issues
                     $response->getContent(false);
@@ -241,12 +248,7 @@ class EsiClient
             $page++;
         } while ($page <= $pages);
 
-        return $allData;
-    }
-
-    public function getPaginatedWithExpiry(string $endpoint, ?EveToken $token = null): PaginatedEsiResponse
-    {
-        throw new \LogicException('Not implemented');
+        return new PaginatedEsiResponse($allData, in_array(null, $pageExpirations, true) ? null : min($pageExpirations));
     }
 
     /**

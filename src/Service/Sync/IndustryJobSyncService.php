@@ -6,6 +6,7 @@ namespace App\Service\Sync;
 
 use App\Entity\CachedIndustryJob;
 use App\Entity\Character;
+use App\Entity\EveToken;
 use App\Entity\Notification;
 use App\Entity\User;
 use App\Exception\EsiApiException;
@@ -19,19 +20,14 @@ use App\Service\UnknownTypeName;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Contracts\Service\ResetInterface;
 
-class IndustryJobSyncService implements ResetInterface
+class IndustryJobSyncService
 {
     private const int FORBIDDEN_STATUS_CODE = 403;
 
     private const array COMPLETED_STATUSES = [CachedIndustryJob::STATUS_READY, CachedIndustryJob::STATUS_DELIVERED];
 
-    /** @var array<int, bool> Track which corporations we've already synced */
-    private array $syncedCorporations = [];
-
-    /** @var array<int, bool> Corporation job IDs returned by ESI during the current sync run */
-    private array $corporationJobIdsSeenThisRun = [];
+    private const string CORPORATION_JOBS_CACHE_KEY_PREFIX = 'industry_corporation_jobs_';
 
     public function __construct(
         private readonly EsiClient $esiClient,
@@ -79,23 +75,10 @@ class IndustryJobSyncService implements ResetInterface
                 $this->mercurePublisher->syncProgress($userId, 'industry-jobs', 30, 'Personal jobs fetched...');
             }
 
-            // Sync corporation jobs (only once per corporation per sync run)
             $corporationJobsUnknown = false;
-            $corporationId = $character->getCorporationId();
-            if (
-                $token->hasScope('esi-industry.read_corporation_jobs.v1')
-                && !isset($this->syncedCorporations[$corporationId])
-            ) {
+            if ($token->hasScope('esi-industry.read_corporation_jobs.v1')) {
                 try {
-                    $corpJobs = $this->esiClient->getPaginated(
-                        "/corporations/{$corporationId}/industry/jobs/?include_completed=true",
-                        $token,
-                    );
-                    $allJobs = array_merge($allJobs, $corpJobs);
-                    $this->syncedCorporations[$corporationId] = true;
-                    foreach ($corpJobs as $corpJob) {
-                        $this->corporationJobIdsSeenThisRun[$corpJob['job_id']] = true;
-                    }
+                    $allJobs = array_merge($allJobs, $this->corporationJobs($character->getCorporationId(), $token));
                 } catch (EsiApiException $e) {
                     if ($e->statusCode !== self::FORBIDDEN_STATUS_CODE) {
                         throw $e;
@@ -186,13 +169,12 @@ class IndustryJobSyncService implements ResetInterface
 
             // Mark stale jobs of the synced character as delivered: jobs in DB that disappeared
             // from ESI with an end_date in the past are effectively delivered/expired.
-            // Alts' jobs are left to their own sync; corporation jobs fetched earlier in this
-            // run (corp endpoint is not called again) are still present in ESI.
+            // Alts' jobs are left to their own sync.
             if (!$personalJobsUnknown && !$corporationJobsUnknown) {
                 $now = new \DateTimeImmutable();
                 foreach ($this->jobRepository->findActiveJobsByCharacter($character) as $dbJob) {
                     $jobId = $dbJob->getJobId();
-                    if (isset($syncedJobsByJobId[$jobId]) || isset($this->corporationJobIdsSeenThisRun[$jobId])) {
+                    if (isset($jobsByJobId[$jobId])) {
                         continue;
                     }
                     if ($dbJob->getStatus() === CachedIndustryJob::STATUS_PAUSED || $dbJob->getEndDate() > $now) {
@@ -349,18 +331,24 @@ class IndustryJobSyncService implements ResetInterface
     }
 
     /**
-     * Reset the corporation sync tracking (call this at the start of a full sync)
+     * @return array<mixed>
      */
-    public function resetCorporationTracking(): void
+    private function corporationJobs(int $corporationId, EveToken $token): array
     {
-        $this->syncedCorporations = [];
-        $this->corporationJobIdsSeenThisRun = [];
-    }
+        $cacheItem = $this->esiCache->getItem(self::CORPORATION_JOBS_CACHE_KEY_PREFIX . $corporationId);
+        if ($cacheItem->isHit()) {
+            return $cacheItem->get();
+        }
 
-    /** Long-running workers keep this service alive: each handled message must start a new sync run. */
-    public function reset(): void
-    {
-        $this->resetCorporationTracking();
+        $response = $this->esiClient->getPaginatedWithExpiry(
+            "/corporations/{$corporationId}/industry/jobs/?include_completed=true",
+            $token,
+        );
+        if ($response->expiresAt !== null) {
+            $this->esiCache->save($cacheItem->set($response->items)->expiresAt($response->expiresAt));
+        }
+
+        return $response->items;
     }
 
     /** @param list<array<string, mixed>> $completedJobs */
