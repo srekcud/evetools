@@ -14,7 +14,9 @@ use App\Repository\IndustryRigCategoryRepository;
 use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\IndustryBonusService;
 use App\Service\Industry\IndustryTreeService;
+use App\Service\Industry\ProductionStepNeedsResolver;
 use App\Service\Industry\ProductionTreeFromSteps;
+use App\Service\Industry\StepProductNeed;
 use App\Service\TypeNameResolver;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use App\State\Provider\Industry\ProjectProvider;
@@ -30,6 +32,8 @@ use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(ProjectProvider::class)]
 #[CoversClass(ProductionTreeFromSteps::class)]
+#[CoversClass(ProductionStepNeedsResolver::class)]
+#[CoversClass(StepProductNeed::class)]
 final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
 {
     use BuildsShoppingListOnGoldenSde;
@@ -49,6 +53,9 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
     private const int CERAMIC_POWDER = 16660;
     private const int CAPITAL_FERNITE_CARBIDE_COMPOSITE_ARMOR_PLATE = 29049;
     private const int SYLRAMIC_FIBERS = 16678;
+    private const int SCANDIUM = 16639;
+    private const int FENRIR = 20189;
+    private const int CAPITAL_ARMOR_PLATES = 21017;
     private const int NOMAD = 28846;
     private const int ROBOTICS = 9848;
     private const int HAIL_L = 12779;
@@ -481,6 +488,132 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
         self::assertNull($this->provide($project)->tree);
     }
 
+    #[Group('issue-121')]
+    public function testTreeIsNullWhenATypeOfAnIntermediateNodeIsMissingFromTheSde(): void
+    {
+        $project = $this->oneRunOfFerniteCarbide(10);
+        $this->typeIdsMissingFromSde = [self::SCANDIUM];
+
+        self::assertNull($this->provide($project)->tree);
+    }
+
+    #[Group('issue-121')]
+    public function testRootBlacklistedAfterItsStepWasPlannedKeepsItsNeedWithoutRunsNorMaterials(): void
+    {
+        $project = $this->thirtyTwoQuantumMicroprocessors(self::SHORT_MAX_JOB_DURATION_DAYS);
+        $this->pilot->setIndustryBlacklistTypeIds([self::QUANTUM_MICROPROCESSOR]);
+
+        $tree = $this->treeOf($project);
+
+        self::assertSame([32, 0, []], [$tree['quantity'], $tree['runs'], $tree['materials']]);
+    }
+
+    #[Group('issue-121')]
+    public function testPurchasedRootKeepsItsNeedWithoutRunsNorMaterials(): void
+    {
+        $project = self::projectOf($this->pilot, self::NITROGEN_FUEL_BLOCK, 25, 10);
+        self::addStep($project, self::NITROGEN_FUEL_BLOCK, 25, 0, 'manufacturing')->setPurchased(true);
+
+        $tree = $this->treeOf($project);
+
+        self::assertSame([1000, 0, []], [$tree['quantity'], $tree['runs'], $tree['materials']]);
+    }
+
+    #[Group('issue-121')]
+    public function testRootStepKeepsItsPersistedRunsWhateverItsStock(): void
+    {
+        $project = self::projectOf($this->pilot, self::NITROGEN_FUEL_BLOCK, 25, 10);
+        self::addStep($project, self::NITROGEN_FUEL_BLOCK, 25, 0, 'manufacturing')->setInStockQuantity(1000);
+
+        $tree = $this->treeOf($project);
+
+        self::assertSame([1000, 25], [$tree['quantity'], $tree['runs']]);
+        self::assertSame(
+            [44 => 90, 3683 => 495, 3689 => 90, 9832 => 203, self::ROBOTICS => 25, 16272 => 3825, 16273 => 7875, 16275 => 450, 17888 => 10125],
+            array_column($tree['materials'], 'quantity', 'typeId'),
+        );
+    }
+
+    #[Group('issue-121')]
+    public function testManuallySplitRootKeepsTheRunsOfEachOfItsJobs(): void
+    {
+        $this->pilot->setIndustryBlacklistTypeIds([self::TITANIUM_CARBIDE]);
+        $project = $this->thirtyTwoQuantumMicroprocessors(self::DEFAULT_MAX_JOB_DURATION_DAYS);
+        $rootStep = $this->onlyStepOf($project, self::QUANTUM_MICROPROCESSOR)->setRuns(21)->setQuantity(21)->setSplitGroupId('manual-split')->setSplitIndex(0)->setTotalGroupRuns(32);
+        $project->addStep((clone $rootStep)->setRuns(11)->setQuantity(11)->setSplitIndex(1));
+
+        $tree = $this->treeOf($project);
+
+        self::assertSame([32, 32], [$tree['quantity'], $tree['runs']]);
+        self::assertSame(322 + 169, array_column($tree['materials'], 'quantity', 'typeId')[self::TITANIUM_CARBIDE]);
+    }
+
+    #[Group('issue-121')]
+    public function testNodeOfASplitGroupTakesTheStructureOfTheJobOfSplitIndexZeroWhateverTheOrderOfItsSteps(): void
+    {
+        $project = $this->thirtyTwoQuantumMicroprocessors(self::SHORT_MAX_JOB_DURATION_DAYS);
+        $jobs = $this->stepsOf($project, self::QUANTUM_MICROPROCESSOR);
+        $jobs[0]->setStructureConfig(self::structure($this->pilot, 'raitaru'));
+        $jobs[2]->setStructureConfig(self::structure($this->pilot, 'station'));
+        foreach (array_reverse($jobs) as $job) {
+            $project->getSteps()->removeElement($job);
+            $project->addStep($job);
+        }
+
+        $tree = $this->treeOf($project);
+
+        self::assertSame(['Raitaru', self::RAITARU_BASE_MATERIAL_BONUS], [$tree['structureName'], $tree['structureBonus']]);
+        self::assertSame(167 + 169 + 153, array_column($tree['materials'], 'quantity', 'typeId')[self::TITANIUM_CARBIDE]);
+    }
+
+    #[Group('issue-121')]
+    public function testSplitGroupWithOnePurchasedJobIsBoughtAsAWhole(): void
+    {
+        $this->pilot->setIndustryBlacklistTypeIds([self::HYDROGEN_FUEL_BLOCK, self::SYLRAMIC_FIBERS]);
+        $project = $this->projectOnGoldenSde($this->pilot, self::CAPITAL_FERNITE_CARBIDE_COMPOSITE_ARMOR_PLATE, 11, 10, 20, self::SHORT_MAX_JOB_DURATION_DAYS);
+        $this->stepsOf($project, self::FERNITE_CARBIDE)[1]->setPurchased(true);
+
+        $ferniteCarbideNode = self::nodesOf($this->treeOf($project), self::FERNITE_CARBIDE)[0];
+
+        self::assertSame([22_000, 0, []], [$ferniteCarbideNode['quantity'], $ferniteCarbideNode['runs'], $ferniteCarbideNode['materials']]);
+    }
+
+    #[Group('issue-121')]
+    public function testStepWithMoreStockThanItsNeedHasNoRunNorMaterials(): void
+    {
+        $project = self::projectOf($this->pilot, self::FENRIR, 1, 10);
+        self::addStep($project, self::FENRIR, 1, 0, 'manufacturing');
+        self::addStep($project, self::CAPITAL_ARMOR_PLATES, 5, 1, 'manufacturing')->setInStockQuantity(6);
+
+        $capitalArmorPlatesNode = self::nodesOf($this->treeOf($project), self::CAPITAL_ARMOR_PLATES)[0];
+
+        self::assertSame([5, 0, []], [$capitalArmorPlatesNode['quantity'], $capitalArmorPlatesNode['runs'], $capitalArmorPlatesNode['materials']]);
+    }
+
+    #[Group('issue-121')]
+    public function testNeedOfAnIntermediateDropsByTheNeedOfEachOfItsPurchasedConsumers(): void
+    {
+        $project = $this->oneRunOfFerniteCarbide(10);
+        $this->onlyStepOf($project, self::FERNITE_ALLOY)->setPurchased(true);
+        $this->onlyStepOf($project, self::CERAMIC_POWDER)->setPurchased(true);
+
+        $tree = $this->treeOf($project);
+
+        self::assertSame([[5, 1]], self::quantityAndRunsOfNodesOf($tree, self::HYDROGEN_FUEL_BLOCK));
+    }
+
+    #[Group('issue-121')]
+    public function testRowsOfAnIntermediateSharedInATataraSumToTheQuantityOfItsNode(): void
+    {
+        $this->pilotOwnsTataraAndRaitaru = true;
+        $project = $this->oneRunOfFerniteCarbide(10);
+
+        $tree = $this->treeOf($project);
+
+        self::assertSame([5, 5, 5], self::quantitiesOfRowsOf($tree, self::HYDROGEN_FUEL_BLOCK));
+        self::assertSame([[15, 1]], self::quantityAndRunsOfNodesOf($tree, self::HYDROGEN_FUEL_BLOCK));
+    }
+
     public function testStepsAreMappedToResources(): void
     {
         $project = $this->projectOnGoldenSde($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 0, 20, self::DEFAULT_MAX_JOB_DURATION_DAYS);
@@ -618,6 +751,20 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
     private static function quantityAndRunsOfNodesOf(array $tree, int $productTypeId): array
     {
         return array_map(static fn (array $node): array => [$node['quantity'], $node['runs']], self::nodesOf($tree, $productTypeId));
+    }
+
+    private static function quantitiesOfRowsOf(array $tree, int $typeId): array
+    {
+        $quantities = [];
+        foreach (self::allNodesOf($tree) as $node) {
+            foreach ($node['materials'] as $material) {
+                if ($material['typeId'] === $typeId) {
+                    $quantities[] = $material['quantity'];
+                }
+            }
+        }
+
+        return $quantities;
     }
 
     private static function nodeCountOf(array $tree): int
