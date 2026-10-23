@@ -4,6 +4,8 @@ import { apiRequest } from '@/services/api'
 import type { IndustryProject, SearchResult, ShoppingListResponse, CostEstimation, BpcKit, CopyCosts, ProfitMarginResult } from './types'
 import { enrichProject, enrichStep, formatErrorMessage } from './compat'
 
+const MINIMUM_MAX_JOB_DURATION_DAYS = 0.5
+
 export const useProjectsStore = defineStore('industry-projects', () => {
   const projects = ref<IndustryProject[]>([])
   const currentProject = ref<IndustryProject | null>(null)
@@ -16,7 +18,7 @@ export const useProjectsStore = defineStore('industry-projects', () => {
   const defaultMaxJobDurationDays = ref(2.0)
 
   function setDefaultMaxJobDurationDays(days: number) {
-    defaultMaxJobDurationDays.value = days
+    defaultMaxJobDurationDays.value = Math.max(days, MINIMUM_MAX_JOB_DURATION_DAYS)
   }
 
   async function searchProducts(query: string) {

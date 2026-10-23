@@ -626,6 +626,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
                     v-model.number="runs"
                     type="number"
                     min="1"
+                    max="100000"
                     class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 text-center focus:outline-hidden focus:border-cyan-500 font-mono"
                   />
                 </div>

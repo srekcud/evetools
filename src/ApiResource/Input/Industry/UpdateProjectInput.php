@@ -9,7 +9,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 class UpdateProjectInput
 {
-    #[Assert\Positive]
+    #[Assert\Range(min: 1, max: CreateProjectInput::MAXIMUM_PROJECT_RUNS)]
     public ?int $runs = null;
 
     #[Assert\Range(min: 0, max: 10)]
@@ -18,7 +18,7 @@ class UpdateProjectInput
     #[Assert\Range(min: 0, max: 20)]
     public ?int $teLevel = null;
 
-    #[Assert\Positive]
+    #[Assert\GreaterThanOrEqual(CreateProjectInput::MINIMUM_MAX_JOB_DURATION_DAYS)]
     public ?float $maxJobDurationDays = null;
 
     #[Assert\Length(max: 255)]
