@@ -33,7 +33,7 @@ class AvailableJobResource
 
     public int $runs;
 
-    public float $cost;
+    public ?float $cost;
 
     public string $status;
 

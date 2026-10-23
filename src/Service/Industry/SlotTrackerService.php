@@ -74,7 +74,7 @@ class SlotTrackerService
         foreach ($characters as $character) {
             $jobs = $this->jobRepository->findActiveJobsByCharacter($character);
             foreach ($jobs as $job) {
-                $allProductTypeIds[] = $job->getProductTypeId();
+                $allProductTypeIds[] = $job->getDisplayedTypeId();
             }
             $characterData[] = ['character' => $character, 'jobs' => $jobs];
         }
@@ -135,8 +135,8 @@ class SlotTrackerService
 
                 $jobEntry = [
                     'jobId' => $job->getJobId(),
-                    'productTypeId' => $job->getProductTypeId(),
-                    'productTypeName' => $typeNames[$job->getProductTypeId()] ?? null,
+                    'productTypeId' => $job->getDisplayedTypeId(),
+                    'productTypeName' => $typeNames[$job->getDisplayedTypeId()] ?? null,
                     'activityType' => $activityType ?? 'unknown',
                     'runs' => $job->getRuns(),
                     'progress' => $progress,
@@ -150,7 +150,7 @@ class SlotTrackerService
                 $allTimelineJobs[] = [
                     'jobId' => $job->getJobId(),
                     'characterName' => $character->getName(),
-                    'productTypeId' => $job->getProductTypeId(),
+                    'productTypeId' => $job->getDisplayedTypeId(),
                     'productTypeName' => $jobEntry['productTypeName'],
                     'activityType' => $jobEntry['activityType'],
                     'runs' => $job->getRuns(),

@@ -97,8 +97,8 @@ class AvailableJobsProvider implements ProviderInterface
             $resource = new AvailableJobResource();
             $resource->esiJobId = $job->getJobId();
             $resource->blueprintTypeId = $job->getBlueprintTypeId();
-            $resource->productTypeId = $job->getProductTypeId();
-            $resource->productTypeName = $this->calculationService->resolveTypeName($job->getProductTypeId());
+            $resource->productTypeId = $job->getDisplayedTypeId();
+            $resource->productTypeName = $this->calculationService->resolveTypeName($job->getDisplayedTypeId());
             $resource->runs = $job->getRuns();
             $resource->cost = $job->getCost();
             $resource->status = $job->getStatus();

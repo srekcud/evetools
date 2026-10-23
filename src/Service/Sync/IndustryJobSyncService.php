@@ -148,6 +148,9 @@ class IndustryJobSyncService implements ResetInterface
                     $existing->setStatus($jobData['status']);
                     $existing->setStationId($jobData['facility_id'] ?? $jobData['station_id'] ?? null);
                     $existing->setEndDate(new \DateTimeImmutable($jobData['end_date']));
+                    $existing->setProductTypeId($jobData['product_type_id'] ?? null);
+                    $existing->setRuns($jobData['runs']);
+                    $existing->setCost(self::esiCost($jobData));
                     if (isset($jobData['completed_date'])) {
                         $existing->setCompletedDate(new \DateTimeImmutable($jobData['completed_date']));
                     }
@@ -161,9 +164,9 @@ class IndustryJobSyncService implements ResetInterface
                 $job->setJobId($jobData['job_id']);
                 $job->setActivityId($jobData['activity_id']);
                 $job->setBlueprintTypeId($jobData['blueprint_type_id']);
-                $job->setProductTypeId($jobData['product_type_id'] ?? $jobData['blueprint_type_id']);
+                $job->setProductTypeId($jobData['product_type_id'] ?? null);
                 $job->setRuns($jobData['runs']);
-                $job->setCost((float) ($jobData['cost'] ?? 0));
+                $job->setCost(self::esiCost($jobData));
                 $job->setStatus($jobData['status']);
                 $job->setStationId($jobData['facility_id'] ?? $jobData['station_id'] ?? null);
                 $job->setStartDate(new \DateTimeImmutable($jobData['start_date']));
@@ -279,9 +282,11 @@ class IndustryJobSyncService implements ResetInterface
     /** @param array<string, mixed> $jobData */
     private function sendCompletionNotification(User $user, string $userId, array $jobData): void
     {
-        $productTypeId = $jobData['product_type_id'] ?? $jobData['blueprint_type_id'];
-        $productName = $this->getTypeName($productTypeId);
-        $productLabel = $productName ?? UnknownTypeName::label($productTypeId);
+        $productTypeId = $jobData['product_type_id'] ?? null;
+        $productName = $productTypeId !== null ? $this->getTypeName($productTypeId) : null;
+        $displayedTypeId = $productTypeId ?? $jobData['blueprint_type_id'];
+        $displayedName = $productTypeId !== null ? $productName : $this->getTypeName($displayedTypeId);
+        $productLabel = $displayedName ?? UnknownTypeName::label($displayedTypeId);
         $activityName = $this->getActivityName($jobData['activity_id']);
         $notificationData = [
             'jobId' => $jobData['job_id'],
@@ -313,6 +318,12 @@ class IndustryJobSyncService implements ResetInterface
             $notificationData,
             '/industry',
         );
+    }
+
+    /** @param array<string, mixed> $jobData */
+    private static function esiCost(array $jobData): ?float
+    {
+        return isset($jobData['cost']) ? (float) $jobData['cost'] : null;
     }
 
     private function getTypeName(int $typeId): ?string

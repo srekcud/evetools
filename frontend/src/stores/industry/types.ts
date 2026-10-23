@@ -417,7 +417,7 @@ export interface AvailableJob {
   productTypeId: number
   productTypeName: string | null
   runs: number
-  cost: number
+  cost: number | null
   status: string
   startDate: string
   endDate: string
