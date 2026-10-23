@@ -7,7 +7,7 @@ namespace App\Service\Industry;
 use App\Constant\EveConstants;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
-use App\Industry\Domain\ActivityKind;
+use App\Entity\IndustryStructureConfig;
 use App\Enum\IndustryActivityType;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -54,8 +54,7 @@ class InventionService
         private readonly JitaMarketService $jitaMarketService,
         private readonly EsiCostIndexService $esiCostIndexService,
         private readonly TypeNameResolver $typeNameResolver,
-        private readonly ProjectStepSolarSystemResolver $solarSystemResolver,
-        private readonly FacilityTaxResolver $facilityTaxResolver,
+        private readonly ProjectStepStructureResolver $stepStructureResolver,
     ) {
     }
 
@@ -551,18 +550,13 @@ class InventionService
         if ($rootStep === null) {
             return [
                 'solarSystemId' => EveConstants::JITA_SOLAR_SYSTEM_ID,
-                'facilityTaxPercent' => $this->facilityTaxResolver->percentFor(null, EveConstants::JITA_SOLAR_SYSTEM_ID, ActivityKind::Invention),
+                'facilityTaxPercent' => IndustryStructureConfig::NPC_STATION_FACILITY_TAX_PERCENT,
             ];
         }
 
-        $solarSystemId = $this->solarSystemResolver->forStep($rootStep);
-        $structureConfig = $rootStep->getStructureConfig();
-
         return [
-            'solarSystemId' => $solarSystemId,
-            'facilityTaxPercent' => $structureConfig !== null
-                ? $structureConfig->getFacilityTaxPercent()
-                : $this->facilityTaxResolver->percentFor($project->getUser(), $solarSystemId, ActivityKind::Invention),
+            'solarSystemId' => $this->stepStructureResolver->solarSystemOf($rootStep),
+            'facilityTaxPercent' => $this->stepStructureResolver->facilityTaxPercentOf($rootStep),
         ];
     }
 

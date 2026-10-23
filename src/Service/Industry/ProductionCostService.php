@@ -8,7 +8,6 @@ use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Constant\EveConstants;
 use App\Enum\IndustryActivityType;
-use App\Industry\Domain\ActivityKind;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
@@ -26,11 +25,10 @@ class ProductionCostService
         private readonly EsiCostIndexService $esiCostIndexService,
         private readonly IndustryShoppingListBuilder $shoppingListBuilder,
         private readonly IndustryCalculationService $calculationService,
-        private readonly ProjectStepSolarSystemResolver $solarSystemResolver,
+        private readonly ProjectStepStructureResolver $stepStructureResolver,
         private readonly IndustryActivityMaterialRepository $materialRepository,
         private readonly IndustryActivityProductRepository $productRepository,
         private readonly MapSolarSystemRepository $solarSystemRepository,
-        private readonly FacilityTaxResolver $facilityTaxResolver,
     ) {
     }
 
@@ -96,11 +94,8 @@ class ProductionCostService
                 continue;
             }
 
-            $solarSystemId = $this->solarSystemResolver->forStep($step);
-            $activityKind = $activityType === 'reaction' ? ActivityKind::Reaction : ActivityKind::Manufacturing;
-            $facilityTaxPercent = $step->getStructureConfig() !== null
-                ? $step->getStructureConfig()->getFacilityTaxPercent()
-                : $this->facilityTaxResolver->percentFor($project->getUser(), $solarSystemId, $activityKind);
+            $solarSystemId = $this->stepStructureResolver->solarSystemOf($step);
+            $facilityTaxPercent = $this->stepStructureResolver->facilityTaxPercentOf($step);
 
             $activityIdValue = $activityType === 'reaction' ? IndustryActivityType::Reaction->value : IndustryActivityType::Manufacturing->value;
             $me0Materials = $this->materialRepository->findMaterialsForBlueprints(
