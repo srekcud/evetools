@@ -48,6 +48,22 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
     private const int PLATING_BLUEPRINT_TYPE_ID = 999_993_112;
     private const int ALLOY_TYPE_ID = 999_993_036;
 
+    private const int CARRIER_GROUP_ID = 999_993_547;
+    private const int FUEL_BLOCK_GROUP_ID = 999_993_136;
+    private const int ISOTOPE_GROUP_ID = 999_993_423;
+    private const int CARRIER_TYPE_ID = 999_993_640;
+    private const int CARRIER_BLUEPRINT_TYPE_ID = 999_993_641;
+    private const int FUEL_BLOCK_TYPE_ID = 999_993_412;
+    private const int FUEL_BLOCK_BLUEPRINT_TYPE_ID = 999_993_413;
+    private const int ISOTOPE_TYPE_ID = 999_993_017;
+    private const int FUEL_BLOCKS_PER_CARRIER_RUN = 120;
+    private const int FUEL_BLOCKS_PER_FUEL_BLOCK_RUN = 40;
+    private const int ISOTOPES_PER_FUEL_BLOCK_RUN = 9;
+    private const int CARRIER_BASE_TIME_PER_RUN_SECONDS = 100;
+    private const int FUEL_BLOCK_BASE_TIME_PER_RUN_SECONDS = 600;
+    private const float MAX_JOB_DURATION_DAYS_SPLITTING_THE_FUEL_BLOCK_IN_THREE_JOBS = 4000 / 86400;
+    private const float MAX_JOB_DURATION_DAYS_SPLITTING_THE_FUEL_BLOCK_IN_FOUR_JOBS = 3600 / 86400;
+
     private const int PLATINGS_PER_CRUISER_RUN = 4;
     private const int ALLOYS_PER_PLATING_RUN = 11;
     private const int CRUISER_BASE_TIME_PER_RUN_SECONDS = 700;
@@ -59,6 +75,9 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
     private const int PROJECT_TE = 20;
     private const float MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT = 2.0;
     private const float MAX_JOB_DURATION_DAYS_SPLITTING_THE_PLATING_IN_TWO_JOBS = 4800 / 86400;
+    private const float MAX_JOB_DURATION_DAYS_SPLITTING_THE_PLATING_IN_FOUR_JOBS = 2400 / 86400;
+    private const int CRUISER_RUNS_GIVING_A_PLATING_NEED_OF_30 = 8;
+    private const int PROJECT_ME_GIVING_A_PLATING_NEED_OF_30 = 7;
 
     private User $pilot;
     private IndustryProjectFactory $factory;
@@ -73,6 +92,7 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
         $pilot->setMainCharacter($character);
         $this->pilot = $pilot;
         $this->seedCruiserRecipe();
+        $this->seedCarrierRecipe();
         $this->em->flush();
 
         $container = self::getContainer();
@@ -249,6 +269,198 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
         ));
     }
 
+    public function testRunsEnteredOnAJobAreCappedByTheRunsOfTheOtherFixedJobsOfTheGroup(): void
+    {
+        $project = $this->projectWithAPlatingSplitInThreeJobs();
+        [$firstJobId, $secondJobId, $thirdJobId] = $this->platingJobIdsOf($project);
+        $this->patch($project, $secondJobId, ['runs' => 10]);
+        $project = $this->reloaded($project);
+
+        $this->patch($project, $firstJobId, ['runs' => 25]);
+
+        self::assertSame(
+            [[$firstJobId, 19, 19, true, 0, 30], [$secondJobId, 10, 10, true, 1, 30], [$thirdJobId, 1, 1, false, 2, 30]],
+            $this->platingJobsOf($this->reloaded($project)),
+        );
+    }
+
+    public function testRunsEnteredOnTheSecondJobOfAFuelBlockGroupFixItsQuantityAtFortyUnitsPerRunAndShareTheRestOfTheNeed(): void
+    {
+        $project = $this->projectWithAFuelBlockNeedOf864SplitInThreeJobs();
+        [$firstJobId, $secondJobId, $thirdJobId] = $this->fuelBlockJobIdsOf($project);
+
+        $this->patch($project, $secondJobId, ['runs' => 3]);
+
+        self::assertSame(
+            [[$firstJobId, 10, 400, false, 0, 22], [$secondJobId, 3, 120, true, 1, 22], [$thirdJobId, 9, 344, false, 2, 22]],
+            $this->jobsOfProduct($this->reloaded($project), self::FUEL_BLOCK_TYPE_ID),
+        );
+    }
+
+    public function testOverproductionOnAFuelBlockJobFixesEveryJobAtFortyUnitsPerRun(): void
+    {
+        $project = $this->projectWithAFuelBlockNeedOf840SplitInThreeJobs();
+        [$firstJobId, $secondJobId, $thirdJobId] = $this->fuelBlockJobIdsOf($project);
+
+        $this->patch($project, $thirdJobId, ['runs' => 12, 'overproduce' => true]);
+
+        self::assertSame(
+            [[$firstJobId, 7, 280, true, 0, 26], [$secondJobId, 7, 280, true, 1, 26], [$thirdJobId, 12, 480, true, 2, 26]],
+            $this->jobsOfProduct($this->reloaded($project), self::FUEL_BLOCK_TYPE_ID),
+        );
+    }
+
+    public function testRegenerationKeepsTheFixedFuelBlockJobAtFortyUnitsPerRunAndSharesTheRestOfTheNewNeed(): void
+    {
+        $project = $this->projectWithAFuelBlockNeedOf864SplitInThreeJobs();
+        [$firstJobId, $secondJobId, $thirdJobId] = $this->fuelBlockJobIdsOf($project);
+        $this->patch($project, $secondJobId, ['runs' => 3]);
+
+        $project = $this->reloaded($project);
+        $project->setRuns(10);
+        $this->factory->regenerateSteps($project);
+
+        self::assertSame(
+            [[$firstJobId, 13, 520, false, 0, 27], [$secondJobId, 3, 120, true, 1, 27], [$thirdJobId, 11, 440, false, 2, 27]],
+            $this->jobsOfProduct($this->reloaded($project), self::FUEL_BLOCK_TYPE_ID),
+        );
+    }
+
+    public function testRunsEnteredOnAJobWhoseCapFallsBelowOneRunAreFixedAtOneRun(): void
+    {
+        $project = $this->factory->createProject($this->pilot, self::CARRIER_TYPE_ID, 8, 10, self::MAX_JOB_DURATION_DAYS_SPLITTING_THE_FUEL_BLOCK_IN_FOUR_JOBS, self::PROJECT_TE);
+        $project = $this->reloaded($project);
+        $this->patch($project, $this->idOf($this->stepOfProduct($project, self::CARRIER_TYPE_ID)), ['runs' => 1]);
+        $project = $this->reloaded($project);
+        [$firstJobId, $secondJobId, $thirdJobId, $fourthJobId] = $this->fuelBlockJobIdsOf($project);
+
+        $this->patch($project, $firstJobId, ['runs' => 5]);
+
+        self::assertSame(
+            [[$firstJobId, 1, 40, true, 0, 4], [$secondJobId, 1, 40, false, 1, 4], [$thirdJobId, 1, 28, false, 2, 4], [$fourthJobId, 1, 0, false, 3, 4]],
+            $this->jobsOfProduct($this->reloaded($project), self::FUEL_BLOCK_TYPE_ID),
+        );
+    }
+
+    public function testReleasingTheFixedRunsOfAGroupSharesANeedOf21RunsEquallyBetweenItsThreeJobs(): void
+    {
+        $project = $this->projectWithAFuelBlockNeedOf840SplitInThreeJobs();
+        [$firstJobId, $secondJobId, $thirdJobId] = $this->fuelBlockJobIdsOf($project);
+        $this->patch($project, $firstJobId, ['runs' => 10]);
+        $project = $this->reloaded($project);
+
+        $this->patch($project, $thirdJobId, ['runsFixed' => false]);
+
+        self::assertSame(
+            [[$firstJobId, 7, 280, false, 0, 21], [$secondJobId, 7, 280, false, 1, 21], [$thirdJobId, 7, 280, false, 2, 21]],
+            $this->jobsOfProduct($this->reloaded($project), self::FUEL_BLOCK_TYPE_ID),
+        );
+    }
+
+    public function testReleasingTheFixedRunsOfAGroupGivesTheExtraRunOfANeedOf22RunsToTheFirstJob(): void
+    {
+        $project = $this->projectWithAFuelBlockNeedOf864SplitInThreeJobs();
+        [$firstJobId, $secondJobId, $thirdJobId] = $this->fuelBlockJobIdsOf($project);
+        $this->patch($project, $secondJobId, ['runs' => 3]);
+        $project = $this->reloaded($project);
+
+        $this->patch($project, $firstJobId, ['runsFixed' => false]);
+
+        self::assertSame(
+            [[$firstJobId, 8, 320, false, 0, 22], [$secondJobId, 7, 280, false, 1, 22], [$thirdJobId, 7, 264, false, 2, 22]],
+            $this->jobsOfProduct($this->reloaded($project), self::FUEL_BLOCK_TYPE_ID),
+        );
+    }
+
+    public function testReleasingTheFixedRunsOfAStepThatIsNotSplitGivesItBackTheRunsOfItsNeed(): void
+    {
+        $project = $this->projectWithAPlatingStepThatIsNotSplit();
+        $platingStepId = $this->idOf($this->stepOfProduct($project, self::PLATING_TYPE_ID));
+        $this->patch($project, $platingStepId, ['runs' => 15]);
+        $project = $this->reloaded($project);
+
+        $response = $this->patch($project, $platingStepId, ['runsFixed' => false]);
+
+        self::assertSame([18, false], [$response->runs, $response->runsFixed]);
+        self::assertSame([[$platingStepId, 18, 18, false, 0, null]], $this->platingJobsOf($this->reloaded($project)));
+    }
+
+    public function testRunsSentWithTheReleaseOfTheFixedRunsAreIgnoredForTheRunsOfTheNeed(): void
+    {
+        $project = $this->projectWithAPlatingStepThatIsNotSplit();
+        $platingStepId = $this->idOf($this->stepOfProduct($project, self::PLATING_TYPE_ID));
+
+        $this->patch($project, $platingStepId, ['runs' => 15, 'runsFixed' => false]);
+
+        self::assertSame([[$platingStepId, 18, 18, false, 0, null]], $this->platingJobsOf($this->reloaded($project)));
+    }
+
+    public function testRegenerationDoesNotSplitAgainAGroupWithAFixedJobWhenTheMaximumJobDurationIsLowered(): void
+    {
+        $project = $this->projectWithAPlatingSplitInTwoJobs();
+        [$firstJobId, $secondJobId] = $this->platingJobIdsOf($project);
+        $splitGroupId = $this->stepOfProduct($project, self::PLATING_TYPE_ID)->getSplitGroupId();
+        $this->patch($project, $firstJobId, ['runs' => 15]);
+
+        $project = $this->reloaded($project);
+        $project->setMaxJobDurationDays(self::MAX_JOB_DURATION_DAYS_SPLITTING_THE_PLATING_IN_FOUR_JOBS);
+        $this->factory->regenerateSteps($project);
+        $project = $this->reloaded($project);
+
+        self::assertSame(
+            [[$firstJobId, 15, 15, true, 0, 20], [$secondJobId, 5, 5, false, 1, 20]],
+            $this->platingJobsOf($project),
+        );
+        self::assertSame([$splitGroupId, $splitGroupId], array_map(
+            static fn (IndustryProjectStep $job): ?string => $job->getSplitGroupId(),
+            $this->platingStepsInSplitIndexOrder($project),
+        ));
+    }
+
+    public function testRegenerationKeepsTheTotalGroupRunsOfAnOverproducedGroupAboveTheNeed(): void
+    {
+        $project = $this->projectWithAPlatingSplitInTwoJobs();
+        [$firstJobId, $secondJobId] = $this->platingJobIdsOf($project);
+        $this->patch($project, $firstJobId, ['runs' => 25, 'overproduce' => true]);
+
+        $project = $this->reloaded($project);
+        $this->factory->regenerateSteps($project);
+
+        self::assertSame(
+            [[$firstJobId, 25, 25, true, 0, 35], [$secondJobId, 10, 10, true, 1, 35]],
+            $this->platingJobsOf($this->reloaded($project)),
+        );
+    }
+
+    public function testRegenerationDoesNotSplitAFixedStepWhenTheMaximumJobDurationIsLowered(): void
+    {
+        $project = $this->projectWithAPlatingStepThatIsNotSplit();
+        $platingStepId = $this->idOf($this->stepOfProduct($project, self::PLATING_TYPE_ID));
+        $this->patch($project, $platingStepId, ['runs' => 15]);
+
+        $project = $this->reloaded($project);
+        $project->setMaxJobDurationDays(self::MAX_JOB_DURATION_DAYS_SPLITTING_THE_PLATING_IN_FOUR_JOBS);
+        $this->factory->regenerateSteps($project);
+        $project = $this->reloaded($project);
+
+        self::assertSame([[$platingStepId, 15, 15, true, 0, null]], $this->platingJobsOf($project));
+        self::assertNull($this->stepOfProduct($project, self::PLATING_TYPE_ID)->getSplitGroupId());
+    }
+
+    public function testRunsEnteredOnTheRootStepAreAppliedWithoutBeingFixed(): void
+    {
+        $project = $this->projectWithAPlatingStepThatIsNotSplit();
+        $cruiserStepId = $this->idOf($this->stepOfProduct($project, self::CRUISER_TYPE_ID));
+
+        $response = $this->patch($project, $cruiserStepId, ['runs' => 7]);
+
+        self::assertSame([7, false], [$response->runs, $response->runsFixed]);
+        self::assertSame(
+            [[$cruiserStepId, 7, 7, false, 0, null]],
+            $this->jobsOfProduct($this->reloaded($project), self::CRUISER_TYPE_ID),
+        );
+    }
+
     private function projectWithAPlatingStepThatIsNotSplit(): IndustryProject
     {
         $project = $this->factory->createProject($this->pilot, self::CRUISER_TYPE_ID, self::CRUISER_RUNS, self::PROJECT_ME_GIVING_A_PLATING_NEED_OF_18, self::MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT, self::PROJECT_TE);
@@ -256,6 +468,50 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
         self::assertSame([18], array_column($this->platingJobsOf($project), 1));
 
         return $project;
+    }
+
+    private function projectWithAPlatingSplitInThreeJobs(): IndustryProject
+    {
+        $project = $this->factory->createProject($this->pilot, self::CRUISER_TYPE_ID, self::CRUISER_RUNS_GIVING_A_PLATING_NEED_OF_30, self::PROJECT_ME_GIVING_A_PLATING_NEED_OF_30, self::MAX_JOB_DURATION_DAYS_SPLITTING_THE_PLATING_IN_TWO_JOBS, self::PROJECT_TE);
+        $project = $this->reloaded($project);
+        self::assertSame(
+            [[10, 10, false, 0, 30], [10, 10, false, 1, 30], [10, 10, false, 2, 30]],
+            array_map(static fn (array $job): array => array_slice($job, 1), $this->platingJobsOf($project)),
+        );
+
+        return $project;
+    }
+
+    private function projectWithAFuelBlockNeedOf840SplitInThreeJobs(): IndustryProject
+    {
+        $project = $this->factory->createProject($this->pilot, self::CARRIER_TYPE_ID, 7, 0, self::MAX_JOB_DURATION_DAYS_SPLITTING_THE_FUEL_BLOCK_IN_THREE_JOBS, self::PROJECT_TE);
+        $project = $this->reloaded($project);
+        self::assertSame(
+            [[7, 280, false, 0, 21], [7, 280, false, 1, 21], [7, 280, false, 2, 21]],
+            array_map(static fn (array $job): array => array_slice($job, 1), $this->jobsOfProduct($project, self::FUEL_BLOCK_TYPE_ID)),
+        );
+
+        return $project;
+    }
+
+    private function projectWithAFuelBlockNeedOf864SplitInThreeJobs(): IndustryProject
+    {
+        $project = $this->factory->createProject($this->pilot, self::CARRIER_TYPE_ID, 8, 10, self::MAX_JOB_DURATION_DAYS_SPLITTING_THE_FUEL_BLOCK_IN_THREE_JOBS, self::PROJECT_TE);
+        $project = $this->reloaded($project);
+        self::assertSame(
+            [[8, 320, false, 0, 22], [7, 280, false, 1, 22], [7, 264, false, 2, 22]],
+            array_map(static fn (array $job): array => array_slice($job, 1), $this->jobsOfProduct($project, self::FUEL_BLOCK_TYPE_ID)),
+        );
+
+        return $project;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function fuelBlockJobIdsOf(IndustryProject $project): array
+    {
+        return array_column($this->jobsOfProduct($project, self::FUEL_BLOCK_TYPE_ID), 0);
     }
 
     private function projectWithAPlatingSplitInTwoJobs(): IndustryProject
@@ -300,9 +556,17 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
      */
     private function platingJobsOf(IndustryProject $project): array
     {
+        return $this->jobsOfProduct($project, self::PLATING_TYPE_ID);
+    }
+
+    /**
+     * @return list<array{string, int, int, bool, int, int|null}>
+     */
+    private function jobsOfProduct(IndustryProject $project, int $productTypeId): array
+    {
         return array_map(
             fn (IndustryProjectStep $job): array => [$this->idOf($job), $job->getRuns(), $job->getQuantity(), $job->isRunsFixed(), $job->getSplitIndex(), $job->getTotalGroupRuns()],
-            $this->platingStepsInSplitIndexOrder($project),
+            $this->stepsOfProductInSplitIndexOrder($project, $productTypeId),
         );
     }
 
@@ -319,9 +583,17 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
      */
     private function platingStepsInSplitIndexOrder(IndustryProject $project): array
     {
+        return $this->stepsOfProductInSplitIndexOrder($project, self::PLATING_TYPE_ID);
+    }
+
+    /**
+     * @return list<IndustryProjectStep>
+     */
+    private function stepsOfProductInSplitIndexOrder(IndustryProject $project, int $productTypeId): array
+    {
         $jobs = array_values(array_filter(
             $project->getSteps()->toArray(),
-            static fn (IndustryProjectStep $step): bool => $step->getProductTypeId() === self::PLATING_TYPE_ID,
+            static fn (IndustryProjectStep $step): bool => $step->getProductTypeId() === $productTypeId,
         ));
         usort($jobs, static fn (IndustryProjectStep $a, IndustryProjectStep $b): int => $a->getSplitIndex() <=> $b->getSplitIndex());
 
@@ -369,10 +641,22 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
         $this->manufacturingRecipe(self::PLATING_BLUEPRINT_TYPE_ID, self::PLATING_TYPE_ID, self::ALLOY_TYPE_ID, self::ALLOYS_PER_PLATING_RUN, self::PLATING_BASE_TIME_PER_RUN_SECONDS);
     }
 
-    private function manufacturingRecipe(int $blueprintTypeId, int $productTypeId, int $materialTypeId, int $baseQuantityPerRun, int $baseTimePerRunSeconds): void
+    private function seedCarrierRecipe(): void
+    {
+        $category = $this->em->find(InvCategory::class, self::SHIP_CATEGORY_ID);
+        self::assertNotNull($category);
+        $this->type(self::CARRIER_TYPE_ID, 'Test Carrier', $this->group(self::CARRIER_GROUP_ID, 'Test Carrier', $category));
+        $this->type(self::FUEL_BLOCK_TYPE_ID, 'Test Fuel Block', $this->group(self::FUEL_BLOCK_GROUP_ID, 'Test Fuel Block', $category));
+        $this->type(self::ISOTOPE_TYPE_ID, 'Test Isotope', $this->group(self::ISOTOPE_GROUP_ID, 'Test Isotope', $category));
+
+        $this->manufacturingRecipe(self::CARRIER_BLUEPRINT_TYPE_ID, self::CARRIER_TYPE_ID, self::FUEL_BLOCK_TYPE_ID, self::FUEL_BLOCKS_PER_CARRIER_RUN, self::CARRIER_BASE_TIME_PER_RUN_SECONDS);
+        $this->manufacturingRecipe(self::FUEL_BLOCK_BLUEPRINT_TYPE_ID, self::FUEL_BLOCK_TYPE_ID, self::ISOTOPE_TYPE_ID, self::ISOTOPES_PER_FUEL_BLOCK_RUN, self::FUEL_BLOCK_BASE_TIME_PER_RUN_SECONDS, self::FUEL_BLOCKS_PER_FUEL_BLOCK_RUN);
+    }
+
+    private function manufacturingRecipe(int $blueprintTypeId, int $productTypeId, int $materialTypeId, int $baseQuantityPerRun, int $baseTimePerRunSeconds, int $outputPerRun = 1): void
     {
         $manufacturing = IndustryActivityType::Manufacturing->value;
-        $this->em->persist((new IndustryActivityProduct())->setTypeId($blueprintTypeId)->setActivityId($manufacturing)->setProductTypeId($productTypeId)->setQuantity(1));
+        $this->em->persist((new IndustryActivityProduct())->setTypeId($blueprintTypeId)->setActivityId($manufacturing)->setProductTypeId($productTypeId)->setQuantity($outputPerRun));
         $this->em->persist((new IndustryActivityMaterial())->setTypeId($blueprintTypeId)->setActivityId($manufacturing)->setMaterialTypeId($materialTypeId)->setQuantity($baseQuantityPerRun));
         $this->em->persist((new IndustryActivity())->setTypeId($blueprintTypeId)->setActivityId($manufacturing)->setTime($baseTimePerRunSeconds));
     }
