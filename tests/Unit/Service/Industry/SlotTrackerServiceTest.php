@@ -39,6 +39,7 @@ class SlotTrackerServiceTest extends TestCase
     private CachedAssetRepository&MockObject $assetRepository;
     private SlotTrackerService $service;
     private User&MockObject $user;
+    private array $characterIdsWithoutCachedSkills = [];
 
     protected function setUp(): void
     {
@@ -49,6 +50,9 @@ class SlotTrackerServiceTest extends TestCase
         $this->typeNameResolver = $this->createMock(TypeNameResolver::class);
         $this->stockpileTargetRepository = $this->createMock(IndustryStockpileTargetRepository::class);
         $this->assetRepository = $this->createMock(CachedAssetRepository::class);
+        $this->skillRepository->method('hasCachedSkills')->willReturnCallback(
+            fn (Character $character): bool => !in_array($character->getEveCharacterId(), $this->characterIdsWithoutCachedSkills, true),
+        );
 
         $this->service = new SlotTrackerService(
             $this->characterRepository,
@@ -728,6 +732,178 @@ class SlotTrackerServiceTest extends TestCase
         $this->assertNull($meResearchJob->getProductTypeId());
     }
 
+    private const int AURORA_CHARACTER_ID = 3001;
+    private const int BOREALIS_CHARACTER_ID = 3002;
+    private const int CARINA_CHARACTER_ID = 3003;
+    private const int DORADO_CHARACTER_ID = 3004;
+    private const int ERIDANUS_CHARACTER_ID = 3005;
+    private const int FORNAX_CHARACTER_ID = 3006;
+    private const int REACTION_ACTIVITY_ID = 9;
+
+    #[Group('issue-218')]
+    public function testCharacterWithUnknownSkillsHasUnknownMaxSlotsAndNoFreeSlotDespiteAStockpileTargetBelowTarget(): void
+    {
+        $this->givenCharacters([$this->auroraWithUnknownSkills()]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([
+            $this->runningJob(701, 11_001, self::MANUFACTURING_ACTIVITY_ID, 'now'),
+        ]);
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([$this->roboticsComponentTarget(100)]);
+        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([self::ROBOTICS_TYPE_ID => 25]);
+
+        $aurora = $this->service->getSlotStatus($this->user)['characters'][0];
+
+        $this->assertSame([
+            'manufacturing' => ['used' => 1, 'max' => null],
+            'reaction' => ['used' => 0, 'max' => null],
+            'science' => ['used' => 0, 'max' => null],
+        ], $aurora['slots']);
+        $this->assertTrue($aurora['skillsUnknown']);
+        $this->assertSame([], $aurora['freeSlots']);
+    }
+
+    #[Group('issue-218')]
+    public function testSyncedCharacterWithoutReactionSkillHasMaxSlotsFromItsCachedSkillLevels(): void
+    {
+        $this->givenCharacters([$this->borealisWithKnownSkills()]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn($this->borealisThreeManufacturingJobs());
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+
+        $borealis = $this->service->getSlotStatus($this->user)['characters'][0];
+
+        $this->assertSame([
+            'manufacturing' => ['used' => 3, 'max' => 7],
+            'reaction' => ['used' => 0, 'max' => 1],
+            'science' => ['used' => 0, 'max' => 4],
+        ], $borealis['slots']);
+        $this->assertFalse($borealis['skillsUnknown']);
+    }
+
+    #[Group('issue-218')]
+    public function testGlobalKpisSumOnlyCharactersWithKnownSkillsAndCountCharactersWithUnknownSkills(): void
+    {
+        $this->givenCharacters([$this->auroraWithUnknownSkills(), $this->borealisWithKnownSkills()]);
+        $this->jobRepository->method('findActiveJobsByCharacter')
+            ->willReturnCallback(fn (Character $character): array => match ($character->getEveCharacterId()) {
+                self::AURORA_CHARACTER_ID => [$this->runningJob(701, 11_001, self::MANUFACTURING_ACTIVITY_ID, 'now')],
+                default => $this->borealisThreeManufacturingJobs(),
+            });
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+
+        $result = $this->service->getSlotStatus($this->user);
+
+        $this->assertSame([
+            'manufacturing' => ['used' => 3, 'max' => 7, 'percent' => 42.9],
+            'reaction' => ['used' => 0, 'max' => 1, 'percent' => 0.0],
+            'science' => ['used' => 0, 'max' => 4, 'percent' => 0.0],
+        ], $result['globalKpis']);
+        $this->assertSame(1, $result['unknownSkillsCharacterCount']);
+        $this->assertTrue($result['skillsMayBeStale']);
+    }
+
+    #[Group('issue-218')]
+    public function testSkillsAreNotFlaggedAsMaybeStaleWhenEveryCharacterHasKnownSkillsWithinMax(): void
+    {
+        $this->givenCharacters([$this->borealisWithKnownSkills()]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn($this->borealisThreeManufacturingJobs());
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+
+        $result = $this->service->getSlotStatus($this->user);
+
+        $this->assertSame(['used' => 3, 'max' => 7, 'percent' => 42.9], $result['globalKpis']['manufacturing']);
+        $this->assertSame(0, $result['unknownSkillsCharacterCount']);
+        $this->assertFalse($result['skillsMayBeStale']);
+    }
+
+    #[Group('issue-218')]
+    public function testJobsOfACharacterWithInvalidAuthorizationAreStaleEvenWhenCachedFiveMinutesAgo(): void
+    {
+        $this->givenCharacters([$this->createCharacterMock(self::CARINA_CHARACTER_ID, 'Carina', true, authValid: false)]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([
+            $this->runningJob(731, 11_031, self::MANUFACTURING_ACTIVITY_ID, '-5 minutes'),
+        ]);
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+
+        $this->assertTrue($this->service->getSlotStatus($this->user)['characters'][0]['jobsStale']);
+    }
+
+    #[Group('issue-218')]
+    public function testJobsAreStaleWhenTheMostRecentlyCachedRunningJobIsSixtyOneMinutesOld(): void
+    {
+        $this->givenCharacters([$this->createCharacterMock(self::DORADO_CHARACTER_ID, 'Dorado', true)]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([
+            $this->runningJob(741, 11_041, self::REACTION_ACTIVITY_ID, '-61 minutes'),
+        ]);
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+
+        $this->assertTrue($this->service->getSlotStatus($this->user)['characters'][0]['jobsStale']);
+    }
+
+    #[Group('issue-218')]
+    public function testJobsAreNotStaleWhenTheMostRecentlyCachedRunningJobIsFiftyNineMinutesOldDespiteAnOlderOne(): void
+    {
+        $this->givenCharacters([$this->createCharacterMock(self::ERIDANUS_CHARACTER_ID, 'Eridanus', true)]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([
+            $this->runningJob(751, 11_051, self::MANUFACTURING_ACTIVITY_ID, '-3 hours'),
+            $this->runningJob(752, 11_052, self::REACTION_ACTIVITY_ID, '-59 minutes'),
+        ]);
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+
+        $this->assertFalse($this->service->getSlotStatus($this->user)['characters'][0]['jobsStale']);
+    }
+
+    #[Group('issue-218')]
+    public function testJobsAreNotStaleForACharacterWithValidAuthorizationAndNoRunningJob(): void
+    {
+        $this->givenCharacters([$this->createCharacterMock(self::FORNAX_CHARACTER_ID, 'Fornax', true)]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([]);
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+
+        $this->assertFalse($this->service->getSlotStatus($this->user)['characters'][0]['jobsStale']);
+    }
+
+    private function givenCharacters(array $characters): void
+    {
+        $this->characterRepository->method('findByUser')->willReturn($characters);
+        $this->skillRepository->method('findSlotSkillsForCharacter')->willReturnCallback(
+            fn (Character $character): array => $character->getEveCharacterId() === self::BOREALIS_CHARACTER_ID
+                ? $this->buildSkillMap([
+                    CachedCharacterSkill::SKILL_MASS_PRODUCTION => 4,
+                    CachedCharacterSkill::SKILL_ADVANCED_MASS_PRODUCTION => 2,
+                    CachedCharacterSkill::SKILL_LABORATORY_OPERATION => 3,
+                ])
+                : [],
+        );
+    }
+
+    private function auroraWithUnknownSkills(): Character&MockObject
+    {
+        $this->characterIdsWithoutCachedSkills[] = self::AURORA_CHARACTER_ID;
+
+        return $this->createCharacterMock(self::AURORA_CHARACTER_ID, 'Aurora', true);
+    }
+
+    private function borealisWithKnownSkills(): Character&MockObject
+    {
+        return $this->createCharacterMock(self::BOREALIS_CHARACTER_ID, 'Borealis', false);
+    }
+
+    private function borealisThreeManufacturingJobs(): array
+    {
+        return [
+            $this->runningJob(711, 11_011, self::MANUFACTURING_ACTIVITY_ID, 'now'),
+            $this->runningJob(712, 11_012, self::MANUFACTURING_ACTIVITY_ID, 'now'),
+            $this->runningJob(713, 11_013, self::MANUFACTURING_ACTIVITY_ID, 'now'),
+        ];
+    }
+
+    private function runningJob(int $jobId, int $productTypeId, int $activityId, string $cachedAt): CachedIndustryJob&MockObject
+    {
+        $job = $this->createJobMock($jobId, $productTypeId, $activityId, $jobId - 700, '2026-10-22 08:00:00', '2099-01-01 00:00:00');
+        $job->method('getCachedAt')->willReturn(new \DateTimeImmutable($cachedAt));
+
+        return $job;
+    }
+
     private function roboticsComponentTarget(int $targetQuantity): IndustryStockpileTarget
     {
         return (new IndustryStockpileTarget())
@@ -782,12 +958,13 @@ class SlotTrackerServiceTest extends TestCase
         return $map;
     }
 
-    private function createCharacterMock(int $eveCharacterId, string $name, bool $isMain): Character&MockObject
+    private function createCharacterMock(int $eveCharacterId, string $name, bool $isMain, bool $authValid = true): Character&MockObject
     {
         $character = $this->createMock(Character::class);
         $character->method('getEveCharacterId')->willReturn($eveCharacterId);
         $character->method('getName')->willReturn($name);
         $character->method('isMain')->willReturn($isMain);
+        $character->method('isAuthValid')->willReturn($authValid);
 
         return $character;
     }

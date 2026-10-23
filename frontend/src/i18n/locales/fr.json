@@ -795,7 +795,9 @@
       "alt": "Alt",
       "minutesAgo": "il y a {n} minutes",
       "skillsStaleWarning": "Les limites de slots peuvent etre inexactes. Synchronisez vos skills dans les Parametres pour voir les vrais compteurs.",
-      "syncSkills": "Synchroniser les Skills"
+      "syncSkills": "Synchroniser les Skills",
+      "partialKpis": "Partiel : {count} personnage(s) aux compétences inconnues exclu(s)",
+      "jobsStale": "Données périmées"
     },
     "createProject": {
       "title": "Nouveau projet",

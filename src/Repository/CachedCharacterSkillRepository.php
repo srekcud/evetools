@@ -65,6 +65,11 @@ class CachedCharacterSkillRepository extends ServiceEntityRepository
         return $indexed;
     }
 
+    public function hasCachedSkills(Character $character): bool
+    {
+        return false;
+    }
+
     /**
      * Get ALL cached skills for a character, indexed by skill ID.
      *

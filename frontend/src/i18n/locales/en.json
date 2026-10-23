@@ -795,7 +795,9 @@
       "alt": "Alt",
       "minutesAgo": "{n} minutes ago",
       "skillsStaleWarning": "Slot limits may be inaccurate. Sync your skills in Settings to see correct slot counts.",
-      "syncSkills": "Sync Skills"
+      "syncSkills": "Sync Skills",
+      "partialKpis": "Partial: {count} character(s) with unknown skills are excluded",
+      "jobsStale": "Stale data"
     },
     "createProject": {
       "title": "New project",
