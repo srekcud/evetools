@@ -59,6 +59,17 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
     private const int SUB_COMPONENT_TYPE_ID = 999_992_321;
     private const int SUB_COMPONENT_BLUEPRINT_TYPE_ID = 999_992_322;
 
+    private const int COMPOSITE_PLATE_GROUP_ID = 999_992_337;
+    private const int POLYMER_GROUP_ID = 999_992_428;
+    private const int COMPOSITE_PLATE_TYPE_ID = 999_992_331;
+    private const int COMPOSITE_PLATE_BLUEPRINT_TYPE_ID = 999_992_332;
+    private const int POLYMER_TYPE_ID = 999_992_341;
+    private const int POLYMER_FORMULA_TYPE_ID = 999_992_342;
+    private const int POLYMERS_PER_COMPOSITE_PLATE_RUN = 6;
+    private const int POLYMERS_PER_REACTION_RUN = 20;
+    private const int MINERALS_PER_POLYMER_REACTION_RUN = 12;
+    private const int POLYMER_REACTION_TIME_PER_RUN_SECONDS = 3600;
+
     private const int HULL_COMPONENTS_PER_DESTROYER_RUN = 3;
     private const int SUB_COMPONENTS_PER_HULL_COMPONENT_RUN = 7;
     private const int MINERALS_PER_SUB_COMPONENT_RUN = 15;
@@ -70,6 +81,9 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
     private const string HULL_COMPONENT_MATERIAL_RIG = 'Standup M-Set Advanced Component Manufacturing Material Efficiency I';
     private const string HIGHSEC_RAITARU = 'Highsec Raitaru';
     private const string NULLSEC_RAITARU = 'Nullsec Raitaru';
+    private const string TEST_AZBEL = 'Test Azbel';
+    private const string TEST_SOTIYO = 'Test Sotiyo';
+    private const string TEST_TATARA = 'Test Tatara';
 
     private const int COMPONENTS_PER_FRIGATE_RUN = 4;
     private const int MINERALS_PER_COMPONENT_RUN = 10;
@@ -82,6 +96,9 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
     private const float MAX_JOB_DURATION_DAYS_SPLITTING_THE_COMPONENT_IN_TWO_JOBS = 4800 / 86400;
     private const float MAX_JOB_DURATION_DAYS_SPLITTING_THE_HULL_COMPONENT_AT_TE_10_ONLY = 7000 / 86400;
     private const float MAX_JOB_DURATION_DAYS_SPLITTING_THE_HULL_COMPONENT_IN_TWO_JOBS = 4000 / 86400;
+    private const float MAX_JOB_DURATION_DAYS_SPLITTING_THE_HULL_COMPONENT_BUT_NOT_A_SIX_RUN_DESTROYER = 5000 / 86400;
+    private const float MAX_JOB_DURATION_DAYS_SPLITTING_THE_HULL_COMPONENT_IN_AN_AZBEL_BUT_NOT_IN_A_SOTIYO = 5000 / 86400;
+    private const float MAX_JOB_DURATION_DAYS_SPLITTING_THE_HULL_COMPONENT_WITHOUT_THE_TIME_BONUS_OF_AN_AZBEL = 6000 / 86400;
 
     private const int ROOT_ESI_JOB_ID = 999_992_001;
     private const int MANUAL_ROOT_ESI_JOB_ID = 999_992_002;
@@ -103,6 +120,7 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
         $this->pilot = $pilot;
         $this->seedFrigateRecipe();
         $this->seedDestroyerRecipe();
+        $this->seedCompositePlateRecipe();
         $this->em->flush();
 
         $container = self::getContainer();
@@ -544,6 +562,98 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
         );
     }
 
+    #[Group('issue-21')]
+    public function testChangingTheRunsKeepsTheMeTeAndStructureOfEachJobOfASplitHullComponent(): void
+    {
+        $highsecRaitaru = $this->raitaru(self::HIGHSEC_RAITARU, 'highsec');
+        $nullsecRaitaru = $this->raitaru(self::NULLSEC_RAITARU, 'nullsec');
+        $this->em->flush();
+        $project = $this->factory->createProject($this->pilot, self::DESTROYER_TYPE_ID, 5, 10, self::MAX_JOB_DURATION_DAYS_SPLITTING_THE_HULL_COMPONENT_BUT_NOT_A_SIX_RUN_DESTROYER, 20);
+        $hullComponentJobs = $this->jobsOfProductInSplitIndexOrder($project, self::HULL_COMPONENT_TYPE_ID);
+        self::assertSame([[0, 7, 7, 10, 20, null], [1, 6, 6, 10, 20, null]], $this->settingsOfJobsOfProduct($project, self::HULL_COMPONENT_TYPE_ID));
+        $hullComponentJobs[0]->setMeLevel(8)->setTeLevel(16)->setStructureConfig($highsecRaitaru);
+        $hullComponentJobs[1]->setMeLevel(9)->setTeLevel(18)->setStructureConfig($nullsecRaitaru);
+        $this->em->flush();
+
+        $project->setRuns(6);
+        $this->factory->regenerateSteps($project);
+        $project = $this->reloaded($project);
+
+        self::assertSame(
+            [[0, 8, 8, 8, 16, self::HIGHSEC_RAITARU], [1, 8, 8, 9, 18, self::NULLSEC_RAITARU]],
+            $this->settingsOfJobsOfProduct($project, self::HULL_COMPONENT_TYPE_ID),
+        );
+        self::assertSame([[0, 99, 99, 10, 20, null]], $this->settingsOfJobsOfProduct($project, self::SUB_COMPONENT_TYPE_ID));
+    }
+
+    #[Group('issue-21')]
+    public function testRegenerationSplitsTheHullComponentWithTheTimeBonusOfItsStructureRatherThanTheBestOne(): void
+    {
+        $azbel = $this->structure(self::TEST_AZBEL, 'azbel');
+        $this->structure(self::TEST_SOTIYO, 'sotiyo');
+        $this->em->flush();
+        $project = $this->factory->createProject($this->pilot, self::DESTROYER_TYPE_ID, 5, 10, self::MAX_JOB_DURATION_DAYS_SPLITTING_THE_HULL_COMPONENT_IN_AN_AZBEL_BUT_NOT_IN_A_SOTIYO, 20);
+        self::assertSame([[0, 14, 14, 10, 20, null]], $this->settingsOfJobsOfProduct($project, self::HULL_COMPONENT_TYPE_ID));
+        $this->stepOfProduct($project, self::HULL_COMPONENT_TYPE_ID)->setStructureConfig($azbel);
+        $this->em->flush();
+
+        $this->factory->regenerateSteps($project);
+        $project = $this->reloaded($project);
+
+        self::assertSame(
+            [[0, 7, 7, 10, 20, self::TEST_AZBEL], [1, 7, 7, 10, 20, self::TEST_AZBEL]],
+            $this->settingsOfJobsOfProduct($project, self::HULL_COMPONENT_TYPE_ID),
+        );
+    }
+
+    #[Group('issue-21')]
+    public function testRegenerationKeepsTheHullComponentInOneJobThanksToTheTimeBonusOfItsStructure(): void
+    {
+        $azbel = $this->structure(self::TEST_AZBEL, 'azbel');
+        $this->em->flush();
+        $project = $this->factory->createProject($this->pilot, self::DESTROYER_TYPE_ID, 5, 10, self::MAX_JOB_DURATION_DAYS_SPLITTING_THE_HULL_COMPONENT_WITHOUT_THE_TIME_BONUS_OF_AN_AZBEL, 20);
+        $this->stepOfProduct($project, self::HULL_COMPONENT_TYPE_ID)->setStructureConfig($azbel);
+        $this->em->flush();
+
+        $this->factory->regenerateSteps($project);
+        $project = $this->reloaded($project);
+
+        self::assertSame([[0, 14, 14, 10, 20, self::TEST_AZBEL]], $this->settingsOfJobsOfProduct($project, self::HULL_COMPONENT_TYPE_ID));
+    }
+
+    #[Group('issue-21')]
+    public function testRegenerationGivesAReactionStepNoMeNorTeAndKeepsItsStructure(): void
+    {
+        $tatara = $this->structure(self::TEST_TATARA, 'tatara');
+        $this->em->flush();
+        $project = $this->factory->createProject($this->pilot, self::COMPOSITE_PLATE_TYPE_ID, 4, 10, self::MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT, 20);
+        $this->stepOfProduct($project, self::POLYMER_TYPE_ID)->setMeLevel(5)->setTeLevel(5)->setStructureConfig($tatara);
+        $this->em->flush();
+
+        $this->factory->regenerateSteps($project);
+        $project = $this->reloaded($project);
+
+        self::assertSame([[0, 2, 22, 0, 0, self::TEST_TATARA]], $this->settingsOfJobsOfProduct($project, self::POLYMER_TYPE_ID));
+        self::assertSame('reaction', $this->stepOfProduct($project, self::POLYMER_TYPE_ID)->getActivityType());
+    }
+
+    #[Group('issue-21')]
+    public function testAStructureOnARootWithoutRigCategoryPlansItsHullComponentsWithTheBaseMaterialBonusOnly(): void
+    {
+        $nullsecRaitaru = $this->raitaru(self::NULLSEC_RAITARU, 'nullsec');
+        $this->em->flush();
+        $project = $this->factory->createProject($this->pilot, self::DESTROYER_TYPE_ID, 37, 10, self::MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT, 20);
+        self::assertSame([[0, 95, 95, 10, 20, null]], $this->settingsOfJobsOfProduct($project, self::HULL_COMPONENT_TYPE_ID));
+        $this->stepOfProduct($project, self::DESTROYER_TYPE_ID)->setStructureConfig($nullsecRaitaru);
+        $this->em->flush();
+
+        $this->factory->regenerateSteps($project);
+        $project = $this->reloaded($project);
+
+        self::assertSame([[0, 37, 37, 10, 20, self::NULLSEC_RAITARU]], $this->settingsOfJobsOfProduct($project, self::DESTROYER_TYPE_ID));
+        self::assertSame([[0, 99, 99, 10, 20, null]], $this->settingsOfJobsOfProduct($project, self::HULL_COMPONENT_TYPE_ID));
+    }
+
     public function testExcludedComponentsAreRememberedOnceAndNeverPlannedAtCreationNorAtRegeneration(): void
     {
         $this->em->persist((new IndustryActivityMaterial())->setTypeId(self::FRIGATE_BLUEPRINT_TYPE_ID)->setActivityId(IndustryActivityType::Manufacturing->value)->setMaterialTypeId(self::MODULE_TYPE_ID)->setQuantity(self::MODULES_PER_FRIGATE_RUN));
@@ -634,6 +744,32 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
         usort($jobs, static fn (array $a, array $b): int => $a[0] <=> $b[0]);
 
         return $jobs;
+    }
+
+    /**
+     * @return list<IndustryProjectStep>
+     */
+    private function jobsOfProductInSplitIndexOrder(IndustryProject $project, int $productTypeId): array
+    {
+        $jobs = array_values(array_filter(
+            $project->getSteps()->toArray(),
+            static fn (IndustryProjectStep $step): bool => $step->getProductTypeId() === $productTypeId,
+        ));
+        usort($jobs, static fn (IndustryProjectStep $a, IndustryProjectStep $b): int => $a->getSplitIndex() <=> $b->getSplitIndex());
+
+        return $jobs;
+    }
+
+    private function structure(string $name, string $structureType): IndustryStructureConfig
+    {
+        $structure = (new IndustryStructureConfig())
+            ->setUser($this->pilot)
+            ->setName($name)
+            ->setSecurityType('highsec')
+            ->setStructureType($structureType);
+        $this->em->persist($structure);
+
+        return $structure;
     }
 
     private function raitaru(string $name, string $securityType): IndustryStructureConfig
@@ -757,6 +893,21 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
         $this->manufacturingRecipe(self::DESTROYER_BLUEPRINT_TYPE_ID, self::DESTROYER_TYPE_ID, self::HULL_COMPONENT_TYPE_ID, self::HULL_COMPONENTS_PER_DESTROYER_RUN, self::DESTROYER_BASE_TIME_PER_RUN_SECONDS);
         $this->manufacturingRecipe(self::HULL_COMPONENT_BLUEPRINT_TYPE_ID, self::HULL_COMPONENT_TYPE_ID, self::SUB_COMPONENT_TYPE_ID, self::SUB_COMPONENTS_PER_HULL_COMPONENT_RUN, self::HULL_COMPONENT_BASE_TIME_PER_RUN_SECONDS);
         $this->manufacturingRecipe(self::SUB_COMPONENT_BLUEPRINT_TYPE_ID, self::SUB_COMPONENT_TYPE_ID, self::MINERAL_TYPE_ID, self::MINERALS_PER_SUB_COMPONENT_RUN, self::SUB_COMPONENT_BASE_TIME_PER_RUN_SECONDS);
+    }
+
+    private function seedCompositePlateRecipe(): void
+    {
+        $category = $this->em->find(InvCategory::class, self::SHIP_CATEGORY_ID);
+        self::assertNotNull($category);
+        $this->type(self::COMPOSITE_PLATE_TYPE_ID, 'Test Composite Plate', $this->group(self::COMPOSITE_PLATE_GROUP_ID, 'Test Composite Plate', $category));
+        $this->type(self::POLYMER_TYPE_ID, 'Test Polymer', $this->group(self::POLYMER_GROUP_ID, 'Test Polymer', $category));
+
+        $this->manufacturingRecipe(self::COMPOSITE_PLATE_BLUEPRINT_TYPE_ID, self::COMPOSITE_PLATE_TYPE_ID, self::POLYMER_TYPE_ID, self::POLYMERS_PER_COMPOSITE_PLATE_RUN);
+
+        $reaction = IndustryActivityType::Reaction->value;
+        $this->em->persist((new IndustryActivityProduct())->setTypeId(self::POLYMER_FORMULA_TYPE_ID)->setActivityId($reaction)->setProductTypeId(self::POLYMER_TYPE_ID)->setQuantity(self::POLYMERS_PER_REACTION_RUN));
+        $this->em->persist((new IndustryActivityMaterial())->setTypeId(self::POLYMER_FORMULA_TYPE_ID)->setActivityId($reaction)->setMaterialTypeId(self::MINERAL_TYPE_ID)->setQuantity(self::MINERALS_PER_POLYMER_REACTION_RUN));
+        $this->em->persist((new IndustryActivity())->setTypeId(self::POLYMER_FORMULA_TYPE_ID)->setActivityId($reaction)->setTime(self::POLYMER_REACTION_TIME_PER_RUN_SECONDS));
     }
 
     private function manufacturingRecipe(int $blueprintTypeId, int $productTypeId, int $materialTypeId, int $baseQuantityPerRun, int $baseTimePerRunSeconds = self::BASE_TIME_PER_RUN_SECONDS): void
