@@ -12,6 +12,7 @@ use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
 use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryStructureConfigRepository;
+use App\Service\Industry\ProductionStructureRigsValidator;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -31,6 +32,7 @@ class UpdateStructureProcessor implements ProcessorInterface
         private readonly CachedStructureRepository $cachedStructureRepository,
         private readonly IndustryResourceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,
+        private readonly ProductionStructureRigsValidator $rigsValidator,
     ) {
     }
 
@@ -49,6 +51,8 @@ class UpdateStructureProcessor implements ProcessorInterface
         }
 
         assert($data instanceof UpdateStructureInput);
+
+        $this->rigsValidator->validate($data->structureType ?? $structure->getStructureType(), $data->rigs ?? $structure->getRigs());
 
         if ($data->name !== null) {
             $name = trim($data->name);

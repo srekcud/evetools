@@ -12,6 +12,7 @@ use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
 use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryStructureConfigRepository;
+use App\Service\Industry\ProductionStructureRigsValidator;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -29,6 +30,7 @@ class CreateStructureProcessor implements ProcessorInterface
         private readonly CachedStructureRepository $cachedStructureRepository,
         private readonly IndustryResourceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,
+        private readonly ProductionStructureRigsValidator $rigsValidator = new ProductionStructureRigsValidator(),
     ) {
     }
 
@@ -41,6 +43,8 @@ class CreateStructureProcessor implements ProcessorInterface
         }
 
         assert($data instanceof CreateStructureInput);
+
+        $this->rigsValidator->validate($data->structureType, $data->rigs);
 
         // Checked before anything is written: clearDefaultForUser() runs an immediate UPDATE.
         $this->refuseAlreadyImportedStructure($user, $data->locationId);
