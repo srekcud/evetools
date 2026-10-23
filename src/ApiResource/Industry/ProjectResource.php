@@ -20,8 +20,8 @@ use App\State\Processor\Industry\DeleteProjectProcessor;
 use App\State\Processor\Industry\MatchJobsProcessor;
 use App\State\Processor\Industry\UpdateProjectProcessor;
 use App\State\Provider\Industry\ProjectCollectionProvider;
-use App\State\Provider\Industry\ProjectDeleteProvider;
 use App\State\Provider\Industry\ProjectProvider;
+use App\State\Provider\Industry\ProjectReferenceProvider;
 use App\State\Provider\Industry\ShoppingListProvider;
 
 #[ApiResource(
@@ -47,14 +47,14 @@ use App\State\Provider\Industry\ShoppingListProvider;
         ),
         new Patch(
             uriTemplate: '/industry/projects/{id}',
-            provider: ProjectProvider::class,
+            provider: ProjectReferenceProvider::class,
             processor: UpdateProjectProcessor::class,
             input: UpdateProjectInput::class,
             openapi: new Model\Operation(summary: 'Update project', description: 'Updates project properties', tags: ['Industry - Projects']),
         ),
         new Delete(
             uriTemplate: '/industry/projects/{id}',
-            provider: ProjectDeleteProvider::class,
+            provider: ProjectReferenceProvider::class,
             processor: DeleteProjectProcessor::class,
             openapi: new Model\Operation(summary: 'Delete project', description: 'Deletes an industry project', tags: ['Industry - Projects']),
         ),

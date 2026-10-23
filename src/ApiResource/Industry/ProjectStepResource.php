@@ -23,8 +23,7 @@ use App\State\Processor\Industry\SplitStepProcessor;
 use App\State\Processor\Industry\UnlinkJobProcessor;
 use App\State\Processor\Industry\UpdateStepProcessor;
 use App\State\Provider\Industry\JobMatchDeleteProvider;
-use App\State\Provider\Industry\ProjectStepDeleteProvider;
-use App\State\Provider\Industry\ProjectStepProvider;
+use App\State\Provider\Industry\ProjectStepReferenceProvider;
 
 #[ApiResource(
     shortName: 'ProjectStep',
@@ -38,14 +37,14 @@ use App\State\Provider\Industry\ProjectStepProvider;
         ),
         new Patch(
             uriTemplate: '/industry/projects/{id}/steps/{stepId}',
-            provider: ProjectStepProvider::class,
+            provider: ProjectStepReferenceProvider::class,
             processor: UpdateStepProcessor::class,
             input: UpdateStepInput::class,
             openapi: new Model\Operation(summary: 'Update step', description: 'Updates step properties', tags: ['Industry - Projects']),
         ),
         new Delete(
             uriTemplate: '/industry/projects/{id}/steps/{stepId}',
-            provider: ProjectStepDeleteProvider::class,
+            provider: ProjectStepReferenceProvider::class,
             processor: DeleteStepProcessor::class,
             openapi: new Model\Operation(summary: 'Delete step', description: 'Deletes a step from the project', tags: ['Industry - Projects']),
         ),
