@@ -203,6 +203,28 @@ final class CachedIndustryJobRepositoryTest extends IntegrationTestCase
         );
     }
 
+    #[Group('issue-214')]
+    public function testJobWithUnknownCostAndProductIsReadBackWithUnknownCostAndProduct(): void
+    {
+        $start = new \DateTimeImmutable('2026-10-22 08:00:00');
+        $this->em->persist((new CachedIndustryJob())
+            ->setCharacter($this->character)
+            ->setJobId(501)
+            ->setActivityId(self::ACTIVITY_RESEARCH_MATERIAL)
+            ->setBlueprintTypeId(self::BLUEPRINT_TYPE_ID)
+            ->setProductTypeId(null)
+            ->setRuns(2)
+            ->setCost(null)
+            ->setStatus('active')
+            ->setStartDate($start)
+            ->setEndDate($start->modify('+3 days')));
+        $this->flushAndClear();
+
+        $job = $this->repository->findByJobId(501);
+
+        self::assertSame([self::BLUEPRINT_TYPE_ID, 2, null, null], [$job?->getBlueprintTypeId(), $job?->getRuns(), $job?->getCost(), $job?->getProductTypeId()]);
+    }
+
     private function completionNotifiedAtOf(int ...$jobIds): array
     {
         $this->em->clear();

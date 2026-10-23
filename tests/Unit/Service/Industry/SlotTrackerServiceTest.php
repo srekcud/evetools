@@ -583,6 +583,9 @@ class SlotTrackerServiceTest extends TestCase
     }
 
     private const int MANUFACTURING_ACTIVITY_ID = 1;
+    private const int RIFTER_BLUEPRINT_TYPE_ID = 1001;
+    private const string RIFTER_BLUEPRINT_NAME = 'Rifter Blueprint';
+    private const int RIFTER_TYPE_ID = 2001;
 
     #[Group('issue-115')]
     public function testJobOfAProductKnownToTheSdeKeepsItsSdeName(): void
@@ -683,6 +686,48 @@ class SlotTrackerServiceTest extends TestCase
         );
     }
 
+    #[Group('issue-214')]
+    public function testActiveMeResearchJobWithoutProductShowsItsBlueprintAsDisplayedType(): void
+    {
+        $character = $this->createCharacterMock(1001, 'Pilot', true);
+        $meResearchJob = (new CachedIndustryJob())
+            ->setCharacter($character)
+            ->setJobId(501)
+            ->setActivityId(4)
+            ->setBlueprintTypeId(self::RIFTER_BLUEPRINT_TYPE_ID)
+            ->setProductTypeId(null)
+            ->setRuns(2)
+            ->setCost(null)
+            ->setStatus('active')
+            ->setStartDate(new \DateTimeImmutable('2026-10-22 08:00:00'))
+            ->setEndDate(new \DateTimeImmutable('2099-01-01 00:00:00'));
+        $this->characterRepository->method('findByUser')->willReturn([$character]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([$meResearchJob]);
+        $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn([]);
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+
+        $result = $this->slotTrackerOnSdeKnowing([
+            self::RIFTER_BLUEPRINT_TYPE_ID => self::RIFTER_BLUEPRINT_NAME,
+            self::RIFTER_TYPE_ID => 'Rifter',
+        ])->getSlotStatus($this->user);
+
+        $this->assertSame(
+            [[501, self::RIFTER_BLUEPRINT_TYPE_ID, self::RIFTER_BLUEPRINT_NAME, 'research_me', 2]],
+            array_map(
+                static fn (array $job): array => [$job['jobId'], $job['productTypeId'], $job['productTypeName'], $job['activityType'], $job['runs']],
+                $result['characters'][0]['jobs'],
+            ),
+        );
+        $this->assertSame(
+            [[501, self::RIFTER_BLUEPRINT_TYPE_ID, self::RIFTER_BLUEPRINT_NAME]],
+            array_map(
+                static fn (array $job): array => [$job['jobId'], $job['productTypeId'], $job['productTypeName']],
+                $result['timeline'],
+            ),
+        );
+        $this->assertNull($meResearchJob->getProductTypeId());
+    }
+
     private function roboticsComponentTarget(int $targetQuantity): IndustryStockpileTarget
     {
         return (new IndustryStockpileTarget())
@@ -690,6 +735,19 @@ class SlotTrackerServiceTest extends TestCase
             ->setTypeName('Robotics')
             ->setTargetQuantity($targetQuantity)
             ->setStage('component');
+    }
+
+    private function slotTrackerOnSdeKnowing(array $typeNamesByTypeId): SlotTrackerService
+    {
+        return new SlotTrackerService(
+            $this->characterRepository,
+            $this->jobRepository,
+            $this->skillRepository,
+            $this->calculationService,
+            new TypeNameResolver($this->sdeTypeRepositoryKnowing($typeNamesByTypeId)),
+            $this->stockpileTargetRepository,
+            $this->assetRepository,
+        );
     }
 
     private function slotTrackerOnSdeKnowingOnlyNitrogenFuelBlock(): SlotTrackerService
@@ -747,6 +805,7 @@ class SlotTrackerServiceTest extends TestCase
         $job = $this->createMock(CachedIndustryJob::class);
         $job->method('getJobId')->willReturn($jobId);
         $job->method('getProductTypeId')->willReturn($productTypeId);
+        $job->method('getDisplayedTypeId')->willReturn($productTypeId);
         $job->method('getActivityId')->willReturn($activityId);
         $job->method('getRuns')->willReturn($runs);
         $job->method('getStartDate')->willReturn(new \DateTimeImmutable($startDate));

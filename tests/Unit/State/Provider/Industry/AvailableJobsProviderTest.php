@@ -13,6 +13,7 @@ use App\Entity\IndustryStepJobMatch;
 use App\Entity\User;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\IndustryCalculationService;
 use App\State\Provider\Industry\AvailableJobsProvider;
 use App\Tests\Unit\Service\Industry\ResolvesTypeNamesFromSde;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -38,6 +39,12 @@ final class AvailableJobsProviderTest extends TestCase
     private const int REVERTED_JOB_ID = 301;
     private const int DELIVERED_JOB_ID = 305;
     private const int ACTIVE_JOB_ID = 308;
+    private const int RIFTER_BLUEPRINT_TYPE_ID = 1001;
+    private const string RIFTER_BLUEPRINT_NAME = 'Rifter Blueprint';
+    private const int RIFTER_TYPE_ID = 2001;
+    private const string RIFTER_NAME = 'Rifter';
+    private const int MANUFACTURING_JOB_ID = 500;
+    private const int ME_RESEARCH_JOB_ID = 501;
 
     public function testJobProducingATypeMissingFromTheSdeIsListedWithAnUnknownTypeNameAndStaysLinkedToItsStep(): void
     {
@@ -112,10 +119,51 @@ final class AvailableJobsProviderTest extends TestCase
         );
     }
 
+    #[Group('issue-214')]
+    public function testJobWithoutCostAndProductIsListedWithUnknownCostAndItsBlueprintAsDisplayedType(): void
+    {
+        $pilot = new User();
+        $character = (new Character())->setName('Aurora Industrialist')->setUser($pilot);
+        $pilot->addCharacter($character);
+        $project = (new IndustryProject())
+            ->setUser($pilot)
+            ->setProductTypeId(self::RIFTER_TYPE_ID)
+            ->setRuns(10);
+        $project->addStep((new IndustryProjectStep())
+            ->setBlueprintTypeId(self::RIFTER_BLUEPRINT_TYPE_ID)
+            ->setProductTypeId(self::RIFTER_TYPE_ID)
+            ->setQuantity(10)
+            ->setRuns(10)
+            ->setDepth(0)
+            ->setActivityType('manufacturing')
+            ->setSortOrder(0));
+        $manufacturingJob = $this->job($character, self::MANUFACTURING_JOB_ID, self::RIFTER_BLUEPRINT_TYPE_ID, self::RIFTER_TYPE_ID, 10, 1_250_000.75, '2026-10-21T08:00:00+00:00');
+        $meResearchJob = $this->job($character, self::ME_RESEARCH_JOB_ID, self::RIFTER_BLUEPRINT_TYPE_ID, self::RIFTER_TYPE_ID, 2, 1.0, '2026-10-20T08:00:00+00:00')
+            ->setActivityId(4)
+            ->setProductTypeId(null)
+            ->setCost(null);
+
+        $jobs = $this->provider($pilot, $project, [$meResearchJob, $manufacturingJob], $this->calculationServiceOnSdeKnowing([
+            self::RIFTER_BLUEPRINT_TYPE_ID => self::RIFTER_BLUEPRINT_NAME,
+            self::RIFTER_TYPE_ID => self::RIFTER_NAME,
+        ]))->provide(new GetCollection(), ['id' => self::PROJECT_ID]);
+
+        self::assertSame(
+            [
+                [self::MANUFACTURING_JOB_ID, self::RIFTER_TYPE_ID, self::RIFTER_NAME, 10, 1_250_000.75],
+                [self::ME_RESEARCH_JOB_ID, self::RIFTER_BLUEPRINT_TYPE_ID, self::RIFTER_BLUEPRINT_NAME, 2, null],
+            ],
+            array_map(
+                static fn ($availableJob): array => [$availableJob->esiJobId, $availableJob->productTypeId, $availableJob->productTypeName, $availableJob->runs, $availableJob->cost],
+                $jobs,
+            ),
+        );
+    }
+
     /**
      * @param list<CachedIndustryJob> $jobs
      */
-    private function provider(User $pilot, IndustryProject $project, array $jobs): AvailableJobsProvider
+    private function provider(User $pilot, IndustryProject $project, array $jobs, ?IndustryCalculationService $calculationService = null): AvailableJobsProvider
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($pilot);
@@ -128,7 +176,7 @@ final class AvailableJobsProviderTest extends TestCase
             $security,
             $projectRepository,
             $jobRepository,
-            $this->calculationServiceOnSdeKnowingOnlyNitrogenFuelBlock(),
+            $calculationService ?? $this->calculationServiceOnSdeKnowingOnlyNitrogenFuelBlock(),
         );
     }
 

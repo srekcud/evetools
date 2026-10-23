@@ -54,6 +54,13 @@ class IndustryJobSyncServiceTest extends TestCase
     private const int FIRST_CORPMATE_ID = 55501;
     private const int SECOND_CORPMATE_ID = 55502;
     private const int THIRD_CORPMATE_ID = 55503;
+    private const int RIFTER_BLUEPRINT_TYPE_ID = 1001;
+    private const string RIFTER_BLUEPRINT_NAME = 'Rifter Blueprint';
+    private const int RIFTER_TYPE_ID = 2001;
+    private const string RIFTER_NAME = 'Rifter';
+    private const int MANUFACTURING_JOB_ID = 500;
+    private const int ME_RESEARCH_JOB_ID = 501;
+    private const int ME_RESEARCH_ACTIVITY_ID = 4;
 
     private EsiClient&MockObject $esiClient;
     private CachedIndustryJobRepository&MockObject $jobRepository;
@@ -81,6 +88,8 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->invTypeRepository = $this->sdeTypeRepositoryKnowing([
             self::NITROGEN_FUEL_BLOCK_TYPE_ID => self::NITROGEN_FUEL_BLOCK_NAME,
             self::TRITANIUM_TYPE_ID => self::TRITANIUM_NAME,
+            self::RIFTER_BLUEPRINT_TYPE_ID => self::RIFTER_BLUEPRINT_NAME,
+            self::RIFTER_TYPE_ID => self::RIFTER_NAME,
         ]);
         $this->em = $this->createMock(EntityManagerInterface::class);
         $this->jobMatchRepository = $this->createStub(IndustryStepJobMatchRepository::class);
@@ -1075,7 +1084,10 @@ class IndustryJobSyncServiceTest extends TestCase
         $altCachedJob->setCost(640_000.25)->setRuns(3);
         $jobMatch = $this->givenJobMatchOnStep(400, $this->makeStep('manual'));
         $this->esiClient->method('get')->willReturn([]);
-        $this->esiClient->method('getPaginated')->willReturn([$this->makeEsiJobOfMatch(400, 67890, 'ready', '2026-10-23T06:15:00Z')]);
+        $altEsiJob = $this->makeEsiJobOfMatch(400, 67890, 'ready', '2026-10-23T06:15:00Z');
+        $altEsiJob['cost'] = 640_000.25;
+        $altEsiJob['runs'] = 3;
+        $this->esiClient->method('getPaginated')->willReturn([$altEsiJob]);
         $this->stubCachedJobs([$altCachedJob]);
         $this->stubActiveJobsByCharacter([]);
 
@@ -1506,9 +1518,167 @@ class IndustryJobSyncServiceTest extends TestCase
         );
     }
 
+    #[Group('issue-214')]
+    public function testMeResearchJobReadWithoutCostAndProductIsCachedWithUnknownCostAndProduct(): void
+    {
+        $character = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $this->givenNoCachedJobAndRecordedPersists();
+        $this->esiClient->method('get')->willReturn([$this->esiMeResearchJob501('active')]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame(
+            [[self::ME_RESEARCH_JOB_ID, self::RIFTER_BLUEPRINT_TYPE_ID, 2, null, null]],
+            array_map($this->cachedJobStateOf(...), $this->persistedJobs),
+        );
+    }
+
+    #[Group('issue-214')]
+    public function testManufacturingJobReadWithCostAndProductIsCachedWithThem(): void
+    {
+        $character = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $this->givenNoCachedJobAndRecordedPersists();
+        $this->esiClient->method('get')->willReturn([$this->esiManufacturingJob500('active')]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame(
+            [[self::MANUFACTURING_JOB_ID, self::RIFTER_BLUEPRINT_TYPE_ID, 10, 1_250_000.75, self::RIFTER_TYPE_ID]],
+            array_map($this->cachedJobStateOf(...), $this->persistedJobs),
+        );
+    }
+
+    #[Group('issue-214')]
+    public function testCachedJobTakesCostAndRunsReadFromEsi(): void
+    {
+        $character = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $cachedJob = $this->cachedRifterJob(self::MANUFACTURING_JOB_ID, $character, 1, self::RIFTER_TYPE_ID, 8, 1_000_000.0);
+        $this->stubCachedJobs([$cachedJob]);
+        $this->stubActiveJobsByCharacter([$cachedJob]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $this->esiClient->method('get')->willReturn([$this->esiManufacturingJob500('active')]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame(
+            [self::MANUFACTURING_JOB_ID, self::RIFTER_BLUEPRINT_TYPE_ID, 10, 1_250_000.75, self::RIFTER_TYPE_ID],
+            $this->cachedJobStateOf($cachedJob),
+        );
+    }
+
+    #[Group('issue-214')]
+    public function testCachedJobWithFallbackCostAndProductTakesUnknownCostAndProductReadFromEsi(): void
+    {
+        $character = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $cachedJob = $this->cachedRifterJob(self::ME_RESEARCH_JOB_ID, $character, self::ME_RESEARCH_ACTIVITY_ID, self::RIFTER_BLUEPRINT_TYPE_ID, 2, 0.0);
+        $this->stubCachedJobs([$cachedJob]);
+        $this->stubActiveJobsByCharacter([$cachedJob]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $this->esiClient->method('get')->willReturn([$this->esiMeResearchJob501('active')]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame(
+            [self::ME_RESEARCH_JOB_ID, self::RIFTER_BLUEPRINT_TYPE_ID, 2, null, null],
+            $this->cachedJobStateOf($cachedJob),
+        );
+    }
+
+    #[Group('issue-214')]
+    public function testCompletionNotificationOfJobWithoutProductIsLabelledWithItsBlueprintAndKeepsProductUnknown(): void
+    {
+        $character = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $cachedJob = $this->cachedRifterJob(self::ME_RESEARCH_JOB_ID, $character, self::ME_RESEARCH_ACTIVITY_ID, null, 2, null);
+        $this->stubCachedJobs([$cachedJob]);
+        $this->stubActiveJobsByCharacter([$cachedJob]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $this->esiClient->method('get')->willReturn([$this->esiMeResearchJob501('ready')]);
+        $this->recordDispatchedNotifications();
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame(
+            [[null, 'Job completed: Rifter Blueprint', 'Rifter Blueprint ME Research (2x) ready to deliver']],
+            array_map(
+                static fn (array $notification): array => [$notification[4]['productTypeId'], $notification[2], $notification[3]],
+                $this->dispatchedNotifications,
+            ),
+        );
+        $this->assertSame(
+            [[null, 'Rifter Blueprint - ME Research completed!']],
+            array_map(
+                static fn (array $notification): array => [$notification['data']['productTypeId'], $notification['message']],
+                $this->mercureNotificationsOf('industry-job-completed'),
+            ),
+        );
+    }
+
+    #[Group('issue-214')]
+    public function testJobMatchTakesUnknownCostOfCachedJobReadWithoutCost(): void
+    {
+        $character = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $cachedJob = $this->cachedRifterJob(self::MANUFACTURING_JOB_ID, $character, 1, self::RIFTER_TYPE_ID, 10, 1_250_000.75);
+        $jobMatch = $this->givenJobMatchOnStep(self::MANUFACTURING_JOB_ID, $this->makeStep('manual'))->setCost(1_250_000.75);
+        $this->stubCachedJobs([$cachedJob]);
+        $this->stubActiveJobsByCharacter([$cachedJob]);
+        $esiJobWithoutCost = $this->esiManufacturingJob500('active');
+        unset($esiJobWithoutCost['cost']);
+        $this->esiClient->method('get')->willReturn([$esiJobWithoutCost]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([null, null], [$cachedJob->getCost(), $jobMatch->getCost()]);
+    }
+
     // ===========================================
     // Helpers
     // ===========================================
+
+    private function givenNoCachedJobAndRecordedPersists(): void
+    {
+        $this->stubCachedJobs([]);
+        $this->stubActiveJobsByCharacter([]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $this->em->method('persist')->willReturnCallback(function (object $entity): void {
+            $this->persistedJobs[] = $entity;
+        });
+    }
+
+    private function esiManufacturingJob500(string $status): array
+    {
+        $jobData = $this->makeJobData(self::MANUFACTURING_JOB_ID, self::CHARACTER_A_ID, $status, self::RIFTER_TYPE_ID);
+        $jobData['blueprint_type_id'] = self::RIFTER_BLUEPRINT_TYPE_ID;
+        $jobData['runs'] = 10;
+        $jobData['cost'] = 1_250_000.75;
+
+        return $jobData;
+    }
+
+    private function esiMeResearchJob501(string $status): array
+    {
+        $jobData = $this->makeJobData(self::ME_RESEARCH_JOB_ID, self::CHARACTER_A_ID, $status);
+        $jobData['activity_id'] = self::ME_RESEARCH_ACTIVITY_ID;
+        $jobData['blueprint_type_id'] = self::RIFTER_BLUEPRINT_TYPE_ID;
+        $jobData['runs'] = 2;
+        unset($jobData['product_type_id'], $jobData['cost']);
+
+        return $jobData;
+    }
+
+    private function cachedRifterJob(int $jobId, Character $character, int $activityId, ?int $productTypeId, int $runs, ?float $cost): CachedIndustryJob
+    {
+        return $this->makeCachedJob($jobId, $character, 'active', '+1 day')
+            ->setActivityId($activityId)
+            ->setBlueprintTypeId(self::RIFTER_BLUEPRINT_TYPE_ID)
+            ->setProductTypeId($productTypeId)
+            ->setRuns($runs)
+            ->setCost($cost);
+    }
+
+    private function cachedJobStateOf(CachedIndustryJob $job): array
+    {
+        return [$job->getJobId(), $job->getBlueprintTypeId(), $job->getRuns(), $job->getCost(), $job->getProductTypeId()];
+    }
 
     private function corporationJobsOfE1(): array
     {
