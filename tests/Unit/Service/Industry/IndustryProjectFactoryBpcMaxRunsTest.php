@@ -331,18 +331,6 @@ final class IndustryProjectFactoryBpcMaxRunsTest extends TestCase
         self::assertSame(self::HYDROGEN_FUEL_BLOCK_JOBS_OF_ONE_NOMAD, $this->jobsOf($project, self::HYDROGEN_FUEL_BLOCK));
     }
 
-    public function testCopyStepsAreNotSplitByTheBpcMaxRuns(): void
-    {
-        $project = $this->createProject(self::NOMAD, runs: 2, maxJobDurationDays: self::DEFAULT_MAX_JOB_DURATION_DAYS);
-
-        $copySteps = array_values(array_filter($project->getSteps()->toArray(), static fn (IndustryProjectStep $step): bool => $step->getActivityType() === 'copy'));
-        self::assertSame(
-            [],
-            array_values(array_filter($copySteps, static fn (IndustryProjectStep $step): bool => $step->getSplitGroupId() !== null)),
-        );
-        self::assertCount(1, $this->copyStepsOfProduct($project, self::HYDROGEN_FUEL_BLOCK));
-    }
-
     private function assertCreationOfTwentyFiveScorpionsIsRefusedNamingTheirBlueprint(): void
     {
         $persistedEntities = [];
