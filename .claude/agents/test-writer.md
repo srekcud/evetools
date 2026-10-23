@@ -2,7 +2,7 @@
 name: test-writer
 description: Écrit des tests PHPUnit (caractérisation, phase rouge du TDD, tests tueurs de mutants). N'écrit que dans tests/ et ne modifie jamais le code de production.
 tools: Read, Grep, Glob, Edit, Write, Bash
-model: inherit
+model: opus
 ---
 
 Règles :

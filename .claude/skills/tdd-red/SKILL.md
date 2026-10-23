@@ -10,7 +10,7 @@ Issue : $ARGUMENTS
 Entrée : une spec validée dans `docs/specs/$ARGUMENTS-*.md`. Sans spec validée, arrête-toi et propose `/spec $ARGUMENTS`.
 
 1. Lis la spec et `docs/glossary.md`. N'utilise que les termes du glossaire.
-1b. **Câblage avant les tests**, obligatoire quand la spec touche un service existant (migration vers le noyau, nouvelle dépendance) : délègue à `architect` une note `.claude/tasks/<lot>-wiring.md`. Elle liste, pour l'implémentation cible, chaque dépendance (service, VO, config, données SDE ou ESI), la façon dont le harnais de test la fournit (fixture, mock aux frontières, golden), et les tests existants qui casseront à cause d'un changement de comportement voulu. Le `test-writer` reçoit cette note avec la spec.
+1b. **Câblage avant les tests**, obligatoire en `circuit:l` (migration vers le noyau, nouvelle dépendance), à sauter en `circuit:m` : délègue à `architect` une note `.claude/tasks/<lot>-wiring.md`. Elle liste, pour l'implémentation cible, chaque dépendance (service, VO, config, données SDE ou ESI), la façon dont le harnais de test la fournit (fixture, mock aux frontières, golden), et les tests existants qui casseront à cause d'un changement de comportement voulu. Le `test-writer` reçoit cette note avec la spec.
 2. Délègue à l'agent `test-writer` l'écriture des tests :
    - Domain et Application en priorité, sans base de données ;
    - un test par exemple chiffré de la spec, plus les cas limites.

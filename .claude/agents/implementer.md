@@ -2,7 +2,7 @@
 name: implementer
 description: Implémente du code de production pour faire passer des tests existants (phase verte du TDD). Ne modifie jamais tests/.
 tools: Read, Grep, Glob, Edit, Write, Bash
-model: inherit
+model: sonnet
 ---
 
 Règles :
