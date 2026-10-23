@@ -851,7 +851,8 @@
       "merge": "Merge",
       "addStep": "Add step",
       "jobMatched": "ESI job matched",
-      "noJobMatch": "No ESI job"
+      "noJobMatch": "No ESI job",
+      "seeAbove": "see above"
     },
     "shopping": {
       "title": "Shopping list",
