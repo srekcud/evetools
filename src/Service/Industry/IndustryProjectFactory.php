@@ -516,7 +516,33 @@ class IndustryProjectFactory
             array_push($plannedSteps, ...$jobs);
         }
 
-        return $plannedSteps;
+        return $this->withCopyStepsFollowingManufacturing($plannedSteps, $settingsOfExistingSteps);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $plannedSteps
+     * @param array<string, list<array{meLevel: int, teLevel: int, structureConfig: IndustryStructureConfig|null}>> $settingsOfExistingSteps
+     * @return list<array<string, mixed>>
+     */
+    private function withCopyStepsFollowingManufacturing(array $plannedSteps, array $settingsOfExistingSteps): array
+    {
+        $stepsWithCopyJobs = [];
+        foreach ($plannedSteps as $plannedStep) {
+            if ($plannedStep['activityType'] !== 'copy') {
+                $stepsWithCopyJobs[] = $plannedStep;
+                continue;
+            }
+
+            $manufacturingRuns = array_sum(array_column(
+                array_filter($plannedSteps, static fn (array $step): bool => $step['activityType'] === 'manufacturing' && $step['blueprintTypeId'] === $plannedStep['blueprintTypeId']),
+                'runs',
+            ));
+            $copyStep = [...$plannedStep, 'runs' => $manufacturingRuns, 'quantity' => $manufacturingRuns];
+            $copyJobs = self::splitUnderMaxRuns($copyStep, $this->maxProductionLimitOf($copyStep['blueprintTypeId']));
+            array_push($stepsWithCopyJobs, ...array_map(fn (array $job): array => $this->withSettingsOfExistingStep($job, $settingsOfExistingSteps), $copyJobs));
+        }
+
+        return $stepsWithCopyJobs;
     }
 
     /**
@@ -635,14 +661,19 @@ class IndustryProjectFactory
             return null;
         }
 
-        $industryBlueprint = $this->blueprintRepository->findBy(['typeId' => $step['blueprintTypeId']])[0] ?? null;
+        return $this->maxProductionLimitOf($step['blueprintTypeId']);
+    }
+
+    private function maxProductionLimitOf(int $blueprintTypeId): int
+    {
+        $industryBlueprint = $this->blueprintRepository->findBy(['typeId' => $blueprintTypeId])[0] ?? null;
         if ($industryBlueprint === null) {
-            throw new \RuntimeException("No industry blueprint in the SDE for blueprint {$step['blueprintTypeId']}: its BPC max runs is unknown");
+            throw new \RuntimeException("No industry blueprint in the SDE for blueprint {$blueprintTypeId}: its BPC max runs is unknown");
         }
 
         $bpcMaxRuns = $industryBlueprint->getMaxProductionLimit();
         if ($bpcMaxRuns <= 0) {
-            throw new \RuntimeException("Invalid max production limit {$bpcMaxRuns} in the SDE for blueprint {$step['blueprintTypeId']}");
+            throw new \RuntimeException("Invalid max production limit {$bpcMaxRuns} in the SDE for blueprint {$blueprintTypeId}");
         }
 
         return $bpcMaxRuns;
@@ -670,7 +701,15 @@ class IndustryProjectFactory
      */
     private function jobsOf(array $step, float $maxJobDurationDays, ?int $bpcMaxRuns): array
     {
-        $maxRunsPerJob = self::maxRunsPerJob($step, $maxJobDurationDays, $bpcMaxRuns);
+        return self::splitUnderMaxRuns($step, self::maxRunsPerJob($step, $maxJobDurationDays, $bpcMaxRuns));
+    }
+
+    /**
+     * @param array<string, mixed> $step
+     * @return list<array<string, mixed>>
+     */
+    private static function splitUnderMaxRuns(array $step, ?int $maxRunsPerJob): array
+    {
         $totalRuns = $step['runs'];
 
         if ($maxRunsPerJob === null) {
