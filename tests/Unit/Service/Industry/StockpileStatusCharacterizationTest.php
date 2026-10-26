@@ -16,6 +16,7 @@ use App\Service\JitaMarketService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -236,9 +237,8 @@ final class StockpileStatusCharacterizationTest extends TestCase
         self::assertSame(22.69, $status['kpis']['totalInvested']);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #8 (R10) : un item sans prix Jita vaut 0 ISK
-    // (unitPrice 0.0, stockValue 0.0, deficitCost 0.0) au lieu d'un coût inconnu ; totalInvested l'ignore.
-    public function testTargetWithoutJitaPriceIsValuedAtZeroIssue8(): void
+    #[Group('issue-8')]
+    public function testTargetWithoutJitaPriceIsCurrentlyValuedAtZeroIssue8(): void
     {
         $this->addTarget(57486, 'Unpriced Component', 100, 'component', stock: 40);
         $this->addTarget(36, 'Mexallon', 10, 'raw_material', stock: 4, unitPrice: 50.0);

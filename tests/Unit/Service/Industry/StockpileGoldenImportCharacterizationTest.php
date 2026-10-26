@@ -27,6 +27,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -96,10 +97,8 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         $this->pilot = $this->createMock(User::class);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #2 (R3, B1) : les runs saisis sont lus comme
-    // une quantité. 25 runs de Nitrogen Fuel Block (40 unités par run) deviennent 1 run : cible 40 au lieu de 1000,
-    // Nitrogen Isotopes 405 au lieu de 10125 (golden nitrogen-fuel-block-25runs-me10-npc, currentEvetoolsSimulated).
-    public function testPreviewOfTwentyFiveRunsOfNitrogenFuelBlockReadsTheRunsAsAQuantityIssue2(): void
+    #[Group('issue-2')]
+    public function testPreviewOfTwentyFiveRunsOfNitrogenFuelBlockCurrentlyReadsTheRunsAsAQuantityIssue2(): void
     {
         $preview = $this->service->previewImport($this->pilot, self::NITROGEN_FUEL_BLOCK, 25, 10);
 
@@ -128,9 +127,7 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         self::assertSame(40, $preview['stages']['final_product'][0]['quantity']);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #2 (R3, B1) : les 41 runs saisis sont lus
-    // comme 41 unités, soit 2 runs de 40 unités : cible 80 au lieu de 1640. Chaque matériau est arrondi au supérieur
-    // avec un minimum d'une unité par run.
+    #[Group('issue-2')]
     public function testPreviewOfNitrogenFuelBlockAtMeTenCurrentlyReadsFortyOneRunsAsUnitsIssue2(): void
     {
         $preview = $this->service->previewImport($this->pilot, self::NITROGEN_FUEL_BLOCK, 41, 10);
@@ -142,9 +139,8 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         );
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #8 (R10) : un item sans prix Jita est exclu
-    // de estimatedCost, qui reste affiché comme un montant connu au lieu d'un coût inconnu.
-    public function testPreviewEstimatedCostSilentlyLeavesOutTheItemsWithoutJitaPriceIssue8(): void
+    #[Group('issue-8')]
+    public function testPreviewEstimatedCostCurrentlyLeavesOutTheItemsWithoutJitaPriceIssue8(): void
     {
         $this->jitaPrices = [
             self::NITROGEN_FUEL_BLOCK => 600.5,
@@ -192,11 +188,8 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         $this->service->previewImport($this->pilot, self::ROBOTICS, 1, 10);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issues #2 et #16 : 10 runs de Fernite Carbide
-    // (10000 unités par run) deviennent 1 run ; le Hydrogen Fuel Block, consommé par la réaction racine et par ses
-    // deux réactions intermédiaires, additionne trois arrondis séparés (5 + 5 + 5) et garde l'étape « component »
-    // de sa première rencontre. Le ME saisi (10) est ignoré, comme attendu pour une réaction (R2).
-    public function testPreviewOfTenRunsOfFerniteCarbideReadsTheRunsAsAQuantityAndSumsTheFuelBlockPerBranchIssues2And16(): void
+    #[Group('issue-2')]
+    public function testPreviewOfTenRunsOfFerniteCarbideCurrentlyReadsTheRunsAsAQuantityIssue2(): void
     {
         $preview = $this->service->previewImport($this->pilot, self::FERNITE_CARBIDE, 10, 10);
 
@@ -214,17 +207,22 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         $previewAtMeTen = $this->service->previewImport($this->pilot, self::FERNITE_CARBIDE, 1, 10);
 
         self::assertSame($previewAtMeZero['stages'], $previewAtMeTen['stages']);
-        self::assertSame(
-            [44 => 12, 3683 => 60, 3689 => 12, 9832 => 27, 9848 => 3, 16272 => 459, 16273 => 945, 16275 => 54, 17889 => 1215, 16639 => 100, 16642 => 100, 16635 => 100, 16636 => 100],
-            $this->quantitiesByTypeId($previewAtMeTen['stages']['raw_material']),
-        );
         self::assertSame(17, $previewAtMeTen['totalItems']);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #69 (R3) : la demande d'un intermédiaire n'est
-    // pas agrégée entre branches avant l'arrondi en runs. Sur le golden Nomad (Ravworks, fait foi), 29 feuilles sur 63
-    // et 19 intermédiaires sur 65 sont surestimés dans les cibles du stockpile (Oxygen Isotopes +50 %).
-    public function testPreviewOfOneNomadOverestimatesTheNonAggregatedLeavesAndIntermediatesIssue69(): void
+    #[Group('issue-69')]
+    public function testPreviewOfOneRunOfFerniteCarbideCurrentlyBuildsTheFuelBlockOncePerBranchIssue69(): void
+    {
+        $preview = $this->service->previewImport($this->pilot, self::FERNITE_CARBIDE, 1, 10);
+
+        self::assertSame(
+            [44 => 12, 3683 => 60, 3689 => 12, 9832 => 27, 9848 => 3, 16272 => 459, 16273 => 945, 16275 => 54, 17889 => 1215, 16639 => 100, 16642 => 100, 16635 => 100, 16636 => 100],
+            $this->quantitiesByTypeId($preview['stages']['raw_material']),
+        );
+    }
+
+    #[Group('issue-69')]
+    public function testPreviewOfOneNomadCurrentlyOverestimatesTheNonAggregatedLeavesAndIntermediatesIssue69(): void
     {
         $golden = json_decode((string) file_get_contents(self::GOLDEN_DIR.'nomad-1run-me10-no-structure.ravworks.json'), true, flags: \JSON_THROW_ON_ERROR);
         $goldenLeaves = array_column($golden['expected']['leaves'], 'quantity', 'typeId');

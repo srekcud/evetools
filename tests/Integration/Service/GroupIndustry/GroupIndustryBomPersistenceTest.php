@@ -92,7 +92,6 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
     }
 
     #[Group('issue-2')]
-    #[Group('issue-23')]
     public function testCreatedProjectCurrentlyPersistsTheBomOfOneRunForTwentyFiveRunsOfNitrogenFuelBlockIssue2(): void
     {
         $projectId = (string) $this->createNitrogenFuelBlockProject(runs: 25, meLevel: 10, teLevel: 20)->getId();
@@ -123,9 +122,6 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
         );
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux (aucune issue connue) : buildBom() n'efface rien. Rappelé
-    // sur un projet persisté, il ajoute une seconde BOM complète ; les lignes existantes, leur quantité fournie et les
-    // contributions approuvées ou en attente qui les visent restent en base, inchangées.
     public function testRebuildingThePersistedBomCurrentlyAppendsASecondBomAndLeavesTheContributionsUntouched(): void
     {
         $project = $this->createNitrogenFuelBlockProject(runs: 1, meLevel: 0, teLevel: 0);

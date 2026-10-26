@@ -347,9 +347,7 @@ final class IndustryShoppingListBuilderGoldenCharacterizationTest extends TestCa
         self::assertSame(401, self::quantitiesByTypeId($shoppingList)[self::NITROGEN_ISOTOPES]);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #6 (R4, D3) : les quantités sont celles de la
-    // meilleure structure du pilote (Raitaru, 1 %) alors que l'étape est assignée à une station NPC ; la quantité
-    // réellement consommée n'apparaît qu'en écart, dans extraQuantity (Nitrogen Isotopes 401 + 4 au lieu de 405).
+    #[Group('issue-6')]
     public function testShoppingListOfAStepAssignedToAStationCurrentlyListsTheBestStructureQuantitiesIssue6(): void
     {
         $this->pilotStructures = [self::structure($this->pilot, 'raitaru')];
@@ -372,10 +370,8 @@ final class IndustryShoppingListBuilderGoldenCharacterizationTest extends TestCa
         ], $shoppingList);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #6 (R4, D3) : sans structure, la meilleure
-    // structure du pilote est l'absence de bonus ; l'étape assignée à un Raitaru (1 %) consomme 401 Nitrogen Isotopes,
-    // mais la liste en achète 405 et l'économie de 4 n'apparaît nulle part (extraQuantity borné à 0).
-    public function testShoppingListOfAStepInABetterStructureThanThePilotsBestCurrentlyHidesTheSaving(): void
+    #[Group('issue-6')]
+    public function testShoppingListOfAStepInABetterStructureThanThePilotsBestCurrentlyHidesTheSavingIssue6(): void
     {
         $this->pilotStructures = [];
         $project = self::projectOf($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 10);

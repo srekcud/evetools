@@ -21,6 +21,7 @@ use App\Service\JitaMarketService;
 use App\State\Provider\Industry\ShoppingListProvider;
 use App\Tests\Unit\Service\Industry\BuildsShoppingListOnGoldenSde;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -107,8 +108,7 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
             ->addPurchase((new IndustryStepPurchase())->setTypeId(self::NITROGEN_ISOTOPES)->setQuantity(100));
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #8 (R10) : Robotics, sans prix Jita ni structure,
-    // n'a ni prix ni lieu d'achat et sort en silence des totaux, affichés comme des montants connus.
+    #[Group('issue-8')]
     public function testPricedShoppingListCurrentlyLeavesAMaterialWithoutPriceOutOfTheTotalsIssue8(): void
     {
         $this->jitaPrices = [self::NITROGEN_ISOTOPES => 500.0, self::COOLANT => 100.0];
@@ -226,9 +226,8 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
         self::assertSame(0.0, $shoppingList->totals->savingsVsStructure);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #6 (R4, D3) : les quantités sont celles du
-    // Raitaru, meilleure structure du pilote ; la consommation de la station assignée n'apparaît qu'en extraQuantity.
-    public function testPricedShoppingListOfAStepAssignedToAStationCarriesTheExtraQuantityIssue6(): void
+    #[Group('issue-6')]
+    public function testPricedShoppingListOfAStepAssignedToAStationCurrentlyCarriesTheExtraQuantityIssue6(): void
     {
         $this->pilotStructures = [self::structure($this->pilot, 'raitaru')];
         $this->project->getSteps()->first()->setStructureConfig(self::structure($this->pilot, 'station'));
@@ -414,8 +413,7 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
         self::assertFalse($this->materialOf($shoppingList, self::ROBOTICS)->isInventionMaterial);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #8 (R10) : sans marché, la liste garde ses
-    // quantités et un message d'erreur, mais les totaux valent 0 au lieu d'être inconnus.
+    #[Group('issue-8')]
     public function testPricedShoppingListWithoutMarketKeepsTheQuantitiesAndCurrentlyTotalsZeroIssue8(): void
     {
         $this->marketUnavailable = true;

@@ -329,8 +329,7 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
         self::assertSame([10, 'Tatara', self::TATARA_REACTOR_RIG_BONUS], [$reactionNode['runs'], $reactionNode['structureName'], $reactionNode['structureBonus']]);
     }
 
-    #[Group('issue-15')]
-    public function testTreeOfFerniteCarbideAtMeZeroCurrentlyShowsTheFuelBlockStepPlannedAtHardCodedMeTenIssue15(): void
+    public function testTreeOfFerniteCarbideAtMeZeroShowsTheFuelBlockStepPlannedAtTheDefaultMeTenOfAnIntermediate(): void
     {
         $project = $this->oneRunOfFerniteCarbide(0);
 

@@ -40,19 +40,5 @@
         "splitGroup": null,
         "splitIndex": 0,
         "totalGroupRuns": null
-    },
-    {
-        "product": "Fernite Carbide",
-        "productTypeId": 16673,
-        "blueprintTypeId": 1016673,
-        "activityType": "reaction",
-        "depth": 0,
-        "runs": 1,
-        "quantity": 1,
-        "meLevel": 0,
-        "teLevel": 0,
-        "splitGroup": null,
-        "splitIndex": 0,
-        "totalGroupRuns": null
     }
 ]
