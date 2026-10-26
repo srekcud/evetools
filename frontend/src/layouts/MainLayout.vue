@@ -247,10 +247,6 @@ const filteredNavEntries = computed((): NavEntry[] => {
   return result
 })
 
-function navigateTo(item: NavItem): void {
-  router.push(item.route)
-}
-
 function isActiveRoute(item: NavItem): boolean {
   return router.currentRoute.value.path === item.route
 }
@@ -450,6 +446,7 @@ watch(showSettings, (opened) => {
               <!-- Group header -->
               <button
                 @click="toggleGroup(entry.id)"
+                :aria-expanded="isGroupExpanded(entry as NavGroup)"
                 class="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group relative overflow-hidden border text-slate-400 border-transparent hover:bg-slate-800/50 hover:text-slate-200 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/5"
               >
                 <div class="absolute inset-0 bg-linear-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
@@ -470,10 +467,11 @@ watch(showSettings, (opened) => {
                 v-if="isGroupExpanded(entry as NavGroup)"
                 class="mt-1 space-y-0.5 pl-4"
               >
-                <button
+                <RouterLink
                   v-for="child in (entry as NavGroup).children"
                   :key="child.id"
-                  @click="navigateTo(child)"
+                  :to="child.route"
+                  :aria-current="isActiveRoute(child) ? 'page' : undefined"
                   :class="[
                     'w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-300 group relative overflow-hidden border text-sm',
                     isActiveRoute(child)
@@ -487,14 +485,15 @@ watch(showSettings, (opened) => {
                   </svg>
                   <span class="font-medium relative">{{ t(child.labelKey) }}</span>
                   <div v-if="isActiveRoute(child)" class="ml-auto w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse relative"></div>
-                </button>
+                </RouterLink>
               </div>
             </div>
 
             <!-- Simple nav item -->
-            <button
+            <RouterLink
               v-else
-              @click="navigateTo(entry as NavItem)"
+              :to="(entry as NavItem).route"
+              :aria-current="isActiveRoute(entry as NavItem) ? 'page' : undefined"
               :class="[
                 'w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group relative overflow-hidden border',
                 isActiveRoute(entry as NavItem)
@@ -508,7 +507,7 @@ watch(showSettings, (opened) => {
               </svg>
               <span class="font-medium relative">{{ t((entry as NavItem).labelKey) }}</span>
               <div v-if="isActiveRoute(entry as NavItem)" class="ml-auto w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse relative"></div>
-            </button>
+            </RouterLink>
           </template>
         </nav>
 
@@ -542,15 +541,15 @@ watch(showSettings, (opened) => {
             </div>
             <div class="mt-4 flex flex-col gap-1.5">
               <!-- Row 1: Characters button (full width) -->
-              <button
-                @click="router.push('/characters')"
+              <RouterLink
+                to="/characters"
                 class="w-full py-2 px-3 bg-slate-700/50 hover:bg-cyan-500/20 rounded-lg text-sm text-slate-400 hover:text-cyan-400 transition-colors flex items-center justify-center gap-2"
               >
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                 </svg>
                 <span class="truncate">{{ t('nav.characters') }}</span>
-              </button>
+              </RouterLink>
               <!-- Row 2: Logout + Version -->
               <div class="flex items-center gap-1.5">
                 <button
