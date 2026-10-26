@@ -9,6 +9,7 @@ import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useSyncStore } from '@/stores/sync'
 import { useEveImages } from '@/composables/useEveImages'
 import { useToast } from '@/composables/useToast'
+import { useTabQuery } from '@/composables/useTabQuery'
 import BomTable from '@/components/group-industry/BomTable.vue'
 import JobsTable from '@/components/group-industry/JobsTable.vue'
 import ContainerBanner from '@/components/group-industry/ContainerBanner.vue'
@@ -38,7 +39,8 @@ const { showToast } = useToast()
 const projectId = computed(() => route.params.id as string)
 
 type DetailTab = 'bom' | 'contributions' | 'distribution' | 'members'
-const activeTab = ref<DetailTab>('bom')
+const DETAIL_TABS: DetailTab[] = ['bom', 'contributions', 'distribution', 'members']
+const activeTab = useTabQuery(DETAIL_TABS, 'bom')
 
 // Contribute modal state
 const showContributeModal = ref(false)

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
 import { useIndustryStore, type SearchResult } from '@/stores/industry'
+import { useTabQuery } from '@/composables/useTabQuery'
 import { useAdminStore } from '@/stores/admin'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
@@ -22,7 +22,6 @@ import PivotAdvisorTab from '@/components/industry/PivotAdvisorTab.vue'
 import StockpileDashboard from '@/components/industry/StockpileDashboard.vue'
 
 const { t } = useI18n()
-const route = useRoute()
 const store = useIndustryStore()
 const adminStore = useAdminStore()
 const isAdmin = ref(false)
@@ -79,8 +78,8 @@ const viewingProjectId = ref<string | null>(null)
 
 // Flat pill navigation (single level)
 type MainTab = 'dashboard' | 'projects' | 'margins' | 'batch' | 'buy-vs-build' | 'pivot' | 'slots' | 'stockpile'
-const VALID_TABS: MainTab[] = ['dashboard', 'projects', 'margins', 'batch', 'buy-vs-build', 'pivot', 'slots', 'stockpile']
-const mainTab = ref<MainTab>('dashboard')
+const MAIN_TABS: MainTab[] = ['dashboard', 'projects', 'margins', 'batch', 'buy-vs-build', 'pivot', 'slots', 'stockpile']
+const mainTab = useTabQuery(MAIN_TABS, 'dashboard')
 
 // Props for analysis tabs that accept an initial type ID
 const analysisInitialTypeId = ref<number | undefined>(undefined)
@@ -130,12 +129,6 @@ const navGroups: NavGroup[] = [
 
 onMounted(async () => {
   isAdmin.value = await adminStore.checkAccess()
-
-  // Parse tab from URL query, with backward compat for ?tab=margins
-  const queryTab = route.query.tab as string | undefined
-  if (queryTab && VALID_TABS.includes(queryTab as MainTab)) {
-    mainTab.value = queryTab as MainTab
-  }
 
   store.fetchProjects()
 })

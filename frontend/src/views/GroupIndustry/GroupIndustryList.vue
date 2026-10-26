@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useEveImages } from '@/composables/useEveImages'
+import { useTabQuery } from '@/composables/useTabQuery'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ProjectKpiCards from '@/components/group-industry/ProjectKpiCards.vue'
@@ -30,7 +31,8 @@ const error = ref<string | null>(null)
 // --- Tabs ---
 
 type MainTab = 'my-projects' | 'available'
-const activeTab = ref<MainTab>('my-projects')
+const MAIN_TABS: MainTab[] = ['my-projects', 'available']
+const activeTab = useTabQuery(MAIN_TABS, 'my-projects')
 
 // --- Status filter pills ---
 

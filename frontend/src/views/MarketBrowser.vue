@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useMarketStore, type MarketSearchItem } from '@/stores/market'
 import { useEveImages } from '@/composables/useEveImages'
+import { useTabQuery } from '@/composables/useTabQuery'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { apiRequest } from '@/services/api'
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -23,12 +23,8 @@ const { typeNameLabel } = useTypeNames()
 const structureSystemName = ref<string | null>(null)
 
 type Tab = 'browse' | 'detail' | 'alerts'
-const activeTab = ref<Tab>('browse')
-
-const route = useRoute()
-const router = useRouter()
-
 const VALID_TABS: Tab[] = ['browse', 'detail', 'alerts']
+const activeTab = useTabQuery(VALID_TABS, 'browse')
 
 const activeAlertsCount = computed(() =>
   marketStore.alerts.filter(a => a.status === 'active').length
@@ -59,11 +55,6 @@ const filteredSearchResults = computed(() => {
 
 // Load root groups, favorites, alerts and settings on mount
 onMounted(async () => {
-  const tabParam = route.query.tab as string | undefined
-  if (tabParam && VALID_TABS.includes(tabParam as Tab)) {
-    activeTab.value = tabParam as Tab
-  }
-
   marketStore.fetchRootGroups()
   marketStore.fetchFavorites()
   marketStore.fetchAlerts()
@@ -86,17 +77,6 @@ watch(() => marketStore.typeDetail, (detail) => {
   if (detail) {
     activeTab.value = 'detail'
   }
-})
-
-// Sync URL query param when tab changes
-watch(activeTab, (tab) => {
-  const query = { ...route.query }
-  if (tab === 'browse') {
-    delete query.tab
-  } else {
-    query.tab = tab
-  }
-  router.replace({ query })
 })
 
 function selectItem(typeId: number): void {
