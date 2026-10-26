@@ -8,11 +8,15 @@ use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\User;
 use App\Service\Industry\IndustryShoppingListBuilder;
+use App\Service\Industry\ProductionStepNeedsResolver;
+use App\Service\Industry\StepProductNeed;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(IndustryShoppingListBuilder::class)]
+#[CoversClass(ProductionStepNeedsResolver::class)]
+#[CoversClass(StepProductNeed::class)]
 #[Group('issue-121')]
 final class IndustryShoppingListBuilderFromStepsTest extends TestCase
 {
@@ -225,6 +229,107 @@ final class IndustryShoppingListBuilderFromStepsTest extends TestCase
             self::sortedByTypeId(self::LEAVES_OF_THIRTY_TWO_QUANTUM_MICROPROCESSORS_BESIDES_TITANIUM_CARBIDE + [self::TITANIUM_CARBIDE => 491]),
             $this->quantitiesOf($project),
         );
+    }
+
+    public function testShoppingListReportsAStepWithoutBlueprintNorReactionAsAFailedProductAndBuysItsProduct(): void
+    {
+        $project = self::projectOf($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 0);
+        self::addStep($project, self::NITROGEN_FUEL_BLOCK, 1, 0, 'manufacturing', 0);
+        self::addStep($project, self::ROBOTICS, 1, 1, 'manufacturing', 0);
+
+        $shoppingList = $this->shoppingListBuilderOnGoldenSde()->getShoppingList($project);
+
+        self::assertSame([['typeId' => self::ROBOTICS, 'reason' => 'No blueprint or reaction found for product type ID 9848']], $shoppingList['failedProducts']);
+        self::assertSame(1, self::quantitiesByTypeId($shoppingList['materials'])[self::ROBOTICS]);
+    }
+
+    public function testShoppingListReportsTheFailedProductsByIncreasingTypeIdWhateverTheOrderOfTheirSteps(): void
+    {
+        $project = $this->oneRunOfFerniteCarbide();
+        self::addStep($project, self::OXYGEN_ISOTOPES, 1, 1, 'manufacturing');
+        $this->typeIdsMissingFromSde = [self::SCANDIUM];
+
+        self::assertSame(
+            [
+                ['typeId' => self::FERNITE_ALLOY, 'reason' => 'Types missing from the SDE: 16639'],
+                ['typeId' => self::OXYGEN_ISOTOPES, 'reason' => 'No blueprint or reaction found for product type ID 17887'],
+            ],
+            $this->shoppingListBuilderOnGoldenSde()->getShoppingList($project)['failedProducts'],
+        );
+    }
+
+    public function testShoppingListDoesNotBuyAFailedProductBlacklistedAfterItsStepWasPlanned(): void
+    {
+        $project = $this->oneRunOfFerniteCarbide();
+        $this->pilot->setIndustryBlacklistTypeIds([self::FERNITE_ALLOY]);
+        $this->typeIdsMissingFromSde = [self::SCANDIUM];
+
+        $shoppingList = $this->shoppingListBuilderOnGoldenSde()->getShoppingList($project);
+
+        self::assertSame([['typeId' => self::FERNITE_ALLOY, 'reason' => 'Types missing from the SDE: 16639']], $shoppingList['failedProducts']);
+        self::assertSame(
+            self::sortedByTypeId(self::ONE_RUN_OF_HYDROGEN_FUEL_BLOCK + [self::EVAPORITE_DEPOSITS => 100, self::SILICATES => 100]),
+            self::quantitiesByTypeId($shoppingList['materials']),
+        );
+    }
+
+    public function testShoppingListKeepsThePersistedNeedOfTheStepsBelowAFailedProductWhateverItsStock(): void
+    {
+        $project = $this->oneRunOfFerniteCarbide();
+        $this->onlyStepOf($project, self::FERNITE_ALLOY)->setInStockQuantity(200);
+        $this->pilot->setIndustryBlacklistTypeIds([self::HYDROGEN_FUEL_BLOCK]);
+        $this->typeIdsMissingFromSde = [self::SCANDIUM];
+
+        self::assertSame(
+            [self::HYDROGEN_FUEL_BLOCK => 15, self::EVAPORITE_DEPOSITS => 100, self::SILICATES => 100],
+            $this->quantitiesOf($project),
+        );
+    }
+
+    public function testShoppingListOfABlacklistedRootBuysOnlyTheRoot(): void
+    {
+        $project = $this->thirtyTwoQuantumMicroprocessors(self::SHORT_MAX_JOB_DURATION_DAYS);
+        $this->pilot->setIndustryBlacklistTypeIds([self::QUANTUM_MICROPROCESSOR]);
+
+        self::assertSame([self::QUANTUM_MICROPROCESSOR => 32], $this->quantitiesOf($project));
+    }
+
+    public function testShoppingListOfAPurchasedRootBuysOnlyTheRoot(): void
+    {
+        $project = self::projectOf($this->pilot, self::NITROGEN_FUEL_BLOCK, 25, 10);
+        self::addStep($project, self::NITROGEN_FUEL_BLOCK, 25, 0, 'manufacturing')->setPurchased(true);
+
+        self::assertSame([self::NITROGEN_FUEL_BLOCK => 1000], $this->quantitiesOf($project));
+    }
+
+    public function testShoppingListIgnoresTheStockOfTheRoot(): void
+    {
+        $project = self::projectOf($this->pilot, self::NITROGEN_FUEL_BLOCK, 25, 10);
+        self::addStep($project, self::NITROGEN_FUEL_BLOCK, 25, 0, 'manufacturing')->setInStockQuantity(1000);
+
+        self::assertSame(
+            [44 => 90, 3683 => 495, 3689 => 90, 9832 => 203, self::ROBOTICS => 25, 16272 => 3825, self::LIQUID_OZONE => 7875, 16275 => 450, 17888 => 10125],
+            $this->quantitiesOf($project),
+        );
+    }
+
+    public function testShoppingListBuysTheWholeNeedOfASplitGroupWithOnePurchasedJob(): void
+    {
+        $this->pilot->setIndustryBlacklistTypeIds([self::HYDROGEN_FUEL_BLOCK, self::SYLRAMIC_FIBERS]);
+        $project = $this->projectOnGoldenSde($this->pilot, self::CAPITAL_FERNITE_CARBIDE_COMPOSITE_ARMOR_PLATE, 11, 10, 20, self::SHORT_MAX_JOB_DURATION_DAYS);
+        $this->stepsOf($project, self::FERNITE_CARBIDE)[1]->setPurchased(true);
+
+        self::assertSame([self::FERNITE_CARBIDE => 22_000, self::SYLRAMIC_FIBERS => 11 * 1501], $this->quantitiesOf($project));
+    }
+
+    public function testShoppingListKeepsTheRunsOfEachJobOfAManuallySplitRoot(): void
+    {
+        $this->pilot->setIndustryBlacklistTypeIds([self::TITANIUM_CARBIDE]);
+        $project = $this->thirtyTwoQuantumMicroprocessors(self::DEFAULT_MAX_JOB_DURATION_DAYS);
+        $rootStep = $this->onlyStepOf($project, self::QUANTUM_MICROPROCESSOR)->setRuns(21)->setQuantity(21)->setSplitGroupId('manual-split')->setSplitIndex(0)->setTotalGroupRuns(32);
+        $project->addStep((clone $rootStep)->setRuns(11)->setQuantity(11)->setSplitIndex(1));
+
+        self::assertSame(322 + 169, $this->quantitiesOf($project)[self::TITANIUM_CARBIDE]);
     }
 
     private function thirtyTwoQuantumMicroprocessors(float $maxJobDurationDays): IndustryProject

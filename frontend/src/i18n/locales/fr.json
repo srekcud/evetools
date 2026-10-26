@@ -851,7 +851,8 @@
       "merge": "Fusionner",
       "addStep": "Ajouter un step",
       "jobMatched": "Job ESI associe",
-      "noJobMatch": "Aucun job ESI"
+      "noJobMatch": "Aucun job ESI",
+      "seeAbove": "voir plus haut"
     },
     "shopping": {
       "title": "Liste d'achats",

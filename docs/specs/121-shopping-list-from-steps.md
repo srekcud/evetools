@@ -44,7 +44,7 @@ Approche retenue (A, décision du 2026-10-22) : la liste d'achats se calcule sur
 
 ## Hors périmètre
 
-Arbre affiché (`ProjectProvider`, issue séparée) ; Buy vs Build, marges, stockpile, Group Industry ; plafond BPC ; bonus par catégorie de matériau dans la factory (#6).
+Arbre affiché (traité à part : `docs/specs/121-production-tree-from-steps.md`) ; Buy vs Build, marges, stockpile, Group Industry ; plafond BPC ; bonus par catégorie de matériau dans la factory (#6).
 
 ## Effets annoncés
 

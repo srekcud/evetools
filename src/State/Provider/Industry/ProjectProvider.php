@@ -9,8 +9,7 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\ProjectResource;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
-use App\Service\Industry\IndustryBlacklistService;
-use App\Service\Industry\IndustryTreeService;
+use App\Service\Industry\ProductionTreeFromSteps;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -25,8 +24,7 @@ class ProjectProvider implements ProviderInterface
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
         private readonly IndustryResourceMapper $mapper,
-        private readonly IndustryTreeService $treeService,
-        private readonly IndustryBlacklistService $blacklistService,
+        private readonly ProductionTreeFromSteps $productionTree,
     ) {
     }
 
@@ -51,20 +49,7 @@ class ProjectProvider implements ProviderInterface
             $project->getSteps()->toArray()
         );
 
-        // Build production tree
-        $excludedTypeIds = $project->excludedTypeIdsWithBlacklist($this->blacklistService->resolveBlacklistedTypeIds($user));
-        try {
-            $tree = $this->treeService->buildProductionTree(
-                $project->getProductTypeId(),
-                $project->getRuns(),
-                $project->getMeLevel(),
-                $excludedTypeIds,
-                $user,
-            );
-        } catch (\RuntimeException) {
-            $tree = null;
-        }
-        $resource->tree = $tree;
+        $resource->tree = $this->productionTree->buildTree($project);
 
         return $resource;
     }

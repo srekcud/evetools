@@ -9,6 +9,7 @@ use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
+use App\Exception\TypeMissingFromSdeException;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
@@ -16,6 +17,7 @@ use App\Service\Industry\IndustryBonusService;
 use App\Service\Industry\IndustryTreeService;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -23,6 +25,13 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(IndustryTreeService::class)]
 class IndustryTreeServiceTest extends TestCase
 {
+    use BuildsProjectOnGoldenSde;
+
+    private const int NITROGEN_FUEL_BLOCK = 4051;
+    private const int HYDROGEN_FUEL_BLOCK = 4246;
+    private const int FERNITE_CARBIDE = 16673;
+    private const int ROBOTICS = 9848;
+
     private IndustryActivityProductRepository&MockObject $activityProductRepository;
     private IndustryActivityMaterialRepository&MockObject $activityMaterialRepository;
     private InvTypeRepository&MockObject $invTypeRepository;
@@ -608,5 +617,91 @@ class IndustryTreeServiceTest extends TestCase
         $this->assertSame(16672, $reactionNode['typeId']);
         $this->assertFalse($reactionNode['isBuildable']);
         $this->assertArrayNotHasKey('blueprint', $reactionNode);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testRootProductMissingFromTheSdeFailsTheTreeWithItsTypeId(): void
+    {
+        $this->typeIdsMissingFromSde = [self::NITROGEN_FUEL_BLOCK];
+
+        $error = $this->typeMissingFromSdeErrorOfTree(self::NITROGEN_FUEL_BLOCK);
+
+        self::assertSame([[self::NITROGEN_FUEL_BLOCK], 'Types missing from the SDE: 4051'], [$error->getMissingTypeIds(), $error->getMessage()]);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testMaterialMissingFromTheSdeFailsTheTreeWithItsTypeId(): void
+    {
+        $this->typeIdsMissingFromSde = [self::ROBOTICS];
+
+        $error = $this->typeMissingFromSdeErrorOfTree(self::NITROGEN_FUEL_BLOCK);
+
+        self::assertSame([[self::ROBOTICS], 'Types missing from the SDE: 9848'], [$error->getMissingTypeIds(), $error->getMessage()]);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testProductAndMaterialMissingFromTheSdeAreAllReportedInAscendingOrder(): void
+    {
+        $this->typeIdsMissingFromSde = [self::ROBOTICS, self::NITROGEN_FUEL_BLOCK];
+
+        $error = $this->typeMissingFromSdeErrorOfTree(self::NITROGEN_FUEL_BLOCK);
+
+        self::assertSame(
+            [[self::NITROGEN_FUEL_BLOCK, self::ROBOTICS], 'Types missing from the SDE: 4051, 9848'],
+            [$error->getMissingTypeIds(), $error->getMessage()],
+        );
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testIntermediateMissingFromTheSdeInSeveralBranchesIsReportedOnce(): void
+    {
+        $this->typeIdsMissingFromSde = [self::HYDROGEN_FUEL_BLOCK];
+
+        $error = $this->typeMissingFromSdeErrorOfTree(self::FERNITE_CARBIDE);
+
+        self::assertSame([[self::HYDROGEN_FUEL_BLOCK], 'Types missing from the SDE: 4246'], [$error->getMissingTypeIds(), $error->getMessage()]);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testExcludedMaterialMissingFromTheSdeFailsTheTreeWithItsTypeId(): void
+    {
+        $this->typeIdsMissingFromSde = [self::HYDROGEN_FUEL_BLOCK];
+
+        $error = $this->typeMissingFromSdeErrorOfTree(self::FERNITE_CARBIDE, self::HYDROGEN_FUEL_BLOCK);
+
+        self::assertSame([[self::HYDROGEN_FUEL_BLOCK], 'Types missing from the SDE: 4246'], [$error->getMissingTypeIds(), $error->getMessage()]);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testRootWithoutRecipeAndMissingFromTheSdeStillReportsTheMissingBlueprint(): void
+    {
+        $this->typeIdsMissingFromSde = [self::ROBOTICS];
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('No blueprint or reaction found for product type ID 9848');
+
+        $this->treeServiceOnGoldenSde()->buildProductionTree(self::ROBOTICS, 1, 0);
+    }
+
+    private function treeServiceOnGoldenSde(): IndustryTreeService
+    {
+        return new IndustryTreeService(
+            $this->productRepositoryOnGoldenSde(),
+            $this->materialRepositoryOnGoldenSde(),
+            $this->typeRepositoryOnGoldenSde(),
+            $this->entityManagerWithoutRows(),
+            $this->createStub(IndustryBonusService::class),
+        );
+    }
+
+    private function typeMissingFromSdeErrorOfTree(int $productTypeId, int ...$excludedTypeIds): TypeMissingFromSdeException
+    {
+        try {
+            $this->treeServiceOnGoldenSde()->buildProductionTree($productTypeId, 1, 0, array_values($excludedTypeIds));
+        } catch (TypeMissingFromSdeException $error) {
+            return $error;
+        }
+
+        self::fail("The tree of type {$productTypeId} was built without a TypeMissingFromSdeException.");
     }
 }

@@ -155,6 +155,23 @@ function onToggle(step: IndustryProjectStep) {
           :readonly="readonly"
           @toggle-purchased="(stepId, purchased) => emit('toggle-purchased', stepId, purchased)"
         />
+
+        <div
+          v-else
+          data-testid="tree-material-reference"
+          class="bg-slate-800/30 border border-slate-700/50 rounded-lg p-2"
+        >
+          <div class="flex items-center gap-2">
+            <img
+              :src="getTypeIconUrl(mat.typeId, 32)"
+              class="w-6 h-6 rounded-sm"
+              @error="onImageError"
+            />
+            <span class="text-sm text-slate-400">{{ mat.typeName }}</span>
+            <span class="text-xs text-slate-500">×{{ mat.quantity.toLocaleString() }}</span>
+            <span class="text-xs text-slate-600 italic ml-auto">{{ t('industry.step.seeAbove') }}</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>

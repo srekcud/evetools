@@ -20,6 +20,7 @@ use App\Enum\IndustryActivityType;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityRepository;
+use App\Repository\Sde\IndustryBlueprintRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\IndustryBonusService;
@@ -108,6 +109,7 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
             $container->get(IndustryActivityRepository::class),
             $this->em,
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
+            $container->get(IndustryBlueprintRepository::class),
         );
     }
 

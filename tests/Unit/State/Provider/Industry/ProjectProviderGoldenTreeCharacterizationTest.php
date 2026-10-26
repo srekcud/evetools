@@ -8,204 +8,304 @@ use ApiPlatform\Metadata\Get;
 use App\ApiResource\Industry\ProjectResource;
 use App\ApiResource\Industry\ProjectStepResource;
 use App\Entity\IndustryProject;
-use App\Entity\IndustryProjectStep;
-use App\Entity\IndustryStructureConfig;
-use App\Entity\Sde\IndustryActivityMaterial;
-use App\Entity\Sde\IndustryActivityProduct;
-use App\Entity\Sde\InvType;
 use App\Entity\User;
-use App\Enum\IndustryActivityType;
-use App\Exception\TypeMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
-use App\Repository\Sde\IndustryActivityMaterialRepository;
-use App\Repository\Sde\IndustryActivityProductRepository;
-use App\Repository\Sde\InvTypeRepository;
+use App\Repository\IndustryRigCategoryRepository;
 use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\IndustryBonusService;
 use App\Service\Industry\IndustryTreeService;
+use App\Service\Industry\ProductionStepNeedsResolver;
+use App\Service\Industry\ProductionTreeFromSteps;
+use App\Service\Industry\StepProductNeed;
+use App\Service\TypeNameResolver;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use App\State\Provider\Industry\ProjectProvider;
-use Doctrine\DBAL\Connection;
-use Doctrine\ORM\EntityManagerInterface;
-use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
+use App\Tests\Unit\Service\Industry\BuildsShoppingListOnGoldenSde;
+use App\Tests\Unit\Service\Industry\TataraAndRaitaruBonusService;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Uid\Uuid;
 
-/**
- * Characterization of the production tree displayed by GET /industry/projects/{id} (ProjectProvider::provide()->tree),
- * before buildProductionTree() is replaced by src/Industry/Application (docs/specs/industry-engine.md, §7 rank 4).
- *
- * The real IndustryTreeService and IndustryBlacklistService run on the SDE extract of the goldens
- * (tests/Fixtures/Golden/sde-blueprint-recipes.json). Stubbed: the SDE repositories, the project repository,
- * the database connection, the security token, the resource mapper (steps and costs are out of scope here) and the
- * structure lookup of IndustryBonusService (the goldens fix the formula, not the structure choice).
- *
- * Trees are pinned in JSON snapshots in tests/Fixtures/Characterization/ProjectProvider/ (the Nomad snapshot is reduced
- * to leaf totals and job counts per type). A missing snapshot fails the test; snapshots are (re)written only when the
- * environment variable UPDATE_SNAPSHOTS=1 is set. Blueprint type IDs in the snapshots are synthetic (product type ID +
- * 1000000) and hasCopy is false unless a test declares a copying activity.
- */
 #[CoversClass(ProjectProvider::class)]
-#[CoversClass(IndustryTreeService::class)]
-#[AllowMockObjectsWithoutExpectations]
+#[CoversClass(ProductionTreeFromSteps::class)]
+#[CoversClass(ProductionStepNeedsResolver::class)]
+#[CoversClass(StepProductNeed::class)]
 final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
 {
-    private const string GOLDEN_DIR = __DIR__.'/../../../../Fixtures/Golden/';
-    private const string SNAPSHOT_DIR = __DIR__.'/../../../../Fixtures/Characterization/ProjectProvider/';
-    private const int BLUEPRINT_TYPE_ID_OFFSET = 1_000_000;
+    use BuildsShoppingListOnGoldenSde;
 
+    private const string SNAPSHOT_DIR = __DIR__.'/../../../../Fixtures/Characterization/ProjectProvider/';
+
+    private const int QUANTUM_MICROPROCESSOR = 11540;
+    private const int TITANIUM_CARBIDE = 16671;
+    private const int PHENOLIC_COMPOSITES = 16680;
+    private const int NANOTRANSISTORS = 16681;
+    private const int NONLINEAR_METAMATERIALS = 33362;
+    private const int OXYGEN_FUEL_BLOCK = 4312;
     private const int NITROGEN_FUEL_BLOCK = 4051;
     private const int HYDROGEN_FUEL_BLOCK = 4246;
     private const int FERNITE_CARBIDE = 16673;
     private const int FERNITE_ALLOY = 16656;
     private const int CERAMIC_POWDER = 16660;
+    private const int CAPITAL_FERNITE_CARBIDE_COMPOSITE_ARMOR_PLATE = 29049;
+    private const int SYLRAMIC_FIBERS = 16678;
+    private const int SCANDIUM = 16639;
+    private const int FENRIR = 20189;
+    private const int CAPITAL_ARMOR_PLATES = 21017;
     private const int NOMAD = 28846;
     private const int ROBOTICS = 9848;
     private const int HAIL_L = 12779;
     private const int RAM_AMMUNITION_TECH = 11476;
     private const int FULLERIDES = 16679;
-    private const int CAPITAL_FERNITE_CARBIDE_COMPOSITE_ARMOR_PLATE = 29049;
+    private const int COOLANT = 9832;
+    private const int ISOGEN = 37;
+    private const int NOCXIUM = 38;
+    private const int MEGACYTE = 40;
 
-    private const string FUEL_BLOCK_CATEGORY = 'ammunition';
+    private const float SHORT_MAX_JOB_DURATION_DAYS = 0.01;
+    private const float DEFAULT_MAX_JOB_DURATION_DAYS = 2.0;
+    private const float MAX_JOB_DURATION_DAYS_THAT_SPLITS_NOTHING = 10_000.0;
+
     private const string REACTION_CATEGORY = 'composite_reaction';
-    // Synthetic category: no structure of the pilot covers it
-    private const string ROBOTICS_CATEGORY = 'planetary_commodity';
-    // Raitaru without rig: 1 % structure material bonus (IndustryBonusService::STRUCTURE_MATERIAL_BONUSES)
-    private const float RAITARU_BASE_MATERIAL_BONUS = 1.0;
-    private const float RAITARU_MATERIAL_RIG_BONUS = 2.0;
-    // 1 - 0.99 × 0.98
-    private const float RAITARU_WITH_RIG_TOTAL_MATERIAL_BONUS = 2.98;
-    // Tatara in nullsec with Standup L-Set Reactor Efficiency II: 2.4 % × 1.1
     private const float TATARA_REACTOR_RIG_BONUS = 2.64;
+    private const float RAITARU_BASE_MATERIAL_BONUS = 1.0;
 
-    /** @var array{recipes: array<string, array{name: string, activity: string, outputPerRun: int, materials: array<string, int>}>, typeNames: array<string, string>} */
-    private array $sde;
+    private const array LEAVES_OF_THIRTY_TWO_QUANTUM_MICROPROCESSORS_BESIDES_TITANIUM_CARBIDE = [
+        44 => 16, 3683 => 80, 3689 => 16, 9832 => 36, self::ROBOTICS => 4, 16272 => 612, 16273 => 1260,
+        16274 => 405, 16275 => 72, 16634 => 100, 16635 => 200, 16636 => 100, 16638 => 100,
+        16641 => 100, 16642 => 100, 16643 => 100, 16644 => 100, 16646 => 100, 16647 => 100, 16648 => 200,
+        16649 => 100, 16650 => 100, 16651 => 100, 17887 => 405, 17888 => 405, 17889 => 405,
+    ];
+
+    private const array ONE_RUN_OF_FUEL_BLOCK_AT_ME_TEN = [44 => 4, 3683 => 20, 3689 => 4, 9832 => 9, self::ROBOTICS => 1, 16272 => 153, 16273 => 315, 16275 => 18];
 
     private bool $pilotOwnsTataraAndRaitaru = false;
-    private bool $raitaruHasMaterialRig = false;
-    private int $copyingActivityCount = 0;
-
-    /** @var list<int> */
-    private array $typeIdsWithoutSdeName = [];
-
-    /** @var list<int> */
-    private array $typeIdsWithoutRecipe = [];
-
-    /** @var list<int> */
-    private array $blacklistedTypeIds = [];
-
     private User $pilot;
-    private IndustryProject $project;
-    private Security $security;
-    private IndustryTreeService $treeService;
-    private ProjectProvider $provider;
+    private ?IndustryProject $requestedProject = null;
     private ProjectStepResource $mappedStep;
 
     protected function setUp(): void
     {
-        $this->sde = json_decode((string) file_get_contents(self::GOLDEN_DIR.'sde-blueprint-recipes.json'), true, flags: \JSON_THROW_ON_ERROR);
-
-        $this->pilot = $this->createStub(User::class);
-        $this->pilot->method('getIndustryBlacklistTypeIds')->willReturnCallback(fn (): array => $this->blacklistedTypeIds);
-        $this->pilot->method('getIndustryBlacklistGroupIds')->willReturn([]);
-
-        $this->project = (new IndustryProject())->setUser($this->pilot);
-        (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($this->project, Uuid::v4());
-
-        $this->security = $this->createStub(Security::class);
-        $this->security->method('getUser')->willReturn($this->pilot);
-
-        $projectRepository = $this->createStub(IndustryProjectRepository::class);
-        $projectRepository->method('find')->willReturnCallback(
-            fn (Uuid $id): ?IndustryProject => $id->equals($this->project->getId()) ? $this->project : null,
-        );
-
-        $mapper = $this->createStub(IndustryResourceMapper::class);
-        $mapper->method('projectToResource')->willReturnCallback(static fn (): ProjectResource => new ProjectResource());
+        $this->pilot = new User();
         $this->mappedStep = new ProjectStepResource();
-        $mapper->method('stepToResource')->willReturn($this->mappedStep);
-
-        $entityManager = $this->createStub(EntityManagerInterface::class);
-        $connection = $this->createStub(Connection::class);
-        $connection->method('fetchOne')->willReturnCallback(fn (): int => $this->copyingActivityCount);
-        $entityManager->method('getConnection')->willReturn($connection);
-
-        $this->treeService = $this->treeServiceOnGoldenSde($entityManager);
-        $this->provider = new ProjectProvider(
-            $this->security,
-            $projectRepository,
-            $mapper,
-            $this->treeService,
-            new IndustryBlacklistService($entityManager),
-        );
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #2 (B1) : les 25 runs du projet sont lus comme
-    // une quantité. L'arbre affiche 1 run (40 unités) au lieu de 25 runs (1000 unités) : Nitrogen Isotopes 405 au lieu
-    // de 10125, Robotics 1 au lieu de 25 (golden nitrogen-fuel-block-25runs-me10-npc).
-    public function testTreeOfTwentyFiveRunsOfNitrogenFuelBlockCurrentlyShowsOneRunIssue2(): void
+    #[Group('issue-121')]
+    public function testTreeOfThirtyTwoQuantumMicroprocessorsSplitInThreeJobsSumsTheBlacklistedMaterialJobByJob(): void
     {
-        $tree = $this->treeOfProject(self::NITROGEN_FUEL_BLOCK, runs: 25, meLevel: 10);
+        $this->pilot->setIndustryBlacklistTypeIds([self::TITANIUM_CARBIDE]);
+        $project = $this->thirtyTwoQuantumMicroprocessors(self::SHORT_MAX_JOB_DURATION_DAYS);
+
+        $tree = $this->treeOf($project);
+
+        self::assertSame(
+            [self::TITANIUM_CARBIDE => 491, self::PHENOLIC_COMPOSITES => 174, self::NANOTRANSISTORS => 58, self::NONLINEAR_METAMATERIALS => 58],
+            array_column($tree['materials'], 'quantity', 'typeId'),
+        );
+        self::assertSame([32, 32, false], [$tree['quantity'], $tree['runs'], $tree['materials'][0]['isBuildable']]);
+        self::assertSame(16, self::nodeCountOf($tree));
+    }
+
+    #[Group('issue-121')]
+    public function testTreeOfThirtyTwoQuantumMicroprocessorsShowsOneNodePerIntermediateAndReferencesItsOtherConsumers(): void
+    {
+        $project = $this->thirtyTwoQuantumMicroprocessors(self::SHORT_MAX_JOB_DURATION_DAYS);
+
+        $tree = $this->treeOf($project);
+
+        self::assertSame([[491, 1]], self::quantityAndRunsOfNodesOf($tree, self::TITANIUM_CARBIDE));
+        self::assertSame([[25, 1]], self::quantityAndRunsOfNodesOf($tree, self::OXYGEN_FUEL_BLOCK));
+        self::assertSame(4, self::referenceCountOf($tree, self::OXYGEN_FUEL_BLOCK));
+        self::assertSame(self::sortedByTypeId(self::LEAVES_OF_THIRTY_TWO_QUANTUM_MICROPROCESSORS_BESIDES_TITANIUM_CARBIDE), self::leafQuantitiesOf($tree));
+        self::assertSame(17, self::nodeCountOf($tree));
+    }
+
+    #[Group('issue-121')]
+    public function testPurchasedStepKeepsItsNodeWithoutRunsNorMaterials(): void
+    {
+        $project = $this->thirtyTwoQuantumMicroprocessors(self::SHORT_MAX_JOB_DURATION_DAYS);
+        $this->onlyStepOf($project, self::TITANIUM_CARBIDE)->setPurchased(true);
+
+        $titaniumCarbideNode = self::nodesOf($this->treeOf($project), self::TITANIUM_CARBIDE)[0];
+
+        self::assertSame([491, 0, []], [$titaniumCarbideNode['quantity'], $titaniumCarbideNode['runs'], $titaniumCarbideNode['materials']]);
+    }
+
+    #[Group('issue-121')]
+    public function testStepWhoseNeedIsInStockKeepsItsNeedWithoutRunsNorMaterials(): void
+    {
+        $project = $this->thirtyTwoQuantumMicroprocessors(self::SHORT_MAX_JOB_DURATION_DAYS);
+        $this->onlyStepOf($project, self::TITANIUM_CARBIDE)->setInStockQuantity(491);
+
+        $titaniumCarbideNode = self::nodesOf($this->treeOf($project), self::TITANIUM_CARBIDE)[0];
+
+        self::assertSame([491, 0, []], [$titaniumCarbideNode['quantity'], $titaniumCarbideNode['runs'], $titaniumCarbideNode['materials']]);
+    }
+
+    #[Group('issue-121')]
+    public function testProductBlacklistedAfterItsStepWasPlannedIsShownAsANonBuildableMaterial(): void
+    {
+        $project = $this->thirtyTwoQuantumMicroprocessors(self::SHORT_MAX_JOB_DURATION_DAYS);
+        $this->pilot->setIndustryBlacklistTypeIds([self::TITANIUM_CARBIDE]);
+
+        $tree = $this->treeOf($project);
+
+        self::assertSame(
+            ['typeId' => self::TITANIUM_CARBIDE, 'typeName' => 'Titanium Carbide', 'quantity' => 491, 'isBuildable' => false, 'activityType' => null],
+            $tree['materials'][0],
+        );
+        self::assertSame(16, self::nodeCountOf($tree));
+    }
+
+    #[Group('issue-121')]
+    public function testTreeOfOneNomadSplitInTwoDayJobsShowsOneNodePerIntermediate(): void
+    {
+        $project = $this->projectOnGoldenSde($this->pilot, self::NOMAD, 1, 10, 20, self::DEFAULT_MAX_JOB_DURATION_DAYS);
+
+        $tree = $this->treeOf($project);
+
+        self::assertSame(66, self::nodeCountOf($tree));
+        self::assertSame([[12855, 322]], self::quantityAndRunsOfNodesOf($tree, self::HYDROGEN_FUEL_BLOCK));
+        self::assertSame(12, self::referenceCountOf($tree, self::HYDROGEN_FUEL_BLOCK));
+        self::assertSame([[4225, 106]], self::quantityAndRunsOfNodesOf($tree, self::NITROGEN_FUEL_BLOCK));
+        self::assertSame(7, self::referenceCountOf($tree, self::NITROGEN_FUEL_BLOCK));
+        self::assertSame(
+            [self::ISOGEN => 1, self::NOCXIUM => 1, self::MEGACYTE => 1, self::COOLANT => 1],
+            self::leafDifferencesWithRavworks(self::leafQuantitiesOf($tree)),
+        );
+        $this->assertMatchesSnapshot('nomad-1run-me10-no-structure-leaves-and-job-counts', self::leafQuantitiesAndNodeCountsOf($tree));
+    }
+
+    #[Group('issue-121')]
+    public function testTreeOfOneUnsplitNomadHasTheLeavesOfRavworks(): void
+    {
+        $project = $this->projectOnGoldenSde($this->pilot, self::NOMAD, 1, 10, 20, self::MAX_JOB_DURATION_DAYS_THAT_SPLITS_NOTHING);
+
+        self::assertSame([], self::leafDifferencesWithRavworks(self::leafQuantitiesOf($this->treeOf($project))));
+    }
+
+    #[Group('issue-121')]
+    public function testTreeOfARootStepOfTwentyFiveRunsOfNitrogenFuelBlockShowsTwentyFiveRuns(): void
+    {
+        $project = self::projectOf($this->pilot, self::NITROGEN_FUEL_BLOCK, 25, 10);
+        self::addStep($project, self::NITROGEN_FUEL_BLOCK, 25, 0, 'manufacturing');
+
+        $tree = $this->treeOf($project);
+
+        self::assertSame(
+            [44 => 90, 3683 => 495, 3689 => 90, 9832 => 203, self::ROBOTICS => 25, 16272 => 3825, 16273 => 7875, 16275 => 450, 17888 => 10125],
+            array_column($tree['materials'], 'quantity', 'typeId'),
+        );
+        self::assertSame([1000, 25, 40], [$tree['quantity'], $tree['runs'], $tree['outputPerRun']]);
+    }
+
+    #[Group('issue-2')]
+    public function testTreeOfTwentyFiveRunsOfNitrogenFuelBlockPlannedByTheFactoryCurrentlyShowsOneRunIssue2(): void
+    {
+        $project = $this->projectOnGoldenSde($this->pilot, self::NITROGEN_FUEL_BLOCK, 25, 10, 20, self::DEFAULT_MAX_JOB_DURATION_DAYS);
+
+        $tree = $this->treeOf($project);
 
         self::assertSame(
             [25, 1, 40, 'manufacturing', 0.0, null],
             [$tree['quantity'], $tree['runs'], $tree['outputPerRun'], $tree['activityType'], $tree['structureBonus'], $tree['structureName']],
         );
-        self::assertSame(
-            [44 => 4, 3683 => 20, 3689 => 4, 9832 => 9, 9848 => 1, 16272 => 153, 16273 => 315, 16275 => 18, 17888 => 405],
-            array_column($tree['materials'], 'quantity', 'typeId'),
-        );
+        self::assertSame(self::ONE_RUN_OF_FUEL_BLOCK_AT_ME_TEN + [17888 => 405], array_column($tree['materials'], 'quantity', 'typeId'));
         $this->assertMatchesSnapshot('nitrogen-fuel-block-25runs-me10-npc', $tree);
     }
 
-    public function testTreeOfOneRunOfNitrogenFuelBlockAtMeZeroKeepsTheBaseQuantitiesOfTheSde(): void
+    #[Group('issue-121')]
+    public function testTreeOfAProjectWithoutStepIsNull(): void
     {
-        $tree = $this->treeOfProject(self::NITROGEN_FUEL_BLOCK, runs: 1, meLevel: 0);
+        $project = self::projectOf($this->pilot, self::NITROGEN_FUEL_BLOCK, 25, 10);
 
-        self::assertSame(
-            [44 => 4, 3683 => 22, 3689 => 4, 9832 => 9, 9848 => 1, 16272 => 170, 16273 => 350, 16275 => 20, 17888 => 450],
-            array_column($tree['materials'], 'quantity', 'typeId'),
-        );
-        self::assertSame([false], array_values(array_unique(array_column($tree['materials'], 'isBuildable'))));
+        self::assertNull($this->provide($project)->tree);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #16 : le Hydrogen Fuel Block, consommé à deux
-    // profondeurs (réaction racine et les deux réactions intermédiaires), est un sous-arbre par branche : 3 jobs d'un run
-    // au lieu d'un job agrégé. Tatara nullsec (L-Set Reactor Efficiency II) et Raitaru sans rig.
-    public function testTreeOfOneRunOfFerniteCarbideInATataraCurrentlyHasOneFuelBlockJobPerBranchIssue16(): void
+    #[Group('issue-121')]
+    public function testNodeOfASplitGroupTakesTheStructureOfItsFirstJobAndSumsTheMaterialsOfEachJobWithItsOwnStructure(): void
     {
-        $this->pilotOwnsTataraAndRaitaru = true;
+        $project = $this->thirtyTwoQuantumMicroprocessors(self::SHORT_MAX_JOB_DURATION_DAYS);
+        $jobs = $this->stepsOf($project, self::QUANTUM_MICROPROCESSOR);
+        $jobs[0]->setStructureConfig(self::structure($this->pilot, 'raitaru'));
+        $jobs[1]->setStructureConfig(self::structure($this->pilot, 'station'));
 
-        $tree = $this->treeOfProject(self::FERNITE_CARBIDE, runs: 1, meLevel: 10);
+        $tree = $this->treeOf($project);
+
+        self::assertSame(167 + 169 + 153, array_column($tree['materials'], 'quantity', 'typeId')[self::TITANIUM_CARBIDE]);
+        self::assertSame(['Raitaru', self::RAITARU_BASE_MATERIAL_BONUS], [$tree['structureName'], $tree['structureBonus']]);
+    }
+
+    #[Group('issue-121')]
+    public function testNodeOfASplitGroupIgnoresTheJobsLeftWithoutRunsByTheStock(): void
+    {
+        $this->pilot->setIndustryBlacklistTypeIds([self::HYDROGEN_FUEL_BLOCK, self::SYLRAMIC_FIBERS]);
+        $project = $this->projectOnGoldenSde($this->pilot, self::CAPITAL_FERNITE_CARBIDE_COMPOSITE_ARMOR_PLATE, 11, 10, 20, self::SHORT_MAX_JOB_DURATION_DAYS);
+        $ferniteCarbideJobs = $this->stepsOf($project, self::FERNITE_CARBIDE);
+        $ferniteCarbideJobs[0]->setInStockQuantity(10_000);
+        $ferniteCarbideJobs[1]->setInStockQuantity(10_000);
+        $ferniteCarbideJobs[2]->setInStockQuantity(1000);
+
+        $ferniteCarbideNode = self::nodesOf($this->treeOf($project), self::FERNITE_CARBIDE)[0];
 
         self::assertSame(
-            [1, 1, 10000, 'reaction', self::TATARA_REACTOR_RIG_BONUS, 'Tatara', self::REACTION_CATEGORY],
-            [$tree['quantity'], $tree['runs'], $tree['outputPerRun'], $tree['activityType'], $tree['structureBonus'], $tree['structureName'], $tree['productCategory']],
+            [self::HYDROGEN_FUEL_BLOCK => 5, self::FERNITE_ALLOY => 100, self::CERAMIC_POWDER => 100],
+            array_column($ferniteCarbideNode['materials'], 'quantity', 'typeId'),
+        );
+        self::assertSame([22_000, 1], [$ferniteCarbideNode['quantity'], $ferniteCarbideNode['runs']]);
+    }
+
+    #[Group('issue-121')]
+    public function testCycleBetweenTheProductsOfTheStepsFailsTheProject(): void
+    {
+        $project = self::projectOf($this->pilot, self::FERNITE_ALLOY, 1, 0);
+        self::addStep($project, self::FERNITE_ALLOY, 1, 0, 'reaction', 0);
+        self::addStep($project, self::HYDROGEN_FUEL_BLOCK, 1, 1, 'reaction', 0)->setBlueprintTypeId(self::FERNITE_ALLOY + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('has a cycle between the products of its steps');
+
+        $this->provide($project);
+    }
+
+    #[Group('issue-121')]
+    public function testTreeOfOneRunOfFerniteCarbideInATataraShowsOneFuelBlockNodeAndReferencesItsOtherConsumers(): void
+    {
+        $this->pilotOwnsTataraAndRaitaru = true;
+        $project = $this->oneRunOfFerniteCarbide(10);
+
+        $tree = $this->treeOf($project);
+
+        self::assertSame(
+            [[15, 1, 1, 'Raitaru', self::RAITARU_BASE_MATERIAL_BONUS]],
+            array_map(static fn (array $node): array => [$node['quantity'], $node['runs'], $node['depth'], $node['structureName'], $node['structureBonus']], self::nodesOf($tree, self::HYDROGEN_FUEL_BLOCK)),
+        );
+        self::assertSame(
+            ['typeId' => self::HYDROGEN_FUEL_BLOCK, 'typeName' => 'Hydrogen Fuel Block', 'quantity' => 5, 'isBuildable' => true, 'activityType' => 'manufacturing'],
+            self::nodesOf($tree, self::FERNITE_ALLOY)[0]['materials'][0],
+        );
+        self::assertSame(
+            [1, 10000, 'reaction', self::TATARA_REACTOR_RIG_BONUS, 'Tatara', self::REACTION_CATEGORY],
+            [$tree['runs'], $tree['outputPerRun'], $tree['activityType'], $tree['structureBonus'], $tree['structureName'], $tree['productCategory']],
         );
         self::assertSame(
             [self::HYDROGEN_FUEL_BLOCK => 5, self::FERNITE_ALLOY => 98, self::CERAMIC_POWDER => 98],
             array_column($tree['materials'], 'quantity', 'typeId'),
         );
-        $fuelBlockJobs = $this->blueprintNodesOf($tree, self::HYDROGEN_FUEL_BLOCK);
-        self::assertSame(
-            [[5, 1, 1, 'Raitaru', self::RAITARU_BASE_MATERIAL_BONUS], [5, 1, 2, 'Raitaru', self::RAITARU_BASE_MATERIAL_BONUS], [5, 1, 2, 'Raitaru', self::RAITARU_BASE_MATERIAL_BONUS]],
-            array_map(static fn (array $job): array => [$job['quantity'], $job['runs'], $job['depth'], $job['structureName'], $job['structureBonus']], $fuelBlockJobs),
-        );
         $this->assertMatchesSnapshot('fernite-carbide-1run-tatara-nullsec', $tree);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #2 (B1) : les 10 runs du projet sont lus comme une
-    // quantité ; 10 unités à 10000 par run donnent 1 run. Ceramic Powder et Fernite Alloy 98 au lieu de 974 (golden
-    // fernite-carbide-10runs-tatara-nullsec).
-    public function testTreeOfTenRunsOfFerniteCarbideInATataraCurrentlyShowsOneRunIssue2(): void
+    #[Group('issue-2')]
+    public function testTreeOfTenRunsOfFerniteCarbideInATataraPlannedByTheFactoryCurrentlyShowsOneRunIssue2(): void
     {
         $this->pilotOwnsTataraAndRaitaru = true;
+        $project = $this->projectOnGoldenSde($this->pilot, self::FERNITE_CARBIDE, 10, 10, 20, self::DEFAULT_MAX_JOB_DURATION_DAYS);
 
-        $tree = $this->treeOfProject(self::FERNITE_CARBIDE, runs: 10, meLevel: 10);
+        $tree = $this->treeOf($project);
 
         self::assertSame([10, 1], [$tree['quantity'], $tree['runs']]);
         self::assertSame(
@@ -214,137 +314,105 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
         );
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #6 (R4) : dans un job de réaction, le Hydrogen
-    // Fuel Block reçoit le bonus de la meilleure structure de SA catégorie (Raitaru, ×0,99) au lieu du rig du job
-    // consommateur (Tatara, ×0,9736). Le golden fernite-carbide-10runs-tatara-nullsec attend 49 (ceil(50 × 0,9736))
-    // pour 10 runs de réaction ; l'arbre affiche 50 (ceil(50 × 0,99)). L'écart n'apparaît qu'à partir de 8 runs de
-    // réaction, inatteignables par une racine de réaction tant que #2 lit les runs comme une quantité : la réaction est
-    // donc un intermédiaire d'une racine à 1 unité par run. 41 runs de plaque × 2222 × 0,99 (Raitaru du stub) = 90191
-    // Fernite Carbide, soit 10 runs de réaction. Fernite Alloy et Ceramic Powder suivent le golden (974).
-    public function testFuelBlockConsumedByTenRunsOfReactionCurrentlyGetsTheBonusOfItsOwnCategoryIssue6(): void
+    #[Group('issue-121')]
+    public function testFuelBlockConsumedByTenRunsOfReactionInATataraGetsTheReactorRigOfTheReactionJob(): void
     {
         $this->pilotOwnsTataraAndRaitaru = true;
+        $project = $this->projectOnGoldenSde($this->pilot, self::CAPITAL_FERNITE_CARBIDE_COMPOSITE_ARMOR_PLATE, 41, 0, 20, self::DEFAULT_MAX_JOB_DURATION_DAYS);
 
-        $tree = $this->treeOfProject(self::CAPITAL_FERNITE_CARBIDE_COMPOSITE_ARMOR_PLATE, runs: 41, meLevel: 0);
+        $reactionNode = self::nodesOf($this->treeOf($project), self::FERNITE_CARBIDE)[0];
 
-        $reactionJob = $this->blueprintNodesOf($tree, self::FERNITE_CARBIDE)[0];
-        self::assertSame([90191, 10, 'Tatara'], [$reactionJob['quantity'], $reactionJob['runs'], $reactionJob['structureName']]);
-        self::assertSame(50, array_column($reactionJob['materials'], 'quantity', 'typeId')[self::HYDROGEN_FUEL_BLOCK]);
         self::assertSame(
-            [self::FERNITE_ALLOY => 974, self::CERAMIC_POWDER => 974],
-            array_diff_key(array_column($reactionJob['materials'], 'quantity', 'typeId'), [self::HYDROGEN_FUEL_BLOCK => true]),
+            [self::HYDROGEN_FUEL_BLOCK => 49, self::FERNITE_ALLOY => 974, self::CERAMIC_POWDER => 974],
+            array_column($reactionNode['materials'], 'quantity', 'typeId'),
         );
+        self::assertSame([10, 'Tatara', self::TATARA_REACTOR_RIG_BONUS], [$reactionNode['runs'], $reactionNode['structureName'], $reactionNode['structureBonus']]);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #15 : chaque intermédiaire fabriqué reçoit un
-    // ME 10 en dur, quel que soit le ME du projet. À ME 0, le Hydrogen Fuel Block consommé par la réaction calcule
-    // ses matériaux à ME 10 (Robotics max(1 run, 0,9) = 1, Hydrogen Isotopes 450 × 0,9 = 405).
-    public function testTreeOfFerniteCarbideAtMeZeroCurrentlyBuildsTheFuelBlockIntermediateAtHardCodedMeTenIssue15(): void
+    #[Group('issue-15')]
+    public function testTreeOfFerniteCarbideAtMeZeroCurrentlyShowsTheFuelBlockStepPlannedAtHardCodedMeTenIssue15(): void
     {
-        $tree = $this->treeOfProject(self::FERNITE_CARBIDE, runs: 1, meLevel: 0);
+        $project = $this->oneRunOfFerniteCarbide(0);
 
-        $fuelBlockJob = $this->blueprintNodesOf($tree, self::HYDROGEN_FUEL_BLOCK)[0];
-        self::assertSame(
-            [44 => 4, 3683 => 20, 3689 => 4, 9832 => 9, 9848 => 1, 16272 => 153, 16273 => 315, 16275 => 18, 17889 => 405],
-            array_column($fuelBlockJob['materials'], 'quantity', 'typeId'),
-        );
+        $fuelBlockNode = self::nodesOf($this->treeOf($project), self::HYDROGEN_FUEL_BLOCK)[0];
+
+        self::assertSame(self::ONE_RUN_OF_FUEL_BLOCK_AT_ME_TEN + [17889 => 405], array_column($fuelBlockNode['materials'], 'quantity', 'typeId'));
     }
 
+    #[Group('issue-121')]
     public function testTreeIgnoresTheMeOfTheProjectOnAReactionRoot(): void
     {
-        $treeAtMeTen = $this->treeOfProject(self::FERNITE_CARBIDE, runs: 1, meLevel: 10);
-        $treeAtMeZero = $this->treeOfProject(self::FERNITE_CARBIDE, runs: 1, meLevel: 0);
+        $treeAtMeTen = $this->treeOf($this->oneRunOfFerniteCarbide(10));
+        $treeAtMeZero = $this->treeOf($this->oneRunOfFerniteCarbide(0));
 
         self::assertSame(
             [self::HYDROGEN_FUEL_BLOCK => 5, self::FERNITE_ALLOY => 100, self::CERAMIC_POWDER => 100],
             array_column($treeAtMeTen['materials'], 'quantity', 'typeId'),
         );
-        self::assertSame($treeAtMeZero, $treeAtMeTen);
+        self::assertSame($treeAtMeZero['materials'][1], $treeAtMeTen['materials'][1]);
+        self::assertSame(array_column($treeAtMeZero['materials'], 'quantity', 'typeId'), array_column($treeAtMeTen['materials'], 'quantity', 'typeId'));
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issues #69 et #16 : la demande d'un intermédiaire
-    // n'est pas agrégée entre branches avant l'arrondi en runs. Chaque consommateur a son propre sous-arbre : 50 jobs
-    // de Hydrogen Fuel Block et 21 de Nitrogen Fuel Block. Le golden Ravworks (fait foi) a un job par intermédiaire.
-    public function testTreeOfOneNomadCurrentlyRepeatsEachIntermediatePerConsumerIssues69And16(): void
+    #[Group('issue-121')]
+    public function testTreeOfOneRunOfNitrogenFuelBlockAtMeZeroKeepsTheBaseQuantitiesOfTheSde(): void
     {
-        $tree = $this->treeOfProject(self::NOMAD, runs: 1, meLevel: 10);
+        $project = $this->projectOnGoldenSde($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 0, 20, self::DEFAULT_MAX_JOB_DURATION_DAYS);
+
+        $tree = $this->treeOf($project);
 
         self::assertSame(
-            [1, 1, 1, 'manufacturing', 0.0, null],
-            [$tree['quantity'], $tree['runs'], $tree['outputPerRun'], $tree['activityType'], $tree['structureBonus'], $tree['structureName']],
+            [44 => 4, 3683 => 22, 3689 => 4, 9832 => 9, self::ROBOTICS => 1, 16272 => 170, 16273 => 350, 16275 => 20, 17888 => 450],
+            array_column($tree['materials'], 'quantity', 'typeId'),
         );
-        self::assertSame(
-            [self::HYDROGEN_FUEL_BLOCK => 50, self::NITROGEN_FUEL_BLOCK => 21],
-            [self::HYDROGEN_FUEL_BLOCK => count($this->blueprintNodesOf($tree, self::HYDROGEN_FUEL_BLOCK)), self::NITROGEN_FUEL_BLOCK => count($this->blueprintNodesOf($tree, self::NITROGEN_FUEL_BLOCK))],
-        );
-        $this->assertMatchesSnapshot('nomad-1run-me10-no-structure-leaves-and-job-counts', $this->leafQuantitiesAndJobCountsOf($tree));
+        self::assertSame([false], array_values(array_unique(array_column($tree['materials'], 'isBuildable'))));
     }
 
+    #[Group('issue-121')]
     public function testTreeOfOneRunOfHailLAtMeTwoWithoutStructure(): void
     {
-        $tree = $this->treeOfProject(self::HAIL_L, runs: 1, meLevel: 2);
+        $project = $this->projectOnGoldenSde($this->pilot, self::HAIL_L, 1, 2, 20, self::DEFAULT_MAX_JOB_DURATION_DAYS);
+
+        $tree = $this->treeOf($project);
 
         self::assertSame(
-            [1, 1, 5000, 'manufacturing', 0.0, null],
-            [$tree['quantity'], $tree['runs'], $tree['outputPerRun'], $tree['activityType'], $tree['structureBonus'], $tree['structureName']],
+            [1, 5000, 'manufacturing', 0.0, null],
+            [$tree['runs'], $tree['outputPerRun'], $tree['activityType'], $tree['structureBonus'], $tree['structureName']],
         );
         self::assertSame(
             [11399 => 15, self::RAM_AMMUNITION_TECH => 1, self::FERNITE_CARBIDE => 2940, self::FULLERIDES => 1176],
             array_column($tree['materials'], 'quantity', 'typeId'),
         );
-        $ramJob = $this->blueprintNodesOf($tree, self::RAM_AMMUNITION_TECH)[0];
-        self::assertSame([1, 1, 100], [$ramJob['quantity'], $ramJob['runs'], $ramJob['outputPerRun']]);
-        self::assertSame(
-            [34 => 501, 35 => 400, 36 => 200, 37 => 74, 38 => 33],
-            array_column($ramJob['materials'], 'quantity', 'typeId'),
-        );
-        $ferniteCarbideJob = $this->blueprintNodesOf($tree, self::FERNITE_CARBIDE)[0];
-        self::assertSame([2940, 1], [$ferniteCarbideJob['quantity'], $ferniteCarbideJob['runs']]);
+        $ramNode = self::nodesOf($tree, self::RAM_AMMUNITION_TECH)[0];
+        self::assertSame([1, 1, 100], [$ramNode['quantity'], $ramNode['runs'], $ramNode['outputPerRun']]);
+        $ferniteCarbideNode = self::nodesOf($tree, self::FERNITE_CARBIDE)[0];
+        self::assertSame([2940, 1], [$ferniteCarbideNode['quantity'], $ferniteCarbideNode['runs']]);
         self::assertSame(
             [self::HYDROGEN_FUEL_BLOCK => 5, self::FERNITE_ALLOY => 100, self::CERAMIC_POWDER => 100],
-            array_column($ferniteCarbideJob['materials'], 'quantity', 'typeId'),
+            array_column($ferniteCarbideNode['materials'], 'quantity', 'typeId'),
         );
-        $fulleridesJob = $this->blueprintNodesOf($tree, self::FULLERIDES)[0];
-        self::assertSame([1176, 1, 3000], [$fulleridesJob['quantity'], $fulleridesJob['runs'], $fulleridesJob['outputPerRun']]);
-        self::assertSame(
-            [self::NITROGEN_FUEL_BLOCK => 5, 16659 => 100, 16662 => 100],
-            array_column($fulleridesJob['materials'], 'quantity', 'typeId'),
-        );
+        $fulleridesNode = self::nodesOf($tree, self::FULLERIDES)[0];
+        self::assertSame([1176, 1, 3000], [$fulleridesNode['quantity'], $fulleridesNode['runs'], $fulleridesNode['outputPerRun']]);
+        self::assertSame([self::NITROGEN_FUEL_BLOCK => 5, 16659 => 100, 16662 => 100], array_column($fulleridesNode['materials'], 'quantity', 'typeId'));
     }
 
-    // Raitaru with a 2 % material rig on top of its 1 % base bonus, ME 7: Hydrogen Isotopes 450 × 0,93 × 0,99 × 0,98
-    // = 406,04 → 407 (an additive 3 % would give 405,95 → 406). Robotics falls in its own category, which no structure
-    // covers: its quantity only gets the ME, floored at one per run.
-    public function testTreeOfOneRunOfHydrogenFuelBlockInARaitaruWithRigStacksBaseAndRigBonusesMultiplicatively(): void
+    #[Group('issue-121')]
+    public function testOnlyTheNodeOfABlueprintWithACopyStepHasACopy(): void
     {
-        $this->pilotOwnsTataraAndRaitaru = true;
-        $this->raitaruHasMaterialRig = true;
+        $project = $this->oneRunOfFerniteCarbide(0);
+        self::addStep($project, self::HYDROGEN_FUEL_BLOCK, 1, 1, 'copy');
 
-        $tree = $this->treeOfProject(self::HYDROGEN_FUEL_BLOCK, runs: 1, meLevel: 7);
+        $tree = $this->treeOf($project);
 
-        self::assertSame(
-            [1, 'Raitaru', self::RAITARU_WITH_RIG_TOTAL_MATERIAL_BONUS, self::FUEL_BLOCK_CATEGORY],
-            [$tree['runs'], $tree['structureName'], $tree['structureBonus'], $tree['productCategory']],
-        );
-        self::assertSame(
-            [44 => 4, 3683 => 20, 3689 => 4, 9832 => 9, self::ROBOTICS => 1, 16272 => 154, 16273 => 316, 16275 => 19, 17889 => 407],
-            array_column($tree['materials'], 'quantity', 'typeId'),
-        );
+        self::assertSame([true], array_column(self::nodesOf($tree, self::HYDROGEN_FUEL_BLOCK), 'hasCopy'));
+        self::assertSame([false, false, false], [$tree['hasCopy'], self::nodesOf($tree, self::FERNITE_ALLOY)[0]['hasCopy'], self::nodesOf($tree, self::CERAMIC_POWDER)[0]['hasCopy']]);
     }
 
-    public function testJobsOfABlueprintWithACopyingActivityHaveACopy(): void
-    {
-        $this->copyingActivityCount = 1;
-
-        $tree = $this->treeOfProject(self::FERNITE_CARBIDE, runs: 1, meLevel: 0);
-
-        self::assertTrue($tree['hasCopy']);
-        self::assertTrue($this->blueprintNodesOf($tree, self::HYDROGEN_FUEL_BLOCK)[0]['hasCopy']);
-    }
-
+    #[Group('issue-121')]
     public function testTreeOfNitrogenFuelBlockWithEveryTypeInTheSdeKeepsTheSdeNames(): void
     {
-        $tree = $this->treeOfProject(self::NITROGEN_FUEL_BLOCK, runs: 1, meLevel: 0);
+        $project = $this->projectOnGoldenSde($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 0, 20, self::DEFAULT_MAX_JOB_DURATION_DAYS);
+
+        $tree = $this->treeOf($project);
 
         self::assertSame('Nitrogen Fuel Block', $tree['productTypeName']);
         self::assertSame(
@@ -353,109 +421,45 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
         );
     }
 
-    public function testRootProductMissingFromTheSdeFailsTheTreeWithItsTypeId(): void
+    #[Group('issue-121')]
+    public function testIntermediateStepWithoutRecipeIsShownAsANonBuildableMaterialAndKeepsTheTree(): void
     {
-        $this->typeIdsWithoutSdeName = [self::NITROGEN_FUEL_BLOCK];
+        $project = self::projectOf($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 0);
+        self::addStep($project, self::NITROGEN_FUEL_BLOCK, 1, 0, 'manufacturing', 0);
+        self::addStep($project, self::ROBOTICS, 1, 1, 'manufacturing', 0);
 
-        $error = $this->typeMissingFromSdeErrorOfTree(self::NITROGEN_FUEL_BLOCK);
-
-        self::assertSame([[self::NITROGEN_FUEL_BLOCK], 'Types missing from the SDE: 4051'], [$error->getMissingTypeIds(), $error->getMessage()]);
-    }
-
-    public function testMaterialMissingFromTheSdeFailsTheTreeWithItsTypeId(): void
-    {
-        $this->typeIdsWithoutSdeName = [self::ROBOTICS];
-
-        $error = $this->typeMissingFromSdeErrorOfTree(self::NITROGEN_FUEL_BLOCK);
-
-        self::assertSame([[self::ROBOTICS], 'Types missing from the SDE: 9848'], [$error->getMissingTypeIds(), $error->getMessage()]);
-    }
-
-    public function testProductAndMaterialMissingFromTheSdeAreAllReportedInAscendingOrder(): void
-    {
-        $this->typeIdsWithoutSdeName = [self::ROBOTICS, self::NITROGEN_FUEL_BLOCK];
-
-        $error = $this->typeMissingFromSdeErrorOfTree(self::NITROGEN_FUEL_BLOCK);
+        $tree = $this->treeOf($project);
 
         self::assertSame(
-            [[self::NITROGEN_FUEL_BLOCK, self::ROBOTICS], 'Types missing from the SDE: 4051, 9848'],
-            [$error->getMissingTypeIds(), $error->getMessage()],
+            ['typeId' => self::ROBOTICS, 'typeName' => 'Robotics', 'quantity' => 1, 'isBuildable' => false, 'activityType' => null],
+            $tree['materials'][4],
         );
     }
 
-    public function testIntermediateMissingFromTheSdeInSeveralBranchesIsReportedOnce(): void
-    {
-        $this->typeIdsWithoutSdeName = [self::HYDROGEN_FUEL_BLOCK];
-
-        $error = $this->typeMissingFromSdeErrorOfTree(self::FERNITE_CARBIDE);
-
-        self::assertSame([[self::HYDROGEN_FUEL_BLOCK], 'Types missing from the SDE: 4246'], [$error->getMissingTypeIds(), $error->getMessage()]);
-    }
-
-    public function testExcludedMaterialMissingFromTheSdeFailsTheTreeWithItsTypeId(): void
-    {
-        $this->typeIdsWithoutSdeName = [self::HYDROGEN_FUEL_BLOCK];
-
-        $error = $this->typeMissingFromSdeErrorOfTree(self::FERNITE_CARBIDE, self::HYDROGEN_FUEL_BLOCK);
-
-        self::assertSame([[self::HYDROGEN_FUEL_BLOCK], 'Types missing from the SDE: 4246'], [$error->getMissingTypeIds(), $error->getMessage()]);
-    }
-
-    public function testRootWithoutRecipeAndMissingFromTheSdeStillReportsTheMissingBlueprint(): void
-    {
-        $this->typeIdsWithoutSdeName = [self::ROBOTICS];
-
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('No blueprint or reaction found for product type ID 9848');
-
-        $this->treeService->buildProductionTree(self::ROBOTICS, 1, 0);
-    }
-
-    public function testIntermediateWithoutRecipeIsShownAsANonBuildableMaterialAndKeepsTheTree(): void
-    {
-        $this->typeIdsWithoutRecipe = [self::FERNITE_ALLOY];
-
-        $tree = $this->treeOfProject(self::FERNITE_CARBIDE, runs: 1, meLevel: 0);
-
-        self::assertSame([], $this->blueprintNodesOf($tree, self::FERNITE_ALLOY));
-        self::assertSame(
-            ['typeId' => self::FERNITE_ALLOY, 'typeName' => 'Fernite Alloy', 'quantity' => 100, 'isBuildable' => false, 'activityType' => null],
-            $tree['materials'][1],
-        );
-        self::assertCount(1, $this->blueprintNodesOf($tree, self::CERAMIC_POWDER));
-    }
-
-    public function testStepsAreMappedToResources(): void
-    {
-        $this->project->addStep(new IndustryProjectStep());
-
-        $resource = $this->provideProject(self::NITROGEN_FUEL_BLOCK, runs: 1, meLevel: 0);
-
-        self::assertSame([$this->mappedStep], $resource->steps);
-    }
-
+    #[Group('issue-121')]
     public function testBlacklistedIntermediateIsShownAsANonBuildableMaterialWithoutSubtree(): void
     {
-        $this->blacklistedTypeIds = [self::HYDROGEN_FUEL_BLOCK];
+        $this->pilot->setIndustryBlacklistTypeIds([self::HYDROGEN_FUEL_BLOCK]);
+        $project = $this->oneRunOfFerniteCarbide(0);
 
-        $tree = $this->treeOfProject(self::FERNITE_CARBIDE, runs: 1, meLevel: 0);
+        $tree = $this->treeOf($project);
 
-        self::assertSame([], $this->blueprintNodesOf($tree, self::HYDROGEN_FUEL_BLOCK));
+        self::assertSame([], self::nodesOf($tree, self::HYDROGEN_FUEL_BLOCK));
         self::assertSame(
             ['typeId' => self::HYDROGEN_FUEL_BLOCK, 'typeName' => 'Hydrogen Fuel Block', 'quantity' => 5, 'isBuildable' => false, 'activityType' => null],
             $tree['materials'][0],
         );
     }
 
-    public function testComponentExcludedFromTheProjectAndBlacklistedIntermediateAreBothShownAsNonBuildableMaterialsWithoutSubtree(): void
+    #[Group('issue-121')]
+    public function testMaterialWhoseStepWasRemovedAndBlacklistedIntermediateAreBothShownAsNonBuildableMaterials(): void
     {
-        $this->blacklistedTypeIds = [self::HYDROGEN_FUEL_BLOCK];
-        $this->project->setExcludedTypeIds([self::FERNITE_ALLOY]);
+        $this->pilot->setIndustryBlacklistTypeIds([self::HYDROGEN_FUEL_BLOCK]);
+        $project = $this->oneRunOfFerniteCarbide(0);
+        $project->getSteps()->removeElement($this->onlyStepOf($project, self::FERNITE_ALLOY));
 
-        $tree = $this->treeOfProject(self::FERNITE_CARBIDE, runs: 1, meLevel: 0);
+        $tree = $this->treeOf($project);
 
-        self::assertSame([], $this->blueprintNodesOf($tree, self::HYDROGEN_FUEL_BLOCK));
-        self::assertSame([], $this->blueprintNodesOf($tree, self::FERNITE_ALLOY));
         self::assertSame(
             [
                 ['typeId' => self::HYDROGEN_FUEL_BLOCK, 'typeName' => 'Hydrogen Fuel Block', 'quantity' => 5, 'isBuildable' => false, 'activityType' => null],
@@ -463,90 +467,269 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
             ],
             [$tree['materials'][0], $tree['materials'][1]],
         );
-        self::assertCount(1, $this->blueprintNodesOf($tree, self::CERAMIC_POWDER));
+        self::assertSame([[], 1], [self::nodesOf($tree, self::FERNITE_ALLOY), \count(self::nodesOf($tree, self::CERAMIC_POWDER))]);
     }
 
-    public function testTreeIsNullWhenTheProductHasNoBlueprintNorReaction(): void
+    #[Group('issue-121')]
+    public function testTreeIsNullWhenTheRootStepHasNoBlueprintNorReaction(): void
     {
-        $resource = $this->provideProject(self::ROBOTICS, runs: 1, meLevel: 10);
+        $project = self::projectOf($this->pilot, self::ROBOTICS, 1, 10);
+        self::addStep($project, self::ROBOTICS, 1, 0, 'manufacturing');
 
-        self::assertNull($resource->tree);
+        self::assertNull($this->provide($project)->tree);
     }
 
-    public function testTreeIsNullWhenATypeOfTheTreeIsMissingFromTheSde(): void
+    #[Group('issue-121')]
+    public function testTreeIsNullWhenATypeOfAShownNodeIsMissingFromTheSde(): void
     {
-        $this->typeIdsWithoutSdeName = [self::ROBOTICS];
+        $project = $this->projectOnGoldenSde($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 10, 20, self::DEFAULT_MAX_JOB_DURATION_DAYS);
+        $this->typeIdsMissingFromSde = [self::ROBOTICS];
 
-        $resource = $this->provideProject(self::NITROGEN_FUEL_BLOCK, runs: 1, meLevel: 10);
+        self::assertNull($this->provide($project)->tree);
+    }
 
-        self::assertNull($resource->tree);
+    #[Group('issue-121')]
+    public function testTreeIsNullWhenATypeOfAnIntermediateNodeIsMissingFromTheSde(): void
+    {
+        $project = $this->oneRunOfFerniteCarbide(10);
+        $this->typeIdsMissingFromSde = [self::SCANDIUM];
+
+        self::assertNull($this->provide($project)->tree);
+    }
+
+    #[Group('issue-121')]
+    public function testRootBlacklistedAfterItsStepWasPlannedKeepsItsNeedWithoutRunsNorMaterials(): void
+    {
+        $project = $this->thirtyTwoQuantumMicroprocessors(self::SHORT_MAX_JOB_DURATION_DAYS);
+        $this->pilot->setIndustryBlacklistTypeIds([self::QUANTUM_MICROPROCESSOR]);
+
+        $tree = $this->treeOf($project);
+
+        self::assertSame([32, 0, []], [$tree['quantity'], $tree['runs'], $tree['materials']]);
+    }
+
+    #[Group('issue-121')]
+    public function testPurchasedRootKeepsItsNeedWithoutRunsNorMaterials(): void
+    {
+        $project = self::projectOf($this->pilot, self::NITROGEN_FUEL_BLOCK, 25, 10);
+        self::addStep($project, self::NITROGEN_FUEL_BLOCK, 25, 0, 'manufacturing')->setPurchased(true);
+
+        $tree = $this->treeOf($project);
+
+        self::assertSame([1000, 0, []], [$tree['quantity'], $tree['runs'], $tree['materials']]);
+    }
+
+    #[Group('issue-121')]
+    public function testRootStepKeepsItsPersistedRunsWhateverItsStock(): void
+    {
+        $project = self::projectOf($this->pilot, self::NITROGEN_FUEL_BLOCK, 25, 10);
+        self::addStep($project, self::NITROGEN_FUEL_BLOCK, 25, 0, 'manufacturing')->setInStockQuantity(1000);
+
+        $tree = $this->treeOf($project);
+
+        self::assertSame([1000, 25], [$tree['quantity'], $tree['runs']]);
+        self::assertSame(
+            [44 => 90, 3683 => 495, 3689 => 90, 9832 => 203, self::ROBOTICS => 25, 16272 => 3825, 16273 => 7875, 16275 => 450, 17888 => 10125],
+            array_column($tree['materials'], 'quantity', 'typeId'),
+        );
+    }
+
+    #[Group('issue-121')]
+    public function testManuallySplitRootKeepsTheRunsOfEachOfItsJobs(): void
+    {
+        $this->pilot->setIndustryBlacklistTypeIds([self::TITANIUM_CARBIDE]);
+        $project = $this->thirtyTwoQuantumMicroprocessors(self::DEFAULT_MAX_JOB_DURATION_DAYS);
+        $rootStep = $this->onlyStepOf($project, self::QUANTUM_MICROPROCESSOR)->setRuns(21)->setQuantity(21)->setSplitGroupId('manual-split')->setSplitIndex(0)->setTotalGroupRuns(32);
+        $project->addStep((clone $rootStep)->setRuns(11)->setQuantity(11)->setSplitIndex(1));
+
+        $tree = $this->treeOf($project);
+
+        self::assertSame([32, 32], [$tree['quantity'], $tree['runs']]);
+        self::assertSame(322 + 169, array_column($tree['materials'], 'quantity', 'typeId')[self::TITANIUM_CARBIDE]);
+    }
+
+    #[Group('issue-121')]
+    public function testNodeOfASplitGroupTakesTheStructureOfTheJobOfSplitIndexZeroWhateverTheOrderOfItsSteps(): void
+    {
+        $project = $this->thirtyTwoQuantumMicroprocessors(self::SHORT_MAX_JOB_DURATION_DAYS);
+        $jobs = $this->stepsOf($project, self::QUANTUM_MICROPROCESSOR);
+        $jobs[0]->setStructureConfig(self::structure($this->pilot, 'raitaru'));
+        $jobs[2]->setStructureConfig(self::structure($this->pilot, 'station'));
+        foreach (array_reverse($jobs) as $job) {
+            $project->getSteps()->removeElement($job);
+            $project->addStep($job);
+        }
+
+        $tree = $this->treeOf($project);
+
+        self::assertSame(['Raitaru', self::RAITARU_BASE_MATERIAL_BONUS], [$tree['structureName'], $tree['structureBonus']]);
+        self::assertSame(167 + 169 + 153, array_column($tree['materials'], 'quantity', 'typeId')[self::TITANIUM_CARBIDE]);
+    }
+
+    #[Group('issue-121')]
+    public function testSplitGroupWithOnePurchasedJobIsBoughtAsAWhole(): void
+    {
+        $this->pilot->setIndustryBlacklistTypeIds([self::HYDROGEN_FUEL_BLOCK, self::SYLRAMIC_FIBERS]);
+        $project = $this->projectOnGoldenSde($this->pilot, self::CAPITAL_FERNITE_CARBIDE_COMPOSITE_ARMOR_PLATE, 11, 10, 20, self::SHORT_MAX_JOB_DURATION_DAYS);
+        $this->stepsOf($project, self::FERNITE_CARBIDE)[1]->setPurchased(true);
+
+        $ferniteCarbideNode = self::nodesOf($this->treeOf($project), self::FERNITE_CARBIDE)[0];
+
+        self::assertSame([22_000, 0, []], [$ferniteCarbideNode['quantity'], $ferniteCarbideNode['runs'], $ferniteCarbideNode['materials']]);
+    }
+
+    #[Group('issue-121')]
+    public function testStepWithMoreStockThanItsNeedHasNoRunNorMaterials(): void
+    {
+        $project = self::projectOf($this->pilot, self::FENRIR, 1, 10);
+        self::addStep($project, self::FENRIR, 1, 0, 'manufacturing');
+        self::addStep($project, self::CAPITAL_ARMOR_PLATES, 5, 1, 'manufacturing')->setInStockQuantity(6);
+
+        $capitalArmorPlatesNode = self::nodesOf($this->treeOf($project), self::CAPITAL_ARMOR_PLATES)[0];
+
+        self::assertSame([5, 0, []], [$capitalArmorPlatesNode['quantity'], $capitalArmorPlatesNode['runs'], $capitalArmorPlatesNode['materials']]);
+    }
+
+    #[Group('issue-121')]
+    public function testNeedOfAnIntermediateDropsByTheNeedOfEachOfItsPurchasedConsumers(): void
+    {
+        $project = $this->oneRunOfFerniteCarbide(10);
+        $this->onlyStepOf($project, self::FERNITE_ALLOY)->setPurchased(true);
+        $this->onlyStepOf($project, self::CERAMIC_POWDER)->setPurchased(true);
+
+        $tree = $this->treeOf($project);
+
+        self::assertSame([[5, 1]], self::quantityAndRunsOfNodesOf($tree, self::HYDROGEN_FUEL_BLOCK));
+    }
+
+    #[Group('issue-121')]
+    public function testRowsOfAnIntermediateSharedInATataraSumToTheQuantityOfItsNode(): void
+    {
+        $this->pilotOwnsTataraAndRaitaru = true;
+        $project = $this->oneRunOfFerniteCarbide(10);
+
+        $tree = $this->treeOf($project);
+
+        self::assertSame([5, 5, 5], self::quantitiesOfRowsOf($tree, self::HYDROGEN_FUEL_BLOCK));
+        self::assertSame([[15, 1]], self::quantityAndRunsOfNodesOf($tree, self::HYDROGEN_FUEL_BLOCK));
+    }
+
+    public function testStepsAreMappedToResources(): void
+    {
+        $project = $this->projectOnGoldenSde($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 0, 20, self::DEFAULT_MAX_JOB_DURATION_DAYS);
+
+        self::assertSame([$this->mappedStep], $this->provide($project)->steps);
     }
 
     public function testProjectOfAnotherPilotIsNotFound(): void
     {
-        $this->project->setUser($this->createStub(User::class));
+        $project = self::projectOf(new User(), self::NITROGEN_FUEL_BLOCK, 1, 0);
 
         $this->expectException(NotFoundHttpException::class);
 
-        $this->provider->provide(new Get(), ['id' => $this->project->getId()->toRfc4122()]);
+        $this->provide($project);
     }
 
     public function testUnknownProjectIsNotFound(): void
     {
         $this->expectException(NotFoundHttpException::class);
 
-        $this->provider->provide(new Get(), ['id' => Uuid::v4()->toRfc4122()]);
+        $this->providerOnGoldenSde($this->pilot)->provide(new Get(), ['id' => Uuid::v4()->toRfc4122()]);
     }
 
     public function testAnonymousRequestIsUnauthorized(): void
     {
-        $security = $this->createStub(Security::class);
-        $security->method('getUser')->willReturn(null);
-        $provider = new ProjectProvider(
-            $security,
-            $this->createStub(IndustryProjectRepository::class),
-            $this->createStub(IndustryResourceMapper::class),
-            $this->createStub(IndustryTreeService::class),
-            $this->createStub(IndustryBlacklistService::class),
-        );
+        $project = self::projectOf($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 0);
+        $this->requestedProject = self::withId($project);
 
         $this->expectException(UnauthorizedHttpException::class);
 
-        $provider->provide(new Get(), ['id' => $this->project->getId()->toRfc4122()]);
+        $this->providerOnGoldenSde(null)->provide(new Get(), ['id' => $project->getId()->toRfc4122()]);
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function treeOfProject(int $productTypeId, int $runs, int $meLevel): array
+    private function pilotBonusService(): IndustryBonusService
     {
-        $tree = $this->provideProject($productTypeId, $runs, $meLevel)->tree;
+        return new TataraAndRaitaruBonusService(
+            fn (): bool => $this->pilotOwnsTataraAndRaitaru,
+            static fn (int $typeId): bool => (self::goldenRecipes()[$typeId]['activity'] ?? null) === 'reaction',
+            $this->createStub(IndustryRigCategoryRepository::class),
+            $this->pilotStructureConfigRepository(),
+            $this->typeRepositoryOnGoldenSde(),
+            $this->productRepositoryOnGoldenSde(),
+        );
+    }
+
+    private function providerOnGoldenSde(?User $authenticatedPilot): ProjectProvider
+    {
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn($authenticatedPilot);
+
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
+        $projectRepository->method('find')->willReturnCallback(
+            fn (Uuid $id): ?IndustryProject => $this->requestedProject !== null && $id->equals($this->requestedProject->getId()) ? $this->requestedProject : null,
+        );
+
+        $mapper = $this->createStub(IndustryResourceMapper::class);
+        $mapper->method('projectToResource')->willReturnCallback(static fn (): ProjectResource => new ProjectResource());
+        $mapper->method('stepToResource')->willReturn($this->mappedStep);
+
+        $typeRepository = $this->typeRepositoryOnGoldenSde();
+        $productRepository = $this->productRepositoryOnGoldenSde();
+        $materialRepository = $this->materialRepositoryOnGoldenSde();
+        $entityManager = $this->entityManagerWithoutRows();
+        $bonusService = $this->pilotBonusService();
+
+        return self::autowired(ProjectProvider::class, [
+            $security,
+            $projectRepository,
+            $mapper,
+            new IndustryTreeService($productRepository, $materialRepository, $typeRepository, $entityManager, $bonusService),
+            new IndustryBlacklistService($entityManager),
+            $bonusService,
+            $this->calculationServiceOnGoldenSde($bonusService, $this->pilotStructureConfigRepository()),
+            new TypeNameResolver($typeRepository),
+            $typeRepository,
+            $productRepository,
+            $materialRepository,
+            $this->activityRepositoryOnGoldenSde(),
+            $entityManager,
+        ]);
+    }
+
+    private function provide(IndustryProject $project): ProjectResource
+    {
+        $this->requestedProject = self::withId($project);
+
+        return $this->providerOnGoldenSde($this->pilot)->provide(new Get(), ['id' => $project->getId()->toRfc4122()]);
+    }
+
+    private function treeOf(IndustryProject $project): array
+    {
+        $tree = $this->provide($project)->tree;
         self::assertIsArray($tree);
 
         return $tree;
     }
 
-    private function typeMissingFromSdeErrorOfTree(int $productTypeId, int ...$excludedTypeIds): TypeMissingFromSdeException
+    private function thirtyTwoQuantumMicroprocessors(float $maxJobDurationDays): IndustryProject
     {
-        try {
-            $this->treeService->buildProductionTree($productTypeId, 1, 0, array_values($excludedTypeIds));
-        } catch (TypeMissingFromSdeException $error) {
-            return $error;
+        return $this->projectOnGoldenSde($this->pilot, self::QUANTUM_MICROPROCESSOR, 32, 10, 20, $maxJobDurationDays);
+    }
+
+    private function oneRunOfFerniteCarbide(int $meLevel): IndustryProject
+    {
+        return $this->projectOnGoldenSde($this->pilot, self::FERNITE_CARBIDE, 1, $meLevel, 20, self::DEFAULT_MAX_JOB_DURATION_DAYS);
+    }
+
+    private static function withId(IndustryProject $project): IndustryProject
+    {
+        if ($project->getId() === null) {
+            (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($project, Uuid::v4());
         }
 
-        self::fail("The tree of type {$productTypeId} was built without a TypeMissingFromSdeException.");
+        return $project;
     }
 
-    private function provideProject(int $productTypeId, int $runs, int $meLevel): ProjectResource
-    {
-        $this->project->setProductTypeId($productTypeId)->setRuns($runs)->setMeLevel($meLevel);
-
-        return $this->provider->provide(new Get(), ['id' => $this->project->getId()->toRfc4122()]);
-    }
-
-    /**
-     * @param array<string, mixed> $actual
-     */
     private function assertMatchesSnapshot(string $name, array $actual): void
     {
         $snapshotFile = self::SNAPSHOT_DIR.$name.'.json';
@@ -560,24 +743,70 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
         self::assertSame(json_decode((string) file_get_contents($snapshotFile), true, flags: \JSON_THROW_ON_ERROR), $actual);
     }
 
-    /**
-     * Quantities of the non-buildable materials summed by type over the whole tree, and number of job nodes per
-     * produced type (root included), both sorted by type ID.
-     *
-     * @param array<string, mixed> $tree
-     * @return array{leafQuantities: array<int, int>, jobCounts: array<int, int>}
-     */
-    private function leafQuantitiesAndJobCountsOf(array $tree): array
+    private static function nodesOf(array $tree, int $productTypeId): array
+    {
+        return array_values(array_filter(self::allNodesOf($tree), static fn (array $node): bool => $node['productTypeId'] === $productTypeId));
+    }
+
+    private static function quantityAndRunsOfNodesOf(array $tree, int $productTypeId): array
+    {
+        return array_map(static fn (array $node): array => [$node['quantity'], $node['runs']], self::nodesOf($tree, $productTypeId));
+    }
+
+    private static function quantitiesOfRowsOf(array $tree, int $typeId): array
+    {
+        $quantities = [];
+        foreach (self::allNodesOf($tree) as $node) {
+            foreach ($node['materials'] as $material) {
+                if ($material['typeId'] === $typeId) {
+                    $quantities[] = $material['quantity'];
+                }
+            }
+        }
+
+        return $quantities;
+    }
+
+    private static function nodeCountOf(array $tree): int
+    {
+        return \count(self::allNodesOf($tree));
+    }
+
+    private static function allNodesOf(array $node): array
+    {
+        $nodes = [$node];
+        foreach ($node['materials'] as $material) {
+            if (isset($material['blueprint'])) {
+                $nodes = [...$nodes, ...self::allNodesOf($material['blueprint'])];
+            }
+        }
+
+        return $nodes;
+    }
+
+    private static function referenceCountOf(array $tree, int $typeId): int
+    {
+        return self::leafQuantitiesAndNodeCountsOf($tree)['referenceCounts'][$typeId] ?? 0;
+    }
+
+    private static function leafQuantitiesOf(array $tree): array
+    {
+        return self::leafQuantitiesAndNodeCountsOf($tree)['leafQuantities'];
+    }
+
+    private static function leafQuantitiesAndNodeCountsOf(array $tree): array
     {
         $leafQuantities = [];
         $jobCounts = [];
-        $pendingJobs = [$tree];
-        while ($pendingJobs !== []) {
-            $job = array_pop($pendingJobs);
-            $jobCounts[$job['productTypeId']] = ($jobCounts[$job['productTypeId']] ?? 0) + 1;
-            foreach ($job['materials'] as $material) {
+        $referenceCounts = [];
+        foreach (self::allNodesOf($tree) as $node) {
+            $jobCounts[$node['productTypeId']] = ($jobCounts[$node['productTypeId']] ?? 0) + 1;
+            foreach ($node['materials'] as $material) {
                 if (isset($material['blueprint'])) {
-                    $pendingJobs[] = $material['blueprint'];
+                    continue;
+                }
+                if ($material['isBuildable']) {
+                    $referenceCounts[$material['typeId']] = ($referenceCounts[$material['typeId']] ?? 0) + 1;
                     continue;
                 }
                 $leafQuantities[$material['typeId']] = ($leafQuantities[$material['typeId']] ?? 0) + $material['quantity'];
@@ -585,126 +814,33 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
         }
         ksort($leafQuantities);
         ksort($jobCounts);
+        ksort($referenceCounts);
 
-        return ['leafQuantities' => $leafQuantities, 'jobCounts' => $jobCounts];
+        return ['leafQuantities' => $leafQuantities, 'jobCounts' => $jobCounts, 'referenceCounts' => $referenceCounts];
     }
 
-    /**
-     * Every job node (the `blueprint` of a material) producing the given type, depth-first.
-     *
-     * @param array<string, mixed> $node
-     * @return list<array<string, mixed>>
-     */
-    private function blueprintNodesOf(array $node, int $productTypeId): array
+    private static function leafDifferencesWithRavworks(array $leafQuantities): array
     {
-        $found = [];
-        foreach ($node['materials'] as $material) {
-            if (!isset($material['blueprint'])) {
-                continue;
+        $golden = json_decode((string) file_get_contents(self::GOLDEN_DIR.'nomad-1run-me10-no-structure.ravworks.json'), true, flags: \JSON_THROW_ON_ERROR);
+        $differences = [];
+        foreach (array_column($golden['expected']['leaves'], 'quantity', 'typeId') as $typeId => $quantity) {
+            $difference = ($leafQuantities[$typeId] ?? 0) - $quantity;
+            if ($difference !== 0) {
+                $differences[$typeId] = $difference;
             }
-            if ($material['blueprint']['productTypeId'] === $productTypeId) {
-                $found[] = $material['blueprint'];
-            }
-            $found = [...$found, ...$this->blueprintNodesOf($material['blueprint'], $productTypeId)];
         }
+        foreach (array_diff_key($leafQuantities, array_column($golden['expected']['leaves'], 'quantity', 'typeId')) as $typeId => $quantity) {
+            $differences[$typeId] = $quantity;
+        }
+        ksort($differences);
 
-        return $found;
+        return $differences;
     }
 
-    private function treeServiceOnGoldenSde(EntityManagerInterface $entityManager): IndustryTreeService
+    private static function sortedByTypeId(array $quantities): array
     {
-        $recipes = $this->sde['recipes'];
+        ksort($quantities);
 
-        $productRepository = $this->createStub(IndustryActivityProductRepository::class);
-        $productRepository->method('findBlueprintForProduct')->willReturnCallback(
-            function (int $productTypeId, int $activityId) use ($recipes): ?IndustryActivityProduct {
-                $recipe = in_array($productTypeId, $this->typeIdsWithoutRecipe, true) ? null : ($recipes[(string) $productTypeId] ?? null);
-                if ($recipe === null || self::activityIdOf($recipe['activity']) !== $activityId) {
-                    return null;
-                }
-
-                return (new IndustryActivityProduct())
-                    ->setTypeId($productTypeId + self::BLUEPRINT_TYPE_ID_OFFSET)
-                    ->setActivityId($activityId)
-                    ->setProductTypeId($productTypeId)
-                    ->setQuantity($recipe['outputPerRun']);
-            },
-        );
-
-        $materialRepository = $this->createStub(IndustryActivityMaterialRepository::class);
-        $materialRepository->method('findBy')->willReturnCallback(
-            static function (array $criteria) use ($recipes): array {
-                $productTypeId = $criteria['typeId'] - self::BLUEPRINT_TYPE_ID_OFFSET;
-                $materials = [];
-                foreach ($recipes[(string) $productTypeId]['materials'] as $materialTypeId => $baseQuantityPerRun) {
-                    $materials[] = (new IndustryActivityMaterial())
-                        ->setTypeId($criteria['typeId'])
-                        ->setActivityId($criteria['activityId'])
-                        ->setMaterialTypeId((int) $materialTypeId)
-                        ->setQuantity($baseQuantityPerRun);
-                }
-
-                return $materials;
-            },
-        );
-
-        $typeRepository = $this->createStub(InvTypeRepository::class);
-        $typeRepository->method('find')->willReturnCallback(
-            fn (int $typeId): ?InvType => isset($this->sde['typeNames'][(string) $typeId]) && !in_array($typeId, $this->typeIdsWithoutSdeName, true)
-                ? (new InvType())->setTypeId($typeId)->setTypeName($this->sde['typeNames'][(string) $typeId])
-                : null,
-        );
-
-        return new IndustryTreeService($productRepository, $materialRepository, $typeRepository, $entityManager, $this->bonusServiceOfThePilot());
-    }
-
-    /**
-     * Without structure, every lookup returns no bonus. With structures, the pilot owns a Tatara in nullsec with
-     * Standup L-Set Reactor Efficiency II (reactions) and a Raitaru without rig (fuel blocks), as in the Fernite golden;
-     * the Raitaru can carry a material rig instead. Robotics has its own category, covered by no structure.
-     */
-    private function bonusServiceOfThePilot(): IndustryBonusService
-    {
-        $tatara = (new IndustryStructureConfig())->setName('Tatara')->setStructureType('tatara')->setSecurityType('nullsec')
-            ->setRigs(['Standup L-Set Reactor Efficiency II']);
-        $raitaru = (new IndustryStructureConfig())->setName('Raitaru')->setStructureType('raitaru')->setSecurityType('nullsec');
-        $tataraForReactions = ['structure' => $tatara, 'bonus' => ['total' => self::TATARA_REACTOR_RIG_BONUS, 'base' => 0.0, 'rig' => self::TATARA_REACTOR_RIG_BONUS], 'category' => self::REACTION_CATEGORY];
-        $raitaruForFuelBlocks = fn (): array => $this->raitaruHasMaterialRig
-            ? ['structure' => $raitaru, 'bonus' => ['total' => self::RAITARU_WITH_RIG_TOTAL_MATERIAL_BONUS, 'base' => self::RAITARU_BASE_MATERIAL_BONUS, 'rig' => self::RAITARU_MATERIAL_RIG_BONUS], 'category' => self::FUEL_BLOCK_CATEGORY]
-            : ['structure' => $raitaru, 'bonus' => ['total' => self::RAITARU_BASE_MATERIAL_BONUS, 'base' => self::RAITARU_BASE_MATERIAL_BONUS, 'rig' => 0.0], 'category' => self::FUEL_BLOCK_CATEGORY];
-        $noStructure = ['structure' => null, 'bonus' => ['total' => 0.0, 'base' => 0.0, 'rig' => 0.0], 'category' => null];
-        $fuelBlocks = [self::HYDROGEN_FUEL_BLOCK, self::NITROGEN_FUEL_BLOCK];
-
-        $bonusService = $this->createStub(IndustryBonusService::class);
-        $bonusService->method('getCategoryForProduct')->willReturnCallback(
-            fn (int $typeId, bool $isReaction = false): ?string => match (true) {
-                !$this->pilotOwnsTataraAndRaitaru => null,
-                $isReaction => self::REACTION_CATEGORY,
-                in_array($typeId, $fuelBlocks, true) => self::FUEL_BLOCK_CATEGORY,
-                $typeId === self::ROBOTICS => self::ROBOTICS_CATEGORY,
-                default => null,
-            },
-        );
-        $bonusService->method('findBestStructureForProduct')->willReturnCallback(
-            fn (User $user, int $typeId, bool $isReaction = false): array => match (true) {
-                !$this->pilotOwnsTataraAndRaitaru => $noStructure,
-                $isReaction => $tataraForReactions,
-                default => $raitaruForFuelBlocks(),
-            },
-        );
-        $bonusService->method('findBestStructureForCategory')->willReturnCallback(
-            fn (User $user, string $category, bool $isReaction = false): array => match ($category) {
-                self::REACTION_CATEGORY => $tataraForReactions,
-                self::FUEL_BLOCK_CATEGORY => $raitaruForFuelBlocks(),
-                default => $noStructure,
-            },
-        );
-
-        return $bonusService;
-    }
-
-    private static function activityIdOf(string $activity): int
-    {
-        return $activity === 'reaction' ? IndustryActivityType::Reaction->value : IndustryActivityType::Manufacturing->value;
+        return $quantities;
     }
 }

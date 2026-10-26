@@ -177,6 +177,7 @@ export const useProjectsStore = defineStore('industry-projects', () => {
   }
 
   async function fetchBpcKit(projectId: string, desiredBpcCount: number = 1): Promise<BpcKit | null> {
+    bpcKit.value = null
     try {
       const params = new URLSearchParams()
       if (desiredBpcCount > 1) params.set('desired_bpc_count', desiredBpcCount.toString())

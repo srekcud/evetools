@@ -10,11 +10,13 @@ use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\Sde\IndustryActivity;
 use App\Entity\Sde\IndustryActivityMaterial;
+use App\Entity\Sde\IndustryBlueprint;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityRepository;
+use App\Repository\Sde\IndustryBlueprintRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\IndustryBonusService;
@@ -38,6 +40,7 @@ class IndustryProjectFactoryTest extends TestCase
     private const int PHENOLIC_COMPOSITES = 16680;
     private const int NANOTRANSISTORS = 16681;
     private const int QUANTUM_MICROPROCESSOR_RUNS = 32;
+    private const int BPC_MAX_RUNS_ABOVE_THE_RUNS_OF_EVERY_STEP = 1_000;
 
     private IndustryTreeService&MockObject $treeService;
     private IndustryBlacklistService&MockObject $blacklistService;
@@ -78,7 +81,26 @@ class IndustryProjectFactoryTest extends TestCase
             $this->activityRepository,
             $this->entityManager,
             $this->mercurePublisher,
+            $this->blueprintRepositoryWithBpcMaxRunsAboveTheRunsOfEveryStep(),
         );
+    }
+
+    private function blueprintRepositoryWithBpcMaxRunsAboveTheRunsOfEveryStep(): IndustryBlueprintRepository
+    {
+        $blueprintOf = static fn (int $blueprintTypeId): IndustryBlueprint => (new IndustryBlueprint())
+            ->setTypeId($blueprintTypeId)
+            ->setMaxProductionLimit(self::BPC_MAX_RUNS_ABOVE_THE_RUNS_OF_EVERY_STEP);
+
+        $blueprintRepository = $this->createStub(IndustryBlueprintRepository::class);
+        $blueprintRepository->method('find')->willReturnCallback(static fn (mixed $blueprintTypeId): IndustryBlueprint => $blueprintOf((int) $blueprintTypeId));
+        $blueprintRepository->method('findBy')->willReturnCallback(
+            static fn (array $criteria): array => array_map($blueprintOf, array_values((array) ($criteria['typeId'] ?? []))),
+        );
+        $blueprintRepository->method('findOneBy')->willReturnCallback(
+            static fn (array $criteria): ?IndustryBlueprint => isset($criteria['typeId']) && !\is_array($criteria['typeId']) ? $blueprintOf((int) $criteria['typeId']) : null,
+        );
+
+        return $blueprintRepository;
     }
 
     // ===========================================

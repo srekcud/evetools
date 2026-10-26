@@ -50,4 +50,4 @@ Les valeurs `[TO CONFIRM: quantités de matériaux et montants d'installation du
 
 ## Termes du glossaire
 
-Ajoutés : **Plafond de runs**, **Structure assignée**.
+Ajoutés : **Plafond de runs d'un BPC** (fusionné avec le terme de la spec #234), **Structure assignée**.

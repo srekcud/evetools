@@ -13,6 +13,7 @@ use App\Enum\IndustryActivityType;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityRepository;
+use App\Repository\Sde\IndustryBlueprintRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -40,6 +41,7 @@ class IndustryProjectFactory
         private readonly IndustryActivityRepository $activityRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly MercurePublisherService $mercurePublisher,
+        private readonly IndustryBlueprintRepository $blueprintRepository,
     ) {
     }
 
@@ -481,6 +483,10 @@ class IndustryProjectFactory
             }
         }
         $materialsByKey = $this->materialsOfSteps($steps);
+        $blueprintTypeIdsWithCopyStep = array_column(
+            array_filter($steps, static fn (array $step): bool => $step['activityType'] === 'copy'),
+            'blueprintTypeId',
+        );
 
         uasort($steps, static fn (array $a, array $b): int => $a['planningLevel'] <=> $b['planningLevel']);
 
@@ -499,7 +505,7 @@ class IndustryProjectFactory
 
             $existingJobsWithFixedRuns = $existingJobsWithFixedRunsByKey[self::stepKey($step['blueprintTypeId'], $step['activityType'])] ?? null;
             $plannedJobs = $existingJobsWithFixedRuns === null
-                ? $this->jobsOf($step, $maxJobDurationDays)
+                ? $this->jobsOf($step, $maxJobDurationDays, $this->bpcMaxRunsOf($step, $blueprintTypeIdsWithCopyStep))
                 : self::jobsKeepingFixedRuns($step, $existingJobsWithFixedRuns);
             $jobs = array_map(fn (array $job): array => $this->withSettingsOfExistingStep($job, $settingsOfExistingSteps), $plannedJobs);
             $materials = $materialsByKey[$step['blueprintTypeId'] . '-' . SplitGroupMaterials::activityIdOf($step['activityType'])] ?? [];
@@ -510,7 +516,33 @@ class IndustryProjectFactory
             array_push($plannedSteps, ...$jobs);
         }
 
-        return $plannedSteps;
+        return $this->withCopyStepsFollowingManufacturing($plannedSteps, $settingsOfExistingSteps);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $plannedSteps
+     * @param array<string, list<array{meLevel: int, teLevel: int, structureConfig: IndustryStructureConfig|null}>> $settingsOfExistingSteps
+     * @return list<array<string, mixed>>
+     */
+    private function withCopyStepsFollowingManufacturing(array $plannedSteps, array $settingsOfExistingSteps): array
+    {
+        $stepsWithCopyJobs = [];
+        foreach ($plannedSteps as $plannedStep) {
+            if ($plannedStep['activityType'] !== 'copy') {
+                $stepsWithCopyJobs[] = $plannedStep;
+                continue;
+            }
+
+            $manufacturingRuns = array_sum(array_column(
+                array_filter($plannedSteps, static fn (array $step): bool => $step['activityType'] === 'manufacturing' && $step['blueprintTypeId'] === $plannedStep['blueprintTypeId']),
+                'runs',
+            ));
+            $copyStep = [...$plannedStep, 'runs' => $manufacturingRuns, 'quantity' => $manufacturingRuns];
+            $copyJobs = self::splitUnderMaxRuns($copyStep, $this->maxProductionLimitOf($copyStep['blueprintTypeId']));
+            array_push($stepsWithCopyJobs, ...array_map(fn (array $job): array => $this->withSettingsOfExistingStep($job, $settingsOfExistingSteps), $copyJobs));
+        }
+
+        return $stepsWithCopyJobs;
     }
 
     /**
@@ -621,22 +653,72 @@ class IndustryProjectFactory
 
     /**
      * @param array<string, mixed> $step
-     * @return list<array<string, mixed>>
+     * @param list<int> $blueprintTypeIdsWithCopyStep
      */
-    private function jobsOf(array $step, float $maxJobDurationDays): array
+    private function bpcMaxRunsOf(array $step, array $blueprintTypeIdsWithCopyStep): ?int
+    {
+        if ($step['activityType'] !== 'manufacturing' || !in_array($step['blueprintTypeId'], $blueprintTypeIdsWithCopyStep, true)) {
+            return null;
+        }
+
+        return $this->maxProductionLimitOf($step['blueprintTypeId']);
+    }
+
+    private function maxProductionLimitOf(int $blueprintTypeId): int
+    {
+        $industryBlueprint = $this->blueprintRepository->findBy(['typeId' => $blueprintTypeId])[0] ?? null;
+        if ($industryBlueprint === null) {
+            throw new \RuntimeException("No industry blueprint in the SDE for blueprint {$blueprintTypeId}: its BPC max runs is unknown");
+        }
+
+        $bpcMaxRuns = $industryBlueprint->getMaxProductionLimit();
+        if ($bpcMaxRuns <= 0) {
+            throw new \RuntimeException("Invalid max production limit {$bpcMaxRuns} in the SDE for blueprint {$blueprintTypeId}");
+        }
+
+        return $bpcMaxRuns;
+    }
+
+    /**
+     * @param array<string, mixed> $step
+     */
+    private static function maxRunsPerJob(array $step, float $maxJobDurationDays, ?int $bpcMaxRuns): ?int
     {
         $timePerRun = $step['timePerRun'];
         $maxDurationSeconds = $maxJobDurationDays * self::SECONDS_PER_DAY;
+        $limits = $bpcMaxRuns === null ? [] : [$bpcMaxRuns];
+
+        if ($timePerRun !== null && $timePerRun * $step['runs'] > $maxDurationSeconds) {
+            $limits[] = max(1, (int) floor($maxDurationSeconds / $timePerRun));
+        }
+
+        return $limits === [] ? null : min($limits);
+    }
+
+    /**
+     * @param array<string, mixed> $step
+     * @return list<array<string, mixed>>
+     */
+    private function jobsOf(array $step, float $maxJobDurationDays, ?int $bpcMaxRuns): array
+    {
+        return self::splitUnderMaxRuns($step, self::maxRunsPerJob($step, $maxJobDurationDays, $bpcMaxRuns));
+    }
+
+    /**
+     * @param array<string, mixed> $step
+     * @return list<array<string, mixed>>
+     */
+    private static function splitUnderMaxRuns(array $step, ?int $maxRunsPerJob): array
+    {
         $totalRuns = $step['runs'];
 
-        if ($timePerRun === null || $timePerRun * $totalRuns <= $maxDurationSeconds) {
+        if ($maxRunsPerJob === null) {
             return [$step];
         }
 
-        $maxRunsPerJob = max(1, (int) floor($maxDurationSeconds / $timePerRun));
         $numJobs = (int) ceil($totalRuns / $maxRunsPerJob);
 
-        if ($numJobs === 1) {
+        if ($numJobs < 2) {
             return [$step];
         }
 
