@@ -4,9 +4,26 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Industry;
 
+use App\Entity\CachedCharacterSkill;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectStep;
+use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
+use App\Enum\IndustryActivityType;
+use App\Repository\CachedStructureRepository;
+use App\Repository\IndustryRigCategoryRepository;
+use App\Repository\IndustryStructureConfigRepository;
+use App\Repository\IndustryUserSettingsRepository;
+use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Repository\Sde\InvTypeRepository;
+use App\Repository\Sde\StaStationRepository;
+use App\Service\Industry\IndustryBonusService;
 use App\Service\Industry\IndustryCalculationService;
+use App\Service\Industry\SplitGroupQuantities;
+use App\Service\TypeNameResolver;
+use Doctrine\DBAL\Connection;
+use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
@@ -21,18 +38,39 @@ class IndustryCalculationTest extends TestCase
 {
     use ResolvesTypeNamesFromSde;
 
+    private const int CAPITAL_JUMP_DRIVE = 21025;
+    private const int CAPITAL_JUMP_DRIVE_BLUEPRINT = 1_021_025;
+    private const int CAPITAL_JUMP_DRIVE_BASE_TIME_PER_RUN = 16000;
+    private const int CAPITAL_CARGO_BAY = 21027;
+    private const int CAPITAL_CARGO_BAY_BLUEPRINT = 1_021_027;
+    private const int CAPITAL_CARGO_BAY_BASE_TIME_PER_RUN = 16000;
+    private const int REINFORCED_CARBON_FIBER = 57457;
+    private const int REINFORCED_CARBON_FIBER_FORMULA = 1_057_457;
+    private const int REINFORCED_CARBON_FIBER_BASE_TIME_PER_RUN = 10800;
+    private const int BLUEPRINT_WITHOUT_BASE_TIME = 999_999_999;
+    private const int FIRST_SCIENCE_SKILL = 999_000_001;
+    private const int SECOND_SCIENCE_SKILL = 999_000_002;
+    private const array NO_SKILL = [];
+    private const array INDUSTRY_FIVE = [CachedCharacterSkill::SKILL_INDUSTRY => 5];
+    private const array ADVANCED_INDUSTRY_FIVE = [CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5];
+    private const array INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE = [
+        CachedCharacterSkill::SKILL_INDUSTRY => 5,
+        CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5,
+    ];
+    private const array REACTIONS_FOUR = [CachedCharacterSkill::SKILL_REACTIONS => 4];
+
     private IndustryCalculationService $calculationService;
 
     protected function setUp(): void
     {
         $this->calculationService = new IndustryCalculationService(
-            $this->createMock(\App\Service\TypeNameResolver::class),
-            $this->createMock(\App\Service\Industry\IndustryBonusService::class),
-            $this->createMock(\App\Repository\IndustryStructureConfigRepository::class),
-            $this->createMock(\App\Repository\IndustryUserSettingsRepository::class),
-            $this->createMock(\Doctrine\ORM\EntityManagerInterface::class),
-            $this->createMock(\App\Repository\Sde\StaStationRepository::class),
-            $this->createMock(\App\Repository\CachedStructureRepository::class),
+            $this->createStub(\App\Service\TypeNameResolver::class),
+            $this->createStub(\App\Service\Industry\IndustryBonusService::class),
+            $this->createStub(\App\Repository\IndustryStructureConfigRepository::class),
+            $this->createStub(\App\Repository\IndustryUserSettingsRepository::class),
+            $this->createStub(\Doctrine\ORM\EntityManagerInterface::class),
+            $this->createStub(\App\Repository\Sde\StaStationRepository::class),
+            $this->createStub(\App\Repository\CachedStructureRepository::class),
         );
     }
 
@@ -42,14 +80,6 @@ class IndustryCalculationTest extends TestCase
     private function calculateMaterial(int $baseQuantity, int $runs, int $me = 0, float $structureBaseBonus = 0.0, float $rigBonus = 0.0): int
     {
         return $this->calculationService->calculateMaterialQuantity($baseQuantity, $runs, $me, $structureBaseBonus, $rigBonus);
-    }
-
-    /**
-     * Calculate runs needed to produce a quantity.
-     */
-    private function calculateRuns(int $quantityNeeded, int $outputPerRun): int
-    {
-        return (int) ceil($quantityNeeded / $outputPerRun);
     }
 
     // ===========================================
@@ -243,37 +273,193 @@ class IndustryCalculationTest extends TestCase
         $this->assertSame(2.4, $total);
     }
 
-    // ===========================================
-    // Runs Calculation Tests
-    // ===========================================
-
-    public function testRunsCalculationExact(): void
+    #[Group('issue-165')]
+    #[DataProvider('manufacturingTimesPerRunByTeAndSkills')]
+    public function testTimePerRunOfAManufacturingStepFollowsItsTeAndTheIndustrySkills(int $teLevel, ?array $skillLevels, int $expectedTimePerRun): void
     {
-        // 30400 quantity / 200 per run = 152 runs
-        $result = $this->calculateRuns(30400, 200);
-        $this->assertSame(152, $result);
+        $step = $this->stepOfAProject(self::CAPITAL_JUMP_DRIVE, self::CAPITAL_JUMP_DRIVE_BLUEPRINT, 'manufacturing', $teLevel);
+
+        self::assertSame($expectedTimePerRun, $this->calculationServiceOnSdeActivities()->calculateTimePerRun($step, $skillLevels));
     }
 
-    public function testRunsCalculationRoundUp(): void
+    public static function manufacturingTimesPerRunByTeAndSkills(): iterable
     {
-        // 28564 quantity / 200 per run = 142.82 → 143 runs
-        $result = $this->calculateRuns(28564, 200);
-        $this->assertSame(143, $result);
+        yield 'TE 0 without character skills' => [0, null, 16000];
+        yield 'TE 0 with no skill trained' => [0, self::NO_SKILL, 16000];
+        yield 'TE 0 with Industry V' => [0, self::INDUSTRY_FIVE, 12800];
+        yield 'TE 0 with Advanced Industry V' => [0, self::ADVANCED_INDUSTRY_FIVE, 13600];
+        yield 'TE 0 with Industry V and Advanced Industry V' => [0, self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE, 10880];
+        yield 'TE 20 without character skills' => [20, null, 12800];
+        yield 'TE 20 with Industry V' => [20, self::INDUSTRY_FIVE, 10240];
+        yield 'TE 20 with Advanced Industry V' => [20, self::ADVANCED_INDUSTRY_FIVE, 10880];
+        yield 'TE 20 with Industry V and Advanced Industry V' => [20, self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE, 8704];
+        yield 'TE 20 with Reactions IV only' => [20, self::REACTIONS_FOUR, 12800];
     }
 
-    public function testRunsCalculationSmall(): void
+    #[Group('issue-165')]
+    #[DataProvider('reactionTimesPerRunByTeAndSkills')]
+    public function testTimePerRunOfAReactionStepFollowsItsTeAndTheReactionsSkill(int $teLevel, ?array $skillLevels, int $expectedTimePerRun): void
     {
-        // 2219 quantity / 200 per run = 11.095 → 12 runs
-        $result = $this->calculateRuns(2219, 200);
-        $this->assertSame(12, $result);
+        $step = $this->stepOfAProject(self::REINFORCED_CARBON_FIBER, self::REINFORCED_CARBON_FIBER_FORMULA, 'reaction', $teLevel);
+
+        self::assertSame($expectedTimePerRun, $this->calculationServiceOnSdeActivities()->calculateTimePerRun($step, $skillLevels));
     }
 
-    public function testRunsCalculationOutputThree(): void
+    public static function reactionTimesPerRunByTeAndSkills(): iterable
     {
-        // Construction components output 3 per run
-        // 171 quantity / 3 per run = 57 runs
-        $result = $this->calculateRuns(171, 3);
-        $this->assertSame(57, $result);
+        yield 'TE 0 without character skills' => [0, null, 10800];
+        yield 'TE 0 with Reactions IV' => [0, self::REACTIONS_FOUR, 9072];
+        yield 'TE 20 without character skills' => [20, null, 8640];
+        yield 'TE 20 with Reactions IV' => [20, self::REACTIONS_FOUR, 7258];
+        yield 'TE 0 with Industry V and Advanced Industry V only' => [0, self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE, 10800];
+    }
+
+    #[Group('issue-165')]
+    public function testTimePerRunOfAManufacturingStepInARaitaruTakesItsStructureTimeBonus(): void
+    {
+        $step = $this->stepOfAProject(self::CAPITAL_JUMP_DRIVE, self::CAPITAL_JUMP_DRIVE_BLUEPRINT, 'manufacturing', 20)
+            ->setStructureConfig((new IndustryStructureConfig())->setName('Raitaru')->setStructureType('raitaru')->setSecurityType('nullsec'));
+
+        self::assertSame(7399, $this->calculationServiceOnSdeActivities()->calculateTimePerRun($step, self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE));
+    }
+
+    #[Group('issue-165')]
+    public function testTimePerRunOfAReactionStepInATataraTakesItsStructureTimeBonus(): void
+    {
+        $step = $this->stepOfAProject(self::REINFORCED_CARBON_FIBER, self::REINFORCED_CARBON_FIBER_FORMULA, 'reaction', 0)
+            ->setStructureConfig((new IndustryStructureConfig())->setName('Tatara')->setStructureType('tatara')->setSecurityType('nullsec'));
+
+        self::assertSame(6804, $this->calculationServiceOnSdeActivities()->calculateTimePerRun($step, self::REACTIONS_FOUR));
+    }
+
+    #[Group('issue-165')]
+    public function testScienceSkillOfTheBlueprintTakesOnePercentPerLevelOnTopOfTheIndustrySkills(): void
+    {
+        $step = $this->stepOfAProject(self::CAPITAL_JUMP_DRIVE, self::CAPITAL_JUMP_DRIVE_BLUEPRINT, 'manufacturing', 20);
+        $skillLevels = self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE + [self::FIRST_SCIENCE_SKILL => 3];
+
+        $timePerRun = $this->calculationServiceOnSdeActivities([
+            self::CAPITAL_JUMP_DRIVE_BLUEPRINT.'-'.IndustryActivityType::Manufacturing->value => [CachedCharacterSkill::SKILL_INDUSTRY, self::FIRST_SCIENCE_SKILL],
+        ])->calculateTimePerRun($step, $skillLevels);
+
+        self::assertSame(8443, $timePerRun);
+    }
+
+    #[Group('issue-165')]
+    public function testTwoScienceSkillsBothApply(): void
+    {
+        $step = $this->stepOfAProject(self::CAPITAL_JUMP_DRIVE, self::CAPITAL_JUMP_DRIVE_BLUEPRINT, 'manufacturing', 20);
+        $skillLevels = self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE + [self::FIRST_SCIENCE_SKILL => 3, self::SECOND_SCIENCE_SKILL => 2];
+
+        $timePerRun = $this->calculationServiceOnSdeActivities([
+            self::CAPITAL_JUMP_DRIVE_BLUEPRINT.'-'.IndustryActivityType::Manufacturing->value => [self::FIRST_SCIENCE_SKILL, self::SECOND_SCIENCE_SKILL],
+        ])->calculateTimePerRun($step, $skillLevels);
+
+        self::assertSame(8275, $timePerRun);
+    }
+
+    #[Group('issue-165')]
+    public function testScienceSkillsAreResolvedPerBlueprintAndActivityOnTheSameService(): void
+    {
+        $calculationService = $this->calculationServiceOnSdeActivities([
+            self::CAPITAL_JUMP_DRIVE_BLUEPRINT.'-'.IndustryActivityType::Manufacturing->value => [self::FIRST_SCIENCE_SKILL],
+            self::CAPITAL_CARGO_BAY_BLUEPRINT.'-'.IndustryActivityType::Manufacturing->value => [self::SECOND_SCIENCE_SKILL],
+            self::REINFORCED_CARBON_FIBER_FORMULA.'-'.IndustryActivityType::Reaction->value => [self::SECOND_SCIENCE_SKILL],
+        ]);
+        $skillLevels = self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE + self::REACTIONS_FOUR + [self::FIRST_SCIENCE_SKILL => 3, self::SECOND_SCIENCE_SKILL => 2];
+
+        $manufacturingTimePerRun = $calculationService->calculateTimePerRun(
+            $this->stepOfAProject(self::CAPITAL_JUMP_DRIVE, self::CAPITAL_JUMP_DRIVE_BLUEPRINT, 'manufacturing', 20),
+            $skillLevels,
+        );
+        $otherManufacturingTimePerRun = $calculationService->calculateTimePerRun(
+            $this->stepOfAProject(self::CAPITAL_CARGO_BAY, self::CAPITAL_CARGO_BAY_BLUEPRINT, 'manufacturing', 20),
+            $skillLevels,
+        );
+        $reactionTimePerRun = $calculationService->calculateTimePerRun(
+            $this->stepOfAProject(self::REINFORCED_CARBON_FIBER, self::REINFORCED_CARBON_FIBER_FORMULA, 'reaction', 0),
+            $skillLevels,
+        );
+
+        self::assertSame([8443, 8530, 8891], [$manufacturingTimePerRun, $otherManufacturingTimePerRun, $reactionTimePerRun]);
+    }
+
+    #[Group('issue-165')]
+    public function testScienceSkillOfTheBlueprintNotTrainedLeavesTheTimePerRunOfTheIndustrySkills(): void
+    {
+        $step = $this->stepOfAProject(self::CAPITAL_JUMP_DRIVE, self::CAPITAL_JUMP_DRIVE_BLUEPRINT, 'manufacturing', 20);
+
+        $timePerRun = $this->calculationServiceOnSdeActivities([
+            self::CAPITAL_JUMP_DRIVE_BLUEPRINT.'-'.IndustryActivityType::Manufacturing->value => [self::FIRST_SCIENCE_SKILL],
+        ])->calculateTimePerRun($step, self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE);
+
+        self::assertSame(8704, $timePerRun);
+    }
+
+    #[Group('issue-165')]
+    public function testTimePerRunIsUnknownWhenTheSdeHasNoBaseTimeForTheBlueprint(): void
+    {
+        $step = $this->stepOfAProject(self::CAPITAL_JUMP_DRIVE, self::BLUEPRINT_WITHOUT_BASE_TIME, 'manufacturing', 20);
+
+        self::assertNull($this->calculationServiceOnSdeActivities()->calculateTimePerRun($step, self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE));
+    }
+
+    #[Group('issue-165')]
+    public function testTimePerRunOfAReactionIsUnknownWhenTheSdeHasABaseTimeForTheManufacturingOfTheBlueprintOnly(): void
+    {
+        $step = $this->stepOfAProject(self::CAPITAL_JUMP_DRIVE, self::CAPITAL_JUMP_DRIVE_BLUEPRINT, 'reaction', 0);
+
+        self::assertNull($this->calculationServiceOnSdeActivities()->calculateTimePerRun($step, self::REACTIONS_FOUR));
+    }
+
+    private function calculationServiceOnSdeActivities(array $scienceSkillIdsByBlueprintAndActivity = []): IndustryCalculationService
+    {
+        $baseTimesByBlueprintAndActivity = [
+            self::CAPITAL_JUMP_DRIVE_BLUEPRINT.'-'.IndustryActivityType::Manufacturing->value => (string) self::CAPITAL_JUMP_DRIVE_BASE_TIME_PER_RUN,
+            self::CAPITAL_CARGO_BAY_BLUEPRINT.'-'.IndustryActivityType::Manufacturing->value => (string) self::CAPITAL_CARGO_BAY_BASE_TIME_PER_RUN,
+            self::REINFORCED_CARBON_FIBER_FORMULA.'-'.IndustryActivityType::Reaction->value => (string) self::REINFORCED_CARBON_FIBER_BASE_TIME_PER_RUN,
+        ];
+        $connection = $this->createStub(Connection::class);
+        $connection->method('fetchOne')->willReturnCallback(
+            static fn (string $sql, array $params): string|false => $baseTimesByBlueprintAndActivity[$params[0].'-'.$params[1]] ?? false,
+        );
+        $connection->method('fetchAllAssociative')->willReturnCallback(
+            static fn (string $sql, array $params): array => array_map(
+                static fn (int $skillId): array => ['skill_id' => (string) $skillId],
+                $scienceSkillIdsByBlueprintAndActivity[$params[0].'-'.$params[1]] ?? [],
+            ),
+        );
+        $entityManager = $this->createStub(EntityManagerInterface::class);
+        $entityManager->method('getConnection')->willReturn($connection);
+        $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
+        $settingsRepository->method('findOneBy')->willReturn(null);
+
+        return new IndustryCalculationService(
+            $this->createStub(TypeNameResolver::class),
+            new IndustryBonusService(
+                $this->createStub(IndustryRigCategoryRepository::class),
+                $this->createStub(IndustryStructureConfigRepository::class),
+                $this->createStub(InvTypeRepository::class),
+                $this->createStub(IndustryActivityProductRepository::class),
+            ),
+            $this->createStub(IndustryStructureConfigRepository::class),
+            $settingsRepository,
+            $entityManager,
+            $this->createStub(StaStationRepository::class),
+            $this->createStub(CachedStructureRepository::class),
+        );
+    }
+
+    private function stepOfAProject(int $productTypeId, int $blueprintTypeId, string $activityType, int $teLevel): IndustryProjectStep
+    {
+        $step = (new IndustryProjectStep())
+            ->setProductTypeId($productTypeId)
+            ->setBlueprintTypeId($blueprintTypeId)
+            ->setActivityType($activityType)
+            ->setTeLevel($teLevel);
+        (new IndustryProject())->setUser(new User())->addStep($step);
+
+        return $step;
     }
 
     // ===========================================
@@ -318,7 +504,7 @@ class IndustryCalculationTest extends TestCase
         $this->assertSame(2220, $rcfNeeded);
 
         // Step 2: RCF runs
-        $rcfRuns = $this->calculateRuns($rcfNeeded, 200);
+        $rcfRuns = SplitGroupQuantities::runsOfNeed($rcfNeeded, 200);
         $this->assertSame(12, $rcfRuns); // ceil(2220/200) = 12
 
         // Step 3: RCF reaction needs CF (0 ME, refinery 0% base + 2.64% rig)
@@ -326,7 +512,7 @@ class IndustryCalculationTest extends TestCase
         $this->assertSame(2337, $cfNeeded);
 
         // Step 4: CF runs
-        $cfRuns = $this->calculateRuns($cfNeeded, 200);
+        $cfRuns = SplitGroupQuantities::runsOfNeed($cfNeeded, 200);
         $this->assertSame(12, $cfRuns); // ceil(2337/200) = 12
     }
 

@@ -49,7 +49,7 @@ trait BuildsProjectOnGoldenSde
 
     private array $typeIdsWithZeroMaxProductionLimit = [];
 
-    private function projectFactoryOnGoldenSde(IndustryBonusService $bonusService, IndustryCalculationService $calculationService, ?EntityManagerInterface $projectEntityManager = null): IndustryProjectFactory
+    private function projectFactoryOnGoldenSde(IndustryBonusService $bonusService, IndustryCalculationService $calculationService, ?EntityManagerInterface $projectEntityManager = null, ?CachedCharacterSkillRepository $skillRepository = null): IndustryProjectFactory
     {
         $typeRepository = $this->typeRepositoryOnGoldenSde();
         $materialRepository = $this->materialRepositoryOnGoldenSde();
@@ -59,7 +59,7 @@ trait BuildsProjectOnGoldenSde
             new IndustryBlacklistService($this->entityManagerWithoutRows()),
             $bonusService,
             $calculationService,
-            $this->createStub(CachedCharacterSkillRepository::class),
+            $skillRepository ?? $this->createStub(CachedCharacterSkillRepository::class),
             $typeRepository,
             $materialRepository,
             $this->activityRepositoryOnGoldenSde(),
