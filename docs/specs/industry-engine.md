@@ -94,7 +94,9 @@ mod_rig       = 1 − (bonus_rig % × mod_sécurité) / 100
 - Valeurs numériques lues dans les attributs dogma du SDE (`strEngMatBonus`, `strEngCostBonus`, `strEngTimeBonus`, `strReactionTimeMultiplier`, `attributeEngRig*Bonus`, `RefRig*Bonus`, `attributeThukkerEngRigMatBonus`, `hiSecModifier` / `lowSecModifier` / `nullSecModifier`). Le ciblage rig → groupes reste la table `IndustryRigCategory` (D10). Plus aucune table de bonus codée en dur.
 - Une seule règle sert au calcul et à l'affichage des structures.
 - Sécurité : `HighSec`, `LowSec`, `NullSec`. L'espace wormhole utilise `NullSec`, affichée « Nullsec / WH » (D6).
-- Choix de la structure d'un job (D3, en Application) : la structure assignée à l'étape ; sinon, la meilleure structure de l'utilisateur pour (activité, produit du job). Le système favori sert de filtre. « Meilleure » garde le critère actuel : la plus forte réduction de matériaux (`IndustryBonusService.php:252`).
+- Choix de la structure d'un job (D3, en Application) : la structure assignée à l'étape (si elle peut faire l'activité) ; sinon, la meilleure structure de l'utilisateur pour (activité, produit du job). Le système favori sert de filtre. « Meilleure » garde le critère actuel : la plus forte réduction de matériaux (`IndustryBonusService.php:252`).
+- Une seule sélection par job, partagée entre matériaux et coût d'installation (`StructureMaterialModifiers::choiceFor()`, spec #142 #149).
+- Structure assignée qui ne peut pas faire l'activité (`ProductionStructure::canRun()` faux) : ignorée, la meilleure structure est prise (D3) et le choix porte un avertissement (`StructureChoice::$ignoredAssignedStructure`). Décision du 2026-10-26.
 
 Valeurs de référence (SDE au 2026-10-07, utilisées par les goldens) :
 
