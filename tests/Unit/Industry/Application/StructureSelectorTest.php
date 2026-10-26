@@ -52,6 +52,82 @@ final class StructureSelectorTest extends TestCase
         $this->assertSame('assigned', $choice->structure?->id);
         $this->assertSame(StructureChoiceStatus::Assigned, $choice->status);
         $this->assertEqualsWithDelta(0.99, $choice->materialMultiplier->value, 1e-12);
+        $this->assertNull($choice->ignoredAssignedStructure);
+    }
+
+    public function testBestStructureWithoutAssignedStructureHasNoIgnoredAssignedStructure(): void
+    {
+        $selector = new StructureSelector([
+            ProductionStructures::raitaru('better', SecurityClass::NullSec, self::OTHER_SYSTEM_ID, '2026-01-01 00:00:00', ProductionStructures::manufacturingRig(2.4, 'ammunition')),
+        ], FavoriteSystems::none());
+
+        $choice = $selector->select(ActivityKind::Manufacturing, 'ammunition');
+
+        $this->assertSame('better', $choice->structure?->id);
+        $this->assertNull($choice->ignoredAssignedStructure);
+    }
+
+    public function testRefineryAssignedToManufacturingIsIgnoredForTheBestEngineeringComplexWithAWarning(): void
+    {
+        $tataraAssignedToManufacturing = ProductionStructures::tatara('tatara-assigned', SecurityClass::NullSec, self::OTHER_SYSTEM_ID, '2026-09-01 00:00:00');
+        $selector = new StructureSelector([
+            $tataraAssignedToManufacturing,
+            ProductionStructures::raitaru('without-rig', SecurityClass::NullSec, self::OTHER_SYSTEM_ID, '2026-06-01 00:00:00'),
+            ProductionStructures::raitaru('better', SecurityClass::NullSec, self::OTHER_SYSTEM_ID, '2026-01-01 00:00:00', ProductionStructures::manufacturingRig(2.4, 'ammunition')),
+        ], FavoriteSystems::none());
+
+        $choice = $selector->select(ActivityKind::Manufacturing, 'ammunition', $tataraAssignedToManufacturing);
+
+        $this->assertSame('better', $choice->structure?->id);
+        $this->assertSame(StructureChoiceStatus::BestConfigured, $choice->status);
+        $this->assertEqualsWithDelta(0.940104, $choice->materialMultiplier->value, 1e-12);
+        $this->assertSame($tataraAssignedToManufacturing, $choice->ignoredAssignedStructure);
+    }
+
+    public function testEngineeringComplexAssignedToAReactionIsIgnoredForTheBestRefineryOfTheFavoriteSystemWithAWarning(): void
+    {
+        $raitaruAssignedToAReaction = ProductionStructures::raitaru('raitaru-assigned', SecurityClass::NullSec, self::FAVORITE_REACTION_SYSTEM_ID, '2026-09-01 00:00:00');
+        $selector = new StructureSelector([
+            $raitaruAssignedToAReaction,
+            ProductionStructures::tatara('tatara-elsewhere', SecurityClass::NullSec, self::OTHER_SYSTEM_ID, '2026-06-01 00:00:00', ProductionStructures::reactionRig(2.4, 'composite_reaction')),
+            ProductionStructures::tatara('tatara-in-favorite', SecurityClass::LowSec, self::FAVORITE_REACTION_SYSTEM_ID, '2026-01-01 00:00:00', ProductionStructures::reactionRig(2.0, 'composite_reaction')),
+        ], new FavoriteSystems(null, self::FAVORITE_REACTION_SYSTEM_ID));
+
+        $choice = $selector->select(ActivityKind::Reaction, 'composite_reaction', $raitaruAssignedToAReaction);
+
+        $this->assertSame('tatara-in-favorite', $choice->structure?->id);
+        $this->assertSame(StructureChoiceStatus::BestInFavoriteSystem, $choice->status);
+        $this->assertEqualsWithDelta(0.98, $choice->materialMultiplier->value, 1e-12);
+        $this->assertSame($raitaruAssignedToAReaction, $choice->ignoredAssignedStructure);
+    }
+
+    public function testIgnoredAssignedStructureKeepsTheWarningOfABestStructureOutsideTheFavoriteSystem(): void
+    {
+        $tataraAssignedToManufacturing = ProductionStructures::tatara('tatara-in-favorite', SecurityClass::NullSec, self::FAVORITE_MANUFACTURING_SYSTEM_ID, '2026-09-01 00:00:00');
+        $selector = new StructureSelector([
+            $tataraAssignedToManufacturing,
+            ProductionStructures::raitaru('raitaru-elsewhere', SecurityClass::LowSec, self::OTHER_SYSTEM_ID, '2026-01-01 00:00:00', ProductionStructures::manufacturingRig(2.0, 'ammunition')),
+        ], new FavoriteSystems(self::FAVORITE_MANUFACTURING_SYSTEM_ID, null));
+
+        $choice = $selector->select(ActivityKind::Manufacturing, 'ammunition', $tataraAssignedToManufacturing);
+
+        $this->assertSame('raitaru-elsewhere', $choice->structure?->id);
+        $this->assertSame(StructureChoiceStatus::BestOutsideFavoriteSystem, $choice->status);
+        $this->assertEqualsWithDelta(0.95238, $choice->materialMultiplier->value, 1e-12);
+        $this->assertSame($tataraAssignedToManufacturing, $choice->ignoredAssignedStructure);
+    }
+
+    public function testIgnoredAssignedStructureWithoutAnySuitableStructureGivesNotConfiguredWithTheWarning(): void
+    {
+        $tataraAssignedToManufacturing = ProductionStructures::tatara('tatara-assigned', SecurityClass::NullSec, self::OTHER_SYSTEM_ID);
+        $selector = new StructureSelector([$tataraAssignedToManufacturing], FavoriteSystems::none());
+
+        $choice = $selector->select(ActivityKind::Manufacturing, 'ammunition', $tataraAssignedToManufacturing);
+
+        $this->assertNull($choice->structure);
+        $this->assertSame(StructureChoiceStatus::NotConfigured, $choice->status);
+        $this->assertEqualsWithDelta(1.0, $choice->materialMultiplier->value, 1e-12);
+        $this->assertSame($tataraAssignedToManufacturing, $choice->ignoredAssignedStructure);
     }
 
     public function testBestStructureHasTheLargestMaterialReductionForTheProductCategory(): void

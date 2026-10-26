@@ -16,6 +16,7 @@ use App\Industry\Application\ProductionCostCalculator;
 use App\Industry\Application\ProductionCostRequest;
 use App\Industry\Application\ProductionStructure;
 use App\Industry\Application\StructureChoiceStatus;
+use App\Industry\Application\StructureType;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\BlueprintCatalog;
 use App\Industry\Domain\BlueprintEfficiency;
@@ -81,6 +82,10 @@ final class ProductionCostCalculatorTest extends TestCase
 
     private const float RAITARU_FACILITY_TAX_RATE = 0.01;
 
+    private const int ASSIGNED_RAITARU_SYSTEM_ID = 30004759;
+    private const float ASSIGNED_RAITARU_FACILITY_TAX_RATE = 0.015;
+    private const float ASSIGNED_RAITARU_MANUFACTURING_COST_INDEX = 0.07;
+
     /** Synthetic T2 case: quantities are not those of the SDE. */
     private const int HOBGOBLIN_I = 2454;
     private const int HOBGOBLIN_I_BLUEPRINT = 2455;
@@ -89,6 +94,19 @@ final class ProductionCostCalculatorTest extends TestCase
     private const int SECOND_DATACORE = 20418;
     private const float HOBGOBLIN_II_BASE_PROBABILITY = 0.34;
     private const int PROCESS_DECRYPTOR = 34205;
+
+    private const int ISOGEN_PER_HOBGOBLIN_II_RUN = 7;
+
+    private const array GOLDEN_PLAN_LEAVES = [
+        self::TRITANIUM => 496.0,
+        self::PYERITE => 396.0,
+        self::MEXALLON => 198.0,
+        self::ISOGEN => 74.0,
+        self::NOCXIUM => 33.0,
+        self::MORPHITE => 139.0,
+        self::FERNITE_CARBIDE => 27640.0,
+        self::FULLERIDES => 11056.0,
+    ];
 
     private const float ISK_TOLERANCE = 1.0;
     private const float FLOAT_TOLERANCE = 1e-6;
@@ -399,6 +417,331 @@ final class ProductionCostCalculatorTest extends TestCase
         $this->assertSame(10, $invention->outcome->timeEfficiency->value);
     }
 
+    public function testBlueprintCopyMaxRunsSplitsThePlannedJobIntoJobsOfAtMostTheMaxRuns(): void
+    {
+        $productionCost = self::hobgoblinIICalculator(self::HOBGOBLIN_II_BASE_PROBABILITY, self::hobgoblinCatalogWithIsogen())
+            ->costOf(self::hobgoblinIIRequest(
+                self::processDecryptor(),
+                mode: CostMode::Plan,
+                runs: 32,
+                blueprintCopyMaxRuns: [self::HOBGOBLIN_II => new Runs(10)],
+            ));
+
+        $hobgoblinIIJobs = self::jobsOf($productionCost, self::HOBGOBLIN_II);
+        $this->assertSame([8.0, 8.0, 8.0, 8.0], self::runsOf($hobgoblinIIJobs));
+        $this->assertCount(4, $productionCost->jobs);
+    }
+
+    public function testSplitJobsRecomputeTheirMaterialsJobByJobAtTheMaterialEfficiencyOfTheInventedBlueprintCopy(): void
+    {
+        $productionCost = self::hobgoblinIICalculator(self::HOBGOBLIN_II_BASE_PROBABILITY, self::hobgoblinCatalogWithIsogen())
+            ->costOf(self::hobgoblinIIRequest(
+                self::processDecryptor(),
+                requestedMaterialEfficiency: 2,
+                mode: CostMode::Plan,
+                runs: 32,
+                blueprintCopyMaxRuns: [self::HOBGOBLIN_II => new Runs(10)],
+            ));
+
+        $this->assertSame([
+            self::TRITANIUM => 60800.0,
+            self::ISOGEN => 216.0,
+            self::MORPHITE => 304.0,
+        ], self::leafQuantitiesOf($productionCost));
+        $this->assertKnownCost(3005120.0, $productionCost->materialCost);
+        foreach (self::jobsOf($productionCost, self::HOBGOBLIN_II) as $hobgoblinIIJob) {
+            $this->assertKnownCost(57198.9, $hobgoblinIIJob->installCost->total);
+        }
+        $this->assertKnownCost(228795.6, $productionCost->installCost);
+    }
+
+    public function testUnevenSplitGivesTheRemainderRunsToTheFirstJobsAndRoundsTheMaterialsOfEachJob(): void
+    {
+        $productionCost = self::hobgoblinIICalculator(self::HOBGOBLIN_II_BASE_PROBABILITY, self::hobgoblinCatalogWithIsogen())
+            ->costOf(self::hobgoblinIIRequest(
+                self::processDecryptor(),
+                mode: CostMode::Plan,
+                runs: 25,
+                blueprintCopyMaxRuns: [self::HOBGOBLIN_II => new Runs(10)],
+            ));
+
+        $hobgoblinIIJobs = self::jobsOf($productionCost, self::HOBGOBLIN_II);
+        $this->assertSame([9.0, 8.0, 8.0], self::runsOf($hobgoblinIIJobs));
+        $this->assertSame([
+            self::TRITANIUM => 47500.0,
+            self::ISOGEN => 168.0,
+            self::MORPHITE => 238.0,
+        ], self::leafQuantitiesOf($productionCost));
+        $this->assertKnownCost(2352160.0, $productionCost->materialCost);
+        $this->assertKnownCost(64348.7625, $hobgoblinIIJobs[0]->installCost->total);
+        $this->assertKnownCost(57198.9, $hobgoblinIIJobs[1]->installCost->total);
+        $this->assertKnownCost(57198.9, $hobgoblinIIJobs[2]->installCost->total);
+    }
+
+    public function testProductAbsentFromBlueprintCopyMaxRunsIsNotCappedByTheMaxProductionLimitOfItsRecipe(): void
+    {
+        $productionCost = self::hobgoblinIICalculator(self::HOBGOBLIN_II_BASE_PROBABILITY, self::hobgoblinCatalogWithIsogen())
+            ->costOf(self::hobgoblinIIRequest(self::processDecryptor(), mode: CostMode::Plan, runs: 32));
+
+        $this->assertSame([32.0], self::runsOf(self::jobsOf($productionCost, self::HOBGOBLIN_II)));
+        $this->assertSame([
+            self::TRITANIUM => 60800.0,
+            self::ISOGEN => 213.0,
+            self::MORPHITE => 304.0,
+        ], self::leafQuantitiesOf($productionCost));
+        $this->assertKnownCost(3004760.0, $productionCost->materialCost);
+        $this->assertKnownCost(228795.6, $productionCost->installCost);
+    }
+
+    public function testBlueprintCopyMaxRunsEqualToTheRunsOfTheJobDoesNotSplitIt(): void
+    {
+        $productionCost = self::hobgoblinIICalculator(self::HOBGOBLIN_II_BASE_PROBABILITY, self::hobgoblinCatalogWithIsogen())
+            ->costOf(self::hobgoblinIIRequest(
+                self::processDecryptor(),
+                mode: CostMode::Plan,
+                runs: 32,
+                blueprintCopyMaxRuns: [self::HOBGOBLIN_II => new Runs(32)],
+            ));
+
+        $this->assertSame([32.0], self::runsOf(self::jobsOf($productionCost, self::HOBGOBLIN_II)));
+        $this->assertSame(213.0, self::leafQuantitiesOf($productionCost)[self::ISOGEN]);
+    }
+
+    public function testBlueprintCopyMaxRunsIsIgnoredInMarginalCostMode(): void
+    {
+        $productionCost = self::hobgoblinIICalculator(self::HOBGOBLIN_II_BASE_PROBABILITY, self::hobgoblinCatalogWithIsogen())
+            ->costOf(self::hobgoblinIIRequest(
+                self::processDecryptor(),
+                mode: CostMode::MarginalCost,
+                runs: 32,
+                blueprintCopyMaxRuns: [self::HOBGOBLIN_II => new Runs(10)],
+            ));
+
+        $this->assertSame([32.0], self::runsOf(self::jobsOf($productionCost, self::HOBGOBLIN_II)));
+        $this->assertEqualsWithDelta(212.8, $productionCost->leaves[self::ISOGEN]->quantity, self::FLOAT_TOLERANCE);
+        $this->assertEqualsWithDelta(60800.0, $productionCost->leaves[self::TRITANIUM]->quantity, self::FLOAT_TOLERANCE);
+        $this->assertEqualsWithDelta(304.0, $productionCost->leaves[self::MORPHITE]->quantity, self::FLOAT_TOLERANCE);
+        $this->assertKnownCost(3004736.0, $productionCost->materialCost);
+        $this->assertKnownCost(228795.6, $productionCost->installCost);
+    }
+
+    public function testBlueprintCopyMaxRunsOfZeroIsRefusedWhenTheRequestIsBuilt(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        self::hobgoblinIIRequest(mode: CostMode::Plan, blueprintCopyMaxRuns: [self::HOBGOBLIN_II => new Runs(0)]);
+    }
+
+    public function testAssignedStructureOnACappedProductGivesEverySplitJobItsMaterialsAndInstallCost(): void
+    {
+        $assignedRaitaru = self::assignedRaitaru();
+
+        $productionCost = self::hobgoblinIICalculator(self::HOBGOBLIN_II_BASE_PROBABILITY, self::hobgoblinCatalogWithIsogen())
+            ->costOf(self::hobgoblinIIRequest(
+                self::processDecryptor(),
+                mode: CostMode::Plan,
+                runs: 32,
+                blueprintCopyMaxRuns: [self::HOBGOBLIN_II => new Runs(10)],
+                assignedStructures: [self::HOBGOBLIN_II => $assignedRaitaru],
+            ));
+
+        $hobgoblinIIJobs = self::jobsOf($productionCost, self::HOBGOBLIN_II);
+        $this->assertSame([8.0, 8.0, 8.0, 8.0], self::runsOf($hobgoblinIIJobs));
+        foreach ($hobgoblinIIJobs as $hobgoblinIIJob) {
+            $this->assertSame(StructureChoiceStatus::Assigned, $hobgoblinIIJob->structureChoice->status);
+            $this->assertSame($assignedRaitaru, $hobgoblinIIJob->structureChoice->structure);
+            $this->assertEqualsWithDelta(0.99, $hobgoblinIIJob->structureChoice->materialMultiplier->value, self::FLOAT_TOLERANCE);
+            $this->assertSame(self::ASSIGNED_RAITARU_SYSTEM_ID, $hobgoblinIIJob->solarSystemId);
+            $this->assertKnownCost(85209.028, $hobgoblinIIJob->installCost->total);
+        }
+        $this->assertSame([
+            self::TRITANIUM => 60192.0,
+            self::ISOGEN => 212.0,
+            self::MORPHITE => 304.0,
+        ], self::leafQuantitiesOf($productionCost));
+        $this->assertKnownCost(3002208.0, $productionCost->materialCost);
+        $this->assertKnownCost(340836.112, $productionCost->installCost);
+    }
+
+    public function testAssignedStructureOfAnIntermediateGivesItsJobTheMaterialsAndInstallCostOfThatStructureInPlanMode(): void
+    {
+        $assignedRaitaru = self::assignedRaitaru();
+
+        $productionCost = self::hailLCalculator()->costOf(self::hailLRequest(
+            CostMode::Plan,
+            [self::nullsecRaitaru(), $assignedRaitaru],
+            [self::RAM_AMMUNITION_TECH => $assignedRaitaru],
+        ));
+
+        $ramJob = self::jobOf($productionCost, self::RAM_AMMUNITION_TECH);
+        $this->assertSame(StructureChoiceStatus::Assigned, $ramJob->structureChoice->status);
+        $this->assertSame($assignedRaitaru, $ramJob->structureChoice->structure);
+        $this->assertEqualsWithDelta(0.99, $ramJob->structureChoice->materialMultiplier->value, self::FLOAT_TOLERANCE);
+        $this->assertNull($ramJob->structureChoice->ignoredAssignedStructure);
+        $this->assertSame(self::ASSIGNED_RAITARU_SYSTEM_ID, $ramJob->solarSystemId);
+        $this->assertKnownCost(2763.2584, $ramJob->installCost->systemCost);
+        $this->assertKnownCost(610.44, $ramJob->installCost->facilityTax);
+        $this->assertKnownCost(1627.84, $ramJob->installCost->sccSurcharge);
+        $this->assertKnownCost(5001.5384, $ramJob->installCost->total);
+
+        $rootJob = self::jobOf($productionCost, self::HAIL_L);
+        $this->assertSame('raitaru-nullsec', $rootJob->structureChoice->structure?->id);
+        $this->assertSame(StructureChoiceStatus::BestConfigured, $rootJob->structureChoice->status);
+        $this->assertKnownCost(408775.0, $rootJob->installCost->total);
+
+        $this->assertSame(self::GOLDEN_PLAN_LEAVES, self::leafQuantitiesOf($productionCost));
+        $this->assertKnownCost(4612932.0, $productionCost->materialCost);
+        $this->assertKnownCost(413776.5384, $productionCost->installCost);
+    }
+
+    public function testAssignedStructureOfAnIntermediateGivesItsProRataJobTheInstallCostOfThatStructureInMarginalCostMode(): void
+    {
+        $assignedRaitaru = self::assignedRaitaru();
+
+        $productionCost = self::hailLCalculator()->costOf(self::hailLRequest(
+            CostMode::MarginalCost,
+            [self::nullsecRaitaru(), $assignedRaitaru],
+            [self::RAM_AMMUNITION_TECH => $assignedRaitaru],
+        ));
+
+        $ramJob = self::jobOf($productionCost, self::RAM_AMMUNITION_TECH);
+        $this->assertEqualsWithDelta(0.092130192, $ramJob->runs, self::FLOAT_TOLERANCE);
+        $this->assertSame(StructureChoiceStatus::Assigned, $ramJob->structureChoice->status);
+        $this->assertSame($assignedRaitaru, $ramJob->structureChoice->structure);
+        $this->assertSame(self::ASSIGNED_RAITARU_SYSTEM_ID, $ramJob->solarSystemId);
+        $this->assertTrue($ramJob->installCost->total->isKnown());
+        $this->assertEqualsWithDelta(460.792693087, $ramJob->installCost->total->amount()->amount, self::FLOAT_TOLERANCE);
+
+        $this->assertEqualsWithDelta(45.640928596032, $productionCost->leaves[self::TRITANIUM]->quantity, self::FLOAT_TOLERANCE);
+        $this->assertKnownCost(4564546.93, $productionCost->materialCost);
+        $this->assertKnownCost(409235.79, $productionCost->installCost);
+    }
+
+    public function testWithoutAssignedStructureTheIntermediateKeepsTheBestStructureOfTheUser(): void
+    {
+        $productionCost = self::hailLCalculator()->costOf(self::hailLRequest(
+            CostMode::Plan,
+            [self::nullsecRaitaru(), self::assignedRaitaru()],
+        ));
+
+        $ramJob = self::jobOf($productionCost, self::RAM_AMMUNITION_TECH);
+        $this->assertSame('raitaru-nullsec', $ramJob->structureChoice->structure?->id);
+        $this->assertSame(StructureChoiceStatus::BestConfigured, $ramJob->structureChoice->status);
+        $this->assertSame(self::RAITARU_SYSTEM_ID, $ramJob->solarSystemId);
+        $this->assertKnownCost(4008.556, $ramJob->installCost->total);
+        $this->assertSame(self::GOLDEN_PLAN_LEAVES, self::leafQuantitiesOf($productionCost));
+        $this->assertKnownCost(4612932.0, $productionCost->materialCost);
+        $this->assertKnownCost(412783.56, $productionCost->installCost);
+    }
+
+    public function testAssignedStructureOfTheTargetGivesItsJobTheMaterialsAndInstallCostOfThatStructureInPlanMode(): void
+    {
+        $assignedRaitaru = self::assignedRaitaru();
+
+        $productionCost = self::hailLCalculator()->costOf(self::hailLRequest(
+            CostMode::Plan,
+            [self::nullsecRaitaru(), $assignedRaitaru],
+            [self::HAIL_L => $assignedRaitaru],
+        ));
+
+        $rootJob = self::jobOf($productionCost, self::HAIL_L);
+        $this->assertSame(StructureChoiceStatus::Assigned, $rootJob->structureChoice->status);
+        $this->assertSame($assignedRaitaru, $rootJob->structureChoice->structure);
+        $this->assertEqualsWithDelta(0.99, $rootJob->structureChoice->materialMultiplier->value, self::FLOAT_TOLERANCE);
+        $this->assertSame(self::ASSIGNED_RAITARU_SYSTEM_ID, $rootJob->solarSystemId);
+        $this->assertKnownCost(510035.0, $rootJob->installCost->total);
+        $this->assertSame('raitaru-nullsec', self::jobOf($productionCost, self::RAM_AMMUNITION_TECH)->structureChoice->structure?->id);
+
+        $this->assertSame([
+            self::TRITANIUM => 496.0,
+            self::PYERITE => 396.0,
+            self::MEXALLON => 198.0,
+            self::ISOGEN => 74.0,
+            self::NOCXIUM => 33.0,
+            self::MORPHITE => 146.0,
+            self::FERNITE_CARBIDE => 29106.0,
+            self::FULLERIDES => 11643.0,
+        ], self::leafQuantitiesOf($productionCost));
+        $this->assertKnownCost(4851942.0, $productionCost->materialCost);
+        $this->assertKnownCost(514043.556, $productionCost->installCost);
+    }
+
+    public function testAssignedStructureOfTheTargetGivesItsJobTheMaterialsAndInstallCostOfThatStructureInMarginalCostMode(): void
+    {
+        $assignedRaitaru = self::assignedRaitaru();
+
+        $productionCost = self::hailLCalculator()->costOf(self::hailLRequest(
+            CostMode::MarginalCost,
+            [self::nullsecRaitaru(), $assignedRaitaru],
+            [self::HAIL_L => $assignedRaitaru],
+        ));
+
+        $rootJob = self::jobOf($productionCost, self::HAIL_L);
+        $this->assertSame(StructureChoiceStatus::Assigned, $rootJob->structureChoice->status);
+        $this->assertSame($assignedRaitaru, $rootJob->structureChoice->structure);
+        $this->assertKnownCost(510035.0, $rootJob->installCost->total);
+        $this->assertEqualsWithDelta(0.09702, self::jobOf($productionCost, self::RAM_AMMUNITION_TECH)->runs, self::FLOAT_TOLERANCE);
+
+        $expectedLeafQuantities = [
+            self::FERNITE_CARBIDE => 29106.0,
+            self::FULLERIDES => 11642.4,
+            self::MORPHITE => 145.53,
+            self::TRITANIUM => 48.06331992,
+            self::PYERITE => 38.38150008,
+            self::MEXALLON => 19.19075004,
+            self::ISOGEN => 7.08847524,
+            self::NOCXIUM => 3.11201352,
+        ];
+        $this->assertEqualsCanonicalizing(array_keys($expectedLeafQuantities), array_keys($productionCost->leaves));
+        foreach ($expectedLeafQuantities as $typeId => $expectedQuantity) {
+            $this->assertEqualsWithDelta($expectedQuantity, $productionCost->leaves[$typeId]->quantity, self::FLOAT_TOLERANCE, "quantity of {$typeId}");
+        }
+        $this->assertKnownCost(4806810.17, $productionCost->materialCost);
+        $this->assertKnownCost(510423.91, $productionCost->installCost);
+    }
+
+    public function testStructureAssignedToAProductOutsideThePlanIsIgnored(): void
+    {
+        $productionCost = self::hailLCalculator()->costOf(self::hailLRequest(
+            CostMode::Plan,
+            [self::nullsecRaitaru(), self::assignedRaitaru()],
+            [
+                self::HOBGOBLIN_II => self::assignedRaitaru(),
+                self::FERNITE_CARBIDE => ProductionStructures::tatara('tatara-of-a-bought-product', SecurityClass::NullSec, self::ASSIGNED_RAITARU_SYSTEM_ID),
+            ],
+        ));
+
+        $this->assertCount(2, $productionCost->jobs);
+        foreach ($productionCost->jobs as $job) {
+            $this->assertSame('raitaru-nullsec', $job->structureChoice->structure?->id);
+            $this->assertSame(StructureChoiceStatus::BestConfigured, $job->structureChoice->status);
+            $this->assertNull($job->structureChoice->ignoredAssignedStructure);
+        }
+        $this->assertSame(self::GOLDEN_PLAN_LEAVES, self::leafQuantitiesOf($productionCost));
+        $this->assertKnownCost(412783.56, $productionCost->installCost);
+    }
+
+    public function testAssignedStructureUnableToRunTheActivityOfItsJobIsIgnoredForTheBestStructureWithAWarning(): void
+    {
+        $tataraAssignedToManufacturing = ProductionStructures::tatara('tatara-assigned-to-manufacturing', SecurityClass::NullSec, self::ASSIGNED_RAITARU_SYSTEM_ID);
+
+        $productionCost = self::hailLCalculator()->costOf(self::hailLRequest(
+            CostMode::Plan,
+            [self::nullsecRaitaru(), $tataraAssignedToManufacturing],
+            [self::RAM_AMMUNITION_TECH => $tataraAssignedToManufacturing],
+        ));
+
+        $ramJob = self::jobOf($productionCost, self::RAM_AMMUNITION_TECH);
+        $this->assertSame($tataraAssignedToManufacturing, $ramJob->structureChoice->ignoredAssignedStructure);
+        $this->assertSame('raitaru-nullsec', $ramJob->structureChoice->structure?->id);
+        $this->assertSame(StructureChoiceStatus::BestConfigured, $ramJob->structureChoice->status);
+        $this->assertSame(self::RAITARU_SYSTEM_ID, $ramJob->solarSystemId);
+        $this->assertKnownCost(4008.556, $ramJob->installCost->total);
+        $this->assertNull(self::jobOf($productionCost, self::HAIL_L)->structureChoice->ignoredAssignedStructure);
+        $this->assertSame(self::GOLDEN_PLAN_LEAVES, self::leafQuantitiesOf($productionCost));
+        $this->assertKnownCost(412783.56, $productionCost->installCost);
+    }
+
     private static function hailLCalculator(
         ?InMemoryMarketPrices $marketPrices = null,
         ?InMemorySystemCostIndices $costIndices = null,
@@ -410,30 +753,53 @@ final class ProductionCostCalculatorTest extends TestCase
             new InMemoryAdjustedPrices(self::HAIL_L_ADJUSTED_PRICES),
             $costIndices ?? new InMemorySystemCostIndices([
                 self::RAITARU_SYSTEM_ID => [ActivityKind::Manufacturing->name => 0.05],
+                self::ASSIGNED_RAITARU_SYSTEM_ID => [ActivityKind::Manufacturing->name => self::ASSIGNED_RAITARU_MANUFACTURING_COST_INDEX],
             ]),
             new InMemoryRigCategories(manufacturing: [self::HAIL_L => 'ammunition']),
         );
     }
 
     /**
-     * @param ?list<ProductionStructure> $structures
+     * @param ?list<ProductionStructure>      $structures
+     * @param array<int, ProductionStructure> $assignedStructures
      */
-    private static function hailLRequest(CostMode $mode, ?array $structures = null): ProductionCostRequest
+    private static function hailLRequest(CostMode $mode, ?array $structures = null, array $assignedStructures = []): ProductionCostRequest
     {
         return new ProductionCostRequest(
             productTypeId: self::HAIL_L,
             runs: new Runs(10),
             efficiency: new BlueprintEfficiency(new MaterialEfficiency(2), new TimeEfficiency(4)),
             mode: $mode,
-            structures: $structures ?? [ProductionStructures::raitaruWithFacilityTax(
-                'raitaru-nullsec',
-                SecurityClass::NullSec,
-                self::RAITARU_SYSTEM_ID,
-                self::RAITARU_FACILITY_TAX_RATE,
-                ProductionStructures::manufacturingRig(2.4, 'ammunition'),
-            )],
+            structures: $structures ?? [self::nullsecRaitaru()],
             favoriteSystems: FavoriteSystems::none(),
             blacklist: [self::FERNITE_CARBIDE, self::FULLERIDES],
+            assignedStructures: $assignedStructures,
+        );
+    }
+
+    private static function nullsecRaitaru(): ProductionStructure
+    {
+        return ProductionStructures::raitaruWithFacilityTax(
+            'raitaru-nullsec',
+            SecurityClass::NullSec,
+            self::RAITARU_SYSTEM_ID,
+            self::RAITARU_FACILITY_TAX_RATE,
+            ProductionStructures::manufacturingRig(2.4, 'ammunition'),
+        );
+    }
+
+    private static function assignedRaitaru(): ProductionStructure
+    {
+        return new ProductionStructure(
+            'raitaru-assigned',
+            StructureType::EngineeringComplex,
+            SecurityClass::NullSec,
+            self::ASSIGNED_RAITARU_SYSTEM_ID,
+            new \DateTimeImmutable('2025-06-01 00:00:00'),
+            new Multiplier(ProductionStructures::ENGINEERING_COMPLEX_MATERIAL_ROLE_BONUS),
+            [],
+            new Multiplier(ProductionStructures::RAITARU_COST_ROLE_BONUS),
+            self::ASSIGNED_RAITARU_FACILITY_TAX_RATE,
         );
     }
 
@@ -442,10 +808,10 @@ final class ProductionCostCalculatorTest extends TestCase
      * (Hobgoblin I: 2 500 Tritanium per run), 10 runs per invented BPC, 2 + 2 datacores per attempt.
      * Favorite manufacturing system indices: manufacturing 0.04, invention 0.06, copying 0.03. No rig targets any group.
      */
-    private static function hobgoblinIICalculator(?float $baseProbability): ProductionCostCalculator
+    private static function hobgoblinIICalculator(?float $baseProbability, ?BlueprintCatalog $catalog = null): ProductionCostCalculator
     {
         return new ProductionCostCalculator(
-            self::hobgoblinCatalog(),
+            $catalog ?? self::hobgoblinCatalog(),
             new InMemoryInventionCatalog([self::HOBGOBLIN_II => self::hobgoblinIIInventionRecipe($baseProbability)]),
             new InMemoryMarketPrices([
                 self::TRITANIUM => 4.0,
@@ -453,14 +819,16 @@ final class ProductionCostCalculatorTest extends TestCase
                 self::FIRST_DATACORE => 80000.0,
                 self::SECOND_DATACORE => 60000.0,
                 self::PROCESS_DECRYPTOR => 50000.0,
+                self::ISOGEN => 120.0,
             ]),
-            new InMemoryAdjustedPrices([self::TRITANIUM => 3.0, self::MORPHITE => 8000.0]),
+            new InMemoryAdjustedPrices([self::TRITANIUM => 3.0, self::MORPHITE => 8000.0, self::ISOGEN => 95.0]),
             new InMemorySystemCostIndices([
                 self::FAVORITE_MANUFACTURING_SYSTEM_ID => [
                     ActivityKind::Manufacturing->name => 0.04,
                     ActivityKind::Invention->name => 0.06,
                     ActivityKind::Copying->name => 0.03,
                 ],
+                self::ASSIGNED_RAITARU_SYSTEM_ID => [ActivityKind::Manufacturing->name => self::ASSIGNED_RAITARU_MANUFACTURING_COST_INDEX],
             ]),
             new InMemoryRigCategories(),
         );
@@ -481,15 +849,23 @@ final class ProductionCostCalculatorTest extends TestCase
     }
 
     /**
-     * @param int $requestedMaterialEfficiency ignored for an invented product: the invented BPC sets the ME
+     * @param int                             $requestedMaterialEfficiency ignored for an invented product: the invented BPC sets the ME
+     * @param array<int, Runs>                $blueprintCopyMaxRuns
+     * @param array<int, ProductionStructure> $assignedStructures
      */
-    private static function hobgoblinIIRequest(?Decryptor $decryptor = null, int $requestedMaterialEfficiency = 2): ProductionCostRequest
-    {
+    private static function hobgoblinIIRequest(
+        ?Decryptor $decryptor = null,
+        int $requestedMaterialEfficiency = 2,
+        CostMode $mode = CostMode::MarginalCost,
+        int $runs = 10,
+        array $blueprintCopyMaxRuns = [],
+        array $assignedStructures = [],
+    ): ProductionCostRequest {
         return new ProductionCostRequest(
             productTypeId: self::HOBGOBLIN_II,
-            runs: new Runs(10),
+            runs: new Runs($runs),
             efficiency: new BlueprintEfficiency(new MaterialEfficiency($requestedMaterialEfficiency), new TimeEfficiency(4)),
-            mode: CostMode::MarginalCost,
+            mode: $mode,
             structures: [],
             favoriteSystems: new FavoriteSystems(self::FAVORITE_MANUFACTURING_SYSTEM_ID, null),
             invention: new InventionSettings(
@@ -498,6 +874,8 @@ final class ProductionCostCalculatorTest extends TestCase
                 encryptionSkillLevel: 4,
                 decryptor: $decryptor,
             ),
+            blueprintCopyMaxRuns: $blueprintCopyMaxRuns,
+            assignedStructures: $assignedStructures,
         );
     }
 
@@ -507,7 +885,7 @@ final class ProductionCostCalculatorTest extends TestCase
         return new Decryptor(self::PROCESS_DECRYPTOR, new Multiplier(1.1), 0, 3, 6);
     }
 
-    private static function hobgoblinCatalog(): BlueprintCatalog
+    private static function hobgoblinCatalog(RecipeMaterial ...$additionalHobgoblinIIMaterials): BlueprintCatalog
     {
         return new InMemoryBlueprintCatalog(
             new Recipe(
@@ -517,6 +895,7 @@ final class ProductionCostCalculatorTest extends TestCase
                 materials: [
                     new RecipeMaterial(self::TRITANIUM, new Quantity(2000)),
                     new RecipeMaterial(self::MORPHITE, new Quantity(10)),
+                    ...$additionalHobgoblinIIMaterials,
                 ],
                 maxProductionLimit: new Runs(10),
                 baseTimeSeconds: 600,
@@ -532,12 +911,46 @@ final class ProductionCostCalculatorTest extends TestCase
         );
     }
 
-    private static function jobOf(ProductionCost $productionCost, int $productTypeId): JobCost
+    private static function hobgoblinCatalogWithIsogen(): BlueprintCatalog
     {
-        $jobs = array_values(array_filter(
+        return self::hobgoblinCatalog(new RecipeMaterial(self::ISOGEN, new Quantity(self::ISOGEN_PER_HOBGOBLIN_II_RUN)));
+    }
+
+    /**
+     * @return list<JobCost>
+     */
+    private static function jobsOf(ProductionCost $productionCost, int $productTypeId): array
+    {
+        return array_values(array_filter(
             $productionCost->jobs,
             static fn (JobCost $job): bool => $job->productTypeId === $productTypeId,
         ));
+    }
+
+    /**
+     * @param list<JobCost> $jobs
+     *
+     * @return list<float>
+     */
+    private static function runsOf(array $jobs): array
+    {
+        return array_map(static fn (JobCost $job): float => $job->runs, $jobs);
+    }
+
+    /**
+     * @return array<int, float> by typeId, sorted by typeId
+     */
+    private static function leafQuantitiesOf(ProductionCost $productionCost): array
+    {
+        $leafQuantities = array_map(static fn (LeafCost $leaf): float => $leaf->quantity, $productionCost->leaves);
+        ksort($leafQuantities);
+
+        return $leafQuantities;
+    }
+
+    private static function jobOf(ProductionCost $productionCost, int $productTypeId): JobCost
+    {
+        $jobs = self::jobsOf($productionCost, $productTypeId);
         self::assertCount(1, $jobs, "one job expected for product {$productTypeId}");
 
         return $jobs[0];

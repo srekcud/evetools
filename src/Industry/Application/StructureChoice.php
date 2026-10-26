@@ -15,6 +15,7 @@ final readonly class StructureChoice
         public ?ProductionStructure $structure,
         public StructureChoiceStatus $status,
         public Multiplier $materialMultiplier,
+        public ?ProductionStructure $ignoredAssignedStructure = null,
     ) {
     }
 

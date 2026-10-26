@@ -77,16 +77,15 @@ final class StructureMaterialModifiersTest extends TestCase
         $this->assertEqualsWithDelta(0.99, $modifiers->forJob(self::recipeOf('R.A.M.- Ammunition Tech'))->value, 1e-12);
     }
 
-    public function testRoleBonusOfAnEngineeringComplexAssignedToAReactionIsNotApplied(): void
+    public function testEngineeringComplexAssignedToAReactionIsIgnoredForTheReactionRigOfTheBestRefinery(): void
     {
-        // R2: mod_structure = 1 on a reaction job, whatever the structure.
         $modifiers = new StructureMaterialModifiers(
             self::goldenSelector(),
             self::goldenProductCategories(),
             [self::FERNITE_CARBIDE_TYPE_ID => ProductionStructures::raitaru('raitaru-assigned-to-a-reaction', SecurityClass::NullSec)],
         );
 
-        $this->assertEqualsWithDelta(1.0, $modifiers->forJob(self::recipeOf('Fernite Carbide'))->value, 1e-12);
+        $this->assertEqualsWithDelta(0.9736, $modifiers->forJob(self::recipeOf('Fernite Carbide'))->value, 1e-12);
     }
 
     public function testNoConfiguredStructureGivesNeutralModifiers(): void

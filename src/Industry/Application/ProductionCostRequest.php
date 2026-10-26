@@ -13,9 +13,11 @@ use App\Industry\Domain\Runs;
 final readonly class ProductionCostRequest
 {
     /**
-     * @param list<ProductionStructure> $structures structures of the user
-     * @param list<int>                 $blacklist  typeIds bought even when a recipe exists
-     * @param ?InventionSettings        $invention  required when the product is invented
+     * @param list<ProductionStructure>       $structures           structures of the user
+     * @param list<int>                       $blacklist            typeIds bought even when a recipe exists
+     * @param ?InventionSettings              $invention            required when the product is invented
+     * @param array<int, Runs>                $blueprintCopyMaxRuns maxRuns of the BPC by product typeId
+     * @param array<int, ProductionStructure> $assignedStructures   structure assigned to the step by product typeId
      */
     public function __construct(
         public int $productTypeId,
@@ -27,6 +29,8 @@ final readonly class ProductionCostRequest
         public array $blacklist = [],
         public ?InventionSettings $invention = null,
         public bool $alphaClone = false,
+        public array $blueprintCopyMaxRuns = [],
+        public array $assignedStructures = [],
     ) {
     }
 }
