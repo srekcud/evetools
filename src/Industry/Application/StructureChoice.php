@@ -19,6 +19,11 @@ final readonly class StructureChoice
     ) {
     }
 
+    public function ignoring(ProductionStructure $ignoredAssignedStructure): self
+    {
+        return new self($this->structure, $this->status, $this->materialMultiplier, $ignoredAssignedStructure);
+    }
+
     public static function notConfigured(): self
     {
         return new self(null, StructureChoiceStatus::NotConfigured, Multiplier::one());

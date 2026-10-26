@@ -22,7 +22,7 @@ final readonly class StructureSelector
 
     public function select(ActivityKind $activity, ?string $productCategory, ?ProductionStructure $assignedStructure = null): StructureChoice
     {
-        if (null !== $assignedStructure) {
+        if (null !== $assignedStructure && $assignedStructure->canRun($activity)) {
             return new StructureChoice(
                 $assignedStructure,
                 StructureChoiceStatus::Assigned,
@@ -30,6 +30,13 @@ final readonly class StructureSelector
             );
         }
 
+        $choice = $this->selectBest($activity, $productCategory);
+
+        return null === $assignedStructure ? $choice : $choice->ignoring($assignedStructure);
+    }
+
+    private function selectBest(ActivityKind $activity, ?string $productCategory): StructureChoice
+    {
         $suitable = array_filter(
             $this->structures,
             static fn (ProductionStructure $structure): bool => $structure->canRun($activity),

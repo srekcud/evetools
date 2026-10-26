@@ -63,15 +63,17 @@ final readonly class ProductionCostCalculator
         $targetEfficiency = null === $invention
             ? $request->efficiency
             : new BlueprintEfficiency($invention->outcome->materialEfficiency, $invention->outcome->timeEfficiency);
+        $materialModifiers = new StructureMaterialModifiers($selector, $this->rigCategories, $request->assignedStructures);
         $planRequest = new PlanRequest(
             [new PlanTarget($request->productTypeId, $request->runs, $targetEfficiency)],
-            new StructureMaterialModifiers($selector, $this->rigCategories),
+            $materialModifiers,
             blacklist: $request->blacklist,
+            blueprintCopyMaxRuns: $request->blueprintCopyMaxRuns,
         );
 
         [$leafQuantities, $jobs] = match ($request->mode) {
-            CostMode::Plan => $this->planned($planRequest, $selector, $request),
-            CostMode::MarginalCost => $this->marginal($planRequest, $recipe, $selector, $request),
+            CostMode::Plan => $this->planned($planRequest, $materialModifiers, $request),
+            CostMode::MarginalCost => $this->marginal($planRequest, $recipe, $materialModifiers, $request),
         };
 
         $leaves = $this->leafCosts($leafQuantities);
@@ -101,7 +103,7 @@ final readonly class ProductionCostCalculator
      *
      * @return array{array<int, float>, list<JobCost>}
      */
-    private function planned(PlanRequest $planRequest, StructureSelector $selector, ProductionCostRequest $request): array
+    private function planned(PlanRequest $planRequest, StructureMaterialModifiers $materialModifiers, ProductionCostRequest $request): array
     {
         $plan = $this->planner->plan($planRequest);
 
@@ -112,7 +114,7 @@ final readonly class ProductionCostCalculator
                 $recipe,
                 $job->runs->value,
                 EstimatedItemValue::of($job->runs, $this->eivMaterials($recipe)),
-                $this->structureChoiceOf($recipe, $selector),
+                $materialModifiers->choiceFor($recipe),
                 $request,
             );
         }
@@ -125,7 +127,7 @@ final readonly class ProductionCostCalculator
      *
      * @return array{array<int, float>, list<JobCost>}
      */
-    private function marginal(PlanRequest $planRequest, Recipe $targetRecipe, StructureSelector $selector, ProductionCostRequest $request): array
+    private function marginal(PlanRequest $planRequest, Recipe $targetRecipe, StructureMaterialModifiers $materialModifiers, ProductionCostRequest $request): array
     {
         $marginalCostPlan = $this->planner->marginalCost($planRequest);
 
@@ -133,7 +135,7 @@ final readonly class ProductionCostCalculator
             $targetRecipe,
             $request->runs->value,
             EstimatedItemValue::of($request->runs, $this->eivMaterials($targetRecipe)),
-            $this->structureChoiceOf($targetRecipe, $selector),
+            $materialModifiers->choiceFor($targetRecipe),
             $request,
         )];
         foreach ($marginalCostPlan->fractionalRuns as $productTypeId => $fractionalRuns) {
@@ -142,20 +144,12 @@ final readonly class ProductionCostCalculator
                 $recipe,
                 $fractionalRuns,
                 EstimatedItemValue::of(new Runs(1), $this->eivMaterials($recipe))->times($fractionalRuns),
-                $this->structureChoiceOf($recipe, $selector),
+                $materialModifiers->choiceFor($recipe),
                 $request,
             );
         }
 
         return [$marginalCostPlan->leaves, $jobs];
-    }
-
-    /**
-     * Same choice as the material modifier of the job.
-     */
-    private function structureChoiceOf(Recipe $recipe, StructureSelector $selector): StructureChoice
-    {
-        return $selector->select($recipe->activity, $this->rigCategories->categoryOf($recipe->productTypeId, $recipe->activity));
     }
 
     private function jobCost(Recipe $recipe, float $runs, Cost $estimatedItemValue, StructureChoice $structureChoice, ProductionCostRequest $request): JobCost
