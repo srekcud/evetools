@@ -6,6 +6,7 @@ import type { NotificationPreference, NotificationCategory } from '@/stores/noti
 import { usePushNotifications } from '@/composables/usePushNotifications'
 import { useToast } from '@/composables/useToast'
 import { categoryIcons, categoryColors } from './notificationConstants'
+import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const { t } = useI18n()
@@ -87,135 +88,134 @@ onMounted(async () => {
 </script>
 
 <template>
-  <Teleport to="body">
-    <div class="fixed inset-0 z-50 flex items-center justify-center">
-      <!-- Backdrop -->
-      <div class="absolute inset-0 bg-slate-950/80" @click="emit('close')"></div>
+  <BaseModal
+    :show="true"
+    :title="t('notificationHub.settingsModal.title')"
+    panel-class="border-cyan-500/30 shadow-cyan-500/10 max-w-lg max-h-[85vh] flex flex-col"
+    @close="emit('close')"
+  >
+    <!-- Header -->
+    <template #title="{ titleId }">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800 shrink-0">
+        <h3 :id="titleId" class="text-lg font-semibold text-slate-100">{{ t('notificationHub.settingsModal.title') }}</h3>
+        <button
+          @click="emit('close')"
+          class="p-1 hover:bg-slate-800 rounded-lg transition-colors"
+        >
+          <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </template>
 
-      <!-- Modal -->
-      <div class="relative bg-slate-900 rounded-2xl border border-cyan-500/30 shadow-2xl shadow-cyan-500/10 w-full max-w-lg mx-4 max-h-[85vh] flex flex-col">
-        <!-- Header -->
-        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800 shrink-0">
-          <h3 class="text-lg font-semibold text-slate-100">{{ t('notificationHub.settingsModal.title') }}</h3>
-          <button
-            @click="emit('close')"
-            class="p-1 hover:bg-slate-800 rounded-lg transition-colors"
-          >
-            <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+    <!-- Content -->
+    <div class="p-6 overflow-y-auto min-h-0">
+      <!-- Push not supported warning -->
+      <div v-if="!push.isSupported.value" class="mb-4 px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-400">
+        {{ t('notificationHub.settingsModal.pushNotSupported') }}
+      </div>
+
+      <!-- Push denied warning -->
+      <div v-if="pushDenied" class="mb-4 px-3 py-2 bg-red-500/10 border border-red-500/30 rounded-lg text-xs text-red-400">
+        {{ t('notificationHub.settingsModal.pushDenied') }}
+      </div>
+
+      <!-- Table header -->
+      <div class="grid grid-cols-12 gap-2 px-3 py-2 text-xs text-slate-500 uppercase tracking-wider font-medium">
+        <div class="col-span-4">{{ t('notificationHub.settingsModal.category') }}</div>
+        <div class="col-span-2 text-center">{{ t('notificationHub.settingsModal.enabled') }}</div>
+        <div class="col-span-3 text-center">{{ t('notificationHub.settingsModal.push') }}</div>
+        <div class="col-span-3 text-center">{{ t('notificationHub.settingsModal.threshold') }}</div>
+      </div>
+
+      <!-- Category rows -->
+      <div class="space-y-1">
+        <div
+          v-for="pref in localPreferences"
+          :key="pref.category"
+          class="grid grid-cols-12 gap-2 items-center px-3 py-3 rounded-lg hover:bg-slate-800/30 transition-colors"
+        >
+          <!-- Category name with icon -->
+          <div class="col-span-4 flex items-center gap-2">
+            <svg class="w-4 h-4 shrink-0" :class="categoryColors[pref.category]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="categoryIcons[pref.category]" />
             </svg>
-          </button>
-        </div>
-
-        <!-- Content -->
-        <div class="p-6 overflow-y-auto min-h-0">
-          <!-- Push not supported warning -->
-          <div v-if="!push.isSupported.value" class="mb-4 px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-400">
-            {{ t('notificationHub.settingsModal.pushNotSupported') }}
+            <span class="text-sm text-slate-200">{{ t(`notificationHub.categories.${pref.category}`) }}</span>
           </div>
 
-          <!-- Push denied warning -->
-          <div v-if="pushDenied" class="mb-4 px-3 py-2 bg-red-500/10 border border-red-500/30 rounded-lg text-xs text-red-400">
-            {{ t('notificationHub.settingsModal.pushDenied') }}
-          </div>
-
-          <!-- Table header -->
-          <div class="grid grid-cols-12 gap-2 px-3 py-2 text-xs text-slate-500 uppercase tracking-wider font-medium">
-            <div class="col-span-4">{{ t('notificationHub.settingsModal.category') }}</div>
-            <div class="col-span-2 text-center">{{ t('notificationHub.settingsModal.enabled') }}</div>
-            <div class="col-span-3 text-center">{{ t('notificationHub.settingsModal.push') }}</div>
-            <div class="col-span-3 text-center">{{ t('notificationHub.settingsModal.threshold') }}</div>
-          </div>
-
-          <!-- Category rows -->
-          <div class="space-y-1">
-            <div
-              v-for="pref in localPreferences"
-              :key="pref.category"
-              class="grid grid-cols-12 gap-2 items-center px-3 py-3 rounded-lg hover:bg-slate-800/30 transition-colors"
+          <!-- Enabled toggle -->
+          <div class="col-span-2 flex justify-center">
+            <button
+              @click="pref.enabled = !pref.enabled"
+              :class="[
+                'relative inline-flex h-5 w-9 items-center rounded-full transition-colors',
+                pref.enabled ? 'bg-cyan-600' : 'bg-slate-700'
+              ]"
             >
-              <!-- Category name with icon -->
-              <div class="col-span-4 flex items-center gap-2">
-                <svg class="w-4 h-4 shrink-0" :class="categoryColors[pref.category]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="categoryIcons[pref.category]" />
-                </svg>
-                <span class="text-sm text-slate-200">{{ t(`notificationHub.categories.${pref.category}`) }}</span>
-              </div>
-
-              <!-- Enabled toggle -->
-              <div class="col-span-2 flex justify-center">
-                <button
-                  @click="pref.enabled = !pref.enabled"
-                  :class="[
-                    'relative inline-flex h-5 w-9 items-center rounded-full transition-colors',
-                    pref.enabled ? 'bg-cyan-600' : 'bg-slate-700'
-                  ]"
-                >
-                  <span
-                    :class="[
-                      'inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform',
-                      pref.enabled ? 'translate-x-[18px]' : 'translate-x-[3px]'
-                    ]"
-                  ></span>
-                </button>
-              </div>
-
-              <!-- Push toggle -->
-              <div class="col-span-3 flex justify-center">
-                <button
-                  @click="pref.pushEnabled = !pref.pushEnabled; handlePushToggle(pref)"
-                  :disabled="!pref.enabled || !push.isSupported.value"
-                  :class="[
-                    'relative inline-flex h-5 w-9 items-center rounded-full transition-colors',
-                    !pref.enabled || !push.isSupported.value ? 'opacity-30 cursor-not-allowed' : '',
-                    pref.pushEnabled && pref.enabled ? 'bg-cyan-600' : 'bg-slate-700'
-                  ]"
-                >
-                  <span
-                    :class="[
-                      'inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform',
-                      pref.pushEnabled && pref.enabled ? 'translate-x-[18px]' : 'translate-x-[3px]'
-                    ]"
-                  ></span>
-                </button>
-              </div>
-
-              <!-- Threshold input -->
-              <div class="col-span-3 flex justify-center">
-                <input
-                  v-if="hasThreshold(pref.category)"
-                  v-model.number="pref.thresholdMinutes"
-                  type="number"
-                  min="0"
-                  max="1440"
-                  :disabled="!pref.enabled"
-                  class="w-16 px-2 py-1 text-xs text-center bg-slate-800 border border-slate-700 rounded-md text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed focus:border-cyan-500/50 focus:outline-none"
-                  :placeholder="t('notificationHub.settingsModal.threshold')"
-                />
-                <span v-else class="text-xs text-slate-600">-</span>
-              </div>
-            </div>
+              <span
+                :class="[
+                  'inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform',
+                  pref.enabled ? 'translate-x-[18px]' : 'translate-x-[3px]'
+                ]"
+              ></span>
+            </button>
           </div>
-        </div>
 
-        <!-- Footer -->
-        <div class="px-6 py-4 border-t border-slate-800 flex justify-end gap-3 shrink-0">
-          <button
-            @click="emit('close')"
-            class="px-4 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-700 rounded-lg transition-colors"
-          >
-            {{ t('common.actions.cancel') }}
-          </button>
-          <button
-            @click="save"
-            :disabled="isSaving"
-            class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-lg text-white text-sm font-medium transition-colors flex items-center gap-2"
-          >
-            <LoadingSpinner v-if="isSaving" size="sm" />
-            {{ t('notificationHub.settingsModal.save') }}
-          </button>
+          <!-- Push toggle -->
+          <div class="col-span-3 flex justify-center">
+            <button
+              @click="pref.pushEnabled = !pref.pushEnabled; handlePushToggle(pref)"
+              :disabled="!pref.enabled || !push.isSupported.value"
+              :class="[
+                'relative inline-flex h-5 w-9 items-center rounded-full transition-colors',
+                !pref.enabled || !push.isSupported.value ? 'opacity-30 cursor-not-allowed' : '',
+                pref.pushEnabled && pref.enabled ? 'bg-cyan-600' : 'bg-slate-700'
+              ]"
+            >
+              <span
+                :class="[
+                  'inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform',
+                  pref.pushEnabled && pref.enabled ? 'translate-x-[18px]' : 'translate-x-[3px]'
+                ]"
+              ></span>
+            </button>
+          </div>
+
+          <!-- Threshold input -->
+          <div class="col-span-3 flex justify-center">
+            <input
+              v-if="hasThreshold(pref.category)"
+              v-model.number="pref.thresholdMinutes"
+              type="number"
+              min="0"
+              max="1440"
+              :disabled="!pref.enabled"
+              class="w-16 px-2 py-1 text-xs text-center bg-slate-800 border border-slate-700 rounded-md text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed focus:border-cyan-500/50 focus:outline-none"
+              :placeholder="t('notificationHub.settingsModal.threshold')"
+            />
+            <span v-else class="text-xs text-slate-600">-</span>
+          </div>
         </div>
       </div>
     </div>
-  </Teleport>
+
+    <!-- Footer -->
+    <div class="px-6 py-4 border-t border-slate-800 flex justify-end gap-3 shrink-0">
+      <button
+        @click="emit('close')"
+        class="px-4 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-700 rounded-lg transition-colors"
+      >
+        {{ t('common.actions.cancel') }}
+      </button>
+      <button
+        @click="save"
+        :disabled="isSaving"
+        class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-lg text-white text-sm font-medium transition-colors flex items-center gap-2"
+      >
+        <LoadingSpinner v-if="isSaving" size="sm" />
+        {{ t('notificationHub.settingsModal.save') }}
+      </button>
+    </div>
+  </BaseModal>
 </template>

@@ -5,6 +5,7 @@ import { useIndustryStore, type SearchResult } from '@/stores/industry'
 import { useTabQuery } from '@/composables/useTabQuery'
 import { useAdminStore } from '@/stores/admin'
 import MainLayout from '@/layouts/MainLayout.vue'
+import BaseModal from '@/components/common/BaseModal.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
 import ProjectTable from '@/components/industry/ProjectTable.vue'
@@ -526,199 +527,186 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
       </Teleport>
 
       <!-- Create Project Modal -->
-      <Teleport to="body">
-        <div
-          v-if="showCreateModal"
-          class="fixed inset-0 z-50 flex items-center justify-center"
-          @keydown.escape="closeCreateModal"
-        >
-          <!-- Backdrop -->
-          <div class="absolute inset-0 bg-slate-950/85 backdrop-blur-sm" @click="closeCreateModal"></div>
+      <BaseModal
+        :show="showCreateModal"
+        :title="t('industry.createProject.title')"
+        panel-class="border-slate-700 max-w-xl"
+        @close="closeCreateModal"
+      >
+        <!-- Modal header -->
+        <template #title="{ titleId }">
+          <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+            <h3 :id="titleId" class="text-lg font-semibold text-white">{{ t('industry.createProject.title') }}</h3>
+            <button
+              @click="closeCreateModal"
+              class="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </template>
 
-          <!-- Modal card -->
-          <div class="relative bg-slate-900 rounded-xl border border-slate-700 shadow-2xl w-full max-w-xl mx-4 animate-modal-in">
-            <!-- Modal header -->
-            <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
-              <h3 class="text-lg font-semibold text-white">{{ t('industry.createProject.title') }}</h3>
+        <!-- Modal body -->
+        <div class="px-6 py-5 space-y-5">
+          <!-- Project name -->
+          <div v-if="productsToAdd.length > 0 || projectName">
+            <label class="block text-sm text-slate-400 mb-1.5">
+              {{ t('industry.createProject.projectName') }}
+              <span class="text-slate-600">({{ t('industry.createProject.optional') }})</span>
+            </label>
+            <input
+              v-model="projectName"
+              type="text"
+              :placeholder="t('industry.createProject.projectNamePlaceholder')"
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-hidden focus:border-cyan-500 placeholder-slate-600 transition-colors"
+            />
+          </div>
+
+          <!-- Products already added to the list -->
+          <div v-if="productsToAdd.length > 0" class="space-y-2">
+            <div
+              v-for="(product, index) in productsToAdd"
+              :key="index"
+              class="flex items-center gap-3 bg-slate-800/50 rounded-lg px-4 py-2"
+            >
+              <span class="flex-1 text-slate-200">
+                {{ product.typeName }}
+                <span v-if="product.isT2" class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-sm ml-1">T2</span>
+              </span>
+              <div class="flex items-center gap-1">
+                <input
+                  v-model.number="product.runs"
+                  type="number"
+                  min="1"
+                  class="w-16 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-sm text-center"
+                />
+                <span class="text-slate-500 text-xs">runs</span>
+              </div>
+              <span class="text-slate-500 text-xs">ME{{ product.meLevel }}/TE{{ product.teLevel }}</span>
               <button
-                @click="closeCreateModal"
-                class="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-slate-200 transition-colors"
+                @click="removeProductFromList(index)"
+                class="p-1 text-slate-500 hover:text-red-400"
+                :title="t('industry.createProject.remove')"
               >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
+          </div>
 
-            <!-- Modal body -->
-            <div class="px-6 py-5 space-y-5">
-              <!-- Project name -->
-              <div v-if="productsToAdd.length > 0 || projectName">
-                <label class="block text-sm text-slate-400 mb-1.5">
-                  {{ t('industry.createProject.projectName') }}
-                  <span class="text-slate-600">({{ t('industry.createProject.optional') }})</span>
-                </label>
-                <input
-                  v-model="projectName"
-                  type="text"
-                  :placeholder="t('industry.createProject.projectNamePlaceholder')"
-                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-hidden focus:border-cyan-500 placeholder-slate-600 transition-colors"
-                />
-              </div>
+          <!-- Product search -->
+          <div>
+            <label class="block text-sm text-slate-400 mb-1.5">
+              {{ productsToAdd.length > 0 ? t('industry.createProject.addProduct') : t('industry.createProject.product') }}
+              <span v-if="productsToAdd.length === 0" class="text-red-400 ml-0.5">*</span>
+              <span v-if="selectedProduct" class="text-cyan-400 ml-2">
+                -- {{ selectedProduct.typeName }}
+              </span>
+            </label>
+            <ProductSearch ref="productSearchRef" @select="onProductSelect" />
+          </div>
 
-              <!-- Products already added to the list -->
-              <div v-if="productsToAdd.length > 0" class="space-y-2">
-                <div
-                  v-for="(product, index) in productsToAdd"
-                  :key="index"
-                  class="flex items-center gap-3 bg-slate-800/50 rounded-lg px-4 py-2"
-                >
-                  <span class="flex-1 text-slate-200">
-                    {{ product.typeName }}
-                    <span v-if="product.isT2" class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-sm ml-1">T2</span>
-                  </span>
-                  <div class="flex items-center gap-1">
-                    <input
-                      v-model.number="product.runs"
-                      type="number"
-                      min="1"
-                      class="w-16 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-sm text-center"
-                    />
-                    <span class="text-slate-500 text-xs">runs</span>
-                  </div>
-                  <span class="text-slate-500 text-xs">ME{{ product.meLevel }}/TE{{ product.teLevel }}</span>
-                  <button
-                    @click="removeProductFromList(index)"
-                    class="p-1 text-slate-500 hover:text-red-400"
-                    :title="t('industry.createProject.remove')"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              <!-- Product search -->
-              <div>
-                <label class="block text-sm text-slate-400 mb-1.5">
-                  {{ productsToAdd.length > 0 ? t('industry.createProject.addProduct') : t('industry.createProject.product') }}
-                  <span v-if="productsToAdd.length === 0" class="text-red-400 ml-0.5">*</span>
-                  <span v-if="selectedProduct" class="text-cyan-400 ml-2">
-                    -- {{ selectedProduct.typeName }}
-                  </span>
-                </label>
-                <ProductSearch ref="productSearchRef" @select="onProductSelect" />
-              </div>
-
-              <!-- Parameters row: Runs, ME, TE -->
-              <div class="grid grid-cols-3 gap-4">
-                <div>
-                  <label class="block text-sm text-slate-400 mb-1.5">{{ t('industry.createProject.runs') }}</label>
-                  <input
-                    v-model.number="runs"
-                    type="number"
-                    min="1"
-                    max="100000"
-                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 text-center focus:outline-hidden focus:border-cyan-500 font-mono"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm text-slate-400 mb-1.5">
-                    {{ t('industry.createProject.me') }}
-                    <span v-if="selectedProduct?.isT2" class="text-xs text-blue-400 ml-1">T2</span>
-                  </label>
-                  <input
-                    v-model.number="meLevel"
-                    type="number"
-                    min="0"
-                    max="10"
-                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 text-center focus:outline-hidden focus:border-cyan-500 font-mono"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm text-slate-400 mb-1.5">
-                    {{ t('industry.createProject.te') }}
-                    <span v-if="selectedProduct?.isT2" class="text-xs text-blue-400 ml-1">T2</span>
-                  </label>
-                  <input
-                    v-model.number="teLevel"
-                    type="number"
-                    min="0"
-                    max="20"
-                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 text-center focus:outline-hidden focus:border-cyan-500 font-mono"
-                  />
-                </div>
-              </div>
-
-              <!-- Add another product link -->
-              <button
-                v-if="selectedProduct && productsToAdd.length === 0"
-                @click="addProductToList"
-                class="flex items-center gap-2 text-sm text-slate-400 hover:text-cyan-400 transition-colors"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                {{ t('industry.createProject.multiProduct') }}
-              </button>
-
-              <!-- Add to list button (when products already in list) -->
-              <button
-                v-if="productsToAdd.length > 0 && selectedProduct"
-                @click="addProductToList"
-                class="flex items-center gap-2 text-sm text-slate-400 hover:text-cyan-400 transition-colors"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                {{ t('industry.createProject.addProduct') }}
-              </button>
+          <!-- Parameters row: Runs, ME, TE -->
+          <div class="grid grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm text-slate-400 mb-1.5">{{ t('industry.createProject.runs') }}</label>
+              <input
+                v-model.number="runs"
+                type="number"
+                min="1"
+                max="100000"
+                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 text-center focus:outline-hidden focus:border-cyan-500 font-mono"
+              />
             </div>
-
-            <!-- Modal footer -->
-            <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-end gap-3">
-              <button
-                @click="closeCreateModal"
-                class="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-300 text-sm font-medium transition-colors"
-              >
-                {{ t('common.actions.cancel') }}
-              </button>
-              <button
-                @click="createProject"
-                :disabled="(!selectedProduct && productsToAdd.length === 0) || isCreating"
-                class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm font-semibold flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-px hover:shadow-lg hover:shadow-black/30 active:translate-y-0"
-              >
-                <svg
-                  v-if="isCreating"
-                  class="w-4 h-4 animate-spin"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                {{ isCreating ? t('industry.createProject.creating') : t('industry.createProject.create') }}
-              </button>
+            <div>
+              <label class="block text-sm text-slate-400 mb-1.5">
+                {{ t('industry.createProject.me') }}
+                <span v-if="selectedProduct?.isT2" class="text-xs text-blue-400 ml-1">T2</span>
+              </label>
+              <input
+                v-model.number="meLevel"
+                type="number"
+                min="0"
+                max="10"
+                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 text-center focus:outline-hidden focus:border-cyan-500 font-mono"
+              />
+            </div>
+            <div>
+              <label class="block text-sm text-slate-400 mb-1.5">
+                {{ t('industry.createProject.te') }}
+                <span v-if="selectedProduct?.isT2" class="text-xs text-blue-400 ml-1">T2</span>
+              </label>
+              <input
+                v-model.number="teLevel"
+                type="number"
+                min="0"
+                max="20"
+                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 text-center focus:outline-hidden focus:border-cyan-500 font-mono"
+              />
             </div>
           </div>
+
+          <!-- Add another product link -->
+          <button
+            v-if="selectedProduct && productsToAdd.length === 0"
+            @click="addProductToList"
+            class="flex items-center gap-2 text-sm text-slate-400 hover:text-cyan-400 transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            {{ t('industry.createProject.multiProduct') }}
+          </button>
+
+          <!-- Add to list button (when products already in list) -->
+          <button
+            v-if="productsToAdd.length > 0 && selectedProduct"
+            @click="addProductToList"
+            class="flex items-center gap-2 text-sm text-slate-400 hover:text-cyan-400 transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            {{ t('industry.createProject.addProduct') }}
+          </button>
         </div>
-      </Teleport>
+
+        <!-- Modal footer -->
+        <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-end gap-3">
+          <button
+            @click="closeCreateModal"
+            class="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-300 text-sm font-medium transition-colors"
+          >
+            {{ t('common.actions.cancel') }}
+          </button>
+          <button
+            @click="createProject"
+            :disabled="(!selectedProduct && productsToAdd.length === 0) || isCreating"
+            class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm font-semibold flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-px hover:shadow-lg hover:shadow-black/30 active:translate-y-0"
+          >
+            <svg
+              v-if="isCreating"
+              class="w-4 h-4 animate-spin"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            {{ isCreating ? t('industry.createProject.creating') : t('industry.createProject.create') }}
+          </button>
+        </div>
+      </BaseModal>
   </MainLayout>
 </template>
 
 <style scoped>
-@keyframes modal-in {
-  from { opacity: 0; transform: scale(0.95) translateY(10px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
-}
-.animate-modal-in {
-  animation: modal-in 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-}
-
 @keyframes slide-in-right {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }

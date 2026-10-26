@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch, nextTick } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useIndustryStore } from '@/stores/industry'
 import type { StructureConfig, RigOption, CorporationStructure, StructureSearchResult, StructureBonusPreview } from '@/stores/industry'
 import FavoriteSystemsConfig from './FavoriteSystemsConfig.vue'
+import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { ApiError } from '@/services/api'
 import { useFormatters } from '@/composables/useFormatters'
@@ -321,7 +322,6 @@ async function saveStructure() {
   // If editing a corp structure with changes, ask for confirmation
   if (editingStructure.value && hasCorpStructureChanges() && !pendingSave.value) {
     showCorpEditModal.value = true
-    nextTick(() => corpEditModalRef.value?.focus())
     return
   }
 
@@ -377,14 +377,11 @@ function cancelCorpEdit() {
 const showDeleteModal = ref(false)
 const deleteStructureId = ref<string | null>(null)
 const deleteStructureName = ref('')
-const deleteModalRef = ref<HTMLElement | null>(null)
-const corpEditModalRef = ref<HTMLElement | null>(null)
 
 function openDeleteModal(structure: StructureConfig) {
   deleteStructureId.value = structure.id
   deleteStructureName.value = structure.name
   showDeleteModal.value = true
-  nextTick(() => deleteModalRef.value?.focus())
 }
 
 async function confirmDelete() {
@@ -957,77 +954,71 @@ watch(
     </div>
 
     <!-- Delete Confirmation Modal -->
-    <Teleport to="body">
-      <div
-        v-if="showDeleteModal"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
-        @click.self="cancelDelete"
-        @keydown.enter="confirmDelete"
-        @keydown.escape="cancelDelete"
-      >
-        <div class="bg-slate-900 rounded-xl border border-slate-700 max-w-md w-full p-6" tabindex="-1" ref="deleteModalRef">
-          <h3 class="text-lg font-semibold text-slate-200 mb-2">{{ t('industry.structures.deleteTitle') }}</h3>
-          <p class="text-slate-400 mb-6">
-            {{ t('industry.structures.deleteConfirm', { name: deleteStructureName }) }}
-          </p>
-          <div class="flex gap-3">
-            <button
-              @click="cancelDelete"
-              class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300"
-            >
-              {{ t('common.actions.cancel') }}
-            </button>
-            <button
-              @click="confirmDelete"
-              class="flex-1 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-white font-medium"
-            >
-              {{ t('common.actions.delete') }}
-            </button>
-          </div>
-        </div>
+    <BaseModal
+      :show="showDeleteModal"
+      :title="t('industry.structures.deleteTitle')"
+      panel-class="border-slate-700 max-w-md p-6"
+      @close="cancelDelete"
+    >
+      <template #title="{ titleId }">
+        <h3 :id="titleId" class="text-lg font-semibold text-slate-200 mb-2">{{ t('industry.structures.deleteTitle') }}</h3>
+      </template>
+      <p class="text-slate-400 mb-6">
+        {{ t('industry.structures.deleteConfirm', { name: deleteStructureName }) }}
+      </p>
+      <div class="flex gap-3">
+        <button
+          @click="cancelDelete"
+          class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300"
+        >
+          {{ t('common.actions.cancel') }}
+        </button>
+        <button
+          @click="confirmDelete"
+          class="flex-1 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-white font-medium"
+        >
+          {{ t('common.actions.delete') }}
+        </button>
       </div>
-    </Teleport>
+    </BaseModal>
 
     <!-- Corporation Structure Edit Confirmation Modal -->
-    <Teleport to="body">
-      <div
-        v-if="showCorpEditModal"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
-        @click.self="cancelCorpEdit"
-        @keydown.enter="confirmCorpEdit"
-        @keydown.escape="cancelCorpEdit"
-      >
-        <div class="bg-slate-900 rounded-xl border border-amber-700/50 max-w-md w-full p-6" tabindex="-1" ref="corpEditModalRef">
-          <div class="flex items-center gap-3 mb-4">
-            <div class="p-2 bg-amber-500/20 rounded-lg">
-              <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <h3 class="text-lg font-semibold text-slate-200">{{ t('industry.structures.editCorpTitle') }}</h3>
+    <BaseModal
+      :show="showCorpEditModal"
+      :title="t('industry.structures.editCorpTitle')"
+      panel-class="border-amber-700/50 max-w-md p-6"
+      @close="cancelCorpEdit"
+    >
+      <template #title="{ titleId }">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="p-2 bg-amber-500/20 rounded-lg">
+            <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
           </div>
-          <p class="text-slate-400 mb-2">
-            {{ t('industry.structures.editCorpWarning1') }}
-          </p>
-          <p class="text-slate-400 mb-6">
-            {{ t('industry.structures.editCorpWarning2') }}
-          </p>
-          <div class="flex gap-3">
-            <button
-              @click="cancelCorpEdit"
-              class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300"
-            >
-              {{ t('common.actions.cancel') }}
-            </button>
-            <button
-              @click="confirmCorpEdit"
-              class="flex-1 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg text-white font-medium"
-            >
-              {{ t('common.actions.confirm') }}
-            </button>
-          </div>
+          <h3 :id="titleId" class="text-lg font-semibold text-slate-200">{{ t('industry.structures.editCorpTitle') }}</h3>
         </div>
+      </template>
+      <p class="text-slate-400 mb-2">
+        {{ t('industry.structures.editCorpWarning1') }}
+      </p>
+      <p class="text-slate-400 mb-6">
+        {{ t('industry.structures.editCorpWarning2') }}
+      </p>
+      <div class="flex gap-3">
+        <button
+          @click="cancelCorpEdit"
+          class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300"
+        >
+          {{ t('common.actions.cancel') }}
+        </button>
+        <button
+          @click="confirmCorpEdit"
+          class="flex-1 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg text-white font-medium"
+        >
+          {{ t('common.actions.confirm') }}
+        </button>
       </div>
-    </Teleport>
+    </BaseModal>
   </div>
 </template>

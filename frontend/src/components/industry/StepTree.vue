@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch, nextTick } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import BaseModal from '@/components/common/BaseModal.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
@@ -48,7 +49,6 @@ const splitCount = ref(2)
 const showDeleteModal = ref(false)
 const deleteStepId = ref<string | null>(null)
 const deleteStepName = ref('')
-const deleteModalRef = ref<HTMLElement | null>(null)
 
 // Watch for steps changes to expand newly created split groups
 watch(() => props.steps, (newSteps) => {
@@ -384,7 +384,6 @@ function deleteStep(stepId: string, stepName: string) {
   deleteStepId.value = stepId
   deleteStepName.value = stepName
   showDeleteModal.value = true
-  nextTick(() => deleteModalRef.value?.focus())
 }
 
 function confirmDelete() {
@@ -929,40 +928,32 @@ function mergeGroup(stepId: string) {
     </div>
 
     <!-- Delete confirmation modal -->
-    <Teleport to="body">
-      <div
-        v-if="showDeleteModal"
-        class="fixed inset-0 z-50 flex items-center justify-center"
-        @keydown.enter="confirmDelete"
-        @keydown.escape="cancelDelete"
-      >
-        <!-- Backdrop -->
-        <div
-          class="absolute inset-0 bg-black/70"
+    <BaseModal
+      :show="showDeleteModal"
+      :title="t('industry.stepTree.deleteStepTitle')"
+      panel-class="border-slate-700 max-w-md p-6"
+      @close="cancelDelete"
+    >
+      <template #title="{ titleId }">
+        <h3 :id="titleId" class="text-lg font-semibold text-slate-100 mb-2">{{ t('industry.stepTree.deleteStepTitle') }}</h3>
+      </template>
+      <p class="text-slate-400 mb-6">
+        {{ t('industry.stepTree.deleteStepConfirm', { name: deleteStepName }) }}
+      </p>
+      <div class="flex justify-end gap-3">
+        <button
           @click="cancelDelete"
-        ></div>
-        <!-- Modal -->
-        <div class="relative bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6" tabindex="-1" ref="deleteModalRef">
-          <h3 class="text-lg font-semibold text-slate-100 mb-2">{{ t('industry.stepTree.deleteStepTitle') }}</h3>
-          <p class="text-slate-400 mb-6">
-            {{ t('industry.stepTree.deleteStepConfirm', { name: deleteStepName }) }}
-          </p>
-          <div class="flex justify-end gap-3">
-            <button
-              @click="cancelDelete"
-              class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-slate-300 text-sm font-medium transition-colors"
-            >
-              {{ t('common.actions.cancel') }}
-            </button>
-            <button
-              @click="confirmDelete"
-              class="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-white text-sm font-medium transition-colors"
-            >
-              {{ t('common.actions.delete') }}
-            </button>
-          </div>
-        </div>
+          class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-slate-300 text-sm font-medium transition-colors"
+        >
+          {{ t('common.actions.cancel') }}
+        </button>
+        <button
+          @click="confirmDelete"
+          class="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-white text-sm font-medium transition-colors"
+        >
+          {{ t('common.actions.delete') }}
+        </button>
       </div>
-    </Teleport>
+    </BaseModal>
   </div>
 </template>

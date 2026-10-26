@@ -7,6 +7,7 @@ import MainLayout from '@/layouts/MainLayout.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import MainCharacterCard from '@/components/characters/MainCharacterCard.vue'
 import CharacterCard from '@/components/characters/CharacterCard.vue'
+import BaseModal from '@/components/common/BaseModal.vue'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
 import { useAccountDeletion } from '@/composables/useAccountDeletion'
 
@@ -437,127 +438,97 @@ async function reauthorize(character: Character) {
     </ConfirmModal>
 
     <!-- Delete Modal -->
-    <Teleport to="body">
-      <Transition
-        enter-active-class="transition-all duration-200"
-        enter-from-class="opacity-0"
-        enter-to-class="opacity-100"
-        leave-active-class="transition-all duration-150"
-        leave-from-class="opacity-100"
-        leave-to-class="opacity-0"
-      >
-        <div v-if="showDeleteModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="showDeleteModal = false" @keydown.enter="deleteCharacter" @keydown.escape="showDeleteModal = false">
-          <Transition
-            enter-active-class="transition-all duration-200"
-            enter-from-class="opacity-0 scale-95"
-            enter-to-class="opacity-100 scale-100"
-            leave-active-class="transition-all duration-150"
-            leave-from-class="opacity-100 scale-100"
-            leave-to-class="opacity-0 scale-95"
-          >
-            <div v-if="showDeleteModal" class="bg-slate-900 rounded-2xl border border-slate-800 max-w-sm w-full p-6 shadow-2xl">
-              <div class="flex items-center gap-4 mb-4">
-                <div class="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center">
-                  <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                  </svg>
-                </div>
-                <div>
-                  <h3 class="text-lg font-semibold text-slate-100">Remove Character</h3>
-                  <p class="text-sm text-slate-400">This action cannot be undone</p>
-                </div>
-              </div>
-              <p class="text-slate-400 text-sm mb-6">
-                Remove <strong class="text-slate-200">{{ selectedCharacter?.name }}</strong>? This will delete all cached data for this character.
-              </p>
-              <div class="flex gap-3">
-                <button
-                  @click="showDeleteModal = false"
-                  :disabled="isLoading"
-                  class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300 font-medium transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  @click="deleteCharacter"
-                  :disabled="isLoading"
-                  class="flex-1 py-2.5 bg-red-600 hover:bg-red-500 rounded-xl font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  <svg v-if="isLoading" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                  </svg>
-                  {{ isLoading ? 'Removing...' : 'Remove' }}
-                </button>
-              </div>
-            </div>
-          </Transition>
+    <BaseModal
+      :show="showDeleteModal"
+      title="Remove Character"
+      panel-class="border-slate-800 max-w-sm p-6"
+      @close="showDeleteModal = false"
+    >
+      <template #title="{ titleId }">
+        <div class="flex items-center gap-4 mb-4">
+          <div class="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center">
+            <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+          </div>
+          <div>
+            <h3 :id="titleId" class="text-lg font-semibold text-slate-100">Remove Character</h3>
+            <p class="text-sm text-slate-400">This action cannot be undone</p>
+          </div>
         </div>
-      </Transition>
-    </Teleport>
+      </template>
+      <p class="text-slate-400 text-sm mb-6">
+        Remove <strong class="text-slate-200">{{ selectedCharacter?.name }}</strong>? This will delete all cached data for this character.
+      </p>
+      <div class="flex gap-3">
+        <button
+          @click="showDeleteModal = false"
+          :disabled="isLoading"
+          class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300 font-medium transition-colors disabled:opacity-50"
+        >
+          Cancel
+        </button>
+        <button
+          @click="deleteCharacter"
+          :disabled="isLoading"
+          class="flex-1 py-2.5 bg-red-600 hover:bg-red-500 rounded-xl font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          <svg v-if="isLoading" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          {{ isLoading ? 'Removing...' : 'Remove' }}
+        </button>
+      </div>
+    </BaseModal>
 
     <!-- Set Main Modal -->
-    <Teleport to="body">
-      <Transition
-        enter-active-class="transition-all duration-200"
-        enter-from-class="opacity-0"
-        enter-to-class="opacity-100"
-        leave-active-class="transition-all duration-150"
-        leave-from-class="opacity-100"
-        leave-to-class="opacity-0"
-      >
-        <div v-if="showSetMainModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="showSetMainModal = false" @keydown.enter="setAsMain" @keydown.escape="showSetMainModal = false">
-          <Transition
-            enter-active-class="transition-all duration-200"
-            enter-from-class="opacity-0 scale-95"
-            enter-to-class="opacity-100 scale-100"
-            leave-active-class="transition-all duration-150"
-            leave-from-class="opacity-100 scale-100"
-            leave-to-class="opacity-0 scale-95"
-          >
-            <div v-if="showSetMainModal" class="bg-slate-900 rounded-2xl border border-slate-800 max-w-sm w-full p-6 shadow-2xl">
-              <div class="flex items-center gap-4 mb-4">
-                <div class="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                  <svg class="w-6 h-6 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
-                  </svg>
-                </div>
-                <div>
-                  <h3 class="text-lg font-semibold text-slate-100">Set as Main</h3>
-                  <p class="text-sm text-slate-400">Change your main character</p>
-                </div>
-              </div>
-              <p class="text-slate-400 text-sm mb-4">
-                Make <strong class="text-slate-200">{{ selectedCharacter?.name }}</strong> your main character?
-              </p>
-              <div v-if="selectedCharacter?.corporationId !== mainCharacter?.corporationId" class="text-amber-400 text-sm mb-6 p-3 bg-amber-500/10 rounded-xl border border-amber-500/20 flex items-start gap-2">
-                <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                </svg>
-                <span>This character is in a different corporation. Your corp reference will change.</span>
-              </div>
-              <div class="flex gap-3">
-                <button
-                  @click="showSetMainModal = false"
-                  :disabled="isLoading"
-                  class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300 font-medium transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  @click="setAsMain"
-                  :disabled="isLoading"
-                  class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 rounded-xl font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  <svg v-if="isLoading" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                  </svg>
-                  {{ isLoading ? 'Updating...' : 'Confirm' }}
-                </button>
-              </div>
-            </div>
-          </Transition>
+    <BaseModal
+      :show="showSetMainModal"
+      title="Set as Main"
+      panel-class="border-slate-800 max-w-sm p-6"
+      @close="showSetMainModal = false"
+    >
+      <template #title="{ titleId }">
+        <div class="flex items-center gap-4 mb-4">
+          <div class="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center">
+            <svg class="w-6 h-6 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+            </svg>
+          </div>
+          <div>
+            <h3 :id="titleId" class="text-lg font-semibold text-slate-100">Set as Main</h3>
+            <p class="text-sm text-slate-400">Change your main character</p>
+          </div>
         </div>
-      </Transition>
-    </Teleport>
+      </template>
+      <p class="text-slate-400 text-sm mb-4">
+        Make <strong class="text-slate-200">{{ selectedCharacter?.name }}</strong> your main character?
+      </p>
+      <div v-if="selectedCharacter?.corporationId !== mainCharacter?.corporationId" class="text-amber-400 text-sm mb-6 p-3 bg-amber-500/10 rounded-xl border border-amber-500/20 flex items-start gap-2">
+        <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+        <span>This character is in a different corporation. Your corp reference will change.</span>
+      </div>
+      <div class="flex gap-3">
+        <button
+          @click="showSetMainModal = false"
+          :disabled="isLoading"
+          class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300 font-medium transition-colors disabled:opacity-50"
+        >
+          Cancel
+        </button>
+        <button
+          @click="setAsMain"
+          :disabled="isLoading"
+          class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 rounded-xl font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          <svg v-if="isLoading" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          {{ isLoading ? 'Updating...' : 'Confirm' }}
+        </button>
+      </div>
+    </BaseModal>
   </MainLayout>
 </template>

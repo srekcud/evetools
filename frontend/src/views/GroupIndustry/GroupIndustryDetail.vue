@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import MainLayout from '@/layouts/MainLayout.vue'
+import BaseModal from '@/components/common/BaseModal.vue'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useGroupContributionStore } from '@/stores/group-industry/contribution'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
@@ -490,172 +491,172 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
     />
 
     <!-- Edit Project Modal -->
-    <Teleport to="body">
-      <div v-if="showEditModal" class="fixed inset-0 z-50">
-        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" @click="showEditModal = false"></div>
-        <div class="relative flex items-center justify-center min-h-screen p-4 pointer-events-none">
-          <div class="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md pointer-events-auto">
-            <!-- Header -->
-            <div class="px-6 py-5 border-b border-slate-800 flex items-center justify-between">
-              <h2 class="text-lg font-bold text-slate-100">{{ t('groupIndustry.detail.editProject') }}</h2>
-              <button
-                class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-200 transition-colors"
-                @click="showEditModal = false"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+    <BaseModal
+      :show="showEditModal"
+      :title="t('groupIndustry.detail.editProject')"
+      panel-class="border-slate-700 max-w-md"
+      @close="showEditModal = false"
+    >
+      <!-- Header -->
+      <template #title="{ titleId }">
+        <div class="px-6 py-5 border-b border-slate-800 flex items-center justify-between">
+          <h2 :id="titleId" class="text-lg font-bold text-slate-100">{{ t('groupIndustry.detail.editProject') }}</h2>
+          <button
+            class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-200 transition-colors"
+            @click="showEditModal = false"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </template>
 
-            <!-- Body -->
-            <div class="px-6 py-5 space-y-4">
-              <div>
-                <label class="block text-sm font-medium text-slate-400 mb-1">{{ t('groupIndustry.detail.editFields.name') }}</label>
-                <input
-                  v-model="editForm.name"
-                  type="text"
-                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
-                  :placeholder="t('groupIndustry.detail.editFields.namePlaceholder')"
-                />
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-slate-400 mb-1">{{ t('groupIndustry.detail.editFields.containerName') }}</label>
-                <input
-                  v-model="editForm.containerName"
-                  type="text"
-                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
-                  :placeholder="t('groupIndustry.detail.editFields.containerPlaceholder')"
-                />
-              </div>
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-medium text-slate-400 mb-1">{{ t('groupIndustry.detail.editFields.brokerFee') }}</label>
-                  <input
-                    v-model.number="editForm.brokerFeePercent"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:border-cyan-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-slate-400 mb-1">{{ t('groupIndustry.detail.editFields.salesTax') }}</label>
-                  <input
-                    v-model.number="editForm.salesTaxPercent"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:border-cyan-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <p v-if="editError" class="text-sm text-red-400">{{ editError }}</p>
-            </div>
-
-            <!-- Footer -->
-            <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-end gap-3">
-              <button
-                class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-sm font-medium transition-colors"
-                @click="showEditModal = false"
-              >
-                {{ t('common.actions.cancel') }}
-              </button>
-              <button
-                class="px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all disabled:opacity-50"
-                :disabled="isEditSaving"
-                @click="handleEditSave"
-              >
-                <svg v-if="isEditSaving" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                {{ t('common.actions.save') }}
-              </button>
-            </div>
+      <!-- Body -->
+      <div class="px-6 py-5 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-400 mb-1">{{ t('groupIndustry.detail.editFields.name') }}</label>
+          <input
+            v-model="editForm.name"
+            type="text"
+            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
+            :placeholder="t('groupIndustry.detail.editFields.namePlaceholder')"
+          />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-400 mb-1">{{ t('groupIndustry.detail.editFields.containerName') }}</label>
+          <input
+            v-model="editForm.containerName"
+            type="text"
+            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
+            :placeholder="t('groupIndustry.detail.editFields.containerPlaceholder')"
+          />
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-400 mb-1">{{ t('groupIndustry.detail.editFields.brokerFee') }}</label>
+            <input
+              v-model.number="editForm.brokerFeePercent"
+              type="number"
+              step="0.01"
+              min="0"
+              max="100"
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:border-cyan-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-400 mb-1">{{ t('groupIndustry.detail.editFields.salesTax') }}</label>
+            <input
+              v-model.number="editForm.salesTaxPercent"
+              type="number"
+              step="0.01"
+              min="0"
+              max="100"
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:border-cyan-500 focus:outline-none"
+            />
           </div>
         </div>
+
+        <p v-if="editError" class="text-sm text-red-400">{{ editError }}</p>
       </div>
-    </Teleport>
+
+      <!-- Footer -->
+      <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-end gap-3">
+        <button
+          class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-sm font-medium transition-colors"
+          @click="showEditModal = false"
+        >
+          {{ t('common.actions.cancel') }}
+        </button>
+        <button
+          class="px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all disabled:opacity-50"
+          :disabled="isEditSaving"
+          @click="handleEditSave"
+        >
+          <svg v-if="isEditSaving" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          {{ t('common.actions.save') }}
+        </button>
+      </div>
+    </BaseModal>
 
     <!-- Delete Confirm Modal -->
-    <Teleport to="body">
-      <div v-if="showDeleteConfirm" class="fixed inset-0 z-50">
-        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" @click="showDeleteConfirm = false"></div>
-        <div class="relative flex items-center justify-center min-h-screen p-4 pointer-events-none">
-          <div class="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm pointer-events-auto">
-            <!-- Header -->
-            <div class="px-6 py-5 border-b border-slate-800">
-              <h2 class="text-lg font-bold text-slate-100">{{ t('groupIndustry.detail.deleteConfirm.title') }}</h2>
-            </div>
-
-            <!-- Body -->
-            <div class="px-6 py-5">
-              <p class="text-sm text-slate-400">{{ t('groupIndustry.detail.deleteConfirm.message') }}</p>
-              <p v-if="projectStore.error" class="mt-3 text-sm text-red-400">{{ projectStore.error }}</p>
-            </div>
-
-            <!-- Footer -->
-            <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-end gap-3">
-              <button
-                class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-sm font-medium transition-colors"
-                @click="showDeleteConfirm = false"
-              >
-                {{ t('common.actions.cancel') }}
-              </button>
-              <button
-                class="px-6 py-2.5 bg-red-600 hover:bg-red-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all disabled:opacity-50"
-                :disabled="isDeleting"
-                @click="handleDeleteProject"
-              >
-                <svg v-if="isDeleting" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                {{ t('common.actions.delete') }}
-              </button>
-            </div>
-          </div>
+    <BaseModal
+      :show="showDeleteConfirm"
+      :title="t('groupIndustry.detail.deleteConfirm.title')"
+      panel-class="border-slate-700 max-w-sm"
+      @close="showDeleteConfirm = false"
+    >
+      <!-- Header -->
+      <template #title="{ titleId }">
+        <div class="px-6 py-5 border-b border-slate-800">
+          <h2 :id="titleId" class="text-lg font-bold text-slate-100">{{ t('groupIndustry.detail.deleteConfirm.title') }}</h2>
         </div>
+      </template>
+
+      <!-- Body -->
+      <div class="px-6 py-5">
+        <p class="text-sm text-slate-400">{{ t('groupIndustry.detail.deleteConfirm.message') }}</p>
+        <p v-if="projectStore.error" class="mt-3 text-sm text-red-400">{{ projectStore.error }}</p>
       </div>
-    </Teleport>
 
-    <Teleport to="body">
-      <div v-if="showCompleteConfirm" class="fixed inset-0 z-50">
-        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" @click="showCompleteConfirm = false"></div>
-        <div class="relative flex items-center justify-center min-h-screen p-4 pointer-events-none">
-          <div class="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm pointer-events-auto">
-            <div class="px-6 py-5 border-b border-slate-800">
-              <h2 class="text-lg font-bold text-slate-100">{{ t('groupIndustry.detail.completeConfirm.title') }}</h2>
-            </div>
+      <!-- Footer -->
+      <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-end gap-3">
+        <button
+          class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-sm font-medium transition-colors"
+          @click="showDeleteConfirm = false"
+        >
+          {{ t('common.actions.cancel') }}
+        </button>
+        <button
+          class="px-6 py-2.5 bg-red-600 hover:bg-red-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all disabled:opacity-50"
+          :disabled="isDeleting"
+          @click="handleDeleteProject"
+        >
+          <svg v-if="isDeleting" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          {{ t('common.actions.delete') }}
+        </button>
+      </div>
+    </BaseModal>
 
-            <div class="px-6 py-5">
-              <p class="text-sm text-slate-400">{{ t('groupIndustry.detail.completeConfirm.message') }}</p>
-              <p v-if="statusError" class="mt-3 text-sm text-red-400">{{ statusError }}</p>
-            </div>
-
-            <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-end gap-3">
-              <button
-                class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-sm font-medium transition-colors"
-                @click="showCompleteConfirm = false"
-              >
-                {{ t('common.actions.cancel') }}
-              </button>
-              <button
-                class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all disabled:opacity-50"
-                :disabled="isAdvancingStatus"
-                @click="advanceStatus"
-              >
-                <svg v-if="isAdvancingStatus" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                {{ t('groupIndustry.detail.completeConfirm.confirm') }}
-              </button>
-            </div>
-          </div>
+    <BaseModal
+      :show="showCompleteConfirm"
+      :title="t('groupIndustry.detail.completeConfirm.title')"
+      panel-class="border-slate-700 max-w-sm"
+      @close="showCompleteConfirm = false"
+    >
+      <template #title="{ titleId }">
+        <div class="px-6 py-5 border-b border-slate-800">
+          <h2 :id="titleId" class="text-lg font-bold text-slate-100">{{ t('groupIndustry.detail.completeConfirm.title') }}</h2>
         </div>
+      </template>
+
+      <div class="px-6 py-5">
+        <p class="text-sm text-slate-400">{{ t('groupIndustry.detail.completeConfirm.message') }}</p>
+        <p v-if="statusError" class="mt-3 text-sm text-red-400">{{ statusError }}</p>
       </div>
-    </Teleport>
+
+      <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-end gap-3">
+        <button
+          class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-sm font-medium transition-colors"
+          @click="showCompleteConfirm = false"
+        >
+          {{ t('common.actions.cancel') }}
+        </button>
+        <button
+          class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all disabled:opacity-50"
+          :disabled="isAdvancingStatus"
+          @click="advanceStatus"
+        >
+          <svg v-if="isAdvancingStatus" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          {{ t('groupIndustry.detail.completeConfirm.confirm') }}
+        </button>
+      </div>
+    </BaseModal>
   </MainLayout>
 </template>
