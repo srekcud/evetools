@@ -1,7 +1,7 @@
 import { ref, watch, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-export function useTabQuery<Tab extends string>(validTabs: readonly Tab[], defaultTab: Tab): Ref<Tab> {
+export function useTabQuery<Tab extends string>(validTabs: readonly Tab[], defaultTab: Tab, _queryKey = 'tab'): Ref<Tab> {
   const route = useRoute()
   const router = useRouter()
 
