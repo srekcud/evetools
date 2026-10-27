@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useIndustryStore } from '@/stores/industry'
+import { useTabQuery } from '@/composables/useTabQuery'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
@@ -30,7 +31,8 @@ const { typeNameLabel, projectDisplayName } = useTypeNames()
 const projectRef = computed(() => store.currentProject)
 const { estimatedProjectTime } = useProjectTime(projectRef)
 
-const activeTab = ref<'steps' | 'shopping' | 'invention' | 'costs'>('steps')
+const PROJECT_TABS = ['steps', 'shopping', 'invention', 'costs'] as const
+const activeTab = useTabQuery(PROJECT_TABS, 'steps', 'projectTab')
 
 // Template refs to child components
 const stepsTabRef = ref<InstanceType<typeof StepsTab> | null>(null)
