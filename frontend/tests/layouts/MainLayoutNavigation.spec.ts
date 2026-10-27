@@ -1,46 +1,8 @@
-import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
-import type { DOMWrapper } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
-import { createI18n } from 'vue-i18n'
-import { createMemoryHistory, createRouter } from 'vue-router'
-import en from '@/i18n/locales/en.json'
-import MainLayout from '@/layouts/MainLayout.vue'
+import { enableAutoUnmount } from '@vue/test-utils'
+import type { DOMWrapper, VueWrapper } from '@vue/test-utils'
+import { mountMainLayoutAt } from './mainLayoutHarness'
 
-const navigationRoutes = [
-  '/dashboard',
-  '/ledger',
-  '/industry',
-  '/group-industry',
-  '/appraisal',
-  '/planetary',
-  '/market',
-  '/assets',
-  '/characters',
-]
-
-async function mountMainLayoutAt(path: string) {
-  localStorage.clear()
-  const pinia = createPinia()
-  setActivePinia(pinia)
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ hasAccess: false, characterName: null }), { status: 200 })))
-  const router = createRouter({
-    history: createMemoryHistory(),
-    routes: navigationRoutes.map(route => ({ path: route, component: { template: '<div />' } })),
-  })
-  await router.push(path)
-  await router.isReady()
-  const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-  const wrapper = mount(MainLayout, {
-    global: {
-      plugins: [pinia, i18n, router],
-      stubs: { NotificationBell: true, LegalFooter: true, LoadingSpinner: true },
-    },
-  })
-  await flushPromises()
-  return wrapper
-}
-
-function navigationLink(wrapper: Awaited<ReturnType<typeof mountMainLayoutAt>>, label: string): DOMWrapper<Element> | undefined {
+function navigationLink(wrapper: VueWrapper, label: string): DOMWrapper<Element> | undefined {
   return wrapper.findAll('a[href]').find(link => link.text().trim() === label)
 }
 
@@ -52,7 +14,7 @@ describe('MainLayout sidebar navigation', () => {
   })
 
   it('renders each simple navigation entry as a link to its route', async () => {
-    const wrapper = await mountMainLayoutAt('/dashboard')
+    const { wrapper } = await mountMainLayoutAt('/dashboard')
 
     expect(navigationLink(wrapper, 'Dashboard')?.attributes('href')).toBe('/dashboard')
     expect(navigationLink(wrapper, 'Revenue')?.attributes('href')).toBe('/ledger')
@@ -61,7 +23,7 @@ describe('MainLayout sidebar navigation', () => {
   })
 
   it('renders each group child as a link to its route', async () => {
-    const wrapper = await mountMainLayoutAt('/dashboard')
+    const { wrapper } = await mountMainLayoutAt('/dashboard')
 
     expect(navigationLink(wrapper, 'Industry')?.attributes('href')).toBe('/industry')
     expect(navigationLink(wrapper, 'Group Industry')?.attributes('href')).toBe('/group-industry')
@@ -70,13 +32,13 @@ describe('MainLayout sidebar navigation', () => {
   })
 
   it('renders the characters entry as a link to the characters route', async () => {
-    const wrapper = await mountMainLayoutAt('/dashboard')
+    const { wrapper } = await mountMainLayoutAt('/dashboard')
 
     expect(navigationLink(wrapper, 'Characters')?.attributes('href')).toBe('/characters')
   })
 
   it('marks only the entry of the current route with aria-current page', async () => {
-    const wrapper = await mountMainLayoutAt('/industry')
+    const { wrapper } = await mountMainLayoutAt('/industry')
 
     const currentPageLinks = wrapper.findAll('a[aria-current="page"]')
 
@@ -87,7 +49,7 @@ describe('MainLayout sidebar navigation', () => {
   })
 
   it('keeps the collapsible group header as a button reflecting its expanded state', async () => {
-    const wrapper = await mountMainLayoutAt('/dashboard')
+    const { wrapper } = await mountMainLayoutAt('/dashboard')
 
     const groupHeader = () => wrapper.findAll('nav button').find(button => button.text().trim() === 'Production')
 
