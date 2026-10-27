@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataTable from '@/components/common/DataTable.vue'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useIndustryStore } from '@/stores/industry'
@@ -279,132 +280,134 @@ onMounted(() => {
         </div>
 
         <div>
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
-                <th class="text-center py-2.5 px-2 w-8"></th>
-                <th class="text-left py-2.5 px-3">{{ t('industry.bpcKitTab.decryptor') }}</th>
-                <th class="text-center py-2.5 px-2">{{ t('industry.bpcKitTab.me') }}</th>
-                <th class="text-center py-2.5 px-2">{{ t('industry.bpcKitTab.te') }}</th>
-                <th class="text-center py-2.5 px-2">{{ t('industry.bpcKitTab.runsBpc') }}</th>
-                <th class="text-right py-2.5 px-3">{{ t('industry.bpcKitTab.adjProb') }}</th>
-                <th class="text-right py-2.5 px-3">{{ t('industry.bpcKitTab.costPerAttempt') }}</th>
-                <th class="text-right py-2.5 px-3">{{ t('industry.bpcKitTab.expAttempts') }}</th>
-                <th class="text-right py-2.5 px-3">{{ t('industry.bpcKitTab.totalCost') }}</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-800">
-              <tr
-                v-for="option in selectedInvention.decryptorOptions"
-                :key="option.decryptorTypeId ?? 'none'"
-                :class="[
-                  'relative group cursor-pointer transition-colors',
-                  isBestOption(option) ? 'bg-emerald-500/5 hover:bg-emerald-500/10 border-l-2 border-l-emerald-500' : '',
-                  !isBestOption(option) && isSelected(option) ? 'bg-cyan-500/10 hover:bg-cyan-500/15' : '',
-                  !isBestOption(option) && !isSelected(option) ? 'hover:bg-slate-800/50' : '',
-                ]"
-                @click="selectOption(option)"
-              >
-                <!-- Radio -->
-                <td class="py-2.5 px-2 text-center">
-                  <div
-                    v-if="isSelected(option)"
-                    class="w-3.5 h-3.5 rounded-full border-2 border-cyan-500 mx-auto flex items-center justify-center"
-                    style="box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.3)"
-                  >
-                    <div class="w-1.5 h-1.5 rounded-full bg-cyan-400"></div>
-                  </div>
-                  <div
-                    v-else
-                    class="w-3.5 h-3.5 rounded-full border border-slate-600 mx-auto"
-                  ></div>
-                </td>
-
-                <!-- Decryptor name -->
-                <td class="py-2.5 px-3">
-                  <div v-if="option.decryptorTypeId == null" class="text-slate-400 italic">
-                    {{ t('industry.bpcKitTab.none') }}
-                  </div>
-                  <div v-else class="flex items-center gap-2">
-                    <span :class="[isBestOption(option) ? 'text-slate-100 font-semibold' : 'text-slate-200']">
-                      {{ option.decryptorName }}
-                    </span>
-                    <span
-                      v-if="isBestOption(option)"
-                      class="text-[10px] uppercase tracking-wider px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-sm font-semibold"
+          <DataTable>
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
+                  <th class="text-center py-2.5 px-2 w-8"></th>
+                  <th class="text-left py-2.5 px-3">{{ t('industry.bpcKitTab.decryptor') }}</th>
+                  <th class="text-center py-2.5 px-2">{{ t('industry.bpcKitTab.me') }}</th>
+                  <th class="text-center py-2.5 px-2">{{ t('industry.bpcKitTab.te') }}</th>
+                  <th class="text-center py-2.5 px-2">{{ t('industry.bpcKitTab.runsBpc') }}</th>
+                  <th class="text-right py-2.5 px-3">{{ t('industry.bpcKitTab.adjProb') }}</th>
+                  <th class="text-right py-2.5 px-3">{{ t('industry.bpcKitTab.costPerAttempt') }}</th>
+                  <th class="text-right py-2.5 px-3">{{ t('industry.bpcKitTab.expAttempts') }}</th>
+                  <th class="text-right py-2.5 px-3">{{ t('industry.bpcKitTab.totalCost') }}</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800">
+                <tr
+                  v-for="option in selectedInvention.decryptorOptions"
+                  :key="option.decryptorTypeId ?? 'none'"
+                  :class="[
+                    'relative group cursor-pointer transition-colors',
+                    isBestOption(option) ? 'bg-emerald-500/5 hover:bg-emerald-500/10 border-l-2 border-l-emerald-500' : '',
+                    !isBestOption(option) && isSelected(option) ? 'bg-cyan-500/10 hover:bg-cyan-500/15' : '',
+                    !isBestOption(option) && !isSelected(option) ? 'hover:bg-slate-800/50' : '',
+                  ]"
+                  @click="selectOption(option)"
+                >
+                  <!-- Radio -->
+                  <td class="py-2.5 px-2 text-center">
+                    <div
+                      v-if="isSelected(option)"
+                      class="w-3.5 h-3.5 rounded-full border-2 border-cyan-500 mx-auto flex items-center justify-center"
+                      style="box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.3)"
                     >
-                      {{ t('industry.bpcKitTab.best') }}
-                    </span>
-                  </div>
-                </td>
+                      <div class="w-1.5 h-1.5 rounded-full bg-cyan-400"></div>
+                    </div>
+                    <div
+                      v-else
+                      class="w-3.5 h-3.5 rounded-full border border-slate-600 mx-auto"
+                    ></div>
+                  </td>
 
-                <!-- ME -->
-                <td class="py-2.5 px-2 text-center font-mono" :class="[meTeColor(-option.me), isBestOption(option) ? 'font-semibold' : '']">
-                  {{ formatMeTe(-option.me) }}
-                </td>
+                  <!-- Decryptor name -->
+                  <td class="py-2.5 px-3">
+                    <div v-if="option.decryptorTypeId == null" class="text-slate-400 italic">
+                      {{ t('industry.bpcKitTab.none') }}
+                    </div>
+                    <div v-else class="flex items-center gap-2">
+                      <span :class="[isBestOption(option) ? 'text-slate-100 font-semibold' : 'text-slate-200']">
+                        {{ option.decryptorName }}
+                      </span>
+                      <span
+                        v-if="isBestOption(option)"
+                        class="text-[10px] uppercase tracking-wider px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-sm font-semibold"
+                      >
+                        {{ t('industry.bpcKitTab.best') }}
+                      </span>
+                    </div>
+                  </td>
 
-                <!-- TE -->
-                <td class="py-2.5 px-2 text-center font-mono" :class="[meTeColor(-option.te), isBestOption(option) ? 'font-semibold' : '']">
-                  {{ formatMeTe(-option.te) }}
-                </td>
+                  <!-- ME -->
+                  <td class="py-2.5 px-2 text-center font-mono tabular-nums" :class="[meTeColor(-option.me), isBestOption(option) ? 'font-semibold' : '']">
+                    {{ formatMeTe(-option.me) }}
+                  </td>
 
-                <!-- Runs -->
-                <td class="py-2.5 px-2 text-center font-mono" :class="isBestOption(option) ? 'text-slate-100 font-semibold' : 'text-slate-300'">
-                  {{ option.runs }}
-                </td>
+                  <!-- TE -->
+                  <td class="py-2.5 px-2 text-center font-mono tabular-nums" :class="[meTeColor(-option.te), isBestOption(option) ? 'font-semibold' : '']">
+                    {{ formatMeTe(-option.te) }}
+                  </td>
 
-                <!-- Adj. Probability -->
-                <td class="py-2.5 px-3 text-right font-mono" :class="isBestOption(option) ? 'text-slate-100 font-semibold' : 'text-slate-300'">
-                  {{ formatProbability(option.probability) }}
-                </td>
+                  <!-- Runs -->
+                  <td class="py-2.5 px-2 text-center font-mono tabular-nums" :class="isBestOption(option) ? 'text-slate-100 font-semibold' : 'text-slate-300'">
+                    {{ option.runs }}
+                  </td>
 
-                <!-- Cost per attempt (with tooltip) -->
-                <td class="py-2.5 px-3 text-right font-mono relative" :class="isBestOption(option) ? 'text-slate-100 font-semibold' : 'text-slate-300'">
-                  {{ formatCost(option.costPerAttempt) }}
-                  <!-- Cost breakdown tooltip -->
-                  <div class="hidden group-hover:block absolute right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-3 w-56 text-xs z-50">
-                    <div class="space-y-1.5">
-                      <div class="flex justify-between">
-                        <span class="text-slate-400">{{ t('industry.bpcKitTab.datacoresLabel') }}</span>
-                        <span class="font-mono text-slate-200">{{ formatCost(option.costBreakdown.datacores) }}</span>
-                      </div>
-                      <div class="flex justify-between">
-                        <span class="text-slate-400">{{ t('industry.bpcKitTab.decryptor') }}</span>
-                        <span class="font-mono" :class="option.costBreakdown.decryptor === 0 ? 'text-slate-500' : 'text-slate-200'">
-                          {{ option.costBreakdown.decryptor === 0 ? '--' : formatCost(option.costBreakdown.decryptor) }}
-                        </span>
-                      </div>
-                      <div class="flex justify-between">
-                        <span class="text-slate-400">{{ t('industry.bpcKitTab.t1BpcCopy') }}</span>
-                        <span class="font-mono text-slate-200">{{ formatIsk(option.costBreakdown.copyCost) }}</span>
-                      </div>
-                      <div class="flex justify-between">
-                        <span class="text-slate-400">{{ t('industry.bpcKitTab.installCost') }}</span>
-                        <span class="font-mono text-slate-200">{{ formatCost(option.costBreakdown.inventionInstall) }}</span>
-                      </div>
-                      <div class="border-t border-slate-700 pt-1.5 flex justify-between font-semibold">
-                        <span class="text-slate-300">Total</span>
-                        <span class="font-mono text-slate-100">{{ formatCost(option.costPerAttempt) }}</span>
+                  <!-- Adj. Probability -->
+                  <td class="py-2.5 px-3 text-right font-mono tabular-nums" :class="isBestOption(option) ? 'text-slate-100 font-semibold' : 'text-slate-300'">
+                    {{ formatProbability(option.probability) }}
+                  </td>
+
+                  <!-- Cost per attempt (with tooltip) -->
+                  <td class="py-2.5 px-3 text-right font-mono relative tabular-nums" :class="isBestOption(option) ? 'text-slate-100 font-semibold' : 'text-slate-300'">
+                    {{ formatCost(option.costPerAttempt) }}
+                    <!-- Cost breakdown tooltip -->
+                    <div class="hidden group-hover:block absolute right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-3 w-56 text-xs z-50">
+                      <div class="space-y-1.5">
+                        <div class="flex justify-between">
+                          <span class="text-slate-400">{{ t('industry.bpcKitTab.datacoresLabel') }}</span>
+                          <span class="font-mono text-slate-200">{{ formatCost(option.costBreakdown.datacores) }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                          <span class="text-slate-400">{{ t('industry.bpcKitTab.decryptor') }}</span>
+                          <span class="font-mono" :class="option.costBreakdown.decryptor === 0 ? 'text-slate-500' : 'text-slate-200'">
+                            {{ option.costBreakdown.decryptor === 0 ? '--' : formatCost(option.costBreakdown.decryptor) }}
+                          </span>
+                        </div>
+                        <div class="flex justify-between">
+                          <span class="text-slate-400">{{ t('industry.bpcKitTab.t1BpcCopy') }}</span>
+                          <span class="font-mono text-slate-200">{{ formatIsk(option.costBreakdown.copyCost) }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                          <span class="text-slate-400">{{ t('industry.bpcKitTab.installCost') }}</span>
+                          <span class="font-mono text-slate-200">{{ formatCost(option.costBreakdown.inventionInstall) }}</span>
+                        </div>
+                        <div class="border-t border-slate-700 pt-1.5 flex justify-between font-semibold">
+                          <span class="text-slate-300">Total</span>
+                          <span class="font-mono text-slate-100">{{ formatCost(option.costPerAttempt) }}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </td>
+                  </td>
 
-                <!-- Expected attempts -->
-                <td class="py-2.5 px-3 text-right font-mono" :class="isBestOption(option) ? 'text-slate-100 font-semibold' : 'text-slate-300'">
-                  {{ option.expectedAttempts ?? t('industry.inventionUnknown.label') }}
-                </td>
+                  <!-- Expected attempts -->
+                  <td class="py-2.5 px-3 text-right font-mono tabular-nums" :class="isBestOption(option) ? 'text-slate-100 font-semibold' : 'text-slate-300'">
+                    {{ option.expectedAttempts ?? t('industry.inventionUnknown.label') }}
+                  </td>
 
-                <!-- Total cost -->
-                <td class="py-2.5 px-3 text-right font-mono" :class="[
-                  isBestOption(option) ? 'text-emerald-400 font-bold' : 'text-slate-200',
-                  isSelected(option) && !isBestOption(option) ? 'text-cyan-400 font-semibold' : '',
-                ]">
-                  {{ formatCost(option.totalCost) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                  <!-- Total cost -->
+                  <td class="py-2.5 px-3 text-right font-mono tabular-nums" :class="[
+                    isBestOption(option) ? 'text-emerald-400 font-bold' : 'text-slate-200',
+                    isSelected(option) && !isBestOption(option) ? 'text-cyan-400 font-semibold' : '',
+                  ]">
+                    {{ formatCost(option.totalCost) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </DataTable>
         </div>
 
         <!-- Footer: Cost + Apply -->

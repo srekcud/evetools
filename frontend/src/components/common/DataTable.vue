@@ -7,5 +7,10 @@ withDefaults(defineProps<{
 </script>
 
 <template>
-  <slot />
+  <div
+    class="overflow-x-auto"
+    :class="{ 'data-table-sticky-header': stickyHeader }"
+  >
+    <slot />
+  </div>
 </template>

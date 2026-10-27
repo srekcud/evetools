@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataTable from '@/components/common/DataTable.vue'
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
@@ -457,76 +458,78 @@ function handleClose() {
 
         <!-- Filled table -->
         <div v-else class="bg-slate-800/30 rounded-xl border border-slate-700 overflow-hidden">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-700">
-                <th class="text-left py-2 px-3 w-8"></th>
-                <th class="text-left py-2 px-3">{{ t('groupIndustry.modals.newProject.columnItem') }}</th>
-                <th class="text-center py-2 px-2 w-16">ME</th>
-                <th class="text-center py-2 px-2 w-16">TE</th>
-                <th class="text-center py-2 px-2 w-20">{{ t('groupIndustry.modals.newProject.columnRuns') }}</th>
-                <th class="text-center py-2 px-3 w-10"></th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-700/50">
-              <tr
-                v-for="(item, index) in items"
-                :key="`${item.typeName}-${index}`"
-                class="hover:bg-slate-800/30"
-              >
-                <td class="py-2 px-3">
-                  <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden">
-                    <img
-                      v-if="item.typeId > 0"
-                      :src="getTypeIconUrl(item.typeId, 32)"
-                      :alt="item.typeName"
-                      class="w-full h-full"
-                      @error="onImageError"
+          <DataTable>
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-700">
+                  <th class="text-left py-2 px-3 w-8"></th>
+                  <th class="text-left py-2 px-3">{{ t('groupIndustry.modals.newProject.columnItem') }}</th>
+                  <th class="text-center py-2 px-2 w-16">ME</th>
+                  <th class="text-center py-2 px-2 w-16">TE</th>
+                  <th class="text-center py-2 px-2 w-20">{{ t('groupIndustry.modals.newProject.columnRuns') }}</th>
+                  <th class="text-center py-2 px-3 w-10"></th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-700/50">
+                <tr
+                  v-for="(item, index) in items"
+                  :key="`${item.typeName}-${index}`"
+                  class="hover:bg-slate-800/30"
+                >
+                  <td class="py-2 px-3">
+                    <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden">
+                      <img
+                        v-if="item.typeId > 0"
+                        :src="getTypeIconUrl(item.typeId, 32)"
+                        :alt="item.typeName"
+                        class="w-full h-full"
+                        @error="onImageError"
+                      />
+                    </div>
+                  </td>
+                  <td class="py-2 px-3 text-slate-200">{{ item.typeName }}</td>
+                  <td class="py-2 px-2 text-center">
+                    <input
+                      v-model.number="item.meLevel"
+                      type="number"
+                      min="0"
+                      max="10"
+                      class="w-12 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-xs text-slate-200 font-mono text-center focus:border-cyan-500 focus:outline-none"
                     />
-                  </div>
-                </td>
-                <td class="py-2 px-3 text-slate-200">{{ item.typeName }}</td>
-                <td class="py-2 px-2 text-center">
-                  <input
-                    v-model.number="item.meLevel"
-                    type="number"
-                    min="0"
-                    max="10"
-                    class="w-12 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-xs text-slate-200 font-mono text-center focus:border-cyan-500 focus:outline-none"
-                  />
-                </td>
-                <td class="py-2 px-2 text-center">
-                  <input
-                    v-model.number="item.teLevel"
-                    type="number"
-                    min="0"
-                    max="20"
-                    class="w-12 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-xs text-slate-200 font-mono text-center focus:border-cyan-500 focus:outline-none"
-                  />
-                </td>
-                <td class="py-2 px-2 text-center">
-                  <input
-                    v-model.number="item.runs"
-                    type="number"
-                    min="1"
-                    class="w-16 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-xs text-slate-200 font-mono text-center focus:border-cyan-500 focus:outline-none"
-                    style="font-variant-numeric: tabular-nums;"
-                  />
-                </td>
-                <td class="py-2 px-3 text-center">
-                  <button
-                    class="text-slate-600 hover:text-red-400 transition-colors"
-                    :title="t('common.actions.delete')"
-                    @click="removeItem(index)"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                  </td>
+                  <td class="py-2 px-2 text-center">
+                    <input
+                      v-model.number="item.teLevel"
+                      type="number"
+                      min="0"
+                      max="20"
+                      class="w-12 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-xs text-slate-200 font-mono text-center focus:border-cyan-500 focus:outline-none"
+                    />
+                  </td>
+                  <td class="py-2 px-2 text-center">
+                    <input
+                      v-model.number="item.runs"
+                      type="number"
+                      min="1"
+                      class="w-16 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-xs text-slate-200 font-mono text-center focus:border-cyan-500 focus:outline-none"
+                      style="font-variant-numeric: tabular-nums;"
+                    />
+                  </td>
+                  <td class="py-2 px-3 text-center">
+                    <button
+                      class="text-slate-600 hover:text-red-400 transition-colors"
+                      :title="t('common.actions.delete')"
+                      @click="removeItem(index)"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </DataTable>
           <!-- Table Footer -->
           <div class="px-3 py-2 border-t border-slate-700 flex items-center justify-between">
             <span class="text-xs text-slate-400 font-medium">
@@ -657,34 +660,36 @@ function handleClose() {
           v-if="showLineRentalOverride"
           class="mt-3 bg-slate-800/50 rounded-xl border border-slate-700/50 overflow-hidden"
         >
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-700">
-                <th class="text-left py-2.5 px-4">{{ t('groupIndustry.modals.lineRental.category') }}</th>
-                <th class="text-right py-2.5 px-4">{{ t('groupIndustry.modals.lineRental.rate') }}</th>
-                <th class="text-left py-2.5 px-4">{{ t('groupIndustry.modals.lineRental.unit') }}</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-700/50">
-              <tr
-                v-for="rate in lineRentalRates"
-                :key="rate.key"
-                class="hover:bg-slate-800/30"
-                :class="{ 'border-t-2 border-slate-600': rate.key === 'location_factor' }"
-              >
-                <td class="py-2 px-4 text-slate-300">{{ rate.label }}</td>
-                <td class="py-2 px-4 text-right">
-                  <input
-                    v-model.number="rate.value"
-                    type="text"
-                    class="w-24 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-sm text-slate-200 font-mono text-right focus:border-cyan-500 focus:outline-none"
-                    style="font-variant-numeric: tabular-nums;"
-                  />
-                </td>
-                <td class="py-2 px-4 text-xs text-slate-500">{{ rate.unit }}</td>
-              </tr>
-            </tbody>
-          </table>
+          <DataTable>
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-700">
+                  <th class="text-left py-2.5 px-4">{{ t('groupIndustry.modals.lineRental.category') }}</th>
+                  <th class="text-right py-2.5 px-4">{{ t('groupIndustry.modals.lineRental.rate') }}</th>
+                  <th class="text-left py-2.5 px-4">{{ t('groupIndustry.modals.lineRental.unit') }}</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-700/50">
+                <tr
+                  v-for="rate in lineRentalRates"
+                  :key="rate.key"
+                  class="hover:bg-slate-800/30"
+                  :class="{ 'border-t-2 border-slate-600': rate.key === 'location_factor' }"
+                >
+                  <td class="py-2 px-4 text-slate-300">{{ rate.label }}</td>
+                  <td class="py-2 px-4 text-right">
+                    <input
+                      v-model.number="rate.value"
+                      type="text"
+                      class="w-24 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-sm text-slate-200 font-mono text-right focus:border-cyan-500 focus:outline-none"
+                      style="font-variant-numeric: tabular-nums;"
+                    />
+                  </td>
+                  <td class="py-2 px-4 text-xs text-slate-500">{{ rate.unit }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </DataTable>
           <div class="px-4 py-2 border-t border-slate-700/50">
             <p class="text-xs text-slate-600">{{ t('groupIndustry.modals.newProject.lineRentalOverrideHint') }}</p>
           </div>

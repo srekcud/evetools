@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataTable from '@/components/common/DataTable.vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePlanetaryTimers } from '@/composables/usePlanetaryTimers'
@@ -219,44 +220,46 @@ defineEmits<{
             {{ t('pi.colony.factories') }} <span class="text-slate-500 font-normal">({{ getFactoryPins(colony).length }})</span>
           </h4>
           <div class="bg-slate-800/60 rounded-lg border border-slate-700/30 overflow-hidden">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="text-[10px] text-slate-500 uppercase tracking-wider border-b border-slate-700/30">
-                  <th class="text-left px-3 py-2 font-medium">{{ t('pi.colony.schema') }}</th>
-                  <th class="text-left px-3 py-2 font-medium">{{ t('pi.colony.inputs') }}</th>
-                  <th class="text-left px-3 py-2 font-medium">{{ t('pi.colony.output') }}</th>
-                  <th class="text-right px-3 py-2 font-medium">{{ t('pi.colony.cycle') }}</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-700/20">
-                <tr v-for="pin in getFactoryPins(colony)" :key="pin.pinId" class="hover:bg-slate-700/20">
-                  <td class="px-3 py-2 text-white font-medium">{{ pin.schematicName || typeNameLabel(pin.typeName, pin.typeId) }}</td>
-                  <td class="px-3 py-2 text-slate-400 text-xs">
-                    <template v-if="pin.schematicInputs && pin.schematicInputs.length > 0">
-                      {{ pin.schematicInputs.map(i => `${formatNumber(i.quantity, 0)} ${typeNameLabel(i.typeName, i.typeId)}`).join(' + ') }}
-                    </template>
-                    <span v-else class="text-slate-500">-</span>
-                  </td>
-                  <td class="px-3 py-2">
-                    <template v-if="pin.schematicOutput">
-                      <div class="flex items-center gap-1.5">
-                        <span v-if="pin.outputTier" :class="['text-[9px] px-1 py-0.5 rounded-sm border font-bold',
-                          TIER_CONFIG[pin.outputTier]?.badgeBg, TIER_CONFIG[pin.outputTier]?.badgeText, TIER_CONFIG[pin.outputTier]?.badgeBorder]">
-                          {{ pin.outputTier }}
-                        </span>
-                        <span :class="['text-xs', pin.outputTier ? TIER_CONFIG[pin.outputTier]?.badgeText || 'text-white' : 'text-white']">
-                          {{ formatNumber(pin.schematicOutput.quantity, 0) }} {{ typeNameLabel(pin.schematicOutput.typeName, pin.schematicOutput.typeId) }}
-                        </span>
-                      </div>
-                    </template>
-                    <span v-else class="text-slate-500 text-xs">-</span>
-                  </td>
-                  <td class="px-3 py-2 text-right text-slate-400 text-xs font-mono-tech">
-                    {{ formatCycleTime(pin.schematicCycleTime) }}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <DataTable>
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="text-[10px] text-slate-500 uppercase tracking-wider border-b border-slate-700/30">
+                    <th class="text-left px-3 py-2 font-medium">{{ t('pi.colony.schema') }}</th>
+                    <th class="text-left px-3 py-2 font-medium">{{ t('pi.colony.inputs') }}</th>
+                    <th class="text-left px-3 py-2 font-medium">{{ t('pi.colony.output') }}</th>
+                    <th class="text-right px-3 py-2 font-medium">{{ t('pi.colony.cycle') }}</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700/20">
+                  <tr v-for="pin in getFactoryPins(colony)" :key="pin.pinId" class="hover:bg-slate-700/20">
+                    <td class="px-3 py-2 text-white font-medium">{{ pin.schematicName || typeNameLabel(pin.typeName, pin.typeId) }}</td>
+                    <td class="px-3 py-2 text-slate-400 text-xs">
+                      <template v-if="pin.schematicInputs && pin.schematicInputs.length > 0">
+                        {{ pin.schematicInputs.map(i => `${formatNumber(i.quantity, 0)} ${typeNameLabel(i.typeName, i.typeId)}`).join(' + ') }}
+                      </template>
+                      <span v-else class="text-slate-500">-</span>
+                    </td>
+                    <td class="px-3 py-2">
+                      <template v-if="pin.schematicOutput">
+                        <div class="flex items-center gap-1.5">
+                          <span v-if="pin.outputTier" :class="['text-[9px] px-1 py-0.5 rounded-sm border font-bold',
+                            TIER_CONFIG[pin.outputTier]?.badgeBg, TIER_CONFIG[pin.outputTier]?.badgeText, TIER_CONFIG[pin.outputTier]?.badgeBorder]">
+                            {{ pin.outputTier }}
+                          </span>
+                          <span :class="['text-xs', pin.outputTier ? TIER_CONFIG[pin.outputTier]?.badgeText || 'text-white' : 'text-white']">
+                            {{ formatNumber(pin.schematicOutput.quantity, 0) }} {{ typeNameLabel(pin.schematicOutput.typeName, pin.schematicOutput.typeId) }}
+                          </span>
+                        </div>
+                      </template>
+                      <span v-else class="text-slate-500 text-xs">-</span>
+                    </td>
+                    <td class="px-3 py-2 text-right text-slate-400 text-xs font-mono-tech tabular-nums">
+                      {{ formatCycleTime(pin.schematicCycleTime) }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </DataTable>
           </div>
         </div>
 

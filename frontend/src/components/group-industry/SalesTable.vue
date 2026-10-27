@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataTable from '@/components/common/DataTable.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
@@ -93,54 +94,56 @@ onMounted(() => {
     <!-- Sales Table -->
     <template v-else>
       <div class="bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
-              <th class="text-left py-3 px-6">Date</th>
-              <th class="text-right py-3 px-3">Quantity</th>
-              <th class="text-right py-3 px-3">Unit Price</th>
-              <th class="text-right py-3 px-3">Revenue</th>
-              <th class="text-left py-3 px-6">Venue</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-800/30">
-            <tr
-              v-for="sale in store.sales"
-              :key="sale.id"
-              class="hover:bg-slate-800/30"
-            >
-              <td class="py-3 px-6 text-slate-300">{{ formatDate(sale.soldAt) }}</td>
-              <td class="py-3 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
-                {{ formatNumber(sale.quantity, 0) }}
-              </td>
-              <td class="py-3 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
-                {{ formatNumber(sale.unitPrice, 0) }}
-              </td>
-              <td class="py-3 px-3 text-right font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">
-                {{ formatNumber(sale.totalPrice, 0) }}
-              </td>
-              <td class="py-3 px-6">
-                <span
-                  v-if="sale.venue"
-                  class="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                >{{ sale.venue }}</span>
-                <span v-else class="text-xs text-slate-600">--</span>
-              </td>
-            </tr>
-            <!-- Total row -->
-            <tr v-if="store.sales.length > 0" class="bg-slate-800/30 border-t-2 border-slate-700">
-              <td class="py-3 px-6 text-slate-200 font-semibold">{{ t('common.status.total') }}</td>
-              <td class="py-3 px-3 text-right font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">
-                {{ formatNumber(totalQuantity, 0) }}
-              </td>
-              <td class="py-3 px-3"></td>
-              <td class="py-3 px-3 text-right font-mono font-bold text-emerald-400" style="font-variant-numeric: tabular-nums;">
-                {{ formatNumber(totalRevenue, 0) }}
-              </td>
-              <td class="py-3 px-6"></td>
-            </tr>
-          </tbody>
-        </table>
+        <DataTable>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
+                <th class="text-left py-3 px-6">Date</th>
+                <th class="text-right py-3 px-3">Quantity</th>
+                <th class="text-right py-3 px-3">Unit Price</th>
+                <th class="text-right py-3 px-3">Revenue</th>
+                <th class="text-left py-3 px-6">Venue</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/30">
+              <tr
+                v-for="sale in store.sales"
+                :key="sale.id"
+                class="hover:bg-slate-800/30"
+              >
+                <td class="py-3 px-6 text-slate-300">{{ formatDate(sale.soldAt) }}</td>
+                <td class="py-3 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
+                  {{ formatNumber(sale.quantity, 0) }}
+                </td>
+                <td class="py-3 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
+                  {{ formatNumber(sale.unitPrice, 0) }}
+                </td>
+                <td class="py-3 px-3 text-right font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">
+                  {{ formatNumber(sale.totalPrice, 0) }}
+                </td>
+                <td class="py-3 px-6">
+                  <span
+                    v-if="sale.venue"
+                    class="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  >{{ sale.venue }}</span>
+                  <span v-else class="text-xs text-slate-600">--</span>
+                </td>
+              </tr>
+              <!-- Total row -->
+              <tr v-if="store.sales.length > 0" class="bg-slate-800/30 border-t-2 border-slate-700">
+                <td class="py-3 px-6 text-slate-200 font-semibold">{{ t('common.status.total') }}</td>
+                <td class="py-3 px-3 text-right font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">
+                  {{ formatNumber(totalQuantity, 0) }}
+                </td>
+                <td class="py-3 px-3"></td>
+                <td class="py-3 px-3 text-right font-mono font-bold text-emerald-400" style="font-variant-numeric: tabular-nums;">
+                  {{ formatNumber(totalRevenue, 0) }}
+                </td>
+                <td class="py-3 px-6"></td>
+              </tr>
+            </tbody>
+          </table>
+        </DataTable>
       </div>
 
       <!-- Inline Sale Form (admin only) -->

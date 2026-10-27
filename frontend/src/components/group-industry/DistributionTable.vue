@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataTable from '@/components/common/DataTable.vue'
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
@@ -127,141 +128,143 @@ const BREAKDOWN_COLORS: Record<string, string> = {
 
       <!-- Distribution Table -->
       <div class="lg:col-span-2 bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
-              <th class="text-left py-3 px-6">Character</th>
-              <th class="text-right py-3 px-3">Costs Engaged</th>
-              <th class="text-right py-3 px-3">Share %</th>
-              <th class="text-right py-3 px-3">Profit Part</th>
-              <th class="text-right py-3 px-6">Payout Total</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-800/30">
-            <template v-for="member in dist.members" :key="member.memberId">
-              <!-- Main row -->
-              <tr
-                class="hover:bg-slate-800/30 cursor-pointer"
-                @click="toggleExpand(member.memberId)"
-              >
-                <td class="py-3.5 px-6">
-                  <div class="flex items-center gap-2.5">
-                    <img
-                      :src="getCharacterPortraitUrl(0, 32)"
-                      :alt="pilotName(member.characterName)"
-                      class="w-8 h-8 rounded-full border border-slate-700"
-                      @error="onImageError"
-                    />
-                    <div>
-                      <span class="text-slate-200 font-medium">{{ pilotName(member.characterName) }}</span>
-                      <div class="flex items-center gap-1 mt-0.5">
-                        <svg
-                          class="w-3 h-3 text-cyan-400 transition-transform"
-                          :class="{ 'rotate-180': isExpanded(member.memberId) }"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                        </svg>
-                        <span class="text-xs text-cyan-400">
-                          {{ isExpanded(member.memberId) ? 'Hide breakdown' : 'Show breakdown' }}
+        <DataTable>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
+                <th class="text-left py-3 px-6">Character</th>
+                <th class="text-right py-3 px-3">Costs Engaged</th>
+                <th class="text-right py-3 px-3">Share %</th>
+                <th class="text-right py-3 px-3">Profit Part</th>
+                <th class="text-right py-3 px-6">Payout Total</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/30">
+              <template v-for="member in dist.members" :key="member.memberId">
+                <!-- Main row -->
+                <tr
+                  class="hover:bg-slate-800/30 cursor-pointer"
+                  @click="toggleExpand(member.memberId)"
+                >
+                  <td class="py-3.5 px-6">
+                    <div class="flex items-center gap-2.5">
+                      <img
+                        :src="getCharacterPortraitUrl(0, 32)"
+                        :alt="pilotName(member.characterName)"
+                        class="w-8 h-8 rounded-full border border-slate-700"
+                        @error="onImageError"
+                      />
+                      <div>
+                        <span class="text-slate-200 font-medium">{{ pilotName(member.characterName) }}</span>
+                        <div class="flex items-center gap-1 mt-0.5">
+                          <svg
+                            class="w-3 h-3 text-cyan-400 transition-transform"
+                            :class="{ 'rotate-180': isExpanded(member.memberId) }"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                          </svg>
+                          <span class="text-xs text-cyan-400">
+                            {{ isExpanded(member.memberId) ? 'Hide breakdown' : 'Show breakdown' }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="py-3.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
+                    {{ formatIsk(member.totalCostsEngaged) }}
+                  </td>
+                  <td class="py-3.5 px-3 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">
+                    {{ member.sharePercent.toFixed(1) }}%
+                  </td>
+                  <td
+                    class="py-3.5 px-3 text-right font-mono"
+                    :class="profitColorClass(member.profitPart)"
+                    style="font-variant-numeric: tabular-nums;"
+                  >
+                    {{ formatProfit(member.profitPart) }}
+                  </td>
+                  <td class="py-3.5 px-6 text-right">
+                    <span
+                      class="font-mono font-bold text-lg"
+                      :class="profitColorClass(member.payoutTotal)"
+                      style="font-variant-numeric: tabular-nums;"
+                    >{{ formatIsk(member.payoutTotal) }}</span>
+                  </td>
+                </tr>
+                <!-- Breakdown row (expanded) -->
+                <tr v-if="isExpanded(member.memberId)" class="bg-slate-800/20">
+                  <td colspan="5" class="px-6 py-3">
+                    <div class="ml-10 space-y-1.5 text-xs">
+                      <div v-if="member.materialCosts > 0" class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                          <span class="w-2 h-2 rounded-full" :class="BREAKDOWN_COLORS.material"></span>
+                          <span class="text-slate-400">Materials</span>
+                        </div>
+                        <span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
+                          {{ formatIsk(member.materialCosts) }}
+                        </span>
+                      </div>
+                      <div v-if="member.jobInstallCosts > 0" class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                          <span class="w-2 h-2 rounded-full" :class="BREAKDOWN_COLORS.job_install"></span>
+                          <span class="text-slate-400">Job Install</span>
+                        </div>
+                        <span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
+                          {{ formatIsk(member.jobInstallCosts) }}
+                        </span>
+                      </div>
+                      <div v-if="member.bpcCosts > 0" class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                          <span class="w-2 h-2 rounded-full" :class="BREAKDOWN_COLORS.bpc"></span>
+                          <span class="text-slate-400">BPC</span>
+                        </div>
+                        <span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
+                          {{ formatIsk(member.bpcCosts) }}
+                        </span>
+                      </div>
+                      <div v-if="member.lineRentalCosts > 0" class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                          <span class="w-2 h-2 rounded-full" :class="BREAKDOWN_COLORS.line_rental"></span>
+                          <span class="text-slate-400">Line Rental</span>
+                        </div>
+                        <span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
+                          {{ formatIsk(member.lineRentalCosts) }}
                         </span>
                       </div>
                     </div>
-                  </div>
+                  </td>
+                </tr>
+              </template>
+              <!-- Total row -->
+              <tr class="bg-slate-800/30 border-t-2 border-slate-700">
+                <td class="py-3.5 px-6 text-slate-200 font-semibold">{{ t('common.status.total') }}</td>
+                <td class="py-3.5 px-3 text-right font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">
+                  {{ formatIsk(totalCosts) }}
                 </td>
-                <td class="py-3.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
-                  {{ formatIsk(member.totalCostsEngaged) }}
-                </td>
-                <td class="py-3.5 px-3 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">
-                  {{ member.sharePercent.toFixed(1) }}%
+                <td class="py-3.5 px-3 text-right font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">
+                  100%
                 </td>
                 <td
-                  class="py-3.5 px-3 text-right font-mono"
-                  :class="profitColorClass(member.profitPart)"
+                  class="py-3.5 px-3 text-right font-mono font-bold"
+                  :class="profitColorClass(totalProfit)"
                   style="font-variant-numeric: tabular-nums;"
                 >
-                  {{ formatProfit(member.profitPart) }}
+                  {{ formatProfit(totalProfit) }}
                 </td>
-                <td class="py-3.5 px-6 text-right">
-                  <span
-                    class="font-mono font-bold text-lg"
-                    :class="profitColorClass(member.payoutTotal)"
-                    style="font-variant-numeric: tabular-nums;"
-                  >{{ formatIsk(member.payoutTotal) }}</span>
-                </td>
-              </tr>
-              <!-- Breakdown row (expanded) -->
-              <tr v-if="isExpanded(member.memberId)" class="bg-slate-800/20">
-                <td colspan="5" class="px-6 py-3">
-                  <div class="ml-10 space-y-1.5 text-xs">
-                    <div v-if="member.materialCosts > 0" class="flex items-center justify-between">
-                      <div class="flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full" :class="BREAKDOWN_COLORS.material"></span>
-                        <span class="text-slate-400">Materials</span>
-                      </div>
-                      <span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
-                        {{ formatIsk(member.materialCosts) }}
-                      </span>
-                    </div>
-                    <div v-if="member.jobInstallCosts > 0" class="flex items-center justify-between">
-                      <div class="flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full" :class="BREAKDOWN_COLORS.job_install"></span>
-                        <span class="text-slate-400">Job Install</span>
-                      </div>
-                      <span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
-                        {{ formatIsk(member.jobInstallCosts) }}
-                      </span>
-                    </div>
-                    <div v-if="member.bpcCosts > 0" class="flex items-center justify-between">
-                      <div class="flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full" :class="BREAKDOWN_COLORS.bpc"></span>
-                        <span class="text-slate-400">BPC</span>
-                      </div>
-                      <span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
-                        {{ formatIsk(member.bpcCosts) }}
-                      </span>
-                    </div>
-                    <div v-if="member.lineRentalCosts > 0" class="flex items-center justify-between">
-                      <div class="flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full" :class="BREAKDOWN_COLORS.line_rental"></span>
-                        <span class="text-slate-400">Line Rental</span>
-                      </div>
-                      <span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
-                        {{ formatIsk(member.lineRentalCosts) }}
-                      </span>
-                    </div>
-                  </div>
+                <td
+                  class="py-3.5 px-6 text-right font-mono font-bold text-lg"
+                  :class="profitColorClass(totalPayout)"
+                  style="font-variant-numeric: tabular-nums;"
+                >
+                  {{ formatIsk(totalPayout) }}
                 </td>
               </tr>
-            </template>
-            <!-- Total row -->
-            <tr class="bg-slate-800/30 border-t-2 border-slate-700">
-              <td class="py-3.5 px-6 text-slate-200 font-semibold">{{ t('common.status.total') }}</td>
-              <td class="py-3.5 px-3 text-right font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">
-                {{ formatIsk(totalCosts) }}
-              </td>
-              <td class="py-3.5 px-3 text-right font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">
-                100%
-              </td>
-              <td
-                class="py-3.5 px-3 text-right font-mono font-bold"
-                :class="profitColorClass(totalProfit)"
-                style="font-variant-numeric: tabular-nums;"
-              >
-                {{ formatProfit(totalProfit) }}
-              </td>
-              <td
-                class="py-3.5 px-6 text-right font-mono font-bold text-lg"
-                :class="profitColorClass(totalPayout)"
-                style="font-variant-numeric: tabular-nums;"
-              >
-                {{ formatIsk(totalPayout) }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </DataTable>
       </div>
     </div>
 

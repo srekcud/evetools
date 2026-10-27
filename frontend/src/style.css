@@ -229,6 +229,13 @@
   text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
 }
 
+.data-table-sticky-header thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: var(--color-eve-dark);
+}
+
 @layer base {
   html {
     font-family: 'Rajdhani', sans-serif;

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataTable from '@/components/common/DataTable.vue'
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
@@ -104,34 +105,36 @@ function handleClose() {
       <p class="text-sm text-slate-400 mb-5">{{ t('groupIndustry.modals.lineRental.description') }}</p>
 
       <div class="bg-slate-800/50 rounded-xl border border-slate-700/50 overflow-hidden">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-700">
-              <th class="text-left py-3 px-4">{{ t('groupIndustry.modals.lineRental.category') }}</th>
-              <th class="text-right py-3 px-4">{{ t('groupIndustry.modals.lineRental.rate') }}</th>
-              <th class="text-left py-3 px-4">{{ t('groupIndustry.modals.lineRental.unit') }}</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-700/50">
-            <tr
-              v-for="rate in rates"
-              :key="rate.key"
-              class="hover:bg-slate-800/30"
-              :class="{ 'border-t-2 border-slate-600': rate.key === 'location_factor' }"
-            >
-              <td class="py-2.5 px-4 text-slate-300">{{ rate.label }}</td>
-              <td class="py-2.5 px-4 text-right">
-                <input
-                  v-model.number="rate.value"
-                  type="text"
-                  class="w-24 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-sm text-slate-200 font-mono text-right focus:border-cyan-500 focus:outline-none"
-                  style="font-variant-numeric: tabular-nums;"
-                />
-              </td>
-              <td class="py-2.5 px-4 text-xs text-slate-500">{{ rate.unit }}</td>
-            </tr>
-          </tbody>
-        </table>
+        <DataTable>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-700">
+                <th class="text-left py-3 px-4">{{ t('groupIndustry.modals.lineRental.category') }}</th>
+                <th class="text-right py-3 px-4">{{ t('groupIndustry.modals.lineRental.rate') }}</th>
+                <th class="text-left py-3 px-4">{{ t('groupIndustry.modals.lineRental.unit') }}</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-700/50">
+              <tr
+                v-for="rate in rates"
+                :key="rate.key"
+                class="hover:bg-slate-800/30"
+                :class="{ 'border-t-2 border-slate-600': rate.key === 'location_factor' }"
+              >
+                <td class="py-2.5 px-4 text-slate-300">{{ rate.label }}</td>
+                <td class="py-2.5 px-4 text-right">
+                  <input
+                    v-model.number="rate.value"
+                    type="text"
+                    class="w-24 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-sm text-slate-200 font-mono text-right focus:border-cyan-500 focus:outline-none"
+                    style="font-variant-numeric: tabular-nums;"
+                  />
+                </td>
+                <td class="py-2.5 px-4 text-xs text-slate-500">{{ rate.unit }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </DataTable>
       </div>
 
       <p v-if="saveError" class="mt-3 text-sm text-red-400">{{ saveError }}</p>
