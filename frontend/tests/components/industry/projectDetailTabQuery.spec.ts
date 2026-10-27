@@ -20,12 +20,31 @@ vi.mock(import('vue-router'), async importOriginal => ({
 const PROJECT_ID = 'project-221'
 const VEXOR_TYPE_ID = 626
 
+const tabLoadCalls: string[] = []
+
+function recordTabLoad(tabName: string, loadName: string) {
+  return () => {
+    tabLoadCalls.push(`${tabName}.${loadName}`)
+  }
+}
+
 function projectTabStub(name: string) {
   return defineComponent({
     name,
-    methods: { activate: vi.fn(), loadSuggestions: vi.fn(), loadPersistedStock: vi.fn() },
+    methods: {
+      activate: recordTabLoad(name, 'activate'),
+      loadSuggestions: recordTabLoad(name, 'loadSuggestions'),
+      loadPersistedStock: recordTabLoad(name, 'loadPersistedStock'),
+    },
     render: () => h('div'),
   })
+}
+
+function tabLoadCounts() {
+  return tabLoadCalls.reduce<Record<string, number>>((counts, call) => {
+    counts[call] = call in counts ? counts[call] + 1 : 1
+    return counts
+  }, {})
 }
 
 const stubbedChildren = {
@@ -99,6 +118,7 @@ enableAutoUnmount(afterEach)
 beforeEach(() => {
   setActivePinia(createPinia())
   routerReplace.mockClear()
+  tabLoadCalls.length = 0
 })
 
 describe('ProjectDetail tab in the URL', () => {
@@ -118,5 +138,58 @@ describe('ProjectDetail tab in the URL', () => {
 
     expect(routerReplace).toHaveBeenCalledTimes(1)
     expect(routerReplace).toHaveBeenCalledWith({ query: { tab: 'projects', projectTab: 'shopping' } })
+  })
+
+  it('loads the shopping tab once when mounted with the shopping projectTab in the query', async () => {
+    await mountProjectDetailWithQuery({ tab: 'projects', projectTab: 'shopping' })
+
+    expect(tabLoadCounts()).toEqual({
+      'ShoppingTab.loadPersistedStock': 1,
+      'ShoppingTab.activate': 1,
+      'ShoppingTab.loadSuggestions': 1,
+    })
+    expect(tabLoadCalls.filter(call => call !== 'ShoppingTab.loadPersistedStock')).toEqual([
+      'ShoppingTab.activate',
+      'ShoppingTab.loadSuggestions',
+    ])
+    expect(routerReplace).not.toHaveBeenCalled()
+  })
+
+  it('renders the invention tab without loading shopping or costs when mounted with the invention projectTab in the query', async () => {
+    const wrapper = await mountProjectDetailWithQuery({ tab: 'projects', projectTab: 'invention' })
+
+    expect(wrapper.findComponent({ name: 'BpcKitTab' }).exists()).toBe(true)
+    expect(tabLoadCounts()).toEqual({ 'ShoppingTab.loadPersistedStock': 1 })
+    expect(routerReplace).not.toHaveBeenCalled()
+  })
+
+  it('activates the cost estimation tab once when mounted with the costs projectTab in the query', async () => {
+    await mountProjectDetailWithQuery({ tab: 'projects', projectTab: 'costs' })
+
+    expect(tabLoadCounts()).toEqual({
+      'ShoppingTab.loadPersistedStock': 1,
+      'CostEstimationTab.activate': 1,
+    })
+    expect(routerReplace).not.toHaveBeenCalled()
+  })
+
+  it('loads only the persisted stock when mounted without projectTab in the query', async () => {
+    const wrapper = await mountProjectDetailWithQuery({ tab: 'projects' })
+
+    expect(buttonNamed(wrapper, en.industry.project.steps).classes()).toContain('bg-cyan-600')
+    expect(tabLoadCounts()).toEqual({ 'ShoppingTab.loadPersistedStock': 1 })
+    expect(routerReplace).not.toHaveBeenCalled()
+  })
+
+  it('loads the shopping tab once when the back button moves projectTab from invention to shopping', async () => {
+    const wrapper = await mountProjectDetailWithQuery({ tab: 'projects', projectTab: 'invention' })
+    tabLoadCalls.length = 0
+
+    route.query = { tab: 'projects', projectTab: 'shopping' }
+    await flushPromises()
+
+    expect(buttonNamed(wrapper, en.industry.projectDetail.procurement).classes()).toContain('bg-cyan-600')
+    expect(tabLoadCalls).toEqual(['ShoppingTab.activate', 'ShoppingTab.loadSuggestions'])
+    expect(routerReplace).not.toHaveBeenCalled()
   })
 })
