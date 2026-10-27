@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useIndustryStore } from '@/stores/industry'
 import { useTabQuery } from '@/composables/useTabQuery'
@@ -138,8 +138,9 @@ async function toggleProjectStatus() {
   }
 }
 
-async function switchTab(tab: 'steps' | 'shopping' | 'invention' | 'costs') {
-  activeTab.value = tab
+type ProjectTab = (typeof PROJECT_TABS)[number]
+
+async function loadTab(tab: ProjectTab) {
   if (tab === 'shopping') {
     await shoppingTabRef.value?.activate()
     await shoppingTabRef.value?.loadSuggestions()
@@ -148,12 +149,19 @@ async function switchTab(tab: 'steps' | 'shopping' | 'invention' | 'costs') {
   }
 }
 
+function switchTab(tab: ProjectTab) {
+  activeTab.value = tab
+}
+
+watch(activeTab, loadTab)
+
 onMounted(async () => {
   await store.fetchProject(props.projectId)
   shoppingTabRef.value?.loadPersistedStock()
   if (shoppingTabRef.value?.parsedStock && shoppingTabRef.value.parsedStock.length > 0) {
     await shoppingTabRef.value?.reanalyzeStock()
   }
+  await loadTab(activeTab.value)
 })
 </script>
 
