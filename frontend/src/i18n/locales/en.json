@@ -86,7 +86,10 @@
     "market": "Market",
     "appraisal": "Appraisal",
     "groupIndustry": "Group Industry",
-    "admin": "Administration"
+    "admin": "Administration",
+    "openMenu": "Open navigation menu",
+    "closeMenu": "Close navigation menu",
+    "menu": "Navigation menu"
   },
   "settings": {
     "title": "Settings",

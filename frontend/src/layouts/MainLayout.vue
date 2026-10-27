@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { useEventListener, useMediaQuery } from '@vueuse/core'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
@@ -191,6 +192,50 @@ function isGroupExpanded(group: NavGroup): boolean {
   // Otherwise use stored state (default expanded)
   return !collapsedGroups.value[group.id]
 }
+
+const NAVIGATION_DRAWER_ID = 'navigation-drawer'
+const isWideScreen = useMediaQuery('(min-width: 1024px)')
+const isDrawerOpen = ref(false)
+const menuButton = ref<HTMLButtonElement | null>(null)
+const drawerCloseButton = ref<HTMLButtonElement | null>(null)
+
+async function openDrawer(): Promise<void> {
+  isDrawerOpen.value = true
+  await nextTick()
+  drawerCloseButton.value?.focus()
+}
+
+function closeDrawer(): void {
+  isDrawerOpen.value = false
+}
+
+async function closeDrawerAndFocusMenuButton(): Promise<void> {
+  closeDrawer()
+  await nextTick()
+  menuButton.value?.focus()
+}
+
+function closeDrawerOnNavigationClick(event: MouseEvent): void {
+  const isPlainClick = event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey
+  const isOnLink = event.target instanceof Element && event.target.closest('a[href]') !== null
+  if (isDrawerOpen.value && isPlainClick && isOnLink) {
+    closeDrawer()
+  }
+}
+
+useEventListener(window, 'keydown', (event: KeyboardEvent) => {
+  if (isDrawerOpen.value && event.key === 'Escape') {
+    closeDrawerAndFocusMenuButton()
+  }
+})
+
+watch(isWideScreen, (isWide) => {
+  if (isWide) closeDrawer()
+})
+watch(() => router.currentRoute.value.fullPath, closeDrawer)
+watch(showSettings, (opened) => {
+  if (opened) closeDrawer()
+})
 
 // Load settings from localStorage
 onMounted(() => {
@@ -422,8 +467,26 @@ watch(showSettings, (opened) => {
     </Transition>
 
     <div class="relative flex h-screen" :class="{ 'pt-10': rateLimitStore.isRateLimited }">
-      <!-- Sidebar -->
-      <aside class="w-64 bg-slate-900 border-r border-cyan-500/20 flex flex-col">
+      <div
+        v-if="isDrawerOpen"
+        data-testid="navigation-drawer-backdrop"
+        class="fixed inset-0 z-30 bg-slate-950/70"
+        @click="closeDrawerAndFocusMenuButton"
+      ></div>
+
+      <!-- Sidebar (persistent on wide screens, modal drawer otherwise) -->
+      <aside
+        v-show="isWideScreen || isDrawerOpen"
+        :id="isWideScreen ? undefined : NAVIGATION_DRAWER_ID"
+        :role="isWideScreen ? undefined : 'dialog'"
+        :aria-modal="isWideScreen ? undefined : 'true'"
+        :aria-label="isWideScreen ? undefined : t('nav.menu')"
+        :class="[
+          'w-64 bg-slate-900 border-r border-cyan-500/20 flex flex-col',
+          isWideScreen ? '' : 'fixed inset-y-0 left-0 z-40 max-w-[85vw]'
+        ]"
+        @click="closeDrawerOnNavigationClick"
+      >
         <!-- Logo -->
         <div class="p-6 border-b border-cyan-500/20">
           <div class="flex items-center gap-3">
@@ -436,6 +499,18 @@ watch(showSettings, (opened) => {
               <h1 class="text-lg font-bold tracking-tight text-transparent bg-clip-text bg-linear-to-r from-cyan-400 to-blue-400">EVE Tools</h1>
               <p class="text-xs text-slate-500 tracking-widest uppercase">Utilities</p>
             </div>
+            <button
+              v-if="!isWideScreen"
+              ref="drawerCloseButton"
+              type="button"
+              class="ml-auto p-1 hover:bg-slate-800 rounded-lg transition-colors"
+              :aria-label="t('nav.closeMenu')"
+              @click="closeDrawerAndFocusMenuButton"
+            >
+              <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -813,21 +888,37 @@ watch(showSettings, (opened) => {
       </BaseModal>
 
       <!-- Main content -->
-      <main class="flex-1 overflow-auto">
+      <main class="flex-1 min-w-0 overflow-auto" :inert="isDrawerOpen">
         <!-- Header -->
-        <header class="sticky top-0 z-10 bg-slate-900 border-b border-cyan-500/10 px-8 py-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <h2 class="text-2xl font-bold text-slate-100">{{ currentPageTitle }}</h2>
-              <p class="text-sm text-slate-500 mt-1">{{ t('header.welcomeBack') }}</p>
+        <header class="sticky top-0 z-10 bg-slate-900 border-b border-cyan-500/10 px-4 md:px-8 py-4">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <button
+                v-if="!isWideScreen"
+                ref="menuButton"
+                type="button"
+                class="shrink-0 p-2 hover:bg-slate-800 rounded-lg transition-colors"
+                :aria-label="t('nav.openMenu')"
+                :aria-controls="NAVIGATION_DRAWER_ID"
+                :aria-expanded="isDrawerOpen"
+                @click="openDrawer"
+              >
+                <svg class="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+              </button>
+              <div class="min-w-0">
+                <h2 class="text-lg md:text-2xl font-bold text-slate-100 truncate">{{ currentPageTitle }}</h2>
+                <p class="hidden md:block text-sm text-slate-500 mt-1">{{ t('header.welcomeBack') }}</p>
+              </div>
             </div>
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2 md:gap-4 shrink-0">
               <!-- Notification Bell -->
               <NotificationBell />
               <!-- ESI Status -->
               <div
                 :class="[
-                  'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs',
+                  'flex items-center gap-2 px-2 md:px-3 py-1.5 rounded-lg border text-xs',
                   esiError
                     ? 'bg-red-500/10 border-red-500/30'
                     : esiRateLimited
@@ -842,15 +933,15 @@ watch(showSettings, (opened) => {
                     esiError ? 'bg-red-500' : esiRateLimited ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500 animate-pulse'
                   ]"
                 ></div>
-                <span :class="esiError ? 'text-red-400' : esiRateLimited ? 'text-amber-400' : 'text-emerald-400'">
+                <span :class="['hidden md:inline', esiError ? 'text-red-400' : esiRateLimited ? 'text-amber-400' : 'text-emerald-400']">
                   ESI {{ esiError ? 'DOWN' : esiRateLimited ? 'RATE LIMITED' : 'OK' }}
                 </span>
-                <span v-if="esiStatus?.players && !esiError && !esiRateLimited" class="text-slate-500">
+                <span v-if="esiStatus?.players && !esiError && !esiRateLimited" class="hidden md:inline text-slate-500">
                   {{ (esiStatus.players / 1000).toFixed(1) }}k
                 </span>
               </div>
               <!-- Alliance badge -->
-              <div v-if="mainCharacter?.allianceId" class="flex items-center gap-2 px-4 py-2 bg-amber-500/10 rounded-lg border border-amber-500/30">
+              <div v-if="mainCharacter?.allianceId" class="hidden md:flex items-center gap-2 px-4 py-2 bg-amber-500/10 rounded-lg border border-amber-500/30">
                 <img
                   :src="`https://images.evetech.net/alliances/${mainCharacter.allianceId}/logo?size=32`"
                   class="w-6 h-6"
@@ -858,7 +949,7 @@ watch(showSettings, (opened) => {
                 <span class="text-amber-400 text-sm font-medium">{{ mainCharacter.allianceName }}</span>
               </div>
               <!-- Corporation badge -->
-              <div v-if="mainCharacter?.corporationId" class="flex items-center gap-2 px-4 py-2 bg-cyan-500/10 rounded-lg border border-cyan-500/30">
+              <div v-if="mainCharacter?.corporationId" class="hidden md:flex items-center gap-2 px-4 py-2 bg-cyan-500/10 rounded-lg border border-cyan-500/30">
                 <img
                   :src="`https://images.evetech.net/corporations/${mainCharacter.corporationId}/logo?size=32`"
                   class="w-6 h-6"
@@ -870,7 +961,7 @@ watch(showSettings, (opened) => {
         </header>
 
         <!-- Page content -->
-        <div class="p-8">
+        <div class="p-4 md:p-8">
           <div class="max-w-7xl mx-auto">
             <slot />
           </div>
