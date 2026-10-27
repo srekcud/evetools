@@ -97,7 +97,9 @@ Section « Interface » à créer dans `docs/glossary.md`, après validation :
 | **Groupe de navigation** | Navigation group | Entrée repliable qui regroupe des écrans (Production) ; son état replié est persisté dans `evetools_nav_collapsed` et partagé entre barre latérale et tiroir. | `NavGroup`, `collapsedGroups`, `isGroupExpanded()` |
 | **Point de rupture de navigation** | Navigation breakpoint | Largeur d'écran à partir de laquelle la barre latérale remplace le tiroir (1024 px, à confirmer). | à créer |
 
-## Questions pour Sylvain (gate 🚦)
+## Décisions validées (gate 🚦)
+
+Validée le 2026-10-27 : Sylvain a retenu la recommandation de chaque question ci-dessous.
 
 1. **Point de rupture : 1024 px (`lg`) ou 1280 px (`xl`) ?** À 1024 px avec barre latérale, Industry dispose de 704 px pour 780 px rendus ; avec `xl`, un iPad en paysage aurait le tiroir et 960 px de contenu, mais un portable en 1280 px garderait la barre latérale. *Recommandation : `lg` (1024 px), comme proposé par l'issue ; le débordement d'Industry entre 1024 et 1099 px relève de la vue (hors périmètre).*
 2. **Tablette (768 à 1023 px) : tiroir comme sur téléphone, ou rail d'icônes persistant (64 px) ?** Le rail garde la navigation visible mais demande des infobulles, un traitement du groupe Production réduit à une icône, et ne laisse que 640 px de contenu à 768 px. *Recommandation : tiroir sur toute la plage étroite, un seul mode, plus simple à tester ; le rail peut venir plus tard sans casser cette spec.*

@@ -115,7 +115,9 @@ Données communes : utilisateur avec le main Ilyra Castell et l'alt Doran Vex. P
 | **Alerte de prix déclenchée** | Triggered price alert | Alerte de prix dont le seuil a été franchi ; elle le reste jusqu'à sa suppression. | `AlertStatus::Triggered`, `MarketPriceAlert::trigger()` |
 | **Job à livrer** | Job to deliver | Job ESI `ready`, ou `active` dont la date de fin est passée, pas encore `delivered`. Attention : **Job en cours** inclut aujourd'hui `ready` ; à harmoniser à l'ajout du terme. | aucun symbole (endpoint manquant) |
 
-## Questions pour Sylvain (gate 🚦)
+## Décisions validées (gate 🚦)
+
+Validée le 2026-10-27 : Sylvain a retenu la recommandation de chaque question ci-dessous.
 
 1. **Périmètre v1 et jobs terminés.** Aucun endpoint n'expose les jobs à livrer. Recommandation : livrer v1 avec C1 à C4 (front seul) et ouvrir une issue backend qui ajoute à `/industry/slots` un compteur de jobs à livrer par personnage (le service charge déjà ces jobs puis les écarte). Alternative : attendre l'endpoint et livrer les cinq catégories ensemble.
 2. **Endpoint agrégé ou composition de stores.** Recommandation : composition des trois sources existantes (`/me`, `/planetary/stats`, `/market/alerts`) dans un composable dédié, avec un état de chargement propre à chaque source, car les `error` des stores `planetary` et `market` sont partagés entre actions. Un `GET /api/me/todo` agrégé deviendrait utile si le backend doit de toute façon exposer les jobs à livrer, le statut révoqué par personnage et « PI jamais synchronisée » ; il relève d'une issue backend séparée.

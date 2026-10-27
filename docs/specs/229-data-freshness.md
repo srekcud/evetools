@@ -120,7 +120,9 @@ Formateur (R8), locale FR :
 
 Incohérence relevée au passage : le glossaire donne aux cost indices une durée de vie en cache de 2 h et aux adjusted prices 24 h ; le code garde 3 intervalles (`EsiCostIndexService::SYNC_INTERVALS_KEPT_IN_CACHE`), soit 6 h et 72 h.
 
-## Questions pour Sylvain (gate 🚦)
+## Décisions validées (gate 🚦)
+
+Validée le 2026-10-27 : Sylvain a retenu la recommandation de chaque question ci-dessous.
 
 1. **Seuils et échec.** Recommandation : frais ≤ 1,5 ×, vieux ≤ 3 ×, périmé > 3 × l'intervalle, comme `SyncTracker::computeHealth()` (une seule définition de la santé d'une sync dans le projet ; 3 × est aussi la durée de vie en cache des cost index et adjusted prices). L'issue proposait l'ambre dès 2 intervalles et le rouge à tout échec ; je propose qu'un échec rende la donnée au moins **vieille** (ambre) et garde le rouge pour **périmé**, parce qu'un échec survenu 10 min après une sync réussie laisse des prix encore exploitables. D'accord ?
 2. **Écrans couverts en v1.** Recommandation : en-tête d'Industry pour les quatre onglets d'analyse (Profit Margins, Batch Scan, Buy vs Build, Pivot Advisor : prix Jita, cost index, adjusted prices), Market Browser (prix Jita, à la place du badge vert fixe), Appraisal (prix Jita, à côté de la ligne structure existante). On retire au passage le « Dernière mise à jour » trompeur de Profit Margins. Cost Estimation d'un projet et liste d'achats en v2. D'accord ?

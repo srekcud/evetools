@@ -194,7 +194,9 @@ Fixtures communes : locale `en` sauf mention ; utilisateur non admin ; aucun mod
 | **Palette de commandes** | Command palette | Fenêtre ouverte par `Ctrl+K`/`Cmd+K` ou le bouton du header, qui cherche dans les écrans, les onglets, les projets et les types, et y navigue au clavier (spec #228). | à créer (`CommandPalette.vue`) |
 | **Module masqué** | Hidden module | Module de la sidebar que l'utilisateur a masqué dans les paramètres ; ni lui, ni ses onglets, ni ses projets, ni ses actions ne sont proposés (spec #228). | `hiddenModules` (`MainLayout.vue`), `localStorage['evetools_hidden_modules']` |
 
-## Questions pour Sylvain (gate 🚦)
+## Décisions validées (gate 🚦)
+
+Validée le 2026-10-27 : Sylvain a retenu la recommandation de chaque question ci-dessous.
 
 1. **Périmètre v1 : navigation seule, ou navigation + projets + types ?** Recommandation : toute la spec, livrée en trois lots dans cet ordre : navigation et clavier (E1 à E19, E25 à E40), puis projets (E12, E14, E15, E22, E23, E43, E44), puis types après #221 (`typeId`). Si un lot doit partir avant #221, ce sera la navigation seule.
 2. **Source des types : `/api/industry/search` ou `/api/market/search` ?** Recommandation : `/industry/search`. Il ne renvoie que des types fabricables, les seuls pour lesquels Marge et Buy vs Build ont un sens, et il ne fait qu'une requête SQL. `/market/search` charge prix, volumes et variation à 30 jours pour chaque résultat, à chaque frappe. Le prix à payer : un minerai ou un matériau PI ne s'ouvre pas dans Market depuis la palette.
