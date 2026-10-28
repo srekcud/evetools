@@ -19,6 +19,7 @@ use App\Industry\Domain\Runs;
 use App\Industry\Domain\SecurityClass;
 use App\Industry\Domain\TimeEfficiency;
 use App\Tests\Unit\Industry\Application\Double\InMemoryRigCategories;
+use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use App\Tests\Unit\Industry\Domain\Double\InMemoryBlueprintCatalog;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -91,7 +92,7 @@ final class StructureMaterialModifiersTest extends TestCase
     public function testNoConfiguredStructureGivesNeutralModifiers(): void
     {
         $modifiers = new StructureMaterialModifiers(
-            new StructureSelector([], FavoriteSystems::none()),
+            new StructureSelector([], FavoriteSystems::none(), InMemorySystemCostIndices::none()),
             self::goldenProductCategories(),
         );
 
@@ -149,7 +150,7 @@ final class StructureMaterialModifiersTest extends TestCase
         return new StructureSelector([
             ProductionStructures::raitaru('raitaru-nullsec', SecurityClass::NullSec, null, '2026-01-01 00:00:00', ProductionStructures::manufacturingRig(2.4, 'ammunition')),
             ProductionStructures::tatara('tatara-nullsec', SecurityClass::NullSec, null, '2026-01-01 00:00:00', ProductionStructures::reactionRig(2.4, 'composite_reaction', 'hybrid_reaction', 'biochemical_reaction')),
-        ], FavoriteSystems::none());
+        ], FavoriteSystems::none(), InMemorySystemCostIndices::none());
     }
 
     /**

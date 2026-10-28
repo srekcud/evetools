@@ -39,6 +39,7 @@ use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use App\Tests\Unit\Industry\Domain\Double\InMemoryBlueprintCatalog;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -81,6 +82,12 @@ final class ProductionCostCalculatorTest extends TestCase
     private const int FAVORITE_MANUFACTURING_SYSTEM_ID = 30000142;
 
     private const float RAITARU_FACILITY_TAX_RATE = 0.01;
+    private const float FAVORITE_RAITARU_FACILITY_TAX_RATE = 0.02;
+    private const float FAVORITE_MANUFACTURING_COST_INDEX = 0.08;
+
+    private const int COPYING_AND_INVENTION_SYSTEM_ID = 30002510;
+    private const int SYSTEM_WITHOUT_COST_INDEX_ID = 30003504;
+    private const int SECOND_SYSTEM_WITHOUT_COST_INDEX_ID = 30045349;
 
     private const int ASSIGNED_RAITARU_SYSTEM_ID = 30004759;
     private const float ASSIGNED_RAITARU_FACILITY_TAX_RATE = 0.015;
@@ -742,6 +749,146 @@ final class ProductionCostCalculatorTest extends TestCase
         $this->assertKnownCost(412783.56, $productionCost->installCost);
     }
 
+    public function testFavoriteSystemWithoutSuitableStructureSendsTheTargetToTheBestStructureElsewhereInPlanMode(): void
+    {
+        $productionCost = self::hailLCalculator(costIndices: self::hailLCostIndicesWithTheFavoriteManufacturingSystem())->costOf(self::hailLRequest(
+            CostMode::Plan,
+            [self::favoriteRaitaruWithoutRig(), self::nullsecRaitaru()],
+            favoriteSystems: new FavoriteSystems(self::FAVORITE_MANUFACTURING_SYSTEM_ID, null),
+        ));
+
+        $hailLJob = self::jobOf($productionCost, self::HAIL_L);
+        $this->assertSame('raitaru-nullsec', $hailLJob->structureChoice->structure?->id);
+        $this->assertSame(StructureChoiceStatus::BestOutsideFavoriteSystem, $hailLJob->structureChoice->status);
+        $this->assertSame(self::RAITARU_SYSTEM_ID, $hailLJob->solarSystemId);
+        $this->assertKnownCost(408775.0, $hailLJob->installCost->total);
+        $ramJob = self::jobOf($productionCost, self::RAM_AMMUNITION_TECH);
+        $this->assertSame('raitaru-favorite-without-rig', $ramJob->structureChoice->structure?->id);
+        $this->assertSame(StructureChoiceStatus::BestInFavoriteSystem, $ramJob->structureChoice->status);
+        $this->assertSame(self::FAVORITE_MANUFACTURING_SYSTEM_ID, $ramJob->solarSystemId);
+        $this->assertKnownCost(5599.7696, $ramJob->installCost->total);
+        $this->assertSame(self::GOLDEN_PLAN_LEAVES, self::leafQuantitiesOf($productionCost));
+        $this->assertKnownCost(414374.7696, $productionCost->installCost);
+    }
+
+    public function testFavoriteSystemWithoutSuitableStructureSendsTheTargetToTheBestStructureElsewhereInMarginalCostMode(): void
+    {
+        $productionCost = self::hailLCalculator(costIndices: self::hailLCostIndicesWithTheFavoriteManufacturingSystem())->costOf(self::hailLRequest(
+            CostMode::MarginalCost,
+            [self::favoriteRaitaruWithoutRig(), self::nullsecRaitaru()],
+            favoriteSystems: new FavoriteSystems(self::FAVORITE_MANUFACTURING_SYSTEM_ID, null),
+        ));
+
+        $hailLJob = self::jobOf($productionCost, self::HAIL_L);
+        $this->assertSame('raitaru-nullsec', $hailLJob->structureChoice->structure?->id);
+        $this->assertSame(StructureChoiceStatus::BestOutsideFavoriteSystem, $hailLJob->structureChoice->status);
+        $this->assertKnownCost(408775.0, $hailLJob->installCost->total);
+        $ramJob = self::jobOf($productionCost, self::RAM_AMMUNITION_TECH);
+        $this->assertSame('raitaru-favorite-without-rig', $ramJob->structureChoice->structure?->id);
+        $this->assertSame(StructureChoiceStatus::BestInFavoriteSystem, $ramJob->structureChoice->status);
+        $this->assertEqualsWithDelta(515.907848404, $ramJob->installCost->total->amount()->amount, self::FLOAT_TOLERANCE);
+        $this->assertKnownCost(4564546.93, $productionCost->materialCost);
+        $this->assertKnownCost(409290.91, $productionCost->installCost);
+    }
+
+    public function testSuitableStructureOfTheFavoriteSystemRunsTheTargetAndTheIntermediateOverABetterStructureElsewhere(): void
+    {
+        $favoriteRaitaruWithT1Rig = ProductionStructures::raitaruWithFacilityTax(
+            'raitaru-favorite-t1-lowsec',
+            SecurityClass::LowSec,
+            self::FAVORITE_MANUFACTURING_SYSTEM_ID,
+            self::FAVORITE_RAITARU_FACILITY_TAX_RATE,
+            ProductionStructures::manufacturingRig(2.0, 'ammunition'),
+        );
+
+        $productionCost = self::hailLCalculator(costIndices: self::hailLCostIndicesWithTheFavoriteManufacturingSystem())->costOf(self::hailLRequest(
+            CostMode::MarginalCost,
+            [self::nullsecRaitaru(), $favoriteRaitaruWithT1Rig],
+            favoriteSystems: new FavoriteSystems(self::FAVORITE_MANUFACTURING_SYSTEM_ID, null),
+        ));
+
+        foreach ([self::HAIL_L, self::RAM_AMMUNITION_TECH] as $productTypeId) {
+            $job = self::jobOf($productionCost, $productTypeId);
+            $this->assertSame('raitaru-favorite-t1-lowsec', $job->structureChoice->structure?->id);
+            $this->assertSame(StructureChoiceStatus::BestInFavoriteSystem, $job->structureChoice->status);
+            $this->assertSame(self::FAVORITE_MANUFACTURING_SYSTEM_ID, $job->solarSystemId);
+        }
+        $this->assertEqualsWithDelta(0.95238, self::jobOf($productionCost, self::HAIL_L)->structureChoice->materialMultiplier->value, 1e-12);
+        $this->assertKnownCost(4624151.38, $productionCost->materialCost);
+        $this->assertKnownCost(571562.64, $productionCost->installCost);
+        $this->assertKnownCost(5195714.02, $productionCost->totalCost);
+    }
+
+    #[DataProvider('costModeProvider')]
+    public function testCopyingAndInventionPayTheInstallCostOfTheStructureWithTheLowestInstallRateInBothModes(CostMode $mode): void
+    {
+        $productionCost = self::hobgoblinIICalculator(self::HOBGOBLIN_II_BASE_PROBABILITY)->costOf(self::hobgoblinIIRequest(
+            mode: $mode,
+            structures: [
+                ProductionStructures::raitaruConfiguredWithFacilityTax('raitaru-tax-10-september', self::COPYING_AND_INVENTION_SYSTEM_ID, '2026-09-01 00:00:00', 0.10),
+                ProductionStructures::sotiyoConfiguredWithFacilityTax('sotiyo-tax-0-january', self::COPYING_AND_INVENTION_SYSTEM_ID, '2026-01-01 00:00:00', 0.0),
+            ],
+        ));
+
+        $invention = $productionCost->invention;
+        $this->assertNotNull($invention);
+        $this->assertKnownCost(13.125, $invention->copyInstallCost->total);
+        $this->assertKnownCost(183.18, $invention->inventionInstallCost->total);
+        $this->assertEqualsWithDelta(280196.305, $invention->attemptCost->amount()->amount, self::FLOAT_TOLERANCE);
+    }
+
+    public function testCopyingAndInventionSkipTheStructureWhoseSystemHasNoCostIndex(): void
+    {
+        $productionCost = self::hobgoblinIICalculator(self::HOBGOBLIN_II_BASE_PROBABILITY)->costOf(self::hobgoblinIIRequest(
+            structures: [
+                ProductionStructures::raitaruConfiguredWithFacilityTax('without-cost-index-september', self::SYSTEM_WITHOUT_COST_INDEX_ID, '2026-09-01 00:00:00', 0.0),
+                ProductionStructures::raitaruConfiguredWithFacilityTax('tax-10-january', self::COPYING_AND_INVENTION_SYSTEM_ID, '2026-01-01 00:00:00', 0.10),
+            ],
+        ));
+
+        $invention = $productionCost->invention;
+        $this->assertNotNull($invention);
+        $this->assertKnownCost(28.275, $invention->copyInstallCost->total);
+        $this->assertKnownCost(357.588, $invention->inventionInstallCost->total);
+    }
+
+    public function testCopyingAndInventionWithoutAnyCostIndexHaveAnUnknownInstallCostNeverZero(): void
+    {
+        $productionCost = self::hobgoblinIICalculator(self::HOBGOBLIN_II_BASE_PROBABILITY)->costOf(self::hobgoblinIIRequest(
+            structures: [
+                ProductionStructures::raitaruConfiguredWithFacilityTax('without-cost-index-september', self::SYSTEM_WITHOUT_COST_INDEX_ID, '2026-09-01 00:00:00', 0.0),
+                ProductionStructures::sotiyoConfiguredWithFacilityTax('also-without-cost-index-january', self::SECOND_SYSTEM_WITHOUT_COST_INDEX_ID, '2026-01-01 00:00:00', 0.0),
+            ],
+        ));
+
+        $invention = $productionCost->invention;
+        $this->assertNotNull($invention);
+        $this->assertFalse($invention->copyInstallCost->total->isKnown());
+        $this->assertEquals([MissingData::costIndex()], $invention->copyInstallCost->total->missingData);
+        $this->assertFalse($invention->inventionInstallCost->total->isKnown());
+        $this->assertEquals([MissingData::costIndex()], $invention->inventionInstallCost->total->missingData);
+    }
+
+    public function testHighlyTaxedStructureRunsCopyingAndInventionInsteadOfTheNpcStation(): void
+    {
+        $productionCost = self::hobgoblinIICalculator(self::HOBGOBLIN_II_BASE_PROBABILITY)->costOf(self::hobgoblinIIRequest(
+            structures: [
+                ProductionStructures::raitaruConfiguredWithFacilityTax('raitaru-tax-50', self::COPYING_AND_INVENTION_SYSTEM_ID, '2026-01-01 00:00:00', 0.5),
+            ],
+        ));
+
+        $invention = $productionCost->invention;
+        $this->assertNotNull($invention);
+        $this->assertKnownCost(88.275, $invention->copyInstallCost->total);
+        $this->assertKnownCost(1045.588, $invention->inventionInstallCost->total);
+    }
+
+    public static function costModeProvider(): iterable
+    {
+        yield 'plan' => [CostMode::Plan];
+        yield 'marginal cost' => [CostMode::MarginalCost];
+    }
+
     private static function hailLCalculator(
         ?InMemoryMarketPrices $marketPrices = null,
         ?InMemorySystemCostIndices $costIndices = null,
@@ -763,7 +910,7 @@ final class ProductionCostCalculatorTest extends TestCase
      * @param ?list<ProductionStructure>      $structures
      * @param array<int, ProductionStructure> $assignedStructures
      */
-    private static function hailLRequest(CostMode $mode, ?array $structures = null, array $assignedStructures = []): ProductionCostRequest
+    private static function hailLRequest(CostMode $mode, ?array $structures = null, array $assignedStructures = [], ?FavoriteSystems $favoriteSystems = null): ProductionCostRequest
     {
         return new ProductionCostRequest(
             productTypeId: self::HAIL_L,
@@ -771,7 +918,7 @@ final class ProductionCostCalculatorTest extends TestCase
             efficiency: new BlueprintEfficiency(new MaterialEfficiency(2), new TimeEfficiency(4)),
             mode: $mode,
             structures: $structures ?? [self::nullsecRaitaru()],
-            favoriteSystems: FavoriteSystems::none(),
+            favoriteSystems: $favoriteSystems ?? FavoriteSystems::none(),
             blacklist: [self::FERNITE_CARBIDE, self::FULLERIDES],
             assignedStructures: $assignedStructures,
         );
@@ -786,6 +933,24 @@ final class ProductionCostCalculatorTest extends TestCase
             self::RAITARU_FACILITY_TAX_RATE,
             ProductionStructures::manufacturingRig(2.4, 'ammunition'),
         );
+    }
+
+    private static function favoriteRaitaruWithoutRig(): ProductionStructure
+    {
+        return ProductionStructures::raitaruWithFacilityTax(
+            'raitaru-favorite-without-rig',
+            SecurityClass::NullSec,
+            self::FAVORITE_MANUFACTURING_SYSTEM_ID,
+            self::FAVORITE_RAITARU_FACILITY_TAX_RATE,
+        );
+    }
+
+    private static function hailLCostIndicesWithTheFavoriteManufacturingSystem(): InMemorySystemCostIndices
+    {
+        return new InMemorySystemCostIndices([
+            self::RAITARU_SYSTEM_ID => [ActivityKind::Manufacturing->name => 0.05],
+            self::FAVORITE_MANUFACTURING_SYSTEM_ID => [ActivityKind::Manufacturing->name => self::FAVORITE_MANUFACTURING_COST_INDEX],
+        ]);
     }
 
     private static function assignedRaitaru(): ProductionStructure
@@ -829,6 +994,11 @@ final class ProductionCostCalculatorTest extends TestCase
                     ActivityKind::Copying->name => 0.03,
                 ],
                 self::ASSIGNED_RAITARU_SYSTEM_ID => [ActivityKind::Manufacturing->name => self::ASSIGNED_RAITARU_MANUFACTURING_COST_INDEX],
+                self::COPYING_AND_INVENTION_SYSTEM_ID => [
+                    ActivityKind::Manufacturing->name => 0.06,
+                    ActivityKind::Invention->name => 0.07,
+                    ActivityKind::Copying->name => 0.05,
+                ],
             ]),
             new InMemoryRigCategories(),
         );
@@ -860,13 +1030,14 @@ final class ProductionCostCalculatorTest extends TestCase
         int $runs = 10,
         array $blueprintCopyMaxRuns = [],
         array $assignedStructures = [],
+        array $structures = [],
     ): ProductionCostRequest {
         return new ProductionCostRequest(
             productTypeId: self::HOBGOBLIN_II,
             runs: new Runs($runs),
             efficiency: new BlueprintEfficiency(new MaterialEfficiency($requestedMaterialEfficiency), new TimeEfficiency(4)),
             mode: $mode,
-            structures: [],
+            structures: $structures,
             favoriteSystems: new FavoriteSystems(self::FAVORITE_MANUFACTURING_SYSTEM_ID, null),
             invention: new InventionSettings(
                 firstScienceSkillLevel: 4,

@@ -57,7 +57,7 @@ final readonly class ProductionCostCalculator
     public function costOf(ProductionCostRequest $request): ProductionCost
     {
         $recipe = $this->recipeOf($request->productTypeId);
-        $selector = new StructureSelector($request->structures, $request->favoriteSystems);
+        $selector = new StructureSelector($request->structures, $request->favoriteSystems, $this->costIndices);
         $inventionRecipe = $this->inventions->inventionOf($request->productTypeId);
         $invention = null === $inventionRecipe ? null : $this->inventionCost($inventionRecipe, $request, $selector);
         $targetEfficiency = null === $invention

@@ -25,6 +25,7 @@ use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
 use App\Industry\Domain\SecurityClass;
+use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -791,7 +792,7 @@ class BatchProfitScanRulesTest extends TestCase
             $activitySkillRepository,
             $characterSkillRepository,
             new JobInstallCostEstimator(),
-            new FacilityTaxResolver(new InMemoryUserProductionStructures($this->structuresByUserId)),
+            new FacilityTaxResolver(new InMemoryUserProductionStructures($this->structuresByUserId), InMemorySystemCostIndices::none()),
         );
     }
 

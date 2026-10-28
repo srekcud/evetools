@@ -16,7 +16,7 @@ final readonly class StructureSelector
     /**
      * @param list<ProductionStructure> $structures
      */
-    public function __construct(private array $structures, private FavoriteSystems $favoriteSystems)
+    public function __construct(private array $structures, private FavoriteSystems $favoriteSystems, private SystemCostIndices $costIndices)
     {
     }
 

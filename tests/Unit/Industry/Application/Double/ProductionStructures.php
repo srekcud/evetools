@@ -27,6 +27,8 @@ final class ProductionStructures
     /** strEngCostBonus of the Raitaru (spec R4: Raitaru ×0.97 / Azbel ×0.96 / Sotiyo ×0.95). */
     public const float RAITARU_COST_ROLE_BONUS = 0.97;
 
+    public const float SOTIYO_COST_ROLE_BONUS = 0.95;
+
     /** Facility tax of the structures whose tax plays no part in the test. */
     public const float NO_FACILITY_TAX = 0.0;
 
@@ -69,6 +71,36 @@ final class ProductionStructures
             new Multiplier(self::ENGINEERING_COMPLEX_MATERIAL_ROLE_BONUS),
             array_values($rigs),
             new Multiplier(self::RAITARU_COST_ROLE_BONUS),
+            $facilityTaxRate,
+        );
+    }
+
+    public static function raitaruConfiguredWithFacilityTax(string $id, ?int $solarSystemId, string $configuredAt, float $facilityTaxRate): ProductionStructure
+    {
+        return self::engineeringComplexConfiguredWithFacilityTax($id, $solarSystemId, $configuredAt, self::RAITARU_COST_ROLE_BONUS, $facilityTaxRate);
+    }
+
+    public static function sotiyoConfiguredWithFacilityTax(string $id, ?int $solarSystemId, string $configuredAt, float $facilityTaxRate): ProductionStructure
+    {
+        return self::engineeringComplexConfiguredWithFacilityTax($id, $solarSystemId, $configuredAt, self::SOTIYO_COST_ROLE_BONUS, $facilityTaxRate);
+    }
+
+    private static function engineeringComplexConfiguredWithFacilityTax(
+        string $id,
+        ?int $solarSystemId,
+        string $configuredAt,
+        float $costRoleBonus,
+        float $facilityTaxRate,
+    ): ProductionStructure {
+        return new ProductionStructure(
+            $id,
+            StructureType::EngineeringComplex,
+            SecurityClass::NullSec,
+            $solarSystemId,
+            new \DateTimeImmutable($configuredAt),
+            new Multiplier(self::ENGINEERING_COMPLEX_MATERIAL_ROLE_BONUS),
+            [],
+            new Multiplier($costRoleBonus),
             $facilityTaxRate,
         );
     }

@@ -15,6 +15,7 @@ use App\Service\Industry\InventionService;
 use App\Service\Industry\PivotAdvisorService;
 use App\Service\JitaMarketService;
 use App\Service\TypeNameResolver;
+use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -664,7 +665,7 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
             $typeNameResolver,
             $entityManager,
             $inventionService,
-            new FacilityTaxResolver(new InMemoryUserProductionStructures()),
+            new FacilityTaxResolver(new InMemoryUserProductionStructures(), InMemorySystemCostIndices::none()),
         );
 
         return $service->analyze(

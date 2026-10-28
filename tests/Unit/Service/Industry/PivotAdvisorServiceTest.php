@@ -16,6 +16,7 @@ use App\Service\Industry\PivotAdvisorService;
 use App\Service\JitaMarketService;
 use App\Service\TypeNameResolver;
 use App\Industry\Domain\SecurityClass;
+use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use Doctrine\DBAL\Connection;
@@ -93,7 +94,7 @@ class PivotAdvisorServiceTest extends TestCase
             $this->typeNameResolver,
             $this->entityManager,
             $this->inventionService,
-            new FacilityTaxResolver(new InMemoryUserProductionStructures()),
+            new FacilityTaxResolver(new InMemoryUserProductionStructures(), InMemorySystemCostIndices::none()),
         );
     }
 
@@ -893,7 +894,7 @@ class PivotAdvisorServiceTest extends TestCase
             new TypeNameResolver($this->sdeTypeRepositoryKnowing($typeNamesByTypeId)),
             $this->entityManager,
             $this->inventionService,
-            new FacilityTaxResolver($productionStructures),
+            new FacilityTaxResolver($productionStructures, InMemorySystemCostIndices::none()),
         );
     }
 
