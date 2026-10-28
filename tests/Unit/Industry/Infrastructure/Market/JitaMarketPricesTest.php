@@ -9,6 +9,7 @@ use App\Industry\Infrastructure\Market\JitaMarketPrices;
 use App\Service\ESI\EsiClient;
 use App\Service\JitaMarketService;
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
@@ -29,6 +30,8 @@ final class JitaMarketPricesTest extends TestCase
     private const int PYERITE = 35;
     private const int MEXALLON = 36;
 
+    private const string SELL_ORDER_BOOK_CACHE_KEY = 'jita_market_prices';
+
     /** @var array<int, list<array<string, mixed>>|null> The Forge orders returned by the ESI, by typeId; null when the request failed */
     private array $theForgeOrdersByTypeId = [];
 
@@ -46,7 +49,7 @@ final class JitaMarketPricesTest extends TestCase
 
         // 100 units at 5.00 then 50 units at 6.00: (500 + 300) / 150
         $this->assertSame([self::TRITANIUM], array_keys($unitPrices));
-        $this->assertSame(800.0 / 150.0, $unitPrices[self::TRITANIUM]->amount);
+        $this->assertSame(800.0 / 150.0, $unitPrices[self::TRITANIUM]->unitPrice->amount);
     }
 
     public function testEachTypeIsWeightedByItsOwnQuantityToBuy(): void
@@ -58,9 +61,9 @@ final class JitaMarketPricesTest extends TestCase
 
         $unitPrices = $this->marketPrices()->unitPricesFor([self::TRITANIUM => 50.0, self::PYERITE => 20.0]);
 
-        $this->assertSame(5.0, $unitPrices[self::TRITANIUM]->amount);
+        $this->assertSame(5.0, $unitPrices[self::TRITANIUM]->unitPrice->amount);
         // 10 units at 10.00 then 10 units at 20.00: (100 + 200) / 20
-        $this->assertSame(15.0, $unitPrices[self::PYERITE]->amount);
+        $this->assertSame(15.0, $unitPrices[self::PYERITE]->unitPrice->amount);
     }
 
     /**
@@ -77,9 +80,9 @@ final class JitaMarketPricesTest extends TestCase
         $unitPrices = $this->marketPrices()->unitPricesFor([self::TRITANIUM => 100.5, self::PYERITE => 0.25]);
 
         // 101 units: 100 at 5.00 then 1 at 6.00
-        $this->assertSame(506.0 / 101.0, $unitPrices[self::TRITANIUM]->amount);
+        $this->assertSame(506.0 / 101.0, $unitPrices[self::TRITANIUM]->unitPrice->amount);
         // 1 unit at 10.00
-        $this->assertSame(10.0, $unitPrices[self::PYERITE]->amount);
+        $this->assertSame(10.0, $unitPrices[self::PYERITE]->unitPrice->amount);
     }
 
     public function testTypeWithoutSellOrderIsAbsentFromTheUnitPricesNeverPricedZero(): void
@@ -93,7 +96,7 @@ final class JitaMarketPricesTest extends TestCase
         $unitPrices = $this->marketPrices()->unitPricesFor([self::TRITANIUM => 10.0, self::PYERITE => 10.0, self::MEXALLON => 10.0]);
 
         $this->assertSame([self::TRITANIUM], array_keys($unitPrices));
-        $this->assertSame(5.0, $unitPrices[self::TRITANIUM]->amount);
+        $this->assertSame(5.0, $unitPrices[self::TRITANIUM]->unitPrice->amount);
     }
 
     public function testTypeWhoseOrdersCouldNotBeReadFromTheEsiIsAbsentFromTheUnitPrices(): void
@@ -108,7 +111,136 @@ final class JitaMarketPricesTest extends TestCase
         $this->assertSame([self::TRITANIUM], array_keys($unitPrices));
     }
 
-    private function marketPrices(): JitaMarketPrices
+    public function testOrderBookShorterThanTheQuantityToBuyGivesAPartialPriceWithItsCoverage(): void
+    {
+        $this->theForgeOrdersByTypeId = [self::TRITANIUM => $this->threeHundredUnitsOrderBook()];
+
+        $unitPrices = $this->marketPrices()->unitPricesFor([self::TRITANIUM => 1_000.0]);
+
+        $this->assertSame(6.0, $unitPrices[self::TRITANIUM]->unitPrice->amount);
+        $this->assertSame(0.3, $unitPrices[self::TRITANIUM]->coverage->fraction);
+        $this->assertTrue($unitPrices[self::TRITANIUM]->coverage->isPartial());
+    }
+
+    public function testCachedOrderBookShorterThanTheQuantityToBuyGivesTheSamePartialPrice(): void
+    {
+        $cache = new ArrayAdapter();
+        $sellOrderBooks = $cache->getItem(self::SELL_ORDER_BOOK_CACHE_KEY);
+        $sellOrderBooks->set([self::TRITANIUM => [
+            ['price' => 5.0, 'volume' => 100],
+            ['price' => 6.0, 'volume' => 100],
+            ['price' => 7.0, 'volume' => 100],
+        ]]);
+        $cache->save($sellOrderBooks);
+
+        $unitPrices = $this->marketPrices($cache)->unitPricesFor([self::TRITANIUM => 1_000.0]);
+
+        $this->assertSame(6.0, $unitPrices[self::TRITANIUM]->unitPrice->amount);
+        $this->assertSame(0.3, $unitPrices[self::TRITANIUM]->coverage->fraction);
+        $this->assertTrue($unitPrices[self::TRITANIUM]->coverage->isPartial());
+    }
+
+    public function testOrderBookCoveringTheQuantityToBuyGivesAFullCoverage(): void
+    {
+        $this->theForgeOrdersByTypeId = [self::TRITANIUM => $this->threeHundredUnitsOrderBook()];
+
+        $unitPrices = $this->marketPrices()->unitPricesFor([self::TRITANIUM => 150.0]);
+
+        $this->assertSame(800.0 / 150.0, $unitPrices[self::TRITANIUM]->unitPrice->amount);
+        $this->assertSame(1.0, $unitPrices[self::TRITANIUM]->coverage->fraction);
+        $this->assertFalse($unitPrices[self::TRITANIUM]->coverage->isPartial());
+    }
+
+    public function testOrderBookJustSufficientForTheQuantityToBuyGivesAFullCoverage(): void
+    {
+        $this->theForgeOrdersByTypeId = [self::TRITANIUM => $this->threeHundredUnitsOrderBook()];
+
+        $unitPrices = $this->marketPrices()->unitPricesFor([self::TRITANIUM => 300.0]);
+
+        $this->assertSame(6.0, $unitPrices[self::TRITANIUM]->unitPrice->amount);
+        $this->assertSame(1.0, $unitPrices[self::TRITANIUM]->coverage->fraction);
+        $this->assertFalse($unitPrices[self::TRITANIUM]->coverage->isPartial());
+    }
+
+    public function testOneUnitAboveTheOrderBookGivesAPartialPriceWithoutAnyThreshold(): void
+    {
+        $this->theForgeOrdersByTypeId = [self::TRITANIUM => $this->threeHundredUnitsOrderBook()];
+
+        $unitPrices = $this->marketPrices()->unitPricesFor([self::TRITANIUM => 301.0]);
+
+        $this->assertSame(6.0, $unitPrices[self::TRITANIUM]->unitPrice->amount);
+        $this->assertSame(300.0 / 301.0, $unitPrices[self::TRITANIUM]->coverage->fraction);
+        $this->assertTrue($unitPrices[self::TRITANIUM]->coverage->isPartial());
+    }
+
+    public function testFractionalQuantityToBuyIsCoveredOnTheWholeUnitsAsked(): void
+    {
+        $this->theForgeOrdersByTypeId = [
+            self::TRITANIUM => $this->threeHundredUnitsOrderBook(),
+            self::PYERITE => [$this->sellOrder(11.0, 150), $this->sellOrder(12.0, 150)],
+        ];
+
+        $unitPrices = $this->marketPrices()->unitPricesFor([self::TRITANIUM => 300.2, self::PYERITE => 300.0]);
+
+        $this->assertSame(6.0, $unitPrices[self::TRITANIUM]->unitPrice->amount);
+        $this->assertSame(300.0 / 301.0, $unitPrices[self::TRITANIUM]->coverage->fraction);
+        $this->assertSame(11.5, $unitPrices[self::PYERITE]->unitPrice->amount);
+        $this->assertSame(1.0, $unitPrices[self::PYERITE]->coverage->fraction);
+    }
+
+    public function testWeightedPriceWithoutCoverageIsAbsentFromTheUnitPricesNeverComplete(): void
+    {
+        $unitPrices = $this->marketPricesAnswering([
+            self::TRITANIUM => ['weightedPrice' => 6.0, 'ordersUsed' => 3],
+            self::PYERITE => ['weightedPrice' => 11.5, 'coverage' => 1.0, 'ordersUsed' => 2],
+        ])->unitPricesFor([self::TRITANIUM => 100.0, self::PYERITE => 300.0]);
+
+        $this->assertSame([self::PYERITE], array_keys($unitPrices));
+        $this->assertSame(11.5, $unitPrices[self::PYERITE]->unitPrice->amount);
+    }
+
+    public function testWeightedPriceWithANullCoverageIsAbsentFromTheUnitPricesNeverComplete(): void
+    {
+        $unitPrices = $this->marketPricesAnswering([
+            self::TRITANIUM => ['weightedPrice' => 6.0, 'coverage' => null, 'ordersUsed' => 3],
+            self::PYERITE => ['weightedPrice' => 11.5, 'coverage' => 1.0, 'ordersUsed' => 2],
+        ])->unitPricesFor([self::TRITANIUM => 100.0, self::PYERITE => 300.0]);
+
+        $this->assertSame([self::PYERITE], array_keys($unitPrices));
+    }
+
+    #[DataProvider('coverageWithoutServedUnitProvider')]
+    public function testWeightedPriceWithoutAnyServedUnitIsAbsentFromTheUnitPrices(float $coverageWithoutServedUnit): void
+    {
+        $unitPrices = $this->marketPricesAnswering([
+            self::TRITANIUM => ['weightedPrice' => 6.0, 'coverage' => $coverageWithoutServedUnit, 'ordersUsed' => 3],
+            self::MEXALLON => ['weightedPrice' => 42.0, 'coverage' => 0.25, 'ordersUsed' => 1],
+        ])->unitPricesFor([self::TRITANIUM => 100.0, self::MEXALLON => 40.0]);
+
+        $this->assertSame([self::MEXALLON], array_keys($unitPrices));
+        $this->assertSame(0.25, $unitPrices[self::MEXALLON]->coverage->fraction);
+    }
+
+    public static function coverageWithoutServedUnitProvider(): iterable
+    {
+        yield 'zero' => [0.0];
+        yield 'negative' => [-0.2];
+    }
+
+    private function marketPricesAnswering(array $weightedSellPricesByTypeId): JitaMarketPrices
+    {
+        $jitaMarketService = $this->createStub(JitaMarketService::class);
+        $jitaMarketService->method('getWeightedSellPricesWithFallback')->willReturn($weightedSellPricesByTypeId);
+
+        return new JitaMarketPrices($jitaMarketService);
+    }
+
+    private function threeHundredUnitsOrderBook(): array
+    {
+        return [$this->sellOrder(7.0, 100), $this->sellOrder(5.0, 100), $this->sellOrder(6.0, 100)];
+    }
+
+    private function marketPrices(ArrayAdapter $cache = new ArrayAdapter()): JitaMarketPrices
     {
         $esiClient = $this->createStub(EsiClient::class);
         $esiClient->method('getBatch')->willReturnCallback(
@@ -125,7 +257,7 @@ final class JitaMarketPricesTest extends TestCase
 
         return new JitaMarketPrices(new JitaMarketService(
             esiClient: $esiClient,
-            cache: new ArrayAdapter(),
+            cache: $cache,
             connection: $this->createStub(Connection::class),
             logger: new NullLogger(),
         ));

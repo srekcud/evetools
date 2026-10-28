@@ -265,7 +265,7 @@ final readonly class ProductionCostCalculator
         $leaves = [];
         foreach ($quantities as $typeId => $quantity) {
             $leaves[$typeId] = \array_key_exists($typeId, $unitPrices)
-                ? new LeafCost($typeId, $quantity, $unitPrices[$typeId], Cost::known(new Isk($quantity * $unitPrices[$typeId]->amount)))
+                ? new LeafCost($typeId, $quantity, $unitPrices[$typeId]->unitPrice, Cost::known(new Isk($quantity * $unitPrices[$typeId]->unitPrice->amount)))
                 : new LeafCost($typeId, $quantity, null, Cost::unknown(MissingData::marketPrice($typeId)));
         }
 

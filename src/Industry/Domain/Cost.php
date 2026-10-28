@@ -11,8 +11,9 @@ final readonly class Cost
 {
     /**
      * @param list<MissingData> $missingData
+     * @param list<PartialPrice> $partialPrices
      */
-    private function __construct(private ?Isk $knownAmount, public array $missingData)
+    private function __construct(private ?Isk $knownAmount, public array $missingData, public array $partialPrices = [])
     {
     }
 
@@ -24,6 +25,11 @@ final readonly class Cost
     public static function unknown(MissingData $missingData, MissingData ...$otherMissingData): self
     {
         return new self(null, self::withoutDuplicates([$missingData, ...$otherMissingData]));
+    }
+
+    public function withPartialPrice(PartialPrice $partialPrice): self
+    {
+        return $this;
     }
 
     public function isKnown(): bool
