@@ -30,7 +30,7 @@ Sans structure sauf mention, ME 10 / TE 20, golden SDE.
 
 ## Hors périmètre
 
-- Groupe découpé qui garde plus de runs que le besoin (`max(1, …)` par job, `testSplitChildGroupCurrentlyKeepsTwoRunsForANeedOfOne`) : noté dans `.claude/tasks/issues-proposals.md`.
+- Groupe découpé qui garde plus de runs que le besoin (`max(1, …)` par job, `testSplitChildGroupCurrentlyKeepsTwoRunsForANeedOfOneIssue131`) : noté dans `.claude/tasks/issues-proposals.md`.
 - Création et régénération (agrégation entre branches de l'arbre, #69).
 - Correction du champ `depth` persisté.
 - Arbre affiché : un job de fuel block par branche (`testTreeOfOneRunOfFerniteCarbideInATataraCurrentlyHasOneFuelBlockJobPerBranchIssue16`, lecture de `IndustryTreeService`, voir #69 et #121).

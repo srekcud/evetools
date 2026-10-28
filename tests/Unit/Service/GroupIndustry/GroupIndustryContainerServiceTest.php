@@ -62,6 +62,32 @@ class GroupIndustryContainerServiceTest extends TestCase
         $this->assertSame(0, $result[0]->containerQuantity);
     }
 
+    public function testWithoutMaterialTheCorporationAssetsAreNotRead(): void
+    {
+        $visibleAssetsFinder = $this->createMock(VisibleCorporationAssetsFinder::class);
+        $visibleAssetsFinder->expects($this->never())->method('findVisibleAssets');
+        $this->bomItemRepository->method('findMaterialsByProject')->willReturn([]);
+        $service = new GroupIndustryContainerService($visibleAssetsFinder, $this->bomItemRepository);
+
+        $this->assertSame([], $service->verifyContainer($this->createProjectWithContainer('Materials Box', 98000001)));
+    }
+
+    public function testWithoutContainerNameEveryMaterialIsUncheckedInBomOrder(): void
+    {
+        $project = $this->createProjectWithContainer(null, 98000001);
+        $this->bomItemRepository->method('findMaterialsByProject')->willReturn([
+            $this->createBomItem(37, 'Isogen', 2800),
+            $this->createBomItem(40, 'Megacyte', 65),
+        ]);
+
+        $result = $this->service->verifyContainer($project);
+
+        $this->assertSame(
+            [[37, 2800, 0, 'unchecked'], [40, 65, 0, 'unchecked']],
+            array_map(static fn (GroupContainerVerificationResource $line): array => [$line->typeId, $line->requiredQuantity, $line->containerQuantity, $line->status], $result),
+        );
+    }
+
     public function testReturnsAllUncheckedWhenNoCorporationId(): void
     {
         $project = $this->createProjectWithContainer('Materials Box', null);
@@ -118,6 +144,23 @@ class GroupIndustryContainerServiceTest extends TestCase
         $this->assertSame('verified', $result[0]->status);
         $this->assertSame(1500, $result[0]->containerQuantity);
         $this->assertSame(1000, $result[0]->requiredQuantity);
+    }
+
+    public function testVerifiedWhenContainerHoldsExactlyTheRequiredQuantity(): void
+    {
+        $project = $this->createProjectWithContainer('Materials Box', 98000001);
+        $this->bomItemRepository->method('findMaterialsByProject')->willReturn([$this->createBomItem(35, 'Pyerite', 750)]);
+        $container = $this->createCorpAsset(5001, 'Materials Box', 0, 0, 'Materials Box');
+        $pyerite = $this->createCorpAsset(5002, null, 35, 750, null);
+        $pyerite->setLocationId($container->getItemId());
+        $this->visibleAssetsFinder->method('findVisibleAssets')->willReturn([$container, $pyerite]);
+
+        $result = $this->service->verifyContainer($project);
+
+        $this->assertSame([[35, 750, 750, 'verified']], array_map(
+            static fn (GroupContainerVerificationResource $line): array => [$line->typeId, $line->requiredQuantity, $line->containerQuantity, $line->status],
+            $result,
+        ));
     }
 
     public function testPartialWhenContainerHasInsufficientQuantity(): void

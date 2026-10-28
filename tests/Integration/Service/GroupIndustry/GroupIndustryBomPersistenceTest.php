@@ -122,7 +122,8 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
         );
     }
 
-    public function testRebuildingThePersistedBomCurrentlyAppendsASecondBomAndLeavesTheContributionsUntouched(): void
+    #[Group('issue-253')]
+    public function testRebuildingThePersistedBomCurrentlyAppendsASecondBomAndLeavesTheContributionsUntouchedIssue253(): void
     {
         $project = $this->createNitrogenFuelBlockProject(runs: 1, meLevel: 0, teLevel: 0);
         $ownerMember = $project->getMembers()->first();

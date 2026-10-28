@@ -66,6 +66,7 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(LeafCost::class)]
 #[CoversClass(JobCost::class)]
 #[CoversClass(InventionCost::class)]
+#[CoversClass(ProductionCostRequest::class)]
 final class ProductionCostCalculatorTest extends TestCase
 {
     private const int HAIL_L = 12779;

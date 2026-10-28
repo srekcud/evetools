@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  PHP_VERSION: '8.5'
+  PHP_EXTENSIONS: amqp, apcu, intl, pdo_pgsql, redis, sodium, uuid, zip
+  PHP_INI_VALUES: memory_limit=512M
+  APP_ENV: test
+
+jobs:
+  unit:
+    name: Unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: shivammathur/setup-php@2.40.0
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: ${{ env.PHP_EXTENSIONS }}
+          ini-values: ${{ env.PHP_INI_VALUES }}
+          coverage: pcov
+          tools: composer:v2
+
+      - name: Create the empty .env required by the Dotenv bootstrap
+        run: touch .env
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+
+      - name: Unit test suite
+        run: php bin/phpunit --no-coverage --testsuite=Unit
+
+      - name: Architecture layers (deptrac)
+        run: php vendor/bin/deptrac analyse --no-progress
+
+      - name: Industry core MSI ratchet (Infection)
+        run: php -d memory_limit=2G vendor/bin/infection --configuration=infection-core.json5 --threads=max --with-uncovered
+
+  integration:
+    name: Integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        postgres-version: ['16']
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres-version }}-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: eve_app
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d eve_app"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/eve_app?serverVersion=${{ matrix.postgres-version }}&charset=utf8
+      ESI_TOKEN_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      EVE_CLIENT_ID: placeholder
+      EVE_CLIENT_SECRET: placeholder
+      MERCURE_URL: http://127.0.0.1:1/.well-known/mercure
+      MERCURE_PUBLIC_URL: https://evetools.local/.well-known/mercure
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: shivammathur/setup-php@2.40.0
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: ${{ env.PHP_EXTENSIONS }}
+          ini-values: ${{ env.PHP_INI_VALUES }}
+          coverage: none
+          tools: composer:v2
+
+      - name: Create the empty .env required by the Dotenv bootstrap
+        run: touch .env
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+
+      - name: Create the test database (eve_app_test)
+        run: php bin/console doctrine:database:create
+
+      - name: Migrate the test database
+        run: php bin/console doctrine:migrations:migrate --no-interaction
+
+      - name: Integration test suite
+        run: php bin/phpunit --no-coverage --testsuite=Integration

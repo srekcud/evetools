@@ -42,13 +42,9 @@ class ProfitMarginProviderTest extends TestCase
     private const int PROCESS_DECRYPTOR = 34205;
     private const int UNKNOWN_DECRYPTOR = 34299;
 
-    public function testWithoutQueryNorSettingsCurrentlyAnalyzesOneRunAtMeTenInJitaSoldAtJitaStation(): void
+    public function testWithoutQueryAnalyzesOneRunAtMeTenAndTeTwentyWithoutDecryptor(): void
     {
-        $user = new User();
         $profitMarginService = $this->createMock(ProfitMarginService::class);
-
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #18 (ME 10 by default, even for a T2 whose invented BPC is ME 2)
-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. glossaire « Structure de marché par défaut » (the Jita station id is sent as a structure id)
         $profitMarginService->expects($this->once())
             ->method('analyze')
             ->with(
@@ -56,9 +52,34 @@ class ProfitMarginProviderTest extends TestCase
                 1,
                 10,
                 20,
+                $this->anything(),
+                $this->anything(),
+                null,
+                $this->anything(),
+                $this->anything(),
+                $this->anything(),
+                $this->anything(),
+            )
+            ->willReturn($this->analysis());
+
+        $this->provider(new User(), new Request(), $profitMarginService)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+    }
+
+    public function testWithoutQueryNorSettingsBuildsInJitaAndSellsAtJitaStationAtDefaultRates(): void
+    {
+        $user = new User();
+        $profitMarginService = $this->createMock(ProfitMarginService::class);
+        $profitMarginService->expects($this->once())
+            ->method('analyze')
+            ->with(
+                self::HAIL_L_TYPE_ID,
+                $this->anything(),
+                $this->anything(),
+                $this->anything(),
                 EveConstants::JITA_STATION_ID,
                 EveConstants::JITA_SOLAR_SYSTEM_ID,
-                null,
+                $this->anything(),
                 0.036,
                 0.036,
                 $user,
@@ -66,7 +87,16 @@ class ProfitMarginProviderTest extends TestCase
             )
             ->willReturn($this->analysis());
 
-        $resource = $this->provider($user, new Request(), $profitMarginService)
+        $this->provider($user, new Request(), $profitMarginService)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+    }
+
+    public function testAnalyzedRunsOutputQuantityAndTotalCostReachTheResource(): void
+    {
+        $profitMarginService = $this->createStub(ProfitMarginService::class);
+        $profitMarginService->method('analyze')->willReturn($this->analysis());
+
+        $resource = $this->provider(new User(), new Request(), $profitMarginService)
             ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
 
         $this->assertSame(self::HAIL_L_TYPE_ID, $resource->typeId);
@@ -110,7 +140,7 @@ class ProfitMarginProviderTest extends TestCase
             ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
     }
 
-    public function testRunsBelowOneAreCurrentlyRaisedToOneRun(): void
+    public function testRunsBelowOneAreRaisedToOneRun(): void
     {
         $profitMarginService = $this->createMock(ProfitMarginService::class);
         $profitMarginService->expects($this->once())

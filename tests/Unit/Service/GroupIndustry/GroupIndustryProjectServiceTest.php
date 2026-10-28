@@ -8,13 +8,17 @@ use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustryProjectItem;
 use App\Entity\GroupIndustryProjectMember;
+use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\Sde\IndustryBlueprint;
+use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
+use App\Enum\IndustryActivityType;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryBlueprintRepository;
+use App\Repository\Sde\InvTypeRepository;
 use App\Service\GroupIndustry\CreateProjectData;
 use App\Service\GroupIndustry\GroupIndustryProjectService;
 use App\Service\Industry\IndustryTreeService;
@@ -30,6 +34,22 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(GroupIndustryProjectService::class)]
 class GroupIndustryProjectServiceTest extends TestCase
 {
+    private const int HAIL_L = 12779;
+    private const int HAIL_L_T1_BLUEPRINT = 898;
+    private const int DEPLETED_URANIUM_L = 197;
+    private const int PROTOTYPE_AMMUNITION_L = 990_003;
+    private const int PROTOTYPE_AMMUNITION_L_T1_BLUEPRINT = 990_013;
+    private const int PROTOTYPE_T1_AMMUNITION_L = 990_014;
+    private const int MORPHITE = 11399;
+    private const int DATACORE_NUCLEAR_PHYSICS = 20423;
+    private const int DATACORE_MECHANICAL_ENGINEERING = 20424;
+    private const array SDE_TYPE_NAMES = [
+        self::DEPLETED_URANIUM_L => 'Depleted Uranium L',
+        self::PROTOTYPE_T1_AMMUNITION_L => 'Prototype T1 Ammunition L',
+        self::DATACORE_NUCLEAR_PHYSICS => 'Datacore - Nuclear Physics',
+        self::DATACORE_MECHANICAL_ENGINEERING => 'Datacore - Mechanical Engineering',
+    ];
+
     private IndustryTreeService&Stub $treeService;
     private JitaMarketService&Stub $jitaMarketService;
     private EntityManagerInterface&Stub $entityManager;
@@ -177,6 +197,89 @@ class GroupIndustryProjectServiceTest extends TestCase
         return $tree;
     }
 
+    private function givenInventedProducts(): void
+    {
+        $this->inventionService->method('getInventionData')->willReturnCallback(static fn (int $t2TypeId): ?array => match ($t2TypeId) {
+            self::HAIL_L => [
+                't1BlueprintTypeId' => self::HAIL_L_T1_BLUEPRINT,
+                't2BlueprintTypeId' => self::HAIL_L + 1,
+                'probability' => 0.25,
+                'baseRuns' => 4,
+                'materials' => [
+                    ['typeId' => self::DATACORE_NUCLEAR_PHYSICS, 'typeName' => 'Datacore - Nuclear Physics', 'quantity' => 1],
+                    ['typeId' => self::DATACORE_MECHANICAL_ENGINEERING, 'typeName' => 'Datacore - Mechanical Engineering', 'quantity' => 2],
+                ],
+            ],
+            self::PROTOTYPE_AMMUNITION_L => [
+                't1BlueprintTypeId' => self::PROTOTYPE_AMMUNITION_L_T1_BLUEPRINT,
+                't2BlueprintTypeId' => self::PROTOTYPE_AMMUNITION_L + 1,
+                'probability' => 0.5,
+                'baseRuns' => 2,
+                'materials' => [
+                    ['typeId' => self::DATACORE_MECHANICAL_ENGINEERING, 'typeName' => 'Datacore - Mechanical Engineering', 'quantity' => 5],
+                ],
+            ],
+            default => null,
+        });
+
+        $t1ProductByBlueprint = [self::HAIL_L_T1_BLUEPRINT => self::DEPLETED_URANIUM_L, self::PROTOTYPE_AMMUNITION_L_T1_BLUEPRINT => self::PROTOTYPE_T1_AMMUNITION_L];
+        $this->activityProductRepository->method('findProductsForBlueprints')->willReturnCallback(
+            static function (array $blueprintTypeIds, array $activityIds) use ($t1ProductByBlueprint): array {
+                $products = [];
+                foreach ($blueprintTypeIds as $blueprintTypeId) {
+                    foreach ($activityIds as $activityId) {
+                        if ($activityId === IndustryActivityType::Manufacturing->value && isset($t1ProductByBlueprint[$blueprintTypeId])) {
+                            $products[$blueprintTypeId.'-'.$activityId] = (new IndustryActivityProduct())
+                                ->setTypeId($blueprintTypeId)
+                                ->setActivityId($activityId)
+                                ->setProductTypeId($t1ProductByBlueprint[$blueprintTypeId])
+                                ->setQuantity(1);
+                        }
+                    }
+                }
+
+                return $products;
+            },
+        );
+
+        $typeRepository = $this->createStub(InvTypeRepository::class);
+        $typeRepository->method('findBy')->willReturnCallback(static fn (array $criteria): array => array_values(array_map(
+            static fn (int $typeId): InvType => (new InvType())->setTypeId($typeId)->setTypeName(self::SDE_TYPE_NAMES[$typeId]),
+            array_values(array_intersect($criteria['typeId'], array_keys(self::SDE_TYPE_NAMES))),
+        )));
+        $this->entityManager->method('getRepository')->willReturnCallback(
+            static fn (string $className): ?InvTypeRepository => $className === InvType::class ? $typeRepository : null,
+        );
+    }
+
+    private function projectWithItems(array $items): GroupIndustryProject
+    {
+        $project = new GroupIndustryProject();
+        foreach ($items as $index => [$typeId, $typeName, $runs]) {
+            $project->addItem((new GroupIndustryProjectItem())
+                ->setTypeId($typeId)
+                ->setTypeName($typeName)
+                ->setRuns($runs)
+                ->setMeLevel(2)
+                ->setTeLevel(4)
+                ->setSortOrder($index));
+        }
+
+        return $project;
+    }
+
+    private function jobLines(GroupIndustryProject $project): array
+    {
+        return array_map(static fn (GroupIndustryBomItem $job): array => [
+            $job->getTypeId(),
+            $job->getActivityType(),
+            $job->getJobGroup(),
+            $job->getRuns(),
+            $job->getRequiredQuantity(),
+            $job->getParentTypeId(),
+        ], $this->getJobBomItems($project));
+    }
+
     /**
      * @return list<GroupIndustryBomItem>
      */
@@ -223,6 +326,54 @@ class GroupIndustryProjectServiceTest extends TestCase
             }
         }
         return null;
+    }
+
+    public function testManufacturedT2ProductWhoseBlueprintHasNoCopyActivityIsStillInventedFromACopyOfTheT1Blueprint(): void
+    {
+        $this->givenInventedProducts();
+        $this->treeService->method('buildProductionTree')->willReturn(
+            $this->buildFlatTreeNode(self::HAIL_L + 1, self::HAIL_L, 'Hail L', 3, 5000, [['typeId' => self::MORPHITE, 'typeName' => 'Morphite', 'quantity' => 45]]),
+        );
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 3]]);
+
+        $this->service->buildBom($project, $this->createUser());
+
+        $this->assertSame(
+            [
+                [self::HAIL_L, 'manufacturing', 'final', 3, 15000, null],
+                [self::HAIL_L, 'invention', 'blueprint', 3, 3, null],
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', 3, 3, null],
+            ],
+            $this->jobLines($project),
+        );
+        $this->assertSame(
+            [[self::MORPHITE, 45], [self::DATACORE_NUCLEAR_PHYSICS, 3], [self::DATACORE_MECHANICAL_ENGINEERING, 6]],
+            array_map(static fn (GroupIndustryBomItem $material): array => [$material->getTypeId(), $material->getRequiredQuantity()], $this->getMaterialBomItems($project)),
+        );
+    }
+
+    public function testT2ProductsInventedFromDifferentT1BlueprintsEachGetTheCopyOfTheirOwnT1Blueprint(): void
+    {
+        $this->givenInventedProducts();
+        $this->treeService->method('buildProductionTree')->willReturnCallback(fn (int $productTypeId, int $runs): array => match ($productTypeId) {
+            self::HAIL_L => $this->buildFlatTreeNode(self::HAIL_L + 1, self::HAIL_L, 'Hail L', $runs, 5000, [['typeId' => self::MORPHITE, 'typeName' => 'Morphite', 'quantity' => 45]]),
+            self::PROTOTYPE_AMMUNITION_L => $this->buildFlatTreeNode(self::PROTOTYPE_AMMUNITION_L + 1, self::PROTOTYPE_AMMUNITION_L, 'Prototype Ammunition L', $runs, 100, [['typeId' => self::MORPHITE, 'typeName' => 'Morphite', 'quantity' => 28]]),
+        });
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 3], [self::PROTOTYPE_AMMUNITION_L, 'Prototype Ammunition L', 4]]);
+
+        $this->service->buildBom($project, $this->createUser());
+
+        $this->assertSame(
+            [
+                [self::HAIL_L, 'manufacturing', 'final', 3, 15000, null],
+                [self::PROTOTYPE_AMMUNITION_L, 'manufacturing', 'final', 4, 400, null],
+                [self::HAIL_L, 'invention', 'blueprint', 3, 3, null],
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', 3, 3, null],
+                [self::PROTOTYPE_AMMUNITION_L, 'invention', 'blueprint', 4, 4, null],
+                [self::PROTOTYPE_T1_AMMUNITION_L, 'copy', 'blueprint', 4, 4, null],
+            ],
+            $this->jobLines($project),
+        );
     }
 
     // ===========================================

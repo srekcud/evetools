@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Industry\Application;
 
 use App\Industry\Application\FavoriteSystems;
 use App\Industry\Application\ProductionStructure;
+use App\Industry\Application\StructureChoiceStatus;
 use App\Industry\Application\StructureMaterialModifiers;
 use App\Industry\Application\StructureSelector;
 use App\Industry\Domain\BlueprintEfficiency;
@@ -87,6 +88,40 @@ final class StructureMaterialModifiersTest extends TestCase
         );
 
         $this->assertEqualsWithDelta(0.9736, $modifiers->forJob(self::recipeOf('Fernite Carbide'))->value, 1e-12);
+    }
+
+    public function testChoiceOfAStepWithAnAssignedStructureIsThatStructureWithItsMaterialMultiplier(): void
+    {
+        $assigned = ProductionStructures::raitaru('assigned-lowsec', SecurityClass::LowSec, null, '2026-01-01 00:00:00', ProductionStructures::manufacturingRig(2.0, 'ammunition'));
+        $modifiers = new StructureMaterialModifiers(
+            self::goldenSelector(),
+            self::goldenProductCategories(),
+            [self::HAIL_L_TYPE_ID => $assigned],
+        );
+
+        $choice = $modifiers->choiceFor(self::recipeOf('Hail L'));
+
+        $this->assertSame($assigned, $choice->structure);
+        $this->assertSame(StructureChoiceStatus::Assigned, $choice->status);
+        $this->assertEqualsWithDelta(0.95238, $choice->materialMultiplier->value, 1e-12);
+        $this->assertNull($choice->ignoredAssignedStructure);
+    }
+
+    public function testChoiceOfAReactionWithAnAssignedEngineeringComplexIsTheBestRefineryAndKeepsTheIgnoredStructure(): void
+    {
+        $raitaruAssignedToAReaction = ProductionStructures::raitaru('raitaru-assigned-to-a-reaction', SecurityClass::NullSec);
+        $modifiers = new StructureMaterialModifiers(
+            self::goldenSelector(),
+            self::goldenProductCategories(),
+            [self::FERNITE_CARBIDE_TYPE_ID => $raitaruAssignedToAReaction],
+        );
+
+        $choice = $modifiers->choiceFor(self::recipeOf('Fernite Carbide'));
+
+        $this->assertSame('tatara-nullsec', $choice->structure?->id);
+        $this->assertSame(StructureChoiceStatus::BestConfigured, $choice->status);
+        $this->assertEqualsWithDelta(0.9736, $choice->materialMultiplier->value, 1e-12);
+        $this->assertSame($raitaruAssignedToAReaction, $choice->ignoredAssignedStructure);
     }
 
     public function testNoConfiguredStructureGivesNeutralModifiers(): void

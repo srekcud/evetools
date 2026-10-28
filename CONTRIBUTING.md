@@ -31,7 +31,7 @@ make test-db                       # (re)crée la base de test eve_app_test et s
 npm --prefix frontend ci           # dépendances frontend
 ```
 
-Le schéma de la base de test est construit depuis le mapping des entités, pas depuis les migrations : elles ne se rejouent pas sur une base vide. Relancez `make test-db` après un changement d'entité.
+`make test-db` recrée la base de test et rejoue les migrations. Relancez-le après une nouvelle migration.
 
 ## Avant d'ouvrir une PR
 
@@ -46,7 +46,7 @@ Tout doit passer en local :
 | Tests frontend | `npm --prefix frontend run test` | vert |
 | Build frontend | `npm --prefix frontend run build` | OK |
 
-PHPStan et deptrac signalent déjà des erreurs sur `main` (voir [`docs/quality/baseline.md`](docs/quality/baseline.md)). La règle est de ne pas en ajouter : comparez la sortie avant et après votre modification. `make deptrac` ne fait jamais échouer la commande : lisez le rapport.
+PHPStan signale déjà des erreurs sur `main` (voir [`docs/quality/baseline.md`](docs/quality/baseline.md)). La règle est de ne pas en ajouter : comparez la sortie avant et après votre modification. `make deptrac` échoue sur toute violation absente de `skip_violations` dans `deptrac.yaml`.
 
 Une modification d'entité Doctrine s'accompagne d'une migration (`make db-diff`).
 
