@@ -17,6 +17,10 @@ import InventionOptionsPanel from '@/components/industry/profit/InventionOptions
 import { venueLabel } from '@/components/industry/venueLabel'
 import { venueMargin, type SellVenue } from '@/components/industry/venueMargin'
 
+defineProps<{
+  initialTypeId?: number
+}>()
+
 const { t } = useI18n()
 const store = useIndustryStore()
 const { formatIsk, formatIskFull, formatTimeSince } = useFormatters()

@@ -1,9 +1,16 @@
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import CommandPalette from '@/components/common/CommandPalette.vue'
+import { apiRequest } from '@/services/api'
+
+vi.mock(import('@/services/api'), async importOriginal => ({
+  ...(await importOriginal()),
+  apiRequest: vi.fn(),
+}))
 
 type Locale = 'en' | 'fr'
 
@@ -17,6 +24,20 @@ interface PaletteMountOptions {
 const HIDDEN_MODULES_STORAGE_KEY = 'evetools_hidden_modules'
 const STARTING_ROUTE = '/characters'
 const BACKDROP_SELECTOR = '[data-testid="command-palette-backdrop"]'
+const TYPE_SEARCH_DEBOUNCE_MS = 250
+
+async function emptyApiAnswer(endpoint: string): Promise<unknown> {
+  if (endpoint === '/industry/projects') {
+    return { projects: [] }
+  }
+  if (endpoint === '/group-industry/projects') {
+    return []
+  }
+  if (endpoint.startsWith('/industry/search?q=')) {
+    return { results: [] }
+  }
+  throw new Error(`Unexpected request ${endpoint}`)
+}
 
 const appRoutes = [
   '/dashboard',
@@ -39,6 +60,8 @@ async function mountOpenPalette({ locale = 'en', isAdmin = false, hiddenModules,
   if (storedHiddenModules !== undefined) {
     localStorage.setItem(HIDDEN_MODULES_STORAGE_KEY, storedHiddenModules)
   }
+  const pinia = createPinia()
+  setActivePinia(pinia)
   const router: Router = createRouter({
     history: createMemoryHistory(),
     routes: appRoutes.map(route => ({ path: route, component: { template: '<div />' } })),
@@ -50,7 +73,7 @@ async function mountOpenPalette({ locale = 'en', isAdmin = false, hiddenModules,
   const wrapper = mount(CommandPalette, {
     attachTo: document.body,
     props: { show: false, isAdmin, onClose: () => closeFromParent() },
-    global: { plugins: [i18n, router] },
+    global: { plugins: [pinia, i18n, router] },
   })
   closeFromParent = async () => {
     await wrapper.setProps({ show: false })
@@ -111,6 +134,7 @@ async function typeQuery(query: string): Promise<void> {
   const input = openSearchInput()
   input.value = query
   input.dispatchEvent(new Event('input', { bubbles: true }))
+  await vi.advanceTimersByTimeAsync(TYPE_SEARCH_DEBOUNCE_MS)
   await flushPromises()
 }
 
@@ -139,7 +163,14 @@ function addPageInput(value: string): HTMLInputElement {
 enableAutoUnmount(afterEach)
 
 describe('CommandPalette', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    vi.mocked(apiRequest).mockReset()
+    vi.mocked(apiRequest).mockImplementation(emptyApiAnswer as typeof apiRequest)
+  })
+
   afterEach(() => {
+    vi.useRealTimers()
     document.body.innerHTML = ''
     localStorage.clear()
   })

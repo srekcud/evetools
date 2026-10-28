@@ -26,6 +26,19 @@ interface MainLayoutMountOptions {
   storedCollapsedGroups?: string
 }
 
+function stubbedApiAnswer(url: string): unknown {
+  if (url === '/api/industry/projects') {
+    return { projects: [] }
+  }
+  if (url === '/api/group-industry/projects') {
+    return []
+  }
+  if (url.startsWith('/api/industry/search?q=')) {
+    return { results: [] }
+  }
+  return { hasAccess: false, characterName: null }
+}
+
 export function setViewportWidth(width: number): void {
   (window as unknown as HappyDomWindow).happyDOM.setViewport({ width })
 }
@@ -41,7 +54,7 @@ export async function mountMainLayoutAt(
   setViewportWidth(viewportWidth)
   const pinia = createPinia()
   setActivePinia(pinia)
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ hasAccess: false, characterName: null }), { status: 200 })))
+  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => new Response(JSON.stringify(stubbedApiAnswer(String(input))), { status: 200 })))
   const router = createRouter({
     history: createMemoryHistory(),
     routes: navigationRoutes.map(route => ({ path: route, component: { template: '<div />' } })),
