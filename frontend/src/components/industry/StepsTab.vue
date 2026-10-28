@@ -294,6 +294,7 @@ defineExpose({
                 <!-- Not linked: show dropdown to link -->
                 <select
                   v-else-if="compatibleSteps(job.blueprintTypeId).length > 0"
+                  :aria-label="t('industry.stepsTab.linkToStep')"
                   @change="(e) => { const val = (e.target as HTMLSelectElement).value; if (val) linkJobToStep(val, job.esiJobId); (e.target as HTMLSelectElement).value = '' }"
                   class="bg-slate-800 border border-slate-700 rounded-sm px-2 py-1 text-xs text-slate-300 focus:outline-hidden focus:border-cyan-500"
                 >

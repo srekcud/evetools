@@ -106,6 +106,7 @@ function handleShareDiscord(): void {
       <!-- Character filter -->
       <select
         :value="characterFilter"
+        :aria-label="t('escalations.modal.character')"
         @change="emit('update:characterFilter', ($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : null)"
         class="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-cyan-500 pr-8 appearance-none"
         style="background-image: url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E&quot;); background-repeat: no-repeat; background-position: right 0.5rem center; background-size: 1.25rem;"

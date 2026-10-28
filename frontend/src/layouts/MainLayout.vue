@@ -427,6 +427,7 @@ watch(showSettings, (opened) => {
       <div
         v-if="isDrawerOpen"
         data-testid="navigation-drawer-backdrop"
+        role="presentation"
         class="fixed inset-0 z-30 bg-slate-950/70"
         @click="closeDrawerAndFocusMenuButton"
       ></div>
@@ -442,7 +443,6 @@ watch(showSettings, (opened) => {
           'w-64 bg-slate-900 border-r border-cyan-500/20 flex flex-col',
           isWideScreen ? '' : 'fixed inset-y-0 left-0 z-40 max-w-[85vw]'
         ]"
-        @click="closeDrawerOnNavigationClick"
       >
         <!-- Logo -->
         <div class="p-6 border-b border-cyan-500/20">
@@ -505,6 +505,7 @@ watch(showSettings, (opened) => {
                   :key="child.id"
                   :to="child.route"
                   :aria-current="isActiveRoute(child) ? 'page' : undefined"
+                  @click="closeDrawerOnNavigationClick"
                   :class="[
                     'w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-300 group relative overflow-hidden border text-sm',
                     isActiveRoute(child)
@@ -527,6 +528,7 @@ watch(showSettings, (opened) => {
               v-else
               :to="(entry as NavItem).route"
               :aria-current="isActiveRoute(entry as NavItem) ? 'page' : undefined"
+              @click="closeDrawerOnNavigationClick"
               :class="[
                 'w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group relative overflow-hidden border',
                 isActiveRoute(entry as NavItem)
@@ -549,7 +551,11 @@ watch(showSettings, (opened) => {
           <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
             <!-- Clickable user info -->
             <div
+              role="button"
+              tabindex="0"
               @click="showSettings = true"
+              @keydown.enter.self.prevent="showSettings = true"
+              @keydown.space.self.prevent="showSettings = true"
               class="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
               :title="t('auth.openSettings')"
             >
@@ -624,6 +630,7 @@ watch(showSettings, (opened) => {
             <h3 :id="titleId" class="text-lg font-semibold text-slate-100">{{ t('settings.title') }}</h3>
             <button
               @click="showSettings = false"
+              :aria-label="t('common.actions.close')"
               class="p-1 hover:bg-slate-800 rounded-lg transition-colors"
             >
               <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -744,6 +751,7 @@ watch(showSettings, (opened) => {
                   @click="removeMarketStructure(struct.id)"
                   class="p-1 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-sm shrink-0 ml-2"
                   :title="t('common.actions.delete')"
+                  :aria-label="t('common.actions.delete')"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -757,6 +765,7 @@ watch(showSettings, (opened) => {
               <input
                 v-model="structureSearchQuery"
                 type="text"
+                :aria-label="t('industry.structures.searchStructure')"
                 :placeholder="t('industry.structures.searchStructure')"
                 @input="onStructureSearchInput"
                 @focus="showStructureSearchDropdown = structureSearchResults.length > 0"
@@ -816,6 +825,7 @@ watch(showSettings, (opened) => {
             <h3 :id="titleId" class="text-lg font-semibold text-slate-100">{{ t('header.releaseNotes') }}</h3>
             <button
               @click="showReleaseNotes = false"
+              :aria-label="t('common.actions.close')"
               class="p-1 hover:bg-slate-800 rounded-lg transition-colors"
             >
               <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -912,6 +922,7 @@ watch(showSettings, (opened) => {
               <div v-if="mainCharacter?.allianceId" class="hidden md:flex items-center gap-2 px-4 py-2 bg-amber-500/10 rounded-lg border border-amber-500/30">
                 <img
                   :src="`https://images.evetech.net/alliances/${mainCharacter.allianceId}/logo?size=32`"
+                  alt=""
                   class="w-6 h-6"
                 />
                 <span class="text-amber-400 text-sm font-medium">{{ mainCharacter.allianceName }}</span>
@@ -920,6 +931,7 @@ watch(showSettings, (opened) => {
               <div v-if="mainCharacter?.corporationId" class="hidden md:flex items-center gap-2 px-4 py-2 bg-cyan-500/10 rounded-lg border border-cyan-500/30">
                 <img
                   :src="`https://images.evetech.net/corporations/${mainCharacter.corporationId}/logo?size=32`"
+                  alt=""
                   class="w-6 h-6"
                 />
                 <span class="text-cyan-400 text-sm font-medium">{{ mainCharacter.corporationName }}</span>

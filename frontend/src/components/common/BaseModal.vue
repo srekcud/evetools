@@ -112,7 +112,7 @@ onBeforeUnmount(release)
 <template>
   <Teleport to="body">
     <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center">
-      <div class="absolute inset-0 bg-slate-950/80" @click="emit('close')"></div>
+      <div role="presentation" class="absolute inset-0 bg-slate-950/80" @click="emit('close')"></div>
       <div
         ref="panel"
         role="dialog"

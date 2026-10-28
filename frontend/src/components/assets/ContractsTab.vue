@@ -202,6 +202,7 @@ function onAvailabilityChange() {
       <!-- Status selector -->
       <select
         v-model="selectedStatus"
+        :aria-label="t('contracts.status')"
         @change="onStatusChange"
         class="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-cyan-500"
       >
@@ -212,6 +213,7 @@ function onAvailabilityChange() {
       <!-- Availability selector -->
       <select
         v-model="selectedAvailability"
+        :aria-label="t('a11y.zoneC.assets.contractAvailability')"
         @change="onAvailabilityChange"
         class="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-cyan-500"
       >
@@ -318,7 +320,12 @@ function onAvailabilityChange() {
         >
           <!-- Contract row -->
           <div
+            role="button"
+            tabindex="0"
+            :aria-expanded="expandedContract === contract.contractId"
             @click="toggleExpand(contract.contractId)"
+            @keydown.enter.self.prevent="toggleExpand(contract.contractId)"
+            @keydown.space.self.prevent="toggleExpand(contract.contractId)"
             class="px-5 py-4 cursor-pointer"
           >
             <div class="flex items-center justify-between">

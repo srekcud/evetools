@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useIndustryStore } from '@/stores/industry'
 import type { StructureConfig, RigOption, CorporationStructure, StructureSearchResult, StructureBonusPreview } from '@/stores/industry'
@@ -10,6 +10,7 @@ import { ApiError } from '@/services/api'
 import { useFormatters } from '@/composables/useFormatters'
 
 const { t } = useI18n()
+const uid = useId()
 const store = useIndustryStore()
 const { formatNumber } = useFormatters()
 
@@ -539,7 +540,7 @@ watch(
       <div class="space-y-4">
         <!-- Corporation structures dropdown -->
         <div v-if="!editingStructure">
-          <label class="block text-xs text-slate-400 mb-1">{{ t('industry.structures.corpStructures') }}</label>
+          <label :for="`${uid}-corp-structure`" class="block text-xs text-slate-400 mb-1">{{ t('industry.structures.corpStructures') }}</label>
           <div v-if="!corporationStructuresLoaded" class="text-xs text-slate-500">
             {{ t('common.status.loading') }}
           </div>
@@ -549,6 +550,7 @@ watch(
           <template v-else>
             <select
               v-model="selectedCorpStructure"
+              :id="`${uid}-corp-structure`"
               @change="onCorpStructureSelected"
               class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 text-sm focus:outline-hidden focus:border-cyan-500"
             >
@@ -572,9 +574,10 @@ watch(
 
           <!-- ESI Search -->
           <div class="mt-3 relative">
-            <label class="block text-xs text-slate-400 mb-1">{{ t('industry.structures.searchByNameEsi') }}</label>
+            <label :for="`${uid}-esi-search`" class="block text-xs text-slate-400 mb-1">{{ t('industry.structures.searchByNameEsi') }}</label>
             <input
               v-model="esiSearchQuery"
+              :id="`${uid}-esi-search`"
               type="text"
               :placeholder="t('industry.structures.searchStructure')"
               @input="onEsiSearchInput"
@@ -643,9 +646,10 @@ watch(
 
         <!-- Name -->
         <div>
-          <label class="block text-xs text-slate-400 mb-1">{{ t('industry.structures.name') }}</label>
+          <label :for="`${uid}-name`" class="block text-xs text-slate-400 mb-1">{{ t('industry.structures.name') }}</label>
           <input
             v-model="formName"
+            :id="`${uid}-name`"
             type="text"
             :placeholder="t('industry.structures.namePlaceholder')"
             class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 text-sm focus:outline-hidden focus:border-cyan-500"
@@ -654,9 +658,10 @@ watch(
 
         <!-- Structure Type -->
         <div>
-          <label class="block text-xs text-slate-400 mb-1">{{ t('industry.structures.structureType') }}</label>
+          <label :for="`${uid}-structure-type`" class="block text-xs text-slate-400 mb-1">{{ t('industry.structures.structureType') }}</label>
           <select
             v-model="formStructureType"
+            :id="`${uid}-structure-type`"
             class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-200 text-sm focus:outline-hidden focus:border-cyan-500"
           >
             <optgroup label="NPC">
@@ -676,8 +681,8 @@ watch(
 
         <!-- Security Type -->
         <div>
-          <label class="block text-xs text-slate-400 mb-1">{{ t('industry.structures.security') }}</label>
-          <div class="flex gap-3">
+          <span :id="`${uid}-security`" class="block text-xs text-slate-400 mb-1">{{ t('industry.structures.security') }}</span>
+          <div class="flex gap-3" role="group" :aria-labelledby="`${uid}-security`">
             <label
               v-for="(label, key) in securityLabels"
               :key="key"
@@ -721,7 +726,7 @@ watch(
 
         <!-- Rigs Search -->
         <div>
-          <label class="block text-xs text-slate-400 mb-2">
+          <label :for="`${uid}-rig-search`" class="block text-xs text-slate-400 mb-2">
             {{ t('industry.structures.rigsLabel') }} - {{ formRigs.length }}/{{ MAX_RIGS }}
           </label>
 
@@ -729,6 +734,7 @@ watch(
           <div class="relative">
             <input
               v-model="rigSearchQuery"
+              :id="`${uid}-rig-search`"
               type="text"
               :placeholder="canAddMoreRigs ? t('industry.structures.searchRig') : t('industry.structures.maxRigsReached')"
               :disabled="!canAddMoreRigs"

@@ -234,7 +234,11 @@ const allButtonLabel = computed(() => {
                 v-for="entry in marketStore.recentSearches"
                 :key="entry.typeId"
                 class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/50 border border-slate-700/50 rounded-lg text-xs text-slate-300 hover:border-cyan-500/30 hover:text-cyan-400 cursor-pointer transition-colors group"
+                role="button"
+                tabindex="0"
                 @click="handleRecentSearchClick(entry.typeId)"
+                @keydown.enter.self="handleRecentSearchClick(entry.typeId)"
+                @keydown.space.self.prevent="handleRecentSearchClick(entry.typeId)"
               >
                 <img
                   :src="getTypeIconUrl(entry.typeId, 32)"
@@ -265,7 +269,11 @@ const allButtonLabel = computed(() => {
                 v-for="fav in marketStore.favorites"
                 :key="fav.typeId"
                 class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/5 border border-amber-500/20 rounded-lg text-xs text-amber-300 hover:border-amber-500/40 cursor-pointer transition-colors"
+                role="button"
+                tabindex="0"
                 @click="handleFavoriteClick(fav.typeId)"
+                @keydown.enter.self="handleFavoriteClick(fav.typeId)"
+                @keydown.space.self.prevent="handleFavoriteClick(fav.typeId)"
               >
                 <img
                   :src="getTypeIconUrl(fav.typeId, 32)"

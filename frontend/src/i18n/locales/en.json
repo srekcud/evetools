@@ -82,11 +82,35 @@
   },
   "a11y": {
     "remove": "Remove",
+    "industry": {
+      "skillLevel": "{skill} level for {character}"
+    },
+    "zoneB": {
+      "groupIndustry": {
+        "contributionTypeFilter": "Filter by contribution type",
+        "contributionStatusFilter": "Filter by contribution status"
+      },
+      "escalation": {
+        "timerDays": "Days",
+        "timerHours": "Hours",
+        "timerMinutes": "Minutes"
+      }
+    },
     "pagination": {
       "first": "First page",
       "previous": "Previous page",
       "next": "Next page",
       "last": "Last page"
+    },
+    "zoneC": {
+      "assets": {
+        "contractAvailability": "Contract availability"
+      },
+      "notifications": {
+        "enabledSwitch": "Enable {category} notifications",
+        "pushSwitch": "Enable browser push for {category}",
+        "thresholdInput": "{category} threshold in minutes"
+      }
     }
   },
   "nav": {

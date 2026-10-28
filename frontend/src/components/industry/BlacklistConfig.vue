@@ -125,6 +125,7 @@ function hideDropdownDelayed() {
             v-model="itemSearchQuery"
             type="text"
             :placeholder="t('industry.blacklist.searchPlaceholder')"
+            :aria-label="t('industry.blacklist.searchPlaceholder')"
             class="w-full px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-hidden focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500"
             @focus="showDropdown = itemSearchResults.length > 0"
             @blur="hideDropdownDelayed"
@@ -142,6 +143,7 @@ function hideDropdownDelayed() {
             >
               <img
                 :src="getTypeIconUrl(result.typeId, 32)"
+                alt=""
                 class="w-6 h-6 rounded-sm"
                 @error="onImageError"
               />
@@ -162,6 +164,7 @@ function hideDropdownDelayed() {
           >
             <img
               :src="getTypeIconUrl(item.typeId, 32)"
+              alt=""
               class="w-5 h-5 rounded-sm"
               @error="onImageError"
             />

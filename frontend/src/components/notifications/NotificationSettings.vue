@@ -148,6 +148,10 @@ onMounted(async () => {
           <!-- Enabled toggle -->
           <div class="col-span-2 flex justify-center">
             <button
+              type="button"
+              role="switch"
+              :aria-checked="pref.enabled"
+              :aria-label="t('a11y.zoneC.notifications.enabledSwitch', { category: t(`notificationHub.categories.${pref.category}`) })"
               @click="pref.enabled = !pref.enabled"
               :class="[
                 'relative inline-flex h-5 w-9 items-center rounded-full transition-colors',
@@ -166,6 +170,10 @@ onMounted(async () => {
           <!-- Push toggle -->
           <div class="col-span-3 flex justify-center">
             <button
+              type="button"
+              role="switch"
+              :aria-checked="pref.pushEnabled && pref.enabled"
+              :aria-label="t('a11y.zoneC.notifications.pushSwitch', { category: t(`notificationHub.categories.${pref.category}`) })"
               @click="pref.pushEnabled = !pref.pushEnabled; handlePushToggle(pref)"
               :disabled="!pref.enabled || !push.isSupported.value"
               :class="[
@@ -193,6 +201,7 @@ onMounted(async () => {
               max="1440"
               :disabled="!pref.enabled"
               class="w-16 px-2 py-1 text-xs text-center bg-slate-800 border border-slate-700 rounded-md text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed focus:border-cyan-500/50 focus:outline-none"
+              :aria-label="t('a11y.zoneC.notifications.thresholdInput', { category: t(`notificationHub.categories.${pref.category}`) })"
               :placeholder="t('notificationHub.settingsModal.threshold')"
             />
             <span v-else class="text-xs text-slate-600">-</span>

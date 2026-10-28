@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, useId } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -28,6 +28,10 @@ import { groupJoinUrl } from './groupJoinUrl'
 import { groupProjectRefreshes, type GroupProjectRefresh } from './groupProjectRefreshes'
 
 const { t } = useI18n()
+const editNameFieldId = useId()
+const editContainerNameFieldId = useId()
+const editBrokerFeeFieldId = useId()
+const editSalesTaxFieldId = useId()
 const route = useRoute()
 const router = useRouter()
 const projectStore = useGroupProjectStore()
@@ -518,8 +522,9 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
       <!-- Body -->
       <div class="px-6 py-5 space-y-4">
         <div>
-          <label class="block text-sm font-medium text-slate-400 mb-1">{{ t('groupIndustry.detail.editFields.name') }}</label>
+          <label :for="editNameFieldId" class="block text-sm font-medium text-slate-400 mb-1">{{ t('groupIndustry.detail.editFields.name') }}</label>
           <input
+            :id="editNameFieldId"
             v-model="editForm.name"
             type="text"
             class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
@@ -527,8 +532,9 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
           />
         </div>
         <div>
-          <label class="block text-sm font-medium text-slate-400 mb-1">{{ t('groupIndustry.detail.editFields.containerName') }}</label>
+          <label :for="editContainerNameFieldId" class="block text-sm font-medium text-slate-400 mb-1">{{ t('groupIndustry.detail.editFields.containerName') }}</label>
           <input
+            :id="editContainerNameFieldId"
             v-model="editForm.containerName"
             type="text"
             class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
@@ -537,8 +543,9 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-slate-400 mb-1">{{ t('groupIndustry.detail.editFields.brokerFee') }}</label>
+            <label :for="editBrokerFeeFieldId" class="block text-sm font-medium text-slate-400 mb-1">{{ t('groupIndustry.detail.editFields.brokerFee') }}</label>
             <input
+              :id="editBrokerFeeFieldId"
               v-model.number="editForm.brokerFeePercent"
               type="number"
               step="0.01"
@@ -548,8 +555,9 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-slate-400 mb-1">{{ t('groupIndustry.detail.editFields.salesTax') }}</label>
+            <label :for="editSalesTaxFieldId" class="block text-sm font-medium text-slate-400 mb-1">{{ t('groupIndustry.detail.editFields.salesTax') }}</label>
             <input
+              :id="editSalesTaxFieldId"
               v-model.number="editForm.salesTaxPercent"
               type="number"
               step="0.01"

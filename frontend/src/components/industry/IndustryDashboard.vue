@@ -416,7 +416,11 @@ function cleanTypeName(name: string): string {
         :key="alert.id"
         class="alert-row px-6 py-3.5 flex items-center gap-4 cursor-pointer hover:bg-slate-800/50"
         :class="`alert-${alert.type}`"
+        role="button"
+        tabindex="0"
         @click="alert.action?.()"
+        @keydown.enter="alert.action?.()"
+        @keydown.space.prevent="alert.action?.()"
       >
         <!-- Icon -->
         <div

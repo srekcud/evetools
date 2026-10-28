@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useScannerStore } from '@/stores/industry/scanner'
 import { useIndustryStore, type SearchResult } from '@/stores/industry'
@@ -15,6 +15,7 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+const uid = useId()
 const scannerStore = useScannerStore()
 const industryStore = useIndustryStore()
 const { formatIsk, formatNumber } = useFormatters()
@@ -147,22 +148,24 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
 
       <div class="flex flex-wrap items-end gap-4">
         <div class="flex-1 min-w-[280px]">
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.pivotAdvisor.selectProduct') }}</label>
-          <ProductSearch @select="onProductSelect" />
+          <label :for="`${uid}-product`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.pivotAdvisor.selectProduct') }}</label>
+          <ProductSearch :input-id="`${uid}-product`" @select="onProductSelect" />
         </div>
         <div>
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.pivotAdvisor.runs') }}</label>
+          <label :for="`${uid}-runs`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.pivotAdvisor.runs') }}</label>
           <input
             v-model.number="runs"
+            :id="`${uid}-runs`"
             type="number"
             min="1"
             class="w-20 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500"
           />
         </div>
         <div>
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.pivotAdvisor.systemLabel') }}</label>
+          <label :for="`${uid}-system`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.pivotAdvisor.systemLabel') }}</label>
           <select
             v-model.number="selectedSystemId"
+            :id="`${uid}-system`"
             class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500"
           >
             <option :value="null">--</option>
@@ -417,6 +420,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
             <span class="text-xs text-slate-500">{{ t('industry.scanner.pivotAdvisor.sortBy') }}:</span>
             <select
               v-model="sortBy"
+              :aria-label="t('industry.scanner.pivotAdvisor.sortBy')"
               class="text-table-cell bg-slate-800 border border-slate-700 text-slate-300 rounded-lg px-2 py-1 focus:outline-none focus:border-cyan-500"
             >
               <option value="score">{{ t('industry.scanner.pivotAdvisor.coverageMargin') }}</option>

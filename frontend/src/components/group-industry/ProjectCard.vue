@@ -83,7 +83,11 @@ function progressBarClass(): string {
 <template>
   <div
     class="project-card bg-slate-900/80 rounded-xl border border-slate-800 p-5 cursor-pointer card-enter"
+    role="button"
+    tabindex="0"
     @click="emit('click', project)"
+    @keydown.enter="emit('click', project)"
+    @keydown.space.prevent="emit('click', project)"
   >
     <!-- Header: icons + name + status -->
     <div class="flex items-start gap-4 mb-4">

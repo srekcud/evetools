@@ -186,6 +186,7 @@ function onKeydown(event: KeyboardEvent): void {
     <div v-if="show" class="fixed inset-0 z-[60] flex items-start justify-center px-4 pt-[12vh]">
       <div
         data-testid="command-palette-backdrop"
+        role="presentation"
         class="absolute inset-0 bg-slate-950/80"
         @click="emit('close')"
       ></div>
@@ -194,7 +195,6 @@ function onKeydown(event: KeyboardEvent): void {
         aria-modal="true"
         :aria-label="t('commandPalette.title')"
         class="relative w-full max-w-xl bg-slate-900 border border-cyan-500/30 rounded-xl shadow-2xl shadow-cyan-500/10 overflow-hidden"
-        @keydown="onKeydown"
       >
         <input
           ref="searchInput"
@@ -210,8 +210,9 @@ function onKeydown(event: KeyboardEvent): void {
           :aria-activedescendant="activeOptionId"
           :placeholder="t('commandPalette.placeholder')"
           class="w-full bg-transparent px-4 py-3 text-slate-100 placeholder-slate-500 border-b border-slate-800 focus:outline-hidden"
+          @keydown="onKeydown"
         />
-        <div :id="listboxId" role="listbox" :aria-label="t('commandPalette.title')" class="max-h-[50vh] overflow-y-auto" @mousedown.prevent>
+        <div :id="listboxId" role="listbox" tabindex="-1" :aria-label="t('commandPalette.title')" class="max-h-[50vh] overflow-y-auto" @mousedown.prevent @keydown="onKeydown">
           <div v-if="navigationRows.length > 0" role="group" :aria-labelledby="navigationGroupLabelId" class="py-2">
             <div :id="navigationGroupLabelId" class="px-4 py-1 text-xs font-medium text-slate-500 uppercase tracking-wider">
               {{ t('commandPalette.groups.navigation') }}
@@ -222,12 +223,15 @@ function onKeydown(event: KeyboardEvent): void {
               :key="entry.route"
               role="option"
               :aria-selected="index === activeIndex"
+              tabindex="-1"
               :class="[
                 'px-4 py-2 cursor-pointer text-sm',
                 index === activeIndex ? 'bg-cyan-500/20 text-cyan-100' : 'text-slate-300'
               ]"
               @mouseenter="activeIndex = index"
+              @focus="activeIndex = index"
               @click="goTo(entry.route)"
+              @keydown.enter.self.stop.prevent="goTo(entry.route)"
             >
               {{ entry.label }}
             </div>
@@ -242,12 +246,15 @@ function onKeydown(event: KeyboardEvent): void {
               :key="project.key"
               role="option"
               :aria-selected="projectsOffset + projectIndex === activeIndex"
+              tabindex="-1"
               :class="[
                 'flex items-center gap-2 px-4 py-2 cursor-pointer text-sm',
                 projectsOffset + projectIndex === activeIndex ? 'bg-cyan-500/20 text-cyan-100' : 'text-slate-300'
               ]"
               @mouseenter="activeIndex = projectsOffset + projectIndex"
+              @focus="activeIndex = projectsOffset + projectIndex"
               @click="goTo(project.route)"
+              @keydown.enter.self.stop.prevent="goTo(project.route)"
             >
               <span class="truncate">{{ project.label }}</span>
               <span class="shrink-0 text-xs font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded-sm">
@@ -274,12 +281,15 @@ function onKeydown(event: KeyboardEvent): void {
               :key="result.typeId"
               role="option"
               :aria-selected="typesOffset + typeIndex === activeIndex"
+              tabindex="-1"
               :class="[
                 'px-4 py-2 cursor-pointer text-sm',
                 typesOffset + typeIndex === activeIndex ? 'bg-cyan-500/20 text-cyan-100' : 'text-slate-300'
               ]"
               @mouseenter="activeIndex = typesOffset + typeIndex"
+              @focus="activeIndex = typesOffset + typeIndex"
               @click="runClickedTypeRow(result)"
+              @keydown.enter.self.stop.prevent="runClickedTypeRow(result)"
             >
               <span>{{ result.typeName }}</span>
               <div v-if="typesOffset + typeIndex === activeIndex" class="mt-1.5 flex flex-wrap gap-2">

@@ -54,7 +54,11 @@ function handleDelete(): void {
 
 <template>
   <div
+    role="button"
+    tabindex="0"
     @click="handleClick"
+    @keydown.enter.self.prevent="handleClick"
+    @keydown.space.self.prevent="handleClick"
     :class="[
       'px-4 py-3 hover:bg-slate-800/40 transition-colors cursor-pointer group/item',
       style.border,

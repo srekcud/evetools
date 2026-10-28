@@ -7,6 +7,7 @@ import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { formatDuration } from '@/composables/useProjectTime'
 import type { IndustryProjectStep, SimilarJob } from '@/stores/industry'
+import { vFocusOnMount } from './vFocusOnMount'
 
 const { t } = useI18n()
 
@@ -488,7 +489,12 @@ function mergeGroup(stepId: string) {
             :class="[
               splitGroup.isValid ? 'border-slate-700' : 'bg-red-900/20 border-red-500/50',
             ]"
+            role="button"
+            tabindex="0"
+            :aria-expanded="expandedSplitGroups.has(splitGroup.splitGroupId)"
             @click="toggleSplitGroup(splitGroup.splitGroupId)"
+            @keydown.enter.self="toggleSplitGroup(splitGroup.splitGroupId)"
+            @keydown.space.self.prevent="toggleSplitGroup(splitGroup.splitGroupId)"
           >
             <!-- Expand/Collapse icon -->
             <svg
@@ -502,6 +508,7 @@ function mergeGroup(stepId: string) {
             </svg>
             <img
               :src="getTypeIconUrl(splitGroup.productTypeId, 32)"
+              alt=""
               class="w-8 h-8 rounded-sm"
               @error="onImageError"
             />
@@ -621,6 +628,7 @@ function mergeGroup(stepId: string) {
 
               <img
                 :src="getTypeIconUrl(step.productTypeId, 32)"
+                alt=""
                 class="w-8 h-8 rounded-sm"
                 @error="onImageError"
               />
@@ -636,19 +644,23 @@ function mergeGroup(stepId: string) {
                         v-model.number="editRunsValue"
                         type="number"
                         min="1"
+                        :aria-label="t('industry.createProject.runs')"
                         class="w-16 px-1 py-0.5 bg-slate-700 border border-cyan-500 rounded-sm text-xs text-slate-200 focus:outline-hidden"
                         @keydown.enter="saveEditRuns(step.id)"
                         @keydown.escape="cancelEditRuns"
                         @blur="saveEditRuns(step.id)"
                         @focus="($event.target as HTMLInputElement).select()"
                         @click.stop
-                        autofocus
+                        v-focus-on-mount
                       />
                       <span class="text-xs text-slate-600">runs)</span>
                     </span>
                     <span
                       v-else
+                      role="button"
+                      tabindex="0"
                       @dblclick.stop="startEditRuns(step)"
+                      @keydown.enter.stop="startEditRuns(step)"
                       class="text-xs text-slate-600 cursor-pointer hover:text-cyan-400"
                       :title="t('industry.table.doubleClickEdit')"
                     >
@@ -685,6 +697,7 @@ function mergeGroup(stepId: string) {
                         <input
                           type="number"
                           :value="step.meLevel"
+                          :aria-label="t('industry.createProject.me')"
                           min="0"
                           max="10"
                           class="w-10 bg-slate-800 border border-slate-700 rounded-sm px-1 py-0.5 text-xs text-center focus:border-cyan-500 focus:outline-hidden"
@@ -697,6 +710,7 @@ function mergeGroup(stepId: string) {
                         <input
                           type="number"
                           :value="step.teLevel"
+                          :aria-label="t('industry.createProject.te')"
                           min="0"
                           max="20"
                           class="w-10 bg-slate-800 border border-slate-700 rounded-sm px-1 py-0.5 text-xs text-center focus:border-cyan-500 focus:outline-hidden"
@@ -828,13 +842,14 @@ function mergeGroup(stepId: string) {
                 <div v-if="splittingStepId === step.id" class="flex items-center gap-1" @click.stop>
                   <input
                     v-model.number="splitCount"
+                    :aria-label="t('industry.step.split')"
                     type="number"
                     min="2"
                     max="20"
                     class="w-12 px-1 py-0.5 bg-slate-700 border border-cyan-500 rounded-sm text-xs text-center"
                     @keydown.enter="confirmSplit(step.id)"
                     @keydown.escape="cancelSplit"
-                    autofocus
+                    v-focus-on-mount
                   />
                   <button
                     @click.stop="confirmSplit(step.id)"
@@ -891,12 +906,13 @@ function mergeGroup(stepId: string) {
                   <span class="text-sm text-slate-400">Runs :</span>
                   <input
                     v-model.number="addChildRunsValue"
+                    :aria-label="t('industry.createProject.runs')"
                     type="number"
                     min="1"
                     class="w-20 px-2 py-1 bg-slate-700 border border-cyan-500 rounded-sm text-sm text-slate-200 focus:outline-hidden"
                     @keydown.enter="confirmAddChild(splitGroup.splitGroupId, splitGroup.children[0]?.id)"
                     @keydown.escape="cancelAddChild"
-                    autofocus
+                    v-focus-on-mount
                   />
                   <button
                     @click="confirmAddChild(splitGroup.splitGroupId, splitGroup.children[0]?.id)"

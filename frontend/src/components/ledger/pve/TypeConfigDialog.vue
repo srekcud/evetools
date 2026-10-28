@@ -76,6 +76,7 @@ const addIconClass = props.accentColor === 'amber' ? 'text-amber-500' : 'text-cy
     <div class="relative mb-4">
       <input
         v-model="searchQuery"
+        :aria-label="searchPlaceholder"
         @input="onSearchInput"
         type="text"
         :placeholder="searchPlaceholder"

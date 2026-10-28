@@ -85,6 +85,7 @@ const { getTypeIconUrl, onImageError } = useEveImages()
                 <input
                   type="number"
                   v-model.number="sale.price"
+                  :aria-label="sale.typeName"
                   class="w-28 px-2 py-1 text-right bg-slate-700 border border-slate-600 rounded-sm text-amber-400 font-mono text-sm focus:outline-hidden focus:border-amber-500"
                   min="0"
                   step="100000"
