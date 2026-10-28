@@ -539,6 +539,40 @@ final class ProductionCostCalculatorTest extends TestCase
         self::hobgoblinIIRequest(mode: CostMode::Plan, blueprintCopyMaxRuns: [self::HOBGOBLIN_II => new Runs(0)]);
     }
 
+    public function testProductWithoutRecipeThrowsDomainException(): void
+    {
+        $calculator = self::hobgoblinIICalculator(self::HOBGOBLIN_II_BASE_PROBABILITY);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessageMatches('/^Product 11399 has no blueprint nor reaction: it cannot be built\.$/');
+
+        $calculator->costOf(new ProductionCostRequest(
+            productTypeId: self::MORPHITE,
+            runs: new Runs(3),
+            efficiency: new BlueprintEfficiency(new MaterialEfficiency(10), new TimeEfficiency(20)),
+            mode: CostMode::Plan,
+            structures: [],
+            favoriteSystems: new FavoriteSystems(self::FAVORITE_MANUFACTURING_SYSTEM_ID, null),
+        ));
+    }
+
+    public function testInventedProductWithoutInventionSettingsThrows(): void
+    {
+        $calculator = self::hobgoblinIICalculator(self::HOBGOBLIN_II_BASE_PROBABILITY);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessageMatches('/^Product 2456 is invented: its invention settings are required\.$/');
+
+        $calculator->costOf(new ProductionCostRequest(
+            productTypeId: self::HOBGOBLIN_II,
+            runs: new Runs(5),
+            efficiency: new BlueprintEfficiency(new MaterialEfficiency(2), new TimeEfficiency(4)),
+            mode: CostMode::MarginalCost,
+            structures: [],
+            favoriteSystems: new FavoriteSystems(self::FAVORITE_MANUFACTURING_SYSTEM_ID, null),
+        ));
+    }
+
     public function testAssignedStructureOnACappedProductGivesEverySplitJobItsMaterialsAndInstallCost(): void
     {
         $assignedRaitaru = self::assignedRaitaru();

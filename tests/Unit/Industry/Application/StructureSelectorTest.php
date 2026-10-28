@@ -603,6 +603,36 @@ final class StructureSelectorTest extends TestCase
         $this->assertSame(StructureChoiceStatus::BestConfigured, $choice->status);
     }
 
+    #[DataProvider('installRateGapAroundTheToleranceProvider')]
+    public function testFavoriteManufacturingSystemIsPreferredOnlyWhenItsInstallRateGapIsStrictlyBelowTheTolerance(
+        ActivityKind $activity,
+        float $favoriteFacilityTaxRate,
+        string $expectedStructureId,
+        StructureChoiceStatus $expectedStatus,
+    ): void {
+        $selector = new StructureSelector([
+            ProductionStructures::raitaruConfiguredWithFacilityTax('favorite-january', self::FAVORITE_MANUFACTURING_SYSTEM_ID, '2026-01-01 00:00:00', $favoriteFacilityTaxRate),
+            ProductionStructures::sotiyoConfiguredWithFacilityTax('untaxed-elsewhere-september', self::OTHER_SYSTEM_ID, '2026-09-01 00:00:00', 0.0),
+        ], new FavoriteSystems(self::FAVORITE_MANUFACTURING_SYSTEM_ID, self::FAVORITE_REACTION_SYSTEM_ID), self::installCostIndices([
+            self::FAVORITE_MANUFACTURING_SYSTEM_ID => 0.0,
+            self::OTHER_SYSTEM_ID => 0.0,
+        ]));
+
+        $choice = $selector->select($activity, null);
+
+        $this->assertSame($expectedStructureId, $choice->structure?->id);
+        $this->assertSame($expectedStatus, $choice->status);
+    }
+
+    public static function installRateGapAroundTheToleranceProvider(): iterable
+    {
+        foreach (self::copyingAndInventionProvider() as $activityName => [$activity]) {
+            yield $activityName.', gap just below the tolerance' => [$activity, 9.999999999999999E-10, 'favorite-january', StructureChoiceStatus::BestInFavoriteSystem];
+            yield $activityName.', gap exactly the tolerance' => [$activity, 1.0E-9, 'untaxed-elsewhere-september', StructureChoiceStatus::BestConfigured];
+            yield $activityName.', gap just above the tolerance' => [$activity, 1.0000000000000003E-9, 'untaxed-elsewhere-september', StructureChoiceStatus::BestConfigured];
+        }
+    }
+
     #[DataProvider('copyingAndInventionProvider')]
     public function testEqualInstallRateOutsideTheFavoriteSystemPicksTheMostRecentStructureWithoutWarning(ActivityKind $activity): void
     {
