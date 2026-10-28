@@ -248,8 +248,9 @@ describe('group distribution store error of an action', () => {
   it('keeps the error of a failed sale while the sales of the project are reloaded', async () => {
     const store = useGroupDistributionStore()
     const recording = store.recordSale(SABRE_BATCH_ID, { typeId: 22_456, typeName: 'Sabre', quantity: 1, unitPrice: 48_000_000, venue: 'Jita IV - Moon 4' })
+    const recorded = expect(recording).rejects.toThrow(SALE_REJECTED)
     await fail(salesPath(SABRE_BATCH_ID), SALE_REJECTED)
-    await expect(recording).rejects.toThrow(SALE_REJECTED)
+    await recorded
 
     void store.fetchSales(SABRE_BATCH_ID)
 
@@ -262,8 +263,9 @@ describe('group distribution store error of an action', () => {
     await fail(salesPath(SABRE_BATCH_ID), SALES_UNAVAILABLE)
 
     const recording = store.recordSale(SABRE_BATCH_ID, { typeId: 22_456, typeName: 'Sabre', quantity: 1, unitPrice: 48_000_000, venue: 'Jita IV - Moon 4' })
+    const recorded = expect(recording).rejects.toThrow(SALE_REJECTED)
     await fail(salesPath(SABRE_BATCH_ID), SALE_REJECTED)
-    await expect(recording).rejects.toThrow(SALE_REJECTED)
+    await recorded
 
     expect(errors(store)).toEqual({ ...NO_ERROR, error: SALE_REJECTED, salesError: SALES_UNAVAILABLE })
   })

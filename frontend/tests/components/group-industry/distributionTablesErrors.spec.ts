@@ -116,8 +116,9 @@ describe('SalesTable errors', () => {
     await fail(SALES_PATH, SALES_UNAVAILABLE)
 
     const recording = useGroupDistributionStore().recordSale(PROJECT_ID, { typeId: 22_456, typeName: 'Sabre', quantity: 1, unitPrice: 48_000_000, venue: 'Jita IV - Moon 4' })
+    const recorded = expect(recording).rejects.toThrow(SALE_REJECTED)
     await fail(SALES_PATH, SALE_REJECTED)
-    await expect(recording).rejects.toThrow(SALE_REJECTED)
+    await recorded
 
     expect([wrapper.text().includes(SALES_UNAVAILABLE), wrapper.text().includes(SALE_REJECTED)]).toEqual([true, true])
   })
