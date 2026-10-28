@@ -55,9 +55,9 @@ class BatchScanResultResource
 
     public ?float $materialCost = null;
 
-    public float $importCost = 0;
+    public ?float $importCost = null;
 
-    public float $exportCost = 0;
+    public ?float $exportCost = null;
 
     public ?float $sellPrice = null;
 
@@ -78,7 +78,7 @@ class BatchScanResultResource
     /** Number of missing skills (best character) */
     public int $missingSkillCount = 0;
 
-    /** Why the margins are unknown ("missing_sale_price" or "missing_material_price"), null when they are known */
+    /** Why the margins are unknown ("missing_sale_price", "missing_material_price" or "missing_volume"), null when they are known */
     public ?string $unknownReason = null;
 
     /** @var list<int> Material typeIds without a Jita price */

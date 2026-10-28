@@ -564,8 +564,8 @@ export type BatchScanItem = {
   dailyVolume: number
   iskPerDay: number | null
   materialCost: number | null
-  exportCost: number
-  importCost: number
+  exportCost: number | null
+  importCost: number | null
   sellPrice: number | null
   meUsed: number
   activityType: string

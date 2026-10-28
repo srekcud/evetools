@@ -599,6 +599,7 @@
       "missing_market_price": "Unknown market price for a datacore or the decryptor: the invention cost is unknown.",
       "missing_material_price": "A material has no Jita price: the manufacturing cost and margins are unknown.",
       "missing_sale_price": "The product has no Jita sale price: the sale price, profit and margins are unknown.",
+      "missing_volume": "A product or a material has no volume in the static data (SDE): the transport cost and margins are unknown.",
       "missingPriceTypes": "Materials without a price: {types}"
     },
     "title": "Industry",

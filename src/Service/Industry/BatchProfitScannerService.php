@@ -47,6 +47,7 @@ class BatchProfitScannerService
 
     public const UNKNOWN_REASON_MISSING_MATERIAL_PRICE = 'missing_material_price';
     public const UNKNOWN_REASON_MISSING_SALE_PRICE = 'missing_sale_price';
+    public const UNKNOWN_REASON_MISSING_VOLUME = 'missing_volume';
 
     private const CAPITAL_GROUP_IDS = [
         30,   // Titan
@@ -142,7 +143,7 @@ class BatchProfitScannerService
      * profitPerUnit and iskPerDay are null, unknownReason and missingPriceTypeIds explain why.
      * Products with a known cost are ranked first, by iskPerDay descending.
      *
-     * @return list<array{typeId: int, typeName: string|null, groupName: string, categoryLabel: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float, iskPerDay: float|null, materialCost: float|null, importCost: float, exportCost: float, sellPrice: float|null, meUsed: int, activityType: string, isFactionBlueprint: bool, bpcCostPerRun: float|null, hasAllSkills: bool, missingSkillCount: int, unknownReason: string|null, missingPriceTypeIds: list<int>}>
+     * @return list<array{typeId: int, typeName: string|null, groupName: string, categoryLabel: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float, iskPerDay: float|null, materialCost: float|null, importCost: float|null, exportCost: float|null, sellPrice: float|null, meUsed: int, activityType: string, isFactionBlueprint: bool, bpcCostPerRun: float|null, hasAllSkills: bool, missingSkillCount: int, unknownReason: string|null, missingPriceTypeIds: list<int>}>
      */
     public function scan(
         ?string $category,
@@ -315,11 +316,12 @@ class BatchProfitScannerService
                 } else {
                     $materialCost += $adjustedQty * $unitPrice;
                 }
-                $materialVolume += $adjustedQty * ($materialVolumes[$mat['materialTypeId']] ?? 0.0);
+                $unitVolume = $materialVolumes[$mat['materialTypeId']] ?? null;
+                $materialVolume = $unitVolume === null || $materialVolume === null ? null : $materialVolume + $adjustedQty * $unitVolume;
             }
 
             // Import cost: transport materials from Jita to production site
-            $importCost = $materialVolume * $exportCostPerM3;
+            $importCost = $this->transportCost($materialVolume, $exportCostPerM3);
 
             $costIndex = $isReaction ? $reactionCostIndex : $manufacturingCostIndex;
             $facilityTax = $isReaction ? $reactionFacilityTax : $manufacturingFacilityTax;
@@ -330,10 +332,16 @@ class BatchProfitScannerService
             $exportCost = 0.0;
             if ($sellVenue !== 'structure') {
                 $exportVolume = $this->getExportVolume($typeId, $typeMetadata);
-                $exportCost = $exportVolume * $exportCostPerM3;
+                $exportCost = $this->transportCost($exportVolume, $exportCostPerM3);
             }
 
-            $totalCost = $materialCost + $importCost + $exportCost;
+            $totalCost = $materialCost;
+            if ($importCost !== null) {
+                $totalCost += $importCost;
+            }
+            if ($exportCost !== null) {
+                $totalCost += $exportCost;
+            }
             if ($jobInstallCost !== null) {
                 $totalCost += $jobInstallCost;
             }
@@ -351,7 +359,8 @@ class BatchProfitScannerService
             };
 
             $isMaterialCostUnknown = $missingPriceTypeIds !== [];
-            $isCostUnknown = $isMaterialCostUnknown || $jobInstallCost === null;
+            $isTransportCostUnknown = $importCost === null || $exportCost === null;
+            $isCostUnknown = $isMaterialCostUnknown || $jobInstallCost === null || $isTransportCostUnknown;
 
             $isSalePriceUnknown = $sellPrice === null;
 
@@ -395,8 +404,8 @@ class BatchProfitScannerService
                 'dailyVolume' => $dailyVolume,
                 'iskPerDay' => $iskPerDay !== null ? round($iskPerDay, 2) : null,
                 'materialCost' => $isMaterialCostUnknown ? null : round($materialCost, 2),
-                'importCost' => round($importCost, 2),
-                'exportCost' => round($exportCost, 2),
+                'importCost' => $importCost !== null ? round($importCost, 2) : null,
+                'exportCost' => $exportCost !== null ? round($exportCost, 2) : null,
                 'sellPrice' => $sellPrice !== null ? round($sellPrice, 2) : null,
                 'meUsed' => $me,
                 'activityType' => $activityType,
@@ -407,7 +416,8 @@ class BatchProfitScannerService
                 'unknownReason' => match (true) {
                     $isSalePriceUnknown => self::UNKNOWN_REASON_MISSING_SALE_PRICE,
                     $isMaterialCostUnknown => self::UNKNOWN_REASON_MISSING_MATERIAL_PRICE,
-                    $isCostUnknown => $jobInstallEstimate['unknownReason'],
+                    $jobInstallCost === null => $jobInstallEstimate['unknownReason'],
+                    $isTransportCostUnknown => self::UNKNOWN_REASON_MISSING_VOLUME,
                     default => null,
                 },
                 'missingPriceTypeIds' => array_keys($missingPriceTypeIds),
@@ -571,11 +581,11 @@ class BatchProfitScannerService
      *
      * @param array<int, array{groupId: int, groupName: string, categoryId: int, volume: float|null}> $typeMetadata
      */
-    private function getExportVolume(int $typeId, array $typeMetadata): float
+    private function getExportVolume(int $typeId, array $typeMetadata): ?float
     {
         $meta = $typeMetadata[$typeId] ?? null;
         if ($meta === null) {
-            return 0.0;
+            return null;
         }
 
         // Ships (category 6): use packaged volume from lookup table
@@ -583,7 +593,16 @@ class BatchProfitScannerService
             return (float) self::SHIP_PACKAGED_VOLUMES[$meta['groupId']];
         }
 
-        return $meta['volume'] ?? 0.0;
+        return $meta['volume'];
+    }
+
+    private function transportCost(?float $volume, float $costPerM3): ?float
+    {
+        if ($costPerM3 === 0.0) {
+            return 0.0;
+        }
+
+        return $volume !== null ? $volume * $costPerM3 : null;
     }
 
     /**
@@ -647,7 +666,7 @@ class BatchProfitScannerService
      * Load volumes for type IDs from SDE.
      *
      * @param int[] $typeIds
-     * @return array<int, float> typeId => volume
+     * @return array<int, float|null> typeId => volume, null when the SDE has none
      */
     private function loadTypeVolumes(array $typeIds): array
     {
@@ -662,7 +681,7 @@ class BatchProfitScannerService
 
         $result = [];
         foreach ($rows as $row) {
-            $result[(int) $row['type_id']] = (float) ($row['volume'] ?? 0.0);
+            $result[(int) $row['type_id']] = $row['volume'] !== null ? (float) $row['volume'] : null;
         }
 
         return $result;

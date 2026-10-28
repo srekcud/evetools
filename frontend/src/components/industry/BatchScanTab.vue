@@ -762,10 +762,16 @@ onBeforeUnmount(() => {
                 <td v-else class="py-3 px-3 text-right font-mono" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-500' : 'text-slate-400'">
                   {{ formatIsk(item.materialCost) }}
                 </td>
-                <td class="py-3 px-3 text-right font-mono text-slate-400">
+                <td v-if="item.exportCost == null" class="py-3 px-3 text-right font-mono text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
+                  {{ t('industry.inventionUnknown.label') }}
+                </td>
+                <td v-else class="py-3 px-3 text-right font-mono text-slate-400">
                   {{ formatIsk(item.exportCost) }}
                 </td>
-                <td class="py-3 px-3 text-right font-mono text-slate-400">
+                <td v-if="item.importCost == null" class="py-3 px-3 text-right font-mono text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
+                  {{ t('industry.inventionUnknown.label') }}
+                </td>
+                <td v-else class="py-3 px-3 text-right font-mono text-slate-400">
                   {{ formatIsk(item.importCost) }}
                 </td>
                 <td v-if="item.sellPrice == null" class="py-3 px-3 text-right font-mono text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
