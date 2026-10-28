@@ -203,7 +203,7 @@ onMounted(() => {
             >
               {{ availableProjects.length }}
             </span>
-            <span class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/20">
+            <span class="ml-1 text-xs px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/20">
               {{ t('groupIndustry.tabs.sameCorp') }}
             </span>
           </button>

@@ -228,7 +228,7 @@ defineExpose({ activate, loadCostEstimation })
         <div class="eve-card p-4 border-cyan-500/30">
           <p class="text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.costEstimation.totalProductionCost') }}</p>
           <p class="text-xl font-mono text-cyan-400 font-bold">{{ formatCost(costData.totalCost) }}</p>
-          <p class="text-xs text-slate-500 font-mono mt-1">{{ t('industry.costEstimation.perUnit') }}: <span class="text-slate-400">{{ costData.perUnit === null ? t('industry.costEstimation.unknown') : `${formatCost(costData.perUnit)} ISK` }}</span></p>
+          <p class="text-table-cell text-slate-500 font-mono mt-1">{{ t('industry.costEstimation.perUnit') }}: <span class="text-slate-400">{{ costData.perUnit === null ? t('industry.costEstimation.unknown') : `${formatCost(costData.perUnit)} ISK` }}</span></p>
         </div>
       </div>
 
@@ -352,7 +352,7 @@ defineExpose({ activate, loadCostEstimation })
                 :key="step.stepId"
                 class="hover:bg-slate-800/50"
               >
-                <td class="py-2.5 px-3 text-center text-slate-600 font-mono text-xs tabular-nums">{{ index + 1 }}</td>
+                <td class="py-2.5 px-3 text-center text-slate-600 font-mono text-table-cell tabular-nums">{{ index + 1 }}</td>
                 <td class="py-2.5 px-3">
                   <div class="flex items-center gap-2">
                     <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden shrink-0">
@@ -401,7 +401,7 @@ defineExpose({ activate, loadCostEstimation })
           <svg class="w-4 h-4 text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <p class="text-xs text-cyan-300/70">{{ t('industry.costEstimation.jobInstallNote') }}</p>
+          <p class="text-body text-cyan-300/70">{{ t('industry.costEstimation.jobInstallNote') }}</p>
         </div>
       </div>
 
@@ -513,7 +513,7 @@ defineExpose({ activate, loadCostEstimation })
             <div>
               <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costEstimation.sellPriceLabel') }}</div>
               <div class="font-mono text-slate-200 text-lg">{{ sellPrice.toLocaleString(undefined, { maximumFractionDigits: 0 }) }}</div>
-              <div v-if="runs > 1" class="text-xs text-slate-600 font-mono">{{ t('industry.costEstimation.perUnitShort', { price: formatIsk(sellPrice / runs) }) }}</div>
+              <div v-if="runs > 1" class="text-table-cell text-slate-600 font-mono">{{ t('industry.costEstimation.perUnitShort', { price: formatIsk(sellPrice / runs) }) }}</div>
             </div>
             <div>
               <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costEstimation.profitLabel') }}</div>
@@ -557,7 +557,7 @@ defineExpose({ activate, loadCostEstimation })
                 :title="`${t('industry.costEstimation.bpc')}: ${formatIsk(costData.bpoCost)} (${costBreakdown.bpcPercent.toFixed(1)}%)`"
               ></div>
             </div>
-            <div class="flex items-center gap-4 mt-2 text-xs">
+            <div class="flex items-center gap-4 mt-2 text-table-cell">
               <span class="flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-full bg-blue-500/60"></span>
                 <span class="text-slate-500">{{ t('industry.costEstimation.materials') }}</span>

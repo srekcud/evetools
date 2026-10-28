@@ -338,7 +338,7 @@ function cleanTypeName(name: string): string {
             />
           </svg>
           <div class="absolute inset-0 flex items-center justify-center">
-            <span class="text-[10px] font-mono font-bold" :class="slotsTextColor">{{ slotsPercent }}%</span>
+            <span class="text-table-cell font-mono font-bold" :class="slotsTextColor">{{ slotsPercent }}%</span>
           </div>
         </div>
         <div>
@@ -371,7 +371,7 @@ function cleanTypeName(name: string): string {
             />
           </svg>
           <div class="absolute inset-0 flex items-center justify-center">
-            <span class="text-[10px] font-mono font-bold" :class="pipelineTextColor">{{ pipelineHealth }}%</span>
+            <span class="text-table-cell font-mono font-bold" :class="pipelineTextColor">{{ pipelineHealth }}%</span>
           </div>
         </div>
         <div>

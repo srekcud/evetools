@@ -87,7 +87,7 @@ async function doImport(mode: 'replace' | 'merge'): Promise<void> {
               <ProductSearch @select="onProductSelect" />
               <div v-if="selectedProduct" class="mt-2 text-xs text-slate-400">
                 {{ selectedProduct.typeName }}
-                <span v-if="selectedProduct.isT2" class="ml-1 px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-sm text-[10px] font-semibold uppercase">T2</span>
+                <span v-if="selectedProduct.isT2" class="ml-1 px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-sm text-xs font-semibold uppercase">T2</span>
               </div>
             </div>
             <div class="grid grid-cols-3 gap-3">

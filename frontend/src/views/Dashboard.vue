@@ -234,7 +234,7 @@ onMounted(() => {
           <div class="flex items-center justify-between px-5 py-4 border-b border-slate-800">
             <div class="flex items-center gap-2">
               <h3 class="text-sm font-semibold text-slate-200 uppercase tracking-wider">{{ t('dashboard.activity') }}</h3>
-              <span v-if="unreadCount > 0" class="text-[10px] px-1.5 py-0.5 bg-cyan-500/20 text-cyan-400 rounded-full font-medium">
+              <span v-if="unreadCount > 0" class="text-xs px-1.5 py-0.5 bg-cyan-500/20 text-cyan-400 rounded-full font-medium">
                 {{ unreadCount }}
               </span>
             </div>
@@ -264,7 +264,7 @@ onMounted(() => {
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center justify-between gap-2">
                       <span class="text-xs font-medium text-slate-300">{{ notif.title }}</span>
-                      <span class="text-[10px] text-slate-600 shrink-0">{{ formatTimeAgo(notif.timestamp) }}</span>
+                      <span class="text-xs text-slate-600 shrink-0">{{ formatTimeAgo(notif.timestamp) }}</span>
                     </div>
                     <p class="text-xs text-slate-500 mt-0.5 truncate">{{ notif.message }}</p>
                   </div>

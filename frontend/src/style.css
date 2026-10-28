@@ -143,6 +143,11 @@
   --font-display: Rajdhani, sans-serif;
   --font-mono: Share Tech Mono, monospace;
 
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.25rem;
+  --text-table-cell: 0.8125rem;
+  --text-table-cell--line-height: 1.25rem;
+
   --color-eve-dark: #0a0c0f;
   --color-eve-accent: #00d4ff;
   --color-eve-accent-dim: #0099bb;

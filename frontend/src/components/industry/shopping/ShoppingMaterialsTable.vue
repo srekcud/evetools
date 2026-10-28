@@ -137,7 +137,7 @@ function cancelEditStock() {
                     {{ formatIsk(item.missingJitaWeighted ?? item.missingJita) }}
                   </span>
                 </div>
-                <div v-if="item.missingJitaWeighted !== null && item.missingJita !== null" class="text-[10px] text-slate-600 mt-0.5">
+                <div v-if="item.missingJitaWeighted !== null && item.missingJita !== null" class="text-xs text-slate-600 mt-0.5">
                   {{ formatIsk(item.missingJita) }}
                 </div>
               </div>

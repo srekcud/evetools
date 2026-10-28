@@ -601,7 +601,7 @@ watch(
                 <div class="text-sm text-slate-200">
                   {{ result.isCorporationOwned ? '★ ' : '' }}{{ result.locationName }}
                   <span v-if="result.solarSystemName" class="text-slate-400">({{ result.solarSystemName }})</span>
-                  <span v-if="isAlreadyImported(result.locationId)" class="text-xs text-slate-400">- {{ t('industry.structures.alreadyImportedTag') }}</span>
+                  <span v-if="isAlreadyImported(result.locationId)" class="text-table-cell text-slate-400">- {{ t('industry.structures.alreadyImportedTag') }}</span>
                 </div>
                 <div class="text-xs text-slate-500">
                   {{ result.structureType ? result.structureType.charAt(0).toUpperCase() + result.structureType.slice(1) : 'Structure' }}
@@ -611,10 +611,10 @@ watch(
             </div>
 
             <!-- ESI Search Error -->
-            <div v-if="esiSearchError" class="mt-1 text-xs text-amber-400">
+            <div v-if="esiSearchError" class="mt-1 text-body text-amber-400">
               {{ esiSearchError }}
             </div>
-            <div v-else-if="esiSearchIncomplete" class="mt-1 text-xs text-amber-400">
+            <div v-else-if="esiSearchIncomplete" class="mt-1 text-body text-amber-400">
               {{ t('industry.structures.searchIncomplete') }}
             </div>
           </div>
@@ -631,12 +631,12 @@ watch(
             </div>
             <button
               @click="clearCorpStructure"
-              class="text-xs text-slate-400 hover:text-slate-200"
+              class="text-table-cell text-slate-400 hover:text-slate-200"
             >
               {{ t('industry.structures.switchToCustom') }}
             </button>
           </div>
-          <p v-if="isKnownCorpStructure" class="text-xs text-slate-400 mt-1">
+          <p v-if="isKnownCorpStructure" class="text-body text-slate-400 mt-1">
             {{ t('industry.structures.rigsSharedWithCorp') }}
           </p>
         </div>
@@ -713,7 +713,7 @@ watch(
               class="w-full sm:w-48 px-3 py-2 bg-slate-900 border rounded-lg text-slate-200 text-sm focus:outline-hidden"
               :class="isFacilityTaxRateOutOfRange ? 'border-red-500 focus:border-red-400' : 'border-slate-600 focus:border-cyan-500'"
             />
-            <p v-if="isFacilityTaxRateOutOfRange" class="mt-1 text-xs text-red-400">
+            <p v-if="isFacilityTaxRateOutOfRange" class="mt-1 text-body text-red-400">
               {{ t('industry.structures.facilityTaxOutOfRange', { min: MIN_FACILITY_TAX_RATE, max: MAX_FACILITY_TAX_RATE }) }}
             </p>
           </div>
@@ -751,14 +751,14 @@ watch(
               >
                 <div class="flex items-center justify-between">
                   <span class="text-sm text-slate-200">{{ formatRigName(rig.name) }}</span>
-                  <span class="text-xs ml-2">
+                  <span class="text-table-cell ml-2">
                     <span v-if="rig.bonus > 0" class="text-emerald-400">ME: -{{ rig.bonus }}%</span>
                     <span v-if="rig.timeBonus !== undefined" class="text-amber-400 ml-1">TE: -{{ rig.timeBonus }}%</span>
                     <span class="text-slate-500 ml-1">({{ rig.size }})</span>
                   </span>
                 </div>
-                <div class="text-xs text-slate-500 mt-0.5">{{ formatTargetCategories(rig.targetCategories) }}</div>
-                <div v-if="rig.categoryBonuses" class="text-xs text-emerald-400/80 mt-0.5">ME {{ formatCategoryBonuses(rig.categoryBonuses) }}</div>
+                <div class="text-table-cell text-slate-500 mt-0.5">{{ formatTargetCategories(rig.targetCategories) }}</div>
+                <div v-if="rig.categoryBonuses" class="text-table-cell text-emerald-400/80 mt-0.5">ME {{ formatCategoryBonuses(rig.categoryBonuses) }}</div>
               </button>
             </div>
 
@@ -781,7 +781,7 @@ watch(
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2 flex-1 min-w-0">
                   <span class="text-sm text-slate-300 truncate">{{ formatRigName(rigInfo.name) }}</span>
-                  <span class="text-xs shrink-0">
+                  <span class="text-table-cell shrink-0">
                     <span v-if="rigInfo.bonus > 0" class="text-emerald-400">ME: -{{ rigInfo.bonus }}%</span>
                     <span v-if="rigInfo.timeBonus !== undefined" class="text-amber-400 ml-1">TE: -{{ rigInfo.timeBonus }}%</span>
                     <span class="text-slate-500 ml-1">({{ rigInfo.size }})</span>
@@ -798,8 +798,8 @@ watch(
                   </svg>
                 </button>
               </div>
-              <div class="text-xs text-slate-500 mt-0.5">{{ formatTargetCategories(rigInfo.targetCategories) }}</div>
-                <div v-if="rigInfo.categoryBonuses" class="text-xs text-emerald-400/80 mt-0.5">ME {{ formatCategoryBonuses(rigInfo.categoryBonuses) }}</div>
+              <div class="text-table-cell text-slate-500 mt-0.5">{{ formatTargetCategories(rigInfo.targetCategories) }}</div>
+                <div v-if="rigInfo.categoryBonuses" class="text-table-cell text-emerald-400/80 mt-0.5">ME {{ formatCategoryBonuses(rigInfo.categoryBonuses) }}</div>
             </div>
           </div>
 
@@ -810,7 +810,7 @@ watch(
 
         <!-- Preview Bonus -->
         <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
-          <p class="text-xs text-slate-400 mb-2">{{ t('industry.structures.bonusPreview') }}</p>
+          <p class="text-body text-slate-400 mb-2">{{ t('industry.structures.bonusPreview') }}</p>
           <div class="space-y-2">
             <div v-if="isEngineeringComplex" class="flex flex-wrap gap-4">
               <div>

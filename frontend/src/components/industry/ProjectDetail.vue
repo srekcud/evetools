@@ -446,7 +446,7 @@ onMounted(async () => {
             <p class="text-sm font-mono text-slate-400">
               {{ store.currentProject.estimatedSellPrice != null ? formatIsk(store.currentProject.estimatedSellPrice) : '-' }}
             </p>
-            <p v-if="store.currentProject.estimatedSellPriceSource" class="text-[10px] text-slate-600 mt-0.5">
+            <p v-if="store.currentProject.estimatedSellPriceSource" class="text-xs text-slate-600 mt-0.5">
               {{ store.currentProject.estimatedSellPriceSource === 'jita' ? 'Jita' : t('industry.costs.structure') }}
             </p>
           </div>

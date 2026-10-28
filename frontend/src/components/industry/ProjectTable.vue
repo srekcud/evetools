@@ -337,7 +337,7 @@ function formatRootProducts(project: IndustryProject): string {
                 <div class="flex items-center gap-2">
                   <span class="text-cyan-400 hover:text-cyan-300 font-medium">{{ projectDisplayName(project) }}</span>
                   <span v-if="project.name" class="text-slate-500 text-xs">({{ typeNameLabel(project.productTypeName, project.productTypeId) }})</span>
-                  <span v-if="project.isT2" class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded">T2</span>
+                  <span v-if="project.isT2" class="text-xs font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded">T2</span>
                 </div>
               </template>
             </button>
@@ -605,11 +605,11 @@ function formatRootProducts(project: IndustryProject): string {
         <span>= {{ t('industry.table.legendEditableDesc') }}</span>
       </div>
       <div class="flex items-center gap-2">
-        <span class="italic text-slate-500 text-[11px]"><span class="text-[9px] uppercase tracking-wide text-slate-600 not-italic">est.</span>value</span>
+        <span class="italic text-slate-500 text-xs"><span class="text-[9px] uppercase tracking-wide text-slate-600 not-italic">est.</span>value</span>
         <span>= {{ t('industry.table.legendEstimatedDesc') }}</span>
       </div>
       <div class="flex items-center gap-2">
-        <span class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded">T2</span>
+        <span class="text-xs font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded">T2</span>
         <span>= {{ t('industry.table.legendT2Desc') }}</span>
       </div>
     </div>

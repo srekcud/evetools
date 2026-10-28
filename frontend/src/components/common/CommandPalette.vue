@@ -250,12 +250,12 @@ function onKeydown(event: KeyboardEvent): void {
               @click="goTo(project.route)"
             >
               <span class="truncate">{{ project.label }}</span>
-              <span class="shrink-0 text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded-sm">
+              <span class="shrink-0 text-xs font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded-sm">
                 {{ project.origin === 'industry' ? t('nav.industry') : t('nav.groupIndustry') }}
               </span>
               <span
                 v-if="project.isCompleted"
-                class="shrink-0 text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-sm"
+                class="shrink-0 text-xs font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-sm"
               >
                 {{ t('commandPalette.projects.completed') }}
               </span>
@@ -292,7 +292,7 @@ function onKeydown(event: KeyboardEvent): void {
                   @click.stop="runTypeAction(action, result)"
                 >
                   <span>{{ t(`commandPalette.types.actions.${action.id}`) }}</span>
-                  <kbd class="font-mono text-[10px] text-slate-400">{{ action.key }}</kbd>
+                  <kbd class="font-mono text-xs text-slate-400">{{ action.key }}</kbd>
                 </button>
               </div>
             </div>

@@ -112,7 +112,7 @@ function visDescFor(vis: string): string {
                 </span>
                 <div class="flex-1 min-w-0">
                   <p class="text-sm font-medium">{{ visTitleFor(vis) }}</p>
-                  <p class="text-[10px]" :class="escalation.visibility === vis ? 'opacity-70' : 'text-slate-500'">{{ visDescFor(vis) }}</p>
+                  <p class="text-xs" :class="escalation.visibility === vis ? 'opacity-70' : 'text-slate-500'">{{ visDescFor(vis) }}</p>
                 </div>
                 <!-- Checkmark for active -->
                 <svg v-if="escalation.visibility === vis" class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>

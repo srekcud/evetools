@@ -156,7 +156,7 @@ function onDeleteTarget(targetId: string): void {
                   v-if="item.locations?.length > 0"
                   class="hidden group-hover/loc:block absolute bottom-full left-0 mb-1 z-50 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-2.5 min-w-[200px] max-w-[300px]"
                 >
-                  <p class="text-[10px] text-slate-400 uppercase tracking-wider mb-1.5">{{ t('industry.stockpile.locationBreakdown') }}</p>
+                  <p class="text-xs text-slate-400 uppercase tracking-wider mb-1.5">{{ t('industry.stockpile.locationBreakdown') }}</p>
                   <div
                     v-for="loc in item.locations"
                     :key="loc.locationId"

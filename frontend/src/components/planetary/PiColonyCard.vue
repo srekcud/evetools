@@ -63,7 +63,7 @@ defineEmits<{
               <span class="text-white font-semibold text-[15px]">
                 {{ colony.planetName || `${colony.solarSystemName || t('pi.colony.unknown')} ${colony.planetId}` }}
               </span>
-              <span :class="['text-[10px] px-1.5 py-0.5 rounded-full font-medium uppercase tracking-wider border',
+              <span :class="['text-xs px-1.5 py-0.5 rounded-full font-medium uppercase tracking-wider border',
                 getPlanetConfig(colony.planetType).badgeBg,
                 getPlanetConfig(colony.planetType).badgeText,
                 getPlanetConfig(colony.planetType).badgeBorder
@@ -133,9 +133,9 @@ defineEmits<{
 
         <!-- Last update -->
         <div class="text-right min-w-[100px]">
-          <div class="text-xs text-slate-500">MAJ {{ formatTimeSince(colony.cachedAt) }}</div>
+          <div class="text-table-cell text-slate-500">MAJ {{ formatTimeSince(colony.cachedAt) }}</div>
           <div v-if="isStaleData(colony.cachedAt)" class="mt-0.5">
-            <span class="stale-badge text-[10px] text-slate-900 px-1.5 py-0.5 rounded-full font-medium">{{ t('pi.colony.stale') }}</span>
+            <span class="stale-badge text-xs text-slate-900 px-1.5 py-0.5 rounded-full font-medium">{{ t('pi.colony.stale') }}</span>
           </div>
         </div>
 
@@ -179,17 +179,17 @@ defineEmits<{
                   </div>
                   <div>
                     <span class="text-white text-sm font-medium">{{ pin.extractorProductTypeId !== null ? typeNameLabel(pin.extractorProductName, pin.extractorProductTypeId) : typeNameLabel(pin.typeName, pin.typeId) }}</span>
-                    <div class="text-[10px] text-slate-500">{{ t('pi.colony.extractionUnit') }}</div>
+                    <div class="text-xs text-slate-500">{{ t('pi.colony.extractionUnit') }}</div>
                   </div>
                 </div>
                 <div class="text-right">
                   <div :class="['font-mono-tech text-lg font-bold', getTimerColorClasses(getTimerInfo(pin.expiryTime).status).text]">
                     {{ getTimerInfo(pin.expiryTime).formatted }}
                   </div>
-                  <div class="text-[10px] text-slate-500">{{ t('common.time.remaining') }}</div>
+                  <div class="text-xs text-slate-500">{{ t('common.time.remaining') }}</div>
                 </div>
               </div>
-              <div class="grid grid-cols-3 gap-2 text-xs">
+              <div class="grid grid-cols-3 gap-2 text-table-cell">
                 <div class="bg-slate-800/50 rounded-sm px-2 py-1.5">
                   <span class="text-slate-500 block">{{ t('pi.colony.cycle') }}</span>
                   <span class="text-white font-medium">{{ formatCycleTime(pin.extractorCycleTime) }}</span>
@@ -203,7 +203,7 @@ defineEmits<{
                   <span class="text-white font-medium">{{ pin.extractorNumHeads ?? '-' }}</span>
                 </div>
               </div>
-              <div class="mt-2 flex items-center justify-between text-xs">
+              <div class="mt-2 flex items-center justify-between text-table-cell">
                 <span class="text-slate-500">{{ t('pi.colony.initialRate') }}</span>
                 <span class="text-cyan-400 font-medium">{{ formatDailyOutput(pin) }}</span>
               </div>
@@ -223,7 +223,7 @@ defineEmits<{
             <DataTable>
               <table class="w-full text-sm">
                 <thead>
-                  <tr class="text-[10px] text-slate-500 uppercase tracking-wider border-b border-slate-700/30">
+                  <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-700/30">
                     <th class="text-left px-3 py-2 font-medium">{{ t('pi.colony.schema') }}</th>
                     <th class="text-left px-3 py-2 font-medium">{{ t('pi.colony.inputs') }}</th>
                     <th class="text-left px-3 py-2 font-medium">{{ t('pi.colony.output') }}</th>
@@ -233,7 +233,7 @@ defineEmits<{
                 <tbody class="divide-y divide-slate-700/20">
                   <tr v-for="pin in getFactoryPins(colony)" :key="pin.pinId" class="hover:bg-slate-700/20">
                     <td class="px-3 py-2 text-white font-medium">{{ pin.schematicName || typeNameLabel(pin.typeName, pin.typeId) }}</td>
-                    <td class="px-3 py-2 text-slate-400 text-xs">
+                    <td class="px-3 py-2 text-slate-400 text-table-cell">
                       <template v-if="pin.schematicInputs && pin.schematicInputs.length > 0">
                         {{ pin.schematicInputs.map(i => `${formatNumber(i.quantity, 0)} ${typeNameLabel(i.typeName, i.typeId)}`).join(' + ') }}
                       </template>
@@ -246,14 +246,14 @@ defineEmits<{
                             TIER_CONFIG[pin.outputTier]?.badgeBg, TIER_CONFIG[pin.outputTier]?.badgeText, TIER_CONFIG[pin.outputTier]?.badgeBorder]">
                             {{ pin.outputTier }}
                           </span>
-                          <span :class="['text-xs', pin.outputTier ? TIER_CONFIG[pin.outputTier]?.badgeText || 'text-white' : 'text-white']">
+                          <span :class="['text-table-cell', pin.outputTier ? TIER_CONFIG[pin.outputTier]?.badgeText || 'text-white' : 'text-white']">
                             {{ formatNumber(pin.schematicOutput.quantity, 0) }} {{ typeNameLabel(pin.schematicOutput.typeName, pin.schematicOutput.typeId) }}
                           </span>
                         </div>
                       </template>
                       <span v-else class="text-slate-500 text-xs">-</span>
                     </td>
-                    <td class="px-3 py-2 text-right text-slate-400 text-xs font-mono-tech tabular-nums">
+                    <td class="px-3 py-2 text-right text-slate-400 text-table-cell font-mono-tech tabular-nums">
                       {{ formatCycleTime(pin.schematicCycleTime) }}
                     </td>
                   </tr>
@@ -291,7 +291,7 @@ defineEmits<{
                     </span>
                   </div>
                   <div class="text-right flex items-center gap-3">
-                    <span class="text-slate-500 text-xs font-mono-tech">{{ formatNumber(prod.dailyQuantity, 0) }}/j</span>
+                    <span class="text-slate-500 text-table-cell font-mono-tech">{{ formatNumber(prod.dailyQuantity, 0) }}/j</span>
                     <span class="text-cyan-400 text-sm font-medium font-mono-tech min-w-[70px] text-right">
                       {{ prod.dailyIskValue > 0 ? formatIsk(prod.dailyIskValue) : '-' }}
                     </span>
@@ -325,7 +325,7 @@ defineEmits<{
                 <!-- Pin header -->
                 <div class="px-3 py-2 flex items-center justify-between">
                   <span class="text-slate-300 text-sm font-medium">{{ typeNameLabel(storagePin.typeName, storagePin.typeId) }}</span>
-                  <span v-if="storagePin.capacity" class="text-[10px] text-slate-500 font-mono-tech">
+                  <span v-if="storagePin.capacity" class="text-table-cell text-slate-500 font-mono-tech">
                     {{ t('pi.colony.capacity', { value: formatNumber(storagePin.capacity, 0) }) }}
                   </span>
                 </div>
@@ -336,7 +336,7 @@ defineEmits<{
                     <div class="px-3 pb-3 space-y-2">
                       <!-- Incoming flows -->
                       <div v-if="flowData.incoming.length > 0" class="space-y-1">
-                        <div class="flex items-center gap-1.5 text-[10px] text-emerald-400/70 uppercase tracking-wider font-medium">
+                        <div class="flex items-center gap-1.5 text-xs text-emerald-400/70 uppercase tracking-wider font-medium">
                           <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                           </svg>
@@ -345,7 +345,7 @@ defineEmits<{
                         <div
                           v-for="flow in flowData.incoming"
                           :key="'in-' + flow.contentTypeId"
-                          class="flex items-center justify-between pl-4 text-xs"
+                          class="flex items-center justify-between pl-4 text-table-cell"
                         >
                           <span class="text-emerald-400">{{ typeNameLabel(flow.contentTypeName, flow.contentTypeId) }}</span>
                           <div class="flex items-center gap-3 text-slate-400 font-mono-tech">
@@ -359,7 +359,7 @@ defineEmits<{
 
                       <!-- Outgoing flows -->
                       <div v-if="flowData.outgoing.length > 0" class="space-y-1">
-                        <div class="flex items-center gap-1.5 text-[10px] text-amber-400/70 uppercase tracking-wider font-medium">
+                        <div class="flex items-center gap-1.5 text-xs text-amber-400/70 uppercase tracking-wider font-medium">
                           <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
                           </svg>
@@ -368,7 +368,7 @@ defineEmits<{
                         <div
                           v-for="flow in flowData.outgoing"
                           :key="'out-' + flow.contentTypeId"
-                          class="flex items-center justify-between pl-4 text-xs"
+                          class="flex items-center justify-between pl-4 text-table-cell"
                         >
                           <span class="text-amber-400">{{ typeNameLabel(flow.contentTypeName, flow.contentTypeId) }}</span>
                           <div class="flex items-center gap-3 text-slate-400 font-mono-tech">
@@ -391,7 +391,7 @@ defineEmits<{
                       <!-- Net flow summary -->
                       <div
                         v-if="flowData.incoming.length > 0 || flowData.outgoing.length > 0"
-                        class="border-t border-slate-700/30 pt-2 mt-1 flex items-center justify-between text-xs"
+                        class="border-t border-slate-700/30 pt-2 mt-1 flex items-center justify-between text-table-cell"
                       >
                         <span class="text-slate-500">{{ t('pi.colony.netFlow') }}</span>
                         <div class="flex items-center gap-3">

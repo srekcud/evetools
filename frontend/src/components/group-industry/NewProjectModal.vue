@@ -372,7 +372,7 @@ function handleClose() {
                   <span class="text-slate-200">{{ result.typeName }}</span>
                   <span
                     v-if="result.isT2"
-                    class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-sm"
+                    class="text-xs font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-sm"
                   >T2</span>
                 </button>
               </div>
@@ -411,7 +411,7 @@ function handleClose() {
               {{ t('groupIndustry.modals.newProject.addToList') }}
             </button>
           </div>
-          <div class="flex gap-10 mt-1.5 ml-0 text-[10px] text-slate-600 uppercase tracking-wider">
+          <div class="flex gap-10 mt-1.5 ml-0 text-xs text-slate-600 uppercase tracking-wider">
             <span class="flex-1 pl-4">{{ t('groupIndustry.modals.newProject.columnItem') }}</span>
             <span class="w-16 text-center">ME</span>
             <span class="w-16 text-center">TE</span>

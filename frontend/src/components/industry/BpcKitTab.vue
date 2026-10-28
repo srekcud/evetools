@@ -333,7 +333,7 @@ onMounted(() => {
                       </span>
                       <span
                         v-if="isBestOption(option)"
-                        class="text-[10px] uppercase tracking-wider px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-sm font-semibold"
+                        class="text-xs uppercase tracking-wider px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-sm font-semibold"
                       >
                         {{ t('industry.bpcKitTab.best') }}
                       </span>

@@ -602,7 +602,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
             >
               <span class="flex-1 text-slate-200">
                 {{ product.typeName }}
-                <span v-if="product.isT2" class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-sm ml-1">T2</span>
+                <span v-if="product.isT2" class="text-xs font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-sm ml-1">T2</span>
               </span>
               <div class="flex items-center gap-1">
                 <input

@@ -283,7 +283,7 @@ const allButtonLabel = computed(() => {
         <!-- Category Filter Pills -->
         <div v-if="marketStore.rootGroups.length > 0" class="flex flex-wrap items-center gap-1.5 mb-5">
           <button
-            class="shrink-0 px-2 py-1 rounded-md text-[11px] font-medium transition-colors"
+            class="shrink-0 px-2 py-1 rounded-md text-xs font-medium transition-colors"
             :class="allButtonClasses"
             @click="marketStore.resetGroupFilters()"
           >
@@ -292,7 +292,7 @@ const allButtonLabel = computed(() => {
           <button
             v-for="group in marketStore.rootGroups"
             :key="group.id"
-            class="shrink-0 px-2 py-1 rounded-md text-[11px] font-medium transition-colors whitespace-nowrap"
+            class="shrink-0 px-2 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap"
             :class="categoryPillClasses(group.id)"
             @click="marketStore.includedGroupId === group.id ? marketStore.setIncludedGroup(null) : marketStore.setIncludedGroup(group.id)"
             @contextmenu.prevent="marketStore.toggleGroupExclusion(group.id)"

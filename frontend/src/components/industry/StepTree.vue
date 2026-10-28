@@ -535,7 +535,7 @@ function mergeGroup(stepId: string) {
                 <!-- Facility delta: suboptimal structure -->
                 <span
                   v-if="splitGroup.facilityInfoType === 'suboptimal'"
-                  class="text-xs text-amber-400 flex items-center gap-1"
+                  class="text-body text-amber-400 flex items-center gap-1"
                 >
                   {{ t('industry.stepTree.bestStructure', { name: splitGroup.bestStructureName }) }}
                   ({{ splitGroup.bestMaterialBonus?.toFixed(1) }}%)
@@ -550,7 +550,7 @@ function mergeGroup(stepId: string) {
                 </span>
               </div>
               <!-- Runs info with breakdown -->
-              <div class="flex items-center gap-3 mt-1 text-xs">
+              <div class="flex items-center gap-3 mt-1 text-table-cell">
                 <span
                   :class="[
                     'font-mono',
@@ -586,7 +586,7 @@ function mergeGroup(stepId: string) {
             <button
               v-if="splitGroup.children.length > 1 && splitGroup.depth > 0 && !readonly"
               @click.stop="mergeGroup(splitGroup.children[0].id)"
-              class="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-sm text-slate-300"
+              class="px-2 py-1 text-table-cell bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-sm text-slate-300"
               :title="t('industry.step.merge')"
             >
               {{ t('industry.step.merge') }}
@@ -605,7 +605,7 @@ function mergeGroup(stepId: string) {
                 @change="toggleAllPurchased(splitGroup.children)"
                 class="w-4 h-4 rounded-sm border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500 focus:ring-offset-slate-900 disabled:cursor-not-allowed"
               />
-              <span class="text-xs text-slate-400">{{ t('industry.step.purchased') }}</span>
+              <span class="text-table-cell text-slate-400">{{ t('industry.step.purchased') }}</span>
             </label>
           </div>
 
@@ -713,7 +713,7 @@ function mergeGroup(stepId: string) {
                   <!-- Structure display -->
                   <span
                     v-if="step.recommendedStructureName"
-                    class="bg-slate-800/50 border border-slate-700/50 rounded-sm px-2 py-1 text-xs text-slate-400"
+                    class="bg-slate-800/50 border border-slate-700/50 rounded-sm px-2 py-1 text-table-cell text-slate-400"
                     :title="step.recommendedStructureName"
                   >{{ step.recommendedStructureName }} — {{ step.structureBonus }}%</span>
                   <!-- ESI linked indicator with unlink button -->
@@ -739,7 +739,7 @@ function mergeGroup(stepId: string) {
                   </span>
                   <span
                     v-else-if="step.recommendedCharacterName && !step.purchased && !step.inStock"
-                    class="px-2 py-1 rounded-sm text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+                    class="px-2 py-1 rounded-sm text-table-cell bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
                     :title="t('industry.stepTree.recommendedCharacter')"
                   >
                     {{ step.recommendedCharacterName }}
@@ -747,7 +747,7 @@ function mergeGroup(stepId: string) {
                   <!-- Facility info: suboptimal structure -->
                   <span
                     v-if="step.facilityInfoType === 'suboptimal'"
-                    class="text-xs text-amber-400"
+                    class="text-body text-amber-400"
                   >
                     {{ t('industry.stepTree.suboptimal') }} — {{ t('industry.stepTree.better') }} : {{ step.bestStructureName }}
                     ({{ step.bestMaterialBonus?.toFixed(2) }}%)
@@ -770,7 +770,7 @@ function mergeGroup(stepId: string) {
                   </span>
                 </div>
                 <!-- Job info -->
-                <div v-if="step.esiJobId || step.manualJobData" class="flex items-center gap-2 mt-1 text-xs flex-wrap">
+                <div v-if="step.esiJobId || step.manualJobData" class="flex items-center gap-2 mt-1 text-table-cell flex-wrap">
                   <span
                     v-if="step.esiJobsCount && step.esiJobsCount > 1"
                     class="text-slate-600"
@@ -803,7 +803,7 @@ function mergeGroup(stepId: string) {
                 </div>
               </div>
 
-              <span :class="['text-xs px-2 py-1 rounded-sm', stepStatusClass(step)]">
+              <span :class="['text-table-cell px-2 py-1 rounded-sm', stepStatusClass(step)]">
                 {{ stepStatusLabel(step) }}
               </span>
 
@@ -820,7 +820,7 @@ function mergeGroup(stepId: string) {
                   @change="onToggle(step)"
                   class="w-4 h-4 rounded-sm border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500 focus:ring-offset-slate-900 disabled:cursor-not-allowed"
                 />
-                <span class="text-xs text-slate-400">{{ t('industry.step.purchased') }}</span>
+                <span class="text-table-cell text-slate-400">{{ t('industry.step.purchased') }}</span>
               </label>
 
               <!-- Split button with text "Splitter" -->
@@ -861,7 +861,7 @@ function mergeGroup(stepId: string) {
               </template>
 
               <!-- Job cost (ESI cost if linked, otherwise nothing) -->
-              <span v-if="step.esiJobCost" class="text-xs font-mono text-slate-400">
+              <span v-if="step.esiJobCost" class="text-table-cell font-mono text-slate-400">
                 {{ formatIsk(step.esiJobCost) }}
               </span>
 
