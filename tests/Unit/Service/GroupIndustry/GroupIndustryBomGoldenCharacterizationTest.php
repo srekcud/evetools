@@ -1568,6 +1568,80 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         self::assertSame([100, 4_000], [$contributedJob->getRuns(), $contributedJob->getRequiredQuantity()]);
     }
 
+    public function testSplitJobsOfUnequalRunsTakeTheRecordedJobsInDecreasingOrderOfRuns(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 201, 10, 20]]);
+        $remainderJob = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 50, 2_000);
+        $fullJob = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 200, 8_000);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [[101, 4_040], [100, 4_000]],
+            [[$fullJob->getRuns(), $fullJob->getRequiredQuantity()], [$remainderJob->getRuns(), $remainderJob->getRequiredQuantity()]],
+        );
+    }
+
+    public function testSplitJobsRecordedOutOfOrderAreMatchedByRankOfRuns(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 500, 10, 20]]);
+        $shortJob = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 100, 4_000);
+        $longJob = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 300, 12_000);
+        $middleJob = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 200, 8_000);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [[166, 6_640], [167, 6_680], [167, 6_680]],
+            [
+                [$shortJob->getRuns(), $shortJob->getRequiredQuantity()],
+                [$longJob->getRuns(), $longJob->getRequiredQuantity()],
+                [$middleJob->getRuns(), $middleJob->getRequiredQuantity()],
+            ],
+        );
+        self::assertCount(3, $this->jobsOf($project, self::NITROGEN_FUEL_BLOCK, 'manufacturing'));
+    }
+
+    public function testFewerSplitJobsOfEqualRunsAndNoContributionKeepTheJobWithTheLowestIdentifier(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 100, 10, 20]]);
+        $highIdentifierJob = $this->recordedJobLineWithIdentifier($project, '00000000-0000-4000-8000-000000000002', 125, 5_000);
+        $lowIdentifierJob = $this->recordedJobLineWithIdentifier($project, '00000000-0000-4000-8000-000000000001', 125, 5_000);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame($this->idsOf([$lowIdentifierJob]), $this->idsOf($this->jobsOf($project, self::NITROGEN_FUEL_BLOCK, 'manufacturing')));
+        self::assertSame([100, 4_000], [$lowIdentifierJob->getRuns(), $lowIdentifierJob->getRequiredQuantity()]);
+        self::assertFalse($project->getBomItems()->contains($highIdentifierJob));
+    }
+
+    public function testFewerSplitJobsOfEqualRunsKeepTheJobThatHasAContributionBeforeTheLowestIdentifier(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 100, 10, 20]]);
+        $lowIdentifierJob = $this->recordedJobLineWithIdentifier($project, '00000000-0000-4000-8000-000000000001', 125, 5_000);
+        $contributedJob = $this->recordedJobLineWithIdentifier($project, '00000000-0000-4000-8000-000000000002', 125, 5_000);
+        $this->contribution($project, new GroupIndustryProjectMember(), $contributedJob, ContributionType::JobInstall, 125, ContributionStatus::Approved);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame($this->idsOf([$contributedJob]), $this->idsOf($this->jobsOf($project, self::NITROGEN_FUEL_BLOCK, 'manufacturing')));
+        self::assertFalse($project->getBomItems()->contains($lowIdentifierJob));
+    }
+
+    public function testFewerSplitJobsMatchTheLongestRecordedJobBeforeTheJobThatHasAContribution(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 100, 10, 20]]);
+        $longJob = $this->recordedJobLineWithIdentifier($project, '00000000-0000-4000-8000-000000000002', 200, 8_000);
+        $contributedShortJob = $this->recordedJobLineWithIdentifier($project, '00000000-0000-4000-8000-000000000001', 50, 2_000);
+        $this->contribution($project, new GroupIndustryProjectMember(), $contributedShortJob, ContributionType::JobInstall, 50, ContributionStatus::Approved);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame($this->idsOf([$longJob, $contributedShortJob]), $this->idsOf($this->jobsOf($project, self::NITROGEN_FUEL_BLOCK, 'manufacturing')));
+        self::assertSame([100, 4_000], [$longJob->getRuns(), $longJob->getRequiredQuantity()]);
+        self::assertSame([50, 2_000], [$contributedShortJob->getRuns(), $contributedShortJob->getRequiredQuantity()]);
+    }
+
     public function testMoreSplitJobsKeepTheRecordedJobAndCreateTheMissingOne(): void
     {
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 250, 10, 20]]);
@@ -2040,6 +2114,14 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
             ->setTeLevel($te)
             ->setRuns($runs);
         $project->addBomItem($line);
+
+        return $line;
+    }
+
+    private function recordedJobLineWithIdentifier(GroupIndustryProject $project, string $identifier, int $runs, int $requiredQuantity): GroupIndustryBomItem
+    {
+        $line = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, $runs, $requiredQuantity);
+        (new \ReflectionProperty(GroupIndustryBomItem::class, 'id'))->setValue($line, Uuid::fromString($identifier));
 
         return $line;
     }

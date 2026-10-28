@@ -238,6 +238,24 @@ final class GroupIndustryContainerServiceTest extends TestCase
         );
     }
 
+    public function testItemSeenUnderTwoContainersIsCountedOnceAndTheItemsAfterItAreStillCounted(): void
+    {
+        $firstBuild = $this->containerInHangar(self::CONTAINER_NAME, 'CorpSAG1');
+        $secondBuild = $this->containerInHangar(self::CONTAINER_NAME, 'CorpSAG2');
+        $tritaniumItemId = $this->cache(self::TRITANIUM, 120, $secondBuild, 'Unlocked', null, self::CORPORATION_ID);
+        $this->storeAgainInside($tritaniumItemId, $firstBuild, self::TRITANIUM, 120);
+        $this->storeInside($firstBuild, self::PYERITE, 450);
+        $this->allowDivisions(1, 2);
+
+        self::assertSame(
+            [
+                [self::TRITANIUM, 500, 120, 'partial', null],
+                [self::PYERITE, 800, 450, 'partial', null],
+            ],
+            $this->verificationOf($this->projectUsingContainer(self::CONTAINER_NAME)),
+        );
+    }
+
     public function testOnlyTheContentsOfTheNamedContainerAreCounted(): void
     {
         $this->storeInHangar(self::TRITANIUM, 900);
@@ -583,6 +601,22 @@ final class GroupIndustryContainerServiceTest extends TestCase
     private function storeInside(int $containerItemId, int $typeId, int $quantity, int $corporationId = self::CORPORATION_ID): void
     {
         $this->cache($typeId, $quantity, $containerItemId, 'Unlocked', null, $corporationId);
+    }
+
+    private function storeAgainInside(int $itemId, int $containerItemId, int $typeId, int $quantity): void
+    {
+        $this->cachedAssets[] = (new CachedAsset())
+            ->setItemId($itemId)
+            ->setTypeId($typeId)
+            ->setTypeName(self::TYPE_NAMES[$typeId])
+            ->setQuantity($quantity)
+            ->setLocationId($containerItemId)
+            ->setLocationName('Jita IV - Moon 4 - Caldari Navy Assembly Plant')
+            ->setLocationType('item')
+            ->setLocationFlag('Unlocked')
+            ->setItemName(null)
+            ->setCorporationId(self::CORPORATION_ID)
+            ->setIsCorporationAsset(true);
     }
 
     private function storeInHangar(int $typeId, int $quantity): void
