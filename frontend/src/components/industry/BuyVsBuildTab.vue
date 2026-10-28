@@ -8,7 +8,10 @@ import { useEveImages } from '@/composables/useEveImages'
 import { useFavoriteSystems } from '@/composables/useFavoriteSystems'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { useUnknownInstallCostReasons } from '@/composables/useUnknownInstallCostReasons'
+import { usePartialPriceCoverages } from '@/composables/usePartialPriceCoverages'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
+import PartialPriceMarker from '@/components/industry/PartialPriceMarker.vue'
+import PartialPriceNotice from '@/components/industry/PartialPriceNotice.vue'
 import type { BuyVsBuildComponent, ProductionCostUnknownReason } from '@/stores/industry/types'
 
 const props = defineProps<{
@@ -65,6 +68,18 @@ const loading = computed(() => scannerStore.buyVsBuildLoading)
 const error = computed(() => scannerStore.buyVsBuildError)
 
 const unknownInstallCostReasons = useUnknownInstallCostReasons(() => result.value?.missingData ?? [])
+
+const partialPriceCoverages = usePartialPriceCoverages(() => result.value?.warnings ?? [])
+
+const componentTypeNames = computed((): Map<number, string> => {
+  const names = new Map<number, string>()
+  for (const component of result.value?.components ?? []) {
+    for (const named of [component, ...component.buildMaterials]) {
+      if (named.typeName != null) names.set(named.typeId, named.typeName)
+    }
+  }
+  return names
+})
 
 const unknownCostReasons = computed((): ProductionCostUnknownReason[] => {
   if (!result.value) return []
@@ -419,6 +434,8 @@ const SUMMARY_LIST_LIMIT = 5
         </ul>
       </div>
 
+      <PartialPriceNotice :coverages="partialPriceCoverages" :type-names="componentTypeNames" />
+
       <!-- Stage Filter Tabs -->
       <div class="flex items-center justify-between flex-wrap gap-3">
         <div class="flex gap-2">
@@ -563,7 +580,10 @@ const SUMMARY_LIST_LIMIT = 5
                   <div class="space-y-1 text-table-cell">
                     <div v-if="comp.buyCostJita != null" class="flex justify-between text-slate-400">
                       <span>{{ t('industry.scanner.buyVsBuild.jitaSell') }}</span>
-                      <span class="font-mono text-slate-300">{{ formatIsk(comp.buyCostJita / comp.quantity, 2) }} /u</span>
+                      <span class="font-mono text-slate-300">
+                        {{ formatIsk(comp.buyCostJita / comp.quantity, 2) }} /u
+                        <PartialPriceMarker :percent="comp.buyCostJitaCoveragePercent" />
+                      </span>
                     </div>
                     <div v-if="comp.buyCostStructure != null" class="flex justify-between text-slate-400">
                       <span>{{ t('industry.scanner.buyVsBuild.structureSell') }}</span>

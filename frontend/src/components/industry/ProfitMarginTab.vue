@@ -9,7 +9,10 @@ import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { useFavoriteSystems } from '@/composables/useFavoriteSystems'
 import { useUnknownInstallCostReasons } from '@/composables/useUnknownInstallCostReasons'
+import { usePartialPriceCoverages } from '@/composables/usePartialPriceCoverages'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
+import PartialPriceMarker from '@/components/industry/PartialPriceMarker.vue'
+import PartialPriceNotice from '@/components/industry/PartialPriceNotice.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import CostSummaryCards from '@/components/industry/profit/CostSummaryCards.vue'
 import VenueComparisonTable from '@/components/industry/profit/VenueComparisonTable.vue'
@@ -58,6 +61,12 @@ const isT2 = computed(() => selectedProduct.value?.isT2 ?? false)
 const favoriteSystems = useFavoriteSystems()
 
 const unknownInstallCostReasons = useUnknownInstallCostReasons(() => result.value?.missingData ?? [])
+
+const partialPriceCoverages = usePartialPriceCoverages(() => result.value?.warnings ?? [])
+
+const materialTypeNames = computed((): Map<number, string> => {
+  return new Map((result.value?.materials ?? []).map(material => [material.typeId, material.typeName]))
+})
 
 const productionCostUnknownReasons = computed((): ProductionCostUnknownReason[] => {
   if (!result.value) return []
@@ -529,6 +538,8 @@ store.fetchUserSettings()
         :best-venue-label="bestVenueLabel"
       />
 
+      <PartialPriceNotice :coverages="partialPriceCoverages" :type-names="materialTypeNames" />
+
       <!-- SECTION C: Sell Price Comparison Table -->
       <VenueComparisonTable
         v-if="sellRows.length > 0"
@@ -607,7 +618,10 @@ store.fetchUserSettings()
                 </td>
                 <td class="py-2.5 px-3 text-right font-mono text-slate-300 tabular-nums">{{ mat.quantity.toLocaleString() }}</td>
                 <td class="py-2.5 px-3 text-right font-mono text-slate-400 tabular-nums">{{ formatAmount(mat.unitPrice, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</td>
-                <td class="py-2.5 px-4 text-right font-mono text-slate-200 tabular-nums">{{ formatAmount(mat.totalPrice, { maximumFractionDigits: 0 }) }}</td>
+                <td class="py-2.5 px-4 text-right font-mono text-slate-200 tabular-nums">
+                  {{ formatAmount(mat.totalPrice, { maximumFractionDigits: 0 }) }}
+                  <PartialPriceMarker :percent="partialPriceCoverages.get(mat.typeId)" />
+                </td>
               </tr>
               <!-- Collapsed items hint -->
               <tr v-if="hiddenMaterialsCount > 0 && !materialsExpanded" class="hover:bg-slate-800/50">
