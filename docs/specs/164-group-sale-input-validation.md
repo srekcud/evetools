@@ -1,8 +1,8 @@
 # Spec #164 — Saisies Group Industry validées (items, ventes), vente corrigeable et supprimable
 
-Statut : **brouillon, rédigé sans Sylvain**. Les réponses recommandées sont appliquées dans la spec ; elles ne valent qu'après validation des questions de la section finale.
+Statut : **brouillon, rédigé sans Sylvain**, sauf Q5 (borne haute, recouvre #257) **tranchée par Sylvain le 2026-10-29** (voir « Décisions de Sylvain »). Les réponses recommandées des autres questions sont appliquées dans la spec ; elles ne valent qu'après validation des questions de la section finale.
 
-**Périmètre de la boucle de nuit du 2026-10-28.** Les ventes (R2 à R9, S1 à S17, correction et suppression) restent dans le lot. Pour les items, R1 est réduit aux contraintes de forme et aux bornes basses (`runs` ≥ 1, `meLevel` 0 à 10, `teLevel` 0 à 20). **La borne haute des runs (Q5, recouvre #257) est hors lot, en attente de la décision de Sylvain** : depuis #141, le plafond SDE vaut 1 pour Fenrir, Widow, Nomad et Marshal, donc une ligne de BOM par run, et la borne 1 à 100 000 du projet solo ne convient pas à Group Industry.
+**Périmètre.** Les ventes (R2 à R9, S1 à S17, correction et suppression) et les items (R1 : forme, bornes basses `runs` ≥ 1, `meLevel` 0 à 10, `teLevel` 0 à 20) sont dans le lot, ainsi que la borne haute portée sur le **nombre de lignes de BOM produites par le plan** (R10, #257). Depuis #141, le plafond SDE vaut 1 pour Fenrir, Widow, Nomad et Marshal (par exemple `maxProductionLimit` 1 pour Fenrir, `tests/Fixtures/Golden/sde-blueprint-recipes.json:727`), donc une ligne de job par run : la borne 1 à 100 000 du projet solo ne convient pas à Group Industry, et une borne sur les runs ne dit rien du nombre de lignes écrites.
 
 ## Contexte
 
@@ -25,7 +25,7 @@ Faits vérifiés dans le code au 2026-10-28 (les numéros de ligne de l'issue so
   - `typeName` : chaîne non vide, 255 caractères au plus ;
   - `meLevel` : de 0 à 10 ;
   - `teLevel` : de 0 à 20 ;
-  - `runs` : entier ≥ 1, **sans borne haute** (hors lot, Q5).
+  - `runs` : entier ≥ 1, **aucune contrainte Symfony haute** : la borne haute porte sur les lignes de BOM du plan (R10), pas sur les runs. `CreateGroupProjectInput` n'a donc pas besoin de borne haute (`CreateGroupProjectInput.php:30`, `GreaterThanOrEqual(1)` seul).
 
   Les contraintes sont des contraintes Symfony sur `CreateGroupProjectInput::$items`. Toute violation renvoie 422, avec le chemin de l'item (`items[1][runs]`). Aucun projet n'est créé et aucune BOM n'est calculée. Elles valent pour tous les items, y compris une réaction dont le noyau ignorerait ME et TE : un ME de 11 sur une réaction passe donc de « accepté, ignoré » à 422.
 
@@ -53,6 +53,14 @@ Faits vérifiés dans le code au 2026-10-28 (les numéros de ligne de l'issue so
   - `groupProjectRefreshes.ts` associe `sale_updated` et `sale_deleted` à `['sales', 'distribution']`.
   - Les erreurs 422 s'affichent par le message de `ApiValidationError`.
   - Une maquette `/frontend-design` est à produire avant le développement frontend. Elle ne l'est pas ici : ce lot est limité à `docs/specs/`.
+- **R10 — Borne sur le nombre de lignes de BOM du plan (#257, Q5).**
+  - **Constante** : `MAX_BOM_LINES = 1000`, constante nommée de `GroupIndustryProjectService`. Seuil confirmé par Sylvain le 2026-10-29.
+  - **Mesure** : le nombre de lignes de BOM que le plan produit, matériaux et jobs (jobs finaux, composants, copies, inventions) : `count($materialAggregation) + count($jobAggregation)`, soit exactement le nombre d'éléments de `$plannedLines` (une ligne par entrée de chacune des deux boucles, `GroupIndustryProjectService.php:122` et `:132`). Un job découpé sous le plafond de blueprint compte une ligne par job (`splitIntoJobs()`, `ProductionPlanner.php:187`, `ceil($runs / plafond)` jobs, plafond lu dans `ProductionPlanning.php:31-35`).
+  - **Où** : dans `buildBom()`, après `replaceT2BlueprintCopiesByInventions()` (`:113`, qui retire des copies et ajoute des inventions, donc change le compte) et **avant** la lecture des prix Jita (`:115-118`) et `reconcileBomLines()` (`:149`). Le plan (`planOf()`, `:100`) est déjà calculé ; rien n'est encore persisté : `createProject()` persiste après `buildBom()` (`:88-89`).
+  - **Refus** : si le nombre dépasse `MAX_BOM_LINES` (strictement : 1000 lignes passent, 1001 non), `\RuntimeException` à message explicite qui donne le nombre produit et la limite, par exemple `The production plan has 100001 BOM lines, the limit is 1000.` `CreateGroupProjectProcessor::process()` convertit en 400 (`catch (\InvalidArgumentException|\RuntimeException)`, `CreateGroupProjectProcessor.php:78-79`), comme les autres erreurs du plan (`planOf()` relance déjà les `\DomainException` en `\RuntimeException`, `:255-256`).
+  - **Rien n'est persisté** : ni projet, ni membre propriétaire, ni items, ni lignes de BOM (aucun `persist()` ni `flush()` avant le refus).
+  - **Aucune contrainte Symfony haute sur `runs`** : la forme (R1) reste en 422, la borne de plan en 400.
+  - **Même règle pour un rebuild** : `buildBom()` est public et passe par la même vérification ; son seul appelant aujourd'hui est `createProject()`.
 
 ## Exemples chiffrés
 
@@ -64,7 +72,7 @@ Item de base : `{typeId: 12005, typeName: "Ishtar", meLevel: 10, teLevel: 20, ru
 |---|---|---|---|
 | I1 | `runs: 0` | 400 (noyau) | 422 sur `items[0][runs]`, rien de persisté |
 | I2 | `runs: -5` | 400 (noyau) | 422 sur `items[0][runs]` |
-| I3 | `runs: 100000` | accepté, sans borne haute | inchangé (borne haute hors lot, Q5) |
+| I3 | `runs: 100000` | accepté par l'input (`CreateGroupProjectInputValidationTest::testItemWithOneHundredThousandRunsCurrentlyPassesTheInputValidationIssue257`) | accepté par l'input (aucune contrainte haute) ; c'est le plan qui juge : voir le tableau « Borne sur les lignes de BOM » (B1) |
 | I4 | `meLevel: 11` | 400 (noyau) pour une fabrication ; accepté, ignoré pour une réaction | 422 sur `items[0][meLevel]` |
 | I5 | `meLevel: -1` | idem | 422 sur `items[0][meLevel]` |
 | I6 | `teLevel: 21` | idem | 422 sur `items[0][teLevel]` |
@@ -78,7 +86,21 @@ Item de base : `{typeId: 12005, typeName: "Ishtar", meLevel: 10, teLevel: 20, ru
 | I14 | collage `Ishtar 12 25 x0` | 400 (noyau), une seule erreur (ME 12) | 422, trois violations : `items[0][meLevel]`, `items[0][teLevel]`, `items[0][runs]` |
 | I15 | deux items du même produit au même ME/TE, `runs: 5` puis `runs: 0` | accepté : les runs se somment (`targetsOf()` `:173-175`), l'item à 0 run est enregistré | 422 sur `items[1][runs]`, aucun projet créé |
 
-### Saisie d'une vente (`POST …/sales`, par un admin, projet `selling`)
+### Borne sur les lignes de BOM (R10, `MAX_BOM_LINES = 1000`)
+
+`createProject()` / `buildBom()`, au-delà de la forme (R1) : le refus est un 400 par `\RuntimeException`, jamais un 422.
+
+| # | Item | Lignes de BOM du plan | Attendu |
+|---|---|---|---|
+| B1 | Fenrir (plafond 1, `sde-blueprint-recipes.json:723-727`), `runs: 100000`, ME 10, TE 20 | au moins 100 000 (une ligne par job final) ; total exact non calculé | refusé : `\RuntimeException` « …has N BOM lines, the limit is 1000 », 400, rien de persisté |
+| B2 | Fenrir, `runs: 1000` | au moins 1 001 (1 000 jobs finaux et au moins un matériau ou composant) | refusé, rien de persisté |
+| B3 | Fenrir, `runs: 1` (garde-fou des tests existants, `GroupIndustryBomGoldenCharacterizationTest.php:1084`) | bien en dessous | accepté |
+| B4 | Nitrogen Fuel Block, plafond forcé à 1, `runs: 989` | 989 jobs + 1 copie + 9 matériaux = 999 | accepté (juste sous la limite) |
+| B5 | idem, `runs: 990` | 1 000 | accepté (exactement à la limite) |
+| B6 | idem, `runs: 991` | 1 001 | refusé, message avec 1001 et 1000, rien de persisté |
+| B7 | Nitrogen Fuel Block, plafond d'origine 200, `runs: 25` | 11 (9 matériaux, 1 copie, 1 job final ; `GroupIndustryBomGoldenCharacterizationTest.php:198-228`, `assertCount(11, …)` à `:228`) | accepté, inchangé |
+
+B4 à B6 : le plafond est forcé par `maxProductionLimitOverrides` (`GroupIndustryBomGoldenCharacterizationTest.php:145`, utilisé à `:1197` par `testBlueprintWithAMaxProductionLimitOfOneBuildsTheBomOfOneRun`). Ce test montre, pour `runs: 1` et plafond 1, une copie, un job final et neuf matériaux (`NITROGEN_FUEL_BLOCK_ONE_RUN_ME_TEN`, `:123`), soit 11 lignes ; `testTwoHundredFiftyRuns…` (`:232-250`) montre que la copie reste une seule ligne quand le job est découpé. Le compte `runs + 10` est la généralisation à `runs` jobs d'un run (`splitIntoJobs()`) : **déduit, non exécuté** (PHP absent de l'hôte). Le test rouge le confirme par `count($project->getBomItems())` avant de figer les trois valeurs. Les compositions de Fenrir, Widow, Nomad et Marshal (plafond 1) ont toutes des composants fabriqués : aucune n'offre un compte exact à la main, d'où B4 à B6 sur un produit sans composant. B1 et B2 ne donnent qu'un minorant, suffisant pour décider du refus.
 
 Vente de base : `{typeId: 0, typeName: "Ishtar", quantity: 5, unitPrice: 1200000}`. Seul le champ indiqué change.
 
@@ -144,6 +166,9 @@ Montants en ISK, à comparer avec une tolérance (calculs en `float`).
 - **Prix unitaire à 0.** Accepté par l'API comme aujourd'hui ; seul le formulaire le bloque.
 - **`typeId` 0 sur une vente.** C'est le cas de toutes les ventes saisies par le formulaire. Il reste accepté : aucun type n'est inventé, et le nom saisi reste la seule information.
 - **Vente datée dans le futur.** Acceptée : aucune borne de date.
+- **Le refus de R10 arrive après le calcul du plan.** `ProductionPlanning::planOf()` planifie deux fois (sans plafond, un job par produit, puis avec plafond, `ProductionPlanning.php:29` et `:38-41`) et construit tous les `Job` du second plan en mémoire avant que `buildBom()` compte les lignes. R10 protège la base (aucune ligne écrite), pas le processeur ni la mémoire : un item à plafond 1 avec un nombre de runs énorme (aucune contrainte haute sur `runs`) coûte au moins un objet `Job` par run avant d'être refusé. Le coût réel d'un tel plan n'est pas mesuré (inconnu : PHP absent de l'hôte). Si Sylvain veut aussi borner ce coût, il faut une borne avant le plan (sur `runs / plafond`, lisible sans planifier) : décision non prise, hors de cette spec.
+- **Compte par lignes, pas par runs.** 1 000 runs d'un produit à plafond 200 sans composant font quelques lignes ; 1 000 runs d'un produit à plafond 1 en font plus de 1 000. Le même `runs` est donc accepté pour l'un et refusé pour l'autre : c'est voulu (Q5, option B).
+- **Plusieurs items.** Le compte porte sur tout le plan du projet (somme sur les items, composants partagés mis en commun par le planificateur), pas par item.
 
 ## Hors périmètre
 
@@ -158,7 +183,8 @@ Montants en ISK, à comparer avec une tolérance (calculs en `float`).
 ## Fichiers concernés (indicatif)
 
 - Backend :
-  - `CreateGroupProjectInput` (`All` + `Collection` sur `$items`) ;
+  - `CreateGroupProjectInput` (`All` + `Collection` sur `$items`, sans borne haute sur `runs`) ;
+  - `GroupIndustryProjectService` (constante `MAX_BOM_LINES`, vérification dans `buildBom()`, R10) ;
   - `RecordSaleInput` (contraintes de R2) ;
   - nouvel `UpdateSaleInput` ;
   - `GroupIndustrySaleResource` (opérations `Patch` et `Delete`) ;
@@ -172,6 +198,16 @@ Montants en ISK, à comparer avec une tolérance (calculs en `float`).
 
 - `RecordSaleProcessorTest` (deux tests : projet terminé, projet `selling`) : aucun ne fige les 400 de saisie, rien ne casse.
 - `CreateGroupProjectProcessorTest` appelle le processor sans le validator : rien ne casse. Les tests rouges des contraintes suivent le modèle `tests/Unit/ApiResource/Input/Industry/CreateProjectInputValidationTest` (`Validation::createValidatorBuilder()->enableAttributeMapping()`).
+- **`CreateGroupProjectInputValidationTest::testItemWithOneHundredThousandRunsCurrentlyPassesTheInputValidationIssue257`** (`:53-56`, `#[Group('issue-257')]` à `:52`) : à réécrire. Le test fige aujourd'hui l'absence de borne comme un défaut (« Currently… Issue257 »). Avec R10, l'absence de borne haute sur l'input est voulue : il devient `testItemWithOneHundredThousandRunsIsAcceptedByTheInputValidation` (même assertion, `[]`), sans `Currently` et sans `#[Group('issue-257')]` (il garde `issue-164` de la classe). Le refus est testé ailleurs (R10, ci-dessous).
+- **À ajouter pour R10**, dans `GroupIndustryBomGoldenCharacterizationTest` (harnais golden, modèle `inventionFailure()` `:745` pour vérifier que rien n'est persisté) :
+  - B4, B5 : accepté, `count($project->getBomItems())` vaut 999, puis 1000 ;
+  - B6 : `\RuntimeException` dont le message contient `1001` et `1000`, `$persisted` vide, `getBomItems()` vide ;
+  - B2 : refusé (Fenrir, 1 000 runs), message contenant la limite ;
+  - B3 et B7 : acceptés, inchangés (B7 existe déjà) ;
+  - le refus arrive avant la lecture des prix : `JitaMarketService::getCheapestPercentilePrices()` jamais appelé sur B6 ;
+  - un mutant sur `>` / `>=` est tué par B5 et B6 (`make infection`, `FILTER=src/Service/GroupIndustry/GroupIndustryProjectService.php`).
+- **À ajouter** dans `CreateGroupProjectProcessorTest` : un `\RuntimeException` levé par `createProject()` ressort en `BadRequestHttpException` avec le même message (le mapping de `CreateGroupProjectProcessor.php:78-79` n'a aujourd'hui aucun test : aucune occurrence de `RuntimeException` dans ce fichier).
+- B1 (100 000 runs de Fenrir) n'est pas un test unitaire : le coût du plan avant refus n'est pas mesuré (voir « Cas limites »). B2 couvre la même règle à coût borné.
 
 ## Glossaire
 
@@ -180,11 +216,15 @@ Proposé, à ajouter seulement après validation (section « Industrie collabora
 - **Vente** (Sale) : vente d'un produit d'un projet collaboratif, saisie par le propriétaire ou un admin. Elle porte une quantité en unités, un prix unitaire, un lieu libre et une date ; son total vaut quantité × prix unitaire. Les ventes forment le revenu de la distribution. Une vente se corrige et se supprime tant que le projet n'est pas terminé (spec #164). Symboles : `GroupIndustrySale`, `RecordSaleProcessor`, `GroupIndustrySaleResource`.
 - Le `venue` libre d'une vente (« Jita 4-4 ») n'est pas le **Lieu de vente** du glossaire (`jita` ou `structure`, pour le calcul d'une marge). À ne pas fusionner.
 
+## Décisions de Sylvain (2026-10-29)
+
+- **Q5 — Borne haute des items (recouvre #257) : option B, portée sur le nombre de lignes de BOM produites par le plan, pas sur les runs.** La borne 1 à 100 000 du projet solo (`CreateProjectInput::MAXIMUM_PROJECT_RUNS`, `CreateProjectInput.php:11`) ne tient plus depuis #141 : le nombre de lignes de job vaut `ceil(runs / plafond)` par produit, et le plafond SDE vaut 1 pour Fenrir, Widow, Nomad et Marshal, donc 10 items × 100 000 runs pouvaient écrire des millions de lignes (au moins 1 000 000 de jobs finaux). La limite est `MAX_BOM_LINES = 1000`, **seuil confirmé par Sylvain le 2026-10-29** ; le refus est une `\RuntimeException` (400) qui nomme le nombre produit et la limite, rien n'est persisté, et `CreateGroupProjectInput` n'a plus besoin de borne haute sur `runs` (R1, R10).
+
 ## 🚦 Questions pour Sylvain
 
 1. **Qui corrige et supprime une vente ?** Recommandé : le propriétaire ou un admin `accepted`, quel que soit l'auteur de la vente, comme pour l'enregistrement. Les alternatives sont le propriétaire seul (lecture littérale de l'issue) ou l'auteur seul. Oui / non ?
 2. **Projet terminé.** Correction et suppression refusées en 400 sur un projet `completed`, comme l'enregistrement (#152) ? Recommandé : oui.
 3. **Trace des corrections.** Aucune trace en base dans ce lot (pas de migration ; seul l'événement Mercure `sale_updated`) ? Recommandé : oui. Des colonnes `updatedAt` / `updatedBy` demanderaient une migration.
 4. **Format de `soldAt`.** ISO 8601 avec fuseau (`DATE_ATOM`, `Z` accepté), qui refuse la date seule, les millisecondes et les dates relatives ? Recommandé : oui. Un futur sélecteur de date côté frontend convertira dans ce format.
-5. **Bornes des items.** Bornes basses retenues pour la boucle de nuit : `runs` ≥ 1, ME de 0 à 10, TE de 0 à 20 (422), le TE impair restant refusé en 400 par le noyau. **La borne haute des runs est hors lot, en attente de Sylvain** (recouvre #257). La borne 1 à 100 000 du projet solo (`CreateProjectInput::MAXIMUM_PROJECT_RUNS`) ne tient plus depuis #141 : le nombre de lignes de BOM persistées vaut `ceil(runs / plafond)` par produit, et le plafond SDE vaut 1 pour Fenrir, Widow, Nomad et Marshal, donc 10 items × 100 000 runs peuvent écrire 1 000 000 lignes. Options : A borne plus basse (ex. 1 000 runs) ; B borne sur le nombre de lignes de BOM produites. Recommandation : B, à confirmer.
+5. **Bornes basses des items.** `runs` ≥ 1, ME de 0 à 10, TE de 0 à 20 (422), le TE impair restant refusé en 400 par le noyau : recommandation retenue, à relire. La borne haute (recouvre #257) est tranchée, voir « Décisions de Sylvain ».
 6. **Frontend dans ce lot.** Actions « Modifier » et « Supprimer » dans `SalesTable.vue` pour le propriétaire et les admins, avec une maquette avant le développement ? Recommandé : oui. Sans frontend, la correction n'est accessible que par l'API.

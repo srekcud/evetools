@@ -1,6 +1,6 @@
 # Spec #170 — Rôles entre admins, frais par défaut à la création, characterId absent
 
-> Statut : **lot réduit, brouillon**. Le lot garde les rôles entre admins (R1 à R5 : kick, rétrogradation, 403) et `characterId: null` (R9). Les frais par défaut (R6 à R8, exemples F1 à F6, `?? 3.6` et question Q2) sont **hors de ce lot** : renvoyés à la décision de Sylvain (journal de la boucle de nuit du 2026-10-28, « Blocages »), car l'option (b) change les frais affichés des nouveaux projets. Rien n'est implémenté pour les frais tant qu'il n'a pas tranché. Q1, Q3 et Q4 : recommandations retenues.
+> Statut : **brouillon**. Le lot couvre les rôles entre admins (R1 à R5 : kick, rétrogradation, 403), les frais par défaut à la création (R6 à R8, exemples F1 à F8) et `characterId: null` (R9). Q2 (frais) est **tranchée par Sylvain le 2026-10-29** : option (b), voir « Décisions de Sylvain ». Q1, Q3 et Q4 : recommandations retenues.
 
 ## Contexte
 
@@ -9,7 +9,7 @@ L'audit du moteur industrie (2026-10-22) relève quatre écarts dans Group Indus
 | Puce de l'issue | Encore fautif ? | Constat dans le code |
 |---|---|---|
 | Un admin peut rétrograder ou exclure un autre admin | **Oui, en partie** | La promotion en admin est déjà réservée au propriétaire : `UpdateGroupMemberProcessor::process()` répond 403 « Only the project owner can promote members to admin ». En revanche, rien ne regarde le rôle de la cible : un admin passe un autre admin en `member` (PATCH `role: member`), ou le retire par un kick (`KickGroupMemberProcessor::process()`, qui ne refuse que le propriétaire et soi-même). |
-| Frais de 3,6 % codés en dur à la création | **Oui, mais pas « non configurables »** | `CreateGroupProjectProcessor::process()` remplace un frais absent par `?? 3.6` (courtage et taxe de vente). La même valeur est recopiée en défaut de `CreateProjectData` et des propriétés de `GroupIndustryProject`. `NewProjectModal.vue` n'envoie aucun frais : tout projet créé depuis l'interface démarre à 3,6 % / 3,6 %, quels que soient les réglages Industry du propriétaire (`IndustryUserSettings::$brokerFeeRate`, `$salesTaxRate`, en fraction). Les frais restent modifiables après la création : PATCH via `UpdateGroupProjectProcessor`, refusé sur un projet terminé (#152), avec un formulaire dans `GroupIndustryDetail.vue`. |
+| Frais de 3,6 % codés en dur à la création | **Oui, mais pas « non configurables »** | `CreateGroupProjectProcessor::process()` remplace un frais absent par `?? 3.6` (courtage et taxe de vente, `CreateGroupProjectProcessor.php:73-74`). La même valeur est recopiée en défaut de `CreateProjectData` (`:26-27`), de `GroupIndustryProject` (`:58`, `:61`) et de `GroupIndustryProjectResource` (`:138`, `:140`). `NewProjectModal.vue` n'envoie aucun frais (aucune occurrence de `brokerFeePercent` ni `salesTaxPercent` dans ce composant) : tout projet créé depuis l'interface démarre à 3,6 % / 3,6 %, quels que soient les réglages Industry du propriétaire (`IndustryUserSettings::$brokerFeeRate`, `$salesTaxRate`, en fraction). Les frais restent modifiables après la création : PATCH via `UpdateGroupProjectProcessor` (`:80-85`), refusé sur un projet terminé (#152, `:67`), avec un formulaire dans `GroupIndustryDetail.vue` (`:155-156`, `:170-171`). |
 | Un `characterId` absent est remplacé par `0` | **Oui** | `GroupIndustryResourceMapper::memberToResource()` renvoie `CHARACTER_ID_WITHOUT_MAIN_CHARACTER` (= 0) pour un utilisateur sans personnage principal. Il renvoie déjà `null` pour un compte supprimé (#53). |
 | Barème de location de ligne jamais appliqué | Hors périmètre | Suivi dans #45. |
 
@@ -27,11 +27,16 @@ Côté interface, `MemberTable.vue::canManage()` affiche Promote, Demote et Kick
 - **R4 — Une seule règle, au même endroit.** La règle R1 rejoint `GroupProjectAccessChecker` (méthode proposée : `assertCanManageMember(User, GroupIndustryProject, GroupIndustryProjectMember)`), appelée par les deux processors. On reste ainsi dans la ligne de #162.
 - **R5 — Interface alignée** (sous réserve de Q4). Dans `MemberTable.vue`, seul le propriétaire voit Promote, ainsi que Demote et Kick sur une ligne admin. Un admin ne voit Kick que sur une ligne de rôle `member`. Aucun élément visuel n'est ajouté, des boutons sont seulement masqués : pas de maquette. `MemberTable.vue` ne reçoit aujourd'hui que la prop `isAdmin` (valeur `isOwnerOrAdmin` de `GroupIndustryDetail.vue`) : distinguer le propriétaire d'un admin demande une prop de plus (ou `myRole`), détail d'implémentation.
 
-### Frais par défaut à la création (hors lot, en attente de Sylvain)
+### Frais par défaut à la création
 
-- **R6 — Une valeur saisie est gardée.** Un `brokerFeePercent` ou un `salesTaxPercent` envoyé à la création est gardé tel quel, 0 compris. Seul un frais absent (`null`) reçoit une valeur par défaut. C'est déjà le cas.
-- **R7 — Défaut d'un frais absent** (selon Q2, recommandation (b)) : le réglage Industry du propriétaire, converti en pourcents (`rate × 100`, arrondi à 4 décimales). Sans réglage enregistré, la valeur par défaut d'evetools (`EveConstants::DEFAULT_BROKER_FEE_RATE` et `DEFAULT_SALES_TAX_RATE`, 3,6 %). On applique le même ordre que `CreateProjectProcessor::sellTaxRate()` (Industry). Avec l'option (a), le défaut reste 3,6 %, mais lu dans une constante nommée et non plus dans trois littéraux.
-- **R8 — Plus de littéral.** `3.6` n'apparaît plus dans `CreateGroupProjectProcessor`, `CreateProjectData` ni `GroupIndustryProject`. Les trois lisent la même source.
+- **R6 — Une valeur saisie est gardée.** Un `brokerFeePercent` ou un `salesTaxPercent` envoyé à la création est gardé tel quel, 0 compris. Seul un frais absent (`null`) reçoit une valeur par défaut. C'est déjà le cas (`$data->brokerFeePercent ?? 3.6`, `CreateGroupProjectProcessor.php:73`).
+- **R7 — Défaut d'un frais absent : les réglages Industry de l'utilisateur qui crée le projet.** Modèle : `CreateProjectProcessor::sellTaxRate()` (`CreateProjectProcessor.php:133-140`), qui lit `$this->settingsRepository->findOneBy(['user' => $user])` (`IndustryUserSettingsRepository`), puis `$settings?->getBrokerFeeRate() ?? EveConstants::DEFAULT_BROKER_FEE_RATE` et `$settings?->getSalesTaxRate() ?? EveConstants::DEFAULT_SALES_TAX_RATE`. `CreateGroupProjectProcessor` fait la même lecture, pour l'utilisateur connecté (le propriétaire du projet, `createProject($user, …)`), **un frais à la fois** (le modèle additionne les deux, ici on garde chacun), puis convertit la fraction en pourcents : `rate × 100`, arrondi à 4 décimales (`0.036 × 100` vaut `3.5999999999999996` en `float`).
+  - **Réglages présents** : `getBrokerFeeRate()` et `getSalesTaxRate()` donnent le défaut de chaque frais absent.
+  - **Aucun réglage** (aucune ligne `IndustryUserSettings` pour l'utilisateur) : repli sur `EveConstants::DEFAULT_BROKER_FEE_RATE` et `DEFAULT_SALES_TAX_RATE` (`EveConstants.php:12-13`, 0,036 chacune), donc 3,6 % / 3,6 %. **Ce repli est une valeur par défaut documentée d'evetools, pas une donnée ESI manquante remplacée par une valeur plausible** : c'est la valeur « compétences au niveau 0 » (commentaires de `IndustryUserSettings.php:36`, `:40`), déjà utilisée par Profit Margins, Buy vs Build, le scanner et le pivot (`ProfitMarginProvider.php:59-60`, `BuyVsBuildProvider.php:52-53`, `BatchScanProvider.php:59-60`, `PivotAdvisorProvider.php:51-52`). La règle « jamais de valeur par défaut sur une donnée manquante » ne s'applique pas : le réglage n'est pas une mesure, il se définit, et il est lu dans le projet comme tel.
+  - **Réglages « partiels » : le cas n'existe pas.** Les deux colonnes sont non nulles (`IndustryUserSettings.php:37-38`, `:41-42`, getters `float` non nullables `:86-89`, `:97-100`) et la ligne est unique par utilisateur (`:15`). Une ligne porte donc toujours les deux taux ; un taux jamais modifié vaut 0,036. Le seul « partiel » possible est un **corps de requête** qui n'envoie qu'un des deux frais (F6) : le frais envoyé est gardé (R6), l'autre prend son défaut.
+  - Un réglage à 0 est un réglage (F5), pas une absence.
+  - Le front ne change pas : `NewProjectModal.vue` n'envoie toujours aucun frais, le propriétaire corrige ensuite dans le formulaire de `GroupIndustryDetail.vue`.
+- **R8 — Plus de littéral.** `3.6` n'apparaît plus dans `src/` hors `EveConstants` : ni dans `CreateGroupProjectProcessor` (`:73-74`), ni dans `CreateProjectData` (`:26-27`), ni dans `GroupIndustryProject` (`:58`, `:61`), ni dans `GroupIndustryProjectResource` (`:138`, `:140`). Piège : ces défauts sont des expressions constantes, et `EveConstants::DEFAULT_BROKER_FEE_RATE * 100` donnerait `3.5999999999999996`, pas `3.6`. La dérivation en pourcents garde donc le même arrondi à 4 décimales que R7 (ou le défaut est retiré là où aucun appelant ne s'y fie). Le moment de lecture est la création : un projet garde ses frais quand les réglages changent ensuite.
 
 ### characterId d'un membre
 
@@ -58,18 +63,20 @@ Projet `Sabre batch` `in_progress`. P = propriétaire, A et B = admins `accepted
 | R-E11 | M | PATCH B `{role: member}` | 403 « Only project owner or admin can perform this action » | inchangé |
 | R-E12 | A | PATCH P ou DELETE P | 400 « Cannot modify the project owner » / « Cannot kick the project owner » | inchangé |
 
-### Frais par défaut (R6 à R8, option (b)) — hors lot
+### Frais par défaut (R6 à R8)
 
-| # | Réglages Industry du propriétaire | Corps de la création | Aujourd'hui (courtage / taxe) | Attendu (courtage / taxe) |
+| # | Réglages Industry de l'utilisateur | Corps de la création | Aujourd'hui (courtage / taxe) | Attendu (courtage / taxe) |
 |---|---|---|---|---|
-| F1 | aucun `IndustryUserSettings` | sans frais | 3,6 / 3,6 | 3,6 / 3,6 |
-| F2 | `brokerFeeRate` 0,015, `salesTaxRate` 0,045 | sans frais | 3,6 / 3,6 | 1,5 / 4,5 |
-| F3 | `brokerFeeRate` 0,036, `salesTaxRate` 0,036 | sans frais | 3,6 / 3,6 | 3,6 / 3,6 exactement (0,036 × 100 vaut 3,5999999999999996 en float, d'où l'arrondi à 4 décimales) |
-| F4 | `brokerFeeRate` 0,015, `salesTaxRate` 0,045 | `brokerFeePercent` 2,0, `salesTaxPercent` 0 | 2,0 / 0 | 2,0 / 0 (R6) |
-| F5 | `brokerFeeRate` 0, `salesTaxRate` 0,036 | sans frais | 3,6 / 3,6 | 0 / 3,6 (un réglage à 0 est un réglage, pas une absence) |
-| F6 | `brokerFeeRate` 0,014234 | `salesTaxPercent` 3,0 seul | 3,6 / 3,0 | 1,4234 / 3,0 |
+| F1 | **absents** : aucun `IndustryUserSettings` | sans frais | 3,6 / 3,6 | 3,6 / 3,6 (repli sur `EveConstants`, R7) |
+| F2 | **présents** : `brokerFeeRate` 0,015, `salesTaxRate` 0,045 | sans frais | 3,6 / 3,6 | 1,5 / 4,5 |
+| F3 | présents : `brokerFeeRate` 0,036, `salesTaxRate` 0,036 (valeurs par défaut de la ligne) | sans frais | 3,6 / 3,6 | 3,6 / 3,6 exactement (`assertSame(3.6, …)` : 0,036 × 100 vaut 3,5999999999999996 en float, d'où l'arrondi à 4 décimales) |
+| F4 | présents : 0,015 / 0,045 | `brokerFeePercent` 2,0, `salesTaxPercent` 0 | 2,0 / 0 | 2,0 / 0 (R6, les réglages ne servent pas) |
+| F5 | présents : `brokerFeeRate` 0, `salesTaxRate` 0,036 | sans frais | 3,6 / 3,6 | 0 / 3,6 (un réglage à 0 est un réglage, pas une absence) |
+| F6 | présents : `brokerFeeRate` 0,014234, `salesTaxRate` 0,045 | `salesTaxPercent` 3,0 seul (corps partiel) | 3,6 / 3,0 | 1,4234 / 3,0 |
+| F7 | absents | `brokerFeePercent` 0 seul | 0 / 3,6 | 0 / 3,6 (0 saisi gardé, la taxe prend le repli) |
+| F8 | présents : 0,015 / 0,045 | `brokerFeePercent` 2,0 seul | 2,0 / 3,6 | 2,0 / 4,5 (le frais absent lit son réglage) |
 
-Avec l'option (a), la colonne « Attendu » vaut « Aujourd'hui » sur toutes les lignes ; seul R8 est testé, par la lecture d'une constante.
+Réglages « partiels » : aucune ligne de tableau, le cas n'existe pas (R7, colonnes non nulles). F6 et F8 couvrent le corps partiel.
 
 ### characterId (R9)
 
@@ -86,10 +93,11 @@ Avec l'option (a), la colonne « Attendu » vaut « Aujourd'hui » sur toutes le
 - **Admin qui veut redevenir simple membre.** Avec Q1 = oui, il demande au propriétaire ou quitte le projet. L'interface ne lui propose déjà rien sur sa propre ligne (`canManage(member) && !isCurrentUser(member)`).
 - **Frais sur un projet terminé.** Le PATCH des frais reste refusé (#152, inchangé). R7 ne joue qu'à la création.
 - **Réglages modifiés après la création.** Le projet garde ses frais : le défaut est lu une seule fois, à la création.
+- **Changement visible.** Un joueur aux frais réglés voit désormais ses réglages, et non plus 3,6 %, sur ses nouveaux projets. Les projets existants gardent leurs frais (aucune migration, aucune revalorisation).
+- **Précision.** L'arrondi à 4 décimales du pourcentage coupe un réglage qui aurait plus de 6 décimales en fraction ; aucun garde-fou de précision n'existe sur `IndustryUserSettings` (écriture bornée à `max(0.0, …)`, `UpdateUserSettingsProcessor.php:63`).
 
 ## Hors périmètre
 
-- Les frais par défaut à la création (R6 à R8, F1 à F6, Q2) : en attente de la décision de Sylvain. `CreateGroupProjectProcessor` garde son `?? 3.6` d'ici là.
 - Le barème de location de ligne, jamais appliqué (#45).
 - Saisir les frais dans `NewProjectModal.vue`. Ce serait un changement visuel, avec maquette ; le formulaire d'édition du projet existe déjà.
 - Le nom de repli « Unknown » (`PilotName::of()`, `GroupIndustryResourceMapper::projectToResource()` pour `ownerCharacterName`). C'est un libellé d'affichage, déjà traité par le front (`usePilotName`).
@@ -103,21 +111,28 @@ Avec l'option (a), la colonne « Attendu » vaut « Aujourd'hui » sur toutes le
 - `Integration\…\GroupMemberCollectionProviderTest::testPendingMemberAndMemberWithoutMainCharacter` : attend `characterId` `0` pour « Unknown », attendra `null`.
 - `KickGroupMemberProcessorTest` : les tests existants visent un membre de rôle `member` (`acceptedMember()`) et restent verts. On ajoute R-E2, R-E5 et R-E7.
 - `UpdateGroupMemberProcessor` n'a aucun test : création de `UpdateGroupMemberProcessorTest` (R-E1, R-E3, R-E4, R-E6, R-E8, R-E10 à R-E12).
-- Hors lot (frais, option (b), si Sylvain la retient) : `CreateGroupProjectProcessor` recevrait `IndustryUserSettingsRepository`. Les huit tests de `CreateGroupProjectProcessorTest` changeraient de constructeur, et F1 à F6 s'y ajouteraient. `GroupIndustryProjectServiceTest` et `GroupIndustryBomGoldenCharacterizationTest` construisent `CreateProjectData` sans frais : ils resteraient verts tant que `CreateProjectData` garde un défaut tiré de la même source (R8).
+- Frais (R6 à R8) : `CreateGroupProjectProcessor` reçoit `IndustryUserSettingsRepository` (nouveau paramètre de constructeur). Les huit tests de `CreateGroupProjectProcessorTest` (`:60`, `:69`, `:82`, `:134`, `:154`, `:175`, `:196`, `:235`) changent de constructeur (`setUp`, `:41-57`) : un `createStub(IndustryUserSettingsRepository::class)`, dont `findOneBy()` rend `null`, suffit à les garder verts, puisqu'aucun ne vise les frais.
+  - Tests à ajouter : F1 à F8, en observant le `CreateProjectData` reçu par `GroupIndustryProjectService::createProject()` (aujourd'hui un stub, `:44`, à remplacer par un mock avec capture dans ces tests). Modèle pour fournir ou non des réglages : `CreateProjectProcessorTest::settingsRepositoryReturning()` (définie `:399`, utilisée `:145` avec réglages et `:280` sans).
+  - Test de R8 : `assertSame(3.6, (new CreateProjectData('x', []))->brokerFeePercent)` et idem pour `salesTaxPercent`, plus la même assertion sur `GroupIndustryProject` et `GroupIndustryProjectResource` neufs. Aucune garde automatique contre le littéral `3.6` n'existe (`tests/Unit/Architecture/` ne contient que `AdminByCharacterIdTest.php`) : le test de défauts ci-dessus est la garde.
+  - `GroupIndustryProjectServiceTest` et `GroupIndustryBomGoldenCharacterizationTest` construisent `CreateProjectData` sans frais : ils restent verts tant que `CreateProjectData` garde un défaut égal à 3,6 (R8).
 - Front (Q4) : `MemberTable.vue` n'a pas de test. On en crée un pour la visibilité des boutons selon que l'utilisateur est propriétaire ou admin et selon le rôle de la ligne.
 
 ## Glossaire
 
-Termes proposés pour [`docs/glossary.md`](../glossary.md). Ils ne sont pas encore ajoutés, faute de validation (l'entrée « Frais de courtage » / « Taxe de vente » dépend de la décision sur les frais, hors lot) :
+Termes proposés pour [`docs/glossary.md`](../glossary.md). Ils ne sont pas encore ajoutés : le glossaire décrirait un comportement qui n'existe pas encore. À ajouter dans le commit d'implémentation (l'entrée « Frais de courtage » / « Taxe de vente » est validée par la décision Q2 du 2026-10-29) :
 
 - **Admin** (Project admin), section « Industrie collaborative » : membre `accepted` au rôle `admin`, promu par le propriétaire seul. Il accepte les demandes, retire les membres de rôle `member`, revoit les contributions, enregistre les ventes et modifie le projet. Il n'agit pas sur un autre admin (#170). Code : `GroupMemberRole::Admin`, `GroupProjectAccessChecker::assertAdminOrOwner()`.
 - **Frais de courtage** (Broker fee) et **Taxe de vente** (Sales tax), section « Marché » : pourcentages prélevés sur une vente au marché. Ils sont réglés par l'utilisateur dans Industry en fraction (`0.036` = 3,6 %, défaut 3,6 %), et portés par un projet collaboratif en pourcents, copiés à la création depuis les réglages du propriétaire (#170). Code : `IndustryUserSettings::$brokerFeeRate`, `$salesTaxRate`, `EveConstants::DEFAULT_BROKER_FEE_RATE`, `DEFAULT_SALES_TAX_RATE`, `GroupIndustryProject::$brokerFeePercent`, `$salesTaxPercent`.
 
+## Décisions de Sylvain (2026-10-29)
+
+- **Q2 — Frais par défaut à la création : option (b).** Un frais absent prend la valeur des réglages Industry de l'utilisateur qui crée le projet (`getBrokerFeeRate()`, `getSalesTaxRate()`, en pourcents), avec 3,6 % (`EveConstants::DEFAULT_BROKER_FEE_RATE`, `DEFAULT_SALES_TAX_RATE`) quand il n'a aucun réglage. Modèle : `CreateProjectProcessor::sellTaxRate()`. Le front (`NewProjectModal.vue`) ne change pas. Les projets créés par un joueur aux frais réglés n'affichent plus 3,6 %.
+
 ## 🚦 Questions pour Sylvain
 
-Q1, Q3 et Q4 : recommandations retenues pour la boucle de nuit, à relire par Sylvain. Q2 : hors lot, en attente de sa décision.
+Q1, Q3 et Q4 : recommandations retenues pour la boucle de nuit, à relire par Sylvain.
 
 1. **Q1 — Un admin qui tente de se rétrograder lui-même reçoit-il 403** (R-E4), comme pour tout autre admin ? Recommandation : **oui**. La règle reste unique, l'interface ne le propose pas, et il peut toujours quitter le projet ou demander au propriétaire.
-2. **Q2 (hors lot, en attente de Sylvain) — À la création, un frais absent prend-il (a) 3,6 % fixe, mis en constante, ou (b) le réglage Industry du propriétaire, avec 3,6 % en repli ?** Recommandation : **(b)**. Le joueur a déjà réglé ses frais une fois dans Industry, et Profit Margins, Buy vs Build et le scanner les lisent. C'est un changement visible : les projets créés par un joueur aux frais réglés n'afficheront plus 3,6 %.
+2. **Q2** : tranchée, voir « Décisions de Sylvain ».
 3. **Q3 — Un membre sans personnage principal est-il exposé avec `characterId: null` au lieu de `0` ?** Recommandation : **oui**. Le type est déjà nullable de bout en bout, `null` est déjà émis pour un compte supprimé, et le front le gère (portrait de repli). La valeur change dans le contrat de l'API.
 4. **Q4 — `MemberTable.vue` est-il corrigé dans ce lot** (boutons Promote, Demote et Kick masqués selon R5) ? Recommandation : **oui**. Sans ce lot, après R1, un admin verrait des boutons qui échouent en 403.

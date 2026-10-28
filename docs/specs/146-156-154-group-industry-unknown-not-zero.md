@@ -2,9 +2,9 @@
 
 > Statut : **proposition, non validée**. Rédigée sans interrogatoire (Sylvain absent) : chaque point porte la réponse recommandée, les décisions produit sont dans « 🚦 Questions pour Sylvain ». `/tdd-red` ne démarre qu'après son accord.
 >
-> Boucle de nuit du 2026-10-28 : Q3 et Q4 sont traitées comme couvertes par l'issue #156 (elle nomme le KPI « Contributions totales » et l'avancement faux) ; les recommandations sont retenues. **À relire par Sylvain : le % d'avancement affiché change (Sabre 50 % → 70 %), et le montant du KPI « Contributions totales » change.** La partie #154 de cette spec est **hors lot** : voir [`154-group-contribution-price-source.md`](154-group-contribution-price-source.md).
+> Boucle de nuit du 2026-10-28 : Q3 et Q4 sont traitées comme couvertes par l'issue #156 (elle nomme le KPI « Contributions totales » et l'avancement faux) ; les recommandations sont retenues. **À relire par Sylvain : le % d'avancement affiché change (Sabre 50 % → 70 %), et le montant du KPI « Contributions totales » change.**
 >
-> #154 (source du prix d'une contribution matériau) s'est révélée indépendante : le backend renvoie déjà `null` sans prix (spec #8), il reste une question de source de prix et de libellé, traitée dans [`154-group-contribution-price-source.md`](154-group-contribution-price-source.md).
+> #154 (source du prix d'une contribution matériau) n'est pas traitée ici : le backend renvoie déjà `null` sans prix (spec #8), et la source du prix (prix BOM figé à la création du projet) et le libellé de la modale sont décidés et spécifiés dans [`154-group-contribution-price-source.md`](154-group-contribution-price-source.md) (décisions de Sylvain du 2026-10-29). Les règles R3 et R5 à R8 ci-dessous (valeur de la BOM, prix BOM absent = inconnu) s'appuient sur le même **prix BOM**.
 
 ## Contexte
 
