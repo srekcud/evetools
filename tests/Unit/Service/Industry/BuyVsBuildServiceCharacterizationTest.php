@@ -115,12 +115,14 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
                     'buildJobInstallCost' => 60277.5,
                     'buyCostJita' => 1764000.0,
                     'buyCostStructure' => null,
+                    'buyCostJitaCoveragePercent' => null,
                     'verdict' => 'build',
                     'savings' => 1238722.5,
                     'savingsPercent' => 70.22,
                     'meUsed' => 0,
                     'runs' => 3,
                     'missingData' => [],
+                    'warnings' => [],
                 ],
                 [
                     'typeId' => self::FULLERIDES,
@@ -136,12 +138,14 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
                     'buildJobInstallCost' => 87780.0,
                     'buyCostJita' => 1881600.0,
                     'buyCostStructure' => null,
+                    'buyCostJitaCoveragePercent' => null,
                     'verdict' => 'build',
                     'savings' => 993820.0,
                     'savingsPercent' => 52.82,
                     'meUsed' => 0,
                     'runs' => 4,
                     'missingData' => [],
+                    'warnings' => [],
                 ],
                 [
                     'typeId' => self::RAM_AMMUNITION_TECH,
@@ -159,12 +163,14 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
                     'buildJobInstallCost' => 4369.33,
                     'buyCostJita' => 200000.0,
                     'buyCostStructure' => 250000.0,
+                    'buyCostJitaCoveragePercent' => null,
                     'verdict' => 'build',
                     'savings' => 195325.67,
                     'savingsPercent' => 78.13,
                     'meUsed' => 10,
                     'runs' => 1,
                     'missingData' => [],
+                    'warnings' => [],
                 ],
             ],
             'buildAllCost' => 1467731.83,
@@ -173,6 +179,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
             'buildTypeIds' => [self::RAM_AMMUNITION_TECH, self::FERNITE_CARBIDE, self::FULLERIDES],
             'buyTypeIds' => [],
             'missingData' => [],
+            'warnings' => [],
         ], $result);
     }
 
@@ -506,6 +513,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
             'buildTypeIds' => [],
             'buyTypeIds' => [],
             'missingData' => [],
+            'warnings' => [],
         ], $result);
     }
 

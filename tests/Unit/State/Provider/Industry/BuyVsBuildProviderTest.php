@@ -36,6 +36,8 @@ final class BuyVsBuildProviderTest extends TestCase
     private const int FERNITE_ALLOY = 16656;
     private const int CERAMIC_POWDER = 16660;
     private const int ROBOTICS = 9848;
+    private const int FULLERIDES = 16679;
+    private const int MORPHITE = 11399;
 
     #[Group('issue-100')]
     public function testWithoutParametersNorSettingsAnalyzesOneRunAtMe10InJitaWithDefaultFees(): void
@@ -221,12 +223,14 @@ final class BuyVsBuildProviderTest extends TestCase
             'buildJobInstallCost' => 1850.0,
             'buyCostJita' => 79200.0,
             'buyCostStructure' => null,
+            'buyCostJitaCoveragePercent' => null,
             'verdict' => 'build',
             'savings' => 24550.0,
             'savingsPercent' => 31.0,
             'meUsed' => 10,
             'runs' => 2,
             'missingData' => [],
+            'warnings' => [],
         ]];
         $buyVsBuildService = $this->createStub(BuyVsBuildService::class);
         $buyVsBuildService->method('analyze')->willReturn([
@@ -244,6 +248,7 @@ final class BuyVsBuildProviderTest extends TestCase
             'buildTypeIds' => [self::FERNITE_CARBIDE],
             'buyTypeIds' => [],
             'missingData' => [],
+            'warnings' => [],
         ]);
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($this->goldenUser());
@@ -275,6 +280,7 @@ final class BuyVsBuildProviderTest extends TestCase
             'buildJobInstallCost' => 4720.0,
             'buyCostJita' => null,
             'buyCostStructure' => null,
+            'buyCostJitaCoveragePercent' => null,
             'verdict' => 'unknown',
             'savings' => null,
             'savingsPercent' => null,
@@ -284,6 +290,7 @@ final class BuyVsBuildProviderTest extends TestCase
                 ['reason' => 'market_price', 'typeId' => self::CERAMIC_POWDER],
                 ['reason' => 'market_price', 'typeId' => self::FERNITE_CARBIDE],
             ],
+            'warnings' => [],
         ]];
         $buyVsBuildService = $this->createStub(BuyVsBuildService::class);
         $buyVsBuildService->method('analyze')->willReturn([
@@ -304,6 +311,7 @@ final class BuyVsBuildProviderTest extends TestCase
                 ['reason' => 'market_price', 'typeId' => self::CERAMIC_POWDER],
                 ['reason' => 'market_price', 'typeId' => self::FERNITE_CARBIDE],
             ],
+            'warnings' => [],
         ]);
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($this->goldenUser());
@@ -343,6 +351,7 @@ final class BuyVsBuildProviderTest extends TestCase
             'buildJobInstallCost' => null,
             'buyCostJita' => 188160.0,
             'buyCostStructure' => null,
+            'buyCostJitaCoveragePercent' => null,
             'verdict' => 'buy',
             'savings' => null,
             'savingsPercent' => null,
@@ -352,6 +361,7 @@ final class BuyVsBuildProviderTest extends TestCase
                 ['reason' => 'adjusted_price', 'typeId' => self::CERAMIC_POWDER],
                 ['reason' => 'cost_index', 'typeId' => null],
             ],
+            'warnings' => [],
         ]];
         $buyVsBuildService = $this->createStub(BuyVsBuildService::class);
         $buyVsBuildService->method('analyze')->willReturn([
@@ -372,6 +382,7 @@ final class BuyVsBuildProviderTest extends TestCase
                 ['reason' => 'adjusted_price', 'typeId' => self::CERAMIC_POWDER],
                 ['reason' => 'cost_index', 'typeId' => null],
             ],
+            'warnings' => [],
         ]);
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($this->goldenUser());
@@ -407,6 +418,80 @@ final class BuyVsBuildProviderTest extends TestCase
         );
     }
 
+    public function testPartialPriceWarningsAndJitaCoverageOfTheComponentsReachTheResourceAsTheServiceListsThem(): void
+    {
+        $components = [[
+            'typeId' => self::FERNITE_CARBIDE,
+            'typeName' => 'Fernite Carbide',
+            'quantity' => 2940,
+            'stage' => 'Reaction',
+            'buildCost' => 175092.5,
+            'buildMaterials' => [['typeId' => self::CERAMIC_POWDER, 'typeName' => 'Ceramic Powder', 'quantity' => 100, 'unitPrice' => 250.0, 'totalPrice' => 25000.0]],
+            'buildJobInstallCost' => 20092.5,
+            'buyCostJita' => 176400.0,
+            'buyCostStructure' => null,
+            'buyCostJitaCoveragePercent' => 93.8,
+            'verdict' => 'build',
+            'savings' => 1307.5,
+            'savingsPercent' => 0.74,
+            'meUsed' => 0,
+            'runs' => 1,
+            'missingData' => [],
+            'warnings' => [
+                ['reason' => 'partial_market_depth', 'typeId' => self::CERAMIC_POWDER, 'coveragePercent' => 45.0],
+                ['reason' => 'partial_market_depth', 'typeId' => self::FERNITE_CARBIDE, 'coveragePercent' => 93.8],
+            ],
+        ]];
+        $partialPriceWarnings = [['reason' => 'partial_market_depth', 'typeId' => self::CERAMIC_POWDER, 'coveragePercent' => 45.0]];
+        $buyVsBuildService = $this->createStub(BuyVsBuildService::class);
+        $buyVsBuildService->method('analyze')->willReturn([
+            'typeId' => self::HAIL_L,
+            'typeName' => 'Hail L',
+            'isT2' => true,
+            'runs' => 1,
+            'totalProductionCost' => 582567.84,
+            'sellPrice' => 500.0,
+            'marginPercent' => 296.95,
+            'components' => $components,
+            'buildAllCost' => 175092.5,
+            'buyAllCost' => 176400.0,
+            'optimalMixCost' => 175092.5,
+            'buildTypeIds' => [self::FERNITE_CARBIDE],
+            'buyTypeIds' => [],
+            'missingData' => [],
+            'warnings' => $partialPriceWarnings,
+        ]);
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn($this->goldenUser());
+        $requestStack = new RequestStack();
+        $requestStack->push(new Request());
+        $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
+        $settingsRepository->method('findOneBy')->willReturn(null);
+
+        $resource = (new BuyVsBuildProvider($security, $requestStack, $buyVsBuildService, $settingsRepository))
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L]);
+
+        $this->assertSame($components, $resource->components);
+        $this->assertSame($partialPriceWarnings, $resource->warnings);
+    }
+
+    public function testJitaCoverageOfAComponentReachesTheResourceCappedBelowFull(): void
+    {
+        $resource = $this->provide(self::HAIL_L, [], $this->goldenUser(), null, [self::FULLERIDES => 0.99999]);
+
+        $fullerides = $this->componentOf($resource, self::FULLERIDES);
+        $this->assertSame(188160.0, $fullerides['buyCostJita']);
+        $this->assertSame(99.9, $fullerides['buyCostJitaCoveragePercent']);
+    }
+
+    public function testPartialPriceOfARootMaterialReachesTheResourceWarningsRaisedToTheSmallestPercent(): void
+    {
+        $resource = $this->provide(self::HAIL_L, [], $this->goldenUser(), null, [self::MORPHITE => 0.00004]);
+
+        $this->assertSame(559297.9, $resource->totalProductionCost);
+        $this->assertSame([['reason' => 'partial_market_depth', 'typeId' => self::MORPHITE, 'coveragePercent' => 0.1]], $resource->warnings);
+    }
+
     public function testAnonymousRequestIsUnauthorized(): void
     {
         $this->expectException(UnauthorizedHttpException::class);
@@ -414,7 +499,7 @@ final class BuyVsBuildProviderTest extends TestCase
         $this->provide(self::HAIL_L, [], null, null);
     }
 
-    private function provide(int $typeId, array $query, ?User $user, ?IndustryUserSettings $settings): BuyVsBuildResource
+    private function provide(int $typeId, array $query, ?User $user, ?IndustryUserSettings $settings, array $jitaCoverages = []): BuyVsBuildResource
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($user);
@@ -425,7 +510,7 @@ final class BuyVsBuildProviderTest extends TestCase
         $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
         $settingsRepository->method('findOneBy')->willReturn($settings);
 
-        $provider = new BuyVsBuildProvider($security, $requestStack, $this->goldenBuyVsBuildService(), $settingsRepository);
+        $provider = new BuyVsBuildProvider($security, $requestStack, $this->goldenBuyVsBuildService($jitaCoverages), $settingsRepository);
 
         return $provider->provide(new Get(), ['typeId' => (string) $typeId]);
     }
@@ -458,10 +543,11 @@ final class BuyVsBuildProviderTest extends TestCase
             'buildTypeIds' => $resource->buildTypeIds,
             'buyTypeIds' => $resource->buyTypeIds,
             'missingData' => $resource->missingData,
+            'warnings' => $resource->warnings,
         ]);
     }
 
-    private function goldenBuyVsBuildService(): BuyVsBuildService
+    private function goldenBuyVsBuildService(array $jitaCoverages = []): BuyVsBuildService
     {
         return $this->buyVsBuildServiceOnGoldenSde(
             jitaPrices: [
@@ -476,11 +562,11 @@ final class BuyVsBuildProviderTest extends TestCase
                 36 => 50.0,
                 37 => 100.0,
                 38 => 800.0,
-                11399 => 10000.0,
+                self::MORPHITE => 10000.0,
                 4051 => 21000.0,
                 16659 => 500.0,
                 16662 => 450.0,
-                16679 => 160.0,
+                self::FULLERIDES => 160.0,
                 44 => 110.0,
                 3683 => 210.0,
                 3689 => 310.0,
@@ -513,12 +599,12 @@ final class BuyVsBuildProviderTest extends TestCase
                 self::FERNITE_ALLOY => 280.0,
                 self::CERAMIC_POWDER => 230.0,
                 self::FERNITE_CARBIDE => 50.0,
-                11399 => 9000.0,
+                self::MORPHITE => 9000.0,
                 self::RAM_AMMUNITION_TECH => 22000.0,
                 4051 => 16000.0,
                 16659 => 390.0,
                 16662 => 350.0,
-                16679 => 145.0,
+                self::FULLERIDES => 145.0,
                 44 => 95.0,
                 3683 => 190.0,
                 3689 => 280.0,
@@ -536,6 +622,7 @@ final class BuyVsBuildProviderTest extends TestCase
                 EveConstants::JITA_SOLAR_SYSTEM_ID => ['manufacturing' => 0.02, 'reaction' => 0.04, 'copying' => 0.01, 'invention' => 0.03],
                 self::FACTORY_SYSTEM_ID => ['manufacturing' => 0.05, 'reaction' => 0.1, 'copying' => 0.03, 'invention' => 0.06],
             ],
+            jitaCoverages: $jitaCoverages,
         );
     }
 

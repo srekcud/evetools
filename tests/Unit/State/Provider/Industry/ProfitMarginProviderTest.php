@@ -413,6 +413,34 @@ class ProfitMarginProviderTest extends TestCase
         $this->assertSame($missingInstallCostData, $resource->missingData);
     }
 
+    public function testPartialPriceWarningsReachTheResourceAsTheServiceListsThem(): void
+    {
+        $partialPriceWarnings = [
+            ['reason' => 'partial_market_depth', 'typeId' => self::MORPHITE_TYPE_ID, 'coveragePercent' => 30.0],
+            ['reason' => 'partial_market_depth', 'typeId' => self::ROBOTICS_TYPE_ID, 'coveragePercent' => 99.9],
+        ];
+        $profitMarginService = $this->createStub(ProfitMarginService::class);
+        $profitMarginService->method('analyze')->willReturn($this->analysis(['warnings' => $partialPriceWarnings]));
+
+        $resource = $this->provider(new User(), new Request(), $profitMarginService)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+
+        $this->assertSame(526232.3, $resource->totalCost);
+        $this->assertSame([], $resource->missingData);
+        $this->assertSame($partialPriceWarnings, $resource->warnings);
+    }
+
+    public function testAnalysisWithoutPartialPriceReachesTheResourceWithoutWarnings(): void
+    {
+        $profitMarginService = $this->createStub(ProfitMarginService::class);
+        $profitMarginService->method('analyze')->willReturn($this->analysis());
+
+        $resource = $this->provider(new User(), new Request(), $profitMarginService)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+
+        $this->assertSame([], $resource->warnings);
+    }
+
     private function settings(User $user): IndustryUserSettings
     {
         return (new IndustryUserSettings())
@@ -463,6 +491,7 @@ class ProfitMarginProviderTest extends TestCase
             'margins' => ['jitaSell' => null, 'structureSell' => null, 'structureBuy' => null, 'contractSell' => null],
             'dailyVolume' => 0.0,
             'missingData' => [],
+            'warnings' => [],
         ], $overrides);
     }
 }

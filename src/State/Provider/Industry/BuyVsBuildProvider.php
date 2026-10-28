@@ -104,6 +104,7 @@ class BuyVsBuildProvider implements ProviderInterface
         $resource->buildTypeIds = $data['buildTypeIds'];
         $resource->buyTypeIds = $data['buyTypeIds'];
         $resource->missingData = $data['missingData'];
+        $resource->warnings = $data['warnings'];
 
         return $resource;
     }

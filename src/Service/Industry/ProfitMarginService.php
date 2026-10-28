@@ -110,6 +110,7 @@ class ProfitMarginService
             'margins' => $marginsOf($productionCost->totalCost),
             'dailyVolume' => $volumes[$typeId] ?? null,
             'missingData' => MissingDataPresenter::of($productionCost->totalCost),
+            'warnings' => PartialPricePresenter::of($productionCost->totalCost),
         ];
     }
 
