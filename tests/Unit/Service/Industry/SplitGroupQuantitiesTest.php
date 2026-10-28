@@ -37,6 +37,17 @@ final class SplitGroupQuantitiesTest extends TestCase
         );
     }
 
+    #[Group('issue-252')]
+    public function testJobWhoseRunsAndQuantityStayIsChangedWithTheNewTotalGroupRuns(): void
+    {
+        $firstJob = $this->jobOfTheSplitGroup(splitIndex: 0, runs: 3)->setTotalGroupRuns(5);
+        $lastJob = $this->jobOfTheSplitGroup(splitIndex: 1, runs: 2)->setQuantity(70)->setTotalGroupRuns(5);
+
+        $changedSteps = SplitGroupQuantities::applyNeedToSteps([$firstJob, $lastJob], 230, self::OXYGEN_FUEL_BLOCK_OUTPUT_PER_RUN);
+
+        self::assertSame([[4, 160, false, 6], [2, 70, false, 6]], $this->stateOf($changedSteps));
+    }
+
     #[Group('issue-185')]
     public function testAFixedJobKeepsItsRunsAndTheJobThatIsNotFixedTakesTheRestOfTheNeed(): void
     {

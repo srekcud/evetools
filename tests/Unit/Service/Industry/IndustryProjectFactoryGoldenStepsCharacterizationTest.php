@@ -16,6 +16,7 @@ use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryProjectFactory;
 use App\Service\Industry\IndustryStepCalculator;
 use App\Service\Industry\SplitGroupQuantities;
+use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -897,25 +898,184 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     }
 
     #[Group('issue-252')]
-    public function testUnchangedJobOfARecalculatedSplitGroupCurrentlyKeepsTheOldTotalGroupRunsIssue252(): void
+    public function testJobOfARecalculatedSplitGroupWhoseRunsAndQuantityStayTakesTheNewTotalGroupRuns(): void
+    {
+        $project = $this->ferniteCarbideOfElevenRunsWithAnAlloyGroupOfTwoTwoAndOneRuns();
+
+        $changedSteps = $this->stepCalculator->recalculateStepQuantities($project);
+
+        self::assertSame(
+            [[2, 400, 1, 0, 20, 0, 6], [2, 400, 1, 0, 20, 1, 6], [2, 300, 1, 0, 20, 2, 6]],
+            $this->jobsOf($this->stepsOf($project), self::FERNITE_ALLOY),
+        );
+        self::assertSame(
+            [[self::FERNITE_ALLOY, 0], [self::FERNITE_ALLOY, 1], [self::FERNITE_ALLOY, 2]],
+            $this->sortedProductAndSplitIndexOf($changedSteps),
+        );
+    }
+
+    #[Group('issue-252')]
+    public function testSplitGroupWhoseJobsKeepTheirRunsAndQuantityTakesTheRunsOfTheNeedAsTotalGroupRunsOnEveryJob(): void
     {
         $project = $this->projectOfStepsWithoutStructure([
-            $this->step(self::FERNITE_CARBIDE, 'reaction', runs: 11, quantity: 110_000, depth: 0, meLevel: 0),
+            $this->step(self::FERNITE_CARBIDE, 'reaction', runs: 12, quantity: 120_000, depth: 0, meLevel: 0),
             $this->step(self::FERNITE_ALLOY, 'reaction', runs: 2, quantity: 400, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 0, totalGroupRuns: 5),
-            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 2, quantity: 350, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 1, totalGroupRuns: 5),
-            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 1, quantity: 200, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 2, totalGroupRuns: 5),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 2, quantity: 400, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 1, totalGroupRuns: 5),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 2, quantity: 400, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 2, totalGroupRuns: 5),
         ]);
 
         $changedSteps = $this->stepCalculator->recalculateStepQuantities($project);
 
         self::assertSame(
-            [[2, 400, 1, 0, 20, 0, 5], [2, 400, 1, 0, 20, 1, 6], [2, 300, 1, 0, 20, 2, 6]],
+            [[2, 400, 1, 0, 20, 0, 6], [2, 400, 1, 0, 20, 1, 6], [2, 400, 1, 0, 20, 2, 6]],
             $this->jobsOf($this->stepsOf($project), self::FERNITE_ALLOY),
         );
-        self::assertSame([[self::FERNITE_ALLOY, 1], [self::FERNITE_ALLOY, 2]], $this->productAndSplitIndexOf($changedSteps));
+        self::assertSame(
+            [[self::FERNITE_ALLOY, 0], [self::FERNITE_ALLOY, 1], [self::FERNITE_ALLOY, 2]],
+            $this->sortedProductAndSplitIndexOf($changedSteps),
+        );
+    }
+
+    #[Group('issue-252')]
+    public function testRecalculationThatOnlyRewritesTheTotalGroupRunsFlushesTheSteps(): void
+    {
+        $stepCalculator = $this->stepCalculatorExpectingOneFlush();
+        $project =$this->projectOfStepsWithoutStructure([
+            $this->step(self::FERNITE_CARBIDE, 'reaction', runs: 12, quantity: 120_000, depth: 0, meLevel: 0),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 3, quantity: 600, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 0, totalGroupRuns: 4),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 3, quantity: 600, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 1, totalGroupRuns: 4),
+        ]);
+
+        $stepCalculator->recalculateStepQuantities($project);
+    }
+
+    #[Group('issue-252')]
+    public function testSecondRecalculationOfARecalculatedSplitGroupChangesNoJob(): void
+    {
+        $project = $this->ferniteCarbideOfElevenRunsWithAnAlloyGroupOfTwoTwoAndOneRuns();
+        $this->stepCalculator->recalculateStepQuantities($project);
+        $stepsAfterTheFirstRecalculation = $this->stepsOf($project);
+
+        $changedSteps = $this->stepCalculator->recalculateStepQuantities($project);
+
+        self::assertSame([], $this->productAndSplitIndexOf($changedSteps));
+        self::assertSame($stepsAfterTheFirstRecalculation, $this->stepsOf($project));
+    }
+
+    #[Group('issue-252')]
+    public function testJobWithoutTotalGroupRunsWhoseRunsAndQuantityStayTakesTheTotalGroupRunsOfItsGroup(): void
+    {
+        $project = $this->projectOfStepsWithoutStructure([
+            $this->step(self::FERNITE_CARBIDE, 'reaction', runs: 7, quantity: 70_000, depth: 0, meLevel: 0),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 2, quantity: 400, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 0),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 3, quantity: 600, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 1),
+        ]);
+
+        $changedSteps = $this->stepCalculator->recalculateStepQuantities($project);
+
+        self::assertSame(
+            [[2, 400, 1, 0, 20, 0, 4], [2, 300, 1, 0, 20, 1, 4]],
+            $this->jobsOf($this->stepsOf($project), self::FERNITE_ALLOY),
+        );
+        self::assertSame(
+            [[self::FERNITE_ALLOY, 0], [self::FERNITE_ALLOY, 1]],
+            $this->sortedProductAndSplitIndexOf($changedSteps),
+        );
+    }
+
+    #[Group('issue-252')]
+    #[Group('issue-131')]
+    public function testSplitGroupKeepingMoreRunsThanItsNeedTakesTheRunsOfTheNeedAsTotalGroupRunsOnEveryJob(): void
+    {
+        $project = $this->projectOfStepsWithoutStructure([
+            $this->step(self::FERNITE_CARBIDE, 'reaction', runs: 1, quantity: 10_000, depth: 0, meLevel: 0),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 1, quantity: 100, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 0, totalGroupRuns: 2),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 1, quantity: 0, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 1, totalGroupRuns: 2),
+        ]);
+
+        $changedSteps = $this->stepCalculator->recalculateStepQuantities($project);
+
+        self::assertSame(
+            [[1, 100, 1, 0, 20, 0, 1], [1, 0, 1, 0, 20, 1, 1]],
+            $this->jobsOf($this->stepsOf($project), self::FERNITE_ALLOY),
+        );
+        self::assertSame(
+            [[self::FERNITE_ALLOY, 0], [self::FERNITE_ALLOY, 1]],
+            $this->sortedProductAndSplitIndexOf($changedSteps),
+        );
+    }
+
+    #[Group('issue-252')]
+    #[Group('issue-185')]
+    public function testSplitGroupWithAFixedJobTakesTheSumOfTheRunsOfItsJobsAsTotalGroupRunsOnEveryJob(): void
+    {
+        $project = $this->projectOfStepsWithoutStructure([
+            $this->step(self::FERNITE_CARBIDE, 'reaction', runs: 11, quantity: 110_000, depth: 0, meLevel: 0),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 4, quantity: 800, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 0, totalGroupRuns: 5)->setRunsFixed(true),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 2, quantity: 300, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 1, totalGroupRuns: 5),
+        ]);
+
+        $changedSteps = $this->stepCalculator->recalculateStepQuantities($project);
+
+        self::assertSame(
+            [[4, 800, 1, 0, 20, 0, 6], [2, 300, 1, 0, 20, 1, 6]],
+            $this->jobsOf($this->stepsOf($project), self::FERNITE_ALLOY),
+        );
+        self::assertSame(
+            [[self::FERNITE_ALLOY, 0], [self::FERNITE_ALLOY, 1]],
+            $this->sortedProductAndSplitIndexOf($changedSteps),
+        );
+    }
+
+    #[Group('issue-252')]
+    public function testSplitGroupOfOneJobWhoseRunsAndTotalGroupRunsMatchTheNeedChangesNoJob(): void
+    {
+        $project = $this->projectOfStepsWithoutStructure([
+            $this->step(self::FERNITE_CARBIDE, 'reaction', runs: 9, quantity: 90_000, depth: 0, meLevel: 0),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 5, quantity: 900, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 0, totalGroupRuns: 5),
+        ]);
+
+        $changedSteps = $this->stepCalculator->recalculateStepQuantities($project);
+
+        self::assertSame([[5, 900, 1, 0, 20, 0, 5]], $this->jobsOf($this->stepsOf($project), self::FERNITE_ALLOY));
+        self::assertSame([], $this->productAndSplitIndexOf($changedSteps));
+    }
+
+    #[Group('issue-252')]
+    public function testSplitGroupOfOneJobWhoseRunsMatchTheNeedTakesTheRunsOfTheNeedAsTotalGroupRuns(): void
+    {
+        $project = $this->ferniteCarbideOfThirteenRunsWithAnAlloyGroupOfOneJobOfSevenRunsAndAStaleTotalOfFour();
+
+        $changedSteps = $this->stepCalculator->recalculateStepQuantities($project);
+
+        self::assertSame([[7, 1300, 1, 0, 20, 0, 7]], $this->jobsOf($this->stepsOf($project), self::FERNITE_ALLOY));
+        self::assertSame([[self::FERNITE_ALLOY, 0]], $this->productAndSplitIndexOf($changedSteps));
+    }
+
+    #[Group('issue-252')]
+    public function testSplitGroupOfOneJobWhoseRunsChangeTakesTheRunsOfTheNeedAsTotalGroupRuns(): void
+    {
+        $project = $this->projectOfStepsWithoutStructure([
+            $this->step(self::FERNITE_CARBIDE, 'reaction', runs: 15, quantity: 150_000, depth: 0, meLevel: 0),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 3, quantity: 600, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 0, totalGroupRuns: 3),
+        ]);
+
+        $changedSteps = $this->stepCalculator->recalculateStepQuantities($project);
+
+        self::assertSame([[8, 1500, 1, 0, 20, 0, 8]], $this->jobsOf($this->stepsOf($project), self::FERNITE_ALLOY));
+        self::assertSame([[self::FERNITE_ALLOY, 0]], $this->productAndSplitIndexOf($changedSteps));
+    }
+
+    #[Group('issue-252')]
+    public function testRecalculationThatOnlyRewritesTheTotalGroupRunsOfASplitGroupOfOneJobFlushesTheStep(): void
+    {
+        $stepCalculator = $this->stepCalculatorExpectingOneFlush();
+
+        $stepCalculator->recalculateStepQuantities($this->ferniteCarbideOfThirteenRunsWithAnAlloyGroupOfOneJobOfSevenRunsAndAStaleTotalOfFour());
     }
 
     #[Group('issue-112')]
+    #[Group('issue-252')]
     public function testRecalculatedSplitGroupSharesTheNeedBySplitIndexWhateverTheOrderOfTheSteps(): void
     {
         $project = $this->projectOfStepsWithoutStructure([
@@ -930,7 +1090,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         $jobs = $this->jobsOf($this->stepsOf($project), self::FERNITE_ALLOY);
         usort($jobs, static fn (array $a, array $b): int => $a[5] <=> $b[5]);
         self::assertSame(
-            [[2, 400, 1, 0, 20, 0, 5], [3, 600, 1, 0, 20, 1, 6], [1, 100, 1, 0, 20, 2, 6]],
+            [[2, 400, 1, 0, 20, 0, 6], [3, 600, 1, 0, 20, 1, 6], [1, 100, 1, 0, 20, 2, 6]],
             $jobs,
         );
     }
@@ -976,6 +1136,32 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         }
 
         return $project;
+    }
+
+    private function ferniteCarbideOfElevenRunsWithAnAlloyGroupOfTwoTwoAndOneRuns(): IndustryProject
+    {
+        return $this->projectOfStepsWithoutStructure([
+            $this->step(self::FERNITE_CARBIDE, 'reaction', runs: 11, quantity: 110_000, depth: 0, meLevel: 0),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 2, quantity: 400, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 0, totalGroupRuns: 5),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 2, quantity: 350, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 1, totalGroupRuns: 5),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 1, quantity: 200, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 2, totalGroupRuns: 5),
+        ]);
+    }
+
+    private function ferniteCarbideOfThirteenRunsWithAnAlloyGroupOfOneJobOfSevenRunsAndAStaleTotalOfFour(): IndustryProject
+    {
+        return $this->projectOfStepsWithoutStructure([
+            $this->step(self::FERNITE_CARBIDE, 'reaction', runs: 13, quantity: 130_000, depth: 0, meLevel: 0),
+            $this->step(self::FERNITE_ALLOY, 'reaction', runs: 7, quantity: 1300, depth: 1, meLevel: 0, splitGroupId: 'fernite-alloy', splitIndex: 0, totalGroupRuns: 4),
+        ]);
+    }
+
+    private function stepCalculatorExpectingOneFlush(): IndustryStepCalculator
+    {
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects($this->once())->method('flush');
+
+        return new IndustryStepCalculator($this->calculationService, $this->materialRepositoryOnGoldenSde(), $this->productRepositoryOnGoldenSde(), $entityManager);
     }
 
     private function step(int $productTypeId, string $activityType, int $runs, int $quantity, int $depth, int $meLevel, ?string $splitGroupId = null, int $splitIndex = 0, ?int $totalGroupRuns = null, ?int $blueprintTypeId = null): IndustryProjectStep
