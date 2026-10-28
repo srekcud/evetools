@@ -46,7 +46,7 @@ final class SplitGroupMaterialsTest extends TestCase
     }
 
     #[Group('issue-137')]
-    public function testUnitsPerRunOfACopyStepAreTheUnitsPerRunOfTheProductManufacturedByItsBlueprint(): void
+    public function testUnitsPerRunOfACopyStepAreCurrentlyTheUnitsPerRunOfTheProductManufacturedByItsBlueprintIssue137(): void
     {
         $repository = $this->productRepositoryWith(
             $this->activityProduct(self::HELIUM_FUEL_BLOCK_BLUEPRINT, IndustryActivityType::Manufacturing, self::HELIUM_FUEL_BLOCK, self::HELIUM_FUEL_BLOCK_UNITS_PER_RUN),

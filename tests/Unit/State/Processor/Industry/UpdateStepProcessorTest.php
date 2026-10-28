@@ -98,13 +98,47 @@ final class UpdateStepProcessorTest extends TestCase
     }
 
     #[Group('issue-137')]
-    public function testRunsEnteredOnACopyStepCountTheUnitsPerRunOfTheProductManufacturedByItsBlueprint(): void
+    public function testRunsEnteredOnACopyStepCurrentlyCountTheUnitsPerRunOfTheProductManufacturedByItsBlueprintIssue137(): void
     {
         $hydrogenFuelBlockCopy = $this->stepOfTheProject(self::HYDROGEN_FUEL_BLOCK, self::HYDROGEN_FUEL_BLOCK + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'copy', runs: 6, quantity: 6, depth: 1, meLevel: 0);
 
         $this->patch($hydrogenFuelBlockCopy, $this->runsEntered(10), $this->createStub(EntityManagerInterface::class));
 
         self::assertSame([10, 400], [$hydrogenFuelBlockCopy->getRuns(), $hydrogenFuelBlockCopy->getQuantity()]);
+    }
+
+    #[Group('issue-137')]
+    public function testRunsEnteredOnARootStepAreFlushedOnceAfterTheCascadeRecalculatedItsMaterialStep(): void
+    {
+        $ferniteCarbide = $this->stepOfTheProject(self::FERNITE_CARBIDE, self::FERNITE_CARBIDE + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: 2, quantity: 20_000, depth: 0, meLevel: 0);
+        $hydrogenFuelBlock = $this->stepOfTheProject(self::HYDROGEN_FUEL_BLOCK, self::HYDROGEN_FUEL_BLOCK + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'manufacturing', runs: 1, quantity: 10, depth: 1, meLevel: 0);
+        $stepsAtFlush = null;
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects($this->once())->method('flush')->willReturnCallback(
+            static function () use ($ferniteCarbide, $hydrogenFuelBlock, &$stepsAtFlush): void {
+                $stepsAtFlush = [
+                    [$ferniteCarbide->getRuns(), $ferniteCarbide->getQuantity()],
+                    [$hydrogenFuelBlock->getRuns(), $hydrogenFuelBlock->getQuantity()],
+                ];
+            },
+        );
+
+        $this->patch($ferniteCarbide, $this->runsEntered(3), $entityManager, $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame([[3, 30_000], [1, 15]], $stepsAtFlush);
+    }
+
+    #[Group('issue-137')]
+    public function testMeLevelEnteredOnTheRootStepRecalculatesTheQuantityOfItsMaterialStep(): void
+    {
+        $quantumMicroprocessor = $this->stepOfTheProject(self::QUANTUM_MICROPROCESSOR, self::QUANTUM_MICROPROCESSOR + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'manufacturing', runs: 32, quantity: 32, depth: 0, meLevel: 10);
+        $titaniumCarbide = $this->stepOfTheProject(self::TITANIUM_CARBIDE, self::TITANIUM_CARBIDE + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: 1, quantity: 490, depth: 1, meLevel: 0);
+        $meLevelEntered = new UpdateStepInput();
+        $meLevelEntered->meLevel = 8;
+
+        $this->patch($quantumMicroprocessor, $meLevelEntered, $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame([8, 1, 501], [$quantumMicroprocessor->getMeLevel(), $titaniumCarbide->getRuns(), $titaniumCarbide->getQuantity()]);
     }
 
     private function stepOfTheProject(int $productTypeId, int $blueprintTypeId, string $activityType, int $runs, int $quantity, int $depth, int $meLevel): IndustryProjectStep
@@ -130,7 +164,7 @@ final class UpdateStepProcessorTest extends TestCase
         return $input;
     }
 
-    private function patch(IndustryProjectStep $step, UpdateStepInput $input, EntityManagerInterface $entityManager): void
+    private function patch(IndustryProjectStep $step, UpdateStepInput $input, EntityManagerInterface $entityManager, ?EntityManagerInterface $calculatorEntityManager = null): void
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($this->pilot);
@@ -150,7 +184,7 @@ final class UpdateStepProcessorTest extends TestCase
             $stepRepository,
             $productRepository,
             $structureConfigRepository,
-            new IndustryStepCalculator($calculationService, $this->materialRepositoryOnGoldenSde(), $productRepository, $entityManager),
+            new IndustryStepCalculator($calculationService, $this->materialRepositoryOnGoldenSde(), $productRepository, $calculatorEntityManager ?? $entityManager),
             $mapper,
             $entityManager,
         );
