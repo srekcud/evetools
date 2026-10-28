@@ -99,6 +99,20 @@ final class GroupSaleItemProviderTest extends TestCase
         self::assertSame(404, $this->httpStatusOf(fn () => $this->provideSale($this->sabreSaleUri(projectId: $this->hecateBatch->getId()))));
     }
 
+    #[DataProvider('uriVariablesThatAreNotUuids')]
+    public function testSaleReachedThroughAnIdentifierThatIsNotAUuidIsNotFound(string $uriVariable): void
+    {
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::OWNER));
+
+        self::assertSame(404, $this->httpStatusOf(fn () => $this->provideSale([...$this->sabreSaleUri(), $uriVariable => 'abc'])));
+    }
+
+    public static function uriVariablesThatAreNotUuids(): iterable
+    {
+        yield 'sale id' => ['id'];
+        yield 'project id' => ['projectId'];
+    }
+
     public function testSaleWithoutUserIsUnauthorized(): void
     {
         $this->security->method('getUser')->willReturn(null);

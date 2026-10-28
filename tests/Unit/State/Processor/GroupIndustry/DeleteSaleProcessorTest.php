@@ -148,6 +148,65 @@ final class DeleteSaleProcessorTest extends TestCase
         self::assertSame([404, false, 0], [$status, $this->sabreSaleIsDeletedOnFlush(), $this->flushes]);
     }
 
+    #[DataProvider('profilesRefusedTheDeletion')]
+    public function testProcessorRefusesTheDeletionOfANonAdminWithoutRelyingOnTheProvider(string $profile): void
+    {
+        $this->security->method('getUser')->willReturn($this->userWithProfile($profile));
+
+        $outcome = $this->outcomeOf(fn () => $this->processor->process(null, new Delete(), $this->sabreSaleUri()));
+
+        self::assertSame([self::ADMIN_OR_OWNER_ONLY, false, 0, []], [$outcome, $this->sabreSaleIsDeletedOnFlush(), $this->flushes, $this->publishedUpdates]);
+    }
+
+    public static function profilesRefusedTheDeletion(): iterable
+    {
+        yield 'accepted member' => [self::ACCEPTED_MEMBER];
+        yield 'stranger' => [self::STRANGER];
+    }
+
+    public function testProcessorRefusesADeletionWithoutUser(): void
+    {
+        $this->security->method('getUser')->willReturn(null);
+
+        $outcome = $this->outcomeOf(fn () => $this->processor->process(null, new Delete(), $this->sabreSaleUri()));
+
+        self::assertSame([self::UNAUTHORIZED, false, 0], [$outcome, $this->sabreSaleIsDeletedOnFlush(), $this->flushes]);
+    }
+
+    #[DataProvider('missingUriVariables')]
+    public function testDeletionWithoutProjectOrSaleIdentifierIsNotFound(string $missingUriVariable): void
+    {
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::OWNER));
+        $uriVariables = $this->sabreSaleUri();
+        unset($uriVariables[$missingUriVariable]);
+
+        $status = $this->httpStatusOf(fn () => $this->processor->process(null, new Delete(), $uriVariables));
+
+        self::assertSame([404, false, 0], [$status, $this->sabreSaleIsDeletedOnFlush(), $this->flushes]);
+    }
+
+    public static function missingUriVariables(): iterable
+    {
+        yield 'project id' => ['projectId'];
+        yield 'sale id' => ['id'];
+    }
+
+    #[DataProvider('uriVariablesThatAreNotUuids')]
+    public function testDeletionThroughAnIdentifierThatIsNotAUuidIsNotFoundAndKeepsTheSale(string $uriVariable): void
+    {
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::OWNER));
+
+        $status = $this->httpStatusOf(fn () => $this->processor->process(null, new Delete(), [...$this->sabreSaleUri(), $uriVariable => 'abc']));
+
+        self::assertSame([404, false, 0], [$status, $this->sabreSaleIsDeletedOnFlush(), $this->flushes]);
+    }
+
+    public static function uriVariablesThatAreNotUuids(): iterable
+    {
+        yield 'sale id' => ['id'];
+        yield 'project id' => ['projectId'];
+    }
+
     private function deleteSabreSale(?array $uriVariables = null): void
     {
         $operation = new Delete();

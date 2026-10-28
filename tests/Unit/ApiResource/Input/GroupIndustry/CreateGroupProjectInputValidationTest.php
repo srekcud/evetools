@@ -108,6 +108,25 @@ final class CreateGroupProjectInputValidationTest extends TestCase
         yield 'runs' => ['runs'];
     }
 
+    #[DataProvider('itemKeys')]
+    public function testItemWithANullValueIsRejectedOnThatKey(string $nullKey): void
+    {
+        self::assertSame(["items[0][{$nullKey}]"], $this->violatedPathsOf([$this->ishtarItem([$nullKey => null])]));
+    }
+
+    #[DataProvider('itemsThatAreNotObjects')]
+    public function testItemThatIsNotAnObjectIsRejectedOnTheItem(mixed $item): void
+    {
+        self::assertSame(['items[1]'], $this->violatedPathsOf([$this->ishtarItem(), $item]));
+    }
+
+    public static function itemsThatAreNotObjects(): iterable
+    {
+        yield 'text' => ['x'];
+        yield 'number' => [12005];
+        yield 'null' => [null];
+    }
+
     public function testItemPastedWithTypeIdZeroToBeResolvedByItsNameIsAccepted(): void
     {
         self::assertSame([], $this->violatedPathsOf([$this->ishtarItem(['typeId' => 0])]));

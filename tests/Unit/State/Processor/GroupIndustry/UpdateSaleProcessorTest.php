@@ -215,6 +215,76 @@ final class UpdateSaleProcessorTest extends TestCase
         self::assertSame([404, [900000.0, 2, 1800000.0], 0], [$status, $this->persistedSabreSaleAmounts(), $this->flushes]);
     }
 
+    public function testCorrectionOfTheVenueMovesTheSale(): void
+    {
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_ADMIN));
+
+        $sale = $this->correctSabreSale(['venue' => 'Dodixie IX - Moon 20']);
+
+        self::assertSame(['Dodixie IX - Moon 20', 'Dodixie IX - Moon 20', 1800000.0], [$sale->venue, $this->sabreSale->getVenue(), $sale->totalPrice]);
+    }
+
+    #[DataProvider('profilesRefusedTheCorrection')]
+    public function testProcessorRefusesTheCorrectionOfANonAdminWithoutRelyingOnTheProvider(string $profile): void
+    {
+        $this->security->method('getUser')->willReturn($this->userWithProfile($profile));
+
+        $outcome = $this->outcomeOf(fn () => $this->correctThroughTheProcessorOnly($this->sabreSaleUri()));
+
+        self::assertSame([self::ADMIN_OR_OWNER_ONLY, [900000.0, 2, 1800000.0], 0, []], [$outcome, $this->persistedSabreSaleAmounts(), $this->flushes, $this->publishedUpdates]);
+    }
+
+    public static function profilesRefusedTheCorrection(): iterable
+    {
+        yield 'accepted member' => [self::ACCEPTED_MEMBER];
+        yield 'stranger' => [self::STRANGER];
+    }
+
+    public function testProcessorRefusesACorrectionWithoutUser(): void
+    {
+        $this->security->method('getUser')->willReturn(null);
+
+        $outcome = $this->outcomeOf(fn () => $this->correctThroughTheProcessorOnly($this->sabreSaleUri()));
+
+        self::assertSame([self::UNAUTHORIZED, [900000.0, 2, 1800000.0], 0], [$outcome, $this->persistedSabreSaleAmounts(), $this->flushes]);
+    }
+
+    #[DataProvider('missingUriVariables')]
+    public function testCorrectionWithoutProjectOrSaleIdentifierIsNotFound(string $missingUriVariable): void
+    {
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::OWNER));
+        $uriVariables = $this->sabreSaleUri();
+        unset($uriVariables[$missingUriVariable]);
+
+        $status = $this->httpStatusOf(fn () => $this->correctThroughTheProcessorOnly($uriVariables));
+
+        self::assertSame([404, [900000.0, 2, 1800000.0], 0], [$status, $this->persistedSabreSaleAmounts(), $this->flushes]);
+    }
+
+    public static function missingUriVariables(): iterable
+    {
+        yield 'project id' => ['projectId'];
+        yield 'sale id' => ['id'];
+    }
+
+    #[DataProvider('uriVariablesThatAreNotUuids')]
+    public function testCorrectionThroughAnIdentifierThatIsNotAUuidIsNotFoundAndKeepsTheSale(string $uriVariable): void
+    {
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::OWNER));
+        $input = new UpdateSaleInput();
+        $input->unitPrice = 950000.0;
+
+        $status = $this->httpStatusOf(fn () => $this->processor->process($input, new Patch(), [...$this->sabreSaleUri(), $uriVariable => 'abc']));
+
+        self::assertSame([404, [900000.0, 2, 1800000.0], 0], [$status, $this->persistedSabreSaleAmounts(), $this->flushes]);
+    }
+
+    public static function uriVariablesThatAreNotUuids(): iterable
+    {
+        yield 'sale id' => ['id'];
+        yield 'project id' => ['projectId'];
+    }
+
     public function testCorrectionOnACompletedProjectIsRefusedAndKeepsTheSale(): void
     {
         $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_ADMIN_OF_COMPLETED_PROJECT));
@@ -242,6 +312,14 @@ final class UpdateSaleProcessorTest extends TestCase
         $previousSale = $this->provider->provide($operation, $uriVariables);
 
         return $this->processor->process($input, $operation, $uriVariables, ['previous_data' => $previousSale]);
+    }
+
+    private function correctThroughTheProcessorOnly(array $uriVariables): GroupIndustrySaleResource
+    {
+        $input = new UpdateSaleInput();
+        $input->unitPrice = 950000.0;
+
+        return $this->processor->process($input, new Patch(), $uriVariables);
     }
 
     private function persistedSabreSaleAmounts(): array

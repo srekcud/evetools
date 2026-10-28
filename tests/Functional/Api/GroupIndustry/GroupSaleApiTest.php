@@ -173,6 +173,46 @@ final class GroupSaleApiTest extends WebTestCase
         self::assertSame(1, $this->salesCountOf($this->sabreDoctrine));
     }
 
+    public function testCorrectionOfASaleWhoseIdIsNotAUuidIsNotFound(): void
+    {
+        $this->client->loginUser($this->admin, 'api');
+        $this->request('PATCH', $this->saleUriWithANonUuidId(), ['unitPrice' => 950000]);
+
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame([900000.0, 1800000.0], $this->storedSabreSaleAmounts());
+    }
+
+    public function testDeletionOfASaleWhoseIdIsNotAUuidIsNotFound(): void
+    {
+        $this->client->loginUser($this->admin, 'api');
+        $this->request('DELETE', $this->saleUriWithANonUuidId());
+
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame(1, $this->salesCountOf($this->sabreDoctrine));
+    }
+
+    public function testPastedItemsThatAreNotObjectsCreateNoProject(): void
+    {
+        $projectsBefore = $this->em->getRepository(GroupIndustryProject::class)->count([]);
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('POST', '/api/group-industry/projects', ['items' => ['x']]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame([['items[0]'], $projectsBefore], [$this->violatedPaths(), $this->em->getRepository(GroupIndustryProject::class)->count([])]);
+    }
+
+    public function testItemWithNullRunsCreatesNoProject(): void
+    {
+        $projectsBefore = $this->em->getRepository(GroupIndustryProject::class)->count([]);
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('POST', '/api/group-industry/projects', [
+            'items' => [['typeId' => 12005, 'typeName' => 'Ishtar', 'meLevel' => 10, 'teLevel' => 20, 'runs' => null]],
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame([['items[0][runs]'], $projectsBefore], [$this->violatedPaths(), $this->em->getRepository(GroupIndustryProject::class)->count([])]);
+    }
+
     private function persistPilot(string $name, int $corporationId): User
     {
         $character = (new Character())
@@ -217,6 +257,11 @@ final class GroupSaleApiTest extends WebTestCase
     private function sabreSaleUri(GroupIndustryProject $project): string
     {
         return sprintf('/api/group-industry/projects/%s/sales/%s', $project->getId()?->toRfc4122(), $this->sabreSale->getId()?->toRfc4122());
+    }
+
+    private function saleUriWithANonUuidId(): string
+    {
+        return sprintf('/api/group-industry/projects/%s/sales/abc', $this->sabreDoctrine->getId()?->toRfc4122());
     }
 
     private function request(string $method, string $uri, ?array $body = null): void
