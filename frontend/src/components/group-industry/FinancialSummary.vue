@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useFormatters } from '@/composables/useFormatters'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
+import UnknownValue from '@/components/common/UnknownValue.vue'
 
 const distStore = useGroupDistributionStore()
 const projectStore = useGroupProjectStore()
@@ -16,8 +17,6 @@ const profit = computed(() => {
 })
 
 const isProfit = computed(() => profit.value >= 0)
-
-const marginPercent = computed(() => dist.value?.marginPercent ?? 0)
 
 const brokerFeeLabel = computed(() => {
   const pct = projectStore.currentProject?.brokerFeePercent
@@ -109,7 +108,7 @@ const salesTaxLabel = computed(() => {
           <p
             class="text-sm font-mono mt-1"
             :class="isProfit ? 'text-emerald-400/80' : 'text-red-400/80'"
-          >Margin: {{ isProfit ? '+' : '' }}{{ marginPercent.toFixed(1) }}%</p>
+          >Margin: <UnknownValue v-if="dist.marginPercent === null" /><template v-else>{{ isProfit ? '+' : '' }}{{ dist.marginPercent.toFixed(1) }}%</template></p>
         </div>
       </div>
     </div>

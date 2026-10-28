@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
+import IskAmount from '@/components/common/IskAmount.vue'
+import UnknownValue from '@/components/common/UnknownValue.vue'
 import type { BomItem, ContainerVerification } from '@/stores/group-industry/types'
 import { CHART_COLORS } from '@/utils/chartColors'
 
@@ -26,15 +28,10 @@ const verificationMap = computed(() => {
 })
 
 const totalItems = computed(() => materials.value.length)
-const totalEstCost = computed(() =>
-  materials.value.reduce((sum, m) => sum + (m.estimatedTotal ?? 0), 0)
-)
-
+const totalBomValue = computed(() => projectStore.currentProject?.totalBomValue ?? null)
 const overallFulfillment = computed(() => {
-  if (materials.value.length === 0) return 0
-  const totalRequired = materials.value.reduce((s, m) => s + m.requiredQuantity, 0)
-  const totalFulfilled = materials.value.reduce((s, m) => s + m.fulfilledQuantity, 0)
-  return totalRequired > 0 ? Math.round((totalFulfilled / totalRequired) * 100) : 0
+  const project = projectStore.currentProject
+  return project === null ? null : Math.round(project.fulfillmentPercent)
 })
 
 const RING_RADIUS = 16
@@ -215,12 +212,13 @@ function ringStrokeColor(percent: number): string {
         <div class="w-px h-8 bg-slate-800"></div>
         <div>
           <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('groupIndustry.bom.totalEstCost') }}</p>
-          <p class="text-lg font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">{{ formatIsk(totalEstCost, 1) }}</p>
+          <p class="text-lg font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;"><IskAmount :value="totalBomValue" /></p>
         </div>
         <div class="w-px h-8 bg-slate-800"></div>
         <div>
           <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('groupIndustry.bom.overallFulfillment') }}</p>
-          <div class="flex items-center gap-3">
+          <UnknownValue v-if="overallFulfillment === null" />
+          <div v-else class="flex items-center gap-3">
             <!-- Ring chart -->
             <div class="relative w-10 h-10 flex-shrink-0" :class="ringGlowClass(overallFulfillment)">
               <svg viewBox="0 0 40 40" class="w-10 h-10" style="transform: rotate(-90deg)">

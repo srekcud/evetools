@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
+import IskAmount from '@/components/common/IskAmount.vue'
 import type { BomItem } from '@/stores/group-industry/types'
 
 const { t } = useI18n()
@@ -52,9 +53,14 @@ const statusCounts = computed<JobStatusCounts>(() => {
   return counts
 })
 
-const totalEstCost = computed(() =>
-  allJobs.value.reduce((sum, j) => sum + (j.estimatedTotal ?? 0), 0)
-)
+const totalEstCost = computed(() => {
+  let total = 0
+  for (const job of allJobs.value) {
+    if (job.estimatedTotal === null) return null
+    total += job.estimatedTotal
+  }
+  return total
+})
 
 type JobGroupConfig = {
   key: string
@@ -282,7 +288,7 @@ function isJobDimmed(job: BomItem): boolean {
           <div class="w-px h-5 bg-slate-800"></div>
           <div class="flex items-center gap-2 text-sm">
             <span class="text-slate-500">{{ t('groupIndustry.bom.totalEstCost') }}:</span>
-            <span class="font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">{{ formatIsk(totalEstCost, 1) }}</span>
+            <span class="font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;"><IskAmount :value="totalEstCost" /></span>
           </div>
           <template v-if="statusCounts.bpcContributed > 0">
             <div class="w-px h-5 bg-slate-800"></div>

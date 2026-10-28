@@ -1913,7 +1913,8 @@
       "pendingApprovals": "Pending Approvals",
       "approvalsDesc": "contributions awaiting review",
       "pipelineValue": "Pipeline Value",
-      "pipelineDesc": "estimated sell value"
+      "pipelineDesc": "estimated material cost",
+      "unknownValueExcluded": "{count} project with unknown value excluded | {count} projects with unknown value excluded"
     },
     "status": {
       "draft": "Draft",
@@ -1990,6 +1991,7 @@
     },
     "distribution": {
       "title": "Distribution",
+      "undistributable": "Undistributable distribution: no approved contribution has a cost, the net revenue cannot be split",
       "totalRevenue": "Total Revenue",
       "brokerFee": "Broker Fee",
       "salesTax": "Sales Tax",

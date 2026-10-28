@@ -11,6 +11,7 @@ use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\GroupProjectStatus;
+use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -26,6 +27,7 @@ class AvailableGroupProjectsProvider implements ProviderInterface
         private readonly GroupIndustryProjectRepository $projectRepository,
         private readonly GroupIndustryProjectMemberRepository $memberRepository,
         private readonly GroupIndustryResourceMapper $mapper,
+        private readonly GroupIndustryContributionRepository $contributionRepository,
     ) {
     }
 
@@ -70,10 +72,16 @@ class AvailableGroupProjectsProvider implements ProviderInterface
 
         $this->memberRepository->loadItemsAndBomItems($availableProjects);
         $membersCountByProject = $this->memberRepository->countAcceptedByProject($availableProjects);
+        $approvedValueByProject = $this->contributionRepository->sumApprovedValueByProject($availableProjects);
 
         $resources = [];
         foreach ($availableProjects as $project) {
-            $resources[] = $this->mapper->projectToResource($project, null, $membersCountByProject[(string) $project->getId()]);
+            $resources[] = $this->mapper->projectToResource(
+                $project,
+                null,
+                $membersCountByProject[(string) $project->getId()],
+                $approvedValueByProject[(string) $project->getId()],
+            );
         }
 
         return $resources;

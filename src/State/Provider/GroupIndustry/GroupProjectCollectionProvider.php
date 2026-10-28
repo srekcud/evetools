@@ -9,6 +9,7 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
+use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -22,6 +23,7 @@ class GroupProjectCollectionProvider implements ProviderInterface
         private readonly Security $security,
         private readonly GroupIndustryProjectMemberRepository $memberRepository,
         private readonly GroupIndustryResourceMapper $mapper,
+        private readonly GroupIndustryContributionRepository $contributionRepository,
     ) {
     }
 
@@ -35,9 +37,9 @@ class GroupProjectCollectionProvider implements ProviderInterface
         }
 
         $memberships = $this->memberRepository->findAcceptedWithProjectsByUser($user);
-        $membersCountByProject = $this->memberRepository->countAcceptedByProject(
-            array_map(static fn (GroupIndustryProjectMember $membership) => $membership->getProject(), $memberships),
-        );
+        $projects = array_values(array_map(static fn (GroupIndustryProjectMember $membership) => $membership->getProject(), $memberships));
+        $membersCountByProject = $this->memberRepository->countAcceptedByProject($projects);
+        $approvedValueByProject = $this->contributionRepository->sumApprovedValueByProject($projects);
 
         $resources = [];
         foreach ($memberships as $membership) {
@@ -46,6 +48,7 @@ class GroupProjectCollectionProvider implements ProviderInterface
                 $project,
                 $membership,
                 $membersCountByProject[(string) $project->getId()],
+                $approvedValueByProject[(string) $project->getId()],
             );
         }
 

@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import DataTable from '@/components/common/DataTable.vue'
+import IskAmount from '@/components/common/IskAmount.vue'
+import UnknownValue from '@/components/common/UnknownValue.vue'
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
@@ -18,6 +20,8 @@ const { pilotName } = usePilotName()
 const expandedMemberId = ref<string | null>(null)
 
 const dist = computed(() => store.distribution)
+
+const isUndistributable = computed(() => dist.value?.marginPercent === null)
 
 const RING_RADIUS = 80
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
@@ -38,27 +42,39 @@ function isExpanded(memberId: string): boolean {
 const ringSegments = computed(() => {
   if (!dist.value) return []
   let offset = 0
-  return dist.value.members.map((member, i) => {
+  return dist.value.members.flatMap((member, i) => {
+    if (member.sharePercent === null) return []
     const dash = (member.sharePercent / 100) * RING_CIRCUMFERENCE
     const gap = RING_CIRCUMFERENCE - dash
     const segment = { dash, gap, offset: -offset, color: getMemberColor(i) }
     offset += dash
-    return segment
+    return [segment]
   })
 })
 
 // Totals
 const totalCosts = computed(() => dist.value?.totalProjectCost ?? 0)
+
+function sumOrUnknown(values: (number | null)[]): number | null {
+  let sum = 0
+  for (const value of values) {
+    if (value === null) return null
+    sum += value
+  }
+  return sum
+}
+
 const totalProfit = computed(() => {
-  if (!dist.value) return 0
-  return dist.value.members.reduce((s, m) => s + m.profitPart, 0)
+  if (!dist.value || isUndistributable.value) return null
+  return sumOrUnknown(dist.value.members.map(m => m.profitPart))
 })
 const totalPayout = computed(() => {
-  if (!dist.value) return 0
-  return dist.value.members.reduce((s, m) => s + m.payoutTotal, 0)
+  if (!dist.value || isUndistributable.value) return null
+  return sumOrUnknown(dist.value.members.map(m => m.payoutTotal))
 })
 
-function profitColorClass(value: number): string {
+function profitColorClass(value: number | null): string {
+  if (value === null) return 'text-slate-400'
   return value >= 0 ? 'text-emerald-400' : 'text-red-400'
 }
 
@@ -79,6 +95,12 @@ const BREAKDOWN_COLORS: Record<string, string> = {
 <template>
   <div v-if="dist">
     <h2 class="text-lg font-semibold text-slate-100 mb-4">Profit Distribution</h2>
+    <div
+      v-if="isUndistributable"
+      class="bg-amber-500/5 rounded-xl border border-amber-500/20 p-4 mb-4 text-sm text-amber-300"
+    >
+      {{ t('groupIndustry.distribution.undistributable') }}
+    </div>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Ring Chart -->
       <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-6 flex flex-col items-center justify-center">
@@ -104,7 +126,7 @@ const BREAKDOWN_COLORS: Record<string, string> = {
           <div class="absolute inset-0 flex flex-col items-center justify-center">
             <p class="text-xs text-slate-500 uppercase tracking-wider">Total Payout</p>
             <p class="text-xl font-mono font-bold text-slate-100" style="font-variant-numeric: tabular-nums;">
-              {{ formatIsk(totalPayout) }}
+              <IskAmount :value="totalPayout" />
             </p>
           </div>
         </div>
@@ -119,7 +141,10 @@ const BREAKDOWN_COLORS: Record<string, string> = {
               <span class="w-3 h-3 rounded-sm" :style="{ background: getMemberColor(i) }"></span>
               <span class="text-slate-300">{{ pilotName(member.characterName) }}</span>
             </div>
-            <span class="font-mono text-slate-400">{{ member.sharePercent.toFixed(1) }}%</span>
+            <span class="font-mono text-slate-400">
+              <UnknownValue v-if="member.sharePercent === null" />
+              <template v-else>{{ member.sharePercent.toFixed(1) }}%</template>
+            </span>
           </div>
         </div>
       </div>
@@ -175,21 +200,23 @@ const BREAKDOWN_COLORS: Record<string, string> = {
                     {{ formatIsk(member.totalCostsEngaged) }}
                   </td>
                   <td class="py-3.5 px-3 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">
-                    {{ member.sharePercent.toFixed(1) }}%
+                    <UnknownValue v-if="member.sharePercent === null" />
+                    <template v-else>{{ member.sharePercent.toFixed(1) }}%</template>
                   </td>
                   <td
                     class="py-3.5 px-3 text-right font-mono"
                     :class="profitColorClass(member.profitPart)"
                     style="font-variant-numeric: tabular-nums;"
                   >
-                    {{ formatProfit(member.profitPart) }}
+                    <UnknownValue v-if="member.profitPart === null" />
+                    <template v-else>{{ formatProfit(member.profitPart) }}</template>
                   </td>
                   <td class="py-3.5 px-6 text-right">
                     <span
                       class="font-mono font-bold text-lg"
                       :class="profitColorClass(member.payoutTotal)"
                       style="font-variant-numeric: tabular-nums;"
-                    >{{ formatIsk(member.payoutTotal) }}</span>
+                    ><IskAmount :value="member.payoutTotal" /></span>
                   </td>
                 </tr>
                 <!-- Breakdown row (expanded) -->
@@ -243,21 +270,23 @@ const BREAKDOWN_COLORS: Record<string, string> = {
                   {{ formatIsk(totalCosts) }}
                 </td>
                 <td class="py-3.5 px-3 text-right font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">
-                  100%
+                  <UnknownValue v-if="isUndistributable" />
+                  <template v-else>100%</template>
                 </td>
                 <td
                   class="py-3.5 px-3 text-right font-mono font-bold"
                   :class="profitColorClass(totalProfit)"
                   style="font-variant-numeric: tabular-nums;"
                 >
-                  {{ formatProfit(totalProfit) }}
+                  <UnknownValue v-if="totalProfit === null" />
+                  <template v-else>{{ formatProfit(totalProfit) }}</template>
                 </td>
                 <td
                   class="py-3.5 px-6 text-right font-mono font-bold text-lg"
                   :class="profitColorClass(totalPayout)"
                   style="font-variant-numeric: tabular-nums;"
                 >
-                  {{ formatIsk(totalPayout) }}
+                  <IskAmount :value="totalPayout" />
                 </td>
               </tr>
             </tbody>
@@ -286,7 +315,7 @@ const BREAKDOWN_COLORS: Record<string, string> = {
 
     <!-- Loss scenario warning -->
     <div
-      v-if="dist.marginPercent < 0"
+      v-if="dist.marginPercent !== null && dist.marginPercent < 0"
       class="bg-red-500/5 rounded-xl border border-red-500/20 p-5 mt-4"
     >
       <div class="flex items-start gap-4">

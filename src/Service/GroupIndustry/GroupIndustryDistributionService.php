@@ -37,7 +37,7 @@ class GroupIndustryDistributionService
 
         $marginRatio = $totalProjectCost > 0
             ? ($netRevenue - $totalProjectCost) / $totalProjectCost
-            : 0.0;
+            : null;
 
         $members = $this->buildMemberDistributions($approvedContributions, $totalProjectCost, $marginRatio);
 
@@ -47,7 +47,7 @@ class GroupIndustryDistributionService
             salesTax: $salesTax,
             netRevenue: $netRevenue,
             totalProjectCost: $totalProjectCost,
-            marginPercent: $marginRatio * 100.0,
+            marginPercent: $marginRatio === null ? null : $marginRatio * 100.0,
             members: $members,
         );
     }
@@ -56,7 +56,7 @@ class GroupIndustryDistributionService
      * @param GroupIndustryContribution[] $contributions
      * @return MemberDistribution[]
      */
-    private function buildMemberDistributions(array $contributions, float $totalProjectCost, float $marginRatio): array
+    private function buildMemberDistributions(array $contributions, float $totalProjectCost, ?float $marginRatio): array
     {
         /** @var array<string, array{contributions: GroupIndustryContribution[], member: \App\Entity\GroupIndustryProjectMember}> $grouped */
         $grouped = [];
@@ -101,10 +101,10 @@ class GroupIndustryDistributionService
 
             $sharePercent = $totalProjectCost > 0
                 ? $totalCosts / $totalProjectCost * 100
-                : 0.0;
+                : null;
 
-            $profitPart = $totalCosts * $marginRatio;
-            $payoutTotal = $totalCosts + $profitPart;
+            $profitPart = $marginRatio === null ? null : $totalCosts * $marginRatio;
+            $payoutTotal = $profitPart === null ? null : $totalCosts + $profitPart;
 
             $characterName = PilotName::of($member->getUser());
 

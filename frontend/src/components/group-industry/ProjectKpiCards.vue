@@ -16,11 +16,15 @@ const activeCount = computed(() =>
 )
 
 const totalContributions = computed(() =>
-  props.projects.reduce((sum, p) => sum + p.totalBomValue * (p.fulfillmentPercent / 100), 0)
+  props.projects.reduce((sum, p) => sum + p.approvedContributionValue, 0)
 )
 
 const pipelineValue = computed(() =>
-  props.projects.reduce((sum, p) => sum + p.totalBomValue, 0)
+  props.projects.reduce((sum, p) => (p.totalBomValue === null ? sum : sum + p.totalBomValue), 0)
+)
+
+const unknownBomValueCount = computed(() =>
+  props.projects.filter(p => p.totalBomValue === null).length
 )
 </script>
 
@@ -78,6 +82,9 @@ const pipelineValue = computed(() =>
         {{ formatIsk(pipelineValue, 1) }}
       </p>
       <p class="text-xs text-slate-600 mt-1">{{ t('groupIndustry.kpis.pipelineDesc') }}</p>
+      <p v-if="unknownBomValueCount > 0" class="text-xs text-slate-500 mt-1">
+        {{ t('groupIndustry.kpis.unknownValueExcluded', { count: unknownBomValueCount }, unknownBomValueCount) }}
+      </p>
     </div>
   </div>
 </template>

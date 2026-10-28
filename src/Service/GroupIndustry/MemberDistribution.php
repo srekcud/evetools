@@ -14,8 +14,8 @@ class MemberDistribution
         public readonly float $jobInstallCosts,
         public readonly float $bpcCosts,
         public readonly float $lineRentalCosts,
-        public readonly float $sharePercent,
-        public readonly float $profitPart,
-        public readonly float $payoutTotal,
+        public readonly ?float $sharePercent,
+        public readonly ?float $profitPart,
+        public readonly ?float $payoutTotal,
     ) {}
 }

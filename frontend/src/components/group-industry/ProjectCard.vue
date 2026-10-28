@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useFormatters } from '@/composables/useFormatters'
+import UnknownValue from '@/components/common/UnknownValue.vue'
 import { useEveImages } from '@/composables/useEveImages'
 import type { GroupProject } from '@/stores/group-industry/types'
 import { CHART_COLORS } from '@/utils/chartColors'
@@ -180,7 +181,8 @@ function progressBarClass(): string {
           <span>{{ project.membersCount }}</span>
         </div>
         <span class="font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">
-          {{ formatIsk(project.totalBomValue, 1) }}
+          <UnknownValue v-if="project.totalBomValue === null" />
+          <template v-else>{{ formatIsk(project.totalBomValue, 1) }}</template>
         </span>
       </div>
     </div>

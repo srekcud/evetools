@@ -43,13 +43,37 @@ class GroupIndustryContributionRepository extends ServiceEntityRepository
     }
 
     /**
+     * Approved contribution value per project, keyed by project UUID (RFC 4122); 0.0 for a project without any.
+     *
      * @param list<GroupIndustryProject> $projects
      *
      * @return array<string, float>
      */
     public function sumApprovedValueByProject(array $projects): array
     {
-        throw new \LogicException('not implemented');
+        if ($projects === []) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('c')
+            ->select('IDENTITY(c.project) AS projectId', 'SUM(c.estimatedValue) AS approvedValue')
+            ->andWhere('c.project IN (:projects)')
+            ->andWhere('c.status = :status')
+            ->setParameter('projects', $projects)
+            ->setParameter('status', ContributionStatus::Approved->value)
+            ->groupBy('c.project')
+            ->getQuery()
+            ->getScalarResult();
+
+        $values = [];
+        foreach ($projects as $project) {
+            $values[(string) $project->getId()] = 0.0;
+        }
+        foreach ($rows as $row) {
+            $values[(string) $row['projectId']] = (float) $row['approvedValue'];
+        }
+
+        return $values;
     }
 
     public function countByMember(GroupIndustryProjectMember $member): int

@@ -45,7 +45,7 @@ class GroupIndustryDistributionResource
 
     public float $totalProjectCost;
 
-    public float $marginPercent;
+    public ?float $marginPercent;
 
     /**
      * @var list<array{
@@ -56,9 +56,9 @@ class GroupIndustryDistributionResource
      *     jobInstallCosts: float,
      *     bpcCosts: float,
      *     lineRentalCosts: float,
-     *     sharePercent: float,
-     *     profitPart: float,
-     *     payoutTotal: float,
+     *     sharePercent: float|null,
+     *     profitPart: float|null,
+     *     payoutTotal: float|null,
      * }>
      */
     public array $members = [];

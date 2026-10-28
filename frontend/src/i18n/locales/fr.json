@@ -1913,7 +1913,8 @@
       "pendingApprovals": "Approbations en attente",
       "approvalsDesc": "contributions en attente de validation",
       "pipelineValue": "Valeur pipeline",
-      "pipelineDesc": "valeur de vente estimee"
+      "pipelineDesc": "coût matériaux estimé",
+      "unknownValueExcluded": "{count} projet à la valeur inconnue exclu | {count} projets à la valeur inconnue exclus"
     },
     "status": {
       "draft": "Brouillon",
@@ -1990,6 +1991,7 @@
     },
     "distribution": {
       "title": "Distribution",
+      "undistributable": "Répartition impossible : aucune contribution approuvée n'a de coût, le revenu net ne peut pas être réparti",
       "totalRevenue": "Revenu total",
       "brokerFee": "Frais courtier",
       "salesTax": "Taxe de vente",

@@ -7,9 +7,11 @@ namespace App\State\Provider\GroupIndustry;
 use App\ApiResource\GroupIndustry\GroupIndustryContributionResource;
 use App\ApiResource\GroupIndustry\GroupIndustryMemberResource;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
+use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryContribution;
 use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustryProjectMember;
+use App\Enum\ContributionStatus;
 use App\Enum\GroupMemberStatus;
 use App\Service\GroupIndustry\PilotName;
 
@@ -17,8 +19,14 @@ class GroupIndustryResourceMapper
 {
     /**
      * @param int|null $acceptedMembersCount precomputed by collection providers; counted from the members otherwise
+     * @param float|null $approvedContributionValue precomputed by collection providers; summed from the approved contributions otherwise
      */
-    public function projectToResource(GroupIndustryProject $project, ?GroupIndustryProjectMember $myMembership, ?int $acceptedMembersCount = null): GroupIndustryProjectResource
+    public function projectToResource(
+        GroupIndustryProject $project,
+        ?GroupIndustryProjectMember $myMembership,
+        ?int $acceptedMembersCount = null,
+        ?float $approvedContributionValue = null,
+    ): GroupIndustryProjectResource
     {
         $resource = new GroupIndustryProjectResource();
         $resource->id = $project->getId()->toString();
@@ -54,23 +62,36 @@ class GroupIndustryResourceMapper
             ->filter(fn (GroupIndustryProjectMember $m) => $m->getStatus() === GroupMemberStatus::Accepted)
             ->count();
 
-        // Calculate BOM value and fulfillment from material items (isJob=false)
-        $totalBomValue = 0.0;
-        $totalRequired = 0;
-        $totalFulfilled = 0;
-        foreach ($project->getBomItems() as $bomItem) {
-            if (!$bomItem->isJob()) {
-                $totalBomValue += ($bomItem->getEstimatedPrice() ?? 0.0) * $bomItem->getRequiredQuantity();
-                $totalRequired += $bomItem->getRequiredQuantity();
-                $totalFulfilled += min($bomItem->getFulfilledQuantity(), $bomItem->getRequiredQuantity());
-            }
-        }
-        $resource->totalBomValue = $totalBomValue;
-        $resource->fulfillmentPercent = $totalRequired > 0
-            ? round(($totalFulfilled / $totalRequired) * 100, 2)
-            : 0.0;
+        $materialItems = $project->getBomItems()->filter(static fn (GroupIndustryBomItem $bomItem) => !$bomItem->isJob());
+        $resource->totalBomValue = $this->totalBomValueOf($materialItems->toArray());
+        $resource->fulfillmentPercent = $materialItems->isEmpty()
+            ? 0.0
+            : round(array_sum($materialItems->map(static fn (GroupIndustryBomItem $bomItem) => $bomItem->getFulfillmentPercent())->toArray()) / $materialItems->count(), 2);
+        $resource->approvedContributionValue = $approvedContributionValue ?? array_sum(
+            $project->getContributions()
+                ->filter(static fn (GroupIndustryContribution $contribution) => $contribution->getStatus() === ContributionStatus::Approved)
+                ->map(static fn (GroupIndustryContribution $contribution) => $contribution->getEstimatedValue())
+                ->toArray(),
+        );
 
         return $resource;
+    }
+
+    /**
+     * @param GroupIndustryBomItem[] $materialItems
+     */
+    private function totalBomValueOf(array $materialItems): ?float
+    {
+        $total = 0.0;
+        foreach ($materialItems as $bomItem) {
+            $estimatedPrice = $bomItem->getEstimatedPrice();
+            if ($estimatedPrice === null) {
+                return null;
+            }
+            $total += $estimatedPrice * $bomItem->getRequiredQuantity();
+        }
+
+        return $total;
     }
 
     public function contributionToResource(GroupIndustryContribution $contribution): GroupIndustryContributionResource
