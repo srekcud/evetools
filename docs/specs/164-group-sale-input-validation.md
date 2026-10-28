@@ -2,11 +2,13 @@
 
 Statut : **brouillon, rédigé sans Sylvain**. Les réponses recommandées sont appliquées dans la spec ; elles ne valent qu'après validation des questions de la section finale.
 
+**Périmètre de la boucle de nuit du 2026-10-28.** Les ventes (R2 à R9, S1 à S17, correction et suppression) restent dans le lot. Pour les items, R1 est réduit aux contraintes de forme et aux bornes basses (`runs` ≥ 1, `meLevel` 0 à 10, `teLevel` 0 à 20). **La borne haute des runs (Q5, recouvre #257) est hors lot, en attente de la décision de Sylvain** : depuis #141, le plafond SDE vaut 1 pour Fenrir, Widow, Nomad et Marshal, donc une ligne de BOM par run, et la borne 1 à 100 000 du projet solo ne convient pas à Group Industry.
+
 ## Contexte
 
-Faits vérifiés dans le code au 2026-10-26 (les numéros de ligne de l'issue sont périmés) :
+Faits vérifiés dans le code au 2026-10-28 (les numéros de ligne de l'issue sont périmés) :
 
-- **Items d'un projet.** `CreateGroupProjectInput::$items` ne porte que `NotBlank` et `Count(min: 1, max: 10)`. La forme de chaque item n'est pas contrôlée. `GroupIndustryProjectService::createProject()` lit `$itemData['typeId']`, `['typeName']`, `['meLevel']`, `['teLevel']`, `['runs']` sans garde : une clé absente provoque une erreur 500, et des runs à 0 ou négatifs, un ME de 11 ou un TE de 25 passent tels quels à `IndustryTreeService::buildProductionTree()`. Le collage en masse du formulaire (`NewProjectModal.vue::parseBulkText()`) accepte n'importe quels chiffres : `Ishtar 12 25 x0` envoie ME 12, TE 25 et 0 run.
+- **Items d'un projet.** `CreateGroupProjectInput::$items` ne porte que `NotBlank` et `Count(min: 1, max: 10)`. La forme de chaque item n'est pas contrôlée : `GroupIndustryProjectService::createProject()` lit `$itemData['typeId']`, `['typeName']`, `['meLevel']`, `['teLevel']`, `['runs']` sans garde (`:77-81`), une clé absente provoque une erreur 500, et le processor lit `$item['typeId']` (`CreateGroupProjectProcessor.php:104`). Les valeurs hors bornes sont en revanche déjà refusées en 400 par les objets du noyau : `GroupIndustryProjectService::targetsOf()` (`:166-186`) construit `Runs`, `MaterialEfficiency` et `TimeEfficiency`, qui lèvent `\InvalidArgumentException` (`Runs.php:16-18`, `MaterialEfficiency.php:14-15`, `TimeEfficiency.php:17-18`), et `CreateGroupProjectProcessor::process()` convertit en 400 (`:78-79`). Le message ne nomme pas l'item et seule la première violation est signalée. Exception : pour un item de réaction, ME et TE sont ignorés (forcés à 0, `:171-172`) mais enregistrés tels quels sur `GroupIndustryProjectItem` (`:79-80`). Autre exception : deux items du même produit au même ME/TE se somment (`:173-175`) ; `runs: 5` et `runs: 0` passent, et l'item à 0 run est enregistré. Le collage en masse du formulaire (`NewProjectModal.vue::parseBulkText()`) accepte n'importe quels chiffres : `Ishtar 12 25 x0` envoie ME 12, TE 25 et 0 run, et reçoit 400 sur la seule première violation (ME 12).
 - **Saisie d'une vente.** `RecordSaleInput` n'a aucune contrainte. `RecordSaleProcessor::process()` refuse lui-même `quantity <= 0` et `unitPrice < 0`, en **400** (pas 422), après le contrôle d'accès et le contrôle du projet terminé. `soldAt` est lu par `new \DateTimeImmutable($data->soldAt)` sans garde. Comportement vérifié sous PHP 8.5 :
   - `not-a-date` lève `DateMalformedStringException`, d'où une erreur 500 ;
   - `2026-02-30T10:00:00+00:00` devient en silence le 2026-03-02 ;
@@ -23,9 +25,11 @@ Faits vérifiés dans le code au 2026-10-26 (les numéros de ligne de l'issue so
   - `typeName` : chaîne non vide, 255 caractères au plus ;
   - `meLevel` : de 0 à 10 ;
   - `teLevel` : de 0 à 20 ;
-  - `runs` : de 1 à 100 000 (`CreateProjectInput::MAXIMUM_PROJECT_RUNS`, la borne du projet solo).
+  - `runs` : entier ≥ 1, **sans borne haute** (hors lot, Q5).
 
-  Toute violation renvoie 422, avec le chemin de l'item (`items[1][runs]`). Aucun projet n'est créé et aucune BOM n'est calculée. Q5 porte sur ces bornes.
+  Les contraintes sont des contraintes Symfony sur `CreateGroupProjectInput::$items`. Toute violation renvoie 422, avec le chemin de l'item (`items[1][runs]`). Aucun projet n'est créé et aucune BOM n'est calculée. Elles valent pour tous les items, y compris une réaction dont le noyau ignorerait ME et TE : un ME de 11 sur une réaction passe donc de « accepté, ignoré » à 422.
+
+  Le pas du TE n'est pas contrôlé par ces contraintes : un TE impair (ex. 15) dans la plage reste refusé en 400 par `TimeEfficiency` du noyau (`LEVEL_STEP`), comme aujourd'hui. Q5 porte sur ces choix.
 - **R2 — Vente bornée.** `RecordSaleInput` :
   - `typeId` : requis, entier ≥ 0 (le formulaire envoie 0) ;
   - `typeName` : requis, non vide, 255 caractères au plus ;
@@ -54,24 +58,25 @@ Faits vérifiés dans le code au 2026-10-26 (les numéros de ligne de l'issue so
 
 ### Items d'un projet (`POST /group-industry/projects`)
 
-Item de base : `{typeId: 12005, typeName: "Ishtar", meLevel: 10, teLevel: 20, runs: 5}`. Seule la clé indiquée change. « Accepté » veut dire que la saisie passe la validation et va au calcul de la BOM.
+Item de base : `{typeId: 12005, typeName: "Ishtar", meLevel: 10, teLevel: 20, runs: 5}`. Seule la clé indiquée change. « 400 (noyau) » veut dire que la saisie passe la validation de l'input puis est refusée par les objets du noyau pendant le calcul de la BOM, avec un message qui ne nomme pas l'item (ex. « A job has at least 1 run, got 0. »).
 
 | # | Cas | Aujourd'hui | Attendu |
 |---|---|---|---|
-| I1 | `runs: 0` | accepté, aucune contrainte | 422 sur `items[0][runs]`, rien de persisté |
-| I2 | `runs: -5` | accepté | 422 sur `items[0][runs]` |
-| I3 | `runs: 100000` | accepté | accepté (garde-fou) |
-| I4 | `runs: 100001` | accepté | 422 sur `items[0][runs]` |
-| I5 | `meLevel: 11` | accepté | 422 sur `items[0][meLevel]` |
-| I6 | `meLevel: -1` | accepté | 422 sur `items[0][meLevel]` |
-| I7 | `teLevel: 21` | accepté | 422 sur `items[0][teLevel]` |
-| I8 | `meLevel: 0, teLevel: 0` | accepté | accepté (garde-fou) |
-| I9 | item sans clé `runs` | 500 | 422 sur `items[0][runs]` |
+| I1 | `runs: 0` | 400 (noyau) | 422 sur `items[0][runs]`, rien de persisté |
+| I2 | `runs: -5` | 400 (noyau) | 422 sur `items[0][runs]` |
+| I3 | `runs: 100000` | accepté, sans borne haute | inchangé (borne haute hors lot, Q5) |
+| I4 | `meLevel: 11` | 400 (noyau) pour une fabrication ; accepté, ignoré pour une réaction | 422 sur `items[0][meLevel]` |
+| I5 | `meLevel: -1` | idem | 422 sur `items[0][meLevel]` |
+| I6 | `teLevel: 21` | idem | 422 sur `items[0][teLevel]` |
+| I7 | `meLevel: 0, teLevel: 0` | accepté | accepté (garde-fou) |
+| I8 | `teLevel: 15` (impair, dans la plage) | 400 (noyau) pour une fabrication ; accepté, ignoré pour une réaction | inchangé : 400 (noyau) pour une fabrication, `TimeEfficiency` exige un niveau pair |
+| I9 | item sans clé `runs` | 500 (`createProject()` `:81`) | 422 sur `items[0][runs]` |
 | I10 | `typeId: 0, typeName: "Ishtar"` (collage en masse) | accepté, type résolu par le nom | inchangé (garde-fou, `CreateGroupProjectProcessorTest::testResolvesTypeIdFromNameWhenTypeIdIsZero`) |
-| I11 | `typeId: -3` | accepté | 422 sur `items[0][typeId]` |
-| I12 | `typeName: ""` | accepté | 422 sur `items[0][typeName]` |
-| I13 | deux items, le second à `runs: 0` | accepté | 422 sur `items[1][runs]`, aucun projet créé |
-| I14 | collage `Ishtar 12 25 x0` | accepté (ME 12, TE 25, 0 run) | 422, trois violations : `items[0][meLevel]`, `items[0][teLevel]`, `items[0][runs]` |
+| I11 | `typeId: -3` | 400 « No blueprint or reaction found for: … » (`CreateGroupProjectProcessor::resolveItemTypeIds()`, blueprint introuvable) | 422 sur `items[0][typeId]` |
+| I12 | `typeName: ""` | accepté si `typeId` a un blueprint (le nom n'est pas contrôlé) | 422 sur `items[0][typeName]` |
+| I13 | deux items de produits différents, le second à `runs: 0` | 400 (noyau) | 422 sur `items[1][runs]`, aucun projet créé |
+| I14 | collage `Ishtar 12 25 x0` | 400 (noyau), une seule erreur (ME 12) | 422, trois violations : `items[0][meLevel]`, `items[0][teLevel]`, `items[0][runs]` |
+| I15 | deux items du même produit au même ME/TE, `runs: 5` puis `runs: 0` | accepté : les runs se somment (`targetsOf()` `:173-175`), l'item à 0 run est enregistré | 422 sur `items[1][runs]`, aucun projet créé |
 
 ### Saisie d'une vente (`POST …/sales`, par un admin, projet `selling`)
 
@@ -132,10 +137,10 @@ Montants en ISK, à comparer avec une tolérance (calculs en `float`).
 ## Cas limites
 
 - **Ordre des erreurs à la saisie d'une vente.** Le `POST` n'a pas de provider : API Platform valide l'input avant le processor. Un non-admin qui envoie une date invalide reçoit donc 422, pas 403. Le `PATCH` et le `DELETE` passent par le provider, qui répond 404/403 avant toute validation.
-- **ME et TE des items.** Ils ne s'appliquent qu'à la profondeur 0 : les composants gardent ME 10 / TE 20 et les réactions ME 0 / TE 0 (`GroupIndustryProjectService::flattenTree()`). R1 ne change rien à ce calcul.
+- **ME et TE des items.** Ils ne s'appliquent qu'à la profondeur 0 : les composants fabriqués gardent ME 10 / TE 20 (`ProductionPlanner::MANUFACTURED_INTERMEDIATE_ME` et `_TE`, `ProductionPlanner.php:15-16`, `:169`) et les réactions ME 0 / TE 0 (`targetsOf()` `:170-172`). `GroupIndustryProjectService::flattenTree()` n'existe plus (supprimée par #141). R1 ne change rien à ce calcul.
 - **Item sans blueprint.** Déjà refusé en 400 par `CreateGroupProjectProcessor::resolveItemTypeIds()` (« No blueprint or reaction found for: … »). Inchangé : ce n'est pas une erreur de forme.
 - **Clés en trop dans un item.** Refusées en 422, car la contrainte `Collection` refuse les champs non déclarés. Le formulaire n'envoie que les cinq clés.
-- **TE impair (ex. 15).** Accepté, comme dans le projet solo (`CreateProjectInput`, `Range(0, 20)` sans pas).
+- **TE impair (ex. 15).** Refusé en 400 par `TimeEfficiency` du noyau pour une fabrication (`LEVEL_STEP`, `TimeEfficiency.php:17-18`), que R1 ne double pas par une contrainte de pas (Q5). Pour une réaction, ME et TE sont ignorés.
 - **Prix unitaire à 0.** Accepté par l'API comme aujourd'hui ; seul le formulaire le bloque.
 - **`typeId` 0 sur une vente.** C'est le cas de toutes les ventes saisies par le formulaire. Il reste accepté : aucun type n'est inventé, et le nom saisi reste la seule information.
 - **Vente datée dans le futur.** Acceptée : aucune borne de date.
@@ -181,5 +186,5 @@ Proposé, à ajouter seulement après validation (section « Industrie collabora
 2. **Projet terminé.** Correction et suppression refusées en 400 sur un projet `completed`, comme l'enregistrement (#152) ? Recommandé : oui.
 3. **Trace des corrections.** Aucune trace en base dans ce lot (pas de migration ; seul l'événement Mercure `sale_updated`) ? Recommandé : oui. Des colonnes `updatedAt` / `updatedBy` demanderaient une migration.
 4. **Format de `soldAt`.** ISO 8601 avec fuseau (`DATE_ATOM`, `Z` accepté), qui refuse la date seule, les millisecondes et les dates relatives ? Recommandé : oui. Un futur sélecteur de date côté frontend convertira dans ce format.
-5. **Bornes des items.** Alignées sur le projet solo : runs de 1 à 100 000, ME de 0 à 10, TE de 0 à 20, sans contrôle du pas de 2 ? Recommandé : oui.
+5. **Bornes des items.** Bornes basses retenues pour la boucle de nuit : `runs` ≥ 1, ME de 0 à 10, TE de 0 à 20 (422), le TE impair restant refusé en 400 par le noyau. **La borne haute des runs est hors lot, en attente de Sylvain** (recouvre #257). La borne 1 à 100 000 du projet solo (`CreateProjectInput::MAXIMUM_PROJECT_RUNS`) ne tient plus depuis #141 : le nombre de lignes de BOM persistées vaut `ceil(runs / plafond)` par produit, et le plafond SDE vaut 1 pour Fenrir, Widow, Nomad et Marshal, donc 10 items × 100 000 runs peuvent écrire 1 000 000 lignes. Options : A borne plus basse (ex. 1 000 runs) ; B borne sur le nombre de lignes de BOM produites. Recommandation : B, à confirmer.
 6. **Frontend dans ce lot.** Actions « Modifier » et « Supprimer » dans `SalesTable.vue` pour le propriétaire et les admins, avec une maquette avant le développement ? Recommandé : oui. Sans frontend, la correction n'est accessible que par l'API.

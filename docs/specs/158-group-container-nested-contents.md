@@ -39,7 +39,7 @@ Constaté dans le code (branche `fix/group-group-industry`, 90f0618 ; les numér
 
   `unchecked` disparaît. Un 0 n'est renvoyé que lorsque le container a été trouvé et ne contient pas le matériau.
 - **R5 — API.** La ressource reste une collection par ligne matériau. `GroupContainerVerificationResource::$containerQuantity` devient `?int` ; ajout de `?string $unknownReason`. Type front `ContainerVerificationStatus` et `ContainerVerification` alignés.
-- **R6 — Affichage (proposition, Q1).** Les états du container (`unknown`, `container_not_found`) s'affichent une fois dans `ContainerBanner.vue`, avec l'action à mener ; les états de ligne (`verified`, `partial`, `missing`) dans `BomTable.vue`. La maquette suivra la validation des libellés.
+- **R6 — Affichage (proposition, Q1).** Les états du container (`unknown`, `container_not_found`) s'affichent une fois dans `ContainerBanner.vue`, avec l'action à mener ; les états de ligne (`verified`, `partial`, `missing`) dans `BomTable.vue`. Pas de maquette nouvelle : composants existants, libellés i18n (Q1, à relire par Sylvain).
 
 ## Exemples chiffrés
 
@@ -83,7 +83,7 @@ Corporation 98 000 001, container « Build », BOM : Tritanium (34) requis 500, 
 
 ## Tests existants appelés à changer
 
-- `tests/Unit/Service/GroupIndustry/GroupIndustryContainerServiceTest.php` : `testReturnsAllUncheckedWhenNoContainerName` (E15), `testReturnsAllUncheckedWhenNoCorporationId` (E14), `testReturnsUncheckedWhenContainerNotFoundInCorpAssets` (E8), `testUncheckedWhenMaterialNotInContainer` et `testHandlesMultipleBomItemsWithMixedStatuses` (`missing`). Le constructeur change si le service reçoit `CachedAssetRepository` pour la règle 3.
+- `tests/Unit/Service/GroupIndustry/GroupIndustryContainerServiceTest.php` : `testReturnsAllUncheckedWhenNoContainerName` (E15), `testWithoutContainerNameEveryMaterialIsUncheckedInBomOrder` (`:75`, E15 : il attend aussi des lignes `unchecked` sans nom de container), `testReturnsAllUncheckedWhenNoCorporationId` (E14), `testReturnsUncheckedWhenContainerNotFoundInCorpAssets` (E8), `testUncheckedWhenMaterialNotInContainer` et `testHandlesMultipleBomItemsWithMixedStatuses` (`missing`). Le constructeur change si le service reçoit `CachedAssetRepository` pour la règle 3.
 - `tests/Integration/Service/GroupIndustry/GroupIndustryContainerServiceTest.php` : `testContainerOutsideTheAllowedDivisionsHoldsNothing` (E9), `testContainerHoldsNothingWhileNoDivisionIsAllowed` (E12), `testContainerInTheDeliveriesHangarHoldsNothingEvenWithEveryDivisionAllowed` (E10).
 
 ## Fichiers concernés (indicatif)
@@ -100,7 +100,7 @@ Termes existants : **Container**, **Division**. Proposé, non ajouté tant que S
 
 ## 🚦 Questions pour Sylvain
 
-1. **Libellés et affichage.** Je propose : Vérifié / Verified, Partiel / Partial, Absent du container / Missing from container (ligne) ; Container introuvable / Container not found et Non vérifiable / Cannot be checked + motif (« Synchronisez les assets corpo », « Aucune division partagée », « L'owner n'a pas de corporation »), affichés une fois dans le bandeau du container. Recommandation : oui, maquette ensuite. OK ?
+1. **Libellés et affichage.** Je propose : Vérifié / Verified, Partiel / Partial, Absent du container / Missing from container (ligne) ; Container introuvable / Container not found et Non vérifiable / Cannot be checked + motif (« Synchronisez les assets corpo », « Aucune division partagée », « L'owner n'a pas de corporation »), affichés une fois dans le bandeau du container. Recommandation retenue pour la boucle de nuit, **sans maquette nouvelle** : les états de ligne et le bandeau réutilisent les composants existants de `BomTable.vue` (indicateur de ligne de `verificationMap`) et de `GroupIndustryDetail.vue` (`ContainerBanner`, affiché si le projet a un nom de container), avec les libellés via l'i18n existant (`groupIndustry.container.statuses`, `frontend/src/i18n/locales/`) et des clés ajoutées pour `missing`, `container_not_found`, `unknown` et ses trois motifs. **À relire par Sylvain.**
 2. **Un seul `unknown` avec motif** (3 motifs ci-dessus), plutôt qu'un statut par cas, et sans séparer « jamais synchronisé » de « aucun personnage avec le scope » (le message dit de synchroniser avec un directeur qui porte le scope). Recommandation : oui. OK ?
 3. **Projet sans nom de container** : liste vide (rien à vérifier, le bandeau n'apparaît pas) plutôt que des lignes `unknown`. Recommandation : liste vide. OK ?
 4. **Container rangé dans une division non visible** : `container_not_found`, sans révéler qu'il existe ailleurs (la liste blanche du directeur reste étanche). Recommandation : oui. OK ?

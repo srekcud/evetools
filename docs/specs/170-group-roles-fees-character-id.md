@@ -1,5 +1,7 @@
 # Spec #170 — Rôles entre admins, frais par défaut à la création, characterId absent
 
+> Statut : **lot réduit, brouillon**. Le lot garde les rôles entre admins (R1 à R5 : kick, rétrogradation, 403) et `characterId: null` (R9). Les frais par défaut (R6 à R8, exemples F1 à F6, `?? 3.6` et question Q2) sont **hors de ce lot** : renvoyés à la décision de Sylvain (journal de la boucle de nuit du 2026-10-28, « Blocages »), car l'option (b) change les frais affichés des nouveaux projets. Rien n'est implémenté pour les frais tant qu'il n'a pas tranché. Q1, Q3 et Q4 : recommandations retenues.
+
 ## Contexte
 
 L'audit du moteur industrie (2026-10-22) relève quatre écarts dans Group Industry. État vérifié dans le code au 2026-10-26 :
@@ -23,9 +25,9 @@ Côté interface, `MemberTable.vue::canManage()` affiche Promote, Demote et Kick
   - PATCH : 401, 404 projet, 403 « Only project owner or admin can perform this action », 404 membre, 400 « Cannot modify the project owner », puis R1 (403), puis la validation du corps (400 rôle invalide, 403 promotion, 400 statut).
   - DELETE : 401, 404 projet, 403 non admin, 404 membre, 400 « Cannot kick the project owner », 400 « Cannot kick yourself, use leave instead », puis R1 (403).
 - **R4 — Une seule règle, au même endroit.** La règle R1 rejoint `GroupProjectAccessChecker` (méthode proposée : `assertCanManageMember(User, GroupIndustryProject, GroupIndustryProjectMember)`), appelée par les deux processors. On reste ainsi dans la ligne de #162.
-- **R5 — Interface alignée** (sous réserve de Q4). Dans `MemberTable.vue`, seul le propriétaire voit Promote, ainsi que Demote et Kick sur une ligne admin. Un admin ne voit Kick que sur une ligne de rôle `member`. Aucun élément visuel n'est ajouté, des boutons sont seulement masqués : pas de maquette.
+- **R5 — Interface alignée** (sous réserve de Q4). Dans `MemberTable.vue`, seul le propriétaire voit Promote, ainsi que Demote et Kick sur une ligne admin. Un admin ne voit Kick que sur une ligne de rôle `member`. Aucun élément visuel n'est ajouté, des boutons sont seulement masqués : pas de maquette. `MemberTable.vue` ne reçoit aujourd'hui que la prop `isAdmin` (valeur `isOwnerOrAdmin` de `GroupIndustryDetail.vue`) : distinguer le propriétaire d'un admin demande une prop de plus (ou `myRole`), détail d'implémentation.
 
-### Frais par défaut à la création
+### Frais par défaut à la création (hors lot, en attente de Sylvain)
 
 - **R6 — Une valeur saisie est gardée.** Un `brokerFeePercent` ou un `salesTaxPercent` envoyé à la création est gardé tel quel, 0 compris. Seul un frais absent (`null`) reçoit une valeur par défaut. C'est déjà le cas.
 - **R7 — Défaut d'un frais absent** (selon Q2, recommandation (b)) : le réglage Industry du propriétaire, converti en pourcents (`rate × 100`, arrondi à 4 décimales). Sans réglage enregistré, la valeur par défaut d'evetools (`EveConstants::DEFAULT_BROKER_FEE_RATE` et `DEFAULT_SALES_TAX_RATE`, 3,6 %). On applique le même ordre que `CreateProjectProcessor::sellTaxRate()` (Industry). Avec l'option (a), le défaut reste 3,6 %, mais lu dans une constante nommée et non plus dans trois littéraux.
@@ -56,7 +58,7 @@ Projet `Sabre batch` `in_progress`. P = propriétaire, A et B = admins `accepted
 | R-E11 | M | PATCH B `{role: member}` | 403 « Only project owner or admin can perform this action » | inchangé |
 | R-E12 | A | PATCH P ou DELETE P | 400 « Cannot modify the project owner » / « Cannot kick the project owner » | inchangé |
 
-### Frais par défaut (R6 à R8, option (b))
+### Frais par défaut (R6 à R8, option (b)) — hors lot
 
 | # | Réglages Industry du propriétaire | Corps de la création | Aujourd'hui (courtage / taxe) | Attendu (courtage / taxe) |
 |---|---|---|---|---|
@@ -87,6 +89,7 @@ Avec l'option (a), la colonne « Attendu » vaut « Aujourd'hui » sur toutes le
 
 ## Hors périmètre
 
+- Les frais par défaut à la création (R6 à R8, F1 à F6, Q2) : en attente de la décision de Sylvain. `CreateGroupProjectProcessor` garde son `?? 3.6` d'ici là.
 - Le barème de location de ligne, jamais appliqué (#45).
 - Saisir les frais dans `NewProjectModal.vue`. Ce serait un changement visuel, avec maquette ; le formulaire d'édition du projet existe déjà.
 - Le nom de repli « Unknown » (`PilotName::of()`, `GroupIndustryResourceMapper::projectToResource()` pour `ownerCharacterName`). C'est un libellé d'affichage, déjà traité par le front (`usePilotName`).
@@ -100,20 +103,21 @@ Avec l'option (a), la colonne « Attendu » vaut « Aujourd'hui » sur toutes le
 - `Integration\…\GroupMemberCollectionProviderTest::testPendingMemberAndMemberWithoutMainCharacter` : attend `characterId` `0` pour « Unknown », attendra `null`.
 - `KickGroupMemberProcessorTest` : les tests existants visent un membre de rôle `member` (`acceptedMember()`) et restent verts. On ajoute R-E2, R-E5 et R-E7.
 - `UpdateGroupMemberProcessor` n'a aucun test : création de `UpdateGroupMemberProcessorTest` (R-E1, R-E3, R-E4, R-E6, R-E8, R-E10 à R-E12).
-- Option (b) : `CreateGroupProjectProcessor` reçoit `IndustryUserSettingsRepository`. Les huit tests de `CreateGroupProjectProcessorTest` changent de constructeur, et F1 à F6 s'y ajoutent.
-- `GroupIndustryProjectServiceTest` et `GroupIndustryBomGoldenCharacterizationTest` construisent `CreateProjectData` sans frais : ils restent verts tant que `CreateProjectData` garde un défaut, tiré de la même source (R8).
-- Front, si Q4 = oui : `MemberTable.vue` n'a pas de test. On en crée un pour la visibilité des boutons selon que l'utilisateur est propriétaire ou admin et selon le rôle de la ligne.
+- Hors lot (frais, option (b), si Sylvain la retient) : `CreateGroupProjectProcessor` recevrait `IndustryUserSettingsRepository`. Les huit tests de `CreateGroupProjectProcessorTest` changeraient de constructeur, et F1 à F6 s'y ajouteraient. `GroupIndustryProjectServiceTest` et `GroupIndustryBomGoldenCharacterizationTest` construisent `CreateProjectData` sans frais : ils resteraient verts tant que `CreateProjectData` garde un défaut tiré de la même source (R8).
+- Front (Q4) : `MemberTable.vue` n'a pas de test. On en crée un pour la visibilité des boutons selon que l'utilisateur est propriétaire ou admin et selon le rôle de la ligne.
 
 ## Glossaire
 
-Termes proposés pour [`docs/glossary.md`](../glossary.md). Ils ne sont pas encore ajoutés, faute de validation :
+Termes proposés pour [`docs/glossary.md`](../glossary.md). Ils ne sont pas encore ajoutés, faute de validation (l'entrée « Frais de courtage » / « Taxe de vente » dépend de la décision sur les frais, hors lot) :
 
 - **Admin** (Project admin), section « Industrie collaborative » : membre `accepted` au rôle `admin`, promu par le propriétaire seul. Il accepte les demandes, retire les membres de rôle `member`, revoit les contributions, enregistre les ventes et modifie le projet. Il n'agit pas sur un autre admin (#170). Code : `GroupMemberRole::Admin`, `GroupProjectAccessChecker::assertAdminOrOwner()`.
 - **Frais de courtage** (Broker fee) et **Taxe de vente** (Sales tax), section « Marché » : pourcentages prélevés sur une vente au marché. Ils sont réglés par l'utilisateur dans Industry en fraction (`0.036` = 3,6 %, défaut 3,6 %), et portés par un projet collaboratif en pourcents, copiés à la création depuis les réglages du propriétaire (#170). Code : `IndustryUserSettings::$brokerFeeRate`, `$salesTaxRate`, `EveConstants::DEFAULT_BROKER_FEE_RATE`, `DEFAULT_SALES_TAX_RATE`, `GroupIndustryProject::$brokerFeePercent`, `$salesTaxPercent`.
 
 ## 🚦 Questions pour Sylvain
 
+Q1, Q3 et Q4 : recommandations retenues pour la boucle de nuit, à relire par Sylvain. Q2 : hors lot, en attente de sa décision.
+
 1. **Q1 — Un admin qui tente de se rétrograder lui-même reçoit-il 403** (R-E4), comme pour tout autre admin ? Recommandation : **oui**. La règle reste unique, l'interface ne le propose pas, et il peut toujours quitter le projet ou demander au propriétaire.
-2. **Q2 — À la création, un frais absent prend-il (a) 3,6 % fixe, mis en constante, ou (b) le réglage Industry du propriétaire, avec 3,6 % en repli ?** Recommandation : **(b)**. Le joueur a déjà réglé ses frais une fois dans Industry, et Profit Margins, Buy vs Build et le scanner les lisent. C'est un changement visible : les projets créés par un joueur aux frais réglés n'afficheront plus 3,6 %.
+2. **Q2 (hors lot, en attente de Sylvain) — À la création, un frais absent prend-il (a) 3,6 % fixe, mis en constante, ou (b) le réglage Industry du propriétaire, avec 3,6 % en repli ?** Recommandation : **(b)**. Le joueur a déjà réglé ses frais une fois dans Industry, et Profit Margins, Buy vs Build et le scanner les lisent. C'est un changement visible : les projets créés par un joueur aux frais réglés n'afficheront plus 3,6 %.
 3. **Q3 — Un membre sans personnage principal est-il exposé avec `characterId: null` au lieu de `0` ?** Recommandation : **oui**. Le type est déjà nullable de bout en bout, `null` est déjà émis pour un compte supprimé, et le front le gère (portrait de repli). La valeur change dans le contrat de l'API.
 4. **Q4 — `MemberTable.vue` est-il corrigé dans ce lot** (boutons Promote, Demote et Kick masqués selon R5) ? Recommandation : **oui**. Sans ce lot, après R1, un admin verrait des boutons qui échouent en 403.

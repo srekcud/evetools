@@ -2,6 +2,8 @@
 
 > Statut : **proposition, non validée**. Rédigée sans interrogatoire (Sylvain absent) : chaque point porte la réponse recommandée, les décisions produit sont dans « 🚦 Questions pour Sylvain ». `/tdd-red` ne démarre qu'après son accord.
 >
+> Boucle de nuit du 2026-10-28 : Q3 et Q4 sont traitées comme couvertes par l'issue #156 (elle nomme le KPI « Contributions totales » et l'avancement faux) ; les recommandations sont retenues. **À relire par Sylvain : le % d'avancement affiché change (Sabre 50 % → 70 %), et le montant du KPI « Contributions totales » change.** La partie #154 de cette spec est **hors lot** : voir [`154-group-contribution-price-source.md`](154-group-contribution-price-source.md).
+>
 > #154 (source du prix d'une contribution matériau) s'est révélée indépendante : le backend renvoie déjà `null` sans prix (spec #8), il reste une question de source de prix et de libellé, traitée dans [`154-group-contribution-price-source.md`](154-group-contribution-price-source.md).
 
 ## Contexte
@@ -98,7 +100,19 @@ Frontend (vitest).
 ## Tests existants appelés à casser
 
 - `tests/Unit/Service/GroupIndustry/GroupIndustryDistributionServiceTest.php::testZeroCostsNoContributions` : attend `marginPercent` 0.0, devient null (D2).
-- Aucun test PHP n'asserte `totalBomValue` ni le `fulfillmentPercent` du projet (`GroupBomProviderTest` porte celui d'une ligne, inchangé). Aucun test vitest sur `JobsTable`, `BomTable`, `ProjectKpiCards`, `FinancialSummary`, `DistributionTable`.
+- Deux tests d'intégration assertent `totalBomValue` et le `fulfillmentPercent` du projet (`GroupBomProviderTest` porte celui d'une ligne, inchangé) :
+
+  | Test | Assertion actuelle | Après R3 / R4 |
+  |---|---|---|
+  | `tests/Integration/State/Provider/GroupIndustry/GroupProjectCollectionProviderTest::testSabreProjectCountsAcceptedMembersAndCapsFulfilledQuantityPerBomItem` (`:162-164`) | `fulfillmentPercent` 50.0 | 70.0 (moyenne de 40 % et 100 %) |
+  | idem `::testJackdawProjectFallsBackToUnknownOwnerAndIgnoresMissingPrices` (`:179-181`) | `totalBomValue` 15 000 000, `fulfillmentPercent` 25.0 | `totalBomValue` `null` ; 16.67 (moyenne de 33,33 % et 0 %). Le nom du test (« IgnoresMissingPrices ») contredit R3 et doit changer |
+  | idem `::testTenProjectsAreListedWithTheirTenMembersAndTenBomItems` (`:127-129`) | 50 000 / 25.0 | inchangé (toutes les lignes à 25 %) |
+  | idem `::testIshtarProjectOwnedByTheUserWithoutBom` (`:195-196`) | 0.0 / 0.0 | inchangé (cas limite « sans matériau ») |
+  | `tests/Integration/State/Provider/GroupIndustry/AvailableGroupProjectsProviderTest::testPublishedProjectCountsAcceptedMembersAndCapsFulfilledQuantity` (`:162-164`) | `fulfillmentPercent` 50.0 | 70.0 |
+
+  `testTenOpenProjectsAreListedWithTheirTenMembersAndTenBomItems` (`:124-126`, 50 000 / 25.0) et `testInProgressProjectWithoutBom` (`:177-178`, 0.0 / 0.0) de `AvailableGroupProjectsProviderTest` restent inchangés.
+- R7 ajoute une requête groupée aux providers de collection : `GroupProjectCollectionProviderTest::MAX_QUERIES = 4` (`:34`) est à revoir. Le test A/B d'`AvailableGroupProjectsProviderTest::testQueryCountDoesNotGrowWithProjectsMembersAndBomItems` (`:93`), comme celui de `GroupProjectCollectionProviderTest` (`:93`), reste valable.
+- Aucun test vitest sur `JobsTable`, `BomTable`, `ProjectKpiCards`, `FinancialSummary`, `DistributionTable`.
 
 ## Glossaire
 
@@ -112,6 +126,8 @@ Termes proposés, **à ajouter seulement après validation** :
 Termes existants modifiés après validation : **Payout** (ajouter « inconnu quand la répartition est impossible »).
 
 ## 🚦 Questions pour Sylvain
+
+Q3 et Q4 : recommandations (a) retenues pour la boucle de nuit, couvertes par l'issue #156 ; à relire par Sylvain (le % d'avancement affiché change : Sabre 50 % → 70 %).
 
 1. **#146, répartition impossible.** Quand le coût total approuvé vaut 0 et qu'il y a du revenu : (a) marge, parts et payouts inconnus, bandeau « répartition impossible » (**recommandé** : aucune règle inventée, le propriétaire corrige les contributions) ; ou (b) revenu net réparti à parts égales entre les membres ayant une contribution approuvée ?
 2. **#156, coût des jobs.** Aucune ligne de job n'a de prix : (a) garder la colonne et un total `—`, et ouvrir une issue pour le coût d'installation des jobs groupés (**recommandé**) ; ou (b) retirer la colonne « Coût est. » et le total du tableau des jobs jusqu'à cette issue ?

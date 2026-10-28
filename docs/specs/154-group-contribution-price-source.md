@@ -1,5 +1,7 @@
 # Spec #154 — Group Industry : une seule source de prix pour une contribution matériau
 
+> **EN ATTENTE DE DÉCISION de Sylvain (Q1 : prix BOM figé ou prix courant) : aucune implémentation dans la boucle de nuit.**
+
 > Statut : **proposition, non validée**. Rédigée sans interrogatoire (Sylvain absent) : chaque point porte la réponse recommandée, les décisions produit sont dans « 🚦 Questions pour Sylvain ». Modifie les règles R1 à R3 de la spec [#8](8-group-contribution-unknown-material-price.md) si elle est validée. Lot voisin : [#146 + #156](146-156-154-group-industry-unknown-not-zero.md).
 
 ## Contexte

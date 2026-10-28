@@ -22,12 +22,12 @@ La spec #87 (R4) fixe la règle pour le projet : un membre retiré hors de la co
 
 ## Règles métier
 
-- **R1 — Trois niveaux d'accès, nommés, au même endroit.** `GroupProjectAccessChecker` porte les trois :
+- **R1 — Trois niveaux d'accès, nommés, au même endroit.** `GroupProjectAccessChecker` (`src/State/Provider/GroupIndustry/GroupProjectAccessChecker.php`) porte les trois :
   - **Lecture** (méthode à ajouter, nom proposé `assertCanRead()`) : le propriétaire, un membre `accepted` quel que soit son rôle, ou un utilisateur dont la corporation est connue et égale à celle du propriétaire. S'applique à la lecture du projet, de la BOM, de la distribution et des ventes.
   - **Participation** (`assertAcceptedMember()`, inchangé) : le propriétaire ou un membre `accepted`. S'applique à la liste des membres et à la liste des contributions.
   - **Administration** (`assertAdminOrOwner()`, inchangé) : le propriétaire ou un admin `accepted`. S'applique, en plus des appelants actuels, à l'enregistrement d'une vente.
 - **R2 — Aucune copie.** Les six providers du tableau et `RecordSaleProcessor` délèguent au checker. Aucun d'eux ne lit plus le statut d'une membership ni la corporation pour décider d'un accès. `GroupProjectProvider` lit encore la membership `accepted` de l'utilisateur, mais seulement pour remplir `myRole` et `myStatus`.
-- **R3 — Comportement inchangé.** Tous les codes de la matrice ci-dessous sont ceux d'aujourd'hui. Le seul changement visible : le 403 de l'enregistrement d'une vente porte le message générique du checker, « Only project owner or admin can perform this action ». Le front n'affiche ni ne compare ce texte (`stores/group-industry/distribution.ts::recordSale`).
+- **R3 — Comportement inchangé.** Tous les codes de la matrice ci-dessous sont ceux d'aujourd'hui. Le seul changement visible : le 403 de l'enregistrement d'une vente porte le message générique du checker, « Only project owner or admin can perform this action ». Le front affiche ce texte tel quel (`SalesTable.vue`, `store.error`, alimenté par le `detail` de l'API via `services/api.ts`), mais un non-admin n'atteint pas le formulaire : `SalesTable.vue` ne l'affiche que si `isAdmin`, valeur `isOwnerOrAdmin` de `GroupIndustryDetail.vue`.
 - **R4 — Ordre des refus inchangé.** 401 sans utilisateur, puis 404 si le projet n'existe pas, puis 403 si l'accès est refusé, puis les refus métier (400 « Cannot record a sale on a completed project »). Un étranger reçoit donc 403 et non 400 sur un projet terminé.
 - **R5 — Le statut compte, pas l'existence de la ligne.** Une membership `pending` ou `removed` n'ouvre aucun niveau d'accès. Seule l'appartenance à la corporation du propriétaire ouvre la lecture, quel que soit le statut de la membership (#87, R4 et R5).
 
@@ -80,6 +80,7 @@ Harnais : le vrai `GroupProjectAccessChecker` sur un `GroupIndustryProjectMember
 - `GroupBomProviderTest` : son constructeur passe `GroupIndustryProjectMemberRepository` à `GroupBomProvider`, il passera le checker. Les assertions ne changent pas.
 - `GroupProjectProviderTest` : le provider reçoit aussi le checker. Les cinq tests gardent leurs assertions.
 - `RecordSaleProcessorTest` : le constructeur reçoit le checker à la place du repository de memberships. Ses deux tests (admin, projet `selling` ou `completed`) gardent leurs assertions.
+- `tests/Integration/Service/Account/AccountDeletionServiceTest.php` : la méthode qui lit les ventes construit `GroupSaleCollectionProvider` avec `GroupIndustryProjectMemberRepository` (`:820-825`). Elle recevra le checker, construit sur ce même repository. Les assertions ne changent pas.
 - Nouveaux : `GroupDistributionProviderTest`, `GroupSaleCollectionProviderTest`, un test du refus de vente (A3, A9) dans `RecordSaleProcessorTest`, et la matrice de `assertCanRead()` dans `GroupProjectAccessCheckerTest`.
 
 ## Glossaire
