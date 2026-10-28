@@ -59,6 +59,7 @@ const { t } = useI18n()
       <select
         v-if="props.viewMode === 'character'"
         :value="props.selectedCharacterId"
+        :aria-label="t('assets.selectCharacter')"
         @change="emit('update:selectedCharacterId', ($event.target as HTMLSelectElement).value)"
         class="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-cyan-500"
       >
@@ -76,6 +77,7 @@ const { t } = useI18n()
           :value="props.searchQuery"
           @input="emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
           type="text"
+          :aria-label="t('assets.searchPlaceholder')"
           :placeholder="t('assets.searchPlaceholder')"
           class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-hidden focus:border-cyan-500"
         />
@@ -88,6 +90,7 @@ const { t } = useI18n()
       <div class="relative">
         <select
           :value="props.selectedSolarSystem"
+          :aria-label="t('assets.solarSystem')"
           @change="emit('update:selectedSolarSystem', ($event.target as HTMLSelectElement).value)"
           class="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-hidden focus:border-cyan-500 min-w-[200px]"
         >
@@ -102,6 +105,7 @@ const { t } = useI18n()
       <div class="relative">
         <select
           :value="props.selectedLocation"
+          :aria-label="t('assets.location')"
           @change="emit('update:selectedLocation', ($event.target as HTMLSelectElement).value)"
           class="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-hidden focus:border-cyan-500 min-w-[250px]"
         >

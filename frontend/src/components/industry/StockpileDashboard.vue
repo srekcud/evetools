@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useFormatters } from '@/composables/useFormatters'
 import { useStockpileStore } from '@/stores/industry/stockpile'
 import type { StockpileStage } from '@/stores/industry/types'
+import { CHART_COLORS } from '@/utils/chartColors'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
+import IskAmount from '@/components/common/IskAmount.vue'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 import StockpileColumn from '@/components/industry/StockpileColumn.vue'
 import StockpileImportPanel from '@/components/industry/StockpileImportPanel.vue'
 import StockpileShoppingList from '@/components/industry/StockpileShoppingList.vue'
+import MissingVolumeWarning from '@/components/shopping/MissingVolumeWarning.vue'
+import { missingVolumeTypeNames } from '@/components/shopping/missingVolume'
 
 const { t } = useI18n()
-const { formatIsk } = useFormatters()
 const stockpileStore = useStockpileStore()
 
 const STAGE_ORDER: StockpileStage[] = ['raw_material', 'intermediate', 'component', 'final_product']
@@ -39,10 +41,10 @@ const pipelineHealth = computed((): number | null => stockpileStore.stockpileSta
 const dashOffset = computed(() => CIRCUMFERENCE * (1 - (pipelineHealth.value === null ? 0 : pipelineHealth.value / 100)))
 
 const healthRingColor = computed(() => {
-  if (pipelineHealth.value === null) return '#64748b'
-  if (pipelineHealth.value >= 80) return '#34d399' // emerald-400
-  if (pipelineHealth.value >= 50) return '#fbbf24' // amber-400
-  return '#f87171' // red-400
+  if (pipelineHealth.value === null) return CHART_COLORS.neutral
+  if (pipelineHealth.value >= 80) return CHART_COLORS.profit
+  if (pipelineHealth.value >= 50) return CHART_COLORS.warning
+  return CHART_COLORS.loss
 })
 
 const healthTextColor = computed(() => {
@@ -82,6 +84,12 @@ const productNameByTypeId = computed(() => new Map(
 function productName(typeId: number): string {
   return productNameByTypeId.value.get(typeId) ?? t('industry.stockpile.importWarnings.unknownProduct', { typeId })
 }
+
+const missingPriceTypeNames = computed(() => {
+  if (!stockpileStore.stockpileStatus) return ''
+  const targets = Object.values(stockpileStore.stockpileStatus.stages).flatMap(stage => stage.items)
+  return missingVolumeTypeNames(targets, stockpileStore.stockpileStatus.missingPriceTypeIds)
+})
 
 const importsWithoutPlan = computed(() => stockpileStore.stockpileStatus?.importsWithoutPlan ?? [])
 const failedProducts = computed(() => stockpileStore.stockpileStatus?.failedProducts ?? [])
@@ -200,7 +208,7 @@ onMounted(async () => {
           <div class="bg-slate-800 rounded-lg p-4 flex items-center gap-4">
             <div class="flex-shrink-0 relative">
               <svg viewBox="0 0 56 56" class="w-14 h-14" style="transform: rotate(-90deg)">
-                <circle cx="28" cy="28" :r="RING_RADIUS" fill="none" stroke="#1e293b" stroke-width="4" />
+                <circle cx="28" cy="28" :r="RING_RADIUS" fill="none" stroke="var(--color-surface)" stroke-width="4" />
                 <circle
                   cx="28" cy="28" :r="RING_RADIUS" fill="none"
                   :stroke="healthRingColor" stroke-width="4"
@@ -241,7 +249,7 @@ onMounted(async () => {
               <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">
                 {{ t('industry.stockpile.kpi.totalInvested') }}
               </div>
-              <div class="text-lg font-bold text-cyan-400 font-mono">{{ formatIsk(kpis.totalInvested) }} ISK</div>
+              <div class="text-lg font-bold text-cyan-400 font-mono"><IskAmount :value="kpis.totalInvested" /> ISK</div>
               <div class="text-xs text-slate-500">{{ t('industry.stockpile.kpi.acrossStages') }}</div>
             </div>
           </div>
@@ -312,6 +320,11 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+
+    <MissingVolumeWarning
+      v-if="missingPriceTypeNames !== ''"
+      :message="t('industry.inventionUnknown.missingPriceTypes', { types: missingPriceTypeNames })"
+    />
 
     <div
       v-if="hasImportWarnings"

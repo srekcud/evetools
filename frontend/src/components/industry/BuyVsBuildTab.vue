@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useScannerStore } from '@/stores/industry/scanner'
 import { useIndustryStore, type SearchResult } from '@/stores/industry'
@@ -8,14 +8,18 @@ import { useEveImages } from '@/composables/useEveImages'
 import { useFavoriteSystems } from '@/composables/useFavoriteSystems'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { useUnknownInstallCostReasons } from '@/composables/useUnknownInstallCostReasons'
+import { usePartialPriceCoverages } from '@/composables/usePartialPriceCoverages'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
+import PartialPriceMarker from '@/components/industry/PartialPriceMarker.vue'
+import PartialPriceNotice from '@/components/industry/PartialPriceNotice.vue'
 import type { BuyVsBuildComponent, ProductionCostUnknownReason } from '@/stores/industry/types'
 
-defineProps<{
+const props = defineProps<{
   initialTypeId?: number
 }>()
 
 const { t } = useI18n()
+const uid = useId()
 const scannerStore = useScannerStore()
 const industryStore = useIndustryStore()
 const { formatIsk, formatNumber } = useFormatters()
@@ -23,7 +27,7 @@ const { getTypeIconUrl, onImageError } = useEveImages()
 const { typeNameLabel } = useTypeNames()
 
 // Product selector
-const selectedProduct = ref<SearchResult | null>(null)
+const selectedProduct = ref<Pick<SearchResult, 'typeId'> | null>(null)
 const productSearchRef = ref<{ clear: () => void } | null>(null)
 const runs = ref(1)
 const meLevel = ref(2)
@@ -52,12 +56,30 @@ async function onAnalyze(): Promise<void> {
   )
 }
 
+watch(() => props.initialTypeId, (typeId) => {
+  if (typeId === undefined) return
+  selectedProduct.value = { typeId }
+  onAnalyze()
+}, { immediate: true })
+
 // Result data
 const result = computed(() => scannerStore.buyVsBuildResult)
 const loading = computed(() => scannerStore.buyVsBuildLoading)
 const error = computed(() => scannerStore.buyVsBuildError)
 
 const unknownInstallCostReasons = useUnknownInstallCostReasons(() => result.value?.missingData ?? [])
+
+const partialPriceCoverages = usePartialPriceCoverages(() => result.value?.warnings ?? [])
+
+const componentTypeNames = computed((): Map<number, string> => {
+  const names = new Map<number, string>()
+  for (const component of result.value?.components ?? []) {
+    for (const named of [component, ...component.buildMaterials]) {
+      if (named.typeName != null) names.set(named.typeId, named.typeName)
+    }
+  }
+  return names
+})
 
 const unknownCostReasons = computed((): ProductionCostUnknownReason[] => {
   if (!result.value) return []
@@ -296,22 +318,24 @@ const SUMMARY_LIST_LIMIT = 5
 
       <div class="flex flex-wrap items-end gap-4">
         <div class="flex-1 min-w-[280px]">
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.buyVsBuild.product') }}</label>
-          <ProductSearch ref="productSearchRef" @select="onProductSelect" />
+          <label :for="`${uid}-product`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.buyVsBuild.product') }}</label>
+          <ProductSearch ref="productSearchRef" :input-id="`${uid}-product`" @select="onProductSelect" />
         </div>
         <div>
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.buyVsBuild.runs') }}</label>
+          <label :for="`${uid}-runs`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.buyVsBuild.runs') }}</label>
           <input
             v-model.number="runs"
+            :id="`${uid}-runs`"
             type="number"
             min="1"
             class="w-20 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500"
           />
         </div>
         <div>
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.buyVsBuild.me') }}</label>
+          <label :for="`${uid}-me`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.buyVsBuild.me') }}</label>
           <input
             v-model.number="meLevel"
+            :id="`${uid}-me`"
             type="number"
             min="0"
             max="10"
@@ -319,9 +343,10 @@ const SUMMARY_LIST_LIMIT = 5
           />
         </div>
         <div>
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.buyVsBuild.systemLabel') }}</label>
+          <label :for="`${uid}-system`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.buyVsBuild.systemLabel') }}</label>
           <select
             v-model.number="selectedSystemId"
+            :id="`${uid}-system`"
             class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500"
           >
             <option :value="null">--</option>
@@ -374,7 +399,7 @@ const SUMMARY_LIST_LIMIT = 5
             <div>
               <div class="flex items-center gap-2">
                 <h3 class="text-lg font-bold text-slate-100">{{ typeNameLabel(result.typeName, result.typeId) }}</h3>
-                <span v-if="result.isT2" class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-sm">T2</span>
+                <span v-if="result.isT2" class="text-xs font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-sm">T2</span>
               </div>
               <p class="text-xs text-slate-500 mt-0.5">
                 {{ t('industry.scanner.buyVsBuild.analyzing') }}
@@ -402,12 +427,14 @@ const SUMMARY_LIST_LIMIT = 5
             </div>
           </div>
         </div>
-        <ul v-if="unknownCostReasons.length > 0" class="mt-3 space-y-1 text-xs text-amber-400">
+        <ul v-if="unknownCostReasons.length > 0" class="mt-3 space-y-1 text-body text-amber-400">
           <li v-for="reason in unknownCostReasons" :key="reason">
             {{ t(`industry.inventionUnknown.${reason}`) }}
           </li>
         </ul>
       </div>
+
+      <PartialPriceNotice :coverages="partialPriceCoverages" :type-names="componentTypeNames" />
 
       <!-- Stage Filter Tabs -->
       <div class="flex items-center justify-between flex-wrap gap-3">
@@ -420,7 +447,7 @@ const SUMMARY_LIST_LIMIT = 5
             ]"
           >
             {{ t('industry.scanner.buyVsBuild.allStages') }}
-            <span class="ml-1 text-xs font-mono" :class="stageFilter === 'all' ? 'text-cyan-200' : 'text-slate-500'">{{ stageCounts.all }}</span>
+            <span class="ml-1 text-table-cell font-mono" :class="stageFilter === 'all' ? 'text-cyan-200' : 'text-slate-500'">{{ stageCounts.all }}</span>
           </button>
           <button
             v-if="stageCounts.t2 > 0"
@@ -431,7 +458,7 @@ const SUMMARY_LIST_LIMIT = 5
             ]"
           >
             {{ t('industry.scanner.buyVsBuild.t2Components') }}
-            <span class="ml-1 text-xs font-mono text-slate-500">{{ stageCounts.t2 }}</span>
+            <span class="ml-1 text-table-cell font-mono text-slate-500">{{ stageCounts.t2 }}</span>
           </button>
           <button
             v-if="stageCounts.t1 > 0"
@@ -442,7 +469,7 @@ const SUMMARY_LIST_LIMIT = 5
             ]"
           >
             {{ t('industry.scanner.buyVsBuild.t1Components') }}
-            <span class="ml-1 text-xs font-mono text-slate-500">{{ stageCounts.t1 }}</span>
+            <span class="ml-1 text-table-cell font-mono text-slate-500">{{ stageCounts.t1 }}</span>
           </button>
           <button
             v-if="stageCounts.reaction > 0"
@@ -453,7 +480,7 @@ const SUMMARY_LIST_LIMIT = 5
             ]"
           >
             {{ t('industry.scanner.buyVsBuild.reactions') }}
-            <span class="ml-1 text-xs font-mono text-slate-500">{{ stageCounts.reaction }}</span>
+            <span class="ml-1 text-table-cell font-mono text-slate-500">{{ stageCounts.reaction }}</span>
           </button>
         </div>
         <div class="flex items-center gap-3 text-xs text-slate-500">
@@ -501,14 +528,14 @@ const SUMMARY_LIST_LIMIT = 5
                   <div>
                     <div class="flex items-center">
                       <p class="text-sm font-semibold text-slate-100">{{ typeNameLabel(comp.typeName, comp.typeId) }}</p>
-                      <span v-if="isOverridden(comp.typeId)" class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400 font-medium ml-2">
+                      <span v-if="isOverridden(comp.typeId)" class="text-xs px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400 font-medium ml-2">
                         {{ t('industry.scanner.buyVsBuild.custom') }}
                       </span>
                     </div>
-                    <p class="text-xs text-slate-500 font-mono">x {{ formatNumber(comp.quantity, 0) }} {{ t('industry.scanner.buyVsBuild.needed') }}</p>
+                    <p class="text-table-cell text-slate-500 font-mono">x {{ formatNumber(comp.quantity, 0) }} {{ t('industry.scanner.buyVsBuild.needed') }}</p>
                   </div>
                 </div>
-                <span :class="['text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-sm', stageBadgeClasses(comp.stage)]">
+                <span :class="['text-xs font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-sm', stageBadgeClasses(comp.stage)]">
                   {{ comp.stage }}
                 </span>
               </div>
@@ -517,12 +544,12 @@ const SUMMARY_LIST_LIMIT = 5
               <div class="grid grid-cols-2 gap-3 mb-3">
                 <!-- BUILD column -->
                 <div class="bg-slate-800 rounded-lg p-3">
-                  <p class="text-[10px] text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <p class="text-xs text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
                     {{ t('industry.scanner.buyVsBuild.buildCost') }}
                   </p>
                   <p class="text-lg font-mono text-slate-100 font-semibold mb-2">{{ formatKnownIsk(comp.buildCost) }}</p>
-                  <div class="space-y-1 text-xs">
+                  <div class="space-y-1 text-table-cell">
                     <div
                       v-for="mat in comp.buildMaterials.slice(0, 3)"
                       :key="mat.typeId"
@@ -540,20 +567,23 @@ const SUMMARY_LIST_LIMIT = 5
 
                 <!-- BUY column -->
                 <div class="bg-slate-800 rounded-lg p-3">
-                  <p class="text-[10px] text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <p class="text-xs text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" /></svg>
                     {{ t('industry.scanner.buyVsBuild.buyCost') }}
                   </p>
                   <p class="text-lg font-mono text-slate-100 font-semibold mb-1">
                     {{ (comp.buyCostStructure ?? comp.buyCostJita) != null ? formatIsk(comp.buyCostStructure ?? comp.buyCostJita) : '---' }}
                   </p>
-                  <p v-if="comp.buyCostStructure != null || comp.buyCostJita != null" class="text-[10px] text-slate-500 mb-2">
+                  <p v-if="comp.buyCostStructure != null || comp.buyCostJita != null" class="text-xs text-slate-500 mb-2">
                     {{ t('industry.scanner.buyVsBuild.bestPrice') }}: {{ comp.buyCostStructure != null ? t('industry.scanner.buyVsBuild.structureSell') : t('industry.scanner.buyVsBuild.jitaSell') }}
                   </p>
-                  <div class="space-y-1 text-xs">
+                  <div class="space-y-1 text-table-cell">
                     <div v-if="comp.buyCostJita != null" class="flex justify-between text-slate-400">
                       <span>{{ t('industry.scanner.buyVsBuild.jitaSell') }}</span>
-                      <span class="font-mono text-slate-300">{{ formatIsk(comp.buyCostJita / comp.quantity, 2) }} /u</span>
+                      <span class="font-mono text-slate-300">
+                        {{ formatIsk(comp.buyCostJita / comp.quantity, 2) }} /u
+                        <PartialPriceMarker :percent="comp.buyCostJitaCoveragePercent" />
+                      </span>
                     </div>
                     <div v-if="comp.buyCostStructure != null" class="flex justify-between text-slate-400">
                       <span>{{ t('industry.scanner.buyVsBuild.structureSell') }}</span>
@@ -596,7 +626,7 @@ const SUMMARY_LIST_LIMIT = 5
                   <button
                     @click.stop="setOverride(comp, 'build')"
                     :class="[
-                      'px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1 transition-colors',
+                      'px-3 py-1 rounded-md text-table-cell font-medium flex items-center gap-1 transition-colors',
                       !isBought(comp) ? 'bg-emerald-500/20 text-emerald-400' : 'text-slate-500 hover:text-slate-300'
                     ]"
                   >
@@ -608,7 +638,7 @@ const SUMMARY_LIST_LIMIT = 5
                   <button
                     @click.stop="setOverride(comp, 'buy')"
                     :class="[
-                      'px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1 transition-colors',
+                      'px-3 py-1 rounded-md text-table-cell font-medium flex items-center gap-1 transition-colors',
                       isBought(comp) ? 'bg-amber-500/20 text-amber-400' : 'text-slate-500 hover:text-slate-300'
                     ]"
                   >
@@ -632,7 +662,7 @@ const SUMMARY_LIST_LIMIT = 5
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
             <h4 class="text-sm font-semibold text-slate-200">{{ t('industry.scanner.buyVsBuild.summaryTitle') }}</h4>
-            <span v-if="hasOverrides" class="text-xs text-cyan-400">
+            <span v-if="hasOverrides" class="text-body text-cyan-400">
               {{ t('industry.scanner.buyVsBuild.overrides', { count: overrideCounts.total }) }}
             </span>
           </div>
@@ -716,7 +746,7 @@ const SUMMARY_LIST_LIMIT = 5
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                 </svg>
                 <p class="text-xs text-emerald-400 uppercase tracking-wider font-semibold">{{ t('industry.scanner.buyVsBuild.recommendedBuild') }}</p>
-                <span class="text-xs text-slate-600 font-mono">{{ buildList.length }} {{ t('industry.scanner.buyVsBuild.items') }}</span>
+                <span class="text-table-cell text-slate-600 font-mono">{{ buildList.length }} {{ t('industry.scanner.buyVsBuild.items') }}</span>
               </div>
               <div class="space-y-2">
                 <div
@@ -730,10 +760,10 @@ const SUMMARY_LIST_LIMIT = 5
                     </div>
                     <span class="text-sm text-slate-300 truncate">{{ typeNameLabel(comp.typeName, comp.typeId) }}</span>
                   </div>
-                  <span class="text-xs font-mono text-emerald-400 shrink-0">{{ comp.savings == null ? formatKnownIsk(null) : `-${formatIsk(comp.savings)}` }}</span>
+                  <span class="text-table-cell font-mono text-emerald-400 shrink-0">{{ comp.savings == null ? formatKnownIsk(null) : `-${formatIsk(comp.savings)}` }}</span>
                 </div>
                 <div v-if="buildList.length > SUMMARY_LIST_LIMIT" class="flex items-center justify-between text-slate-500">
-                  <span class="text-xs">+{{ buildList.length - SUMMARY_LIST_LIMIT }} {{ t('industry.scanner.buyVsBuild.more') }}</span>
+                  <span class="text-table-cell">+{{ buildList.length - SUMMARY_LIST_LIMIT }} {{ t('industry.scanner.buyVsBuild.more') }}</span>
                 </div>
               </div>
               <div class="border-t border-slate-700 pt-2 mt-3 flex justify-between">
@@ -749,7 +779,7 @@ const SUMMARY_LIST_LIMIT = 5
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
                 </svg>
                 <p class="text-xs text-amber-400 uppercase tracking-wider font-semibold">{{ t('industry.scanner.buyVsBuild.recommendedBuy') }}</p>
-                <span class="text-xs text-slate-600 font-mono">{{ buyList.length }} {{ t('industry.scanner.buyVsBuild.items') }}</span>
+                <span class="text-table-cell text-slate-600 font-mono">{{ buyList.length }} {{ t('industry.scanner.buyVsBuild.items') }}</span>
               </div>
               <div class="space-y-2">
                 <div
@@ -764,12 +794,12 @@ const SUMMARY_LIST_LIMIT = 5
                     <span class="text-sm text-slate-300 truncate">{{ typeNameLabel(comp.typeName, comp.typeId) }}</span>
                   </div>
                   <div class="flex items-center gap-2 shrink-0">
-                    <span v-if="comp.verdict === 'loss'" class="text-[10px] px-1.5 py-0.5 rounded-sm bg-red-500/10 text-red-400">{{ t('industry.scanner.buyVsBuild.loss') }}</span>
-                    <span class="text-xs font-mono" :class="comp.verdict === 'loss' ? 'text-red-400' : 'text-amber-400'">{{ comp.savings == null ? formatKnownIsk(null) : `-${formatIsk(Math.abs(comp.savings))}` }}</span>
+                    <span v-if="comp.verdict === 'loss'" class="text-xs px-1.5 py-0.5 rounded-sm bg-red-500/10 text-red-400">{{ t('industry.scanner.buyVsBuild.loss') }}</span>
+                    <span class="text-table-cell font-mono" :class="comp.verdict === 'loss' ? 'text-red-400' : 'text-amber-400'">{{ comp.savings == null ? formatKnownIsk(null) : `-${formatIsk(Math.abs(comp.savings))}` }}</span>
                   </div>
                 </div>
                 <div v-if="buyList.length > SUMMARY_LIST_LIMIT" class="flex items-center justify-between text-slate-500">
-                  <span class="text-xs">+{{ buyList.length - SUMMARY_LIST_LIMIT }} {{ t('industry.scanner.buyVsBuild.more') }}</span>
+                  <span class="text-table-cell">+{{ buyList.length - SUMMARY_LIST_LIMIT }} {{ t('industry.scanner.buyVsBuild.more') }}</span>
                 </div>
               </div>
               <div class="border-t border-slate-700 pt-2 mt-3 flex justify-between">
@@ -785,7 +815,7 @@ const SUMMARY_LIST_LIMIT = 5
           <svg class="w-4 h-4 text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <p class="text-xs text-cyan-300/70">{{ t('industry.scanner.buyVsBuild.infoNote') }}</p>
+          <p class="text-body text-cyan-300/70">{{ t('industry.scanner.buyVsBuild.infoNote') }}</p>
         </div>
       </div>
 

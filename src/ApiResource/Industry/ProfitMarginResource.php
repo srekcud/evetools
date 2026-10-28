@@ -91,4 +91,7 @@ class ProfitMarginResource
 
     /** @var list<array{reason: string, typeId: ?int}> */
     public array $missingData = [];
+
+    /** @var list<array{reason: string, typeId: int, coveragePercent: float}> */
+    public array $warnings = [];
 }

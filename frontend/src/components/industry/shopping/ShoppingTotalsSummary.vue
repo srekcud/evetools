@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useFormatters } from '@/composables/useFormatters'
+import IskAmount from '@/components/common/IskAmount.vue'
 import type { ShoppingListTotals } from '@/stores/industry/types'
 
 type MissingTotals = {
-  price: number
+  price: number | null
   volume: number | null
   jita: number | null
   jitaWeighted: number | null
-  structure: number
+  structure: number | null
   savings: number
 }
 
@@ -24,7 +24,6 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
-const { formatIsk } = useFormatters()
 
 const displayedJitaWithImport = computed<number | null>(() =>
   props.hasAnyStock
@@ -57,18 +56,18 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
       </div>
       <div>
         <div class="text-xs text-slate-500 uppercase mb-1">{{ t('industry.shoppingTab.jitaImport') }}</div>
-        <div class="font-mono text-slate-200">{{ displayedJitaWithImport !== null ? formatIsk(displayedJitaWithImport) : t('industry.shoppingTab.unknown') }}</div>
-        <div v-if="hasAnyStock && missingTotals.jitaWeighted !== null" class="text-[10px] text-slate-600 font-mono mt-0.5">
-          {{ formatIsk(missingTotals.jita) }}
+        <div class="font-mono text-slate-200"><IskAmount :value="displayedJitaWithImport" /></div>
+        <div v-if="hasAnyStock && missingTotals.jitaWeighted !== null" class="text-table-cell text-slate-600 font-mono mt-0.5">
+          <IskAmount :value="missingTotals.jita" />
         </div>
       </div>
       <div>
         <div class="text-xs text-slate-500 uppercase mb-1">{{ t('industry.shoppingTab.structure') }}</div>
-        <div class="font-mono text-slate-200">{{ formatIsk(hasAnyStock ? missingTotals.structure : shoppingTotals.structure) }}</div>
+        <div class="font-mono text-slate-200"><IskAmount :value="hasAnyStock ? missingTotals.structure : shoppingTotals.structure" /></div>
       </div>
       <div>
         <div class="text-xs text-slate-500 uppercase mb-1">{{ t('industry.shoppingTab.bestTotal') }}</div>
-        <div class="font-mono text-emerald-400 text-lg font-bold">{{ formatIsk(hasAnyStock ? missingTotals.price : shoppingTotals.best) }}</div>
+        <div class="font-mono text-emerald-400 text-lg font-bold"><IskAmount :value="hasAnyStock ? missingTotals.price : shoppingTotals.best" /></div>
       </div>
       <div class="flex items-center justify-center gap-2">
         <button

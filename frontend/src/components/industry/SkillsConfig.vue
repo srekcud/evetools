@@ -134,6 +134,7 @@ function formatRelativeTime(dateStr: string | null): string {
               <td class="py-3 px-3 text-center">
                 <select
                   :value="char.industry"
+                  :aria-label="t('a11y.industry.skillLevel', { skill: 'Industry', character: char.characterName })"
                   @change="(e) => saveSkill(char, 'industry', parseInt((e.target as HTMLSelectElement).value))"
                   class="bg-slate-800 border border-slate-700 rounded-sm px-2 py-1 text-sm text-center text-cyan-400 font-mono focus:outline-hidden focus:border-cyan-500"
                 >
@@ -145,6 +146,7 @@ function formatRelativeTime(dateStr: string | null): string {
               <td class="py-3 px-3 text-center">
                 <select
                   :value="char.advancedIndustry"
+                  :aria-label="t('a11y.industry.skillLevel', { skill: 'Adv. Industry', character: char.characterName })"
                   @change="(e) => saveSkill(char, 'advancedIndustry', parseInt((e.target as HTMLSelectElement).value))"
                   class="bg-slate-800 border border-slate-700 rounded-sm px-2 py-1 text-sm text-center text-cyan-400 font-mono focus:outline-hidden focus:border-cyan-500"
                 >
@@ -156,6 +158,7 @@ function formatRelativeTime(dateStr: string | null): string {
               <td class="py-3 px-3 text-center">
                 <select
                   :value="char.reactions"
+                  :aria-label="t('a11y.industry.skillLevel', { skill: 'Reactions', character: char.characterName })"
                   @change="(e) => saveSkill(char, 'reactions', parseInt((e.target as HTMLSelectElement).value))"
                   class="bg-slate-800 border border-slate-700 rounded-sm px-2 py-1 text-sm text-center text-cyan-400 font-mono focus:outline-hidden focus:border-cyan-500"
                 >

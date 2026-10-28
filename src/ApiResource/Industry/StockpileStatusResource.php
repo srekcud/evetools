@@ -26,10 +26,10 @@ class StockpileStatusResource
 {
     public int $targetCount = 0;
 
-    /** @var array<string, array{items: list<array<string, mixed>>, totalValue: float, healthPercent: float}> */
+    /** @var array<string, array{items: list<array<string, mixed>>, totalValue: float|null, healthPercent: float}> */
     public array $stages = [];
 
-    /** @var array{pipelineHealth: float, totalInvested: float, bottleneck: array<string, mixed>|null, estOutput: array{ready: int, total: int, readyNames: list<string>}} */
+    /** @var array{pipelineHealth: float, totalInvested: float|null, bottleneck: array<string, mixed>|null, estOutput: array{ready: int, total: int, readyNames: list<string>}} */
     public array $kpis = [];
 
     /** @var list<array<string, mixed>> */
@@ -40,4 +40,7 @@ class StockpileStatusResource
 
     /** @var list<array{typeId: int, reason: string}> */
     public array $failedProducts = [];
+
+    /** @var list<int> */
+    public array $missingPriceTypeIds = [];
 }

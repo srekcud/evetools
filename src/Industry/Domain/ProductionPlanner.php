@@ -27,18 +27,19 @@ final readonly class ProductionPlanner
     /**
      * Plan mode: whole runs per intermediate, BPC run cap, explicit surplus.
      */
-    public function plan(PlanRequest $request): Plan
+    public function plan(PlanRequest $request, ?RecipeMemory $recipes = null): Plan
     {
+        $recipes ??= new RecipeMemory($this->catalog);
         $jobs = [];
         foreach ($request->targets as $target) {
-            $recipe = $this->recipeOfTarget($target);
+            $recipe = self::recipeOfTarget($target, $recipes);
             array_push($jobs, ...self::splitIntoJobs($recipe, $target->runs->value, $target->efficiency, $request));
         }
         $demand = [];
         self::addMaterialsOf($jobs, $demand);
 
         $intermediates = [];
-        foreach ($this->intermediatesInProductionOrder($request) as $productTypeId => $recipe) {
+        foreach (self::intermediatesInProductionOrder($request, $recipes) as $productTypeId => $recipe) {
             if (!isset($demand[$productTypeId])) {
                 // Every consumer was covered by stock upstream: no demand, no subtree.
                 continue;
@@ -77,16 +78,17 @@ final readonly class ProductionPlanner
      * Marginal cost mode (D4b): an intermediate is paid pro rata of its demand. No ceil, no round, no one-unit-per-run
      * minimum, no BPC cap, on the targets too.
      */
-    public function marginalCost(PlanRequest $request): MarginalCostPlan
+    public function marginalCost(PlanRequest $request, ?RecipeMemory $recipes = null): MarginalCostPlan
     {
+        $recipes ??= new RecipeMemory($this->catalog);
         $demand = [];
         foreach ($request->targets as $target) {
-            $recipe = $this->recipeOfTarget($target);
+            $recipe = self::recipeOfTarget($target, $recipes);
             self::addFractionalMaterials($demand, $recipe, $target->runs->value, $target->efficiency, $request);
         }
 
         $fractionalRuns = [];
-        foreach ($this->intermediatesInProductionOrder($request) as $productTypeId => $recipe) {
+        foreach (self::intermediatesInProductionOrder($request, $recipes) as $productTypeId => $recipe) {
             if (!isset($demand[$productTypeId])) {
                 continue;
             }
@@ -107,19 +109,19 @@ final readonly class ProductionPlanner
         return new MarginalCostPlan($leaves, $fractionalRuns);
     }
 
-    private function recipeOfTarget(PlanTarget $target): Recipe
+    private static function recipeOfTarget(PlanTarget $target, RecipeMemory $recipes): Recipe
     {
-        return $this->catalog->recipeFor($target->productTypeId)
+        return $recipes->recipeFor($target->productTypeId)
             ?? throw new \DomainException(\sprintf('Target %d has no blueprint nor reaction: it cannot be built.', $target->productTypeId));
     }
 
-    private function buildableRecipe(int $typeId, PlanRequest $request): ?Recipe
+    private static function buildableRecipe(int $typeId, PlanRequest $request, RecipeMemory $recipes): ?Recipe
     {
         if (\in_array($typeId, $request->blacklist, true)) {
             return null;
         }
 
-        return $this->catalog->recipeFor($typeId);
+        return $recipes->recipeFor($typeId);
     }
 
     /**
@@ -127,11 +129,11 @@ final readonly class ProductionPlanner
      *
      * @return array<int, Recipe> by product typeId, every consumer before its materials
      */
-    private function intermediatesInProductionOrder(PlanRequest $request): array
+    private static function intermediatesInProductionOrder(PlanRequest $request, RecipeMemory $recipes): array
     {
         $finished = [];
         foreach ($request->targets as $target) {
-            $this->walkMaterials($this->recipeOfTarget($target), $request, [], $finished);
+            self::walkMaterials(self::recipeOfTarget($target, $recipes), $request, $recipes, [], $finished);
         }
 
         return array_reverse($finished, true);
@@ -141,17 +143,17 @@ final readonly class ProductionPlanner
      * @param array<int, true>   $path     intermediates being expanded down to $recipe; a target met again is caught one level below
      * @param array<int, Recipe> $finished intermediates whose materials are all finished, in post-order
      */
-    private function walkMaterials(Recipe $recipe, PlanRequest $request, array $path, array &$finished): void
+    private static function walkMaterials(Recipe $recipe, PlanRequest $request, RecipeMemory $recipes, array $path, array &$finished): void
     {
         foreach ($recipe->materials as $material) {
-            $materialRecipe = $this->buildableRecipe($material->typeId, $request);
+            $materialRecipe = self::buildableRecipe($material->typeId, $request, $recipes);
             if (null === $materialRecipe || isset($finished[$material->typeId])) {
                 continue;
             }
             if (isset($path[$material->typeId])) {
                 throw new \DomainException(\sprintf('Product %d is needed to build itself: the production graph has a cycle.', $material->typeId));
             }
-            $this->walkMaterials($materialRecipe, $request, $path + [$material->typeId => true], $finished);
+            self::walkMaterials($materialRecipe, $request, $recipes, $path + [$material->typeId => true], $finished);
             $finished[$material->typeId] = $materialRecipe;
         }
     }

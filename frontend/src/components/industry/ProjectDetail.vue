@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useIndustryStore } from '@/stores/industry'
+import { useTabQuery } from '@/composables/useTabQuery'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
@@ -11,6 +12,7 @@ import StepsTab from './StepsTab.vue'
 import ShoppingTab from './ShoppingTab.vue'
 import BpcKitTab from './BpcKitTab.vue'
 import CostEstimationTab from './CostEstimationTab.vue'
+import { vFocusOnMount } from './vFocusOnMount'
 
 const { t } = useI18n()
 
@@ -30,7 +32,8 @@ const { typeNameLabel, projectDisplayName } = useTypeNames()
 const projectRef = computed(() => store.currentProject)
 const { estimatedProjectTime } = useProjectTime(projectRef)
 
-const activeTab = ref<'steps' | 'shopping' | 'invention' | 'costs'>('steps')
+const PROJECT_TABS = ['steps', 'shopping', 'invention', 'costs'] as const
+const activeTab = useTabQuery(PROJECT_TABS, 'steps', 'projectTab')
 
 // Template refs to child components
 const stepsTabRef = ref<InstanceType<typeof StepsTab> | null>(null)
@@ -136,8 +139,9 @@ async function toggleProjectStatus() {
   }
 }
 
-async function switchTab(tab: 'steps' | 'shopping' | 'invention' | 'costs') {
-  activeTab.value = tab
+type ProjectTab = (typeof PROJECT_TABS)[number]
+
+async function loadTab(tab: ProjectTab) {
   if (tab === 'shopping') {
     await shoppingTabRef.value?.activate()
     await shoppingTabRef.value?.loadSuggestions()
@@ -146,12 +150,19 @@ async function switchTab(tab: 'steps' | 'shopping' | 'invention' | 'costs') {
   }
 }
 
+function switchTab(tab: ProjectTab) {
+  activeTab.value = tab
+}
+
+watch(activeTab, loadTab)
+
 onMounted(async () => {
   await store.fetchProject(props.projectId)
   shoppingTabRef.value?.loadPersistedStock()
   if (shoppingTabRef.value?.parsedStock && shoppingTabRef.value.parsedStock.length > 0) {
     await shoppingTabRef.value?.reanalyzeStock()
   }
+  await loadTab(activeTab.value)
 })
 </script>
 
@@ -163,8 +174,9 @@ onMounted(async () => {
         <button
           @click="emit('close')"
           class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-200"
+          :aria-label="t('common.actions.close')"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg aria-hidden="true" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
         </button>
@@ -173,6 +185,7 @@ onMounted(async () => {
           <img
             v-if="!isMultiProduct"
             :src="getTypeIconUrl(store.currentProject.productTypeId, 64)"
+            :alt="typeNameLabel(store.currentProject.productTypeName, store.currentProject.productTypeId)"
             class="w-14 h-14 rounded-lg border border-slate-700"
             @error="onImageError"
           />
@@ -182,6 +195,7 @@ onMounted(async () => {
               v-for="(product, index) in rootProducts.slice(0, 4)"
               :key="product.typeId"
               :src="getTypeIconUrl(product.typeId, 64)"
+              :alt="typeNameLabel(product.typeName, product.typeId)"
               class="w-14 h-14 rounded-lg border-2 border-slate-900"
               :style="{ zIndex: 10 - index }"
               :title="typeNameLabel(product.typeName, product.typeId)"
@@ -203,19 +217,21 @@ onMounted(async () => {
                 v-else
                 v-model="projectNameEdit"
                 type="text"
+                :aria-label="t('industry.projectDetail.editName')"
                 class="text-lg font-semibold bg-slate-800 border border-cyan-500 rounded-sm px-2 py-0.5 focus:outline-hidden"
                 @keydown.enter="saveProjectName"
                 @keydown.escape="cancelProjectNameEdit"
                 @blur="saveProjectName"
-                autofocus
+                v-focus-on-mount
               />
               <button
                 v-if="!editingProjectName && store.currentProject.status !== 'completed'"
                 @click="startEditProjectName"
                 class="p-1 text-slate-500 hover:text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity"
                 :title="t('industry.projectDetail.editName')"
+                :aria-label="t('industry.projectDetail.editName')"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
               </button>
@@ -328,16 +344,17 @@ onMounted(async () => {
               v-if="editingCostField === 'bpoCost'"
               v-model="editCostValue"
               type="text"
+              :aria-label="t('industry.costs.invention')"
               placeholder="ex: 50M"
               class="w-full text-sm font-mono bg-slate-800 border border-cyan-500 rounded-sm px-1.5 py-0.5 focus:outline-hidden"
               @keydown.enter="saveEditCost"
               @keydown.escape="cancelEditCost"
               @blur="saveEditCost"
-              autofocus
+              v-focus-on-mount
             />
-            <p v-else class="text-sm font-mono text-slate-200 editable" @click="startEditCost('bpoCost')" :title="t('industry.projectDetail.clickToEdit')">
+            <button v-else type="button" class="block w-full text-left text-sm font-mono text-slate-200 editable" @click="startEditCost('bpoCost')" :title="t('industry.projectDetail.clickToEdit')">
               {{ store.currentProject.bpoCost !== null ? formatIsk(store.currentProject.bpoCost) : '-' }}
-            </p>
+            </button>
           </div>
           <!-- Mat. estimé (readonly, hidden if materialCost is set) -->
           <div v-if="store.currentProject.materialCost == null">
@@ -360,16 +377,17 @@ onMounted(async () => {
               v-if="editingCostField === 'transportCost'"
               v-model="editCostValue"
               type="text"
+              :aria-label="t('industry.costs.transport')"
               placeholder="ex: 50M"
               class="w-full text-sm font-mono bg-slate-800 border border-cyan-500 rounded-sm px-1.5 py-0.5 focus:outline-hidden"
               @keydown.enter="saveEditCost"
               @keydown.escape="cancelEditCost"
               @blur="saveEditCost"
-              autofocus
+              v-focus-on-mount
             />
-            <p v-else class="text-sm font-mono text-slate-200 editable" @click="startEditCost('transportCost')" :title="t('industry.projectDetail.clickToEdit')">
+            <button v-else type="button" class="block w-full text-left text-sm font-mono text-slate-200 editable" @click="startEditCost('transportCost')" :title="t('industry.projectDetail.clickToEdit')">
               {{ store.currentProject.transportCost !== null ? formatIsk(store.currentProject.transportCost) : '-' }}
-            </p>
+            </button>
           </div>
           <!-- Jobs ESI (readonly) -->
           <div>
@@ -392,16 +410,17 @@ onMounted(async () => {
               v-if="editingCostField === 'taxAmount'"
               v-model="editCostValue"
               type="text"
+              :aria-label="t('industry.costs.taxes')"
               placeholder="ex: 50M"
               class="w-full text-sm font-mono bg-slate-800 border border-cyan-500 rounded-sm px-1.5 py-0.5 focus:outline-hidden"
               @keydown.enter="saveEditCost"
               @keydown.escape="cancelEditCost"
               @blur="saveEditCost"
-              autofocus
+              v-focus-on-mount
             />
-            <p v-else class="text-sm font-mono text-slate-200 editable" @click="startEditCost('taxAmount')" :title="t('industry.projectDetail.clickToEdit')">
+            <button v-else type="button" class="block w-full text-left text-sm font-mono text-slate-200 editable" @click="startEditCost('taxAmount')" :title="t('industry.projectDetail.clickToEdit')">
               {{ store.currentProject.taxAmount !== null ? formatIsk(store.currentProject.taxAmount) : '-' }}
-            </p>
+            </button>
           </div>
           <!-- Estimated tax amount (readonly, hidden if taxAmount is set or personalUse) -->
           <div v-if="store.currentProject.taxAmount == null && !store.currentProject.personalUse">
@@ -417,16 +436,17 @@ onMounted(async () => {
               v-if="editingCostField === 'sellPrice'"
               v-model="editCostValue"
               type="text"
+              :aria-label="t('industry.costs.sell')"
               placeholder="ex: 1.5B"
               class="w-full text-sm font-mono bg-slate-800 border border-cyan-500 rounded-sm px-1.5 py-0.5 focus:outline-hidden"
               @keydown.enter="saveEditCost"
               @keydown.escape="cancelEditCost"
               @blur="saveEditCost"
-              autofocus
+              v-focus-on-mount
             />
-            <p v-else class="text-sm font-mono text-slate-200 editable" @click="startEditCost('sellPrice')" :title="t('industry.projectDetail.clickToEdit')">
+            <button v-else type="button" class="block w-full text-left text-sm font-mono text-slate-200 editable" @click="startEditCost('sellPrice')" :title="t('industry.projectDetail.clickToEdit')">
               {{ store.currentProject.sellPrice !== null ? formatIsk(store.currentProject.sellPrice) : '-' }}
-            </p>
+            </button>
           </div>
           <!-- Estimated sell price (readonly, hidden if sellPrice is set or personalUse) -->
           <div v-if="store.currentProject.sellPrice == null && !store.currentProject.personalUse">
@@ -434,7 +454,7 @@ onMounted(async () => {
             <p class="text-sm font-mono text-slate-400">
               {{ store.currentProject.estimatedSellPrice != null ? formatIsk(store.currentProject.estimatedSellPrice) : '-' }}
             </p>
-            <p v-if="store.currentProject.estimatedSellPriceSource" class="text-[10px] text-slate-600 mt-0.5">
+            <p v-if="store.currentProject.estimatedSellPriceSource" class="text-xs text-slate-600 mt-0.5">
               {{ store.currentProject.estimatedSellPriceSource === 'jita' ? 'Jita' : t('industry.costs.structure') }}
             </p>
           </div>
@@ -545,13 +565,20 @@ onMounted(async () => {
     <div
       v-if="shoppingTabRef?.showClearStockModal"
       class="fixed inset-0 z-50 flex items-center justify-center"
+      role="presentation"
       @keydown.escape="shoppingTabRef!.showClearStockModal = false"
     >
       <div
         class="absolute inset-0 bg-black/70 backdrop-blur-xs"
+        role="presentation"
         @click="shoppingTabRef!.showClearStockModal = false"
       ></div>
-      <div class="relative bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+      <div
+        class="relative bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="t('industry.projectDetail.clearStockTitle')"
+      >
         <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
           <h3 class="text-lg font-semibold text-slate-100 flex items-center gap-2">
             <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -562,8 +589,9 @@ onMounted(async () => {
           <button
             @click="shoppingTabRef!.showClearStockModal = false"
             class="p-1 hover:bg-slate-800 rounded-sm text-slate-400 hover:text-slate-200"
+            :aria-label="t('common.actions.close')"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg aria-hidden="true" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>

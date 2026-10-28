@@ -40,6 +40,7 @@
       "justNow": "a l'instant",
       "minutesAgo": "il y a {minutes}min",
       "hoursAgo": "il y a {hours}h",
+      "daysAgo": "il y a {days}j",
       "day": "jour | jour | jours",
       "hour": "heure | heure | heures",
       "minute": "minute | minute | minutes",
@@ -48,6 +49,15 @@
       "perDay": "/ jour",
       "perHour": "/ heure",
       "perCycle": "/cycle"
+    },
+    "dataFreshness": {
+      "sources": {
+        "market-jita": "Prix Jita",
+        "cost-indices": "Cost index",
+        "adjusted-prices": "Prix ajustés"
+      },
+      "unknownDate": "date inconnue",
+      "lastSyncFailed": "dernière sync en échec"
     },
     "units": {
       "colony": "colonie | colonie | colonies",
@@ -70,6 +80,42 @@
     },
     "deletedPilot": "Pilote supprimé"
   },
+  "a11y": {
+    "remove": "Retirer",
+    "industry": {
+      "skillLevel": "Niveau {skill} de {character}"
+    },
+    "zoneB": {
+      "market": {
+        "removeRecentSearch": "Retirer {name} des recherches récentes"
+      },
+      "groupIndustry": {
+        "contributionTypeFilter": "Filtrer par type de contribution",
+        "contributionStatusFilter": "Filtrer par statut de contribution"
+      },
+      "escalation": {
+        "timerDays": "Jours",
+        "timerHours": "Heures",
+        "timerMinutes": "Minutes"
+      }
+    },
+    "pagination": {
+      "first": "Première page",
+      "previous": "Page précédente",
+      "next": "Page suivante",
+      "last": "Dernière page"
+    },
+    "zoneC": {
+      "assets": {
+        "contractAvailability": "Disponibilité des contrats"
+      },
+      "notifications": {
+        "enabledSwitch": "Activer les notifications {category}",
+        "pushSwitch": "Activer le push navigateur pour {category}",
+        "thresholdInput": "Seuil en minutes pour {category}"
+      }
+    }
+  },
   "nav": {
     "dashboard": "Tableau de bord",
     "characters": "Personnages",
@@ -86,7 +132,36 @@
     "market": "Marche",
     "appraisal": "Appraisal",
     "groupIndustry": "Industrie de groupe",
-    "admin": "Administration"
+    "admin": "Administration",
+    "openMenu": "Ouvrir le menu de navigation",
+    "closeMenu": "Fermer le menu de navigation",
+    "menu": "Menu de navigation"
+  },
+  "commandPalette": {
+    "open": "Ouvrir la palette de commandes (Ctrl+K)",
+    "title": "Palette de commandes",
+    "placeholder": "Rechercher un écran...",
+    "noResults": "Aucun résultat pour « {query} »",
+    "groups": {
+      "navigation": "Navigation",
+      "projects": "Projets",
+      "types": "Types"
+    },
+    "projects": {
+      "loading": "Chargement...",
+      "industryUnavailable": "Projets Industrie indisponibles",
+      "groupIndustryUnavailable": "Projets Industrie de groupe indisponibles",
+      "completed": "Terminé"
+    },
+    "types": {
+      "searching": "Recherche...",
+      "unavailable": "Recherche de types indisponible",
+      "actions": {
+        "analyzeMargin": "Analyser la marge",
+        "buyVsBuild": "Achat vs Prod",
+        "openInMarket": "Ouvrir dans Market"
+      }
+    }
   },
   "settings": {
     "title": "Parametres",
@@ -154,7 +229,19 @@
     "noRecentActivity": "Aucune activite recente",
     "realtimeEventsWillAppear": "Les evenements temps reel apparaitront ici",
     "mercureConnected": "Mercure connecte",
-    "disconnected": "Deconnecte"
+    "disconnected": "Deconnecte",
+    "todo": {
+      "title": "À faire",
+      "charactersToReconnect": "{count} personnage à reconnecter | {count} personnages à reconnecter",
+      "atLeastCharactersToReconnect": "Au moins {count} personnage à reconnecter | Au moins {count} personnages à reconnecter",
+      "expiredExtractors": "{count} extracteur PI arrêté | {count} extracteurs PI arrêtés",
+      "expiringExtractors": "{count} extracteur PI expire dans moins de 24 h | {count} extracteurs PI expirent dans moins de 24 h",
+      "triggeredPriceAlerts": "{count} alerte de prix déclenchée | {count} alertes de prix déclenchées",
+      "unknownCharacters": "Personnages à reconnecter : inconnu",
+      "unknownExtractors": "Extracteurs PI : inconnu (échec du chargement)",
+      "unknownPriceAlerts": "Alertes de prix : inconnu (échec du chargement)",
+      "allCaughtUp": "Tout est à jour"
+    }
   },
   "characters": {
     "title": "Personnages",
@@ -498,6 +585,12 @@
     }
   },
   "industry": {
+    "partialPrice": {
+      "marker": "{percent} % couvert",
+      "noticeTitle": "Prix partiel : carnet Jita trop court",
+      "noticeLine": "{type} : carnet couvert à {percent} %",
+      "tooltip": "Le carnet d'ordres de vente Jita ne couvre qu'une partie de la quantité demandée. Le prix affiché porte sur la part couverte seulement : le coût réel est probablement plus élevé."
+    },
     "inventionUnknown": {
       "label": "Inconnu",
       "missing_adjusted_price": "Prix ajusté ESI inconnu",
@@ -506,6 +599,7 @@
       "missing_market_price": "Prix de marche inconnu pour un datacore ou le decrypteur : cout d'invention inconnu.",
       "missing_material_price": "Un materiau n'a aucun prix a Jita : cout de fabrication et marges inconnus.",
       "missing_sale_price": "Le produit n'a aucun prix de vente a Jita : prix de vente inconnu, profit et marges inconnus.",
+      "missing_volume": "Un produit ou un materiau n'a aucun volume dans les donnees statiques (SDE) : cout de transport et marges inconnus.",
       "missingPriceTypes": "Materiaux sans prix : {types}"
     },
     "title": "Industrie",
@@ -558,7 +652,7 @@
         "jobsReadyTitle": "{count} jobs prets a livrer",
         "jobsReadyDesc": "Jobs termines en attente de recuperation",
         "stockpileCriticalTitle": "{name} stockpile a {percent}%",
-        "stockpileCriticalDesc": "{stock} en stock (objectif : {target}) — cout du deficit : {cost} ISK",
+        "stockpileCriticalDesc": "{stock} en stock (objectif : {target}) — cout du deficit : {cost}",
         "negativeProfitTitle": "Le projet '{name}' a une marge negative",
         "negativeProfitDesc": "Marge a {margin}% — revoir le prix de vente ou le ME",
         "freeSlotsTitle": "{count} slots libres disponibles",

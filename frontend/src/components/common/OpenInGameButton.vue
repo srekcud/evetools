@@ -66,11 +66,13 @@ async function handleClick(event: Event): Promise<void> {
           ? 'text-red-400'
           : 'text-slate-500 hover:text-cyan-400 hover:bg-slate-700/50',
     ]"
+    :aria-label="status === 'success' ? t('openWindow.success') : status === 'error' ? t('openWindow.error') : getTooltip()"
   >
     <!-- Loading spinner -->
     <LoadingSpinner v-if="isActionLoading(type, targetId)" size="xs+" />
     <!-- Success check -->
     <svg
+      aria-hidden="true"
       v-else-if="status === 'success'"
       class="w-3.5 h-3.5"
       fill="none"
@@ -81,6 +83,7 @@ async function handleClick(event: Event): Promise<void> {
     </svg>
     <!-- Error X -->
     <svg
+      aria-hidden="true"
       v-else-if="status === 'error'"
       class="w-3.5 h-3.5"
       fill="none"
@@ -91,6 +94,7 @@ async function handleClick(event: Event): Promise<void> {
     </svg>
     <!-- Default: external/game icon -->
     <svg
+      aria-hidden="true"
       v-else
       class="w-3.5 h-3.5"
       fill="none"

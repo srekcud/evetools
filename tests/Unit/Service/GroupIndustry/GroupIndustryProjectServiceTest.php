@@ -8,961 +8,506 @@ use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustryProjectItem;
 use App\Entity\GroupIndustryProjectMember;
-use App\Entity\Sde\IndustryBlueprint;
+use App\Entity\Sde\IndustryActivity;
+use App\Entity\Sde\IndustryActivityProduct;
+use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
+use App\Enum\IndustryActivityType;
+use App\Industry\Application\ProductionPlanning;
+use App\Industry\Domain\ActivityKind;
+use App\Industry\Domain\OutputPerRun;
+use App\Industry\Domain\Quantity;
+use App\Industry\Domain\Recipe;
+use App\Industry\Domain\RecipeMaterial;
+use App\Industry\Domain\Runs;
 use App\Repository\Sde\IndustryActivityProductRepository;
-use App\Repository\Sde\IndustryBlueprintRepository;
+use App\Repository\Sde\IndustryActivityRepository;
+use App\Repository\Sde\InvTypeRepository;
 use App\Service\GroupIndustry\CreateProjectData;
 use App\Service\GroupIndustry\GroupIndustryProjectService;
-use App\Service\Industry\IndustryTreeService;
 use App\Service\Industry\InventionService;
 use App\Service\JitaMarketService;
+use App\Tests\Unit\Industry\Application\Double\InMemoryRigCategories;
+use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
+use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
+use App\Tests\Unit\Industry\Domain\Double\InMemoryBlueprintCatalog;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(GroupIndustryProjectService::class)]
-class GroupIndustryProjectServiceTest extends TestCase
+#[AllowMockObjectsWithoutExpectations]
+final class GroupIndustryProjectServiceTest extends TestCase
 {
-    private IndustryTreeService&Stub $treeService;
-    private JitaMarketService&Stub $jitaMarketService;
-    private EntityManagerInterface&Stub $entityManager;
-    private IndustryBlueprintRepository&Stub $blueprintRepository;
+    private const int BLUEPRINT_TYPE_ID_OFFSET = 500_000;
+    private const int DEFAULT_MAX_PRODUCTION_LIMIT = 300;
+    private const int BASE_TIME_SECONDS = 2_400;
+    private const string OWNER_ID = '01890a5d-ac96-774b-bcce-b302099a8058';
+
+    private const int TRITANIUM = 34;
+    private const int PYERITE = 35;
+    private const int MEXALLON = 36;
+    private const int RIFTER = 587;
+    private const int THRASHER = 701;
+    private const int SABRE = 22456;
+    private const int COMPONENT = 1001;
+    private const int REACTION_PRODUCT = 2001;
+    private const int FERNITE_CARBIDE = 16672;
+    private const int FERNITE = 16657;
+    private const int CARBON = 16661;
+    private const int BLACKLISTED_TYPE = 9999;
+    private const int FIRST_TYPE_OF_THE_BLACKLISTED_GROUP = 11399;
+    private const int SECOND_TYPE_OF_THE_BLACKLISTED_GROUP = 11400;
+    private const int BLACKLISTED_GROUP = 334;
+    private const int HAIL_L = 12779;
+    private const int HAIL_L_T1_BLUEPRINT = 898;
+    private const int DEPLETED_URANIUM_L = 197;
+    private const int PROTOTYPE_AMMUNITION_L = 990_003;
+    private const int PROTOTYPE_AMMUNITION_L_T1_BLUEPRINT = 990_013;
+    private const int PROTOTYPE_T1_AMMUNITION_L = 990_014;
+    private const int MORPHITE = 11399;
+    private const int DATACORE_NUCLEAR_PHYSICS = 20423;
+    private const int DATACORE_MECHANICAL_ENGINEERING = 20424;
+
+    private const array SDE_TYPE_NAMES = [
+        self::TRITANIUM => 'Tritanium',
+        self::PYERITE => 'Pyerite',
+        self::MEXALLON => 'Mexallon',
+        self::FERNITE => 'Fernite',
+        self::CARBON => 'Carbon',
+        self::MORPHITE => 'Morphite',
+        self::DEPLETED_URANIUM_L => 'Depleted Uranium L',
+        self::PROTOTYPE_T1_AMMUNITION_L => 'Prototype T1 Ammunition L',
+        self::DATACORE_NUCLEAR_PHYSICS => 'Datacore - Nuclear Physics',
+        self::DATACORE_MECHANICAL_ENGINEERING => 'Datacore - Mechanical Engineering',
+    ];
+
+    private array $recipes = [];
+
+    private array $typeNames = self::SDE_TYPE_NAMES;
+
+    private array $t1ProductByBlueprint = [];
+
+    private JitaMarketService&MockObject $jitaMarketService;
+    private EntityManagerInterface&MockObject $entityManager;
     private Connection&Stub $connection;
     private InventionService&Stub $inventionService;
-    private IndustryActivityProductRepository&Stub $activityProductRepository;
-    private GroupIndustryProjectService $service;
 
     protected function setUp(): void
     {
-        $this->treeService = $this->createStub(IndustryTreeService::class);
-        $this->jitaMarketService = $this->createStub(JitaMarketService::class);
-        $this->entityManager = $this->createStub(EntityManagerInterface::class);
-        $this->blueprintRepository = $this->createStub(IndustryBlueprintRepository::class);
+        $this->jitaMarketService = $this->createMock(JitaMarketService::class);
         $this->connection = $this->createStub(Connection::class);
         $this->inventionService = $this->createStub(InventionService::class);
-        $this->activityProductRepository = $this->createStub(IndustryActivityProductRepository::class);
 
+        $typeRepository = $this->createStub(InvTypeRepository::class);
+        $typeRepository->method('findBy')->willReturnCallback(fn (array $criteria): array => array_values(array_map(
+            fn (int $typeId): InvType => (new InvType())->setTypeId($typeId)->setTypeName($this->typeNames[$typeId]),
+            array_values(array_filter((array) $criteria['typeId'], fn (int $typeId): bool => isset($this->typeNames[$typeId]))),
+        )));
+        $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->entityManager->method('getConnection')->willReturn($this->connection);
-        // Default: no blueprint found (use default limits)
-        $this->blueprintRepository->method('findBy')->willReturn([]);
-
-        $this->service = new GroupIndustryProjectService(
-            $this->treeService,
-            $this->jitaMarketService,
-            $this->entityManager,
-            $this->blueprintRepository,
-            $this->inventionService,
-            $this->activityProductRepository,
+        $this->entityManager->method('getRepository')->willReturnCallback(
+            static fn (string $className): ?InvTypeRepository => $className === InvType::class ? $typeRepository : null,
         );
     }
 
-    // ===========================================
-    // Helper methods
-    // ===========================================
-
-    private function createUser(): User&Stub
+    #[Group('issue-141')]
+    public function testManufacturedT2ProductWhoseBlueprintHasNoCopyActivityIsStillInventedFromACopyOfTheT1Blueprint(): void
     {
-        return $this->createStub(User::class);
-    }
+        $this->givenInventedProducts();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 3]]);
 
-    /**
-     * Build a simple flat production tree node (no sub-components).
-     *
-     * @param list<array{typeId: int, typeName: string, quantity: int}> $rawMaterials
-     * @return array<string, mixed>
-     */
-    private function buildFlatTreeNode(
-        int $blueprintTypeId,
-        int $productTypeId,
-        string $productName,
-        int $runs,
-        int $outputPerRun = 1,
-        array $rawMaterials = [],
-        int $depth = 0,
-        string $activityType = 'manufacturing',
-        bool $hasCopy = false,
-    ): array {
-        $materials = [];
-        foreach ($rawMaterials as $mat) {
-            $materials[] = [
-                'typeId' => $mat['typeId'],
-                'typeName' => $mat['typeName'],
-                'quantity' => $mat['quantity'],
-                'isBuildable' => false,
-                'activityType' => null,
-            ];
-        }
+        $this->service()->buildBom($project, $this->createUser());
 
-        return [
-            'blueprintTypeId' => $blueprintTypeId,
-            'productTypeId' => $productTypeId,
-            'productTypeName' => $productName,
-            'quantity' => $runs * $outputPerRun,
-            'runs' => $runs,
-            'outputPerRun' => $outputPerRun,
-            'depth' => $depth,
-            'activityType' => $activityType,
-            'hasCopy' => $hasCopy,
-            'materials' => $materials,
-            'structureBonus' => 0.0,
-            'structureName' => null,
-            'productCategory' => null,
-        ];
-    }
-
-    /**
-     * Build a tree with an intermediate buildable component.
-     *
-     * @param list<array{typeId: int, typeName: string, quantity: int}> $compRawMaterials
-     * @param list<array{typeId: int, typeName: string, quantity: int}> $finalRawMaterials
-     * @return array<string, mixed>
-     */
-    private function buildTreeWithComponent(
-        int $finalBpId,
-        int $finalProductId,
-        string $finalName,
-        int $finalRuns,
-        int $compBpId,
-        int $compProductId,
-        string $compName,
-        int $compQuantity,
-        int $compRuns,
-        string $compActivityType = 'manufacturing',
-        bool $compHasCopy = false,
-        bool $finalHasCopy = false,
-        array $compRawMaterials = [],
-        array $finalRawMaterials = [],
-    ): array {
-        $subTree = $this->buildFlatTreeNode(
-            $compBpId,
-            $compProductId,
-            $compName,
-            $compRuns,
-            1,
-            $compRawMaterials,
-            1,
-            $compActivityType,
-            $compHasCopy,
+        $this->assertSame(
+            [
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', 3, 3, null],
+                [self::HAIL_L, 'invention', 'blueprint', 3, 3, null],
+                [self::HAIL_L, 'manufacturing', 'final', 3, 15000, null],
+            ],
+            $this->jobLines($project),
         );
-
-        $tree = $this->buildFlatTreeNode(
-            $finalBpId,
-            $finalProductId,
-            $finalName,
-            $finalRuns,
-            1,
-            $finalRawMaterials,
-            0,
-            'manufacturing',
-            $finalHasCopy,
+        $this->assertSame(
+            [self::MORPHITE => 45, self::DATACORE_NUCLEAR_PHYSICS => 3, self::DATACORE_MECHANICAL_ENGINEERING => 6],
+            $this->materialQuantities($project),
         );
-
-        // Add the buildable component as a material
-        $tree['materials'][] = [
-            'typeId' => $compProductId,
-            'typeName' => $compName,
-            'quantity' => $compQuantity,
-            'isBuildable' => true,
-            'activityType' => $compActivityType,
-            'blueprint' => $subTree,
-        ];
-
-        return $tree;
     }
 
-    /**
-     * @return list<GroupIndustryBomItem>
-     */
-    private function getMaterialBomItems(GroupIndustryProject $project): array
+    #[Group('issue-141')]
+    public function testT2ProductsInventedFromDifferentT1BlueprintsEachGetTheCopyOfTheirOwnT1Blueprint(): void
     {
-        return array_values(array_filter(
-            $project->getBomItems()->toArray(),
-            fn (GroupIndustryBomItem $item) => !$item->isJob(),
-        ));
-    }
+        $this->givenInventedProducts();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $this->givenRecipe(self::PROTOTYPE_AMMUNITION_L, 'Prototype Ammunition L', [self::MORPHITE => 7], outputPerRun: 100, maxProductionLimit: 40, hasCopyActivity: true);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 3], [self::PROTOTYPE_AMMUNITION_L, 'Prototype Ammunition L', 4]]);
 
-    /**
-     * @return list<GroupIndustryBomItem>
-     */
-    private function getJobBomItems(GroupIndustryProject $project): array
-    {
-        return array_values(array_filter(
-            $project->getBomItems()->toArray(),
-            fn (GroupIndustryBomItem $item) => $item->isJob(),
-        ));
-    }
+        $this->service()->buildBom($project, $this->createUser());
 
-    /**
-     * Find a job BOM item by jobGroup.
-     */
-    private function findJobByGroup(GroupIndustryProject $project, string $jobGroup): ?GroupIndustryBomItem
-    {
-        foreach ($this->getJobBomItems($project) as $item) {
-            if ($item->getJobGroup() === $jobGroup) {
-                return $item;
-            }
-        }
-        return null;
+        $this->assertSame(
+            [
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', 3, 3, null],
+                [self::HAIL_L, 'invention', 'blueprint', 3, 3, null],
+                [self::HAIL_L, 'manufacturing', 'final', 3, 15000, null],
+                [self::PROTOTYPE_AMMUNITION_L, 'invention', 'blueprint', 4, 4, null],
+                [self::PROTOTYPE_AMMUNITION_L, 'manufacturing', 'final', 4, 400, null],
+                [self::PROTOTYPE_T1_AMMUNITION_L, 'copy', 'blueprint', 4, 4, null],
+            ],
+            $this->jobLines($project),
+        );
+        $this->assertSame(
+            [self::MORPHITE => 73, self::DATACORE_NUCLEAR_PHYSICS => 3, self::DATACORE_MECHANICAL_ENGINEERING => 26],
+            $this->materialQuantities($project),
+        );
     }
-
-    /**
-     * Find a job BOM item by activityType.
-     */
-    private function findJobByActivity(GroupIndustryProject $project, string $activityType): ?GroupIndustryBomItem
-    {
-        foreach ($this->getJobBomItems($project) as $item) {
-            if ($item->getActivityType() === $activityType) {
-                return $item;
-            }
-        }
-        return null;
-    }
-
-    // ===========================================
-    // createProject() -- basic creation
-    // ===========================================
 
     public function testCreateProjectBasic(): void
     {
         $user = $this->createUser();
+        $this->givenRifter();
+        $this->jitaMarketService->method('getCheapestPercentilePrices')->willReturn([self::TRITANIUM => 5.5]);
 
-        $tree = $this->buildFlatTreeNode(586, 587, 'Rifter', 10, 1, [
-            ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 250000],
-        ]);
-
-        $this->treeService->method('buildProductionTree')->willReturn($tree);
-        $this->jitaMarketService->method('getCheapestPercentilePrices')->willReturn([34 => 5.5]);
-
-        $data = new CreateProjectData(
+        $project = $this->service()->createProject($user, new CreateProjectData(
             name: 'Fleet Doctrine',
-            items: [
-                ['typeId' => 587, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 10],
-            ],
-        );
-
-        $project = $this->service->createProject($user, $data);
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 10]],
+        ));
 
         $this->assertSame('Fleet Doctrine', $project->getName());
         $this->assertSame(GroupProjectStatus::Published, $project->getStatus());
         $this->assertSame($user, $project->getOwner());
-
-        // Short link code: 10 hex chars
         $this->assertMatchesRegularExpression('/^[0-9a-f]{10}$/', $project->getShortLinkCode());
     }
 
     public function testCreateProjectPersistsAndFlushes(): void
     {
-        $user = $this->createUser();
+        $this->givenRifter();
+        $this->entityManager->expects($this->once())->method('persist');
+        $this->entityManager->expects($this->once())->method('flush');
 
-        $tree = $this->buildFlatTreeNode(586, 587, 'Rifter', 1);
-
-        $treeStub = $this->createStub(IndustryTreeService::class);
-        $treeStub->method('buildProductionTree')->willReturn($tree);
-
-        $jitaStub = $this->createStub(JitaMarketService::class);
-        $jitaStub->method('getCheapestPercentilePrices')->willReturn([]);
-
-        $em = $this->createMock(EntityManagerInterface::class);
-        $conn = $this->createStub(Connection::class);
-        $em->method('getConnection')->willReturn($conn);
-
-        $em->expects($this->once())->method('persist');
-        $em->expects($this->once())->method('flush');
-
-        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $this->blueprintRepository, $this->inventionService, $this->activityProductRepository);
-
-        $data = new CreateProjectData(
+        $this->service()->createProject($this->createUser(), new CreateProjectData(
             name: 'Persist Test',
-            items: [
-                ['typeId' => 587, 'typeName' => 'Rifter', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 1],
-            ],
-        );
-
-        $service->createProject($user, $data);
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 1]],
+        ));
     }
 
     public function testCreateProjectOwnerAsMember(): void
     {
         $user = $this->createUser();
+        $this->givenRifter();
 
-        $tree = $this->buildFlatTreeNode(586, 587, 'Rifter', 1);
-        $this->treeService->method('buildProductionTree')->willReturn($tree);
-        $this->jitaMarketService->method('getCheapestPercentilePrices')->willReturn([]);
-
-        $data = new CreateProjectData(
+        $project = $this->service()->createProject($user, new CreateProjectData(
             name: 'Test',
-            items: [
-                ['typeId' => 587, 'typeName' => 'Rifter', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 1],
-            ],
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 1]],
+        ));
+
+        $this->assertSame(
+            [[$user, GroupMemberRole::Owner, GroupMemberStatus::Accepted]],
+            array_map(
+                static fn (GroupIndustryProjectMember $member): array => [$member->getUser(), $member->getRole(), $member->getStatus()],
+                $project->getMembers()->toArray(),
+            ),
         );
-
-        $project = $this->service->createProject($user, $data);
-
-        $members = $project->getMembers()->toArray();
-        $this->assertCount(1, $members);
-
-        /** @var GroupIndustryProjectMember $ownerMember */
-        $ownerMember = $members[0];
-        $this->assertSame($user, $ownerMember->getUser());
-        $this->assertSame(GroupMemberRole::Owner, $ownerMember->getRole());
-        $this->assertSame(GroupMemberStatus::Accepted, $ownerMember->getStatus());
     }
 
     public function testCreateProjectWithItems(): void
     {
-        $user = $this->createUser();
+        $this->givenRifter();
+        $this->givenRecipe(self::SABRE, 'Sabre', [self::TRITANIUM => 20_000, self::MEXALLON => 4_100]);
 
-        $rifterTree = $this->buildFlatTreeNode(586, 587, 'Rifter', 10, 1, [
-            ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 250000],
-        ]);
-        $sabreTree = $this->buildFlatTreeNode(22442, 22456, 'Sabre', 5, 1, [
-            ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 100000],
-        ]);
-
-        $this->treeService->method('buildProductionTree')
-            ->willReturnCallback(fn (int $productTypeId) => match ($productTypeId) {
-                587 => $rifterTree,
-                22456 => $sabreTree,
-                default => throw new \RuntimeException('Unexpected typeId'),
-            });
-        $this->jitaMarketService->method('getCheapestPercentilePrices')->willReturn([34 => 5.5]);
-
-        $data = new CreateProjectData(
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
             name: 'Multi-item',
             items: [
-                ['typeId' => 587, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 10],
-                ['typeId' => 22456, 'typeName' => 'Sabre', 'meLevel' => 8, 'teLevel' => 16, 'runs' => 5],
+                ['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 10],
+                ['typeId' => self::SABRE, 'typeName' => 'Sabre', 'meLevel' => 8, 'teLevel' => 16, 'runs' => 5],
             ],
+        ));
+
+        $this->assertSame(
+            [[self::RIFTER, 'Rifter', 10, 20, 10, 0], [self::SABRE, 'Sabre', 8, 16, 5, 1]],
+            array_map(
+                static fn (GroupIndustryProjectItem $item): array => [
+                    $item->getTypeId(), $item->getTypeName(), $item->getMeLevel(), $item->getTeLevel(), $item->getRuns(), $item->getSortOrder(),
+                ],
+                $project->getItems()->toArray(),
+            ),
         );
-
-        $project = $this->service->createProject($user, $data);
-
-        $items = $project->getItems()->toArray();
-        $this->assertCount(2, $items);
-
-        /** @var GroupIndustryProjectItem $firstItem */
-        $firstItem = $items[0];
-        $this->assertSame(587, $firstItem->getTypeId());
-        $this->assertSame('Rifter', $firstItem->getTypeName());
-        $this->assertSame(10, $firstItem->getMeLevel());
-        $this->assertSame(20, $firstItem->getTeLevel());
-        $this->assertSame(10, $firstItem->getRuns());
-        $this->assertSame(0, $firstItem->getSortOrder());
-
-        /** @var GroupIndustryProjectItem $secondItem */
-        $secondItem = $items[1];
-        $this->assertSame(22456, $secondItem->getTypeId());
-        $this->assertSame('Sabre', $secondItem->getTypeName());
-        $this->assertSame(8, $secondItem->getMeLevel());
-        $this->assertSame(16, $secondItem->getTeLevel());
-        $this->assertSame(5, $secondItem->getRuns());
-        $this->assertSame(1, $secondItem->getSortOrder());
     }
 
     public function testCreateProjectEmptyNameStoresNull(): void
     {
-        $user = $this->createUser();
+        $this->givenRifter();
 
-        $tree = $this->buildFlatTreeNode(586, 587, 'Rifter', 1);
-        $this->treeService->method('buildProductionTree')->willReturn($tree);
-        $this->jitaMarketService->method('getCheapestPercentilePrices')->willReturn([]);
-
-        $data = new CreateProjectData(
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
             name: '',
-            items: [
-                ['typeId' => 587, 'typeName' => 'Rifter', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 1],
-            ],
-        );
-
-        $project = $this->service->createProject($user, $data);
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 1]],
+        ));
 
         $this->assertNull($project->getName());
     }
 
-    // ===========================================
-    // buildBom() -- simple item (leaf materials only)
-    // ===========================================
-
+    #[Group('issue-141')]
     public function testBuildBomWithSimpleItem(): void
     {
-        $user = $this->createUser();
+        $this->givenRifter();
+        $this->jitaMarketService->method('getCheapestPercentilePrices')->willReturn([self::TRITANIUM => 5.5, self::PYERITE => 10.0]);
 
-        $tree = $this->buildFlatTreeNode(586, 587, 'Rifter', 10, 1, [
-            ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 250000],
-            ['typeId' => 35, 'typeName' => 'Pyerite', 'quantity' => 50000],
-        ]);
-        $this->treeService->method('buildProductionTree')->willReturn($tree);
-        $this->jitaMarketService->method('getCheapestPercentilePrices')
-            ->willReturn([34 => 5.5, 35 => 10.0]);
-
-        $data = new CreateProjectData(
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
             name: 'Simple',
-            items: [
-                ['typeId' => 587, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 10],
-            ],
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 10]],
+        ));
+
+        $this->assertSame(
+            [[self::TRITANIUM, 'Tritanium', 252_000, 0, false], [self::PYERITE, 'Pyerite', 50_400, 0, false]],
+            array_map(
+                static fn (GroupIndustryBomItem $material): array => [
+                    $material->getTypeId(), $material->getTypeName(), $material->getRequiredQuantity(), $material->getFulfilledQuantity(), $material->isJob(),
+                ],
+                $this->sortedMaterialBomItems($project),
+            ),
         );
-
-        $project = $this->service->createProject($user, $data);
-
-        $materials = $this->getMaterialBomItems($project);
-        $this->assertCount(2, $materials);
-
-        $tritanium = null;
-        $pyerite = null;
-        foreach ($materials as $mat) {
-            if ($mat->getTypeId() === 34) {
-                $tritanium = $mat;
-            }
-            if ($mat->getTypeId() === 35) {
-                $pyerite = $mat;
-            }
-        }
-
-        $this->assertNotNull($tritanium);
-        $this->assertSame('Tritanium', $tritanium->getTypeName());
-        $this->assertSame(250000, $tritanium->getRequiredQuantity());
-        $this->assertFalse($tritanium->isJob());
-        $this->assertSame(0, $tritanium->getFulfilledQuantity());
-
-        $this->assertNotNull($pyerite);
-        $this->assertSame('Pyerite', $pyerite->getTypeName());
-        $this->assertSame(50000, $pyerite->getRequiredQuantity());
+        $this->assertSame([[self::RIFTER, 'manufacturing', 'final', 10, 10, null]], $this->jobLines($project));
     }
 
-    // ===========================================
-    // buildBom() -- intermediate components become jobs
-    // ===========================================
-
+    #[Group('issue-141')]
     public function testBuildBomWithIntermediateComponents(): void
     {
-        $user = $this->createUser();
+        $this->givenRecipe(self::RIFTER, 'Rifter', [self::COMPONENT => 10]);
+        $this->givenRecipe(self::COMPONENT, 'Advanced Component', [self::TRITANIUM => 250]);
 
-        $tree = $this->buildTreeWithComponent(
-            finalBpId: 586,
-            finalProductId: 587,
-            finalName: 'Rifter',
-            finalRuns: 5,
-            compBpId: 1000,
-            compProductId: 1001,
-            compName: 'Advanced Component',
-            compQuantity: 50,
-            compRuns: 50,
-            compRawMaterials: [
-                ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 10000],
-            ],
-        );
-
-        $this->treeService->method('buildProductionTree')->willReturn($tree);
-        $this->jitaMarketService->method('getCheapestPercentilePrices')
-            ->willReturn([34 => 5.5]);
-
-        $data = new CreateProjectData(
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
             name: 'T2 Build',
-            items: [
-                ['typeId' => 587, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5],
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5]],
+        ));
+
+        $this->assertSame(
+            [
+                [self::RIFTER, 'Rifter', 'manufacturing', 'final', 5, 10, 20, 5, null],
+                [self::COMPONENT, 'Advanced Component', 'manufacturing', 'component', 45, 10, 20, 45, self::RIFTER],
             ],
+            array_map(
+                static fn (GroupIndustryBomItem $job): array => [
+                    $job->getTypeId(), $job->getTypeName(), $job->getActivityType(), $job->getJobGroup(), $job->getRuns(),
+                    $job->getMeLevel(), $job->getTeLevel(), $job->getRequiredQuantity(), $job->getParentTypeId(),
+                ],
+                $this->sortedJobBomItems($project),
+            ),
         );
-
-        $project = $this->service->createProject($user, $data);
-
-        $jobs = $this->getJobBomItems($project);
-        // Should have: 1 final job (Rifter manufacturing) + 1 component job (Advanced Component manufacturing)
-        $this->assertGreaterThanOrEqual(2, count($jobs));
-
-        $finalJob = $this->findJobByGroup($project, 'final');
-        $this->assertNotNull($finalJob);
-        $this->assertSame(587, $finalJob->getTypeId());
-        $this->assertTrue($finalJob->isJob());
-        $this->assertSame('final', $finalJob->getJobGroup());
-        $this->assertSame('manufacturing', $finalJob->getActivityType());
-        $this->assertSame(5, $finalJob->getRuns());
-
-        $componentJobs = array_filter(
-            $jobs,
-            fn (GroupIndustryBomItem $item) => $item->getJobGroup() === 'component',
-        );
-        $this->assertCount(1, $componentJobs);
-        $componentJob = array_values($componentJobs)[0];
-        $this->assertSame(1001, $componentJob->getTypeId());
-        $this->assertSame('component', $componentJob->getJobGroup());
-        $this->assertSame('manufacturing', $componentJob->getActivityType());
-        $this->assertSame(50, $componentJob->getRuns());
-        // Intermediate manufacturing defaults to ME 10 / TE 20
-        $this->assertSame(10, $componentJob->getMeLevel());
-        $this->assertSame(20, $componentJob->getTeLevel());
-
-        $materials = $this->getMaterialBomItems($project);
-        $this->assertNotEmpty($materials);
-        $tritanium = null;
-        foreach ($materials as $mat) {
-            if ($mat->getTypeId() === 34) {
-                $tritanium = $mat;
-            }
-        }
-        $this->assertNotNull($tritanium);
-        $this->assertSame(10000, $tritanium->getRequiredQuantity());
+        $this->assertSame([self::TRITANIUM => 10_125], $this->materialQuantities($project));
     }
-
-    // ===========================================
-    // buildBom() -- copy step
-    // ===========================================
 
     public function testBuildBomWithCopyStep(): void
     {
-        $user = $this->createUser();
+        $this->givenRecipe(self::SABRE, 'Sabre', [self::TRITANIUM => 5_000], hasCopyActivity: true);
 
-        $tree = $this->buildFlatTreeNode(586, 587, 'Sabre', 10, 1, [
-            ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 50000],
-        ], 0, 'manufacturing', true); // hasCopy=true
-
-        $this->treeService->method('buildProductionTree')->willReturn($tree);
-        $this->jitaMarketService->method('getCheapestPercentilePrices')
-            ->willReturn([34 => 5.5]);
-
-        $data = new CreateProjectData(
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
             name: 'T2 Sabre',
-            items: [
-                ['typeId' => 587, 'typeName' => 'Sabre', 'meLevel' => 2, 'teLevel' => 4, 'runs' => 10],
-            ],
+            items: [['typeId' => self::SABRE, 'typeName' => 'Sabre', 'meLevel' => 2, 'teLevel' => 4, 'runs' => 10]],
+        ));
+
+        $this->assertSame(
+            [[self::SABRE, 'Sabre', 'copy', 'blueprint', 10, 0, 0, 10, true]],
+            array_map(
+                static fn (GroupIndustryBomItem $job): array => [
+                    $job->getTypeId(), $job->getTypeName(), $job->getActivityType(), $job->getJobGroup(), $job->getRuns(),
+                    $job->getMeLevel(), $job->getTeLevel(), $job->getRequiredQuantity(), $job->isJob(),
+                ],
+                $this->jobBomItemsOfActivity($project, 'copy'),
+            ),
         );
-
-        $project = $this->service->createProject($user, $data);
-
-        $copyJob = $this->findJobByActivity($project, 'copy');
-        $this->assertNotNull($copyJob, 'Copy BOM item should be created when hasCopy is true');
-        $this->assertTrue($copyJob->isJob());
-        $this->assertSame('blueprint', $copyJob->getJobGroup());
-        $this->assertSame('copy', $copyJob->getActivityType());
-        $this->assertSame(10, $copyJob->getRuns());
-        $this->assertSame(0, $copyJob->getMeLevel());
-        $this->assertSame(0, $copyJob->getTeLevel());
     }
 
-    // ===========================================
-    // buildBom() -- material aggregation across items
-    // ===========================================
-
+    #[Group('issue-141')]
     public function testBuildBomMaterialAggregation(): void
     {
-        $user = $this->createUser();
+        $this->givenRifter();
+        $this->givenRecipe(self::SABRE, 'Sabre', [self::TRITANIUM => 20_000, self::MEXALLON => 4_100]);
 
-        $rifterTree = $this->buildFlatTreeNode(586, 587, 'Rifter', 10, 1, [
-            ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 250000],
-            ['typeId' => 35, 'typeName' => 'Pyerite', 'quantity' => 50000],
-        ]);
-        $sabreTree = $this->buildFlatTreeNode(22442, 22456, 'Sabre', 5, 1, [
-            ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 100000],
-            ['typeId' => 36, 'typeName' => 'Mexallon', 'quantity' => 20000],
-        ]);
-
-        $this->treeService->method('buildProductionTree')
-            ->willReturnCallback(fn (int $productTypeId) => match ($productTypeId) {
-                587 => $rifterTree,
-                22456 => $sabreTree,
-                default => throw new \RuntimeException('Unexpected typeId'),
-            });
-        $this->jitaMarketService->method('getCheapestPercentilePrices')
-            ->willReturn([34 => 5.5, 35 => 10.0, 36 => 25.0]);
-
-        $data = new CreateProjectData(
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
             name: 'Fleet',
             items: [
-                ['typeId' => 587, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 10],
-                ['typeId' => 22456, 'typeName' => 'Sabre', 'meLevel' => 2, 'teLevel' => 4, 'runs' => 5],
+                ['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 10],
+                ['typeId' => self::SABRE, 'typeName' => 'Sabre', 'meLevel' => 2, 'teLevel' => 4, 'runs' => 5],
             ],
+        ));
+
+        $this->assertSame(
+            [self::TRITANIUM => 350_000, self::PYERITE => 50_400, self::MEXALLON => 20_090],
+            $this->materialQuantities($project),
         );
-
-        $project = $this->service->createProject($user, $data);
-
-        $materials = $this->getMaterialBomItems($project);
-        // Should have 3 unique materials: Tritanium, Pyerite, Mexallon
-        $this->assertCount(3, $materials);
-
-        // Tritanium should be aggregated: 250000 + 100000 = 350000
-        $tritanium = null;
-        foreach ($materials as $mat) {
-            if ($mat->getTypeId() === 34) {
-                $tritanium = $mat;
-            }
-        }
-        $this->assertNotNull($tritanium);
-        $this->assertSame(350000, $tritanium->getRequiredQuantity());
     }
-
-    // ===========================================
-    // buildBom() -- pricing
-    // ===========================================
 
     public function testBuildBomPricing(): void
     {
-        $user = $this->createUser();
-
-        $tree = $this->buildFlatTreeNode(586, 587, 'Rifter', 10, 1, [
-            ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 250000],
-            ['typeId' => 35, 'typeName' => 'Pyerite', 'quantity' => 50000],
-        ]);
-
-        $treeStub = $this->createStub(IndustryTreeService::class);
-        $treeStub->method('buildProductionTree')->willReturn($tree);
-
-        $jitaMock = $this->createMock(JitaMarketService::class);
-        $jitaMock->expects($this->once())
+        $this->givenRifter();
+        $this->jitaMarketService->expects($this->once())
             ->method('getCheapestPercentilePrices')
-            ->with($this->callback(function (array $typeIds) {
+            ->with($this->callback(static function (array $typeIds): bool {
                 sort($typeIds);
-                return $typeIds === [34, 35];
+
+                return $typeIds === [self::TRITANIUM, self::PYERITE];
             }))
-            ->willReturn([34 => 5.5, 35 => 10.0]);
+            ->willReturn([self::TRITANIUM => 5.5, self::PYERITE => 10.0]);
 
-        $em = $this->createStub(EntityManagerInterface::class);
-        $conn = $this->createStub(Connection::class);
-        $em->method('getConnection')->willReturn($conn);
-
-        $service = new GroupIndustryProjectService($treeStub, $jitaMock, $em, $this->blueprintRepository, $this->inventionService, $this->activityProductRepository);
-
-        $data = new CreateProjectData(
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
             name: 'Priced',
-            items: [
-                ['typeId' => 587, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 10],
-            ],
-        );
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 10]],
+        ));
 
-        $project = $service->createProject($user, $data);
-
-        $materials = $this->getMaterialBomItems($project);
-        foreach ($materials as $mat) {
-            if ($mat->getTypeId() === 34) {
-                $this->assertSame(5.5, $mat->getEstimatedPrice());
-            }
-            if ($mat->getTypeId() === 35) {
-                $this->assertSame(10.0, $mat->getEstimatedPrice());
-            }
-        }
+        $this->assertSame([self::TRITANIUM => 5.5, self::PYERITE => 10.0], $this->estimatedPrices($project));
     }
 
     public function testBuildBomPricingNullForMissingType(): void
     {
-        $user = $this->createUser();
+        $this->givenRecipe(self::RIFTER, 'Rifter', [self::TRITANIUM => 25_000]);
+        $this->jitaMarketService->method('getCheapestPercentilePrices')->willReturn([self::TRITANIUM => null]);
 
-        $tree = $this->buildFlatTreeNode(586, 587, 'Rifter', 10, 1, [
-            ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 250000],
-        ]);
-        $this->treeService->method('buildProductionTree')->willReturn($tree);
-        $this->jitaMarketService->method('getCheapestPercentilePrices')->willReturn([34 => null]);
-
-        $data = new CreateProjectData(
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
             name: 'No Price',
-            items: [
-                ['typeId' => 587, 'typeName' => 'Rifter', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 10],
-            ],
-        );
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 10]],
+        ));
 
-        $project = $this->service->createProject($user, $data);
-
-        $materials = $this->getMaterialBomItems($project);
-        $this->assertCount(1, $materials);
-        $this->assertNull($materials[0]->getEstimatedPrice());
+        $this->assertSame([self::TRITANIUM => 250_000], $this->materialQuantities($project));
+        $this->assertSame([self::TRITANIUM => null], $this->estimatedPrices($project));
     }
 
-    // ===========================================
-    // buildBom() -- blacklists
-    // ===========================================
-
-    public function testBuildBomWithBlacklists(): void
+    #[Group('issue-141')]
+    public function testBuildBomWithBlacklistsBuysTheBlacklistedTypesAndTheTypesOfTheBlacklistedGroupsWithoutBuildingThem(): void
     {
-        $user = $this->createUser();
-
-        // Set up the connection stub to resolve group IDs to type IDs
-        $this->connection->method('fetchAllAssociative')
-            ->willReturn([
-                ['type_id' => 11399],
-                ['type_id' => 11400],
-            ]);
-
-        $tree = $this->buildFlatTreeNode(586, 587, 'Rifter', 5, 1, [
-            ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 100000],
+        $this->givenComponentsOfTheBlacklists();
+        $this->connection->method('fetchAllAssociative')->willReturn([
+            ['type_id' => self::FIRST_TYPE_OF_THE_BLACKLISTED_GROUP],
+            ['type_id' => self::SECOND_TYPE_OF_THE_BLACKLISTED_GROUP],
         ]);
 
-        // Capture the excludedTypeIds passed to buildProductionTree
-        $capturedExcluded = null;
-        $treeStub = $this->createStub(IndustryTreeService::class);
-        $treeStub->method('buildProductionTree')
-            ->willReturnCallback(function (
-                int $productTypeId,
-                int $runs,
-                int $finalMe,
-                array $excludedTypeIds,
-            ) use ($tree, &$capturedExcluded) {
-                $capturedExcluded = $excludedTypeIds;
-                return $tree;
-            });
-
-        $jitaStub = $this->createStub(JitaMarketService::class);
-        $jitaStub->method('getCheapestPercentilePrices')->willReturn([34 => 5.5]);
-
-        $em = $this->createStub(EntityManagerInterface::class);
-        $em->method('getConnection')->willReturn($this->connection);
-
-        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $this->blueprintRepository, $this->inventionService, $this->activityProductRepository);
-
-        $data = new CreateProjectData(
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
             name: 'Blacklisted',
-            items: [
-                ['typeId' => 587, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5],
-            ],
-            blacklistGroupIds: [334], // Advanced Components group
-            blacklistTypeIds: [9999],  // Individual blacklisted type
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5]],
+            blacklistGroupIds: [self::BLACKLISTED_GROUP],
+            blacklistTypeIds: [self::BLACKLISTED_TYPE],
+        ));
+
+        $this->assertSame(
+            [self::TRITANIUM => 90_000, self::BLACKLISTED_TYPE => 14, self::FIRST_TYPE_OF_THE_BLACKLISTED_GROUP => 32],
+            $this->materialQuantities($project),
         );
-
-        $service->createProject($user, $data);
-
-        // Resolved should contain: individual type (9999) + resolved group types (11399, 11400)
-        $this->assertNotNull($capturedExcluded);
-        sort($capturedExcluded);
-        $this->assertSame([9999, 11399, 11400], $capturedExcluded);
+        $this->assertSame([[self::RIFTER, 'manufacturing', 'final', 5, 5, null]], $this->jobLines($project));
     }
 
-    public function testBuildBomWithEmptyBlacklists(): void
+    #[Group('issue-141')]
+    public function testBuildBomWithEmptyBlacklistsBuildsEveryComponentThatHasARecipe(): void
     {
-        $user = $this->createUser();
+        $this->givenComponentsOfTheBlacklists();
 
-        $tree = $this->buildFlatTreeNode(586, 587, 'Rifter', 5, 1, [
-            ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 100000],
-        ]);
-
-        $capturedExcluded = null;
-        $treeStub = $this->createStub(IndustryTreeService::class);
-        $treeStub->method('buildProductionTree')
-            ->willReturnCallback(function (
-                int $productTypeId,
-                int $runs,
-                int $finalMe,
-                array $excludedTypeIds,
-            ) use ($tree, &$capturedExcluded) {
-                $capturedExcluded = $excludedTypeIds;
-                return $tree;
-            });
-
-        $jitaStub = $this->createStub(JitaMarketService::class);
-        $jitaStub->method('getCheapestPercentilePrices')->willReturn([34 => 5.5]);
-
-        $em = $this->createStub(EntityManagerInterface::class);
-        $conn = $this->createStub(Connection::class);
-        $em->method('getConnection')->willReturn($conn);
-
-        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $this->blueprintRepository, $this->inventionService, $this->activityProductRepository);
-
-        $data = new CreateProjectData(
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
             name: 'No Blacklist',
-            items: [
-                ['typeId' => 587, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5],
-            ],
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5]],
+        ));
+
+        $this->assertSame(
+            [self::TRITANIUM => 90_000, self::PYERITE => 504, self::MEXALLON => 2_592],
+            $this->materialQuantities($project),
         );
-
-        $service->createProject($user, $data);
-
-        $this->assertSame([], $capturedExcluded);
+        $this->assertSame(
+            [
+                [self::RIFTER, 'manufacturing', 'final', 5, 5, null],
+                [self::BLACKLISTED_TYPE, 'manufacturing', 'component', 14, 14, self::RIFTER],
+                [self::FIRST_TYPE_OF_THE_BLACKLISTED_GROUP, 'manufacturing', 'component', 32, 32, self::RIFTER],
+            ],
+            $this->jobLines($project),
+        );
     }
 
-    // ===========================================
-    // buildBom() -- reaction nodes
-    // ===========================================
-
+    #[Group('issue-141')]
     public function testBuildBomReactionNodeHasZeroMeTe(): void
     {
-        $user = $this->createUser();
+        $this->givenRecipe(self::RIFTER, 'Ship', [self::REACTION_PRODUCT => 20]);
+        $this->givenRecipe(self::REACTION_PRODUCT, 'Reaction Product', [self::TRITANIUM => 500], outputPerRun: 100, maxProductionLimit: 1_000, activity: ActivityKind::Reaction);
 
-        $tree = $this->buildTreeWithComponent(
-            finalBpId: 586,
-            finalProductId: 587,
-            finalName: 'Ship',
-            finalRuns: 5,
-            compBpId: 2000,
-            compProductId: 2001,
-            compName: 'Reaction Product',
-            compQuantity: 100,
-            compRuns: 1,
-            compActivityType: 'reaction',
-            compRawMaterials: [
-                ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 5000],
-            ],
-        );
-
-        $this->treeService->method('buildProductionTree')->willReturn($tree);
-        $this->jitaMarketService->method('getCheapestPercentilePrices')->willReturn([34 => 5.5]);
-
-        $data = new CreateProjectData(
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
             name: 'Reaction',
-            items: [
-                ['typeId' => 587, 'typeName' => 'Ship', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5],
-            ],
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Ship', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5]],
+        ));
+
+        $this->assertSame(
+            [[self::REACTION_PRODUCT, 'component', 1, 0, 0, 100, self::RIFTER]],
+            array_map(
+                static fn (GroupIndustryBomItem $job): array => [
+                    $job->getTypeId(), $job->getJobGroup(), $job->getRuns(), $job->getMeLevel(), $job->getTeLevel(), $job->getRequiredQuantity(), $job->getParentTypeId(),
+                ],
+                $this->jobBomItemsOfActivity($project, 'reaction'),
+            ),
         );
-
-        $project = $this->service->createProject($user, $data);
-
-        $reactionJob = $this->findJobByActivity($project, 'reaction');
-        $this->assertNotNull($reactionJob);
-        $this->assertSame(0, $reactionJob->getMeLevel());
-        $this->assertSame(0, $reactionJob->getTeLevel());
-        $this->assertSame('component', $reactionJob->getJobGroup());
+        $this->assertSame([self::TRITANIUM => 500], $this->materialQuantities($project));
     }
 
+    #[Group('issue-141')]
     public function testBuildBomReactionMaterialsAreLeavesNotJobs(): void
     {
-        $user = $this->createUser();
+        $this->givenRecipe(self::RIFTER, 'T2 Ship', [self::TRITANIUM => 10_000, self::FERNITE_CARBIDE => 40]);
+        $this->givenRecipe(self::FERNITE_CARBIDE, 'Fernite Carbide', [self::FERNITE => 100, self::CARBON => 120], outputPerRun: 20, maxProductionLimit: 1_000, activity: ActivityKind::Reaction);
 
-        // Build a tree where a manufacturing item requires a reaction product (Fernite Carbide),
-        // which in turn requires raw moon goo (Fernite, Carbon).
-        // Expected: Fernite Carbide = job (reaction), Fernite + Carbon = leaf materials.
-        $tree = $this->buildTreeWithComponent(
-            finalBpId: 586,
-            finalProductId: 587,
-            finalName: 'T2 Ship',
-            finalRuns: 5,
-            compBpId: 45732,
-            compProductId: 16672,
-            compName: 'Fernite Carbide',
-            compQuantity: 200,
-            compRuns: 10,
-            compActivityType: 'reaction',
-            compRawMaterials: [
-                ['typeId' => 16657, 'typeName' => 'Fernite', 'quantity' => 1000],
-                ['typeId' => 16661, 'typeName' => 'Carbon', 'quantity' => 1000],
-            ],
-            finalRawMaterials: [
-                ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 50000],
-            ],
-        );
-
-        $this->treeService->method('buildProductionTree')->willReturn($tree);
-        $this->jitaMarketService->method('getCheapestPercentilePrices')
-            ->willReturn([34 => 5.5, 16657 => 100.0, 16661 => 120.0]);
-
-        $data = new CreateProjectData(
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
             name: 'Reaction Materials',
-            items: [
-                ['typeId' => 587, 'typeName' => 'T2 Ship', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5],
-            ],
+            items: [['typeId' => self::RIFTER, 'typeName' => 'T2 Ship', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5]],
+        ));
+
+        $this->assertSame(
+            [[self::FERNITE_CARBIDE, 'Fernite Carbide', true, 9, 180]],
+            array_map(
+                static fn (GroupIndustryBomItem $job): array => [$job->getTypeId(), $job->getTypeName(), $job->isJob(), $job->getRuns(), $job->getRequiredQuantity()],
+                $this->jobBomItemsOfActivity($project, 'reaction'),
+            ),
         );
-
-        $project = $this->service->createProject($user, $data);
-
-        // Fernite Carbide should be a job, not a material
-        $reactionJob = $this->findJobByActivity($project, 'reaction');
-        $this->assertNotNull($reactionJob, 'Reaction product should be a job BOM item');
-        $this->assertSame(16672, $reactionJob->getTypeId());
-        $this->assertSame('Fernite Carbide', $reactionJob->getTypeName());
-        $this->assertTrue($reactionJob->isJob());
-        $this->assertSame(10, $reactionJob->getRuns());
-
-        // Moon goo (Fernite, Carbon) should be leaf materials, not jobs
-        $materials = $this->getMaterialBomItems($project);
-        $materialTypeIds = array_map(
-            fn (GroupIndustryBomItem $item) => $item->getTypeId(),
-            $materials,
-        );
-        sort($materialTypeIds);
-
-        $this->assertContains(34, $materialTypeIds, 'Tritanium should be a leaf material');
-        $this->assertContains(16657, $materialTypeIds, 'Fernite (moon goo) should be a leaf material');
-        $this->assertContains(16661, $materialTypeIds, 'Carbon (moon goo) should be a leaf material');
-
-        // Fernite Carbide should NOT be in materials
-        $this->assertNotContains(16672, $materialTypeIds, 'Fernite Carbide should NOT be a raw material');
+        $this->assertSame([self::TRITANIUM => 45_000, self::FERNITE => 900, self::CARBON => 1_080], $this->materialQuantities($project));
     }
 
-    // ===========================================
-    // buildBom() -- job aggregation across items
-    // ===========================================
-
-    public function testBuildBomJobAggregation(): void
+    #[Group('issue-141')]
+    public function testBuildBomJobAggregationBuildsASharedComponentOnTheDemandOfAllItsConsumers(): void
     {
-        $user = $this->createUser();
+        $this->givenRecipe(self::RIFTER, 'Rifter', [self::COMPONENT => 2]);
+        $this->givenRecipe(self::THRASHER, 'Thrasher', [self::COMPONENT => 3]);
+        $this->givenRecipe(self::COMPONENT, 'Shared Component', [self::TRITANIUM => 60]);
 
-        // Both items share the same intermediate component (typeId 1001)
-        $tree1 = $this->buildTreeWithComponent(
-            finalBpId: 586,
-            finalProductId: 587,
-            finalName: 'Rifter',
-            finalRuns: 10,
-            compBpId: 1000,
-            compProductId: 1001,
-            compName: 'Shared Component',
-            compQuantity: 20,
-            compRuns: 20,
-        );
-
-        $tree2 = $this->buildTreeWithComponent(
-            finalBpId: 700,
-            finalProductId: 701,
-            finalName: 'Thrasher',
-            finalRuns: 5,
-            compBpId: 1000,
-            compProductId: 1001,
-            compName: 'Shared Component',
-            compQuantity: 15,
-            compRuns: 15,
-        );
-
-        $this->treeService->method('buildProductionTree')
-            ->willReturnCallback(fn (int $productTypeId) => match ($productTypeId) {
-                587 => $tree1,
-                701 => $tree2,
-                default => throw new \RuntimeException('Unexpected typeId'),
-            });
-        $this->jitaMarketService->method('getCheapestPercentilePrices')->willReturn([]);
-
-        $data = new CreateProjectData(
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
             name: 'Job Aggregation',
             items: [
-                ['typeId' => 587, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 10],
-                ['typeId' => 701, 'typeName' => 'Thrasher', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5],
+                ['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 10],
+                ['typeId' => self::THRASHER, 'typeName' => 'Thrasher', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5],
             ],
-        );
-
-        $project = $this->service->createProject($user, $data);
-
-        // The shared component should be aggregated: 20 + 15 = 35 runs
-        $componentJobs = array_values(array_filter(
-            $this->getJobBomItems($project),
-            fn (GroupIndustryBomItem $item) => $item->getJobGroup() === 'component',
         ));
-        $this->assertCount(1, $componentJobs);
-        $this->assertSame(1001, $componentJobs[0]->getTypeId());
-        $this->assertSame(35, $componentJobs[0]->getRuns());
-    }
 
-    // ===========================================
-    // createProject() -- optional fields
-    // ===========================================
+        $this->assertSame(
+            [
+                [self::RIFTER, 'manufacturing', 'final', 10, 10, null],
+                [self::THRASHER, 'manufacturing', 'final', 5, 5, null],
+                [self::COMPONENT, 'manufacturing', 'component', 32, 32, self::RIFTER],
+            ],
+            $this->jobLines($project),
+        );
+        $this->assertSame([self::TRITANIUM => 1_728], $this->materialQuantities($project));
+    }
 
     public function testCreateProjectWithOptionalFields(): void
     {
-        $user = $this->createUser();
+        $this->givenRifter();
 
-        $tree = $this->buildFlatTreeNode(586, 587, 'Rifter', 1);
-        $this->treeService->method('buildProductionTree')->willReturn($tree);
-        $this->jitaMarketService->method('getCheapestPercentilePrices')->willReturn([]);
-
-        $data = new CreateProjectData(
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
             name: 'Full Options',
-            items: [
-                ['typeId' => 587, 'typeName' => 'Rifter', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 1],
-            ],
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 1]],
             containerName: 'Fleet Doctrine Materials',
             lineRentalRatesOverride: ['ship_t2' => 2500000],
             brokerFeePercent: 2.5,
             salesTaxPercent: 3.0,
-        );
-
-        $project = $this->service->createProject($user, $data);
+        ));
 
         $this->assertSame('Fleet Doctrine Materials', $project->getContainerName());
         $this->assertSame(['ship_t2' => 2500000], $project->getLineRentalRatesOverride());
@@ -970,335 +515,387 @@ class GroupIndustryProjectServiceTest extends TestCase
         $this->assertSame(3.0, $project->getSalesTaxPercent());
     }
 
-    // ===========================================
-    // buildBom() -- intermediate copy step
-    // ===========================================
-
+    #[Group('issue-141')]
     public function testBuildBomIntermediateCopyStep(): void
     {
-        $user = $this->createUser();
+        $this->givenRecipe(self::RIFTER, 'Ship', [self::COMPONENT => 2]);
+        $this->givenRecipe(self::COMPONENT, 'T2 Component', [self::TRITANIUM => 5_000], hasCopyActivity: true);
 
-        $tree = $this->buildTreeWithComponent(
-            finalBpId: 586,
-            finalProductId: 587,
-            finalName: 'Ship',
-            finalRuns: 5,
-            compBpId: 1000,
-            compProductId: 1001,
-            compName: 'T2 Component',
-            compQuantity: 10,
-            compRuns: 10,
-            compHasCopy: true,
-            compRawMaterials: [
-                ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 5000],
-            ],
-        );
-
-        $this->treeService->method('buildProductionTree')->willReturn($tree);
-        $this->jitaMarketService->method('getCheapestPercentilePrices')->willReturn([34 => 5.5]);
-
-        $data = new CreateProjectData(
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
             name: 'With Component Copy',
-            items: [
-                ['typeId' => 587, 'typeName' => 'Ship', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5],
-            ],
-        );
-
-        $project = $this->service->createProject($user, $data);
-
-        $blueprintJobs = array_values(array_filter(
-            $this->getJobBomItems($project),
-            fn (GroupIndustryBomItem $item) => $item->getJobGroup() === 'blueprint',
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Ship', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5]],
         ));
-        $this->assertCount(1, $blueprintJobs);
-        $this->assertSame(1001, $blueprintJobs[0]->getTypeId());
-        $this->assertSame('copy', $blueprintJobs[0]->getActivityType());
-        $this->assertSame(10, $blueprintJobs[0]->getRuns());
-    }
 
-    // ===========================================
-    // buildBom() -- no materials, no pricing call
-    // ===========================================
+        $this->assertSame(
+            [[self::COMPONENT, 'copy', 'blueprint', 9, 9, self::RIFTER]],
+            array_values(array_filter($this->jobLines($project), static fn (array $job): bool => $job[2] === 'blueprint')),
+        );
+        $this->assertSame([self::TRITANIUM => 40_500], $this->materialQuantities($project));
+    }
 
     public function testBuildBomNoMaterialsSkipsPricing(): void
     {
-        $user = $this->createUser();
+        $this->givenRecipe(self::RIFTER, 'Rifter', []);
+        $this->jitaMarketService->expects($this->never())->method('getCheapestPercentilePrices');
 
-        $tree = $this->buildFlatTreeNode(586, 587, 'Rifter', 1, 1, []);
-
-        $treeStub = $this->createStub(IndustryTreeService::class);
-        $treeStub->method('buildProductionTree')->willReturn($tree);
-
-        $jitaMock = $this->createMock(JitaMarketService::class);
-        $jitaMock->expects($this->never())
-            ->method('getCheapestPercentilePrices');
-
-        $em = $this->createStub(EntityManagerInterface::class);
-        $conn = $this->createStub(Connection::class);
-        $em->method('getConnection')->willReturn($conn);
-
-        $service = new GroupIndustryProjectService($treeStub, $jitaMock, $em, $this->blueprintRepository, $this->inventionService, $this->activityProductRepository);
-
-        $data = new CreateProjectData(
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
             name: 'No Mats',
-            items: [
-                ['typeId' => 587, 'typeName' => 'Rifter', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 1],
-            ],
-        );
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 1]],
+        ));
 
-        $project = $service->createProject($user, $data);
-
-        $materials = $this->getMaterialBomItems($project);
-        $this->assertCount(0, $materials);
+        $this->assertSame([], $this->materialQuantities($project));
+        $this->assertSame([[self::RIFTER, 'manufacturing', 'final', 1, 1, null]], $this->jobLines($project));
     }
 
-    // ===========================================
-    // buildBom() -- job splitting by maxProductionLimit
-    // ===========================================
-
-    public function testBuildBomSplitsJobExceedingMaxProductionLimit(): void
+    #[Group('issue-141')]
+    public function testBuildBomSplitsAComponentExceedingItsMaxProductionLimitEvenlyAndRecomputesItsMaterialsJobByJob(): void
     {
-        $user = $this->createUser();
+        $this->givenRecipe(self::RIFTER, 'Ship', [self::COMPONENT => 7]);
+        $this->givenRecipe(self::COMPONENT, 'Component', [self::TRITANIUM => 13], maxProductionLimit: 10);
 
-        // Blueprint 1000 has maxProductionLimit = 10
-        $blueprint = new IndustryBlueprint();
-        $blueprint->setTypeId(1000);
-        $blueprint->setMaxProductionLimit(10);
-
-        $bpRepository = $this->createStub(IndustryBlueprintRepository::class);
-        $bpRepository->method('findBy')->willReturn([$blueprint]);
-
-        $em = $this->createStub(EntityManagerInterface::class);
-        $conn = $this->createStub(Connection::class);
-        $em->method('getConnection')->willReturn($conn);
-
-        $tree = $this->buildTreeWithComponent(
-            finalBpId: 586,
-            finalProductId: 587,
-            finalName: 'Ship',
-            finalRuns: 5,
-            compBpId: 1000,
-            compProductId: 1001,
-            compName: 'Component',
-            compQuantity: 35,
-            compRuns: 35,
-        );
-
-        $treeStub = $this->createStub(IndustryTreeService::class);
-        $treeStub->method('buildProductionTree')->willReturn($tree);
-
-        $jitaStub = $this->createStub(JitaMarketService::class);
-        $jitaStub->method('getCheapestPercentilePrices')->willReturn([]);
-
-        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $bpRepository, $this->inventionService, $this->activityProductRepository);
-
-        $data = new CreateProjectData(
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
             name: 'Split Test',
-            items: [
-                ['typeId' => 587, 'typeName' => 'Ship', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5],
-            ],
-        );
-
-        $project = $service->createProject($user, $data);
-
-        // Component with 35 runs and maxProductionLimit 10 should split into 4 jobs: 10+10+10+5
-        $componentJobs = array_values(array_filter(
-            $this->getJobBomItems($project),
-            fn (GroupIndustryBomItem $item) => $item->getTypeId() === 1001 && $item->getActivityType() === 'manufacturing',
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Ship', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 5]],
         ));
-        $this->assertCount(4, $componentJobs, 'Should split 35 runs into 4 jobs (10+10+10+5)');
 
-        $runs = array_map(fn (GroupIndustryBomItem $item) => $item->getRuns(), $componentJobs);
-        sort($runs);
-        $this->assertSame([5, 10, 10, 10], $runs);
-        $this->assertSame(35, array_sum($runs));
+        $this->assertSame([8, 9, 9, 9], $this->runsOf($project, self::COMPONENT, 'manufacturing'));
+        $this->assertSame([self::TRITANIUM => 412], $this->materialQuantities($project));
     }
 
     public function testBuildBomNoSplitWhenWithinLimit(): void
     {
-        $user = $this->createUser();
+        $this->givenRecipe(self::RIFTER, 'Rifter', [self::TRITANIUM => 10_000], maxProductionLimit: 100);
 
-        // Blueprint 586 has maxProductionLimit = 100 (way above 5 runs)
-        $blueprint = new IndustryBlueprint();
-        $blueprint->setTypeId(586);
-        $blueprint->setMaxProductionLimit(100);
-
-        $bpRepository = $this->createStub(IndustryBlueprintRepository::class);
-        $bpRepository->method('findBy')->willReturn([$blueprint]);
-
-        $em = $this->createStub(EntityManagerInterface::class);
-        $conn = $this->createStub(Connection::class);
-        $em->method('getConnection')->willReturn($conn);
-
-        $tree = $this->buildFlatTreeNode(586, 587, 'Rifter', 5, 1, [
-            ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 50000],
-        ]);
-
-        $treeStub = $this->createStub(IndustryTreeService::class);
-        $treeStub->method('buildProductionTree')->willReturn($tree);
-
-        $jitaStub = $this->createStub(JitaMarketService::class);
-        $jitaStub->method('getCheapestPercentilePrices')->willReturn([34 => 5.5]);
-
-        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $bpRepository, $this->inventionService, $this->activityProductRepository);
-
-        $data = new CreateProjectData(
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
             name: 'No Split',
-            items: [
-                ['typeId' => 587, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5],
-            ],
-        );
-
-        $project = $service->createProject($user, $data);
-
-        $finalJobs = array_values(array_filter(
-            $this->getJobBomItems($project),
-            fn (GroupIndustryBomItem $item) => $item->getTypeId() === 587 && $item->getActivityType() === 'manufacturing',
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5]],
         ));
-        $this->assertCount(1, $finalJobs, 'Should not split when runs <= maxProductionLimit');
-        $this->assertSame(5, $finalJobs[0]->getRuns());
+
+        $this->assertSame([5], $this->runsOf($project, self::RIFTER, 'manufacturing'));
+        $this->assertSame([self::TRITANIUM => 45_000], $this->materialQuantities($project));
     }
 
+    #[Group('issue-141')]
     public function testBuildBomSplitsJobExactMultiple(): void
     {
-        $user = $this->createUser();
+        $this->givenRecipe(self::RIFTER, 'Ship', [self::COMPONENT => 6]);
+        $this->givenRecipe(self::COMPONENT, 'Component', [self::TRITANIUM => 13], maxProductionLimit: 10);
 
-        // Blueprint 1000 has maxProductionLimit = 10, and runs are exactly 30 (3x10)
-        $blueprint = new IndustryBlueprint();
-        $blueprint->setTypeId(1000);
-        $blueprint->setMaxProductionLimit(10);
-
-        $bpRepository = $this->createStub(IndustryBlueprintRepository::class);
-        $bpRepository->method('findBy')->willReturn([$blueprint]);
-
-        $em = $this->createStub(EntityManagerInterface::class);
-        $conn = $this->createStub(Connection::class);
-        $em->method('getConnection')->willReturn($conn);
-
-        $tree = $this->buildTreeWithComponent(
-            finalBpId: 586,
-            finalProductId: 587,
-            finalName: 'Ship',
-            finalRuns: 5,
-            compBpId: 1000,
-            compProductId: 1001,
-            compName: 'Component',
-            compQuantity: 30,
-            compRuns: 30,
-        );
-
-        $treeStub = $this->createStub(IndustryTreeService::class);
-        $treeStub->method('buildProductionTree')->willReturn($tree);
-
-        $jitaStub = $this->createStub(JitaMarketService::class);
-        $jitaStub->method('getCheapestPercentilePrices')->willReturn([]);
-
-        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $bpRepository, $this->inventionService, $this->activityProductRepository);
-
-        $data = new CreateProjectData(
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
             name: 'Exact Split',
-            items: [
-                ['typeId' => 587, 'typeName' => 'Ship', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5],
-            ],
-        );
-
-        $project = $service->createProject($user, $data);
-
-        $componentJobs = array_values(array_filter(
-            $this->getJobBomItems($project),
-            fn (GroupIndustryBomItem $item) => $item->getTypeId() === 1001 && $item->getActivityType() === 'manufacturing',
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Ship', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 5]],
         ));
-        $this->assertCount(3, $componentJobs, 'Should split 30 runs into exactly 3 jobs of 10');
 
-        foreach ($componentJobs as $job) {
-            $this->assertSame(10, $job->getRuns());
-        }
+        $this->assertSame([10, 10, 10], $this->runsOf($project, self::COMPONENT, 'manufacturing'));
+        $this->assertSame([self::TRITANIUM => 351], $this->materialQuantities($project));
     }
 
+    #[Group('issue-141')]
     public function testBuildBomCopyJobsAreNotSplit(): void
     {
-        $user = $this->createUser();
+        $this->givenRecipe(self::SABRE, 'Sabre', [self::TRITANIUM => 5_000], maxProductionLimit: 5, hasCopyActivity: true);
 
-        // Blueprint 586 has maxProductionLimit = 5, but copy jobs should not be split
-        $blueprint = new IndustryBlueprint();
-        $blueprint->setTypeId(586);
-        $blueprint->setMaxProductionLimit(5);
-
-        $bpRepository = $this->createStub(IndustryBlueprintRepository::class);
-        $bpRepository->method('findBy')->willReturn([$blueprint]);
-
-        $em = $this->createStub(EntityManagerInterface::class);
-        $conn = $this->createStub(Connection::class);
-        $em->method('getConnection')->willReturn($conn);
-
-        $tree = $this->buildFlatTreeNode(586, 587, 'Sabre', 20, 1, [
-            ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 50000],
-        ], 0, 'manufacturing', true); // hasCopy=true
-
-        $treeStub = $this->createStub(IndustryTreeService::class);
-        $treeStub->method('buildProductionTree')->willReturn($tree);
-
-        $jitaStub = $this->createStub(JitaMarketService::class);
-        $jitaStub->method('getCheapestPercentilePrices')->willReturn([34 => 5.5]);
-
-        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $bpRepository, $this->inventionService, $this->activityProductRepository);
-
-        $data = new CreateProjectData(
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
             name: 'Copy No Split',
-            items: [
-                ['typeId' => 587, 'typeName' => 'Sabre', 'meLevel' => 2, 'teLevel' => 4, 'runs' => 20],
-            ],
-        );
-
-        $project = $service->createProject($user, $data);
-
-        $copyJobs = array_values(array_filter(
-            $this->getJobBomItems($project),
-            fn (GroupIndustryBomItem $item) => $item->getActivityType() === 'copy',
+            items: [['typeId' => self::SABRE, 'typeName' => 'Sabre', 'meLevel' => 2, 'teLevel' => 4, 'runs' => 20]],
         ));
-        $this->assertCount(1, $copyJobs, 'Copy jobs should not be split');
-        $this->assertSame(20, $copyJobs[0]->getRuns());
+
+        $this->assertSame([20], $this->runsOf($project, self::SABRE, 'copy'));
+        $this->assertSame([5, 5, 5, 5], $this->runsOf($project, self::SABRE, 'manufacturing'));
+        $this->assertSame([self::TRITANIUM => 98_000], $this->materialQuantities($project));
     }
 
-    public function testBuildBomUsesDefaultLimitWhenBlueprintNotInSde(): void
+    #[Group('issue-141')]
+    public function testBuildBomSplitsAFinalJobAtTheMaxProductionLimitOfItsRecipeTheFirstJobsTakingTheRemainder(): void
     {
-        $user = $this->createUser();
+        $this->givenRecipe(self::RIFTER, 'Rifter', [self::TRITANIUM => 333], maxProductionLimit: 20);
 
-        // No blueprint found in SDE -- should use default (10000 for manufacturing)
-        $bpRepository = $this->createStub(IndustryBlueprintRepository::class);
-        $bpRepository->method('findBy')->willReturn([]);
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
+            name: 'Recipe Limit',
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 50]],
+        ));
 
-        $em = $this->createStub(EntityManagerInterface::class);
-        $conn = $this->createStub(Connection::class);
-        $em->method('getConnection')->willReturn($conn);
-
-        $tree = $this->buildFlatTreeNode(586, 587, 'Rifter', 50, 1, [
-            ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 50000],
-        ]);
-
-        $treeStub = $this->createStub(IndustryTreeService::class);
-        $treeStub->method('buildProductionTree')->willReturn($tree);
-
-        $jitaStub = $this->createStub(JitaMarketService::class);
-        $jitaStub->method('getCheapestPercentilePrices')->willReturn([34 => 5.5]);
-
-        $service = new GroupIndustryProjectService($treeStub, $jitaStub, $em, $bpRepository, $this->inventionService, $this->activityProductRepository);
-
-        $data = new CreateProjectData(
-            name: 'Default Limit',
-            items: [
-                ['typeId' => 587, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 50],
+        $this->assertSame(
+            [
+                [self::RIFTER, 'manufacturing', 'final', 16, 16, null],
+                [self::RIFTER, 'manufacturing', 'final', 17, 17, null],
+                [self::RIFTER, 'manufacturing', 'final', 17, 17, null],
             ],
+            $this->jobLines($project),
+        );
+        $this->assertSame([self::TRITANIUM => 14_986], $this->materialQuantities($project));
+    }
+
+    private function service(): GroupIndustryProjectService
+    {
+        $recipes = [];
+        foreach ($this->recipes as $productTypeId => $recipe) {
+            $materials = [];
+            foreach ($recipe['materials'] as $materialTypeId => $baseQuantityPerRun) {
+                $materials[] = new RecipeMaterial($materialTypeId, new Quantity($baseQuantityPerRun));
+            }
+            $recipes[] = new Recipe(
+                $productTypeId,
+                $recipe['activity'],
+                new OutputPerRun($recipe['outputPerRun']),
+                $materials,
+                new Runs($recipe['maxProductionLimit']),
+                self::BASE_TIME_SECONDS,
+            );
+        }
+
+        return new GroupIndustryProjectService(
+            new ProductionPlanning(new InMemoryBlueprintCatalog(...$recipes), InMemorySystemCostIndices::none(), new InMemoryRigCategories()),
+            new InMemoryUserProductionStructures(),
+            $this->jitaMarketService,
+            $this->entityManager,
+            $this->inventionService,
+            $this->activityProductRepository(),
+            $this->activityRepository(),
+        );
+    }
+
+    private function activityProductRepository(): IndustryActivityProductRepository
+    {
+        $activityProductRepository = $this->createStub(IndustryActivityProductRepository::class);
+        $activityProductRepository->method('findBlueprintForProduct')->willReturnCallback(
+            function (int $productTypeId, int $activityId = 1): ?IndustryActivityProduct {
+                $recipe = $this->recipes[$productTypeId] ?? null;
+                if ($recipe === null || self::activityIdOf($recipe['activity']) !== $activityId) {
+                    return null;
+                }
+
+                return (new IndustryActivityProduct())
+                    ->setTypeId($productTypeId + self::BLUEPRINT_TYPE_ID_OFFSET)
+                    ->setActivityId($activityId)
+                    ->setProductTypeId($productTypeId)
+                    ->setQuantity($recipe['outputPerRun']);
+            },
+        );
+        $activityProductRepository->method('findProductsForBlueprints')->willReturnCallback(
+            function (array $blueprintTypeIds, array $activityIds): array {
+                $products = [];
+                foreach ($blueprintTypeIds as $blueprintTypeId) {
+                    foreach ($activityIds as $activityId) {
+                        $productTypeId = $this->t1ProductByBlueprint[$blueprintTypeId] ?? $blueprintTypeId - self::BLUEPRINT_TYPE_ID_OFFSET;
+                        $recipe = $this->recipes[$productTypeId] ?? null;
+                        $isT1Blueprint = isset($this->t1ProductByBlueprint[$blueprintTypeId]) && $activityId === IndustryActivityType::Manufacturing->value;
+                        if ($isT1Blueprint || ($recipe !== null && self::activityIdOf($recipe['activity']) === $activityId)) {
+                            $products[$blueprintTypeId.'-'.$activityId] = (new IndustryActivityProduct())
+                                ->setTypeId($blueprintTypeId)
+                                ->setActivityId($activityId)
+                                ->setProductTypeId($productTypeId)
+                                ->setQuantity($recipe['outputPerRun'] ?? 1);
+                        }
+                    }
+                }
+
+                return $products;
+            },
         );
 
-        $project = $service->createProject($user, $data);
+        return $activityProductRepository;
+    }
 
-        // 50 runs with default limit of 10000 should not split
-        $jobs = array_values(array_filter(
-            $this->getJobBomItems($project),
-            fn (GroupIndustryBomItem $item) => $item->getTypeId() === 587 && $item->getActivityType() === 'manufacturing',
-        ));
-        $this->assertCount(1, $jobs, 'Should not split with default 10000 limit');
-        $this->assertSame(50, $jobs[0]->getRuns());
+    private function activityRepository(): IndustryActivityRepository
+    {
+        $activityRepository = $this->createStub(IndustryActivityRepository::class);
+        $activityRepository->method('findByTypeIdsAndActivityIds')->willReturnCallback(
+            function (array $blueprintTypeIds, array $activityIds): array {
+                $activities = [];
+                foreach ($blueprintTypeIds as $blueprintTypeId) {
+                    $recipe = $this->recipes[$blueprintTypeId - self::BLUEPRINT_TYPE_ID_OFFSET] ?? null;
+                    if ($recipe === null) {
+                        continue;
+                    }
+                    foreach ($activityIds as $activityId) {
+                        $hasActivity = $activityId === IndustryActivityType::Copying->value
+                            ? $recipe['hasCopyActivity']
+                            : self::activityIdOf($recipe['activity']) === $activityId;
+                        if ($hasActivity) {
+                            $activities[$blueprintTypeId.'-'.$activityId] = (new IndustryActivity())
+                                ->setTypeId($blueprintTypeId)
+                                ->setActivityId($activityId)
+                                ->setTime(self::BASE_TIME_SECONDS);
+                        }
+                    }
+                }
+
+                return $activities;
+            },
+        );
+
+        return $activityRepository;
+    }
+
+    private function givenRecipe(
+        int $productTypeId,
+        string $typeName,
+        array $baseQuantitiesPerRun,
+        int $outputPerRun = 1,
+        int $maxProductionLimit = self::DEFAULT_MAX_PRODUCTION_LIMIT,
+        bool $hasCopyActivity = false,
+        ActivityKind $activity = ActivityKind::Manufacturing,
+    ): void {
+        $this->recipes[$productTypeId] = [
+            'activity' => $activity,
+            'outputPerRun' => $outputPerRun,
+            'maxProductionLimit' => $maxProductionLimit,
+            'hasCopyActivity' => $hasCopyActivity,
+            'materials' => $baseQuantitiesPerRun,
+        ];
+        $this->typeNames[$productTypeId] = $typeName;
+    }
+
+    private function givenRifter(): void
+    {
+        $this->givenRecipe(self::RIFTER, 'Rifter', [self::TRITANIUM => 28_000, self::PYERITE => 5_600]);
+    }
+
+    private function givenComponentsOfTheBlacklists(): void
+    {
+        $this->givenRecipe(self::RIFTER, 'Rifter', [self::TRITANIUM => 20_000, self::BLACKLISTED_TYPE => 3, self::FIRST_TYPE_OF_THE_BLACKLISTED_GROUP => 7]);
+        $this->givenRecipe(self::BLACKLISTED_TYPE, 'Blacklisted Component', [self::PYERITE => 40]);
+        $this->givenRecipe(self::FIRST_TYPE_OF_THE_BLACKLISTED_GROUP, 'Grouped Component', [self::MEXALLON => 90]);
+    }
+
+    private function givenInventedProducts(): void
+    {
+        $this->inventionService->method('getInventionData')->willReturnCallback(static fn (int $t2TypeId): ?array => match ($t2TypeId) {
+            self::HAIL_L => [
+                't1BlueprintTypeId' => self::HAIL_L_T1_BLUEPRINT,
+                't2BlueprintTypeId' => self::HAIL_L + self::BLUEPRINT_TYPE_ID_OFFSET,
+                'probability' => 0.25,
+                'baseRuns' => 4,
+                'materials' => [
+                    ['typeId' => self::DATACORE_NUCLEAR_PHYSICS, 'typeName' => 'Datacore - Nuclear Physics', 'quantity' => 1],
+                    ['typeId' => self::DATACORE_MECHANICAL_ENGINEERING, 'typeName' => 'Datacore - Mechanical Engineering', 'quantity' => 2],
+                ],
+            ],
+            self::PROTOTYPE_AMMUNITION_L => [
+                't1BlueprintTypeId' => self::PROTOTYPE_AMMUNITION_L_T1_BLUEPRINT,
+                't2BlueprintTypeId' => self::PROTOTYPE_AMMUNITION_L + self::BLUEPRINT_TYPE_ID_OFFSET,
+                'probability' => 0.5,
+                'baseRuns' => 2,
+                'materials' => [
+                    ['typeId' => self::DATACORE_MECHANICAL_ENGINEERING, 'typeName' => 'Datacore - Mechanical Engineering', 'quantity' => 5],
+                ],
+            ],
+            default => null,
+        });
+        $this->t1ProductByBlueprint = [
+            self::HAIL_L_T1_BLUEPRINT => self::DEPLETED_URANIUM_L,
+            self::PROTOTYPE_AMMUNITION_L_T1_BLUEPRINT => self::PROTOTYPE_T1_AMMUNITION_L,
+        ];
+    }
+
+    private function createUser(): User&Stub
+    {
+        $user = $this->createStub(User::class);
+        $user->method('getId')->willReturn(Uuid::fromString(self::OWNER_ID));
+
+        return $user;
+    }
+
+    private function projectWithItems(array $items): GroupIndustryProject
+    {
+        $project = new GroupIndustryProject();
+        foreach ($items as $index => [$typeId, $typeName, $runs]) {
+            $project->addItem((new GroupIndustryProjectItem())
+                ->setTypeId($typeId)
+                ->setTypeName($typeName)
+                ->setRuns($runs)
+                ->setMeLevel(2)
+                ->setTeLevel(4)
+                ->setSortOrder($index));
+        }
+
+        return $project;
+    }
+
+    private function jobLines(GroupIndustryProject $project): array
+    {
+        $jobLines = array_map(static fn (GroupIndustryBomItem $job): array => [
+            $job->getTypeId(),
+            $job->getActivityType(),
+            $job->getJobGroup(),
+            $job->getRuns(),
+            $job->getRequiredQuantity(),
+            $job->getParentTypeId(),
+        ], $this->getJobBomItems($project));
+        usort($jobLines, static fn (array $left, array $right): int => $left <=> $right);
+
+        return $jobLines;
+    }
+
+    private function runsOf(GroupIndustryProject $project, int $typeId, string $activityType): array
+    {
+        $runs = array_map(
+            static fn (GroupIndustryBomItem $job): ?int => $job->getRuns(),
+            array_filter($this->jobBomItemsOfActivity($project, $activityType), static fn (GroupIndustryBomItem $job): bool => $job->getTypeId() === $typeId),
+        );
+        sort($runs);
+
+        return $runs;
+    }
+
+    private function materialQuantities(GroupIndustryProject $project): array
+    {
+        $quantities = [];
+        foreach ($this->getMaterialBomItems($project) as $material) {
+            $quantities[$material->getTypeId()] = $material->getRequiredQuantity();
+        }
+
+        ksort($quantities);
+
+        return $quantities;
+    }
+
+    private function estimatedPrices(GroupIndustryProject $project): array
+    {
+        $prices = [];
+        foreach ($this->getMaterialBomItems($project) as $material) {
+            $prices[$material->getTypeId()] = $material->getEstimatedPrice();
+        }
+
+        ksort($prices);
+
+        return $prices;
+    }
+
+    private function getMaterialBomItems(GroupIndustryProject $project): array
+    {
+        return array_values(array_filter($project->getBomItems()->toArray(), static fn (GroupIndustryBomItem $item): bool => !$item->isJob()));
+    }
+
+    private function sortedMaterialBomItems(GroupIndustryProject $project): array
+    {
+        $materials = $this->getMaterialBomItems($project);
+        usort($materials, static fn (GroupIndustryBomItem $left, GroupIndustryBomItem $right): int => $left->getTypeId() <=> $right->getTypeId());
+
+        return $materials;
+    }
+
+    private function getJobBomItems(GroupIndustryProject $project): array
+    {
+        return array_values(array_filter($project->getBomItems()->toArray(), static fn (GroupIndustryBomItem $item): bool => $item->isJob()));
+    }
+
+    private function sortedJobBomItems(GroupIndustryProject $project): array
+    {
+        $jobs = $this->getJobBomItems($project);
+        usort($jobs, static fn (GroupIndustryBomItem $left, GroupIndustryBomItem $right): int => [$left->getTypeId(), $left->getActivityType()] <=> [$right->getTypeId(), $right->getActivityType()]);
+
+        return $jobs;
+    }
+
+    private function jobBomItemsOfActivity(GroupIndustryProject $project, string $activityType): array
+    {
+        return array_values(array_filter($this->getJobBomItems($project), static fn (GroupIndustryBomItem $item): bool => $item->getActivityType() === $activityType));
+    }
+
+    private static function activityIdOf(ActivityKind $activity): int
+    {
+        return $activity === ActivityKind::Reaction ? IndustryActivityType::Reaction->value : IndustryActivityType::Manufacturing->value;
     }
 }

@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Industry\Application;
 
 use App\Industry\Application\FavoriteSystems;
 use App\Industry\Application\ProductionStructure;
+use App\Industry\Application\StructureChoiceStatus;
 use App\Industry\Application\StructureMaterialModifiers;
 use App\Industry\Application\StructureSelector;
 use App\Industry\Domain\BlueprintEfficiency;
@@ -19,6 +20,7 @@ use App\Industry\Domain\Runs;
 use App\Industry\Domain\SecurityClass;
 use App\Industry\Domain\TimeEfficiency;
 use App\Tests\Unit\Industry\Application\Double\InMemoryRigCategories;
+use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use App\Tests\Unit\Industry\Domain\Double\InMemoryBlueprintCatalog;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -77,22 +79,55 @@ final class StructureMaterialModifiersTest extends TestCase
         $this->assertEqualsWithDelta(0.99, $modifiers->forJob(self::recipeOf('R.A.M.- Ammunition Tech'))->value, 1e-12);
     }
 
-    public function testRoleBonusOfAnEngineeringComplexAssignedToAReactionIsNotApplied(): void
+    public function testEngineeringComplexAssignedToAReactionIsIgnoredForTheReactionRigOfTheBestRefinery(): void
     {
-        // R2: mod_structure = 1 on a reaction job, whatever the structure.
         $modifiers = new StructureMaterialModifiers(
             self::goldenSelector(),
             self::goldenProductCategories(),
             [self::FERNITE_CARBIDE_TYPE_ID => ProductionStructures::raitaru('raitaru-assigned-to-a-reaction', SecurityClass::NullSec)],
         );
 
-        $this->assertEqualsWithDelta(1.0, $modifiers->forJob(self::recipeOf('Fernite Carbide'))->value, 1e-12);
+        $this->assertEqualsWithDelta(0.9736, $modifiers->forJob(self::recipeOf('Fernite Carbide'))->value, 1e-12);
+    }
+
+    public function testChoiceOfAStepWithAnAssignedStructureIsThatStructureWithItsMaterialMultiplier(): void
+    {
+        $assigned = ProductionStructures::raitaru('assigned-lowsec', SecurityClass::LowSec, null, '2026-01-01 00:00:00', ProductionStructures::manufacturingRig(2.0, 'ammunition'));
+        $modifiers = new StructureMaterialModifiers(
+            self::goldenSelector(),
+            self::goldenProductCategories(),
+            [self::HAIL_L_TYPE_ID => $assigned],
+        );
+
+        $choice = $modifiers->choiceFor(self::recipeOf('Hail L'));
+
+        $this->assertSame($assigned, $choice->structure);
+        $this->assertSame(StructureChoiceStatus::Assigned, $choice->status);
+        $this->assertEqualsWithDelta(0.95238, $choice->materialMultiplier->value, 1e-12);
+        $this->assertNull($choice->ignoredAssignedStructure);
+    }
+
+    public function testChoiceOfAReactionWithAnAssignedEngineeringComplexIsTheBestRefineryAndKeepsTheIgnoredStructure(): void
+    {
+        $raitaruAssignedToAReaction = ProductionStructures::raitaru('raitaru-assigned-to-a-reaction', SecurityClass::NullSec);
+        $modifiers = new StructureMaterialModifiers(
+            self::goldenSelector(),
+            self::goldenProductCategories(),
+            [self::FERNITE_CARBIDE_TYPE_ID => $raitaruAssignedToAReaction],
+        );
+
+        $choice = $modifiers->choiceFor(self::recipeOf('Fernite Carbide'));
+
+        $this->assertSame('tatara-nullsec', $choice->structure?->id);
+        $this->assertSame(StructureChoiceStatus::BestConfigured, $choice->status);
+        $this->assertEqualsWithDelta(0.9736, $choice->materialMultiplier->value, 1e-12);
+        $this->assertSame($raitaruAssignedToAReaction, $choice->ignoredAssignedStructure);
     }
 
     public function testNoConfiguredStructureGivesNeutralModifiers(): void
     {
         $modifiers = new StructureMaterialModifiers(
-            new StructureSelector([], FavoriteSystems::none()),
+            new StructureSelector([], FavoriteSystems::none(), InMemorySystemCostIndices::none()),
             self::goldenProductCategories(),
         );
 
@@ -150,7 +185,7 @@ final class StructureMaterialModifiersTest extends TestCase
         return new StructureSelector([
             ProductionStructures::raitaru('raitaru-nullsec', SecurityClass::NullSec, null, '2026-01-01 00:00:00', ProductionStructures::manufacturingRig(2.4, 'ammunition')),
             ProductionStructures::tatara('tatara-nullsec', SecurityClass::NullSec, null, '2026-01-01 00:00:00', ProductionStructures::reactionRig(2.4, 'composite_reaction', 'hybrid_reaction', 'biochemical_reaction')),
-        ], FavoriteSystems::none());
+        ], FavoriteSystems::none(), InMemorySystemCostIndices::none());
     }
 
     /**

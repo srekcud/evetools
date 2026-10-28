@@ -1,4 +1,4 @@
-.PHONY: help build up down logs shell db-create db-migrate db-diff jwt-keys test test-unit test-integration test-db install sde-import base-build deploy deploy-full infection deptrac
+.PHONY: help build up down logs shell db-create db-migrate db-diff jwt-keys test test-unit test-integration test-db install sde-import base-build deploy deploy-full infection infection-core deptrac
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -53,8 +53,11 @@ test-coverage: ## Run tests with coverage
 infection: ## Mutation testing report in var/infection/ (usage: make infection FILTER=src/Service/Industry)
 	docker compose exec app php -d memory_limit=2G vendor/bin/infection --threads=max --with-uncovered $(if $(FILTER),--filter=$(FILTER))
 
-deptrac: ## Architecture layer dependency report (report only, never fails)
-	-docker compose exec app php vendor/bin/deptrac analyse --no-progress
+infection-core: ## Mutation testing of the Industry core, fails under the MSI ratchet of infection-core.json5
+	docker compose exec app php -d memory_limit=2G vendor/bin/infection --configuration=infection-core.json5 --threads=max --with-uncovered
+
+deptrac: ## Architecture layer dependency check, fails on a violation not listed in skip_violations
+	docker compose exec app php vendor/bin/deptrac analyse --no-progress
 
 cc: ## Clear cache
 	docker compose exec app php bin/console cache:clear

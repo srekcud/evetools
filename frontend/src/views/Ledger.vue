@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
 import { useLedgerStore } from '@/stores/ledger'
 import { usePveStore } from '@/stores/pve'
+import { useTabQuery } from '@/composables/useTabQuery'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import PveTab from '@/components/ledger/PveTab.vue'
@@ -14,14 +14,13 @@ import EscalationsTab from '@/components/ledger/EscalationsTab.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const { t } = useI18n()
-const route = useRoute()
 const ledgerStore = useLedgerStore()
 const pveStore = usePveStore()
 
 // Tab state
 type TabId = 'dashboard' | 'pve' | 'mining' | 'settings' | 'escalations'
 const validTabs: TabId[] = ['dashboard', 'pve', 'mining', 'settings', 'escalations']
-const activeTab = ref<TabId>('dashboard')
+const activeTab = useTabQuery(validTabs, 'dashboard')
 
 // Period selection (cached in localStorage)
 const selectedDays = ref(parseInt(localStorage.getItem('ledgerSelectedDays') || '30'))
@@ -83,11 +82,6 @@ watch(selectedDays, async () => {
 
 // Initialize
 onMounted(async () => {
-  // Deep linking: read tab from query param
-  const tabParam = route.query.tab as string | undefined
-  if (tabParam && validTabs.includes(tabParam as TabId)) {
-    activeTab.value = tabParam as TabId
-  }
   await fetchData()
 })
 </script>

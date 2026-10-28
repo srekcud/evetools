@@ -10,6 +10,7 @@ use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\Multiplier;
 use App\Industry\Domain\SecurityClass;
 use App\Service\Industry\FacilityTaxResolver;
+use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -48,7 +49,7 @@ final class FacilityTaxResolverTest extends TestCase
             self::USER_ID => [ProductionStructures::raitaruWithFacilityTax('raitaru', SecurityClass::NullSec, self::REQUESTED_SOLAR_SYSTEM_ID, 0.05)],
         ]);
 
-        $percent = (new FacilityTaxResolver($structures))->percentFor(null, self::REQUESTED_SOLAR_SYSTEM_ID, ActivityKind::Manufacturing);
+        $percent = (new FacilityTaxResolver($structures, InMemorySystemCostIndices::none()))->percentFor(null, self::REQUESTED_SOLAR_SYSTEM_ID, ActivityKind::Manufacturing);
 
         $this->assertSame(0.25, $percent);
         $this->assertSame([], $structures->requestedUserIds);
@@ -93,11 +94,54 @@ final class FacilityTaxResolverTest extends TestCase
         $this->assertSame(1.0, $percent);
     }
 
+    public function testRequestedSystemWinsOverAStructureElsewhereWithALowerInstallRateForManufacturing(): void
+    {
+        $resolver = $this->resolverOf([
+            ProductionStructures::raitaruConfiguredWithFacilityTax('elsewhere-tax-0-september', self::OTHER_SOLAR_SYSTEM_ID, '2026-09-01 00:00:00', 0.0),
+            ProductionStructures::raitaruConfiguredWithFacilityTax('requested-tax-10-january', self::REQUESTED_SOLAR_SYSTEM_ID, '2026-01-01 00:00:00', 0.10),
+        ], new InMemorySystemCostIndices([
+            self::REQUESTED_SOLAR_SYSTEM_ID => [ActivityKind::Manufacturing->name => 0.09, ActivityKind::Copying->name => 0.09],
+            self::OTHER_SOLAR_SYSTEM_ID => [ActivityKind::Manufacturing->name => 0.01, ActivityKind::Copying->name => 0.01],
+        ]));
+
+        $percent = $resolver->percentFor($this->userWithId(self::USER_ID), self::REQUESTED_SOLAR_SYSTEM_ID, ActivityKind::Manufacturing);
+
+        $this->assertSame(10.0, $percent);
+    }
+
+    public function testMostRecentStructureOfTheRequestedSystemWinsOverALowerInstallRateForManufacturing(): void
+    {
+        $resolver = $this->resolverOf([
+            ProductionStructures::sotiyoConfiguredWithFacilityTax('sotiyo-tax-0-january', self::REQUESTED_SOLAR_SYSTEM_ID, '2026-01-01 00:00:00', 0.0),
+            ProductionStructures::raitaruConfiguredWithFacilityTax('raitaru-tax-8-september', self::REQUESTED_SOLAR_SYSTEM_ID, '2026-09-01 00:00:00', 0.08),
+        ], new InMemorySystemCostIndices([
+            self::REQUESTED_SOLAR_SYSTEM_ID => [ActivityKind::Manufacturing->name => 0.05, ActivityKind::Copying->name => 0.05],
+        ]));
+
+        $percent = $resolver->percentFor($this->userWithId(self::USER_ID), self::REQUESTED_SOLAR_SYSTEM_ID, ActivityKind::Manufacturing);
+
+        $this->assertSame(8.0, $percent);
+    }
+
+    public function testCopyingGetsTheFacilityTaxOfTheStructureWithTheLowestInstallRate(): void
+    {
+        $resolver = $this->resolverOf([
+            ProductionStructures::raitaruConfiguredWithFacilityTax('raitaru-tax-10-september', self::REQUESTED_SOLAR_SYSTEM_ID, '2026-09-01 00:00:00', 0.10),
+            ProductionStructures::sotiyoConfiguredWithFacilityTax('sotiyo-tax-3-january', self::REQUESTED_SOLAR_SYSTEM_ID, '2026-01-01 00:00:00', 0.03),
+        ], new InMemorySystemCostIndices([
+            self::REQUESTED_SOLAR_SYSTEM_ID => [ActivityKind::Manufacturing->name => 0.07, ActivityKind::Copying->name => 0.05],
+        ]));
+
+        $percent = $resolver->percentFor($this->userWithId(self::USER_ID), self::REQUESTED_SOLAR_SYSTEM_ID, ActivityKind::Copying);
+
+        $this->assertSame(3.0, $percent);
+    }
+
     public function testStructuresAreReadForTheRfc4122IdOfTheUser(): void
     {
         $structures = new InMemoryUserProductionStructures();
 
-        (new FacilityTaxResolver($structures))->percentFor($this->userWithId(self::USER_ID), self::REQUESTED_SOLAR_SYSTEM_ID, ActivityKind::Manufacturing);
+        (new FacilityTaxResolver($structures, InMemorySystemCostIndices::none()))->percentFor($this->userWithId(self::USER_ID), self::REQUESTED_SOLAR_SYSTEM_ID, ActivityKind::Manufacturing);
 
         $this->assertSame([self::USER_ID], $structures->requestedUserIds);
     }
@@ -108,14 +152,14 @@ final class FacilityTaxResolverTest extends TestCase
             '0192f3a4-0000-7000-8000-000000000001' => [ProductionStructures::raitaruWithFacilityTax('raitaru', SecurityClass::NullSec, self::REQUESTED_SOLAR_SYSTEM_ID, 0.05)],
         ]);
 
-        $percent = (new FacilityTaxResolver($structures))->percentFor($this->userWithId(self::USER_ID), self::REQUESTED_SOLAR_SYSTEM_ID, ActivityKind::Manufacturing);
+        $percent = (new FacilityTaxResolver($structures, InMemorySystemCostIndices::none()))->percentFor($this->userWithId(self::USER_ID), self::REQUESTED_SOLAR_SYSTEM_ID, ActivityKind::Manufacturing);
 
         $this->assertSame(0.25, $percent);
     }
 
-    private function resolverOf(array $structures): FacilityTaxResolver
+    private function resolverOf(array $structures, ?InMemorySystemCostIndices $costIndices = null): FacilityTaxResolver
     {
-        return new FacilityTaxResolver(new InMemoryUserProductionStructures([self::USER_ID => $structures]));
+        return new FacilityTaxResolver(new InMemoryUserProductionStructures([self::USER_ID => $structures]), $costIndices ?? InMemorySystemCostIndices::none());
     }
 
     private function raitaruConfiguredAt(string $configuredAt, float $facilityTaxPercent): ProductionStructure

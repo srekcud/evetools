@@ -7,6 +7,7 @@ namespace App\Tests\Integration\Service\GroupIndustry;
 use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryContribution;
 use App\Entity\GroupIndustryProject;
+use App\Entity\GroupIndustryProjectItem;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\Sde\InvCategory;
 use App\Entity\Sde\InvGroup;
@@ -14,26 +15,20 @@ use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
+use App\Enum\GroupMemberRole;
+use App\Enum\GroupMemberStatus;
+use App\Industry\Application\ProductionPlanning;
+use App\Industry\Application\UserProductionStructures;
 use App\Repository\Sde\IndustryActivityProductRepository;
-use App\Repository\Sde\IndustryBlueprintRepository;
+use App\Repository\Sde\IndustryActivityRepository;
 use App\Service\GroupIndustry\CreateProjectData;
 use App\Service\GroupIndustry\GroupIndustryProjectService;
-use App\Service\Industry\IndustryTreeService;
 use App\Service\Industry\InventionService;
 use App\Service\JitaMarketService;
 use App\Tests\Integration\IntegrationTestCase;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\Attributes\Group;
 
-/**
- * Characterization of the group BOM written to the database by createProject() and buildBom(), before
- * buildProductionTree() is replaced by src/Industry/Application (docs/specs/industry-engine.md, §7 rank 6:
- * BOM persisted before / after, approved contributions do not move).
- *
- * The real IndustryTreeService reads the Nitrogen Fuel Block blueprint seeded in the SDE tables (dev SDE on
- * 2026-10-07, see tests/Fixtures/Golden/sde-blueprint-recipes.json); only the Jita prices are stubbed.
- * Calculation cases on the goldens: tests/Unit/Service/GroupIndustry/GroupIndustryBomGoldenCharacterizationTest.php.
- */
 final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
 {
     private const int ACTIVITY_MANUFACTURING = 1;
@@ -47,7 +42,6 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
     private const int SYNTHETIC_CATEGORY_ID = 999_993_001;
     private const int SYNTHETIC_GROUP_ID = 999_993_002;
 
-    /** @var array<int, string> */
     private const array TYPE_NAMES = [
         self::NITROGEN_FUEL_BLOCK => 'Nitrogen Fuel Block',
         44 => 'Enriched Uranium',
@@ -82,35 +76,35 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
         );
 
         $this->service = new GroupIndustryProjectService(
-            self::getContainer()->get(IndustryTreeService::class),
+            self::getContainer()->get(ProductionPlanning::class),
+            self::getContainer()->get(UserProductionStructures::class),
             $jitaMarketService,
             $this->em,
-            self::getContainer()->get(IndustryBlueprintRepository::class),
             self::getContainer()->get(InventionService::class),
             self::getContainer()->get(IndustryActivityProductRepository::class),
+            self::getContainer()->get(IndustryActivityRepository::class),
         );
     }
 
-    #[Group('issue-2')]
-    #[Group('issue-23')]
-    public function testCreatedProjectCurrentlyPersistsTheBomOfOneRunForTwentyFiveRunsOfNitrogenFuelBlockIssue2(): void
+    #[Group('issue-141')]
+    public function testCreatedProjectPersistsTheBomOfTwentyFiveRunsOfNitrogenFuelBlock(): void
     {
         $projectId = (string) $this->createNitrogenFuelBlockProject(runs: 25, meLevel: 10, teLevel: 20)->getId();
         $this->em->clear();
 
         self::assertSame(
             [
-                [44, 'Enriched Uranium', 4, 0, null, false, null, null, null, null, null, null],
-                [3683, 'Oxygen', 20, 0, null, false, null, null, null, null, null, null],
-                [3689, 'Mechanical Parts', 4, 0, null, false, null, null, null, null, null, null],
-                [9832, 'Coolant', 9, 0, null, false, null, null, null, null, null, null],
-                [9848, 'Robotics', 1, 0, 76_000.0, false, null, null, null, null, null, null],
-                [16272, 'Heavy Water', 153, 0, null, false, null, null, null, null, null, null],
-                [16273, 'Liquid Ozone', 315, 0, null, false, null, null, null, null, null, null],
-                [16275, 'Strontium Clathrates', 18, 0, null, false, null, null, null, null, null, null],
-                [17888, 'Nitrogen Isotopes', 405, 0, 512.5, false, null, null, null, null, null, null],
-                [4051, 'Nitrogen Fuel Block', 1, 0, null, true, 'blueprint', 'copy', null, 0, 0, 1],
-                [4051, 'Nitrogen Fuel Block', 40, 0, null, true, 'final', 'manufacturing', null, 10, 20, 1],
+                [44, 'Enriched Uranium', 90, 0, null, false, null, null, null, null, null, null],
+                [3683, 'Oxygen', 495, 0, null, false, null, null, null, null, null, null],
+                [3689, 'Mechanical Parts', 90, 0, null, false, null, null, null, null, null, null],
+                [9832, 'Coolant', 203, 0, null, false, null, null, null, null, null, null],
+                [9848, 'Robotics', 25, 0, 76_000.0, false, null, null, null, null, null, null],
+                [16272, 'Heavy Water', 3825, 0, null, false, null, null, null, null, null, null],
+                [16273, 'Liquid Ozone', 7875, 0, null, false, null, null, null, null, null, null],
+                [16275, 'Strontium Clathrates', 450, 0, null, false, null, null, null, null, null, null],
+                [17888, 'Nitrogen Isotopes', 10125, 0, 512.5, false, null, null, null, null, null, null],
+                [4051, 'Nitrogen Fuel Block', 25, 0, null, true, 'blueprint', 'copy', null, 0, 0, 25],
+                [4051, 'Nitrogen Fuel Block', 1000, 0, null, true, 'final', 'manufacturing', null, 10, 20, 25],
             ],
             $this->persistedBomRows($projectId),
         );
@@ -123,10 +117,43 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
         );
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux (aucune issue connue) : buildBom() n'efface rien. Rappelé
-    // sur un projet persisté, il ajoute une seconde BOM complète ; les lignes existantes, leur quantité fournie et les
-    // contributions approuvées ou en attente qui les visent restent en base, inchangées.
-    public function testRebuildingThePersistedBomCurrentlyAppendsASecondBomAndLeavesTheContributionsUntouched(): void
+    #[Group('issue-141')]
+    public function testProjectCreatedBeforeThePlanKeepsItsRecordedQuantitiesAndContributionsWhenAnotherProjectIsCreated(): void
+    {
+        $existingProject = $this->projectRecordedWithTheBomOfOneRunForTwentyFiveRuns();
+        $this->flushAndClear();
+        $existingProjectId = (string) $existingProject->getId();
+        $existingBomRows = $this->persistedBomRows($existingProjectId);
+        $existingContributionRows = $this->persistedContributionRows($existingProjectId);
+
+        $newProjectId = (string) $this->createNitrogenFuelBlockProject(runs: 25, meLevel: 10, teLevel: 20)->getId();
+        $this->em->clear();
+
+        self::assertSame(
+            [
+                [17888, 'Nitrogen Isotopes', 405, 300, 512.5, false, null, null, null, null, null, null],
+                [4051, 'Nitrogen Fuel Block', 1, 0, null, true, 'blueprint', 'copy', null, 0, 0, 1],
+                [4051, 'Nitrogen Fuel Block', 40, 0, null, true, 'final', 'manufacturing', null, 10, 20, 1],
+            ],
+            $existingBomRows,
+        );
+        self::assertSame($existingBomRows, $this->persistedBomRows($existingProjectId));
+        self::assertSame(
+            [[ContributionType::JobInstall->value, 1, ContributionStatus::Pending->value], [ContributionType::Material->value, 300, ContributionStatus::Approved->value]],
+            array_map(static fn (array $row): array => \array_slice($row, 0, 3), $existingContributionRows),
+        );
+        self::assertSame($existingContributionRows, $this->persistedContributionRows($existingProjectId));
+        self::assertSame(
+            [[10125, null], [1000, 25]],
+            $this->connection->fetchAllNumeric(
+                "SELECT required_quantity, runs FROM group_industry_bom_items WHERE project_id = ? AND (type_id = ? OR activity_type = 'manufacturing') ORDER BY is_job",
+                [$newProjectId, self::NITROGEN_ISOTOPES],
+            ),
+        );
+    }
+
+    #[Group('issue-253')]
+    public function testRebuildingThePersistedBomCurrentlyAppendsASecondBomAndLeavesTheContributionsUntouchedIssue253(): void
     {
         $project = $this->createNitrogenFuelBlockProject(runs: 1, meLevel: 0, teLevel: 0);
         $ownerMember = $project->getMembers()->first();
@@ -194,10 +221,55 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
         ));
     }
 
-    /**
-     * @return list<list<mixed>> typeId, typeName, required quantity, fulfilled quantity, estimated price, is job,
-     *                           job group, activity, parent typeId, ME, TE, runs; materials first, then jobs
-     */
+    private function projectRecordedWithTheBomOfOneRunForTwentyFiveRuns(): GroupIndustryProject
+    {
+        $project = (new GroupIndustryProject())->setOwner($this->owner)->setName('Fuel run recorded before the plan');
+        $ownerMember = (new GroupIndustryProjectMember())->setUser($this->owner)->setRole(GroupMemberRole::Owner)->setStatus(GroupMemberStatus::Accepted);
+        $project->addMember($ownerMember);
+        $project->addItem((new GroupIndustryProjectItem())
+            ->setTypeId(self::NITROGEN_FUEL_BLOCK)
+            ->setTypeName('Nitrogen Fuel Block')
+            ->setMeLevel(10)
+            ->setTeLevel(20)
+            ->setRuns(25)
+            ->setSortOrder(0));
+        $isotopes = (new GroupIndustryBomItem())
+            ->setTypeId(self::NITROGEN_ISOTOPES)
+            ->setTypeName('Nitrogen Isotopes')
+            ->setRequiredQuantity(405)
+            ->setIsJob(false)
+            ->setEstimatedPrice(512.5)
+            ->setFulfilledQuantity(300);
+        $finalJob = (new GroupIndustryBomItem())
+            ->setTypeId(self::NITROGEN_FUEL_BLOCK)
+            ->setTypeName('Nitrogen Fuel Block')
+            ->setRequiredQuantity(40)
+            ->setIsJob(true)
+            ->setJobGroup('final')
+            ->setActivityType('manufacturing')
+            ->setMeLevel(10)
+            ->setTeLevel(20)
+            ->setRuns(1);
+        $copyJob = (new GroupIndustryBomItem())
+            ->setTypeId(self::NITROGEN_FUEL_BLOCK)
+            ->setTypeName('Nitrogen Fuel Block')
+            ->setRequiredQuantity(1)
+            ->setIsJob(true)
+            ->setJobGroup('blueprint')
+            ->setActivityType('copy')
+            ->setMeLevel(0)
+            ->setTeLevel(0)
+            ->setRuns(1);
+        foreach ([$isotopes, $finalJob, $copyJob] as $bomItem) {
+            $project->addBomItem($bomItem);
+        }
+        $this->contribution($project, $ownerMember, $isotopes, ContributionType::Material, 300, ContributionStatus::Approved);
+        $this->contribution($project, $ownerMember, $finalJob, ContributionType::JobInstall, 1, ContributionStatus::Pending);
+        $this->em->persist($project);
+
+        return $project;
+    }
+
     private function persistedBomRows(string $projectId): array
     {
         return $this->connection->fetchAllNumeric(
@@ -207,7 +279,6 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
         );
     }
 
-    /** @return list<list<mixed>> type, quantity, status, BOM item id */
     private function persistedContributionRows(string $projectId): array
     {
         return $this->connection->fetchAllNumeric(

@@ -20,6 +20,12 @@ export interface GroupProjectEvent {
   timestamp: string
 }
 
+export interface AlertMessage {
+  alertType: string
+  data: Record<string, unknown> | null
+  timestamp: string
+}
+
 export interface MercureToken {
   token: string
   topics: string[]
@@ -35,6 +41,7 @@ export const useSyncStore = defineStore('sync', () => {
   const connectionError = ref<string | null>(null)
   const syncStatus = ref<Record<string, SyncProgress>>({})
   const groupProjectEvents = ref<Record<string, GroupProjectEvent>>({})
+  const alertMessages = ref<Record<string, AlertMessage>>({})
   const reconnectAttempts = ref(0)
 
   // Config
@@ -146,6 +153,14 @@ export const useSyncStore = defineStore('sync', () => {
             return
           }
 
+          if (data.alertType && !data.syncType) {
+            alertMessages.value = {
+              ...alertMessages.value,
+              [data.alertType]: { alertType: data.alertType, data: data.data, timestamp: data.timestamp },
+            }
+            return
+          }
+
           // Default: sync progress message
           const syncData = data as SyncProgress
           syncStatus.value = {
@@ -228,6 +243,7 @@ export const useSyncStore = defineStore('sync', () => {
 
   function clearAllSyncStatus() {
     syncStatus.value = {}
+    alertMessages.value = {}
   }
 
   // Auto-connect when authenticated, disconnect on logout
@@ -249,6 +265,7 @@ export const useSyncStore = defineStore('sync', () => {
     isConnected,
     connectionError,
     syncStatus,
+    alertMessages,
     reconnectAttempts,
 
     // Computed

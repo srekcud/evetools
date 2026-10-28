@@ -65,7 +65,7 @@ class ProductionCostServiceTest extends TestCase
         $this->calculationService = $this->createMock(IndustryCalculationService::class);
         $this->calculationService->method('getStructureBonusForStep')->willReturnCallback(
             fn (IndustryProjectStep $step): array => [
-                'structure' => $step->getStructureConfig() ?? $this->structureRetainedForTheBonus,
+                'structure' => $this->structureRetainedForTheBonus,
                 'materialBonus' => ['total' => 0.0, 'base' => 0.0, 'rig' => 0.0],
                 'timeBonus' => 0.0,
                 'name' => null,
@@ -193,39 +193,11 @@ class ProductionCostServiceTest extends TestCase
         // 250000 * 5.50 + 50000 * 12.00 + 10000 * 45.00
         // = 1375000 + 600000 + 450000 = 2425000
         $this->assertSame(2425000.0, $result['total']);
-        $this->assertCount(3, $result['items']);
-        $this->assertSame(34, $result['items'][0]['typeId']);
-        $this->assertSame(5.50, $result['items'][0]['unitPrice']);
-        $this->assertSame(1375000.0, $result['items'][0]['totalPrice']);
-    }
-
-    public function testEstimateMaterialCostHandlesMissingPricesGracefully(): void
-    {
-        $project = $this->createProject(587, 1);
-
-        $this->shoppingListBuilder
-            ->method('getShoppingList')
-            ->willReturn([
-                'materials' => [
-                    ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 1000],
-                    ['typeId' => 99999, 'typeName' => 'Unknown Material', 'quantity' => 500],
-                ],
-                'failedProducts' => [],
-            ]);
-
-        // typeId 99999 has no price (returns null, getPricesWithFallback returns 0.0 as default)
-        $this->jitaMarketService
-            ->method('getPricesWithFallback')
-            ->willReturn([
-                34 => 5.50,
-                99999 => 0.0,
-            ]);
-
-        $result = $this->service->estimateMaterialCost($project);
-
-        $this->assertSame(5500.0, $result['total']);
-        $this->assertSame(0.0, $result['items'][1]['unitPrice']);
-        $this->assertSame(0.0, $result['items'][1]['totalPrice']);
+        $this->assertSame([
+            ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 250000, 'unitPrice' => 5.50, 'totalPrice' => 1375000.0],
+            ['typeId' => 35, 'typeName' => 'Pyerite', 'quantity' => 50000, 'unitPrice' => 12.00, 'totalPrice' => 600000.0],
+            ['typeId' => 36, 'typeName' => 'Mexallon', 'quantity' => 10000, 'unitPrice' => 45.00, 'totalPrice' => 450000.0],
+        ], $result['items']);
     }
 
     public function testEstimateMaterialCostEmptyShoppingList(): void
@@ -237,8 +209,7 @@ class ProductionCostServiceTest extends TestCase
 
         $result = $this->service->estimateMaterialCost($project);
 
-        $this->assertSame(0.0, $result['total']);
-        $this->assertCount(0, $result['items']);
+        $this->assertSame(['total' => 0.0, 'items' => [], 'failedProducts' => []], $result);
     }
 
     #[Group('issue-119')]
@@ -505,7 +476,7 @@ class ProductionCostServiceTest extends TestCase
 
         // materialCost: 50000, total: 50000, output: 15
         // perUnit: 50000 / 15 = 3333.33...
-        $this->assertEqualsWithDelta(3333.33, $result['perUnit'], 0.01);
+        $this->assertSame(50000.0 / 15, $result['perUnit']);
     }
 
     public function testEstimateTotalCostWithNoBpoCost(): void
@@ -660,16 +631,39 @@ class ProductionCostServiceTest extends TestCase
     #[Group('issue-127')]
     public function testEstimateJobInstallCostsStillCountsAStepPartiallyInStock(): void
     {
-        $project = $this->projectWithStepsAAndB();
+        $config = $this->createStructureConfig(30002510, 2.5);
+        $stepA = $this->createStep('manufacturing', self::STEP_A_PRODUCT_TYPE_ID, 10, $config, 586);
+        $partiallyStockedStepB = (new IndustryProjectStep())
+            ->setProductTypeId(self::STEP_B_PRODUCT_TYPE_ID)
+            ->setBlueprintTypeId(11398)
+            ->setActivityType('manufacturing')
+            ->setRuns(5)
+            ->setQuantity(5)
+            ->setDepth(1)
+            ->setStructureConfig($config)
+            ->setInStockQuantity(3);
+        $project = $this->createProject(self::STEP_A_PRODUCT_TYPE_ID, 10);
+        $project->method('getSteps')->willReturn(new ArrayCollection([$stepA, $partiallyStockedStepB]));
+        $this->materialRepository->method('findMaterialsForBlueprints')
+            ->willReturnCallback(static fn (array $blueprintTypeIds): array => match ($blueprintTypeIds[0]) {
+                586 => [586 => [['materialTypeId' => 34, 'quantity' => 100000]]],
+                11398 => [11398 => [['materialTypeId' => 34, 'quantity' => 20000]]],
+                default => [],
+            });
+        $this->calculationService->method('resolveTypeName')->willReturn('Type');
+        $this->solarSystemRepository->method('findBySolarSystemId')->willReturn(null);
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(0.0412);
         $calls = $this->recordInstallCostEstimatesOfStepsAAndB();
 
         $result = $this->service->estimateJobInstallCosts($project);
 
         self::assertSame(1500.0, $result['total']);
-        self::assertCount(2, $result['steps']);
-        self::assertSame(self::STEP_B_PRODUCT_TYPE_ID, $result['steps'][1]['productTypeId']);
-        self::assertSame(500.0, $result['steps'][1]['installCost']);
-        self::assertCount(2, $calls);
+        self::assertSame([self::STEP_A_PRODUCT_TYPE_ID, self::STEP_B_PRODUCT_TYPE_ID], array_column($result['steps'], 'productTypeId'));
+        self::assertSame([1000.0, 500.0], array_column($result['steps'], 'installCost'));
+        self::assertSame([
+            [[['materialTypeId' => 34, 'quantity' => 100000]], 10, 30002510, 'manufacturing', 2.5],
+            [[['materialTypeId' => 34, 'quantity' => 20000]], 5, 30002510, 'manufacturing', 2.5],
+        ], $calls->getArrayCopy());
     }
 
     #[Group('issue-127')]
@@ -955,5 +949,149 @@ class ProductionCostServiceTest extends TestCase
             [[['materialTypeId' => 34, 'quantity' => 50_000]], 30, 30004759, 'manufacturing', 0.25],
             [[['materialTypeId' => 44, 'quantity' => 400]], 40, 30004759, 'manufacturing', 0.25],
         ], $calls->getArrayCopy());
+    }
+
+    public function testEachUserEstimatesTheJobInstallCostInTheirOwnFavoriteManufacturingSolarSystem(): void
+    {
+        $alice = $this->userWithId();
+        $bob = $this->userWithId();
+        $aliceProject = $this->projectOfUserWithOneStepWithoutStructure($alice, 6);
+        $bobProject = $this->projectOfUserWithOneStepWithoutStructure($bob, 9);
+        $aliceSettings = (new IndustryUserSettings())->setFavoriteManufacturingSystemId(30004759);
+        $bobSettings = (new IndustryUserSettings())->setFavoriteManufacturingSystemId(30002187);
+        $this->userSettingsRepository->method('findOneBy')->willReturnCallback(
+            static fn (array $criteria): ?IndustryUserSettings => match ($criteria['user'] ?? null) {
+                $alice => $aliceSettings,
+                $bob => $bobSettings,
+                default => null,
+            },
+        );
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
+            self::RIFTER_BLUEPRINT_TYPE_ID => [['materialTypeId' => self::PYERITE_TYPE_ID, 'quantity' => 1_350]],
+        ]);
+        $calls = $this->recordInstallCostEstimates(fn (array $materials): array => $this->installCostOf(3_710.0));
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(0.0318);
+        $this->calculationService->method('resolveTypeName')->willReturn('Rifter');
+        $this->solarSystemRepository->method('findBySolarSystemId')->willReturn(null);
+
+        $aliceResult = $this->service->estimateJobInstallCosts($aliceProject);
+        $bobResult = $this->service->estimateJobInstallCosts($bobProject);
+
+        $this->assertSame(30004759, $aliceResult['steps'][0]['solarSystemId']);
+        $this->assertSame(30002187, $bobResult['steps'][0]['solarSystemId']);
+        $this->assertSame([
+            [[['materialTypeId' => self::PYERITE_TYPE_ID, 'quantity' => 1_350]], 6, 30004759, 'manufacturing', self::NPC_STATION_FACILITY_TAX_PERCENT],
+            [[['materialTypeId' => self::PYERITE_TYPE_ID, 'quantity' => 1_350]], 9, 30002187, 'manufacturing', self::NPC_STATION_FACILITY_TAX_PERCENT],
+        ], $calls->getArrayCopy());
+    }
+
+    public function testEstimateJobInstallCostsKeepsCountingTheManufacturingStepsAfterACopyStep(): void
+    {
+        $config = $this->createStructureConfig(30002510, 4.0);
+        $copyStep = $this->createStep('copy', self::RIFTER_BLUEPRINT_TYPE_ID, 3, $config, self::RIFTER_BLUEPRINT_TYPE_ID);
+        $inventionStep = $this->createStep('invention', 11400, 2, $config, 11401);
+        $manufacturingStep = $this->createStep('manufacturing', self::RIFTER_TYPE_ID, 3, $config, self::RIFTER_BLUEPRINT_TYPE_ID);
+        $project = $this->createProject(self::RIFTER_TYPE_ID, 3);
+        $project->method('getSteps')->willReturn(new ArrayCollection([$copyStep, $inventionStep, $manufacturingStep]));
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
+            self::RIFTER_BLUEPRINT_TYPE_ID => [['materialTypeId' => self::PYERITE_TYPE_ID, 'quantity' => 2_640]],
+        ]);
+        $calls = $this->recordInstallCostEstimates(fn (array $materials): array => $this->installCostOf(8_215.0));
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(0.0447);
+        $this->calculationService->method('resolveTypeName')->willReturn('Rifter');
+        $this->solarSystemRepository->method('findBySolarSystemId')->willReturn(null);
+
+        $result = $this->service->estimateJobInstallCosts($project);
+
+        $this->assertSame(8_215.0, $result['total']);
+        $this->assertCount(1, $result['steps']);
+        $this->assertSame(self::RIFTER_TYPE_ID, $result['steps'][0]['productTypeId']);
+        $this->assertSame([
+            [[['materialTypeId' => self::PYERITE_TYPE_ID, 'quantity' => 2_640]], 3, 30002510, 'manufacturing', 4.0],
+        ], $calls->getArrayCopy());
+    }
+
+    public function testEstimateJobInstallCostsIdentifiesEachStepAndNamesItsSolarSystemOrItsIdWhenMissingFromTheSde(): void
+    {
+        $rifterStep = $this->createStep('manufacturing', self::RIFTER_TYPE_ID, 4, $this->createStructureConfig(30002510), self::RIFTER_BLUEPRINT_TYPE_ID);
+        $stepInASolarSystemMissingFromTheSde = $this->createStep('manufacturing', self::STEP_B_PRODUCT_TYPE_ID, 7, $this->createStructureConfig(31000005), 11398);
+        $project = $this->createProject(self::RIFTER_TYPE_ID, 4);
+        $project->method('getSteps')->willReturn(new ArrayCollection([$rifterStep, $stepInASolarSystemMissingFromTheSde]));
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([]);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn($this->installCostOf(1_920.0));
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(0.0275);
+        $this->calculationService->method('resolveTypeName')->willReturn('Rifter');
+        $rens = $this->createMock(MapSolarSystem::class);
+        $rens->method('getSolarSystemName')->willReturn('Rens');
+        $this->solarSystemRepository->method('findBySolarSystemId')->willReturnCallback(
+            static fn (int $solarSystemId): ?MapSolarSystem => $solarSystemId === 30002510 ? $rens : null,
+        );
+
+        $result = $this->service->estimateJobInstallCosts($project);
+
+        $this->assertSame($rifterStep->getId()?->toRfc4122(), $result['steps'][0]['stepId']);
+        $this->assertSame('Rens', $result['steps'][0]['systemName']);
+        $this->assertSame($stepInASolarSystemMissingFromTheSde->getId()?->toRfc4122(), $result['steps'][1]['stepId']);
+        $this->assertSame('System #31000005', $result['steps'][1]['systemName']);
+    }
+
+    #[Group('issue-125')]
+    public function testPerUnitCostOfAReactionProjectIsCurrentlyComputedAtOneUnitPerRunIssue125(): void
+    {
+        $ferniteCarbideTypeId = 16673;
+        $reactionStep = $this->createStep('reaction', $ferniteCarbideTypeId, 8, $this->createStructureConfig(30002510), 46166);
+        $project = $this->createProject($ferniteCarbideTypeId, 8, 12_000.0);
+        $project->method('getSteps')->willReturn(new ArrayCollection([$reactionStep]));
+        $this->shoppingListBuilder->method('getShoppingList')->willReturn([
+            'materials' => [['typeId' => 16640, 'typeName' => 'Fernite Alloy', 'quantity' => 800]],
+            'failedProducts' => [],
+        ]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([16640 => 95.5]);
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([]);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn($this->installCostOf(3_600.0));
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(0.0612);
+        $this->calculationService->method('resolveTypeName')->willReturn('Fernite Carbide');
+        $this->solarSystemRepository->method('findBySolarSystemId')->willReturn(null);
+        $this->productRepository->method('findBlueprintForProduct')->willReturn(null);
+
+        $result = $this->service->estimateTotalCost($project);
+
+        $this->assertSame(76_400.0, $result['materialCost']);
+        $this->assertSame(92_000.0, $result['totalCost']);
+        $this->assertSame(11_500.0, $result['perUnit']);
+    }
+
+    #[Group('issue-8')]
+    public function testEstimateMaterialCostCurrentlyCountsAMaterialWithoutJitaPriceAsFreeIssue8(): void
+    {
+        $project = $this->createProject(self::RIFTER_TYPE_ID, 1);
+        $this->shoppingListBuilder->method('getShoppingList')->willReturn([
+            'materials' => [
+                ['typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 4_200],
+                ['typeId' => 11399, 'typeName' => 'Morphite', 'quantity' => 37],
+            ],
+            'failedProducts' => [],
+        ]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 5.25, 11399 => null]);
+
+        $result = $this->service->estimateMaterialCost($project);
+
+        $this->assertSame(22_050.0, $result['total']);
+        $this->assertSame(0.0, $result['items'][1]['unitPrice']);
+        $this->assertSame(0.0, $result['items'][1]['totalPrice']);
+        $this->assertSame([], $result['failedProducts']);
+    }
+
+    private function projectOfUserWithOneStepWithoutStructure(User $user, int $runs): IndustryProject&MockObject
+    {
+        $project = $this->createMock(IndustryProject::class);
+        $project->method('getProductTypeId')->willReturn(self::RIFTER_TYPE_ID);
+        $project->method('getRuns')->willReturn($runs);
+        $project->method('getUser')->willReturn($user);
+        $step = $this->createStep('manufacturing', self::RIFTER_TYPE_ID, $runs, null, self::RIFTER_BLUEPRINT_TYPE_ID);
+        $step->method('getProject')->willReturn($project);
+        $project->method('getSteps')->willReturn(new ArrayCollection([$step]));
+
+        return $project;
     }
 }

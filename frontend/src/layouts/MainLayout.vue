@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { useEventListener, useMediaQuery } from '@vueuse/core'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
@@ -8,7 +9,20 @@ import { useAdminStore } from '@/stores/admin'
 import { useFormatters } from '@/composables/useFormatters'
 import { apiRequest } from '@/services/api'
 import { useStructuresStore } from '@/stores/industry/structures'
+import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import CommandPalette from '@/components/common/CommandPalette.vue'
+import {
+  adminNavItem,
+  allNavEntries,
+  isNavGroup,
+  readHiddenModules,
+  saveHiddenModules,
+  settableModules,
+  type NavEntry,
+  type NavGroup,
+  type NavItem,
+} from '@/constants/sidebarNavigation'
 
 const router = useRouter()
 const { t, locale } = useI18n()
@@ -96,65 +110,6 @@ onUnmounted(() => {
 const user = computed(() => authStore.user)
 const mainCharacter = computed(() => user.value?.mainCharacter || user.value?.characters?.[0])
 
-const DEFAULT_HIDDEN_MODULES: string[] = []
-
-// Navigation types
-interface NavItem {
-  id: string
-  labelKey: string
-  icon: string
-  route: string
-}
-
-interface NavGroup {
-  id: string
-  labelKey: string
-  icon: string
-  collapsible: true
-  children: NavItem[]
-}
-
-type NavEntry = NavItem | NavGroup
-
-function isNavGroup(entry: NavEntry): entry is NavGroup {
-  return 'collapsible' in entry && entry.collapsible === true
-}
-
-const allNavEntries: NavEntry[] = [
-  { id: 'dashboard', labelKey: 'nav.dashboard', route: '/dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-  { id: 'ledger', labelKey: 'nav.revenue', route: '/ledger', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' },
-  {
-    id: 'production',
-    labelKey: 'nav.production',
-    icon: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z',
-    collapsible: true,
-    children: [
-      { id: 'industry', labelKey: 'nav.industry', route: '/industry', icon: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z' },
-      { id: 'group-industry', labelKey: 'nav.groupIndustry', route: '/group-industry', icon: 'M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z' },
-      { id: 'appraisal', labelKey: 'nav.appraisal', route: '/appraisal', icon: 'M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z' },
-      { id: 'planetary', labelKey: 'nav.pi', route: '/planetary', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9' },
-    ]
-  },
-  { id: 'market', labelKey: 'nav.market', route: '/market', icon: 'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z' },
-  { id: 'assets', labelKey: 'nav.inventory', route: '/assets', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
-]
-
-const adminNavItem: NavItem = {
-  id: 'admin', labelKey: 'nav.admin', route: '/admin', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z'
-}
-
-// Flat list of all settable module IDs (for settings modal)
-const settableModules: NavItem[] = [
-  { id: 'dashboard', labelKey: 'nav.dashboard', route: '/dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-  { id: 'ledger', labelKey: 'nav.revenue', route: '/ledger', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' },
-  { id: 'industry', labelKey: 'nav.industry', route: '/industry', icon: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z' },
-  { id: 'group-industry', labelKey: 'nav.groupIndustry', route: '/group-industry', icon: 'M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z' },
-  { id: 'appraisal', labelKey: 'nav.appraisal', route: '/appraisal', icon: 'M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z' },
-  { id: 'planetary', labelKey: 'nav.pi', route: '/planetary', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9' },
-  { id: 'market', labelKey: 'nav.market', route: '/market', icon: 'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z' },
-  { id: 'assets', labelKey: 'nav.inventory', route: '/assets', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
-]
-
 // Settings
 const showSettings = ref(false)
 const hiddenModules = ref<string[]>([])
@@ -191,24 +146,72 @@ function isGroupExpanded(group: NavGroup): boolean {
   return !collapsedGroups.value[group.id]
 }
 
+const NAVIGATION_DRAWER_ID = 'navigation-drawer'
+const isWideScreen = useMediaQuery('(min-width: 1024px)')
+const isDrawerOpen = ref(false)
+const menuButton = ref<HTMLButtonElement | null>(null)
+const drawerCloseButton = ref<HTMLButtonElement | null>(null)
+
+async function openDrawer(): Promise<void> {
+  isDrawerOpen.value = true
+  await nextTick()
+  drawerCloseButton.value?.focus()
+}
+
+function closeDrawer(): void {
+  isDrawerOpen.value = false
+}
+
+async function closeDrawerAndFocusMenuButton(): Promise<void> {
+  closeDrawer()
+  await nextTick()
+  menuButton.value?.focus()
+}
+
+function closeDrawerOnNavigationClick(event: MouseEvent): void {
+  const isPlainClick = event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey
+  const isOnLink = event.target instanceof Element && event.target.closest('a[href]') !== null
+  if (isDrawerOpen.value && isPlainClick && isOnLink) {
+    closeDrawer()
+  }
+}
+
+useEventListener(window, 'keydown', (event: KeyboardEvent) => {
+  if (isDrawerOpen.value && event.key === 'Escape') {
+    closeDrawerAndFocusMenuButton()
+  }
+})
+
+const isCommandPaletteOpen = ref(false)
+
+function isCommandPaletteShortcut(event: KeyboardEvent): boolean {
+  return event.key.toLowerCase() === 'k' && (event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey
+}
+
+useEventListener(window, 'keydown', (event: KeyboardEvent) => {
+  if (isCommandPaletteShortcut(event)) {
+    event.preventDefault()
+    isCommandPaletteOpen.value = !isCommandPaletteOpen.value
+  }
+})
+
+watch(isWideScreen, (isWide) => {
+  if (isWide) closeDrawer()
+})
+watch(() => router.currentRoute.value.fullPath, closeDrawer)
+watch(showSettings, (opened) => {
+  if (opened) closeDrawer()
+})
+
 // Load settings from localStorage
 onMounted(() => {
   loadCollapsedGroups()
-  const saved = localStorage.getItem('evetools_hidden_modules')
-  if (saved) {
-    try {
-      hiddenModules.value = JSON.parse(saved)
-    } catch {
-      hiddenModules.value = [...DEFAULT_HIDDEN_MODULES]
-    }
-  } else {
-    hiddenModules.value = [...DEFAULT_HIDDEN_MODULES]
-  }
+  hiddenModules.value = readHiddenModules()
 })
 
 // Save settings to localStorage
 function saveSettings(): void {
-  localStorage.setItem('evetools_hidden_modules', JSON.stringify(hiddenModules.value))
+  saveHiddenModules(hiddenModules.value)
 }
 
 function toggleModule(moduleId: string): void {
@@ -246,10 +249,6 @@ const filteredNavEntries = computed((): NavEntry[] => {
   }
   return result
 })
-
-function navigateTo(item: NavItem): void {
-  router.push(item.route)
-}
 
 function isActiveRoute(item: NavItem): boolean {
   return router.currentRoute.value.path === item.route
@@ -425,8 +424,26 @@ watch(showSettings, (opened) => {
     </Transition>
 
     <div class="relative flex h-screen" :class="{ 'pt-10': rateLimitStore.isRateLimited }">
-      <!-- Sidebar -->
-      <aside class="w-64 bg-slate-900 border-r border-cyan-500/20 flex flex-col">
+      <div
+        v-if="isDrawerOpen"
+        data-testid="navigation-drawer-backdrop"
+        role="presentation"
+        class="fixed inset-0 z-30 bg-slate-950/70"
+        @click="closeDrawerAndFocusMenuButton"
+      ></div>
+
+      <!-- Sidebar (persistent on wide screens, modal drawer otherwise) -->
+      <aside
+        v-show="isWideScreen || isDrawerOpen"
+        :id="isWideScreen ? undefined : NAVIGATION_DRAWER_ID"
+        :role="isWideScreen ? undefined : 'dialog'"
+        :aria-modal="isWideScreen ? undefined : 'true'"
+        :aria-label="isWideScreen ? undefined : t('nav.menu')"
+        :class="[
+          'w-64 bg-slate-900 border-r border-cyan-500/20 flex flex-col',
+          isWideScreen ? '' : 'fixed inset-y-0 left-0 z-40 max-w-[85vw]'
+        ]"
+      >
         <!-- Logo -->
         <div class="p-6 border-b border-cyan-500/20">
           <div class="flex items-center gap-3">
@@ -439,6 +456,18 @@ watch(showSettings, (opened) => {
               <h1 class="text-lg font-bold tracking-tight text-transparent bg-clip-text bg-linear-to-r from-cyan-400 to-blue-400">EVE Tools</h1>
               <p class="text-xs text-slate-500 tracking-widest uppercase">Utilities</p>
             </div>
+            <button
+              v-if="!isWideScreen"
+              ref="drawerCloseButton"
+              type="button"
+              class="ml-auto p-1 hover:bg-slate-800 rounded-lg transition-colors"
+              :aria-label="t('nav.closeMenu')"
+              @click="closeDrawerAndFocusMenuButton"
+            >
+              <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -450,6 +479,7 @@ watch(showSettings, (opened) => {
               <!-- Group header -->
               <button
                 @click="toggleGroup(entry.id)"
+                :aria-expanded="isGroupExpanded(entry as NavGroup)"
                 class="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group relative overflow-hidden border text-slate-400 border-transparent hover:bg-slate-800/50 hover:text-slate-200 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/5"
               >
                 <div class="absolute inset-0 bg-linear-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
@@ -470,10 +500,12 @@ watch(showSettings, (opened) => {
                 v-if="isGroupExpanded(entry as NavGroup)"
                 class="mt-1 space-y-0.5 pl-4"
               >
-                <button
+                <RouterLink
                   v-for="child in (entry as NavGroup).children"
                   :key="child.id"
-                  @click="navigateTo(child)"
+                  :to="child.route"
+                  :aria-current="isActiveRoute(child) ? 'page' : undefined"
+                  @click="closeDrawerOnNavigationClick"
                   :class="[
                     'w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-300 group relative overflow-hidden border text-sm',
                     isActiveRoute(child)
@@ -487,14 +519,16 @@ watch(showSettings, (opened) => {
                   </svg>
                   <span class="font-medium relative">{{ t(child.labelKey) }}</span>
                   <div v-if="isActiveRoute(child)" class="ml-auto w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse relative"></div>
-                </button>
+                </RouterLink>
               </div>
             </div>
 
             <!-- Simple nav item -->
-            <button
+            <RouterLink
               v-else
-              @click="navigateTo(entry as NavItem)"
+              :to="(entry as NavItem).route"
+              :aria-current="isActiveRoute(entry as NavItem) ? 'page' : undefined"
+              @click="closeDrawerOnNavigationClick"
               :class="[
                 'w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group relative overflow-hidden border',
                 isActiveRoute(entry as NavItem)
@@ -508,7 +542,7 @@ watch(showSettings, (opened) => {
               </svg>
               <span class="font-medium relative">{{ t((entry as NavItem).labelKey) }}</span>
               <div v-if="isActiveRoute(entry as NavItem)" class="ml-auto w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse relative"></div>
-            </button>
+            </RouterLink>
           </template>
         </nav>
 
@@ -517,7 +551,11 @@ watch(showSettings, (opened) => {
           <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
             <!-- Clickable user info -->
             <div
+              role="button"
+              tabindex="0"
               @click="showSettings = true"
+              @keydown.enter.self.prevent="showSettings = true"
+              @keydown.space.self.prevent="showSettings = true"
               class="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
               :title="t('auth.openSettings')"
             >
@@ -542,15 +580,15 @@ watch(showSettings, (opened) => {
             </div>
             <div class="mt-4 flex flex-col gap-1.5">
               <!-- Row 1: Characters button (full width) -->
-              <button
-                @click="router.push('/characters')"
+              <RouterLink
+                to="/characters"
                 class="w-full py-2 px-3 bg-slate-700/50 hover:bg-cyan-500/20 rounded-lg text-sm text-slate-400 hover:text-cyan-400 transition-colors flex items-center justify-center gap-2"
               >
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                 </svg>
                 <span class="truncate">{{ t('nav.characters') }}</span>
-              </button>
+              </RouterLink>
               <!-- Row 2: Logout + Version -->
               <div class="flex items-center gap-1.5">
                 <button
@@ -580,268 +618,285 @@ watch(showSettings, (opened) => {
       </aside>
 
       <!-- Settings Modal -->
-      <Teleport to="body">
-        <div
-          v-if="showSettings"
-          class="fixed inset-0 z-50 flex items-center justify-center"
-        >
-          <!-- Backdrop -->
-          <div
-            class="absolute inset-0 bg-slate-950/80"
-            @click="showSettings = false"
-          ></div>
+      <BaseModal
+        :show="showSettings"
+        :title="t('settings.title')"
+        panel-class="border-cyan-500/30 shadow-cyan-500/10 max-w-md max-h-[85vh] flex flex-col"
+        @close="showSettings = false"
+      >
+        <!-- Header -->
+        <template #title="{ titleId }">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800 shrink-0">
+            <h3 :id="titleId" class="text-lg font-semibold text-slate-100">{{ t('settings.title') }}</h3>
+            <button
+              @click="showSettings = false"
+              :aria-label="t('common.actions.close')"
+              class="p-1 hover:bg-slate-800 rounded-lg transition-colors"
+            >
+              <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+        </template>
 
-          <!-- Modal -->
-          <div class="relative bg-slate-900 rounded-2xl border border-cyan-500/30 shadow-2xl shadow-cyan-500/10 w-full max-w-md mx-4 max-h-[85vh] flex flex-col">
-            <!-- Header -->
-            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800 shrink-0">
-              <h3 class="text-lg font-semibold text-slate-100">{{ t('settings.title') }}</h3>
-              <button
-                @click="showSettings = false"
-                class="p-1 hover:bg-slate-800 rounded-lg transition-colors"
+        <!-- Content -->
+        <div class="p-6 overflow-y-auto min-h-0">
+          <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4">{{ t('settings.visibleModules') }}</h4>
+          <div class="space-y-2">
+            <label
+              v-for="item in settableModules"
+              :key="item.id"
+              class="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-colors"
+            >
+              <input
+                type="checkbox"
+                :checked="isModuleVisible(item.id)"
+                @change="toggleModule(item.id)"
+                class="w-4 h-4 rounded-sm border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900"
+              />
+              <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="item.icon"/>
+              </svg>
+              <span class="text-slate-200">{{ t(item.labelKey) }}</span>
+            </label>
+          </div>
+
+          <p class="mt-4 text-xs text-slate-500">
+            {{ t('settings.hiddenModulesNote') }}
+          </p>
+
+          <!-- Language selector -->
+          <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4 mt-6">{{ t('settings.language') }}</h4>
+          <div class="flex gap-2">
+            <button
+              @click="setLocale('fr')"
+              :class="[
+                'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors border',
+                locale === 'fr'
+                  ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-cyan-500/30 hover:text-slate-200'
+              ]"
+            >
+              {{ t('settings.french') }}
+            </button>
+            <button
+              @click="setLocale('en')"
+              :class="[
+                'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors border',
+                locale === 'en'
+                  ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-cyan-500/30 hover:text-slate-200'
+              ]"
+            >
+              {{ t('settings.english') }}
+            </button>
+          </div>
+          <p class="mt-2 text-xs text-slate-500">
+            {{ t('settings.languageNote') }}
+          </p>
+
+          <!-- Date format selector -->
+          <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4 mt-6">{{ t('settings.dateFormat') }}</h4>
+          <div class="flex gap-2">
+            <button
+              @click="setDateFormat('eu')"
+              :class="[
+                'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors border',
+                dateFormat === 'eu'
+                  ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-cyan-500/30 hover:text-slate-200'
+              ]"
+            >
+              JJ/MM/AA
+            </button>
+            <button
+              @click="setDateFormat('us')"
+              :class="[
+                'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors border',
+                dateFormat === 'us'
+                  ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-cyan-500/30 hover:text-slate-200'
+              ]"
+            >
+              MM/DD/YY
+            </button>
+          </div>
+          <p class="mt-2 text-xs text-slate-500">
+            {{ t('settings.dateFormatNote') }}
+          </p>
+
+          <!-- Market structures list -->
+          <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-2 mt-6">{{ t('settings.marketStructure') }}</h4>
+          <p class="text-xs text-slate-500 mb-3">{{ t('settings.marketStructureDesc') }}</p>
+          <div v-if="loadingStructures" class="flex items-center gap-2 text-sm text-slate-500 py-2">
+            <LoadingSpinner size="sm" class="text-cyan-500" />
+            {{ t('settings.marketStructureLoading') }}
+          </div>
+          <div v-else>
+            <!-- Current structures list -->
+            <div v-if="marketStructures.length > 0" class="space-y-1.5 mb-3">
+              <div
+                v-for="struct in marketStructures"
+                :key="struct.id"
+                class="flex items-center justify-between bg-cyan-900/20 border border-cyan-700/50 rounded-lg px-3 py-2"
               >
-                <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-              </button>
-            </div>
-
-            <!-- Content -->
-            <div class="p-6 overflow-y-auto min-h-0">
-              <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4">{{ t('settings.visibleModules') }}</h4>
-              <div class="space-y-2">
-                <label
-                  v-for="item in settableModules"
-                  :key="item.id"
-                  class="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-colors"
-                >
-                  <input
-                    type="checkbox"
-                    :checked="isModuleVisible(item.id)"
-                    @change="toggleModule(item.id)"
-                    class="w-4 h-4 rounded-sm border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900"
-                  />
-                  <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="item.icon"/>
+                <div class="flex items-center gap-2 min-w-0">
+                  <svg class="w-4 h-4 text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
-                  <span class="text-slate-200">{{ t(item.labelKey) }}</span>
-                </label>
-              </div>
-
-              <p class="mt-4 text-xs text-slate-500">
-                {{ t('settings.hiddenModulesNote') }}
-              </p>
-
-              <!-- Language selector -->
-              <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4 mt-6">{{ t('settings.language') }}</h4>
-              <div class="flex gap-2">
-                <button
-                  @click="setLocale('fr')"
-                  :class="[
-                    'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors border',
-                    locale === 'fr'
-                      ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
-                      : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-cyan-500/30 hover:text-slate-200'
-                  ]"
-                >
-                  {{ t('settings.french') }}
-                </button>
-                <button
-                  @click="setLocale('en')"
-                  :class="[
-                    'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors border',
-                    locale === 'en'
-                      ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
-                      : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-cyan-500/30 hover:text-slate-200'
-                  ]"
-                >
-                  {{ t('settings.english') }}
-                </button>
-              </div>
-              <p class="mt-2 text-xs text-slate-500">
-                {{ t('settings.languageNote') }}
-              </p>
-
-              <!-- Date format selector -->
-              <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4 mt-6">{{ t('settings.dateFormat') }}</h4>
-              <div class="flex gap-2">
-                <button
-                  @click="setDateFormat('eu')"
-                  :class="[
-                    'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors border',
-                    dateFormat === 'eu'
-                      ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
-                      : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-cyan-500/30 hover:text-slate-200'
-                  ]"
-                >
-                  JJ/MM/AA
-                </button>
-                <button
-                  @click="setDateFormat('us')"
-                  :class="[
-                    'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors border',
-                    dateFormat === 'us'
-                      ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
-                      : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-cyan-500/30 hover:text-slate-200'
-                  ]"
-                >
-                  MM/DD/YY
-                </button>
-              </div>
-              <p class="mt-2 text-xs text-slate-500">
-                {{ t('settings.dateFormatNote') }}
-              </p>
-
-              <!-- Market structures list -->
-              <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-2 mt-6">{{ t('settings.marketStructure') }}</h4>
-              <p class="text-xs text-slate-500 mb-3">{{ t('settings.marketStructureDesc') }}</p>
-              <div v-if="loadingStructures" class="flex items-center gap-2 text-sm text-slate-500 py-2">
-                <LoadingSpinner size="sm" class="text-cyan-500" />
-                {{ t('settings.marketStructureLoading') }}
-              </div>
-              <div v-else>
-                <!-- Current structures list -->
-                <div v-if="marketStructures.length > 0" class="space-y-1.5 mb-3">
-                  <div
-                    v-for="struct in marketStructures"
-                    :key="struct.id"
-                    class="flex items-center justify-between bg-cyan-900/20 border border-cyan-700/50 rounded-lg px-3 py-2"
-                  >
-                    <div class="flex items-center gap-2 min-w-0">
-                      <svg class="w-4 h-4 text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                      </svg>
-                      <span class="text-sm text-cyan-300 truncate">{{ struct.name }}</span>
-                    </div>
-                    <button
-                      @click="removeMarketStructure(struct.id)"
-                      class="p-1 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-sm shrink-0 ml-2"
-                      :title="t('common.actions.delete')"
-                    >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
+                  <span class="text-sm text-cyan-300 truncate">{{ struct.name }}</span>
                 </div>
-
-                <!-- Search to add new structure -->
-                <div class="relative">
-                  <input
-                    v-model="structureSearchQuery"
-                    type="text"
-                    :placeholder="t('industry.structures.searchStructure')"
-                    @input="onStructureSearchInput"
-                    @focus="showStructureSearchDropdown = structureSearchResults.length > 0"
-                    @blur="hideStructureDropdownDelayed"
-                    class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-cyan-500/50 disabled:opacity-50"
-                    :disabled="savingStructure"
-                  />
-                  <div v-if="isSearchingStructures" class="absolute right-3 top-1/2 -translate-y-1/2">
-                    <LoadingSpinner size="sm" class="text-slate-400" />
-                  </div>
-
-                  <!-- Search results dropdown -->
-                  <div
-                    v-if="showStructureSearchDropdown && structureSearchResults.length > 0"
-                    class="absolute z-10 mt-1 w-full bg-slate-800 border border-slate-600 rounded-lg shadow-lg max-h-48 overflow-y-auto"
-                  >
-                    <button
-                      v-for="result in structureSearchResults"
-                      :key="result.locationId"
-                      @mousedown.prevent="selectStructureSearchResult(result)"
-                      class="w-full px-3 py-2 hover:bg-slate-700 text-left"
-                    >
-                      <div class="text-sm text-slate-200">{{ result.locationName }}</div>
-                      <div v-if="result.solarSystemName" class="text-xs text-slate-500">{{ result.solarSystemName }}</div>
-                    </button>
-                  </div>
-                </div>
+                <button
+                  @click="removeMarketStructure(struct.id)"
+                  class="p-1 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-sm shrink-0 ml-2"
+                  :title="t('common.actions.delete')"
+                  :aria-label="t('common.actions.delete')"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
-              <Transition name="fade">
-                <p v-if="structureSaveSuccess" class="mt-2 text-xs text-emerald-400">
-                  {{ t('settings.marketStructureSaved') }}
-                </p>
-              </Transition>
             </div>
 
-            <!-- Footer -->
-            <div class="px-6 py-4 border-t border-slate-800 flex justify-end shrink-0">
-              <button
-                @click="showSettings = false"
-                class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-colors"
+            <!-- Search to add new structure -->
+            <div class="relative">
+              <input
+                v-model="structureSearchQuery"
+                type="text"
+                :aria-label="t('industry.structures.searchStructure')"
+                :placeholder="t('industry.structures.searchStructure')"
+                @input="onStructureSearchInput"
+                @focus="showStructureSearchDropdown = structureSearchResults.length > 0"
+                @blur="hideStructureDropdownDelayed"
+                class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-cyan-500/50 disabled:opacity-50"
+                :disabled="savingStructure"
+              />
+              <div v-if="isSearchingStructures" class="absolute right-3 top-1/2 -translate-y-1/2">
+                <LoadingSpinner size="sm" class="text-slate-400" />
+              </div>
+
+              <!-- Search results dropdown -->
+              <div
+                v-if="showStructureSearchDropdown && structureSearchResults.length > 0"
+                class="absolute z-10 mt-1 w-full bg-slate-800 border border-slate-600 rounded-lg shadow-lg max-h-48 overflow-y-auto"
               >
-                {{ t('common.actions.close') }}
-              </button>
+                <button
+                  v-for="result in structureSearchResults"
+                  :key="result.locationId"
+                  @mousedown.prevent="selectStructureSearchResult(result)"
+                  class="w-full px-3 py-2 hover:bg-slate-700 text-left"
+                >
+                  <div class="text-sm text-slate-200">{{ result.locationName }}</div>
+                  <div v-if="result.solarSystemName" class="text-xs text-slate-500">{{ result.solarSystemName }}</div>
+                </button>
+              </div>
             </div>
           </div>
+          <Transition name="fade">
+            <p v-if="structureSaveSuccess" class="mt-2 text-xs text-emerald-400">
+              {{ t('settings.marketStructureSaved') }}
+            </p>
+          </Transition>
         </div>
-      </Teleport>
+
+        <!-- Footer -->
+        <div class="px-6 py-4 border-t border-slate-800 flex justify-end shrink-0">
+          <button
+            @click="showSettings = false"
+            class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-colors"
+          >
+            {{ t('common.actions.close') }}
+          </button>
+        </div>
+      </BaseModal>
 
       <!-- Release Notes Modal -->
-      <Teleport to="body">
-        <div
-          v-if="showReleaseNotes"
-          class="fixed inset-0 z-50 flex items-center justify-center"
-        >
-          <!-- Backdrop -->
-          <div
-            class="absolute inset-0 bg-slate-950/80"
-            @click="showReleaseNotes = false"
-          ></div>
-
-          <!-- Modal -->
-          <div class="relative bg-slate-900 rounded-2xl border border-cyan-500/30 shadow-2xl shadow-cyan-500/10 w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col">
-            <!-- Header -->
-            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-              <h3 class="text-lg font-semibold text-slate-100">{{ t('header.releaseNotes') }}</h3>
-              <button
-                @click="showReleaseNotes = false"
-                class="p-1 hover:bg-slate-800 rounded-lg transition-colors"
-              >
-                <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-              </button>
-            </div>
-
-            <!-- Content -->
-            <div class="flex-1 overflow-y-auto p-6">
-              <div v-if="loadingReleaseNotes" class="flex items-center justify-center py-8">
-                <LoadingSpinner size="lg" class="text-cyan-500" />
-              </div>
-              <pre v-else class="text-sm text-slate-300 whitespace-pre-wrap font-mono leading-relaxed">{{ releaseNotes }}</pre>
-            </div>
-
-            <!-- Footer -->
-            <div class="px-6 py-4 border-t border-slate-800 flex justify-end">
-              <button
-                @click="showReleaseNotes = false"
-                class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-colors"
-              >
-                {{ t('common.actions.close') }}
-              </button>
-            </div>
+      <BaseModal
+        :show="showReleaseNotes"
+        :title="t('header.releaseNotes')"
+        panel-class="border-cyan-500/30 shadow-cyan-500/10 max-w-2xl max-h-[80vh] flex flex-col"
+        @close="showReleaseNotes = false"
+      >
+        <!-- Header -->
+        <template #title="{ titleId }">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+            <h3 :id="titleId" class="text-lg font-semibold text-slate-100">{{ t('header.releaseNotes') }}</h3>
+            <button
+              @click="showReleaseNotes = false"
+              :aria-label="t('common.actions.close')"
+              class="p-1 hover:bg-slate-800 rounded-lg transition-colors"
+            >
+              <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
           </div>
+        </template>
+
+        <!-- Content -->
+        <div class="flex-1 overflow-y-auto p-6">
+          <div v-if="loadingReleaseNotes" class="flex items-center justify-center py-8">
+            <LoadingSpinner size="lg" class="text-cyan-500" />
+          </div>
+          <pre v-else class="text-sm text-slate-300 whitespace-pre-wrap font-mono leading-relaxed">{{ releaseNotes }}</pre>
         </div>
-      </Teleport>
+
+        <!-- Footer -->
+        <div class="px-6 py-4 border-t border-slate-800 flex justify-end">
+          <button
+            @click="showReleaseNotes = false"
+            class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-colors"
+          >
+            {{ t('common.actions.close') }}
+          </button>
+        </div>
+      </BaseModal>
 
       <!-- Main content -->
-      <main class="flex-1 overflow-auto">
+      <main class="flex-1 min-w-0 overflow-auto" :inert="isDrawerOpen">
         <!-- Header -->
-        <header class="sticky top-0 z-10 bg-slate-900 border-b border-cyan-500/10 px-8 py-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <h2 class="text-2xl font-bold text-slate-100">{{ currentPageTitle }}</h2>
-              <p class="text-sm text-slate-500 mt-1">{{ t('header.welcomeBack') }}</p>
+        <header class="sticky top-0 z-10 bg-slate-900 border-b border-cyan-500/10 px-4 md:px-8 py-4">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <button
+                v-if="!isWideScreen"
+                ref="menuButton"
+                type="button"
+                class="shrink-0 p-2 hover:bg-slate-800 rounded-lg transition-colors"
+                :aria-label="t('nav.openMenu')"
+                :aria-controls="NAVIGATION_DRAWER_ID"
+                :aria-expanded="isDrawerOpen"
+                @click="openDrawer"
+              >
+                <svg class="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+              </button>
+              <div class="min-w-0">
+                <h2 class="text-lg md:text-2xl font-bold text-slate-100 truncate">{{ currentPageTitle }}</h2>
+                <p class="hidden md:block text-sm text-slate-500 mt-1">{{ t('header.welcomeBack') }}</p>
+              </div>
             </div>
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2 md:gap-4 shrink-0">
+              <button
+                type="button"
+                class="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-300"
+                :aria-label="t('commandPalette.open')"
+                :title="t('commandPalette.open')"
+                @click="isCommandPaletteOpen = true"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"/>
+                </svg>
+              </button>
               <!-- Notification Bell -->
               <NotificationBell />
               <!-- ESI Status -->
               <div
                 :class="[
-                  'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs',
+                  'flex items-center gap-2 px-2 md:px-3 py-1.5 rounded-lg border text-xs',
                   esiError
                     ? 'bg-red-500/10 border-red-500/30'
                     : esiRateLimited
@@ -856,25 +911,27 @@ watch(showSettings, (opened) => {
                     esiError ? 'bg-red-500' : esiRateLimited ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500 animate-pulse'
                   ]"
                 ></div>
-                <span :class="esiError ? 'text-red-400' : esiRateLimited ? 'text-amber-400' : 'text-emerald-400'">
+                <span :class="['hidden md:inline', esiError ? 'text-red-400' : esiRateLimited ? 'text-amber-400' : 'text-emerald-400']">
                   ESI {{ esiError ? 'DOWN' : esiRateLimited ? 'RATE LIMITED' : 'OK' }}
                 </span>
-                <span v-if="esiStatus?.players && !esiError && !esiRateLimited" class="text-slate-500">
+                <span v-if="esiStatus?.players && !esiError && !esiRateLimited" class="hidden md:inline text-slate-500">
                   {{ (esiStatus.players / 1000).toFixed(1) }}k
                 </span>
               </div>
               <!-- Alliance badge -->
-              <div v-if="mainCharacter?.allianceId" class="flex items-center gap-2 px-4 py-2 bg-amber-500/10 rounded-lg border border-amber-500/30">
+              <div v-if="mainCharacter?.allianceId" class="hidden md:flex items-center gap-2 px-4 py-2 bg-amber-500/10 rounded-lg border border-amber-500/30">
                 <img
                   :src="`https://images.evetech.net/alliances/${mainCharacter.allianceId}/logo?size=32`"
+                  alt=""
                   class="w-6 h-6"
                 />
                 <span class="text-amber-400 text-sm font-medium">{{ mainCharacter.allianceName }}</span>
               </div>
               <!-- Corporation badge -->
-              <div v-if="mainCharacter?.corporationId" class="flex items-center gap-2 px-4 py-2 bg-cyan-500/10 rounded-lg border border-cyan-500/30">
+              <div v-if="mainCharacter?.corporationId" class="hidden md:flex items-center gap-2 px-4 py-2 bg-cyan-500/10 rounded-lg border border-cyan-500/30">
                 <img
                   :src="`https://images.evetech.net/corporations/${mainCharacter.corporationId}/logo?size=32`"
+                  alt=""
                   class="w-6 h-6"
                 />
                 <span class="text-cyan-400 text-sm font-medium">{{ mainCharacter.corporationName }}</span>
@@ -884,7 +941,7 @@ watch(showSettings, (opened) => {
         </header>
 
         <!-- Page content -->
-        <div class="p-8">
+        <div class="p-4 md:p-8">
           <div class="max-w-7xl mx-auto">
             <slot />
           </div>
@@ -894,6 +951,12 @@ watch(showSettings, (opened) => {
         <LegalFooter />
       </main>
     </div>
+
+    <CommandPalette
+      :show="isCommandPaletteOpen"
+      :is-admin="isAdmin"
+      @close="isCommandPaletteOpen = false"
+    />
   </div>
 </template>
 

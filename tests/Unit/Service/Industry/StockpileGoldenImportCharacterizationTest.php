@@ -27,6 +27,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -49,6 +50,12 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
     private const int ROBOTICS = 9848;
     private const int COOLANT = 9832;
     private const int OXYGEN = 3683;
+    private const int ENRICHED_URANIUM = 44;
+    private const int MECHANICAL_PARTS = 3689;
+    private const int HEAVY_WATER = 16272;
+    private const int LIQUID_OZONE = 16273;
+    private const int STRONTIUM_CLATHRATES = 16275;
+    private const float TWO_ISK = 2.0;
     private const int FERNITE_CARBIDE = 16673;
     private const int HYDROGEN_FUEL_BLOCK = 4246;
     private const int NOMAD = 28846;
@@ -58,6 +65,10 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
 
     /** @var array<int, float> */
     private array $jitaPrices = [];
+
+    private array $esiFallbackPrices = [];
+
+    private array $jitaPriceRequests = [];
 
     private array $typeIdsWithoutSdeName = [];
 
@@ -79,9 +90,16 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         $this->entityManager->method('getConnection')->willReturn($connection);
 
         $jitaMarketService = $this->createMock(JitaMarketService::class);
-        $jitaMarketService->method('getPrices')->willReturnCallback(
-            fn (array $typeIds): array => array_intersect_key($this->jitaPrices, array_flip($typeIds)),
-        );
+        $jitaMarketService->method('getPrices')->willReturnCallback(function (array $typeIds): array {
+            $this->jitaPriceRequests[] = ['cache', $typeIds];
+
+            return $this->pricesOf($typeIds, $this->jitaPrices);
+        });
+        $jitaMarketService->method('getPricesWithFallback')->willReturnCallback(function (array $typeIds): array {
+            $this->jitaPriceRequests[] = ['fallback', $typeIds];
+
+            return $this->pricesOf($typeIds, $this->jitaPrices + $this->esiFallbackPrices);
+        });
 
         $treeService = $this->treeServiceOnGoldenSde();
         $this->service = new StockpileService(
@@ -96,10 +114,8 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         $this->pilot = $this->createMock(User::class);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #2 (R3, B1) : les runs saisis sont lus comme
-    // une quantité. 25 runs de Nitrogen Fuel Block (40 unités par run) deviennent 1 run : cible 40 au lieu de 1000,
-    // Nitrogen Isotopes 405 au lieu de 10125 (golden nitrogen-fuel-block-25runs-me10-npc, currentEvetoolsSimulated).
-    public function testPreviewOfTwentyFiveRunsOfNitrogenFuelBlockReadsTheRunsAsAQuantityIssue2(): void
+    #[Group('issue-2')]
+    public function testPreviewOfTwentyFiveRunsOfNitrogenFuelBlockCurrentlyReadsTheRunsAsAQuantityIssue2(): void
     {
         $preview = $this->service->previewImport($this->pilot, self::NITROGEN_FUEL_BLOCK, 25, 10);
 
@@ -128,9 +144,7 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         self::assertSame(40, $preview['stages']['final_product'][0]['quantity']);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #2 (R3, B1) : les 41 runs saisis sont lus
-    // comme 41 unités, soit 2 runs de 40 unités : cible 80 au lieu de 1640. Chaque matériau est arrondi au supérieur
-    // avec un minimum d'une unité par run.
+    #[Group('issue-2')]
     public function testPreviewOfNitrogenFuelBlockAtMeTenCurrentlyReadsFortyOneRunsAsUnitsIssue2(): void
     {
         $preview = $this->service->previewImport($this->pilot, self::NITROGEN_FUEL_BLOCK, 41, 10);
@@ -142,9 +156,8 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         );
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #8 (R10) : un item sans prix Jita est exclu
-    // de estimatedCost, qui reste affiché comme un montant connu au lieu d'un coût inconnu.
-    public function testPreviewEstimatedCostSilentlyLeavesOutTheItemsWithoutJitaPriceIssue8(): void
+    #[Group('issue-8')]
+    public function testPreviewEstimatedCostIsUnknownWhenSomeItemsHaveNoJitaPrice(): void
     {
         $this->jitaPrices = [
             self::NITROGEN_FUEL_BLOCK => 600.5,
@@ -155,21 +168,86 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         $preview = $this->service->previewImport($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 10);
 
         self::assertSame(600.5, $preview['stages']['final_product'][0]['unitPrice']);
-        $robotics = $this->entryOf($preview['stages']['raw_material'], self::ROBOTICS);
-        self::assertSame(['typeId' => self::ROBOTICS, 'typeName' => 'Robotics', 'quantity' => 1, 'unitPrice' => null], $robotics);
+        self::assertSame(0.25, $this->entryOf($preview['stages']['raw_material'], self::NITROGEN_ISOTOPES)['unitPrice']);
+        self::assertSame(150.0, $this->entryOf($preview['stages']['raw_material'], self::COOLANT)['unitPrice']);
+        self::assertSame(['typeId' => self::ROBOTICS, 'typeName' => 'Robotics', 'quantity' => 1, 'unitPrice' => null], $this->entryOf($preview['stages']['raw_material'], self::ROBOTICS));
         self::assertSame(['typeId' => self::OXYGEN, 'typeName' => 'Oxygen', 'quantity' => 20, 'unitPrice' => null], $this->entryOf($preview['stages']['raw_material'], self::OXYGEN));
-        // 40 × 600.5 + 405 × 0.25 + 9 × 150 = 24020 + 101.25 + 1350
-        self::assertSame(25471.25, $preview['estimatedCost']);
+        self::assertNull($preview['estimatedCost']);
+        self::assertSame(
+            [self::ENRICHED_URANIUM, self::OXYGEN, self::MECHANICAL_PARTS, self::ROBOTICS, self::HEAVY_WATER, self::LIQUID_OZONE, self::STRONTIUM_CLATHRATES],
+            $preview['missingPriceTypeIds'],
+        );
     }
 
-    public function testPreviewRoundsTheEstimatedCostToTwoDecimals(): void
+    #[Group('issue-8')]
+    public function testPreviewEstimatedCostSumsEveryItemWhenEveryItemHasAJitaPrice(): void
     {
-        $this->jitaPrices = [self::NITROGEN_ISOTOPES => 0.333];
+        $this->jitaPrices = $this->everyNitrogenFuelBlockItemPriced();
 
         $preview = $this->service->previewImport($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 10);
 
-        // 405 × 0.333 = 134.865
+        self::assertSame(26501.25, $preview['estimatedCost']);
+        self::assertSame([], $preview['missingPriceTypeIds']);
+    }
+
+    #[Group('issue-8')]
+    public function testPreviewRoundsTheEstimatedCostToTwoDecimalsCountingAZeroPriceAsKnown(): void
+    {
+        $this->jitaPrices = array_replace(
+            array_fill_keys([self::NITROGEN_FUEL_BLOCK, self::ENRICHED_URANIUM, self::OXYGEN, self::MECHANICAL_PARTS, self::COOLANT, self::ROBOTICS, self::HEAVY_WATER, self::LIQUID_OZONE, self::STRONTIUM_CLATHRATES], 0.0),
+            [self::NITROGEN_ISOTOPES => 0.333],
+        );
+
+        $preview = $this->service->previewImport($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 10);
+
         self::assertSame(134.87, $preview['estimatedCost']);
+        self::assertSame([], $preview['missingPriceTypeIds']);
+    }
+
+    #[Group('issue-8')]
+    public function testPreviewEstimatedCostIsUnknownWhenASingleMaterialHasNoJitaPrice(): void
+    {
+        $this->jitaPrices = $this->everyNitrogenFuelBlockItemPriced();
+        unset($this->jitaPrices[self::ROBOTICS]);
+
+        $preview = $this->service->previewImport($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 10);
+
+        self::assertNull($this->entryOf($preview['stages']['raw_material'], self::ROBOTICS)['unitPrice']);
+        self::assertSame(self::TWO_ISK, $this->entryOf($preview['stages']['raw_material'], self::HEAVY_WATER)['unitPrice']);
+        self::assertNull($preview['estimatedCost']);
+        self::assertSame([self::ROBOTICS], $preview['missingPriceTypeIds']);
+    }
+
+    #[Group('issue-8')]
+    public function testPreviewPricesAnItemMissingFromTheJitaCacheWithTheEsiFallbackInASingleRequest(): void
+    {
+        $this->jitaPrices = $this->everyNitrogenFuelBlockItemPriced();
+        unset($this->jitaPrices[self::ROBOTICS]);
+        $this->esiFallbackPrices = [self::ROBOTICS => 5000.0];
+
+        $preview = $this->service->previewImport($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 10);
+
+        self::assertSame(5000.0, $this->entryOf($preview['stages']['raw_material'], self::ROBOTICS)['unitPrice']);
+        self::assertSame(31499.25, $preview['estimatedCost']);
+        self::assertSame([], $preview['missingPriceTypeIds']);
+        self::assertCount(1, $this->jitaPriceRequests);
+        self::assertSame('fallback', $this->jitaPriceRequests[0][0]);
+        self::assertEqualsCanonicalizing(
+            [self::NITROGEN_FUEL_BLOCK, self::ENRICHED_URANIUM, self::OXYGEN, self::MECHANICAL_PARTS, self::COOLANT, self::ROBOTICS, self::HEAVY_WATER, self::LIQUID_OZONE, self::STRONTIUM_CLATHRATES, self::NITROGEN_ISOTOPES],
+            $this->jitaPriceRequests[0][1],
+        );
+    }
+
+    #[Group('issue-8')]
+    public function testPreviewWithoutAnyJitaPriceListsEveryItemOnceInAscendingTypeIdOrder(): void
+    {
+        $preview = $this->service->previewImport($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 10);
+
+        self::assertNull($preview['estimatedCost']);
+        self::assertSame(
+            [self::ENRICHED_URANIUM, self::OXYGEN, self::MECHANICAL_PARTS, self::NITROGEN_FUEL_BLOCK, self::COOLANT, self::ROBOTICS, self::HEAVY_WATER, self::LIQUID_OZONE, self::STRONTIUM_CLATHRATES, self::NITROGEN_ISOTOPES],
+            $preview['missingPriceTypeIds'],
+        );
     }
 
     public function testPreviewOfATreeWithTypesMissingFromTheSdeTypesThrows(): void
@@ -192,11 +270,8 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         $this->service->previewImport($this->pilot, self::ROBOTICS, 1, 10);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issues #2 et #16 : 10 runs de Fernite Carbide
-    // (10000 unités par run) deviennent 1 run ; le Hydrogen Fuel Block, consommé par la réaction racine et par ses
-    // deux réactions intermédiaires, additionne trois arrondis séparés (5 + 5 + 5) et garde l'étape « component »
-    // de sa première rencontre. Le ME saisi (10) est ignoré, comme attendu pour une réaction (R2).
-    public function testPreviewOfTenRunsOfFerniteCarbideReadsTheRunsAsAQuantityAndSumsTheFuelBlockPerBranchIssues2And16(): void
+    #[Group('issue-2')]
+    public function testPreviewOfTenRunsOfFerniteCarbideCurrentlyReadsTheRunsAsAQuantityIssue2(): void
     {
         $preview = $this->service->previewImport($this->pilot, self::FERNITE_CARBIDE, 10, 10);
 
@@ -214,17 +289,22 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         $previewAtMeTen = $this->service->previewImport($this->pilot, self::FERNITE_CARBIDE, 1, 10);
 
         self::assertSame($previewAtMeZero['stages'], $previewAtMeTen['stages']);
-        self::assertSame(
-            [44 => 12, 3683 => 60, 3689 => 12, 9832 => 27, 9848 => 3, 16272 => 459, 16273 => 945, 16275 => 54, 17889 => 1215, 16639 => 100, 16642 => 100, 16635 => 100, 16636 => 100],
-            $this->quantitiesByTypeId($previewAtMeTen['stages']['raw_material']),
-        );
         self::assertSame(17, $previewAtMeTen['totalItems']);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #69 (R3) : la demande d'un intermédiaire n'est
-    // pas agrégée entre branches avant l'arrondi en runs. Sur le golden Nomad (Ravworks, fait foi), 29 feuilles sur 63
-    // et 19 intermédiaires sur 65 sont surestimés dans les cibles du stockpile (Oxygen Isotopes +50 %).
-    public function testPreviewOfOneNomadOverestimatesTheNonAggregatedLeavesAndIntermediatesIssue69(): void
+    #[Group('issue-69')]
+    public function testPreviewOfOneRunOfFerniteCarbideCurrentlyBuildsTheFuelBlockOncePerBranchIssue69(): void
+    {
+        $preview = $this->service->previewImport($this->pilot, self::FERNITE_CARBIDE, 1, 10);
+
+        self::assertSame(
+            [44 => 12, 3683 => 60, 3689 => 12, 9832 => 27, 9848 => 3, 16272 => 459, 16273 => 945, 16275 => 54, 17889 => 1215, 16639 => 100, 16642 => 100, 16635 => 100, 16636 => 100],
+            $this->quantitiesByTypeId($preview['stages']['raw_material']),
+        );
+    }
+
+    #[Group('issue-69')]
+    public function testPreviewOfOneNomadCurrentlyOverestimatesTheNonAggregatedLeavesAndIntermediatesIssue69(): void
     {
         $golden = json_decode((string) file_get_contents(self::GOLDEN_DIR.'nomad-1run-me10-no-structure.ravworks.json'), true, flags: \JSON_THROW_ON_ERROR);
         $goldenLeaves = array_column($golden['expected']['leaves'], 'quantity', 'typeId');
@@ -386,6 +466,32 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
             }
         }
         self::fail("No entry for type {$typeId}");
+    }
+
+    private function everyNitrogenFuelBlockItemPriced(): array
+    {
+        return [
+            self::NITROGEN_FUEL_BLOCK => 600.5,
+            self::NITROGEN_ISOTOPES => 0.25,
+            self::COOLANT => 150.0,
+            self::ENRICHED_URANIUM => self::TWO_ISK,
+            self::OXYGEN => self::TWO_ISK,
+            self::MECHANICAL_PARTS => self::TWO_ISK,
+            self::ROBOTICS => self::TWO_ISK,
+            self::HEAVY_WATER => self::TWO_ISK,
+            self::LIQUID_OZONE => self::TWO_ISK,
+            self::STRONTIUM_CLATHRATES => self::TWO_ISK,
+        ];
+    }
+
+    private function pricesOf(array $typeIds, array $knownPrices): array
+    {
+        $prices = [];
+        foreach ($typeIds as $typeId) {
+            $prices[$typeId] = $knownPrices[$typeId] ?? null;
+        }
+
+        return $prices;
     }
 
     private static function persistedOfClass(array $persisted, string $className): array

@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { calculateMaxRuns, calculateDurationForRuns, formatDuration } from '@/composables/useProductionCalculator'
 
 const { t } = useI18n()
+const uid = useId()
 
 const mode = ref<'maxRuns' | 'duration'>('maxRuns')
 const durationDays = ref<number | null>(7)
@@ -65,19 +66,19 @@ const desiredTotalOutput = computed(() => (desiredRuns.value ?? 0) * (outputPerR
     <!-- Common inputs -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
       <div>
-        <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.calculator.timePerRun') }}</label>
+        <label :for="`${uid}-hours-per-run`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.calculator.timePerRun') }}</label>
         <div class="flex gap-1">
-          <input v-model.number="timePerRunHours" type="number" min="0" placeholder="h" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500" />
-          <input v-model.number="timePerRunMinutes" type="number" min="0" max="59" placeholder="m" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500" />
+          <input v-model.number="timePerRunHours" :id="`${uid}-hours-per-run`" :aria-label="t('common.time.hour', 2)" type="number" min="0" placeholder="h" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500" />
+          <input v-model.number="timePerRunMinutes" :aria-label="t('common.time.minute', 2)" type="number" min="0" max="59" placeholder="m" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500" />
         </div>
       </div>
       <div>
-        <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.calculator.lines') }}</label>
-        <input v-model.number="productionLines" type="number" min="1" max="30" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500" />
+        <label :for="`${uid}-lines`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.calculator.lines') }}</label>
+        <input v-model.number="productionLines" :id="`${uid}-lines`" type="number" min="1" max="30" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500" />
       </div>
       <div>
-        <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.calculator.outputPerRun') }}</label>
-        <input v-model.number="outputPerRun" type="number" min="1" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500" />
+        <label :for="`${uid}-output`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.calculator.outputPerRun') }}</label>
+        <input v-model.number="outputPerRun" :id="`${uid}-output`" type="number" min="1" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500" />
       </div>
     </div>
 
@@ -85,12 +86,12 @@ const desiredTotalOutput = computed(() => (desiredRuns.value ?? 0) * (outputPerR
     <div v-if="mode === 'maxRuns'" class="space-y-3">
       <div class="flex gap-3">
         <div>
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.calculator.days') }}</label>
-          <input v-model.number="durationDays" type="number" min="0" class="w-24 bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500" />
+          <label :for="`${uid}-days`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.calculator.days') }}</label>
+          <input v-model.number="durationDays" :id="`${uid}-days`" type="number" min="0" class="w-24 bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500" />
         </div>
         <div>
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.calculator.hours') }}</label>
-          <input v-model.number="durationHours" type="number" min="0" max="23" class="w-24 bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500" />
+          <label :for="`${uid}-hours`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.calculator.hours') }}</label>
+          <input v-model.number="durationHours" :id="`${uid}-hours`" type="number" min="0" max="23" class="w-24 bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500" />
         </div>
       </div>
 
@@ -109,8 +110,8 @@ const desiredTotalOutput = computed(() => (desiredRuns.value ?? 0) * (outputPerR
     <!-- Mode: Duration for runs -->
     <div v-if="mode === 'duration'" class="space-y-3">
       <div>
-        <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.calculator.desiredRuns') }}</label>
-        <input v-model.number="desiredRuns" type="number" min="1" class="w-32 bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500" />
+        <label :for="`${uid}-desired-runs`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.calculator.desiredRuns') }}</label>
+        <input v-model.number="desiredRuns" :id="`${uid}-desired-runs`" type="number" min="1" class="w-32 bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500" />
       </div>
 
       <div v-if="computedTimePerRun > 0 && (desiredRuns ?? 0) > 0" class="flex gap-6 pt-2 border-t border-slate-800">

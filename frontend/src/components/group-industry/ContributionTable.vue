@@ -100,6 +100,7 @@ onMounted(() => {
     <div class="flex items-center gap-3">
       <select
         v-model="typeFilter"
+        :aria-label="t('a11y.zoneB.groupIndustry.contributionTypeFilter')"
         class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-300 focus:border-cyan-500 focus:outline-none"
       >
         <option value="all">{{ t('common.status.all') }} Types</option>
@@ -107,6 +108,7 @@ onMounted(() => {
       </select>
       <select
         v-model="statusFilter"
+        :aria-label="t('a11y.zoneB.groupIndustry.contributionStatusFilter')"
         class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-300 focus:border-cyan-500 focus:outline-none"
       >
         <option value="all">{{ t('common.status.all') }} Statuses</option>
@@ -218,7 +220,7 @@ onMounted(() => {
                 </span>
                 <span
                   v-if="contrib.isAutoDetected"
-                  class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400/70 border border-emerald-500/15 ml-1.5"
+                  class="text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400/70 border border-emerald-500/15 ml-1.5"
                 >ESI &#10003;</span>
               </td>
               <!-- Status -->
@@ -231,11 +233,11 @@ onMounted(() => {
                 </span>
                 <span
                   v-if="contrib.isAutoDetected"
-                  class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400/70 border border-emerald-500/15 ml-1.5"
+                  class="text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400/70 border border-emerald-500/15 ml-1.5"
                 >Auto-detected</span>
                 <span
                   v-else-if="!contrib.isVerified && isPending(contrib.status)"
-                  class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400/70 border border-amber-500/15 ml-1.5"
+                  class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400/70 border border-amber-500/15 ml-1.5"
                 >Unverified</span>
               </td>
               <!-- Actions -->

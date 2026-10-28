@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
 import { usePilotName } from '@/composables/usePilotName'
+import { useTabQuery } from '@/composables/useTabQuery'
 import { safeJsonParse } from '@/services/api'
 import { useTypeNames } from '@/composables/useTypeNames'
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -19,7 +19,6 @@ import type { Asset, CorpAssetVisibility } from '@/types'
 
 const { t } = useI18n()
 const { pilotName } = usePilotName()
-const route = useRoute()
 const authStore = useAuthStore()
 const { typeNameLabel } = useTypeNames()
 const syncStore = useSyncStore()
@@ -27,7 +26,7 @@ const syncStore = useSyncStore()
 // Tab state
 type AssetTabId = 'assets' | 'contracts'
 const validTabs: AssetTabId[] = ['assets', 'contracts']
-const activeTab = ref<AssetTabId>('assets')
+const activeTab = useTabQuery(validTabs, 'assets')
 
 const user = computed(() => authStore.user)
 const characters = computed(() => user.value?.characters || [])
@@ -385,12 +384,6 @@ function clearFilters() {
 
 // Initialize
 onMounted(() => {
-  // Deep linking: read tab from query param
-  const tabParam = route.query.tab as string | undefined
-  if (tabParam && validTabs.includes(tabParam as AssetTabId)) {
-    activeTab.value = tabParam as AssetTabId
-  }
-
   if (characters.value.length > 0) {
     const main = characters.value.find(c => c.isMain)
     selectedCharacterId.value = main?.id || characters.value[0].id

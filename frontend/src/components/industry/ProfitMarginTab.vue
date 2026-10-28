@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import DataTable from '@/components/common/DataTable.vue'
+import { ref, computed, watch, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useIndustryStore, type SearchResult, type ProfitMarginResult, type ProfitMarginInventionOption, type MarginEntry } from '@/stores/industry'
 import type { ProductionCostUnknownReason } from '@/stores/industry/types'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import { useTypeNames } from '@/composables/useTypeNames'
 import { useFavoriteSystems } from '@/composables/useFavoriteSystems'
 import { useUnknownInstallCostReasons } from '@/composables/useUnknownInstallCostReasons'
+import { usePartialPriceCoverages } from '@/composables/usePartialPriceCoverages'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
+import PartialPriceMarker from '@/components/industry/PartialPriceMarker.vue'
+import PartialPriceNotice from '@/components/industry/PartialPriceNotice.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import CostSummaryCards from '@/components/industry/profit/CostSummaryCards.vue'
 import VenueComparisonTable from '@/components/industry/profit/VenueComparisonTable.vue'
@@ -16,10 +21,16 @@ import InventionOptionsPanel from '@/components/industry/profit/InventionOptions
 import { venueLabel } from '@/components/industry/venueLabel'
 import { venueMargin, type SellVenue } from '@/components/industry/venueMargin'
 
+const props = defineProps<{
+  initialTypeId?: number
+}>()
+
 const { t } = useI18n()
+const uid = useId()
 const store = useIndustryStore()
 const { formatIsk, formatIskFull, formatTimeSince } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
+const { typeNameLabel } = useTypeNames()
 
 // Item selection
 const selectedProduct = ref<SearchResult | null>(null)
@@ -50,6 +61,12 @@ const isT2 = computed(() => selectedProduct.value?.isT2 ?? false)
 const favoriteSystems = useFavoriteSystems()
 
 const unknownInstallCostReasons = useUnknownInstallCostReasons(() => result.value?.missingData ?? [])
+
+const partialPriceCoverages = usePartialPriceCoverages(() => result.value?.warnings ?? [])
+
+const materialTypeNames = computed((): Map<number, string> => {
+  return new Map((result.value?.materials ?? []).map(material => [material.typeId, material.typeName]))
+})
 
 const productionCostUnknownReasons = computed((): ProductionCostUnknownReason[] => {
   if (!result.value) return []
@@ -313,19 +330,35 @@ function clearProduct() {
   productSearchRef.value?.clear()
 }
 
-async function analyze() {
-  if (!selectedProduct.value) return
+async function analyzeType(typeId: number): Promise<ProfitMarginResult | null> {
   // Reset local decryptor override before re-fetching
   selectedOption.value = null
   selectedDecryptorTypeId.value = undefined
-  await store.analyzeMargin(selectedProduct.value.typeId, {
+  const analysis = await store.analyzeMargin(typeId, {
     runs: runs.value,
     me: meLevel.value,
     te: teLevel.value,
     solarSystemId: selectedSolarSystemId.value ?? undefined,
   })
   lastFetchedAt.value = new Date().toISOString()
+  return analysis
 }
+
+async function analyze() {
+  if (!selectedProduct.value) return
+  await analyzeType(selectedProduct.value.typeId)
+}
+
+watch(() => props.initialTypeId, async (typeId) => {
+  if (typeId === undefined) return
+  const analysis = await analyzeType(typeId)
+  if (analysis === null || props.initialTypeId !== typeId) return
+  selectedProduct.value = {
+    typeId,
+    typeName: typeNameLabel(analysis.typeName, typeId),
+    isT2: analysis.isT2,
+  }
+}, { immediate: true })
 
 function selectDecryptor(option: ProfitMarginInventionOption) {
   selectedDecryptorTypeId.value = option.decryptorTypeId
@@ -370,10 +403,10 @@ store.fetchUserSettings()
             <span class="text-sm text-slate-200">{{ selectedProduct.typeName }}</span>
             <span
               v-if="selectedProduct.isT2"
-              class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-sm"
+              class="text-xs font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-sm"
             >T2</span>
-            <button class="ml-1 text-slate-500 hover:text-slate-300" @click="clearProduct">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button class="ml-1 text-slate-500 hover:text-slate-300" @click="clearProduct" :aria-label="t('common.actions.clear')">
+              <svg aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -384,19 +417,21 @@ store.fetchUserSettings()
       <!-- Config row -->
       <div class="flex flex-wrap items-end gap-4">
         <div>
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.createProject.runs') }}</label>
+          <label :for="`${uid}-runs`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.createProject.runs') }}</label>
           <input
             v-model.number="runs"
+            :id="`${uid}-runs`"
             type="number"
             min="1"
             class="w-20 bg-slate-800 border border-slate-700 rounded-sm px-3 py-1.5 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500"
           />
         </div>
         <div>
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.createProject.me') }}</label>
+          <label :for="`${uid}-me`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.createProject.me') }}</label>
           <div class="relative">
             <input
               v-model.number="meLevel"
+              :id="`${uid}-me`"
               type="number"
               min="0"
               max="10"
@@ -412,10 +447,11 @@ store.fetchUserSettings()
           </div>
         </div>
         <div>
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.createProject.te') }}</label>
+          <label :for="`${uid}-te`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.createProject.te') }}</label>
           <div class="relative">
             <input
               v-model.number="teLevel"
+              :id="`${uid}-te`"
               type="number"
               min="0"
               max="20"
@@ -431,9 +467,10 @@ store.fetchUserSettings()
           </div>
         </div>
         <div>
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.margins.solarSystem') }}</label>
+          <label :for="`${uid}-system`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.margins.solarSystem') }}</label>
           <select
             v-model="selectedSolarSystemId"
+            :id="`${uid}-system`"
             class="bg-slate-800 border border-slate-700 rounded-sm px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500"
           >
             <option :value="null">{{ t('industry.margins.defaultSystem') }}</option>
@@ -501,6 +538,8 @@ store.fetchUserSettings()
         :best-venue-label="bestVenueLabel"
       />
 
+      <PartialPriceNotice :coverages="partialPriceCoverages" :type-names="materialTypeNames" />
+
       <!-- SECTION C: Sell Price Comparison Table -->
       <VenueComparisonTable
         v-if="sellRows.length > 0"
@@ -548,75 +587,80 @@ store.fetchUserSettings()
           <span class="text-xs text-slate-600">{{ t('industry.costEstimation.pricesFromJita') }}</span>
         </div>
 
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
-              <th class="text-left py-2.5 px-4">{{ t('industry.costEstimation.material') }}</th>
-              <th class="text-right py-2.5 px-3">{{ t('industry.costEstimation.quantity') }}</th>
-              <th class="text-right py-2.5 px-3">{{ t('industry.margins.unitPrice') }}</th>
-              <th class="text-right py-2.5 px-4">{{ t('industry.costEstimation.total') }}</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-800">
-            <tr
-              v-for="mat in displayedMaterials"
-              :key="mat.typeId"
-              class="hover:bg-slate-800/50"
-            >
-              <td class="py-2.5 px-4">
-                <div class="flex items-center gap-2">
-                  <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden shrink-0">
-                    <img
-                      :src="getTypeIconUrl(mat.typeId, 32)"
-                      alt=""
-                      class="w-full h-full"
-                      @error="onImageError"
-                    />
+        <DataTable>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
+                <th class="text-left py-2.5 px-4">{{ t('industry.costEstimation.material') }}</th>
+                <th class="text-right py-2.5 px-3">{{ t('industry.costEstimation.quantity') }}</th>
+                <th class="text-right py-2.5 px-3">{{ t('industry.margins.unitPrice') }}</th>
+                <th class="text-right py-2.5 px-4">{{ t('industry.costEstimation.total') }}</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800">
+              <tr
+                v-for="mat in displayedMaterials"
+                :key="mat.typeId"
+                class="hover:bg-slate-800/50"
+              >
+                <td class="py-2.5 px-4">
+                  <div class="flex items-center gap-2">
+                    <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden shrink-0">
+                      <img
+                        :src="getTypeIconUrl(mat.typeId, 32)"
+                        alt=""
+                        class="w-full h-full"
+                        @error="onImageError"
+                      />
+                    </div>
+                    <span class="text-slate-200">{{ mat.typeName }}</span>
                   </div>
-                  <span class="text-slate-200">{{ mat.typeName }}</span>
-                </div>
-              </td>
-              <td class="py-2.5 px-3 text-right font-mono text-slate-300">{{ mat.quantity.toLocaleString() }}</td>
-              <td class="py-2.5 px-3 text-right font-mono text-slate-400">{{ formatAmount(mat.unitPrice, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</td>
-              <td class="py-2.5 px-4 text-right font-mono text-slate-200">{{ formatAmount(mat.totalPrice, { maximumFractionDigits: 0 }) }}</td>
-            </tr>
-            <!-- Collapsed items hint -->
-            <tr v-if="hiddenMaterialsCount > 0 && !materialsExpanded" class="hover:bg-slate-800/50">
-              <td class="py-2 px-4" colspan="3">
-                <button
-                  @click="materialsExpanded = true"
-                  class="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-400 transition-colors"
-                >
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                  </svg>
-                  {{ t('industry.costEstimation.moreItems', { count: hiddenMaterialsCount }) }}
-                </button>
-              </td>
-              <td class="py-2 px-4 text-right font-mono text-slate-500">{{ formatAmount(hiddenMaterialsTotal, { maximumFractionDigits: 0 }) }}</td>
-            </tr>
-            <!-- Collapse button when expanded -->
-            <tr v-if="materialsExpanded && result.materials.length > MATERIALS_COLLAPSED_LIMIT" class="hover:bg-slate-800/50">
-              <td class="py-2 px-4" colspan="4">
-                <button
-                  @click="materialsExpanded = false"
-                  class="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-400 transition-colors"
-                >
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-                  </svg>
-                  {{ t('industry.costEstimation.collapse') }}
-                </button>
-              </td>
-            </tr>
-          </tbody>
-          <tfoot>
-            <tr class="border-t border-slate-700 bg-slate-800/30">
-              <td colspan="3" class="py-3 px-4 text-right text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.costEstimation.totalMaterialCost') }}</td>
-              <td class="py-3 px-4 text-right font-mono text-slate-100 font-bold text-base">{{ formatFullCost(result.materialCost) }}</td>
-            </tr>
-          </tfoot>
-        </table>
+                </td>
+                <td class="py-2.5 px-3 text-right font-mono text-slate-300 tabular-nums">{{ mat.quantity.toLocaleString() }}</td>
+                <td class="py-2.5 px-3 text-right font-mono text-slate-400 tabular-nums">{{ formatAmount(mat.unitPrice, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</td>
+                <td class="py-2.5 px-4 text-right font-mono text-slate-200 tabular-nums">
+                  {{ formatAmount(mat.totalPrice, { maximumFractionDigits: 0 }) }}
+                  <PartialPriceMarker :percent="partialPriceCoverages.get(mat.typeId)" />
+                </td>
+              </tr>
+              <!-- Collapsed items hint -->
+              <tr v-if="hiddenMaterialsCount > 0 && !materialsExpanded" class="hover:bg-slate-800/50">
+                <td class="py-2 px-4" colspan="3">
+                  <button
+                    @click="materialsExpanded = true"
+                    class="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-400 transition-colors"
+                  >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                    {{ t('industry.costEstimation.moreItems', { count: hiddenMaterialsCount }) }}
+                  </button>
+                </td>
+                <td class="py-2 px-4 text-right font-mono text-slate-500 tabular-nums">{{ formatAmount(hiddenMaterialsTotal, { maximumFractionDigits: 0 }) }}</td>
+              </tr>
+              <!-- Collapse button when expanded -->
+              <tr v-if="materialsExpanded && result.materials.length > MATERIALS_COLLAPSED_LIMIT" class="hover:bg-slate-800/50">
+                <td class="py-2 px-4" colspan="4">
+                  <button
+                    @click="materialsExpanded = false"
+                    class="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-400 transition-colors"
+                  >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                    </svg>
+                    {{ t('industry.costEstimation.collapse') }}
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="border-t border-slate-700 bg-slate-800/30">
+                <td colspan="3" class="py-3 px-4 text-right text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.costEstimation.totalMaterialCost') }}</td>
+                <td class="py-3 px-4 text-right font-mono text-slate-100 font-bold text-base tabular-nums">{{ formatFullCost(result.materialCost) }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </DataTable>
       </div>
 
       <!-- SECTION E2: Job Install Costs -->
@@ -629,62 +673,64 @@ store.fetchUserSettings()
           <h4 class="text-sm font-semibold text-slate-200">{{ t('industry.margins.jobInstallCost') }}</h4>
         </div>
 
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
-              <th class="text-center py-2.5 px-3 w-12">#</th>
-              <th class="text-left py-2.5 px-3">{{ t('industry.costEstimation.product') }}</th>
-              <th class="text-left py-2.5 px-3">{{ t('industry.costEstimation.activity') }}</th>
-              <th class="text-right py-2.5 px-3">{{ t('industry.costEstimation.runs') }}</th>
-              <th class="text-right py-2.5 px-4">{{ t('industry.costEstimation.installCost') }}</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-800">
-            <tr
-              v-for="(step, index) in result.jobInstallSteps"
-              :key="`${step.productTypeId}-${index}`"
-              class="hover:bg-slate-800/50"
-            >
-              <td class="py-2.5 px-3 text-center text-slate-600 font-mono text-xs">{{ index + 1 }}</td>
-              <td class="py-2.5 px-3">
-                <div class="flex items-center gap-2">
-                  <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden shrink-0">
-                    <img
-                      :src="getTypeIconUrl(step.productTypeId, 32)"
-                      alt=""
-                      class="w-full h-full"
-                      @error="onImageError"
-                    />
+        <DataTable>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
+                <th class="text-center py-2.5 px-3 w-12">#</th>
+                <th class="text-left py-2.5 px-3">{{ t('industry.costEstimation.product') }}</th>
+                <th class="text-left py-2.5 px-3">{{ t('industry.costEstimation.activity') }}</th>
+                <th class="text-right py-2.5 px-3">{{ t('industry.costEstimation.runs') }}</th>
+                <th class="text-right py-2.5 px-4">{{ t('industry.costEstimation.installCost') }}</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800">
+              <tr
+                v-for="(step, index) in result.jobInstallSteps"
+                :key="`${step.productTypeId}-${index}`"
+                class="hover:bg-slate-800/50"
+              >
+                <td class="py-2.5 px-3 text-center text-slate-600 font-mono text-xs tabular-nums">{{ index + 1 }}</td>
+                <td class="py-2.5 px-3">
+                  <div class="flex items-center gap-2">
+                    <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden shrink-0">
+                      <img
+                        :src="getTypeIconUrl(step.productTypeId, 32)"
+                        alt=""
+                        class="w-full h-full"
+                        @error="onImageError"
+                      />
+                    </div>
+                    <span class="text-slate-200">{{ step.productName }}</span>
                   </div>
-                  <span class="text-slate-200">{{ step.productName }}</span>
-                </div>
-              </td>
-              <td class="py-2.5 px-3">
-                <span
-                  :class="[
-                    'text-xs px-1.5 py-0.5 rounded-sm',
-                    step.activityType === 'reaction'
-                      ? 'bg-purple-500/10 text-purple-400'
-                      : 'bg-cyan-500/10 text-cyan-400'
-                  ]"
-                >
-                  {{ step.activityType === 'reaction'
-                    ? t('industry.costEstimation.reaction')
-                    : t('industry.costEstimation.manufacturing')
-                  }}
-                </span>
-              </td>
-              <td class="py-2.5 px-3 text-right font-mono text-slate-300">{{ step.runs.toLocaleString() }}</td>
-              <td class="py-2.5 px-4 text-right font-mono text-slate-200">{{ formatAmount(step.installCost, { maximumFractionDigits: 0 }) }}</td>
-            </tr>
-          </tbody>
-          <tfoot>
-            <tr class="border-t border-slate-700 bg-slate-800/30">
-              <td colspan="4" class="py-3 px-4 text-right text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.margins.totalJobInstallCost') }}</td>
-              <td class="py-3 px-4 text-right font-mono text-slate-100 font-bold text-base">{{ formatFullCost(result.jobInstallCost) }}</td>
-            </tr>
-          </tfoot>
-        </table>
+                </td>
+                <td class="py-2.5 px-3">
+                  <span
+                    :class="[
+                      'text-xs px-1.5 py-0.5 rounded-sm',
+                      step.activityType === 'reaction'
+                        ? 'bg-purple-500/10 text-purple-400'
+                        : 'bg-cyan-500/10 text-cyan-400'
+                    ]"
+                  >
+                    {{ step.activityType === 'reaction'
+                      ? t('industry.costEstimation.reaction')
+                      : t('industry.costEstimation.manufacturing')
+                    }}
+                  </span>
+                </td>
+                <td class="py-2.5 px-3 text-right font-mono text-slate-300 tabular-nums">{{ step.runs.toLocaleString() }}</td>
+                <td class="py-2.5 px-4 text-right font-mono text-slate-200 tabular-nums">{{ formatAmount(step.installCost, { maximumFractionDigits: 0 }) }}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="border-t border-slate-700 bg-slate-800/30">
+                <td colspan="4" class="py-3 px-4 text-right text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.margins.totalJobInstallCost') }}</td>
+                <td class="py-3 px-4 text-right font-mono text-slate-100 font-bold text-base tabular-nums">{{ formatFullCost(result.jobInstallCost) }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </DataTable>
 
         <!-- Info note -->
         <div class="px-4 py-3 bg-cyan-900/10 border-t border-slate-800 flex items-center gap-2">

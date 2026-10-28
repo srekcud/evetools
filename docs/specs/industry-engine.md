@@ -94,7 +94,9 @@ mod_rig       = 1 − (bonus_rig % × mod_sécurité) / 100
 - Valeurs numériques lues dans les attributs dogma du SDE (`strEngMatBonus`, `strEngCostBonus`, `strEngTimeBonus`, `strReactionTimeMultiplier`, `attributeEngRig*Bonus`, `RefRig*Bonus`, `attributeThukkerEngRigMatBonus`, `hiSecModifier` / `lowSecModifier` / `nullSecModifier`). Le ciblage rig → groupes reste la table `IndustryRigCategory` (D10). Plus aucune table de bonus codée en dur.
 - Une seule règle sert au calcul et à l'affichage des structures.
 - Sécurité : `HighSec`, `LowSec`, `NullSec`. L'espace wormhole utilise `NullSec`, affichée « Nullsec / WH » (D6).
-- Choix de la structure d'un job (D3, en Application) : la structure assignée à l'étape ; sinon, la meilleure structure de l'utilisateur pour (activité, produit du job). Le système favori sert de filtre. « Meilleure » garde le critère actuel : la plus forte réduction de matériaux (`IndustryBonusService.php:252`).
+- Choix de la structure d'un job (D3, en Application) : la structure assignée à l'étape (si elle peut faire l'activité) ; sinon, la meilleure structure de l'utilisateur pour (activité, produit du job). Le système favori est un **filtre souple** (D3b, décision du 2026-10-22, [spec #151](151-structure-choice-soft-favorite-and-install-cost.md)) : la meilleure structure adaptée du favori, sinon la meilleure de toutes avec un avertissement. « Meilleure » garde le critère actuel : la plus forte réduction de matériaux (`IndustryBonusService.php:252`). Copie et invention : la structure au taux d'installation minimal, le favori départageant (spec #151).
+- Une seule sélection par job, partagée entre matériaux et coût d'installation (`StructureMaterialModifiers::choiceFor()`, spec #142 #149).
+- Structure assignée qui ne peut pas faire l'activité (`ProductionStructure::canRun()` faux) : ignorée, la meilleure structure est prise (D3) et le choix porte un avertissement (`StructureChoice::$ignoredAssignedStructure`). Décision du 2026-10-26.
 
 Valeurs de référence (SDE au 2026-10-07, utilisées par les goldens) :
 
@@ -183,6 +185,7 @@ tentatives      = runs T2 voulus / (P × runs par BPC)
 - Tout montant est un **Coût inconnu** ou un montant connu. Une somme qui contient un inconnu est inconnue.
 - Le résultat garde le détail calculable (quantités, montants connus) et liste les typeId sans prix, avec la raison.
 - Les quantités ne dépendent d'aucun prix : elles restent toujours calculées.
+- Un **prix partiel** n'est pas une donnée manquante : le carnet ne couvre qu'une partie de la quantité (**couverture du carnet** < 1, sans seuil), mais le montant reste connu (`quantité × prix pondéré`). Le coût porte en plus un avertissement `partial_market_depth` (typeId, couverture), qui coexiste avec l'inconnu : une somme inconnue garde les avertissements de ses termes connus, et un avertissement ne rend jamais un coût inconnu. Une couverture absente ou nulle n'est pas un prix partiel : le typeId n'a pas de prix, il est inconnu (`market_price`). Spec #147.
 - Côté scanner, exclure l'item et le signaler reste une présentation possible ([#22](https://github.com/srekcud/evetools/issues/22)).
 
 ### R11 — ISK (D1)
@@ -206,7 +209,7 @@ Quand un job est découpé (plafond BPC en R3, durée maximale ou découpage man
 
 ## 4. Exemples chiffrés (tests rouges)
 
-Les goldens fixent la formule, pas la sélection de structure : les tests passent les modificateurs **explicitement**. Fichiers d'origine : `.claude/tasks/industry-core/golden/` (non versionnés, à déplacer dans `tests/` lors de la phase rouge).
+Les goldens fixent la formule, pas la sélection de structure : les tests passent les modificateurs **explicitement**. Fichiers : `tests/Fixtures/Golden/`, seul exemplaire versionné, lu par tous les tests.
 
 | Cas | Statut (D12) |
 |---|---|
@@ -386,4 +389,4 @@ Ensuite, les calculs qui n'appellent pas l'arbre : `BatchProfitScannerService` (
 - **D11a** : SCC de 4 % sur la copie, en attente d'un job de copie lancé en jeu.
 - **D12** : goldens Hail L et Fernite Carbide **confirmés par EVE Ref** (2026-10-07) ; nouveau golden Ravworks multi-produits (plan partagé, configuration reconstituée), voir `.claude/tasks/industry-core/golden/crosscheck-everef.md`.
 - Mode coût marginal (arrondi ou non) : **tranché (D4b, 2026-10-07)**, fractionnaire pur, quantité = base × multiplicateurs, sans arrondi.
-- Choix de structure à bonus égal, ou favori sans structure adaptée : **tranché (D3b, 2026-10-07)**, à bonus égal la structure du système favori, puis la plus récemment configurée ; si le favori n'a aucune structure adaptée, la meilleure de toutes avec un avertissement.
+- Choix de structure à bonus égal, ou favori sans structure adaptée : **tranché (D3b, 2026-10-07)**, à bonus égal la structure du système favori, puis la plus récemment configurée ; si le favori n'a aucune structure adaptée, la meilleure de toutes avec un avertissement. **D3 aligné sur D3b le 2026-10-22** (#151) : le filtre strict est remplacé par ce filtre souple. Copie et invention : coût d'installation minimal, favori au départage (#151).

@@ -159,14 +159,14 @@ export interface ShoppingListItem {
 }
 
 export interface ShoppingListTotals {
-  jita: number
+  jita: number | null
   import: number | null
   jitaWithImport: number | null
-  structure: number
+  structure: number | null
   volume: number | null
-  best: number
+  best: number | null
   savingsVsJitaWithImport: number | null
-  savingsVsStructure: number
+  savingsVsStructure: number | null
 }
 
 export interface ShoppingListFailedProduct {
@@ -186,6 +186,7 @@ export interface ShoppingListResponse {
   priceError: string | null
   missingVolumeTypeIds: number[]
   failedProducts: ShoppingListFailedProduct[]
+  missingPriceTypeIds: number[]
 }
 
 export interface ProductionTreeNode {
@@ -332,6 +333,12 @@ export interface MissingData {
   typeId: number | null
 }
 
+export interface PartialPriceWarning {
+  reason: 'partial_market_depth'
+  typeId: number
+  coveragePercent: number
+}
+
 export interface ProfitMarginMaterial {
   typeId: number
   typeName: string
@@ -410,6 +417,7 @@ export interface ProfitMarginResult {
   margins: Record<string, MarginEntry | null>
   dailyVolume: number | null
   missingData: MissingData[]
+  warnings: PartialPriceWarning[]
 }
 
 export interface AvailableJob {
@@ -557,8 +565,8 @@ export type BatchScanItem = {
   dailyVolume: number
   iskPerDay: number | null
   materialCost: number | null
-  exportCost: number
-  importCost: number
+  exportCost: number | null
+  importCost: number | null
   sellPrice: number | null
   meUsed: number
   activityType: string
@@ -602,12 +610,14 @@ export type BuyVsBuildComponent = {
   buildJobInstallCost: number | null
   buyCostJita: number | null
   buyCostStructure: number | null
+  buyCostJitaCoveragePercent: number | null
   verdict: 'build' | 'buy' | 'loss' | 'unknown'
   savings: number | null
   savingsPercent: number | null
   meUsed: number
   runs: number
   missingData: MissingData[]
+  warnings: PartialPriceWarning[]
 }
 
 export type BuyVsBuildResult = {
@@ -625,6 +635,7 @@ export type BuyVsBuildResult = {
   buildTypeIds: number[]
   buyTypeIds: number[]
   missingData: MissingData[]
+  warnings: PartialPriceWarning[]
   sellStructureId: number | null
 }
 
@@ -711,16 +722,16 @@ export type StockpileItemStatus = {
   stock: number
   percent: number
   status: 'met' | 'partial' | 'critical'
-  unitPrice: number
-  stockValue: number
-  deficitCost: number
+  unitPrice: number | null
+  stockValue: number | null
+  deficitCost: number | null
   sourceProductTypeId: number | null
   locations: StockpileLocation[]
 }
 
 export type StockpileStageStatus = {
   items: StockpileItemStatus[]
-  totalValue: number
+  totalValue: number | null
   healthPercent: number
 }
 
@@ -739,7 +750,7 @@ export type StockpileEstOutput = {
 
 export type StockpileKpis = {
   pipelineHealth: number
-  totalInvested: number
+  totalInvested: number | null
   bottleneck: StockpileBottleneck
   estOutput: StockpileEstOutput
 }
@@ -751,6 +762,7 @@ export type StockpileStatus = {
   shoppingList: StockpileShoppingItem[]
   importsWithoutPlan: number[]
   failedProducts: StockpileFailedProduct[]
+  missingPriceTypeIds: number[]
 }
 
 export type StockpileFailedProduct = {
@@ -765,7 +777,7 @@ export type StockpileShoppingItem = {
   stock: number
   targetQuantity: number
   deficit: number
-  deficitCost: number
+  deficitCost: number | null
   percent: number
 }
 
@@ -779,7 +791,8 @@ export type StockpileImportPreviewItem = {
 export type StockpileImportPreview = {
   stages: Record<StockpileStage, StockpileImportPreviewItem[]>
   totalItems: number
-  estimatedCost: number
+  estimatedCost: number | null
+  missingPriceTypeIds: number[]
 }
 
 // Slot Tracker types

@@ -463,6 +463,26 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
         );
     }
 
+    #[Group('issue-252')]
+    public function testResponseToAMeLevelEnteredOnTheRootStepReturnsEveryJobOfTheRecalculatedSplitGroup(): void
+    {
+        $project = $this->projectWithAPlatingSplitInThreeJobs();
+        [$firstJobId, $secondJobId, $thirdJobId] = $this->platingJobIdsOf($project);
+        $cruiserStepId = $this->idOf($this->stepOfProduct($project, self::CRUISER_TYPE_ID));
+
+        $response = $this->patchResponse($project, $cruiserStepId, ['meLevel' => 10]);
+
+        self::assertSame([$cruiserStepId, 4], [$response[0]->id, \count($response)]);
+        self::assertSame(
+            [[$firstJobId, 10, 10, 0, 29], [$secondJobId, 10, 10, 1, 29], [$thirdJobId, 9, 9, 2, 29]],
+            $this->platingJobsOfTheResponse($response),
+        );
+        self::assertSame(
+            [[$firstJobId, 10, 10, false, 0, 29], [$secondJobId, 10, 10, false, 1, 29], [$thirdJobId, 9, 9, false, 2, 29]],
+            $this->platingJobsOf($this->reloaded($project)),
+        );
+    }
+
     private function projectWithAPlatingStepThatIsNotSplit(): IndustryProject
     {
         $project = $this->factory->createProject($this->pilot, self::CRUISER_TYPE_ID, self::CRUISER_RUNS, self::PROJECT_ME_GIVING_A_PLATING_NEED_OF_18, self::MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT, self::PROJECT_TE);
@@ -537,6 +557,15 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
      */
     private function patch(IndustryProject $project, string $stepId, array $fields): ProjectStepResource
     {
+        return $this->patchResponse($project, $stepId, $fields)[0];
+    }
+
+    /**
+     * @param array<string, int|bool> $fields
+     * @return list<ProjectStepResource>
+     */
+    private function patchResponse(IndustryProject $project, string $stepId, array $fields): array
+    {
         $input = new UpdateStepInput();
         foreach ($fields as $field => $value) {
             $input->{$field} = $value;
@@ -547,10 +576,28 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
         $projectId = $project->getId();
         self::assertNotNull($projectId);
         $response = $this->processor->process($input, new Patch(), ['id' => $projectId->toRfc4122(), 'stepId' => $stepId]);
-        $patchedStep = \is_array($response) ? $response[0] : $response;
-        self::assertSame($stepId, $patchedStep->id);
+        $updatedSteps = \is_array($response) ? $response : [$response];
+        self::assertSame($stepId, $updatedSteps[0]->id);
 
-        return $patchedStep;
+        return $updatedSteps;
+    }
+
+    /**
+     * @param list<ProjectStepResource> $updatedSteps
+     * @return list<array{string, int, int, int|null, int|null}>
+     */
+    private function platingJobsOfTheResponse(array $updatedSteps): array
+    {
+        $platingJobs = array_values(array_filter(
+            $updatedSteps,
+            static fn (ProjectStepResource $step): bool => $step->productTypeId === self::PLATING_TYPE_ID,
+        ));
+        usort($platingJobs, static fn (ProjectStepResource $a, ProjectStepResource $b): int => $a->splitIndex <=> $b->splitIndex);
+
+        return array_map(
+            static fn (ProjectStepResource $job): array => [$job->id, $job->runs, $job->quantity, $job->splitIndex, $job->totalGroupRuns],
+            $platingJobs,
+        );
     }
 
     /**

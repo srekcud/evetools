@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useScannerStore } from '@/stores/industry/scanner'
 import { useIndustryStore, type SearchResult } from '@/stores/industry'
@@ -10,11 +10,12 @@ import { useTypeNames } from '@/composables/useTypeNames'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
 import type { PivotCandidate, PivotMissingComponent } from '@/stores/industry/types'
 
-defineProps<{
+const props = defineProps<{
   initialTypeId?: number
 }>()
 
 const { t } = useI18n()
+const uid = useId()
 const scannerStore = useScannerStore()
 const industryStore = useIndustryStore()
 const { formatIsk, formatNumber } = useFormatters()
@@ -22,7 +23,7 @@ const { getTypeIconUrl, onImageError } = useEveImages()
 const { typeNameLabel } = useTypeNames()
 
 // Product selector
-const selectedProduct = ref<SearchResult | null>(null)
+const selectedProduct = ref<Pick<SearchResult, 'typeId'> | null>(null)
 const runs = ref(1)
 const selectedSystemId = ref<number | null>(null)
 const sortBy = ref<string>('score')
@@ -67,6 +68,12 @@ async function onAnalyze(): Promise<void> {
     selectedSystemId.value,
   )
 }
+
+watch(() => props.initialTypeId, (typeId) => {
+  if (typeId === undefined) return
+  selectedProduct.value = { typeId }
+  onAnalyze()
+}, { immediate: true })
 
 function onPivot(candidate: PivotCandidate): void {
   industryStore.navigationIntent = {
@@ -141,22 +148,24 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
 
       <div class="flex flex-wrap items-end gap-4">
         <div class="flex-1 min-w-[280px]">
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.pivotAdvisor.selectProduct') }}</label>
-          <ProductSearch @select="onProductSelect" />
+          <label :for="`${uid}-product`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.pivotAdvisor.selectProduct') }}</label>
+          <ProductSearch :input-id="`${uid}-product`" @select="onProductSelect" />
         </div>
         <div>
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.pivotAdvisor.runs') }}</label>
+          <label :for="`${uid}-runs`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.pivotAdvisor.runs') }}</label>
           <input
             v-model.number="runs"
+            :id="`${uid}-runs`"
             type="number"
             min="1"
             class="w-20 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500"
           />
         </div>
         <div>
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.pivotAdvisor.systemLabel') }}</label>
+          <label :for="`${uid}-system`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.pivotAdvisor.systemLabel') }}</label>
           <select
             v-model.number="selectedSystemId"
+            :id="`${uid}-system`"
             class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500"
           >
             <option :value="null">--</option>
@@ -196,7 +205,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
     <template v-if="result && !loading">
       <!-- Current Product Card (amber warning) -->
       <div
-        class="bg-[#0f172a] border rounded-xl p-5"
+        class="bg-slate-900 border rounded-xl p-5"
         :class="result.sourceProduct.marginPercent != null && result.sourceProduct.marginPercent < 0
           ? 'border-amber-500/40 shadow-[0_0_15px_rgba(251,191,36,0.05)]'
           : 'border-slate-800'"
@@ -245,7 +254,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
               </div>
             </div>
 
-            <p v-if="result.sourceProduct.unknownReason != null" class="mb-3 text-xs text-amber-400">
+            <p v-if="result.sourceProduct.unknownReason != null" class="mb-3 text-body text-amber-400">
               {{ t(`industry.inventionUnknown.${result.sourceProduct.unknownReason}`) }}
             </p>
 
@@ -264,7 +273,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
           <!-- Key components in stock -->
           <div v-if="result.sourceProduct.keyComponents.length > 0" class="flex-shrink-0 w-72">
             <div class="text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.scanner.pivotAdvisor.keyComponents') }}</div>
-            <div class="bg-[#1e293b] rounded-lg p-3 space-y-1.5">
+            <div class="bg-slate-800 rounded-lg p-3 space-y-1.5">
               <div
                 v-for="comp in result.sourceProduct.keyComponents"
                 :key="comp.typeId"
@@ -279,7 +288,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
       </div>
 
       <!-- Shared Components Matrix -->
-      <div v-if="result.matrix.length > 0" class="bg-[#0f172a] border border-slate-800 rounded-xl p-5">
+      <div v-if="result.matrix.length > 0" class="bg-slate-900 border border-slate-800 rounded-xl p-5">
         <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div class="flex items-center gap-2">
             <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -334,7 +343,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
                       }}
                     </span>
                     <span
-                      class="font-mono text-xs"
+                      class="font-mono text-table-cell"
                       :class="marginColor(
                         productId === result.sourceProduct.typeId
                           ? result.sourceProduct.marginPercent
@@ -383,7 +392,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
                       <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
                     </svg>
                     <span
-                      class="font-mono text-xs"
+                      class="font-mono text-table-cell"
                       :class="getMatrixCellData(row, productId)?.status === 'covered' ? 'text-emerald-400' : 'text-amber-400'"
                     >
                       {{ formatNumber(getMatrixCellData(row, productId)!.needed, 0) }}
@@ -411,7 +420,8 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
             <span class="text-xs text-slate-500">{{ t('industry.scanner.pivotAdvisor.sortBy') }}:</span>
             <select
               v-model="sortBy"
-              class="text-xs bg-slate-800 border border-slate-700 text-slate-300 rounded-lg px-2 py-1 focus:outline-none focus:border-cyan-500"
+              :aria-label="t('industry.scanner.pivotAdvisor.sortBy')"
+              class="text-table-cell bg-slate-800 border border-slate-700 text-slate-300 rounded-lg px-2 py-1 focus:outline-none focus:border-cyan-500"
             >
               <option value="score">{{ t('industry.scanner.pivotAdvisor.coverageMargin') }}</option>
               <option value="margin">{{ t('industry.scanner.pivotAdvisor.marginPercent') }}</option>
@@ -432,11 +442,11 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
           <div
             v-for="(candidate, idx) in sortedCandidates"
             :key="candidate.typeId"
-            class="bg-[#0f172a] border border-[#1e293b] rounded-xl p-4 relative transition-all hover:border-cyan-400/30 hover:shadow-[0_0_20px_rgba(6,182,212,0.05)]"
+            class="bg-slate-900 border border-slate-800 rounded-xl p-4 relative transition-all hover:border-cyan-400/30 hover:shadow-[0_0_20px_rgba(6,182,212,0.05)]"
           >
             <!-- Rank badge -->
             <div
-              class="absolute -top-2 -left-2 w-7 h-7 flex items-center justify-center rounded-full font-bold text-xs font-mono"
+              class="absolute -top-2 -left-2 w-7 h-7 flex items-center justify-center rounded-full font-bold text-table-cell font-mono"
               :class="rankBadgeClasses(idx + 1)"
             >
               {{ idx + 1 }}
@@ -462,14 +472,14 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
 
             <!-- Stats grid -->
             <div class="grid grid-cols-2 gap-2 mb-3">
-              <div class="bg-[#1e293b] rounded-lg p-2">
+              <div class="bg-slate-800 rounded-lg p-2">
                 <div class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.scanner.pivotAdvisor.margin') }}</div>
                 <div class="font-mono text-sm font-bold" :class="marginColor(candidate.marginPercent)">
                   {{ formatMargin(candidate.marginPercent) }}
                 </div>
-                <div v-if="candidate.profitPerUnit != null" class="font-mono text-xs text-slate-500">{{ formatIsk(candidate.profitPerUnit) }} ISK</div>
+                <div v-if="candidate.profitPerUnit != null" class="font-mono text-table-cell text-slate-500">{{ formatIsk(candidate.profitPerUnit) }} ISK</div>
               </div>
-              <div class="bg-[#1e293b] rounded-lg p-2">
+              <div class="bg-slate-800 rounded-lg p-2">
                 <div class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.scanner.pivotAdvisor.dailyVol') }}</div>
                 <div class="font-mono text-sm font-bold text-slate-200">{{ formatNumber(candidate.dailyVolume, 0) }}</div>
                 <div class="text-xs text-slate-500">{{ t('industry.scanner.pivotAdvisor.unitsDay') }}</div>
@@ -479,9 +489,9 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
             <!-- Coverage bar -->
             <div class="mb-3">
               <div class="flex items-center justify-between mb-1">
-                <span class="text-xs text-slate-400">{{ t('industry.scanner.pivotAdvisor.componentCoverage') }}</span>
-                <span v-if="candidate.coveragePercent == null" class="font-mono text-xs text-amber-400">{{ t('industry.inventionUnknown.label') }}</span>
-                <span v-else class="font-mono text-xs" :class="coverageTextColor(candidate.coveragePercent)">
+                <span class="text-table-cell text-slate-400">{{ t('industry.scanner.pivotAdvisor.componentCoverage') }}</span>
+                <span v-if="candidate.coveragePercent == null" class="font-mono text-table-cell text-amber-400">{{ t('industry.inventionUnknown.label') }}</span>
+                <span v-else class="font-mono text-table-cell" :class="coverageTextColor(candidate.coveragePercent)">
                   {{ candidate.coveragePercent }}%
                 </span>
               </div>
@@ -501,7 +511,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
                 <div
                   v-for="mc in candidate.missingComponents"
                   :key="mc.typeId"
-                  class="flex items-center justify-between text-xs"
+                  class="flex items-center justify-between text-table-cell"
                 >
                   <!-- Amber for partial (some stock), red for none (zero stock) -->
                   <span :class="mc.quantity > 0 && isPricedShortage(mc) ? 'text-amber-400' : 'text-red-400'">
@@ -521,18 +531,18 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
             </div>
 
             <!-- Cost / Profit -->
-            <div class="bg-[#1e293b] rounded-lg p-2.5 mb-3 space-y-1.5">
-              <div class="flex items-center justify-between text-xs">
+            <div class="bg-slate-800 rounded-lg p-2.5 mb-3 space-y-1.5">
+              <div class="flex items-center justify-between text-table-cell">
                 <span class="text-slate-400">{{ t('industry.scanner.pivotAdvisor.additionalCost') }}</span>
                 <span class="font-mono text-amber-400">{{ formatKnownIsk(candidate.additionalCost) }}</span>
               </div>
-              <div class="flex items-center justify-between text-xs">
+              <div class="flex items-center justify-between text-table-cell">
                 <span class="text-slate-400">{{ t('industry.scanner.pivotAdvisor.estimatedProfit') }}</span>
                 <span class="font-mono text-emerald-400 font-bold">{{ formatKnownIsk(candidate.estimatedProfit) }}</span>
               </div>
             </div>
 
-            <p v-if="candidate.unknownReason != null" class="mb-3 text-xs text-amber-400">
+            <p v-if="candidate.unknownReason != null" class="mb-3 text-body text-amber-400">
               {{ t(`industry.inventionUnknown.${candidate.unknownReason}`) }}
             </p>
 

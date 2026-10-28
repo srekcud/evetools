@@ -68,13 +68,14 @@ class BuyVsBuildService
      *     totalProductionCost: float|null,
      *     sellPrice: float|null,
      *     marginPercent: float|null,
-     *     components: list<array{typeId: int, typeName: string|null, quantity: int, stage: string, buildCost: float|null, buildMaterials: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: float|null, totalPrice: float|null}>, buildJobInstallCost: float|null, buyCostJita: float|null, buyCostStructure: float|null, verdict: string, savings: float|null, savingsPercent: float|null, meUsed: int, runs: int, missingData: list<array{reason: string, typeId: ?int}>}>,
+     *     components: list<array{typeId: int, typeName: string|null, quantity: int, stage: string, buildCost: float|null, buildMaterials: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: float|null, totalPrice: float|null}>, buildJobInstallCost: float|null, buyCostJita: float|null, buyCostStructure: float|null, buyCostJitaCoveragePercent: float|null, verdict: string, savings: float|null, savingsPercent: float|null, meUsed: int, runs: int, missingData: list<array{reason: string, typeId: ?int}>, warnings: list<array{reason: string, typeId: int, coveragePercent: float}>}>,
      *     buildAllCost: float|null,
      *     buyAllCost: float|null,
      *     optimalMixCost: float|null,
      *     buildTypeIds: list<int>,
      *     buyTypeIds: list<int>,
      *     missingData: list<array{reason: string, typeId: ?int}>,
+     *     warnings: list<array{reason: string, typeId: int, coveragePercent: float}>,
      * }
      */
     public function analyze(
@@ -161,12 +162,14 @@ class BuyVsBuildService
                 'buildJobInstallCost' => self::roundedAmountOf($componentCost->installCost),
                 'buyCostJita' => self::roundedAmountOf($rootLeaf->cost),
                 'buyCostStructure' => null === $buyCostStructure ? null : self::roundedAmountOf($buyCostStructure),
+                'buyCostJitaCoveragePercent' => PartialPricePresenter::coveragePercentOf($rootLeaf->cost, $componentTypeId),
                 'verdict' => $verdict,
                 'savings' => null === $savings ? null : round($savings, self::DISPLAYED_DECIMALS),
                 'savingsPercent' => null === $savings ? null : self::savingsPercentOf($savings, $buildCost, $buyCost),
                 'meUsed' => $efficiency->materialEfficiency->value,
                 'runs' => $componentRuns,
                 'missingData' => MissingDataPresenter::of($componentMissingData),
+                'warnings' => PartialPricePresenter::of($componentMissingData),
             ];
         }
 
@@ -195,6 +198,7 @@ class BuyVsBuildService
             'buildTypeIds' => $buildTypeIds,
             'buyTypeIds' => $buyTypeIds,
             'missingData' => MissingDataPresenter::of($componentsMissingData->plus($rootCostOutsideComponents)),
+            'warnings' => PartialPricePresenter::of($totalProductionCost),
         ];
     }
 

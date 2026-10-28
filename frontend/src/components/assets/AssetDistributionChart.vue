@@ -8,6 +8,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js'
+import { CHART_COLORS, CHART_SERIES } from '@/utils/chartColors'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
 
@@ -21,19 +22,6 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
-
-const COLORS = [
-  '#22d3ee', // cyan-400
-  '#f59e0b', // amber-500
-  '#a78bfa', // violet-400
-  '#34d399', // emerald-400
-  '#f87171', // red-400
-  '#60a5fa', // blue-400
-  '#fbbf24', // amber-400
-  '#818cf8', // indigo-400
-  '#fb923c', // orange-400
-  '#2dd4bf', // teal-400
-]
 
 const TOP_N = 8
 
@@ -49,7 +37,7 @@ const chartData = computed(() => {
   if (sorted.length <= TOP_N) {
     labels = sorted.map(g => g.locationName)
     data = sorted.map(g => g.totalQuantity)
-    colors = sorted.map((_, i) => COLORS[i % COLORS.length])
+    colors = sorted.map((_, i) => CHART_SERIES[i % CHART_SERIES.length])
   } else {
     const top = sorted.slice(0, TOP_N)
     const rest = sorted.slice(TOP_N)
@@ -57,7 +45,7 @@ const chartData = computed(() => {
 
     labels = [...top.map(g => g.locationName), t('assets.chart.other')]
     data = [...top.map(g => g.totalQuantity), otherTotal]
-    colors = [...top.map((_, i) => COLORS[i % COLORS.length]), '#475569']
+    colors = [...top.map((_, i) => CHART_SERIES[i % CHART_SERIES.length]), CHART_COLORS.subtle]
   }
 
   return {
@@ -81,7 +69,7 @@ const chartOptions = computed(() => ({
       display: true,
       position: 'right' as const,
       labels: {
-        color: '#94a3b8',
+        color: CHART_COLORS.muted,
         font: { size: 11 },
         padding: 12,
         boxWidth: 12,
@@ -94,8 +82,8 @@ const chartOptions = computed(() => ({
       backgroundColor: 'rgba(15, 23, 42, 0.96)',
       borderColor: 'rgba(6, 182, 212, 0.25)',
       borderWidth: 1,
-      titleColor: '#e2e8f0',
-      bodyColor: '#94a3b8',
+      titleColor: CHART_COLORS.text,
+      bodyColor: CHART_COLORS.muted,
       bodyFont: { family: 'JetBrains Mono', size: 12 },
       padding: 12,
       cornerRadius: 8,

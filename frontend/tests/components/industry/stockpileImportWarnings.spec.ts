@@ -4,6 +4,7 @@ import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import StockpileDashboard from '@/components/industry/StockpileDashboard.vue'
 import { apiRequest } from '@/services/api'
+import type { StockpileFailedProduct, StockpileItemStatus, StockpileStageStatus, StockpileStatus } from '@/stores/industry/types'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -19,7 +20,7 @@ const GADGET_FAILURE_REASON = `No blueprint or reaction found for product type I
 const UNKNOWN_GADGET_TEXT = `Unknown product #${GADGET_TYPE_ID}`
 const IMPORT_WARNINGS_SELECTOR = '[data-testid="stockpile-import-warnings"]'
 
-const widgetItem = {
+const widgetItem: StockpileItemStatus = {
   id: '00000000-0000-4000-8000-000000003001',
   typeId: WIDGET_TYPE_ID,
   typeName: 'Widget',
@@ -31,14 +32,13 @@ const widgetItem = {
   unitPrice: 1000,
   stockValue: 0,
   deficitCost: 1000,
-  stage: 'final_product',
   sourceProductTypeId: WIDGET_TYPE_ID,
   locations: [],
 }
 
-const emptyStage = { items: [], totalValue: 0, healthPercent: 100 }
+const emptyStage: StockpileStageStatus = { items: [], totalValue: 0, healthPercent: 100 }
 
-function stockpileStatus(importsWithoutPlan: number[], failedProducts: { typeId: number; reason: string }[]) {
+function stockpileStatus(importsWithoutPlan: number[], failedProducts: StockpileFailedProduct[]): StockpileStatus {
   return {
     targetCount: 1,
     stages: {
@@ -56,10 +56,11 @@ function stockpileStatus(importsWithoutPlan: number[], failedProducts: { typeId:
     shoppingList: [],
     importsWithoutPlan,
     failedProducts,
+    missingPriceTypeIds: [],
   }
 }
 
-async function mountDashboard(importsWithoutPlan: number[], failedProducts: { typeId: number; reason: string }[]) {
+async function mountDashboard(importsWithoutPlan: number[], failedProducts: StockpileFailedProduct[]) {
   vi.mocked(apiRequest).mockResolvedValue(stockpileStatus(importsWithoutPlan, failedProducts))
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
   const wrapper = mount(StockpileDashboard, {

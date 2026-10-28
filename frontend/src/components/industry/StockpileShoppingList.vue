@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import DataTable from '@/components/common/DataTable.vue'
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
+import IskAmount from '@/components/common/IskAmount.vue'
 import type { StockpileShoppingItem, StockpileStage } from '@/stores/industry/types'
 
 const props = defineProps<{
@@ -11,7 +13,7 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const { getTypeIconUrl, onImageError } = useEveImages()
-const { formatIsk, formatNumber } = useFormatters()
+const { formatNumber } = useFormatters()
 
 const criticalOnly = ref(false)
 const copied = ref(false)
@@ -22,8 +24,11 @@ const filteredItems = computed(() =>
     : props.shoppingList,
 )
 
-const totalDeficitCost = computed(() =>
-  filteredItems.value.reduce((sum, item) => sum + item.deficitCost, 0),
+const totalDeficitCost = computed((): number | null =>
+  filteredItems.value.reduce<number | null>(
+    (sum, item) => (sum === null || item.deficitCost === null ? null : sum + item.deficitCost),
+    0,
+  ),
 )
 
 const deficitCount = computed(() =>
@@ -110,71 +115,73 @@ async function copyToClipboard(): Promise<void> {
     </div>
 
     <div class="px-6 py-4">
-      <table class="w-full">
-        <thead>
-          <tr class="text-xs uppercase tracking-wider text-slate-500">
-            <th class="text-left pb-3 pl-2">{{ t('industry.stockpile.shoppingList.item') }}</th>
-            <th class="text-left pb-3">{{ t('industry.stockpile.shoppingList.stage') }}</th>
-            <th class="text-right pb-3">{{ t('industry.stockpile.shoppingList.have') }}</th>
-            <th class="text-right pb-3">{{ t('industry.stockpile.shoppingList.need') }}</th>
-            <th class="text-right pb-3">{{ t('industry.stockpile.shoppingList.deficit') }}</th>
-            <th class="text-right pb-3">{{ t('industry.stockpile.shoppingList.estCost') }}</th>
-            <th class="text-right pb-3 pr-2">{{ t('industry.stockpile.shoppingList.status') }}</th>
-          </tr>
-        </thead>
-        <tbody class="text-sm">
-          <tr
-            v-for="item in filteredItems"
-            :key="item.typeId"
-            class="border-t border-slate-800/50 hover:bg-slate-800/30 transition-colors"
-          >
-            <td class="py-2.5 pl-2">
-              <div class="flex items-center gap-2">
-                <img
-                  :src="getTypeIconUrl(item.typeId, 32)"
-                  :alt="item.typeName"
-                  class="w-6 h-6 rounded border border-slate-700"
-                  @error="onImageError"
-                />
-                <span class="text-slate-200 font-medium">{{ item.typeName }}</span>
-              </div>
-            </td>
-            <td>
-              <span
-                class="text-xs px-1.5 py-0.5 rounded"
-                :class="stageBadgeClasses[item.stage]"
-              >
-                {{ stageShortNames[item.stage] }}
-              </span>
-            </td>
-            <td class="text-right font-mono text-slate-400">{{ formatNumber(item.stock, 0) }}</td>
-            <td class="text-right font-mono text-slate-300">{{ formatNumber(item.targetQuantity, 0) }}</td>
-            <td class="text-right font-mono" :class="deficitTextClass(item.percent)">
-              -{{ formatNumber(item.deficit, 0) }}
-            </td>
-            <td class="text-right font-mono text-slate-300">{{ formatIsk(item.deficitCost) }}</td>
-            <td class="text-right pr-2">
-              <span
-                class="text-xs px-2 py-0.5 rounded"
-                :class="statusBadgeClasses(item.percent)"
-              >
-                {{ item.percent }}%
-              </span>
-            </td>
-          </tr>
-        </tbody>
-        <tfoot>
-          <tr class="border-t border-slate-700">
-            <td colspan="5" class="py-3 pl-2 text-sm font-semibold text-slate-300">
-              {{ t('industry.stockpile.shoppingList.totalDeficit') }}
-            </td>
-            <td class="py-3 text-right font-mono text-lg font-bold text-cyan-400">
-              {{ formatIsk(totalDeficitCost) }} ISK
-            </td>
-            <td></td>
-          </tr>
-        </tfoot>
-      </table>
+      <DataTable>
+        <table class="w-full">
+          <thead>
+            <tr class="text-xs uppercase tracking-wider text-slate-500">
+              <th class="text-left pb-3 pl-2">{{ t('industry.stockpile.shoppingList.item') }}</th>
+              <th class="text-left pb-3">{{ t('industry.stockpile.shoppingList.stage') }}</th>
+              <th class="text-right pb-3">{{ t('industry.stockpile.shoppingList.have') }}</th>
+              <th class="text-right pb-3">{{ t('industry.stockpile.shoppingList.need') }}</th>
+              <th class="text-right pb-3">{{ t('industry.stockpile.shoppingList.deficit') }}</th>
+              <th class="text-right pb-3">{{ t('industry.stockpile.shoppingList.estCost') }}</th>
+              <th class="text-right pb-3 pr-2">{{ t('industry.stockpile.shoppingList.status') }}</th>
+            </tr>
+          </thead>
+          <tbody class="text-sm">
+            <tr
+              v-for="item in filteredItems"
+              :key="item.typeId"
+              class="border-t border-slate-800/50 hover:bg-slate-800/30 transition-colors"
+            >
+              <td class="py-2.5 pl-2">
+                <div class="flex items-center gap-2">
+                  <img
+                    :src="getTypeIconUrl(item.typeId, 32)"
+                    :alt="item.typeName"
+                    class="w-6 h-6 rounded border border-slate-700"
+                    @error="onImageError"
+                  />
+                  <span class="text-slate-200 font-medium">{{ item.typeName }}</span>
+                </div>
+              </td>
+              <td>
+                <span
+                  class="text-xs px-1.5 py-0.5 rounded"
+                  :class="stageBadgeClasses[item.stage]"
+                >
+                  {{ stageShortNames[item.stage] }}
+                </span>
+              </td>
+              <td class="text-right font-mono text-slate-400 tabular-nums">{{ formatNumber(item.stock, 0) }}</td>
+              <td class="text-right font-mono text-slate-300 tabular-nums">{{ formatNumber(item.targetQuantity, 0) }}</td>
+              <td class="text-right font-mono tabular-nums" :class="deficitTextClass(item.percent)">
+                -{{ formatNumber(item.deficit, 0) }}
+              </td>
+              <td class="text-right font-mono text-slate-300 tabular-nums"><IskAmount :value="item.deficitCost" /></td>
+              <td class="text-right pr-2 tabular-nums">
+                <span
+                  class="text-xs px-2 py-0.5 rounded"
+                  :class="statusBadgeClasses(item.percent)"
+                >
+                  {{ item.percent }}%
+                </span>
+              </td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr class="border-t border-slate-700">
+              <td colspan="5" class="py-3 pl-2 text-sm font-semibold text-slate-300">
+                {{ t('industry.stockpile.shoppingList.totalDeficit') }}
+              </td>
+              <td class="py-3 text-right font-mono text-lg font-bold text-cyan-400 tabular-nums">
+                <IskAmount :value="totalDeficitCost" /> ISK
+              </td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </DataTable>
     </div>
   </div>
 </template>

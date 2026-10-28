@@ -25,12 +25,14 @@ const MAGPULSE_THRUSTER_TO_BUILD: BuyVsBuildComponent = {
   buildJobInstallCost: 1_200_000,
   buyCostJita: 52_000_000,
   buyCostStructure: null,
+  buyCostJitaCoveragePercent: null,
   verdict: 'build',
   savings: 11_000_000,
   savingsPercent: 21.15,
   meUsed: 10,
   runs: 2030,
   missingData: [],
+  warnings: [],
 }
 
 const SUSTAINED_SHIELD_EMITTER_TO_BUY: BuyVsBuildComponent = {
@@ -43,12 +45,14 @@ const SUSTAINED_SHIELD_EMITTER_TO_BUY: BuyVsBuildComponent = {
   buildJobInstallCost: 2_400_000,
   buyCostJita: 79_000_000,
   buyCostStructure: 77_500_000,
+  buyCostJitaCoveragePercent: null,
   verdict: 'buy',
   savings: -10_500_000,
   savingsPercent: -13.55,
   meUsed: 10,
   runs: 4413,
   missingData: [],
+  warnings: [],
 }
 
 const TITANIUM_CARBIDE_AT_A_LOSS: BuyVsBuildComponent = {
@@ -61,12 +65,14 @@ const TITANIUM_CARBIDE_AT_A_LOSS: BuyVsBuildComponent = {
   buildJobInstallCost: 310_000,
   buyCostJita: 4_100_000,
   buyCostStructure: null,
+  buyCostJitaCoveragePercent: null,
   verdict: 'loss',
   savings: -2_200_000,
   savingsPercent: -53.66,
   meUsed: 0,
   runs: 2,
   missingData: [],
+  warnings: [],
 }
 
 const FERROGEL_WITHOUT_PRICE: BuyVsBuildComponent = {
@@ -79,12 +85,14 @@ const FERROGEL_WITHOUT_PRICE: BuyVsBuildComponent = {
   buildJobInstallCost: 45_000,
   buyCostJita: null,
   buyCostStructure: null,
+  buyCostJitaCoveragePercent: null,
   verdict: 'unknown',
   savings: null,
   savingsPercent: null,
   meUsed: 0,
   runs: 1,
   missingData: [{ reason: 'market_price', typeId: FERROGEL_TYPE_ID }],
+  warnings: [],
 }
 
 const WIDOW_ANALYSIS: BuyVsBuildResult = {
@@ -102,6 +110,7 @@ const WIDOW_ANALYSIS: BuyVsBuildResult = {
   buildTypeIds: [MAGPULSE_THRUSTER_TYPE_ID],
   buyTypeIds: [SUSTAINED_SHIELD_EMITTER_TYPE_ID, TITANIUM_CARBIDE_TYPE_ID],
   missingData: [{ reason: 'market_price', typeId: FERROGEL_TYPE_ID }],
+  warnings: [],
   sellStructureId: 1_035_466_617_946,
 }
 
@@ -120,6 +129,7 @@ const NITROGEN_FUEL_BLOCK_ANALYSIS: BuyVsBuildResult = {
   buildTypeIds: [],
   buyTypeIds: [],
   missingData: [],
+  warnings: [],
   sellStructureId: null,
 }
 

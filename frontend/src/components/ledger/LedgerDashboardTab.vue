@@ -13,6 +13,7 @@ import {
   Legend,
 } from 'chart.js'
 import type { LedgerDashboard, LedgerDailyStats } from '@/stores/ledger'
+import { CHART_COLORS } from '@/utils/chartColors'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
@@ -53,7 +54,7 @@ const chartData = computed(() => {
         label: 'PVE',
         data: days.map(d => d.pve),
         backgroundColor: 'rgba(6, 182, 212, 0.7)',
-        borderColor: '#06b6d4',
+        borderColor: CHART_COLORS.brand,
         borderWidth: 1,
         borderRadius: 2,
       },
@@ -61,7 +62,7 @@ const chartData = computed(() => {
         label: 'Mining',
         data: days.map(d => d.mining),
         backgroundColor: 'rgba(245, 158, 11, 0.7)',
-        borderColor: '#f59e0b',
+        borderColor: CHART_COLORS.warning,
         borderWidth: 1,
         borderRadius: 2,
       },
@@ -82,9 +83,9 @@ const chartOptions = computed(() => ({
       backgroundColor: 'rgba(15, 23, 42, 0.96)',
       borderColor: 'rgba(6, 182, 212, 0.25)',
       borderWidth: 1,
-      titleColor: '#94a3b8',
+      titleColor: CHART_COLORS.muted,
       titleFont: { family: 'JetBrains Mono', size: 11 },
-      bodyColor: '#e2e8f0',
+      bodyColor: CHART_COLORS.text,
       bodyFont: { family: 'JetBrains Mono', size: 12 },
       bodySpacing: 6,
       padding: { top: 10, bottom: 10, left: 14, right: 14 },
@@ -115,7 +116,7 @@ const chartOptions = computed(() => ({
       stacked: true,
       grid: { display: false },
       ticks: {
-        color: '#475569',
+        color: CHART_COLORS.subtle,
         font: { family: 'JetBrains Mono', size: 10 },
         maxTicksLimit: props.selectedDays <= 30 ? 10 : 15,
         maxRotation: 0,
@@ -126,7 +127,7 @@ const chartOptions = computed(() => ({
       stacked: true,
       grid: { color: 'rgba(51, 65, 85, 0.3)' },
       ticks: {
-        color: '#475569',
+        color: CHART_COLORS.subtle,
         font: { family: 'JetBrains Mono', size: 10 },
         callback: (value: string | number) => formatChartIsk(Number(value)),
       },

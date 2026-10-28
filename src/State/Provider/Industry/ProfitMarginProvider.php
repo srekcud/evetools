@@ -131,6 +131,7 @@ class ProfitMarginProvider implements ProviderInterface
         $resource->margins = $data['margins'];
         $resource->dailyVolume = $data['dailyVolume'];
         $resource->missingData = $data['missingData'];
+        $resource->warnings = $data['warnings'];
 
         return $resource;
     }

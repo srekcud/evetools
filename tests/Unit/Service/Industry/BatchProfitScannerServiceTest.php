@@ -12,6 +12,7 @@ use App\Service\Industry\JobInstallCostEstimator;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
+use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedStructureRepository;
@@ -106,7 +107,7 @@ class BatchProfitScannerServiceTest extends TestCase
             $this->activitySkillRepository,
             $this->characterSkillRepository,
             new JobInstallCostEstimator(),
-            new FacilityTaxResolver(new InMemoryUserProductionStructures()),
+            new FacilityTaxResolver(new InMemoryUserProductionStructures(), InMemorySystemCostIndices::none()),
         );
     }
 
@@ -556,7 +557,7 @@ class BatchProfitScannerServiceTest extends TestCase
             $this->activitySkillRepository,
             $this->characterSkillRepository,
             new JobInstallCostEstimator(),
-            new FacilityTaxResolver(new InMemoryUserProductionStructures()),
+            new FacilityTaxResolver(new InMemoryUserProductionStructures(), InMemorySystemCostIndices::none()),
         );
 
         $this->connection->method('fetchAllAssociative')->willReturnCallback(
@@ -616,7 +617,7 @@ class BatchProfitScannerServiceTest extends TestCase
             $this->activitySkillRepository,
             $this->characterSkillRepository,
             new JobInstallCostEstimator(),
-            new FacilityTaxResolver(new InMemoryUserProductionStructures()),
+            new FacilityTaxResolver(new InMemoryUserProductionStructures(), InMemorySystemCostIndices::none()),
         );
 
         $this->connection->method('fetchFirstColumn')->willReturn([]);
@@ -673,7 +674,7 @@ class BatchProfitScannerServiceTest extends TestCase
             $this->activitySkillRepository,
             $this->characterSkillRepository,
             new JobInstallCostEstimator(),
-            new FacilityTaxResolver(new InMemoryUserProductionStructures()),
+            new FacilityTaxResolver(new InMemoryUserProductionStructures(), InMemorySystemCostIndices::none()),
         );
 
         $this->connection->method('fetchFirstColumn')->willReturn([]);
@@ -1155,7 +1156,7 @@ class BatchProfitScannerServiceTest extends TestCase
             $this->activitySkillRepository,
             $this->characterSkillRepository,
             new JobInstallCostEstimator(),
-            new FacilityTaxResolver(new InMemoryUserProductionStructures()),
+            new FacilityTaxResolver(new InMemoryUserProductionStructures(), InMemorySystemCostIndices::none()),
         );
 
         $this->productRepository->method('findAllManufacturableProducts')->willReturn([

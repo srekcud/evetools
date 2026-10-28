@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Industry\Infrastructure\Market;
 
 use App\Industry\Application\MarketPrices;
+use App\Industry\Application\WeightedPrice;
 use App\Industry\Domain\Isk;
+use App\Industry\Domain\OrderBookCoverage;
 use App\Service\JitaMarketService;
 
 final readonly class JitaMarketPrices implements MarketPrices
@@ -23,8 +25,8 @@ final readonly class JitaMarketPrices implements MarketPrices
 
         $unitPrices = [];
         foreach ($this->jitaMarketService->getWeightedSellPricesWithFallback($wholeUnitsByTypeId) as $typeId => $weightedPrice) {
-            if (null !== $weightedPrice) {
-                $unitPrices[$typeId] = new Isk($weightedPrice['weightedPrice']);
+            if (null !== $weightedPrice && isset($weightedPrice['coverage']) && $weightedPrice['coverage'] > 0.0) {
+                $unitPrices[$typeId] = new WeightedPrice(new Isk($weightedPrice['weightedPrice']), new OrderBookCoverage($weightedPrice['coverage']));
             }
         }
 

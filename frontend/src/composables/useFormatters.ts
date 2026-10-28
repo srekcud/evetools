@@ -6,6 +6,10 @@ export const dateFormat = ref<'eu' | 'us'>(
   (localStorage.getItem('evetools_date_format') as 'eu' | 'us') || 'eu'
 )
 
+const MS_PER_MINUTE = 60_000
+const MINUTES_PER_HOUR = 60
+const HOURS_PER_DAY = 24
+
 function setDateFormat(format: 'eu' | 'us') {
   dateFormat.value = format
   localStorage.setItem('evetools_date_format', format)
@@ -17,7 +21,7 @@ function setDateFormat(format: 'eu' | 'us') {
  * Uses the dateFormat setting (eu/us) for date formatting, independent of language.
  */
 export function useFormatters() {
-  const { locale } = useI18n()
+  const { locale, t } = useI18n()
 
   function getLocaleStr(): string {
     return locale.value === 'fr' ? 'fr-FR' : 'en-US'
@@ -65,16 +69,15 @@ export function useFormatters() {
     })
   }
 
-  function formatTimeSince(dateStr: string | null): string {
-    if (!dateStr) return 'Never'
-    const date = new Date(dateStr)
-    const now = new Date()
-    const diff = now.getTime() - date.getTime()
-    const minutes = Math.floor(diff / 60000)
-    if (minutes < 60) return `${minutes}m ago`
-    const hours = Math.floor(minutes / 60)
-    if (hours < 24) return `${hours}h ago`
-    return `${Math.floor(hours / 24)}d ago`
+  function formatTimeSince(dateStr: string | null, now: Date = new Date()): string {
+    if (!dateStr) return t('common.status.never')
+    const diff = Math.max(0, now.getTime() - new Date(dateStr).getTime())
+    const minutes = Math.floor(diff / MS_PER_MINUTE)
+    if (minutes < 1) return t('common.time.justNow')
+    if (minutes < MINUTES_PER_HOUR) return t('common.time.minutesAgo', { minutes })
+    const hours = Math.floor(minutes / MINUTES_PER_HOUR)
+    if (hours < HOURS_PER_DAY) return t('common.time.hoursAgo', { hours })
+    return t('common.time.daysAgo', { days: Math.floor(hours / HOURS_PER_DAY) })
   }
 
   function formatDuration(seconds: number): string {

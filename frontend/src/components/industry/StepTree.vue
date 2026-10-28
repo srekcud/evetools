@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, ref, watch, nextTick } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import BaseModal from '@/components/common/BaseModal.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { formatDuration } from '@/composables/useProjectTime'
 import type { IndustryProjectStep, SimilarJob } from '@/stores/industry'
+import { vFocusOnMount } from './vFocusOnMount'
 
 const { t } = useI18n()
 
@@ -48,7 +50,6 @@ const splitCount = ref(2)
 const showDeleteModal = ref(false)
 const deleteStepId = ref<string | null>(null)
 const deleteStepName = ref('')
-const deleteModalRef = ref<HTMLElement | null>(null)
 
 // Watch for steps changes to expand newly created split groups
 watch(() => props.steps, (newSteps) => {
@@ -384,7 +385,6 @@ function deleteStep(stepId: string, stepName: string) {
   deleteStepId.value = stepId
   deleteStepName.value = stepName
   showDeleteModal.value = true
-  nextTick(() => deleteModalRef.value?.focus())
 }
 
 function confirmDelete() {
@@ -489,105 +489,113 @@ function mergeGroup(stepId: string) {
             :class="[
               splitGroup.isValid ? 'border-slate-700' : 'bg-red-900/20 border-red-500/50',
             ]"
+            role="presentation"
             @click="toggleSplitGroup(splitGroup.splitGroupId)"
           >
-            <!-- Expand/Collapse icon -->
-            <svg
-              class="w-4 h-4 text-slate-400 transition-transform"
-              :class="{ 'rotate-90': expandedSplitGroups.has(splitGroup.splitGroupId) }"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+            <button
+              type="button"
+              class="flex flex-1 min-w-0 items-center gap-3 text-left"
+              :aria-expanded="expandedSplitGroups.has(splitGroup.splitGroupId)"
             >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-            <img
-              :src="getTypeIconUrl(splitGroup.productTypeId, 32)"
-              class="w-8 h-8 rounded-sm"
-              @error="onImageError"
-            />
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 flex-wrap">
-                <span class="font-medium text-slate-200">{{ splitGroup.productTypeName }}</span>
-                <span v-if="splitGroup.children.length > 1" class="text-xs text-slate-500">({{ splitGroup.children.length }} jobs)</span>
-                <span :class="['text-xs px-1.5 py-0.5 rounded-sm', activityBadgeClass(splitGroup.activityType)]">
-                  {{ activityLabel(splitGroup.activityType) }}
+              <!-- Expand/Collapse icon -->
+              <svg
+                class="w-4 h-4 text-slate-400 transition-transform"
+                :class="{ 'rotate-90': expandedSplitGroups.has(splitGroup.splitGroupId) }"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+              <img
+                :src="getTypeIconUrl(splitGroup.productTypeId, 32)"
+                alt=""
+                class="w-8 h-8 rounded-sm"
+                @error="onImageError"
+              />
+              <span class="block flex-1 min-w-0">
+                <span class="flex items-center gap-2 flex-wrap">
+                  <span class="font-medium text-slate-200">{{ splitGroup.productTypeName }}</span>
+                  <span v-if="splitGroup.children.length > 1" class="text-xs text-slate-500">({{ splitGroup.children.length }} jobs)</span>
+                  <span :class="['text-xs px-1.5 py-0.5 rounded-sm', activityBadgeClass(splitGroup.activityType)]">
+                    {{ activityLabel(splitGroup.activityType) }}
+                  </span>
+                  <!-- Structure info -->
+                  <span
+                    v-if="splitGroup.recommendedStructureName"
+                    class="text-xs text-slate-500 flex items-center gap-1"
+                    :title="`Bonus: ${splitGroup.structureBonus}%`"
+                  >
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    {{ splitGroup.recommendedStructureName }}
+                    <span class="text-emerald-400">({{ splitGroup.structureBonus }}%)</span>
+                  </span>
+                  <!-- Favorite system holds no structure able to run the activity -->
+                  <span
+                    v-if="splitGroup.favoriteSystemWithoutSuitableStructure"
+                    class="text-xs px-1.5 py-0.5 rounded-sm bg-amber-500/10 text-amber-400 border border-amber-500/20 cursor-help"
+                    :title="t('industry.stepTree.favoriteSystemWithoutSuitableStructureHint')"
+                  >
+                    {{ t('industry.stepTree.favoriteSystemWithoutSuitableStructure') }}
+                  </span>
+                  <!-- Facility delta: suboptimal structure -->
+                  <span
+                    v-if="splitGroup.facilityInfoType === 'suboptimal'"
+                    class="text-body text-amber-400 flex items-center gap-1"
+                  >
+                    {{ t('industry.stepTree.bestStructure', { name: splitGroup.bestStructureName }) }}
+                    ({{ splitGroup.bestMaterialBonus?.toFixed(1) }}%)
+                    <template v-if="materialImpactText(splitGroup)">· {{ materialImpactText(splitGroup) }}</template>
+                  </span>
+                  <!-- Facility delta: unconfigured -->
+                  <span
+                    v-if="splitGroup.facilityInfoType === 'unconfigured'"
+                    class="text-xs px-1.5 py-0.5 rounded-sm bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  >
+                    {{ splitGroup.actualFacilityName }} ({{ t('industry.stepTree.unconfigured') }})
+                  </span>
                 </span>
-                <!-- Structure info -->
-                <span
-                  v-if="splitGroup.recommendedStructureName"
-                  class="text-xs text-slate-500 flex items-center gap-1"
-                  :title="`Bonus: ${splitGroup.structureBonus}%`"
-                >
-                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                  {{ splitGroup.recommendedStructureName }}
-                  <span class="text-emerald-400">({{ splitGroup.structureBonus }}%)</span>
+                <!-- Runs info with breakdown -->
+                <span class="flex items-center gap-3 mt-1 text-table-cell">
+                  <span
+                    :class="[
+                      'font-mono',
+                      splitGroup.isValid ? 'text-slate-400' : 'text-red-400'
+                    ]"
+                  >
+                    {{ splitGroup.actualTotalRuns }} / {{ splitGroup.totalExpectedRuns }} runs
+                  </span>
+                  <span v-if="!splitGroup.isValid" class="text-red-400">
+                    ({{ splitGroup.actualTotalRuns > splitGroup.totalExpectedRuns ? '+' : '' }}{{ splitGroup.actualTotalRuns - splitGroup.totalExpectedRuns }})
+                  </span>
+                  <!-- Runs breakdown -->
+                  <span v-if="splitGroup.runsToLaunch > 0" class="text-slate-500">
+                    {{ splitGroup.runsToLaunch }} {{ t('industry.stepTree.toLaunch') }}
+                  </span>
+                  <span v-if="splitGroup.runsInProgress > 0" class="text-cyan-400">
+                    {{ splitGroup.runsInProgress }} {{ t('industry.stepTree.inProgress') }}
+                  </span>
+                  <span v-if="splitGroup.runsCompleted > 0" class="text-emerald-400">
+                    {{ splitGroup.runsCompleted }} {{ t('industry.stepTree.completed') }}
+                  </span>
+                  <!-- Duration -->
+                  <span v-if="groupTotalDuration(splitGroup.children)" class="text-slate-500 flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {{ formatDuration(groupTotalDuration(splitGroup.children)) }}
+                  </span>
                 </span>
-                <!-- Favorite system holds no structure able to run the activity -->
-                <span
-                  v-if="splitGroup.favoriteSystemWithoutSuitableStructure"
-                  class="text-xs px-1.5 py-0.5 rounded-sm bg-amber-500/10 text-amber-400 border border-amber-500/20 cursor-help"
-                  :title="t('industry.stepTree.favoriteSystemWithoutSuitableStructureHint')"
-                >
-                  {{ t('industry.stepTree.favoriteSystemWithoutSuitableStructure') }}
-                </span>
-                <!-- Facility delta: suboptimal structure -->
-                <span
-                  v-if="splitGroup.facilityInfoType === 'suboptimal'"
-                  class="text-xs text-amber-400 flex items-center gap-1"
-                >
-                  {{ t('industry.stepTree.bestStructure', { name: splitGroup.bestStructureName }) }}
-                  ({{ splitGroup.bestMaterialBonus?.toFixed(1) }}%)
-                  <template v-if="materialImpactText(splitGroup)">· {{ materialImpactText(splitGroup) }}</template>
-                </span>
-                <!-- Facility delta: unconfigured -->
-                <span
-                  v-if="splitGroup.facilityInfoType === 'unconfigured'"
-                  class="text-xs px-1.5 py-0.5 rounded-sm bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                >
-                  {{ splitGroup.actualFacilityName }} ({{ t('industry.stepTree.unconfigured') }})
-                </span>
-              </div>
-              <!-- Runs info with breakdown -->
-              <div class="flex items-center gap-3 mt-1 text-xs">
-                <span
-                  :class="[
-                    'font-mono',
-                    splitGroup.isValid ? 'text-slate-400' : 'text-red-400'
-                  ]"
-                >
-                  {{ splitGroup.actualTotalRuns }} / {{ splitGroup.totalExpectedRuns }} runs
-                </span>
-                <span v-if="!splitGroup.isValid" class="text-red-400">
-                  ({{ splitGroup.actualTotalRuns > splitGroup.totalExpectedRuns ? '+' : '' }}{{ splitGroup.actualTotalRuns - splitGroup.totalExpectedRuns }})
-                </span>
-                <!-- Runs breakdown -->
-                <span v-if="splitGroup.runsToLaunch > 0" class="text-slate-500">
-                  {{ splitGroup.runsToLaunch }} {{ t('industry.stepTree.toLaunch') }}
-                </span>
-                <span v-if="splitGroup.runsInProgress > 0" class="text-cyan-400">
-                  {{ splitGroup.runsInProgress }} {{ t('industry.stepTree.inProgress') }}
-                </span>
-                <span v-if="splitGroup.runsCompleted > 0" class="text-emerald-400">
-                  {{ splitGroup.runsCompleted }} {{ t('industry.stepTree.completed') }}
-                </span>
-                <!-- Duration -->
-                <span v-if="groupTotalDuration(splitGroup.children)" class="text-slate-500 flex items-center gap-1">
-                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  {{ formatDuration(groupTotalDuration(splitGroup.children)) }}
-                </span>
-              </div>
-            </div>
+              </span>
+            </button>
 
             <!-- Merge button (when multiple children) -->
             <button
               v-if="splitGroup.children.length > 1 && splitGroup.depth > 0 && !readonly"
               @click.stop="mergeGroup(splitGroup.children[0].id)"
-              class="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-sm text-slate-300"
+              class="px-2 py-1 text-table-cell bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-sm text-slate-300"
               :title="t('industry.step.merge')"
             >
               {{ t('industry.step.merge') }}
@@ -606,7 +614,7 @@ function mergeGroup(stepId: string) {
                 @change="toggleAllPurchased(splitGroup.children)"
                 class="w-4 h-4 rounded-sm border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500 focus:ring-offset-slate-900 disabled:cursor-not-allowed"
               />
-              <span class="text-xs text-slate-400">{{ t('industry.step.purchased') }}</span>
+              <span class="text-table-cell text-slate-400">{{ t('industry.step.purchased') }}</span>
             </label>
           </div>
 
@@ -622,6 +630,7 @@ function mergeGroup(stepId: string) {
 
               <img
                 :src="getTypeIconUrl(step.productTypeId, 32)"
+                alt=""
                 class="w-8 h-8 rounded-sm"
                 @error="onImageError"
               />
@@ -637,19 +646,24 @@ function mergeGroup(stepId: string) {
                         v-model.number="editRunsValue"
                         type="number"
                         min="1"
+                        :aria-label="t('industry.createProject.runs')"
                         class="w-16 px-1 py-0.5 bg-slate-700 border border-cyan-500 rounded-sm text-xs text-slate-200 focus:outline-hidden"
                         @keydown.enter="saveEditRuns(step.id)"
                         @keydown.escape="cancelEditRuns"
                         @blur="saveEditRuns(step.id)"
                         @focus="($event.target as HTMLInputElement).select()"
                         @click.stop
-                        autofocus
+                        v-focus-on-mount
                       />
                       <span class="text-xs text-slate-600">runs)</span>
                     </span>
                     <span
                       v-else
+                      role="button"
+                      tabindex="0"
                       @dblclick.stop="startEditRuns(step)"
+                      @keydown.enter.stop="startEditRuns(step)"
+                      @keydown.space.stop.prevent="startEditRuns(step)"
                       class="text-xs text-slate-600 cursor-pointer hover:text-cyan-400"
                       :title="t('industry.table.doubleClickEdit')"
                     >
@@ -686,6 +700,7 @@ function mergeGroup(stepId: string) {
                         <input
                           type="number"
                           :value="step.meLevel"
+                          :aria-label="t('industry.createProject.me')"
                           min="0"
                           max="10"
                           class="w-10 bg-slate-800 border border-slate-700 rounded-sm px-1 py-0.5 text-xs text-center focus:border-cyan-500 focus:outline-hidden"
@@ -698,6 +713,7 @@ function mergeGroup(stepId: string) {
                         <input
                           type="number"
                           :value="step.teLevel"
+                          :aria-label="t('industry.createProject.te')"
                           min="0"
                           max="20"
                           class="w-10 bg-slate-800 border border-slate-700 rounded-sm px-1 py-0.5 text-xs text-center focus:border-cyan-500 focus:outline-hidden"
@@ -714,7 +730,7 @@ function mergeGroup(stepId: string) {
                   <!-- Structure display -->
                   <span
                     v-if="step.recommendedStructureName"
-                    class="bg-slate-800/50 border border-slate-700/50 rounded-sm px-2 py-1 text-xs text-slate-400"
+                    class="bg-slate-800/50 border border-slate-700/50 rounded-sm px-2 py-1 text-table-cell text-slate-400"
                     :title="step.recommendedStructureName"
                   >{{ step.recommendedStructureName }} — {{ step.structureBonus }}%</span>
                   <!-- ESI linked indicator with unlink button -->
@@ -740,7 +756,7 @@ function mergeGroup(stepId: string) {
                   </span>
                   <span
                     v-else-if="step.recommendedCharacterName && !step.purchased && !step.inStock"
-                    class="px-2 py-1 rounded-sm text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+                    class="px-2 py-1 rounded-sm text-table-cell bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
                     :title="t('industry.stepTree.recommendedCharacter')"
                   >
                     {{ step.recommendedCharacterName }}
@@ -748,7 +764,7 @@ function mergeGroup(stepId: string) {
                   <!-- Facility info: suboptimal structure -->
                   <span
                     v-if="step.facilityInfoType === 'suboptimal'"
-                    class="text-xs text-amber-400"
+                    class="text-body text-amber-400"
                   >
                     {{ t('industry.stepTree.suboptimal') }} — {{ t('industry.stepTree.better') }} : {{ step.bestStructureName }}
                     ({{ step.bestMaterialBonus?.toFixed(2) }}%)
@@ -771,7 +787,7 @@ function mergeGroup(stepId: string) {
                   </span>
                 </div>
                 <!-- Job info -->
-                <div v-if="step.esiJobId || step.manualJobData" class="flex items-center gap-2 mt-1 text-xs flex-wrap">
+                <div v-if="step.esiJobId || step.manualJobData" class="flex items-center gap-2 mt-1 text-table-cell flex-wrap">
                   <span
                     v-if="step.esiJobsCount && step.esiJobsCount > 1"
                     class="text-slate-600"
@@ -804,7 +820,7 @@ function mergeGroup(stepId: string) {
                 </div>
               </div>
 
-              <span :class="['text-xs px-2 py-1 rounded-sm', stepStatusClass(step)]">
+              <span :class="['text-table-cell px-2 py-1 rounded-sm', stepStatusClass(step)]">
                 {{ stepStatusLabel(step) }}
               </span>
 
@@ -821,7 +837,7 @@ function mergeGroup(stepId: string) {
                   @change="onToggle(step)"
                   class="w-4 h-4 rounded-sm border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500 focus:ring-offset-slate-900 disabled:cursor-not-allowed"
                 />
-                <span class="text-xs text-slate-400">{{ t('industry.step.purchased') }}</span>
+                <span class="text-table-cell text-slate-400">{{ t('industry.step.purchased') }}</span>
               </label>
 
               <!-- Split button with text "Splitter" -->
@@ -829,13 +845,14 @@ function mergeGroup(stepId: string) {
                 <div v-if="splittingStepId === step.id" class="flex items-center gap-1" @click.stop>
                   <input
                     v-model.number="splitCount"
+                    :aria-label="t('industry.step.split')"
                     type="number"
                     min="2"
                     max="20"
                     class="w-12 px-1 py-0.5 bg-slate-700 border border-cyan-500 rounded-sm text-xs text-center"
                     @keydown.enter="confirmSplit(step.id)"
                     @keydown.escape="cancelSplit"
-                    autofocus
+                    v-focus-on-mount
                   />
                   <button
                     @click.stop="confirmSplit(step.id)"
@@ -846,6 +863,7 @@ function mergeGroup(stepId: string) {
                   <button
                     @click.stop="cancelSplit"
                     class="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 rounded-sm text-xs text-slate-300"
+                    :aria-label="t('common.actions.cancel')"
                   >
                     ✗
                   </button>
@@ -861,7 +879,7 @@ function mergeGroup(stepId: string) {
               </template>
 
               <!-- Job cost (ESI cost if linked, otherwise nothing) -->
-              <span v-if="step.esiJobCost" class="text-xs font-mono text-slate-400">
+              <span v-if="step.esiJobCost" class="text-table-cell font-mono text-slate-400">
                 {{ formatIsk(step.esiJobCost) }}
               </span>
 
@@ -871,8 +889,9 @@ function mergeGroup(stepId: string) {
                 @click.stop="deleteStep(step.id, typeNameLabel(step.productTypeName, step.productTypeId))"
                 class="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-700 rounded-sm"
                 :title="t('industry.stepTree.deleteStep')"
+                :aria-label="t('industry.stepTree.deleteStep')"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -890,12 +909,13 @@ function mergeGroup(stepId: string) {
                   <span class="text-sm text-slate-400">Runs :</span>
                   <input
                     v-model.number="addChildRunsValue"
+                    :aria-label="t('industry.createProject.runs')"
                     type="number"
                     min="1"
                     class="w-20 px-2 py-1 bg-slate-700 border border-cyan-500 rounded-sm text-sm text-slate-200 focus:outline-hidden"
                     @keydown.enter="confirmAddChild(splitGroup.splitGroupId, splitGroup.children[0]?.id)"
                     @keydown.escape="cancelAddChild"
-                    autofocus
+                    v-focus-on-mount
                   />
                   <button
                     @click="confirmAddChild(splitGroup.splitGroupId, splitGroup.children[0]?.id)"
@@ -929,40 +949,32 @@ function mergeGroup(stepId: string) {
     </div>
 
     <!-- Delete confirmation modal -->
-    <Teleport to="body">
-      <div
-        v-if="showDeleteModal"
-        class="fixed inset-0 z-50 flex items-center justify-center"
-        @keydown.enter="confirmDelete"
-        @keydown.escape="cancelDelete"
-      >
-        <!-- Backdrop -->
-        <div
-          class="absolute inset-0 bg-black/70"
+    <BaseModal
+      :show="showDeleteModal"
+      :title="t('industry.stepTree.deleteStepTitle')"
+      panel-class="border-slate-700 max-w-md p-6"
+      @close="cancelDelete"
+    >
+      <template #title="{ titleId }">
+        <h3 :id="titleId" class="text-lg font-semibold text-slate-100 mb-2">{{ t('industry.stepTree.deleteStepTitle') }}</h3>
+      </template>
+      <p class="text-slate-400 mb-6">
+        {{ t('industry.stepTree.deleteStepConfirm', { name: deleteStepName }) }}
+      </p>
+      <div class="flex justify-end gap-3">
+        <button
           @click="cancelDelete"
-        ></div>
-        <!-- Modal -->
-        <div class="relative bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6" tabindex="-1" ref="deleteModalRef">
-          <h3 class="text-lg font-semibold text-slate-100 mb-2">{{ t('industry.stepTree.deleteStepTitle') }}</h3>
-          <p class="text-slate-400 mb-6">
-            {{ t('industry.stepTree.deleteStepConfirm', { name: deleteStepName }) }}
-          </p>
-          <div class="flex justify-end gap-3">
-            <button
-              @click="cancelDelete"
-              class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-slate-300 text-sm font-medium transition-colors"
-            >
-              {{ t('common.actions.cancel') }}
-            </button>
-            <button
-              @click="confirmDelete"
-              class="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-white text-sm font-medium transition-colors"
-            >
-              {{ t('common.actions.delete') }}
-            </button>
-          </div>
-        </div>
+          class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-slate-300 text-sm font-medium transition-colors"
+        >
+          {{ t('common.actions.cancel') }}
+        </button>
+        <button
+          @click="confirmDelete"
+          class="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-white text-sm font-medium transition-colors"
+        >
+          {{ t('common.actions.delete') }}
+        </button>
       </div>
-    </Teleport>
+    </BaseModal>
   </div>
 </template>

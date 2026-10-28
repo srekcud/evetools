@@ -15,7 +15,13 @@ final readonly class StructureChoice
         public ?ProductionStructure $structure,
         public StructureChoiceStatus $status,
         public Multiplier $materialMultiplier,
+        public ?ProductionStructure $ignoredAssignedStructure = null,
     ) {
+    }
+
+    public function ignoring(ProductionStructure $ignoredAssignedStructure): self
+    {
+        return new self($this->structure, $this->status, $this->materialMultiplier, $ignoredAssignedStructure);
     }
 
     public static function notConfigured(): self

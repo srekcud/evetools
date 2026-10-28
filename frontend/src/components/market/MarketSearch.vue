@@ -95,6 +95,7 @@ onUnmounted(() => {
           ref="inputRef"
           v-model="query"
           type="text"
+          :aria-label="t('market.search.placeholder')"
           :placeholder="t('market.search.placeholder')"
           class="w-full bg-transparent px-4 py-3.5 text-sm text-slate-200 placeholder-slate-600 outline-none"
           @focus="handleFocus"

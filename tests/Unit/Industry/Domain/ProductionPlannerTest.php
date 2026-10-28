@@ -6,8 +6,10 @@ namespace App\Tests\Unit\Industry\Domain;
 
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\BlueprintEfficiency;
+use App\Industry\Domain\Intermediate;
 use App\Industry\Domain\Job;
 use App\Industry\Domain\MaterialEfficiency;
+use App\Industry\Domain\OutputPerRun;
 use App\Industry\Domain\Plan;
 use App\Industry\Domain\PlanRequest;
 use App\Industry\Domain\PlanTarget;
@@ -34,12 +36,16 @@ use PHPUnit\Framework\TestCase;
  */
 #[CoversClass(ProductionPlanner::class)]
 #[CoversClass(Plan::class)]
+#[CoversClass(Intermediate::class)]
 final class ProductionPlannerTest extends TestCase
 {
     private const int SHIP = 1001;
     private const int PART = 1002;
+    private const int MODULE = 1003;
+    private const int SUBSYSTEM = 1004;
     private const int COMPONENT = 2001;
     private const int POLYMER = 2002;
+    private const int ASSEMBLY = 2003;
     private const int MINERAL_A = 3001;
     private const int MINERAL_B = 3002;
     private const int MINERAL_C = 3003;
@@ -246,6 +252,73 @@ final class ProductionPlannerTest extends TestCase
         ));
     }
 
+    public function testIntermediateAfterOneFullyCoveredByStockIsStillPlanned(): void
+    {
+        $plan = $this->plan(
+            [new PlanTarget(self::MODULE, new Runs(3), self::efficiency(0, 0))],
+            startingStock: [self::ASSEMBLY => new Quantity(15)],
+        );
+
+        $this->assertSame([self::ASSEMBLY, self::POLYMER], array_keys($plan->intermediates));
+        $assembly = $plan->intermediates[self::ASSEMBLY];
+        $this->assertSame(12, $assembly->demand->value);
+        $this->assertSame(12, $assembly->consumedStock->value);
+        $this->assertSame(0, $assembly->totalRuns());
+        $polymer = $plan->intermediates[self::POLYMER];
+        $this->assertSame(90, $polymer->demand->value);
+        $this->assertSame(1, $polymer->totalRuns());
+        $this->assertSame(110, $polymer->surplus->value);
+        $this->assertSame([self::GAS => 100], array_map(static fn (Quantity $quantity): int => $quantity->value, $plan->leaves));
+    }
+
+    public function testTargetAlsoConsumedByAnotherTargetKeepsItsRunsAndStockReducesOnlyItsIntermediateRuns(): void
+    {
+        $plan = $this->plan(
+            [
+                new PlanTarget(self::COMPONENT, new Runs(4), self::efficiency(2, 4)),
+                new PlanTarget(self::SHIP, new Runs(2), self::efficiency(0, 0)),
+            ],
+            startingStock: [self::COMPONENT => new Quantity(7)],
+        );
+
+        $this->assertSame([4, 7], self::runsOfJobs($plan->jobsFor(self::COMPONENT)));
+        $component = $plan->intermediates[self::COMPONENT];
+        $this->assertSame(20, $component->demand->value);
+        $this->assertSame(7, $component->consumedStock->value);
+        $this->assertSame(14, $component->quantityProduced->value);
+        $this->assertSame(1, $component->surplus->value);
+        $this->assertSame(52, $plan->leaves[self::MINERAL_B]->value);
+    }
+
+    public function testIntermediateConsumedOnTwoBranchesIsNotACycleAndAddsUpItsDemand(): void
+    {
+        $plan = $this->plan([new PlanTarget(self::SUBSYSTEM, new Runs(5), self::efficiency(0, 0))]);
+
+        $this->assertSame([self::ASSEMBLY, self::COMPONENT], array_keys($plan->intermediates));
+        $this->assertSame(10, $plan->intermediates[self::ASSEMBLY]->totalRuns());
+        $component = $plan->intermediates[self::COMPONENT];
+        $this->assertSame(57, $component->demand->value);
+        $this->assertSame(29, $component->totalRuns());
+        $this->assertSame(1, $component->surplus->value);
+        $this->assertSame([self::MINERAL_B => 131], array_map(static fn (Quantity $quantity): int => $quantity->value, $plan->leaves));
+    }
+
+    public function testTargetNeededToBuildItsOwnMaterialIsRefused(): void
+    {
+        $planner = new ProductionPlanner(new InMemoryBlueprintCatalog(
+            self::recipe(self::MODULE, ActivityKind::Manufacturing, 1, [self::ASSEMBLY => 4]),
+            self::recipe(self::ASSEMBLY, ActivityKind::Manufacturing, 1, [self::MODULE => 1]),
+        ));
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Product 2003 is needed to build itself: the production graph has a cycle.');
+
+        $planner->plan(new PlanRequest(
+            targets: [new PlanTarget(self::MODULE, new Runs(1), self::efficiency(0, 0))],
+            materialModifiers: ActivityMaterialModifiers::none(),
+        ));
+    }
+
     /**
      * @param list<PlanTarget>                $targets
      * @param array<int, Quantity>            $startingStock
@@ -279,6 +352,9 @@ final class ProductionPlannerTest extends TestCase
             self::recipe(self::COMPONENT, ActivityKind::Manufacturing, 2, [self::MINERAL_B => 5]),
             self::recipe(self::POLYMER, ActivityKind::Reaction, 200, [self::GAS => 100]),
             self::recipe(self::PART, ActivityKind::Manufacturing, 1, [self::MINERAL_C => 7]),
+            self::recipe(self::MODULE, ActivityKind::Manufacturing, 1, [self::POLYMER => 30, self::ASSEMBLY => 4]),
+            self::recipe(self::SUBSYSTEM, ActivityKind::Manufacturing, 1, [self::COMPONENT => 6, self::ASSEMBLY => 2]),
+            self::recipe(self::ASSEMBLY, ActivityKind::Manufacturing, 1, [self::COMPONENT => 3]),
         );
     }
 
@@ -295,7 +371,7 @@ final class ProductionPlannerTest extends TestCase
         return new Recipe(
             productTypeId: $productTypeId,
             activity: $activity,
-            outputPerRun: new Quantity($outputPerRun),
+            outputPerRun: new OutputPerRun($outputPerRun),
             materials: $materials,
             maxProductionLimit: new Runs(self::BPO_MAX_PRODUCTION_LIMIT),
             baseTimeSeconds: 600,

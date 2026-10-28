@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { authFetch, safeJsonParse } from '@/services/api'
@@ -59,6 +59,9 @@ interface StructureSearchResult {
 }
 
 const { t } = useI18n()
+const pasteFieldId = useId()
+const structureFieldId = useId()
+const transportCostFieldId = useId()
 const authStore = useAuthStore()
 
 // Mode toggle
@@ -375,10 +378,11 @@ async function shareList() {
       >
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-slate-300 mb-2">
+            <label :for="pasteFieldId" class="block text-sm font-medium text-slate-300 mb-2">
               {{ t('shopping.pasteLabel') }}
             </label>
             <textarea
+              :id="pasteFieldId"
               v-model="inputText"
               rows="8"
               class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-200 placeholder-slate-500 focus:outline-hidden focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 font-mono text-sm"
@@ -390,12 +394,12 @@ Megacyte 100
             ></textarea>
             <!-- Format detection chips -->
             <div class="flex items-center gap-2 flex-wrap mt-1">
-              <span class="text-[11px] text-slate-500 mr-1">{{ t('appraisal.formatLabel') }}</span>
+              <span class="text-xs text-slate-500 mr-1">{{ t('appraisal.formatLabel') }}</span>
               <button
                 v-for="fmt in FORMAT_OPTIONS"
                 :key="fmt.key"
                 @click="selectFormat(fmt.key)"
-                class="px-3 py-1 rounded-md text-[11px] font-medium transition-all border cursor-pointer"
+                class="px-3 py-1 rounded-md text-xs font-medium transition-all border cursor-pointer"
                 :class="[
                   selectedFormat === fmt.key && fmt.key === 'auto' && !detectedFormat
                     ? 'bg-cyan-500/12 text-cyan-400 border-cyan-500/25'
@@ -411,7 +415,7 @@ Megacyte 100
               <div class="flex-1"></div>
               <span
                 v-if="detectedFormat && selectedFormat === 'auto'"
-                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-green-500/10 text-green-400 border border-green-500/20"
+                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20"
               >
                 <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
                 {{ t('appraisal.formatDetected', { format: formatLabelForDetection(detectedFormat) }) }}
@@ -422,12 +426,13 @@ Megacyte 100
           <div class="flex flex-wrap items-end gap-4">
             <!-- Structure selector with search (shared between both modes) -->
             <div class="flex-1 min-w-[300px] max-w-[450px]">
-              <label class="block text-sm font-medium text-slate-300 mb-1">
+              <label :for="structureFieldId" class="block text-sm font-medium text-slate-300 mb-1">
                 {{ t('shopping.structureLabel') }}
               </label>
 
               <div class="relative">
                 <input
+                  :id="structureFieldId"
                   v-model="structureSearchQuery"
                   type="text"
                   :placeholder="selectedStructure.id ? selectedStructure.name : 'C-J6MT - 1st Taj Mahgoon (defaut)'"
@@ -447,9 +452,10 @@ Megacyte 100
                     v-else-if="selectedStructure.id || structureSearchQuery"
                     @mousedown.prevent="clearStructure"
                     class="text-slate-400 hover:text-slate-200"
-                    title="Revenir au defaut"
+                    :title="t('industry.shoppingTab.resetToDefault')"
+                    :aria-label="t('industry.shoppingTab.resetToDefault')"
                   >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
@@ -481,10 +487,11 @@ Megacyte 100
 
             <!-- Transport cost (import mode only) -->
             <div v-if="mode === 'import'">
-              <label class="block text-sm font-medium text-slate-300 mb-1">
+              <label :for="transportCostFieldId" class="block text-sm font-medium text-slate-300 mb-1">
                 {{ t('shopping.transportCost') }}
               </label>
               <input
+                :id="transportCostFieldId"
                 v-model.number="transportCostPerM3"
                 type="number"
                 min="0"

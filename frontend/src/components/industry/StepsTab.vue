@@ -146,8 +146,9 @@ defineExpose({
       <button
         @click="matchJobsWarning = null"
         class="ml-auto p-1 hover:bg-amber-500/30 rounded-sm text-amber-400"
+        :aria-label="t('common.actions.close')"
       >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
@@ -293,6 +294,7 @@ defineExpose({
                 <!-- Not linked: show dropdown to link -->
                 <select
                   v-else-if="compatibleSteps(job.blueprintTypeId).length > 0"
+                  :aria-label="t('industry.stepsTab.linkToStep')"
                   @change="(e) => { const val = (e.target as HTMLSelectElement).value; if (val) linkJobToStep(val, job.esiJobId); (e.target as HTMLSelectElement).value = '' }"
                   class="bg-slate-800 border border-slate-700 rounded-sm px-2 py-1 text-xs text-slate-300 focus:outline-hidden focus:border-cyan-500"
                 >

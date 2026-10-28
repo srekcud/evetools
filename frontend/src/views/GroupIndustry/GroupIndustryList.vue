@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useEveImages } from '@/composables/useEveImages'
+import { useTabQuery } from '@/composables/useTabQuery'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ProjectKpiCards from '@/components/group-industry/ProjectKpiCards.vue'
@@ -30,7 +31,8 @@ const error = ref<string | null>(null)
 // --- Tabs ---
 
 type MainTab = 'my-projects' | 'available'
-const activeTab = ref<MainTab>('my-projects')
+const MAIN_TABS: MainTab[] = ['my-projects', 'available']
+const activeTab = useTabQuery(MAIN_TABS, 'my-projects')
 
 // --- Status filter pills ---
 
@@ -153,8 +155,9 @@ onMounted(() => {
               class="btn-action px-3 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-300 text-sm"
               :title="t('groupIndustry.modals.lineRental.title')"
               @click="openLineRentalModal"
+              :aria-label="t('groupIndustry.modals.lineRental.title')"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
@@ -200,7 +203,7 @@ onMounted(() => {
             >
               {{ availableProjects.length }}
             </span>
-            <span class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/20">
+            <span class="ml-1 text-xs px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/20">
               {{ t('groupIndustry.tabs.sameCorp') }}
             </span>
           </button>
@@ -325,11 +328,11 @@ onMounted(() => {
   cursor: pointer;
 }
 .main-tab:hover {
-  color: #94a3b8;
+  color: var(--color-muted);
 }
 .main-tab.active {
-  color: #38bdf8;
-  border-bottom-color: #38bdf8;
+  color: var(--color-info);
+  border-bottom-color: var(--color-info);
 }
 
 .filter-pill {
@@ -340,7 +343,7 @@ onMounted(() => {
 }
 .filter-pill.active {
   background: rgba(14, 165, 233, 0.15);
-  color: #38bdf8;
+  color: var(--color-info);
   border-color: rgba(56, 189, 248, 0.3);
 }
 

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { useMarketStore, type MarketSearchItem } from '@/stores/market'
 import { useEveImages } from '@/composables/useEveImages'
+import { useTabQuery } from '@/composables/useTabQuery'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { apiRequest } from '@/services/api'
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -15,6 +16,7 @@ import AlertsPanel from '@/components/market/AlertsPanel.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const { t } = useI18n()
+const route = useRoute()
 const marketStore = useMarketStore()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const { typeNameLabel } = useTypeNames()
@@ -23,12 +25,8 @@ const { typeNameLabel } = useTypeNames()
 const structureSystemName = ref<string | null>(null)
 
 type Tab = 'browse' | 'detail' | 'alerts'
-const activeTab = ref<Tab>('browse')
-
-const route = useRoute()
-const router = useRouter()
-
 const VALID_TABS: Tab[] = ['browse', 'detail', 'alerts']
+const activeTab = useTabQuery(VALID_TABS, 'browse')
 
 const activeAlertsCount = computed(() =>
   marketStore.alerts.filter(a => a.status === 'active').length
@@ -59,11 +57,6 @@ const filteredSearchResults = computed(() => {
 
 // Load root groups, favorites, alerts and settings on mount
 onMounted(async () => {
-  const tabParam = route.query.tab as string | undefined
-  if (tabParam && VALID_TABS.includes(tabParam as Tab)) {
-    activeTab.value = tabParam as Tab
-  }
-
   marketStore.fetchRootGroups()
   marketStore.fetchFavorites()
   marketStore.fetchAlerts()
@@ -88,20 +81,21 @@ watch(() => marketStore.typeDetail, (detail) => {
   }
 })
 
-// Sync URL query param when tab changes
-watch(activeTab, (tab) => {
-  const query = { ...route.query }
-  if (tab === 'browse') {
-    delete query.tab
-  } else {
-    query.tab = tab
-  }
-  router.replace({ query })
-})
-
 function selectItem(typeId: number): void {
   marketStore.fetchTypeDetail(typeId)
 }
+
+const typeIdFromQuery = computed((): number | null => {
+  const queryTypeId = route.query.typeId
+  const isNumericTypeId = typeof queryTypeId === 'string' && /^\d+$/.test(queryTypeId)
+  return route.query.tab === 'detail' && isNumericTypeId ? Number(queryTypeId) : null
+})
+
+watch(typeIdFromQuery, (typeId) => {
+  if (typeId !== null) {
+    selectItem(typeId)
+  }
+}, { immediate: true })
 
 function handleSearchSelect(item: MarketSearchItem): void {
   marketStore.addRecentSearch(item.typeId, item.typeName)
@@ -236,25 +230,32 @@ const allButtonLabel = computed(() => {
           <div v-if="marketStore.recentSearches.length > 0" class="flex-1">
             <h3 class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">{{ t('market.recentSearches') }}</h3>
             <div class="flex flex-wrap gap-2">
-              <span
+              <div
                 v-for="entry in marketStore.recentSearches"
                 :key="entry.typeId"
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/50 border border-slate-700/50 rounded-lg text-xs text-slate-300 hover:border-cyan-500/30 hover:text-cyan-400 cursor-pointer transition-colors group"
-                @click="handleRecentSearchClick(entry.typeId)"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/50 border border-slate-700/50 rounded-lg text-xs text-slate-300 hover:border-cyan-500/30 hover:text-cyan-400 transition-colors group"
               >
-                <img
-                  :src="getTypeIconUrl(entry.typeId, 32)"
-                  @error="onImageError"
-                  class="w-4 h-4 rounded"
-                  :alt="entry.typeName"
-                  loading="lazy"
-                />
-                {{ entry.typeName }}
                 <button
-                  @click.stop="marketStore.removeRecentSearch(entry.typeId)"
+                  type="button"
+                  class="inline-flex items-center gap-1.5 cursor-pointer"
+                  @click="handleRecentSearchClick(entry.typeId)"
+                >
+                  <img
+                    :src="getTypeIconUrl(entry.typeId, 32)"
+                    @error="onImageError"
+                    class="w-4 h-4 rounded"
+                    :alt="entry.typeName"
+                    loading="lazy"
+                  />
+                  {{ entry.typeName }}
+                </button>
+                <button
+                  type="button"
+                  @click="marketStore.removeRecentSearch(entry.typeId)"
+                  :aria-label="t('a11y.zoneB.market.removeRecentSearch', { name: entry.typeName })"
                   class="ml-1 text-slate-600 hover:text-red-400 transition-colors"
-                >&times;</button>
-              </span>
+                ><span aria-hidden="true">&times;</span></button>
+              </div>
             </div>
           </div>
 
@@ -271,7 +272,11 @@ const allButtonLabel = computed(() => {
                 v-for="fav in marketStore.favorites"
                 :key="fav.typeId"
                 class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/5 border border-amber-500/20 rounded-lg text-xs text-amber-300 hover:border-amber-500/40 cursor-pointer transition-colors"
+                role="button"
+                tabindex="0"
                 @click="handleFavoriteClick(fav.typeId)"
+                @keydown.enter.self="handleFavoriteClick(fav.typeId)"
+                @keydown.space.self.prevent="handleFavoriteClick(fav.typeId)"
               >
                 <img
                   :src="getTypeIconUrl(fav.typeId, 32)"
@@ -289,7 +294,7 @@ const allButtonLabel = computed(() => {
         <!-- Category Filter Pills -->
         <div v-if="marketStore.rootGroups.length > 0" class="flex flex-wrap items-center gap-1.5 mb-5">
           <button
-            class="shrink-0 px-2 py-1 rounded-md text-[11px] font-medium transition-colors"
+            class="shrink-0 px-2 py-1 rounded-md text-xs font-medium transition-colors"
             :class="allButtonClasses"
             @click="marketStore.resetGroupFilters()"
           >
@@ -298,7 +303,7 @@ const allButtonLabel = computed(() => {
           <button
             v-for="group in marketStore.rootGroups"
             :key="group.id"
-            class="shrink-0 px-2 py-1 rounded-md text-[11px] font-medium transition-colors whitespace-nowrap"
+            class="shrink-0 px-2 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap"
             :class="categoryPillClasses(group.id)"
             @click="marketStore.includedGroupId === group.id ? marketStore.setIncludedGroup(null) : marketStore.setIncludedGroup(group.id)"
             @contextmenu.prevent="marketStore.toggleGroupExclusion(group.id)"
@@ -368,7 +373,7 @@ const allButtonLabel = computed(() => {
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, #22d3ee, #6366f1);
+  background: linear-gradient(90deg, var(--color-info), #6366f1);
   border-radius: 1px;
 }
 </style>

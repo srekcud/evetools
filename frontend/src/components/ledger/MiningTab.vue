@@ -290,6 +290,7 @@ defineExpose({
           <span class="text-xs text-slate-500">{{ t('ledger.mining.yield') }} :</span>
           <input
             type="number"
+            :aria-label="t('ledger.mining.yield')"
             :value="reprocessYield.toFixed(2)"
             @change="onYieldInput"
             @blur="onYieldBlur"
@@ -308,6 +309,7 @@ defineExpose({
             <input
               v-model="structureSearchQuery"
               type="text"
+              :aria-label="t('ledger.mining.structureLabel')"
               :placeholder="selectedStructure.id ? selectedStructure.name : 'C-J6MT - 1st Taj Mahgoon (defaut)'"
               @focus="showStructureDropdown = true"
               @blur="onStructureInputBlur"
@@ -324,9 +326,10 @@ defineExpose({
                 v-else-if="selectedStructure.id || structureSearchQuery"
                 @mousedown.prevent="clearStructure"
                 class="text-slate-400 hover:text-slate-200"
-                title="Revenir au defaut"
+                :title="t('industry.shoppingTab.resetToDefault')"
+                :aria-label="t('industry.shoppingTab.resetToDefault')"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -352,9 +355,10 @@ defineExpose({
             @click="syncStructureMarket"
             :disabled="isSyncingStructure"
             class="px-2 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-300 text-sm disabled:opacity-50"
-            title="Synchroniser les prix de la structure"
+            :title="t('ledger.mining.syncStructure')"
+            :aria-label="t('ledger.mining.syncStructure')"
           >
-            <svg :class="['w-4 h-4', isSyncingStructure ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg aria-hidden="true" :class="['w-4 h-4', isSyncingStructure ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
             </svg>
           </button>

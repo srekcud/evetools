@@ -276,105 +276,202 @@ class InventionServiceTest extends TestCase
     // calculateInventionCost() tests
     // ===========================================
 
-    public function testCalculateInventionCostWithoutDecryptor(): void
+    private const array PRICED_DATACORE_LINES = [[self::DATACORE_1_TYPE_ID, 3], [self::DATACORE_2_TYPE_ID, 5]];
+    private const array PRICED_INVENTION_MARKET_PRICES = [
+        self::DATACORE_1_TYPE_ID => 41300.0,
+        self::DATACORE_2_TYPE_ID => 67900.0,
+        self::ACCELERANT_DECRYPTOR_ID => 1513000.0,
+        self::ATTAINMENT_DECRYPTOR_ID => 2087000.0,
+        self::AUGMENTATION_DECRYPTOR_ID => 987000.0,
+        self::PARITY_DECRYPTOR_ID => 1234000.0,
+    ];
+    private const float PRICED_INVENTION_INSTALL_COST = 4270.0;
+
+    public static function inventionCostCrossings(): iterable
     {
-        $this->setupSabreInventionChain(0.30, 10);
-
-        // Jita prices for datacores
-        $this->jitaMarketService
-            ->method('getPricesWithFallback')
-            ->willReturn([
-                self::DATACORE_1_TYPE_ID => 50000.0,
-                self::DATACORE_2_TYPE_ID => 80000.0,
-            ]);
-
-        // No decryptor price needed
-        $this->jitaMarketService
-            ->method('getPrice')
-            ->willReturn(null);
-
-        // EIV for copy cost: T2 blueprint manufacturing output
-        $t2ManufacturingOutput = $this->createProduct(
-            self::SABRE_BLUEPRINT_ID,
-            IndustryActivityType::Manufacturing->value,
-            self::SABRE_TYPE_ID,
-            1,
-        );
-        $this->activityProductRepository
-            ->method('findBy')
-            ->willReturn([$t2ManufacturingOutput]);
-
-        $this->stubInventionInstallEstimate($this->knownInstallEstimate(0.0));
-        $this->esiCostIndexService->method('getAdjustedPrice')->willReturn(1000000.0);
-        $this->esiCostIndexService
-            ->method('getCostIndex')
-            ->willReturnCallback(function (int $solarSystemId, string $activity): ?float {
-                return match ($activity) {
-                    'copying' => 0.01,
-                    'invention' => 0.02,
-                    default => null,
-                };
-            });
-
-        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510);
-
-        $this->assertNotNull($result);
-        $this->assertSame(0.30, $result['baseProbability']);
-        $this->assertSame(0.30, $result['effectiveProbability']);
-        $this->assertSame(4, $result['expectedAttempts']); // ceil(1 / 0.30) = 4
-        $this->assertSame(2, $result['me']); // BASE_INVENTION_ME = 2
-        $this->assertSame(4, $result['te']); // BASE_INVENTION_TE = 4
-        $this->assertSame(10, $result['runs']); // baseRuns
-        $this->assertNull($result['decryptorName']);
-
-        // Verify cost breakdown
-        // Datacores: 2*50000 + 2*80000 = 260000
-        $this->assertSame(260000.0, $result['costBreakdown']['datacores']);
-        $this->assertSame(0.0, $result['costBreakdown']['decryptor']);
+        yield 'without decryptor, one BPC' => [null, 0.25, 1, 1, [
+            'effectiveProbability' => 0.25, 'expectedAttempts' => 4, 'me' => 2, 'te' => 4, 'runs' => 1,
+            'decryptorPrice' => 0.0, 'costPerAttempt' => 467670.0, 'totalCost' => 1870680.0, 'decryptorName' => null,
+        ]];
+        yield 'Parity decryptor, three BPCs' => [self::PARITY_DECRYPTOR_ID, 0.25, 1, 3, [
+            'effectiveProbability' => 0.375, 'expectedAttempts' => 8, 'me' => 3, 'te' => 2, 'runs' => 4,
+            'decryptorPrice' => 1234000.0, 'costPerAttempt' => 1701670.0, 'totalCost' => 13613360.0, 'decryptorName' => 'Parity Decryptor',
+        ]];
+        yield 'Augmentation decryptor, three BPCs' => [self::AUGMENTATION_DECRYPTOR_ID, 0.25, 1, 3, [
+            'effectiveProbability' => 0.15, 'expectedAttempts' => 20, 'me' => 0, 'te' => 6, 'runs' => 10,
+            'decryptorPrice' => 987000.0, 'costPerAttempt' => 1454670.0, 'totalCost' => 29093400.0, 'decryptorName' => 'Augmentation Decryptor',
+        ]];
+        yield 'Accelerant decryptor, six BPCs' => [self::ACCELERANT_DECRYPTOR_ID, 0.25, 10, 6, [
+            'effectiveProbability' => 0.3, 'expectedAttempts' => 20, 'me' => 4, 'te' => 14, 'runs' => 11,
+            'decryptorPrice' => 1513000.0, 'costPerAttempt' => 1980670.0, 'totalCost' => 39613400.0, 'decryptorName' => 'Accelerant Decryptor',
+        ]];
+        yield 'Attainment decryptor on a lower base probability, nine BPCs' => [self::ATTAINMENT_DECRYPTOR_ID, 0.125, 10, 9, [
+            'effectiveProbability' => 0.225, 'expectedAttempts' => 40, 'me' => 1, 'te' => 8, 'runs' => 14,
+            'decryptorPrice' => 2087000.0, 'costPerAttempt' => 2554670.0, 'totalCost' => 102186800.0, 'decryptorName' => 'Attainment Decryptor',
+        ]];
     }
 
-    public function testCalculateInventionCostWithAccelerantDecryptor(): void
+    #[DataProvider('inventionCostCrossings')]
+    public function testInventionCostChargesDatacoresDecryptorAndInstallPerAttemptTimesTheExpectedAttempts(
+        ?int $decryptorTypeId,
+        float $baseProbability,
+        int $baseRuns,
+        int $desiredSuccesses,
+        array $expected,
+    ): void {
+        $this->setupPricedSabreInvention($baseProbability, $baseRuns);
+
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510, $decryptorTypeId, $desiredSuccesses);
+
+        $this->assertSame([
+            'baseProbability' => $baseProbability,
+            'effectiveProbability' => $expected['effectiveProbability'],
+            'expectedAttempts' => $expected['expectedAttempts'],
+            'me' => $expected['me'],
+            'te' => $expected['te'],
+            'runs' => $expected['runs'],
+            'costPerAttempt' => $expected['costPerAttempt'],
+            'totalCost' => $expected['totalCost'],
+            'costBreakdown' => [
+                'datacores' => 463400.0,
+                'decryptor' => $expected['decryptorPrice'],
+                'copyCost' => 0.0,
+                'inventionInstall' => self::PRICED_INVENTION_INSTALL_COST,
+            ],
+            'datacores' => [
+                ['typeId' => self::DATACORE_1_TYPE_ID, 'typeName' => 'Datacore - Mechanical Engineering', 'quantity' => 3, 'unitPrice' => 41300.0, 'totalPrice' => 123900.0],
+                ['typeId' => self::DATACORE_2_TYPE_ID, 'typeName' => 'Datacore - Minmatar Starship Engineering', 'quantity' => 5, 'unitPrice' => 67900.0, 'totalPrice' => 339500.0],
+            ],
+            'decryptorName' => $expected['decryptorName'],
+            'missingPriceTypeIds' => [],
+            'missingAdjustedPriceTypeIds' => [],
+            'unknownReason' => null,
+        ], $result);
+    }
+
+    public function testDecryptorOptionsExposeTheHandComputedInventionCostOfTheNoDecryptorAndParityOptions(): void
     {
-        $this->setupSabreInventionChain(0.30, 10);
+        $this->setupPricedSabreInvention(0.25, 1);
 
-        $this->jitaMarketService
-            ->method('getPricesWithFallback')
-            ->willReturn([
-                self::DATACORE_1_TYPE_ID => 50000.0,
-                self::DATACORE_2_TYPE_ID => 80000.0,
-                self::ACCELERANT_DECRYPTOR_ID => 500000.0,
-            ]);
+        $options = $this->service->buildDecryptorOptions(self::SABRE_TYPE_ID, 30002510, 3);
 
-        $t2ManufacturingOutput = $this->createProduct(
-            self::SABRE_BLUEPRINT_ID,
-            IndustryActivityType::Manufacturing->value,
-            self::SABRE_TYPE_ID,
-            1,
+        $this->assertSame([
+            'decryptorTypeId' => null,
+            'decryptorName' => 'No Decryptor',
+            'me' => 2,
+            'te' => 4,
+            'runs' => 1,
+            'probability' => 0.25,
+            'costPerAttempt' => 467670.0,
+            'expectedAttempts' => 12,
+            'totalCost' => 5612040.0,
+            'costBreakdown' => ['datacores' => 463400.0, 'decryptor' => 0.0, 'copyCost' => 0.0, 'inventionInstall' => 4270.0],
+            'missingPriceTypeIds' => [],
+            'missingAdjustedPriceTypeIds' => [],
+            'unknownReason' => null,
+        ], $options[0]);
+        $this->assertSame([
+            'decryptorTypeId' => self::PARITY_DECRYPTOR_ID,
+            'decryptorName' => 'Parity Decryptor',
+            'me' => 3,
+            'te' => 2,
+            'runs' => 4,
+            'probability' => 0.375,
+            'costPerAttempt' => 1701670.0,
+            'expectedAttempts' => 8,
+            'totalCost' => 13613360.0,
+            'costBreakdown' => ['datacores' => 463400.0, 'decryptor' => 1234000.0, 'copyCost' => 0.0, 'inventionInstall' => 4270.0],
+            'missingPriceTypeIds' => [],
+            'missingAdjustedPriceTypeIds' => [],
+            'unknownReason' => null,
+        ], $this->findOptionByDecryptorTypeId($options, self::PARITY_DECRYPTOR_ID));
+    }
+
+    #[Group('issue-7')]
+    public function testInventionCostChargesAOneRunCopyOfTheT1BlueprintAtTheCopyingIndexOfTheRequestedSystemWithTheReceivedTaxCurrentlyOnTheProductAdjustedPriceIssue7(): void
+    {
+        $this->setupPricedSabreInvention(0.25, 1, self::PRICED_INVENTION_MARKET_PRICES, self::THRASHER_ADJUSTED_PRICE);
+
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, self::AMARR_SOLAR_SYSTEM_ID, null, 1, 10.0);
+
+        $this->assertInventionCostOutcome([
+            'expectedAttempts' => 4,
+            'costPerAttempt' => 468770.0,
+            'totalCost' => 1875080.0,
+            'costBreakdown' => ['datacores' => 463400.0, 'decryptor' => 0.0, 'copyCost' => 1100.0, 'inventionInstall' => 4270.0],
+            'unknownReason' => null,
+        ], $result);
+    }
+
+    public function testBpcKitRetainsTheCheapestPricedDecryptorAndIgnoresTheOptionsWithoutPrice(): void
+    {
+        $this->setupPricedSabreInvention(0.25, 1, [
+            self::DATACORE_1_TYPE_ID => 41300.0,
+            self::DATACORE_2_TYPE_ID => 67900.0,
+            self::PARITY_DECRYPTOR_ID => 151300.0,
+            self::AUGMENTATION_DECRYPTOR_ID => 987000.0,
+        ]);
+        $project = new IndustryProject();
+        $project->setProductTypeId(self::SABRE_TYPE_ID);
+
+        $breakdown = $this->service->getBpcKitBreakdown($project, 3);
+
+        $options = $breakdown['inventions'][0]['decryptorOptions'];
+        $this->assertSame(5612040.0, $options[0]['totalCost']);
+        $this->assertSame(4951760.0, $this->findOptionByDecryptorTypeId($options, self::PARITY_DECRYPTOR_ID)['totalCost']);
+        $this->assertSame(29093400.0, $this->findOptionByDecryptorTypeId($options, self::AUGMENTATION_DECRYPTOR_ID)['totalCost']);
+        $this->assertNull($this->findOptionByDecryptorTypeId($options, self::ACCELERANT_DECRYPTOR_ID)['totalCost']);
+        $this->assertSame(
+            ['totalInventionCost' => 4951760.0, 'bestDecryptorTypeId' => self::PARITY_DECRYPTOR_ID, 'totalBpcKitCost' => 4951760.0],
+            $breakdown['summary'],
         );
-        $this->activityProductRepository
-            ->method('findBy')
-            ->willReturn([$t2ManufacturingOutput]);
+    }
 
-        $this->stubInventionInstallEstimate($this->knownInstallEstimate(0.0));
-        $this->esiCostIndexService->method('getAdjustedPrice')->willReturn(1000000.0);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(0.01);
+    public static function nonIntegerAttemptRatios(): iterable
+    {
+        yield 'probability 0.34, one BPC' => [0.34, 1, 3, 1403010.0];
+        yield 'probability 0.30, five BPCs' => [0.30, 5, 17, 7950390.0];
+    }
 
-        $result = $this->service->calculateInventionCost(
-            self::SABRE_TYPE_ID,
-            30002510,
-            self::ACCELERANT_DECRYPTOR_ID,
+    #[Group('issue-18')]
+    #[DataProvider('nonIntegerAttemptRatios')]
+    public function testExpectedAttemptsAreCurrentlyRoundedUpToTheNextWholeAttemptIssue18(
+        float $baseProbability,
+        int $desiredSuccesses,
+        int $expectedAttempts,
+        float $totalCost,
+    ): void {
+        $this->setupPricedSabreInvention($baseProbability, 1);
+
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510, null, $desiredSuccesses);
+
+        $this->assertInventionCostOutcome([
+            'expectedAttempts' => $expectedAttempts,
+            'costPerAttempt' => 467670.0,
+            'totalCost' => $totalCost,
+        ], $result);
+    }
+
+    private function setupPricedSabreInvention(
+        float $baseProbability,
+        int $baseRuns,
+        array $marketPrices = self::PRICED_INVENTION_MARKET_PRICES,
+        float $t1ProductAdjustedPrice = 0.0,
+    ): void {
+        $this->setupInventionChainWithDatacoreLines(self::SABRE_TYPE_ID, $baseProbability, $baseRuns, self::PRICED_DATACORE_LINES);
+        $this->stubInventionInstallEstimate($this->knownInstallEstimate(self::PRICED_INVENTION_INSTALL_COST));
+        $this->stubMarketPricesWithFallback($marketPrices);
+        $this->activityProductRepository->method('findBy')->willReturn([
+            $this->createProduct(self::THRASHER_BLUEPRINT_ID, IndustryActivityType::Manufacturing->value, self::THRASHER_TYPE_ID, 1),
+        ]);
+        $this->esiCostIndexService->method('getAdjustedPrice')->willReturnCallback(
+            static fn (int $typeId): ?float => $typeId === self::THRASHER_TYPE_ID ? $t1ProductAdjustedPrice : null,
         );
-
-        $this->assertNotNull($result);
-
-        // Accelerant: probabilityMultiplier=1.2, meModifier=2, teModifier=10, runModifier=1
-        $this->assertSame(0.36, $result['effectiveProbability']); // 0.30 * 1.2
-        $this->assertSame(3, $result['expectedAttempts']); // ceil(1 / 0.36) = 3
-        $this->assertSame(4, $result['me']); // 2 + 2
-        $this->assertSame(14, $result['te']); // 4 + 10
-        $this->assertSame(11, $result['runs']); // 10 + 1
-        $this->assertSame('Accelerant Decryptor', $result['decryptorName']);
-        $this->assertSame(500000.0, $result['costBreakdown']['decryptor']);
+        $this->esiCostIndexService->method('getCostIndex')->willReturnCallback(
+            static fn (int $solarSystemId, string $activity): ?float => $activity === 'copying'
+                ? [self::AMARR_SOLAR_SYSTEM_ID => self::AMARR_COPYING_COST_INDEX, self::JITA_SOLAR_SYSTEM_ID => self::JITA_COPYING_COST_INDEX][$solarSystemId] ?? null
+                : null,
+        );
     }
 
     public function testCalculateInventionCostReturnsNullForNonT2(): void
@@ -386,28 +483,6 @@ class InventionServiceTest extends TestCase
         $result = $this->service->calculateInventionCost(34, 30002510);
 
         $this->assertNull($result);
-    }
-
-    public function testCalculateInventionCostMultipleDesiredSuccesses(): void
-    {
-        $this->setupSabreInventionChain(0.30, 10);
-
-        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
-            self::DATACORE_1_TYPE_ID => 10000.0,
-            self::DATACORE_2_TYPE_ID => 10000.0,
-        ]);
-        $this->jitaMarketService->method('getPrice')->willReturn(null);
-
-        $this->stubInventionInstallEstimate($this->knownInstallEstimate(0.0));
-        $this->activityProductRepository->method('findBy')->willReturn([]);
-        $this->esiCostIndexService->method('getAdjustedPrice')->willReturn(0.0);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(0.01);
-
-        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510, null, 5);
-
-        $this->assertNotNull($result);
-        // ceil(5 / 0.30) = 17 expected attempts
-        $this->assertSame(17, $result['expectedAttempts']);
     }
 
     // ===========================================
@@ -1586,5 +1661,127 @@ class InventionServiceTest extends TestCase
                 ? [self::AMARR_SOLAR_SYSTEM_ID => self::AMARR_COPYING_COST_INDEX, self::JITA_SOLAR_SYSTEM_ID => self::JITA_COPYING_COST_INDEX][$solarSystemId] ?? null
                 : null,
         );
+    }
+
+    public function testBpcKitOfAT1ProductHasNoInventionAndAZeroInventionCost(): void
+    {
+        $project = $this->projectOf($this->rootStep('manufacturing', 0, $this->structureConfig(self::AMARR_SOLAR_SYSTEM_ID, 5.0)));
+        $project->setProductTypeId(self::THRASHER_TYPE_ID);
+
+        $breakdown = $this->service->getBpcKitBreakdown($project);
+
+        $this->assertSame([
+            'isT2' => false,
+            'inventions' => [],
+            'summary' => ['totalInventionCost' => 0.0, 'bestDecryptorTypeId' => null, 'totalBpcKitCost' => 0.0],
+        ], $breakdown);
+    }
+
+    public function testBpcKitKeepsNoDecryptorAsTheBestOptionWhenEveryOptionCostsTheSame(): void
+    {
+        $this->setupSabreInventionChain(0.25, 1);
+        $this->stubZeroCostsExceptDecryptorPrices([]);
+        $project = new IndustryProject();
+        $project->setProductTypeId(self::SABRE_TYPE_ID);
+
+        $breakdown = $this->service->getBpcKitBreakdown($project);
+
+        $this->assertSame(
+            ['totalInventionCost' => 0.0, 'bestDecryptorTypeId' => null, 'totalBpcKitCost' => 0.0],
+            $breakdown['summary'],
+        );
+    }
+
+    private const int MULTI_UNIT_BLUEPRINT_TYPE_ID = 990001;
+    private const int MULTI_UNIT_PRODUCT_TYPE_ID = 990002;
+    private const int MULTI_UNIT_UNITS_PER_RUN = 100;
+    private const float MULTI_UNIT_PRODUCT_ADJUSTED_PRICE = 37.0;
+
+    #[Group('issue-7')]
+    public function testProjectCopyCostsSumEveryCopyStepAndSkipTheOtherStepsWithACopyEivCurrentlyTakenFromTheProductAdjustedPriceIssue7(): void
+    {
+        $this->stubCopyEivFromManufacturedProducts();
+        $project = $this->projectOf(
+            $this->rootStep('manufacturing', 0, $this->structureConfig(self::AMARR_SOLAR_SYSTEM_ID, 5.0)),
+            $this->copyStep(self::THRASHER_BLUEPRINT_ID, self::THRASHER_TYPE_ID, 4, 1),
+            $this->copyStep(self::MULTI_UNIT_BLUEPRINT_TYPE_ID, self::MULTI_UNIT_PRODUCT_TYPE_ID, 9, 2),
+        );
+
+        $copyCosts = $this->inventionServiceOnSdeKnowing(self::INVENTION_SDE_TYPE_NAMES)->getProjectCopyCosts($project);
+
+        $this->assertSame([
+            [
+                'blueprintTypeId' => self::THRASHER_BLUEPRINT_ID,
+                'blueprintName' => 'Thrasher Blueprint',
+                'productTypeName' => 'Thrasher',
+                'runs' => 4,
+                'cost' => 4200.0,
+                'depth' => 1,
+            ],
+            [
+                'blueprintTypeId' => self::MULTI_UNIT_BLUEPRINT_TYPE_ID,
+                'blueprintName' => null,
+                'productTypeName' => null,
+                'runs' => 9,
+                'cost' => 34.965,
+                'depth' => 1,
+            ],
+        ], $copyCosts['copies']);
+        $this->assertEqualsWithDelta(4234.965, $copyCosts['totalCopyCost'], 0.000001);
+    }
+
+    #[Group('issue-7')]
+    public function testCopyJobCostOfAProductWithSeveralUnitsPerRunCurrentlyTakesItsEivFromTheProductAdjustedPriceTimesTheUnitsPerRunIssue7(): void
+    {
+        $this->stubCopyEivFromManufacturedProducts();
+
+        $copyJobCost = $this->service->getCopyJobCost(self::MULTI_UNIT_BLUEPRINT_TYPE_ID, 9, self::AMARR_SOLAR_SYSTEM_ID, 5.0);
+
+        $this->assertSame(34.965, $copyJobCost);
+    }
+
+    #[Group('issue-7')]
+    public function testCopyJobCostIsCurrentlyZeroWhenTheCopyingCostIndexOfTheSystemIsMissingIssue7(): void
+    {
+        $this->stubCopyEivFromManufacturedProducts();
+
+        $copyJobCost = $this->service->getCopyJobCost(self::THRASHER_BLUEPRINT_ID, 4, self::PERIMETER_SOLAR_SYSTEM_ID, 5.0);
+
+        $this->assertSame(0.0, $copyJobCost);
+    }
+
+    private function stubCopyEivFromManufacturedProducts(): void
+    {
+        $manufacturedProductsByBlueprint = [
+            self::THRASHER_BLUEPRINT_ID => [$this->createProduct(self::THRASHER_BLUEPRINT_ID, IndustryActivityType::Manufacturing->value, self::THRASHER_TYPE_ID, 1)],
+            self::MULTI_UNIT_BLUEPRINT_TYPE_ID => [$this->createProduct(self::MULTI_UNIT_BLUEPRINT_TYPE_ID, IndustryActivityType::Manufacturing->value, self::MULTI_UNIT_PRODUCT_TYPE_ID, self::MULTI_UNIT_UNITS_PER_RUN)],
+        ];
+        $this->activityProductRepository->method('findBy')->willReturnCallback(
+            static fn (array $criteria): array => ($criteria['activityId'] ?? null) === IndustryActivityType::Manufacturing->value
+                ? $manufacturedProductsByBlueprint[$criteria['typeId']] ?? []
+                : [],
+        );
+        $this->esiCostIndexService->method('getAdjustedPrice')->willReturnCallback(
+            static fn (int $typeId): ?float => [
+                self::THRASHER_TYPE_ID => self::THRASHER_ADJUSTED_PRICE,
+                self::MULTI_UNIT_PRODUCT_TYPE_ID => self::MULTI_UNIT_PRODUCT_ADJUSTED_PRICE,
+            ][$typeId] ?? null,
+        );
+        $this->esiCostIndexService->method('getCostIndex')->willReturnCallback(
+            static fn (int $solarSystemId, string $activity): ?float => $activity === 'copying' && $solarSystemId === self::AMARR_SOLAR_SYSTEM_ID
+                ? self::AMARR_COPYING_COST_INDEX
+                : null,
+        );
+    }
+
+    private function copyStep(int $blueprintTypeId, int $productTypeId, int $runs, int $sortOrder): IndustryProjectStep
+    {
+        return (new IndustryProjectStep())
+            ->setBlueprintTypeId($blueprintTypeId)
+            ->setProductTypeId($productTypeId)
+            ->setRuns($runs)
+            ->setDepth(1)
+            ->setSortOrder($sortOrder)
+            ->setActivityType('copy');
     }
 }

@@ -11,8 +11,9 @@ final readonly class Cost
 {
     /**
      * @param list<MissingData> $missingData
+     * @param list<PartialPrice> $partialPrices
      */
-    private function __construct(private ?Isk $knownAmount, public array $missingData)
+    private function __construct(private ?Isk $knownAmount, public array $missingData, public array $partialPrices = [])
     {
     }
 
@@ -24,6 +25,11 @@ final readonly class Cost
     public static function unknown(MissingData $missingData, MissingData ...$otherMissingData): self
     {
         return new self(null, self::withoutDuplicates([$missingData, ...$otherMissingData]));
+    }
+
+    public function withPartialPrice(PartialPrice $partialPrice): self
+    {
+        return new self($this->knownAmount, $this->missingData, self::withoutDuplicatePartialPrices([...$this->partialPrices, $partialPrice]));
     }
 
     public function isKnown(): bool
@@ -45,11 +51,13 @@ final readonly class Cost
      */
     public function plus(self $other): self
     {
+        $partialPrices = self::withoutDuplicatePartialPrices([...$this->partialPrices, ...$other->partialPrices]);
+
         if (null !== $this->knownAmount && null !== $other->knownAmount) {
-            return self::known(new Isk($this->knownAmount->amount + $other->knownAmount->amount));
+            return new self(new Isk($this->knownAmount->amount + $other->knownAmount->amount), [], $partialPrices);
         }
 
-        return new self(null, self::withoutDuplicates([...$this->missingData, ...$other->missingData]));
+        return new self(null, self::withoutDuplicates([...$this->missingData, ...$other->missingData]), $partialPrices);
     }
 
     /**
@@ -61,7 +69,7 @@ final readonly class Cost
             return $this;
         }
 
-        return self::known(new Isk($this->knownAmount->amount * $factor));
+        return new self(new Isk($this->knownAmount->amount * $factor), [], $this->partialPrices);
     }
 
     /**
@@ -80,5 +88,23 @@ final readonly class Cost
         }
 
         return $distinct;
+    }
+
+    /**
+     * @param array<PartialPrice> $partialPrices
+     *
+     * @return list<PartialPrice>
+     */
+    private static function withoutDuplicatePartialPrices(array $partialPrices): array
+    {
+        $lowestCoverageByTypeId = [];
+        foreach ($partialPrices as $candidate) {
+            $lowestSoFar = $lowestCoverageByTypeId[$candidate->typeId] ?? null;
+            if (null === $lowestSoFar || $candidate->coverage->fraction < $lowestSoFar->coverage->fraction) {
+                $lowestCoverageByTypeId[$candidate->typeId] = $candidate;
+            }
+        }
+
+        return array_values($lowestCoverageByTypeId);
     }
 }

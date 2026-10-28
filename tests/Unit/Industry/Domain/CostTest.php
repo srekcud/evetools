@@ -84,4 +84,20 @@ final class CostTest extends TestCase
             $total->missingData,
         );
     }
+
+    public function testShareOfAKnownCostIsItsAmountTimesTheFactor(): void
+    {
+        $share = Cost::known(new Isk(1250.0))->times(0.25);
+
+        $this->assertTrue($share->isKnown());
+        $this->assertSame(312.5, $share->amount()->amount);
+    }
+
+    public function testShareOfAnUnknownCostStaysUnknownWithTheSameMissingMarketPrice(): void
+    {
+        $share = Cost::unknown(MissingData::marketPrice(34))->times(0.25);
+
+        $this->assertFalse($share->isKnown());
+        $this->assertEquals([MissingData::marketPrice(34)], $share->missingData);
+    }
 }

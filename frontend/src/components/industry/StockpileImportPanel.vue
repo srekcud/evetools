@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { useStockpileStore } from '@/stores/industry/stockpile'
 import type { SearchResult } from '@/stores/industry/types'
+import IskAmount from '@/components/common/IskAmount.vue'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
+import MissingVolumeWarning from '@/components/shopping/MissingVolumeWarning.vue'
+import { missingVolumeTypeNames } from '@/components/shopping/missingVolume'
 
 const { t } = useI18n()
-const { formatIsk, formatNumber } = useFormatters()
+const uid = useId()
+const { formatNumber } = useFormatters()
 const stockpileStore = useStockpileStore()
 
 const selectedProduct = ref<SearchResult | null>(null)
@@ -36,6 +40,13 @@ const previewStageCount = computed(() => {
   return STAGE_ORDER.filter(
     s => (stockpileStore.importPreview!.stages[s]?.length ?? 0) > 0,
   ).length
+})
+
+const missingPriceTypeNames = computed(() => {
+  const preview = stockpileStore.importPreview
+  if (!preview) return ''
+  const items = STAGE_ORDER.flatMap(stage => preview.stages[stage] ?? [])
+  return missingVolumeTypeNames(items, preview.missingPriceTypeIds)
 })
 
 function onProductSelect(result: SearchResult): void {
@@ -81,33 +92,35 @@ async function doImport(mode: 'replace' | 'merge'): Promise<void> {
         <div class="col-span-12 lg:col-span-5">
           <div class="space-y-4">
             <div>
-              <label class="block text-xs uppercase tracking-wider text-slate-500 mb-2">
+              <label :for="`${uid}-product`" class="block text-xs uppercase tracking-wider text-slate-500 mb-2">
                 {{ t('industry.stockpile.import.product') }}
               </label>
-              <ProductSearch @select="onProductSelect" />
+              <ProductSearch :input-id="`${uid}-product`" @select="onProductSelect" />
               <div v-if="selectedProduct" class="mt-2 text-xs text-slate-400">
                 {{ selectedProduct.typeName }}
-                <span v-if="selectedProduct.isT2" class="ml-1 px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-sm text-[10px] font-semibold uppercase">T2</span>
+                <span v-if="selectedProduct.isT2" class="ml-1 px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-sm text-xs font-semibold uppercase">T2</span>
               </div>
             </div>
             <div class="grid grid-cols-3 gap-3">
               <div>
-                <label class="block text-xs uppercase tracking-wider text-slate-500 mb-2">
+                <label :for="`${uid}-runs`" class="block text-xs uppercase tracking-wider text-slate-500 mb-2">
                   {{ t('industry.stockpile.import.runs') }}
                 </label>
                 <input
                   v-model.number="runs"
+                  :id="`${uid}-runs`"
                   type="number"
                   min="1"
                   class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2.5 font-mono focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30"
                 />
               </div>
               <div>
-                <label class="block text-xs uppercase tracking-wider text-slate-500 mb-2">
+                <label :for="`${uid}-me`" class="block text-xs uppercase tracking-wider text-slate-500 mb-2">
                   {{ t('industry.stockpile.import.me') }}
                 </label>
                 <input
                   v-model.number="me"
+                  :id="`${uid}-me`"
                   type="number"
                   min="0"
                   max="10"
@@ -115,11 +128,12 @@ async function doImport(mode: 'replace' | 'merge'): Promise<void> {
                 />
               </div>
               <div>
-                <label class="block text-xs uppercase tracking-wider text-slate-500 mb-2">
+                <label :for="`${uid}-te`" class="block text-xs uppercase tracking-wider text-slate-500 mb-2">
                   {{ t('industry.stockpile.import.te') }}
                 </label>
                 <input
                   v-model.number="te"
+                  :id="`${uid}-te`"
                   type="number"
                   min="0"
                   max="20"
@@ -185,6 +199,12 @@ async function doImport(mode: 'replace' | 'merge'): Promise<void> {
                 </template>
               </div>
 
+              <MissingVolumeWarning
+                v-if="missingPriceTypeNames !== ''"
+                class="mt-3"
+                :message="t('industry.inventionUnknown.missingPriceTypes', { types: missingPriceTypeNames })"
+              />
+
               <!-- Action buttons -->
               <div class="flex items-center gap-3 mt-4 pt-3 border-t border-slate-700">
                 <button
@@ -210,7 +230,7 @@ async function doImport(mode: 'replace' | 'merge'): Promise<void> {
                 <div class="flex-1"></div>
                 <span class="text-xs font-mono text-slate-500">
                   {{ t('industry.stockpile.import.estTotalCost') }}:
-                  <span class="text-cyan-400">{{ formatIsk(stockpileStore.importPreview.estimatedCost) }} ISK</span>
+                  <span class="text-cyan-400"><IskAmount :value="stockpileStore.importPreview.estimatedCost" /> ISK</span>
                 </span>
               </div>
             </div>

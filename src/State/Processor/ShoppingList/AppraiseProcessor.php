@@ -176,7 +176,7 @@ class AppraiseProcessor implements ProcessorInterface
             $itemResource->buyTotalWeighted = $buyTotalWeighted !== null ? round($buyTotalWeighted, 2) : null;
             $itemResource->splitPriceWeighted = $splitPriceWeighted !== null ? round($splitPriceWeighted, 2) : null;
             $itemResource->splitTotalWeighted = $splitTotalWeighted !== null ? round($splitTotalWeighted, 2) : null;
-            $itemResource->sellCoverage = $weightedSell !== null ? round($weightedSell['coverage'], 4) : null;
+            $itemResource->sellCoverage = isset($weightedSell['coverage']) ? round($weightedSell['coverage'], 4) : null;
             $itemResource->buyCoverage = $weightedBuy !== null ? round($weightedBuy['coverage'], 4) : null;
             $itemResource->avgDailyVolume = $avgDailyVolumes[$typeId] ?? null;
 

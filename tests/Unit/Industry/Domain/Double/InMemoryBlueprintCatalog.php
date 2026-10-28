@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Industry\Domain\Double;
 
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\BlueprintCatalog;
+use App\Industry\Domain\OutputPerRun;
 use App\Industry\Domain\Quantity;
 use App\Industry\Domain\Recipe;
 use App\Industry\Domain\RecipeMaterial;
@@ -41,7 +42,7 @@ final readonly class InMemoryBlueprintCatalog implements BlueprintCatalog
             $recipes[] = new Recipe(
                 productTypeId: (int) $productTypeId,
                 activity: 'reaction' === $sdeRecipe['activity'] ? ActivityKind::Reaction : ActivityKind::Manufacturing,
-                outputPerRun: new Quantity($sdeRecipe['outputPerRun']),
+                outputPerRun: new OutputPerRun($sdeRecipe['outputPerRun']),
                 materials: $materials,
                 maxProductionLimit: new Runs($sdeRecipe['maxProductionLimit']),
                 baseTimeSeconds: $sdeRecipe['baseTimeSeconds'],

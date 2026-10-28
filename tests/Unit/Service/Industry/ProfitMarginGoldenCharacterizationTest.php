@@ -211,7 +211,8 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     // 1 run is neutral to B1 (issue #2): 1 run read as 1 unit is still ceil(1 / 40) = 1 run.
     // ===========================================
 
-    public function testNitrogenFuelBlockPricesTwentyFiveRunsOfMaterialsIssue2(): void
+    #[Group('issue-2')]
+    public function testNitrogenFuelBlockPricesTwentyFiveRunsOfMaterials(): void
     {
         $result = $this->analyze(self::NITROGEN_FUEL_BLOCK, runs: 25, me: 10, solarSystemId: self::MANUFACTURING_SYSTEM_ID);
 
@@ -231,7 +232,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     }
 
     #[Group('issue-7')]
-    public function testJobInstallCostAddsFacilityTaxAndSccToTheCostIndexTermIssue7(): void
+    public function testJobInstallCostAddsFacilityTaxAndSccToTheCostIndexTerm(): void
     {
         $result = $this->analyze(self::NITROGEN_FUEL_BLOCK, runs: 1, me: 10, solarSystemId: self::MANUFACTURING_SYSTEM_ID);
 
@@ -255,7 +256,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     }
 
     #[Group('issue-7')]
-    public function testMissingCostIndexLeavesInstallCostAndMarginsUnknownIssue7(): void
+    public function testMissingCostIndexLeavesInstallCostAndMarginsUnknown(): void
     {
         $this->withManufacturingCostIndex = false;
         $this->sellNitrogenFuelBlockOnEveryVenue();
@@ -274,7 +275,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     }
 
     #[Group('issue-7')]
-    public function testMaterialWithoutAdjustedPriceLeavesInstallCostUnknownIssue7(): void
+    public function testMaterialWithoutAdjustedPriceLeavesInstallCostUnknown(): void
     {
         $this->typesWithoutAdjustedPrice = [self::ROBOTICS];
         $this->sellNitrogenFuelBlockOnEveryVenue();
@@ -306,7 +307,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     }
 
     #[Group('issue-8')]
-    public function testMaterialWithoutJitaPriceLeavesMaterialCostUnknownIssue8(): void
+    public function testMaterialWithoutJitaPriceLeavesMaterialCostUnknown(): void
     {
         $this->leavesWithoutJitaPrice = [self::ROBOTICS];
         $this->sellNitrogenFuelBlockOnEveryVenue();
@@ -487,7 +488,8 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     // 1 run is neutral to B1: ceil(1 / 5000) = 1 run.
     // ===========================================
 
-    public function testHailLBuildsTenRootRunsIssue2(): void
+    #[Group('issue-2')]
+    public function testHailLBuildsTenRootRuns(): void
     {
         $result = $this->analyzeHailL(runs: 10);
 
@@ -507,7 +509,8 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         $this->assertEqualsWithDelta(64950.46601147, $result['jobInstallCost'], 1e-6);
     }
 
-    public function testHailLInventionExpectsFractionalAttemptsAndPaysOnManufacturingEivIssue7(): void
+    #[Group('issue-7')]
+    public function testHailLInventionExpectsFractionalAttemptsAndPaysOnManufacturingEiv(): void
     {
         $result = $this->analyzeHailL(runs: 1);
 
@@ -535,7 +538,8 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         $this->assertEqualsWithDelta(self::HAIL_L_ONE_RUN_PROCESS_TOTAL_COST, $processOption['totalProductionCost'], 1e-6);
     }
 
-    public function testSelectedDecryptorMeAppliesToManufacturingMaterialsIssue18(): void
+    #[Group('issue-18')]
+    public function testSelectedDecryptorMeAppliesToManufacturingMaterials(): void
     {
         $result = $this->analyzeHailL(runs: 1, decryptorTypeId: self::PROCESS_DECRYPTOR);
 
@@ -564,7 +568,8 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         $this->assertEqualsWithDelta($processOption['totalProductionCost'], $result['totalCost'], 1e-6);
     }
 
-    public function testHailLListsTheNoDecryptorOptionThenEachDecryptorByTypeIdIssue18(): void
+    #[Group('issue-18')]
+    public function testHailLListsTheNoDecryptorOptionThenEachDecryptorByTypeId(): void
     {
         $result = $this->analyzeHailL(runs: 1);
 
@@ -621,7 +626,8 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         $this->assertEqualsWithDelta(-2.181584, $this->decryptorOption($result, self::PROCESS_DECRYPTOR)['bestMargin'], 1e-6);
     }
 
-    public function testDecryptorOptionWithoutAnySellPriceHasNoBestMarginIssue8(): void
+    #[Group('issue-8')]
+    public function testDecryptorOptionWithoutAnySellPriceHasNoBestMargin(): void
     {
         $result = $this->analyzeHailL(runs: 1);
 
@@ -828,7 +834,9 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     // Fernite Carbide: reaction, 10000 units per run, 10 runs, Tatara + reactor rig II nullsec
     // ===========================================
 
-    public function testFerniteCarbideRunsTenReactionsAndAggregatesFuelBlockDemandIssue2Issue16(): void
+    #[Group('issue-2')]
+    #[Group('issue-16')]
+    public function testFerniteCarbideRunsTenReactionsAndAggregatesFuelBlockDemand(): void
     {
         $result = $this->analyzeFerniteCarbide();
 
@@ -950,7 +958,9 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     // Nomad: 1 run, ME 10, no structure (Ravworks golden)
     // ===========================================
 
-    public function testNomadAggregatesTheDemandOfEachIntermediateIssue16Issue69(): void
+    #[Group('issue-16')]
+    #[Group('issue-69')]
+    public function testNomadAggregatesTheDemandOfEachIntermediate(): void
     {
         $result = $this->analyze(self::NOMAD, runs: 1, me: 10, solarSystemId: self::MANUFACTURING_SYSTEM_ID);
 

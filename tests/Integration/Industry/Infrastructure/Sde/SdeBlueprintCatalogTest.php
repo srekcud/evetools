@@ -191,6 +191,23 @@ final class SdeBlueprintCatalogTest extends IntegrationTestCase
         $this->assertSame([self::SYNTHETIC_MATERIAL => 7], $this->baseQuantitiesPerRunByMaterial($recipe));
     }
 
+    public function testBlueprintYieldingZeroUnitPerRunIsNotChosenWhenAnotherBlueprintBuildsTheSameProduct(): void
+    {
+        $this->insertProducer(self::SYNTHETIC_TEST_BLUEPRINT, self::ACTIVITY_MANUFACTURING, self::SYNTHETIC_PRODUCT, 0, 60, 1, [
+            self::SYNTHETIC_OTHER_MATERIAL => 1,
+        ]);
+        $this->insertProducer(self::SYNTHETIC_MANUFACTURING_BLUEPRINT, self::ACTIVITY_MANUFACTURING, self::SYNTHETIC_PRODUCT, 10, 600, 300, [
+            self::SYNTHETIC_MATERIAL => 7,
+        ]);
+
+        $recipe = $this->catalog()->recipeFor(self::SYNTHETIC_PRODUCT);
+
+        $this->assertNotNull($recipe);
+        $this->assertSame(10, $recipe->outputPerRun->value);
+        $this->assertSame(300, $recipe->maxProductionLimit->value);
+        $this->assertSame([self::SYNTHETIC_MATERIAL => 7], $this->baseQuantitiesPerRunByMaterial($recipe));
+    }
+
     /**
      * A missing max production limit must not become a plausible default (CLAUDE.md, no `?? 0` on business data).
      */

@@ -312,7 +312,7 @@ class JitaMarketService
      * Get weighted sell prices with on-demand ESI fallback for types not in the cache.
      *
      * @param array<int, int> $typeQuantities typeId => quantity
-     * @return array<int, array{weightedPrice: float, coverage: float, ordersUsed: int}|null>
+     * @return array<int, array{weightedPrice: float, coverage?: float, ordersUsed: int}|null>
      */
     public function getWeightedSellPricesWithFallback(array $typeQuantities): array
     {

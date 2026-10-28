@@ -62,7 +62,7 @@ final class StockpileStatusIntermediateStockTest extends TestCase
             fn (): array => array_map(static fn (int $stock): array => ['total' => $stock, 'locations' => []], $this->stockByTypeId),
         );
         $jitaMarketService = $this->createStub(JitaMarketService::class);
-        $jitaMarketService->method('getPrices')->willReturnCallback(
+        $jitaMarketService->method('getPricesWithFallback')->willReturnCallback(
             static fn (array $typeIds): array => array_intersect_key(self::JITA_PRICES, array_flip($typeIds)),
         );
         $treeService = $this->treeServiceOnWidgetSde();

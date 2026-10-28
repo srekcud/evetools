@@ -1,18 +1,20 @@
 import { createApp } from 'vue'
 import { createI18n } from 'vue-i18n'
 import { useFormatters, dateFormat } from '@/composables/useFormatters'
+import en from '@/i18n/locales/en.json'
+import fr from '@/i18n/locales/fr.json'
 
 /**
  * Helper: run a composable inside a temporary Vue app with i18n installed.
  * Returns the composable's return value.
  */
-function withFormatters(locale: string = 'en') {
-  const i18n = createI18n({ legacy: false, locale, messages: { en: {}, fr: {} } })
+function withFormatters(locale: 'en' | 'fr' = 'en') {
+  const i18n = createI18n({ legacy: false, locale, messages: { en, fr } })
   let result!: ReturnType<typeof useFormatters>
   const app = createApp({ setup: () => { result = useFormatters(); return () => null } })
   app.use(i18n)
   app.mount(document.createElement('div'))
-  return { result, app }
+  return { result, app, i18n }
 }
 
 afterEach(() => {
@@ -218,30 +220,50 @@ describe('useFormatters', () => {
   // formatTimeSince
   // ---------------------------------------------------------------------------
   describe('formatTimeSince', () => {
-    it('returns "Never" for null', () => {
-      const { result, app } = withFormatters('en')
-      expect(result.formatTimeSince(null)).toBe('Never')
+    beforeEach(() => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-10-26T12:00:00Z'))
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it.each([
+      ['en', 'never'],
+      ['fr', 'jamais'],
+    ] as const)('F4: returns the translated never for a missing date (%s)', (locale, label) => {
+      const { result, app } = withFormatters(locale)
+      expect(result.formatTimeSince(null)).toBe(label)
       app.unmount()
     })
 
-    it('returns minutes ago for recent dates', () => {
-      const { result, app } = withFormatters('en')
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60_000).toISOString()
-      expect(result.formatTimeSince(fiveMinutesAgo)).toBe('5m ago')
+    it.each([
+      ['2026-10-26T11:59:30Z', 'en', 'just now'],
+      ['2026-10-26T11:59:30Z', 'fr', "a l'instant"],
+      ['2026-10-26T11:55:00Z', 'en', '5min ago'],
+      ['2026-10-26T11:55:00Z', 'fr', 'il y a 5min'],
+      ['2026-10-26T11:00:01Z', 'en', '59min ago'],
+      ['2026-10-26T11:00:01Z', 'fr', 'il y a 59min'],
+      ['2026-10-26T09:00:00Z', 'en', '3h ago'],
+      ['2026-10-26T09:00:00Z', 'fr', 'il y a 3h'],
+      ['2026-10-25T12:00:01Z', 'en', '23h ago'],
+      ['2026-10-25T12:00:01Z', 'fr', 'il y a 23h'],
+      ['2026-10-24T12:00:00Z', 'en', '2d ago'],
+      ['2026-10-24T12:00:00Z', 'fr', 'il y a 2j'],
+      ['2026-10-22T06:00:00Z', 'en', '4d ago'],
+      ['2026-10-22T06:00:00Z', 'fr', 'il y a 4j'],
+    ] as const)('F1-F3: formats %s as a relative age rounded down (%s)', (dateStr, locale, label) => {
+      const { result, app } = withFormatters(locale)
+      expect(result.formatTimeSince(dateStr)).toBe(label)
       app.unmount()
     })
 
-    it('returns hours ago for dates within a day', () => {
-      const { result, app } = withFormatters('en')
-      const threeHoursAgo = new Date(Date.now() - 3 * 3_600_000).toISOString()
-      expect(result.formatTimeSince(threeHoursAgo)).toBe('3h ago')
-      app.unmount()
-    })
-
-    it('returns days ago for older dates', () => {
-      const { result, app } = withFormatters('en')
-      const twoDaysAgo = new Date(Date.now() - 2 * 86_400_000).toISOString()
-      expect(result.formatTimeSince(twoDaysAgo)).toBe('2d ago')
+    it('retranslates the relative age when the locale changes', () => {
+      const { result, app, i18n } = withFormatters('en')
+      expect(result.formatTimeSince('2026-10-24T12:00:00Z')).toBe('2d ago')
+      i18n.global.locale.value = 'fr'
+      expect(result.formatTimeSince('2026-10-24T12:00:00Z')).toBe('il y a 2j')
       app.unmount()
     })
   })

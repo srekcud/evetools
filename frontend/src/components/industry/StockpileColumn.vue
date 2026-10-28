@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
+import IskAmount from '@/components/common/IskAmount.vue'
 import type { StockpileStage, StockpileStageStatus } from '@/stores/industry/types'
 
 const props = defineProps<{
@@ -19,7 +20,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const { getTypeIconUrl, onImageError } = useEveImages()
-const { formatIsk, formatNumber } = useFormatters()
+const { formatNumber } = useFormatters()
 
 const VISIBLE_ITEMS = 6
 const expanded = ref(false)
@@ -84,7 +85,7 @@ function onDeleteTarget(targetId: string): void {
         <div class="w-2 h-2 rounded-full" :class="dotColor"></div>
         <h2 class="text-sm font-bold text-slate-100 uppercase tracking-wider">{{ stageName }}</h2>
       </div>
-      <span class="text-xs font-mono text-slate-500">{{ formatIsk(stageData.totalValue) }} ISK</span>
+      <span class="text-xs font-mono text-slate-500"><IskAmount :value="stageData.totalValue" /> ISK</span>
     </div>
 
     <!-- Stage health bar -->
@@ -126,8 +127,9 @@ function onDeleteTarget(targetId: string): void {
                   class="text-slate-600 hover:text-red-400 opacity-0 group-hover/item:opacity-100 lg:opacity-0 max-lg:opacity-100 transition-opacity p-0.5"
                   :title="t('common.actions.delete')"
                   @click="onDeleteTarget(item.id)"
+                  :aria-label="t('common.actions.delete')"
                 >
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </button>
@@ -155,7 +157,7 @@ function onDeleteTarget(targetId: string): void {
                   v-if="item.locations?.length > 0"
                   class="hidden group-hover/loc:block absolute bottom-full left-0 mb-1 z-50 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-2.5 min-w-[200px] max-w-[300px]"
                 >
-                  <p class="text-[10px] text-slate-400 uppercase tracking-wider mb-1.5">{{ t('industry.stockpile.locationBreakdown') }}</p>
+                  <p class="text-xs text-slate-400 uppercase tracking-wider mb-1.5">{{ t('industry.stockpile.locationBreakdown') }}</p>
                   <div
                     v-for="loc in item.locations"
                     :key="loc.locationId"
@@ -225,7 +227,7 @@ function onDeleteTarget(targetId: string): void {
   right: -14px;
   width: 28px;
   height: 2px;
-  background: linear-gradient(90deg, #1e293b, #0891b2, #1e293b);
+  background: linear-gradient(90deg, var(--color-surface), var(--color-brand-strong), var(--color-surface));
   transform: translateY(-50%);
 }
 .pipeline-arrow::before {
@@ -235,8 +237,8 @@ function onDeleteTarget(targetId: string): void {
   right: -18px;
   width: 8px;
   height: 8px;
-  border-top: 2px solid #0891b2;
-  border-right: 2px solid #0891b2;
+  border-top: 2px solid var(--color-brand-strong);
+  border-right: 2px solid var(--color-brand-strong);
   transform: translateY(-50%) rotate(45deg);
 }
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataTable from '@/components/common/DataTable.vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 
@@ -38,50 +39,52 @@ const { formatIsk } = useFormatters()
       <span class="text-xs text-slate-600">{{ runs }} runs &middot; {{ t('industry.margins.brokerFeeLabel') }} {{ (brokerFeeRate * 100).toFixed(1) }}%</span>
     </div>
 
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
-          <th class="text-left py-2.5 px-4">{{ t('industry.margins.venue') }}</th>
-          <th class="text-right py-2.5 px-3">{{ t('industry.margins.unitPrice') }}</th>
-          <th class="text-right py-2.5 px-3">{{ t('industry.margins.revenue') }}</th>
-          <th class="text-right py-2.5 px-3">{{ t('industry.margins.fees') }}</th>
-          <th class="text-right py-2.5 px-3">{{ t('industry.margins.profit') }}</th>
-          <th class="text-right py-2.5 px-3">{{ t('industry.margins.margin') }}</th>
-          <th class="text-right py-2.5 px-4">{{ t('industry.margins.dailyVolume') }}</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-slate-800">
-        <tr
-          v-for="row in rows"
-          :key="row.key"
-          :class="[
-            row.isBest ? 'bg-emerald-500/5 hover:bg-emerald-500/10 border-l-2 border-l-emerald-500' : 'hover:bg-slate-800/50',
-          ]"
-        >
-          <td class="py-2.5 px-4">
-            <div class="flex items-center gap-2">
-              <span :class="row.isBest ? 'text-slate-100 font-semibold' : 'text-slate-200'">{{ row.venue }}</span>
-              <span class="text-[10px] px-1.5 py-0.5 bg-slate-700/50 text-slate-400 rounded-sm">{{ row.tag }}</span>
-              <span
-                v-if="row.isBest"
-                class="text-[10px] uppercase tracking-wider px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-sm font-semibold"
-              >{{ t('industry.margins.best') }}</span>
-            </div>
-          </td>
-          <td class="py-2.5 px-3 text-right font-mono" :class="row.isBest ? 'text-slate-100 font-semibold' : 'text-slate-300'">{{ formatIsk(row.unitPrice) }}</td>
-          <td class="py-2.5 px-3 text-right font-mono" :class="row.isBest ? 'text-slate-100' : 'text-slate-300'">{{ formatIsk(row.revenue) }}</td>
-          <td class="py-2.5 px-3 text-right font-mono text-amber-400" :class="!row.isBest ? 'text-amber-400/70' : ''">-{{ formatIsk(Math.abs(row.fees)) }}</td>
-          <td class="py-2.5 px-3 text-right font-mono" :class="[row.profit >= 0 ? 'text-emerald-400' : 'text-red-400', row.isBest ? 'font-bold' : '']">{{ row.profit >= 0 ? '+' : '' }}{{ formatIsk(row.profit) }}</td>
-          <td v-if="row.margin == null" class="py-2.5 px-3 text-right font-mono text-slate-500">{{ t('industry.inventionUnknown.label') }}</td>
-          <td v-else class="py-2.5 px-3 text-right font-mono" :class="[row.margin >= 0 ? 'text-emerald-400' : 'text-red-400', row.isBest ? 'font-bold' : '']">{{ row.margin >= 0 ? '+' : '' }}{{ row.margin.toFixed(1) }}%</td>
-          <td class="py-2.5 px-4 text-right font-mono" :class="row.dailyVolume != null || row.contractCount != null ? 'text-slate-300' : 'text-slate-500'">
-            <template v-if="row.contractCount != null">{{ t('industry.margins.contractCount', { count: row.contractCount }) }}</template>
-            <template v-else-if="row.dailyVolume != null">{{ Math.round(row.dailyVolume) }}/day</template>
-            <template v-else>&#x2014;</template>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <DataTable>
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
+            <th class="text-left py-2.5 px-4">{{ t('industry.margins.venue') }}</th>
+            <th class="text-right py-2.5 px-3">{{ t('industry.margins.unitPrice') }}</th>
+            <th class="text-right py-2.5 px-3">{{ t('industry.margins.revenue') }}</th>
+            <th class="text-right py-2.5 px-3">{{ t('industry.margins.fees') }}</th>
+            <th class="text-right py-2.5 px-3">{{ t('industry.margins.profit') }}</th>
+            <th class="text-right py-2.5 px-3">{{ t('industry.margins.margin') }}</th>
+            <th class="text-right py-2.5 px-4">{{ t('industry.margins.dailyVolume') }}</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800">
+          <tr
+            v-for="row in rows"
+            :key="row.key"
+            :class="[
+              row.isBest ? 'bg-emerald-500/5 hover:bg-emerald-500/10 border-l-2 border-l-emerald-500' : 'hover:bg-slate-800/50',
+            ]"
+          >
+            <td class="py-2.5 px-4">
+              <div class="flex items-center gap-2">
+                <span :class="row.isBest ? 'text-slate-100 font-semibold' : 'text-slate-200'">{{ row.venue }}</span>
+                <span class="text-xs px-1.5 py-0.5 bg-slate-700/50 text-slate-400 rounded-sm">{{ row.tag }}</span>
+                <span
+                  v-if="row.isBest"
+                  class="text-xs uppercase tracking-wider px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-sm font-semibold"
+                >{{ t('industry.margins.best') }}</span>
+              </div>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono tabular-nums" :class="row.isBest ? 'text-slate-100 font-semibold' : 'text-slate-300'">{{ formatIsk(row.unitPrice) }}</td>
+            <td class="py-2.5 px-3 text-right font-mono tabular-nums" :class="row.isBest ? 'text-slate-100' : 'text-slate-300'">{{ formatIsk(row.revenue) }}</td>
+            <td class="py-2.5 px-3 text-right font-mono text-amber-400 tabular-nums" :class="!row.isBest ? 'text-amber-400/70' : ''">-{{ formatIsk(Math.abs(row.fees)) }}</td>
+            <td class="py-2.5 px-3 text-right font-mono tabular-nums" :class="[row.profit >= 0 ? 'text-emerald-400' : 'text-red-400', row.isBest ? 'font-bold' : '']">{{ row.profit >= 0 ? '+' : '' }}{{ formatIsk(row.profit) }}</td>
+            <td v-if="row.margin == null" class="py-2.5 px-3 text-right font-mono text-slate-500 tabular-nums">{{ t('industry.inventionUnknown.label') }}</td>
+            <td v-else class="py-2.5 px-3 text-right font-mono tabular-nums" :class="[row.margin >= 0 ? 'text-emerald-400' : 'text-red-400', row.isBest ? 'font-bold' : '']">{{ row.margin >= 0 ? '+' : '' }}{{ row.margin.toFixed(1) }}%</td>
+            <td class="py-2.5 px-4 text-right font-mono tabular-nums" :class="row.dailyVolume != null || row.contractCount != null ? 'text-slate-300' : 'text-slate-500'">
+              <template v-if="row.contractCount != null">{{ t('industry.margins.contractCount', { count: row.contractCount }) }}</template>
+              <template v-else-if="row.dailyVolume != null">{{ Math.round(row.dailyVolume) }}/day</template>
+              <template v-else>&#x2014;</template>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </DataTable>
 
     <!-- Info note -->
     <div class="px-4 py-3 bg-cyan-900/10 border-t border-slate-800 flex items-center gap-2">

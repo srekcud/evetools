@@ -82,11 +82,13 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
 
     private const float HAIL_L_ONE_RUN_TOTAL_PRODUCTION_COST = 587567.84;
     private const float HAIL_L_ONE_RUN_OPTIMAL_MIX_COST = 388252.5;
+    private const float FERNITE_CARBIDE_ONE_RUN_BUILD_COST = 175092.5;
+    private const int FERNITE_CARBIDE_ONE_RUN_QUANTITY = 2940;
 
     #[Group('issue-2')]
     #[Group('issue-101')]
     #[Group('issue-98')]
-    public function testHailLTenRunsBuildsTenRootRunsAndSellsTenRunsIssue2(): void
+    public function testHailLTenRunsBuildsTenRootRunsAndSellsTenRuns(): void
     {
         $result = $this->analyzeHailL($this->hailLJitaPrices(), runs: 10);
 
@@ -113,12 +115,14 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
                     'buildJobInstallCost' => 60277.5,
                     'buyCostJita' => 1764000.0,
                     'buyCostStructure' => null,
+                    'buyCostJitaCoveragePercent' => null,
                     'verdict' => 'build',
                     'savings' => 1238722.5,
                     'savingsPercent' => 70.22,
                     'meUsed' => 0,
                     'runs' => 3,
                     'missingData' => [],
+                    'warnings' => [],
                 ],
                 [
                     'typeId' => self::FULLERIDES,
@@ -134,12 +138,14 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
                     'buildJobInstallCost' => 87780.0,
                     'buyCostJita' => 1881600.0,
                     'buyCostStructure' => null,
+                    'buyCostJitaCoveragePercent' => null,
                     'verdict' => 'build',
                     'savings' => 993820.0,
                     'savingsPercent' => 52.82,
                     'meUsed' => 0,
                     'runs' => 4,
                     'missingData' => [],
+                    'warnings' => [],
                 ],
                 [
                     'typeId' => self::RAM_AMMUNITION_TECH,
@@ -157,12 +163,14 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
                     'buildJobInstallCost' => 4369.33,
                     'buyCostJita' => 200000.0,
                     'buyCostStructure' => 250000.0,
+                    'buyCostJitaCoveragePercent' => null,
                     'verdict' => 'build',
                     'savings' => 195325.67,
                     'savingsPercent' => 78.13,
                     'meUsed' => 10,
                     'runs' => 1,
                     'missingData' => [],
+                    'warnings' => [],
                 ],
             ],
             'buildAllCost' => 1467731.83,
@@ -171,6 +179,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
             'buildTypeIds' => [self::RAM_AMMUNITION_TECH, self::FERNITE_CARBIDE, self::FULLERIDES],
             'buyTypeIds' => [],
             'missingData' => [],
+            'warnings' => [],
         ], $result);
     }
 
@@ -186,6 +195,47 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
             ],
             array_map(static fn (array $component): array => [$component['typeId'], $component['savings']], $result['components']),
         );
+    }
+
+    public function testComponentWithUnknownSavingsIsSortedAfterAComponentWhoseBuildCostEqualsItsBuyCost(): void
+    {
+        $result = $this->analyzeHailL(
+            array_diff_key($this->hailLJitaPrices(), [self::RAM_AMMUNITION_TECH => true]),
+            ramStructurePrice: null,
+            ferniteCarbideStructurePrice: self::FERNITE_CARBIDE_ONE_RUN_BUILD_COST / self::FERNITE_CARBIDE_ONE_RUN_QUANTITY,
+        );
+
+        $this->assertSame(
+            [
+                [self::FERNITE_CARBIDE, 'build', 0.0],
+                [self::FULLERIDES, 'buy', -33785.0],
+                [self::RAM_AMMUNITION_TECH, 'build', null],
+            ],
+            array_map(static fn (array $component): array => [$component['typeId'], $component['verdict'], $component['savings']], $result['components']),
+        );
+    }
+
+    public function testUserWithoutIdIsRefusedBecauseItHasNoConfiguredStructure(): void
+    {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('A user without id has no configured structure.');
+
+        $this->analyzeHailL($this->hailLJitaPrices(), user: new User());
+    }
+
+    public function testProductWithoutBlueprintNorReactionCannotBeAnalyzed(): void
+    {
+        $service = $this->buyVsBuildServiceOnGoldenSde(
+            jitaPrices: $this->hailLJitaPrices(),
+            structurePrices: [],
+            adjustedPrices: $this->hailLAdjustedPrices(),
+            costIndices: self::FACTORY_COST_INDICES,
+        );
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Product 34 has no blueprint nor reaction: it cannot be built.');
+
+        $service->analyze(self::TRITANIUM, 1, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, self::BROKER_FEE_RATE, self::SALES_TAX_RATE, null);
     }
 
     #[Group('issue-98')]
@@ -463,6 +513,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
             'buildTypeIds' => [],
             'buyTypeIds' => [],
             'missingData' => [],
+            'warnings' => [],
         ], $result);
     }
 
@@ -563,7 +614,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
 
     #[Group('issue-2')]
     #[Group('issue-101')]
-    public function testFerniteCarbideTenRunsBuildsTenReactionRunsAndPricesEachComponentOnTheRootDemandOnlyIssue2(): void
+    public function testFerniteCarbideTenRunsBuildsTenReactionRunsAndPricesEachComponentOnTheRootDemandOnly(): void
     {
         $service = $this->buyVsBuildServiceOnGoldenSde(
             jitaPrices: [

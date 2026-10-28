@@ -40,6 +40,7 @@
       "justNow": "just now",
       "minutesAgo": "{minutes}min ago",
       "hoursAgo": "{hours}h ago",
+      "daysAgo": "{days}d ago",
       "day": "day | day | days",
       "hour": "hour | hour | hours",
       "minute": "minute | minute | minutes",
@@ -48,6 +49,15 @@
       "perDay": "/ day",
       "perHour": "/ hour",
       "perCycle": "/cycle"
+    },
+    "dataFreshness": {
+      "sources": {
+        "market-jita": "Jita prices",
+        "cost-indices": "Cost indices",
+        "adjusted-prices": "Adjusted prices"
+      },
+      "unknownDate": "unknown date",
+      "lastSyncFailed": "last sync failed"
     },
     "units": {
       "colony": "colony | colony | colonies",
@@ -70,6 +80,42 @@
     },
     "deletedPilot": "Deleted pilot"
   },
+  "a11y": {
+    "remove": "Remove",
+    "industry": {
+      "skillLevel": "{skill} level for {character}"
+    },
+    "zoneB": {
+      "market": {
+        "removeRecentSearch": "Remove {name} from recent searches"
+      },
+      "groupIndustry": {
+        "contributionTypeFilter": "Filter by contribution type",
+        "contributionStatusFilter": "Filter by contribution status"
+      },
+      "escalation": {
+        "timerDays": "Days",
+        "timerHours": "Hours",
+        "timerMinutes": "Minutes"
+      }
+    },
+    "pagination": {
+      "first": "First page",
+      "previous": "Previous page",
+      "next": "Next page",
+      "last": "Last page"
+    },
+    "zoneC": {
+      "assets": {
+        "contractAvailability": "Contract availability"
+      },
+      "notifications": {
+        "enabledSwitch": "Enable {category} notifications",
+        "pushSwitch": "Enable browser push for {category}",
+        "thresholdInput": "{category} threshold in minutes"
+      }
+    }
+  },
   "nav": {
     "dashboard": "Dashboard",
     "characters": "Characters",
@@ -86,7 +132,36 @@
     "market": "Market",
     "appraisal": "Appraisal",
     "groupIndustry": "Group Industry",
-    "admin": "Administration"
+    "admin": "Administration",
+    "openMenu": "Open navigation menu",
+    "closeMenu": "Close navigation menu",
+    "menu": "Navigation menu"
+  },
+  "commandPalette": {
+    "open": "Open command palette (Ctrl+K)",
+    "title": "Command palette",
+    "placeholder": "Search a screen...",
+    "noResults": "No results for \"{query}\"",
+    "groups": {
+      "navigation": "Navigation",
+      "projects": "Projects",
+      "types": "Types"
+    },
+    "projects": {
+      "loading": "Loading...",
+      "industryUnavailable": "Industry projects unavailable",
+      "groupIndustryUnavailable": "Group Industry projects unavailable",
+      "completed": "Completed"
+    },
+    "types": {
+      "searching": "Searching...",
+      "unavailable": "Type search unavailable",
+      "actions": {
+        "analyzeMargin": "Analyze margin",
+        "buyVsBuild": "Buy vs Build",
+        "openInMarket": "Open in Market"
+      }
+    }
   },
   "settings": {
     "title": "Settings",
@@ -154,7 +229,19 @@
     "noRecentActivity": "No recent activity",
     "realtimeEventsWillAppear": "Real-time events will appear here",
     "mercureConnected": "Mercure connected",
-    "disconnected": "Disconnected"
+    "disconnected": "Disconnected",
+    "todo": {
+      "title": "To do",
+      "charactersToReconnect": "{count} character to reconnect | {count} characters to reconnect",
+      "atLeastCharactersToReconnect": "At least {count} character to reconnect | At least {count} characters to reconnect",
+      "expiredExtractors": "{count} PI extractor stopped | {count} PI extractors stopped",
+      "expiringExtractors": "{count} PI extractor expires within 24 h | {count} PI extractors expire within 24 h",
+      "triggeredPriceAlerts": "{count} price alert triggered | {count} price alerts triggered",
+      "unknownCharacters": "Characters to reconnect: unknown",
+      "unknownExtractors": "PI extractors: unknown (loading failed)",
+      "unknownPriceAlerts": "Price alerts: unknown (loading failed)",
+      "allCaughtUp": "All caught up"
+    }
   },
   "characters": {
     "title": "Characters",
@@ -498,6 +585,12 @@
     }
   },
   "industry": {
+    "partialPrice": {
+      "marker": "{percent}% covered",
+      "noticeTitle": "Partial price: Jita order book too shallow",
+      "noticeLine": "{type}: order book covers {percent}%",
+      "tooltip": "The Jita sell order book only covers part of the requested quantity. The displayed price applies to the covered part only: the actual cost is likely higher."
+    },
     "inventionUnknown": {
       "label": "Unknown",
       "missing_adjusted_price": "ESI adjusted price unknown",
@@ -506,6 +599,7 @@
       "missing_market_price": "Unknown market price for a datacore or the decryptor: the invention cost is unknown.",
       "missing_material_price": "A material has no Jita price: the manufacturing cost and margins are unknown.",
       "missing_sale_price": "The product has no Jita sale price: the sale price, profit and margins are unknown.",
+      "missing_volume": "A product or a material has no volume in the static data (SDE): the transport cost and margins are unknown.",
       "missingPriceTypes": "Materials without a price: {types}"
     },
     "title": "Industry",
@@ -558,7 +652,7 @@
         "jobsReadyTitle": "{count} jobs ready for delivery",
         "jobsReadyDesc": "Jobs completed and waiting for pickup",
         "stockpileCriticalTitle": "{name} stockpile at {percent}%",
-        "stockpileCriticalDesc": "{stock} in stock (target: {target}) — deficit cost: {cost} ISK",
+        "stockpileCriticalDesc": "{stock} in stock (target: {target}) — deficit cost: {cost}",
         "negativeProfitTitle": "Project '{name}' has negative profit margin",
         "negativeProfitDesc": "Margin at {margin}% — review sell price or ME level",
         "freeSlotsTitle": "{count} free slots available",

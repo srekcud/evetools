@@ -24,6 +24,7 @@ const PLASMA_THRUSTER_WITHOUT_ANY_PRICE: BuyVsBuildComponent = {
   buildJobInstallCost: 200,
   buyCostJita: null,
   buyCostStructure: null,
+  buyCostJitaCoveragePercent: null,
   verdict: 'unknown',
   savings: null,
   savingsPercent: null,
@@ -33,6 +34,7 @@ const PLASMA_THRUSTER_WITHOUT_ANY_PRICE: BuyVsBuildComponent = {
     { reason: 'market_price', typeId: MEXALLON_TYPE_ID },
     { reason: 'market_price', typeId: PLASMA_THRUSTER_TYPE_ID },
   ],
+  warnings: [],
 }
 
 const PLASMA_THRUSTER_WITHOUT_BUY_PRICE: BuyVsBuildComponent = {
@@ -64,6 +66,7 @@ const ANALYSIS_WITH_AN_UNKNOWN_VERDICT: BuyVsBuildResult = {
     { reason: 'market_price', typeId: MEXALLON_TYPE_ID },
     { reason: 'market_price', typeId: PLASMA_THRUSTER_TYPE_ID },
   ],
+  warnings: [],
   sellStructureId: null,
 }
 

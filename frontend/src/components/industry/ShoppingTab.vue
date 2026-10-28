@@ -52,7 +52,7 @@ const { t } = useI18n()
 const store = useIndustryStore()
 const syncStore = useSyncStore()
 const purchasesStore = usePurchasesStore()
-const { formatDateTime } = useFormatters()
+const { formatTimeSince } = useFormatters()
 const { typeNameLabel } = useTypeNames()
 
 // Shopping list state
@@ -64,6 +64,7 @@ const shoppingStructureLastSync = ref<string | null>(null)
 const shoppingTotals = ref<ShoppingListTotals | null>(null)
 const shoppingPriceError = ref<string | null>(null)
 const missingVolumeTypeIds = ref<number[]>([])
+const missingPriceTypeIds = ref<number[]>([])
 const failedProducts = ref<ShoppingListFailedProduct[]>([])
 const shoppingLoading = ref(false)
 const shoppingSyncing = ref(false)
@@ -178,43 +179,60 @@ const enrichedShoppingList = computed<EnrichedShoppingItem[]>(() => {
 
 const missingTotals = computed(() => {
   let totalMissingPrice = 0
+  let hasUnknownMissingPrice = false
   let totalMissingVolume = 0
   let hasUnknownMissingVolume = false
   let totalMissingJita = 0
+  let hasUnknownMissingJita = false
   let totalMissingJitaWeighted = 0
   let hasAnyJitaWeighted = false
   let totalMissingStructure = 0
+  let hasUnknownMissingStructure = false
   let totalMissingSavings = 0
   for (const item of enrichedShoppingList.value) {
     if (item.missing > 0) {
-      if (item.missingPrice !== null) totalMissingPrice += item.missingPrice
+      if (item.missingPrice === null) {
+        hasUnknownMissingPrice = true
+      } else {
+        totalMissingPrice += item.missingPrice
+      }
       if (item.missingVolume === null) {
         hasUnknownMissingVolume = true
       } else {
         totalMissingVolume += item.missingVolume
       }
-      if (item.missingJita !== null) totalMissingJita += item.missingJita
+      if (item.missingJita === null) {
+        hasUnknownMissingJita = true
+      } else {
+        totalMissingJita += item.missingJita
+      }
       if (item.missingJitaWeighted !== null) {
         totalMissingJitaWeighted += item.missingJitaWeighted
         hasAnyJitaWeighted = true
       } else if (item.missingJita !== null) {
         totalMissingJitaWeighted += item.missingJita
       }
-      if (item.missingStructure !== null) totalMissingStructure += item.missingStructure
+      if (item.missingStructure === null) {
+        hasUnknownMissingStructure = true
+      } else {
+        totalMissingStructure += item.missingStructure
+      }
       if (item.missingSavings !== null) totalMissingSavings += item.missingSavings
     }
   }
   return {
-    price: totalMissingPrice,
+    price: hasUnknownMissingPrice ? null : totalMissingPrice,
     volume: hasUnknownMissingVolume ? null : totalMissingVolume,
-    jita: hasUnknownMissingVolume ? null : totalMissingJita,
-    jitaWeighted: hasAnyJitaWeighted && !hasUnknownMissingVolume ? totalMissingJitaWeighted : null,
-    structure: totalMissingStructure,
+    jita: hasUnknownMissingVolume || hasUnknownMissingJita ? null : totalMissingJita,
+    jitaWeighted: hasAnyJitaWeighted && !hasUnknownMissingVolume && !hasUnknownMissingJita ? totalMissingJitaWeighted : null,
+    structure: hasUnknownMissingStructure ? null : totalMissingStructure,
     savings: totalMissingSavings,
   }
 })
 
 const missingVolumeTypeNamesText = computed(() => missingVolumeTypeNames(shoppingList.value, missingVolumeTypeIds.value))
+
+const missingPriceTypeNamesText = computed(() => missingVolumeTypeNames(shoppingList.value, missingPriceTypeIds.value))
 
 const displayStructureName = computed(() => {
   return shoppingStructureName.value || selectedStructure.value.name || 'Structure'
@@ -307,11 +325,13 @@ async function loadShoppingList() {
       shoppingTotals.value = response.totals
       shoppingPriceError.value = response.priceError
       missingVolumeTypeIds.value = response.missingVolumeTypeIds
+      missingPriceTypeIds.value = response.missingPriceTypeIds
       failedProducts.value = response.failedProducts
     } else {
       shoppingList.value = []
       shoppingTotals.value = null
       missingVolumeTypeIds.value = []
+      missingPriceTypeIds.value = []
       failedProducts.value = []
       shoppingStructureAccessible.value = false
       shoppingPriceError.value = store.error
@@ -320,6 +340,7 @@ async function loadShoppingList() {
     shoppingList.value = []
     shoppingTotals.value = null
     missingVolumeTypeIds.value = []
+    missingPriceTypeIds.value = []
     failedProducts.value = []
     shoppingStructureAccessible.value = false
     shoppingPriceError.value = e instanceof Error ? e.message : t('common.errors.loadFailed')
@@ -346,27 +367,16 @@ async function syncStructureMarket() {
 }
 
 const isMaterialCostKnown = computed(() =>
-  failedProducts.value.length === 0 && shoppingList.value.every(item => item.bestPrice !== null),
+  failedProducts.value.length === 0
+  && shoppingTotals.value?.best != null
+  && shoppingList.value.every(item => item.bestPrice !== null),
 )
 
 async function applyAsMaterialCost() {
-  if (!shoppingTotals.value || !store.currentProject || !isMaterialCostKnown.value) return
-  const roundedCost = roundUpToMillion(shoppingTotals.value.best)
+  const bestTotal = shoppingTotals.value?.best
+  if (bestTotal == null || !store.currentProject || !isMaterialCostKnown.value) return
+  const roundedCost = roundUpToMillion(bestTotal)
   await store.updateProject(props.projectId, { materialCost: roundedCost })
-}
-
-function formatRelativeTime(isoDate: string | null): string {
-  if (!isoDate) return ''
-  const date = new Date(isoDate)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMins / 60)
-
-  if (diffMins < 1) return t('common.time.justNow')
-  if (diffMins < 60) return t('common.time.minutesAgo', { minutes: diffMins })
-  if (diffHours < 24) return t('common.time.hoursAgo', { hours: diffHours })
-  return formatDateTime(isoDate)
 }
 
 // Called by parent when tab is activated
@@ -550,6 +560,11 @@ defineExpose({
         :message="t('industry.shoppingTab.missingVolumeWarning', { types: missingVolumeTypeNamesText })"
       />
 
+      <MissingVolumeWarning
+        v-if="missingPriceTypeNamesText && !shoppingPriceError"
+        :message="t('industry.inventionUnknown.missingPriceTypes', { types: missingPriceTypeNamesText })"
+      />
+
       <!-- Error message -->
       <div v-if="stock.stockAnalysisError.value" class="p-3 bg-red-900/20 border border-red-500/30 rounded-lg flex items-center gap-2">
         <svg class="w-5 h-5 text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -570,8 +585,8 @@ defineExpose({
             </ul>
             <p class="mt-1 text-xs text-amber-400/60">{{ t('industry.shoppingTab.duplicateHint') }}</p>
           </div>
-          <button @click="stock.stockPurchaseWarnings.value = []" class="text-amber-400 hover:text-amber-300 shrink-0 p-0.5">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button @click="stock.stockPurchaseWarnings.value = []" class="text-amber-400 hover:text-amber-300 shrink-0 p-0.5" :aria-label="t('common.actions.close')">
+            <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -609,11 +624,11 @@ defineExpose({
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            {{ formatRelativeTime(shoppingStructureLastSync) }}
+            {{ formatTimeSince(shoppingStructureLastSync) }}
           </div>
         </div>
         <button
-          v-if="shoppingTotals && shoppingTotals.best > 0 && store.currentProject?.status !== 'completed'"
+          v-if="shoppingTotals && (shoppingTotals.best === null || shoppingTotals.best > 0) && store.currentProject?.status !== 'completed'"
           :disabled="!isMaterialCostKnown"
           :title="isMaterialCostKnown ? undefined : t('industry.shoppingTab.materialCostUnknown')"
           @click="applyAsMaterialCost"

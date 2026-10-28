@@ -25,12 +25,19 @@ final readonly class StructureMaterialModifiers implements JobMaterialModifiers
 
     public function forJob(Recipe $recipe): Multiplier
     {
+        return $this->choiceFor($recipe)->materialMultiplier;
+    }
+
+    public function choiceFor(Recipe $recipe): StructureChoice
+    {
         $assignedStructure = \array_key_exists($recipe->productTypeId, $this->assignedStructures)
             ? $this->assignedStructures[$recipe->productTypeId]
             : null;
 
-        return $this->selector
-            ->select($recipe->activity, $this->rigCategories->categoryOf($recipe->productTypeId, $recipe->activity), $assignedStructure)
-            ->materialMultiplier;
+        return $this->selector->select(
+            $recipe->activity,
+            $this->rigCategories->categoryOf($recipe->productTypeId, $recipe->activity),
+            $assignedStructure,
+        );
     }
 }

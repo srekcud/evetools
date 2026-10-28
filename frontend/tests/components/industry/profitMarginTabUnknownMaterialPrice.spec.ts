@@ -89,6 +89,7 @@ const SABRE_WITH_UNPRICED_MATERIALS: ProfitMarginResult = {
     { reason: 'market_price', typeId: ROBOTICS_TYPE_ID },
     { reason: 'market_price', typeId: NITROGEN_ISOTOPES_TYPE_ID },
   ],
+  warnings: [],
 }
 
 function mountWithUnpricedMaterials(locale: 'en' | 'fr') {

@@ -28,6 +28,7 @@ trait BuildsBuyVsBuildOnGoldenSde
     use StubsGoldenSdeRepositories;
 
     private const string GOLDEN_USER_ID = '01928c3e-7a00-7000-8000-0000000000b2';
+    private const float FULL_JITA_COVERAGE = 1.0;
 
     private function buyVsBuildServiceOnGoldenSde(
         array $jitaPrices,
@@ -35,6 +36,7 @@ trait BuildsBuyVsBuildOnGoldenSde
         array $adjustedPrices,
         array $costIndices,
         ?StructureMarketService $structureMarket = null,
+        array $jitaCoverages = [],
     ): BuyVsBuildService {
         if ([] === $this->recipes) {
             $this->loadGoldenSde();
@@ -43,7 +45,7 @@ trait BuildsBuyVsBuildOnGoldenSde
         $productRepository = $this->sdeProductRepository();
         $materialRepository = $this->sdeMaterialRepository();
         $blueprintCatalog = new SdeBlueprintCatalog($productRepository, $this->sdeActivityTimeRepository(), $materialRepository, $this->sdeBlueprintRepository());
-        $jitaMarketService = $this->jitaMarketServiceAt($jitaPrices);
+        $jitaMarketService = $this->jitaMarketServiceAt($jitaPrices, $jitaCoverages);
         $esiCostIndexService = $this->esiCostIndexServiceSyncedWith($adjustedPrices, $costIndices);
 
         return new BuyVsBuildService(
@@ -91,15 +93,15 @@ trait BuildsBuyVsBuildOnGoldenSde
         return ['reason' => 'invention_probability', 'typeId' => $t1BlueprintTypeId];
     }
 
-    private function jitaMarketServiceAt(array $jitaPrices): JitaMarketService
+    private function jitaMarketServiceAt(array $jitaPrices, array $jitaCoverages = []): JitaMarketService
     {
         $jitaMarketService = $this->createStub(JitaMarketService::class);
         $jitaMarketService->method('getWeightedSellPricesWithFallback')->willReturnCallback(
-            static function (array $typeQuantities) use ($jitaPrices): array {
+            static function (array $typeQuantities) use ($jitaPrices, $jitaCoverages): array {
                 $prices = [];
-                foreach (array_keys($typeQuantities) as $typeId) {
+                foreach ($typeQuantities as $typeId => $quantity) {
                     $prices[$typeId] = \array_key_exists($typeId, $jitaPrices)
-                        ? ['weightedPrice' => $jitaPrices[$typeId], 'coverage' => 1.0, 'ordersUsed' => 1]
+                        ? ['weightedPrice' => $jitaPrices[$typeId], 'coverage' => self::jitaCoverageOf($jitaCoverages, $typeId, $quantity), 'ordersUsed' => 1]
                         : null;
                 }
 
@@ -118,6 +120,15 @@ trait BuildsBuyVsBuildOnGoldenSde
         );
 
         return $jitaMarketService;
+    }
+
+    private static function jitaCoverageOf(array $jitaCoverages, int $typeId, int $quantity): float
+    {
+        if (!\array_key_exists($typeId, $jitaCoverages)) {
+            return self::FULL_JITA_COVERAGE;
+        }
+
+        return \is_array($jitaCoverages[$typeId]) ? $jitaCoverages[$typeId][$quantity] : $jitaCoverages[$typeId];
     }
 
     private function structureMarketAt(array $structurePrices): StructureMarketService

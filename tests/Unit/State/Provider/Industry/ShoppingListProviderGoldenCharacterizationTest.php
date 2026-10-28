@@ -21,6 +21,7 @@ use App\Service\JitaMarketService;
 use App\State\Provider\Industry\ShoppingListProvider;
 use App\Tests\Unit\Service\Industry\BuildsShoppingListOnGoldenSde;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -62,6 +63,8 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
     private const int COOLANT_QUANTITY = 9;
     private const float ISOTOPES_VOLUME = 0.5;
     private const float COOLANT_VOLUME = 1.5;
+    private const float VOLUME_OF_EVERY_LISTED_TYPE = 414.625;
+    private const float IMPORT_COST_OF_EVERY_LISTED_TYPE = 497550.0;
 
     private User $pilot;
     private IndustryProject $project;
@@ -107,9 +110,8 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
             ->addPurchase((new IndustryStepPurchase())->setTypeId(self::NITROGEN_ISOTOPES)->setQuantity(100));
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #8 (R10) : Robotics, sans prix Jita ni structure,
-    // n'a ni prix ni lieu d'achat et sort en silence des totaux, affichés comme des montants connus.
-    public function testPricedShoppingListCurrentlyLeavesAMaterialWithoutPriceOutOfTheTotalsIssue8(): void
+    #[Group('issue-8')]
+    public function testPricedShoppingListTotalsAreUnknownWhenSomeMaterialsHaveNoPrice(): void
     {
         $this->jitaPrices = [self::NITROGEN_ISOTOPES => 500.0, self::COOLANT => 100.0];
         $this->structurePrices = [self::NITROGEN_ISOTOPES => 1200.0, self::HEAVY_WATER => 200.0];
@@ -122,11 +124,158 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
         self::assertNull($robotics->structureTotal);
         self::assertNull($robotics->bestLocation);
         self::assertNull($robotics->bestPrice);
-        self::assertSame(203400.0, $shoppingList->totals->jita);
-        self::assertSame(516600.0, $shoppingList->totals->structure);
-        self::assertSame(493200.0, $shoppingList->totals->best);
+        self::assertNull($shoppingList->totals->jita);
+        self::assertNull($shoppingList->totals->jitaWithImport);
+        self::assertNull($shoppingList->totals->structure);
+        self::assertNull($shoppingList->totals->best);
+        self::assertSame(self::IMPORT_COST_OF_EVERY_LISTED_TYPE, $shoppingList->totals->import);
+        self::assertSame(self::VOLUME_OF_EVERY_LISTED_TYPE, $shoppingList->totals->volume);
         self::assertSame(0.0, $shoppingList->totals->savingsVsJitaWithImport);
         self::assertSame(40500.0, $shoppingList->totals->savingsVsStructure);
+        self::assertSame(
+            [self::ENRICHED_URANIUM, self::OXYGEN, self::MECHANICAL_PARTS, self::ROBOTICS, self::LIQUID_OZONE, self::STRONTIUM_CLATHRATES],
+            $shoppingList->missingPriceTypeIds,
+        );
+    }
+
+    #[Group('issue-8')]
+    public function testPricedShoppingListTotalsEveryMaterialPricedInJitaOnly(): void
+    {
+        $this->jitaPrices = $this->everyListedTypePricedInJita();
+
+        $shoppingList = $this->provideShoppingList();
+
+        self::assertSame(254900.0, $shoppingList->totals->jita);
+        self::assertSame(self::IMPORT_COST_OF_EVERY_LISTED_TYPE, $shoppingList->totals->import);
+        self::assertSame(752450.0, $shoppingList->totals->jitaWithImport);
+        self::assertSame(752450.0, $shoppingList->totals->best);
+        self::assertNull($shoppingList->totals->structure);
+        self::assertSame(0.0, $shoppingList->totals->savingsVsJitaWithImport);
+        self::assertSame(0.0, $shoppingList->totals->savingsVsStructure);
+        self::assertSame([], $shoppingList->missingPriceTypeIds);
+    }
+
+    #[Group('issue-8')]
+    public function testPricedShoppingListTotalsAreUnknownWhenASingleMaterialHasNoPrice(): void
+    {
+        $this->jitaPrices = $this->everyListedTypePricedInJita();
+        unset($this->jitaPrices[self::ROBOTICS]);
+
+        $shoppingList = $this->provideShoppingList();
+
+        $robotics = $this->materialOf($shoppingList, self::ROBOTICS);
+        self::assertNull($robotics->jitaTotal);
+        self::assertNull($robotics->jitaWithImport);
+        self::assertNull($robotics->bestPrice);
+        self::assertSame(3600.0, $robotics->importCost);
+        self::assertNull($shoppingList->totals->jita);
+        self::assertNull($shoppingList->totals->jitaWithImport);
+        self::assertNull($shoppingList->totals->best);
+        self::assertSame(self::IMPORT_COST_OF_EVERY_LISTED_TYPE, $shoppingList->totals->import);
+        self::assertSame([self::ROBOTICS], $shoppingList->missingPriceTypeIds);
+    }
+
+    #[Group('issue-8')]
+    public function testPricedShoppingListBestTotalCountsAMaterialPricedOnlyInTheStructure(): void
+    {
+        $this->jitaPrices = $this->everyListedTypePricedInJita();
+        unset($this->jitaPrices[self::ROBOTICS]);
+        $this->structurePrices = [self::ROBOTICS => 90000.0];
+
+        $shoppingList = $this->provideShoppingList();
+
+        $robotics = $this->materialOf($shoppingList, self::ROBOTICS);
+        self::assertSame('structure', $robotics->bestLocation);
+        self::assertSame(90000.0, $robotics->bestPrice);
+        self::assertNull($shoppingList->totals->jita);
+        self::assertNull($shoppingList->totals->jitaWithImport);
+        self::assertNull($shoppingList->totals->structure);
+        self::assertSame(838750.0, $shoppingList->totals->best);
+        self::assertSame(0.0, $shoppingList->totals->savingsVsJitaWithImport);
+        self::assertSame(0.0, $shoppingList->totals->savingsVsStructure);
+        self::assertSame([], $shoppingList->missingPriceTypeIds);
+    }
+
+    #[Group('issue-8')]
+    public function testPricedShoppingListReportsATypeWithoutPriceOnceWhenItIsBothAManufacturingAndAnInventionMaterial(): void
+    {
+        $this->jitaPrices = $this->everyListedTypePricedInJita();
+        unset($this->jitaPrices[self::ROBOTICS]);
+        $this->project->setInventionMaterials([['typeId' => self::ROBOTICS, 'typeName' => 'Robotics', 'quantity' => 2]]);
+
+        $shoppingList = $this->provideShoppingList();
+
+        $roboticsLines = array_values(array_filter(
+            $shoppingList->materials,
+            static fn (ShoppingListMaterialResource $material): bool => $material->typeId === self::ROBOTICS,
+        ));
+        self::assertCount(2, $roboticsLines);
+        self::assertSame([null, null], array_map(static fn (ShoppingListMaterialResource $material): ?float => $material->bestPrice, $roboticsLines));
+        self::assertNull($shoppingList->totals->best);
+        self::assertSame([self::ROBOTICS], $shoppingList->missingPriceTypeIds);
+    }
+
+    #[Group('issue-8')]
+    public function testPricedShoppingListCountsAZeroJitaPriceAsAKnownPrice(): void
+    {
+        $this->jitaPrices = array_replace($this->everyListedTypePricedInJita(), [self::ROBOTICS => 0.0]);
+
+        $shoppingList = $this->provideShoppingList();
+
+        self::assertSame(0.0, $this->materialOf($shoppingList, self::ROBOTICS)->jitaTotal);
+        self::assertSame(254800.0, $shoppingList->totals->jita);
+        self::assertSame(752350.0, $shoppingList->totals->jitaWithImport);
+        self::assertSame(752350.0, $shoppingList->totals->best);
+        self::assertSame([], $shoppingList->missingPriceTypeIds);
+    }
+
+    #[Group('issue-8')]
+    public function testPricedShoppingListReportsATypeWithoutVolumeNorPriceInBothMissingLists(): void
+    {
+        $this->volumes[self::ROBOTICS] = null;
+        $this->jitaPrices = $this->everyListedTypePricedInJita();
+        unset($this->jitaPrices[self::ROBOTICS]);
+
+        $shoppingList = $this->provideShoppingList();
+
+        self::assertSame([self::ROBOTICS], $shoppingList->missingVolumeTypeIds);
+        self::assertSame([self::ROBOTICS], $shoppingList->missingPriceTypeIds);
+        self::assertNull($shoppingList->totals->import);
+        self::assertNull($shoppingList->totals->best);
+    }
+
+    #[Group('issue-8')]
+    public function testPricedShoppingListLeavesAMaterialPricedInJitaWithoutVolumeOutOfTheMissingPrices(): void
+    {
+        $this->volumes[self::NITROGEN_ISOTOPES] = null;
+        $this->jitaPrices = $this->everyListedTypePricedInJita();
+
+        $shoppingList = $this->provideShoppingList();
+
+        self::assertNull($this->materialOf($shoppingList, self::NITROGEN_ISOTOPES)->bestPrice);
+        self::assertSame(254900.0, $shoppingList->totals->jita);
+        self::assertNull($shoppingList->totals->import);
+        self::assertNull($shoppingList->totals->jitaWithImport);
+        self::assertNull($shoppingList->totals->best);
+        self::assertSame([self::NITROGEN_ISOTOPES], $shoppingList->missingVolumeTypeIds);
+        self::assertSame([], $shoppingList->missingPriceTypeIds);
+    }
+
+    #[Group('issue-8')]
+    public function testEmptyShoppingListTotalsZeroWithoutMissingPrice(): void
+    {
+        $this->project = self::projectOf($this->pilot, self::ROBOTICS, 3, 0);
+        self::addStep($this->project, self::ROBOTICS, 3, 0, 'manufacturing');
+        $this->volumes = [];
+
+        $shoppingList = $this->provideShoppingList();
+
+        self::assertSame([], $shoppingList->materials);
+        self::assertSame(
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [$shoppingList->totals->jita, $shoppingList->totals->import, $shoppingList->totals->jitaWithImport, $shoppingList->totals->structure, $shoppingList->totals->best, $shoppingList->totals->volume],
+        );
+        self::assertSame([], $shoppingList->missingPriceTypeIds);
     }
 
     public function testPricedShoppingListComparesJitaWithImportToTheStructureForEachMaterial(): void
@@ -166,9 +315,9 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
         self::assertSame(16200.0, $coolant->importCost);
         self::assertSame(0, $coolant->purchasedQuantity);
 
-        self::assertSame(259200.0, $shoppingList->totals->import);
-        self::assertSame(462600.0, $shoppingList->totals->jitaWithImport);
-        self::assertSame(414.625, $shoppingList->totals->volume);
+        self::assertSame(self::IMPORT_COST_OF_EVERY_LISTED_TYPE, $shoppingList->totals->import);
+        self::assertNull($shoppingList->totals->jitaWithImport);
+        self::assertSame(self::VOLUME_OF_EVERY_LISTED_TYPE, $shoppingList->totals->volume);
         self::assertSame(40500.0, $shoppingList->totals->savingsVsStructure);
         self::assertSame(self::TRANSPORT_COST_PER_M3, $shoppingList->transportCostPerM3);
         self::assertNull($shoppingList->priceError);
@@ -178,7 +327,7 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
         self::assertTrue($shoppingList->structureFromCache);
     }
 
-    public function testPricedShoppingListAddsTheImportCostOfEveryMaterialBoughtInJita(): void
+    public function testPricedShoppingListAddsTheImportCostOfEveryListedMaterial(): void
     {
         $this->volumes[self::COOLANT] = 0.25;
         $this->jitaPrices = [self::NITROGEN_ISOTOPES => 500.0, self::COOLANT => 100.0];
@@ -186,7 +335,7 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
         $shoppingList = $this->provideShoppingList();
 
         self::assertSame(2700.0, $this->materialOf($shoppingList, self::COOLANT)->importCost);
-        self::assertSame(245700.0, $shoppingList->totals->import);
+        self::assertSame(484050.0, $shoppingList->totals->import);
         self::assertSame(403.375, $shoppingList->totals->volume);
     }
 
@@ -210,7 +359,7 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
 
         $shoppingList = $this->provideShoppingList();
 
-        self::assertSame(0.0, $shoppingList->totals->structure);
+        self::assertNull($shoppingList->totals->structure);
         self::assertSame(0.0, $shoppingList->totals->savingsVsStructure);
         self::assertSame(0.0, $shoppingList->totals->savingsVsJitaWithImport);
     }
@@ -221,14 +370,13 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
 
         $shoppingList = $this->provideShoppingList();
 
-        self::assertSame(0.0, $shoppingList->totals->jitaWithImport);
+        self::assertNull($shoppingList->totals->jitaWithImport);
         self::assertSame(0.0, $shoppingList->totals->savingsVsJitaWithImport);
         self::assertSame(0.0, $shoppingList->totals->savingsVsStructure);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #6 (R4, D3) : les quantités sont celles du
-    // Raitaru, meilleure structure du pilote ; la consommation de la station assignée n'apparaît qu'en extraQuantity.
-    public function testPricedShoppingListOfAStepAssignedToAStationCarriesTheExtraQuantityIssue6(): void
+    #[Group('issue-6')]
+    public function testPricedShoppingListOfAStepAssignedToAStationCurrentlyCarriesTheExtraQuantityIssue6(): void
     {
         $this->pilotStructures = [self::structure($this->pilot, 'raitaru')];
         $this->project->getSteps()->first()->setStructureConfig(self::structure($this->pilot, 'station'));
@@ -309,7 +457,6 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
         $this->structurePrices = [self::NITROGEN_ISOTOPES => 1200.0, self::HEAVY_WATER => 200.0];
         $isotopesJitaWithImport = 445500.0;
         $isotopesStructureTotal = 486000.0;
-        $bestPriceOfEveryPricedMaterial = 493200.0;
 
         $shoppingList = $this->provideShoppingList();
 
@@ -320,7 +467,7 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
         self::assertSame(0.0, $shoppingList->totals->savingsVsJitaWithImport);
         self::assertSame($isotopesStructureTotal - $isotopesJitaWithImport, $shoppingList->totals->savingsVsStructure);
         self::assertSame(40500.0, $shoppingList->totals->savingsVsStructure);
-        self::assertSame($bestPriceOfEveryPricedMaterial, $shoppingList->totals->best);
+        self::assertNull($shoppingList->totals->best);
     }
 
     public function testPricedShoppingListSavesVersusJitaWhenTheStructureIsCheaperForTheMaterialPricedInBoth(): void
@@ -396,8 +543,8 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
         $shoppingList = $this->provideShoppingList();
 
         self::assertSame('Impossible de récupérer les prix du marché. Réessayez plus tard.', $shoppingList->priceError);
-        self::assertSame(0.0, $shoppingList->totals->savingsVsJitaWithImport);
-        self::assertSame(0.0, $shoppingList->totals->savingsVsStructure);
+        self::assertNull($shoppingList->totals->savingsVsJitaWithImport);
+        self::assertNull($shoppingList->totals->savingsVsStructure);
     }
 
     public function testPricedShoppingListAppendsTheInventionMaterialsOfTheProject(): void
@@ -414,9 +561,8 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
         self::assertFalse($this->materialOf($shoppingList, self::ROBOTICS)->isInventionMaterial);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #8 (R10) : sans marché, la liste garde ses
-    // quantités et un message d'erreur, mais les totaux valent 0 au lieu d'être inconnus.
-    public function testPricedShoppingListWithoutMarketKeepsTheQuantitiesAndCurrentlyTotalsZeroIssue8(): void
+    #[Group('issue-8')]
+    public function testPricedShoppingListWithoutMarketKeepsTheQuantitiesAndTheImportAndLeavesEveryPriceTotalUnknown(): void
     {
         $this->marketUnavailable = true;
 
@@ -424,10 +570,20 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
 
         self::assertSame('Impossible de récupérer les prix du marché. Réessayez plus tard.', $shoppingList->priceError);
         self::assertSame(405, $this->materialOf($shoppingList, self::NITROGEN_ISOTOPES)->quantity);
+        self::assertSame(1, $this->materialOf($shoppingList, self::ROBOTICS)->quantity);
         self::assertNull($this->materialOf($shoppingList, self::NITROGEN_ISOTOPES)->bestPrice);
-        self::assertSame(0.0, $shoppingList->totals->best);
-        self::assertSame(0.0, $shoppingList->totals->jita);
-        self::assertSame(414.625, $shoppingList->totals->volume);
+        self::assertNull($shoppingList->totals->jita);
+        self::assertNull($shoppingList->totals->jitaWithImport);
+        self::assertNull($shoppingList->totals->structure);
+        self::assertNull($shoppingList->totals->best);
+        self::assertNull($shoppingList->totals->savingsVsJitaWithImport);
+        self::assertNull($shoppingList->totals->savingsVsStructure);
+        self::assertSame(self::IMPORT_COST_OF_EVERY_LISTED_TYPE, $shoppingList->totals->import);
+        self::assertSame(self::VOLUME_OF_EVERY_LISTED_TYPE, $shoppingList->totals->volume);
+        self::assertSame(
+            [self::ENRICHED_URANIUM, self::OXYGEN, self::MECHANICAL_PARTS, self::COOLANT, self::ROBOTICS, self::HEAVY_WATER, self::LIQUID_OZONE, self::STRONTIUM_CLATHRATES, self::NITROGEN_ISOTOPES],
+            $shoppingList->missingPriceTypeIds,
+        );
         self::assertSame(self::DEFAULT_MARKET_STRUCTURE_ID, $shoppingList->structureId);
         self::assertFalse($shoppingList->structureAccessible);
     }
@@ -487,8 +643,8 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
         self::assertSame('structure', $isotopes->bestLocation);
         self::assertSame($isotopesStructureTotal, $isotopes->bestPrice);
         self::assertNull($isotopes->savings);
-        self::assertSame($isotopesStructureTotal, $shoppingList->totals->best);
-        self::assertSame($isotopesStructureTotal, $shoppingList->totals->structure);
+        self::assertNull($shoppingList->totals->best);
+        self::assertNull($shoppingList->totals->structure);
         self::assertSame(0.0, $shoppingList->totals->savingsVsStructure);
         self::assertSame([self::NITROGEN_ISOTOPES], $shoppingList->missingVolumeTypeIds);
     }
@@ -523,7 +679,6 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
         $coolantTotalVolume = self::COOLANT_QUANTITY * self::COOLANT_VOLUME;
         $coolantImportCost = $coolantTotalVolume * self::TRANSPORT_COST_PER_M3;
         $coolantJitaWithImport = self::COOLANT_QUANTITY * $coolantJitaUnitPrice + $coolantImportCost;
-        $jitaTotalOfIsotopesAndCoolant = self::ISOTOPES_QUANTITY * $isotopesJitaUnitPrice + self::COOLANT_QUANTITY * $coolantJitaUnitPrice;
 
         $shoppingList = $this->provideShoppingList();
 
@@ -541,9 +696,8 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
         self::assertNull($shoppingList->totals->import);
         self::assertNull($shoppingList->totals->jitaWithImport);
         self::assertNull($shoppingList->totals->savingsVsJitaWithImport);
-        self::assertSame(203400.0, $jitaTotalOfIsotopesAndCoolant);
-        self::assertSame($jitaTotalOfIsotopesAndCoolant, $shoppingList->totals->jita);
-        self::assertSame($coolantJitaWithImport, $shoppingList->totals->best);
+        self::assertNull($shoppingList->totals->jita);
+        self::assertNull($shoppingList->totals->best);
         self::assertSame([self::NITROGEN_ISOTOPES], $shoppingList->missingVolumeTypeIds);
     }
 
@@ -689,9 +843,14 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
         self::assertNull($shoppingList->totals->import);
         self::assertNull($shoppingList->totals->jitaWithImport);
         self::assertNull($shoppingList->totals->savingsVsJitaWithImport);
-        self::assertSame($isotopesJitaTotal, $shoppingList->totals->jita);
-        self::assertSame(0.0, $shoppingList->totals->best);
+        self::assertNull($shoppingList->totals->jita);
+        self::assertNull($shoppingList->totals->best);
         self::assertSame([self::NITROGEN_ISOTOPES], $shoppingList->missingVolumeTypeIds);
+    }
+
+    private function everyListedTypePricedInJita(): array
+    {
+        return array_replace(array_fill_keys(self::LISTED_TYPE_IDS, 100.0), [self::NITROGEN_ISOTOPES => 500.0]);
     }
 
     private function provideShoppingList(): ShoppingListResource

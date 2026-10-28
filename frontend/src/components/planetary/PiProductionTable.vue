@@ -77,7 +77,7 @@ function toggleTier(tier: string): void {
               </td>
               <td class="py-2.5">
                 <div class="flex items-center gap-2">
-                  <span :class="['text-[10px] px-1.5 py-0.5 rounded-sm border', TIER_CONFIG[tier.tier]?.badgeBg, TIER_CONFIG[tier.tier]?.badgeText, TIER_CONFIG[tier.tier]?.badgeBorder]">
+                  <span :class="['text-xs px-1.5 py-0.5 rounded-sm border', TIER_CONFIG[tier.tier]?.badgeBg, TIER_CONFIG[tier.tier]?.badgeText, TIER_CONFIG[tier.tier]?.badgeBorder]">
                     {{ tier.tier }}
                   </span>
                   <span class="text-slate-400">{{ TIER_CONFIG[tier.tier]?.labelKey ? t(TIER_CONFIG[tier.tier].labelKey) : tier.tier }}</span>
@@ -103,7 +103,7 @@ function toggleTier(tier: string): void {
               <td colspan="5" class="py-2 pl-2">
                 <div class="bg-slate-800/50 rounded-lg p-3">
                   <!-- Header -->
-                  <div class="flex items-center gap-4 text-[10px] text-slate-500 uppercase tracking-wider mb-2 px-1">
+                  <div class="flex items-center gap-4 text-xs text-slate-500 uppercase tracking-wider mb-2 px-1">
                     <span class="flex-1">{{ t('pi.production.products') }}</span>
                     <span v-if="tier.tier !== 'P0'" class="w-28 text-right">{{ t('pi.supply.inputs') }}</span>
                     <span class="w-14 text-right">{{ t('pi.supply.output') }}</span>
@@ -121,7 +121,7 @@ function toggleTier(tier: string): void {
                         <span class="w-1.5 h-1.5 rounded-full" :class="TIER_CONFIG[tier.tier]?.badgeText?.replace('text-', 'bg-') || 'bg-cyan-400'"></span>
                         <span class="text-slate-300">{{ typeNameLabel(item.typeName, item.typeId) }}</span>
                         <OpenInGameButton type="market" :targetId="item.typeId" />
-                        <span v-if="item.inputs?.length" class="text-slate-600 text-[10px]">
+                        <span v-if="item.inputs?.length" class="text-slate-600 text-xs">
                           &larr; {{ item.inputs.map(i => typeNameLabel(i.typeName, i.typeId)).join(' + ') }}
                         </span>
                       </div>
@@ -173,7 +173,7 @@ function toggleTier(tier: string): void {
       </table>
     </div>
     <div class="mt-3 pt-3 border-t border-slate-800">
-      <p class="text-[11px] text-slate-500 italic">
+      <p class="text-xs text-slate-500 italic">
         {{ t('pi.production.footnote') }}
       </p>
     </div>

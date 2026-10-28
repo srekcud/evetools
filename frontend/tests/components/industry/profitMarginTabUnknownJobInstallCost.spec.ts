@@ -79,6 +79,7 @@ const FERNITE_CARBIDE_WITH_AN_UNKNOWN_JOB_INSTALL_COST: ProfitMarginResult = {
   margins: { jitaSell: null, structureSell: null, structureBuy: null, contractSell: null },
   dailyVolume: 125_000,
   missingData: [{ reason: 'cost_index', typeId: null }],
+  warnings: [],
 }
 
 const FERNITE_CARBIDE_WITH_BOTH_UNKNOWN_INSTALL_COST_REASONS: ProfitMarginResult = {
@@ -174,6 +175,7 @@ const HAIL_L_WITH_AN_UNKNOWN_JOB_INSTALL_COST: ProfitMarginResult = {
   margins: { jitaSell: null, structureSell: null, structureBuy: null, contractSell: null },
   dailyVolume: 48_000,
   missingData: [{ reason: 'cost_index', typeId: null }],
+  warnings: [],
 }
 
 function mountWith(analysis: ProfitMarginResult, locale: 'en' | 'fr') {

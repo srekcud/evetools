@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import DataTable from '@/components/common/DataTable.vue'
+import { ref, computed, onMounted, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useFormatters } from '@/composables/useFormatters'
@@ -7,6 +8,10 @@ import type { RecordSaleInput } from '@/stores/group-industry/types'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const { t } = useI18n()
+const saleTypeNameFieldId = useId()
+const saleQuantityFieldId = useId()
+const saleUnitPriceFieldId = useId()
+const saleVenueFieldId = useId()
 
 const props = defineProps<{
   projectId: string
@@ -93,54 +98,56 @@ onMounted(() => {
     <!-- Sales Table -->
     <template v-else>
       <div class="bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
-              <th class="text-left py-3 px-6">Date</th>
-              <th class="text-right py-3 px-3">Quantity</th>
-              <th class="text-right py-3 px-3">Unit Price</th>
-              <th class="text-right py-3 px-3">Revenue</th>
-              <th class="text-left py-3 px-6">Venue</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-800/30">
-            <tr
-              v-for="sale in store.sales"
-              :key="sale.id"
-              class="hover:bg-slate-800/30"
-            >
-              <td class="py-3 px-6 text-slate-300">{{ formatDate(sale.soldAt) }}</td>
-              <td class="py-3 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
-                {{ formatNumber(sale.quantity, 0) }}
-              </td>
-              <td class="py-3 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
-                {{ formatNumber(sale.unitPrice, 0) }}
-              </td>
-              <td class="py-3 px-3 text-right font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">
-                {{ formatNumber(sale.totalPrice, 0) }}
-              </td>
-              <td class="py-3 px-6">
-                <span
-                  v-if="sale.venue"
-                  class="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                >{{ sale.venue }}</span>
-                <span v-else class="text-xs text-slate-600">--</span>
-              </td>
-            </tr>
-            <!-- Total row -->
-            <tr v-if="store.sales.length > 0" class="bg-slate-800/30 border-t-2 border-slate-700">
-              <td class="py-3 px-6 text-slate-200 font-semibold">{{ t('common.status.total') }}</td>
-              <td class="py-3 px-3 text-right font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">
-                {{ formatNumber(totalQuantity, 0) }}
-              </td>
-              <td class="py-3 px-3"></td>
-              <td class="py-3 px-3 text-right font-mono font-bold text-emerald-400" style="font-variant-numeric: tabular-nums;">
-                {{ formatNumber(totalRevenue, 0) }}
-              </td>
-              <td class="py-3 px-6"></td>
-            </tr>
-          </tbody>
-        </table>
+        <DataTable>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
+                <th class="text-left py-3 px-6">Date</th>
+                <th class="text-right py-3 px-3">Quantity</th>
+                <th class="text-right py-3 px-3">Unit Price</th>
+                <th class="text-right py-3 px-3">Revenue</th>
+                <th class="text-left py-3 px-6">Venue</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/30">
+              <tr
+                v-for="sale in store.sales"
+                :key="sale.id"
+                class="hover:bg-slate-800/30"
+              >
+                <td class="py-3 px-6 text-slate-300">{{ formatDate(sale.soldAt) }}</td>
+                <td class="py-3 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
+                  {{ formatNumber(sale.quantity, 0) }}
+                </td>
+                <td class="py-3 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
+                  {{ formatNumber(sale.unitPrice, 0) }}
+                </td>
+                <td class="py-3 px-3 text-right font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">
+                  {{ formatNumber(sale.totalPrice, 0) }}
+                </td>
+                <td class="py-3 px-6">
+                  <span
+                    v-if="sale.venue"
+                    class="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  >{{ sale.venue }}</span>
+                  <span v-else class="text-xs text-slate-600">--</span>
+                </td>
+              </tr>
+              <!-- Total row -->
+              <tr v-if="store.sales.length > 0" class="bg-slate-800/30 border-t-2 border-slate-700">
+                <td class="py-3 px-6 text-slate-200 font-semibold">{{ t('common.status.total') }}</td>
+                <td class="py-3 px-3 text-right font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">
+                  {{ formatNumber(totalQuantity, 0) }}
+                </td>
+                <td class="py-3 px-3"></td>
+                <td class="py-3 px-3 text-right font-mono font-bold text-emerald-400" style="font-variant-numeric: tabular-nums;">
+                  {{ formatNumber(totalRevenue, 0) }}
+                </td>
+                <td class="py-3 px-6"></td>
+              </tr>
+            </tbody>
+          </table>
+        </DataTable>
       </div>
 
       <!-- Inline Sale Form (admin only) -->
@@ -151,8 +158,9 @@ onMounted(() => {
         <h3 class="text-sm font-semibold text-slate-200 mb-4">Record a Sale</h3>
         <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
           <div>
-            <label class="text-xs text-slate-500 mb-1 block">Item Name</label>
+            <label :for="saleTypeNameFieldId" class="text-xs text-slate-500 mb-1 block">Item Name</label>
             <input
+              :id="saleTypeNameFieldId"
               v-model="saleForm.typeName"
               type="text"
               placeholder="e.g. Ishtar"
@@ -160,8 +168,9 @@ onMounted(() => {
             />
           </div>
           <div>
-            <label class="text-xs text-slate-500 mb-1 block">Quantity</label>
+            <label :for="saleQuantityFieldId" class="text-xs text-slate-500 mb-1 block">Quantity</label>
             <input
+              :id="saleQuantityFieldId"
               v-model.number="saleForm.quantity"
               type="number"
               min="1"
@@ -169,8 +178,9 @@ onMounted(() => {
             />
           </div>
           <div>
-            <label class="text-xs text-slate-500 mb-1 block">Unit Price (ISK)</label>
+            <label :for="saleUnitPriceFieldId" class="text-xs text-slate-500 mb-1 block">Unit Price (ISK)</label>
             <input
+              :id="saleUnitPriceFieldId"
               v-model.number="saleForm.unitPrice"
               type="number"
               min="0"
@@ -178,8 +188,9 @@ onMounted(() => {
             />
           </div>
           <div>
-            <label class="text-xs text-slate-500 mb-1 block">Venue</label>
+            <label :for="saleVenueFieldId" class="text-xs text-slate-500 mb-1 block">Venue</label>
             <input
+              :id="saleVenueFieldId"
               v-model="saleForm.venue"
               type="text"
               placeholder="e.g. Jita 4-4"
