@@ -12,7 +12,6 @@ use App\Enum\GroupMemberStatus;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Uid\Uuid;
@@ -26,6 +25,7 @@ class GroupProjectProvider implements ProviderInterface
         private readonly Security $security,
         private readonly GroupIndustryProjectRepository $projectRepository,
         private readonly GroupIndustryProjectMemberRepository $memberRepository,
+        private readonly GroupProjectAccessChecker $accessChecker,
         private readonly GroupIndustryResourceMapper $mapper,
     ) {
     }
@@ -44,21 +44,13 @@ class GroupProjectProvider implements ProviderInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        // Check access: must be an accepted member OR same corporation as owner
+        $this->accessChecker->assertCanRead($user, $project);
+
         $membership = $this->memberRepository->findOneBy([
             'project' => $project,
             'user' => $user,
             'status' => GroupMemberStatus::Accepted,
         ]);
-
-        if ($membership === null) {
-            $userCorpId = $user->getCorporationId();
-            $ownerCorpId = $project->getOwner()->getCorporationId();
-
-            if ($userCorpId === null || $ownerCorpId === null || $userCorpId !== $ownerCorpId) {
-                throw new AccessDeniedHttpException('You do not have access to this project');
-            }
-        }
 
         return $this->mapper->projectToResource($project, $membership);
     }

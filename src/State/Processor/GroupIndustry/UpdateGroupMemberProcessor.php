@@ -72,6 +72,8 @@ class UpdateGroupMemberProcessor implements ProcessorInterface
             throw new BadRequestHttpException('Cannot modify the project owner');
         }
 
+        $this->accessChecker->assertCanManageMember($user, $project, $member);
+
         if ($data->role !== null) {
             $newRole = GroupMemberRole::tryFrom($data->role);
             if ($newRole === null || $newRole === GroupMemberRole::Owner) {

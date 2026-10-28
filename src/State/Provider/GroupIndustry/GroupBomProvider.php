@@ -9,12 +9,9 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryBomResource;
 use App\Entity\GroupIndustryBomItem;
 use App\Entity\User;
-use App\Enum\GroupMemberStatus;
 use App\Repository\GroupIndustryBomItemRepository;
-use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Uid\Uuid;
@@ -28,7 +25,7 @@ class GroupBomProvider implements ProviderInterface
         private readonly Security $security,
         private readonly GroupIndustryProjectRepository $projectRepository,
         private readonly GroupIndustryBomItemRepository $bomItemRepository,
-        private readonly GroupIndustryProjectMemberRepository $memberRepository,
+        private readonly GroupProjectAccessChecker $accessChecker,
     ) {
     }
 
@@ -53,7 +50,7 @@ class GroupBomProvider implements ProviderInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $this->assertUserCanAccessProject($user, $project);
+        $this->accessChecker->assertCanRead($user, $project);
 
         $bomItems = $this->bomItemRepository->findBy(['project' => $project]);
 
@@ -61,33 +58,6 @@ class GroupBomProvider implements ProviderInterface
             fn (GroupIndustryBomItem $item) => $this->mapToResource($item),
             $bomItems,
         );
-    }
-
-    private function assertUserCanAccessProject(User $user, \App\Entity\GroupIndustryProject $project): void
-    {
-        // Owner always has access
-        if ($project->getOwner() === $user) {
-            return;
-        }
-
-        // Accepted member has access
-        $member = $this->memberRepository->findOneBy([
-            'project' => $project,
-            'user' => $user,
-            'status' => GroupMemberStatus::Accepted,
-        ]);
-        if ($member !== null) {
-            return;
-        }
-
-        // Same corporation has access (corp discovery)
-        $userCorpId = $user->getCorporationId();
-        $ownerCorpId = $project->getOwner()->getCorporationId();
-        if ($userCorpId !== null && $userCorpId === $ownerCorpId) {
-            return;
-        }
-
-        throw new AccessDeniedHttpException('You do not have access to this project');
     }
 
     private function mapToResource(GroupIndustryBomItem $item): GroupIndustryBomResource

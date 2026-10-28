@@ -9,13 +9,10 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
 use App\Entity\GroupIndustrySale;
 use App\Entity\User;
-use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
 use App\Repository\GroupIndustrySaleRepository;
 use App\Service\GroupIndustry\PilotName;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Uid\Uuid;
@@ -28,7 +25,7 @@ class GroupSaleCollectionProvider implements ProviderInterface
     public function __construct(
         private readonly Security $security,
         private readonly GroupIndustryProjectRepository $projectRepository,
-        private readonly GroupIndustryProjectMemberRepository $memberRepository,
+        private readonly GroupProjectAccessChecker $accessChecker,
         private readonly GroupIndustrySaleRepository $saleRepository,
     ) {
     }
@@ -54,41 +51,14 @@ class GroupSaleCollectionProvider implements ProviderInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $this->assertUserCanAccessProject($user, $project);
+        $this->accessChecker->assertCanRead($user, $project);
 
-        $sales = $this->saleRepository->findBy(
-            ['project' => $project],
-            ['soldAt' => 'DESC'],
-        );
+        $sales = $this->saleRepository->findByProjectForListing($project);
 
         return array_map(
             fn (GroupIndustrySale $sale) => $this->mapToResource($sale),
             $sales,
         );
-    }
-
-    private function assertUserCanAccessProject(User $user, \App\Entity\GroupIndustryProject $project): void
-    {
-        if ($project->getOwner() === $user) {
-            return;
-        }
-
-        $member = $this->memberRepository->findOneBy([
-            'project' => $project,
-            'user' => $user,
-            'status' => GroupMemberStatus::Accepted,
-        ]);
-        if ($member !== null) {
-            return;
-        }
-
-        $userCorpId = $user->getCorporationId();
-        $ownerCorpId = $project->getOwner()->getCorporationId();
-        if ($userCorpId !== null && $userCorpId === $ownerCorpId) {
-            return;
-        }
-
-        throw new AccessDeniedHttpException('You do not have access to this project');
     }
 
     private function mapToResource(GroupIndustrySale $sale): GroupIndustrySaleResource

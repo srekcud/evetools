@@ -74,6 +74,7 @@ const project = computed(() => projectStore.currentProject)
 const isOwnerOrAdmin = computed(() =>
   project.value?.myRole === 'owner' || project.value?.myRole === 'admin'
 )
+const isOwner = computed(() => project.value?.myRole === 'owner')
 const isCompleted = computed(() => project.value?.status === 'completed')
 const nextStatus = computed(() => (project.value ? nextProjectStatus(project.value.status) : null))
 
@@ -473,7 +474,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
           </button>
         </div>
 
-        <MemberTable :project-id="projectId" :is-admin="isOwnerOrAdmin" @left="handleLeaveProject" />
+        <MemberTable :project-id="projectId" :is-admin="isOwnerOrAdmin" :is-owner="isOwner" @left="handleLeaveProject" />
         <PendingRequestsTable :project-id="projectId" :is-admin="isOwnerOrAdmin" />
         <ShareLinkCard v-if="project.shortLinkCode" :short-link-code="project.shortLinkCode" />
       </div>

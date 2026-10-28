@@ -10,15 +10,12 @@ use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
 use App\ApiResource\Input\GroupIndustry\RecordSaleInput;
 use App\Entity\GroupIndustrySale;
 use App\Entity\User;
-use App\Enum\GroupMemberRole;
-use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
 use App\Service\GroupIndustry\PilotName;
 use App\Service\Mercure\MercurePublisherService;
+use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -32,7 +29,7 @@ class RecordSaleProcessor implements ProcessorInterface
     public function __construct(
         private readonly Security $security,
         private readonly GroupIndustryProjectRepository $projectRepository,
-        private readonly GroupIndustryProjectMemberRepository $memberRepository,
+        private readonly GroupProjectAccessChecker $accessChecker,
         private readonly EntityManagerInterface $entityManager,
         private readonly MercurePublisherService $mercurePublisher,
     ) {
@@ -58,7 +55,7 @@ class RecordSaleProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $this->assertUserIsAdminOrOwner($user, $project);
+        $this->accessChecker->assertAdminOrOwner($user, $project);
 
         if ($project->isCompleted()) {
             throw new BadRequestHttpException('Cannot record a sale on a completed project');
@@ -102,25 +99,6 @@ class RecordSaleProcessor implements ProcessorInterface
         );
 
         return $this->mapToResource($sale);
-    }
-
-    private function assertUserIsAdminOrOwner(User $user, \App\Entity\GroupIndustryProject $project): void
-    {
-        if ($project->getOwner() === $user) {
-            return;
-        }
-
-        $member = $this->memberRepository->findOneBy([
-            'project' => $project,
-            'user' => $user,
-            'status' => GroupMemberStatus::Accepted,
-            'role' => GroupMemberRole::Admin,
-        ]);
-        if ($member !== null) {
-            return;
-        }
-
-        throw new AccessDeniedHttpException('Only project owner or admin can record sales');
     }
 
     private function mapToResource(GroupIndustrySale $sale): GroupIndustrySaleResource

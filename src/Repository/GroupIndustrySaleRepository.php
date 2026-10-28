@@ -19,8 +19,20 @@ class GroupIndustrySaleRepository extends ServiceEntityRepository
         parent::__construct($registry, GroupIndustrySale::class);
     }
 
+    /**
+     * @return GroupIndustrySale[]
+     */
     public function findByProjectForListing(GroupIndustryProject $project): array
     {
-        throw new \LogicException('not implemented');
+        return $this->createQueryBuilder('s')
+            ->addSelect('recorder', 'recorderCharacter', 'recorderToken')
+            ->leftJoin('s.recordedBy', 'recorder')
+            ->leftJoin('recorder.mainCharacter', 'recorderCharacter')
+            ->leftJoin('recorderCharacter.eveToken', 'recorderToken')
+            ->andWhere('s.project = :project')
+            ->setParameter('project', $project)
+            ->orderBy('s.soldAt', 'DESC')
+            ->getQuery()
+            ->getResult();
     }
 }

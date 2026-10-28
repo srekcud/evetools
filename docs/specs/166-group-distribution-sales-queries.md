@@ -33,7 +33,7 @@ Soit au plus **4 + 4 × M** requêtes (M membres contributeurs distincts) : 84 p
 | `GroupIndustrySaleRepository::findBy(['project'], ['soldAt' => 'DESC'])` | 1 |
 | Par **enregistreur distinct** : `PilotName::of($sale->getRecordedBy())` (`mapToResource()`) charge le user, son main et le token du main | jusqu'à 3 |
 
-Soit au plus **3 + 3 × R** requêtes (R enregistreurs distincts). Pas de requête par vente : 10 ou 20 ventes du même owner donnent le même nombre. Seuls l'owner et les admins enregistrent une vente (`RecordSaleProcessor::assertUserIsAdminOrOwner()`), donc R reste petit. Le N+1 existe, par enregistreur, faible en pratique.
+Soit au plus **3 + 3 × R** requêtes (R enregistreurs distincts). Pas de requête par vente : 10 ou 20 ventes du même owner donnent le même nombre. Seuls l'owner et les admins enregistrent une vente (`GroupProjectAccessChecker::assertAdminOrOwner()`, #162), donc R reste petit. Le N+1 existe, par enregistreur, faible en pratique.
 
 ## Règles métier
 
@@ -75,7 +75,7 @@ Chaque test construit le provider à la main avec un `Security` bouchonné, comm
 
 ## Hors périmètre
 
-- Duplication du contrôle d'accès : `GroupDistributionProvider` et `GroupSaleCollectionProvider` gardent un `assertUserCanAccessProject()` privé (accès aux membres de la corporation de l'owner) au lieu de `GroupProjectAccessChecker`. Règle d'accès différente, à traiter à part.
+- Duplication du contrôle d'accès : traitée par #162 (`GroupProjectAccessChecker::assertCanRead()`), livrée dans le même lot.
 - Le `findBy` des ventes dans `calculateDistribution()` (une requête, pas de N+1).
 - Pagination de la liste des ventes.
 

@@ -15,8 +15,6 @@ use App\Service\GroupIndustry\PilotName;
 
 class GroupIndustryResourceMapper
 {
-    private const int CHARACTER_ID_WITHOUT_MAIN_CHARACTER = 0;
-
     /**
      * @param int|null $acceptedMembersCount precomputed by collection providers; counted from the members otherwise
      */
@@ -103,7 +101,7 @@ class GroupIndustryResourceMapper
         $resource->id = $member->getId()->toString();
         $user = $member->getUser();
         $resource->characterName = PilotName::of($user);
-        $resource->characterId = $user === null ? null : ($user->getMainCharacter()?->getEveCharacterId() ?? self::CHARACTER_ID_WITHOUT_MAIN_CHARACTER);
+        $resource->characterId = $user?->getMainCharacter()?->getEveCharacterId();
         $resource->corporationId = $user?->getCorporationId();
         $resource->corporationName = $user?->getCorporationName();
         $resource->role = $member->getRole()->value;

@@ -8,14 +8,11 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryDistributionResource;
 use App\Entity\User;
-use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
 use App\Service\GroupIndustry\DistributionResult;
 use App\Service\GroupIndustry\GroupIndustryDistributionService;
 use App\Service\GroupIndustry\MemberDistribution;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Uid\Uuid;
@@ -28,7 +25,7 @@ class GroupDistributionProvider implements ProviderInterface
     public function __construct(
         private readonly Security $security,
         private readonly GroupIndustryProjectRepository $projectRepository,
-        private readonly GroupIndustryProjectMemberRepository $memberRepository,
+        private readonly GroupProjectAccessChecker $accessChecker,
         private readonly GroupIndustryDistributionService $distributionService,
     ) {
     }
@@ -51,35 +48,11 @@ class GroupDistributionProvider implements ProviderInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $this->assertUserCanAccessProject($user, $project);
+        $this->accessChecker->assertCanRead($user, $project);
 
         $result = $this->distributionService->calculateDistribution($project);
 
         return $this->mapToResource($projectId, $result);
-    }
-
-    private function assertUserCanAccessProject(User $user, \App\Entity\GroupIndustryProject $project): void
-    {
-        if ($project->getOwner() === $user) {
-            return;
-        }
-
-        $member = $this->memberRepository->findOneBy([
-            'project' => $project,
-            'user' => $user,
-            'status' => GroupMemberStatus::Accepted,
-        ]);
-        if ($member !== null) {
-            return;
-        }
-
-        $userCorpId = $user->getCorporationId();
-        $ownerCorpId = $project->getOwner()->getCorporationId();
-        if ($userCorpId !== null && $userCorpId === $ownerCorpId) {
-            return;
-        }
-
-        throw new AccessDeniedHttpException('You do not have access to this project');
     }
 
     private function mapToResource(string $projectId, DistributionResult $result): GroupIndustryDistributionResource

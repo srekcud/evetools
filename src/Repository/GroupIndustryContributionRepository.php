@@ -28,10 +28,18 @@ class GroupIndustryContributionRepository extends ServiceEntityRepository
      */
     public function findApprovedByProject(GroupIndustryProject $project): array
     {
-        return $this->findBy([
-            'project' => $project,
-            'status' => ContributionStatus::Approved,
-        ]);
+        return $this->createQueryBuilder('c')
+            ->addSelect('contributor', 'contributorUser', 'contributorCharacter', 'contributorToken')
+            ->join('c.member', 'contributor')
+            ->leftJoin('contributor.user', 'contributorUser')
+            ->leftJoin('contributorUser.mainCharacter', 'contributorCharacter')
+            ->leftJoin('contributorCharacter.eveToken', 'contributorToken')
+            ->andWhere('c.project = :project')
+            ->andWhere('c.status = :status')
+            ->setParameter('project', $project)
+            ->setParameter('status', ContributionStatus::Approved->value)
+            ->getQuery()
+            ->getResult();
     }
 
     public function countByMember(GroupIndustryProjectMember $member): int

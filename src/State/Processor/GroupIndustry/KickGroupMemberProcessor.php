@@ -73,6 +73,8 @@ class KickGroupMemberProcessor implements ProcessorInterface
             throw new BadRequestHttpException('Cannot kick yourself, use leave instead');
         }
 
+        $this->accessChecker->assertCanManageMember($user, $project, $member);
+
         // Soft removal: the row is kept so the member's contributions (CASCADE on member) survive
         $member->setStatus(GroupMemberStatus::Removed);
         $this->entityManager->flush();

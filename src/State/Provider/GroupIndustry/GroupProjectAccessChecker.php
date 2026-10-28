@@ -14,6 +14,8 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class GroupProjectAccessChecker
 {
+    private const string NO_ACCESS_MESSAGE = 'You do not have access to this project';
+
     public function __construct(
         private readonly GroupIndustryProjectMemberRepository $memberRepository,
     ) {
@@ -21,12 +23,11 @@ class GroupProjectAccessChecker
 
     public function assertCanRead(User $user, GroupIndustryProject $project): void
     {
-        throw new \LogicException('not implemented');
-    }
+        if ($this->isOwnerOrAcceptedMember($user, $project) || $this->isInOwnerCorporation($user, $project)) {
+            return;
+        }
 
-    public function assertCanManageMember(User $user, GroupIndustryProject $project, GroupIndustryProjectMember $member): void
-    {
-        throw new \LogicException('not implemented');
+        throw new AccessDeniedHttpException(self::NO_ACCESS_MESSAGE);
     }
 
     /**
@@ -36,20 +37,20 @@ class GroupProjectAccessChecker
      */
     public function assertAcceptedMember(User $user, GroupIndustryProject $project): void
     {
-        if ($project->getOwner() === $user) {
+        if ($this->isOwnerOrAcceptedMember($user, $project)) {
             return;
         }
 
-        $member = $this->memberRepository->findOneBy([
-            'project' => $project,
-            'user' => $user,
-            'status' => GroupMemberStatus::Accepted,
-        ]);
-        if ($member !== null) {
+        throw new AccessDeniedHttpException(self::NO_ACCESS_MESSAGE);
+    }
+
+    public function assertCanManageMember(User $user, GroupIndustryProject $project, GroupIndustryProjectMember $member): void
+    {
+        if ($project->getOwner() === $user || $member->getRole() !== GroupMemberRole::Admin) {
             return;
         }
 
-        throw new AccessDeniedHttpException('You do not have access to this project');
+        throw new AccessDeniedHttpException('Only the project owner can manage an admin');
     }
 
     /**
@@ -74,5 +75,26 @@ class GroupProjectAccessChecker
         }
 
         throw new AccessDeniedHttpException('Only project owner or admin can perform this action');
+    }
+
+    private function isOwnerOrAcceptedMember(User $user, GroupIndustryProject $project): bool
+    {
+        if ($project->getOwner() === $user) {
+            return true;
+        }
+
+        return $this->memberRepository->findOneBy([
+            'project' => $project,
+            'user' => $user,
+            'status' => GroupMemberStatus::Accepted,
+        ]) !== null;
+    }
+
+    private function isInOwnerCorporation(User $user, GroupIndustryProject $project): bool
+    {
+        $userCorporationId = $user->getCorporationId();
+        $ownerCorporationId = $project->getOwner()->getCorporationId();
+
+        return $userCorporationId !== null && $userCorporationId === $ownerCorporationId;
     }
 }

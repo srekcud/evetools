@@ -13,6 +13,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 const props = defineProps<{
   projectId: string
   isAdmin: boolean
+  isOwner: boolean
 }>()
 
 const emit = defineEmits<{
@@ -65,7 +66,11 @@ function canLeave(member: GroupMember): boolean {
 }
 
 function canManage(member: GroupMember): boolean {
-  return props.isAdmin && member.role !== 'owner'
+  if (member.role === 'owner') {
+    return false
+  }
+
+  return props.isOwner || (props.isAdmin && member.role === 'member')
 }
 
 function confirmPromote(member: GroupMember): void {
@@ -194,7 +199,7 @@ onMounted(() => {
               <div v-if="canManage(member) && !isCurrentUser(member)" class="flex items-center justify-center gap-1.5">
                 <!-- Promote (only for members) -->
                 <button
-                  v-if="member.role === 'member'"
+                  v-if="isOwner && member.role === 'member'"
                   class="px-2 py-1 rounded bg-cyan-600/20 text-cyan-400 text-xs font-medium hover:bg-cyan-600/30 border border-cyan-600/30"
                   @click="confirmPromote(member)"
                 >Promote</button>

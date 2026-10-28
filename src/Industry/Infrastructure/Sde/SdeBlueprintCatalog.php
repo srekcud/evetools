@@ -61,6 +61,11 @@ final readonly class SdeBlueprintCatalog implements BlueprintCatalog
             throw new \UnexpectedValueException(\sprintf('Blueprint %d has no row in sde_industry_blueprints: its max production limit is unknown.', $blueprintTypeId));
         }
 
+        $maxProductionLimit = $blueprint->getMaxProductionLimit();
+        if ($maxProductionLimit <= 0) {
+            throw new \UnexpectedValueException(\sprintf('Blueprint %d has a max production limit of %d in sde_industry_blueprints: its max production limit is unknown.', $blueprintTypeId, $maxProductionLimit));
+        }
+
         $blueprintActivity = $this->activityRepository->findOneBy(['typeId' => $blueprintTypeId, 'activityId' => $activityId]);
         if (null === $blueprintActivity) {
             throw new \UnexpectedValueException(\sprintf('Blueprint %d has no row in sde_industry_activities for activity %d: its base time is unknown.', $blueprintTypeId, $activityId));
@@ -76,7 +81,7 @@ final readonly class SdeBlueprintCatalog implements BlueprintCatalog
             $activity,
             new OutputPerRun($producer->getQuantity()),
             $materials,
-            new Runs($blueprint->getMaxProductionLimit()),
+            new Runs($maxProductionLimit),
             $blueprintActivity->getTime(),
         );
     }

@@ -145,6 +145,8 @@ deptrac:
     App\State\Processor\GroupIndustry\ReviewContributionProcessor:
       - App\State\Provider\GroupIndustry\GroupIndustryResourceMapper
       - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
+    App\State\Processor\GroupIndustry\RecordSaleProcessor:
+      - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
     App\State\Processor\GroupIndustry\SubmitContributionProcessor:
       - App\State\Provider\GroupIndustry\GroupIndustryResourceMapper
     App\State\Processor\GroupIndustry\UpdateGroupMemberProcessor:
