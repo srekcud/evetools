@@ -193,6 +193,28 @@ surplus           = quantité produite − (demande − stock)
 | **Dernière exécution en échec** | Last run failed | Vrai quand l'état enregistré d'une sync globale est `error` : la dernière exécution terminée a échoué et aucune autre n'a commencé depuis. Elle ne modifie pas la dernière sync réussie (spec #236, R4). | `DataFreshnessResource::$lastRunFailed`, `SyncTracker::fail()` |
 | **Fraîcheur** | Data freshness | Âge de la dernière sync réussie d'une sync globale, rapporté à son intervalle. Niveaux : **frais** (`fresh`, âge ≤ 1,5 × l'intervalle), **vieux** (`aging`, ≤ 3 ×), **périmé** (`stale`, > 3 ×), **inconnu** (`unknown`, sans dernière sync réussie connue). Une dernière exécution en échec la rend au moins vieille (spec #229). | `DataFreshness.vue` (`frontend/src/components/common/`), `dataFreshnessLevel()`, `DataFreshnessLevel` (`frontend/src/utils/dataFreshness.ts`) |
 
+## Minage
+
+Termes proposés pour le minage groupé (#261), en attente de validation : seuls **Ligne du ledger de minage** et **Rendement de retraitement** ont déjà un symbole.
+
+| Terme FR | Term EN | Définition | Symbole(s) |
+|---|---|---|---|
+| **Ligne du ledger de minage** | Mining ledger entry | Quantité d'un type de minerai minée par un personnage, un jour donné, dans un système (ledger ESI `/characters/{id}/mining`, agrégé par jour, 30 jours, cache 600 s). | `MiningEntry` (clé : personnage, date, type, système) |
+| **Opération de minage** | Mining operation | Session de minage de plusieurs joueurs, avec un début, une fin et une répartition des gains. Ne pas l'appeler « flotte », qui désigne l'objet ESI. Une session de minage lunaire est une opération comme une autre. | à venir (#262) |
+| **Participant** | Participant | Utilisateur inscrit à une opération de minage avec un ou plusieurs de ses personnages. | à venir (#262) |
+| **Instantané du ledger** | Ledger snapshot | Copie des lignes du ledger de minage d'un personnage à un instant donné, prise au début et à la fin d'une opération. | à venir (#263) |
+| **Quantité minée d'une opération** | Operation mined quantity | Différence, par personnage et par type, entre l'instantané de fin et celui de début. Inconnue pour un personnage dont un instantané n'a pas pu être lu, jamais 0. | à venir (#263) |
+| **Base de valorisation** | Valuation basis | Prix unitaire retenu pour valoriser le minerai d'une opération : brut, compressé (une unité compressée vaut une unité brute, #259) ou retraité, avec son marché (Jita ou structure). Une seule base par opération. | à venir (#264) |
+| **Rendement de retraitement** | Reprocessing yield | Fraction des minéraux obtenus au retraitement d'un minerai, de 0 à 1. | paramètre `reprocessYield` (`OreValueService::getBatchOrePrices()`) |
+| **Part** | Share | Montant dû à un participant après répartition de la valeur d'une opération. | à venir (#264) |
+| **Part du booster** | Booster cut | Pourcentage de la valeur d'une opération réservé au booster avant répartition. | à venir (#264) |
+| **Fleet storage** | Fleet storage | Minerai versé par un participant à un destinataire pendant l'opération ; il crée une dette du destinataire envers le participant. | à venir (#266) |
+| **Scan de site** | Site scan | Relevé horodaté du restant, par type de minerai, d'une belt ou d'une anomalie, lu dans le collage du Mining Survey Chipset (spec #267). | à venir (#267) |
+| **Débit d'épuisement** | Depletion rate | Unités d'un type retirées d'un site par minute, déduites de deux scans de site ou plus (spec #267). | à venir (#267) |
+| **ETA d'épuisement** | Depletion ETA | Instant estimé où un type de minerai, ou un site, est vide. Inconnue quand le débit est nul ou négatif, ou avec un seul scan (spec #267). | à venir (#267) |
+| **Type épuisé** | Depleted type | Type de minerai présent dans un scan de site et absent de tous les scans suivants (spec #267). | à venir (#267) |
+| **Taxe lunaire** | Moon mining tax | Taxe due au propriétaire d'une raffinerie par chaque personnage qui a miné sur ses lunes, d'après le ledger de la raffinerie (#273). | à venir (#273) |
+
 ## Ambiguïtés connues
 
 - **B1 — runs passés comme une quantité** (levée pour la BOM de groupe, spec #141 : `GroupIndustryProjectService::buildBom` passe par `ProductionPlanning::planOf`, en runs entiers ; levée pour le Stockpile, spec #69 : `PlansStockpileImports::planOfImport` passe par `planOf` ; levée pour la factory, spec #2-129 : la racine de `buildProductionTree` vaut `runs × unités par run`). `IndustryTreeService::buildProductionTree(int $productTypeId, int $runs, …)` (`src/Service/Industry/IndustryTreeService.php:36`) transmet `$runs` à `buildNode(int $productTypeId, int $quantity, …)` (`:59`). Celui-ci calcule `runs = ceil($quantity / $outputPerRun)` (`:71`). Pour un produit à 100 unités par run demandé sur 10 runs, on obtient `ceil(10 / 100) = 1` run au lieu de 10. Les vaisseaux (1 unité par run) masquent le bug. Correction en Phase 1, en rendant la sémantique explicite (`Runs` / `Quantity`).
