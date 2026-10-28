@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { useMarketStore, type MarketSearchItem } from '@/stores/market'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTabQuery } from '@/composables/useTabQuery'
@@ -15,6 +16,7 @@ import AlertsPanel from '@/components/market/AlertsPanel.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const { t } = useI18n()
+const route = useRoute()
 const marketStore = useMarketStore()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const { typeNameLabel } = useTypeNames()
@@ -82,6 +84,18 @@ watch(() => marketStore.typeDetail, (detail) => {
 function selectItem(typeId: number): void {
   marketStore.fetchTypeDetail(typeId)
 }
+
+const typeIdFromQuery = computed((): number | null => {
+  const queryTypeId = route.query.typeId
+  const isNumericTypeId = typeof queryTypeId === 'string' && /^\d+$/.test(queryTypeId)
+  return route.query.tab === 'detail' && isNumericTypeId ? Number(queryTypeId) : null
+})
+
+watch(typeIdFromQuery, (typeId) => {
+  if (typeId !== null) {
+    selectItem(typeId)
+  }
+}, { immediate: true })
 
 function handleSearchSelect(item: MarketSearchItem): void {
   marketStore.addRecentSearch(item.typeId, item.typeName)

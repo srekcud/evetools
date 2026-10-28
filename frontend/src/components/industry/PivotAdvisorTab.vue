@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useScannerStore } from '@/stores/industry/scanner'
 import { useIndustryStore, type SearchResult } from '@/stores/industry'
@@ -10,7 +10,7 @@ import { useTypeNames } from '@/composables/useTypeNames'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
 import type { PivotCandidate, PivotMissingComponent } from '@/stores/industry/types'
 
-defineProps<{
+const props = defineProps<{
   initialTypeId?: number
 }>()
 
@@ -22,7 +22,7 @@ const { getTypeIconUrl, onImageError } = useEveImages()
 const { typeNameLabel } = useTypeNames()
 
 // Product selector
-const selectedProduct = ref<SearchResult | null>(null)
+const selectedProduct = ref<Pick<SearchResult, 'typeId'> | null>(null)
 const runs = ref(1)
 const selectedSystemId = ref<number | null>(null)
 const sortBy = ref<string>('score')
@@ -67,6 +67,12 @@ async function onAnalyze(): Promise<void> {
     selectedSystemId.value,
   )
 }
+
+watch(() => props.initialTypeId, (typeId) => {
+  if (typeId === undefined) return
+  selectedProduct.value = { typeId }
+  onAnalyze()
+}, { immediate: true })
 
 function onPivot(candidate: PivotCandidate): void {
   industryStore.navigationIntent = {

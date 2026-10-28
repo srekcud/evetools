@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import DataTable from '@/components/common/DataTable.vue'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useIndustryStore, type SearchResult, type ProfitMarginResult, type ProfitMarginInventionOption, type MarginEntry } from '@/stores/industry'
 import type { ProductionCostUnknownReason } from '@/stores/industry/types'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import { useTypeNames } from '@/composables/useTypeNames'
 import { useFavoriteSystems } from '@/composables/useFavoriteSystems'
 import { useUnknownInstallCostReasons } from '@/composables/useUnknownInstallCostReasons'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
@@ -17,7 +18,7 @@ import InventionOptionsPanel from '@/components/industry/profit/InventionOptions
 import { venueLabel } from '@/components/industry/venueLabel'
 import { venueMargin, type SellVenue } from '@/components/industry/venueMargin'
 
-defineProps<{
+const props = defineProps<{
   initialTypeId?: number
 }>()
 
@@ -25,6 +26,7 @@ const { t } = useI18n()
 const store = useIndustryStore()
 const { formatIsk, formatIskFull, formatTimeSince } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
+const { typeNameLabel } = useTypeNames()
 
 // Item selection
 const selectedProduct = ref<SearchResult | null>(null)
@@ -318,19 +320,35 @@ function clearProduct() {
   productSearchRef.value?.clear()
 }
 
-async function analyze() {
-  if (!selectedProduct.value) return
+async function analyzeType(typeId: number): Promise<ProfitMarginResult | null> {
   // Reset local decryptor override before re-fetching
   selectedOption.value = null
   selectedDecryptorTypeId.value = undefined
-  await store.analyzeMargin(selectedProduct.value.typeId, {
+  const analysis = await store.analyzeMargin(typeId, {
     runs: runs.value,
     me: meLevel.value,
     te: teLevel.value,
     solarSystemId: selectedSolarSystemId.value ?? undefined,
   })
   lastFetchedAt.value = new Date().toISOString()
+  return analysis
 }
+
+async function analyze() {
+  if (!selectedProduct.value) return
+  await analyzeType(selectedProduct.value.typeId)
+}
+
+watch(() => props.initialTypeId, async (typeId) => {
+  if (typeId === undefined) return
+  const analysis = await analyzeType(typeId)
+  if (analysis === null || props.initialTypeId !== typeId) return
+  selectedProduct.value = {
+    typeId,
+    typeName: typeNameLabel(analysis.typeName, typeId),
+    isT2: analysis.isT2,
+  }
+}, { immediate: true })
 
 function selectDecryptor(option: ProfitMarginInventionOption) {
   selectedDecryptorTypeId.value = option.decryptorTypeId

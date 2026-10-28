@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
 import { useIndustryStore, type SearchResult } from '@/stores/industry'
 import { useTabQuery } from '@/composables/useTabQuery'
 import { useAdminStore } from '@/stores/admin'
@@ -23,6 +24,8 @@ import PivotAdvisorTab from '@/components/industry/PivotAdvisorTab.vue'
 import StockpileDashboard from '@/components/industry/StockpileDashboard.vue'
 
 const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
 const store = useIndustryStore()
 const adminStore = useAdminStore()
 const isAdmin = ref(false)
@@ -74,8 +77,22 @@ function cleanTypeName(name: string): string {
   return name.replace(/\s*\(BPC\)\s*$/i, '').trim()
 }
 
+function projectIdFromQuery(): string | null {
+  const queryProject = route.query.project
+  return typeof queryProject === 'string' && queryProject !== '' ? queryProject : null
+}
+
+function typeIdFromQuery(): number | undefined {
+  const queryTypeId = route.query.typeId
+  return typeof queryTypeId === 'string' && /^\d+$/.test(queryTypeId) ? Number(queryTypeId) : undefined
+}
+
 // Detail view
-const viewingProjectId = ref<string | null>(null)
+const viewingProjectId = ref<string | null>(projectIdFromQuery())
+
+watch(() => route.query.project, () => {
+  viewingProjectId.value = projectIdFromQuery()
+})
 
 // Flat pill navigation (single level)
 type MainTab = 'dashboard' | 'projects' | 'margins' | 'batch' | 'buy-vs-build' | 'pivot' | 'slots' | 'stockpile'
@@ -83,7 +100,11 @@ const MAIN_TABS: MainTab[] = ['dashboard', 'projects', 'margins', 'batch', 'buy-
 const mainTab = useTabQuery(MAIN_TABS, 'dashboard')
 
 // Props for analysis tabs that accept an initial type ID
-const analysisInitialTypeId = ref<number | undefined>(undefined)
+const analysisInitialTypeId = ref<number | undefined>(typeIdFromQuery())
+
+watch(() => route.query.typeId, () => {
+  analysisInitialTypeId.value = typeIdFromQuery()
+})
 
 // Config slide-over panel
 const showConfigPanel = ref(false)
@@ -257,6 +278,11 @@ function viewProject(id: string) {
 function closeDetail() {
   viewingProjectId.value = null
   store.fetchProjects()
+  if (route.query.project !== undefined) {
+    const remainingQuery = { ...route.query }
+    delete remainingQuery.project
+    router.replace({ query: remainingQuery })
+  }
 }
 
 async function duplicateProject(project: { productTypeId: number; runs: number; meLevel: number; teLevel: number }) {
@@ -340,7 +366,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
 
       <!-- Margins -->
       <div v-else-if="mainTab === 'margins'" key="margins">
-        <ProfitMarginTab />
+        <ProfitMarginTab :initial-type-id="analysisInitialTypeId" />
       </div>
 
       <!-- Batch Scan -->

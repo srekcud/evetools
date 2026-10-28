@@ -4,6 +4,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import type { GroupProject } from '@/stores/group-industry/types'
 import { CHART_COLORS } from '@/utils/chartColors'
+import { groupProjectLabel } from '@/utils/groupProjectLabel'
 
 const { formatIsk, formatDate } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
@@ -27,14 +28,7 @@ const totalRuns = computed(() =>
   props.project.items.reduce((sum, item) => sum + item.runs, 0)
 )
 
-const displayName = computed(() => {
-  if (props.project.name) return props.project.name
-  if (props.project.items.length === 1) {
-    const item = props.project.items[0]
-    return `${item.runs}x ${item.typeName}`
-  }
-  return `${props.project.items.length} items`
-})
+const displayName = computed(() => groupProjectLabel(props.project))
 
 const subtitle = computed(() => {
   if (props.project.items.length === 1) {

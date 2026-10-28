@@ -116,7 +116,24 @@
     "placeholder": "Rechercher un écran...",
     "noResults": "Aucun résultat pour « {query} »",
     "groups": {
-      "navigation": "Navigation"
+      "navigation": "Navigation",
+      "projects": "Projets",
+      "types": "Types"
+    },
+    "projects": {
+      "loading": "Chargement...",
+      "industryUnavailable": "Projets Industrie indisponibles",
+      "groupIndustryUnavailable": "Projets Industrie de groupe indisponibles",
+      "completed": "Terminé"
+    },
+    "types": {
+      "searching": "Recherche...",
+      "unavailable": "Recherche de types indisponible",
+      "actions": {
+        "analyzeMargin": "Analyser la marge",
+        "buyVsBuild": "Achat vs Prod",
+        "openInMarket": "Ouvrir dans Market"
+      }
     }
   },
   "settings": {

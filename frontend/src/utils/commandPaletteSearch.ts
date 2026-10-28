@@ -1,6 +1,8 @@
 import type { NavigationEntry } from '@/composables/useNavigationEntries'
 
 export const NAVIGATION_RESULT_LIMIT = 10
+export const PROJECT_RESULT_LIMIT = 5
+export const TYPE_RESULT_LIMIT = 8
 
 const COMBINING_MARKS = /[̀-ͯ]/g
 const WHITESPACE_RUN = /\s+/g
@@ -57,4 +59,18 @@ export function searchNavigationEntries(entries: readonly NavigationEntry[], que
     .sort((first, second) => first.rank - second.rank || first.declarationIndex - second.declarationIndex)
     .slice(0, NAVIGATION_RESULT_LIMIT)
     .map(({ entry }) => entry)
+}
+
+export function searchProjectEntries<Entry extends { label: string }>(entries: readonly Entry[], query: string): Entry[] {
+  const normalizedQuery = normalizeSearchText(query)
+  if (normalizedQuery === '') {
+    return []
+  }
+  const queryWords = normalizedQuery.split(' ')
+  return entries
+    .filter(entry => {
+      const normalizedLabel = normalizeSearchText(entry.label)
+      return queryWords.every(word => normalizedLabel.includes(word))
+    })
+    .slice(0, PROJECT_RESULT_LIMIT)
 }

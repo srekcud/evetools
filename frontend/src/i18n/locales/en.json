@@ -116,7 +116,24 @@
     "placeholder": "Search a screen...",
     "noResults": "No results for \"{query}\"",
     "groups": {
-      "navigation": "Navigation"
+      "navigation": "Navigation",
+      "projects": "Projects",
+      "types": "Types"
+    },
+    "projects": {
+      "loading": "Loading...",
+      "industryUnavailable": "Industry projects unavailable",
+      "groupIndustryUnavailable": "Group Industry projects unavailable",
+      "completed": "Completed"
+    },
+    "types": {
+      "searching": "Searching...",
+      "unavailable": "Type search unavailable",
+      "actions": {
+        "analyzeMargin": "Analyze margin",
+        "buyVsBuild": "Buy vs Build",
+        "openInMarket": "Open in Market"
+      }
     }
   },
   "settings": {
