@@ -652,7 +652,7 @@
         "jobsReadyTitle": "{count} jobs ready for delivery",
         "jobsReadyDesc": "Jobs completed and waiting for pickup",
         "stockpileCriticalTitle": "{name} stockpile at {percent}%",
-        "stockpileCriticalDesc": "{stock} in stock (target: {target}) — deficit cost: {cost} ISK",
+        "stockpileCriticalDesc": "{stock} in stock (target: {target}) — deficit cost: {cost}",
         "negativeProfitTitle": "Project '{name}' has negative profit margin",
         "negativeProfitDesc": "Margin at {margin}% — review sell price or ME level",
         "freeSlotsTitle": "{count} free slots available",

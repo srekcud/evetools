@@ -1,18 +1,19 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useFormatters } from '@/composables/useFormatters'
 import { useStockpileStore } from '@/stores/industry/stockpile'
 import type { StockpileStage } from '@/stores/industry/types'
 import { CHART_COLORS } from '@/utils/chartColors'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
+import IskAmount from '@/components/common/IskAmount.vue'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 import StockpileColumn from '@/components/industry/StockpileColumn.vue'
 import StockpileImportPanel from '@/components/industry/StockpileImportPanel.vue'
 import StockpileShoppingList from '@/components/industry/StockpileShoppingList.vue'
+import MissingVolumeWarning from '@/components/shopping/MissingVolumeWarning.vue'
+import { missingVolumeTypeNames } from '@/components/shopping/missingVolume'
 
 const { t } = useI18n()
-const { formatIsk } = useFormatters()
 const stockpileStore = useStockpileStore()
 
 const STAGE_ORDER: StockpileStage[] = ['raw_material', 'intermediate', 'component', 'final_product']
@@ -83,6 +84,12 @@ const productNameByTypeId = computed(() => new Map(
 function productName(typeId: number): string {
   return productNameByTypeId.value.get(typeId) ?? t('industry.stockpile.importWarnings.unknownProduct', { typeId })
 }
+
+const missingPriceTypeNames = computed(() => {
+  if (!stockpileStore.stockpileStatus) return ''
+  const targets = Object.values(stockpileStore.stockpileStatus.stages).flatMap(stage => stage.items)
+  return missingVolumeTypeNames(targets, stockpileStore.stockpileStatus.missingPriceTypeIds)
+})
 
 const importsWithoutPlan = computed(() => stockpileStore.stockpileStatus?.importsWithoutPlan ?? [])
 const failedProducts = computed(() => stockpileStore.stockpileStatus?.failedProducts ?? [])
@@ -242,7 +249,7 @@ onMounted(async () => {
               <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">
                 {{ t('industry.stockpile.kpi.totalInvested') }}
               </div>
-              <div class="text-lg font-bold text-cyan-400 font-mono">{{ formatIsk(kpis.totalInvested) }} ISK</div>
+              <div class="text-lg font-bold text-cyan-400 font-mono"><IskAmount :value="kpis.totalInvested" /> ISK</div>
               <div class="text-xs text-slate-500">{{ t('industry.stockpile.kpi.acrossStages') }}</div>
             </div>
           </div>
@@ -313,6 +320,11 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+
+    <MissingVolumeWarning
+      v-if="missingPriceTypeNames !== ''"
+      :message="t('industry.inventionUnknown.missingPriceTypes', { types: missingPriceTypeNames })"
+    />
 
     <div
       v-if="hasImportWarnings"

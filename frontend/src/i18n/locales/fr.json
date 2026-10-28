@@ -652,7 +652,7 @@
         "jobsReadyTitle": "{count} jobs prets a livrer",
         "jobsReadyDesc": "Jobs termines en attente de recuperation",
         "stockpileCriticalTitle": "{name} stockpile a {percent}%",
-        "stockpileCriticalDesc": "{stock} en stock (objectif : {target}) — cout du deficit : {cost} ISK",
+        "stockpileCriticalDesc": "{stock} en stock (objectif : {target}) — cout du deficit : {cost}",
         "negativeProfitTitle": "Le projet '{name}' a une marge negative",
         "negativeProfitDesc": "Marge a {margin}% — revoir le prix de vente ou le ME",
         "freeSlotsTitle": "{count} slots libres disponibles",

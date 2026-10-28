@@ -4,11 +4,14 @@ import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { useStockpileStore } from '@/stores/industry/stockpile'
 import type { SearchResult } from '@/stores/industry/types'
+import IskAmount from '@/components/common/IskAmount.vue'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
+import MissingVolumeWarning from '@/components/shopping/MissingVolumeWarning.vue'
+import { missingVolumeTypeNames } from '@/components/shopping/missingVolume'
 
 const { t } = useI18n()
 const uid = useId()
-const { formatIsk, formatNumber } = useFormatters()
+const { formatNumber } = useFormatters()
 const stockpileStore = useStockpileStore()
 
 const selectedProduct = ref<SearchResult | null>(null)
@@ -37,6 +40,13 @@ const previewStageCount = computed(() => {
   return STAGE_ORDER.filter(
     s => (stockpileStore.importPreview!.stages[s]?.length ?? 0) > 0,
   ).length
+})
+
+const missingPriceTypeNames = computed(() => {
+  const preview = stockpileStore.importPreview
+  if (!preview) return ''
+  const items = STAGE_ORDER.flatMap(stage => preview.stages[stage] ?? [])
+  return missingVolumeTypeNames(items, preview.missingPriceTypeIds)
 })
 
 function onProductSelect(result: SearchResult): void {
@@ -189,6 +199,12 @@ async function doImport(mode: 'replace' | 'merge'): Promise<void> {
                 </template>
               </div>
 
+              <MissingVolumeWarning
+                v-if="missingPriceTypeNames !== ''"
+                class="mt-3"
+                :message="t('industry.inventionUnknown.missingPriceTypes', { types: missingPriceTypeNames })"
+              />
+
               <!-- Action buttons -->
               <div class="flex items-center gap-3 mt-4 pt-3 border-t border-slate-700">
                 <button
@@ -214,7 +230,7 @@ async function doImport(mode: 'replace' | 'merge'): Promise<void> {
                 <div class="flex-1"></div>
                 <span class="text-xs font-mono text-slate-500">
                   {{ t('industry.stockpile.import.estTotalCost') }}:
-                  <span class="text-cyan-400">{{ formatIsk(stockpileStore.importPreview.estimatedCost) }} ISK</span>
+                  <span class="text-cyan-400"><IskAmount :value="stockpileStore.importPreview.estimatedCost" /> ISK</span>
                 </span>
               </div>
             </div>

@@ -190,7 +190,7 @@ const alerts = computed<DashboardAlert[]>(() => {
       description: t('industry.dashboard.alerts.stockpileCriticalDesc', {
         stock: item.stock.toLocaleString(),
         target: item.targetQuantity.toLocaleString(),
-        cost: formatIsk(item.deficitCost),
+        cost: item.deficitCost === null ? t('industry.inventionUnknown.label') : `${formatIsk(item.deficitCost)} ISK`,
       }),
       action: navigateToStockpile,
     })

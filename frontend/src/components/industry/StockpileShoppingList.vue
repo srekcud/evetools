@@ -4,6 +4,7 @@ import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
+import IskAmount from '@/components/common/IskAmount.vue'
 import type { StockpileShoppingItem, StockpileStage } from '@/stores/industry/types'
 
 const props = defineProps<{
@@ -12,7 +13,7 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const { getTypeIconUrl, onImageError } = useEveImages()
-const { formatIsk, formatNumber } = useFormatters()
+const { formatNumber } = useFormatters()
 
 const criticalOnly = ref(false)
 const copied = ref(false)
@@ -23,8 +24,11 @@ const filteredItems = computed(() =>
     : props.shoppingList,
 )
 
-const totalDeficitCost = computed(() =>
-  filteredItems.value.reduce((sum, item) => sum + item.deficitCost, 0),
+const totalDeficitCost = computed((): number | null =>
+  filteredItems.value.reduce<number | null>(
+    (sum, item) => (sum === null || item.deficitCost === null ? null : sum + item.deficitCost),
+    0,
+  ),
 )
 
 const deficitCount = computed(() =>
@@ -154,7 +158,7 @@ async function copyToClipboard(): Promise<void> {
               <td class="text-right font-mono tabular-nums" :class="deficitTextClass(item.percent)">
                 -{{ formatNumber(item.deficit, 0) }}
               </td>
-              <td class="text-right font-mono text-slate-300 tabular-nums">{{ formatIsk(item.deficitCost) }}</td>
+              <td class="text-right font-mono text-slate-300 tabular-nums"><IskAmount :value="item.deficitCost" /></td>
               <td class="text-right pr-2 tabular-nums">
                 <span
                   class="text-xs px-2 py-0.5 rounded"
@@ -171,7 +175,7 @@ async function copyToClipboard(): Promise<void> {
                 {{ t('industry.stockpile.shoppingList.totalDeficit') }}
               </td>
               <td class="py-3 text-right font-mono text-lg font-bold text-cyan-400 tabular-nums">
-                {{ formatIsk(totalDeficitCost) }} ISK
+                <IskAmount :value="totalDeficitCost" /> ISK
               </td>
               <td></td>
             </tr>

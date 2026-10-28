@@ -159,14 +159,14 @@ export interface ShoppingListItem {
 }
 
 export interface ShoppingListTotals {
-  jita: number
+  jita: number | null
   import: number | null
   jitaWithImport: number | null
-  structure: number
+  structure: number | null
   volume: number | null
-  best: number
+  best: number | null
   savingsVsJitaWithImport: number | null
-  savingsVsStructure: number
+  savingsVsStructure: number | null
 }
 
 export interface ShoppingListFailedProduct {
@@ -186,6 +186,7 @@ export interface ShoppingListResponse {
   priceError: string | null
   missingVolumeTypeIds: number[]
   failedProducts: ShoppingListFailedProduct[]
+  missingPriceTypeIds: number[]
 }
 
 export interface ProductionTreeNode {
@@ -721,16 +722,16 @@ export type StockpileItemStatus = {
   stock: number
   percent: number
   status: 'met' | 'partial' | 'critical'
-  unitPrice: number
-  stockValue: number
-  deficitCost: number
+  unitPrice: number | null
+  stockValue: number | null
+  deficitCost: number | null
   sourceProductTypeId: number | null
   locations: StockpileLocation[]
 }
 
 export type StockpileStageStatus = {
   items: StockpileItemStatus[]
-  totalValue: number
+  totalValue: number | null
   healthPercent: number
 }
 
@@ -749,7 +750,7 @@ export type StockpileEstOutput = {
 
 export type StockpileKpis = {
   pipelineHealth: number
-  totalInvested: number
+  totalInvested: number | null
   bottleneck: StockpileBottleneck
   estOutput: StockpileEstOutput
 }
@@ -761,6 +762,7 @@ export type StockpileStatus = {
   shoppingList: StockpileShoppingItem[]
   importsWithoutPlan: number[]
   failedProducts: StockpileFailedProduct[]
+  missingPriceTypeIds: number[]
 }
 
 export type StockpileFailedProduct = {
@@ -775,7 +777,7 @@ export type StockpileShoppingItem = {
   stock: number
   targetQuantity: number
   deficit: number
-  deficitCost: number
+  deficitCost: number | null
   percent: number
 }
 
@@ -789,7 +791,8 @@ export type StockpileImportPreviewItem = {
 export type StockpileImportPreview = {
   stages: Record<StockpileStage, StockpileImportPreviewItem[]>
   totalItems: number
-  estimatedCost: number
+  estimatedCost: number | null
+  missingPriceTypeIds: number[]
 }
 
 // Slot Tracker types

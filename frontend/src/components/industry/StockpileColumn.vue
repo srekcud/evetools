@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
+import IskAmount from '@/components/common/IskAmount.vue'
 import type { StockpileStage, StockpileStageStatus } from '@/stores/industry/types'
 
 const props = defineProps<{
@@ -19,7 +20,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const { getTypeIconUrl, onImageError } = useEveImages()
-const { formatIsk, formatNumber } = useFormatters()
+const { formatNumber } = useFormatters()
 
 const VISIBLE_ITEMS = 6
 const expanded = ref(false)
@@ -84,7 +85,7 @@ function onDeleteTarget(targetId: string): void {
         <div class="w-2 h-2 rounded-full" :class="dotColor"></div>
         <h2 class="text-sm font-bold text-slate-100 uppercase tracking-wider">{{ stageName }}</h2>
       </div>
-      <span class="text-xs font-mono text-slate-500">{{ formatIsk(stageData.totalValue) }} ISK</span>
+      <span class="text-xs font-mono text-slate-500"><IskAmount :value="stageData.totalValue" /> ISK</span>
     </div>
 
     <!-- Stage health bar -->
