@@ -10,6 +10,7 @@ use App\Industry\Application\ProductionPlanning;
 use App\Industry\Application\UserProductionStructures;
 use App\Industry\Domain\Quantity;
 use App\Repository\Sde\IndustryActivityProductRepository;
+use Psr\Log\LoggerInterface;
 
 class StockpileStartingStockReducer
 {
@@ -19,6 +20,7 @@ class StockpileStartingStockReducer
         private readonly ProductionPlanning $productionPlanning,
         private readonly UserProductionStructures $userStructures,
         private readonly IndustryActivityProductRepository $activityProductRepository,
+        private readonly LoggerInterface $logger,
     ) {
     }
 

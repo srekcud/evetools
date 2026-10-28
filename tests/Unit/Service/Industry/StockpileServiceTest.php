@@ -9,12 +9,15 @@ use App\Entity\IndustryStockpileTarget;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
+use App\Exception\StockpileProductNotPlannableException;
+use App\Industry\Application\UserProductionStructures;
 use App\Industry\Domain\SecurityClass;
 use App\Repository\CachedAssetRepository;
 use App\Repository\IndustryStockpileImportRepository;
 use App\Repository\IndustryStockpileTargetRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\Industry\StockpileService;
+use App\Service\Industry\StockpileStartingStockReducer;
 use App\Service\JitaMarketService;
 use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use Doctrine\ORM\EntityManagerInterface;
@@ -23,6 +26,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(StockpileService::class)]
@@ -41,6 +45,8 @@ class StockpileServiceTest extends TestCase
     private const int ORE_PER_GADGET_RUN = 70;
     private const int FIVE_RUNS = 5;
     private const int ME_ZERO = 0;
+    private const int TYPE_WITHOUT_BLUEPRINT = 99999;
+    private const string CYCLE_FAILURE = 'Product 3005 is needed to build itself: the production graph has a cycle.';
 
     private IndustryStockpileTargetRepository&MockObject $targetRepository;
     private CachedAssetRepository&MockObject $assetRepository;
@@ -121,13 +127,91 @@ class StockpileServiceTest extends TestCase
     }
 
     #[Group('issue-69')]
-    public function testPreviewOfRecipesWithACycleThrowsARuntimeExceptionNamingTheProductNeededToBuildItself(): void
+    #[Group('issue-258')]
+    public function testPreviewOfRecipesWithACycleIsNotPlannableForPlanFailedWithAStableMessage(): void
     {
         $this->recipes[self::GADGET]['materials'] = [self::HULL => 1];
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Product 3005 is needed to build itself: the production graph has a cycle.');
 
-        $this->service->previewImport($this->user, self::WIDGET, self::FIVE_RUNS, self::ME_ZERO);
+        $exception = $this->notPlannableExceptionOf(fn () => $this->service->previewImport($this->user, self::WIDGET, self::FIVE_RUNS, self::ME_ZERO));
+
+        self::assertSame(
+            ['plan_failed', 'Type 3001 cannot be planned', self::CYCLE_FAILURE],
+            [$exception->getReason(), $exception->getMessage(), $exception->getPrevious()?->getMessage()],
+        );
+    }
+
+    #[Group('issue-258')]
+    public function testPreviewOfATypeWithoutBlueprintNorReactionIsNotPlannableForNoBlueprintWithAStableMessage(): void
+    {
+        $exception = $this->notPlannableExceptionOf(fn () => $this->service->previewImport($this->user, self::TYPE_WITHOUT_BLUEPRINT, self::FIVE_RUNS, self::ME_ZERO));
+
+        self::assertSame(
+            ['no_blueprint', 'Type 99999 has no blueprint nor reaction'],
+            [$exception->getReason(), $exception->getMessage()],
+        );
+    }
+
+    #[Group('issue-258')]
+    public function testImportOfRecipesWithACycleIsNotPlannableForPlanFailedAndWritesNothing(): void
+    {
+        $this->recipes[self::GADGET]['materials'] = [self::HULL => 1];
+        $this->targetRepository->expects($this->never())->method('deleteAllForUser');
+        $this->importRepository->expects($this->never())->method('deleteAllForUser');
+        $this->entityManager->expects($this->never())->method('persist');
+        $this->entityManager->expects($this->never())->method('flush');
+
+        $exception = $this->notPlannableExceptionOf(fn () => $this->service->importFromBlueprint($this->user, self::WIDGET, self::FIVE_RUNS, self::ME_ZERO, 'replace'));
+
+        self::assertSame(
+            ['plan_failed', 'Type 3001 cannot be planned'],
+            [$exception->getReason(), $exception->getMessage()],
+        );
+    }
+
+    #[Group('issue-258')]
+    public function testPreviewPropagatesAFailureToReadTheStructuresOfThePilotUnconverted(): void
+    {
+        $structureFailure = new \UnexpectedValueException('Structure 0190f3c2-7e4b-7d10-9a3c-5f2e8b1d4a96 has the unsupported type "Keepstar".');
+        $productionPlanning = $this->productionPlanningOnWidgetSde();
+        $productRepository = $this->productRepositoryOnWidgetSde();
+        $unreadableStructures = new class($structureFailure) implements UserProductionStructures {
+            public function __construct(private readonly \UnexpectedValueException $structureFailure)
+            {
+            }
+
+            public function configuredBy(string $userId): array
+            {
+                throw $this->structureFailure;
+            }
+        };
+        $service = new StockpileService(
+            $this->targetRepository,
+            $this->assetRepository,
+            $this->jitaMarketService,
+            $productionPlanning,
+            $unreadableStructures,
+            $productRepository,
+            $this->entityManager,
+            $this->importRepository,
+            new StockpileStartingStockReducer($productionPlanning, $unreadableStructures, $productRepository, new NullLogger()),
+        );
+
+        $this->expectExceptionObject($structureFailure);
+
+        $service->previewImport($this->user, self::WIDGET, self::FIVE_RUNS, self::ME_ZERO);
+    }
+
+    private function notPlannableExceptionOf(callable $stockpileAction): StockpileProductNotPlannableException
+    {
+        try {
+            $stockpileAction();
+        } catch (\RuntimeException $exception) {
+            self::assertInstanceOf(StockpileProductNotPlannableException::class, $exception);
+
+            return $exception;
+        }
+
+        self::fail('Expected a StockpileProductNotPlannableException');
     }
 
     public function testImportReplaceDeletesExisting(): void

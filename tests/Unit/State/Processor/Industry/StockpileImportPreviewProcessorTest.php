@@ -11,6 +11,7 @@ use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
+use App\Exception\StockpileProductNotPlannableException;
 use App\Industry\Application\ProductionPlanning;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\OutputPerRun;
@@ -35,6 +36,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Uid\Uuid;
 
@@ -49,6 +51,7 @@ final class StockpileImportPreviewProcessorTest extends TestCase
     private const int PYERITE_PER_RUN = 200;
     private const int WIDGET_MAX_PRODUCTION_LIMIT = 300;
     private const int WIDGET_BASE_TIME_SECONDS = 3_600;
+    private const int TYPE_WITHOUT_BLUEPRINT = 99999;
     private const string PILOT_ID = '0190f3c2-6d1a-7c55-8e20-2b9d4f7a1e63';
     private const array TYPE_NAMES = [self::WIDGET => 'Widget', self::TRITANIUM => 'Tritanium', self::PYERITE => 'Pyerite'];
 
@@ -114,7 +117,7 @@ final class StockpileImportPreviewProcessorTest extends TestCase
             $productRepository,
             $entityManager,
             $this->createStub(IndustryStockpileImportRepository::class),
-            new StockpileStartingStockReducer($productionPlanning, $userStructures, $productRepository),
+            new StockpileStartingStockReducer($productionPlanning, $userStructures, $productRepository, new NullLogger()),
         ));
     }
 
@@ -145,10 +148,19 @@ final class StockpileImportPreviewProcessorTest extends TestCase
         self::assertSame([self::PYERITE], $preview->missingPriceTypeIds);
     }
 
-    private function preview(): StockpileImportPreviewResource
+    #[Group('issue-258')]
+    public function testPreviewOfATypeWithoutBlueprintNorReactionIsRejectedAsNotPlannableWithAStableMessage(): void
+    {
+        $this->expectException(StockpileProductNotPlannableException::class);
+        $this->expectExceptionMessage('Type 99999 has no blueprint nor reaction');
+
+        $this->preview(self::TYPE_WITHOUT_BLUEPRINT);
+    }
+
+    private function preview(int $typeId = self::WIDGET): StockpileImportPreviewResource
     {
         $input = new StockpileImportInput();
-        $input->typeId = self::WIDGET;
+        $input->typeId = $typeId;
         $input->runs = 1;
         $input->me = 10;
 

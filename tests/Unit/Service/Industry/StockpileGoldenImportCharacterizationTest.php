@@ -13,6 +13,7 @@ use App\Entity\Sde\IndustryBlueprint;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
+use App\Exception\StockpileProductNotPlannableException;
 use App\Exception\TypeMissingFromSdeException;
 use App\Industry\Application\ProductionPlanning;
 use App\Industry\Infrastructure\Sde\SdeBlueprintCatalog;
@@ -36,6 +37,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(StockpileService::class)]
@@ -134,7 +136,7 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
             $productRepository,
             $this->entityManager,
             $this->importRepository,
-            new StockpileStartingStockReducer($productionPlanning, $userStructures, $productRepository),
+            new StockpileStartingStockReducer($productionPlanning, $userStructures, $productRepository, new NullLogger()),
         );
         $this->pilot = $this->createMock(User::class);
         $this->pilot->method('getId')->willReturn(Uuid::fromString(self::PILOT_ID));
@@ -300,23 +302,25 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         }
     }
 
-    public function testPreviewOfAProductWithoutBlueprintNorReactionThrows(): void
+    #[Group('issue-258')]
+    public function testPreviewOfAProductWithoutBlueprintNorReactionIsNotPlannable(): void
     {
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('No blueprint or reaction found for product type ID '.self::ROBOTICS);
+        $this->expectException(StockpileProductNotPlannableException::class);
+        $this->expectExceptionMessage('Type '.self::ROBOTICS.' has no blueprint nor reaction');
 
         $this->service->previewImport($this->pilot, self::ROBOTICS, 1, 10);
     }
 
     #[Group('issue-69')]
-    public function testImportOfAProductWithoutBlueprintNorReactionThrowsAndWritesNothing(): void
+    #[Group('issue-258')]
+    public function testImportOfAProductWithoutBlueprintNorReactionIsNotPlannableAndWritesNothing(): void
     {
         $this->targetRepository->expects(self::never())->method('deleteAllForUser');
         $this->importRepository->expects(self::never())->method('deleteAllForUser');
         $this->entityManager->expects(self::never())->method('persist');
         $this->entityManager->expects(self::never())->method('flush');
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('No blueprint or reaction found for product type ID '.self::ROBOTICS);
+        $this->expectException(StockpileProductNotPlannableException::class);
+        $this->expectExceptionMessage('Type '.self::ROBOTICS.' has no blueprint nor reaction');
 
         $this->service->importFromBlueprint($this->pilot, self::ROBOTICS, 1, 10, 'replace');
     }
