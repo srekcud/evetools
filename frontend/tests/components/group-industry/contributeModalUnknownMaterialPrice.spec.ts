@@ -63,9 +63,21 @@ const TRITANIUM_WITH_PRICE = materialBomItem({
   estimatedTotal: 125_000,
 })
 
+const ISOGEN_AT_ZERO_PRICE = materialBomItem({
+  id: 'bom-isogen',
+  typeId: 37,
+  typeName: 'Isogen',
+  requiredQuantity: 2_000,
+  fulfilledQuantity: 1_700,
+  remainingQuantity: 300,
+  fulfillmentPercent: 85,
+  estimatedPrice: 0,
+  estimatedTotal: 0,
+})
+
 async function openModalFor(bomItem: BomItem): Promise<VueWrapper> {
   vi.mocked(apiRequest).mockResolvedValue({})
-  useGroupProjectStore().bomItems = [MORPHITE_WITHOUT_PRICE, TRITANIUM_WITH_PRICE]
+  useGroupProjectStore().bomItems = [MORPHITE_WITHOUT_PRICE, TRITANIUM_WITH_PRICE, ISOGEN_AT_ZERO_PRICE]
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })
   const wrapper = mount(ContributeModal, {
     global: { plugins: [i18n], stubs: { teleport: true } },
@@ -138,8 +150,8 @@ describe('ContributeModal for a material without estimated price in the BOM', ()
   })
 })
 
-describe('ContributeModal for a material with an estimated price in the BOM', () => {
-  it('hides the estimated value field and sends the value calculated from the estimated price', async () => {
+describe('ContributeModal for a material with a BOM price', () => {
+  it('hides the estimated value field and sends no estimated value, the backend values it from the BOM price', async () => {
     const wrapper = await openModalFor(TRITANIUM_WITH_PRICE)
 
     expect(estimatedValueInput(wrapper)).toBeUndefined()
@@ -152,7 +164,21 @@ describe('ContributeModal for a material with an estimated price in the BOM', ()
       type: 'material',
       bomItemId: 'bom-tritanium',
       quantity: 100,
-      estimatedValue: 1250,
+    })
+  })
+
+  it('sends no estimated value for a material whose BOM price is zero, a known price', async () => {
+    const wrapper = await openModalFor(ISOGEN_AT_ZERO_PRICE)
+
+    expect(estimatedValueInput(wrapper)).toBeUndefined()
+
+    await submitButton(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(submittedBody()).toEqual({
+      type: 'material',
+      bomItemId: 'bom-isogen',
+      quantity: 300,
     })
   })
 })

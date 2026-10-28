@@ -49,8 +49,7 @@ final class CreateGroupProjectInputValidationTest extends TestCase
         self::assertSame([], $this->violatedPathsOf([$this->ishtarItem(['runs' => 1])]));
     }
 
-    #[Group('issue-257')]
-    public function testItemWithOneHundredThousandRunsCurrentlyPassesTheInputValidationIssue257(): void
+    public function testItemWithOneHundredThousandRunsIsAcceptedByTheInputValidation(): void
     {
         self::assertSame([], $this->violatedPathsOf([$this->ishtarItem(['runs' => 100000])]));
     }

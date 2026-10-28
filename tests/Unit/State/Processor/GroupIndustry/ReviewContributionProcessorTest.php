@@ -21,7 +21,6 @@ use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
 use App\Service\GroupIndustry\GroupIndustryContributionService;
-use App\Service\JitaMarketService;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\GroupIndustry\ReviewContributionProcessor;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
@@ -97,7 +96,6 @@ class ReviewContributionProcessorTest extends TestCase
             $this->contributionRepository,
             new GroupIndustryContributionService(
                 $this->contributionRepository,
-                $this->createStub(JitaMarketService::class),
                 $this->entityManager,
             ),
             new GroupProjectAccessChecker($this->memberRepository),

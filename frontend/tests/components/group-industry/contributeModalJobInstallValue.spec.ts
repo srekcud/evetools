@@ -141,8 +141,8 @@ describe('ContributeModal for a job install contribution', () => {
   })
 })
 
-describe('ContributeModal for a material with an estimated price in the BOM', () => {
-  it('sends the value calculated from the estimated price', async () => {
+describe('ContributeModal for a material with a BOM price', () => {
+  it('sends no estimated value, the backend values the material from its BOM price', async () => {
     const wrapper = await openModalFor(PYERITE_WITH_PRICE)
 
     expect(estimatedValueInput(wrapper)).toBeUndefined()
@@ -154,7 +154,6 @@ describe('ContributeModal for a material with an estimated price in the BOM', ()
       type: 'material',
       bomItemId: 'bom-pyerite',
       quantity: 300,
-      estimatedValue: 2925,
     })
   })
 })
