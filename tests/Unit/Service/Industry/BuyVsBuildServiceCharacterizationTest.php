@@ -86,7 +86,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
     #[Group('issue-2')]
     #[Group('issue-101')]
     #[Group('issue-98')]
-    public function testHailLTenRunsBuildsTenRootRunsAndSellsTenRunsIssue2(): void
+    public function testHailLTenRunsBuildsTenRootRunsAndSellsTenRuns(): void
     {
         $result = $this->analyzeHailL($this->hailLJitaPrices(), runs: 10);
 
@@ -563,7 +563,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
 
     #[Group('issue-2')]
     #[Group('issue-101')]
-    public function testFerniteCarbideTenRunsBuildsTenReactionRunsAndPricesEachComponentOnTheRootDemandOnlyIssue2(): void
+    public function testFerniteCarbideTenRunsBuildsTenReactionRunsAndPricesEachComponentOnTheRootDemandOnly(): void
     {
         $service = $this->buyVsBuildServiceOnGoldenSde(
             jitaPrices: [

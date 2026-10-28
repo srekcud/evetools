@@ -980,7 +980,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
 
     #[Group('issue-160')]
     #[Group('issue-2')]
-    public function testReactionMissingFromTheSdeLimitsIsCurrentlySplitAtAnInvented500RunsIssue160(): void
+    public function testReactionMissingFromTheSdeLimitsIsCurrentlySplitAtAnInvented500RunsIssue160Issue2(): void
     {
         $project = $this->projectOf([[self::FERNITE_ALLOY, 100_001, 0, 0]]);
 
