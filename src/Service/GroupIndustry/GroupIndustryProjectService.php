@@ -16,9 +16,17 @@ use App\Enum\IndustryActivityType;
 use App\Exception\InventionProbabilityMissingException;
 use App\Exception\InventionT1ProductMissingException;
 use App\Exception\TypeMissingFromSdeException;
+use App\Industry\Application\FavoriteSystems;
+use App\Industry\Application\ProductionPlanning;
+use App\Industry\Application\ProductionPlanRequest;
+use App\Industry\Application\UserProductionStructures;
+use App\Industry\Domain\BlueprintEfficiency;
+use App\Industry\Domain\MaterialEfficiency;
+use App\Industry\Domain\PlanTarget;
+use App\Industry\Domain\Runs;
+use App\Industry\Domain\TimeEfficiency;
 use App\Repository\Sde\IndustryActivityProductRepository;
-use App\Repository\Sde\IndustryBlueprintRepository;
-use App\Service\Industry\IndustryTreeService;
+use App\Repository\Sde\IndustryActivityRepository;
 use App\Service\Industry\InventionService;
 use App\Service\JitaMarketService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,12 +34,13 @@ use Doctrine\ORM\EntityManagerInterface;
 class GroupIndustryProjectService
 {
     public function __construct(
-        private readonly IndustryTreeService $treeService,
+        private readonly ProductionPlanning $productionPlanning,
+        private readonly UserProductionStructures $userStructures,
         private readonly JitaMarketService $jitaMarketService,
         private readonly EntityManagerInterface $entityManager,
-        private readonly IndustryBlueprintRepository $blueprintRepository,
         private readonly InventionService $inventionService,
         private readonly IndustryActivityProductRepository $activityProductRepository,
+        private readonly IndustryActivityRepository $activityRepository,
     ) {
     }
 
@@ -93,23 +102,24 @@ class GroupIndustryProjectService
         /** @var array<string, array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null, blueprintTypeId: int, outputPerRun: int}> $jobAggregation */
         $jobAggregation = [];
 
+        $targets = [];
         foreach ($project->getItems() as $item) {
-            $tree = $this->treeService->buildProductionTree(
-                productTypeId: $item->getTypeId(),
-                runs: $item->getRuns(),
-                finalMe: $item->getMeLevel(),
-                excludedTypeIds: $blacklistedTypeIds,
-                user: $owner,
+            $targets[] = new PlanTarget(
+                $item->getTypeId(),
+                new Runs($item->getRuns()),
+                new BlueprintEfficiency(new MaterialEfficiency($item->getMeLevel()), new TimeEfficiency($item->getTeLevel())),
             );
+        }
 
-            $this->flattenTree(
-                $tree,
-                $materialAggregation,
-                $jobAggregation,
-                parentTypeId: null,
-                itemMeLevel: $item->getMeLevel(),
-                itemTeLevel: $item->getTeLevel(),
-            );
+        try {
+            $this->productionPlanning->planOf(new ProductionPlanRequest(
+                $targets,
+                $this->userStructures->configuredBy($this->idOf($owner)),
+                FavoriteSystems::none(),
+                $blacklistedTypeIds,
+            ));
+        } catch (\DomainException $e) {
+            throw new \RuntimeException($e->getMessage(), 0, $e);
         }
 
         $this->replaceT2BlueprintCopiesByInventions($materialAggregation, $jobAggregation);
@@ -130,11 +140,7 @@ class GroupIndustryProjectService
             $project->addBomItem($bomItem);
         }
 
-        // Split jobs that exceed their blueprint's maxProductionLimit
-        $splitJobs = $this->splitJobsByMaxProductionLimit($jobAggregation);
-
-        // Create job BOM items
-        foreach ($splitJobs as $jobData) {
+        foreach ($jobAggregation as $jobData) {
             $bomItem = new GroupIndustryBomItem();
             $bomItem->setTypeId($jobData['typeId']);
             $bomItem->setTypeName($jobData['typeName']);
@@ -149,111 +155,6 @@ class GroupIndustryProjectService
             $bomItem->setRuns($jobData['runs']);
             $bomItem->setParentTypeId($jobData['parentTypeId']);
             $project->addBomItem($bomItem);
-        }
-    }
-
-    /**
-     * Recursively flatten a production tree into materials and jobs.
-     *
-     * @param array<string, mixed> $tree
-     * @param array<int, array{typeName: string, quantity: int}> $materialAggregation
-     * @param array<string, array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null, blueprintTypeId: int, outputPerRun: int}> $jobAggregation
-     */
-    private function flattenTree(
-        array $tree,
-        array &$materialAggregation,
-        array &$jobAggregation,
-        ?int $parentTypeId,
-        int $itemMeLevel,
-        int $itemTeLevel,
-    ): void {
-        $productTypeId = $tree['productTypeId'];
-        $blueprintTypeId = $tree['blueprintTypeId'];
-        $depth = $tree['depth'];
-        $activityType = $tree['activityType'];
-
-        // Determine job group based on depth
-        $jobGroup = $depth === 0 ? 'final' : 'component';
-
-        if ($activityType === 'reaction') {
-            $meLevel = 0;
-            $teLevel = 0;
-        } elseif ($depth === 0) {
-            $meLevel = $itemMeLevel;
-            $teLevel = $itemTeLevel;
-        } else {
-            $meLevel = 10;
-            $teLevel = 20;
-        }
-
-        // Register this node as a job
-        $jobKey = $productTypeId . ':' . $activityType . ':' . $jobGroup;
-        if ($depth === 0) {
-            $jobKey .= ':' . $meLevel . ':' . $teLevel;
-        }
-        if (isset($jobAggregation[$jobKey])) {
-            // Aggregate runs for the same product + activity
-            $jobAggregation[$jobKey]['runs'] += $tree['runs'];
-        } else {
-            $jobAggregation[$jobKey] = [
-                'typeId' => $productTypeId,
-                'typeName' => $tree['productTypeName'],
-                'runs' => $tree['runs'],
-                'meLevel' => $meLevel,
-                'teLevel' => $teLevel,
-                'activityType' => $activityType,
-                'jobGroup' => $jobGroup,
-                'parentTypeId' => $parentTypeId,
-                'blueprintTypeId' => $blueprintTypeId,
-                'outputPerRun' => $tree['outputPerRun'],
-            ];
-        }
-
-        // Register copy step if needed
-        if ($tree['hasCopy']) {
-            $copyKey = $productTypeId . ':copy';
-            if (!isset($jobAggregation[$copyKey])) {
-                $jobAggregation[$copyKey] = [
-                    'typeId' => $productTypeId,
-                    'typeName' => $tree['productTypeName'],
-                    'runs' => $tree['runs'],
-                    'meLevel' => 0,
-                    'teLevel' => 0,
-                    'activityType' => 'copy',
-                    'jobGroup' => 'blueprint',
-                    'parentTypeId' => $parentTypeId,
-                    'blueprintTypeId' => $blueprintTypeId,
-                    'outputPerRun' => $tree['outputPerRun'],
-                ];
-            } else {
-                $jobAggregation[$copyKey]['runs'] += $tree['runs'];
-            }
-        }
-
-        // Process materials
-        foreach ($tree['materials'] as $material) {
-            if ($material['isBuildable'] && isset($material['blueprint'])) {
-                // Intermediate node: recurse into sub-tree
-                $this->flattenTree(
-                    $material['blueprint'],
-                    $materialAggregation,
-                    $jobAggregation,
-                    parentTypeId: $productTypeId,
-                    itemMeLevel: $itemMeLevel,
-                    itemTeLevel: $itemTeLevel,
-                );
-            } else {
-                // Leaf material: aggregate by typeId
-                $matTypeId = $material['typeId'];
-                if (isset($materialAggregation[$matTypeId])) {
-                    $materialAggregation[$matTypeId]['quantity'] += $material['quantity'];
-                } else {
-                    $materialAggregation[$matTypeId] = [
-                        'typeName' => $material['typeName'],
-                        'quantity' => $material['quantity'],
-                    ];
-                }
-            }
         }
     }
 
@@ -371,70 +272,6 @@ class GroupIndustryProjectService
     }
 
     /**
-     * Split aggregated jobs that exceed their blueprint's maxProductionLimit into multiple entries.
-     *
-     * @param array<string, array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null, blueprintTypeId: int, outputPerRun: int}> $jobAggregation
-     * @return list<array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null, blueprintTypeId: int, outputPerRun: int}>
-     */
-    private function splitJobsByMaxProductionLimit(array $jobAggregation): array
-    {
-        // Copy jobs are not production jobs -- no splitting needed
-        $productionJobs = [];
-        $copyJobs = [];
-        foreach ($jobAggregation as $job) {
-            if (in_array($job['activityType'], ['copy', 'invention'], true)) {
-                $copyJobs[] = $job;
-            } else {
-                $productionJobs[] = $job;
-            }
-        }
-
-        if (empty($productionJobs)) {
-            return array_values($jobAggregation);
-        }
-
-        // Batch-load all blueprint maxProductionLimit values
-        $blueprintTypeIds = array_unique(array_column($productionJobs, 'blueprintTypeId'));
-        $blueprints = $this->blueprintRepository->findBy(['typeId' => $blueprintTypeIds]);
-        $maxRunsByBlueprint = [];
-        foreach ($blueprints as $bp) {
-            $maxRunsByBlueprint[$bp->getTypeId()] = $bp->getMaxProductionLimit();
-        }
-
-        $result = [];
-        foreach ($productionJobs as $job) {
-            $maxRuns = $maxRunsByBlueprint[$job['blueprintTypeId']] ?? null;
-
-            // Default limits: reactions typically 500, manufacturing typically very high
-            if ($maxRuns === null) {
-                $maxRuns = $job['activityType'] === 'reaction' ? 500 : 10000;
-            }
-
-            if ($job['runs'] <= $maxRuns) {
-                $result[] = $job;
-                continue;
-            }
-
-            // Split into multiple entries
-            $remaining = $job['runs'];
-            while ($remaining > 0) {
-                $runsForThisJob = min($remaining, $maxRuns);
-                $splitJob = $job;
-                $splitJob['runs'] = $runsForThisJob;
-                $result[] = $splitJob;
-                $remaining -= $runsForThisJob;
-            }
-        }
-
-        // Append copy jobs at the end (no splitting)
-        foreach ($copyJobs as $copyJob) {
-            $result[] = $copyJob;
-        }
-
-        return $result;
-    }
-
-    /**
      * Resolve blacklisted group IDs and type IDs into a flat array of type IDs.
      * Same logic as IndustryBlacklistService but using project-level data instead of user data.
      *
@@ -459,6 +296,13 @@ class GroupIndustryProjectService
         }
 
         return array_values(array_unique($resolved));
+    }
+
+    private function idOf(User $owner): string
+    {
+        $ownerId = $owner->getId() ?? throw new \LogicException('A user without id has no configured structure.');
+
+        return $ownerId->toRfc4122();
     }
 
     private function t1ProductTypeIdOf(int $t1BlueprintTypeId): int
