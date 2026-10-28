@@ -210,8 +210,10 @@ Termes proposés pour le minage groupé (#261), en attente de validation : seuls
 | **Part du booster** | Booster cut | Pourcentage de la valeur d'une opération réservé au booster avant répartition. | à venir (#264) |
 | **Fleet storage** | Fleet storage | Minerai versé par un participant à un destinataire pendant l'opération ; il crée une dette du destinataire envers le participant. | à venir (#266) |
 | **Scan de site** | Site scan | Relevé horodaté du restant, par type de minerai, d'une belt ou d'une anomalie, lu dans le collage du Mining Survey Chipset (spec #267). | à venir (#267) |
-| **Débit d'épuisement** | Depletion rate | Unités d'un type retirées d'un site par minute, déduites de deux scans de site ou plus (spec #267). | à venir (#267) |
-| **ETA d'épuisement** | Depletion ETA | Instant estimé où un type de minerai, ou un site, est vide. Inconnue quand le débit est nul ou négatif, ou avec un seul scan (spec #267). | à venir (#267) |
+| **Site de minage** | Mining site | Belt ou anomalie suivie par des scans de site, avec son historique de métriques ; le texte collé n'est jamais enregistré (spec #267). | à venir (#267) |
+| **Débit récent** | Recent depletion rate | Unités d'un type retirées d'un site par minute entre les deux derniers scans où il est présent (spec #267). | à venir (#267) |
+| **Débit de tendance** | Trend depletion rate | Unités d'un type retirées d'un site par minute, pente de la régression par moindres carrés sur tous les scans où il est présent (spec #267). | à venir (#267) |
+| **ETA d'épuisement** | Depletion ETA | Instant estimé où un type de minerai, ou un site, est vide. Une par débit (récent, tendance). Inconnue quand le débit est nul ou négatif, ou avec un seul scan (spec #267). | à venir (#267) |
 | **Type épuisé** | Depleted type | Type de minerai présent dans un scan de site et absent de tous les scans suivants (spec #267). | à venir (#267) |
 | **Taxe lunaire** | Moon mining tax | Taxe due au propriétaire d'une raffinerie par chaque personnage qui a miné sur ses lunes, d'après le ledger de la raffinerie (#273). | à venir (#273) |
 
