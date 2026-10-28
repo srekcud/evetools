@@ -632,8 +632,13 @@ class BatchProfitScanRulesTest extends TestCase
 
         $result = $this->scan(exportCostPerM3: 2.0);
 
-        $this->assertSame([5402 => null, 5405 => null, 5406 => 0.12], array_column($result, 'importCost', 'typeId'));
-        $this->assertSame([5402 => 'missing_volume', 5405 => 'missing_volume', 5406 => null], array_column($result, 'unknownReason', 'typeId'));
+        $importCosts = array_column($result, 'importCost', 'typeId');
+        $unknownReasons = array_column($result, 'unknownReason', 'typeId');
+        ksort($importCosts);
+        ksort($unknownReasons);
+
+        $this->assertSame([5402 => null, 5405 => null, 5406 => 0.12], $importCosts);
+        $this->assertSame([5402 => 'missing_volume', 5405 => 'missing_volume', 5406 => null], $unknownReasons);
     }
 
     #[Group('issue-255')]
