@@ -26,7 +26,7 @@ final readonly class ProductionPlanning
         $selector = new StructureSelector($request->structures, $request->favoriteSystems, $this->costIndices);
         $materialModifiers = new StructureMaterialModifiers($selector, $this->rigCategories);
 
-        $uncappedPlan = $planner->plan(new PlanRequest($request->targets, $materialModifiers, blacklist: $request->blacklist), $recipes);
+        $uncappedPlan = $planner->plan(new PlanRequest($request->targets, $materialModifiers, $request->startingStock, $request->blacklist), $recipes);
 
         $maxRunsByProduct = [];
         foreach ($uncappedPlan->jobs as $job) {
@@ -35,7 +35,7 @@ final readonly class ProductionPlanning
         }
 
         return $planner->plan(
-            new PlanRequest($request->targets, $materialModifiers, blacklist: $request->blacklist, blueprintCopyMaxRuns: $maxRunsByProduct),
+            new PlanRequest($request->targets, $materialModifiers, $request->startingStock, $request->blacklist, $maxRunsByProduct),
             $recipes,
         );
     }

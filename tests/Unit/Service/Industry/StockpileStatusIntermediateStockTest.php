@@ -51,7 +51,7 @@ final class StockpileStatusIntermediateStockTest extends TestCase
     protected function setUp(): void
     {
         $this->useWidgetRecipes();
-        $this->pilot = $this->createStub(User::class);
+        $this->pilot = $this->pilotWithId();
 
         $targetRepository = $this->createStub(IndustryStockpileTargetRepository::class);
         $targetRepository->method('findByUser')->willReturnCallback(fn (): array => $this->targets);
@@ -65,16 +65,16 @@ final class StockpileStatusIntermediateStockTest extends TestCase
         $jitaMarketService->method('getPricesWithFallback')->willReturnCallback(
             static fn (array $typeIds): array => array_intersect_key(self::JITA_PRICES, array_flip($typeIds)),
         );
-        $treeService = $this->treeServiceOnWidgetSde();
-
         $this->service = new StockpileService(
             $targetRepository,
             $assetRepository,
             $jitaMarketService,
-            $treeService,
+            $this->productionPlanningOnWidgetSde(),
+            $this->userStructuresOfThePilot(),
+            $this->productRepositoryOnWidgetSde(),
             $this->createStub(EntityManagerInterface::class),
             $importRepository,
-            new StockpileStartingStockReducer($treeService),
+            $this->startingStockReducerOnWidgetSde(),
         );
     }
 

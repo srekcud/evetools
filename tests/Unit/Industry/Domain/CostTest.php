@@ -7,6 +7,8 @@ namespace App\Tests\Unit\Industry\Domain;
 use App\Industry\Domain\Cost;
 use App\Industry\Domain\Isk;
 use App\Industry\Domain\MissingData;
+use App\Industry\Domain\OrderBookCoverage;
+use App\Industry\Domain\PartialPrice;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
@@ -99,5 +101,18 @@ final class CostTest extends TestCase
 
         $this->assertFalse($share->isKnown());
         $this->assertEquals([MissingData::marketPrice(34)], $share->missingData);
+    }
+
+    public function testEachPartialPriceAddedToAKnownCostIsKeptInOrderOfAddition(): void
+    {
+        $cost = Cost::known(new Isk(11800.0))
+            ->withPartialPrice(new PartialPrice(34, new OrderBookCoverage(0.45)))
+            ->withPartialPrice(new PartialPrice(36, new OrderBookCoverage(0.8)));
+
+        $this->assertSame(11800.0, $cost->amount()->amount);
+        $this->assertEquals(
+            [new PartialPrice(34, new OrderBookCoverage(0.45)), new PartialPrice(36, new OrderBookCoverage(0.8))],
+            $cost->partialPrices,
+        );
     }
 }

@@ -6,13 +6,18 @@ namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\IndustryStockpileTarget;
 use App\Entity\User;
+use App\Industry\Application\ProductionPlanning;
 use App\Repository\CachedAssetRepository;
 use App\Repository\IndustryStockpileImportRepository;
 use App\Repository\IndustryStockpileTargetRepository;
-use App\Service\Industry\IndustryTreeService;
+use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\StockpileService;
 use App\Service\Industry\StockpileStartingStockReducer;
 use App\Service\JitaMarketService;
+use App\Tests\Unit\Industry\Application\Double\InMemoryRigCategories;
+use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
+use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
+use App\Tests\Unit\Industry\Domain\Double\InMemoryBlueprintCatalog;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -69,15 +74,19 @@ final class StockpileStatusCharacterizationTest extends TestCase
             return $this->pricesOf($typeIds, $this->jitaPrices + $this->esiFallbackPrices);
         });
 
-        $treeService = $this->createMock(IndustryTreeService::class);
+        $productionPlanning = new ProductionPlanning(new InMemoryBlueprintCatalog(), InMemorySystemCostIndices::none(), new InMemoryRigCategories());
+        $userStructures = new InMemoryUserProductionStructures();
+        $productRepository = $this->createStub(IndustryActivityProductRepository::class);
         $this->service = new StockpileService(
             $targetRepository,
             $assetRepository,
             $jitaMarketService,
-            $treeService,
+            $productionPlanning,
+            $userStructures,
+            $productRepository,
             $this->createMock(EntityManagerInterface::class),
             $this->createMock(IndustryStockpileImportRepository::class),
-            new StockpileStartingStockReducer($treeService),
+            new StockpileStartingStockReducer($productionPlanning, $userStructures, $productRepository),
         );
         $this->pilot = $this->createMock(User::class);
     }

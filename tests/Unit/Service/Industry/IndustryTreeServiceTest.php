@@ -432,20 +432,6 @@ class IndustryTreeServiceTest extends TestCase
         $this->service->buildProductionTree(99999, 1, 0);
     }
 
-    public function testIntermediateTreeOfATypeWithoutBlueprintOrReactionThrowsAnExplicitError(): void
-    {
-        $intermediateWithoutProducerTypeId = 88_888;
-        $remainingQuantity = 250;
-        $this->activityProductRepository
-            ->method('findBlueprintForProduct')
-            ->willReturn(null);
-
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('No blueprint or reaction found for product type ID 88888');
-
-        $this->service->buildIntermediateTree($intermediateWithoutProducerTypeId, $remainingQuantity, [], new User());
-    }
-
     // ===========================================
     // Minimum quantity is runs
     // ===========================================

@@ -6,11 +6,19 @@ namespace App\Service\Industry;
 
 use App\Entity\IndustryStockpileImport;
 use App\Entity\User;
+use App\Industry\Application\ProductionPlanning;
+use App\Industry\Application\UserProductionStructures;
+use App\Industry\Domain\Quantity;
+use App\Repository\Sde\IndustryActivityProductRepository;
 
 class StockpileStartingStockReducer
 {
+    use PlansStockpileImports;
+
     public function __construct(
-        private readonly IndustryTreeService $treeService,
+        private readonly ProductionPlanning $productionPlanning,
+        private readonly UserProductionStructures $userStructures,
+        private readonly IndustryActivityProductRepository $activityProductRepository,
     ) {
     }
 
@@ -28,18 +36,15 @@ class StockpileStartingStockReducer
             $productTypeId = $stockpileImport->getProductTypeId();
             $stockLeftByImport = $stockByTypeId;
             try {
-                $fullTree = $this->treeService->buildProductionTree($productTypeId, $stockpileImport->getRuns(), $stockpileImport->getMe(), [], $user);
-                $fullNeeds = [];
-                $this->collectNeeds($fullTree['materials'], $fullNeeds);
-                $reducedNeeds = $this->reducedNeedsOf($fullTree, $stockpileImport, $stockLeftByImport, $user);
+                $reductionOfImport = $this->reductionOf($stockpileImport, $stockLeftByImport, $user);
             } catch (\RuntimeException $exception) {
                 $failedProducts[$productTypeId] = ['typeId' => $productTypeId, 'reason' => $exception->getMessage()];
                 continue;
             }
 
             $stockByTypeId = $stockLeftByImport;
-            foreach ($fullNeeds as $typeId => $fullNeed) {
-                $reductionByTypeId[$typeId] = ($reductionByTypeId[$typeId] ?? 0) + $fullNeed - ($reducedNeeds[$typeId] ?? 0);
+            foreach ($reductionOfImport as $typeId => $reduction) {
+                $reductionByTypeId[$typeId] = isset($reductionByTypeId[$typeId]) ? $reductionByTypeId[$typeId] + $reduction : $reduction;
             }
         }
 
@@ -49,77 +54,43 @@ class StockpileStartingStockReducer
     }
 
     /**
-     * @param array<string, mixed> $fullTree
-     * @param array<int, int> $stockByTypeId
+     * @param array<int, int> $stockByTypeId consumed by the plan of the import
      * @return array<int, int>
      */
-    private function reducedNeedsOf(array $fullTree, IndustryStockpileImport $stockpileImport, array &$stockByTypeId, User $user): array
+    private function reductionOf(IndustryStockpileImport $stockpileImport, array &$stockByTypeId, User $user): array
     {
         $productTypeId = $stockpileImport->getProductTypeId();
-        $demandedQuantity = (int) $fullTree['quantity'];
-        $uncoveredQuantity = $this->takeFromStock($stockByTypeId, $productTypeId, $demandedQuantity);
+        $producer = $this->producerOf($productTypeId);
+        $fullPlan = $this->planOfImport($user, $producer, $stockpileImport->getRuns(), $stockpileImport->getMe());
+
+        $demandedQuantity = $stockpileImport->getRuns() * $producer->getQuantity();
+        $productStock = $stockByTypeId[$productTypeId] ?? 0;
+        $coveredQuantity = min($productStock, $demandedQuantity);
+        $uncoveredQuantity = $demandedQuantity - $coveredQuantity;
 
         $reducedNeeds = [];
-        if ($uncoveredQuantity === 0) {
-            return $reducedNeeds;
-        }
-
-        $tree = $uncoveredQuantity === $demandedQuantity
-            ? $fullTree
-            : $this->treeService->buildProductionTree($productTypeId, $uncoveredQuantity, $stockpileImport->getMe(), [], $user);
-        $this->collectReducedNeeds($tree['materials'], $stockByTypeId, $reducedNeeds, $user);
-
-        return $reducedNeeds;
-    }
-
-    /**
-     * @param list<array<string, mixed>> $materials
-     * @param array<int, int> $stockByTypeId
-     * @param array<int, int> $needs
-     */
-    private function collectReducedNeeds(array $materials, array &$stockByTypeId, array &$needs, User $user): void
-    {
-        foreach ($materials as $material) {
-            $typeId = (int) $material['typeId'];
-            $demandedQuantity = (int) $material['quantity'];
-            $needs[$typeId] = ($needs[$typeId] ?? 0) + $demandedQuantity;
-
-            $uncoveredQuantity = $this->takeFromStock($stockByTypeId, $typeId, $demandedQuantity);
-            if ($uncoveredQuantity === 0 || !isset($material['blueprint'])) {
-                continue;
-            }
-
-            $subtree = $uncoveredQuantity === $demandedQuantity
-                ? $material['blueprint']
-                : $this->treeService->buildIntermediateTree($typeId, $uncoveredQuantity, [], $user);
-            $this->collectReducedNeeds($subtree['materials'], $stockByTypeId, $needs, $user);
-        }
-    }
-
-    /**
-     * @param list<array<string, mixed>> $materials
-     * @param array<int, int> $needs
-     */
-    private function collectNeeds(array $materials, array &$needs): void
-    {
-        foreach ($materials as $material) {
-            $typeId = (int) $material['typeId'];
-            $needs[$typeId] = ($needs[$typeId] ?? 0) + (int) $material['quantity'];
-            if (isset($material['blueprint'])) {
-                $this->collectNeeds($material['blueprint']['materials'], $needs);
+        if ($uncoveredQuantity > 0) {
+            $intermediateStock = array_map(
+                static fn (int $stock): Quantity => new Quantity($stock),
+                array_intersect_key($stockByTypeId, $fullPlan->intermediates),
+            );
+            $reducedPlan = $this->planOfImport($user, $producer, (int) ceil($uncoveredQuantity / $producer->getQuantity()), $stockpileImport->getMe(), $intermediateStock);
+            $reducedNeeds = self::needsOf($reducedPlan);
+            foreach ($reducedPlan->intermediates as $typeId => $intermediate) {
+                if ($intermediate->consumedStock->value > 0) {
+                    $stockByTypeId[$typeId] -= $intermediate->consumedStock->value;
+                }
             }
         }
-    }
+        if ($coveredQuantity > 0) {
+            $stockByTypeId[$productTypeId] -= $coveredQuantity;
+        }
 
-    /**
-     * @param array<int, int> $stockByTypeId
-     */
-    private function takeFromStock(array &$stockByTypeId, int $typeId, int $demandedQuantity): int
-    {
-        $availableStock = $stockByTypeId[$typeId] ?? 0;
-        $takenQuantity = min($availableStock, $demandedQuantity);
-        $stockByTypeId[$typeId] = $availableStock - $takenQuantity;
+        $reductionByTypeId = [];
+        foreach (self::needsOf($fullPlan) as $typeId => $fullNeed) {
+            $reductionByTypeId[$typeId] = isset($reducedNeeds[$typeId]) ? $fullNeed - $reducedNeeds[$typeId] : $fullNeed;
+        }
 
-        return $demandedQuantity - $takenQuantity;
+        return $reductionByTypeId;
     }
 }

@@ -35,6 +35,7 @@ use App\Tests\Unit\Industry\Domain\Double\InMemoryBlueprintCatalog;
 use App\Tests\Unit\Industry\Domain\Double\RecipeReadCountingCatalog;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(ProductionPlanning::class)]
@@ -184,6 +185,47 @@ final class ProductionPlanningTest extends TestCase
         );
     }
 
+    #[Group('issue-69')]
+    public function testPartialStockOfAnIntermediateIsConsumedBeforeItsRunsAndOnlyTheRestIsSplitUnderItsMaxProductionLimit(): void
+    {
+        $plan = self::planningOn(self::handwrittenCatalog())->planOf(self::requestFor(
+            [self::target(self::TARGET, 12, 10, 20)],
+            startingStock: [self::MANUFACTURED_INTERMEDIATE => new Quantity(20)],
+        ));
+
+        $manufacturedIntermediate = $plan->intermediates[self::MANUFACTURED_INTERMEDIATE];
+        $this->assertSame([65, 20], [$manufacturedIntermediate->demand->value, $manufacturedIntermediate->consumedStock->value]);
+        $this->assertSame(
+            [
+                [ActivityKind::Manufacturing, 5, 10, 20, [self::SECOND_LEAF => 185, self::THIRD_LEAF => 59]],
+                [ActivityKind::Manufacturing, 5, 10, 20, [self::SECOND_LEAF => 185, self::THIRD_LEAF => 59]],
+                [ActivityKind::Manufacturing, 5, 10, 20, [self::SECOND_LEAF => 185, self::THIRD_LEAF => 59]],
+            ],
+            self::jobs($plan, self::MANUFACTURED_INTERMEDIATE),
+        );
+        $this->assertSame(
+            [self::FIRST_LEAF => 3564, self::SECOND_LEAF => 555, self::THIRD_LEAF => 303, self::FOURTH_LEAF => 238],
+            self::leaves($plan),
+        );
+    }
+
+    #[Group('issue-69')]
+    public function testStockAboveTheDemandOfAnIntermediateCoversItWithoutAnyJobNorMaterialBelowIt(): void
+    {
+        $plan = self::planningOn(self::handwrittenCatalog())->planOf(self::requestFor(
+            [self::target(self::TARGET, 12, 10, 20)],
+            startingStock: [self::MANUFACTURED_INTERMEDIATE => new Quantity(80)],
+        ));
+
+        $manufacturedIntermediate = $plan->intermediates[self::MANUFACTURED_INTERMEDIATE];
+        $this->assertSame([65, 65, 0], [$manufacturedIntermediate->demand->value, $manufacturedIntermediate->consumedStock->value, $manufacturedIntermediate->surplus->value]);
+        $this->assertSame([], self::jobs($plan, self::MANUFACTURED_INTERMEDIATE));
+        $this->assertSame(
+            [self::FIRST_LEAF => 3564, self::THIRD_LEAF => 126, self::FOURTH_LEAF => 238],
+            self::leaves($plan),
+        );
+    }
+
     public function testBlacklistedIntermediateIsBoughtAsALeafWithoutItsSubtree(): void
     {
         $plan = self::planningOn(self::handwrittenCatalog())->planOf(self::requestFor(
@@ -279,6 +321,25 @@ final class ProductionPlanningTest extends TestCase
         ]));
     }
 
+    public function testCatalogAnsweringTheRecipeOfAnotherProductForATargetThrowsALogicExceptionNamingTheJobProductWithoutRecipe(): void
+    {
+        $catalog = new class(self::TARGET, self::recipe(self::PRODUCT_WITHOUT_RECIPE, ActivityKind::Manufacturing, 2, 30, [self::FIRST_LEAF => 11])) implements BlueprintCatalog {
+            public function __construct(private readonly int $targetTypeId, private readonly Recipe $recipeOfAnotherProduct)
+            {
+            }
+
+            public function recipeFor(int $productTypeId): ?Recipe
+            {
+                return $this->targetTypeId === $productTypeId ? $this->recipeOfAnotherProduct : null;
+            }
+        };
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('Job of product '.self::PRODUCT_WITHOUT_RECIPE.' has no recipe.');
+
+        self::planningOn($catalog)->planOf(self::requestFor([self::target(self::TARGET, 4, 10, 20)]));
+    }
+
     public function testCycleInTheProductionGraphThrowsADomainExceptionNamingTheProductNeededToBuildItself(): void
     {
         $this->expectException(\DomainException::class);
@@ -337,9 +398,9 @@ final class ProductionPlanningTest extends TestCase
         return new ProductionPlanning($catalog, InMemorySystemCostIndices::none(), new InMemoryRigCategories());
     }
 
-    private static function requestFor(array $targets, array $blacklist = []): ProductionPlanRequest
+    private static function requestFor(array $targets, array $blacklist = [], array $startingStock = []): ProductionPlanRequest
     {
-        return new ProductionPlanRequest($targets, [], FavoriteSystems::none(), $blacklist);
+        return new ProductionPlanRequest($targets, [], FavoriteSystems::none(), $blacklist, $startingStock);
     }
 
     private static function target(int $productTypeId, int $runs, int $materialEfficiency, int $timeEfficiency): PlanTarget

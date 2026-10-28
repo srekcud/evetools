@@ -6,44 +6,46 @@ namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\IndustryStockpileImport;
 use App\Entity\IndustryStockpileTarget;
+use App\Entity\Sde\IndustryActivity;
 use App\Entity\Sde\IndustryActivityMaterial;
 use App\Entity\Sde\IndustryActivityProduct;
+use App\Entity\Sde\IndustryBlueprint;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
 use App\Exception\TypeMissingFromSdeException;
+use App\Industry\Application\ProductionPlanning;
+use App\Industry\Infrastructure\Sde\SdeBlueprintCatalog;
 use App\Repository\CachedAssetRepository;
 use App\Repository\IndustryStockpileImportRepository;
 use App\Repository\IndustryStockpileTargetRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Repository\Sde\IndustryActivityRepository;
+use App\Repository\Sde\IndustryBlueprintRepository;
 use App\Repository\Sde\InvTypeRepository;
-use App\Service\Industry\IndustryBonusService;
-use App\Service\Industry\IndustryTreeService;
 use App\Service\Industry\StockpileService;
 use App\Service\Industry\StockpileStartingStockReducer;
 use App\Service\JitaMarketService;
-use Doctrine\DBAL\Connection;
+use App\Tests\Unit\Industry\Application\Double\InMemoryRigCategories;
+use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
+use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Uid\Uuid;
 
-/**
- * Characterization of the stockpile import (previewImport, importFromBlueprint) on the goldens,
- * before buildProductionTree() is replaced by src/Industry/Application (docs/specs/industry-engine.md, §7 rank 3).
- *
- * The real IndustryTreeService runs on the SDE extract of the goldens (tests/Fixtures/Golden/sde-blueprint-recipes.json);
- * only the SDE repositories, the structure lookup (no structure configured) and the Jita prices are stubbed.
- * Materials are read in the fixture order (ascending typeId), which decides the stage of an item met at several depths.
- */
 #[CoversClass(StockpileService::class)]
+#[CoversClass(StockpileStartingStockReducer::class)]
 #[AllowMockObjectsWithoutExpectations]
 final class StockpileGoldenImportCharacterizationTest extends TestCase
 {
     private const string GOLDEN_DIR = __DIR__.'/../../../Fixtures/Golden/';
     private const int BLUEPRINT_TYPE_ID_OFFSET = 1_000_000;
+    private const string PILOT_ID = '0190f3c2-7e44-7b19-a6d3-58c0e2f91b4d';
 
     private const int NITROGEN_FUEL_BLOCK = 4051;
     private const int NITROGEN_ISOTOPES = 17888;
@@ -57,13 +59,15 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
     private const int STRONTIUM_CLATHRATES = 16275;
     private const float TWO_ISK = 2.0;
     private const int FERNITE_CARBIDE = 16673;
+    private const int FERNITE_ALLOY = 16656;
+    private const int CERAMIC_POWDER = 16660;
     private const int HYDROGEN_FUEL_BLOCK = 4246;
+    private const int HYDROGEN_ISOTOPES = 17889;
+    private const int SCANDIUM = 16639;
     private const int NOMAD = 28846;
 
-    /** @var array{recipes: array<string, array{name: string, activity: string, outputPerRun: int, materials: array<string, int>}>, typeNames: array<string, string>} */
     private array $sde;
 
-    /** @var array<int, float> */
     private array $jitaPrices = [];
 
     private array $esiFallbackPrices = [];
@@ -71,6 +75,12 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
     private array $jitaPriceRequests = [];
 
     private array $typeIdsWithoutSdeName = [];
+
+    private array $targets = [];
+
+    private array $stockpileImports = [];
+
+    private array $stockByTypeId = [];
 
     private IndustryStockpileTargetRepository $targetRepository;
     private IndustryStockpileImportRepository $importRepository;
@@ -83,11 +93,18 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         $this->sde = json_decode((string) file_get_contents(self::GOLDEN_DIR.'sde-blueprint-recipes.json'), true, flags: \JSON_THROW_ON_ERROR);
 
         $this->targetRepository = $this->createMock(IndustryStockpileTargetRepository::class);
+        $this->targetRepository->method('findByUser')->willReturnCallback(fn (): array => $this->targets);
         $this->importRepository = $this->createMock(IndustryStockpileImportRepository::class);
+        $this->importRepository->method('findByUserInCreationOrder')->willReturnCallback(fn (): array => $this->stockpileImports);
+        $assetRepository = $this->createMock(CachedAssetRepository::class);
+        $assetRepository->method('getQuantitiesByUserWithLocations')->willReturnCallback(
+            fn (): array => array_map(static fn (int $stock): array => ['total' => $stock, 'locations' => []], $this->stockByTypeId),
+        );
+        $typeRepository = $this->typeRepositoryOnGoldenSde();
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
-        $connection = $this->createMock(Connection::class);
-        $connection->method('fetchOne')->willReturn(0);
-        $this->entityManager->method('getConnection')->willReturn($connection);
+        $this->entityManager->method('getRepository')->willReturnCallback(
+            static fn (string $className): ?InvTypeRepository => $className === InvType::class ? $typeRepository : null,
+        );
 
         $jitaMarketService = $this->createMock(JitaMarketService::class);
         $jitaMarketService->method('getPrices')->willReturnCallback(function (array $typeIds): array {
@@ -101,31 +118,40 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
             return $this->pricesOf($typeIds, $this->jitaPrices + $this->esiFallbackPrices);
         });
 
-        $treeService = $this->treeServiceOnGoldenSde();
+        $productRepository = $this->productRepositoryOnGoldenSde();
+        $productionPlanning = new ProductionPlanning(
+            new SdeBlueprintCatalog($productRepository, $this->activityRepositoryOnGoldenSde(), $this->materialRepositoryOnGoldenSde(), $this->blueprintRepositoryOnGoldenSde()),
+            InMemorySystemCostIndices::none(),
+            new InMemoryRigCategories(),
+        );
+        $userStructures = new InMemoryUserProductionStructures([self::PILOT_ID => []]);
         $this->service = new StockpileService(
             $this->targetRepository,
-            $this->createMock(CachedAssetRepository::class),
+            $assetRepository,
             $jitaMarketService,
-            $treeService,
+            $productionPlanning,
+            $userStructures,
+            $productRepository,
             $this->entityManager,
             $this->importRepository,
-            new StockpileStartingStockReducer($treeService),
+            new StockpileStartingStockReducer($productionPlanning, $userStructures, $productRepository),
         );
         $this->pilot = $this->createMock(User::class);
+        $this->pilot->method('getId')->willReturn(Uuid::fromString(self::PILOT_ID));
     }
 
     #[Group('issue-2')]
-    public function testPreviewOfTwentyFiveRunsOfNitrogenFuelBlockCurrentlyReadsTheRunsAsAQuantityIssue2(): void
+    public function testPreviewOfTwentyFiveRunsOfNitrogenFuelBlockReadsTwentyFiveRunsOfFortyUnits(): void
     {
         $preview = $this->service->previewImport($this->pilot, self::NITROGEN_FUEL_BLOCK, 25, 10);
 
         self::assertSame(
-            [['typeId' => self::NITROGEN_FUEL_BLOCK, 'typeName' => 'Nitrogen Fuel Block', 'quantity' => 40, 'unitPrice' => null]],
+            [['typeId' => self::NITROGEN_FUEL_BLOCK, 'typeName' => 'Nitrogen Fuel Block', 'quantity' => 1000, 'unitPrice' => null]],
             $preview['stages']['final_product'],
         );
         self::assertSame(
-            [44 => 4, 3683 => 20, 3689 => 4, 9832 => 9, 9848 => 1, 16272 => 153, 16273 => 315, 16275 => 18, 17888 => 405],
-            $this->quantitiesByTypeId($preview['stages']['raw_material']),
+            [44 => 90, 3683 => 495, 3689 => 90, 9832 => 203, 9848 => 25, 16272 => 3825, 16273 => 7875, 16275 => 450, 17888 => 10125],
+            $this->sortedQuantitiesByTypeId($preview['stages']['raw_material']),
         );
         self::assertSame([], $preview['stages']['intermediate']);
         self::assertSame([], $preview['stages']['component']);
@@ -139,20 +165,32 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
 
         self::assertSame(
             [44 => 4, 3683 => 22, 3689 => 4, 9832 => 9, 9848 => 1, 16272 => 170, 16273 => 350, 16275 => 20, 17888 => 450],
-            $this->quantitiesByTypeId($preview['stages']['raw_material']),
+            $this->sortedQuantitiesByTypeId($preview['stages']['raw_material']),
         );
         self::assertSame(40, $preview['stages']['final_product'][0]['quantity']);
     }
 
     #[Group('issue-2')]
-    public function testPreviewOfNitrogenFuelBlockAtMeTenCurrentlyReadsFortyOneRunsAsUnitsIssue2(): void
+    public function testPreviewOfFortyOneRunsOfNitrogenFuelBlockAtMeTenReadsThemAsRuns(): void
     {
         $preview = $this->service->previewImport($this->pilot, self::NITROGEN_FUEL_BLOCK, 41, 10);
 
-        self::assertSame(80, $preview['stages']['final_product'][0]['quantity']);
+        self::assertSame([1640], array_column($preview['stages']['final_product'], 'quantity'));
         self::assertSame(
-            [44 => 8, 3683 => 40, 3689 => 8, 9832 => 17, 9848 => 2, 16272 => 306, 16273 => 630, 16275 => 36, 17888 => 810],
-            $this->quantitiesByTypeId($preview['stages']['raw_material']),
+            [44 => 148, 3683 => 812, 3689 => 148, 9832 => 333, 9848 => 41, 16272 => 6273, 16273 => 12915, 16275 => 738, 17888 => 16605],
+            $this->sortedQuantitiesByTypeId($preview['stages']['raw_material']),
+        );
+    }
+
+    #[Group('issue-69')]
+    public function testPreviewOfTwoHundredFiftyRunsOfNitrogenFuelBlockReadsTheLeavesOfTwoJobsSplitUnderTheMaxProductionLimit(): void
+    {
+        $preview = $this->service->previewImport($this->pilot, self::NITROGEN_FUEL_BLOCK, 250, 10);
+
+        self::assertSame([10000], array_column($preview['stages']['final_product'], 'quantity'));
+        self::assertSame(
+            [44 => 900, 3683 => 4950, 3689 => 900, 9832 => 2026, 9848 => 250, 16272 => 38250, 16273 => 78750, 16275 => 4500, 17888 => 101250],
+            $this->sortedQuantitiesByTypeId($preview['stages']['raw_material']),
         );
     }
 
@@ -270,17 +308,31 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         $this->service->previewImport($this->pilot, self::ROBOTICS, 1, 10);
     }
 
+    #[Group('issue-69')]
+    public function testImportOfAProductWithoutBlueprintNorReactionThrowsAndWritesNothing(): void
+    {
+        $this->targetRepository->expects(self::never())->method('deleteAllForUser');
+        $this->importRepository->expects(self::never())->method('deleteAllForUser');
+        $this->entityManager->expects(self::never())->method('persist');
+        $this->entityManager->expects(self::never())->method('flush');
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('No blueprint or reaction found for product type ID '.self::ROBOTICS);
+
+        $this->service->importFromBlueprint($this->pilot, self::ROBOTICS, 1, 10, 'replace');
+    }
+
     #[Group('issue-2')]
-    public function testPreviewOfTenRunsOfFerniteCarbideCurrentlyReadsTheRunsAsAQuantityIssue2(): void
+    public function testPreviewOfTenRunsOfFerniteCarbideReadsThemAsRunsAndBuildsThreeRunsOfHydrogenFuelBlock(): void
     {
         $preview = $this->service->previewImport($this->pilot, self::FERNITE_CARBIDE, 10, 10);
 
-        self::assertSame(10000, $preview['stages']['final_product'][0]['quantity']);
+        self::assertSame([100000], array_column($preview['stages']['final_product'], 'quantity'));
         self::assertSame(
-            [self::HYDROGEN_FUEL_BLOCK => 15, 16656 => 100, 16660 => 100],
-            $this->quantitiesByTypeId($preview['stages']['component']),
+            [self::HYDROGEN_FUEL_BLOCK => 100, self::FERNITE_ALLOY => 1000, self::CERAMIC_POWDER => 1000],
+            $this->sortedQuantitiesByTypeId($preview['stages']['component']),
         );
         self::assertSame([], $preview['stages']['intermediate']);
+        self::assertSame(1215, $this->entryOf($preview['stages']['raw_material'], self::HYDROGEN_ISOTOPES)['quantity']);
     }
 
     public function testPreviewOfFerniteCarbideIgnoresTheMe(): void
@@ -293,51 +345,50 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
     }
 
     #[Group('issue-69')]
-    public function testPreviewOfOneRunOfFerniteCarbideCurrentlyBuildsTheFuelBlockOncePerBranchIssue69(): void
+    public function testPreviewOfOneRunOfFerniteCarbideBuildsTheHydrogenFuelBlockOnceForItsThreeConsumers(): void
     {
         $preview = $this->service->previewImport($this->pilot, self::FERNITE_CARBIDE, 1, 10);
 
         self::assertSame(
-            [44 => 12, 3683 => 60, 3689 => 12, 9832 => 27, 9848 => 3, 16272 => 459, 16273 => 945, 16275 => 54, 17889 => 1215, 16639 => 100, 16642 => 100, 16635 => 100, 16636 => 100],
-            $this->quantitiesByTypeId($preview['stages']['raw_material']),
+            [44 => 4, 3683 => 20, 3689 => 4, 9832 => 9, 9848 => 1, 16272 => 153, 16273 => 315, 16275 => 18, 16635 => 100, 16636 => 100, 16639 => 100, 16642 => 100, 17889 => 405],
+            $this->sortedQuantitiesByTypeId($preview['stages']['raw_material']),
         );
+        self::assertSame(
+            [self::HYDROGEN_FUEL_BLOCK => 15, self::FERNITE_ALLOY => 100, self::CERAMIC_POWDER => 100],
+            $this->sortedQuantitiesByTypeId($preview['stages']['component']),
+        );
+        self::assertSame([], $preview['stages']['intermediate']);
+        self::assertSame(
+            [['typeId' => self::FERNITE_CARBIDE, 'typeName' => 'Fernite Carbide', 'quantity' => 10000, 'unitPrice' => null]],
+            $preview['stages']['final_product'],
+        );
+        self::assertSame(17, $preview['totalItems']);
     }
 
     #[Group('issue-69')]
-    public function testPreviewOfOneNomadCurrentlyOverestimatesTheNonAggregatedLeavesAndIntermediatesIssue69(): void
+    public function testPreviewOfOneNomadReadsTheLeavesAndDemandsOfRavworksButTheFiveTypesOfJobsSplitUnderTheirMaxProductionLimit(): void
     {
         $golden = json_decode((string) file_get_contents(self::GOLDEN_DIR.'nomad-1run-me10-no-structure.ravworks.json'), true, flags: \JSON_THROW_ON_ERROR);
         $goldenLeaves = array_column($golden['expected']['leaves'], 'quantity', 'typeId');
         $goldenDemandOfIntermediates = array_column($golden['expected']['intermediates'], 'quantityNeeded', 'typeId');
+        $nomadJobMaterials = [11478 => 54, 20189 => 1, 21025 => 27, 29043 => 607, 29045 => 951, 29049 => 1368, 29065 => 599, 29075 => 951, 29079 => 700, 29089 => 570];
 
         $preview = $this->service->previewImport($this->pilot, self::NOMAD, 1, 10);
 
-        $currentLeaves = array_replace($goldenLeaves, [
-            17887 => 26730, 16634 => 75100, 16633 => 89700, 44 => 2358, 3689 => 2358, 9832 => 5273, 3683 => 12713,
-            16272 => 97920, 16273 => 201600, 9848 => 640, 16275 => 11520, 17888 => 46170, 16274 => 46575, 17889 => 139725,
-            16652 => 6800, 16650 => 6000, 16643 => 10300, 16653 => 3600, 16651 => 11400, 16648 => 3900, 16646 => 12200,
-            16647 => 5900, 16635 => 92900, 16649 => 17200, 16642 => 59400, 16644 => 40100, 16636 => 107500, 16639 => 55500,
-            16641 => 23700,
+        $expectedLeaves = array_replace($goldenLeaves, [self::COOLANT => 4693]);
+        ksort($expectedLeaves);
+        $expectedDemandOfIntermediates = array_replace($goldenDemandOfIntermediates, [
+            self::FERNITE_CARBIDE => 9719983, 16679 => 950906, 16681 => 34177, 16678 => 2538073,
         ]);
-        $currentDemandOfIntermediates = array_replace($goldenDemandOfIntermediates, [
-            16663 => 10100, 57453 => 25000, 16660 => 140000, 16668 => 8700, 16656 => 110400, 16669 => 3100, 17769 => 7100,
-            4247 => 4265, 16665 => 45500, 4246 => 12960, 16666 => 3100, 16667 => 15200, 4051 => 4260, 57454 => 198,
-            4312 => 1815, 16662 => 34100, 17960 => 10200, 16661 => 17000, 57455 => 25000,
-        ]);
-        $previewIntermediates = $this->quantitiesByTypeId([...$preview['stages']['component'], ...$preview['stages']['intermediate']]);
-
-        $previewLeaves = $this->quantitiesByTypeId($preview['stages']['raw_material']);
-
-        ksort($currentLeaves);
-        ksort($previewLeaves);
-        self::assertSame($currentLeaves, $previewLeaves);
-        ksort($currentDemandOfIntermediates);
-        ksort($previewIntermediates);
-        self::assertSame($currentDemandOfIntermediates, $previewIntermediates);
+        ksort($expectedDemandOfIntermediates);
+        $expectedIntermediateStageTypeIds = array_keys(array_diff_key($expectedDemandOfIntermediates, $nomadJobMaterials));
+        self::assertSame($expectedLeaves, $this->sortedQuantitiesByTypeId($preview['stages']['raw_material']));
         self::assertSame(
-            [11478 => 54, 20189 => 1, 21025 => 27, 29043 => 607, 29045 => 951, 29049 => 1368, 29065 => 599, 29075 => 951, 29079 => 700, 29089 => 570],
-            $this->quantitiesByTypeId($preview['stages']['component']),
+            $expectedDemandOfIntermediates,
+            $this->sortedQuantitiesByTypeId([...$preview['stages']['component'], ...$preview['stages']['intermediate']]),
         );
+        self::assertSame($nomadJobMaterials, $this->sortedQuantitiesByTypeId($preview['stages']['component']));
+        self::assertSame($expectedIntermediateStageTypeIds, array_keys($this->sortedQuantitiesByTypeId($preview['stages']['intermediate'])));
         self::assertSame([['typeId' => self::NOMAD, 'typeName' => 'Nomad', 'quantity' => 1, 'unitPrice' => null]], $preview['stages']['final_product']);
         self::assertSame(129, $preview['totalItems']);
     }
@@ -389,6 +440,28 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         );
     }
 
+    #[Group('issue-69')]
+    public function testImportOfOneRunOfFerniteCarbideInMergeModeAddsTheAggregatedHydrogenIsotopesToTheExistingTarget(): void
+    {
+        $existingHydrogenIsotopes = new IndustryStockpileTarget();
+        $existingHydrogenIsotopes->setTypeId(self::HYDROGEN_ISOTOPES)->setTypeName('Hydrogen Isotopes')->setTargetQuantity(1000)->setStage('raw_material');
+        $this->targetRepository->method('findByUserAndTypeId')->willReturnCallback(
+            static fn (User $user, int $typeId): ?IndustryStockpileTarget => $typeId === self::HYDROGEN_ISOTOPES ? $existingHydrogenIsotopes : null,
+        );
+        $persisted = [];
+        $this->entityManager->method('persist')->willReturnCallback(static function (object $entity) use (&$persisted): void {
+            $persisted[] = $entity;
+        });
+
+        $this->service->importFromBlueprint($this->pilot, self::FERNITE_CARBIDE, 1, 10, 'merge');
+
+        $persistedTargets = self::targetsByTypeId(self::persistedOfClass($persisted, IndustryStockpileTarget::class));
+        self::assertSame(1405, $existingHydrogenIsotopes->getTargetQuantity());
+        self::assertCount(16, $persistedTargets);
+        self::assertSame(['Hydrogen Fuel Block', 15, 'component', self::FERNITE_CARBIDE], $persistedTargets[self::HYDROGEN_FUEL_BLOCK]);
+        self::assertSame(['Scandium', 100, 'raw_material', self::FERNITE_CARBIDE], $persistedTargets[self::SCANDIUM] ?? null);
+    }
+
     public function testImportInReplaceModeDeletesTheTargetsAndTheStockpileImportsOfThePilotBeforePersistingTheTreeAndItsImport(): void
     {
         $calls = [];
@@ -414,50 +487,136 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         self::assertSame(['flush'], array_slice($calls, 14));
     }
 
-    public function testFlattenTreeReadsTheStageFromTheDepthOfEachBlueprintNodeAndDefaultsMissingFields(): void
+    #[Group('issue-69')]
+    #[DataProvider('importedProductProvider')]
+    public function testImportInReplaceModePersistsEveryItemOfThePreviewAsATargetOfTheImportedProduct(int $productTypeId, int $runs, int $me, int $expectedTargetCount): void
     {
-        $tree = [
-            'productTypeName' => 'Widget',
-            'runs' => 2,
-            'outputPerRun' => 3,
-            'materials' => [
-                ['typeId' => 1, 'typeName' => 'Ore Without Buildable Flag', 'quantity' => 7],
-                ['typeId' => 2, 'typeName' => 'Buildable Without Blueprint', 'quantity' => 4, 'isBuildable' => true],
-                ['typeId' => 3, 'typeName' => 'Frame Without Depth', 'quantity' => 5, 'isBuildable' => true, 'blueprint' => [
-                    'materials' => [['typeId' => 4, 'typeName' => 'Plate', 'quantity' => 6, 'isBuildable' => true, 'blueprint' => [
-                        'depth' => 0,
-                        'materials' => [['typeId' => 5, 'typeName' => 'Rivet', 'quantity' => 8, 'isBuildable' => true]],
-                    ]]],
-                ]],
-            ],
-        ];
+        $preview = $this->service->previewImport($this->pilot, $productTypeId, $runs, $me);
+        $persisted = [];
+        $this->entityManager->method('persist')->willReturnCallback(static function (object $entity) use (&$persisted): void {
+            $persisted[] = $entity;
+        });
 
+        $this->service->importFromBlueprint($this->pilot, $productTypeId, $runs, $me, 'replace');
+
+        $previewTargets = [];
+        foreach ($preview['stages'] as $stage => $entries) {
+            foreach ($entries as $entry) {
+                $previewTargets[$entry['typeId']] = [$entry['typeName'], $entry['quantity'], $stage, $productTypeId];
+            }
+        }
+        ksort($previewTargets);
+        $persistedTargets = self::targetsByTypeId(self::persistedOfClass($persisted, IndustryStockpileTarget::class));
+        ksort($persistedTargets);
+        self::assertCount($expectedTargetCount, $persistedTargets);
+        self::assertSame($previewTargets, $persistedTargets);
+    }
+
+    public static function importedProductProvider(): iterable
+    {
+        yield 'one run of Fernite Carbide' => [self::FERNITE_CARBIDE, 1, 10, 17];
+        yield 'one Nomad' => [self::NOMAD, 1, 10, 129];
+        yield 'twenty-five runs of Nitrogen Fuel Block' => [self::NITROGEN_FUEL_BLOCK, 25, 10, 10];
+        yield 'forty-one runs of Nitrogen Fuel Block' => [self::NITROGEN_FUEL_BLOCK, 41, 10, 10];
+        yield 'ten runs of Fernite Carbide' => [self::FERNITE_CARBIDE, 10, 10, 17];
+    }
+
+    #[Group('issue-69')]
+    public function testStatusOfOneRunOfFerniteCarbideWithFiveHydrogenFuelBlocksInStockStillBuildsOneRunOfHydrogenFuelBlock(): void
+    {
+        $this->importOneRunOfFerniteCarbide();
+        $this->stockByTypeId = [self::HYDROGEN_FUEL_BLOCK => 5];
+
+        $status = $this->service->getStockpileStatus($this->pilot);
+
+        self::assertSame(405, $this->statusItemOf($status, self::HYDROGEN_ISOTOPES)['remainingTargetQuantity']);
+        self::assertSame(4, $this->statusItemOf($status, self::ENRICHED_URANIUM)['remainingTargetQuantity']);
         self::assertSame(
-            [
-                100 => ['typeName' => 'Widget', 'quantity' => 6, 'stage' => 'final_product'],
-                1 => ['typeName' => 'Ore Without Buildable Flag', 'quantity' => 7, 'stage' => 'raw_material'],
-                2 => ['typeName' => 'Buildable Without Blueprint', 'quantity' => 4, 'stage' => 'component'],
-                3 => ['typeName' => 'Frame Without Depth', 'quantity' => 5, 'stage' => 'component'],
-                4 => ['typeName' => 'Plate', 'quantity' => 6, 'stage' => 'intermediate'],
-                5 => ['typeName' => 'Rivet', 'quantity' => 8, 'stage' => 'component'],
-            ],
-            $this->service->flattenTree($tree, 100),
+            ['remainingTargetQuantity' => 15, 'stock' => 5, 'percent' => 33.3, 'status' => 'critical'],
+            array_intersect_key($this->statusItemOf($status, self::HYDROGEN_FUEL_BLOCK), array_flip(['remainingTargetQuantity', 'stock', 'percent', 'status'])),
+        );
+        self::assertSame([], $status['failedProducts']);
+    }
+
+    #[Group('issue-69')]
+    public function testStatusOfOneRunOfFerniteCarbideWithFifteenHydrogenFuelBlocksInStockLeavesNoMaterialOfTheFuelBlockToBuy(): void
+    {
+        $this->importOneRunOfFerniteCarbide();
+        $this->stockByTypeId = [self::HYDROGEN_FUEL_BLOCK => 15];
+
+        $status = $this->service->getStockpileStatus($this->pilot);
+
+        self::assertSame(0, $this->statusItemOf($status, self::HYDROGEN_ISOTOPES)['remainingTargetQuantity']);
+        self::assertSame(0, $this->statusItemOf($status, self::ENRICHED_URANIUM)['remainingTargetQuantity']);
+        self::assertSame(100, $this->statusItemOf($status, self::SCANDIUM)['remainingTargetQuantity']);
+        self::assertSame(100, $this->statusItemOf($status, self::FERNITE_ALLOY)['remainingTargetQuantity']);
+        self::assertSame(
+            ['remainingTargetQuantity' => 15, 'stock' => 15, 'status' => 'met'],
+            array_intersect_key($this->statusItemOf($status, self::HYDROGEN_FUEL_BLOCK), array_flip(['remainingTargetQuantity', 'stock', 'status'])),
         );
     }
 
-    /**
-     * @param list<array{typeId: int, quantity: int}> $entries
-     * @return array<int, int>
-     */
-    private function quantitiesByTypeId(array $entries): array
+    #[Group('issue-2')]
+    public function testStatusOfTwentyFiveRunsOfNitrogenFuelBlockWithOneHundredThirtyInStockPlansTheTwentyTwoRunsOfTheUnitsLeft(): void
     {
-        return array_column($entries, 'quantity', 'typeId');
+        $this->stockpileImports = [new IndustryStockpileImport($this->pilot, self::NITROGEN_FUEL_BLOCK, 25, 10)];
+        $this->addTarget(self::NITROGEN_FUEL_BLOCK, 1000, 'final_product', self::NITROGEN_FUEL_BLOCK);
+        $this->addTarget(self::NITROGEN_ISOTOPES, 10125, 'raw_material', self::NITROGEN_FUEL_BLOCK);
+        $this->addTarget(self::COOLANT, 203, 'raw_material', self::NITROGEN_FUEL_BLOCK);
+        $this->stockByTypeId = [self::NITROGEN_FUEL_BLOCK => 130];
+
+        $status = $this->service->getStockpileStatus($this->pilot);
+
+        self::assertSame(8910, $this->statusItemOf($status, self::NITROGEN_ISOTOPES)['remainingTargetQuantity']);
+        self::assertSame(179, $this->statusItemOf($status, self::COOLANT)['remainingTargetQuantity']);
+        self::assertSame(
+            ['remainingTargetQuantity' => 1000, 'stock' => 130, 'percent' => 13.0, 'status' => 'critical'],
+            array_intersect_key($this->statusItemOf($status, self::NITROGEN_FUEL_BLOCK), array_flip(['remainingTargetQuantity', 'stock', 'percent', 'status'])),
+        );
     }
 
-    /**
-     * @param list<array{typeId: int}> $entries
-     * @return array<string, mixed>
-     */
+    private function importOneRunOfFerniteCarbide(): void
+    {
+        $this->stockpileImports = [new IndustryStockpileImport($this->pilot, self::FERNITE_CARBIDE, 1, 10)];
+        $this->addTarget(self::FERNITE_CARBIDE, 10000, 'final_product', self::FERNITE_CARBIDE);
+        $this->addTarget(self::HYDROGEN_FUEL_BLOCK, 15, 'component', self::FERNITE_CARBIDE);
+        $this->addTarget(self::FERNITE_ALLOY, 100, 'component', self::FERNITE_CARBIDE);
+        $this->addTarget(self::HYDROGEN_ISOTOPES, 405, 'raw_material', self::FERNITE_CARBIDE);
+        $this->addTarget(self::ENRICHED_URANIUM, 4, 'raw_material', self::FERNITE_CARBIDE);
+        $this->addTarget(self::SCANDIUM, 100, 'raw_material', self::FERNITE_CARBIDE);
+    }
+
+    private function addTarget(int $typeId, int $targetQuantity, string $stage, int $sourceProductTypeId): void
+    {
+        $this->targets[] = (new IndustryStockpileTarget())
+            ->setUser($this->pilot)
+            ->setTypeId($typeId)
+            ->setTypeName($this->sde['typeNames'][(string) $typeId])
+            ->setTargetQuantity($targetQuantity)
+            ->setStage($stage)
+            ->setSourceProductTypeId($sourceProductTypeId);
+    }
+
+    private function statusItemOf(array $status, int $typeId): array
+    {
+        foreach ($status['stages'] as $stage) {
+            foreach ($stage['items'] as $item) {
+                if ($item['typeId'] === $typeId) {
+                    return $item;
+                }
+            }
+        }
+        self::fail("No status item for type {$typeId}");
+    }
+
+    private function sortedQuantitiesByTypeId(array $entries): array
+    {
+        $quantities = array_column($entries, 'quantity', 'typeId');
+        ksort($quantities);
+
+        return $quantities;
+    }
+
     private function entryOf(array $entries, int $typeId): array
     {
         foreach ($entries as $entry) {
@@ -499,14 +658,22 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         return array_values(array_filter($persisted, static fn (object $entity): bool => $entity instanceof $className));
     }
 
-    private function treeServiceOnGoldenSde(): IndustryTreeService
+    private static function targetsByTypeId(array $targets): array
     {
-        $recipes = $this->sde['recipes'];
+        $targetsByTypeId = [];
+        foreach ($targets as $target) {
+            $targetsByTypeId[$target->getTypeId()] = [$target->getTypeName(), $target->getTargetQuantity(), $target->getStage(), $target->getSourceProductTypeId()];
+        }
 
-        $productRepository = $this->createMock(IndustryActivityProductRepository::class);
+        return $targetsByTypeId;
+    }
+
+    private function productRepositoryOnGoldenSde(): IndustryActivityProductRepository
+    {
+        $productRepository = $this->createStub(IndustryActivityProductRepository::class);
         $productRepository->method('findBlueprintForProduct')->willReturnCallback(
-            static function (int $productTypeId, int $activityId) use ($recipes): ?IndustryActivityProduct {
-                $recipe = $recipes[(string) $productTypeId] ?? null;
+            function (int $productTypeId, int $activityId = 1): ?IndustryActivityProduct {
+                $recipe = $this->sde['recipes'][(string) $productTypeId] ?? null;
                 if ($recipe === null || self::activityIdOf($recipe['activity']) !== $activityId) {
                     return null;
                 }
@@ -519,15 +686,23 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
             },
         );
 
-        $materialRepository = $this->createMock(IndustryActivityMaterialRepository::class);
-        $materialRepository->method('findBy')->willReturnCallback(
-            static function (array $criteria) use ($recipes): array {
-                $productTypeId = $criteria['typeId'] - self::BLUEPRINT_TYPE_ID_OFFSET;
+        return $productRepository;
+    }
+
+    private function materialRepositoryOnGoldenSde(): IndustryActivityMaterialRepository
+    {
+        $materialRepository = $this->createStub(IndustryActivityMaterialRepository::class);
+        $materialRepository->method('findByBlueprintAndActivity')->willReturnCallback(
+            function (int $blueprintTypeId, int $activityId = 1): array {
+                $recipe = $this->sde['recipes'][(string) ($blueprintTypeId - self::BLUEPRINT_TYPE_ID_OFFSET)] ?? null;
+                if ($recipe === null || self::activityIdOf($recipe['activity']) !== $activityId) {
+                    return [];
+                }
                 $materials = [];
-                foreach ($recipes[(string) $productTypeId]['materials'] as $materialTypeId => $baseQuantityPerRun) {
+                foreach ($recipe['materials'] as $materialTypeId => $baseQuantityPerRun) {
                     $materials[] = (new IndustryActivityMaterial())
-                        ->setTypeId($criteria['typeId'])
-                        ->setActivityId($criteria['activityId'])
+                        ->setTypeId($blueprintTypeId)
+                        ->setActivityId($activityId)
                         ->setMaterialTypeId((int) $materialTypeId)
                         ->setQuantity($baseQuantityPerRun);
                 }
@@ -536,19 +711,58 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
             },
         );
 
-        $typeRepository = $this->createMock(InvTypeRepository::class);
-        $typeRepository->method('find')->willReturnCallback(
-            fn (int $typeId): ?InvType => !in_array($typeId, $this->typeIdsWithoutSdeName, true) && isset($this->sde['typeNames'][(string) $typeId])
-                ? (new InvType())->setTypeId($typeId)->setTypeName($this->sde['typeNames'][(string) $typeId])
-                : null,
+        return $materialRepository;
+    }
+
+    private function blueprintRepositoryOnGoldenSde(): IndustryBlueprintRepository
+    {
+        $blueprintRepository = $this->createStub(IndustryBlueprintRepository::class);
+        $blueprintRepository->method('find')->willReturnCallback(
+            function (mixed $blueprintTypeId): ?IndustryBlueprint {
+                $recipe = \is_int($blueprintTypeId) ? ($this->sde['recipes'][(string) ($blueprintTypeId - self::BLUEPRINT_TYPE_ID_OFFSET)] ?? null) : null;
+
+                return $recipe === null ? null : (new IndustryBlueprint())
+                    ->setTypeId($blueprintTypeId)
+                    ->setMaxProductionLimit($recipe['maxProductionLimit']);
+            },
         );
 
-        $noStructure = ['structure' => null, 'bonus' => ['total' => 0.0, 'base' => 0.0, 'rig' => 0.0], 'category' => null];
-        $bonusService = $this->createMock(IndustryBonusService::class);
-        $bonusService->method('findBestStructureForProduct')->willReturn($noStructure);
-        $bonusService->method('getCategoryForProduct')->willReturn(null);
+        return $blueprintRepository;
+    }
 
-        return new IndustryTreeService($productRepository, $materialRepository, $typeRepository, $this->entityManager, $bonusService);
+    private function activityRepositoryOnGoldenSde(): IndustryActivityRepository
+    {
+        $activityRepository = $this->createStub(IndustryActivityRepository::class);
+        $activityRepository->method('findOneBy')->willReturnCallback(
+            function (array $criteria): ?IndustryActivity {
+                $recipe = $this->sde['recipes'][(string) ($criteria['typeId'] - self::BLUEPRINT_TYPE_ID_OFFSET)] ?? null;
+                if ($recipe === null || self::activityIdOf($recipe['activity']) !== $criteria['activityId']) {
+                    return null;
+                }
+
+                return (new IndustryActivity())
+                    ->setTypeId($criteria['typeId'])
+                    ->setActivityId($criteria['activityId'])
+                    ->setTime($recipe['baseTimeSeconds']);
+            },
+        );
+
+        return $activityRepository;
+    }
+
+    private function typeRepositoryOnGoldenSde(): InvTypeRepository
+    {
+        $typeOf = fn (int $typeId): ?InvType => !in_array($typeId, $this->typeIdsWithoutSdeName, true) && isset($this->sde['typeNames'][(string) $typeId])
+            ? (new InvType())->setTypeId($typeId)->setTypeName($this->sde['typeNames'][(string) $typeId])
+            : null;
+
+        $typeRepository = $this->createStub(InvTypeRepository::class);
+        $typeRepository->method('find')->willReturnCallback($typeOf);
+        $typeRepository->method('findBy')->willReturnCallback(
+            static fn (array $criteria): array => array_values(array_filter(array_map($typeOf, (array) $criteria['typeId']))),
+        );
+
+        return $typeRepository;
     }
 
     private static function activityIdOf(string $activity): int

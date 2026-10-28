@@ -45,24 +45,6 @@ class IndustryTreeService
         return $tree;
     }
 
-    /**
-     * @param list<int> $excludedTypeIds
-     * @param array<int, float> $structureBonusOverrides
-     * @return array<string, mixed>
-     */
-    public function buildIntermediateTree(int $typeId, int $quantity, array $excludedTypeIds, ?User $user, array $structureBonusOverrides = []): array
-    {
-        $missingTypeIds = [];
-        $meLevel = $this->intermediateMeLevelFor($this->findProducerFor($typeId));
-        $tree = $this->buildNode($typeId, $quantity, $meLevel, 0, $excludedTypeIds, $user, $missingTypeIds, $structureBonusOverrides);
-
-        if ($missingTypeIds !== []) {
-            throw new TypeMissingFromSdeException($missingTypeIds);
-        }
-
-        return $tree;
-    }
-
     private function intermediateMeLevelFor(?\App\Entity\Sde\IndustryActivityProduct $producer): int
     {
         return $producer?->getActivityId() === IndustryActivityType::Manufacturing->value ? self::INTERMEDIATE_MANUFACTURING_ME : 0;

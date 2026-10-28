@@ -6,17 +6,21 @@ namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\IndustryStockpileImport;
 use App\Entity\IndustryStockpileTarget;
+use App\Entity\Sde\InvType;
 use App\Entity\User;
+use App\Enum\IndustryActivityType;
+use App\Industry\Domain\SecurityClass;
 use App\Repository\CachedAssetRepository;
 use App\Repository\IndustryStockpileImportRepository;
 use App\Repository\IndustryStockpileTargetRepository;
-use App\Service\Industry\IndustryTreeService;
+use App\Repository\Sde\InvTypeRepository;
 use App\Service\Industry\StockpileService;
-use App\Service\Industry\StockpileStartingStockReducer;
 use App\Service\JitaMarketService;
+use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
@@ -25,10 +29,22 @@ use Symfony\Component\Uid\Uuid;
 #[AllowMockObjectsWithoutExpectations]
 class StockpileServiceTest extends TestCase
 {
+    use BuildsStockpileOnWidgetSde;
+
+    private const int WIDGETS_PER_RUN = 2;
+    private const int HULLS_PER_WIDGET_RUN = 2;
+    private const int ORE_PER_WIDGET_RUN = 25;
+    private const int HULLS_PER_RUN = 3;
+    private const int GADGETS_PER_HULL_RUN = 4;
+    private const int ORE_PER_HULL_RUN = 30;
+    private const int GADGETS_PER_RUN = 2;
+    private const int ORE_PER_GADGET_RUN = 70;
+    private const int FIVE_RUNS = 5;
+    private const int ME_ZERO = 0;
+
     private IndustryStockpileTargetRepository&MockObject $targetRepository;
     private CachedAssetRepository&MockObject $assetRepository;
     private JitaMarketService&MockObject $jitaMarketService;
-    private IndustryTreeService&MockObject $treeService;
     private EntityManagerInterface&MockObject $entityManager;
     private IndustryStockpileImportRepository&MockObject $importRepository;
     private StockpileService $service;
@@ -36,229 +52,130 @@ class StockpileServiceTest extends TestCase
 
     protected function setUp(): void
     {
+        $this->useHullRecipes();
         $this->targetRepository = $this->createMock(IndustryStockpileTargetRepository::class);
         $this->assetRepository = $this->createMock(CachedAssetRepository::class);
         $this->jitaMarketService = $this->createMock(JitaMarketService::class);
-        $this->treeService = $this->createMock(IndustryTreeService::class);
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
+        $typeRepository = $this->typeRepositoryOnWidgetSde();
+        $this->entityManager->method('getRepository')->willReturnCallback(
+            static fn (string $className): ?InvTypeRepository => $className === InvType::class ? $typeRepository : null,
+        );
         $this->importRepository = $this->createMock(IndustryStockpileImportRepository::class);
 
-        $this->service = new StockpileService(
+        $this->service = $this->serviceOnWidgetSde();
+
+        $this->user = $this->createMock(User::class);
+        $this->user->method('getId')->willReturn(Uuid::fromString(self::PILOT_ID));
+    }
+
+    private function serviceOnWidgetSde(): StockpileService
+    {
+        return new StockpileService(
             $this->targetRepository,
             $this->assetRepository,
             $this->jitaMarketService,
-            $this->treeService,
+            $this->productionPlanningOnWidgetSde(),
+            $this->userStructuresOfThePilot(),
+            $this->productRepositoryOnWidgetSde(),
             $this->entityManager,
             $this->importRepository,
-            new StockpileStartingStockReducer($this->treeService),
+            $this->startingStockReducerOnWidgetSde(),
         );
-
-        $this->user = $this->createMock(User::class);
     }
 
-    /**
-     * Build a mock production tree:
-     * - Root product (typeId: 100, "Widget") at depth 0, outputPerRun = 1
-     *   - Material A (typeId: 1, "Raw Ore", NOT buildable) -> raw_material
-     *   - Material B (typeId: 2, "Component Frame", buildable) -> component
-     *     - Sub-material C (typeId: 3, "Sub-Component", buildable) -> intermediate
-     *       - Sub-sub-material D (typeId: 1, "Raw Ore", NOT buildable) -> raw_material (merges with A!)
-     *     - Sub-material E (typeId: 4, "Raw Metal", NOT buildable) -> raw_material
-     *
-     * @return array<string, mixed>
-     */
-    private function buildMockTree(): array
+    private function useHullRecipes(): void
     {
-        return [
-            'blueprintTypeId' => 99,
-            'productTypeId' => 100,
-            'productTypeName' => 'Widget',
-            'quantity' => 1,
-            'runs' => 1,
-            'outputPerRun' => 1,
-            'depth' => 0,
-            'activityType' => 'manufacturing',
-            'hasCopy' => false,
-            'materials' => [
-                [
-                    'typeId' => 1,
-                    'typeName' => 'Raw Ore',
-                    'quantity' => 500,
-                    'isBuildable' => false,
-                    'activityType' => null,
-                ],
-                [
-                    'typeId' => 2,
-                    'typeName' => 'Component Frame',
-                    'quantity' => 10,
-                    'isBuildable' => true,
-                    'activityType' => 'manufacturing',
-                    'blueprint' => [
-                        'blueprintTypeId' => 98,
-                        'productTypeId' => 2,
-                        'productTypeName' => 'Component Frame',
-                        'quantity' => 10,
-                        'runs' => 1,
-                        'outputPerRun' => 10,
-                        'depth' => 1,
-                        'activityType' => 'manufacturing',
-                        'hasCopy' => false,
-                        'materials' => [
-                            [
-                                'typeId' => 3,
-                                'typeName' => 'Sub-Component',
-                                'quantity' => 20,
-                                'isBuildable' => true,
-                                'activityType' => 'manufacturing',
-                                'blueprint' => [
-                                    'blueprintTypeId' => 97,
-                                    'productTypeId' => 3,
-                                    'productTypeName' => 'Sub-Component',
-                                    'quantity' => 20,
-                                    'runs' => 2,
-                                    'outputPerRun' => 10,
-                                    'depth' => 2,
-                                    'activityType' => 'manufacturing',
-                                    'hasCopy' => false,
-                                    'materials' => [
-                                        [
-                                            'typeId' => 1,
-                                            'typeName' => 'Raw Ore',
-                                            'quantity' => 200,
-                                            'isBuildable' => false,
-                                            'activityType' => null,
-                                        ],
-                                    ],
-                                    'structureBonus' => 0.0,
-                                    'structureName' => null,
-                                    'productCategory' => null,
-                                ],
-                            ],
-                            [
-                                'typeId' => 4,
-                                'typeName' => 'Raw Metal',
-                                'quantity' => 100,
-                                'isBuildable' => false,
-                                'activityType' => null,
-                            ],
-                        ],
-                        'structureBonus' => 0.0,
-                        'structureName' => null,
-                        'productCategory' => null,
-                    ],
-                ],
-            ],
-            'structureBonus' => 0.0,
-            'structureName' => null,
-            'productCategory' => null,
+        $this->recipes = [
+            self::WIDGET => ['activity' => IndustryActivityType::Manufacturing, 'outputPerRun' => self::WIDGETS_PER_RUN, 'materials' => [self::HULL => self::HULLS_PER_WIDGET_RUN, self::ORE => self::ORE_PER_WIDGET_RUN]],
+            self::HULL => ['activity' => IndustryActivityType::Manufacturing, 'outputPerRun' => self::HULLS_PER_RUN, 'materials' => [self::GADGET => self::GADGETS_PER_HULL_RUN, self::ORE => self::ORE_PER_HULL_RUN]],
+            self::GADGET => ['activity' => IndustryActivityType::Reaction, 'outputPerRun' => self::GADGETS_PER_RUN, 'materials' => [self::ORE => self::ORE_PER_GADGET_RUN]],
         ];
     }
 
-    public function testFlattenTreeClassifiesRawMaterials(): void
+    #[Group('issue-69')]
+    public function testStageOfAMaterialIsComponentWhenAJobOfTheImportedProductConsumesItEvenIfADeeperJobAlsoConsumesIt(): void
     {
-        $tree = $this->buildMockTree();
-        $result = $this->service->flattenTree($tree, 100);
+        $this->recipes[self::WIDGET]['materials'] = [self::HULL => self::HULLS_PER_WIDGET_RUN, self::GADGET => 1, self::ORE => self::ORE_PER_WIDGET_RUN];
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([]);
 
-        // typeId 1 ("Raw Ore") should be raw_material
-        $this->assertArrayHasKey(1, $result);
-        $this->assertSame('raw_material', $result[1]['stage']);
+        $preview = $this->service->previewImport($this->user, self::WIDGET, self::FIVE_RUNS, self::ME_ZERO);
 
-        // typeId 4 ("Raw Metal") should also be raw_material
-        $this->assertArrayHasKey(4, $result);
-        $this->assertSame('raw_material', $result[4]['stage']);
+        $this->assertSame([self::GADGET => 20, self::HULL => 10], self::sortedQuantitiesByTypeId($preview['stages']['component']));
+        $this->assertSame([], $preview['stages']['intermediate']);
+        $this->assertSame([self::ORE => 933], array_column($preview['stages']['raw_material'], 'quantity', 'typeId'));
     }
 
-    public function testFlattenTreeClassifiesComponents(): void
+    #[Group('issue-69')]
+    public function testPreviewFollowsTheStructuresOfThePilotForTheManufacturingJobsOnly(): void
     {
-        $tree = $this->buildMockTree();
-        $result = $this->service->flattenTree($tree, 100);
+        $this->givenThePilotStructures(ProductionStructures::raitaru('pilot-raitaru', SecurityClass::NullSec));
+        $service = $this->serviceOnWidgetSde();
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([]);
 
-        // typeId 2 ("Component Frame") is buildable at depth 0 -> component
-        $this->assertArrayHasKey(2, $result);
-        $this->assertSame('component', $result[2]['stage']);
+        $preview = $service->previewImport($this->user, self::WIDGET, self::FIVE_RUNS, self::ME_ZERO);
+
+        $this->assertSame([self::ORE => 791], array_column($preview['stages']['raw_material'], 'quantity', 'typeId'));
+        $this->assertSame([self::HULL => 10], array_column($preview['stages']['component'], 'quantity', 'typeId'));
+        $this->assertSame([self::PILOT_ID], array_values(array_unique($this->userStructures->requestedUserIds)));
     }
 
-    public function testFlattenTreeClassifiesIntermediates(): void
+    #[Group('issue-69')]
+    public function testPreviewOfRecipesWithACycleThrowsARuntimeExceptionNamingTheProductNeededToBuildItself(): void
     {
-        $tree = $this->buildMockTree();
-        $result = $this->service->flattenTree($tree, 100);
+        $this->recipes[self::GADGET]['materials'] = [self::HULL => 1];
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Product 3005 is needed to build itself: the production graph has a cycle.');
 
-        // typeId 3 ("Sub-Component") is buildable at depth 1+ -> intermediate
-        $this->assertArrayHasKey(3, $result);
-        $this->assertSame('intermediate', $result[3]['stage']);
-    }
-
-    public function testFlattenTreeClassifiesFinalProduct(): void
-    {
-        $tree = $this->buildMockTree();
-        $result = $this->service->flattenTree($tree, 100);
-
-        // Root product (typeId 100) -> final_product
-        $this->assertArrayHasKey(100, $result);
-        $this->assertSame('final_product', $result[100]['stage']);
-        $this->assertSame('Widget', $result[100]['typeName']);
-        $this->assertSame(1, $result[100]['quantity']); // 1 run * 1 outputPerRun
-    }
-
-    public function testFlattenTreeMergesDuplicateTypeIds(): void
-    {
-        $tree = $this->buildMockTree();
-        $result = $this->service->flattenTree($tree, 100);
-
-        // typeId 1 ("Raw Ore") appears twice: 500 (direct) + 200 (deep) = 700
-        $this->assertSame(700, $result[1]['quantity']);
+        $this->service->previewImport($this->user, self::WIDGET, self::FIVE_RUNS, self::ME_ZERO);
     }
 
     public function testImportReplaceDeletesExisting(): void
     {
-        $tree = $this->buildMockTree();
-        $this->treeService->method('buildProductionTree')->willReturn($tree);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([]);
-
-        // Expect deleteAllForUser to be called in replace mode
         $this->targetRepository->expects($this->once())
             ->method('deleteAllForUser')
             ->with($this->user);
-
-        $this->entityManager->expects($this->atLeastOnce())->method('persist');
+        $persistedTargets = [];
+        $this->entityManager->expects($this->atLeastOnce())->method('persist')->willReturnCallback(
+            static function (object $entity) use (&$persistedTargets): void {
+                if ($entity instanceof IndustryStockpileTarget) {
+                    $persistedTargets[$entity->getTypeId()] = [$entity->getTargetQuantity(), $entity->getStage()];
+                }
+            },
+        );
         $this->entityManager->expects($this->atLeastOnce())->method('flush');
 
-        $this->service->importFromBlueprint($this->user, 100, 1, 0, 'replace');
+        $this->service->importFromBlueprint($this->user, self::WIDGET, self::FIVE_RUNS, self::ME_ZERO, 'replace');
+
+        ksort($persistedTargets);
+        $this->assertSame(
+            [self::WIDGET => [10, 'final_product'], self::ORE => [793, 'raw_material'], self::GADGET => [15, 'intermediate'], self::HULL => [10, 'component']],
+            $persistedTargets,
+        );
     }
 
     public function testImportMergeAddsQuantities(): void
     {
-        $tree = $this->buildMockTree();
-        $this->treeService->method('buildProductionTree')->willReturn($tree);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([]);
-
-        // Simulate existing target for "Raw Ore" (typeId 1) with quantity 300
         $existingTarget = $this->createMock(IndustryStockpileTarget::class);
         $existingTarget->method('getTargetQuantity')->willReturn(300);
         $existingTarget->expects($this->once())
             ->method('setTargetQuantity')
-            ->with(1000); // 300 existing + 700 new (500 + 200 merged)
+            ->with(1093);
         $existingTarget->expects($this->once())
             ->method('setUpdatedAt');
-
         $this->targetRepository->method('findByUserAndTypeId')
-            ->willReturnCallback(function (User $user, int $typeId) use ($existingTarget) {
-                // Only typeId 1 has an existing target
-                return $typeId === 1 ? $existingTarget : null;
-            });
-
-        // deleteAllForUser should NOT be called in merge mode
+            ->willReturnCallback(static fn (User $user, int $typeId): ?IndustryStockpileTarget => $typeId === self::ORE ? $existingTarget : null);
         $this->targetRepository->expects($this->never())->method('deleteAllForUser');
-
         $this->entityManager->expects($this->atLeastOnce())->method('flush');
 
-        $this->service->importFromBlueprint($this->user, 100, 1, 0, 'merge');
+        $this->service->importFromBlueprint($this->user, self::WIDGET, self::FIVE_RUNS, self::ME_ZERO, 'merge');
     }
 
     public function testImportInReplaceModeKeepsOnlyTheStockpileImportOfTheLastImport(): void
     {
         $recordedImports = $this->recordStockpileImports();
-        $this->treeService->method('buildProductionTree')->willReturn($this->buildMockTree());
         $firstRuns = 2;
         $firstMe = 4;
         $secondRuns = 3;
@@ -266,26 +183,25 @@ class StockpileServiceTest extends TestCase
         $replacingRuns = 5;
         $replacingMe = 8;
 
-        $this->service->importFromBlueprint($this->user, 100, $firstRuns, $firstMe, 'merge');
-        $this->service->importFromBlueprint($this->user, 100, $secondRuns, $secondMe, 'merge');
-        $this->service->importFromBlueprint($this->user, 100, $replacingRuns, $replacingMe, 'replace');
+        $this->service->importFromBlueprint($this->user, self::WIDGET, $firstRuns, $firstMe, 'merge');
+        $this->service->importFromBlueprint($this->user, self::WIDGET, $secondRuns, $secondMe, 'merge');
+        $this->service->importFromBlueprint($this->user, self::WIDGET, $replacingRuns, $replacingMe, 'replace');
 
-        $this->assertSame([['pilot', 100, 5, 8]], $this->describeStockpileImports($recordedImports));
+        $this->assertSame([['pilot', self::WIDGET, 5, 8]], $this->describeStockpileImports($recordedImports));
     }
 
     public function testImportInMergeModeAddsOneStockpileImport(): void
     {
         $recordedImports = $this->recordStockpileImports();
-        $this->treeService->method('buildProductionTree')->willReturn($this->buildMockTree());
         $replacingRuns = 5;
         $replacingMe = 8;
         $mergedRuns = 7;
         $mergedMe = 9;
 
-        $this->service->importFromBlueprint($this->user, 100, $replacingRuns, $replacingMe, 'replace');
-        $this->service->importFromBlueprint($this->user, 100, $mergedRuns, $mergedMe, 'merge');
+        $this->service->importFromBlueprint($this->user, self::WIDGET, $replacingRuns, $replacingMe, 'replace');
+        $this->service->importFromBlueprint($this->user, self::WIDGET, $mergedRuns, $mergedMe, 'merge');
 
-        $this->assertSame([['pilot', 100, 5, 8], ['pilot', 100, 7, 9]], $this->describeStockpileImports($recordedImports));
+        $this->assertSame([['pilot', self::WIDGET, 5, 8], ['pilot', self::WIDGET, 7, 9]], $this->describeStockpileImports($recordedImports));
     }
 
     public function testKpiPipelineHealth(): void
@@ -381,54 +297,25 @@ class StockpileServiceTest extends TestCase
 
     public function testPreviewImportReturnsCorrectStagesAndEstimatedCost(): void
     {
-        $tree = $this->buildMockTree();
-        $this->treeService->method('buildProductionTree')->willReturn($tree);
-
-        // Prices for all type IDs in the tree
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
-            100 => 5000000.0,  // Widget (final product)
-            1 => 10.0,         // Raw Ore
-            2 => 500.0,        // Component Frame
-            3 => 200.0,        // Sub-Component
-            4 => 50.0,         // Raw Metal
+            self::WIDGET => 2_500_000.0,
+            self::HULL => 41_000.0,
+            self::GADGET => 730.0,
+            self::ORE => 6.5,
         ]);
 
-        $result = $this->service->previewImport($this->user, 100, 1, 0);
+        $result = $this->service->previewImport($this->user, self::WIDGET, self::FIVE_RUNS, self::ME_ZERO);
 
-        // Verify structure
         $this->assertSame(['stages', 'totalItems', 'estimatedCost', 'missingPriceTypeIds'], array_keys($result));
         $this->assertSame([], $result['missingPriceTypeIds']);
-
-        // 5 unique type IDs: 100 (final), 1 (raw, merged), 2 (component), 3 (intermediate), 4 (raw)
-        $this->assertSame(5, $result['totalItems']);
-
-        // Check stage classification
+        $this->assertSame(4, $result['totalItems']);
         $this->assertSame([
-            'raw_material' => [
-                ['typeId' => 1, 'typeName' => 'Raw Ore', 'quantity' => 700, 'unitPrice' => 10.0],
-                ['typeId' => 4, 'typeName' => 'Raw Metal', 'quantity' => 100, 'unitPrice' => 50.0],
-            ],
-            'intermediate' => [['typeId' => 3, 'typeName' => 'Sub-Component', 'quantity' => 20, 'unitPrice' => 200.0]],
-            'component' => [['typeId' => 2, 'typeName' => 'Component Frame', 'quantity' => 10, 'unitPrice' => 500.0]],
-            'final_product' => [['typeId' => 100, 'typeName' => 'Widget', 'quantity' => 1, 'unitPrice' => 5000000.0]],
+            'raw_material' => [['typeId' => self::ORE, 'typeName' => 'Ore', 'quantity' => 793, 'unitPrice' => 6.5]],
+            'intermediate' => [['typeId' => self::GADGET, 'typeName' => 'Gadget', 'quantity' => 15, 'unitPrice' => 730.0]],
+            'component' => [['typeId' => self::HULL, 'typeName' => 'Hull', 'quantity' => 10, 'unitPrice' => 41_000.0]],
+            'final_product' => [['typeId' => self::WIDGET, 'typeName' => 'Widget', 'quantity' => 10, 'unitPrice' => 2_500_000.0]],
         ], $result['stages']);
-
-        // Final product: Widget (typeId 100), quantity = 1 * 1 = 1
-        $this->assertCount(1, $result['stages']['final_product']);
-        $this->assertSame(100, $result['stages']['final_product'][0]['typeId']);
-        $this->assertSame(1, $result['stages']['final_product'][0]['quantity']);
-
-        // Raw materials: typeId 1 (merged 500+200=700) and typeId 4 (100)
-        $this->assertSame([1 => 700, 4 => 100], array_column($result['stages']['raw_material'], 'quantity', 'typeId'));
-
-        // Estimated cost = sum of (quantity * unitPrice) for all items
-        // Widget: 1 * 5000000 = 5000000
-        // Raw Ore: 700 * 10 = 7000
-        // Component Frame: 10 * 500 = 5000
-        // Sub-Component: 20 * 200 = 4000
-        // Raw Metal: 100 * 50 = 5000
-        $expectedCost = 5000000.0 + 7000.0 + 5000.0 + 4000.0 + 5000.0;
-        $this->assertSame($expectedCost, $result['estimatedCost']);
+        $this->assertSame(25_426_104.5, $result['estimatedCost']);
     }
 
     public function testGetStockpileStatusReturnsZeroKpisForEmptyTargets(): void
@@ -569,6 +456,14 @@ class StockpileServiceTest extends TestCase
         // Total invested = sum of stock * unitPrice (capped at 100% for percent but stock value counts all)
         // 15 * 5000000 + 500 * 10 + 30 * 500 + 200 * 50 = 75000000 + 5000 + 15000 + 10000 = 75030000
         $this->assertSame(75030000.0, $status['kpis']['totalInvested']);
+    }
+
+    private static function sortedQuantitiesByTypeId(array $entries): array
+    {
+        $quantities = array_column($entries, 'quantity', 'typeId');
+        ksort($quantities);
+
+        return $quantities;
     }
 
     private function recordStockpileImports(): \ArrayObject
