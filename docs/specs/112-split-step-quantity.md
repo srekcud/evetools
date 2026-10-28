@@ -41,8 +41,8 @@ Colonnes : `[runs, quantity, depth, meLevel, teLevel, splitIndex, totalGroupRuns
 
 ## Hors périmètre
 
-- Groupe recalculé qui garde plus de runs que le besoin (E7, test `testSplitChildGroupCurrentlyKeepsTwoRunsForANeedOfOne`) : seule la quantité change ici.
-- `totalGroupRuns` d'un job inchangé au recalcul (`testUnchangedJobOfARecalculatedSplitGroupCurrentlyKeepsTheOldTotalGroupRuns`).
+- Groupe recalculé qui garde plus de runs que le besoin (E7, test `testSplitChildGroupCurrentlyKeepsTwoRunsForANeedOfOneIssue131`) : seule la quantité change ici.
+- `totalGroupRuns` d'un job inchangé au recalcul (`testUnchangedJobOfARecalculatedSplitGroupCurrentlyKeepsTheOldTotalGroupRunsIssue252`).
 - Matériaux d'un job découpé recalculés job par job : #73.
 - Saisie manuelle des runs d'une étape (`UpdateStepProcessor`) et rattachement d'un job ESI (`LinkJobProcessor`), qui posent runs × unités par run.
 - Projets déjà en base : corrigés à la prochaine régénération ou au prochain recalcul, pas de migration.
@@ -50,8 +50,8 @@ Colonnes : `[runs, quantity, depth, meLevel, teLevel, splitIndex, totalGroupRuns
 ## Tests existants appelés à changer
 
 - `testDurationOfAnIntermediateCurrentlyUsesTeTwentyWhateverTheProjectTeIssue116` (groupes `issue-116`, `issue-112`) : le second job d'Oxygen Fuel Block passe de 40 à 15 (E1). #116 est fermée comme voulue : le test peut perdre `Currently…Issue116` et le groupe `issue-116`.
-- `testUnchangedJobOfARecalculatedSplitGroupCurrentlyKeepsTheOldTotalGroupRuns` : quantité du job 2 de 400 à 300 (E6), le reste inchangé.
-- `testSplitChildGroupCurrentlyKeepsTwoRunsForANeedOfOne` : quantités 200, 200 → 100, 0 (E7), runs inchangés.
+- `testUnchangedJobOfARecalculatedSplitGroupCurrentlyKeepsTheOldTotalGroupRunsIssue252` : quantité du job 2 de 400 à 300 (E6), le reste inchangé.
+- `testSplitChildGroupCurrentlyKeepsTwoRunsForANeedOfOneIssue131` : quantités 200, 200 → 100, 0 (E7), runs inchangés.
 - `testRecalculatingTheStepsOfOneNomadCurrentlyKeepsOnlyTheNeedOfTheDeepestConsumerIssue16` : job 1 d'Hydrogen Fuel Block 160 → 155 (besoin 355).
 - Snapshots des goldens : aucun ne change (les snapshots Nomad ne portent pas de quantité, celui de Fernite Carbide Tatara n'a pas de groupe découpé).
 - Aucun test de `SplitStepProcessor` ni de `MergeStepsProcessor` n'existait : créés.

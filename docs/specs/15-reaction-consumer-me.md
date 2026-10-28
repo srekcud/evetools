@@ -20,7 +20,7 @@ Colonnes : `[runs, quantity, depth, meLevel, teLevel, splitIndex, totalGroupRuns
 
 ## Hors périmètre
 
-- ME 10 des intermédiaires fabriqués dans l'arbre de production (`ProjectProviderGoldenTreeCharacterizationTest::testTreeOfFerniteCarbideAtMeZeroCurrentlyBuildsTheFuelBlockIntermediateAtHardCodedMeTenIssue15`) : défaut voulu, cf. #116 fermée ; le test garde son nom.
+- ME 10 des intermédiaires fabriqués dans l'arbre de production (`ProjectProviderGoldenTreeCharacterizationTest::testTreeOfFerniteCarbideAtMeZeroShowsTheFuelBlockStepPlannedAtTheDefaultMeTenOfAnIntermediate`) : défaut voulu, cf. #116 fermée.
 - Migration sur le noyau (R2 de la spec du noyau).
 
 ## Tests existants appelés à changer

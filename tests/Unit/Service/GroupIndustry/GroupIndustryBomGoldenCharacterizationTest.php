@@ -1105,7 +1105,8 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         ));
     }
 
-    public function testRebuildingTheBomCurrentlyAppendsASecondFullBomNextToTheContributedLines(): void
+    #[Group('issue-253')]
+    public function testRebuildingTheBomCurrentlyAppendsASecondFullBomNextToTheContributedLinesIssue253(): void
     {
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 0, 0]]);
         $this->service->buildBom($project, $this->owner);

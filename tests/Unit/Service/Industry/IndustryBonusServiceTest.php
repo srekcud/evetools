@@ -17,6 +17,7 @@ use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(IndustryBonusService::class)]
@@ -925,7 +926,8 @@ class IndustryBonusServiceTest extends TestCase
         $this->assertSame('composite', $bonusService->findBestStructureForProduct(new User(), self::REACTION_PRODUCT_TYPE_ID)['category']);
     }
 
-    public function testStructureOfUnknownTypeCurrentlyGetsNoBaseBonusAndIsNeverRetained(): void
+    #[Group('issue-254')]
+    public function testStructureOfUnknownTypeCurrentlyGetsNoBaseBonusAndIsNeverRetainedIssue254(): void
     {
         $fortizar = $this->createStructure('Test Fortizar', 'fortizar', 'nullsec', []);
 
@@ -941,7 +943,8 @@ class IndustryBonusServiceTest extends TestCase
         );
     }
 
-    public function testRigOfAStructureOfUnknownSecurityIsCurrentlyTreatedAsHighsec(): void
+    #[Group('issue-254')]
+    public function testRigOfAStructureOfUnknownSecurityIsCurrentlyTreatedAsHighsecIssue254(): void
     {
         $raitaru = $this->createStructure('Test Raitaru', 'raitaru', 'wormhole', ['Standup M-Set Basic Capital Component Manufacturing Material Efficiency II']);
         $athanor = $this->createStructure('Test Athanor', 'athanor', 'wormhole', ['Standup L-Set Reactor Efficiency II']);

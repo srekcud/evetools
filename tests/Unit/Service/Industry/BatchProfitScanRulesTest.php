@@ -397,7 +397,8 @@ class BatchProfitScanRulesTest extends TestCase
         $this->assertSame(5_005.0, $result[0]['profitPerUnit']);
     }
 
-    public function testProductOrMaterialWithoutSdeVolumeCurrentlyCostsNothingToTransport(): void
+    #[Group('issue-255')]
+    public function testProductOrMaterialWithoutSdeVolumeCurrentlyCostsNothingToTransportIssue255(): void
     {
         $this->givenProduct(15401, 5401, self::MANUFACTURING, 1, [self::TRITANIUM_TYPE_ID => 10, self::PYERITE_TYPE_ID => 4]);
         $this->givenProduct(15402, 5402, self::MANUFACTURING, 1, [self::TRITANIUM_TYPE_ID => 10, self::PYERITE_TYPE_ID => 4]);
