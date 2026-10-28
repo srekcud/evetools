@@ -59,11 +59,13 @@ final class SplitGroupQuantities
             $step = $steps[0];
             $stepRuns = $step->isRunsFixed() ? $step->getRuns() : $totalRuns;
             $stepQuantity = $step->isRunsFixed() ? $stepRuns * $outputPerRun : $need;
-            if ($step->getQuantity() === $stepQuantity && $step->getRuns() === $stepRuns) {
+            $stepTotalGroupRuns = $step->getSplitGroupId() === null ? $step->getTotalGroupRuns() : $stepRuns;
+            if ($step->getQuantity() === $stepQuantity && $step->getRuns() === $stepRuns && $step->getTotalGroupRuns() === $stepTotalGroupRuns) {
                 return [];
             }
             $step->setQuantity($stepQuantity);
             $step->setRuns($stepRuns);
+            $step->setTotalGroupRuns($stepTotalGroupRuns);
 
             return [$step];
         }
@@ -76,15 +78,14 @@ final class SplitGroupQuantities
         $runsByStep = $runsOfFixedSteps + self::runsProrataOfCurrentRuns($stepsNotFixed, $totalRuns - $fixedRuns);
         $quantityByStep = array_map(static fn (int $runs): int => $runs * $outputPerRun, $runsOfFixedSteps)
             + self::quantitiesInSplitIndexOrder($stepsNotFixed, $runsByStep, max(0, $need - $fixedRuns * $outputPerRun), $outputPerRun);
-        $groupHasFixedRuns = $fixedSteps !== [];
-        $totalGroupRuns = $groupHasFixedRuns ? array_sum($runsByStep) : $totalRuns;
+        $totalGroupRuns = $fixedSteps !== [] ? array_sum($runsByStep) : $totalRuns;
 
         $changedSteps = [];
         foreach ($steps as $i => $step) {
             $stepRuns = $runsByStep[$i];
             $stepQuantity = $quantityByStep[$i];
 
-            if ($step->getQuantity() !== $stepQuantity || $step->getRuns() !== $stepRuns || ($groupHasFixedRuns && $step->getTotalGroupRuns() !== $totalGroupRuns)) {
+            if ($step->getQuantity() !== $stepQuantity || $step->getRuns() !== $stepRuns || $step->getTotalGroupRuns() !== $totalGroupRuns) {
                 $step->setQuantity($stepQuantity);
                 $step->setRuns($stepRuns);
                 $step->setTotalGroupRuns($totalGroupRuns);
