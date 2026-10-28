@@ -323,9 +323,9 @@ class SlotTrackerServiceTest extends TestCase
         $char = $this->createCharacterMock(1001, 'Pilot', true);
         $this->characterRepository->method('findByUser')->willReturn([$char]);
 
-        $jobLate = $this->createJobMock(1, 100, 1, 10, '2026-02-23 00:00:00', '2026-12-23 20:00:00');
-        $jobEarly = $this->createJobMock(2, 101, 1, 5, '2026-02-23 01:00:00', '2026-12-23 05:00:00');
-        $jobMid = $this->createJobMock(3, 102, 1, 1, '2026-02-23 02:00:00', '2026-12-23 10:00:00');
+        $jobLate = $this->createJobMock(1, 100, 1, 10, '2026-02-23 00:00:00', '2099-12-23 20:00:00');
+        $jobEarly = $this->createJobMock(2, 101, 1, 5, '2026-02-23 01:00:00', '2099-12-23 05:00:00');
+        $jobMid = $this->createJobMock(3, 102, 1, 1, '2026-02-23 02:00:00', '2099-12-23 10:00:00');
 
         $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([$jobLate, $jobEarly, $jobMid]);
         $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn([]);
@@ -389,7 +389,7 @@ class SlotTrackerServiceTest extends TestCase
         $this->characterRepository->method('findByUser')->willReturn([$char]);
 
         // 1 active science job + 1 ready (completed) science job
-        $activeJob = $this->createJobMock(1, 100, 4, 1, '2026-02-23 00:00:00', '2026-12-24 10:00:00', null, 'active');
+        $activeJob = $this->createJobMock(1, 100, 4, 1, '2026-02-23 00:00:00', '2099-12-24 10:00:00', null, 'active');
         $readyJob = $this->createJobMock(2, 101, 3, 1, '2026-02-20 00:00:00', '2026-02-22 00:00:00', null, 'ready');
 
         $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([$activeJob, $readyJob]);
@@ -448,7 +448,7 @@ class SlotTrackerServiceTest extends TestCase
         $this->characterRepository->method('findByUser')->willReturn([$char]);
 
         // 1 active manufacturing job still running (end far in the future)
-        $runningJob = $this->createJobMock(1, 100, 1, 10, '2026-02-23 00:00:00', '2026-12-25 10:00:00', null, 'active');
+        $runningJob = $this->createJobMock(1, 100, 1, 10, '2026-02-23 00:00:00', '2099-12-25 10:00:00', null, 'active');
         // 2 active science jobs whose end_date is in the past (completed but ESI not yet updated)
         $completedResearchTe = $this->createJobMock(2, 101, 3, 1, '2026-02-20 00:00:00', '2026-02-22 00:00:00', null, 'active');
         $completedResearchMe = $this->createJobMock(3, 102, 4, 1, '2026-02-19 00:00:00', '2026-02-21 00:00:00', null, 'active');
@@ -532,7 +532,7 @@ class SlotTrackerServiceTest extends TestCase
         // 5 active reaction jobs (activity 9 = reaction)
         $jobs = [];
         for ($i = 1; $i <= 5; $i++) {
-            $jobs[] = $this->createJobMock($i, 100 + $i, 9, 1, '2026-02-23 00:00:00', '2026-12-25 00:00:00');
+            $jobs[] = $this->createJobMock($i, 100 + $i, 9, 1, '2026-02-23 00:00:00', '2099-12-25 00:00:00');
         }
 
         $this->jobRepository->method('findActiveJobsByCharacter')->willReturn($jobs);
@@ -563,7 +563,7 @@ class SlotTrackerServiceTest extends TestCase
 
         $jobs = [];
         for ($i = 1; $i <= 3; $i++) {
-            $jobs[] = $this->createJobMock($i, 100 + $i, 1, 1, '2026-02-23 00:00:00', '2026-12-25 00:00:00');
+            $jobs[] = $this->createJobMock($i, 100 + $i, 1, 1, '2026-02-23 00:00:00', '2099-12-25 00:00:00');
         }
 
         $this->jobRepository->method('findActiveJobsByCharacter')->willReturn($jobs);
@@ -859,6 +859,160 @@ class SlotTrackerServiceTest extends TestCase
         $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
 
         $this->assertFalse($this->service->getSlotStatus($this->user)['characters'][0]['jobsStale']);
+    }
+
+    public function testAJobPastItsEndDateAtTheHeadOfTheListStopsNeitherTheSlotCountNorTheJobList(): void
+    {
+        $this->characterRepository->method('findByUser')->willReturn([$this->createCharacterMock(2_118_004, 'Vel Tarsen', true)]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([
+            $this->createJobMock(31, 34, self::MANUFACTURING_ACTIVITY_ID, 6, '-3 days', '-2 hours'),
+            $this->createJobMock(32, 35, self::MANUFACTURING_ACTIVITY_ID, 9, '2026-10-20T06:15:00+00:00', '+5 days'),
+        ]);
+        $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn(
+            $this->buildSkillMap([CachedCharacterSkill::SKILL_MASS_PRODUCTION => 3]),
+        );
+        $this->typeNameResolver->method('findNames')->willReturn([34 => 'Tritanium', 35 => 'Pyerite']);
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+
+        $result = $this->service->getSlotStatus($this->user);
+
+        $this->assertSame(1, $result['globalKpis']['manufacturing']['used']);
+        $this->assertSame([32], array_column($result['characters'][0]['jobs'], 'jobId'));
+        $this->assertSame('2026-10-20T06:15:00+00:00', $result['characters'][0]['jobs'][0]['startDate']);
+        $this->assertSame(2_118_004, $result['characters'][0]['characterId']);
+        $this->assertSame([['jobId' => 32, 'characterName' => 'Vel Tarsen']], array_map(
+            static fn (array $timelineJob): array => ['jobId' => $timelineJob['jobId'], 'characterName' => $timelineJob['characterName']],
+            $result['timeline'],
+        ));
+    }
+
+    public function testEveryManufacturingSlotUsedExactlyIsNotStaleAndLeavesOnlyTheReactionAndScienceSlotsFree(): void
+    {
+        $this->characterRepository->method('findByUser')->willReturn([$this->createCharacterMock(2_118_005, 'Ilsa Morrow', true)]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([
+            $this->createJobMock(41, 34, self::MANUFACTURING_ACTIVITY_ID, 2, '-1 day', '+1 day'),
+            $this->createJobMock(42, 35, self::MANUFACTURING_ACTIVITY_ID, 3, '-1 day', '+2 days'),
+            $this->createJobMock(43, 36, self::MANUFACTURING_ACTIVITY_ID, 4, '-1 day', '+3 days'),
+        ]);
+        $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn(
+            $this->buildSkillMap([CachedCharacterSkill::SKILL_MASS_PRODUCTION => 2]),
+        );
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+
+        $result = $this->service->getSlotStatus($this->user);
+
+        $this->assertFalse($result['skillsMayBeStale']);
+        $this->assertSame(['used' => 3, 'max' => 3, 'percent' => 100.0], $result['globalKpis']['manufacturing']);
+        $this->assertSame([
+            ['activityType' => 'reaction', 'count' => 1, 'suggestion' => null],
+            ['activityType' => 'science', 'count' => 1, 'suggestion' => null],
+        ], $result['characters'][0]['freeSlots']);
+    }
+
+    public function testManufacturingSlotsUsedBeyondTheMaximumFlagTheSkillsAsMaybeStaleAndLeaveNoFreeManufacturingSlot(): void
+    {
+        $this->characterRepository->method('findByUser')->willReturn([$this->createCharacterMock(2_118_006, 'Oren Vask', true)]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([
+            $this->createJobMock(51, 34, self::MANUFACTURING_ACTIVITY_ID, 5, '-1 day', '+1 day'),
+            $this->createJobMock(52, 35, self::MANUFACTURING_ACTIVITY_ID, 7, '-1 day', '+2 days'),
+        ]);
+        $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn([]);
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+
+        $result = $this->service->getSlotStatus($this->user);
+
+        $this->assertTrue($result['skillsMayBeStale']);
+        $this->assertSame(['used' => 2, 'max' => 2, 'percent' => 100.0], $result['globalKpis']['manufacturing']);
+        $this->assertSame(['reaction', 'science'], array_column($result['characters'][0]['freeSlots'], 'activityType'));
+    }
+
+    public function testGlobalSlotPercentOfAUserWithoutCharacterIsZero(): void
+    {
+        $this->characterRepository->method('findByUser')->willReturn([]);
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+
+        $result = $this->service->getSlotStatus($this->user);
+
+        $this->assertSame([0.0, 0.0, 0.0], array_column($result['globalKpis'], 'percent'));
+    }
+
+    public function testProgressIsRoundedToOneDecimal(): void
+    {
+        $start = new \DateTimeImmutable('2026-10-24 09:00:00');
+        $end = new \DateTimeImmutable('2026-10-24 12:00:00');
+
+        $this->assertSame(33.3, SlotTrackerService::calculateProgress($start, $end, new \DateTimeImmutable('2026-10-24 10:00:00')));
+        $this->assertSame(66.7, SlotTrackerService::calculateProgress($start, $end, new \DateTimeImmutable('2026-10-24 11:00:00')));
+    }
+
+    public function testFreeSlotSuggestionSkipsTargetsOfAnotherStageAndCountsATargetWithoutStockAtZero(): void
+    {
+        $this->givenOnePilotWithoutJobNorSkill();
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([
+            $this->stockpileTarget(16673, 'Fernite Carbide', 4, 'intermediate'),
+            $this->stockpileTarget(11399, 'Morphite', 8, 'component'),
+        ]);
+        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([11399 => 5]);
+
+        $freeSlots = $this->service->getSlotStatus($this->user)['characters'][0]['freeSlots'];
+
+        $this->assertSame(['typeId' => 11399, 'typeName' => 'Morphite', 'reason' => 'stockpile at 63%'], $freeSlots[0]['suggestion']);
+        $this->assertSame(['typeId' => 16673, 'typeName' => 'Fernite Carbide', 'reason' => 'stockpile at 0%'], $freeSlots[1]['suggestion']);
+    }
+
+    public function testFreeSlotSuggestionSkipsFullTargetsAndKeepsTheFirstOfTwoTargetsWithTheSameLowestCoverage(): void
+    {
+        $this->givenOnePilotWithoutJobNorSkill();
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([
+            $this->stockpileTarget(3828, 'Construction Blocks', 0, 'component'),
+            $this->stockpileTarget(587, 'Rifter', 40, 'final_product'),
+            $this->stockpileTarget(11530, 'Plasma Thruster', 30, 'component'),
+            $this->stockpileTarget(11531, 'Fusion Thruster', 60, 'component'),
+        ]);
+        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([587 => 40, 11530 => 10, 11531 => 20]);
+
+        $freeSlots = $this->service->getSlotStatus($this->user)['characters'][0]['freeSlots'];
+
+        $this->assertSame([
+            ['activityType' => 'manufacturing', 'count' => 1, 'suggestion' => ['typeId' => 11530, 'typeName' => 'Plasma Thruster', 'reason' => 'stockpile at 33%']],
+            ['activityType' => 'reaction', 'count' => 1, 'suggestion' => null],
+            ['activityType' => 'science', 'count' => 1, 'suggestion' => null],
+        ], $freeSlots);
+    }
+
+    public function testFreeSlotSuggestionNamesTheTargetWithItsSdeNameRatherThanTheStoredOne(): void
+    {
+        $this->characterRepository->method('findByUser')->willReturn([$this->createCharacterMock(2_118_008, 'Kel Anvar', true)]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([
+            $this->createJobMock(61, self::ROBOTICS_TYPE_ID, self::MANUFACTURING_ACTIVITY_ID, 3, '-1 day', '+4 days'),
+        ]);
+        $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn(
+            $this->buildSkillMap([CachedCharacterSkill::SKILL_MASS_PRODUCTION => 1]),
+        );
+        $this->typeNameResolver->method('findNames')->willReturn([self::ROBOTICS_TYPE_ID => 'Robotics']);
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([$this->stockpileTarget(self::ROBOTICS_TYPE_ID, 'Robotic Assembly', 50, 'component')]);
+        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([self::ROBOTICS_TYPE_ID => 7]);
+
+        $this->assertSame(
+            ['typeId' => self::ROBOTICS_TYPE_ID, 'typeName' => 'Robotics', 'reason' => 'stockpile at 14%'],
+            $this->service->getSlotStatus($this->user)['characters'][0]['freeSlots'][0]['suggestion'],
+        );
+    }
+
+    private function givenOnePilotWithoutJobNorSkill(): void
+    {
+        $this->characterRepository->method('findByUser')->willReturn([$this->createCharacterMock(2_118_007, 'Tamsin Rook', true)]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([]);
+        $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn([]);
+    }
+
+    private function stockpileTarget(int $typeId, string $typeName, int $targetQuantity, string $stage): IndustryStockpileTarget
+    {
+        return (new IndustryStockpileTarget())
+            ->setTypeId($typeId)
+            ->setTypeName($typeName)
+            ->setTargetQuantity($targetQuantity)
+            ->setStage($stage);
     }
 
     private function givenCharacters(array $characters): void

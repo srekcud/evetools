@@ -426,6 +426,34 @@ class IndustryProjectFactoryTest extends TestCase
         $this->assertSame(8, $componentSteps[0]->getRuns());
     }
 
+    public function testMergedStepOfAProductNeededByTwoConsumersRoundsItsRunsUpOnTheMergedQuantity(): void
+    {
+        $user = $this->createUser();
+        $this->invTypeRepository->method('find')->willReturn($this->createMock(InvType::class));
+        $firstNeed = $this->buildFlatTreeNode(4313, 4312, 'Oxygen Fuel Block', 2, 40, [], 1);
+        $firstNeed['quantity'] = 50;
+        $secondNeed = $this->buildFlatTreeNode(4313, 4312, 'Oxygen Fuel Block', 1, 40, [], 1);
+        $tree = $this->buildFlatTreeNode(28607, 28606, 'Orca', 1);
+        $tree['materials'] = [
+            ['typeId' => 4312, 'typeName' => 'Oxygen Fuel Block', 'quantity' => 50, 'isBuildable' => true, 'blueprint' => $firstNeed],
+            ['typeId' => 4312, 'typeName' => 'Oxygen Fuel Block', 'quantity' => 40, 'isBuildable' => true, 'blueprint' => $secondNeed],
+        ];
+        $this->treeService->method('buildProductionTree')->willReturn($tree);
+        $this->setupDefaultMocks();
+        $this->materialRepository->method('findMaterialEntitiesForBlueprints')->willReturn([]);
+
+        $project = $this->factory->createProject($user, 28606, 1, 10, 2.0, 20);
+
+        $fuelBlockSteps = array_values(array_filter(
+            $project->getSteps()->toArray(),
+            static fn (IndustryProjectStep $step): bool => $step->getProductTypeId() === 4312,
+        ));
+        $this->assertSame([[90, 3]], array_map(
+            static fn (IndustryProjectStep $step): array => [$step->getQuantity(), $step->getRuns()],
+            $fuelBlockSteps,
+        ));
+    }
+
     // ===========================================
     // Copy steps
     // ===========================================

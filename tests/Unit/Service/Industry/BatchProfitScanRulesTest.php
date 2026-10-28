@@ -373,6 +373,46 @@ class BatchProfitScanRulesTest extends TestCase
         $this->assertSame([5202], array_column($result, 'typeId'));
     }
 
+    public function testAProductWithAZeroSalePriceInTheMiddleIsExcludedWithoutStoppingTheScanOfTheFollowingProducts(): void
+    {
+        $this->givenModuleSoldAt(5301, 120.0, 6.0);
+        $this->givenModuleSoldAt(5302, 0.0, 9.0);
+        $this->givenModuleSoldAt(5303, 175.0, 3.0);
+
+        $result = $this->scan();
+
+        $this->assertSame([5301, 5303], array_column($result, 'typeId'));
+        $this->assertSame([450.0, 390.0], array_column($result, 'iskPerDay'));
+    }
+
+    public function testShipOfAGroupWithoutPackagedVolumeIsExportedWithItsSdeVolume(): void
+    {
+        $this->givenProduct(28607, 28606, self::MANUFACTURING, 1, [self::TRITANIUM_TYPE_ID => 10]);
+        $this->givenType(28606, '941', 'Industrial Command Ship', '6', '3200.0');
+        $this->jitaPrices = [self::TRITANIUM_TYPE_ID => 5.0, 28606 => 9_850.0];
+
+        $result = $this->scan(exportCostPerM3: 1.5);
+
+        $this->assertSame(4_800.0, $result[0]['exportCost']);
+        $this->assertSame(5_005.0, $result[0]['profitPerUnit']);
+    }
+
+    public function testProductOrMaterialWithoutSdeVolumeCurrentlyCostsNothingToTransport(): void
+    {
+        $this->givenProduct(15401, 5401, self::MANUFACTURING, 1, [self::TRITANIUM_TYPE_ID => 10, self::PYERITE_TYPE_ID => 4]);
+        $this->givenProduct(15402, 5402, self::MANUFACTURING, 1, [self::TRITANIUM_TYPE_ID => 10, self::PYERITE_TYPE_ID => 4]);
+        $this->givenType(5402, '38', 'Shield Extender', '7', null);
+        $this->materialVolumeRows = [self::TRITANIUM_TYPE_ID => null];
+        $this->jitaPrices = [self::TRITANIUM_TYPE_ID => 5.0, self::PYERITE_TYPE_ID => 11.0, 5401 => 300.0, 5402 => 310.0];
+
+        $result = $this->scan(exportCostPerM3: 2.0);
+
+        $this->assertSame([5401 => 0.0, 5402 => 0.0], array_column($result, 'importCost', 'typeId'));
+        $this->assertSame([5401 => 0.0, 5402 => 0.0], array_column($result, 'exportCost', 'typeId'));
+        $this->assertSame([5401 => 89.0, 5402 => 89.0], array_column($result, 'materialCost', 'typeId'));
+        $this->assertSame([5401 => 211.0, 5402 => 221.0], array_column($result, 'profitPerUnit', 'typeId'));
+    }
+
     #[DataProvider('scannerCategories')]
     public function testCategoryKeepsOnlyItsProducts(string $category, array $expectedTypeIds): void
     {
