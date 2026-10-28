@@ -1,6 +1,6 @@
 # Spec #153 — La recette d'un type est lue une fois par calcul
 
-Statut : brouillon, en attente de l'accord de Sylvain. Termes : [glossaire](../glossary.md) ; règles du noyau : [spec du noyau](industry-engine.md) (R3, R9, R12).
+Statut : validée en autonomie le 2026-10-28 (mode nuit), à relire par Sylvain. Termes : [glossaire](../glossary.md) ; règles du noyau : [spec du noyau](industry-engine.md) (R3, R9, R12).
 
 ## Contexte
 
