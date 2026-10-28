@@ -1,6 +1,6 @@
 # Spec #141 (partie « BOM de groupe ») : la BOM d'un projet de groupe se calcule sur le plan du noyau
 
-- **Statut** : validée par Sylvain le 2026-10-28 (Q1 à Q7 : recommandations retenues ; Q4 : pas de régénération dans ce lot, voir #253 ; corrections des références périmées dans le lot docs).
+- **Statut** : livré le 2026-10-28 (tests `cf72fc5`, code `d8f1e7e`, spec `bf62bff`), sur la branche `fix/group-core-wiring`. Validée par Sylvain le 2026-10-28 (Q1 à Q7 : recommandations retenues ; Q4 : pas de régénération dans ce lot, voir #253). Voir « Note de livraison » en fin de document. Les sections « Contexte », « Exemples chiffrés » et « Cas limites » décrivent le code d'avant le lot (« aujourd'hui »).
 - **Date** : 2026-10-28
 - **Issue** : #141, partie « BOM de groupe » (rang 6 du §7 de la [spec du noyau](industry-engine.md)). Les autres parties de l'issue (double formule de quantité, code mort du noyau, autres écrans) ne sont pas traitées ici.
 - **Lot** : une seule spec, un seul lot (un rouge puis un vert).
@@ -116,7 +116,7 @@ Hail L 1 run (ME 2, TE 4) et Fernite Carbide 1 run (ME 0, TE 0) : deux lignes Fe
 
 | Cas | Comportement attendu |
 |---|---|
-| Régénération explicite d'un projet existant | Aucun point d'entrée ne l'offre aujourd'hui : `buildBom` n'a pour appelant que `createProject` (`GroupIndustryProjectService.php:70`, vérifié par recherche dans `src/`). Reconstruire à la main ajoute une seconde BOM (#253, `tests/Integration/Service/GroupIndustry/GroupIndustryBomPersistenceTest.php:126`). Supprimer des lignes supprime aussi leurs contributions : `GroupIndustryContribution::$bomItem` est en `onDelete: 'CASCADE'` (`src/Entity/GroupIndustryContribution.php:35-37`) et `bomItems` en `orphanRemoval` (`src/Entity/GroupIndustryProject.php:81`). Proposition : hors de ce lot ; voir Q4. |
+| Régénération explicite d'un projet existant | Aucun point d'entrée ne l'offre aujourd'hui : `buildBom` n'a pour appelant que `createProject` (`GroupIndustryProjectService.php:86` après le lot, vérifié par recherche dans `src/`). Reconstruire à la main ajoute une seconde BOM (#253, `tests/Integration/Service/GroupIndustry/GroupIndustryBomPersistenceTest.php:126`). Supprimer des lignes supprime aussi leurs contributions : `GroupIndustryContribution::$bomItem` est en `onDelete: 'CASCADE'` (`src/Entity/GroupIndustryContribution.php:35-37`) et `bomItems` en `orphanRemoval` (`src/Entity/GroupIndustryProject.php:81`). Proposition : hors de ce lot ; voir Q4. |
 | Contribution déjà engagée sur une ligne dont la quantité requise baisse | `fulfilledQuantity` peut dépasser `requiredQuantity` : `isFulfilled` est vrai, le reste vaut 0, le pourcentage est plafonné à 100 (`src/Entity/GroupIndustryBomItem.php:216-233`). Rien ne s'efface. |
 | Ligne qui disparaît (matériau devenu intermédiaire) alors qu'elle porte une contribution | Ne jamais la supprimer (voir Q4). |
 | Item du projet sans recette, cycle | Erreur explicite (R10), aucune BOM enregistrée. |
@@ -170,12 +170,13 @@ Hail L 1 run (ME 2, TE 4) et Fernite Carbide 1 run (ME 0, TE 0) : deux lignes Fe
 
 Utilisés tels quels : **Run**, **Quantité**, **Unités par run**, **BOM**, **Ligne de BOM**, **Plan**, **Feuille**, **Intermédiaire**, **Demande**, **Surplus**, **Job**, **Groupe découpé**, **Blacklist**, **Contribution**, **Structure de production**, **Bonus de structure**, **ME**, **TE**.
 
-Proposés, non ajoutés (en attente de validation) :
+Ajoutés au glossaire par le lot : **Job final** et **Job de composant** (valeurs `final` et `component` de `GroupIndustryBomItem::$jobGroup` ; la troisième, `blueprint`, porte la copie et l'invention).
 
-- **Job final / job de composant** (Final job / component job) : valeurs `final` et `component` de `GroupIndustryBomItem::$jobGroup` (la troisième, `blueprint`, porte la copie et l'invention). Le job final est celui d'un item du projet, au ME et au TE de l'item ; le job de composant est celui d'un intermédiaire, au ME 10 et TE 20 par défaut (réaction : 0 et 0). Symbole : `GroupIndustryBomItem::$jobGroup`.
+Proposé, non ajouté :
+
 - **Régénération de la BOM** (BOM regeneration) : recalcul de la BOM d'un projet de groupe existant, par une action explicite. N'existe pas encore (Q4). Ne pas l'ajouter tant qu'aucun symbole ne la porte.
 
-Mise à jour à prévoir quand le lot sera livré : le glossaire (entrée **BOM**, ambiguïté B1) et `docs/modules/industry.md` (lignes `IndustryTreeService`, « Group Industry », « Pas encore migrés ») disent encore que `GroupIndustryProjectService` passe par l'arbre.
+Le glossaire (entrée **BOM**, ambiguïté B1) et `docs/modules/industry.md` (lignes `IndustryTreeService`, « Group Industry », « Pas encore migrés ») sont à jour : `GroupIndustryProjectService` passe par le plan du noyau.
 
 ## Questions ouvertes
 
@@ -186,3 +187,18 @@ Mise à jour à prévoir quand le lot sera livré : le glossaire (entrée **BOM*
 5. **Q5 : `parentTypeId` et système favori.** Premier consommateur dans l'ordre de `Plan::jobs` (aujourd'hui : premier dans le parcours de l'arbre), et `FavoriteSystems::none()` (la sélection actuelle ignore le favori, `IndustryBonusService::findBestStructureForProduct`) ? Recommandation : oui aux deux, pour ne rien changer de visible hors des quantités.
 6. **Q6 : activité de copie.** La lire dans le SDE depuis le service (blueprint du produit puis activité de copie) ou ajouter blueprint et activité de copie à `Recipe` ? Recommandation : la lecture dans le service, pour ne pas toucher le Domain dans ce lot.
 7. **Q7 : code d'erreur.** Le planificateur lève `\DomainException` (item sans recette, cycle : `ProductionPlanner.php:115`, `:154`), que `CreateGroupProjectProcessor` ne rattrape pas (`:79` : `InvalidArgumentException` et `RuntimeException`) : 500 au lieu du 400 d'aujourd'hui (`IndustryTreeService.php:82-84`). Recommandation : le service convertit en `RuntimeException` à message explicite, sans changer le processor.
+
+## Note de livraison
+
+Écarts avec la spec, constatés dans le code :
+
+- Les lignes de job internes ne portent plus `blueprintTypeId` (type `JobLine`, `GroupIndustryProjectService.php:40`) et le service n'injecte plus `IndustryBlueprintRepository` (constructeur, `:44-52`) : le plafond de runs vient de `Recipe::$maxProductionLimit` (`src/Industry/Application/ProductionPlanning.php:31-35`), le producteur du SDE par `producerOf` (`GroupIndustryProjectService.php:201-206`). Rien de persisté ne change : `GroupIndustryBomItem` n'a jamais eu ce champ.
+- Q1 : le cas d'usage est `ProductionPlanning`, mais `ProductionCostCalculator` construit toujours sa propre `PlanRequest` (`src/Industry/Application/ProductionCostCalculator.php:63-75`). Il existe donc deux constructions ; l'équivalence des feuilles en mode plan est tenue par un test (`tests/Unit/Industry/Application/ProductionPlanningTest.php:294`), pas par le code partagé.
+- Q7 : `planOf` convertit la `\DomainException` en `\RuntimeException` (`GroupIndustryProjectService.php:158-160`) ; un blueprint absent lève une `\UnexpectedValueException` (`SdeBlueprintCatalog.php:60-62`), aussi rattrapée par le processor (`CreateGroupProjectProcessor.php:77-79`). Les `\LogicException` (`ProductionPlanning.php:33-34`, `GroupIndustryProjectService.php:241`, `:293`) ne sont pas rattrapées : elles signalent un plan incohérent, pas une saisie.
+- Les tentatives d'invention restent arrondies au supérieur (`GroupIndustryProjectService.php:343`), comme prévu (hors périmètre).
+
+Limites connues :
+
+- Aucune borne supérieure sur `runs` à la frontière : `CreateGroupProjectInput::$items` n'est contraint que par `Count(min: 1, max: 10)` (`src/ApiResource/Input/GroupIndustry/CreateGroupProjectInput.php:14-17`) et le processor ne contrôle pas `runs` ; seul `Runs` refuse moins de 1 (`src/Industry/Domain/Runs.php:16`, d'où un 400). Le nombre de jobs, donc de lignes de BOM, vaut `ceil(runs / plafond)` par produit (`ProductionPlanner.php:189-191`) : des runs démesurés créent un nombre démesuré de lignes.
+- `GroupIndustryProjectService` manipule des types du Domain (`Plan`, `Job`, `PlanTarget`, `Runs`, `BlueprintEfficiency`) et lit encore le SDE pour le producteur et la copie (`:20-34`) : un couplage assumé par Deptrac (`deptrac.yaml:112`), à réduire si le noyau porte un jour la copie (Q6).
+- Pas de régénération : `buildBom` est publique mais n'a pour appelant que `createProject` (`:86`) ; la rappeler sur un projet existant ajoute une seconde BOM (#253, `tests/Integration/Service/GroupIndustry/GroupIndustryBomPersistenceTest.php:156`).

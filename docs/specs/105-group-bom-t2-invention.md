@@ -36,7 +36,7 @@ Recette d'invention de Hail L (SDE) : blueprint T1 898, produit T1 197 (Depleted
 
 ## Revue (2026-10-19)
 
-- Calcul des tentatives laissé dans le service plutôt que dans le Domain du noyau (proposé par la revue DDD) : contraire à la décision de ne pas importer `App\Industry` depuis `src/Service`.
+- Calcul des tentatives laissé dans le service plutôt que dans le Domain du noyau (proposé par la revue DDD) : contraire à la décision d'alors de ne pas importer `App\Industry` depuis `src/Service`. Cette règle a changé le 2026-10-22 (7459fa9) : `deptrac.yaml:112` autorise la couche `Service` à dépendre de `IndustryApplication` et `IndustryDomain`. Le calcul est resté dans le service, par choix et non plus par interdiction.
 - Libellés i18n des activités (`copy`, `invention`) de la table des jobs : hors périmètre, défaut antérieur.
 
 ## Hors périmètre
@@ -50,7 +50,7 @@ Recette d'invention de Hail L (SDE) : blueprint T1 898, produit T1 197 (Depleted
 - R2 : probabilité de base du SDE, sans compétences ni décrypteur (le projet Group Industry n'a pas de pilote désigné pour l'invention) ; c'est l'estimation qui demande le plus de tentatives, donc la plus prudente pour l'approvisionnement.
 - R3/R4 : invention et copie du T1 rangées dans le groupe `blueprint` existant, pour ne pas créer de groupe que le front ne connaît pas.
 - R6 : erreur explicite plutôt qu'un nombre de tentatives par défaut (règle du glossaire : jamais de valeur plausible à la place d'une donnée manquante), sur le modèle de `TypeMissingFromSdeException` (#109).
-- Dépendance (décision de Sylvain, 2026-10-19) : le service passe par `InventionService::getInventionData()` (couche Service) et non par le port `App\Industry\Application\InventionCatalog`, que `deptrac.yaml` interdit aux dossiers plats. Le produit T1 est lu via `IndustryActivityProductRepository` (produit de fabrication du blueprint T1).
+- Dépendance (décision de Sylvain, 2026-10-19) : le service passe par `InventionService::getInventionData()` (couche Service) et non par le port `App\Industry\Application\InventionCatalog`, que `deptrac.yaml` interdisait alors aux dossiers plats (autorisé depuis le 2026-10-22, `deptrac.yaml:112`). Le produit T1 est lu via `IndustryActivityProductRepository` (produit de fabrication du blueprint T1).
 
 ## Glossaire
 
