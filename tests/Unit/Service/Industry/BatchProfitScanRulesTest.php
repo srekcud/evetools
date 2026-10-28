@@ -389,6 +389,7 @@ class BatchProfitScanRulesTest extends TestCase
     {
         $this->givenProduct(28607, 28606, self::MANUFACTURING, 1, [self::TRITANIUM_TYPE_ID => 10]);
         $this->givenType(28606, '941', 'Industrial Command Ship', '6', '3200.0');
+        $this->materialVolumeRows = [self::TRITANIUM_TYPE_ID => '0.0'];
         $this->jitaPrices = [self::TRITANIUM_TYPE_ID => 5.0, 28606 => 9_850.0];
 
         $result = $this->scan(exportCostPerM3: 1.5);
@@ -398,7 +399,7 @@ class BatchProfitScanRulesTest extends TestCase
     }
 
     #[Group('issue-255')]
-    public function testProductOrMaterialWithoutSdeVolumeCurrentlyCostsNothingToTransportIssue255(): void
+    public function testProductAndMaterialsWithoutSdeVolumeLeaveBothTransportCostsAndTheProfitUnknown(): void
     {
         $this->givenProduct(15401, 5401, self::MANUFACTURING, 1, [self::TRITANIUM_TYPE_ID => 10, self::PYERITE_TYPE_ID => 4]);
         $this->givenProduct(15402, 5402, self::MANUFACTURING, 1, [self::TRITANIUM_TYPE_ID => 10, self::PYERITE_TYPE_ID => 4]);
@@ -408,10 +409,247 @@ class BatchProfitScanRulesTest extends TestCase
 
         $result = $this->scan(exportCostPerM3: 2.0);
 
-        $this->assertSame([5401 => 0.0, 5402 => 0.0], array_column($result, 'importCost', 'typeId'));
-        $this->assertSame([5401 => 0.0, 5402 => 0.0], array_column($result, 'exportCost', 'typeId'));
+        $this->assertSame([5401 => null, 5402 => null], array_column($result, 'importCost', 'typeId'));
+        $this->assertSame([5401 => null, 5402 => null], array_column($result, 'exportCost', 'typeId'));
         $this->assertSame([5401 => 89.0, 5402 => 89.0], array_column($result, 'materialCost', 'typeId'));
-        $this->assertSame([5401 => 211.0, 5402 => 221.0], array_column($result, 'profitPerUnit', 'typeId'));
+        $this->assertSame([5401 => null, 5402 => null], array_column($result, 'profitPerUnit', 'typeId'));
+        $this->assertSame([5401 => 'missing_volume', 5402 => 'missing_volume'], array_column($result, 'unknownReason', 'typeId'));
+    }
+
+    #[Group('issue-255')]
+    public function testEveryKnownVolumeChargesTheImportAndExportCostsAtTheRatePerCubicMetre(): void
+    {
+        $this->givenShieldExtenderOfTheTransportExample(5402, '5.0');
+
+        $row = $this->scan(exportCostPerM3: 2.0)[0];
+
+        $this->assertSame(
+            [0.26, 10.0, 89.0, 210.74, 212.31, 0.0, null],
+            [$row['importCost'], $row['exportCost'], $row['materialCost'], $row['profitPerUnit'], $row['marginPercent'], $row['iskPerDay'], $row['unknownReason']],
+        );
+    }
+
+    #[Group('issue-255')]
+    #[DataProvider('materialVolumesWithAnUnknownMaterial')]
+    public function testMaterialWithoutSdeVolumeLeavesTheImportCostAndTheMarginsUnknown(array $materialVolumeRows): void
+    {
+        $this->givenShieldExtenderOfTheTransportExample(5402, '5.0');
+        $this->materialVolumeRows = $materialVolumeRows;
+
+        $row = $this->scan(exportCostPerM3: 2.0)[0];
+
+        $this->assertSame(
+            [null, 10.0, 89.0, 310.0, null, null, null, 'missing_volume', []],
+            [$row['importCost'], $row['exportCost'], $row['materialCost'], $row['sellPrice'], $row['profitPerUnit'], $row['marginPercent'], $row['iskPerDay'], $row['unknownReason'], $row['missingPriceTypeIds']],
+        );
+    }
+
+    public static function materialVolumesWithAnUnknownMaterial(): iterable
+    {
+        yield 'tritanium with a null volume' => [[self::TRITANIUM_TYPE_ID => null, self::PYERITE_TYPE_ID => '0.01']];
+        yield 'pyerite missing from the SDE' => [[self::TRITANIUM_TYPE_ID => '0.01']];
+    }
+
+    #[Group('issue-255')]
+    public function testProductWithANullSdeVolumeLeavesTheExportCostAndTheMarginsUnknown(): void
+    {
+        $this->givenShieldExtenderOfTheTransportExample(5402, null);
+
+        $row = $this->scan(exportCostPerM3: 2.0)[0];
+
+        $this->assertSame(
+            [0.26, null, 89.0, null, null, null, 'missing_volume'],
+            [$row['importCost'], $row['exportCost'], $row['materialCost'], $row['profitPerUnit'], $row['marginPercent'], $row['iskPerDay'], $row['unknownReason']],
+        );
+    }
+
+    #[Group('issue-255')]
+    public function testProductMissingFromTheSdeLeavesTheExportCostAndTheMarginsUnknown(): void
+    {
+        $this->givenShieldExtenderOfTheTransportExample(5402, '5.0');
+        unset($this->typeRows[5402]);
+
+        $row = $this->scan(exportCostPerM3: 2.0)[0];
+
+        $this->assertSame(
+            [5402, 0.26, null, null, null, 'missing_volume'],
+            [$row['typeId'], $row['importCost'], $row['exportCost'], $row['profitPerUnit'], $row['marginPercent'], $row['unknownReason']],
+        );
+    }
+
+    #[Group('issue-255')]
+    public function testStructureVenueKeepsNoExportCostForAProductWithoutSdeVolume(): void
+    {
+        $this->givenShieldExtenderOfTheTransportExample(5402, null);
+        $this->structurePrices = [self::AMARR_STRUCTURE_ID => [5402 => 310.0]];
+
+        $row = $this->scan(sellVenue: 'structure', structureId: self::AMARR_STRUCTURE_ID, exportCostPerM3: 2.0)[0];
+
+        $this->assertSame(
+            [0.26, 0.0, 220.74, 247.3, null],
+            [$row['importCost'], $row['exportCost'], $row['profitPerUnit'], $row['marginPercent'], $row['unknownReason']],
+        );
+    }
+
+    #[Group('issue-255')]
+    public function testStructureVenueWithAMaterialWithoutSdeVolumeKeepsNoExportCostAndAnUnknownImportCost(): void
+    {
+        $this->givenShieldExtenderOfTheTransportExample(5402, '5.0');
+        $this->materialVolumeRows[self::TRITANIUM_TYPE_ID] = null;
+        $this->structurePrices = [self::AMARR_STRUCTURE_ID => [5402 => 310.0]];
+
+        $row = $this->scan(sellVenue: 'structure', structureId: self::AMARR_STRUCTURE_ID, exportCostPerM3: 2.0)[0];
+
+        $this->assertSame(
+            [null, 0.0, null, null, 'missing_volume'],
+            [$row['importCost'], $row['exportCost'], $row['profitPerUnit'], $row['marginPercent'], $row['unknownReason']],
+        );
+    }
+
+    #[Group('issue-255')]
+    public function testShipOfAGroupWithAPackagedVolumeIsExportedWithItEvenWithoutSdeVolume(): void
+    {
+        $this->givenShieldExtenderOfTheTransportExample(12731, null);
+        $this->givenType(12731, '380', 'Transport Ship', '6', null);
+        $this->jitaPrices[12731] = 95_000.0;
+
+        $row = $this->scan(exportCostPerM3: 2.0)[0];
+
+        $this->assertSame(
+            [0.26, 40_000.0, 54_910.74, 136.97, null],
+            [$row['importCost'], $row['exportCost'], $row['profitPerUnit'], $row['marginPercent'], $row['unknownReason']],
+        );
+    }
+
+    #[Group('issue-255')]
+    public function testMaterialsWithAZeroSdeVolumeCostNothingToImport(): void
+    {
+        $this->givenShieldExtenderOfTheTransportExample(5402, '5.0');
+        $this->materialVolumeRows = [self::TRITANIUM_TYPE_ID => '0.0', self::PYERITE_TYPE_ID => '0.0'];
+
+        $row = $this->scan(exportCostPerM3: 2.0)[0];
+
+        $this->assertSame(
+            [0.0, 10.0, 211.0, 213.13, null],
+            [$row['importCost'], $row['exportCost'], $row['profitPerUnit'], $row['marginPercent'], $row['unknownReason']],
+        );
+    }
+
+    #[Group('issue-255')]
+    public function testZeroRatePerCubicMetreChargesNoTransportEvenWithoutSdeVolume(): void
+    {
+        $this->givenShieldExtenderOfTheTransportExample(5402, null);
+        $this->materialVolumeRows[self::TRITANIUM_TYPE_ID] = null;
+
+        $row = $this->scan(exportCostPerM3: 0.0)[0];
+
+        $this->assertSame(
+            [0.0, 0.0, 221.0, 248.31, null],
+            [$row['importCost'], $row['exportCost'], $row['profitPerUnit'], $row['marginPercent'], $row['unknownReason']],
+        );
+    }
+
+    #[Group('issue-255')]
+    public function testMinimumMarginExcludesAProductWithAMaterialWithoutSdeVolume(): void
+    {
+        $this->givenShieldExtenderOfTheTransportExample(5402, '5.0');
+        $this->materialVolumeRows[self::TRITANIUM_TYPE_ID] = null;
+
+        $result = $this->scan(minMarginPercent: 10.0, exportCostPerM3: 2.0);
+
+        $this->assertSame([], $result);
+    }
+
+    #[Group('issue-255')]
+    #[DataProvider('unknownDataTakingPrecedenceOverMissingVolume')]
+    public function testMissingVolumeComesAfterEveryOtherUnknownReason(array $jitaPriceOverrides, array $adjustedPrices, array $costIndices, string $expectedUnknownReason): void
+    {
+        $this->givenShieldExtenderOfTheTransportExample(5402, '5.0');
+        $this->materialVolumeRows[self::TRITANIUM_TYPE_ID] = null;
+        $this->jitaPrices = array_replace($this->jitaPrices, $jitaPriceOverrides);
+        $this->adjustedPrices = $adjustedPrices;
+        $this->costIndices = $costIndices;
+
+        $row = $this->scan(exportCostPerM3: 2.0)[0];
+
+        $this->assertSame($expectedUnknownReason, $row['unknownReason']);
+    }
+
+    public static function unknownDataTakingPrecedenceOverMissingVolume(): iterable
+    {
+        $everyAdjustedPrice = [self::TRITANIUM_TYPE_ID => 0.0, self::PYERITE_TYPE_ID => 0.0];
+        $noCostIndex = ['manufacturing' => 0.0, 'reaction' => 0.0];
+
+        yield 'product without Jita sale price' => [[5402 => null], $everyAdjustedPrice, $noCostIndex, 'missing_sale_price'];
+        yield 'pyerite without Jita price' => [[self::PYERITE_TYPE_ID => null], $everyAdjustedPrice, $noCostIndex, 'missing_material_price'];
+        yield 'system without manufacturing cost index' => [[], $everyAdjustedPrice, ['manufacturing' => null, 'reaction' => 0.0], 'missing_cost_index'];
+        yield 'pyerite without adjusted price' => [[], [self::TRITANIUM_TYPE_ID => 4.0], ['manufacturing' => 0.0437, 'reaction' => 0.0], 'missing_adjusted_price'];
+    }
+
+    #[Group('issue-255')]
+    public function testProductWithEveryVolumeKnownIsRankedBeforeAProductWithAMaterialWithoutSdeVolume(): void
+    {
+        $this->givenShieldExtenderOfTheTransportExample(5402, '5.0');
+        $this->jitaDailyVolumes[5402] = 3.0;
+        $this->givenProduct(15403, 5403, self::MANUFACTURING, 1, [self::TRITANIUM_TYPE_ID => 10, self::MORPHITE_TYPE_ID => 3]);
+        $this->givenType(5403, '38', 'Shield Extender', '7', '5.0');
+        $this->jitaPrices[self::MORPHITE_TYPE_ID] = 7_650.0;
+        $this->jitaPrices[5403] = 26_000.0;
+        $this->jitaDailyVolumes[5403] = 7.0;
+
+        $result = $this->scan(exportCostPerM3: 2.0);
+
+        $this->assertSame([5402, 5403], array_column($result, 'typeId'));
+        $this->assertSame([632.22, null], array_column($result, 'iskPerDay'));
+    }
+
+    #[Group('issue-255')]
+    public function testProductWithoutMaterialCostsNothingToImport(): void
+    {
+        $this->givenProduct(15404, 5404, self::MANUFACTURING, 1, []);
+        $this->givenType(5404, '38', 'Shield Extender', '7', '5.0');
+        $this->jitaPrices = [5404 => 310.0];
+
+        $row = $this->scan(exportCostPerM3: 2.0)[0];
+
+        $this->assertSame(
+            [0.0, 10.0, 300.0, 3000.0, null],
+            [$row['importCost'], $row['exportCost'], $row['profitPerUnit'], $row['marginPercent'], $row['unknownReason']],
+        );
+    }
+
+    #[Group('issue-255')]
+    public function testEveryProductConsumingAMaterialWithoutSdeVolumeHasAnUnknownImportCost(): void
+    {
+        $this->givenShieldExtenderOfTheTransportExample(5402, '5.0');
+        $this->givenProduct(15405, 5405, self::MANUFACTURING, 1, [self::TRITANIUM_TYPE_ID => 7]);
+        $this->givenType(5405, '38', 'Shield Extender', '7', '4.0');
+        $this->givenProduct(15406, 5406, self::MANUFACTURING, 1, [self::PYERITE_TYPE_ID => 6]);
+        $this->givenType(5406, '38', 'Shield Extender', '7', '3.0');
+        $this->jitaPrices[5405] = 280.0;
+        $this->jitaPrices[5406] = 260.0;
+        $this->materialVolumeRows[self::TRITANIUM_TYPE_ID] = null;
+
+        $result = $this->scan(exportCostPerM3: 2.0);
+
+        $this->assertSame([5402 => null, 5405 => null, 5406 => 0.12], array_column($result, 'importCost', 'typeId'));
+        $this->assertSame([5402 => 'missing_volume', 5405 => 'missing_volume', 5406 => null], array_column($result, 'unknownReason', 'typeId'));
+    }
+
+    #[Group('issue-255')]
+    public function testProductWithoutMaterialAndWithoutSdeVolumeIsKeptWithAnUnknownCost(): void
+    {
+        $this->givenProduct(15407, 5407, self::MANUFACTURING, 1, []);
+        $this->givenType(5407, '38', 'Shield Extender', '7', null);
+        $this->jitaPrices = [5407 => 310.0];
+
+        $result = $this->scan(exportCostPerM3: 2.0);
+
+        $this->assertSame([5407], array_column($result, 'typeId'));
+        $this->assertSame(
+            [0.0, null, null, null, 'missing_volume'],
+            [$result[0]['importCost'], $result[0]['exportCost'], $result[0]['profitPerUnit'], $result[0]['marginPercent'], $result[0]['unknownReason']],
+        );
     }
 
     #[DataProvider('scannerCategories')]
@@ -636,6 +874,17 @@ class BatchProfitScanRulesTest extends TestCase
     {
         $this->givenProduct($typeId + 10000, $typeId, self::MANUFACTURING, 1, [self::TRITANIUM_TYPE_ID => 10]);
         $this->jitaPrices[$typeId] = $sellPrice;
+    }
+
+    private function givenShieldExtenderOfTheTransportExample(int $typeId, ?string $productVolume): void
+    {
+        $this->givenProduct($typeId + 10000, $typeId, self::MANUFACTURING, 1, [self::TRITANIUM_TYPE_ID => 10, self::PYERITE_TYPE_ID => 4]);
+        $this->givenType($typeId, '38', 'Shield Extender', '7', $productVolume);
+        $this->materialVolumeRows[self::TRITANIUM_TYPE_ID] = '0.01';
+        $this->materialVolumeRows[self::PYERITE_TYPE_ID] = '0.01';
+        $this->jitaPrices[self::TRITANIUM_TYPE_ID] = 5.0;
+        $this->jitaPrices[self::PYERITE_TYPE_ID] = 11.0;
+        $this->jitaPrices[$typeId] = 310.0;
     }
 
     private function givenProduct(int $blueprintTypeId, int $productTypeId, int $activityId, int $outputPerRun, array $baseQuantities): void

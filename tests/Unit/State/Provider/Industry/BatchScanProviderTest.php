@@ -71,6 +71,65 @@ class BatchScanProviderTest extends TestCase
         $this->assertSame(5000000.0, $slasher->sellPrice);
     }
 
+    #[Group('issue-255')]
+    public function testUnknownTransportCostsAreExposedAsNullNextToTheKnownOne(): void
+    {
+        $slasherWithUnknownImportCost = [
+            'typeId' => self::SLASHER_TYPE_ID,
+            'typeName' => 'Slasher',
+            'groupName' => 'Frigate',
+            'categoryLabel' => 'T1 Ships',
+            'marginPercent' => null,
+            'profitPerUnit' => null,
+            'dailyVolume' => 42.0,
+            'iskPerDay' => null,
+            'materialCost' => 412000.0,
+            'importCost' => null,
+            'exportCost' => 3000000.0,
+            'sellPrice' => 4800000.0,
+            'meUsed' => 10,
+            'activityType' => 'manufacturing',
+            'isFactionBlueprint' => false,
+            'bpcCostPerRun' => null,
+            'hasAllSkills' => true,
+            'missingSkillCount' => 0,
+            'unknownReason' => 'missing_volume',
+            'missingPriceTypeIds' => [],
+        ];
+        $roboticsWithUnknownExportCost = [
+            'typeId' => self::ROBOTICS_TYPE_ID,
+            'typeName' => 'Robotics',
+            'groupName' => 'Construction Components',
+            'categoryLabel' => 'Components',
+            'marginPercent' => null,
+            'profitPerUnit' => null,
+            'dailyVolume' => 310.0,
+            'iskPerDay' => null,
+            'materialCost' => 31750.0,
+            'importCost' => 63.84,
+            'exportCost' => null,
+            'sellPrice' => 39500.0,
+            'meUsed' => 10,
+            'activityType' => 'manufacturing',
+            'isFactionBlueprint' => false,
+            'bpcCostPerRun' => null,
+            'hasAllSkills' => true,
+            'missingSkillCount' => 0,
+            'unknownReason' => 'missing_volume',
+            'missingPriceTypeIds' => [],
+        ];
+
+        $resources = $this->provideScanReturning([$slasherWithUnknownImportCost, $roboticsWithUnknownExportCost]);
+
+        $this->assertSame(
+            [[self::SLASHER_TYPE_ID, null, 3000000.0, 412000.0, 'missing_volume'], [self::ROBOTICS_TYPE_ID, 63.84, null, 31750.0, 'missing_volume']],
+            array_map(
+                static fn ($resource): array => [$resource->typeId, $resource->importCost, $resource->exportCost, $resource->materialCost, $resource->unknownReason],
+                $resources,
+            ),
+        );
+    }
+
     #[Group('issue-115')]
     public function testProductMissingFromTheSdeIsExposedWithANullTypeName(): void
     {
