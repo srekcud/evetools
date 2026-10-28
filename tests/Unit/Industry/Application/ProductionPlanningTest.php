@@ -321,6 +321,25 @@ final class ProductionPlanningTest extends TestCase
         ]));
     }
 
+    public function testCatalogAnsweringTheRecipeOfAnotherProductForATargetThrowsALogicExceptionNamingTheJobProductWithoutRecipe(): void
+    {
+        $catalog = new class(self::TARGET, self::recipe(self::PRODUCT_WITHOUT_RECIPE, ActivityKind::Manufacturing, 2, 30, [self::FIRST_LEAF => 11])) implements BlueprintCatalog {
+            public function __construct(private readonly int $targetTypeId, private readonly Recipe $recipeOfAnotherProduct)
+            {
+            }
+
+            public function recipeFor(int $productTypeId): ?Recipe
+            {
+                return $this->targetTypeId === $productTypeId ? $this->recipeOfAnotherProduct : null;
+            }
+        };
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('Job of product '.self::PRODUCT_WITHOUT_RECIPE.' has no recipe.');
+
+        self::planningOn($catalog)->planOf(self::requestFor([self::target(self::TARGET, 4, 10, 20)]));
+    }
+
     public function testCycleInTheProductionGraphThrowsADomainExceptionNamingTheProductNeededToBuildItself(): void
     {
         $this->expectException(\DomainException::class);
