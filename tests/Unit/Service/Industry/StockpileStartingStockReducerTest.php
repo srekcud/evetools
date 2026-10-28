@@ -46,6 +46,11 @@ final class StockpileStartingStockReducerTest extends TestCase
         $this->reducer = $this->startingStockReducerOnWidgetSde($this->logger);
     }
 
+    protected function tearDown(): void
+    {
+        $this->logger->cleanLogs();
+    }
+
     public function testPartialStockOfAnIntermediateReducesTheMaterialsBelowItByTheCoveredPart(): void
     {
         $frameStock = 5;
