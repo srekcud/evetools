@@ -9,6 +9,7 @@ use App\Industry\Domain\BlueprintEfficiency;
 use App\Industry\Domain\MarginalCostPlan;
 use App\Industry\Domain\MaterialEfficiency;
 use App\Industry\Domain\Multiplier;
+use App\Industry\Domain\OutputPerRun;
 use App\Industry\Domain\PlanRequest;
 use App\Industry\Domain\PlanTarget;
 use App\Industry\Domain\ProductionPlanner;
@@ -153,7 +154,7 @@ final class ProductionPlannerMarginalCostTest extends TestCase
         return new Recipe(
             productTypeId: $productTypeId,
             activity: $activity,
-            outputPerRun: new Quantity($outputPerRun),
+            outputPerRun: new OutputPerRun($outputPerRun),
             materials: $materials,
             maxProductionLimit: new Runs(self::BPO_MAX_PRODUCTION_LIMIT),
             baseTimeSeconds: 600,

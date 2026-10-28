@@ -15,7 +15,7 @@ final readonly class Recipe
     public function __construct(
         public int $productTypeId,
         public ActivityKind $activity,
-        public Quantity $outputPerRun,
+        public OutputPerRun $outputPerRun,
         public array $materials,
         public Runs $maxProductionLimit,
         public int $baseTimeSeconds,

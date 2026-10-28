@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Industry\Domain;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\BlueprintEfficiency;
 use App\Industry\Domain\MaterialEfficiency;
+use App\Industry\Domain\OutputPerRun;
 use App\Industry\Domain\PlanRequest;
 use App\Industry\Domain\PlanTarget;
 use App\Industry\Domain\ProductionPlanner;
@@ -280,7 +281,7 @@ final class ProductionPlannerRecipeReadsTest extends TestCase
         return new Recipe(
             productTypeId: $productTypeId,
             activity: ActivityKind::Manufacturing,
-            outputPerRun: new Quantity($outputPerRun),
+            outputPerRun: new OutputPerRun($outputPerRun),
             materials: $materials,
             maxProductionLimit: new Runs(self::BPO_MAX_PRODUCTION_LIMIT),
             baseTimeSeconds: 600,

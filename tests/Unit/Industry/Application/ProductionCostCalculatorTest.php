@@ -25,6 +25,7 @@ use App\Industry\Domain\Decryptor;
 use App\Industry\Domain\MaterialEfficiency;
 use App\Industry\Domain\MissingData;
 use App\Industry\Domain\Multiplier;
+use App\Industry\Domain\OutputPerRun;
 use App\Industry\Domain\Quantity;
 use App\Industry\Domain\Recipe;
 use App\Industry\Domain\RecipeMaterial;
@@ -1096,7 +1097,7 @@ final class ProductionCostCalculatorTest extends TestCase
             new Recipe(
                 productTypeId: self::HOBGOBLIN_II,
                 activity: ActivityKind::Manufacturing,
-                outputPerRun: new Quantity(1),
+                outputPerRun: new OutputPerRun(1),
                 materials: [
                     new RecipeMaterial(self::TRITANIUM, new Quantity(2000)),
                     new RecipeMaterial(self::MORPHITE, new Quantity(10)),
@@ -1108,7 +1109,7 @@ final class ProductionCostCalculatorTest extends TestCase
             new Recipe(
                 productTypeId: self::HOBGOBLIN_I,
                 activity: ActivityKind::Manufacturing,
-                outputPerRun: new Quantity(1),
+                outputPerRun: new OutputPerRun(1),
                 materials: [new RecipeMaterial(self::TRITANIUM, new Quantity(2500))],
                 maxProductionLimit: new Runs(300),
                 baseTimeSeconds: 600,

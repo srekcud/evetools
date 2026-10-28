@@ -7,6 +7,7 @@ namespace App\Industry\Infrastructure\Sde;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\BlueprintCatalog;
+use App\Industry\Domain\OutputPerRun;
 use App\Industry\Domain\Quantity;
 use App\Industry\Domain\Recipe;
 use App\Industry\Domain\RecipeMaterial;
@@ -73,7 +74,7 @@ final readonly class SdeBlueprintCatalog implements BlueprintCatalog
         return new Recipe(
             $producer->getProductTypeId(),
             $activity,
-            new Quantity($producer->getQuantity()),
+            new OutputPerRun($producer->getQuantity()),
             $materials,
             new Runs($blueprint->getMaxProductionLimit()),
             $blueprintActivity->getTime(),
