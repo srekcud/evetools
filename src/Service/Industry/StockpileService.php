@@ -53,9 +53,9 @@ class StockpileService
      */
     public function previewImport(User $user, int $typeId, int $runs, int $me): array
     {
-        $flatTargets = $this->stockpileTargetsOf($user, $typeId, $runs, $me);
+        $stockpileTargets = $this->stockpileTargetsOf($user, $typeId, $runs, $me);
 
-        $allTypeIds = array_keys($flatTargets);
+        $allTypeIds = array_keys($stockpileTargets);
         $prices = $this->jitaMarketService->getPricesWithFallback($allTypeIds);
 
         $stages = [
@@ -68,7 +68,7 @@ class StockpileService
         $totalItems = 0;
         $estimatedCost = 0.0;
 
-        foreach ($flatTargets as $matTypeId => $item) {
+        foreach ($stockpileTargets as $matTypeId => $item) {
             $unitPrice = $prices[$matTypeId] ?? null;
             $entry = [
                 'typeId' => $matTypeId,
@@ -100,7 +100,7 @@ class StockpileService
      */
     public function importFromBlueprint(User $user, int $typeId, int $runs, int $me, string $mode): void
     {
-        $flatTargets = $this->stockpileTargetsOf($user, $typeId, $runs, $me);
+        $stockpileTargets = $this->stockpileTargetsOf($user, $typeId, $runs, $me);
 
         if ($mode === 'replace') {
             $this->targetRepository->deleteAllForUser($user);
@@ -110,7 +110,7 @@ class StockpileService
 
         $this->entityManager->persist(new IndustryStockpileImport($user, $typeId, $runs, $me));
 
-        foreach ($flatTargets as $matTypeId => $item) {
+        foreach ($stockpileTargets as $matTypeId => $item) {
             if ($mode === 'merge') {
                 $existing = $this->targetRepository->findByUserAndTypeId($user, $matTypeId);
                 if ($existing !== null) {
