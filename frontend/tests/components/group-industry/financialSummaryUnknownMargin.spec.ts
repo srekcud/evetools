@@ -78,7 +78,7 @@ describe('FinancialSummary margin', () => {
   it('still shows the known profit of an impossible distribution', () => {
     const wrapper = mountFinancialSummary(UNDISTRIBUTABLE_SALE, 'fr')
 
-    expect(wrapper.text().replace(/[  ]/g, ' ')).toContain('+928,00 K')
+    expect(wrapper.text().replace(/[\u00a0\u202f]/g, ' ')).toContain('+928,00 K')
   })
 
   it('shows an unknown margin in English', () => {

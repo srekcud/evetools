@@ -47,7 +47,7 @@ function kpiValue(wrapper: VueWrapper, label: string): string {
 }
 
 function normalizedText(element: DOMWrapper<Element>): string {
-  return element.text().replace(/[  ]/g, ' ')
+  return element.text().replace(/[\u00a0\u202f]/g, ' ')
 }
 
 describe('ProjectKpiCards total contributions', () => {

@@ -71,7 +71,7 @@ function mountDistribution(distribution: Distribution, locale: 'en' | 'fr'): Vue
 }
 
 function normalizedText(element: VueWrapper | DOMWrapper<Element>): string {
-  return element.text().replace(/[  ]/g, ' ')
+  return element.text().replace(/[\u00a0\u202f]/g, ' ')
 }
 
 function figuresOfRow(row: DOMWrapper<Element>): string[] {
