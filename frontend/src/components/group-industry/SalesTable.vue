@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import DataTable from '@/components/common/DataTable.vue'
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useFormatters } from '@/composables/useFormatters'
@@ -8,6 +8,10 @@ import type { RecordSaleInput } from '@/stores/group-industry/types'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const { t } = useI18n()
+const saleTypeNameFieldId = useId()
+const saleQuantityFieldId = useId()
+const saleUnitPriceFieldId = useId()
+const saleVenueFieldId = useId()
 
 const props = defineProps<{
   projectId: string
@@ -154,8 +158,9 @@ onMounted(() => {
         <h3 class="text-sm font-semibold text-slate-200 mb-4">Record a Sale</h3>
         <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
           <div>
-            <label class="text-xs text-slate-500 mb-1 block">Item Name</label>
+            <label :for="saleTypeNameFieldId" class="text-xs text-slate-500 mb-1 block">Item Name</label>
             <input
+              :id="saleTypeNameFieldId"
               v-model="saleForm.typeName"
               type="text"
               placeholder="e.g. Ishtar"
@@ -163,8 +168,9 @@ onMounted(() => {
             />
           </div>
           <div>
-            <label class="text-xs text-slate-500 mb-1 block">Quantity</label>
+            <label :for="saleQuantityFieldId" class="text-xs text-slate-500 mb-1 block">Quantity</label>
             <input
+              :id="saleQuantityFieldId"
               v-model.number="saleForm.quantity"
               type="number"
               min="1"
@@ -172,8 +178,9 @@ onMounted(() => {
             />
           </div>
           <div>
-            <label class="text-xs text-slate-500 mb-1 block">Unit Price (ISK)</label>
+            <label :for="saleUnitPriceFieldId" class="text-xs text-slate-500 mb-1 block">Unit Price (ISK)</label>
             <input
+              :id="saleUnitPriceFieldId"
               v-model.number="saleForm.unitPrice"
               type="number"
               min="0"
@@ -181,8 +188,9 @@ onMounted(() => {
             />
           </div>
           <div>
-            <label class="text-xs text-slate-500 mb-1 block">Venue</label>
+            <label :for="saleVenueFieldId" class="text-xs text-slate-500 mb-1 block">Venue</label>
             <input
+              :id="saleVenueFieldId"
               v-model="saleForm.venue"
               type="text"
               placeholder="e.g. Jita 4-4"

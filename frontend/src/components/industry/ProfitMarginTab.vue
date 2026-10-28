@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import DataTable from '@/components/common/DataTable.vue'
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useIndustryStore, type SearchResult, type ProfitMarginResult, type ProfitMarginInventionOption, type MarginEntry } from '@/stores/industry'
 import type { ProductionCostUnknownReason } from '@/stores/industry/types'
@@ -23,6 +23,7 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+const uid = useId()
 const store = useIndustryStore()
 const { formatIsk, formatIskFull, formatTimeSince } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
@@ -407,19 +408,21 @@ store.fetchUserSettings()
       <!-- Config row -->
       <div class="flex flex-wrap items-end gap-4">
         <div>
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.createProject.runs') }}</label>
+          <label :for="`${uid}-runs`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.createProject.runs') }}</label>
           <input
             v-model.number="runs"
+            :id="`${uid}-runs`"
             type="number"
             min="1"
             class="w-20 bg-slate-800 border border-slate-700 rounded-sm px-3 py-1.5 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500"
           />
         </div>
         <div>
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.createProject.me') }}</label>
+          <label :for="`${uid}-me`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.createProject.me') }}</label>
           <div class="relative">
             <input
               v-model.number="meLevel"
+              :id="`${uid}-me`"
               type="number"
               min="0"
               max="10"
@@ -435,10 +438,11 @@ store.fetchUserSettings()
           </div>
         </div>
         <div>
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.createProject.te') }}</label>
+          <label :for="`${uid}-te`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.createProject.te') }}</label>
           <div class="relative">
             <input
               v-model.number="teLevel"
+              :id="`${uid}-te`"
               type="number"
               min="0"
               max="20"
@@ -454,9 +458,10 @@ store.fetchUserSettings()
           </div>
         </div>
         <div>
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.margins.solarSystem') }}</label>
+          <label :for="`${uid}-system`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.margins.solarSystem') }}</label>
           <select
             v-model="selectedSolarSystemId"
+            :id="`${uid}-system`"
             class="bg-slate-800 border border-slate-700 rounded-sm px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500"
           >
             <option :value="null">{{ t('industry.margins.defaultSystem') }}</option>

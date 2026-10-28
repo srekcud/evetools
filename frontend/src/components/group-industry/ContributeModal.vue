@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseModal from '@/components/common/BaseModal.vue'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
@@ -9,6 +9,10 @@ import { useFormatters } from '@/composables/useFormatters'
 import type { BomItem, ContributionType, SubmitContributionInput } from '@/stores/group-industry/types'
 
 const { t } = useI18n()
+const bomItemFieldId = useId()
+const quantityFieldId = useId()
+const estimatedValueFieldId = useId()
+const noteFieldId = useId()
 const projectStore = useGroupProjectStore()
 const contributionStore = useGroupContributionStore()
 const { getTypeIconUrl, onImageError } = useEveImages()
@@ -197,11 +201,12 @@ async function submit(): Promise<void> {
 
       <!-- Type Selector (4 cards) -->
       <div>
-        <label class="text-sm font-medium text-slate-300 mb-3 block">{{ t('groupIndustry.contribute.type') }}</label>
+        <p class="text-sm font-medium text-slate-300 mb-3 block">{{ t('groupIndustry.contribute.type') }}</p>
         <div class="grid grid-cols-4 gap-2">
-          <div
+          <button
             v-for="opt in contributionTypeOptions"
             :key="opt.key"
+            type="button"
             class="rounded-xl border p-3 cursor-pointer text-center transition-all"
             :class="selectedType === opt.key
               ? 'border-cyan-500/50 bg-cyan-500/5'
@@ -226,7 +231,7 @@ async function submit(): Promise<void> {
             >
               {{ opt.label }}
             </span>
-          </div>
+          </button>
         </div>
       </div>
 
@@ -236,7 +241,7 @@ async function submit(): Promise<void> {
       <div class="space-y-4">
         <!-- BOM Item selector -->
         <div>
-          <label class="text-sm font-medium text-slate-300 mb-1.5 block">
+          <label :for="bomItemFieldId" class="text-sm font-medium text-slate-300 mb-1.5 block">
             {{ selectedType === 'material' ? t('groupIndustry.contribute.item') : t('groupIndustry.contribute.bomStep') }}
           </label>
           <!-- Pre-filled display -->
@@ -262,6 +267,7 @@ async function submit(): Promise<void> {
           <!-- Dropdown -->
           <select
             v-else
+            :id="bomItemFieldId"
             v-model="selectedBomItemId"
             class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-300 focus:border-cyan-500 focus:outline-none transition-colors"
           >
@@ -275,8 +281,9 @@ async function submit(): Promise<void> {
 
         <!-- Quantity -->
         <div>
-          <label class="text-sm font-medium text-slate-300 mb-1.5 block">{{ t('groupIndustry.contribute.quantity') }}</label>
+          <label :for="quantityFieldId" class="text-sm font-medium text-slate-300 mb-1.5 block">{{ t('groupIndustry.contribute.quantity') }}</label>
           <input
+            :id="quantityFieldId"
             v-model.number="quantity"
             type="number"
             min="1"
@@ -307,10 +314,11 @@ async function submit(): Promise<void> {
 
         <!-- Manual estimated value for BPC / Line Rental -->
         <div v-if="requiresEnteredValue">
-          <label class="text-sm font-medium text-slate-300 mb-1.5 block">
+          <label :for="estimatedValueFieldId" class="text-sm font-medium text-slate-300 mb-1.5 block">
             {{ t('groupIndustry.contribute.estimatedValue') }} (ISK)
           </label>
           <input
+            :id="estimatedValueFieldId"
             v-model.number="estimatedValue"
             type="number"
             min="0"
@@ -330,10 +338,11 @@ async function submit(): Promise<void> {
 
         <!-- Notes -->
         <div>
-          <label class="text-sm font-medium text-slate-300 mb-1.5 block">
+          <label :for="noteFieldId" class="text-sm font-medium text-slate-300 mb-1.5 block">
             {{ t('groupIndustry.contribute.notes') }} <span class="text-slate-600 font-normal">({{ t('groupIndustry.contribute.optional') }})</span>
           </label>
           <textarea
+            :id="noteFieldId"
             v-model="note"
             :placeholder="t('groupIndustry.contribute.notesPlaceholder')"
             rows="2"

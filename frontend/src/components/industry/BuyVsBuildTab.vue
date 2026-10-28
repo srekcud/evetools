@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useScannerStore } from '@/stores/industry/scanner'
 import { useIndustryStore, type SearchResult } from '@/stores/industry'
@@ -16,6 +16,7 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+const uid = useId()
 const scannerStore = useScannerStore()
 const industryStore = useIndustryStore()
 const { formatIsk, formatNumber } = useFormatters()
@@ -302,22 +303,24 @@ const SUMMARY_LIST_LIMIT = 5
 
       <div class="flex flex-wrap items-end gap-4">
         <div class="flex-1 min-w-[280px]">
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.buyVsBuild.product') }}</label>
-          <ProductSearch ref="productSearchRef" @select="onProductSelect" />
+          <label :for="`${uid}-product`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.buyVsBuild.product') }}</label>
+          <ProductSearch ref="productSearchRef" :input-id="`${uid}-product`" @select="onProductSelect" />
         </div>
         <div>
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.buyVsBuild.runs') }}</label>
+          <label :for="`${uid}-runs`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.buyVsBuild.runs') }}</label>
           <input
             v-model.number="runs"
+            :id="`${uid}-runs`"
             type="number"
             min="1"
             class="w-20 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500"
           />
         </div>
         <div>
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.buyVsBuild.me') }}</label>
+          <label :for="`${uid}-me`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.buyVsBuild.me') }}</label>
           <input
             v-model.number="meLevel"
+            :id="`${uid}-me`"
             type="number"
             min="0"
             max="10"
@@ -325,9 +328,10 @@ const SUMMARY_LIST_LIMIT = 5
           />
         </div>
         <div>
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.buyVsBuild.systemLabel') }}</label>
+          <label :for="`${uid}-system`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.buyVsBuild.systemLabel') }}</label>
           <select
             v-model.number="selectedSystemId"
+            :id="`${uid}-system`"
             class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500"
           >
             <option :value="null">--</option>

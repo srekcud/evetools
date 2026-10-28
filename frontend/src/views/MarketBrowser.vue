@@ -230,25 +230,32 @@ const allButtonLabel = computed(() => {
           <div v-if="marketStore.recentSearches.length > 0" class="flex-1">
             <h3 class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">{{ t('market.recentSearches') }}</h3>
             <div class="flex flex-wrap gap-2">
-              <span
+              <div
                 v-for="entry in marketStore.recentSearches"
                 :key="entry.typeId"
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/50 border border-slate-700/50 rounded-lg text-xs text-slate-300 hover:border-cyan-500/30 hover:text-cyan-400 cursor-pointer transition-colors group"
-                @click="handleRecentSearchClick(entry.typeId)"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/50 border border-slate-700/50 rounded-lg text-xs text-slate-300 hover:border-cyan-500/30 hover:text-cyan-400 transition-colors group"
               >
-                <img
-                  :src="getTypeIconUrl(entry.typeId, 32)"
-                  @error="onImageError"
-                  class="w-4 h-4 rounded"
-                  :alt="entry.typeName"
-                  loading="lazy"
-                />
-                {{ entry.typeName }}
                 <button
-                  @click.stop="marketStore.removeRecentSearch(entry.typeId)"
+                  type="button"
+                  class="inline-flex items-center gap-1.5 cursor-pointer"
+                  @click="handleRecentSearchClick(entry.typeId)"
+                >
+                  <img
+                    :src="getTypeIconUrl(entry.typeId, 32)"
+                    @error="onImageError"
+                    class="w-4 h-4 rounded"
+                    :alt="entry.typeName"
+                    loading="lazy"
+                  />
+                  {{ entry.typeName }}
+                </button>
+                <button
+                  type="button"
+                  @click="marketStore.removeRecentSearch(entry.typeId)"
+                  :aria-label="t('a11y.zoneB.market.removeRecentSearch', { name: entry.typeName })"
                   class="ml-1 text-slate-600 hover:text-red-400 transition-colors"
-                >&times;</button>
-              </span>
+                ><span aria-hidden="true">&times;</span></button>
+              </div>
             </div>
           </div>
 
@@ -265,7 +272,11 @@ const allButtonLabel = computed(() => {
                 v-for="fav in marketStore.favorites"
                 :key="fav.typeId"
                 class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/5 border border-amber-500/20 rounded-lg text-xs text-amber-300 hover:border-amber-500/40 cursor-pointer transition-colors"
+                role="button"
+                tabindex="0"
                 @click="handleFavoriteClick(fav.typeId)"
+                @keydown.enter.self="handleFavoriteClick(fav.typeId)"
+                @keydown.space.self.prevent="handleFavoriteClick(fav.typeId)"
               >
                 <img
                   :src="getTypeIconUrl(fav.typeId, 32)"

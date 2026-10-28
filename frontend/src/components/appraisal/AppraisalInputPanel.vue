@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { authFetch, safeJsonParse } from '@/services/api'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+
+const pasteTextareaId = useId()
 
 type FormatType = 'auto' | 'multibuy' | 'cargo_scan' | 'eft' | 'dscan' | 'contract' | 'killmail' | 'inventory'
 
@@ -122,12 +124,13 @@ function onStructureInputBlur(): void {
     <div class="flex flex-col gap-4">
 
       <!-- Label -->
-      <label class="text-sm font-medium text-slate-300">
+      <label :for="pasteTextareaId" class="text-sm font-medium text-slate-300">
         {{ t('shopping.pasteLabel') }}
       </label>
 
       <!-- Textarea -->
       <textarea
+        :id="pasteTextareaId"
         :value="props.inputText"
         @input="emit('update:inputText', ($event.target as HTMLTextAreaElement).value)"
         rows="6"
@@ -177,6 +180,7 @@ function onStructureInputBlur(): void {
           <input
             v-model="structureSearchQuery"
             type="text"
+            :aria-label="t('shopping.searchStructure')"
             :placeholder="props.selectedStructure.id ? props.selectedStructure.name : t('shopping.searchStructure')"
             @focus="showStructureDropdown = true"
             @blur="onStructureInputBlur"

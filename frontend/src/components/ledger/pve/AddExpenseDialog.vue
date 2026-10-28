@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseModal from '@/components/common/BaseModal.vue'
 
@@ -14,6 +14,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const formFieldIdPrefix = useId()
 
 const newExpense = ref({
   type: 'fuel',
@@ -77,8 +78,9 @@ defineExpose({ resetForm })
     <div class="space-y-4">
       <!-- Type -->
       <div>
-        <label class="block text-sm text-slate-400 mb-1">{{ t('pve.type') }}</label>
+        <label :for="`${formFieldIdPrefix}-type`" class="block text-sm text-slate-400 mb-1">{{ t('pve.type') }}</label>
         <select
+          :id="`${formFieldIdPrefix}-type`"
           v-model="newExpense.type"
           class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-cyan-500"
         >
@@ -88,8 +90,9 @@ defineExpose({ resetForm })
 
       <!-- Description -->
       <div>
-        <label class="block text-sm text-slate-400 mb-1">{{ t('pve.description') }} <span class="text-red-400">*</span></label>
+        <label :for="`${formFieldIdPrefix}-description`" class="block text-sm text-slate-400 mb-1">{{ t('pve.description') }} <span class="text-red-400">*</span></label>
         <input
+          :id="`${formFieldIdPrefix}-description`"
           v-model="newExpense.description"
           type="text"
           :placeholder="t('pve.descriptionPlaceholder')"
@@ -103,8 +106,9 @@ defineExpose({ resetForm })
 
       <!-- Amount -->
       <div>
-        <label class="block text-sm text-slate-400 mb-1">{{ t('pve.amount') }} <span class="text-red-400">*</span></label>
+        <label :for="`${formFieldIdPrefix}-amount`" class="block text-sm text-slate-400 mb-1">{{ t('pve.amount') }} <span class="text-red-400">*</span></label>
         <input
+          :id="`${formFieldIdPrefix}-amount`"
           v-model="newExpense.amount"
           type="number"
           placeholder="150000000"
@@ -118,8 +122,9 @@ defineExpose({ resetForm })
 
       <!-- Date -->
       <div>
-        <label class="block text-sm text-slate-400 mb-1">{{ t('pve.date') }}</label>
+        <label :for="`${formFieldIdPrefix}-date`" class="block text-sm text-slate-400 mb-1">{{ t('pve.date') }}</label>
         <input
+          :id="`${formFieldIdPrefix}-date`"
           v-model="newExpense.date"
           type="date"
           class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-cyan-500"

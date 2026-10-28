@@ -5,6 +5,10 @@ import { useIndustryStore, type SearchResult } from '@/stores/industry'
 
 const { t } = useI18n()
 
+const props = defineProps<{
+  inputId?: string
+}>()
+
 const emit = defineEmits<{
   select: [result: SearchResult]
 }>()
@@ -55,6 +59,8 @@ defineExpose({ clear })
   <div class="relative">
     <input
       v-model="query"
+      :id="props.inputId"
+      :aria-label="t('industry.createProject.searchPlaceholder')"
       @input="onInput"
       @focus="showDropdown = store.searchResults.length > 0"
       @blur="onBlur"
@@ -87,6 +93,7 @@ defineExpose({ clear })
       >
         <img
           :src="`https://images.evetech.net/types/${result.typeId}/icon?size=32`"
+          alt=""
           class="w-6 h-6 rounded-sm"
           @error="($event.target as HTMLImageElement).style.display = 'none'"
         />

@@ -126,6 +126,7 @@ function handleClose() {
                 <td class="py-2.5 px-4 text-right">
                   <input
                     v-model.number="rate.value"
+                    :aria-label="rate.label"
                     type="text"
                     class="w-24 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-sm text-slate-200 font-mono text-right focus:border-cyan-500 focus:outline-none"
                     style="font-variant-numeric: tabular-nums;"

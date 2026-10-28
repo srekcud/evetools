@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { useStockpileStore } from '@/stores/industry/stockpile'
@@ -7,6 +7,7 @@ import type { SearchResult } from '@/stores/industry/types'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
 
 const { t } = useI18n()
+const uid = useId()
 const { formatIsk, formatNumber } = useFormatters()
 const stockpileStore = useStockpileStore()
 
@@ -81,10 +82,10 @@ async function doImport(mode: 'replace' | 'merge'): Promise<void> {
         <div class="col-span-12 lg:col-span-5">
           <div class="space-y-4">
             <div>
-              <label class="block text-xs uppercase tracking-wider text-slate-500 mb-2">
+              <label :for="`${uid}-product`" class="block text-xs uppercase tracking-wider text-slate-500 mb-2">
                 {{ t('industry.stockpile.import.product') }}
               </label>
-              <ProductSearch @select="onProductSelect" />
+              <ProductSearch :input-id="`${uid}-product`" @select="onProductSelect" />
               <div v-if="selectedProduct" class="mt-2 text-xs text-slate-400">
                 {{ selectedProduct.typeName }}
                 <span v-if="selectedProduct.isT2" class="ml-1 px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-sm text-xs font-semibold uppercase">T2</span>
@@ -92,22 +93,24 @@ async function doImport(mode: 'replace' | 'merge'): Promise<void> {
             </div>
             <div class="grid grid-cols-3 gap-3">
               <div>
-                <label class="block text-xs uppercase tracking-wider text-slate-500 mb-2">
+                <label :for="`${uid}-runs`" class="block text-xs uppercase tracking-wider text-slate-500 mb-2">
                   {{ t('industry.stockpile.import.runs') }}
                 </label>
                 <input
                   v-model.number="runs"
+                  :id="`${uid}-runs`"
                   type="number"
                   min="1"
                   class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2.5 font-mono focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30"
                 />
               </div>
               <div>
-                <label class="block text-xs uppercase tracking-wider text-slate-500 mb-2">
+                <label :for="`${uid}-me`" class="block text-xs uppercase tracking-wider text-slate-500 mb-2">
                   {{ t('industry.stockpile.import.me') }}
                 </label>
                 <input
                   v-model.number="me"
+                  :id="`${uid}-me`"
                   type="number"
                   min="0"
                   max="10"
@@ -115,11 +118,12 @@ async function doImport(mode: 'replace' | 'merge'): Promise<void> {
                 />
               </div>
               <div>
-                <label class="block text-xs uppercase tracking-wider text-slate-500 mb-2">
+                <label :for="`${uid}-te`" class="block text-xs uppercase tracking-wider text-slate-500 mb-2">
                   {{ t('industry.stockpile.import.te') }}
                 </label>
                 <input
                   v-model.number="te"
+                  :id="`${uid}-te`"
                   type="number"
                   min="0"
                   max="20"

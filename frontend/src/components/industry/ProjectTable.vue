@@ -8,6 +8,7 @@ import { useTypeNames } from '@/composables/useTypeNames'
 import { parseIskValue } from '@/composables/useIskParser'
 import { projectProfitTotal } from '@/utils/projectProfitTotal'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
+import { vFocusOnMount } from './vFocusOnMount'
 
 const { t } = useI18n()
 
@@ -369,15 +370,18 @@ function formatRootProducts(project: IndustryProject): string {
                 v-model="editValue"
                 type="number"
                 min="1"
+                :aria-label="t('industry.createProject.runs')"
                 class="w-16 bg-slate-700 border border-cyan-500 rounded px-2 py-1 text-sm text-right focus:outline-hidden"
                 @keydown.enter="saveEdit(project)"
                 @keydown.escape="cancelEdit"
                 @blur="saveEdit(project)"
-                autofocus
+                v-focus-on-mount
               />
-              <span
+              <button
+                type="button"
                 v-else-if="isEditable(project)"
                 @dblclick="startEdit(project, 'runs')"
+                @keydown.enter="startEdit(project, 'runs')"
                 class="editable-value font-mono text-slate-300 inline-block relative cursor-pointer"
                 :title="t('industry.table.doubleClickEdit')"
               >
@@ -387,7 +391,7 @@ function formatRootProducts(project: IndustryProject): string {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                   </svg>
                 </span>
-              </span>
+              </button>
               <span v-else class="font-mono text-slate-500">{{ project.runs }}</span>
             </template>
           </td>
@@ -400,6 +404,7 @@ function formatRootProducts(project: IndustryProject): string {
                   <input
                     ref="meInputRef"
                     v-model="editMeValue"
+                    :aria-label="t('industry.createProject.me')"
                     type="number"
                     min="0"
                     max="10"
@@ -410,6 +415,7 @@ function formatRootProducts(project: IndustryProject): string {
                   <span class="text-slate-600">/</span>
                   <input
                     v-model="editTeValue"
+                    :aria-label="t('industry.createProject.te')"
                     type="number"
                     min="0"
                     max="20"
@@ -420,9 +426,11 @@ function formatRootProducts(project: IndustryProject): string {
                   />
                 </div>
               </template>
-              <span
+              <button
+                type="button"
                 v-else-if="isEditable(project)"
                 @dblclick="startEditMeTe(project)"
+                @keydown.enter="startEditMeTe(project)"
                 class="editable-value font-mono text-slate-300 inline-block relative cursor-pointer"
                 :title="t('industry.table.doubleClickEdit')"
               >
@@ -432,7 +440,7 @@ function formatRootProducts(project: IndustryProject): string {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                   </svg>
                 </span>
-              </span>
+              </button>
               <span v-else class="font-mono text-slate-500">{{ project.meLevel }}/{{ project.teLevel }}</span>
             </td>
 
@@ -473,16 +481,19 @@ function formatRootProducts(project: IndustryProject): string {
                 v-model="editValue"
                 type="text"
                 placeholder="ex: 10M, 1.5B"
+                :aria-label="t('industry.table.sell')"
                 class="w-24 bg-slate-700 border border-cyan-500 rounded px-2 py-1 text-right text-sm focus:outline-hidden"
                 @keydown.enter="saveEdit(project)"
                 @keydown.escape="cancelEdit"
                 @blur="saveEdit(project)"
-                autofocus
+                v-focus-on-mount
               />
               <!-- Editable sell price (active projects with a value) -->
-              <span
+              <button
+                type="button"
                 v-else-if="getMergedValue(project.sellPrice, project.estimatedSellPrice).value != null && isEditable(project)"
                 @dblclick="startEdit(project, 'sellPrice')"
+                @keydown.enter="startEdit(project, 'sellPrice')"
                 class="editable-value font-mono inline-block relative cursor-pointer"
                 :class="getMergedValue(project.sellPrice, project.estimatedSellPrice).isEstimated ? 'italic text-slate-500' : 'text-slate-300'"
                 :title="t('industry.table.doubleClickEdit')"
@@ -494,7 +505,7 @@ function formatRootProducts(project: IndustryProject): string {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                   </svg>
                 </span>
-              </span>
+              </button>
               <!-- Non-editable sell price (completed projects with a value) -->
               <span
                 v-else-if="getMergedValue(project.sellPrice, project.estimatedSellPrice).value != null"

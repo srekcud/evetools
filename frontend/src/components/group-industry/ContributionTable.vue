@@ -100,6 +100,7 @@ onMounted(() => {
     <div class="flex items-center gap-3">
       <select
         v-model="typeFilter"
+        :aria-label="t('a11y.zoneB.groupIndustry.contributionTypeFilter')"
         class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-300 focus:border-cyan-500 focus:outline-none"
       >
         <option value="all">{{ t('common.status.all') }} Types</option>
@@ -107,6 +108,7 @@ onMounted(() => {
       </select>
       <select
         v-model="statusFilter"
+        :aria-label="t('a11y.zoneB.groupIndustry.contributionStatusFilter')"
         class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-300 focus:border-cyan-500 focus:outline-none"
       >
         <option value="all">{{ t('common.status.all') }} Statuses</option>

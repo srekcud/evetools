@@ -4,6 +4,7 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import { vFocusOnMount } from '../vFocusOnMount'
 import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import type { EnrichedShoppingItem } from '../ShoppingTab.vue'
 
@@ -67,6 +68,7 @@ function cancelEditStock() {
               <div class="flex items-center gap-2">
                 <img
                   :src="getTypeIconUrl(item.typeId, 32)"
+                  alt=""
                   class="w-5 h-5 rounded-sm"
                   @error="onImageError"
                 />
@@ -94,22 +96,24 @@ function cancelEditStock() {
                   v-if="editingStockTypeId === item.typeId"
                   v-model="editingStockValue"
                   type="number"
+                  :aria-label="t('industry.shoppingTab.stock')"
                   min="0"
                   class="w-16 bg-slate-700 border border-cyan-500 rounded-sm px-1.5 py-0.5 text-xs text-right font-mono focus:outline-hidden"
                   @keydown.enter="saveEditStock(item.typeName)"
                   @keydown.escape="cancelEditStock"
                   @blur="saveEditStock(item.typeName)"
-                  autofocus
+                  v-focus-on-mount
                 />
-                <span
+                <button
                   v-else
+                  type="button"
                   @click="startEditStock(item)"
                   class="font-mono text-xs cursor-pointer hover:text-cyan-400 min-w-8"
                   :class="item.inStock > 0 ? 'text-slate-300' : 'text-slate-600'"
                   :title="t('industry.projectDetail.clickToEdit')"
                 >
                   {{ item.inStock > 0 ? item.inStock.toLocaleString() : '-' }}
-                </span>
+                </button>
               </div>
             </td>
             <!-- Missing -->

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { authFetch, safeJsonParse } from '@/services/api'
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -84,6 +84,7 @@ type FormatType = 'auto' | 'multibuy' | 'cargo_scan' | 'eft' | 'dscan' | 'contra
 // -- Composables --
 
 const { t } = useI18n()
+const transportCostFieldId = useId()
 const { formatIsk, formatNumber, formatTimeSince } = useFormatters()
 
 // -- State --
@@ -515,10 +516,11 @@ async function shareAppraisal(): Promise<void> {
             <div class="flex gap-4 flex-wrap items-end pt-4">
               <!-- Transport cost -->
               <div>
-                <label class="block text-[13px] font-medium text-slate-300 mb-1.5">
+                <label :for="transportCostFieldId" class="block text-[13px] font-medium text-slate-300 mb-1.5">
                   {{ t('shopping.transportCost') }}
                 </label>
                 <input
+                  :id="transportCostFieldId"
                   v-model.number="transportCostPerM3"
                   type="number"
                   min="0"

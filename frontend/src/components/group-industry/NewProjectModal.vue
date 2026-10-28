@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import DataTable from '@/components/common/DataTable.vue'
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { useProjectsStore } from '@/stores/industry/projects'
@@ -11,6 +11,8 @@ import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const { t } = useI18n()
+const projectNameFieldId = useId()
+const containerNameFieldId = useId()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const projectsStore = useProjectsStore()
 const groupProjectStore = useGroupProjectStore()
@@ -317,7 +319,7 @@ function handleClose() {
 
       <!-- Add Items Section -->
       <div>
-        <label class="text-sm font-medium text-slate-300 mb-3 block">{{ t('groupIndustry.modals.newProject.itemsLabel') }}</label>
+        <p class="text-sm font-medium text-slate-300 mb-3 block">{{ t('groupIndustry.modals.newProject.itemsLabel') }}</p>
 
         <!-- Mode Toggle Tabs -->
         <div class="flex gap-1 mb-3 bg-slate-800/50 rounded-lg p-0.5 w-fit">
@@ -344,6 +346,7 @@ function handleClose() {
               <input
                 v-model="searchQuery"
                 type="text"
+                :aria-label="t('groupIndustry.modals.newProject.searchPlaceholder')"
                 :placeholder="t('groupIndustry.modals.newProject.searchPlaceholder')"
                 class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder-slate-600"
                 @input="onSearchInput"
@@ -366,6 +369,7 @@ function handleClose() {
                 >
                   <img
                     :src="getTypeIconUrl(result.typeId, 32)"
+                    alt=""
                     class="w-6 h-6 rounded-sm"
                     @error="onImageError"
                   />
@@ -424,6 +428,7 @@ function handleClose() {
         <div v-else>
           <textarea
             v-model="bulkText"
+            :aria-label="t('groupIndustry.modals.newProject.itemsLabel')"
             rows="5"
             :placeholder="t('groupIndustry.modals.newProject.bulkPlaceholder')"
             class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-sm text-slate-200 font-mono placeholder-slate-600 resize-none"
@@ -492,6 +497,7 @@ function handleClose() {
                   <td class="py-2 px-2 text-center">
                     <input
                       v-model.number="item.meLevel"
+                      :aria-label="`${item.typeName} ME`"
                       type="number"
                       min="0"
                       max="10"
@@ -501,6 +507,7 @@ function handleClose() {
                   <td class="py-2 px-2 text-center">
                     <input
                       v-model.number="item.teLevel"
+                      :aria-label="`${item.typeName} TE`"
                       type="number"
                       min="0"
                       max="20"
@@ -510,6 +517,7 @@ function handleClose() {
                   <td class="py-2 px-2 text-center">
                     <input
                       v-model.number="item.runs"
+                      :aria-label="`${item.typeName} ${t('groupIndustry.modals.newProject.columnRuns')}`"
                       type="number"
                       min="1"
                       class="w-16 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-xs text-slate-200 font-mono text-center focus:border-cyan-500 focus:outline-none"
@@ -543,11 +551,12 @@ function handleClose() {
 
       <!-- Name (optional) -->
       <div>
-        <label class="text-sm font-medium text-slate-300 mb-1.5 block">
+        <label :for="projectNameFieldId" class="text-sm font-medium text-slate-300 mb-1.5 block">
           {{ t('groupIndustry.modals.newProject.nameLabel') }}
           <span class="text-slate-600 font-normal">({{ t('groupIndustry.modals.newProject.optional') }})</span>
         </label>
         <input
+          :id="projectNameFieldId"
           v-model="projectName"
           type="text"
           :placeholder="t('groupIndustry.modals.newProject.namePlaceholder')"
@@ -557,7 +566,7 @@ function handleClose() {
 
       <!-- Production Blacklist -->
       <div>
-        <label class="text-sm font-medium text-slate-300 mb-1 block">{{ t('groupIndustry.modals.newProject.blacklistLabel') }}</label>
+        <p class="text-sm font-medium text-slate-300 mb-1 block">{{ t('groupIndustry.modals.newProject.blacklistLabel') }}</p>
         <p class="text-xs text-slate-500 mb-3">{{ t('groupIndustry.modals.newProject.blacklistDesc') }}</p>
 
         <!-- Predefined categories -->
@@ -586,6 +595,7 @@ function handleClose() {
           <input
             v-model="blacklistItemSearch"
             type="text"
+            :aria-label="t('groupIndustry.modals.newProject.blacklistItemPlaceholder')"
             :placeholder="t('groupIndustry.modals.newProject.blacklistItemPlaceholder')"
             class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 placeholder-slate-600"
           />
@@ -616,11 +626,12 @@ function handleClose() {
 
       <!-- Corp Container (Optional) -->
       <div>
-        <label class="text-sm font-medium text-slate-300 mb-1.5 block">
+        <label :for="containerNameFieldId" class="text-sm font-medium text-slate-300 mb-1.5 block">
           {{ t('groupIndustry.modals.newProject.containerLabel') }}
           <span class="text-slate-600 font-normal">({{ t('groupIndustry.modals.newProject.optional') }})</span>
         </label>
         <input
+          :id="containerNameFieldId"
           v-model="containerName"
           type="text"
           :placeholder="t('groupIndustry.modals.newProject.containerPlaceholder')"
@@ -683,6 +694,7 @@ function handleClose() {
                   <td class="py-2 px-4 text-right">
                     <input
                       v-model.number="rate.value"
+                      :aria-label="rate.label"
                       type="text"
                       class="w-24 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-sm text-slate-200 font-mono text-right focus:border-cyan-500 focus:outline-none"
                       style="font-variant-numeric: tabular-nums;"

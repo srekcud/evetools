@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useScannerStore } from '@/stores/industry/scanner'
 import { useIndustryStore } from '@/stores/industry'
@@ -17,6 +17,7 @@ type UserSettingsResponse = {
 }
 
 const { t } = useI18n()
+const uid = useId()
 const scannerStore = useScannerStore()
 const industryStore = useIndustryStore()
 const { formatIsk, formatNumber, formatDateTime } = useFormatters()
@@ -353,9 +354,10 @@ onBeforeUnmount(() => {
       <div class="flex flex-wrap items-end gap-4">
         <!-- Category -->
         <div class="flex-1 min-w-[180px]">
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.batch.category') }}</label>
+          <label :for="`${uid}-category`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.batch.category') }}</label>
           <select
             v-model="categoryFilter"
+            :id="`${uid}-category`"
             class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500 transition-colors"
           >
             <option v-for="cat in CATEGORY_OPTIONS" :key="cat.value" :value="cat.value">
@@ -366,10 +368,11 @@ onBeforeUnmount(() => {
 
         <!-- Min margin -->
         <div class="w-32">
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.batch.minMargin') }}</label>
+          <label :for="`${uid}-min-margin`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.batch.minMargin') }}</label>
           <div class="flex items-center gap-1">
             <input
               v-model.number="minMarginFilter"
+              :id="`${uid}-min-margin`"
               type="number"
               min="0"
               max="100"
@@ -381,9 +384,10 @@ onBeforeUnmount(() => {
 
         <!-- Min daily volume -->
         <div class="w-36">
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.batch.minDailyVol') }}</label>
+          <label :for="`${uid}-min-daily-vol`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.batch.minDailyVol') }}</label>
           <input
             v-model.number="minDailyVolFilter"
+            :id="`${uid}-min-daily-vol`"
             type="number"
             min="0"
             placeholder="0"
@@ -393,9 +397,10 @@ onBeforeUnmount(() => {
 
         <!-- Sell venue -->
         <div class="w-40">
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.batch.sellVenue') }}</label>
+          <label :for="`${uid}-sell-venue`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.batch.sellVenue') }}</label>
           <select
             v-model="sellVenueFilter"
+            :id="`${uid}-sell-venue`"
             class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500 transition-colors"
           >
             <option v-for="opt in SELL_VENUE_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
@@ -404,9 +409,10 @@ onBeforeUnmount(() => {
 
         <!-- Structure (shown when venue = structure) -->
         <div v-if="sellVenueFilter === 'structure'" class="w-64">
-          <label class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.batch.structure') }}</label>
+          <label :for="`${uid}-structure`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.batch.structure') }}</label>
           <select
             v-model="structureIdFilter"
+            :id="`${uid}-structure`"
             class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500 transition-colors"
           >
             <option :value="null" disabled>{{ t('industry.scanner.batch.selectStructure') }}</option>
@@ -540,7 +546,7 @@ onBeforeUnmount(() => {
             @click="onFavoriteClick(fav.typeId)"
             class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-amber-500/30 rounded-lg transition-colors group"
           >
-            <img :src="getTypeIconUrl(fav.typeId, 32)" class="w-5 h-5 rounded-sm" @error="onImageError" />
+            <img :src="getTypeIconUrl(fav.typeId, 32)" alt="" class="w-5 h-5 rounded-sm" @error="onImageError" />
             <span class="text-table-cell text-slate-300 group-hover:text-slate-100">
               {{ scannerStore.scanResults?.find(r => r.typeId === fav.typeId)?.typeName ?? `#${fav.typeId}` }}
             </span>
@@ -687,9 +693,10 @@ onBeforeUnmount(() => {
                         class="absolute left-0 top-full mt-1 z-50 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-3 w-56"
                         @click.stop
                       >
-                        <label class="block text-xs text-slate-400 mb-1.5">{{ t('industry.scanner.batch.bpcCostPerRun') }}</label>
+                        <label :for="`${uid}-bpc-price`" class="block text-xs text-slate-400 mb-1.5">{{ t('industry.scanner.batch.bpcCostPerRun') }}</label>
                         <input
                           v-model.number="bpcPriceInput"
+                          :id="`${uid}-bpc-price`"
                           type="number"
                           min="0"
                           step="1000"

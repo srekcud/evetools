@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { authFetch, safeJsonParse } from '@/services/api'
@@ -35,6 +35,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const uid = useId()
 const authStore = useAuthStore()
 
 const structureSearchQuery = ref('')
@@ -99,10 +100,11 @@ function onStructureInputBlur() {
   <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
     <!-- Col 1: Structure selector -->
     <div class="eve-card p-4 flex flex-col">
-      <label class="block text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.shoppingTab.marketStructure') }}</label>
+      <label :for="`${uid}-structure`" class="block text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.shoppingTab.marketStructure') }}</label>
       <div class="relative">
         <input
           v-model="structureSearchQuery"
+          :id="`${uid}-structure`"
           type="text"
           :placeholder="selectedStructure.name || defaultStructureName"
           :class="[
@@ -161,10 +163,11 @@ function onStructureInputBlur() {
 
     <!-- Col 2: Transport cost -->
     <div class="eve-card p-4 flex flex-col">
-      <label class="block text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.shoppingTab.transportCost') }}</label>
+      <label :for="`${uid}-transport`" class="block text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.shoppingTab.transportCost') }}</label>
       <div class="flex items-center gap-1.5">
         <input
           :value="transportCostPerM3"
+          :id="`${uid}-transport`"
           @input="emit('update:transportCostPerM3', Number(($event.target as HTMLInputElement).value))"
           type="number"
           min="0"
@@ -183,9 +186,10 @@ function onStructureInputBlur() {
 
     <!-- Col 3: Stock rapide -->
     <div class="eve-card p-4 flex flex-col">
-      <label class="block text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.shoppingTab.quickStock') }}</label>
+      <label :for="`${uid}-stock`" class="block text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.shoppingTab.quickStock') }}</label>
       <textarea
         :value="pastedStock"
+        :id="`${uid}-stock`"
         @input="emit('update:pastedStock', ($event.target as HTMLTextAreaElement).value)"
         :placeholder="t('industry.shoppingTab.pasteInventory')"
         class="w-full h-12 bg-slate-800 border border-slate-700 rounded-sm p-2 text-xs font-mono text-slate-200 placeholder-slate-500 focus:outline-hidden focus:border-cyan-500 resize-none"

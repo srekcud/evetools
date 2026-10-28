@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseModal from '@/components/common/BaseModal.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -9,6 +9,11 @@ import { useEscalationTimers } from '@/composables/useEscalationTimers'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const { t } = useI18n()
+const characterFieldId = useId()
+const typeFieldId = useId()
+const systemFieldId = useId()
+const priceFieldId = useId()
+const notesFieldId = useId()
 const authStore = useAuthStore()
 const { timerBarColor, timerTextColor } = useEscalationTimers()
 
@@ -346,9 +351,11 @@ function resetForm(): void {
       <div :class="isEditMode ? '' : 'grid grid-cols-5 gap-4'">
         <!-- Character (2 cols) - only in add mode -->
         <div v-if="!isEditMode" class="col-span-2">
-          <label class="block text-sm font-medium text-slate-400 mb-1.5">{{ t('escalations.modal.character') }}</label>
+          <label :for="characterFieldId" class="block text-sm font-medium text-slate-400 mb-1.5">{{ t('escalations.modal.character') }}</label>
           <div class="relative">
-            <div
+            <button
+              :id="characterFieldId"
+              type="button"
               class="flex items-center gap-2 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 cursor-pointer hover:border-cyan-500/50 transition-colors"
               @click.stop="showCharDropdown = !showCharDropdown"
             >
@@ -357,7 +364,7 @@ function resetForm(): void {
               </div>
               <span class="text-sm truncate">{{ formCharacterName || t('escalations.modal.selectCharacter') }}</span>
               <svg class="w-4 h-4 text-slate-500 ml-auto shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
-            </div>
+            </button>
 
             <!-- Character dropdown -->
             <div v-if="showCharDropdown" class="absolute z-10 mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden">
@@ -381,15 +388,17 @@ function resetForm(): void {
 
         <!-- Escalation type (3 cols in add mode, full width in edit mode) -->
         <div :class="isEditMode ? '' : 'col-span-3'">
-          <label class="block text-sm font-medium text-slate-400 mb-1.5">{{ t('escalations.modal.type') }}</label>
+          <label :for="typeFieldId" class="block text-sm font-medium text-slate-400 mb-1.5">{{ t('escalations.modal.type') }}</label>
           <div class="relative">
-            <div
+            <button
+              :id="typeFieldId"
+              type="button"
               class="flex items-center justify-between w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 cursor-pointer hover:border-cyan-500/50 transition-colors"
               @click.stop="showTypeDropdown = !showTypeDropdown; showCharDropdown = false"
             >
               <span class="text-sm" :class="formType ? 'text-slate-200' : 'text-slate-500'">{{ formType || t('escalations.modal.selectType') }}</span>
               <svg class="w-4 h-4 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
-            </div>
+            </button>
 
             <div v-if="showTypeDropdown" class="absolute z-10 mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden max-h-64 overflow-y-auto">
               <template v-for="group in escalationOptions" :key="group.label">
@@ -409,7 +418,7 @@ function resetForm(): void {
 
       <!-- Solar system search - only in add mode -->
       <div v-if="!isEditMode">
-        <label class="block text-sm font-medium text-slate-400 mb-1.5">{{ t('escalations.modal.system') }}</label>
+        <label :for="systemFieldId" class="block text-sm font-medium text-slate-400 mb-1.5">{{ t('escalations.modal.system') }}</label>
         <div class="relative">
           <!-- Search input (hidden when system selected) -->
           <template v-if="!formSystemId">
@@ -417,6 +426,7 @@ function resetForm(): void {
               <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
             </svg>
             <input
+              :id="systemFieldId"
               type="text"
               :value="formSystemSearch"
               @input="onSystemSearch(($event.target as HTMLInputElement).value)"
@@ -464,12 +474,13 @@ function resetForm(): void {
       <div :class="isEditMode ? '' : 'grid grid-cols-2 gap-4'">
         <!-- Timer - only in add mode -->
         <div v-if="!isEditMode">
-          <label class="block text-sm font-medium text-slate-400 mb-1.5">{{ t('escalations.modal.timer') }}</label>
+          <p class="block text-sm font-medium text-slate-400 mb-1.5">{{ t('escalations.modal.timer') }}</p>
           <div class="flex items-center gap-2">
             <div class="flex items-center gap-1.5">
               <input
                 type="number"
                 v-model.number="formTimerDays"
+                :aria-label="t('a11y.zoneB.escalation.timerDays')"
                 min="0"
                 max="3"
                 class="w-14 bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-sm text-center focus:outline-hidden focus:border-cyan-500 font-mono hover:border-cyan-500/50 transition-colors"
@@ -480,6 +491,7 @@ function resetForm(): void {
               <input
                 type="number"
                 v-model.number="formTimerHours"
+                :aria-label="t('a11y.zoneB.escalation.timerHours')"
                 min="0"
                 max="23"
                 class="w-14 bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-sm text-center focus:outline-hidden focus:border-cyan-500 font-mono hover:border-cyan-500/50 transition-colors"
@@ -490,6 +502,7 @@ function resetForm(): void {
               <input
                 type="number"
                 v-model.number="formTimerMinutes"
+                :aria-label="t('a11y.zoneB.escalation.timerMinutes')"
                 min="0"
                 max="59"
                 class="w-14 bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-sm text-center focus:outline-hidden focus:border-cyan-500 font-mono hover:border-cyan-500/50 transition-colors"
@@ -512,9 +525,10 @@ function resetForm(): void {
 
         <!-- Price -->
         <div>
-          <label class="block text-sm font-medium text-slate-400 mb-1.5">{{ t('escalations.modal.price') }}</label>
+          <label :for="priceFieldId" class="block text-sm font-medium text-slate-400 mb-1.5">{{ t('escalations.modal.price') }}</label>
           <div class="relative">
             <input
+              :id="priceFieldId"
               type="number"
               v-model.number="formPrice"
               min="0"
@@ -539,11 +553,12 @@ function resetForm(): void {
 
       <!-- Notes -->
       <div>
-        <label class="block text-sm font-medium text-slate-400 mb-1.5">
+        <label :for="notesFieldId" class="block text-sm font-medium text-slate-400 mb-1.5">
           {{ t('escalations.modal.notes') }}
           <span class="text-slate-600 font-normal ml-1">({{ t('escalations.modal.optional') }})</span>
         </label>
         <input
+          :id="notesFieldId"
           type="text"
           v-model="formNotes"
           :placeholder="t('escalations.modal.notesPlaceholder')"
@@ -553,7 +568,7 @@ function resetForm(): void {
 
       <!-- Visibility -->
       <div>
-        <label class="block text-sm font-medium text-slate-400 mb-1.5">{{ t('escalations.modal.visibility') }}</label>
+        <p class="block text-sm font-medium text-slate-400 mb-1.5">{{ t('escalations.modal.visibility') }}</p>
         <div class="grid grid-cols-4 gap-2">
           <button
             v-for="vis in ['perso', 'corp', 'alliance', 'public'] as const"

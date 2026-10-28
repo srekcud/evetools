@@ -77,7 +77,12 @@ function getExpenseTypeColor(type: string): string {
         <div
           v-for="expense in scanResults.detectedExpenses"
           :key="`${expense.contractId}-${expense.typeId}`"
+          role="checkbox"
+          tabindex="0"
+          :aria-checked="expense.selected"
           @click="emit('toggleSelection', expense)"
+          @keydown.enter="emit('toggleSelection', expense)"
+          @keydown.space.prevent="emit('toggleSelection', expense)"
           :class="[
             'p-4 rounded-lg border cursor-pointer transition-colors',
             expense.selected

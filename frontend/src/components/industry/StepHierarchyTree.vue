@@ -79,6 +79,7 @@ function onToggle(step: IndustryProjectStep) {
       <div class="flex items-center gap-3">
         <img
           :src="getTypeIconUrl(tree.productTypeId, 32)"
+          alt=""
           class="w-8 h-8 rounded-sm"
           @error="onImageError"
         />
@@ -139,6 +140,7 @@ function onToggle(step: IndustryProjectStep) {
           <div class="flex items-center gap-2">
             <img
               :src="getTypeIconUrl(mat.typeId, 32)"
+              alt=""
               class="w-6 h-6 rounded-sm"
               @error="onImageError"
             />
@@ -164,6 +166,7 @@ function onToggle(step: IndustryProjectStep) {
           <div class="flex items-center gap-2">
             <img
               :src="getTypeIconUrl(mat.typeId, 32)"
+              alt=""
               class="w-6 h-6 rounded-sm"
               @error="onImageError"
             />

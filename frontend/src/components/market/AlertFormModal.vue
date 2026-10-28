@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseModal from '@/components/common/BaseModal.vue'
 import { useFormatters } from '@/composables/useFormatters'
@@ -31,6 +31,10 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const { formatIsk } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
+
+const priceSourceId = useId()
+const directionLabelId = useId()
+const thresholdId = useId()
 
 const direction = ref<'above' | 'below'>('below')
 const threshold = ref<number>(0)
@@ -91,7 +95,7 @@ async function handleSubmit(): Promise<void> {
     <form @submit.prevent="handleSubmit" class="p-6 space-y-4">
       <!-- Item name (read-only) -->
       <div>
-        <label class="block text-sm font-medium text-slate-400 mb-1">Item</label>
+        <span class="block text-sm font-medium text-slate-400 mb-1">Item</span>
         <div class="flex items-center gap-2 px-3 py-2 bg-slate-800/50 rounded-lg border border-slate-700">
           <img
             :src="getTypeIconUrl(typeId, 32)"
@@ -127,8 +131,9 @@ async function handleSubmit(): Promise<void> {
 
       <!-- Price Source -->
       <div>
-        <label class="block text-sm font-medium text-slate-400 mb-1">{{ t('market.alert.priceSource') }}</label>
+        <label :for="priceSourceId" class="block text-sm font-medium text-slate-400 mb-1">{{ t('market.alert.priceSource') }}</label>
         <select
+          :id="priceSourceId"
           v-model="priceSource"
           class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-cyan-500/50"
         >
@@ -141,8 +146,8 @@ async function handleSubmit(): Promise<void> {
 
       <!-- Direction -->
       <div>
-        <label class="block text-sm font-medium text-slate-400 mb-1">{{ t('market.alert.direction') }}</label>
-        <div class="flex gap-2">
+        <span :id="directionLabelId" class="block text-sm font-medium text-slate-400 mb-1">{{ t('market.alert.direction') }}</span>
+        <div role="group" :aria-labelledby="directionLabelId" class="flex gap-2">
           <button
             type="button"
             @click="direction = 'above'"
@@ -168,8 +173,9 @@ async function handleSubmit(): Promise<void> {
 
       <!-- Threshold -->
       <div>
-        <label class="block text-sm font-medium text-slate-400 mb-1">{{ t('market.alert.threshold') }} (ISK)</label>
+        <label :for="thresholdId" class="block text-sm font-medium text-slate-400 mb-1">{{ t('market.alert.threshold') }} (ISK)</label>
         <input
+          :id="thresholdId"
           v-model.number="threshold"
           type="number"
           min="0"

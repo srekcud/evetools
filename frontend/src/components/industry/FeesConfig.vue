@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useIndustryStore } from '@/stores/industry'
 
 const { t } = useI18n()
+const uid = useId()
 const store = useIndustryStore()
 
 const brokerFeeRate = ref(3.6)
@@ -48,10 +49,11 @@ async function save(): Promise<void> {
     <h4 class="text-sm font-medium text-slate-300 mb-4">{{ t('industry.config.feesTitle') }}</h4>
     <div class="flex items-end gap-6 flex-wrap">
       <div class="w-48">
-        <label class="block text-xs text-slate-500 mb-1">{{ t('industry.config.brokerFee') }}</label>
+        <label :for="`${uid}-broker-fee`" class="block text-xs text-slate-500 mb-1">{{ t('industry.config.brokerFee') }}</label>
         <div class="relative">
           <input
             v-model.number="brokerFeeRate"
+            :id="`${uid}-broker-fee`"
             type="number"
             min="0"
             max="10"
@@ -62,10 +64,11 @@ async function save(): Promise<void> {
         </div>
       </div>
       <div class="w-48">
-        <label class="block text-xs text-slate-500 mb-1">{{ t('industry.config.salesTax') }}</label>
+        <label :for="`${uid}-sales-tax`" class="block text-xs text-slate-500 mb-1">{{ t('industry.config.salesTax') }}</label>
         <div class="relative">
           <input
             v-model.number="salesTaxRate"
+            :id="`${uid}-sales-tax`"
             type="number"
             min="0"
             max="15"
@@ -76,10 +79,11 @@ async function save(): Promise<void> {
         </div>
       </div>
       <div class="w-48">
-        <label class="block text-xs text-slate-500 mb-1">{{ t('industry.config.exportCost') }}</label>
+        <label :for="`${uid}-export-cost`" class="block text-xs text-slate-500 mb-1">{{ t('industry.config.exportCost') }}</label>
         <div class="relative">
           <input
             v-model.number="exportCostPerM3"
+            :id="`${uid}-export-cost`"
             type="number"
             min="0"
             max="50000"

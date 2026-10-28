@@ -54,9 +54,8 @@ function handleDelete(): void {
 
 <template>
   <div
-    @click="handleClick"
     :class="[
-      'px-4 py-3 hover:bg-slate-800/40 transition-colors cursor-pointer group/item',
+      'relative px-4 py-3 hover:bg-slate-800/40 transition-colors cursor-pointer group/item',
       style.border,
       !notification.isRead ? 'bg-slate-800/20' : ''
     ]"
@@ -72,22 +71,25 @@ function handleDelete(): void {
       <!-- Content -->
       <div class="flex-1 min-w-0">
         <div class="flex items-center justify-between gap-2">
-          <span
+          <button
+            type="button"
             :class="[
-              'text-xs leading-tight',
+              'text-left text-xs leading-tight after:absolute after:inset-0',
               notification.isRead ? 'text-slate-400 font-normal' : 'text-slate-200 font-medium'
             ]"
+            @click="handleClick"
           >
             {{ notification.title }}
-          </span>
+          </button>
           <div class="flex items-center gap-1.5 shrink-0">
             <span class="text-xs text-slate-600 whitespace-nowrap group-hover/item:hidden">
               {{ timeAgo }}
             </span>
             <button
-              @click.stop="handleDelete"
+              type="button"
+              @click="handleDelete"
               :title="t('notificationHub.deleteOne')"
-              class="hidden group-hover/item:flex items-center justify-center w-5 h-5 rounded hover:bg-red-500/20 transition-colors"
+              class="relative hidden group-hover/item:flex items-center justify-center w-5 h-5 rounded hover:bg-red-500/20 transition-colors"
               :aria-label="t('notificationHub.deleteOne')"
             >
               <svg aria-hidden="true" class="w-3.5 h-3.5 text-slate-500 hover:text-red-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">

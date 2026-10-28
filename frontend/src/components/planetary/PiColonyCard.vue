@@ -49,7 +49,15 @@ defineEmits<{
     style="border-width: 1px;"
   >
     <!-- Colony Header Row -->
-    <div class="px-5 py-4" @click="$emit('toggle')">
+    <div
+      role="button"
+      tabindex="0"
+      :aria-expanded="expanded"
+      class="px-5 py-4"
+      @click="$emit('toggle')"
+      @keydown.enter.self.prevent="$emit('toggle')"
+      @keydown.space.self.prevent="$emit('toggle')"
+    >
       <div class="flex items-center gap-4">
         <!-- Planet info -->
         <div class="flex items-center gap-3 min-w-[240px]">

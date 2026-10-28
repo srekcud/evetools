@@ -415,27 +415,30 @@ onMounted(() => {
           <div class="flex items-center gap-3">
             <span class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.bpcKitTab.inventionCosts') }}</span>
             <!-- Double-click to override cost -->
-            <span
+            <button
               v-if="!editingCost"
+              type="button"
               class="text-lg font-bold font-mono text-cyan-400 cursor-pointer hover:text-cyan-300 transition-colors"
               :title="t('industry.bpcKitTab.doubleClickOverride')"
               @dblclick="startEditCost"
+              @keydown.enter="startEditCost"
             >
               {{ appliedCost != null ? formatIskFull(appliedCost) : t('industry.inventionUnknown.label') }}
-            </span>
+            </button>
             <input
               v-else
               ref="costInputRef"
               v-model="costEditValue"
               type="text"
+              :aria-label="t('industry.bpcKitTab.inventionCosts')"
               class="w-40 bg-slate-800 border border-cyan-500 rounded-sm px-2 py-1 text-sm font-mono text-cyan-400 focus:outline-none"
               @keydown.enter="confirmEditCost"
               @keydown.escape="cancelEditCost"
               @blur="confirmEditCost"
             />
-            <span v-if="costOverride != null" class="text-xs text-amber-500 cursor-pointer hover:text-amber-400" @click="clearCostOverride">
+            <button v-if="costOverride != null" type="button" class="text-xs text-amber-500 cursor-pointer hover:text-amber-400" @click="clearCostOverride">
               &#10005; reset
-            </span>
+            </button>
           </div>
           <div class="flex items-center gap-3">
             <p v-if="hasUnknownDatacoreName" class="text-xs text-amber-400 text-right">

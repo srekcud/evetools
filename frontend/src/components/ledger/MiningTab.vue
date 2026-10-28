@@ -290,6 +290,7 @@ defineExpose({
           <span class="text-xs text-slate-500">{{ t('ledger.mining.yield') }} :</span>
           <input
             type="number"
+            :aria-label="t('ledger.mining.yield')"
             :value="reprocessYield.toFixed(2)"
             @change="onYieldInput"
             @blur="onYieldBlur"
@@ -308,6 +309,7 @@ defineExpose({
             <input
               v-model="structureSearchQuery"
               type="text"
+              :aria-label="t('ledger.mining.structureLabel')"
               :placeholder="selectedStructure.id ? selectedStructure.name : 'C-J6MT - 1st Taj Mahgoon (defaut)'"
               @focus="showStructureDropdown = true"
               @blur="onStructureInputBlur"

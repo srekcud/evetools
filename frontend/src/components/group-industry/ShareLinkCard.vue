@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, useId } from 'vue'
 import { groupJoinUrl } from '@/views/GroupIndustry/groupJoinUrl'
 
 const props = defineProps<{
   shortLinkCode: string
 }>()
 
+const titleId = useId()
 const copied = ref(false)
 
 const joinUrl = computed(() =>
@@ -33,11 +34,12 @@ async function copyToClipboard(): Promise<void> {
 
 <template>
   <div class="bg-slate-800/60 rounded-xl border border-slate-700/50 p-5">
-    <h4 class="text-sm font-semibold text-slate-200 mb-3">Share Join Link</h4>
+    <h4 :id="titleId" class="text-sm font-semibold text-slate-200 mb-3">Share Join Link</h4>
     <div class="flex items-center gap-2 mb-3">
       <input
         type="text"
         :value="joinUrl"
+        :aria-labelledby="titleId"
         readonly
         class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-300 font-mono"
         style="font-variant-numeric: tabular-nums;"

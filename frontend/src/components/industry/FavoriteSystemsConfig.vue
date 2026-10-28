@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useStructuresStore } from '@/stores/industry/structures'
 import { apiRequest } from '@/services/api'
 
 const { t } = useI18n()
+const uid = useId()
 
 const store = useStructuresStore()
 
@@ -117,7 +118,7 @@ function onBlur(target: 'mfg' | 'rxn') {
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <!-- Manufacturing favorite -->
       <div>
-        <label class="block text-xs text-slate-400 mb-1">{{ t('industry.favoriteSystems.manufacturing') }}</label>
+        <label :for="`${uid}-mfg`" class="block text-xs text-slate-400 mb-1">{{ t('industry.favoriteSystems.manufacturing') }}</label>
         <div class="relative">
           <div v-if="store.userSettings?.favoriteManufacturingSystemId" class="flex items-center gap-2 bg-slate-700 rounded-lg px-3 py-2">
             <span class="text-sm text-slate-200 flex-1">
@@ -132,6 +133,7 @@ function onBlur(target: 'mfg' | 'rxn') {
           <div v-else>
             <input
               v-model="mfgQuery"
+              :id="`${uid}-mfg`"
               type="text"
               :placeholder="t('industry.favoriteSystems.searchSystem')"
               class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:border-cyan-500 placeholder-slate-500"
@@ -157,7 +159,7 @@ function onBlur(target: 'mfg' | 'rxn') {
 
       <!-- Reaction favorite -->
       <div>
-        <label class="block text-xs text-slate-400 mb-1">{{ t('industry.favoriteSystems.reactions') }}</label>
+        <label :for="`${uid}-rxn`" class="block text-xs text-slate-400 mb-1">{{ t('industry.favoriteSystems.reactions') }}</label>
         <div class="relative">
           <div v-if="store.userSettings?.favoriteReactionSystemId" class="flex items-center gap-2 bg-slate-700 rounded-lg px-3 py-2">
             <span class="text-sm text-slate-200 flex-1">
@@ -172,6 +174,7 @@ function onBlur(target: 'mfg' | 'rxn') {
           <div v-else>
             <input
               v-model="rxnQuery"
+              :id="`${uid}-rxn`"
               type="text"
               :placeholder="t('industry.favoriteSystems.searchSystem')"
               class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:border-cyan-500 placeholder-slate-500"

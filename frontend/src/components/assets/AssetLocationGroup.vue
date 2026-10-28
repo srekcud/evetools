@@ -29,6 +29,28 @@ function isContainer(asset: Asset): boolean {
   return props.containerContents.has(asset.itemId)
 }
 
+function containerToggleAttributes(asset: Asset): Record<string, unknown> {
+  if (!isContainer(asset)) {
+    return {}
+  }
+  return {
+    role: 'button',
+    tabindex: 0,
+    'aria-expanded': props.expandedContainers.has(asset.itemId),
+    onClick: () => emit('toggle-container', asset.itemId),
+    onKeydown: (event: KeyboardEvent) => {
+      if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+        event.preventDefault()
+        emit('toggle-container', asset.itemId)
+      }
+    },
+  }
+}
+
+function toggleLocation(): void {
+  emit('toggle-location', props.location.locationName)
+}
+
 function getContainerContents(asset: Asset): Asset[] {
   return props.containerContents.get(asset.itemId) || []
 }
@@ -50,8 +72,13 @@ function getDisplayName(asset: Asset): string {
   <div class="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
     <!-- Location header (clickable to collapse) -->
     <div
+      role="button"
+      tabindex="0"
+      :aria-expanded="!props.collapsedLocations.has(props.location.locationName)"
       class="px-5 py-4 bg-slate-800/50 border-b border-slate-800 flex items-center justify-between cursor-pointer hover:bg-slate-800/70 transition-colors"
-      @click="emit('toggle-location', props.location.locationName)"
+      @click="toggleLocation"
+      @keydown.enter.self.prevent="toggleLocation"
+      @keydown.space.self.prevent="toggleLocation"
     >
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-lg bg-slate-700/50 flex items-center justify-center">
@@ -84,7 +111,7 @@ function getDisplayName(asset: Asset): string {
             'px-5 py-3 flex items-center justify-between transition-colors',
             isContainer(asset) ? 'hover:bg-slate-800/50 cursor-pointer' : 'hover:bg-slate-800/30'
           ]"
-          @click="isContainer(asset) && emit('toggle-container', asset.itemId)"
+          v-bind="containerToggleAttributes(asset)"
         >
           <div class="flex items-center gap-3">
             <img

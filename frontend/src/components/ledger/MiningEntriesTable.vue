@@ -209,6 +209,7 @@ defineExpose({ resetPage: () => { currentPage.value = 1 } })
             <th class="px-4 py-3 w-10">
               <input
                 type="checkbox"
+                :aria-label="t('ledger.mining.selectAll')"
                 :checked="selectedEntryIds.size === paginatedEntries.length && paginatedEntries.length > 0"
                 :indeterminate="selectedEntryIds.size > 0 && selectedEntryIds.size < paginatedEntries.length"
                 @change="selectedEntryIds.size === paginatedEntries.length ? clearSelection() : selectAllEntries()"
@@ -239,6 +240,7 @@ defineExpose({ resetPage: () => { currentPage.value = 1 } })
             <td class="px-4 py-3 w-10" @click.stop>
               <input
                 type="checkbox"
+                :aria-label="typeNameLabel(entry.typeName, entry.typeId)"
                 :checked="selectedEntryIds.has(entry.id)"
                 @change="toggleEntrySelection(entry.id, $event)"
                 class="w-4 h-4 rounded-sm border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-800"

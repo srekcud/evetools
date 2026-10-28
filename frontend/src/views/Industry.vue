@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useIndustryStore, type SearchResult } from '@/stores/industry'
@@ -24,6 +24,11 @@ import PivotAdvisorTab from '@/components/industry/PivotAdvisorTab.vue'
 import StockpileDashboard from '@/components/industry/StockpileDashboard.vue'
 
 const { t } = useI18n()
+const maxJobDurationFieldId = useId()
+const projectNameFieldId = useId()
+const runsFieldId = useId()
+const meLevelFieldId = useId()
+const teLevelFieldId = useId()
 const route = useRoute()
 const router = useRouter()
 const store = useIndustryStore()
@@ -443,12 +448,22 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
 
       <!-- Config Slide-Over Panel -->
       <Teleport to="body">
-        <div v-if="showConfigPanel" class="fixed inset-0 z-50" @keydown.escape="showConfigPanel = false">
+        <div
+          v-if="showConfigPanel"
+          class="fixed inset-0 z-50"
+          role="presentation"
+          @keydown.escape="showConfigPanel = false"
+        >
           <!-- Backdrop -->
-          <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showConfigPanel = false"></div>
+          <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" role="presentation" @click="showConfigPanel = false"></div>
 
           <!-- Panel -->
-          <div class="absolute top-0 right-0 bottom-0 w-full max-w-md bg-slate-900 border-l border-slate-700 shadow-2xl animate-slide-in-right overflow-y-auto">
+          <div
+            class="absolute top-0 right-0 bottom-0 w-full max-w-md bg-slate-900 border-l border-slate-700 shadow-2xl animate-slide-in-right overflow-y-auto"
+            role="dialog"
+            aria-modal="true"
+            :aria-label="t('industry.tabs.config')"
+          >
             <!-- Header -->
             <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between sticky top-0 bg-slate-900 z-10">
               <h3 class="text-lg font-semibold text-white">{{ t('industry.tabs.config') }}</h3>
@@ -465,9 +480,10 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
 
             <!-- Max job duration setting -->
             <div class="px-6 py-4 border-b border-slate-800">
-              <label class="block text-xs text-slate-500 mb-1.5">{{ t('industry.config.maxJobDuration') }}</label>
+              <label :for="maxJobDurationFieldId" class="block text-xs text-slate-500 mb-1.5">{{ t('industry.config.maxJobDuration') }}</label>
               <div class="flex items-center gap-3">
                 <input
+                  :id="maxJobDurationFieldId"
                   :value="store.defaultMaxJobDurationDays.toFixed(1)"
                   @change="(e) => store.setDefaultMaxJobDurationDays(parseFloat((e.target as HTMLInputElement).value) || 2.0)"
                   type="number"
@@ -592,11 +608,12 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
         <div class="px-6 py-5 space-y-5">
           <!-- Project name -->
           <div v-if="productsToAdd.length > 0 || projectName">
-            <label class="block text-sm text-slate-400 mb-1.5">
+            <label :for="projectNameFieldId" class="block text-sm text-slate-400 mb-1.5">
               {{ t('industry.createProject.projectName') }}
               <span class="text-slate-600">({{ t('industry.createProject.optional') }})</span>
             </label>
             <input
+              :id="projectNameFieldId"
               v-model="projectName"
               type="text"
               :placeholder="t('industry.createProject.projectNamePlaceholder')"
@@ -618,6 +635,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
               <div class="flex items-center gap-1">
                 <input
                   v-model.number="product.runs"
+                  :aria-label="`${product.typeName} ${t('industry.createProject.runs')}`"
                   type="number"
                   min="1"
                   class="w-16 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-sm text-center"
@@ -640,21 +658,22 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
 
           <!-- Product search -->
           <div>
-            <label class="block text-sm text-slate-400 mb-1.5">
+            <p class="block text-sm text-slate-400 mb-1.5">
               {{ productsToAdd.length > 0 ? t('industry.createProject.addProduct') : t('industry.createProject.product') }}
               <span v-if="productsToAdd.length === 0" class="text-red-400 ml-0.5">*</span>
               <span v-if="selectedProduct" class="text-cyan-400 ml-2">
                 -- {{ selectedProduct.typeName }}
               </span>
-            </label>
+            </p>
             <ProductSearch ref="productSearchRef" @select="onProductSelect" />
           </div>
 
           <!-- Parameters row: Runs, ME, TE -->
           <div class="grid grid-cols-3 gap-4">
             <div>
-              <label class="block text-sm text-slate-400 mb-1.5">{{ t('industry.createProject.runs') }}</label>
+              <label :for="runsFieldId" class="block text-sm text-slate-400 mb-1.5">{{ t('industry.createProject.runs') }}</label>
               <input
+                :id="runsFieldId"
                 v-model.number="runs"
                 type="number"
                 min="1"
@@ -663,11 +682,12 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
               />
             </div>
             <div>
-              <label class="block text-sm text-slate-400 mb-1.5">
+              <label :for="meLevelFieldId" class="block text-sm text-slate-400 mb-1.5">
                 {{ t('industry.createProject.me') }}
                 <span v-if="selectedProduct?.isT2" class="text-xs text-blue-400 ml-1">T2</span>
               </label>
               <input
+                :id="meLevelFieldId"
                 v-model.number="meLevel"
                 type="number"
                 min="0"
@@ -676,11 +696,12 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
               />
             </div>
             <div>
-              <label class="block text-sm text-slate-400 mb-1.5">
+              <label :for="teLevelFieldId" class="block text-sm text-slate-400 mb-1.5">
                 {{ t('industry.createProject.te') }}
                 <span v-if="selectedProduct?.isT2" class="text-xs text-blue-400 ml-1">T2</span>
               </label>
               <input
+                :id="teLevelFieldId"
                 v-model.number="teLevel"
                 type="number"
                 min="0"
