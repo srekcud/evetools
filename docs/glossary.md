@@ -59,6 +59,8 @@ surplus           = quantité produite − (demande − stock)
 
 | Terme FR | Term EN | Définition | Symbole(s) |
 |---|---|---|---|
+| **Recette** | Recipe | Ce que le catalogue de blueprints donne pour fabriquer un produit : activité, matériaux et quantités par run, produit par run. Un type sans recette est une feuille (acheté). | `Recipe`, `BlueprintCatalog::recipeFor()` |
+| **Mémoire de recettes** | Recipe memory | Décorateur du catalogue de blueprints qui ne lit la recette d'un type qu'une fois, feuilles comprises. Créée au début d'un calcul (plan, coût marginal ou coût d'un produit) et abandonnée à sa fin : jamais partagée entre deux calculs ni entre deux utilisateurs (spec #153). | `RecipeMemory`, `ProductionPlanner::plan()`, `ProductionCostCalculator::costOf()` |
 | **BPO** | Blueprint Original | Blueprint original, aux runs illimités, qu'on peut rechercher en ME et en TE. | `IndustryProject::$bpoCost` |
 | **BPC** | Blueprint Copy | Copie de blueprint aux runs limités. Elle est obtenue par copie d'un BPO, ou par invention pour un T2. | `ContributionType::Bpc`, `IndustryBpcPrice` |
 | **Plafond de runs d'un BPC** | BPC max runs | Nombre maximal de runs d'un job lancé sur une copie de blueprint : `maxProductionLimit` du SDE. Au-delà, l'étape de fabrication est découpée en groupe découpé, runs répartis également (spec #234) ; l'étape de copie du blueprint est découpée de même, une copie par tranche de runs sous le plafond (spec #235). | `IndustryBlueprint::$maxProductionLimit`, `PlanRequest::$blueprintCopyMaxRuns`, `ProductionCostRequest::$blueprintCopyMaxRuns` |
