@@ -231,7 +231,7 @@ function onKeydown(event: KeyboardEvent): void {
               @mouseenter="activeIndex = index"
               @focus="activeIndex = index"
               @click="goTo(entry.route)"
-              @keydown.enter.self.stop.prevent="goTo(entry.route)"
+              @keydown.enter.self.stop.prevent="executeActiveRow($event)"
             >
               {{ entry.label }}
             </div>
@@ -254,7 +254,7 @@ function onKeydown(event: KeyboardEvent): void {
               @mouseenter="activeIndex = projectsOffset + projectIndex"
               @focus="activeIndex = projectsOffset + projectIndex"
               @click="goTo(project.route)"
-              @keydown.enter.self.stop.prevent="goTo(project.route)"
+              @keydown.enter.self.stop.prevent="executeActiveRow($event)"
             >
               <span class="truncate">{{ project.label }}</span>
               <span class="shrink-0 text-xs font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded-sm">
@@ -289,7 +289,7 @@ function onKeydown(event: KeyboardEvent): void {
               @mouseenter="activeIndex = typesOffset + typeIndex"
               @focus="activeIndex = typesOffset + typeIndex"
               @click="runClickedTypeRow(result)"
-              @keydown.enter.self.stop.prevent="runClickedTypeRow(result)"
+              @keydown.enter.self.stop.prevent="executeActiveRow($event)"
             >
               <span>{{ result.typeName }}</span>
               <div v-if="typesOffset + typeIndex === activeIndex" class="mt-1.5 flex flex-wrap gap-2">

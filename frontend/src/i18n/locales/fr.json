@@ -86,6 +86,9 @@
       "skillLevel": "Niveau {skill} de {character}"
     },
     "zoneB": {
+      "market": {
+        "removeRecentSearch": "Retirer {name} des recherches récentes"
+      },
       "groupIndustry": {
         "contributionTypeFilter": "Filtrer par type de contribution",
         "contributionStatusFilter": "Filtrer par statut de contribution"
