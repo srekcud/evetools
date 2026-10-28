@@ -13,6 +13,7 @@ use App\Industry\Domain\PlanTarget;
 use App\Industry\Domain\ProductionPlanner;
 use App\Industry\Domain\Quantity;
 use App\Industry\Domain\Recipe;
+use App\Industry\Domain\RecipeMemory;
 use App\Industry\Domain\RecipeMaterial;
 use App\Industry\Domain\Runs;
 use App\Industry\Domain\TimeEfficiency;
@@ -23,6 +24,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(ProductionPlanner::class)]
+#[CoversClass(RecipeMemory::class)]
 final class ProductionPlannerRecipeReadsTest extends TestCase
 {
     private const string NOMAD_GOLDEN = __DIR__.'/../../../Fixtures/Golden/nomad-1run-me10-no-structure.ravworks.json';

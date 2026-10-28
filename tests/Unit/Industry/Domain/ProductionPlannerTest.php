@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Industry\Domain;
 
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\BlueprintEfficiency;
+use App\Industry\Domain\Intermediate;
 use App\Industry\Domain\Job;
 use App\Industry\Domain\MaterialEfficiency;
 use App\Industry\Domain\OutputPerRun;
@@ -35,6 +36,7 @@ use PHPUnit\Framework\TestCase;
  */
 #[CoversClass(ProductionPlanner::class)]
 #[CoversClass(Plan::class)]
+#[CoversClass(Intermediate::class)]
 final class ProductionPlannerTest extends TestCase
 {
     private const int SHIP = 1001;

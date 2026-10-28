@@ -8,7 +8,9 @@ use App\Industry\Application\FavoriteSystems;
 use App\Industry\Application\ProductionStructure;
 use App\Industry\Application\StructureChoice;
 use App\Industry\Application\StructureChoiceStatus;
+use App\Industry\Application\StructureRig;
 use App\Industry\Application\StructureSelector;
+use App\Industry\Application\StructureType;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\SecurityClass;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
@@ -34,6 +36,8 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(StructureSelector::class)]
 #[CoversClass(StructureChoice::class)]
 #[CoversClass(ProductionStructure::class)]
+#[CoversClass(StructureType::class)]
+#[CoversClass(StructureRig::class)]
 final class StructureSelectorTest extends TestCase
 {
     private const int FAVORITE_MANUFACTURING_SYSTEM_ID = 30002187;
