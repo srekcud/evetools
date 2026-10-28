@@ -251,6 +251,28 @@ class GroupBomProviderTest extends TestCase
         self::assertSame(self::PROJECT_NOT_FOUND, $this->readSabreBatchBom(Uuid::v4()));
     }
 
+    public function testBomListsOnlyTheItemsOfTheRequestedProject(): void
+    {
+        $this->createSabreBatch();
+        $this->security->method('getUser')->willReturn($this->sabreBatchOwner);
+        $ferox = $this->createBomItem(11399, 'Ferox', 7, 2, null, true, 'final', 'manufacturing', null, 10, 20, 7);
+        $tritanium = $this->createBomItem(34, 'Tritanium', 150, 40, null, false, null, null, 11399, null, null, null);
+        $bomItemRepository = $this->createStub(GroupIndustryBomItemRepository::class);
+        $bomItemRepository->method('findBy')->willReturnCallback(
+            fn (array $criteria): array => $criteria === ['project' => $this->sabreBatch] ? [$ferox, $tritanium] : [],
+        );
+        $provider = new GroupBomProvider(
+            $this->security,
+            $this->sabreBatchProjectRepository(),
+            $bomItemRepository,
+            new GroupProjectAccessChecker($this->sabreBatchMemberRepository()),
+        );
+
+        $result = $provider->provide(new GetCollection(), ['projectId' => $this->sabreBatch->getId()->toRfc4122()]);
+
+        self::assertSame(['Ferox', 'Tritanium'], array_map(fn (GroupIndustryBomResource $item) => $item->typeName, $result));
+    }
+
     private function readSabreBatchBom(Uuid $projectId): string
     {
         $bomItemRepository = $this->createStub(GroupIndustryBomItemRepository::class);

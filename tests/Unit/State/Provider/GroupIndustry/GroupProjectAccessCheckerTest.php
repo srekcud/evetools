@@ -76,6 +76,27 @@ class GroupProjectAccessCheckerTest extends TestCase
         $this->accessChecker->assertAdminOrOwner($user, $this->sabreBatch);
     }
 
+    public function testAcceptedAdminOfAnotherProjectCannotAdministrateThisProject(): void
+    {
+        $user = $this->sabreBatchMemberOfAnotherProject(self::FOREIGN_CORPORATION_ID, GroupMemberRole::Admin, GroupMemberStatus::Accepted);
+
+        self::assertSame(self::ADMIN_OR_OWNER_ONLY, $this->outcomeOf(fn () => $this->accessChecker->assertAdminOrOwner($user, $this->sabreBatch)));
+    }
+
+    public function testAcceptedMemberOfAnotherProjectCannotParticipateInThisProject(): void
+    {
+        $user = $this->sabreBatchMemberOfAnotherProject(self::FOREIGN_CORPORATION_ID, GroupMemberRole::Member, GroupMemberStatus::Accepted);
+
+        self::assertSame(self::NO_ACCESS, $this->outcomeOf(fn () => $this->accessChecker->assertAcceptedMember($user, $this->sabreBatch)));
+    }
+
+    public function testAcceptedMemberOfAnotherProjectCannotReadThisProject(): void
+    {
+        $user = $this->sabreBatchMemberOfAnotherProject(self::FOREIGN_CORPORATION_ID, GroupMemberRole::Member, GroupMemberStatus::Accepted);
+
+        self::assertSame(self::NO_ACCESS, $this->outcomeOf(fn () => $this->accessChecker->assertCanRead($user, $this->sabreBatch)));
+    }
+
     #[DataProvider('readAccessMatrix')]
     public function testReadAccessIsOpenToTheOwnerAcceptedMembersAndTheOwnerCorporation(string $profile, string $expectedOutcome): void
     {

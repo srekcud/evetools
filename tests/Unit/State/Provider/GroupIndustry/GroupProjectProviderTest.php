@@ -91,6 +91,13 @@ class GroupProjectProviderTest extends TestCase
         self::assertNull($resource->myRole);
     }
 
+    public function testAcceptedAdminOfAnotherProjectFromTheOwnerCorporationSeesThisProjectWithoutRoleNorStatus(): void
+    {
+        $this->actAs($this->sabreBatchMemberOfAnotherProject(self::OWNER_CORPORATION_ID, GroupMemberRole::Admin, GroupMemberStatus::Accepted));
+
+        self::assertSame('Sabre batch -/-', $this->readSabreBatch($this->sabreBatch->getId()));
+    }
+
     public static function projectReadMatrix(): iterable
     {
         yield 'A1 owner' => [self::OWNER, 'Sabre batch owner/accepted'];

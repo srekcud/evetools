@@ -202,6 +202,28 @@ trait GroupProjectAccessProfiles
         return $membership;
     }
 
+    private function sabreBatchMemberOfAnotherProject(?int $corporationId, GroupMemberRole $role, GroupMemberStatus $status): User
+    {
+        $user = $this->userOfCorporation($corporationId);
+
+        $cutlassBatch = new GroupIndustryProject();
+        $cutlassBatch->setOwner($this->userOfCorporation(self::FOREIGN_CORPORATION_ID));
+        $cutlassBatch->setName('Cutlass batch');
+        $cutlassBatch->setStatus(GroupProjectStatus::InProgress);
+        (new \ReflectionProperty(GroupIndustryProject::class, 'id'))->setValue($cutlassBatch, Uuid::v4());
+
+        $membership = new GroupIndustryProjectMember();
+        $membership->setUser($user);
+        $membership->setRole($role);
+        $membership->setStatus($status);
+        (new \ReflectionProperty(GroupIndustryProjectMember::class, 'id'))->setValue($membership, Uuid::v4());
+        $cutlassBatch->addMember($membership);
+
+        $this->sabreBatchMemberships[] = $membership;
+
+        return $user;
+    }
+
     private function userOfCorporation(?int $corporationId): User&Stub
     {
         $user = $this->createStub(User::class);
