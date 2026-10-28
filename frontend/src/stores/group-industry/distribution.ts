@@ -20,6 +20,9 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
   const loadingMembers = ref(false)
   const loading = computed(() => loadingDistribution.value || loadingSales.value || loadingMembers.value)
   const error = ref<string | null>(null)
+  const distributionError = ref<string | null>(null)
+  const salesError = ref<string | null>(null)
+  const membersError = ref<string | null>(null)
   const openedProjectId = ref<string | null>(null)
 
   function openProject(projectId: string): void {
@@ -214,6 +217,9 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     loadingSales,
     loadingMembers,
     error,
+    distributionError,
+    salesError,
+    membersError,
     fetchDistribution,
     fetchSales,
     recordSale,

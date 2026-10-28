@@ -19,6 +19,7 @@ use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
+use App\Enum\GroupProjectStatus;
 use App\Enum\IndustryActivityType;
 use App\Exception\InventionProbabilityMissingException;
 use App\Exception\InventionT1ProductMissingException;
@@ -88,6 +89,8 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     private const int TITANIUM_DIBORITE_ARMOR_PLATE = 11544;
     private const int NOMAD = 28846;
     private const int NITROGEN_ISOTOPES = 17888;
+    private const int ROBOTICS = 9848;
+    private const int OXYGEN = 3683;
     private const int HYDROGEN_ISOTOPES = 17889;
     private const int OXYGEN_ISOTOPES = 17887;
     private const int COOLANT = 9832;
@@ -1339,31 +1342,393 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         ));
     }
 
-    #[Group('issue-253')]
-    public function testRebuildingTheBomCurrentlyAppendsASecondFullBomNextToTheContributedLinesIssue253(): void
+    public function testRebuildingTheBomWithTheSamePlanKeepsEveryLineWithItsDeliveredQuantityAndContributions(): void
     {
+        $this->jitaPrices = [self::NITROGEN_ISOTOPES => 512.5, self::ROBOTICS => 76_000.0];
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 0, 0]]);
         $this->service->buildBom($project, $this->owner);
-        self::assertCount(11, $project->getBomItems());
         $isotopes = $this->bomItemsOf($project, self::NITROGEN_ISOTOPES)[0];
         $finalJob = $this->jobsOf($project, self::NITROGEN_FUEL_BLOCK, 'manufacturing')[0];
         $member = new GroupIndustryProjectMember();
         $approvedIsotopes = $this->contribution($project, $member, $isotopes, ContributionType::Material, 300, ContributionStatus::Approved);
         $isotopes->setFulfilledQuantity(300);
         $pendingJob = $this->contribution($project, $member, $finalJob, ContributionType::JobInstall, 1, ContributionStatus::Pending);
+        $linesBeforeRebuild = $project->getBomItems()->toArray();
+        $statesBeforeRebuild = $this->lineStates($project);
 
         $this->service->buildBom($project, $this->owner);
 
-        self::assertCount(22, $project->getBomItems());
-        self::assertSame([450, 450], array_map(static fn (GroupIndustryBomItem $bomItem): int => $bomItem->getRequiredQuantity(), $this->bomItemsOf($project, self::NITROGEN_ISOTOPES)));
-        self::assertSame($isotopes, $this->bomItemsOf($project, self::NITROGEN_ISOTOPES)[0]);
-        self::assertSame([300, 0], array_map(static fn (GroupIndustryBomItem $bomItem): int => $bomItem->getFulfilledQuantity(), $this->bomItemsOf($project, self::NITROGEN_ISOTOPES)));
-        self::assertSame($isotopes, $approvedIsotopes->getBomItem());
-        self::assertSame(ContributionStatus::Approved, $approvedIsotopes->getStatus());
-        self::assertSame(300, $approvedIsotopes->getQuantity());
-        self::assertSame($finalJob, $pendingJob->getBomItem());
-        self::assertSame(ContributionStatus::Pending, $pendingJob->getStatus());
-        self::assertSame([$approvedIsotopes, $pendingJob], $project->getContributions()->toArray());
+        self::assertCount(11, $linesBeforeRebuild);
+        self::assertSame($statesBeforeRebuild, $this->lineStates($project));
+        self::assertSame($this->idsOf([$isotopes]), $this->idsOf($this->bomItemsOf($project, self::NITROGEN_ISOTOPES)));
+        self::assertSame([450, 300], [$isotopes->getRequiredQuantity(), $isotopes->getFulfilledQuantity()]);
+        self::assertSame($this->idsOf([$finalJob]), $this->idsOf($this->jobsOf($project, self::NITROGEN_FUEL_BLOCK, 'manufacturing')));
+        self::assertSame([1, 40], [$finalJob->getRuns(), $finalJob->getRequiredQuantity()]);
+        self::assertSame($this->idsOf([$approvedIsotopes, $pendingJob]), $this->idsOf($project->getContributions()->toArray()));
+        self::assertSame(
+            [[$this->idOf($isotopes), ContributionStatus::Approved, 300], [$this->idOf($finalJob), ContributionStatus::Pending, 1]],
+            [
+                [$this->idOf($approvedIsotopes->getBomItem()), $approvedIsotopes->getStatus(), $approvedIsotopes->getQuantity()],
+                [$this->idOf($pendingJob->getBomItem()), $pendingJob->getStatus(), $pendingJob->getQuantity()],
+            ],
+        );
+    }
+
+    #[DataProvider('projectWithCopyInventionAndComponentLinesProvider')]
+    public function testRebuildingTheBomWithTheSamePlanKeepsItsCopyInventionAndComponentLines(int $productTypeId, int $runs, int $me, int $te, int $lineCount): void
+    {
+        $project = $this->projectOf([[$productTypeId, $runs, $me, $te]]);
+        $this->service->buildBom($project, $this->owner);
+        $linesBeforeRebuild = $project->getBomItems()->toArray();
+        $statesBeforeRebuild = $this->lineStates($project);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertCount($lineCount, $linesBeforeRebuild);
+        self::assertSame($statesBeforeRebuild, $this->lineStates($project));
+    }
+
+    public static function projectWithCopyInventionAndComponentLinesProvider(): iterable
+    {
+        yield 'Hail L, invented, with component and copy lines' => [self::HAIL_L, 1, 2, 4, 43];
+        yield 'Fernite Carbide, with reaction and manufacturing components' => [self::FERNITE_CARBIDE, 1, 10, 20, 18];
+    }
+
+    public function testRebuildingAProjectRecordedWithTheBomOfOneRunUpdatesItsLinesInPlaceForItsTwentyFiveRuns(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 25, 10, 20]]);
+        $isotopes = $this->recordedMaterialLine($project, self::NITROGEN_ISOTOPES, 405, 300);
+        $finalJob = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 1, 40);
+        $copyJob = $this->recordedJobLine($project, 'copy', 'blueprint', 0, 0, 1, 1);
+        $member = new GroupIndustryProjectMember();
+        $approvedIsotopes = $this->contribution($project, $member, $isotopes, ContributionType::Material, 300, ContributionStatus::Approved);
+        $pendingJob = $this->contribution($project, $member, $finalJob, ContributionType::JobInstall, 1, ContributionStatus::Pending);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertCount(11, $project->getBomItems());
+        self::assertSame(self::NITROGEN_FUEL_BLOCK_TWENTY_FIVE_RUNS_ME_TEN, $this->materials($project));
+        self::assertSame($this->idsOf([$isotopes]), $this->idsOf($this->bomItemsOf($project, self::NITROGEN_ISOTOPES)));
+        self::assertSame([10_125, 300], [$isotopes->getRequiredQuantity(), $isotopes->getFulfilledQuantity()]);
+        self::assertSame($this->idsOf([$finalJob]), $this->idsOf($this->jobsOf($project, self::NITROGEN_FUEL_BLOCK, 'manufacturing')));
+        self::assertSame([25, 1_000, 0], [$finalJob->getRuns(), $finalJob->getRequiredQuantity(), $finalJob->getFulfilledQuantity()]);
+        self::assertSame($this->idsOf([$copyJob]), $this->idsOf($this->jobsOf($project, self::NITROGEN_FUEL_BLOCK, 'copy')));
+        self::assertSame([25, 25], [$copyJob->getRuns(), $copyJob->getRequiredQuantity()]);
+        self::assertSame(
+            [44 => 0, 3683 => 0, 3689 => 0, 9832 => 0, 9848 => 0, 16272 => 0, 16273 => 0, 16275 => 0, 17888 => 300],
+            $this->fulfilledQuantitiesOfMaterials($project),
+        );
+        self::assertSame(
+            [[$this->idOf($isotopes), ContributionStatus::Approved, 300], [$this->idOf($finalJob), ContributionStatus::Pending, 1]],
+            [
+                [$this->idOf($approvedIsotopes->getBomItem()), $approvedIsotopes->getStatus(), $approvedIsotopes->getQuantity()],
+                [$this->idOf($pendingJob->getBomItem()), $pendingJob->getStatus(), $pendingJob->getQuantity()],
+            ],
+        );
+    }
+
+    public function testRequiredQuantityFallingUnderTheDeliveredQuantityKeepsTheDeliveredQuantity(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 10, 20]]);
+        $isotopes = $this->recordedMaterialLine($project, self::NITROGEN_ISOTOPES, 10_125, 9_000);
+        $this->contribution($project, new GroupIndustryProjectMember(), $isotopes, ContributionType::Material, 9_000, ContributionStatus::Approved);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame($this->idsOf([$isotopes]), $this->idsOf($this->bomItemsOf($project, self::NITROGEN_ISOTOPES)));
+        self::assertSame(
+            [405, 9_000, 0, 100.0, true],
+            [$isotopes->getRequiredQuantity(), $isotopes->getFulfilledQuantity(), $isotopes->getRemainingQuantity(), $isotopes->getFulfillmentPercent(), $isotopes->isFulfilled()],
+        );
+    }
+
+    public function testLineDroppedFromThePlanIsDeletedWithoutContributionAndKeptAsRecordedWithOne(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 0, 0]]);
+        $this->service->buildBom($project, $this->owner);
+        $isotopes = $this->bomItemsOf($project, self::NITROGEN_ISOTOPES)[0];
+        $approvedIsotopes = $this->contribution($project, new GroupIndustryProjectMember(), $isotopes, ContributionType::Material, 300, ContributionStatus::Approved);
+        $isotopes->setFulfilledQuantity(300);
+        $linesBeforeRebuild = $project->getBomItems()->toArray();
+        $statesOfTheOtherLines = $this->lineStatesExcept($project, [self::NITROGEN_ISOTOPES, self::ROBOTICS]);
+        $this->removeMaterialsFromTheRecipe(self::NITROGEN_FUEL_BLOCK, [self::NITROGEN_ISOTOPES, self::ROBOTICS]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertCount(11, $linesBeforeRebuild);
+        self::assertCount(10, $project->getBomItems());
+        self::assertSame([], $this->idsOf($this->bomItemsOf($project, self::ROBOTICS)));
+        self::assertSame($this->idsOf([$isotopes]), $this->idsOf($this->bomItemsOf($project, self::NITROGEN_ISOTOPES)));
+        self::assertSame([450, 300], [$isotopes->getRequiredQuantity(), $isotopes->getFulfilledQuantity()]);
+        self::assertSame([$this->idOf($isotopes), ContributionStatus::Approved, 300], [$this->idOf($approvedIsotopes->getBomItem()), $approvedIsotopes->getStatus(), $approvedIsotopes->getQuantity()]);
+        self::assertSame($statesOfTheOtherLines, $this->lineStatesExcept($project, [self::NITROGEN_ISOTOPES, self::ROBOTICS]));
+    }
+
+    #[DataProvider('contributionStatusProvider')]
+    public function testContributionOfAnyStatusKeepsTheLineDroppedFromThePlan(ContributionStatus $status): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 0, 0]]);
+        $this->service->buildBom($project, $this->owner);
+        $robotics = $this->bomItemsOf($project, self::ROBOTICS)[0];
+        $contribution = $this->contribution($project, new GroupIndustryProjectMember(), $robotics, ContributionType::Material, 1, $status);
+        $isotopes = $this->bomItemsOf($project, self::NITROGEN_ISOTOPES)[0];
+        $this->removeMaterialsFromTheRecipe(self::NITROGEN_FUEL_BLOCK, [self::NITROGEN_ISOTOPES, self::ROBOTICS]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame($this->idsOf([$robotics]), $this->idsOf($this->bomItemsOf($project, self::ROBOTICS)));
+        self::assertSame([1, 0], [$robotics->getRequiredQuantity(), $robotics->getFulfilledQuantity()]);
+        self::assertSame([$this->idOf($robotics), $status], [$this->idOf($contribution->getBomItem()), $contribution->getStatus()]);
+        self::assertSame([], $this->idsOf($this->bomItemsOf($project, self::NITROGEN_ISOTOPES)));
+        self::assertSame(450, $isotopes->getRequiredQuantity());
+        self::assertCount(10, $project->getBomItems());
+    }
+
+    public static function contributionStatusProvider(): iterable
+    {
+        yield 'pending' => [ContributionStatus::Pending];
+        yield 'approved' => [ContributionStatus::Approved];
+        yield 'rejected' => [ContributionStatus::Rejected];
+    }
+
+    public function testContributionWithoutBomLineKeepsNoLineDroppedFromThePlan(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 0, 0]]);
+        $this->service->buildBom($project, $this->owner);
+        $lineRental = $this->contribution($project, new GroupIndustryProjectMember(), $this->bomItemsOf($project, self::ROBOTICS)[0], ContributionType::LineRental, 1, ContributionStatus::Approved);
+        $lineRental->setBomItem(null);
+        $this->removeMaterialsFromTheRecipe(self::NITROGEN_FUEL_BLOCK, [self::ROBOTICS]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame([], $this->idsOf($this->bomItemsOf($project, self::ROBOTICS)));
+        self::assertCount(10, $project->getBomItems());
+        self::assertSame($this->idsOf([$lineRental]), $this->idsOf($project->getContributions()->toArray()));
+    }
+
+    public function testSplitJobLinesAreMatchedByRankOfRunsAndKeepTheirContribution(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 250, 10, 20]]);
+        $remainderJob = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 50, 2_000);
+        $fullJob = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 200, 8_000);
+        $pendingJob = $this->contribution($project, new GroupIndustryProjectMember(), $remainderJob, ContributionType::JobInstall, 50, ContributionStatus::Pending);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertCount(2, $this->jobsOf($project, self::NITROGEN_FUEL_BLOCK, 'manufacturing'));
+        self::assertSame(
+            [[125, 5_000, true], [125, 5_000, true]],
+            [
+                [$fullJob->getRuns(), $fullJob->getRequiredQuantity(), $project->getBomItems()->contains($fullJob)],
+                [$remainderJob->getRuns(), $remainderJob->getRequiredQuantity(), $project->getBomItems()->contains($remainderJob)],
+            ],
+        );
+        self::assertSame($this->idOf($remainderJob), $this->idOf($pendingJob->getBomItem()));
+    }
+
+    public function testFewerSplitJobsMatchTheLongestRecordedJobAndKeepTheShorterJobThatHasAContribution(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 150, 10, 20]]);
+        $remainderJob = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 50, 2_000);
+        $fullJob = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 200, 8_000);
+        $this->contribution($project, new GroupIndustryProjectMember(), $remainderJob, ContributionType::JobInstall, 50, ContributionStatus::Pending);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [[150, 6_000], [50, 2_000]],
+            [[$fullJob->getRuns(), $fullJob->getRequiredQuantity()], [$remainderJob->getRuns(), $remainderJob->getRequiredQuantity()]],
+        );
+        self::assertSame($this->idsOf([$remainderJob, $fullJob]), $this->idsOf($this->jobsOf($project, self::NITROGEN_FUEL_BLOCK, 'manufacturing')));
+    }
+
+    public function testFewerSplitJobsDeleteTheShorterRecordedJobWithoutContribution(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 150, 10, 20]]);
+        $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 50, 2_000);
+        $fullJob = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 200, 8_000);
+        $this->contribution($project, new GroupIndustryProjectMember(), $fullJob, ContributionType::JobInstall, 200, ContributionStatus::Approved);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame($this->idsOf([$fullJob]), $this->idsOf($this->jobsOf($project, self::NITROGEN_FUEL_BLOCK, 'manufacturing')));
+        self::assertSame([150, 6_000], [$fullJob->getRuns(), $fullJob->getRequiredQuantity()]);
+    }
+
+    public function testFewerSplitJobsOfEqualRunsKeepTheJobThatHasAContribution(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 100, 10, 20]]);
+        $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 125, 5_000);
+        $contributedJob = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 125, 5_000);
+        $this->contribution($project, new GroupIndustryProjectMember(), $contributedJob, ContributionType::JobInstall, 125, ContributionStatus::Pending);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame($this->idsOf([$contributedJob]), $this->idsOf($this->jobsOf($project, self::NITROGEN_FUEL_BLOCK, 'manufacturing')));
+        self::assertSame([100, 4_000], [$contributedJob->getRuns(), $contributedJob->getRequiredQuantity()]);
+    }
+
+    public function testMoreSplitJobsKeepTheRecordedJobAndCreateTheMissingOne(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 250, 10, 20]]);
+        $recordedJob = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 200, 8_000);
+        $this->contribution($project, new GroupIndustryProjectMember(), $recordedJob, ContributionType::JobInstall, 200, ContributionStatus::Approved);
+
+        $this->service->buildBom($project, $this->owner);
+
+        $finalJobs = $this->jobsOf($project, self::NITROGEN_FUEL_BLOCK, 'manufacturing');
+        self::assertCount(2, $finalJobs);
+        self::assertSame($this->idOf($recordedJob), $this->idOf($finalJobs[0]));
+        self::assertSame(
+            [[125, 5_000, 0], [125, 5_000, 0]],
+            array_map(static fn (GroupIndustryBomItem $line): array => [$line->getRuns(), $line->getRequiredQuantity(), $line->getFulfilledQuantity()], $finalJobs),
+        );
+    }
+
+    public function testRecordedJobLineAtAnotherMeAndTeIsNotMatchedAndTheJobOfThePlanIsCreated(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 25, 10, 20]]);
+        $isotopes = $this->recordedMaterialLine($project, self::NITROGEN_ISOTOPES, 405, 0);
+        $jobAtMeZero = $this->recordedJobLine($project, 'manufacturing', 'final', 0, 0, 1, 40);
+        $this->contribution($project, new GroupIndustryProjectMember(), $jobAtMeZero, ContributionType::JobInstall, 1, ContributionStatus::Pending);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame($this->idsOf([$isotopes]), $this->idsOf($this->bomItemsOf($project, self::NITROGEN_ISOTOPES)));
+        self::assertSame(10_125, $isotopes->getRequiredQuantity());
+        self::assertSame(
+            [
+                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 0, 0, 40, null],
+                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 25, 10, 20, 1_000, null],
+            ],
+            $this->jobsOfTypeAndActivity($project, self::NITROGEN_FUEL_BLOCK, 'manufacturing'),
+        );
+        self::assertContains($this->idOf($jobAtMeZero), $this->idsOf($this->jobsOf($project, self::NITROGEN_FUEL_BLOCK, 'manufacturing')));
+        self::assertCount(12, $project->getBomItems());
+    }
+
+    public function testRebuildingRewritesTheRunsAndParentOfAComponentJobLineInPlace(): void
+    {
+        $project = $this->projectOf([[self::FERNITE_CARBIDE, 1, 10, 20]]);
+        $this->service->buildBom($project, $this->owner);
+        $hydrogenFuelBlockJob = $this->jobsOf($project, self::HYDROGEN_FUEL_BLOCK, 'manufacturing')[0];
+        $hydrogenFuelBlockJob->setRuns(3)->setRequiredQuantity(120)->setParentTypeId(self::FERNITE_ALLOY)->setTypeName('Hydrogen Fuel Block (renamed)');
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame($this->idsOf([$hydrogenFuelBlockJob]), $this->idsOf($this->jobsOf($project, self::HYDROGEN_FUEL_BLOCK, 'manufacturing')));
+        self::assertSame(
+            [1, 40, self::FERNITE_CARBIDE, 'Hydrogen Fuel Block', 'component', 10, 20],
+            [
+                $hydrogenFuelBlockJob->getRuns(),
+                $hydrogenFuelBlockJob->getRequiredQuantity(),
+                $hydrogenFuelBlockJob->getParentTypeId(),
+                $hydrogenFuelBlockJob->getTypeName(),
+                $hydrogenFuelBlockJob->getJobGroup(),
+                $hydrogenFuelBlockJob->getMeLevel(),
+                $hydrogenFuelBlockJob->getTeLevel(),
+            ],
+        );
+    }
+
+    public function testRebuildingRewritesTheEstimatedPriceOfEachMaterialLineWithTheCurrentPriceOrUnknown(): void
+    {
+        $this->jitaPrices = [self::NITROGEN_ISOTOPES => 512.5, self::ROBOTICS => 76_000.0];
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 0, 0]]);
+        $this->service->buildBom($project, $this->owner);
+        $isotopes = $this->bomItemsOf($project, self::NITROGEN_ISOTOPES)[0];
+        $approvedIsotopes = $this->contribution($project, new GroupIndustryProjectMember(), $isotopes, ContributionType::Material, 300, ContributionStatus::Approved);
+        $approvedIsotopes->setEstimatedValue(153_750.0);
+        $this->jitaPrices = [self::NITROGEN_ISOTOPES => 530.0, self::OXYGEN => 160.0];
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [44 => null, 3683 => 160.0, 3689 => null, 9832 => null, 9848 => null, 16272 => null, 16273 => null, 16275 => null, 17888 => 530.0],
+            $this->estimatedPricesOfMaterials($project),
+        );
+        self::assertSame($this->idsOf([$isotopes]), $this->idsOf($this->bomItemsOf($project, self::NITROGEN_ISOTOPES)));
+        self::assertSame(530.0, $isotopes->getEstimatedPrice());
+        self::assertSame(153_750.0, $approvedIsotopes->getEstimatedValue());
+    }
+
+    public function testCompletedProjectRefusesTheRebuildBeforeAnyCalculationAndLeavesItsBomUntouched(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 0, 0]]);
+        $this->service->buildBom($project, $this->owner);
+        $isotopes = $this->bomItemsOf($project, self::NITROGEN_ISOTOPES)[0];
+        $member = new GroupIndustryProjectMember();
+        $approvedIsotopes = $this->contribution($project, $member, $isotopes, ContributionType::Material, 300, ContributionStatus::Approved);
+        $isotopes->setFulfilledQuantity(300);
+        $pendingJob = $this->contribution($project, $member, $this->jobsOf($project, self::NITROGEN_FUEL_BLOCK, 'manufacturing')[0], ContributionType::JobInstall, 1, ContributionStatus::Pending);
+        $project->setStatus(GroupProjectStatus::Completed);
+        $project->addItem((new GroupIndustryProjectItem())->setTypeId(self::MORPHITE)->setTypeName('Morphite')->setRuns(1)->setMeLevel(0)->setTeLevel(0)->setSortOrder(1));
+        $linesBeforeRebuild = $project->getBomItems()->toArray();
+        $statesBeforeRebuild = $this->lineStates($project);
+        $pricingCallsBeforeRebuild = $this->pricedTypeIds;
+
+        $failure = null;
+        try {
+            $this->service->buildBom($project, $this->owner);
+        } catch (\RuntimeException $exception) {
+            $failure = $exception;
+        }
+
+        self::assertInstanceOf(\RuntimeException::class, $failure);
+        self::assertSame('The BOM of a completed project cannot be rebuilt.', $failure->getMessage());
+        self::assertCount(11, $linesBeforeRebuild);
+        self::assertSame($statesBeforeRebuild, $this->lineStates($project));
+        self::assertSame($this->idsOf([$approvedIsotopes, $pendingJob]), $this->idsOf($project->getContributions()->toArray()));
+        self::assertSame($pricingCallsBeforeRebuild, $this->pricedTypeIds);
+    }
+
+    #[DataProvider('openProjectStatusProvider')]
+    public function testProjectThatIsNotCompletedIsRebuilt(GroupProjectStatus $status): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 0, 0]]);
+        $this->service->buildBom($project, $this->owner);
+        $project->setStatus($status);
+        $isotopes = $this->bomItemsOf($project, self::NITROGEN_ISOTOPES)[0];
+        $project->getItems()->first()->setRuns(2);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertCount(11, $project->getBomItems());
+        self::assertSame($this->idsOf([$isotopes]), $this->idsOf($this->bomItemsOf($project, self::NITROGEN_ISOTOPES)));
+        self::assertSame(900, $isotopes->getRequiredQuantity());
+    }
+
+    public static function openProjectStatusProvider(): iterable
+    {
+        yield 'draft' => [GroupProjectStatus::Draft];
+        yield 'published' => [GroupProjectStatus::Published];
+        yield 'in progress' => [GroupProjectStatus::InProgress];
+        yield 'selling' => [GroupProjectStatus::Selling];
+    }
+
+    public function testFailedPlanLeavesTheBomAndItsContributionsUntouched(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 0, 0]]);
+        $this->service->buildBom($project, $this->owner);
+        $isotopes = $this->bomItemsOf($project, self::NITROGEN_ISOTOPES)[0];
+        $approvedIsotopes = $this->contribution($project, new GroupIndustryProjectMember(), $isotopes, ContributionType::Material, 300, ContributionStatus::Approved);
+        $isotopes->setFulfilledQuantity(300);
+        $project->addItem((new GroupIndustryProjectItem())->setTypeId(self::MORPHITE)->setTypeName('Morphite')->setRuns(1)->setMeLevel(0)->setTeLevel(0)->setSortOrder(1));
+        $linesBeforeRebuild = $project->getBomItems()->toArray();
+        $statesBeforeRebuild = $this->lineStates($project);
+
+        $failure = null;
+        try {
+            $this->service->buildBom($project, $this->owner);
+        } catch (\RuntimeException $exception) {
+            $failure = $exception;
+        }
+
+        self::assertInstanceOf(\RuntimeException::class, $failure);
+        self::assertSame('No blueprint or reaction found for product type ID '.self::MORPHITE, $failure->getMessage());
+        self::assertCount(11, $linesBeforeRebuild);
+        self::assertSame($statesBeforeRebuild, $this->lineStates($project));
+        self::assertSame($this->idsOf([$approvedIsotopes]), $this->idsOf($project->getContributions()->toArray()));
     }
 
     #[Group('issue-107')]
@@ -1587,6 +1952,103 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     private function bomItemsOf(GroupIndustryProject $project, int $typeId): array
     {
         return array_values(array_filter($project->getBomItems()->toArray(), static fn (GroupIndustryBomItem $bomItem): bool => $bomItem->getTypeId() === $typeId));
+    }
+
+    private function lineStates(GroupIndustryProject $project): array
+    {
+        $states = array_map(static fn (GroupIndustryBomItem $line): array => [
+            $line->getTypeId(),
+            (string) $line->getActivityType(),
+            (string) $line->getJobGroup(),
+            $line->getMeLevel(),
+            $line->getTeLevel(),
+            $line->getRuns(),
+            $line->getRequiredQuantity(),
+            $line->getFulfilledQuantity(),
+            $line->getEstimatedPrice(),
+            $line->getParentTypeId(),
+            $line->getTypeName(),
+            spl_object_id($line),
+        ], $project->getBomItems()->toArray());
+        usort($states, static fn (array $left, array $right): int => $left <=> $right);
+
+        return $states;
+    }
+
+    private function lineStatesExcept(GroupIndustryProject $project, array $typeIds): array
+    {
+        return array_values(array_filter(
+            $this->lineStates($project),
+            static fn (array $state): bool => !in_array($state[0], $typeIds, true) || $state[1] !== '',
+        ));
+    }
+
+    private function fulfilledQuantitiesOfMaterials(GroupIndustryProject $project): array
+    {
+        $fulfilledQuantities = [];
+        foreach ($this->materialBomItems($project) as $bomItem) {
+            $fulfilledQuantities[$bomItem->getTypeId()] = $bomItem->getFulfilledQuantity();
+        }
+        ksort($fulfilledQuantities);
+
+        return $fulfilledQuantities;
+    }
+
+    private function estimatedPricesOfMaterials(GroupIndustryProject $project): array
+    {
+        $estimatedPrices = [];
+        foreach ($this->sortedMaterialBomItems($project) as $bomItem) {
+            $estimatedPrices[$bomItem->getTypeId()] = $bomItem->getEstimatedPrice();
+        }
+
+        return $estimatedPrices;
+    }
+
+    private function idsOf(array $entities): array
+    {
+        return array_map(spl_object_id(...), array_values($entities));
+    }
+
+    private function idOf(?object $entity): ?int
+    {
+        return $entity === null ? null : spl_object_id($entity);
+    }
+
+    private function recordedMaterialLine(GroupIndustryProject $project, int $typeId, int $requiredQuantity, int $fulfilledQuantity): GroupIndustryBomItem
+    {
+        $line = (new GroupIndustryBomItem())
+            ->setTypeId($typeId)
+            ->setTypeName($this->sde['typeNames'][(string) $typeId])
+            ->setRequiredQuantity($requiredQuantity)
+            ->setFulfilledQuantity($fulfilledQuantity)
+            ->setIsJob(false);
+        $project->addBomItem($line);
+
+        return $line;
+    }
+
+    private function recordedJobLine(GroupIndustryProject $project, string $activityType, string $jobGroup, int $me, int $te, int $runs, int $requiredQuantity): GroupIndustryBomItem
+    {
+        $line = (new GroupIndustryBomItem())
+            ->setTypeId(self::NITROGEN_FUEL_BLOCK)
+            ->setTypeName('Nitrogen Fuel Block')
+            ->setRequiredQuantity($requiredQuantity)
+            ->setIsJob(true)
+            ->setJobGroup($jobGroup)
+            ->setActivityType($activityType)
+            ->setMeLevel($me)
+            ->setTeLevel($te)
+            ->setRuns($runs);
+        $project->addBomItem($line);
+
+        return $line;
+    }
+
+    private function removeMaterialsFromTheRecipe(int $productTypeId, array $materialTypeIds): void
+    {
+        foreach ($materialTypeIds as $materialTypeId) {
+            unset($this->sde['recipes'][(string) $productTypeId]['materials'][(string) $materialTypeId]);
+        }
     }
 
     private function contribution(

@@ -21,6 +21,10 @@ final class GroupIndustryContainerServiceTest extends IntegrationTestCase
     private const int BUILD_CONTAINER_ITEM_ID = 1_050_000_000_100;
     private const int CONTAINER_TRITANIUM_ITEM_ID = 1_050_000_000_101;
     private const int CONTAINER_PYERITE_ITEM_ID = 1_050_000_000_102;
+    private const int MINERALS_CONTAINER_ITEM_ID = 1_050_000_000_103;
+    private const int NESTED_BOX_FIRST_ITEM_ID = 1_050_000_000_110;
+    private const int OTHER_CORPORATION_ID = 98_000_002;
+    private const int STATION_CONTAINER = 17366;
     private const string BUILD_CONTAINER_NAME = 'Build';
 
     private const int TRITANIUM = 34;
@@ -38,7 +42,7 @@ final class GroupIndustryContainerServiceTest extends IntegrationTestCase
         $this->owner = $this->createCorporationMember('Project Owner');
     }
 
-    public function testContainerOutsideTheAllowedDivisionsHoldsNothing(): void
+    public function testContainerOutsideTheAllowedDivisionsIsNotFound(): void
     {
         $this->storeBuildContainerInHangar('CorpSAG2', 'Division 2');
         $this->allowDivisions([1]);
@@ -48,14 +52,14 @@ final class GroupIndustryContainerServiceTest extends IntegrationTestCase
 
         self::assertSame(
             [
-                self::TRITANIUM => [0, 'unchecked'],
-                self::PYERITE => [0, 'unchecked'],
+                self::TRITANIUM => [null, 'container_not_found', null],
+                self::PYERITE => [null, 'container_not_found', null],
             ],
             $verification,
         );
     }
 
-    public function testContainerHoldsNothingWhileNoDivisionIsAllowed(): void
+    public function testCheckIsUnknownWhileNoDivisionIsAllowed(): void
     {
         $this->storeBuildContainerInHangar('CorpSAG2', 'Division 2');
         $project = $this->createProjectUsingBuildContainer();
@@ -64,8 +68,8 @@ final class GroupIndustryContainerServiceTest extends IntegrationTestCase
 
         self::assertSame(
             [
-                self::TRITANIUM => [0, 'unchecked'],
-                self::PYERITE => [0, 'unchecked'],
+                self::TRITANIUM => [null, 'unknown', 'no_visible_division'],
+                self::PYERITE => [null, 'unknown', 'no_visible_division'],
             ],
             $verification,
         );
@@ -81,14 +85,14 @@ final class GroupIndustryContainerServiceTest extends IntegrationTestCase
 
         self::assertSame(
             [
-                self::TRITANIUM => [1_000, 'verified'],
-                self::PYERITE => [240, 'partial'],
+                self::TRITANIUM => [1_000, 'verified', null],
+                self::PYERITE => [240, 'partial', null],
             ],
             $verification,
         );
     }
 
-    public function testContainerInTheDeliveriesHangarHoldsNothingEvenWithEveryDivisionAllowed(): void
+    public function testContainerInTheDeliveriesHangarIsNotFoundEvenWithEveryDivisionAllowed(): void
     {
         $this->storeBuildContainerInDeliveries();
         $this->allowDivisions([1, 2, 3, 4, 5, 6, 7]);
@@ -98,8 +102,91 @@ final class GroupIndustryContainerServiceTest extends IntegrationTestCase
 
         self::assertSame(
             [
-                self::TRITANIUM => [0, 'unchecked'],
-                self::PYERITE => [0, 'unchecked'],
+                self::TRITANIUM => [null, 'container_not_found', null],
+                self::PYERITE => [null, 'container_not_found', null],
+            ],
+            $verification,
+        );
+    }
+
+    public function testContentsOfASubContainerCountTowardsTheContainer(): void
+    {
+        $this->createCorporationAsset(self::OFFICE_ITEM_ID, 27, 'Office', 1, self::JITA_STATION_ID, 'station', 'OfficeFolder', null);
+        $this->createCorporationAsset(self::BUILD_CONTAINER_ITEM_ID, self::STATION_CONTAINER, 'Station Container', 1, self::OFFICE_ITEM_ID, 'item', 'CorpSAG2', 'Division 2', self::BUILD_CONTAINER_NAME);
+        $this->createCorporationAsset(self::CONTAINER_TRITANIUM_ITEM_ID, self::TRITANIUM, 'Tritanium', 1_000, self::BUILD_CONTAINER_ITEM_ID, 'item', 'Unlocked', 'Division 2');
+        $this->createCorporationAsset(self::MINERALS_CONTAINER_ITEM_ID, self::STATION_CONTAINER, 'Station Container', 1, self::BUILD_CONTAINER_ITEM_ID, 'item', 'Unlocked', 'Division 2', 'Minerals');
+        $this->createCorporationAsset(self::CONTAINER_PYERITE_ITEM_ID, self::PYERITE, 'Pyerite', 240, self::MINERALS_CONTAINER_ITEM_ID, 'item', 'Unlocked', 'Division 2');
+        $this->flushAndClear();
+        $this->allowDivisions([2]);
+        $project = $this->createProjectUsingBuildContainer();
+
+        $verification = $this->verifyContainerOf($project);
+
+        self::assertSame(
+            [
+                self::TRITANIUM => [1_000, 'verified', null],
+                self::PYERITE => [240, 'partial', null],
+            ],
+            $verification,
+        );
+    }
+
+    public function testContentsFiveLevelsBelowTheHangarAreCounted(): void
+    {
+        $this->createCorporationAsset(self::OFFICE_ITEM_ID, 27, 'Office', 1, self::JITA_STATION_ID, 'station', 'OfficeFolder', null);
+        $this->createCorporationAsset(self::BUILD_CONTAINER_ITEM_ID, self::STATION_CONTAINER, 'Station Container', 1, self::OFFICE_ITEM_ID, 'item', 'CorpSAG2', 'Division 2', self::BUILD_CONTAINER_NAME);
+        $parentItemId = self::BUILD_CONTAINER_ITEM_ID;
+        foreach (['First box', 'Second box', 'Third box', 'Fourth box'] as $depth => $boxName) {
+            $boxItemId = self::NESTED_BOX_FIRST_ITEM_ID + $depth;
+            $this->createCorporationAsset($boxItemId, self::STATION_CONTAINER, 'Station Container', 1, $parentItemId, 'item', 'Unlocked', 'Division 2', $boxName);
+            $parentItemId = $boxItemId;
+        }
+        $this->createCorporationAsset(self::CONTAINER_PYERITE_ITEM_ID, self::PYERITE, 'Pyerite', 800, $parentItemId, 'item', 'Unlocked', 'Division 2');
+        $this->flushAndClear();
+        $this->allowDivisions([2]);
+        $project = $this->createProjectUsingBuildContainer();
+
+        $verification = $this->verifyContainerOf($project);
+
+        self::assertSame(
+            [
+                self::TRITANIUM => [0, 'missing', null],
+                self::PYERITE => [800, 'verified', null],
+            ],
+            $verification,
+        );
+    }
+
+    public function testCheckIsUnknownWhileTheCorporationAssetsWereNeverSynced(): void
+    {
+        $this->allowDivisions([2]);
+        $project = $this->createProjectUsingBuildContainer();
+
+        $verification = $this->verifyContainerOf($project);
+
+        self::assertSame(
+            [
+                self::TRITANIUM => [null, 'unknown', 'corporation_assets_not_synced'],
+                self::PYERITE => [null, 'unknown', 'corporation_assets_not_synced'],
+            ],
+            $verification,
+        );
+    }
+
+    public function testAssetsOfAnotherCorporationDoNotMakeTheAssetsOfTheOwnerCorporationSynced(): void
+    {
+        $this->createCorporationAsset(self::BUILD_CONTAINER_ITEM_ID, self::STATION_CONTAINER, 'Station Container', 1, self::OFFICE_ITEM_ID, 'item', 'CorpSAG2', 'Division 2', self::BUILD_CONTAINER_NAME, self::OTHER_CORPORATION_ID);
+        $this->createCorporationAsset(self::CONTAINER_TRITANIUM_ITEM_ID, self::TRITANIUM, 'Tritanium', 1_000, self::BUILD_CONTAINER_ITEM_ID, 'item', 'Unlocked', 'Division 2', null, self::OTHER_CORPORATION_ID);
+        $this->flushAndClear();
+        $this->allowDivisions([2]);
+        $project = $this->createProjectUsingBuildContainer();
+
+        $verification = $this->verifyContainerOf($project);
+
+        self::assertSame(
+            [
+                self::TRITANIUM => [null, 'unknown', 'corporation_assets_not_synced'],
+                self::PYERITE => [null, 'unknown', 'corporation_assets_not_synced'],
             ],
             $verification,
         );
@@ -163,13 +250,12 @@ final class GroupIndustryContainerServiceTest extends IntegrationTestCase
         $this->em->persist($material);
     }
 
-    /** @return array<int, array{int, string}> */
     private function verifyContainerOf(GroupIndustryProject $project): array
     {
         $verification = [];
         foreach (self::getContainer()->get(GroupIndustryContainerService::class)->verifyContainer($project) as $material) {
             \assert($material instanceof GroupContainerVerificationResource);
-            $verification[$material->typeId] = [$material->containerQuantity, $material->status];
+            $verification[$material->typeId] = [$material->containerQuantity, $material->status, $material->unknownReason];
         }
         ksort($verification);
 
@@ -197,6 +283,7 @@ final class GroupIndustryContainerServiceTest extends IntegrationTestCase
         string $locationFlag,
         ?string $divisionName,
         ?string $itemName = null,
+        int $corporationId = self::CORPORATION_ID,
     ): void {
         $this->em->persist((new CachedAsset())
             ->setItemId($itemId)
@@ -211,7 +298,7 @@ final class GroupIndustryContainerServiceTest extends IntegrationTestCase
             ->setItemName($itemName)
             ->setSolarSystemId(30_000_142)
             ->setSolarSystemName('Jita')
-            ->setCorporationId(self::CORPORATION_ID)
+            ->setCorporationId($corporationId)
             ->setIsCorporationAsset(true));
     }
 }

@@ -47,4 +47,6 @@ class GroupContainerVerificationResource
 
     /** 'verified' | 'partial' | 'unchecked' */
     public string $status;
+
+    public ?string $unknownReason = null;
 }

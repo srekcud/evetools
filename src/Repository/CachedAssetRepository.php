@@ -87,6 +87,11 @@ class CachedAssetRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    public function hasCorporationAssets(int $corporationId): bool
+    {
+        throw new \LogicException('not implemented');
+    }
+
     /**
      * @param int[] $divisionNumbers Division numbers (1-7)
      * @return CachedAsset[]

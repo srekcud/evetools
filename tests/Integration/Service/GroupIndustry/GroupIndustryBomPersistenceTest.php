@@ -152,8 +152,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
         );
     }
 
-    #[Group('issue-253')]
-    public function testRebuildingThePersistedBomCurrentlyAppendsASecondBomAndLeavesTheContributionsUntouchedIssue253(): void
+    public function testRebuildingThePersistedBomWithTheSamePlanKeepsItsLinesAndContributions(): void
     {
         $project = $this->createNitrogenFuelBlockProject(runs: 1, meLevel: 0, teLevel: 0);
         $ownerMember = $project->getMembers()->first();
@@ -168,11 +167,9 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
         $isotopesId = (string) $isotopes->getId();
         $finalJobId = (string) $finalJob->getId();
         $contributionsBefore = $this->persistedContributionRows($projectId);
+        $bomRowsBefore = $this->persistedBomRowsWithIds($projectId);
 
-        $reloadedProject = $this->em->find(GroupIndustryProject::class, $projectId);
-        \assert($reloadedProject instanceof GroupIndustryProject);
-        $this->service->buildBom($reloadedProject, $this->em->find(User::class, $this->owner->getId()));
-        $this->flushAndClear();
+        $this->rebuildPersistedBomOf($projectId);
 
         self::assertSame(
             [
@@ -182,35 +179,64 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
             $contributionsBefore,
         );
         self::assertSame($contributionsBefore, $this->persistedContributionRows($projectId));
-        self::assertSame(22, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM group_industry_bom_items WHERE project_id = ?', [$projectId]));
+        self::assertSame(11, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM group_industry_bom_items WHERE project_id = ?', [$projectId]));
+        self::assertSame($bomRowsBefore, $this->persistedBomRowsWithIds($projectId));
         self::assertSame(
             [[$isotopesId, 450, 300]],
             $this->connection->fetchAllNumeric(
-                'SELECT id, required_quantity, fulfilled_quantity FROM group_industry_bom_items WHERE id = ?',
-                [$isotopesId],
-            ),
-        );
-        self::assertSame(
-            [[450, 0], [450, 300]],
-            $this->connection->fetchAllNumeric(
-                'SELECT required_quantity, fulfilled_quantity FROM group_industry_bom_items WHERE project_id = ? AND type_id = ? ORDER BY fulfilled_quantity',
+                'SELECT id, required_quantity, fulfilled_quantity FROM group_industry_bom_items WHERE project_id = ? AND type_id = ?',
                 [$projectId, self::NITROGEN_ISOTOPES],
             ),
         );
         self::assertSame(
-            [[1, 40, 'final']],
+            [[$finalJobId, 1, 40, 'final', 0, 0]],
             $this->connection->fetchAllNumeric(
-                'SELECT runs, required_quantity, job_group FROM group_industry_bom_items WHERE id = ?',
-                [$finalJobId],
-            ),
-        );
-        self::assertSame(
-            [['final', 1, 0, 0], ['final', 1, 0, 0]],
-            $this->connection->fetchAllNumeric(
-                "SELECT job_group, runs, me_level, te_level FROM group_industry_bom_items WHERE project_id = ? AND is_job AND activity_type = 'manufacturing'",
+                "SELECT id, runs, required_quantity, job_group, me_level, te_level FROM group_industry_bom_items WHERE project_id = ? AND is_job AND activity_type = 'manufacturing'",
                 [$projectId],
             ),
         );
+    }
+
+    public function testRebuildingAProjectRecordedWithTheBomOfOneRunUpdatesItsPersistedLinesInPlaceForItsTwentyFiveRuns(): void
+    {
+        $project = $this->projectRecordedWithTheBomOfOneRunForTwentyFiveRuns();
+        $this->flushAndClear();
+        $projectId = (string) $project->getId();
+        $recordedLineIds = $this->connection->fetchFirstColumn(
+            'SELECT id FROM group_industry_bom_items WHERE project_id = ? ORDER BY is_job, activity_type',
+            [$projectId],
+        );
+        $contributionsBefore = $this->persistedContributionRows($projectId);
+
+        $this->rebuildPersistedBomOf($projectId);
+
+        self::assertSame(
+            [
+                [44, 'Enriched Uranium', 90, 0, null, false, null, null, null, null, null, null],
+                [3683, 'Oxygen', 495, 0, null, false, null, null, null, null, null, null],
+                [3689, 'Mechanical Parts', 90, 0, null, false, null, null, null, null, null, null],
+                [9832, 'Coolant', 203, 0, null, false, null, null, null, null, null, null],
+                [9848, 'Robotics', 25, 0, 76_000.0, false, null, null, null, null, null, null],
+                [16272, 'Heavy Water', 3825, 0, null, false, null, null, null, null, null, null],
+                [16273, 'Liquid Ozone', 7875, 0, null, false, null, null, null, null, null, null],
+                [16275, 'Strontium Clathrates', 450, 0, null, false, null, null, null, null, null, null],
+                [17888, 'Nitrogen Isotopes', 10125, 300, 512.5, false, null, null, null, null, null, null],
+                [4051, 'Nitrogen Fuel Block', 25, 0, null, true, 'blueprint', 'copy', null, 0, 0, 25],
+                [4051, 'Nitrogen Fuel Block', 1000, 0, null, true, 'final', 'manufacturing', null, 10, 20, 25],
+            ],
+            $this->persistedBomRows($projectId),
+        );
+        self::assertSame(
+            [[10125, 300], [25, 25], [1000, 25]],
+            array_map(
+                fn (string $lineId): array => array_map('intval', $this->connection->fetchNumeric(
+                    'SELECT required_quantity, COALESCE(runs, fulfilled_quantity) FROM group_industry_bom_items WHERE id = ?',
+                    [$lineId],
+                ) ?: []),
+                $recordedLineIds,
+            ),
+        );
+        self::assertSame($contributionsBefore, $this->persistedContributionRows($projectId));
     }
 
     private function createNitrogenFuelBlockProject(int $runs, int $meLevel, int $teLevel): GroupIndustryProject
@@ -268,6 +294,25 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
         $this->em->persist($project);
 
         return $project;
+    }
+
+    private function rebuildPersistedBomOf(string $projectId): void
+    {
+        $project = $this->em->find(GroupIndustryProject::class, $projectId);
+        \assert($project instanceof GroupIndustryProject);
+        $owner = $this->em->find(User::class, $this->owner->getId());
+        \assert($owner instanceof User);
+        $this->service->buildBom($project, $owner);
+        $this->flushAndClear();
+    }
+
+    private function persistedBomRowsWithIds(string $projectId): array
+    {
+        return $this->connection->fetchAllNumeric(
+            'SELECT id, type_id, required_quantity, fulfilled_quantity, estimated_price, is_job, job_group, activity_type, me_level, te_level, runs
+             FROM group_industry_bom_items WHERE project_id = ? ORDER BY id',
+            [$projectId],
+        );
     }
 
     private function persistedBomRows(string $projectId): array
