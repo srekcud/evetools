@@ -7,10 +7,10 @@ But : trouver la bonne classe sans relire des fichiers entiers. Les noms de mét
 | Couche | Chemin | État |
 |---|---|---|
 | Noyau Domain | `src/Industry/Domain/` | PHP pur, value objects, `ProductionPlanner`. ADR-0009, [spec du noyau](../specs/industry-engine.md) |
-| Noyau Application | `src/Industry/Application/` | Cas d'usage (`ProductionCostCalculator`, `StructureSelector`) et ports (`MarketPrices`, `AdjustedPrices`, `SystemCostIndices`, `UserProductionStructures`, `Decryptors`, `InventionCatalog`, `RigCategories`) |
+| Noyau Application | `src/Industry/Application/` | Cas d'usage (`ProductionCostCalculator`, `ProductionPlanning`, `StructureSelector`) et ports (`MarketPrices`, `AdjustedPrices`, `SystemCostIndices`, `UserProductionStructures`, `Decryptors`, `InventionCatalog`, `RigCategories`) |
 | Noyau Infrastructure | `src/Industry/Infrastructure/{Sde,Esi,Market,Doctrine}` | Adaptateurs des ports, liés dans `config/services.yaml` (section « Industry engine ») |
 | Services historiques | `src/Service/Industry/` | Règles encore dupliquées, en cours de migration (strangler) |
-| Group Industry | `src/Service/GroupIndustry/` | Projets collaboratifs. `GroupIndustryProjectService::buildBom` appelle `IndustryTreeService` |
+| Group Industry | `src/Service/GroupIndustry/` | Projets collaboratifs. `GroupIndustryProjectService::buildBom` calcule la BOM sur le plan du noyau (`ProductionPlanning::planOf`) |
 | API | `src/ApiResource/Industry/`, `src/State/Provider/Industry/`, `src/State/Processor/Industry/` | Un Provider ou Processor par opération. `IndustryResourceMapper` (Provider) convertit entités en ressources |
 | Persistance | `src/Entity/Industry*.php` | `IndustryProject`, `IndustryProjectStep`, `IndustryStructureConfig`, `IndustryUserSettings`, `IndustryStepJobMatch`, `IndustryStockpileTarget`… |
 | Frontend | `frontend/src/views/Industry.vue`, `components/industry/`, `stores/industry/` | Un onglet par écran (`*Tab.vue`), un store par domaine |
@@ -23,16 +23,17 @@ Services déjà branchés sur le noyau (`grep -rln 'App\\Industry\\' src`) :
 | `JobInstallCostEstimator`, `FacilityTaxResolver` | `InstallCost`, `EstimatedItemValue` ; `StructureSelector` |
 | `MissingDataPresenter` | `Cost`, `MissingData` (coût inconnu) |
 | `PartialPricePresenter` | `Cost::$partialPrices`, `PartialPrice` (prix partiel) |
+| `GroupIndustryProjectService` | `ProductionPlanning` (plan, plafonds de runs, structures du propriétaire), `ProductionPlanner::REACTION_EFFICIENCY_LEVEL` ; lit encore le producteur SDE (blueprint, unités par run) et l'activité de copie |
 | `BatchProfitScannerService`, `PivotAdvisorService` | seulement `ActivityKind` ; matériaux par `MaterialQuantityFormula`, install par `JobInstallCostEstimator` / `FacilityTaxResolver` |
 
-**Pas encore migrés** : `IndustryProjectFactory`, `IndustryTreeService`, `IndustryCalculationService`, `IndustryBonusService`, `IndustryStepCalculator`, `IndustryShoppingListBuilder`, `StockpileService`, `InventionService`, `EsiCostIndexService`, `ProductionCostService`, `GroupIndustry*`, tous les Processors. `Domain\JobDuration` et `Domain\SkillTimeModifier` n'ont aucun appelant dans `src/` (tests seuls).
+**Pas encore migrés** : `IndustryProjectFactory`, `IndustryTreeService`, `IndustryCalculationService`, `IndustryBonusService`, `IndustryStepCalculator`, `IndustryShoppingListBuilder`, `StockpileService`, `InventionService`, `EsiCostIndexService`, `ProductionCostService`, tous les Processors. `Domain\JobDuration` et `Domain\SkillTimeModifier` n'ont aucun appelant dans `src/` (tests seuls).
 
 ## 2. Classes importantes
 
 | Classe (`src/Service/Industry/` sauf mention) | Rôle | Méthodes clés | Appelants | Tests (`tests/Unit/Service/Industry/` sauf mention) |
 |---|---|---|---|---|
 | `IndustryProjectFactory` | Génère et régénère les étapes d'un projet : arbre, durées, découpage, besoins par job | `createProject`, `regenerateSteps` | `CreateProjectProcessor`, `UpdateProjectProcessor`, `RegenerateProjectStepsCommand` | `IndustryProjectFactoryGoldenStepsCharacterizationTest`, `IndustryProjectFactoryTest` ; support `BuildsProjectOnGoldenSde` |
-| `IndustryTreeService` | Arbre de production récursif (runs en entrée, besoin pour `buildIntermediateTree`) | `buildProductionTree`, `buildIntermediateTree` | factory, `StockpileService`, `StockpileStartingStockReducer`, `GroupIndustryProjectService`, `SdeBlueprintCatalog` (plus `ProjectProvider` : l'arbre affiché vient de `ProductionTreeFromSteps`) | `IndustryTreeServiceTest` |
+| `IndustryTreeService` | Arbre de production récursif (runs en entrée, besoin pour `buildIntermediateTree`) | `buildProductionTree`, `buildIntermediateTree` | factory, `StockpileService`, `StockpileStartingStockReducer`, `SdeBlueprintCatalog` (plus `ProjectProvider` : l'arbre affiché vient de `ProductionTreeFromSteps`) | `IndustryTreeServiceTest` |
 | `IndustryStepCalculator` | Cascade : recalcule besoins et runs des étapes, de l'aval vers les matériaux | `recalculateStepQuantities`, `needRunsOf` | `UpdateStepProcessor`, `IndustryJobMatcher` | `IndustryStepCalculatorTest` |
 | `SplitGroupQuantities` / `SplitGroupMaterials` / `SplitGroupMaterialNeeds` | Groupes découpés : runs et quantités par job, matériaux par job, besoins des enfants | `runsBySplitIndex`, `share`, `runsOfNeed`, `applyNeedToSteps` ; `materialsOfJobs` ; `applyChangeOfJobs` | factory, `SplitStepProcessor`, `MergeStepsProcessor`, `UpdateStepProcessor` | `SplitGroupQuantitiesTest`, `SplitGroupMaterialNeedsTest`, `JobSplitCalculationTest` |
 | `ProductionStepGraph` | Parcours consommateurs vers matériaux des étapes | `productionStepsByProduct`, `productsFromConsumersToMaterials` | `IndustryStepCalculator`, `ProductionStepNeedsResolver` | couvert via ces classes |
@@ -58,6 +59,7 @@ Services déjà branchés sur le noyau (`grep -rln 'App\\Industry\\' src`) :
 | `Cost::$partialPrices` (`src/Industry/Domain/`) | Second canal d'un `Cost`, à côté de `missingData` : liste de `PartialPrice` (typeId, `OrderBookCoverage`, raison `partial_market_depth`). Un prix partiel garde le coût connu. `OrderBookCoverage::isPartial()` : couverture < 1, aucun seuil. `plus` fusionne les deux côtés, même quand la somme est inconnue ; `times` les garde ; un typeId n'est listé qu'une fois, à la première position et à la couverture la plus basse | `Cost::withPartialPrice`, `plus`, `times` ; `ProductionCostCalculator::boughtCost` (feuilles, datacores et decryptor via `bought`) | `ProductionCostCalculator` | `tests/Unit/Industry/Domain/{CostPartialPriceTest,OrderBookCoverageTest,PartialPriceTest}`, `Application/ProductionCostCalculatorPartialPriceTest` |
 | `PartialPricePresenter` (`src/Service/Industry/`) | `Cost` vers l'API : `{reason, typeId, coveragePercent}`, pourcentage arrondi à 1 décimale et borné à [0,1 ; 99,9] (jamais « 0 % » ni « 100 % »). Pendant de `MissingDataPresenter` | `of`, `coveragePercentOf` (par typeId) | `ProfitMarginService`, `BuyVsBuildService` | `tests/Unit/Service/Industry/PartialPricePresenterTest` |
 | `StructureSelector` / `StructureMaterialModifiers` (`src/Industry/Application/`) | Choix de la structure d'un job (`StructureChoice`) : assignée si elle peut faire l'activité, sinon la meilleure (système favori en filtre). Une assignée inapte (`ProductionStructure::canRun()` faux) est ignorée et signalée par `StructureChoice::$ignoredAssignedStructure` | `StructureSelector::select`, `StructureMaterialModifiers::choiceFor`, `forJob` | `ProductionCostCalculator` (`select` et `choiceFor`), `FacilityTaxResolver` (`select` seul) | `tests/Unit/Industry/Application/{StructureSelectorTest,StructureMaterialModifiersTest}` |
+| `ProductionPlanning` / `ProductionPlanRequest` (`src/Industry/Application/`) | Plan d'un projet en deux passes sur la même `RecipeMemory` : la première, sans plafond, liste les produits des jobs ; la seconde reçoit leurs `Recipe::$maxProductionLimit` (fabrication et réaction) comme `blueprintCopyMaxRuns`. Structures du propriétaire choisies par `StructureSelector`, sans stock. Cible sans recette ou cycle : `\DomainException` du planificateur ; blueprint absent : `\UnexpectedValueException` de `SdeBlueprintCatalog` | `planOf` | `GroupIndustryProjectService::buildBom` | `tests/Unit/Industry/Application/ProductionPlanningTest` |
 | `ProductionPlanner` (`src/Industry/Domain/`) | Plan : demande agrégée, runs entiers, jobs découpés | `plan`, `marginalCost` | `ProductionCostCalculator`, `BuyVsBuildService` | `tests/Unit/Industry/Domain/{GoldenPlanTest,ProductionPlannerTest,ProductionPlannerMarginalCostTest}` |
 
 Tests d'intégration : `tests/Integration/Service/Industry/IndustryProjectFactoryRegenerationTest`, `tests/Integration/State/Processor/Industry/UpdateStepFixedRunsTest`. Autres tests du noyau : `tests/Unit/Industry/Domain/GoldenJobMaterialQuantityTest`, `InstallCostTest`, `Invention*Test`, `RigBonusTest` ; `Application/StructureSelectorTest`, `StructureMaterialModifiersTest` ; `Infrastructure/{Doctrine,Esi,Market,Sde}`. Les `Golden*` se lisent avec la spec du noyau (§4).
@@ -97,7 +99,7 @@ Fichiers de plus de 400 lignes (`wc -l`) :
 | `src/Service/Industry/PivotAdvisorService.php` | 631 |
 | `src/Service/Industry/InventionService.php` | 599 |
 | `src/Entity/IndustryStructureConfig.php` | 507 |
-| `src/Service/GroupIndustry/GroupIndustryProjectService.php` | 475 |
+| `src/Service/GroupIndustry/GroupIndustryProjectService.php` | 453 |
 | `src/Entity/IndustryProject.php` | 467 |
 | `src/Service/Industry/StockpileService.php` | 466 |
 | `src/State/Provider/Industry/IndustryResourceMapper.php` | 462 |
