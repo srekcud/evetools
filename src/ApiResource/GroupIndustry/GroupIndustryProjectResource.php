@@ -129,7 +129,7 @@ class GroupIndustryProjectResource
     /** @var list<array{typeId: int, typeName: string, meLevel: int, teLevel: int, runs: int}> */
     public array $items = [];
 
-    public ?float $totalBomValue = 0.0;
+    public ?float $totalBomValue = null;
 
     public float $fulfillmentPercent = 0.0;
 
