@@ -45,8 +45,10 @@ final class ProductionPlannerMarginalCostTest extends TestCase
      * Target: 2 ship runs at ME 0 → demand 20 component, 100 polymer, 200 mineral A.
      */
     private const int SHIP = 1001;
+    private const int MODULE = 1003;
     private const int COMPONENT = 2001;
     private const int POLYMER = 2002;
+    private const int ASSEMBLY = 2003;
     private const int MINERAL_A = 3001;
     private const int GAS = 3004;
     private const int BPO_MAX_PRODUCTION_LIMIT = 300;
@@ -121,6 +123,29 @@ final class ProductionPlannerMarginalCostTest extends TestCase
         // Polymer: 100 / 200 = 0.5 run → 50 gas, all in stock: nothing to buy, not even a zero line.
         $this->assertEqualsWithDelta(0.5, $marginalCostPlan->fractionalRuns[self::POLYMER], self::FLOAT_TOLERANCE);
         $this->assertSame([self::MINERAL_A], array_keys($marginalCostPlan->leaves));
+    }
+
+    public function testIntermediateAfterOneFullyCoveredByStockStillHasFractionalRuns(): void
+    {
+        $planner = new ProductionPlanner(new InMemoryBlueprintCatalog(
+            self::recipe(self::MODULE, ActivityKind::Manufacturing, 1, [self::POLYMER => 30, self::ASSEMBLY => 4]),
+            self::recipe(self::ASSEMBLY, ActivityKind::Manufacturing, 1, [self::COMPONENT => 3]),
+            self::recipe(self::COMPONENT, ActivityKind::Manufacturing, 2, [self::MINERAL_A => 5]),
+            self::recipe(self::POLYMER, ActivityKind::Reaction, 200, [self::GAS => 100]),
+        ));
+
+        $marginalCostPlan = $planner->marginalCost(new PlanRequest(
+            targets: [new PlanTarget(self::MODULE, new Runs(3), new BlueprintEfficiency(new MaterialEfficiency(0), new TimeEfficiency(0)))],
+            materialModifiers: ActivityMaterialModifiers::none(),
+            startingStock: [self::ASSEMBLY => new Quantity(15)],
+        ));
+
+        $this->assertEqualsWithDelta(
+            [self::ASSEMBLY => 0.0, self::COMPONENT => 0.0, self::POLYMER => 0.45],
+            $marginalCostPlan->fractionalRuns,
+            self::FLOAT_TOLERANCE,
+        );
+        $this->assertEqualsWithDelta([self::GAS => 45.0], $marginalCostPlan->leaves, self::FLOAT_TOLERANCE);
     }
 
     /**
