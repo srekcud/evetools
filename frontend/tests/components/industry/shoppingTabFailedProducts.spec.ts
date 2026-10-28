@@ -59,6 +59,7 @@ function shoppingListResponse(failedProducts: ShoppingListFailedProduct[]): Shop
     priceError: null,
     missingVolumeTypeIds: [],
     failedProducts,
+    missingPriceTypeIds: [],
   }
 }
 

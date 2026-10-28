@@ -60,6 +60,7 @@ const SHOPPING_LIST: ShoppingListResponse = {
   priceError: null,
   missingVolumeTypeIds: [],
   failedProducts: [],
+  missingPriceTypeIds: [],
 }
 
 function activeProject(materialCost: number | null): IndustryProject {
@@ -123,6 +124,12 @@ const FAILED_PRODUCT: ShoppingListFailedProduct = { typeId: 12005, reason: 'blue
 
 function shoppingListOf(materials: ShoppingListItem[], failedProducts: ShoppingListFailedProduct[] = []): ShoppingListResponse {
   return { ...SHOPPING_LIST, materials, failedProducts }
+}
+
+const SHOPPING_LIST_WITH_TRITANIUM_WITHOUT_PRICE: ShoppingListResponse = {
+  ...shoppingListOf([PYERITE_FOR_100_RUNS, TRITANIUM_WITHOUT_PRICE]),
+  totals: { ...SHOPPING_LIST.totals, jita: null, jitaWithImport: null, structure: null, best: null },
+  missingPriceTypeIds: [TRITANIUM_WITHOUT_PRICE.typeId],
 }
 
 function mountShoppingTab(materialCost: number | null, shoppingList: ShoppingListResponse = SHOPPING_LIST) {
@@ -249,7 +256,7 @@ describe('ShoppingTab material cost', () => {
   })
 
   it('disables the apply button with the unknown cost reason when a material has no best price', async () => {
-    const { wrapper, exposed } = mountShoppingTab(null, shoppingListOf([PYERITE_FOR_100_RUNS, TRITANIUM_WITHOUT_PRICE]))
+    const { wrapper, exposed } = mountShoppingTab(null, SHOPPING_LIST_WITH_TRITANIUM_WITHOUT_PRICE)
     await exposed.loadShoppingList()
     await flushPromises()
     vi.mocked(apiRequest).mockClear()

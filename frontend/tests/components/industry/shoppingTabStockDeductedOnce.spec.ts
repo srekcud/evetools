@@ -175,6 +175,7 @@ function shoppingListResponse(materials: ShoppingListItem[]): ShoppingListRespon
     priceError: null,
     missingVolumeTypeIds: [],
     failedProducts: [],
+    missingPriceTypeIds: [],
   }
 }
 
