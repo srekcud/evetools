@@ -2056,9 +2056,16 @@
       "verifyAll": "Tout verifier",
       "verifying": "Verification...",
       "statuses": {
-        "verified": "Verifie",
+        "verified": "Vérifié",
         "partial": "Partiel",
-        "unchecked": "Non verifie"
+        "missing": "Absent du container",
+        "container_not_found": "Container introuvable",
+        "unknown": "Non vérifiable"
+      },
+      "unknownReasons": {
+        "corporation_assets_not_synced": "Synchronisez les assets corpo",
+        "no_visible_division": "Aucune division partagée",
+        "owner_without_corporation": "L'owner n'a pas de corporation"
       },
       "containerName": "Nom du container",
       "containerQuantity": "Qte container"

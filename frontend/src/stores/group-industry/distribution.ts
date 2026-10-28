@@ -34,6 +34,9 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     sales.value = []
     members.value = []
     lineRentalRates.value = null
+    distributionError.value = null
+    salesError.value = null
+    membersError.value = null
     loadingDistribution.value = false
     loadingSales.value = false
     loadingMembers.value = false
@@ -43,12 +46,14 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     projectId: string,
     resource: string,
     held: Ref<T>,
+    heldWhenFailed: T,
     loadingIndicator: Ref<boolean>,
+    fetchError: Ref<string | null>,
     failureMessage: string,
   ): Promise<void> {
     openProject(projectId)
     loadingIndicator.value = true
-    error.value = null
+    fetchError.value = null
     try {
       const fetched = await apiRequest<T>(`/group-industry/projects/${projectId}/${resource}`)
       if (openedProjectId.value === projectId) {
@@ -56,7 +61,8 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
       }
     } catch (e) {
       if (openedProjectId.value === projectId) {
-        error.value = e instanceof Error ? e.message : failureMessage
+        held.value = heldWhenFailed
+        fetchError.value = e instanceof Error ? e.message : failureMessage
       }
     } finally {
       if (openedProjectId.value === projectId) {
@@ -66,11 +72,11 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
   }
 
   function fetchDistribution(projectId: string): Promise<void> {
-    return fetchForProject(projectId, 'distribution', distribution, loadingDistribution, 'Failed to fetch distribution')
+    return fetchForProject(projectId, 'distribution', distribution, null, loadingDistribution, distributionError, 'Failed to fetch distribution')
   }
 
   function fetchSales(projectId: string): Promise<void> {
-    return fetchForProject(projectId, 'sales', sales, loadingSales, 'Failed to fetch sales')
+    return fetchForProject(projectId, 'sales', sales, [], loadingSales, salesError, 'Failed to fetch sales')
   }
 
   async function recordSale(projectId: string, input: RecordSaleInput): Promise<GroupSale | null> {
@@ -124,7 +130,7 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
   }
 
   function fetchMembers(projectId: string): Promise<void> {
-    return fetchForProject(projectId, 'members', members, loadingMembers, 'Failed to fetch members')
+    return fetchForProject(projectId, 'members', members, [], loadingMembers, membersError, 'Failed to fetch members')
   }
 
   async function updateMember(

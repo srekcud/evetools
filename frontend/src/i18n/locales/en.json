@@ -2058,7 +2058,14 @@
       "statuses": {
         "verified": "Verified",
         "partial": "Partial",
-        "unchecked": "Unchecked"
+        "missing": "Missing from container",
+        "container_not_found": "Container not found",
+        "unknown": "Cannot be checked"
+      },
+      "unknownReasons": {
+        "corporation_assets_not_synced": "Sync the corp assets",
+        "no_visible_division": "No division is shared",
+        "owner_without_corporation": "The owner has no corporation"
       },
       "containerName": "Container Name",
       "containerQuantity": "Container Qty"

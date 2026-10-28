@@ -93,6 +93,10 @@ class GroupIndustryProjectService
 
     public function buildBom(GroupIndustryProject $project, User $owner): void
     {
+        if ($project->isCompleted()) {
+            throw new \RuntimeException('The BOM of a completed project cannot be rebuilt.');
+        }
+
         $plan = $this->planOf($project, $owner);
         $producers = $this->producersOf($plan);
         $typeNames = $this->sdeTypeNames(array_values(array_unique([
@@ -113,6 +117,8 @@ class GroupIndustryProjectService
             ? $this->jitaMarketService->getCheapestPercentilePrices($materialTypeIds)
             : [];
 
+        $plannedLines = [];
+
         foreach ($materialAggregation as $typeId => $matData) {
             $bomItem = new GroupIndustryBomItem();
             $bomItem->setTypeId($typeId);
@@ -120,7 +126,7 @@ class GroupIndustryProjectService
             $bomItem->setRequiredQuantity($matData['quantity']);
             $bomItem->setIsJob(false);
             $bomItem->setEstimatedPrice($prices[$typeId] ?? null);
-            $project->addBomItem($bomItem);
+            $plannedLines[] = $bomItem;
         }
 
         foreach ($jobAggregation as $jobData) {
@@ -137,8 +143,99 @@ class GroupIndustryProjectService
             $bomItem->setTeLevel($jobData['teLevel']);
             $bomItem->setRuns($jobData['runs']);
             $bomItem->setParentTypeId($jobData['parentTypeId']);
-            $project->addBomItem($bomItem);
+            $plannedLines[] = $bomItem;
         }
+
+        $this->reconcileBomLines($project, $plannedLines);
+    }
+
+    /**
+     * @param list<GroupIndustryBomItem> $plannedLines
+     */
+    private function reconcileBomLines(GroupIndustryProject $project, array $plannedLines): void
+    {
+        $linesWithContribution = [];
+        foreach ($project->getContributions() as $contribution) {
+            $contributedLine = $contribution->getBomItem();
+            if ($contributedLine !== null) {
+                $linesWithContribution[spl_object_id($contributedLine)] = true;
+            }
+        }
+
+        $existingByKey = $this->groupByLineKey(array_values($project->getBomItems()->toArray()));
+        foreach ($existingByKey as &$existingLines) {
+            usort($existingLines, static fn (GroupIndustryBomItem $a, GroupIndustryBomItem $b): int => $b->getRuns() <=> $a->getRuns()
+                ?: isset($linesWithContribution[spl_object_id($b)]) <=> isset($linesWithContribution[spl_object_id($a)])
+                ?: (string) $a->getId() <=> (string) $b->getId());
+        }
+        unset($existingLines);
+
+        foreach ($this->groupByLineKey($plannedLines) as $key => $plannedGroup) {
+            usort($plannedGroup, static fn (GroupIndustryBomItem $a, GroupIndustryBomItem $b): int => $b->getRuns() <=> $a->getRuns());
+
+            foreach ($plannedGroup as $rank => $plannedLine) {
+                if (!isset($existingByKey[$key][$rank])) {
+                    $project->addBomItem($plannedLine);
+                    continue;
+                }
+
+                $this->updateLineInPlace($existingByKey[$key][$rank], $plannedLine);
+                unset($existingByKey[$key][$rank]);
+            }
+        }
+
+        foreach ($existingByKey as $unmatchedLines) {
+            foreach ($unmatchedLines as $unmatchedLine) {
+                if (!isset($linesWithContribution[spl_object_id($unmatchedLine)])) {
+                    $project->removeBomItem($unmatchedLine);
+                }
+            }
+        }
+    }
+
+    /**
+     * @param list<GroupIndustryBomItem> $lines
+     * @return array<string, list<GroupIndustryBomItem>>
+     */
+    private function groupByLineKey(array $lines): array
+    {
+        $groups = [];
+        foreach ($lines as $line) {
+            $groups[$this->lineKeyOf($line)][] = $line;
+        }
+
+        return $groups;
+    }
+
+    private function lineKeyOf(GroupIndustryBomItem $line): string
+    {
+        if (!$line->isJob()) {
+            return \sprintf('material:%d', $line->getTypeId());
+        }
+
+        return \sprintf(
+            'job:%d:%s:%s:%d:%d',
+            $line->getTypeId(),
+            $line->getActivityType(),
+            $line->getJobGroup(),
+            $line->getMeLevel(),
+            $line->getTeLevel(),
+        );
+    }
+
+    private function updateLineInPlace(GroupIndustryBomItem $line, GroupIndustryBomItem $plannedLine): void
+    {
+        $line->setTypeName($plannedLine->getTypeName());
+        $line->setRequiredQuantity($plannedLine->getRequiredQuantity());
+
+        if ($line->isJob()) {
+            $line->setRuns($plannedLine->getRuns());
+            $line->setParentTypeId($plannedLine->getParentTypeId());
+
+            return;
+        }
+
+        $line->setEstimatedPrice($plannedLine->getEstimatedPrice());
     }
 
     private function planOf(GroupIndustryProject $project, User $owner): Plan

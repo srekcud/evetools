@@ -138,7 +138,7 @@ onMounted(() => {
 
 <template>
   <!-- Loading -->
-  <div v-if="store.loading" class="flex items-center justify-center py-12">
+  <div v-if="store.loadingMembers" class="flex items-center justify-center py-12">
     <LoadingSpinner size="lg" class="text-cyan-400" />
   </div>
 
@@ -231,6 +231,9 @@ onMounted(() => {
   </div>
 
   <!-- Error -->
+  <div v-if="store.membersError" class="mt-4 bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+    <p class="text-sm text-red-400">{{ store.membersError }}</p>
+  </div>
   <div v-if="store.error" class="mt-4 bg-red-500/10 border border-red-500/20 rounded-xl p-4">
     <p class="text-sm text-red-400">{{ store.error }}</p>
   </div>

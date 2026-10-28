@@ -325,6 +325,13 @@ class GroupIndustryProject
         return $this;
     }
 
+    public function removeBomItem(GroupIndustryBomItem $bomItem): static
+    {
+        $this->bomItems->removeElement($bomItem);
+
+        return $this;
+    }
+
     /** @return Collection<int, GroupIndustryContribution> */
     public function getContributions(): Collection
     {

@@ -43,9 +43,8 @@ class GroupContainerVerificationResource
     public int $requiredQuantity;
 
     /** Quantity found in the corp container(s) */
-    public int $containerQuantity;
+    public ?int $containerQuantity;
 
-    /** 'verified' | 'partial' | 'unchecked' */
     public string $status;
 
     public ?string $unknownReason = null;

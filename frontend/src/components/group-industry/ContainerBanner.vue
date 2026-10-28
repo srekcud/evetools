@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 
@@ -12,6 +12,10 @@ const props = defineProps<{
 }>()
 
 const isVerifying = ref(false)
+
+const containerCheckProblem = computed(() =>
+  projectStore.containerVerification.find(line => line.status === 'container_not_found' || line.status === 'unknown'),
+)
 
 async function verifyAll(): Promise<void> {
   isVerifying.value = true
@@ -34,6 +38,14 @@ async function verifyAll(): Promise<void> {
       <div>
         <span class="text-sm text-violet-400 font-medium">Container: "{{ containerName }}"</span>
         <span class="text-xs text-slate-500 ml-2">linked to corp offices</span>
+        <p v-if="containerCheckProblem" class="text-xs text-amber-400 mt-1">
+          <template v-if="containerCheckProblem.status === 'unknown' && containerCheckProblem.unknownReason !== null">
+            {{ t('groupIndustry.container.statuses.unknown') }}: {{ t(`groupIndustry.container.unknownReasons.${containerCheckProblem.unknownReason}`) }}
+          </template>
+          <template v-else>
+            {{ t('groupIndustry.container.statuses.container_not_found') }}
+          </template>
+        </p>
       </div>
     </div>
     <button

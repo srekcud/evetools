@@ -5,15 +5,30 @@ declare(strict_types=1);
 namespace App\Service\GroupIndustry;
 
 use App\ApiResource\GroupIndustry\GroupContainerVerificationResource;
+use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryProject;
+use App\Repository\CachedAssetRepository;
+use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\GroupIndustryBomItemRepository;
 use App\Service\Assets\VisibleCorporationAssetsFinder;
 
 class GroupIndustryContainerService
 {
+    private const string STATUS_VERIFIED = 'verified';
+    private const string STATUS_PARTIAL = 'partial';
+    private const string STATUS_MISSING = 'missing';
+    private const string STATUS_CONTAINER_NOT_FOUND = 'container_not_found';
+    private const string STATUS_UNKNOWN = 'unknown';
+
+    private const string REASON_OWNER_WITHOUT_CORPORATION = 'owner_without_corporation';
+    private const string REASON_CORPORATION_ASSETS_NOT_SYNCED = 'corporation_assets_not_synced';
+    private const string REASON_NO_VISIBLE_DIVISION = 'no_visible_division';
+
     public function __construct(
         private readonly VisibleCorporationAssetsFinder $visibleAssetsFinder,
         private readonly GroupIndustryBomItemRepository $bomItemRepository,
+        private readonly CachedAssetRepository $cachedAssetRepository,
+        private readonly CorpAssetVisibilityRepository $visibilityRepository,
     ) {
     }
 
@@ -28,56 +43,74 @@ class GroupIndustryContainerService
     public function verifyContainer(GroupIndustryProject $project): array
     {
         $materialItems = $this->bomItemRepository->findMaterialsByProject($project);
+        $containerName = $project->getContainerName();
 
-        if ($materialItems === []) {
+        if ($materialItems === [] || $containerName === null) {
             return [];
         }
 
-        $containerName = $project->getContainerName();
         $corporationId = $project->getOwner()->getCorporationId();
 
-        // If no container configured or no corp ID, return all unchecked
-        if ($containerName === null || $corporationId === null) {
-            return $this->buildAllUnchecked($materialItems);
+        if ($corporationId === null) {
+            return $this->buildAllUnknown($materialItems, self::REASON_OWNER_WITHOUT_CORPORATION);
+        }
+
+        if (!$this->cachedAssetRepository->hasCorporationAssets($corporationId)) {
+            return $this->buildAllUnknown($materialItems, self::REASON_CORPORATION_ASSETS_NOT_SYNCED);
+        }
+
+        $visibility = $this->visibilityRepository->findByCorporationId($corporationId);
+        if ($visibility === null || $visibility->getVisibleDivisions() === []) {
+            return $this->buildAllUnknown($materialItems, self::REASON_NO_VISIBLE_DIVISION);
         }
 
         $containerQuantities = $this->getContainerQuantities($corporationId, $containerName);
+
+        if ($containerQuantities === null) {
+            return $this->buildAllContainerNotFound($materialItems);
+        }
 
         return $this->buildVerificationResults($materialItems, $containerQuantities);
     }
 
     /**
-     * Find named containers in corp assets and aggregate item quantities inside them.
+     * Find named containers in the visible corp assets and aggregate the quantities of
+     * everything stored inside them, sub-containers included. Each asset counts once.
      *
-     * Corp assets are flat: containers have an itemName, and items inside a container
-     * have their locationId set to the container's itemId.
-     *
-     * @return array<int, int> typeId => total quantity across all matching containers
+     * @return array<int, int>|null typeId => total quantity across all matching containers, null when no container has that name
      */
-    private function getContainerQuantities(int $corporationId, string $containerName): array
+    private function getContainerQuantities(int $corporationId, string $containerName): ?array
     {
-        $corpAssets = $this->visibleAssetsFinder->findVisibleAssets($corporationId);
+        $visibleAssets = $this->visibleAssetsFinder->findVisibleAssets($corporationId);
 
-        // Step 1: Find all containers matching the name
-        $containerItemIds = [];
-        foreach ($corpAssets as $asset) {
+        $assetsByLocationId = [];
+        $pendingContainerItemIds = [];
+        foreach ($visibleAssets as $asset) {
+            $assetsByLocationId[$asset->getLocationId()][] = $asset;
             if ($asset->getItemName() === $containerName) {
-                $containerItemIds[] = $asset->getItemId();
+                $pendingContainerItemIds[] = $asset->getItemId();
             }
         }
 
-        if ($containerItemIds === []) {
-            return [];
+        if ($pendingContainerItemIds === []) {
+            return null;
         }
 
-        // Step 2: Find all assets whose locationId matches a container itemId
-        $containerItemIdSet = array_flip($containerItemIds);
         $quantities = [];
+        $countedItemIds = [];
 
-        foreach ($corpAssets as $asset) {
-            if (isset($containerItemIdSet[$asset->getLocationId()])) {
-                $typeId = $asset->getTypeId();
-                $quantities[$typeId] = ($quantities[$typeId] ?? 0) + $asset->getQuantity();
+        while ($pendingContainerItemIds !== []) {
+            $containerItemId = array_pop($pendingContainerItemIds);
+
+            foreach ($assetsByLocationId[$containerItemId] ?? [] as $content) {
+                if (isset($countedItemIds[$content->getItemId()])) {
+                    continue;
+                }
+
+                $countedItemIds[$content->getItemId()] = true;
+                $typeId = $content->getTypeId();
+                $quantities[$typeId] = isset($quantities[$typeId]) ? $quantities[$typeId] + $content->getQuantity() : $content->getQuantity();
+                $pendingContainerItemIds[] = $content->getItemId();
             }
         }
 
@@ -85,21 +118,31 @@ class GroupIndustryContainerService
     }
 
     /**
-     * @param \App\Entity\GroupIndustryBomItem[] $materialItems
+     * @param GroupIndustryBomItem[] $materialItems
      * @return GroupContainerVerificationResource[]
      */
-    private function buildAllUnchecked(array $materialItems): array
+    private function buildAllUnknown(array $materialItems, string $unknownReason): array
     {
-        $results = [];
-        foreach ($materialItems as $item) {
-            $results[] = $this->buildResource($item, 0, 'unchecked');
-        }
-
-        return $results;
+        return array_map(
+            fn (GroupIndustryBomItem $item): GroupContainerVerificationResource => $this->buildResource($item, null, self::STATUS_UNKNOWN, $unknownReason),
+            $materialItems,
+        );
     }
 
     /**
-     * @param \App\Entity\GroupIndustryBomItem[] $materialItems
+     * @param GroupIndustryBomItem[] $materialItems
+     * @return GroupContainerVerificationResource[]
+     */
+    private function buildAllContainerNotFound(array $materialItems): array
+    {
+        return array_map(
+            fn (GroupIndustryBomItem $item): GroupContainerVerificationResource => $this->buildResource($item, null, self::STATUS_CONTAINER_NOT_FOUND),
+            $materialItems,
+        );
+    }
+
+    /**
+     * @param GroupIndustryBomItem[] $materialItems
      * @param array<int, int> $containerQuantities
      * @return GroupContainerVerificationResource[]
      */
@@ -108,7 +151,7 @@ class GroupIndustryContainerService
         $results = [];
 
         foreach ($materialItems as $item) {
-            $containerQty = $containerQuantities[$item->getTypeId()] ?? 0;
+            $containerQty = isset($containerQuantities[$item->getTypeId()]) ? $containerQuantities[$item->getTypeId()] : 0;
             $status = $this->determineStatus($containerQty, $item->getRequiredQuantity());
             $results[] = $this->buildResource($item, $containerQty, $status);
         }
@@ -119,20 +162,21 @@ class GroupIndustryContainerService
     private function determineStatus(int $containerQuantity, int $requiredQuantity): string
     {
         if ($containerQuantity >= $requiredQuantity) {
-            return 'verified';
+            return self::STATUS_VERIFIED;
         }
 
         if ($containerQuantity > 0) {
-            return 'partial';
+            return self::STATUS_PARTIAL;
         }
 
-        return 'unchecked';
+        return self::STATUS_MISSING;
     }
 
     private function buildResource(
-        \App\Entity\GroupIndustryBomItem $item,
-        int $containerQuantity,
+        GroupIndustryBomItem $item,
+        ?int $containerQuantity,
         string $status,
+        ?string $unknownReason = null,
     ): GroupContainerVerificationResource {
         $resource = new GroupContainerVerificationResource();
         $resource->bomItemId = $item->getId()->toString();
@@ -141,6 +185,7 @@ class GroupIndustryContainerService
         $resource->requiredQuantity = $item->getRequiredQuantity();
         $resource->containerQuantity = $containerQuantity;
         $resource->status = $status;
+        $resource->unknownReason = $unknownReason;
 
         return $resource;
     }

@@ -93,6 +93,9 @@ const BREAKDOWN_COLORS: Record<string, string> = {
 </script>
 
 <template>
+  <div v-if="store.distributionError" class="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+    <p class="text-sm text-red-400">{{ store.distributionError }}</p>
+  </div>
   <div v-if="dist">
     <h2 class="text-lg font-semibold text-slate-100 mb-4">Profit Distribution</h2>
     <div

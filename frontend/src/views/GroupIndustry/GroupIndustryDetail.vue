@@ -122,7 +122,6 @@ watch(activeTab, (tab) => {
     contributionStore.fetchContributions(projectId.value)
   } else if (tab === 'distribution') {
     distributionStore.fetchDistribution(projectId.value)
-    distributionStore.fetchSales(projectId.value)
   } else if (tab === 'members') {
     distributionStore.fetchMembers(projectId.value)
   }

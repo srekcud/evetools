@@ -89,7 +89,14 @@ class CachedAssetRepository extends ServiceEntityRepository
 
     public function hasCorporationAssets(int $corporationId): bool
     {
-        throw new \LogicException('not implemented');
+        return $this->createQueryBuilder('a')
+            ->select('a.id')
+            ->where('a.corporationId = :corporationId')
+            ->andWhere('a.isCorporationAsset = true')
+            ->setParameter('corporationId', $corporationId)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult() !== null;
     }
 
     /**
