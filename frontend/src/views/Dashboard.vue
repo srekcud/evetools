@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
 import { useFormatters } from '@/composables/useFormatters'
 import { useNotificationFeed } from '@/composables/useNotificationFeed'
+import { useTodoItems, type TodoLevel } from '@/composables/useTodoItems'
 import MainLayout from '@/layouts/MainLayout.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
@@ -14,6 +15,8 @@ const authStore = useAuthStore()
 const syncStore = useSyncStore()
 const { formatIsk } = useFormatters()
 const { notifications, unreadCount, clearAll, removeNotification } = useNotificationFeed()
+
+const { items: todoItems, isLoading: isTodoLoading, isAllCaughtUp } = useTodoItems()
 
 const user = computed(() => authStore.user)
 
@@ -71,6 +74,15 @@ function formatTimeAgo(date: Date): string {
   return t('common.time.hoursAgo', { hours })
 }
 
+function getTodoLevelClasses(level: TodoLevel | null): string {
+  switch (level) {
+    case 'critical': return 'border-red-500/30 bg-red-500/10 text-red-300 hover:border-red-500/60'
+    case 'warning': return 'border-amber-500/30 bg-amber-500/10 text-amber-300 hover:border-amber-500/60'
+    case 'info': return 'border-cyan-500/30 bg-cyan-500/10 text-cyan-300 hover:border-cyan-500/60'
+    default: return 'border-slate-700 bg-slate-800/50 text-slate-300 hover:border-slate-500'
+  }
+}
+
 function getLevelDot(level: string): string {
   switch (level) {
     case 'success': return 'bg-emerald-400'
@@ -87,6 +99,27 @@ onMounted(() => {
 
 <template>
   <MainLayout>
+    <div class="space-y-6">
+    <section data-testid="dashboard-todo" class="bg-slate-900 rounded-2xl p-5 border border-slate-800">
+      <h3 class="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-3">{{ t('dashboard.todo.title') }}</h3>
+      <ul v-if="todoItems.length > 0" class="space-y-2">
+        <li v-for="todoItem in todoItems" :key="todoItem.labelKey">
+          <RouterLink
+            :to="todoItem.link"
+            data-testid="dashboard-todo-item"
+            :class="['flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors', getTodoLevelClasses(todoItem.level)]"
+          >
+            <span>{{ todoItem.count === null ? t(`dashboard.todo.${todoItem.labelKey}`) : t(`dashboard.todo.${todoItem.labelKey}`, todoItem.count) }}</span>
+            <span v-if="todoItem.characterNames.length > 0" class="text-xs font-normal opacity-80">{{ todoItem.characterNames.join(', ') }}</span>
+          </RouterLink>
+        </li>
+      </ul>
+      <div v-if="isTodoLoading" data-testid="dashboard-todo-loading" class="flex items-center py-2">
+        <LoadingSpinner size="sm" />
+      </div>
+      <p v-else-if="isAllCaughtUp" class="text-sm text-slate-500">{{ t('dashboard.todo.allCaughtUp') }}</p>
+    </section>
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Left column: Stats + Characters (2 cols) -->
       <div class="lg:col-span-2 space-y-6">
@@ -249,6 +282,7 @@ onMounted(() => {
           </div>
         </div>
       </div>
+    </div>
     </div>
   </MainLayout>
 </template>

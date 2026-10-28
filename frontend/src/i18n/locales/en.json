@@ -157,7 +157,19 @@
     "noRecentActivity": "No recent activity",
     "realtimeEventsWillAppear": "Real-time events will appear here",
     "mercureConnected": "Mercure connected",
-    "disconnected": "Disconnected"
+    "disconnected": "Disconnected",
+    "todo": {
+      "title": "To do",
+      "charactersToReconnect": "{count} character to reconnect | {count} characters to reconnect",
+      "atLeastCharactersToReconnect": "At least {count} character to reconnect | At least {count} characters to reconnect",
+      "expiredExtractors": "{count} PI extractor stopped | {count} PI extractors stopped",
+      "expiringExtractors": "{count} PI extractor expires within 24 h | {count} PI extractors expire within 24 h",
+      "triggeredPriceAlerts": "{count} price alert triggered | {count} price alerts triggered",
+      "unknownCharacters": "Characters to reconnect: unknown",
+      "unknownExtractors": "PI extractors: unknown (loading failed)",
+      "unknownPriceAlerts": "Price alerts: unknown (loading failed)",
+      "allCaughtUp": "All caught up"
+    }
   },
   "characters": {
     "title": "Characters",

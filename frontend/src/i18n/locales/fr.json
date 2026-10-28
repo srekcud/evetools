@@ -157,7 +157,19 @@
     "noRecentActivity": "Aucune activite recente",
     "realtimeEventsWillAppear": "Les evenements temps reel apparaitront ici",
     "mercureConnected": "Mercure connecte",
-    "disconnected": "Deconnecte"
+    "disconnected": "Deconnecte",
+    "todo": {
+      "title": "À faire",
+      "charactersToReconnect": "{count} personnage à reconnecter | {count} personnages à reconnecter",
+      "atLeastCharactersToReconnect": "Au moins {count} personnage à reconnecter | Au moins {count} personnages à reconnecter",
+      "expiredExtractors": "{count} extracteur PI arrêté | {count} extracteurs PI arrêtés",
+      "expiringExtractors": "{count} extracteur PI expire dans moins de 24 h | {count} extracteurs PI expirent dans moins de 24 h",
+      "triggeredPriceAlerts": "{count} alerte de prix déclenchée | {count} alertes de prix déclenchées",
+      "unknownCharacters": "Personnages à reconnecter : inconnu",
+      "unknownExtractors": "Extracteurs PI : inconnu (échec du chargement)",
+      "unknownPriceAlerts": "Alertes de prix : inconnu (échec du chargement)",
+      "allCaughtUp": "Tout est à jour"
+    }
   },
   "characters": {
     "title": "Personnages",
