@@ -18,6 +18,7 @@ use App\Industry\Domain\InventionOutcome;
 use App\Industry\Domain\Isk;
 use App\Industry\Domain\MissingData;
 use App\Industry\Domain\Multiplier;
+use App\Industry\Domain\PartialPrice;
 use App\Industry\Domain\PlanRequest;
 use App\Industry\Domain\PlanTarget;
 use App\Industry\Domain\ProductionPlanner;
@@ -265,11 +266,20 @@ final readonly class ProductionCostCalculator
         $leaves = [];
         foreach ($quantities as $typeId => $quantity) {
             $leaves[$typeId] = \array_key_exists($typeId, $unitPrices)
-                ? new LeafCost($typeId, $quantity, $unitPrices[$typeId]->unitPrice, Cost::known(new Isk($quantity * $unitPrices[$typeId]->unitPrice->amount)))
+                ? new LeafCost($typeId, $quantity, $unitPrices[$typeId]->unitPrice, self::boughtCost($typeId, $quantity, $unitPrices[$typeId]))
                 : new LeafCost($typeId, $quantity, null, Cost::unknown(MissingData::marketPrice($typeId)));
         }
 
         return $leaves;
+    }
+
+    private static function boughtCost(int $typeId, float $quantity, WeightedPrice $weightedPrice): Cost
+    {
+        $cost = Cost::known(new Isk($quantity * $weightedPrice->unitPrice->amount));
+
+        return $weightedPrice->coverage->isPartial()
+            ? $cost->withPartialPrice(new PartialPrice($typeId, $weightedPrice->coverage))
+            : $cost;
     }
 
     /**

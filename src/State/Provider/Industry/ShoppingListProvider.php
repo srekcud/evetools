@@ -195,7 +195,7 @@ class ShoppingListProvider implements ProviderInterface
             $weightedData = $weightedJitaPrices[$typeId] ?? null;
             $jitaWeightedUnitPrice = $weightedData !== null ? $weightedData['weightedPrice'] : null;
             $jitaWeightedTotal = $jitaWeightedUnitPrice !== null ? $jitaWeightedUnitPrice * $quantity : null;
-            $jitaCoverage = $weightedData !== null ? $weightedData['coverage'] : null;
+            $jitaCoverage = $weightedData['coverage'] ?? null;
 
             $material = new ShoppingListMaterialResource();
             $material->typeId = $typeId;

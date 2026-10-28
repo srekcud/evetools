@@ -29,7 +29,7 @@ final readonly class Cost
 
     public function withPartialPrice(PartialPrice $partialPrice): self
     {
-        return $this;
+        return new self($this->knownAmount, $this->missingData, self::withoutDuplicatePartialPrices([...$this->partialPrices, $partialPrice]));
     }
 
     public function isKnown(): bool
@@ -51,11 +51,13 @@ final readonly class Cost
      */
     public function plus(self $other): self
     {
+        $partialPrices = self::withoutDuplicatePartialPrices([...$this->partialPrices, ...$other->partialPrices]);
+
         if (null !== $this->knownAmount && null !== $other->knownAmount) {
-            return self::known(new Isk($this->knownAmount->amount + $other->knownAmount->amount));
+            return new self(new Isk($this->knownAmount->amount + $other->knownAmount->amount), [], $partialPrices);
         }
 
-        return new self(null, self::withoutDuplicates([...$this->missingData, ...$other->missingData]));
+        return new self(null, self::withoutDuplicates([...$this->missingData, ...$other->missingData]), $partialPrices);
     }
 
     /**
@@ -67,7 +69,7 @@ final readonly class Cost
             return $this;
         }
 
-        return self::known(new Isk($this->knownAmount->amount * $factor));
+        return new self(new Isk($this->knownAmount->amount * $factor), [], $this->partialPrices);
     }
 
     /**
@@ -86,5 +88,23 @@ final readonly class Cost
         }
 
         return $distinct;
+    }
+
+    /**
+     * @param array<PartialPrice> $partialPrices
+     *
+     * @return list<PartialPrice>
+     */
+    private static function withoutDuplicatePartialPrices(array $partialPrices): array
+    {
+        $lowestCoverageByTypeId = [];
+        foreach ($partialPrices as $candidate) {
+            $lowestSoFar = $lowestCoverageByTypeId[$candidate->typeId] ?? null;
+            if (null === $lowestSoFar || $candidate->coverage->fraction < $lowestSoFar->coverage->fraction) {
+                $lowestCoverageByTypeId[$candidate->typeId] = $candidate;
+            }
+        }
+
+        return array_values($lowestCoverageByTypeId);
     }
 }

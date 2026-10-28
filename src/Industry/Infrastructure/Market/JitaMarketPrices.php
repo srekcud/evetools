@@ -25,8 +25,8 @@ final readonly class JitaMarketPrices implements MarketPrices
 
         $unitPrices = [];
         foreach ($this->jitaMarketService->getWeightedSellPricesWithFallback($wholeUnitsByTypeId) as $typeId => $weightedPrice) {
-            if (null !== $weightedPrice) {
-                $unitPrices[$typeId] = new WeightedPrice(new Isk($weightedPrice['weightedPrice']), new OrderBookCoverage(1.0));
+            if (null !== $weightedPrice && isset($weightedPrice['coverage']) && $weightedPrice['coverage'] > 0.0) {
+                $unitPrices[$typeId] = new WeightedPrice(new Isk($weightedPrice['weightedPrice']), new OrderBookCoverage($weightedPrice['coverage']));
             }
         }
 
