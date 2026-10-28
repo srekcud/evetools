@@ -1362,7 +1362,11 @@
         "title": "Avertissements d'import",
         "withoutPlan": "Reimporter ces produits pour tenir compte du stock de leurs intermediaires :",
         "failedProducts": "Ces produits n'ont pas pu etre reconstruits, leurs objectifs ne sont pas reduits par le stock de leurs intermediaires :",
-        "unknownProduct": "Produit inconnu #{typeId}"
+        "unknownProduct": "Produit inconnu #{typeId}",
+        "reason": {
+          "no_blueprint": "Aucun blueprint ni réaction",
+          "plan_failed": "Le plan de production n'a pas pu être construit"
+        }
       },
       "stages": {
         "raw_material": "Matieres premieres",

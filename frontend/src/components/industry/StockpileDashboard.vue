@@ -13,7 +13,7 @@ import StockpileShoppingList from '@/components/industry/StockpileShoppingList.v
 import MissingVolumeWarning from '@/components/shopping/MissingVolumeWarning.vue'
 import { missingVolumeTypeNames } from '@/components/shopping/missingVolume'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const stockpileStore = useStockpileStore()
 
 const STAGE_ORDER: StockpileStage[] = ['raw_material', 'intermediate', 'component', 'final_product']
@@ -83,6 +83,13 @@ const productNameByTypeId = computed(() => new Map(
 
 function productName(typeId: number): string {
   return productNameByTypeId.value.get(typeId) ?? t('industry.stockpile.importWarnings.unknownProduct', { typeId })
+}
+
+const FALLBACK_FAILURE_REASON = 'plan_failed'
+
+function failureReasonLabel(reason: string): string {
+  const knownReason = te(`industry.stockpile.importWarnings.reason.${reason}`) ? reason : FALLBACK_FAILURE_REASON
+  return t(`industry.stockpile.importWarnings.reason.${knownReason}`)
 }
 
 const missingPriceTypeNames = computed(() => {
@@ -342,7 +349,7 @@ onMounted(async () => {
         <p class="text-slate-300">{{ t('industry.stockpile.importWarnings.failedProducts') }}</p>
         <ul class="mt-1 list-disc list-inside text-slate-400">
           <li v-for="failed in failedProducts" :key="failed.typeId">
-            {{ productName(failed.typeId) }}: <span class="font-mono text-xs text-slate-500">{{ failed.reason }}</span>
+            {{ productName(failed.typeId) }}: <span class="text-xs text-slate-500">{{ failureReasonLabel(failed.reason) }}</span>
           </li>
         </ul>
       </div>

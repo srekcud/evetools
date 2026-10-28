@@ -1362,7 +1362,11 @@
         "title": "Import warnings",
         "withoutPlan": "Reimport these products to take the stock of their intermediates into account:",
         "failedProducts": "These products could not be rebuilt, their targets are not reduced by the stock of their intermediates:",
-        "unknownProduct": "Unknown product #{typeId}"
+        "unknownProduct": "Unknown product #{typeId}",
+        "reason": {
+          "no_blueprint": "No blueprint or reaction",
+          "plan_failed": "The production plan could not be built"
+        }
       },
       "stages": {
         "raw_material": "Raw Materials",
