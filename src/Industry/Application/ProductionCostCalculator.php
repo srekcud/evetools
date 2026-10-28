@@ -24,6 +24,7 @@ use App\Industry\Domain\ProductionPlanner;
 use App\Industry\Domain\Quantity;
 use App\Industry\Domain\Recipe;
 use App\Industry\Domain\RecipeMaterial;
+use App\Industry\Domain\RecipeMemory;
 use App\Industry\Domain\Runs;
 
 /**
@@ -56,10 +57,11 @@ final readonly class ProductionCostCalculator
 
     public function costOf(ProductionCostRequest $request): ProductionCost
     {
-        $recipe = $this->recipeOf($request->productTypeId);
+        $recipes = new RecipeMemory($this->blueprints);
+        $recipe = self::recipeOf($request->productTypeId, $recipes);
         $selector = new StructureSelector($request->structures, $request->favoriteSystems, $this->costIndices);
         $inventionRecipe = $this->inventions->inventionOf($request->productTypeId);
-        $invention = null === $inventionRecipe ? null : $this->inventionCost($inventionRecipe, $request, $selector);
+        $invention = null === $inventionRecipe ? null : $this->inventionCost($inventionRecipe, $request, $selector, $recipes);
         $targetEfficiency = null === $invention
             ? $request->efficiency
             : new BlueprintEfficiency($invention->outcome->materialEfficiency, $invention->outcome->timeEfficiency);
@@ -72,8 +74,8 @@ final readonly class ProductionCostCalculator
         );
 
         [$leafQuantities, $jobs] = match ($request->mode) {
-            CostMode::Plan => $this->planned($planRequest, $materialModifiers, $request),
-            CostMode::MarginalCost => $this->marginal($planRequest, $recipe, $materialModifiers, $request),
+            CostMode::Plan => $this->planned($planRequest, $materialModifiers, $request, $recipes),
+            CostMode::MarginalCost => $this->marginal($planRequest, $recipe, $materialModifiers, $request, $recipes),
         };
 
         $leaves = $this->leafCosts($leafQuantities);
@@ -103,13 +105,13 @@ final readonly class ProductionCostCalculator
      *
      * @return array{array<int, float>, list<JobCost>}
      */
-    private function planned(PlanRequest $planRequest, StructureMaterialModifiers $materialModifiers, ProductionCostRequest $request): array
+    private function planned(PlanRequest $planRequest, StructureMaterialModifiers $materialModifiers, ProductionCostRequest $request, RecipeMemory $recipes): array
     {
-        $plan = $this->planner->plan($planRequest);
+        $plan = $this->planner->plan($planRequest, $recipes);
 
         $jobs = [];
         foreach ($plan->jobs as $job) {
-            $recipe = $this->recipeOf($job->productTypeId);
+            $recipe = self::recipeOf($job->productTypeId, $recipes);
             $jobs[] = $this->jobCost(
                 $recipe,
                 $job->runs->value,
@@ -127,9 +129,9 @@ final readonly class ProductionCostCalculator
      *
      * @return array{array<int, float>, list<JobCost>}
      */
-    private function marginal(PlanRequest $planRequest, Recipe $targetRecipe, StructureMaterialModifiers $materialModifiers, ProductionCostRequest $request): array
+    private function marginal(PlanRequest $planRequest, Recipe $targetRecipe, StructureMaterialModifiers $materialModifiers, ProductionCostRequest $request, RecipeMemory $recipes): array
     {
-        $marginalCostPlan = $this->planner->marginalCost($planRequest);
+        $marginalCostPlan = $this->planner->marginalCost($planRequest, $recipes);
 
         $jobs = [$this->jobCost(
             $targetRecipe,
@@ -139,7 +141,7 @@ final readonly class ProductionCostCalculator
             $request,
         )];
         foreach ($marginalCostPlan->fractionalRuns as $productTypeId => $fractionalRuns) {
-            $recipe = $this->recipeOf($productTypeId);
+            $recipe = self::recipeOf($productTypeId, $recipes);
             $jobs[] = $this->jobCost(
                 $recipe,
                 $fractionalRuns,
@@ -169,7 +171,7 @@ final readonly class ProductionCostCalculator
     /**
      * Expected invention of the T2 blueprint copies (R8).
      */
-    private function inventionCost(InventionRecipe $inventionRecipe, ProductionCostRequest $request, StructureSelector $selector): InventionCost
+    private function inventionCost(InventionRecipe $inventionRecipe, ProductionCostRequest $request, StructureSelector $selector, RecipeMemory $recipes): InventionCost
     {
         $settings = $request->invention
             ?? throw new \DomainException(\sprintf('Product %d is invented: its invention settings are required.', $request->productTypeId));
@@ -183,13 +185,13 @@ final readonly class ProductionCostCalculator
         // Copying and invention pay on the manufacturing EIV of the copied, or invented, blueprint (R5).
         $inventionInstallCost = $this->installCostOutsidePlan(
             ActivityKind::Invention,
-            EstimatedItemValue::of(new Runs(1), $this->eivMaterials($this->recipeOf($request->productTypeId))),
+            EstimatedItemValue::of(new Runs(1), $this->eivMaterials(self::recipeOf($request->productTypeId, $recipes))),
             $selector,
             $request,
         );
         $copyInstallCost = $this->installCostOutsidePlan(
             ActivityKind::Copying,
-            EstimatedItemValue::of(new Runs(self::COPY_RUNS_PER_ATTEMPT), $this->eivMaterials($this->recipeOf($inventionRecipe->t1ProductTypeId))),
+            EstimatedItemValue::of(new Runs(self::COPY_RUNS_PER_ATTEMPT), $this->eivMaterials(self::recipeOf($inventionRecipe->t1ProductTypeId, $recipes))),
             $selector,
             $request,
         );
@@ -295,9 +297,9 @@ final readonly class ProductionCostCalculator
         );
     }
 
-    private function recipeOf(int $productTypeId): Recipe
+    private static function recipeOf(int $productTypeId, RecipeMemory $recipes): Recipe
     {
-        return $this->blueprints->recipeFor($productTypeId)
+        return $recipes->recipeFor($productTypeId)
             ?? throw new \DomainException(\sprintf('Product %d has no blueprint nor reaction: it cannot be built.', $productTypeId));
     }
 
