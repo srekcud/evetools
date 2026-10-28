@@ -108,6 +108,15 @@ watch(() => route.query.typeId, () => {
   analysisInitialTypeId.value = typeIdFromQuery()
 })
 
+async function selectPill(tab: MainTab) {
+  analysisInitialTypeId.value = undefined
+  if (route.query.typeId !== undefined) {
+    const { typeId: _removedTypeId, ...remainingQuery } = route.query
+    await router.replace({ query: remainingQuery })
+  }
+  mainTab.value = tab
+}
+
 // Config slide-over panel
 const showConfigPanel = ref(false)
 const expandedConfigSection = ref<'fees' | 'skills' | 'structures' | 'blacklist' | null>('fees')
@@ -323,7 +332,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
             <button
               v-for="pill in group.pills"
               :key="pill.key"
-              @click="mainTab = pill.key"
+              @click="selectPill(pill.key)"
               :class="[
                 'px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all duration-200',
                 mainTab === pill.key
