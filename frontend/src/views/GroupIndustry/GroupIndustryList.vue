@@ -327,11 +327,11 @@ onMounted(() => {
   cursor: pointer;
 }
 .main-tab:hover {
-  color: #94a3b8;
+  color: var(--color-muted);
 }
 .main-tab.active {
-  color: #38bdf8;
-  border-bottom-color: #38bdf8;
+  color: var(--color-info);
+  border-bottom-color: var(--color-info);
 }
 
 .filter-pill {
@@ -342,7 +342,7 @@ onMounted(() => {
 }
 .filter-pill.active {
   background: rgba(14, 165, 233, 0.15);
-  color: #38bdf8;
+  color: var(--color-info);
   border-color: rgba(56, 189, 248, 0.3);
 }
 

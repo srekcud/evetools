@@ -717,20 +717,20 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
 
 /* Nav pill active state with glow */
 .nav-pill-active {
-  background: linear-gradient(135deg, #0891b2, #0e7490);
+  background: linear-gradient(135deg, var(--color-brand-strong), var(--color-brand-deep));
   color: white;
   box-shadow: 0 0 12px rgba(8, 145, 178, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .nav-pill-inactive {
   background: rgba(30, 41, 59, 0.6);
-  color: #94a3b8;
+  color: var(--color-muted);
   border: 1px solid rgba(51, 65, 85, 0.5);
   transition: all 0.2s ease;
 }
 .nav-pill-inactive:hover {
   background: rgba(30, 41, 59, 0.9);
-  color: #e2e8f0;
+  color: var(--color-chart-text);
   border-color: rgba(71, 85, 105, 0.8);
   transform: translateY(-1px);
 }
@@ -740,7 +740,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
   font-size: 9px;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: #475569;
+  color: var(--color-subtle);
   position: absolute;
   top: -14px;
   left: 4px;
@@ -751,7 +751,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
 .nav-divider {
   width: 1px;
   height: 24px;
-  background: linear-gradient(180deg, transparent, #334155 30%, #334155 70%, transparent);
+  background: linear-gradient(180deg, transparent, var(--color-chart-grid) 30%, var(--color-chart-grid) 70%, transparent);
   margin: 0 6px;
   align-self: center;
 }

@@ -450,7 +450,7 @@ defineEmits<{
   50% { background-position: 100% 50%; }
 }
 .stale-badge {
-  background: linear-gradient(90deg, #f59e0b, #d97706, #f59e0b);
+  background: linear-gradient(90deg, var(--color-warning), #d97706, var(--color-warning));
   background-size: 200% 100%;
   animation: staleShimmer 3s ease infinite;
 }

@@ -5,6 +5,7 @@ import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import type { BomItem, ContainerVerification } from '@/stores/group-industry/types'
+import { CHART_COLORS } from '@/utils/chartColors'
 
 const { t } = useI18n()
 const projectStore = useGroupProjectStore()
@@ -72,7 +73,7 @@ function ringGlowClass(percent: number): string {
 }
 
 function ringStrokeColor(percent: number): string {
-  return percent >= 100 ? '#34d399' : '#fbbf24'
+  return percent >= 100 ? CHART_COLORS.profit : CHART_COLORS.warning
 }
 </script>
 

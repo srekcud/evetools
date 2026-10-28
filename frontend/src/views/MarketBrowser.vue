@@ -348,7 +348,7 @@ const allButtonLabel = computed(() => {
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, #22d3ee, #6366f1);
+  background: linear-gradient(90deg, var(--color-info), #6366f1);
   border-radius: 1px;
 }
 </style>

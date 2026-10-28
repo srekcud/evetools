@@ -252,7 +252,7 @@ function onStructureInputBlur(): void {
 
 <style scoped>
 .btn-analyze {
-  background: linear-gradient(135deg, #0e7490, #0891b2, #06b6d4);
+  background: linear-gradient(135deg, var(--color-brand-deep), var(--color-brand-strong), var(--color-brand));
   background-size: 200% 200%;
   animation: gradient-shift 3s ease infinite;
 }

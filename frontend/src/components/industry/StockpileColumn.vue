@@ -225,7 +225,7 @@ function onDeleteTarget(targetId: string): void {
   right: -14px;
   width: 28px;
   height: 2px;
-  background: linear-gradient(90deg, #1e293b, #0891b2, #1e293b);
+  background: linear-gradient(90deg, var(--color-surface), var(--color-brand-strong), var(--color-surface));
   transform: translateY(-50%);
 }
 .pipeline-arrow::before {
@@ -235,8 +235,8 @@ function onDeleteTarget(targetId: string): void {
   right: -18px;
   width: 8px;
   height: 8px;
-  border-top: 2px solid #0891b2;
-  border-right: 2px solid #0891b2;
+  border-top: 2px solid var(--color-brand-strong);
+  border-right: 2px solid var(--color-brand-strong);
   transform: translateY(-50%) rotate(45deg);
 }
 

@@ -196,7 +196,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
     <template v-if="result && !loading">
       <!-- Current Product Card (amber warning) -->
       <div
-        class="bg-[#0f172a] border rounded-xl p-5"
+        class="bg-slate-900 border rounded-xl p-5"
         :class="result.sourceProduct.marginPercent != null && result.sourceProduct.marginPercent < 0
           ? 'border-amber-500/40 shadow-[0_0_15px_rgba(251,191,36,0.05)]'
           : 'border-slate-800'"
@@ -264,7 +264,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
           <!-- Key components in stock -->
           <div v-if="result.sourceProduct.keyComponents.length > 0" class="flex-shrink-0 w-72">
             <div class="text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.scanner.pivotAdvisor.keyComponents') }}</div>
-            <div class="bg-[#1e293b] rounded-lg p-3 space-y-1.5">
+            <div class="bg-slate-800 rounded-lg p-3 space-y-1.5">
               <div
                 v-for="comp in result.sourceProduct.keyComponents"
                 :key="comp.typeId"
@@ -279,7 +279,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
       </div>
 
       <!-- Shared Components Matrix -->
-      <div v-if="result.matrix.length > 0" class="bg-[#0f172a] border border-slate-800 rounded-xl p-5">
+      <div v-if="result.matrix.length > 0" class="bg-slate-900 border border-slate-800 rounded-xl p-5">
         <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div class="flex items-center gap-2">
             <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -432,7 +432,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
           <div
             v-for="(candidate, idx) in sortedCandidates"
             :key="candidate.typeId"
-            class="bg-[#0f172a] border border-[#1e293b] rounded-xl p-4 relative transition-all hover:border-cyan-400/30 hover:shadow-[0_0_20px_rgba(6,182,212,0.05)]"
+            class="bg-slate-900 border border-slate-800 rounded-xl p-4 relative transition-all hover:border-cyan-400/30 hover:shadow-[0_0_20px_rgba(6,182,212,0.05)]"
           >
             <!-- Rank badge -->
             <div
@@ -462,14 +462,14 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
 
             <!-- Stats grid -->
             <div class="grid grid-cols-2 gap-2 mb-3">
-              <div class="bg-[#1e293b] rounded-lg p-2">
+              <div class="bg-slate-800 rounded-lg p-2">
                 <div class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.scanner.pivotAdvisor.margin') }}</div>
                 <div class="font-mono text-sm font-bold" :class="marginColor(candidate.marginPercent)">
                   {{ formatMargin(candidate.marginPercent) }}
                 </div>
                 <div v-if="candidate.profitPerUnit != null" class="font-mono text-xs text-slate-500">{{ formatIsk(candidate.profitPerUnit) }} ISK</div>
               </div>
-              <div class="bg-[#1e293b] rounded-lg p-2">
+              <div class="bg-slate-800 rounded-lg p-2">
                 <div class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.scanner.pivotAdvisor.dailyVol') }}</div>
                 <div class="font-mono text-sm font-bold text-slate-200">{{ formatNumber(candidate.dailyVolume, 0) }}</div>
                 <div class="text-xs text-slate-500">{{ t('industry.scanner.pivotAdvisor.unitsDay') }}</div>
@@ -521,7 +521,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
             </div>
 
             <!-- Cost / Profit -->
-            <div class="bg-[#1e293b] rounded-lg p-2.5 mb-3 space-y-1.5">
+            <div class="bg-slate-800 rounded-lg p-2.5 mb-3 space-y-1.5">
               <div class="flex items-center justify-between text-xs">
                 <span class="text-slate-400">{{ t('industry.scanner.pivotAdvisor.additionalCost') }}</span>
                 <span class="font-mono text-amber-400">{{ formatKnownIsk(candidate.additionalCost) }}</span>

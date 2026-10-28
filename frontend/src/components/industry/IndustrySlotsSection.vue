@@ -5,6 +5,7 @@ import UnknownValue from '@/components/common/UnknownValue.vue'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { useSlotsStore } from '@/stores/industry/slots'
+import { CHART_COLORS } from '@/utils/chartColors'
 import type { SlotActivity, SlotTrackerCharacter, FreeSlotEntry, TimelineJob } from '@/stores/industry/types'
 
 const emit = defineEmits<{
@@ -49,15 +50,15 @@ const GANTT_BAR_CLASSES: Record<string, { bg: string; border: string; labelText:
 // KPI ring colors by utilization percent
 function kpiColor(percent: number): { stroke: string; text: string; dot: string; border: string; label: string } {
   if (percent >= 80) return {
-    stroke: '#34d399', text: 'text-emerald-400', dot: 'bg-emerald-400',
+    stroke: CHART_COLORS.profit, text: 'text-emerald-400', dot: 'bg-emerald-400',
     border: 'border-emerald-500/20', label: t('industry.slots.kpi.high'),
   }
   if (percent >= 50) return {
-    stroke: '#fbbf24', text: 'text-amber-400', dot: 'bg-amber-400',
+    stroke: CHART_COLORS.warning, text: 'text-amber-400', dot: 'bg-amber-400',
     border: 'border-amber-500/20', label: t('industry.slots.kpi.moderate'),
   }
   return {
-    stroke: '#f87171', text: 'text-red-400', dot: 'bg-red-400',
+    stroke: CHART_COLORS.loss, text: 'text-red-400', dot: 'bg-red-400',
     border: 'border-red-500/20', label: t('industry.slots.kpi.low'),
   }
 }

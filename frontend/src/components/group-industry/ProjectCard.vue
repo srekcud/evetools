@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import type { GroupProject } from '@/stores/group-industry/types'
+import { CHART_COLORS } from '@/utils/chartColors'
 
 const { formatIsk, formatDate } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
@@ -58,9 +59,9 @@ const statusStyle = computed(() =>
 
 function ringColor(): string {
   const pct = props.project.fulfillmentPercent
-  if (pct >= 100) return '#34d399'
-  if (pct >= 50) return '#22d3ee'
-  return '#fbbf24'
+  if (pct >= 100) return CHART_COLORS.profit
+  if (pct >= 50) return CHART_COLORS.info
+  return CHART_COLORS.warning
 }
 
 function ringGlowClass(): string {

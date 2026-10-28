@@ -111,16 +111,41 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+@theme static {
+  --color-profit: #34d399;
+  --color-loss: #f87171;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-info: #22d3ee;
+  --color-muted: #94a3b8;
+  --color-subtle: #475569;
+  --color-neutral: #64748b;
+  --color-surface: #1e293b;
+  --color-chart-text: #e2e8f0;
+  --color-chart-grid: #334155;
+  --color-brand: #06b6d4;
+  --color-brand-strong: #0891b2;
+  --color-brand-deep: #0e7490;
+
+  --color-chart-1: #22d3ee;
+  --color-chart-2: #f59e0b;
+  --color-chart-3: #a78bfa;
+  --color-chart-4: #34d399;
+  --color-chart-5: #f87171;
+  --color-chart-6: #60a5fa;
+  --color-chart-7: #fbbf24;
+  --color-chart-8: #818cf8;
+  --color-chart-9: #fb923c;
+  --color-chart-10: #2dd4bf;
+}
+
 @theme {
   --font-display: Rajdhani, sans-serif;
   --font-mono: Share Tech Mono, monospace;
 
   --color-eve-dark: #0a0c0f;
-  --color-eve-darker: #050607;
   --color-eve-accent: #00d4ff;
   --color-eve-accent-dim: #0099bb;
-  --color-eve-warning: #ff6b35;
-  --color-eve-success: #00ff88;
   --color-eve-text: #8892a2;
   --color-eve-text-bright: #c5cdd8;
 
@@ -177,18 +202,6 @@
            hover:bg-eve-accent/30 hover:border-eve-accent hover:shadow-[0_0_10px_rgba(0,212,255,0.3)];
 }
 
-@utility eve-button-danger {
-  @apply px-4 py-2 bg-eve-warning/20 border border-eve-warning/50
-           text-eve-warning rounded-sm font-medium transition-all duration-200
-           hover:bg-eve-warning/30 hover:border-eve-warning;
-}
-
-@utility eve-input {
-  @apply bg-eve-darker border border-[#1a1f2a] rounded-sm px-3 py-2
-           text-eve-text-bright focus:outline-hidden focus:border-eve-accent/50
-           placeholder:text-eve-text/50;
-}
-
 @utility eve-glow {
   @apply shadow-[0_0_10px_rgba(0,212,255,0.2)];
 }
@@ -197,8 +210,8 @@
   cursor: pointer;
   border-bottom: 1px dashed rgba(100, 116, 139, 0.3);
   &:hover {
-    color: #06b6d4;
-    border-bottom-color: #06b6d4;
+    color: var(--color-brand);
+    border-bottom-color: var(--color-brand);
   }
 }
 
@@ -217,7 +230,7 @@
     right: -8px;
     font-size: 9px;
     font-weight: 700;
-    background: linear-gradient(135deg, #06b6d4, #3b82f6);
+    background: linear-gradient(135deg, var(--color-brand), #3b82f6);
     color: #fff;
     padding: 1px 4px;
     border-radius: 3px;
@@ -247,7 +260,7 @@
   }
 
   ::-webkit-scrollbar-track {
-    background: #0a0c0f;
+    background: var(--color-eve-dark);
   }
 
   ::-webkit-scrollbar-thumb {

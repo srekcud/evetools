@@ -638,7 +638,7 @@ function formatRootProducts(project: IndustryProject): string {
 }
 .editable-value:hover {
   border-bottom-color: rgba(34, 211, 238, 0.5);
-  color: #22d3ee;
+  color: var(--color-info);
 }
 
 /* Pencil icon on hover */

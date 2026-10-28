@@ -731,7 +731,7 @@ function handleClose() {
   transition: border-color 0.15s ease;
 }
 .form-input:focus {
-  border-color: #0ea5e9;
+  border-color: var(--color-brand);
   outline: none;
   box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.1);
 }

@@ -6,6 +6,7 @@ import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { usePilotName } from '@/composables/usePilotName'
+import { CHART_SERIES } from '@/utils/chartColors'
 
 const { t } = useI18n()
 
@@ -21,11 +22,8 @@ const dist = computed(() => store.distribution)
 const RING_RADIUS = 80
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
 
-// Predefined colors for the ring chart segments
-const MEMBER_COLORS = ['#22d3ee', '#a78bfa', '#fbbf24', '#f472b6', '#34d399', '#fb923c']
-
 function getMemberColor(index: number): string {
-  return MEMBER_COLORS[index % MEMBER_COLORS.length]
+  return CHART_SERIES[index % CHART_SERIES.length]
 }
 
 function toggleExpand(memberId: string): void {

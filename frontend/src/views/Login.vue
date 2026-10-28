@@ -181,12 +181,12 @@ async function loginWithEve() {
           <svg viewBox="0 0 100 100" class="w-full h-full">
             <defs>
               <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style="stop-color:#00d4ff" />
-                <stop offset="100%" style="stop-color:#0099bb" />
+                <stop offset="0%" style="stop-color:var(--color-eve-accent)" />
+                <stop offset="100%" style="stop-color:var(--color-eve-accent-dim)" />
               </linearGradient>
             </defs>
             <polygon fill="url(#logoGrad)" points="50,5 95,27.5 95,72.5 50,95 5,72.5 5,27.5" />
-            <text x="50" y="62" text-anchor="middle" fill="#0a0c0f" font-family="Rajdhani, sans-serif" font-size="36" font-weight="bold">E</text>
+            <text x="50" y="62" text-anchor="middle" class="fill-eve-dark" font-family="Rajdhani, sans-serif" font-size="36" font-weight="bold">E</text>
           </svg>
         </div>
         <h1 class="text-4xl font-bold text-eve-text-bright mb-2 tracking-wide">EVE Tools</h1>
