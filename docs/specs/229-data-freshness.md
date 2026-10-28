@@ -110,7 +110,7 @@ Formateur (R8), locale FR :
 
 - `frontend/tests/composables/useFormatters.spec.ts`, bloc `formatTimeSince` : « Never », « 5m ago », « 3h ago », « 2d ago » deviennent traduits (F1 à F4, et leurs équivalents EN : « never », « 5min ago », « 3h ago », « 2d ago »).
 
-## Termes du glossaire proposés (non ajoutés)
+## Termes du glossaire (ajoutés au glossaire)
 
 | Terme FR | Term EN | Définition | Symbole(s) |
 |---|---|---|---|

@@ -187,7 +187,7 @@ Fixtures communes : locale `en` sauf mention ; utilisateur non admin ; aucun mod
 - Raccourci configurable ; palette sur mobile au-delà du bouton du header.
 - Maquette : non produite dans ce lot (consigne de n'écrire que la spec) ; à faire avant le frontend.
 
-## Glossaire (termes proposés, non ajoutés)
+## Glossaire (ajoutés au glossaire)
 
 | Terme FR | Term EN | Définition | Symbole(s) |
 |---|---|---|---|
