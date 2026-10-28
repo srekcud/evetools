@@ -11,6 +11,7 @@ use App\Entity\IndustryProject;
 use App\Entity\IndustryUserSettings;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\User;
+use App\Enum\IndustryActivityType;
 use App\Exception\TypeMissingFromSdeException;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -51,6 +52,10 @@ final class CreateProjectProcessorTest extends TestCase
     private const float SALES_TAX_RATE = 0.02;
     private const float ESTIMATED_JOB_COST = 1_250_000.0;
     private const string MATERIAL_COST_FAILURE_REASON = 'Jita prices unavailable for Robotics';
+    private const int FERNITE_CARBIDE = 16673;
+    private const int FERNITE_CARBIDE_REACTION_FORMULA = 46166;
+    private const int FERNITE_CARBIDE_UNITS_PER_RUN = 10_000;
+    private const int FERNITE_CARBIDE_RUNS = 8;
 
     public function testProjectOnATreeWithATypeMissingFromTheSdeIsABadRequestNamingTheMissingType(): void
     {
@@ -122,6 +127,52 @@ final class CreateProjectProcessorTest extends TestCase
 
         self::assertSame('jita', $project->getEstimatedSellPriceSource());
         self::assertEqualsWithDelta(72_000.0, $project->getEstimatedTaxAmount(), 0.001);
+    }
+
+    #[Group('issue-125')]
+    public function testEstimatedSellPriceOfAReactionProjectCountsTheUnitsPerRunOfItsReactionFormula(): void
+    {
+        $project = $this->createProjectWithSellPrices(
+            self::FERNITE_CARBIDE,
+            jitaPrice: 30.0,
+            structurePrice: null,
+            settings: $this->userSettings(),
+            runs: self::FERNITE_CARBIDE_RUNS,
+            producers: [IndustryActivityType::Reaction->value => $this->ferniteCarbideReactionFormula()],
+        );
+
+        self::assertSame('jita', $project->getEstimatedSellPriceSource());
+        self::assertEqualsWithDelta(2_400_000.0, $project->getEstimatedSellPrice(), 0.001);
+        self::assertEqualsWithDelta(72_000.0, $project->getEstimatedTaxAmount(), 0.001);
+    }
+
+    #[Group('issue-125')]
+    public function testProjectWhoseProductHasNeitherBlueprintNorReactionFormulaIsCreatedWithAnUnknownSellPriceAndLogsAWarningWithTheReason(): void
+    {
+        $logger = new BufferingLogger();
+
+        $project = $this->createProjectWithSellPrices(
+            self::FERNITE_CARBIDE,
+            jitaPrice: 30.0,
+            structurePrice: null,
+            settings: $this->userSettings(),
+            runs: self::FERNITE_CARBIDE_RUNS,
+            producers: [],
+            logger: $logger,
+        );
+
+        self::assertNull($project->getEstimatedSellPrice());
+        self::assertNull($project->getEstimatedSellPriceSource());
+        self::assertNull($project->getEstimatedTaxAmount());
+        self::assertEqualsWithDelta(400_000.0, $project->getEstimatedMaterialCost(), 0.001);
+        $warnings = array_values(array_filter(
+            $logger->cleanLogs(),
+            static fn (array $log): bool => $log[0] === LogLevel::WARNING,
+        ));
+        self::assertSame(
+            [['Industry project estimation failed', 'sell_price', 'No blueprint or reaction found for product type ID 16673']],
+            array_map(static fn (array $warning): array => [$warning[1], $warning[2]['estimation'], $warning[2]['reason']], $warnings),
+        );
     }
 
     #[Group('issue-21')]
@@ -334,10 +385,13 @@ final class CreateProjectProcessorTest extends TestCase
         float $jitaPrice,
         ?float $structurePrice,
         ?IndustryUserSettings $settings,
+        int $runs = self::PROJECT_RUNS,
+        ?array $producers = null,
+        LoggerInterface $logger = new NullLogger(),
     ): IndustryProject {
         $user = $this->createStub(User::class);
         $user->method('getPreferredMarketStructureId')->willReturn($structurePrice === null ? null : self::PREFERRED_MARKET_STRUCTURE_ID);
-        $project = $this->projectFor($productTypeId);
+        $project = $this->projectFor($productTypeId, $runs);
         $productionCostService = $this->createStub(ProductionCostService::class);
         $productionCostService->method('estimateJobInstallCosts')->willReturn(['total' => self::ESTIMATED_JOB_COST, 'steps' => []]);
         $productionCostService->method('estimateMaterialCost')->willReturn(['total' => 400_000.0, 'items' => [], 'failedProducts' => []]);
@@ -354,10 +408,11 @@ final class CreateProjectProcessorTest extends TestCase
             $jitaMarketService,
             $structureMarketService,
             $this->settingsRepositoryReturning($settings),
-            new NullLogger(),
+            $logger,
+            $producers,
         );
 
-        $processor->process($this->inputFor($productTypeId), new Post());
+        $processor->process($this->inputFor($productTypeId, $runs), new Post());
 
         return $project;
     }
@@ -370,6 +425,7 @@ final class CreateProjectProcessorTest extends TestCase
         StructureMarketService $structureMarketService,
         IndustryUserSettingsRepository $settingsRepository,
         LoggerInterface $logger,
+        ?array $producers = null,
     ): CreateProjectProcessor {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($user);
@@ -377,10 +433,11 @@ final class CreateProjectProcessorTest extends TestCase
         $projectFactory->method('createProject')->willReturn($project);
         $mapper = $this->createStub(IndustryResourceMapper::class);
         $mapper->method('projectToResource')->willReturn(new ProjectResource());
-        $outputPerRun = $this->createStub(IndustryActivityProduct::class);
-        $outputPerRun->method('getQuantity')->willReturn(self::OUTPUT_QUANTITY_PER_RUN);
+        $producersByActivityId = $producers ?? [IndustryActivityType::Manufacturing->value => (new IndustryActivityProduct())->setQuantity(self::OUTPUT_QUANTITY_PER_RUN)];
         $activityProductRepository = $this->createStub(IndustryActivityProductRepository::class);
-        $activityProductRepository->method('findBlueprintForProduct')->willReturn($outputPerRun);
+        $activityProductRepository->method('findBlueprintForProduct')->willReturnCallback(
+            static fn (int $productTypeId, int $activityId = 1): ?IndustryActivityProduct => $producersByActivityId[$activityId] ?? null,
+        );
 
         return new CreateProjectProcessor(
             $security,
@@ -394,6 +451,15 @@ final class CreateProjectProcessorTest extends TestCase
             $settingsRepository,
             $logger,
         );
+    }
+
+    private function ferniteCarbideReactionFormula(): IndustryActivityProduct
+    {
+        return (new IndustryActivityProduct())
+            ->setTypeId(self::FERNITE_CARBIDE_REACTION_FORMULA)
+            ->setActivityId(IndustryActivityType::Reaction->value)
+            ->setProductTypeId(self::FERNITE_CARBIDE)
+            ->setQuantity(self::FERNITE_CARBIDE_UNITS_PER_RUN);
     }
 
     private function settingsRepositoryReturning(?IndustryUserSettings $settings): IndustryUserSettingsRepository
@@ -411,18 +477,18 @@ final class CreateProjectProcessorTest extends TestCase
             ->setSalesTaxRate(self::SALES_TAX_RATE);
     }
 
-    private function projectFor(int $productTypeId): IndustryProject
+    private function projectFor(int $productTypeId, int $runs = self::PROJECT_RUNS): IndustryProject
     {
         return (new IndustryProject())
             ->setProductTypeId($productTypeId)
-            ->setRuns(self::PROJECT_RUNS);
+            ->setRuns($runs);
     }
 
-    private function inputFor(int $productTypeId): CreateProjectInput
+    private function inputFor(int $productTypeId, int $runs = self::PROJECT_RUNS): CreateProjectInput
     {
         $input = new CreateProjectInput();
         $input->typeId = $productTypeId;
-        $input->runs = self::PROJECT_RUNS;
+        $input->runs = $runs;
 
         return $input;
     }

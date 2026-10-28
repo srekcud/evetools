@@ -13,6 +13,7 @@ use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\Sde\MapSolarSystem;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
+use App\Exception\ProducerMissingFromSdeException;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -45,6 +46,11 @@ class ProductionCostServiceTest extends TestCase
     private const int STEP_B_PRODUCT_TYPE_ID = 11399;
     private const int TYPE_MISSING_FROM_SDE_ID = 123456;
     private const string TYPE_MISSING_FROM_SDE_REASON = 'Types missing from the SDE: 123456';
+    private const int FERNITE_CARBIDE_TYPE_ID = 16673;
+    private const int FERNITE_CARBIDE_REACTION_FORMULA_TYPE_ID = 46166;
+    private const int PRODUCT_MANUFACTURED_AND_REACTED_TYPE_ID = 990_457;
+    private const int BLUEPRINT_OF_THE_PRODUCT_MANUFACTURED_AND_REACTED_TYPE_ID = 991_457;
+    private const int FORMULA_OF_THE_PRODUCT_MANUFACTURED_AND_REACTED_TYPE_ID = 992_457;
 
     private JitaMarketService&MockObject $jitaMarketService;
     private EsiCostIndexService&MockObject $esiCostIndexService;
@@ -1036,15 +1042,78 @@ class ProductionCostServiceTest extends TestCase
     }
 
     #[Group('issue-125')]
-    public function testPerUnitCostOfAReactionProjectIsCurrentlyComputedAtOneUnitPerRunIssue125(): void
+    public function testPerUnitCostOfAReactionProjectIsComputedAtTheUnitsPerRunOfItsReactionFormula(): void
     {
-        $ferniteCarbideTypeId = 16673;
-        $reactionStep = $this->createStep('reaction', $ferniteCarbideTypeId, 8, $this->createStructureConfig(30002510), 46166);
-        $project = $this->createProject($ferniteCarbideTypeId, 8, 12_000.0);
+        $project = $this->ferniteCarbideReactionProjectOfEightRuns([]);
+        $this->stubProducers($this->ferniteCarbideReactionFormula());
+
+        $result = $this->service->estimateTotalCost($project);
+
+        $this->assertSame(76_400.0, $result['materialCost']);
+        $this->assertSame(92_000.0, $result['totalCost']);
+        $this->assertSame(1.15, $result['perUnit']);
+    }
+
+    #[Group('issue-125')]
+    public function testCostEstimationOfAProjectWhoseProductHasNeitherBlueprintNorReactionFormulaIsRefused(): void
+    {
+        $project = $this->ferniteCarbideReactionProjectOfEightRuns([]);
+        $this->stubProducers();
+
+        $this->expectException(ProducerMissingFromSdeException::class);
+        $this->expectExceptionMessage('No blueprint or reaction found for product type ID 16673');
+
+        $this->service->estimateTotalCost($project);
+    }
+
+    #[Group('issue-125')]
+    public function testPerUnitCostOfAProductManufacturedAndReactedIsComputedAtTheUnitsPerRunOfItsBlueprint(): void
+    {
+        $step = $this->createStep('manufacturing', self::PRODUCT_MANUFACTURED_AND_REACTED_TYPE_ID, 5, $this->createStructureConfig(30002510), self::BLUEPRINT_OF_THE_PRODUCT_MANUFACTURED_AND_REACTED_TYPE_ID);
+        $project = $this->createProject(self::PRODUCT_MANUFACTURED_AND_REACTED_TYPE_ID, 5);
+        $project->method('getSteps')->willReturn(new ArrayCollection([$step]));
+        $this->shoppingListBuilder->method('getShoppingList')->willReturn([
+            'materials' => [['typeId' => 16683, 'typeName' => 'Ferrogel', 'quantity' => 400]],
+            'failedProducts' => [],
+        ]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([16683 => 450.0]);
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([]);
+        $this->esiCostIndexService->method('estimateJobInstallCost')->willReturn($this->installCostOf(20_000.0));
+        $this->esiCostIndexService->method('getCostIndex')->willReturn(0.0387);
+        $this->calculationService->method('resolveTypeName')->willReturn('Product manufactured and reacted');
+        $this->solarSystemRepository->method('findBySolarSystemId')->willReturn(null);
+        $this->stubProducers(
+            $this->producer(self::BLUEPRINT_OF_THE_PRODUCT_MANUFACTURED_AND_REACTED_TYPE_ID, IndustryActivityType::Manufacturing, self::PRODUCT_MANUFACTURED_AND_REACTED_TYPE_ID, 40),
+            $this->producer(self::FORMULA_OF_THE_PRODUCT_MANUFACTURED_AND_REACTED_TYPE_ID, IndustryActivityType::Reaction, self::PRODUCT_MANUFACTURED_AND_REACTED_TYPE_ID, 200),
+        );
+
+        $result = $this->service->estimateTotalCost($project);
+
+        $this->assertSame(200_000.0, $result['totalCost']);
+        $this->assertSame(1_000.0, $result['perUnit']);
+    }
+
+    #[Group('issue-125')]
+    public function testPerUnitCostOfAReactionProjectWithAnUnknownTotalCostStaysUnknown(): void
+    {
+        $project = $this->ferniteCarbideReactionProjectOfEightRuns([['typeId' => 16640, 'reason' => 'No blueprint or reaction found for product type ID 16640']]);
+        $this->stubProducers($this->ferniteCarbideReactionFormula());
+
+        $result = $this->service->estimateTotalCost($project);
+
+        $this->assertNull($result['materialCost']);
+        $this->assertNull($result['totalCost']);
+        $this->assertNull($result['perUnit']);
+    }
+
+    private function ferniteCarbideReactionProjectOfEightRuns(array $failedProducts): IndustryProject&MockObject
+    {
+        $reactionStep = $this->createStep('reaction', self::FERNITE_CARBIDE_TYPE_ID, 8, $this->createStructureConfig(30002510), self::FERNITE_CARBIDE_REACTION_FORMULA_TYPE_ID);
+        $project = $this->createProject(self::FERNITE_CARBIDE_TYPE_ID, 8, 12_000.0);
         $project->method('getSteps')->willReturn(new ArrayCollection([$reactionStep]));
         $this->shoppingListBuilder->method('getShoppingList')->willReturn([
             'materials' => [['typeId' => 16640, 'typeName' => 'Fernite Alloy', 'quantity' => 800]],
-            'failedProducts' => [],
+            'failedProducts' => $failedProducts,
         ]);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([16640 => 95.5]);
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([]);
@@ -1052,13 +1121,37 @@ class ProductionCostServiceTest extends TestCase
         $this->esiCostIndexService->method('getCostIndex')->willReturn(0.0612);
         $this->calculationService->method('resolveTypeName')->willReturn('Fernite Carbide');
         $this->solarSystemRepository->method('findBySolarSystemId')->willReturn(null);
-        $this->productRepository->method('findBlueprintForProduct')->willReturn(null);
 
-        $result = $this->service->estimateTotalCost($project);
+        return $project;
+    }
 
-        $this->assertSame(76_400.0, $result['materialCost']);
-        $this->assertSame(92_000.0, $result['totalCost']);
-        $this->assertSame(11_500.0, $result['perUnit']);
+    private function ferniteCarbideReactionFormula(): IndustryActivityProduct
+    {
+        return $this->producer(self::FERNITE_CARBIDE_REACTION_FORMULA_TYPE_ID, IndustryActivityType::Reaction, self::FERNITE_CARBIDE_TYPE_ID, 10_000);
+    }
+
+    private function stubProducers(IndustryActivityProduct ...$producers): void
+    {
+        $this->productRepository->method('findBlueprintForProduct')->willReturnCallback(
+            static function (int $productTypeId, int $activityId = 1) use ($producers): ?IndustryActivityProduct {
+                foreach ($producers as $producer) {
+                    if ($producer->getProductTypeId() === $productTypeId && $producer->getActivityId() === $activityId) {
+                        return $producer;
+                    }
+                }
+
+                return null;
+            },
+        );
+    }
+
+    private function producer(int $blueprintTypeId, IndustryActivityType $activity, int $productTypeId, int $unitsPerRun): IndustryActivityProduct
+    {
+        return (new IndustryActivityProduct())
+            ->setTypeId($blueprintTypeId)
+            ->setActivityId($activity->value)
+            ->setProductTypeId($productTypeId)
+            ->setQuantity($unitsPerRun);
     }
 
     #[Group('issue-8')]

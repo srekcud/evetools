@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Service\Industry;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\User;
+use App\Exception\BlueprintProductMissingFromSdeException;
 use App\Repository\IndustryRigCategoryRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -1096,16 +1097,31 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     }
 
     #[Group('issue-137')]
-    public function testChildWithoutProductInTheSdeIsCurrentlyRecalculatedAtOneUnitPerRunIssue137(): void
+    public function testRecalculationOfAChildWithoutProductInTheSdeIsRefusedWithoutFlushingAnyStep(): void
     {
-        $project = $this->projectOfStepsWithoutStructure([
-            $this->step(self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32, depth: 0, meLevel: 10),
-            $this->step(self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: 1, depth: 1, meLevel: 0, blueprintTypeId: self::UNKNOWN_BLUEPRINT_TYPE_ID),
-        ]);
+        $project = $this->quantumMicroprocessorWithATitaniumCarbideChildWithoutProductInTheSde();
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects($this->never())->method('flush');
+        $stepCalculator = new IndustryStepCalculator($this->calculationService, $this->materialRepositoryOnGoldenSde(), $this->productRepositoryOnGoldenSde(), $entityManager);
 
-        $this->stepCalculator->recalculateStepQuantities($project);
+        try {
+            $stepCalculator->recalculateStepQuantities($project);
+            self::fail('A child without product in the SDE must not be recalculated.');
+        } catch (BlueprintProductMissingFromSdeException $refusal) {
+            self::assertSame('Product of blueprint 999999999 missing from the SDE', $refusal->getMessage());
+        }
+    }
 
-        self::assertSame([[490, 490, 1, 0, 20, 0, null]], $this->jobsOf($this->stepsOf($project), self::TITANIUM_CARBIDE));
+    #[Group('issue-137')]
+    public function testRunsOfTheNeedOfAChildWithoutProductInTheSdeAreRefused(): void
+    {
+        $project = $this->quantumMicroprocessorWithATitaniumCarbideChildWithoutProductInTheSde();
+        $titaniumCarbide = $this->stepOfProductIn($project, self::TITANIUM_CARBIDE);
+
+        $this->expectException(BlueprintProductMissingFromSdeException::class);
+        $this->expectExceptionMessage('Product of blueprint 999999999 missing from the SDE');
+
+        $this->stepCalculator->needRunsOf($project, $titaniumCarbide);
     }
 
     // ===========================================
@@ -1136,6 +1152,22 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         }
 
         return $project;
+    }
+
+    private function quantumMicroprocessorWithATitaniumCarbideChildWithoutProductInTheSde(): IndustryProject
+    {
+        return $this->projectOfStepsWithoutStructure([
+            $this->step(self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32, depth: 0, meLevel: 10),
+            $this->step(self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: 1, depth: 1, meLevel: 0, blueprintTypeId: self::UNKNOWN_BLUEPRINT_TYPE_ID),
+        ]);
+    }
+
+    private function stepOfProductIn(IndustryProject $project, int $productTypeId): IndustryProjectStep
+    {
+        return array_values(array_filter(
+            $project->getSteps()->toArray(),
+            static fn (IndustryProjectStep $step): bool => $step->getProductTypeId() === $productTypeId,
+        ))[0];
     }
 
     private function ferniteCarbideOfElevenRunsWithAnAlloyGroupOfTwoTwoAndOneRuns(): IndustryProject

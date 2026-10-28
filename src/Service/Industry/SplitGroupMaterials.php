@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Industry;
 
+use App\Entity\Sde\IndustryActivityProduct;
 use App\Enum\IndustryActivityType;
 use App\Exception\BlueprintProductMissingFromSdeException;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -34,6 +35,16 @@ final class SplitGroupMaterials
         }
 
         return $product->getQuantity();
+    }
+
+    public static function outputPerRunOfProduct(?IndustryActivityProduct $product, int $blueprintTypeId): int
+    {
+        return 1;
+    }
+
+    public static function producerOf(IndustryActivityProductRepository $productRepository, int $productTypeId): IndustryActivityProduct
+    {
+        return (new IndustryActivityProduct())->setQuantity(1);
     }
 
     public static function activityIdOf(string $activityType): int
