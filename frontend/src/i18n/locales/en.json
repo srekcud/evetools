@@ -2013,7 +2013,13 @@
       "totalPrice": "Total Price",
       "venue": "Venue",
       "soldAt": "Sold At",
-      "recordedBy": "Recorded by"
+      "recordedBy": "Recorded by",
+      "correctTitle": "Correct a Sale",
+      "actionsColumn": "Actions",
+      "deleteConfirm": {
+        "title": "Delete this sale?",
+        "message": "The sale of {item} is removed from the revenue and the distribution is recalculated."
+      }
     },
     "members": {
       "title": "Members",

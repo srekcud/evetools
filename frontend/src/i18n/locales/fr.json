@@ -2013,7 +2013,13 @@
       "totalPrice": "Prix total",
       "venue": "Lieu",
       "soldAt": "Vendu le",
-      "recordedBy": "Enregistre par"
+      "recordedBy": "Enregistre par",
+      "correctTitle": "Corriger une vente",
+      "actionsColumn": "Actions",
+      "deleteConfirm": {
+        "title": "Supprimer cette vente ?",
+        "message": "La vente de {item} est retiree du revenu et la distribution est recalculee."
+      }
     },
     "members": {
       "title": "Membres",

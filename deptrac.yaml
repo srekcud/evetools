@@ -130,6 +130,8 @@ deptrac:
   skip_violations:
     App\Controller\Auth\EveOAuthController:
       - App\Message\SyncCharacterAssets
+    App\ApiResource\GroupIndustry\GroupIndustrySaleResource:
+      - App\Service\GroupIndustry\PilotName
     App\Service\GroupIndustry\GroupIndustryContainerService:
       - App\ApiResource\GroupIndustry\GroupContainerVerificationResource
     App\State\Processor\Escalation\CreateEscalationProcessor:
@@ -138,6 +140,8 @@ deptrac:
       - App\State\Provider\Escalation\EscalationResourceMapper
     App\State\Processor\GroupIndustry\CreateGroupProjectProcessor:
       - App\State\Provider\GroupIndustry\GroupIndustryResourceMapper
+    App\State\Processor\GroupIndustry\DeleteSaleProcessor:
+      - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
     App\State\Processor\GroupIndustry\JoinGroupProjectProcessor:
       - App\State\Provider\GroupIndustry\GroupIndustryResourceMapper
     App\State\Processor\GroupIndustry\KickGroupMemberProcessor:
@@ -151,6 +155,8 @@ deptrac:
       - App\State\Provider\GroupIndustry\GroupIndustryResourceMapper
     App\State\Processor\GroupIndustry\UpdateGroupMemberProcessor:
       - App\State\Provider\GroupIndustry\GroupIndustryResourceMapper
+      - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
+    App\State\Processor\GroupIndustry\UpdateSaleProcessor:
       - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
     App\State\Processor\GroupIndustry\UpdateGroupProjectProcessor:
       - App\State\Provider\GroupIndustry\GroupIndustryResourceMapper

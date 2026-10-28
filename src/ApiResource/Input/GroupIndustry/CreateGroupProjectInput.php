@@ -8,12 +8,25 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 class CreateGroupProjectInput
 {
+    private const int MAXIMUM_TEXT_LENGTH = 255;
+    private const int MAXIMUM_MATERIAL_EFFICIENCY = 10;
+    private const int MAXIMUM_TIME_EFFICIENCY = 20;
+
     #[Assert\Length(max: 255)]
     public ?string $name = null;
 
     /** @var list<array{typeId: int, typeName: string, meLevel: int, teLevel: int, runs: int}> */
     #[Assert\NotBlank]
     #[Assert\Count(min: 1, max: 10)]
+    #[Assert\All([
+        new Assert\Collection(fields: [
+            'typeId' => new Assert\Required([new Assert\Type('int'), new Assert\PositiveOrZero()]),
+            'typeName' => new Assert\Required([new Assert\Type('string'), new Assert\NotBlank(), new Assert\Length(max: self::MAXIMUM_TEXT_LENGTH)]),
+            'meLevel' => new Assert\Required([new Assert\Type('int'), new Assert\Range(min: 0, max: self::MAXIMUM_MATERIAL_EFFICIENCY)]),
+            'teLevel' => new Assert\Required([new Assert\Type('int'), new Assert\Range(min: 0, max: self::MAXIMUM_TIME_EFFICIENCY)]),
+            'runs' => new Assert\Required([new Assert\Type('int'), new Assert\GreaterThanOrEqual(1)]),
+        ]),
+    ])]
     public array $items = [];
 
     /** @var int[] */

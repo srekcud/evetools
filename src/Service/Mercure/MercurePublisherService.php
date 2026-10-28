@@ -197,7 +197,7 @@ final readonly class MercurePublisherService
         try {
             $update = new Update(
                 $topic,
-                json_encode($payload, JSON_THROW_ON_ERROR),
+                json_encode($payload, JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION),
                 private: true,
             );
 

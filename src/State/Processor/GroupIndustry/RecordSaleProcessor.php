@@ -11,7 +11,6 @@ use App\ApiResource\Input\GroupIndustry\RecordSaleInput;
 use App\Entity\GroupIndustrySale;
 use App\Entity\User;
 use App\Repository\GroupIndustryProjectRepository;
-use App\Service\GroupIndustry\PilotName;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use Doctrine\ORM\EntityManagerInterface;
@@ -61,14 +60,6 @@ class RecordSaleProcessor implements ProcessorInterface
             throw new BadRequestHttpException('Cannot record a sale on a completed project');
         }
 
-        if ($data->quantity <= 0) {
-            throw new BadRequestHttpException('Quantity must be positive');
-        }
-
-        if ($data->unitPrice < 0) {
-            throw new BadRequestHttpException('Unit price must not be negative');
-        }
-
         $soldAt = $data->soldAt !== null
             ? new \DateTimeImmutable($data->soldAt)
             : new \DateTimeImmutable();
@@ -98,23 +89,6 @@ class RecordSaleProcessor implements ProcessorInterface
             ],
         );
 
-        return $this->mapToResource($sale);
-    }
-
-    private function mapToResource(GroupIndustrySale $sale): GroupIndustrySaleResource
-    {
-        $resource = new GroupIndustrySaleResource();
-        $resource->id = $sale->getId()->toRfc4122();
-        $resource->typeId = $sale->getTypeId();
-        $resource->typeName = $sale->getTypeName();
-        $resource->quantity = $sale->getQuantity();
-        $resource->unitPrice = $sale->getUnitPrice();
-        $resource->totalPrice = $sale->getTotalPrice();
-        $resource->venue = $sale->getVenue();
-        $resource->soldAt = $sale->getSoldAt()->format(\DateTimeInterface::ATOM);
-        $resource->recordedByCharacterName = PilotName::of($sale->getRecordedBy());
-        $resource->createdAt = $sale->getCreatedAt()->format(\DateTimeInterface::ATOM);
-
-        return $resource;
+        return GroupIndustrySaleResource::fromSale($sale);
     }
 }

@@ -7,11 +7,9 @@ namespace App\State\Provider\GroupIndustry;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
-use App\Entity\GroupIndustrySale;
 use App\Entity\User;
 use App\Repository\GroupIndustryProjectRepository;
 use App\Repository\GroupIndustrySaleRepository;
-use App\Service\GroupIndustry\PilotName;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -56,25 +54,8 @@ class GroupSaleCollectionProvider implements ProviderInterface
         $sales = $this->saleRepository->findByProjectForListing($project);
 
         return array_map(
-            fn (GroupIndustrySale $sale) => $this->mapToResource($sale),
+            GroupIndustrySaleResource::fromSale(...),
             $sales,
         );
-    }
-
-    private function mapToResource(GroupIndustrySale $sale): GroupIndustrySaleResource
-    {
-        $resource = new GroupIndustrySaleResource();
-        $resource->id = $sale->getId()->toRfc4122();
-        $resource->typeId = $sale->getTypeId();
-        $resource->typeName = $sale->getTypeName();
-        $resource->quantity = $sale->getQuantity();
-        $resource->unitPrice = $sale->getUnitPrice();
-        $resource->totalPrice = $sale->getTotalPrice();
-        $resource->venue = $sale->getVenue();
-        $resource->soldAt = $sale->getSoldAt()->format(\DateTimeInterface::ATOM);
-        $resource->recordedByCharacterName = PilotName::of($sale->getRecordedBy());
-        $resource->createdAt = $sale->getCreatedAt()->format(\DateTimeInterface::ATOM);
-
-        return $resource;
     }
 }

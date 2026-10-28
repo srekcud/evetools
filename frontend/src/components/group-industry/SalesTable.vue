@@ -4,8 +4,9 @@ import { ref, computed, onMounted, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useFormatters } from '@/composables/useFormatters'
-import type { RecordSaleInput } from '@/stores/group-industry/types'
+import type { GroupSale, RecordSaleInput, UpdateSaleInput } from '@/stores/group-industry/types'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import ConfirmModal from '@/components/common/ConfirmModal.vue'
 
 const { t } = useI18n()
 const saleTypeNameFieldId = useId()
@@ -31,6 +32,9 @@ const saleForm = ref<RecordSaleInput>({
   venue: '',
 })
 const submittingSale = ref(false)
+const correctedSale = ref<GroupSale | null>(null)
+const saleToDelete = ref<GroupSale | null>(null)
+const deletingSale = ref(false)
 
 const totalQuantity = computed(() =>
   store.sales.reduce((sum, s) => sum + s.quantity, 0),
@@ -40,20 +44,58 @@ const totalRevenue = computed(() =>
 )
 
 function toggleSaleForm(): void {
+  correctedSale.value = null
   showSaleForm.value = !showSaleForm.value
   if (showSaleForm.value) {
     saleForm.value = { typeId: 0, typeName: '', quantity: 1, unitPrice: 0, venue: '' }
   }
 }
 
-async function handleRecordSale(): Promise<void> {
+function startCorrection(sale: GroupSale): void {
+  correctedSale.value = sale
+  saleForm.value = {
+    typeId: sale.typeId,
+    typeName: sale.typeName,
+    quantity: sale.quantity,
+    unitPrice: sale.unitPrice,
+    venue: sale.venue ?? '',
+  }
+  showSaleForm.value = true
+}
+
+function changesOf(sale: GroupSale, form: RecordSaleInput): UpdateSaleInput {
+  const changes: UpdateSaleInput = {}
+  if (form.typeName !== sale.typeName) changes.typeName = form.typeName
+  if (form.quantity !== sale.quantity) changes.quantity = form.quantity
+  if (form.unitPrice !== sale.unitPrice) changes.unitPrice = form.unitPrice
+  if (form.venue && form.venue !== sale.venue) changes.venue = form.venue
+  return changes
+}
+
+async function handleSaveSale(): Promise<void> {
   if (!saleForm.value.typeName || saleForm.value.quantity <= 0 || saleForm.value.unitPrice <= 0) return
   submittingSale.value = true
   try {
-    await store.recordSale(props.projectId, saleForm.value)
+    if (correctedSale.value) {
+      await store.updateSale(props.projectId, correctedSale.value.id, changesOf(correctedSale.value, saleForm.value))
+    } else {
+      await store.recordSale(props.projectId, saleForm.value)
+    }
     showSaleForm.value = false
+    correctedSale.value = null
   } finally {
     submittingSale.value = false
+  }
+}
+
+async function handleDeleteSale(): Promise<void> {
+  if (!saleToDelete.value) return
+  deletingSale.value = true
+  try {
+    await store.deleteSale(props.projectId, saleToDelete.value.id)
+  } finally {
+    deletingSale.value = false
+    saleToDelete.value = null
   }
 }
 
@@ -107,6 +149,7 @@ onMounted(() => {
                 <th class="text-right py-3 px-3">Unit Price</th>
                 <th class="text-right py-3 px-3">Revenue</th>
                 <th class="text-left py-3 px-6">Venue</th>
+                <th v-if="isAdmin" class="py-3 px-6"><span class="sr-only">{{ t('groupIndustry.sales.actionsColumn') }}</span></th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-800/30">
@@ -132,6 +175,16 @@ onMounted(() => {
                   >{{ sale.venue }}</span>
                   <span v-else class="text-xs text-slate-600">--</span>
                 </td>
+                <td v-if="isAdmin" class="py-3 px-6 text-right whitespace-nowrap">
+                  <button
+                    class="text-xs text-cyan-400 hover:text-cyan-300 mr-3 transition-colors"
+                    @click="startCorrection(sale)"
+                  >{{ t('common.actions.edit') }}</button>
+                  <button
+                    class="text-xs text-red-400 hover:text-red-300 transition-colors"
+                    @click="saleToDelete = sale"
+                  >{{ t('common.actions.delete') }}</button>
+                </td>
               </tr>
               <!-- Total row -->
               <tr v-if="store.sales.length > 0" class="bg-slate-800/30 border-t-2 border-slate-700">
@@ -144,6 +197,7 @@ onMounted(() => {
                   {{ formatNumber(totalRevenue, 0) }}
                 </td>
                 <td class="py-3 px-6"></td>
+                <td v-if="isAdmin" class="py-3 px-6"></td>
               </tr>
             </tbody>
           </table>
@@ -155,7 +209,7 @@ onMounted(() => {
         v-if="showSaleForm && isAdmin"
         class="mt-4 bg-slate-900/80 rounded-xl border border-cyan-500/20 p-5"
       >
-        <h3 class="text-sm font-semibold text-slate-200 mb-4">Record a Sale</h3>
+        <h3 class="text-sm font-semibold text-slate-200 mb-4">{{ correctedSale ? t('groupIndustry.sales.correctTitle') : 'Record a Sale' }}</h3>
         <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
           <div>
             <label :for="saleTypeNameFieldId" class="text-xs text-slate-500 mb-1 block">Item Name</label>
@@ -201,7 +255,7 @@ onMounted(() => {
             <button
               :disabled="submittingSale || !saleForm.typeName || saleForm.quantity <= 0 || saleForm.unitPrice <= 0"
               class="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-lg text-white text-sm font-medium transition-colors flex items-center justify-center gap-2"
-              @click="handleRecordSale"
+              @click="handleSaveSale"
             >
               <LoadingSpinner v-if="submittingSale" size="sm" />
               <template v-else>
@@ -215,6 +269,16 @@ onMounted(() => {
         </div>
       </div>
     </template>
+
+    <ConfirmModal
+      :show="saleToDelete !== null"
+      :title="t('groupIndustry.sales.deleteConfirm.title')"
+      :message="t('groupIndustry.sales.deleteConfirm.message', { item: saleToDelete?.typeName ?? '' })"
+      :confirm-label="t('common.actions.delete')"
+      :is-loading="deletingSale"
+      @confirm="handleDeleteSale"
+      @cancel="saleToDelete = null"
+    />
 
     <!-- Error -->
     <div v-if="store.error" class="mt-4 bg-red-500/10 border border-red-500/20 rounded-xl p-4">

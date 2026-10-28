@@ -7,6 +7,8 @@ const REFRESHES_BY_ACTION: Record<string, GroupProjectRefresh[]> = {
   member_joined: ['members', 'projectDetail'],
   member_left: ['members', 'projectDetail'],
   sale_recorded: ['sales', 'distribution'],
+  sale_updated: ['sales', 'distribution'],
+  sale_deleted: ['sales', 'distribution'],
 }
 
 const DEFAULT_REFRESHES: GroupProjectRefresh[] = ['projectDetail', 'bom']

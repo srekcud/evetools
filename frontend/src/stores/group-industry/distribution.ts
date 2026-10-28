@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref, type Ref } from 'vue'
 import { apiRequest } from '@/services/api'
 import type {
   Distribution,
@@ -15,38 +15,59 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
   const sales = ref<GroupSale[]>([])
   const members = ref<GroupMember[]>([])
   const lineRentalRates = ref<LineRentalRates | null>(null)
-  const loading = ref(false)
   const loadingDistribution = ref(false)
   const loadingSales = ref(false)
   const loadingMembers = ref(false)
+  const loading = computed(() => loadingDistribution.value || loadingSales.value || loadingMembers.value)
   const error = ref<string | null>(null)
+  const openedProjectId = ref<string | null>(null)
 
-  async function fetchDistribution(projectId: string): Promise<void> {
-    loading.value = true
+  function openProject(projectId: string): void {
+    if (openedProjectId.value === projectId) {
+      return
+    }
+    openedProjectId.value = projectId
+    distribution.value = null
+    sales.value = []
+    members.value = []
+    lineRentalRates.value = null
+    loadingDistribution.value = false
+    loadingSales.value = false
+    loadingMembers.value = false
+  }
+
+  async function fetchForProject<T>(
+    projectId: string,
+    resource: string,
+    held: Ref<T>,
+    loadingIndicator: Ref<boolean>,
+    failureMessage: string,
+  ): Promise<void> {
+    openProject(projectId)
+    loadingIndicator.value = true
     error.value = null
     try {
-      distribution.value = await apiRequest<Distribution>(
-        `/group-industry/projects/${projectId}/distribution`,
-      )
+      const fetched = await apiRequest<T>(`/group-industry/projects/${projectId}/${resource}`)
+      if (openedProjectId.value === projectId) {
+        held.value = fetched
+      }
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to fetch distribution'
+      if (openedProjectId.value === projectId) {
+        error.value = e instanceof Error ? e.message : failureMessage
+      }
     } finally {
-      loading.value = false
+      if (openedProjectId.value === projectId) {
+        loadingIndicator.value = false
+      }
     }
   }
 
-  async function fetchSales(projectId: string): Promise<void> {
-    loading.value = true
-    error.value = null
-    try {
-      sales.value = await apiRequest<GroupSale[]>(
-        `/group-industry/projects/${projectId}/sales`,
-      )
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to fetch sales'
-    } finally {
-      loading.value = false
-    }
+  function fetchDistribution(projectId: string): Promise<void> {
+    return fetchForProject(projectId, 'distribution', distribution, loadingDistribution, 'Failed to fetch distribution')
+  }
+
+  function fetchSales(projectId: string): Promise<void> {
+    return fetchForProject(projectId, 'sales', sales, loadingSales, 'Failed to fetch sales')
   }
 
   async function recordSale(projectId: string, input: RecordSaleInput): Promise<GroupSale | null> {
@@ -67,26 +88,40 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     }
   }
 
-  async function updateSale(_projectId: string, _saleId: string, _input: UpdateSaleInput): Promise<GroupSale> {
-    throw new Error('not implemented')
-  }
-
-  async function deleteSale(_projectId: string, _saleId: string): Promise<void> {
-    throw new Error('not implemented')
-  }
-
-  async function fetchMembers(projectId: string): Promise<void> {
-    loading.value = true
+  async function updateSale(projectId: string, saleId: string, input: UpdateSaleInput): Promise<GroupSale> {
     error.value = null
     try {
-      members.value = await apiRequest<GroupMember[]>(
-        `/group-industry/projects/${projectId}/members`,
+      const corrected = await apiRequest<GroupSale>(
+        `/group-industry/projects/${projectId}/sales/${saleId}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(input),
+        },
       )
+      sales.value = sales.value.map(sale => (sale.id === saleId ? corrected : sale))
+      return corrected
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to fetch members'
-    } finally {
-      loading.value = false
+      error.value = e instanceof Error ? e.message : 'Failed to update sale'
+      throw e
     }
+  }
+
+  async function deleteSale(projectId: string, saleId: string): Promise<void> {
+    error.value = null
+    try {
+      await apiRequest(
+        `/group-industry/projects/${projectId}/sales/${saleId}`,
+        { method: 'DELETE' },
+      )
+      sales.value = sales.value.filter(sale => sale.id !== saleId)
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to delete sale'
+      throw e
+    }
+  }
+
+  function fetchMembers(projectId: string): Promise<void> {
+    return fetchForProject(projectId, 'members', members, loadingMembers, 'Failed to fetch members')
   }
 
   async function updateMember(
