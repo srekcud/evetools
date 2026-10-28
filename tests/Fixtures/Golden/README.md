@@ -13,7 +13,7 @@ Cas de référence de la [spec du noyau](../../../docs/specs/industry-engine.md)
 | `sde-blueprint-recipes.json` | Extrait du SDE (base de dev au 2026-10-07, lecture seule) : recettes publiées de chaque item fabricable de l'arbre des produits finaux des goldens. `hasCopyActivity` ajouté le 2026-10-23 d'après la spec #234 (activité de copie pour chaque blueprint de fabrication sauf le Marshal, aucune pour les réactions) | — | Entrée du port `BlueprintCatalog` en test (unités par run, matériaux de base par run, `maxProductionLimit`, activité de copie, temps de base) |
 | `sde-base-materials.json` | Extrait du SDE (base de dev au 2026-10-07) | — | Quantités de base par run des produits ci-dessus, entrées de R1 |
 
-Fichiers d'origine et outils de recalcul : `.claude/tasks/industry-core/golden/` (non versionnés), recoupement dans `crosscheck-everef.md`.
+Ce dossier est le seul exemplaire des goldens : tous les tests les lisent ici. Outils de recalcul et recoupement (`crosscheck-everef.md`) : `.claude/tasks/industry-core/golden/` (non versionnés, sans copie des goldens).
 
 ## Format
 

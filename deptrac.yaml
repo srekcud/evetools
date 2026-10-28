@@ -126,3 +126,58 @@ deptrac:
     IndustryApplication: [IndustryDomain]
     # Adapters of the Domain ports over the SDE / ESI persistence.
     IndustryInfrastructure: [IndustryDomain, IndustryApplication, Entity, Repository, Service, Constant, Vendor]
+
+  skip_violations:
+    App\Controller\Auth\EveOAuthController:
+      - App\Message\SyncCharacterAssets
+    App\Service\GroupIndustry\GroupIndustryContainerService:
+      - App\ApiResource\GroupIndustry\GroupContainerVerificationResource
+    App\State\Processor\Escalation\CreateEscalationProcessor:
+      - App\State\Provider\Escalation\EscalationResourceMapper
+    App\State\Processor\Escalation\UpdateEscalationProcessor:
+      - App\State\Provider\Escalation\EscalationResourceMapper
+    App\State\Processor\GroupIndustry\CreateGroupProjectProcessor:
+      - App\State\Provider\GroupIndustry\GroupIndustryResourceMapper
+    App\State\Processor\GroupIndustry\JoinGroupProjectProcessor:
+      - App\State\Provider\GroupIndustry\GroupIndustryResourceMapper
+    App\State\Processor\GroupIndustry\KickGroupMemberProcessor:
+      - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
+    App\State\Processor\GroupIndustry\ReviewContributionProcessor:
+      - App\State\Provider\GroupIndustry\GroupIndustryResourceMapper
+      - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
+    App\State\Processor\GroupIndustry\SubmitContributionProcessor:
+      - App\State\Provider\GroupIndustry\GroupIndustryResourceMapper
+    App\State\Processor\GroupIndustry\UpdateGroupMemberProcessor:
+      - App\State\Provider\GroupIndustry\GroupIndustryResourceMapper
+      - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
+    App\State\Processor\GroupIndustry\UpdateGroupProjectProcessor:
+      - App\State\Provider\GroupIndustry\GroupIndustryResourceMapper
+      - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
+    App\State\Processor\Industry\CreateProjectProcessor:
+      - App\State\Provider\Industry\IndustryResourceMapper
+    App\State\Processor\Industry\CreatePurchaseProcessor:
+      - App\State\Provider\Industry\IndustryResourceMapper
+    App\State\Processor\Industry\CreateStepProcessor:
+      - App\State\Provider\Industry\IndustryResourceMapper
+    App\State\Processor\Industry\CreateStructureProcessor:
+      - App\State\Provider\Industry\IndustryResourceMapper
+    App\State\Processor\Industry\LinkJobProcessor:
+      - App\State\Provider\Industry\IndustryResourceMapper
+    App\State\Processor\Industry\MatchJobsProcessor:
+      - App\State\Provider\Industry\IndustryResourceMapper
+    App\State\Processor\Industry\MergeStepsProcessor:
+      - App\State\Provider\Industry\IndustryResourceMapper
+    App\State\Processor\Industry\SplitStepProcessor:
+      - App\State\Provider\Industry\IndustryResourceMapper
+    App\State\Processor\Industry\SyncCharacterSkillsProcessor:
+      - App\State\Provider\Industry\IndustryResourceMapper
+    App\State\Processor\Industry\UpdateCharacterSkillProcessor:
+      - App\State\Provider\Industry\IndustryResourceMapper
+    App\State\Processor\Industry\UpdateProjectProcessor:
+      - App\State\Provider\Industry\IndustryResourceMapper
+    App\State\Processor\Industry\UpdateStepProcessor:
+      - App\State\Provider\Industry\IndustryResourceMapper
+    App\State\Processor\Industry\UpdateStructureProcessor:
+      - App\State\Provider\Industry\IndustryResourceMapper
+    App\State\Processor\Notification\MarkReadProcessor:
+      - App\State\Provider\Notification\NotificationResourceMapper

@@ -82,6 +82,25 @@ docker compose exec app php vendor/bin/infection --threads=max --with-uncovered 
 # ou : make infection FILTER=src/Service/<Dossier>
 ```
 
+### Noyau Industrie (#155)
+
+Mesures du **2026-10-26** sur `fix/group-test-quality` (`03d20d1`), Infection 0.35.6, `--with-uncovered`. Les trois premières lignes utilisent `infection.json5` (toutes les suites, base de test comprise), la dernière `infection-core.json5` (suite Unit seule).
+
+| Périmètre | Mutants | Tués | Timeouts | Échappés | Non couverts | MSI | Covered MSI | Durée |
+|---|---|---|---|---|---|---|---|---|
+| `src/Industry/Domain` | 350 | 334 | 6 | 1 | 9 | **97 %** | **99 %** | 134 s |
+| `src/Industry/Application` | 81 | 66 | 3 | 1 | 11 | **85 %** | **98 %** | 146 s |
+| `src/Industry/Infrastructure` | 114 | 105 | 0 | 5 | 4 | **92 %** | **95 %** | 82 s |
+| Domain + Application (`make infection-core`) | 431 | 404 | 4 | 3 | 20 | **94 %** | **99 %** | 52 à 63 s |
+
+- Cliquet (ADR-0005) : `infection-core.json5` fixe `minMsi: 94` et `minCoveredMsi: 99`, les valeurs mesurées arrondies vers le bas (94,66 % et 99,27 %). Infection ne porte qu'un seuil par configuration : Domain et Application partagent ce seuil.
+- Un mutant d'Application n'est tué que par la suite Integration : 2 échappés en Unit seule (`ProductionCostCalculator.php:263` et `:315`), 1 avec toutes les suites.
+- Infrastructure reste hors du cliquet : une partie de ses tests exige la base (`tests/Integration/Industry/Infrastructure`).
+
+```bash
+make infection-core
+```
+
 ## Analyse statique
 
 | Outil | Résultat |
@@ -98,6 +117,8 @@ Détail des 36 violations deptrac :
 docker compose exec app php vendor/bin/phpstan analyse --memory-limit=1G
 docker compose exec app php vendor/bin/deptrac analyse --no-progress   # ou : make deptrac
 ```
+
+Au 2026-10-26 (#155) : 33 violations, aucune dans les couches `Industry*`. Elles sont listées dans `skip_violations` de `deptrac.yaml` ; `make deptrac` échoue sur toute nouvelle violation.
 
 ## Images Docker
 
