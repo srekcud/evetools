@@ -363,19 +363,6 @@ async function shareAppraisal(): Promise<void> {
     isSharing.value = false
   }
 }
-
-function formatRelativeTime(isoDate: string | null): string {
-  if (!isoDate) return ''
-  const date = new Date(isoDate)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMins / 60)
-  if (diffMins < 1) return t('common.time.justNow')
-  if (diffMins < 60) return t('common.time.minutesAgo', { minutes: diffMins })
-  if (diffHours < 24) return t('common.time.hoursAgo', { hours: diffHours })
-  return formatTimeSince(isoDate)
-}
 </script>
 
 <template>
@@ -435,7 +422,7 @@ function formatRelativeTime(isoDate: string | null): string {
       <div v-if="hasResults" class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <!-- Sell Value -->
         <div class="bg-slate-900 rounded-xl p-5 border border-slate-800 border-t-2 border-t-cyan-400 relative overflow-hidden shadow-[0_-2px_12px_-4px_rgba(6,182,212,0.15)]">
-          <p class="text-[10px] text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <p class="text-xs text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <svg class="w-3 h-3 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
             </svg>
@@ -444,16 +431,16 @@ function formatRelativeTime(isoDate: string | null): string {
           <p class="text-[22px] font-bold text-cyan-400 font-mono">{{ formatIsk(sellValue) }}</p>
           <p
             v-if="appraisalResult?.totals.sellTotalWeighted != null"
-            class="text-[11px] text-slate-600 font-mono mt-0.5"
+            class="text-table-cell text-slate-600 font-mono mt-0.5"
           >
             {{ t('appraisal.bestPrice') }}: {{ formatIsk(sellValueBest) }}
           </p>
-          <p class="text-[11px] text-slate-500 mt-1">{{ t('appraisal.sellValueDesc') }}</p>
+          <p class="text-xs text-slate-500 mt-1">{{ t('appraisal.sellValueDesc') }}</p>
         </div>
 
         <!-- Buy Value -->
         <div class="bg-slate-900 rounded-xl p-5 border border-slate-800 border-t-2 border-t-amber-500 relative overflow-hidden shadow-[0_-2px_12px_-4px_rgba(245,158,11,0.15)]">
-          <p class="text-[10px] text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <p class="text-xs text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <svg class="w-3 h-3 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
             </svg>
@@ -462,16 +449,16 @@ function formatRelativeTime(isoDate: string | null): string {
           <p class="text-[22px] font-bold text-amber-500 font-mono">{{ formatIsk(buyValue) }}</p>
           <p
             v-if="appraisalResult?.totals.buyTotalWeighted != null"
-            class="text-[11px] text-slate-600 font-mono mt-0.5"
+            class="text-table-cell text-slate-600 font-mono mt-0.5"
           >
             {{ t('appraisal.bestPrice') }}: {{ formatIsk(buyValueBest) }}
           </p>
-          <p class="text-[11px] text-slate-500 mt-1">{{ t('appraisal.buyValueDesc') }}</p>
+          <p class="text-xs text-slate-500 mt-1">{{ t('appraisal.buyValueDesc') }}</p>
         </div>
 
         <!-- Total Volume -->
         <div class="bg-slate-900 rounded-xl p-5 border border-slate-800 border-t-2 border-t-indigo-500 relative overflow-hidden shadow-[0_-2px_12px_-4px_rgba(99,102,241,0.15)]">
-          <p class="text-[10px] text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <p class="text-xs text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <svg class="w-3 h-3 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
@@ -481,7 +468,7 @@ function formatRelativeTime(isoDate: string | null): string {
             {{ formatNumber(totalVolume) }} m<sup class="text-xs">3</sup>
           </p>
           <p v-else class="text-[22px] font-bold text-amber-400 font-mono">{{ t('shopping.unknown') }}</p>
-          <p class="text-[11px] text-slate-500 mt-2">{{ t('appraisal.itemsAppraised', { count: itemCount }) }}</p>
+          <p class="text-xs text-slate-500 mt-2">{{ t('appraisal.itemsAppraised', { count: itemCount }) }}</p>
         </div>
       </div>
 
@@ -499,7 +486,7 @@ function formatRelativeTime(isoDate: string | null): string {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
           </svg>
           <span class="text-[13px] font-semibold">{{ t('appraisal.structureComparison') }}</span>
-          <span class="text-[11px] text-slate-500 ml-1">-- {{ t('appraisal.structureComparisonDesc') }}</span>
+          <span class="text-xs text-slate-500 ml-1">-- {{ t('appraisal.structureComparisonDesc') }}</span>
           <span class="flex-1"></span>
 
           <!-- Summary when collapsed -->
@@ -565,33 +552,33 @@ function formatRelativeTime(isoDate: string | null): string {
               <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span class="text-[11px] text-slate-500">
-                {{ shortStructureName }} {{ t('appraisal.pricesUpdated') }} {{ formatRelativeTime(shoppingResult.structureLastSync) }}
+              <span class="text-xs text-slate-500">
+                {{ shortStructureName }} {{ t('appraisal.pricesUpdated') }} {{ formatTimeSince(shoppingResult.structureLastSync) }}
               </span>
             </div>
 
             <!-- Import KPI sub-row -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
               <div class="bg-slate-800 rounded-lg px-4 py-3">
-                <p class="text-[10px] text-slate-500 uppercase tracking-wider mb-1">{{ t('shopping.jitaPlusTransport') }}</p>
+                <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('shopping.jitaPlusTransport') }}</p>
                 <p v-if="jitaPlusTransport !== null" class="text-lg font-semibold text-cyan-400 font-mono">{{ formatIsk(jitaPlusTransport) }}</p>
                 <p v-else class="text-lg font-semibold text-amber-400 font-mono">{{ t('shopping.unknown') }}</p>
               </div>
               <div class="bg-slate-800 rounded-lg px-4 py-3">
-                <p class="text-[10px] text-slate-500 uppercase tracking-wider mb-1">{{ shortStructureName }} ({{ t('appraisal.weighted') }})</p>
+                <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ shortStructureName }} ({{ t('appraisal.weighted') }})</p>
                 <p class="text-lg font-semibold text-violet-400 font-mono">{{ formatIsk(structureTotal) }}</p>
               </div>
               <div class="bg-slate-800 rounded-lg px-4 py-3">
-                <p class="text-[10px] text-slate-500 uppercase tracking-wider mb-1">{{ t('appraisal.bestPriceMixed') }}</p>
+                <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('appraisal.bestPriceMixed') }}</p>
                 <p class="text-lg font-bold text-green-400 font-mono">{{ formatIsk(bestPrice) }}</p>
               </div>
               <div class="bg-slate-800 rounded-lg px-4 py-3">
-                <p class="text-[10px] text-slate-500 uppercase tracking-wider mb-1">{{ t('appraisal.structureCoverage') }}</p>
+                <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('appraisal.structureCoverage') }}</p>
                 <div class="flex items-baseline gap-1.5">
                   <p class="text-lg font-semibold text-amber-500 font-mono">
                     {{ structureCoverageCount.covered }} / {{ structureCoverageCount.total }}
                   </p>
-                  <span class="text-[11px] text-slate-500">{{ t('appraisal.itemsFullyCovered') }}</span>
+                  <span class="text-xs text-slate-500">{{ t('appraisal.itemsFullyCovered') }}</span>
                 </div>
                 <div class="h-1 rounded-full bg-slate-700/50 mt-1.5 overflow-hidden">
                   <div

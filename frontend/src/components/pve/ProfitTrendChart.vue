@@ -13,6 +13,7 @@ import {
   type TooltipItem,
 } from 'chart.js'
 import type { DailyStats } from '@/stores/pve'
+import { CHART_COLORS } from '@/utils/chartColors'
 
 ChartJS.register(
   CategoryScale,
@@ -42,7 +43,7 @@ const chartData = computed(() => ({
         d.profit >= 0 ? 'rgba(16, 185, 129, 0.7)' : 'rgba(239, 68, 68, 0.7)'
       ),
       borderColor: props.data.map((d) =>
-        d.profit >= 0 ? '#10b981' : '#ef4444'
+        d.profit >= 0 ? CHART_COLORS.profit : CHART_COLORS.loss
       ),
       borderWidth: 1,
     },
@@ -69,7 +70,7 @@ const chartOptions = {
   scales: {
     x: {
       ticks: {
-        color: '#9ca3af',
+        color: CHART_COLORS.muted,
       },
       grid: {
         display: false,
@@ -77,7 +78,7 @@ const chartOptions = {
     },
     y: {
       ticks: {
-        color: '#9ca3af',
+        color: CHART_COLORS.muted,
         callback: (value: string | number) => `${value}B`,
       },
       grid: {

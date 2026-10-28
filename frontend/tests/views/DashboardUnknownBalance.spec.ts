@@ -19,10 +19,25 @@ const walletsWithOneUnknownBalance = {
   ],
 }
 
+const knownPlanetaryStats = {
+  totalColonies: 2,
+  totalExtractors: 5,
+  activeExtractors: 5,
+  expiringExtractors: 0,
+  expiredExtractors: 0,
+  totalFactories: 9,
+  estimatedDailyIsk: 2_150_000,
+  nearestExpiry: '2026-10-29T15:00:00+00:00',
+}
+
 async function mountDashboard() {
   const pinia = createPinia()
   setActivePinia(pinia)
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(walletsWithOneUnknownBalance), { status: 200 })))
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    if (url === '/api/planetary/stats') return new Response(JSON.stringify(knownPlanetaryStats), { status: 200 })
+    if (url === '/api/market/alerts') return new Response(JSON.stringify([]), { status: 200 })
+    return new Response(JSON.stringify(walletsWithOneUnknownBalance), { status: 200 })
+  }))
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
   const wrapper = mount(Dashboard, {
     global: {

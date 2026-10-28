@@ -5,6 +5,7 @@ import UnknownValue from '@/components/common/UnknownValue.vue'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { useSlotsStore } from '@/stores/industry/slots'
+import { CHART_COLORS } from '@/utils/chartColors'
 import type { SlotActivity, SlotTrackerCharacter, FreeSlotEntry, TimelineJob } from '@/stores/industry/types'
 
 const emit = defineEmits<{
@@ -49,15 +50,15 @@ const GANTT_BAR_CLASSES: Record<string, { bg: string; border: string; labelText:
 // KPI ring colors by utilization percent
 function kpiColor(percent: number): { stroke: string; text: string; dot: string; border: string; label: string } {
   if (percent >= 80) return {
-    stroke: '#34d399', text: 'text-emerald-400', dot: 'bg-emerald-400',
+    stroke: CHART_COLORS.profit, text: 'text-emerald-400', dot: 'bg-emerald-400',
     border: 'border-emerald-500/20', label: t('industry.slots.kpi.high'),
   }
   if (percent >= 50) return {
-    stroke: '#fbbf24', text: 'text-amber-400', dot: 'bg-amber-400',
+    stroke: CHART_COLORS.warning, text: 'text-amber-400', dot: 'bg-amber-400',
     border: 'border-amber-500/20', label: t('industry.slots.kpi.moderate'),
   }
   return {
-    stroke: '#f87171', text: 'text-red-400', dot: 'bg-red-400',
+    stroke: CHART_COLORS.loss, text: 'text-red-400', dot: 'bg-red-400',
     border: 'border-red-500/20', label: t('industry.slots.kpi.low'),
   }
 }
@@ -374,15 +375,15 @@ onMounted(() => {
         <div class="flex items-center gap-2">
           <span
             v-if="char.isMain"
-            class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 font-medium uppercase tracking-wider"
+            class="text-xs px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 font-medium uppercase tracking-wider"
           >{{ t('industry.slots.main') }}</span>
           <span
             v-else
-            class="text-[10px] px-2 py-0.5 rounded-full bg-slate-600/40 text-slate-400 border border-slate-600/50 font-medium uppercase tracking-wider"
+            class="text-xs px-2 py-0.5 rounded-full bg-slate-600/40 text-slate-400 border border-slate-600/50 font-medium uppercase tracking-wider"
           >{{ t('industry.slots.alt') }}</span>
           <span
             v-if="char.jobsStale"
-            class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20 font-medium uppercase tracking-wider"
+            class="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20 font-medium uppercase tracking-wider"
           >{{ t('industry.slots.jobsStale') }}</span>
         </div>
       </div>
@@ -568,7 +569,7 @@ onMounted(() => {
               <div v-if="groupIdx > 0" class="h-px bg-slate-800 -ml-[180px]"></div>
 
               <!-- Character name label -->
-              <div class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold py-1 -ml-[180px] pl-1">
+              <div class="text-xs text-slate-500 uppercase tracking-wider font-semibold py-1 -ml-[180px] pl-1">
                 {{ group.characterName }}
               </div>
 
@@ -594,7 +595,7 @@ onMounted(() => {
                     <!-- Label on wider bars -->
                     <span
                       v-if="ganttBarWidth(job.timeLeftSeconds) > 8"
-                      class="text-[10px] truncate"
+                      class="text-xs truncate"
                       :class="ganttClasses(job.activityType).labelText"
                     >{{ typeNameLabel(job.productTypeName, job.productTypeId) }} x{{ job.runs }}</span>
                     <!-- Tooltip -->

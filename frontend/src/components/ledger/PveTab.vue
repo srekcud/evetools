@@ -348,8 +348,8 @@ defineExpose({
     <!-- Partial sync warning -->
     <div v-if="syncWarning" class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-center gap-3">
       <p class="text-sm text-amber-400 flex-1">{{ syncWarning }}</p>
-      <button @click="syncWarning = ''" class="p-1 hover:bg-amber-500/20 rounded-lg transition-colors text-amber-400">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <button @click="syncWarning = ''" class="p-1 hover:bg-amber-500/20 rounded-lg transition-colors text-amber-400" :aria-label="t('common.actions.close')">
+        <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
@@ -414,8 +414,9 @@ defineExpose({
                 @click="showLootConfig = true"
                 class="p-1.5 bg-slate-700 hover:bg-slate-600 rounded-sm text-white"
                 :title="t('pve.configLootTypes')"
+                :aria-label="t('pve.configLootTypes')"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                 </svg>
@@ -425,11 +426,12 @@ defineExpose({
                 :disabled="scanning.isScanningLoot.value"
                 class="p-1.5 bg-amber-600 hover:bg-amber-500 rounded-sm text-white disabled:opacity-50"
                 :title="t('pve.scanSales')"
+                :aria-label="t('pve.scanSales')"
               >
-                <svg v-if="scanning.isScanningLoot.value" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg aria-hidden="true" v-if="scanning.isScanningLoot.value" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                 </svg>
-                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg aria-hidden="true" v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
               </button>
@@ -438,8 +440,9 @@ defineExpose({
                 @click="scanning.resetSeenContracts()"
                 class="p-1.5 bg-slate-700 hover:bg-red-600 rounded-sm text-slate-400 hover:text-white"
                 :title="t('pve.resetFilter', { count: scanning.declinedContractsCount.value + scanning.declinedTransactionsCount.value })"
+                :aria-label="t('pve.resetFilter', { count: scanning.declinedContractsCount.value + scanning.declinedTransactionsCount.value })"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                 </svg>
               </button>
@@ -448,8 +451,9 @@ defineExpose({
                 @click="showAddLootSaleForm = true"
                 class="p-1.5 bg-slate-700 hover:bg-slate-600 rounded-sm text-white"
                 :title="t('pve.addManually')"
+                :aria-label="t('pve.addManually')"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
               </button>
@@ -478,9 +482,10 @@ defineExpose({
                 <button
                   @click="deleteLootSale(sale.id)"
                   class="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded-sm text-slate-400 hover:text-red-400 transition-all"
-                  title="Supprimer"
+                  :title="t('common.actions.delete')"
+                  :aria-label="t('common.actions.delete')"
                 >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                   </svg>
                 </button>
@@ -518,9 +523,10 @@ defineExpose({
                 <button
                   @click="deleteExpense(expense.id)"
                   class="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded-sm text-slate-400 hover:text-red-400 transition-all"
-                  title="Supprimer"
+                  :title="t('common.actions.delete')"
+                  :aria-label="t('common.actions.delete')"
                 >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                   </svg>
                 </button>

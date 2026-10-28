@@ -58,7 +58,7 @@ onMounted(() => {
       <!-- Unread badge -->
       <span
         v-if="store.unreadCount > 0"
-        class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center px-1 text-[10px] font-bold text-white bg-red-500 rounded-full leading-none"
+        class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center px-1 text-xs font-bold text-white bg-red-500 rounded-full leading-none"
       >
         {{ store.unreadCount > 99 ? '99+' : store.unreadCount }}
       </span>

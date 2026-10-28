@@ -40,6 +40,7 @@
       "justNow": "a l'instant",
       "minutesAgo": "il y a {minutes}min",
       "hoursAgo": "il y a {hours}h",
+      "daysAgo": "il y a {days}j",
       "day": "jour | jour | jours",
       "hour": "heure | heure | heures",
       "minute": "minute | minute | minutes",
@@ -48,6 +49,15 @@
       "perDay": "/ jour",
       "perHour": "/ heure",
       "perCycle": "/cycle"
+    },
+    "dataFreshness": {
+      "sources": {
+        "market-jita": "Prix Jita",
+        "cost-indices": "Cost index",
+        "adjusted-prices": "Prix ajustés"
+      },
+      "unknownDate": "date inconnue",
+      "lastSyncFailed": "dernière sync en échec"
     },
     "units": {
       "colony": "colonie | colonie | colonies",
@@ -70,6 +80,15 @@
     },
     "deletedPilot": "Pilote supprimé"
   },
+  "a11y": {
+    "remove": "Retirer",
+    "pagination": {
+      "first": "Première page",
+      "previous": "Page précédente",
+      "next": "Page suivante",
+      "last": "Dernière page"
+    }
+  },
   "nav": {
     "dashboard": "Tableau de bord",
     "characters": "Personnages",
@@ -86,7 +105,36 @@
     "market": "Marche",
     "appraisal": "Appraisal",
     "groupIndustry": "Industrie de groupe",
-    "admin": "Administration"
+    "admin": "Administration",
+    "openMenu": "Ouvrir le menu de navigation",
+    "closeMenu": "Fermer le menu de navigation",
+    "menu": "Menu de navigation"
+  },
+  "commandPalette": {
+    "open": "Ouvrir la palette de commandes (Ctrl+K)",
+    "title": "Palette de commandes",
+    "placeholder": "Rechercher un écran...",
+    "noResults": "Aucun résultat pour « {query} »",
+    "groups": {
+      "navigation": "Navigation",
+      "projects": "Projets",
+      "types": "Types"
+    },
+    "projects": {
+      "loading": "Chargement...",
+      "industryUnavailable": "Projets Industrie indisponibles",
+      "groupIndustryUnavailable": "Projets Industrie de groupe indisponibles",
+      "completed": "Terminé"
+    },
+    "types": {
+      "searching": "Recherche...",
+      "unavailable": "Recherche de types indisponible",
+      "actions": {
+        "analyzeMargin": "Analyser la marge",
+        "buyVsBuild": "Achat vs Prod",
+        "openInMarket": "Ouvrir dans Market"
+      }
+    }
   },
   "settings": {
     "title": "Parametres",
@@ -154,7 +202,19 @@
     "noRecentActivity": "Aucune activite recente",
     "realtimeEventsWillAppear": "Les evenements temps reel apparaitront ici",
     "mercureConnected": "Mercure connecte",
-    "disconnected": "Deconnecte"
+    "disconnected": "Deconnecte",
+    "todo": {
+      "title": "À faire",
+      "charactersToReconnect": "{count} personnage à reconnecter | {count} personnages à reconnecter",
+      "atLeastCharactersToReconnect": "Au moins {count} personnage à reconnecter | Au moins {count} personnages à reconnecter",
+      "expiredExtractors": "{count} extracteur PI arrêté | {count} extracteurs PI arrêtés",
+      "expiringExtractors": "{count} extracteur PI expire dans moins de 24 h | {count} extracteurs PI expirent dans moins de 24 h",
+      "triggeredPriceAlerts": "{count} alerte de prix déclenchée | {count} alertes de prix déclenchées",
+      "unknownCharacters": "Personnages à reconnecter : inconnu",
+      "unknownExtractors": "Extracteurs PI : inconnu (échec du chargement)",
+      "unknownPriceAlerts": "Alertes de prix : inconnu (échec du chargement)",
+      "allCaughtUp": "Tout est à jour"
+    }
   },
   "characters": {
     "title": "Personnages",

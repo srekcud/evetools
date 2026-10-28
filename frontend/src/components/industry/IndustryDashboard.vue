@@ -8,6 +8,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { projectProfitTotal } from '@/utils/projectProfitTotal'
+import { CHART_COLORS } from '@/utils/chartColors'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 import type { IndustryProject } from '@/stores/industry/types'
 
@@ -71,9 +72,9 @@ const slotsDashOffset = computed(() =>
 )
 
 const slotsRingColor = computed(() => {
-  if (slotsPercent.value > 80) return '#f87171' // red-400
-  if (slotsPercent.value >= 50) return '#fbbf24' // amber-400
-  return '#34d399' // emerald-400
+  if (slotsPercent.value > 80) return CHART_COLORS.loss
+  if (slotsPercent.value >= 50) return CHART_COLORS.warning
+  return CHART_COLORS.profit
 })
 
 const slotsTextColor = computed(() => {
@@ -119,10 +120,10 @@ const pipelineDashOffset = computed(() =>
 )
 
 const pipelineRingColor = computed(() => {
-  if (pipelineHealth.value === null) return '#64748b'
-  if (pipelineHealth.value >= 80) return '#34d399'
-  if (pipelineHealth.value >= 50) return '#fbbf24'
-  return '#f87171'
+  if (pipelineHealth.value === null) return CHART_COLORS.neutral
+  if (pipelineHealth.value >= 80) return CHART_COLORS.profit
+  if (pipelineHealth.value >= 50) return CHART_COLORS.warning
+  return CHART_COLORS.loss
 })
 
 const pipelineTextColor = computed(() => {
@@ -337,7 +338,7 @@ function cleanTypeName(name: string): string {
             />
           </svg>
           <div class="absolute inset-0 flex items-center justify-center">
-            <span class="text-[10px] font-mono font-bold" :class="slotsTextColor">{{ slotsPercent }}%</span>
+            <span class="text-table-cell font-mono font-bold" :class="slotsTextColor">{{ slotsPercent }}%</span>
           </div>
         </div>
         <div>
@@ -370,7 +371,7 @@ function cleanTypeName(name: string): string {
             />
           </svg>
           <div class="absolute inset-0 flex items-center justify-center">
-            <span class="text-[10px] font-mono font-bold" :class="pipelineTextColor">{{ pipelineHealth }}%</span>
+            <span class="text-table-cell font-mono font-bold" :class="pipelineTextColor">{{ pipelineHealth }}%</span>
           </div>
         </div>
         <div>
@@ -621,19 +622,19 @@ function cleanTypeName(name: string): string {
   border-radius: 3px 0 0 3px;
 }
 .alert-amber::before {
-  background: #f59e0b;
+  background: var(--color-warning);
   box-shadow: 0 0 8px rgba(245, 158, 11, 0.3);
 }
 .alert-red::before {
-  background: #ef4444;
+  background: var(--color-danger);
   box-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
 }
 .alert-orange::before {
-  background: #f97316;
+  background: var(--color-chart-9);
   box-shadow: 0 0 8px rgba(249, 115, 22, 0.3);
 }
 .alert-blue::before {
-  background: #3b82f6;
+  background: var(--color-chart-6);
   box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
 }
 

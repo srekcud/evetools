@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useIndustryStore } from '@/stores/industry'
+import { useTabQuery } from '@/composables/useTabQuery'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
@@ -30,7 +31,8 @@ const { typeNameLabel, projectDisplayName } = useTypeNames()
 const projectRef = computed(() => store.currentProject)
 const { estimatedProjectTime } = useProjectTime(projectRef)
 
-const activeTab = ref<'steps' | 'shopping' | 'invention' | 'costs'>('steps')
+const PROJECT_TABS = ['steps', 'shopping', 'invention', 'costs'] as const
+const activeTab = useTabQuery(PROJECT_TABS, 'steps', 'projectTab')
 
 // Template refs to child components
 const stepsTabRef = ref<InstanceType<typeof StepsTab> | null>(null)
@@ -136,8 +138,9 @@ async function toggleProjectStatus() {
   }
 }
 
-async function switchTab(tab: 'steps' | 'shopping' | 'invention' | 'costs') {
-  activeTab.value = tab
+type ProjectTab = (typeof PROJECT_TABS)[number]
+
+async function loadTab(tab: ProjectTab) {
   if (tab === 'shopping') {
     await shoppingTabRef.value?.activate()
     await shoppingTabRef.value?.loadSuggestions()
@@ -146,12 +149,19 @@ async function switchTab(tab: 'steps' | 'shopping' | 'invention' | 'costs') {
   }
 }
 
+function switchTab(tab: ProjectTab) {
+  activeTab.value = tab
+}
+
+watch(activeTab, loadTab)
+
 onMounted(async () => {
   await store.fetchProject(props.projectId)
   shoppingTabRef.value?.loadPersistedStock()
   if (shoppingTabRef.value?.parsedStock && shoppingTabRef.value.parsedStock.length > 0) {
     await shoppingTabRef.value?.reanalyzeStock()
   }
+  await loadTab(activeTab.value)
 })
 </script>
 
@@ -163,8 +173,9 @@ onMounted(async () => {
         <button
           @click="emit('close')"
           class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-200"
+          :aria-label="t('common.actions.close')"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg aria-hidden="true" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
         </button>
@@ -214,8 +225,9 @@ onMounted(async () => {
                 @click="startEditProjectName"
                 class="p-1 text-slate-500 hover:text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity"
                 :title="t('industry.projectDetail.editName')"
+                :aria-label="t('industry.projectDetail.editName')"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
               </button>
@@ -434,7 +446,7 @@ onMounted(async () => {
             <p class="text-sm font-mono text-slate-400">
               {{ store.currentProject.estimatedSellPrice != null ? formatIsk(store.currentProject.estimatedSellPrice) : '-' }}
             </p>
-            <p v-if="store.currentProject.estimatedSellPriceSource" class="text-[10px] text-slate-600 mt-0.5">
+            <p v-if="store.currentProject.estimatedSellPriceSource" class="text-xs text-slate-600 mt-0.5">
               {{ store.currentProject.estimatedSellPriceSource === 'jita' ? 'Jita' : t('industry.costs.structure') }}
             </p>
           </div>
@@ -562,8 +574,9 @@ onMounted(async () => {
           <button
             @click="shoppingTabRef!.showClearStockModal = false"
             class="p-1 hover:bg-slate-800 rounded-sm text-slate-400 hover:text-slate-200"
+            :aria-label="t('common.actions.close')"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg aria-hidden="true" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>

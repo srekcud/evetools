@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch, nextTick } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import BaseModal from '@/components/common/BaseModal.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
@@ -48,7 +49,6 @@ const splitCount = ref(2)
 const showDeleteModal = ref(false)
 const deleteStepId = ref<string | null>(null)
 const deleteStepName = ref('')
-const deleteModalRef = ref<HTMLElement | null>(null)
 
 // Watch for steps changes to expand newly created split groups
 watch(() => props.steps, (newSteps) => {
@@ -384,7 +384,6 @@ function deleteStep(stepId: string, stepName: string) {
   deleteStepId.value = stepId
   deleteStepName.value = stepName
   showDeleteModal.value = true
-  nextTick(() => deleteModalRef.value?.focus())
 }
 
 function confirmDelete() {
@@ -536,7 +535,7 @@ function mergeGroup(stepId: string) {
                 <!-- Facility delta: suboptimal structure -->
                 <span
                   v-if="splitGroup.facilityInfoType === 'suboptimal'"
-                  class="text-xs text-amber-400 flex items-center gap-1"
+                  class="text-body text-amber-400 flex items-center gap-1"
                 >
                   {{ t('industry.stepTree.bestStructure', { name: splitGroup.bestStructureName }) }}
                   ({{ splitGroup.bestMaterialBonus?.toFixed(1) }}%)
@@ -551,7 +550,7 @@ function mergeGroup(stepId: string) {
                 </span>
               </div>
               <!-- Runs info with breakdown -->
-              <div class="flex items-center gap-3 mt-1 text-xs">
+              <div class="flex items-center gap-3 mt-1 text-table-cell">
                 <span
                   :class="[
                     'font-mono',
@@ -587,7 +586,7 @@ function mergeGroup(stepId: string) {
             <button
               v-if="splitGroup.children.length > 1 && splitGroup.depth > 0 && !readonly"
               @click.stop="mergeGroup(splitGroup.children[0].id)"
-              class="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-sm text-slate-300"
+              class="px-2 py-1 text-table-cell bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-sm text-slate-300"
               :title="t('industry.step.merge')"
             >
               {{ t('industry.step.merge') }}
@@ -606,7 +605,7 @@ function mergeGroup(stepId: string) {
                 @change="toggleAllPurchased(splitGroup.children)"
                 class="w-4 h-4 rounded-sm border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500 focus:ring-offset-slate-900 disabled:cursor-not-allowed"
               />
-              <span class="text-xs text-slate-400">{{ t('industry.step.purchased') }}</span>
+              <span class="text-table-cell text-slate-400">{{ t('industry.step.purchased') }}</span>
             </label>
           </div>
 
@@ -714,7 +713,7 @@ function mergeGroup(stepId: string) {
                   <!-- Structure display -->
                   <span
                     v-if="step.recommendedStructureName"
-                    class="bg-slate-800/50 border border-slate-700/50 rounded-sm px-2 py-1 text-xs text-slate-400"
+                    class="bg-slate-800/50 border border-slate-700/50 rounded-sm px-2 py-1 text-table-cell text-slate-400"
                     :title="step.recommendedStructureName"
                   >{{ step.recommendedStructureName }} — {{ step.structureBonus }}%</span>
                   <!-- ESI linked indicator with unlink button -->
@@ -740,7 +739,7 @@ function mergeGroup(stepId: string) {
                   </span>
                   <span
                     v-else-if="step.recommendedCharacterName && !step.purchased && !step.inStock"
-                    class="px-2 py-1 rounded-sm text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+                    class="px-2 py-1 rounded-sm text-table-cell bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
                     :title="t('industry.stepTree.recommendedCharacter')"
                   >
                     {{ step.recommendedCharacterName }}
@@ -748,7 +747,7 @@ function mergeGroup(stepId: string) {
                   <!-- Facility info: suboptimal structure -->
                   <span
                     v-if="step.facilityInfoType === 'suboptimal'"
-                    class="text-xs text-amber-400"
+                    class="text-body text-amber-400"
                   >
                     {{ t('industry.stepTree.suboptimal') }} — {{ t('industry.stepTree.better') }} : {{ step.bestStructureName }}
                     ({{ step.bestMaterialBonus?.toFixed(2) }}%)
@@ -771,7 +770,7 @@ function mergeGroup(stepId: string) {
                   </span>
                 </div>
                 <!-- Job info -->
-                <div v-if="step.esiJobId || step.manualJobData" class="flex items-center gap-2 mt-1 text-xs flex-wrap">
+                <div v-if="step.esiJobId || step.manualJobData" class="flex items-center gap-2 mt-1 text-table-cell flex-wrap">
                   <span
                     v-if="step.esiJobsCount && step.esiJobsCount > 1"
                     class="text-slate-600"
@@ -804,7 +803,7 @@ function mergeGroup(stepId: string) {
                 </div>
               </div>
 
-              <span :class="['text-xs px-2 py-1 rounded-sm', stepStatusClass(step)]">
+              <span :class="['text-table-cell px-2 py-1 rounded-sm', stepStatusClass(step)]">
                 {{ stepStatusLabel(step) }}
               </span>
 
@@ -821,7 +820,7 @@ function mergeGroup(stepId: string) {
                   @change="onToggle(step)"
                   class="w-4 h-4 rounded-sm border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500 focus:ring-offset-slate-900 disabled:cursor-not-allowed"
                 />
-                <span class="text-xs text-slate-400">{{ t('industry.step.purchased') }}</span>
+                <span class="text-table-cell text-slate-400">{{ t('industry.step.purchased') }}</span>
               </label>
 
               <!-- Split button with text "Splitter" -->
@@ -846,6 +845,7 @@ function mergeGroup(stepId: string) {
                   <button
                     @click.stop="cancelSplit"
                     class="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 rounded-sm text-xs text-slate-300"
+                    :aria-label="t('common.actions.cancel')"
                   >
                     ✗
                   </button>
@@ -861,7 +861,7 @@ function mergeGroup(stepId: string) {
               </template>
 
               <!-- Job cost (ESI cost if linked, otherwise nothing) -->
-              <span v-if="step.esiJobCost" class="text-xs font-mono text-slate-400">
+              <span v-if="step.esiJobCost" class="text-table-cell font-mono text-slate-400">
                 {{ formatIsk(step.esiJobCost) }}
               </span>
 
@@ -871,8 +871,9 @@ function mergeGroup(stepId: string) {
                 @click.stop="deleteStep(step.id, typeNameLabel(step.productTypeName, step.productTypeId))"
                 class="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-700 rounded-sm"
                 :title="t('industry.stepTree.deleteStep')"
+                :aria-label="t('industry.stepTree.deleteStep')"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -929,40 +930,32 @@ function mergeGroup(stepId: string) {
     </div>
 
     <!-- Delete confirmation modal -->
-    <Teleport to="body">
-      <div
-        v-if="showDeleteModal"
-        class="fixed inset-0 z-50 flex items-center justify-center"
-        @keydown.enter="confirmDelete"
-        @keydown.escape="cancelDelete"
-      >
-        <!-- Backdrop -->
-        <div
-          class="absolute inset-0 bg-black/70"
+    <BaseModal
+      :show="showDeleteModal"
+      :title="t('industry.stepTree.deleteStepTitle')"
+      panel-class="border-slate-700 max-w-md p-6"
+      @close="cancelDelete"
+    >
+      <template #title="{ titleId }">
+        <h3 :id="titleId" class="text-lg font-semibold text-slate-100 mb-2">{{ t('industry.stepTree.deleteStepTitle') }}</h3>
+      </template>
+      <p class="text-slate-400 mb-6">
+        {{ t('industry.stepTree.deleteStepConfirm', { name: deleteStepName }) }}
+      </p>
+      <div class="flex justify-end gap-3">
+        <button
           @click="cancelDelete"
-        ></div>
-        <!-- Modal -->
-        <div class="relative bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6" tabindex="-1" ref="deleteModalRef">
-          <h3 class="text-lg font-semibold text-slate-100 mb-2">{{ t('industry.stepTree.deleteStepTitle') }}</h3>
-          <p class="text-slate-400 mb-6">
-            {{ t('industry.stepTree.deleteStepConfirm', { name: deleteStepName }) }}
-          </p>
-          <div class="flex justify-end gap-3">
-            <button
-              @click="cancelDelete"
-              class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-slate-300 text-sm font-medium transition-colors"
-            >
-              {{ t('common.actions.cancel') }}
-            </button>
-            <button
-              @click="confirmDelete"
-              class="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-white text-sm font-medium transition-colors"
-            >
-              {{ t('common.actions.delete') }}
-            </button>
-          </div>
-        </div>
+          class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-slate-300 text-sm font-medium transition-colors"
+        >
+          {{ t('common.actions.cancel') }}
+        </button>
+        <button
+          @click="confirmDelete"
+          class="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-white text-sm font-medium transition-colors"
+        >
+          {{ t('common.actions.delete') }}
+        </button>
       </div>
-    </Teleport>
+    </BaseModal>
   </div>
 </template>

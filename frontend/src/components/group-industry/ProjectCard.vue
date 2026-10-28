@@ -3,6 +3,8 @@ import { computed } from 'vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import type { GroupProject } from '@/stores/group-industry/types'
+import { CHART_COLORS } from '@/utils/chartColors'
+import { groupProjectLabel } from '@/utils/groupProjectLabel'
 
 const { formatIsk, formatDate } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
@@ -26,14 +28,7 @@ const totalRuns = computed(() =>
   props.project.items.reduce((sum, item) => sum + item.runs, 0)
 )
 
-const displayName = computed(() => {
-  if (props.project.name) return props.project.name
-  if (props.project.items.length === 1) {
-    const item = props.project.items[0]
-    return `${item.runs}x ${item.typeName}`
-  }
-  return `${props.project.items.length} items`
-})
+const displayName = computed(() => groupProjectLabel(props.project))
 
 const subtitle = computed(() => {
   if (props.project.items.length === 1) {
@@ -58,9 +53,9 @@ const statusStyle = computed(() =>
 
 function ringColor(): string {
   const pct = props.project.fulfillmentPercent
-  if (pct >= 100) return '#34d399'
-  if (pct >= 50) return '#22d3ee'
-  return '#fbbf24'
+  if (pct >= 100) return CHART_COLORS.profit
+  if (pct >= 50) return CHART_COLORS.info
+  return CHART_COLORS.warning
 }
 
 function ringGlowClass(): string {

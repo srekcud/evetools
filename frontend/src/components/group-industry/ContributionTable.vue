@@ -218,7 +218,7 @@ onMounted(() => {
                 </span>
                 <span
                   v-if="contrib.isAutoDetected"
-                  class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400/70 border border-emerald-500/15 ml-1.5"
+                  class="text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400/70 border border-emerald-500/15 ml-1.5"
                 >ESI &#10003;</span>
               </td>
               <!-- Status -->
@@ -231,11 +231,11 @@ onMounted(() => {
                 </span>
                 <span
                   v-if="contrib.isAutoDetected"
-                  class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400/70 border border-emerald-500/15 ml-1.5"
+                  class="text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400/70 border border-emerald-500/15 ml-1.5"
                 >Auto-detected</span>
                 <span
                   v-else-if="!contrib.isVerified && isPending(contrib.status)"
-                  class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400/70 border border-amber-500/15 ml-1.5"
+                  class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400/70 border border-amber-500/15 ml-1.5"
                 >Unverified</span>
               </td>
               <!-- Actions -->

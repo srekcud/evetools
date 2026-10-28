@@ -126,7 +126,7 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
             >
               <div class="flex items-center justify-center gap-2">
                 <div class="w-1.5 h-1.5 rounded-full bg-cyan-400"></div>
-                <span class="text-[11px] font-bold uppercase tracking-widest text-cyan-400">Jita 4-4</span>
+                <span class="text-xs font-bold uppercase tracking-widest text-cyan-400">Jita 4-4</span>
                 <div class="w-1.5 h-1.5 rounded-full bg-cyan-400"></div>
               </div>
             </th>
@@ -136,7 +136,7 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
             >
               <div class="flex items-center justify-center gap-2">
                 <div class="w-1.5 h-1.5 rounded-full bg-violet-400"></div>
-                <span class="text-[11px] font-bold uppercase tracking-widest text-violet-400">{{ props.shortStructureName }}</span>
+                <span class="text-xs font-bold uppercase tracking-widest text-violet-400">{{ props.shortStructureName }}</span>
                 <div class="w-1.5 h-1.5 rounded-full bg-violet-400"></div>
               </div>
             </th>
@@ -145,25 +145,25 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
 
           <!-- Column headers row -->
           <tr class="bg-slate-800/50">
-            <th class="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500">{{ t('shopping.itemColumn') }}</th>
-            <th class="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-500">{{ t('shopping.quantityColumn') }}</th>
-            <th class="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-500">{{ t('shopping.volumeColumn') }}</th>
+            <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ t('shopping.itemColumn') }}</th>
+            <th class="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">{{ t('shopping.quantityColumn') }}</th>
+            <th class="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">{{ t('shopping.volumeColumn') }}</th>
             <!-- Jita columns -->
             <th
-              class="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-400"
+              class="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-slate-400"
               :class="props.hasStructureResults ? 'border-l-2 border-cyan-500/15 bg-cyan-500/3' : ''"
             >
               {{ t('appraisal.unitPrice') }}
             </th>
             <th
-              class="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-400"
+              class="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-slate-400"
               :class="props.hasStructureResults ? 'bg-cyan-500/3' : ''"
             >
               {{ t('appraisal.weightedTotal') }}
             </th>
             <th
               v-if="props.hasStructureResults"
-              class="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-cyan-300 border-r-2 border-cyan-500/15 bg-cyan-500/3"
+              class="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-cyan-300 border-r-2 border-cyan-500/15 bg-cyan-500/3"
               :title="t('appraisal.importTooltip')"
             >
               + Import
@@ -171,12 +171,12 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
             <!-- Structure column -->
             <th
               v-if="props.hasStructureResults"
-              class="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-violet-300 border-l-2 border-r-2 border-violet-500/15 bg-violet-500/3"
+              class="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-violet-300 border-l-2 border-r-2 border-violet-500/15 bg-violet-500/3"
               :title="t('appraisal.weightedSellTooltip')"
             >
               {{ t('appraisal.weightedSell') }}
             </th>
-            <th v-if="props.hasStructureResults" class="px-4 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-slate-500">{{ t('shopping.buyAt') }}</th>
+            <th v-if="props.hasStructureResults" class="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">{{ t('shopping.buyAt') }}</th>
           </tr>
         </thead>
 
@@ -230,7 +230,7 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
                   <span class="text-[9px] font-semibold text-cyan-700 uppercase tracking-wider">Sell</span>
                   <span class="text-cyan-300">{{ formatNumber(displaySellWeighted(item)!) }}</span>
                 </div>
-                <div v-if="item.sellPriceWeighted != null && item.sellPrice != null" class="text-[10px] text-slate-600 mt-0.5 text-right">
+                <div v-if="item.sellPriceWeighted != null && item.sellPrice != null" class="text-xs text-slate-600 mt-0.5 text-right">
                   {{ formatNumber(item.sellPrice) }}
                 </div>
                 <!-- Buy row -->
@@ -238,13 +238,13 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
                   <span class="text-[9px] font-semibold text-amber-700 uppercase tracking-wider">Buy</span>
                   <span class="text-amber-300">{{ displayBuyWeighted(item) != null ? formatNumber(displayBuyWeighted(item)!) : '-' }}</span>
                 </div>
-                <div v-if="item.buyPriceWeighted != null && item.buyPrice != null" class="text-[10px] text-slate-600 mt-0.5 text-right">
+                <div v-if="item.buyPriceWeighted != null && item.buyPrice != null" class="text-xs text-slate-600 mt-0.5 text-right">
                   {{ formatNumber(item.buyPrice) }}
                 </div>
                 <!-- Daily volume -->
                 <div
                   v-if="item.avgDailyVolume != null"
-                  class="text-[10px] mt-0.5"
+                  class="text-xs mt-0.5"
                   :class="item.quantity > (item.avgDailyVolume ?? 0) ? 'text-amber-400/70' : 'text-slate-500'"
                 >
                   {{ t('appraisal.avgDailyVolume', { volume: formatNumber(Math.round(item.avgDailyVolume), 0) }) }}
@@ -264,7 +264,7 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
                   <span class="text-[9px] font-semibold text-cyan-700 uppercase tracking-wider">Sell</span>
                   <span class="text-cyan-400 font-semibold">{{ formatNumber(displaySellTotalWeighted(item)!) }}</span>
                 </div>
-                <div v-if="item.sellTotalWeighted != null && item.sellTotal != null" class="text-[10px] text-slate-600 mt-0.5 text-right">
+                <div v-if="item.sellTotalWeighted != null && item.sellTotal != null" class="text-xs text-slate-600 mt-0.5 text-right">
                   {{ formatNumber(item.sellTotal) }}
                 </div>
                 <!-- Buy total -->
@@ -272,7 +272,7 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
                   <span class="text-[9px] font-semibold text-amber-700 uppercase tracking-wider">Buy</span>
                   <span class="text-amber-500 font-semibold">{{ displayBuyTotalWeighted(item) != null ? formatNumber(displayBuyTotalWeighted(item)!) : '-' }}</span>
                 </div>
-                <div v-if="item.buyTotalWeighted != null && item.buyTotal != null" class="text-[10px] text-slate-600 mt-0.5 text-right">
+                <div v-if="item.buyTotalWeighted != null && item.buyTotal != null" class="text-xs text-slate-600 mt-0.5 text-right">
                   {{ formatNumber(item.buyTotal) }}
                 </div>
               </div>
@@ -315,7 +315,7 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
                   v-if="item.structureCoverageQty != null"
                   class="flex items-center justify-end gap-1 mt-0.5"
                 >
-                  <span class="text-[10px]" :class="structureCoverageTextClass(item.structureCoverage)">
+                  <span class="text-xs" :class="structureCoverageTextClass(item.structureCoverage)">
                     {{ formatNumber(item.structureCoverageQty, 0) }} / {{ formatNumber(item.quantity, 0) }}
                   </span>
                 </div>
@@ -339,13 +339,13 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
             <td v-if="props.hasStructureResults" class="px-4 py-2.5 text-center">
               <span
                 v-if="item.bestLocation === 'jita'"
-                class="badge-best inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-cyan-500/15 text-cyan-300"
+                class="badge-best inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-cyan-500/15 text-cyan-300"
               >
                 Jita
               </span>
               <span
                 v-else-if="item.bestLocation === 'structure'"
-                class="badge-best inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-violet-500/15 text-violet-300"
+                class="badge-best inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-violet-500/15 text-violet-300"
               >
                 {{ props.shortStructureName }}
               </span>
@@ -377,14 +377,14 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
                 <span class="text-[9px] font-semibold text-cyan-700 uppercase tracking-wider">Sell</span>
                 <span class="text-cyan-400 font-bold text-sm">{{ formatIsk(props.sellValue) }}</span>
               </div>
-              <div v-if="props.hasSellTotalWeighted" class="text-[10px] text-slate-600 mt-0.5 text-right">
+              <div v-if="props.hasSellTotalWeighted" class="text-xs text-slate-600 mt-0.5 text-right">
                 {{ formatIsk(props.sellValueBest) }}
               </div>
               <div class="flex items-center justify-end gap-1.5 mt-1.5">
                 <span class="text-[9px] font-semibold text-amber-700 uppercase tracking-wider">Buy</span>
                 <span class="text-amber-500 font-bold text-sm">{{ formatIsk(props.buyValue) }}</span>
               </div>
-              <div v-if="props.hasBuyTotalWeighted" class="text-[10px] text-slate-600 mt-0.5 text-right">
+              <div v-if="props.hasBuyTotalWeighted" class="text-xs text-slate-600 mt-0.5 text-right">
                 {{ formatIsk(props.buyValueBest) }}
               </div>
             </td>
@@ -402,7 +402,7 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
               class="px-4 py-3 text-right font-mono border-l-2 border-r-2 border-violet-500/8 bg-violet-500/3"
             >
               <span class="text-violet-400 font-bold text-sm">{{ formatIsk(props.structureTotal) }}</span>
-              <div v-if="props.lowCoverageItems > 0" class="text-[10px] text-amber-500 mt-1">
+              <div v-if="props.lowCoverageItems > 0" class="text-xs text-amber-500 mt-1">
                 {{ props.lowCoverageItems }} {{ t('appraisal.itemsLowCoverage') }}
               </div>
             </td>

@@ -138,12 +138,12 @@ function onStructureInputBlur(): void {
 
       <!-- Format detection chips -->
       <div class="flex items-center gap-2 flex-wrap -mt-2">
-        <span class="text-[11px] text-slate-500 mr-1">{{ t('appraisal.formatLabel') }}</span>
+        <span class="text-xs text-slate-500 mr-1">{{ t('appraisal.formatLabel') }}</span>
         <button
           v-for="fmt in FORMAT_OPTIONS"
           :key="fmt.key"
           @click="selectFormat(fmt.key)"
-          class="px-3 py-1 rounded-md text-[11px] font-medium transition-all border cursor-pointer tracking-wide"
+          class="px-3 py-1 rounded-md text-xs font-medium transition-all border cursor-pointer tracking-wide"
           :class="[
             props.selectedFormat === fmt.key && fmt.key === 'auto' && !props.detectedFormat
               ? 'bg-cyan-500/12 text-cyan-400 border-cyan-500/25'
@@ -159,7 +159,7 @@ function onStructureInputBlur(): void {
         <div class="flex-1"></div>
         <span
           v-if="props.detectedFormat && props.selectedFormat === 'auto'"
-          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-green-500/10 text-green-400 border border-green-500/20"
+          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20"
         >
           <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
           {{ t('appraisal.formatDetected', { format: formatLabelForDetection(props.detectedFormat) }) }}
@@ -188,8 +188,9 @@ function onStructureInputBlur(): void {
             @mousedown.prevent="clearStructure"
             class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-200 p-0.5"
             :title="t('shopping.clearStructure')"
+            :aria-label="t('shopping.clearStructure')"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -252,7 +253,7 @@ function onStructureInputBlur(): void {
 
 <style scoped>
 .btn-analyze {
-  background: linear-gradient(135deg, #0e7490, #0891b2, #06b6d4);
+  background: linear-gradient(135deg, var(--color-brand-deep), var(--color-brand-strong), var(--color-brand));
   background-size: 200% 200%;
   animation: gradient-shift 3s ease infinite;
 }

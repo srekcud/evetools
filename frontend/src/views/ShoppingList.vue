@@ -390,12 +390,12 @@ Megacyte 100
             ></textarea>
             <!-- Format detection chips -->
             <div class="flex items-center gap-2 flex-wrap mt-1">
-              <span class="text-[11px] text-slate-500 mr-1">{{ t('appraisal.formatLabel') }}</span>
+              <span class="text-xs text-slate-500 mr-1">{{ t('appraisal.formatLabel') }}</span>
               <button
                 v-for="fmt in FORMAT_OPTIONS"
                 :key="fmt.key"
                 @click="selectFormat(fmt.key)"
-                class="px-3 py-1 rounded-md text-[11px] font-medium transition-all border cursor-pointer"
+                class="px-3 py-1 rounded-md text-xs font-medium transition-all border cursor-pointer"
                 :class="[
                   selectedFormat === fmt.key && fmt.key === 'auto' && !detectedFormat
                     ? 'bg-cyan-500/12 text-cyan-400 border-cyan-500/25'
@@ -411,7 +411,7 @@ Megacyte 100
               <div class="flex-1"></div>
               <span
                 v-if="detectedFormat && selectedFormat === 'auto'"
-                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-green-500/10 text-green-400 border border-green-500/20"
+                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20"
               >
                 <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
                 {{ t('appraisal.formatDetected', { format: formatLabelForDetection(detectedFormat) }) }}
@@ -447,9 +447,10 @@ Megacyte 100
                     v-else-if="selectedStructure.id || structureSearchQuery"
                     @mousedown.prevent="clearStructure"
                     class="text-slate-400 hover:text-slate-200"
-                    title="Revenir au defaut"
+                    :title="t('industry.shoppingTab.resetToDefault')"
+                    :aria-label="t('industry.shoppingTab.resetToDefault')"
                   >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>

@@ -58,7 +58,7 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
       <div>
         <div class="text-xs text-slate-500 uppercase mb-1">{{ t('industry.shoppingTab.jitaImport') }}</div>
         <div class="font-mono text-slate-200">{{ displayedJitaWithImport !== null ? formatIsk(displayedJitaWithImport) : t('industry.shoppingTab.unknown') }}</div>
-        <div v-if="hasAnyStock && missingTotals.jitaWeighted !== null" class="text-[10px] text-slate-600 font-mono mt-0.5">
+        <div v-if="hasAnyStock && missingTotals.jitaWeighted !== null" class="text-table-cell text-slate-600 font-mono mt-0.5">
           {{ formatIsk(missingTotals.jita) }}
         </div>
       </div>

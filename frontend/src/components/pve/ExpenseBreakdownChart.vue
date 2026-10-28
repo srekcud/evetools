@@ -9,6 +9,7 @@ import {
   Legend,
   type TooltipItem,
 } from 'chart.js'
+import { CHART_COLORS, CHART_SERIES } from '@/utils/chartColors'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
 
@@ -26,10 +27,10 @@ const typeLabels = computed<Record<string, string>>(() => ({
 }))
 
 const typeColors: Record<string, string> = {
-  fuel: '#ef4444',
-  ammo: '#f59e0b',
-  crab_beacon: '#8b5cf6',
-  other: '#6b7280',
+  fuel: CHART_COLORS.danger,
+  ammo: CHART_COLORS.warning,
+  crab_beacon: CHART_SERIES[2],
+  other: CHART_COLORS.neutral,
 }
 
 const chartData = computed(() => {
@@ -41,7 +42,7 @@ const chartData = computed(() => {
     if (amount > 0) {
       labels.push(typeLabels.value[type] || type)
       values.push(amount / 1_000_000_000)
-      colors.push(typeColors[type] || '#6b7280')
+      colors.push(typeColors[type] || CHART_COLORS.neutral)
     }
   })
 
@@ -51,7 +52,7 @@ const chartData = computed(() => {
       {
         data: values,
         backgroundColor: colors,
-        borderColor: '#1f2937',
+        borderColor: CHART_COLORS.surface,
         borderWidth: 2,
       },
     ],
@@ -65,7 +66,7 @@ const chartOptions = {
     legend: {
       position: 'right' as const,
       labels: {
-        color: '#9ca3af',
+        color: CHART_COLORS.muted,
         padding: 15,
       },
     },

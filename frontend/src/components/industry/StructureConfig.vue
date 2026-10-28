@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch, nextTick } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useIndustryStore } from '@/stores/industry'
 import type { StructureConfig, RigOption, CorporationStructure, StructureSearchResult, StructureBonusPreview } from '@/stores/industry'
 import FavoriteSystemsConfig from './FavoriteSystemsConfig.vue'
+import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { ApiError } from '@/services/api'
 import { useFormatters } from '@/composables/useFormatters'
@@ -321,7 +322,6 @@ async function saveStructure() {
   // If editing a corp structure with changes, ask for confirmation
   if (editingStructure.value && hasCorpStructureChanges() && !pendingSave.value) {
     showCorpEditModal.value = true
-    nextTick(() => corpEditModalRef.value?.focus())
     return
   }
 
@@ -377,14 +377,11 @@ function cancelCorpEdit() {
 const showDeleteModal = ref(false)
 const deleteStructureId = ref<string | null>(null)
 const deleteStructureName = ref('')
-const deleteModalRef = ref<HTMLElement | null>(null)
-const corpEditModalRef = ref<HTMLElement | null>(null)
 
 function openDeleteModal(structure: StructureConfig) {
   deleteStructureId.value = structure.id
   deleteStructureName.value = structure.name
   showDeleteModal.value = true
-  nextTick(() => deleteModalRef.value?.focus())
 }
 
 async function confirmDelete() {
@@ -604,7 +601,7 @@ watch(
                 <div class="text-sm text-slate-200">
                   {{ result.isCorporationOwned ? '★ ' : '' }}{{ result.locationName }}
                   <span v-if="result.solarSystemName" class="text-slate-400">({{ result.solarSystemName }})</span>
-                  <span v-if="isAlreadyImported(result.locationId)" class="text-xs text-slate-400">- {{ t('industry.structures.alreadyImportedTag') }}</span>
+                  <span v-if="isAlreadyImported(result.locationId)" class="text-table-cell text-slate-400">- {{ t('industry.structures.alreadyImportedTag') }}</span>
                 </div>
                 <div class="text-xs text-slate-500">
                   {{ result.structureType ? result.structureType.charAt(0).toUpperCase() + result.structureType.slice(1) : 'Structure' }}
@@ -614,10 +611,10 @@ watch(
             </div>
 
             <!-- ESI Search Error -->
-            <div v-if="esiSearchError" class="mt-1 text-xs text-amber-400">
+            <div v-if="esiSearchError" class="mt-1 text-body text-amber-400">
               {{ esiSearchError }}
             </div>
-            <div v-else-if="esiSearchIncomplete" class="mt-1 text-xs text-amber-400">
+            <div v-else-if="esiSearchIncomplete" class="mt-1 text-body text-amber-400">
               {{ t('industry.structures.searchIncomplete') }}
             </div>
           </div>
@@ -634,12 +631,12 @@ watch(
             </div>
             <button
               @click="clearCorpStructure"
-              class="text-xs text-slate-400 hover:text-slate-200"
+              class="text-table-cell text-slate-400 hover:text-slate-200"
             >
               {{ t('industry.structures.switchToCustom') }}
             </button>
           </div>
-          <p v-if="isKnownCorpStructure" class="text-xs text-slate-400 mt-1">
+          <p v-if="isKnownCorpStructure" class="text-body text-slate-400 mt-1">
             {{ t('industry.structures.rigsSharedWithCorp') }}
           </p>
         </div>
@@ -716,7 +713,7 @@ watch(
               class="w-full sm:w-48 px-3 py-2 bg-slate-900 border rounded-lg text-slate-200 text-sm focus:outline-hidden"
               :class="isFacilityTaxRateOutOfRange ? 'border-red-500 focus:border-red-400' : 'border-slate-600 focus:border-cyan-500'"
             />
-            <p v-if="isFacilityTaxRateOutOfRange" class="mt-1 text-xs text-red-400">
+            <p v-if="isFacilityTaxRateOutOfRange" class="mt-1 text-body text-red-400">
               {{ t('industry.structures.facilityTaxOutOfRange', { min: MIN_FACILITY_TAX_RATE, max: MAX_FACILITY_TAX_RATE }) }}
             </p>
           </div>
@@ -754,14 +751,14 @@ watch(
               >
                 <div class="flex items-center justify-between">
                   <span class="text-sm text-slate-200">{{ formatRigName(rig.name) }}</span>
-                  <span class="text-xs ml-2">
+                  <span class="text-table-cell ml-2">
                     <span v-if="rig.bonus > 0" class="text-emerald-400">ME: -{{ rig.bonus }}%</span>
                     <span v-if="rig.timeBonus !== undefined" class="text-amber-400 ml-1">TE: -{{ rig.timeBonus }}%</span>
                     <span class="text-slate-500 ml-1">({{ rig.size }})</span>
                   </span>
                 </div>
-                <div class="text-xs text-slate-500 mt-0.5">{{ formatTargetCategories(rig.targetCategories) }}</div>
-                <div v-if="rig.categoryBonuses" class="text-xs text-emerald-400/80 mt-0.5">ME {{ formatCategoryBonuses(rig.categoryBonuses) }}</div>
+                <div class="text-table-cell text-slate-500 mt-0.5">{{ formatTargetCategories(rig.targetCategories) }}</div>
+                <div v-if="rig.categoryBonuses" class="text-table-cell text-emerald-400/80 mt-0.5">ME {{ formatCategoryBonuses(rig.categoryBonuses) }}</div>
               </button>
             </div>
 
@@ -784,7 +781,7 @@ watch(
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2 flex-1 min-w-0">
                   <span class="text-sm text-slate-300 truncate">{{ formatRigName(rigInfo.name) }}</span>
-                  <span class="text-xs shrink-0">
+                  <span class="text-table-cell shrink-0">
                     <span v-if="rigInfo.bonus > 0" class="text-emerald-400">ME: -{{ rigInfo.bonus }}%</span>
                     <span v-if="rigInfo.timeBonus !== undefined" class="text-amber-400 ml-1">TE: -{{ rigInfo.timeBonus }}%</span>
                     <span class="text-slate-500 ml-1">({{ rigInfo.size }})</span>
@@ -794,14 +791,15 @@ watch(
                   @click="removeRig(rigInfo.name)"
                   class="ml-2 p-1 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-sm shrink-0"
                   :title="t('industry.structures.removeRig')"
+                  :aria-label="t('industry.structures.removeRig')"
                 >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
-              <div class="text-xs text-slate-500 mt-0.5">{{ formatTargetCategories(rigInfo.targetCategories) }}</div>
-                <div v-if="rigInfo.categoryBonuses" class="text-xs text-emerald-400/80 mt-0.5">ME {{ formatCategoryBonuses(rigInfo.categoryBonuses) }}</div>
+              <div class="text-table-cell text-slate-500 mt-0.5">{{ formatTargetCategories(rigInfo.targetCategories) }}</div>
+                <div v-if="rigInfo.categoryBonuses" class="text-table-cell text-emerald-400/80 mt-0.5">ME {{ formatCategoryBonuses(rigInfo.categoryBonuses) }}</div>
             </div>
           </div>
 
@@ -812,7 +810,7 @@ watch(
 
         <!-- Preview Bonus -->
         <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
-          <p class="text-xs text-slate-400 mb-2">{{ t('industry.structures.bonusPreview') }}</p>
+          <p class="text-body text-slate-400 mb-2">{{ t('industry.structures.bonusPreview') }}</p>
           <div class="space-y-2">
             <div v-if="isEngineeringComplex" class="flex flex-wrap gap-4">
               <div>
@@ -928,8 +926,9 @@ watch(
               @click="openEditForm(structure)"
               class="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-700 rounded-sm"
               :title="t('common.actions.edit')"
+              :aria-label="t('common.actions.edit')"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </button>
@@ -937,8 +936,9 @@ watch(
               @click="openDeleteModal(structure)"
               class="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-sm"
               :title="t('common.actions.delete')"
+              :aria-label="t('common.actions.delete')"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
             </button>
@@ -957,77 +957,71 @@ watch(
     </div>
 
     <!-- Delete Confirmation Modal -->
-    <Teleport to="body">
-      <div
-        v-if="showDeleteModal"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
-        @click.self="cancelDelete"
-        @keydown.enter="confirmDelete"
-        @keydown.escape="cancelDelete"
-      >
-        <div class="bg-slate-900 rounded-xl border border-slate-700 max-w-md w-full p-6" tabindex="-1" ref="deleteModalRef">
-          <h3 class="text-lg font-semibold text-slate-200 mb-2">{{ t('industry.structures.deleteTitle') }}</h3>
-          <p class="text-slate-400 mb-6">
-            {{ t('industry.structures.deleteConfirm', { name: deleteStructureName }) }}
-          </p>
-          <div class="flex gap-3">
-            <button
-              @click="cancelDelete"
-              class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300"
-            >
-              {{ t('common.actions.cancel') }}
-            </button>
-            <button
-              @click="confirmDelete"
-              class="flex-1 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-white font-medium"
-            >
-              {{ t('common.actions.delete') }}
-            </button>
-          </div>
-        </div>
+    <BaseModal
+      :show="showDeleteModal"
+      :title="t('industry.structures.deleteTitle')"
+      panel-class="border-slate-700 max-w-md p-6"
+      @close="cancelDelete"
+    >
+      <template #title="{ titleId }">
+        <h3 :id="titleId" class="text-lg font-semibold text-slate-200 mb-2">{{ t('industry.structures.deleteTitle') }}</h3>
+      </template>
+      <p class="text-slate-400 mb-6">
+        {{ t('industry.structures.deleteConfirm', { name: deleteStructureName }) }}
+      </p>
+      <div class="flex gap-3">
+        <button
+          @click="cancelDelete"
+          class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300"
+        >
+          {{ t('common.actions.cancel') }}
+        </button>
+        <button
+          @click="confirmDelete"
+          class="flex-1 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-white font-medium"
+        >
+          {{ t('common.actions.delete') }}
+        </button>
       </div>
-    </Teleport>
+    </BaseModal>
 
     <!-- Corporation Structure Edit Confirmation Modal -->
-    <Teleport to="body">
-      <div
-        v-if="showCorpEditModal"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
-        @click.self="cancelCorpEdit"
-        @keydown.enter="confirmCorpEdit"
-        @keydown.escape="cancelCorpEdit"
-      >
-        <div class="bg-slate-900 rounded-xl border border-amber-700/50 max-w-md w-full p-6" tabindex="-1" ref="corpEditModalRef">
-          <div class="flex items-center gap-3 mb-4">
-            <div class="p-2 bg-amber-500/20 rounded-lg">
-              <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <h3 class="text-lg font-semibold text-slate-200">{{ t('industry.structures.editCorpTitle') }}</h3>
+    <BaseModal
+      :show="showCorpEditModal"
+      :title="t('industry.structures.editCorpTitle')"
+      panel-class="border-amber-700/50 max-w-md p-6"
+      @close="cancelCorpEdit"
+    >
+      <template #title="{ titleId }">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="p-2 bg-amber-500/20 rounded-lg">
+            <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
           </div>
-          <p class="text-slate-400 mb-2">
-            {{ t('industry.structures.editCorpWarning1') }}
-          </p>
-          <p class="text-slate-400 mb-6">
-            {{ t('industry.structures.editCorpWarning2') }}
-          </p>
-          <div class="flex gap-3">
-            <button
-              @click="cancelCorpEdit"
-              class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300"
-            >
-              {{ t('common.actions.cancel') }}
-            </button>
-            <button
-              @click="confirmCorpEdit"
-              class="flex-1 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg text-white font-medium"
-            >
-              {{ t('common.actions.confirm') }}
-            </button>
-          </div>
+          <h3 :id="titleId" class="text-lg font-semibold text-slate-200">{{ t('industry.structures.editCorpTitle') }}</h3>
         </div>
+      </template>
+      <p class="text-slate-400 mb-2">
+        {{ t('industry.structures.editCorpWarning1') }}
+      </p>
+      <p class="text-slate-400 mb-6">
+        {{ t('industry.structures.editCorpWarning2') }}
+      </p>
+      <div class="flex gap-3">
+        <button
+          @click="cancelCorpEdit"
+          class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300"
+        >
+          {{ t('common.actions.cancel') }}
+        </button>
+        <button
+          @click="confirmCorpEdit"
+          class="flex-1 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg text-white font-medium"
+        >
+          {{ t('common.actions.confirm') }}
+        </button>
       </div>
-    </Teleport>
+    </BaseModal>
   </div>
 </template>

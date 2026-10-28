@@ -11,6 +11,7 @@ import { useIndustryStore, type SearchResult } from '@/stores/industry'
 vi.mock(import('vue-router'), async importOriginal => ({
   ...(await importOriginal()),
   useRoute: vi.fn(() => ({ query: {} })) as never,
+  useRouter: vi.fn(() => ({ replace: vi.fn() })) as never,
 }))
 
 const SABRE: SearchResult = { typeId: 22456, typeName: 'Sabre', isT2: true }

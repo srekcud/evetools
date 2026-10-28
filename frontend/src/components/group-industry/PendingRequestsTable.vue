@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataTable from '@/components/common/DataTable.vue'
 import { computed } from 'vue'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useFormatters } from '@/composables/useFormatters'
@@ -50,61 +51,63 @@ async function handleReject(member: GroupMember): Promise<void> {
 
     <!-- Pending table -->
     <div v-else class="bg-slate-900/80 rounded-xl border border-amber-500/20 overflow-hidden">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
-            <th class="text-left py-3 px-6">Character</th>
-            <th class="text-left py-3 px-3">Corporation</th>
-            <th class="text-left py-3 px-3">Requested</th>
-            <th class="text-left py-3 px-3">Via</th>
-            <th class="text-center py-3 px-6">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="member in pendingMembers"
-            :key="member.id"
-            class="hover:bg-slate-800/30 bg-amber-500/[0.02]"
-          >
-            <!-- Character -->
-            <td class="py-3 px-6">
-              <div class="flex items-center gap-2.5">
-                <img
-                  :src="getCharacterPortraitUrl(member.characterId, 32)"
-                  :alt="pilotName(member.characterName)"
-                  class="w-8 h-8 rounded-full border border-slate-700"
-                  @error="onImageError"
-                />
-                <span class="text-slate-200 font-medium">{{ pilotName(member.characterName) }}</span>
-              </div>
-            </td>
-            <!-- Corporation -->
-            <td class="py-3 px-3">
-              <span class="text-sm text-slate-400">{{ member.corporationId ? `Corp #${member.corporationId}` : '--' }}</span>
-            </td>
-            <!-- Requested date -->
-            <td class="py-3 px-3 text-sm text-slate-400">{{ formatDate(member.joinedAt) }}</td>
-            <!-- Via -->
-            <td class="py-3 px-3">
-              <span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-500 border border-slate-700">Short Link</span>
-            </td>
-            <!-- Actions -->
-            <td class="py-3 px-6 text-center">
-              <div v-if="isAdmin" class="flex items-center justify-center gap-1.5">
-                <button
-                  class="px-3 py-1.5 rounded bg-emerald-600/20 text-emerald-400 text-xs font-medium hover:bg-emerald-600/30 transition-colors border border-emerald-600/30"
-                  @click="handleAccept(member)"
-                >Accept</button>
-                <button
-                  class="px-3 py-1.5 rounded bg-red-600/20 text-red-400 text-xs font-medium hover:bg-red-600/30 transition-colors border border-red-600/30"
-                  @click="handleReject(member)"
-                >Reject</button>
-              </div>
-              <span v-else class="text-xs text-slate-600">--</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <DataTable>
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
+              <th class="text-left py-3 px-6">Character</th>
+              <th class="text-left py-3 px-3">Corporation</th>
+              <th class="text-left py-3 px-3">Requested</th>
+              <th class="text-left py-3 px-3">Via</th>
+              <th class="text-center py-3 px-6">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="member in pendingMembers"
+              :key="member.id"
+              class="hover:bg-slate-800/30 bg-amber-500/[0.02]"
+            >
+              <!-- Character -->
+              <td class="py-3 px-6">
+                <div class="flex items-center gap-2.5">
+                  <img
+                    :src="getCharacterPortraitUrl(member.characterId, 32)"
+                    :alt="pilotName(member.characterName)"
+                    class="w-8 h-8 rounded-full border border-slate-700"
+                    @error="onImageError"
+                  />
+                  <span class="text-slate-200 font-medium">{{ pilotName(member.characterName) }}</span>
+                </div>
+              </td>
+              <!-- Corporation -->
+              <td class="py-3 px-3">
+                <span class="text-sm text-slate-400">{{ member.corporationId ? `Corp #${member.corporationId}` : '--' }}</span>
+              </td>
+              <!-- Requested date -->
+              <td class="py-3 px-3 text-sm text-slate-400">{{ formatDate(member.joinedAt) }}</td>
+              <!-- Via -->
+              <td class="py-3 px-3">
+                <span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-500 border border-slate-700">Short Link</span>
+              </td>
+              <!-- Actions -->
+              <td class="py-3 px-6 text-center">
+                <div v-if="isAdmin" class="flex items-center justify-center gap-1.5">
+                  <button
+                    class="px-3 py-1.5 rounded bg-emerald-600/20 text-emerald-400 text-xs font-medium hover:bg-emerald-600/30 transition-colors border border-emerald-600/30"
+                    @click="handleAccept(member)"
+                  >Accept</button>
+                  <button
+                    class="px-3 py-1.5 rounded bg-red-600/20 text-red-400 text-xs font-medium hover:bg-red-600/30 transition-colors border border-red-600/30"
+                    @click="handleReject(member)"
+                  >Reject</button>
+                </div>
+                <span v-else class="text-xs text-slate-600">--</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </DataTable>
     </div>
   </div>
 </template>

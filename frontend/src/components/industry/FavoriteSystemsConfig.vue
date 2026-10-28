@@ -123,8 +123,8 @@ function onBlur(target: 'mfg' | 'rxn') {
             <span class="text-sm text-slate-200 flex-1">
               {{ store.userSettings.favoriteManufacturingSystemName || `#${store.userSettings.favoriteManufacturingSystemId}` }}
             </span>
-            <button @click="clearMfgSystem" class="text-slate-400 hover:text-red-400">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button @click="clearMfgSystem" class="text-slate-400 hover:text-red-400" :aria-label="t('common.actions.clear')">
+              <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -163,8 +163,8 @@ function onBlur(target: 'mfg' | 'rxn') {
             <span class="text-sm text-slate-200 flex-1">
               {{ store.userSettings.favoriteReactionSystemName || `#${store.userSettings.favoriteReactionSystemId}` }}
             </span>
-            <button @click="clearRxnSystem" class="text-slate-400 hover:text-red-400">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button @click="clearRxnSystem" class="text-slate-400 hover:text-red-400" :aria-label="t('common.actions.clear')">
+              <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>

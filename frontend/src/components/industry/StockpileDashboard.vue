@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { useStockpileStore } from '@/stores/industry/stockpile'
 import type { StockpileStage } from '@/stores/industry/types'
+import { CHART_COLORS } from '@/utils/chartColors'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 import StockpileColumn from '@/components/industry/StockpileColumn.vue'
@@ -39,10 +40,10 @@ const pipelineHealth = computed((): number | null => stockpileStore.stockpileSta
 const dashOffset = computed(() => CIRCUMFERENCE * (1 - (pipelineHealth.value === null ? 0 : pipelineHealth.value / 100)))
 
 const healthRingColor = computed(() => {
-  if (pipelineHealth.value === null) return '#64748b'
-  if (pipelineHealth.value >= 80) return '#34d399' // emerald-400
-  if (pipelineHealth.value >= 50) return '#fbbf24' // amber-400
-  return '#f87171' // red-400
+  if (pipelineHealth.value === null) return CHART_COLORS.neutral
+  if (pipelineHealth.value >= 80) return CHART_COLORS.profit
+  if (pipelineHealth.value >= 50) return CHART_COLORS.warning
+  return CHART_COLORS.loss
 })
 
 const healthTextColor = computed(() => {
@@ -200,7 +201,7 @@ onMounted(async () => {
           <div class="bg-slate-800 rounded-lg p-4 flex items-center gap-4">
             <div class="flex-shrink-0 relative">
               <svg viewBox="0 0 56 56" class="w-14 h-14" style="transform: rotate(-90deg)">
-                <circle cx="28" cy="28" :r="RING_RADIUS" fill="none" stroke="#1e293b" stroke-width="4" />
+                <circle cx="28" cy="28" :r="RING_RADIUS" fill="none" stroke="var(--color-surface)" stroke-width="4" />
                 <circle
                   cx="28" cy="28" :r="RING_RADIUS" fill="none"
                   :stroke="healthRingColor" stroke-width="4"

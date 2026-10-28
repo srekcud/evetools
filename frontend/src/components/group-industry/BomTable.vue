@@ -5,6 +5,7 @@ import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import type { BomItem, ContainerVerification } from '@/stores/group-industry/types'
+import { CHART_COLORS } from '@/utils/chartColors'
 
 const { t } = useI18n()
 const projectStore = useGroupProjectStore()
@@ -72,7 +73,7 @@ function ringGlowClass(percent: number): string {
 }
 
 function ringStrokeColor(percent: number): string {
-  return percent >= 100 ? '#34d399' : '#fbbf24'
+  return percent >= 100 ? CHART_COLORS.profit : CHART_COLORS.warning
 }
 </script>
 
@@ -107,7 +108,7 @@ function ringStrokeColor(percent: number): string {
                   {{ t('groupIndustry.bom.estCost') }}
                   <svg class="w-3 h-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 </div>
-                <div class="text-[10px] text-slate-600 font-normal normal-case tracking-normal mt-0.5">(Jita 5% avg)</div>
+                <div class="text-xs text-slate-600 font-normal normal-case tracking-normal mt-0.5">(Jita 5% avg)</div>
               </th>
             </tr>
           </thead>
@@ -138,14 +139,14 @@ function ringStrokeColor(percent: number): string {
                     <!-- Verified -->
                     <template v-if="verificationMap.get(item.id)!.status === 'verified'">
                       <svg class="w-3 h-3 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-                      <span class="text-[10px] text-emerald-400">
+                      <span class="text-xs text-emerald-400">
                         Verified: {{ formatNumber(verificationMap.get(item.id)!.containerQuantity, 0) }} / {{ formatNumber(verificationMap.get(item.id)!.requiredQuantity, 0) }} in container
                       </span>
                     </template>
                     <!-- Partial -->
                     <template v-else-if="verificationMap.get(item.id)!.status === 'partial'">
                       <svg class="w-3 h-3 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                      <span class="text-[10px] text-amber-400">
+                      <span class="text-xs text-amber-400">
                         Partial: {{ formatNumber(verificationMap.get(item.id)!.containerQuantity, 0) }} / {{ formatNumber(verificationMap.get(item.id)!.requiredQuantity, 0) }} in container
                       </span>
                     </template>

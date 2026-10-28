@@ -108,8 +108,9 @@ const price30dAgo = computed(() => {
       <button
         @click="emit('back')"
         class="p-2 bg-slate-800/50 border border-slate-700/50 rounded-lg hover:border-cyan-500/30 text-slate-400 hover:text-cyan-400 transition-colors"
+        :aria-label="t('common.actions.back')"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg aria-hidden="true" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
         </svg>
       </button>
@@ -134,8 +135,10 @@ const price30dAgo = computed(() => {
             :class="detail.isFavorite
               ? 'text-amber-400 hover:text-amber-300'
               : 'text-slate-600 hover:text-amber-400'"
+            :aria-label="detail.isFavorite ? t('market.favorite.remove') : t('market.favorite.add')"
           >
             <svg
+              aria-hidden="true"
               class="w-5 h-5"
               :fill="detail.isFavorite ? 'currentColor' : 'none'"
               stroke="currentColor"

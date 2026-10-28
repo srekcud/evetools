@@ -15,6 +15,7 @@ import {
   type TooltipItem,
 } from 'chart.js'
 import type { DailyStats } from '@/stores/pve'
+import { CHART_COLORS } from '@/utils/chartColors'
 
 ChartJS.register(
   CategoryScale,
@@ -42,7 +43,7 @@ const chartData = computed(() => ({
     {
       label: t('pve.charts.totalIncome'),
       data: props.data.map((d) => d.income / 1_000_000_000),
-      borderColor: '#06b6d4', // cyan-500
+      borderColor: CHART_COLORS.brand,
       backgroundColor: 'rgba(6, 182, 212, 0.1)',
       fill: true,
       tension: 0.3,
@@ -50,14 +51,14 @@ const chartData = computed(() => ({
     {
       label: 'Bounties',
       data: props.data.map((d) => d.bounties / 1_000_000_000),
-      borderColor: '#10b981', // emerald-500
+      borderColor: CHART_COLORS.profit,
       backgroundColor: 'transparent',
       tension: 0.3,
     },
     {
       label: t('pve.charts.lootSales'),
       data: props.data.map((d) => d.lootSales / 1_000_000_000),
-      borderColor: '#f59e0b', // amber-500
+      borderColor: CHART_COLORS.warning,
       backgroundColor: 'transparent',
       tension: 0.3,
     },
@@ -71,7 +72,7 @@ const chartOptions = {
     legend: {
       position: 'top' as const,
       labels: {
-        color: '#9ca3af',
+        color: CHART_COLORS.muted,
       },
     },
     tooltip: {
@@ -85,7 +86,7 @@ const chartOptions = {
   scales: {
     x: {
       ticks: {
-        color: '#9ca3af',
+        color: CHART_COLORS.muted,
       },
       grid: {
         color: 'rgba(75, 85, 99, 0.3)',
@@ -93,7 +94,7 @@ const chartOptions = {
     },
     y: {
       ticks: {
-        color: '#9ca3af',
+        color: CHART_COLORS.muted,
         callback: (value: string | number) => `${value}B`,
       },
       grid: {
