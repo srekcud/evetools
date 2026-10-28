@@ -154,7 +154,7 @@ final readonly class ProductionCostCalculator
 
     private function jobCost(Recipe $recipe, float $runs, Cost $estimatedItemValue, StructureChoice $structureChoice, ProductionCostRequest $request): JobCost
     {
-        $solarSystemId = self::solarSystemOf($structureChoice, $recipe->activity, $request->favoriteSystems);
+        $solarSystemId = $request->favoriteSystems->systemOrFavorite($structureChoice->structure, $recipe->activity);
 
         return new JobCost(
             $recipe->productTypeId,
@@ -231,7 +231,7 @@ final readonly class ProductionCostCalculator
             $activity,
             $estimatedItemValue,
             $structureChoice,
-            self::solarSystemOf($structureChoice, $activity, $request->favoriteSystems),
+            $request->favoriteSystems->systemOrFavorite($structureChoice->structure, $activity),
             $request->alphaClone,
         );
     }
@@ -247,14 +247,6 @@ final readonly class ProductionCostCalculator
         return null === $structure
             ? InstallCost::forJob($activity, $estimatedItemValue, $costIndex, Multiplier::one(), self::NPC_STATION_FACILITY_TAX_RATE, $alphaClone)
             : InstallCost::forJob($activity, $estimatedItemValue, $costIndex, $structure->costRoleBonus, $structure->facilityTaxRate, $alphaClone);
-    }
-
-    /**
-     * System of the chosen structure, otherwise the favorite system of the activity; null when neither is known.
-     */
-    private static function solarSystemOf(StructureChoice $structureChoice, ActivityKind $activity, FavoriteSystems $favoriteSystems): ?int
-    {
-        return $structureChoice->structure->solarSystemId ?? $favoriteSystems->forActivity($activity);
     }
 
     /**

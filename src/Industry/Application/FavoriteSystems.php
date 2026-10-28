@@ -24,4 +24,16 @@ final readonly class FavoriteSystems
     {
         return ActivityKind::Reaction === $activity ? $this->reactionSystemId : $this->manufacturingSystemId;
     }
+
+    public function contains(ProductionStructure $structure, ActivityKind $activity): bool
+    {
+        $favoriteSystemId = $this->forActivity($activity);
+
+        return null !== $favoriteSystemId && $favoriteSystemId === $structure->solarSystemId;
+    }
+
+    public function systemOrFavorite(?ProductionStructure $structure, ActivityKind $activity): ?int
+    {
+        return $structure->solarSystemId ?? $this->forActivity($activity);
+    }
 }

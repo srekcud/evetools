@@ -36,6 +36,11 @@ final readonly class ProductionStructure
         return $this->type->canRun($activity);
     }
 
+    public function isAdaptedTo(string $productCategory): bool
+    {
+        return array_any($this->rigs, static fn (StructureRig $rig): bool => $rig->targets($productCategory));
+    }
+
     /**
      * mod_matériaux = mod_structure × Π mod_rig of the rigs targeting the category of the job product (spec R2, R4).
      * The role bonus only applies to manufacturing; a product without category only gets the role bonus.
