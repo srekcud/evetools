@@ -13,9 +13,11 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Cache\CacheItemInterface;
 use Psr\Cache\CacheItemPoolInterface;
+use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\ErrorHandler\BufferingLogger;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -121,6 +123,55 @@ class EsiCostIndexServiceTest extends TestCase
         $this->assertSame(0.0734, $service->getCostIndex(self::PERIMETER, 'manufacturing'));
         $this->assertSame(0.0021, $service->getCostIndex(self::PERIMETER, 'invention'));
         $this->assertNull($service->getCostIndex(self::PERIMETER, 'reaction'));
+    }
+
+    public function testSyncAdjustedPricesLogsTheFetchThenTheNumberOfCachedAdjustedPrices(): void
+    {
+        $logger = new BufferingLogger();
+        $service = $this->createService([
+            self::ADJUSTED_PRICES_PATH => [$this->jsonResponse($this->threeAdjustedPrices())],
+        ], self::PRODUCTION_ESI_BASE_URL, new ArrayAdapter(), $logger);
+
+        $service->syncAdjustedPrices();
+
+        $this->assertSame(
+            [
+                ['info', 'Fetching ESI adjusted prices', []],
+                ['info', 'ESI adjusted prices cached', ['count' => 2]],
+            ],
+            $logger->cleanLogs(),
+        );
+    }
+
+    public function testSyncCostIndicesLogsTheFetchThenTheNumberOfCachedSystems(): void
+    {
+        $logger = new BufferingLogger();
+        $service = $this->createService([
+            self::COST_INDICES_PATH => [$this->jsonResponse($this->twoSystemsCostIndices())],
+        ], self::PRODUCTION_ESI_BASE_URL, new ArrayAdapter(), $logger);
+
+        $service->syncCostIndices();
+
+        $this->assertSame(
+            [
+                ['info', 'Fetching ESI system cost indices', []],
+                ['info', 'ESI system cost indices cached', ['count' => 2]],
+            ],
+            $logger->cleanLogs(),
+        );
+    }
+
+    public function testWholeIskAdjustedPriceSentAsAnIntegerByEsiIsReadBackAsAFloat(): void
+    {
+        $service = $this->createService([
+            self::ADJUSTED_PRICES_PATH => [$this->jsonResponse([
+                ['type_id' => self::MORPHITE, 'adjusted_price' => 9512],
+                ['type_id' => self::PYERITE, 'adjusted_price' => 11.75],
+            ])],
+        ], self::PRODUCTION_ESI_BASE_URL, new ArrayAdapter());
+        $service->syncAdjustedPrices();
+
+        $this->assertSame([self::MORPHITE => 9512.0, self::PYERITE => 11.75], $service->getAdjustedPrices([self::MORPHITE, self::PYERITE]));
     }
 
     public function testSyncAdjustedPricesServerErrorThrowsAndStoresNothing(): void
@@ -508,7 +559,7 @@ class EsiCostIndexServiceTest extends TestCase
     /**
      * @param array<string, list<MockResponse>> $esiResponsesByPath responses consumed in order, per path
      */
-    private function createService(array $esiResponsesByPath, string $esiBaseUrl, CacheItemPoolInterface $esiCostIndexCache): EsiCostIndexService
+    private function createService(array $esiResponsesByPath, string $esiBaseUrl, CacheItemPoolInterface $esiCostIndexCache, LoggerInterface $logger = new NullLogger()): EsiCostIndexService
     {
         $esiHttpClient = $this->createSimulatedEsi($esiResponsesByPath, $esiBaseUrl);
 
@@ -527,7 +578,7 @@ class EsiCostIndexServiceTest extends TestCase
         return new EsiCostIndexService(
             esiClient: $esiClient,
             cache: $esiCostIndexCache,
-            logger: new NullLogger(),
+            logger: $logger,
         );
     }
 

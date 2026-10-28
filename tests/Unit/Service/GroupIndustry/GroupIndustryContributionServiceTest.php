@@ -308,6 +308,56 @@ class GroupIndustryContributionServiceTest extends TestCase
         $this->assertSame(1, $this->bomItem->getFulfilledQuantity());
     }
 
+    public function testSubmitAutoDetectedRecordsTheDetectedQuantityForTheMemberOnTheBomItemOfTheProject(): void
+    {
+        $this->givenNoExistingContribution();
+        $morphite = $this->morphiteBomItem();
+
+        $contribution = $this->service->submitAutoDetected($this->member, $morphite, ContributionType::Material, 120, 1092000.0);
+
+        $this->assertSame($this->project, $contribution->getProject());
+        $this->assertSame($this->member, $contribution->getMember());
+        $this->assertSame($morphite, $contribution->getBomItem());
+        $this->assertSame(120, $contribution->getQuantity());
+        $this->assertSame(1092000.0, $contribution->getEstimatedValue());
+        $this->assertSame(120, $morphite->getFulfilledQuantity());
+    }
+
+    public function testSubmitAutoDetectedIsRefusedWhenTheMemberAlreadyHasAPendingContributionOfThatTypeOnTheBomItem(): void
+    {
+        $this->givenExistingContributionWithStatus(ContributionStatus::Pending);
+        $this->entityManager->expects($this->never())->method('persist');
+
+        try {
+            $this->service->submitAutoDetected($this->member, $this->bomItem, ContributionType::JobInstall, 3, 482500.0);
+            $this->fail('A duplicate auto-detected contribution was accepted');
+        } catch (\DomainException $duplicate) {
+            $this->assertSame('A contribution of this type is already pending or approved for this item', $duplicate->getMessage());
+        }
+        $this->assertSame(0, $this->bomItem->getFulfilledQuantity());
+    }
+
+    public function testSubmitIsRefusedWhenTheMemberAlreadyHasAPendingContributionOfThatTypeOnTheBomItem(): void
+    {
+        $this->givenExistingContributionWithStatus(ContributionStatus::Pending);
+        $this->entityManager->expects($this->never())->method('persist');
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('A contribution of this type is already pending or approved for this item');
+
+        $this->service->submit($this->member, $this->bomItem, ContributionType::Bpc, 1, 36000.0);
+    }
+
+    public function testSubmitIsAcceptedWhenTheOnlyContributionOfThatTypeOnTheBomItemWasRejected(): void
+    {
+        $this->givenExistingContributionWithStatus(ContributionStatus::Rejected);
+        $this->entityManager->expects($this->once())->method('persist');
+
+        $contribution = $this->service->submit($this->member, $this->bomItem, ContributionType::Bpc, 1, 36000.0);
+
+        $this->assertSame(ContributionStatus::Pending, $contribution->getStatus());
+    }
+
     public function testCalculateMaterialValueWithUnknownPrice(): void
     {
         $this->jitaMarketService
@@ -511,6 +561,15 @@ class GroupIndustryContributionServiceTest extends TestCase
         $this->contributionRepository
             ->method('findByMemberBomItemAndType')
             ->willReturn(null);
+    }
+
+    private function givenExistingContributionWithStatus(ContributionStatus $status): void
+    {
+        $existing = new GroupIndustryContribution();
+        $existing->setStatus($status);
+        $this->contributionRepository
+            ->method('findByMemberBomItemAndType')
+            ->willReturnCallback(static fn (GroupIndustryProjectMember $member, GroupIndustryBomItem $bomItem, ContributionType $type, array $statuses): ?GroupIndustryContribution => in_array($status, $statuses, true) ? $existing : null);
     }
 
     private function morphiteBomItem(): GroupIndustryBomItem

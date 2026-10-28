@@ -328,6 +328,55 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         );
     }
 
+    public function testSameProductOnTwoItemsAtTheSameTeButDifferentMeGetsOneFinalJobPerItem(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 10, 20], [self::NITROGEN_FUEL_BLOCK, 1, 8, 20]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [
+                [self::NITROGEN_FUEL_BLOCK, 'copy', 'blueprint', 2, 0, 0, 2, null],
+                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 8, 20, 40, null],
+                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 10, 20, 40, null],
+            ],
+            $this->sortedJobs($this->jobs($project)),
+        );
+    }
+
+    public function testSameProductOnTwoItemsAtTheSameMeButDifferentTeGetsOneFinalJobPerItem(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 10, 20], [self::NITROGEN_FUEL_BLOCK, 1, 10, 14]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [
+                [self::NITROGEN_FUEL_BLOCK, 'copy', 'blueprint', 2, 0, 0, 2, null],
+                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 10, 14, 40, null],
+                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 10, 20, 40, null],
+            ],
+            $this->sortedJobs($this->jobs($project)),
+        );
+    }
+
+    public function testTwoProductsOnItemsAtTheSameMeAndTeEachGetTheirOwnFinalJob(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 10, 20], [self::HYDROGEN_FUEL_BLOCK, 1, 10, 20]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [
+                [self::NITROGEN_FUEL_BLOCK, 'copy', 'blueprint', 1, 0, 0, 1, null],
+                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 10, 20, 40, null],
+                [self::HYDROGEN_FUEL_BLOCK, 'copy', 'blueprint', 1, 0, 0, 1, null],
+                [self::HYDROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 10, 20, 40, null],
+            ],
+            $this->sortedJobs($this->jobs($project)),
+        );
+    }
+
     public function testProjectItemAtMeZeroKeepsTheBaseQuantitiesOfTheBlueprint(): void
     {
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 0, 0]]);

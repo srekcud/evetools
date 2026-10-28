@@ -82,6 +82,8 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
 
     private const float HAIL_L_ONE_RUN_TOTAL_PRODUCTION_COST = 587567.84;
     private const float HAIL_L_ONE_RUN_OPTIMAL_MIX_COST = 388252.5;
+    private const float FERNITE_CARBIDE_ONE_RUN_BUILD_COST = 175092.5;
+    private const int FERNITE_CARBIDE_ONE_RUN_QUANTITY = 2940;
 
     #[Group('issue-2')]
     #[Group('issue-101')]
@@ -186,6 +188,47 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
             ],
             array_map(static fn (array $component): array => [$component['typeId'], $component['savings']], $result['components']),
         );
+    }
+
+    public function testComponentWithUnknownSavingsIsSortedAfterAComponentWhoseBuildCostEqualsItsBuyCost(): void
+    {
+        $result = $this->analyzeHailL(
+            array_diff_key($this->hailLJitaPrices(), [self::RAM_AMMUNITION_TECH => true]),
+            ramStructurePrice: null,
+            ferniteCarbideStructurePrice: self::FERNITE_CARBIDE_ONE_RUN_BUILD_COST / self::FERNITE_CARBIDE_ONE_RUN_QUANTITY,
+        );
+
+        $this->assertSame(
+            [
+                [self::FERNITE_CARBIDE, 'build', 0.0],
+                [self::FULLERIDES, 'buy', -33785.0],
+                [self::RAM_AMMUNITION_TECH, 'build', null],
+            ],
+            array_map(static fn (array $component): array => [$component['typeId'], $component['verdict'], $component['savings']], $result['components']),
+        );
+    }
+
+    public function testUserWithoutIdIsRefusedBecauseItHasNoConfiguredStructure(): void
+    {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('A user without id has no configured structure.');
+
+        $this->analyzeHailL($this->hailLJitaPrices(), user: new User());
+    }
+
+    public function testProductWithoutBlueprintNorReactionCannotBeAnalyzed(): void
+    {
+        $service = $this->buyVsBuildServiceOnGoldenSde(
+            jitaPrices: $this->hailLJitaPrices(),
+            structurePrices: [],
+            adjustedPrices: $this->hailLAdjustedPrices(),
+            costIndices: self::FACTORY_COST_INDICES,
+        );
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Product 34 has no blueprint nor reaction: it cannot be built.');
+
+        $service->analyze(self::TRITANIUM, 1, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, self::BROKER_FEE_RATE, self::SALES_TAX_RATE, null);
     }
 
     #[Group('issue-98')]

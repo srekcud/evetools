@@ -382,6 +382,35 @@ class GroupIndustryDistributionServiceTest extends TestCase
         self::assertSame($aliceDist->totalCostsEngaged, $sumByType);
     }
 
+    public function testSeveralContributionsOfTheSameTypeAddUpInTheirCostLine(): void
+    {
+        $project = $this->stubProject(0.0, 0.0);
+        $alice = $this->stubMember('Alice', '00000000-0000-0000-0000-000000000001');
+        $this->configureRepositories($project, [$this->stubSale(46_000.0)], [
+            $this->stubContribution($alice, ContributionType::Material, 12_000.0),
+            $this->stubContribution($alice, ContributionType::JobInstall, 1_500.0),
+            $this->stubContribution($alice, ContributionType::Bpc, 4_000.0),
+            $this->stubContribution($alice, ContributionType::LineRental, 600.0),
+            $this->stubContribution($alice, ContributionType::Material, 3_400.0),
+            $this->stubContribution($alice, ContributionType::JobInstall, 2_750.0),
+            $this->stubContribution($alice, ContributionType::Bpc, 5_250.0),
+            $this->stubContribution($alice, ContributionType::LineRental, 450.0),
+        ]);
+
+        $aliceDistribution = $this->service->calculateDistribution($project)->members[0];
+
+        self::assertSame(
+            [15_400.0, 4_250.0, 9_250.0, 1_050.0, 29_950.0],
+            [
+                $aliceDistribution->materialCosts,
+                $aliceDistribution->jobInstallCosts,
+                $aliceDistribution->bpcCosts,
+                $aliceDistribution->lineRentalCosts,
+                $aliceDistribution->totalCostsEngaged,
+            ],
+        );
+    }
+
     public function testBrokerFeeAndSalesTaxApplied(): void
     {
         $project = $this->stubProject(5.0, 8.0);
