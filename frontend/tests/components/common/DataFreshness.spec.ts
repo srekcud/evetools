@@ -118,6 +118,60 @@ describe('DataFreshness', () => {
     expect(freshnessBadge(wrapper).attributes('title')).toBe(formatDateTimeLikeTheApp(lastSuccessAt))
   })
 
+  describe('in the UTC time zone', () => {
+    beforeEach(() => {
+      vi.stubEnv('TZ', 'UTC')
+    })
+
+    afterEach(() => {
+      vi.unstubAllEnvs()
+    })
+
+    it.each([
+      ['eu', '2026-10-25T23:45:00Z', '25/10 23:45'],
+      ['us', '2026-10-25T23:45:00Z', '10/25, 11:45 PM'],
+      ['eu', '2026-10-26T07:05:00Z', '26/10 07:05'],
+      ['us', '2026-10-26T07:05:00Z', '10/26, 07:05 AM'],
+    ] as const)('shows the last successful sync in the tooltip, %s date format, %s as %s', (format, lastSuccessAt, tooltip) => {
+      dateFormat.value = format
+
+      const { wrapper } = mountFreshness('adjusted-prices', {
+        lastSuccessAt,
+        expectedInterval: ADJUSTED_PRICES_INTERVAL,
+        lastRunFailed: false,
+      })
+
+      expect(freshnessBadge(wrapper).attributes('title')).toBe(tooltip)
+    })
+  })
+
+  it.each([
+    ['en', 'Jita prices · unknown date · last sync failed'],
+    ['fr', 'Prix Jita · date inconnue · dernière sync en échec'],
+  ] as const)('shows an unknown level when the last run failed without any successful sync (%s)', (locale, label) => {
+    const { wrapper } = mountFreshness('market-jita', {
+      lastSuccessAt: null,
+      expectedInterval: JITA_PRICES_INTERVAL,
+      lastRunFailed: true,
+    }, locale)
+
+    expect(freshnessBadge(wrapper).text()).toBe(label)
+    expect(freshnessBadge(wrapper).attributes('data-level')).toBe('unknown')
+    expect(freshnessBadge(wrapper).attributes('title')).toBeUndefined()
+  })
+
+  it('shows an unknown date and level when the last successful sync date is unreadable', () => {
+    const { wrapper } = mountFreshness('cost-indices', {
+      lastSuccessAt: 'not-a-date',
+      expectedInterval: COST_INDICES_INTERVAL,
+      lastRunFailed: false,
+    })
+
+    expect(freshnessBadge(wrapper).attributes('data-level')).toBe('unknown')
+    expect(freshnessBadge(wrapper).text()).toBe('Cost indices · unknown date')
+    expect(freshnessBadge(wrapper).attributes('title')).toBeUndefined()
+  })
+
   it.each([
     ['en', 'Jita prices · 29min ago', 'Jita prices · 30min ago'],
     ['fr', 'Prix Jita · il y a 29min', 'Prix Jita · il y a 30min'],

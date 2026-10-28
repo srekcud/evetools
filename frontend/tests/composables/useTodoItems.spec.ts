@@ -196,7 +196,7 @@ describe('useTodoItems, unknown sources', () => {
     const todo = await useTodoItemsWith({ planetaryStats: [serverError()] })
 
     expect(todo.items.value).toHaveLength(1)
-    expect(todo.items.value[0]).toMatchObject({ labelKey: 'unknownExtractors', count: null, characterNames: [], link: '/planetary' })
+    expect(todo.items.value[0]).toMatchObject({ labelKey: 'unknownExtractors', count: null, characterNames: [], level: null, link: '/planetary' })
     expect(todo.isAllCaughtUp.value).toBe(false)
   })
 
@@ -204,7 +204,7 @@ describe('useTodoItems, unknown sources', () => {
     const todo = await useTodoItemsWith({ marketAlerts: [serverError()] })
 
     expect(todo.items.value).toHaveLength(1)
-    expect(todo.items.value[0]).toMatchObject({ labelKey: 'unknownPriceAlerts', count: null, characterNames: [], link: '/market?tab=alerts' })
+    expect(todo.items.value[0]).toMatchObject({ labelKey: 'unknownPriceAlerts', count: null, characterNames: [], level: null, link: '/market?tab=alerts' })
     expect(todo.isAllCaughtUp.value).toBe(false)
   })
 
@@ -214,9 +214,9 @@ describe('useTodoItems, unknown sources', () => {
       marketAlerts: [serverError()],
     })
 
-    expect(todo.items.value.map(item => [item.labelKey, item.count, item.link])).toEqual([
-      ['expiredExtractors', 1, '/planetary'],
-      ['unknownPriceAlerts', null, '/market?tab=alerts'],
+    expect(todo.items.value.map(item => [item.labelKey, item.count, item.characterNames, item.level, item.link])).toEqual([
+      ['expiredExtractors', 1, [], 'critical', '/planetary'],
+      ['unknownPriceAlerts', null, [], null, '/market?tab=alerts'],
     ])
   })
 
@@ -224,7 +224,7 @@ describe('useTodoItems, unknown sources', () => {
     const todo = await useTodoItemsWith({ user: null })
 
     expect(todo.items.value).toHaveLength(1)
-    expect(todo.items.value[0]).toMatchObject({ labelKey: 'unknownCharacters', count: null, characterNames: [], link: '/characters' })
+    expect(todo.items.value[0]).toMatchObject({ labelKey: 'unknownCharacters', count: null, characterNames: [], level: null, link: '/characters' })
     expect(todo.isAllCaughtUp.value).toBe(false)
   })
 
@@ -259,6 +259,38 @@ describe('useTodoItems, live updates', () => {
 
     expect(apiCallsTo('/planetary/stats')).toBe(2)
     expect(todo.items.value.map(item => [item.labelKey, item.count])).toEqual([['unknownExtractors', null]])
+  })
+
+  it('does not show again the three triggered price alerts when the reload after a market price alert message fails', async () => {
+    const todo = await useTodoItemsWith({
+      marketAlerts: [[TRIGGERED_PYERITE_ALERT, TRIGGERED_MEXALLON_ALERT, TRIGGERED_NOCXIUM_ALERT, ACTIVE_TRITANIUM_ALERT], serverError()],
+    })
+    expect(todo.items.value.map(item => [item.labelKey, item.count])).toEqual([['triggeredPriceAlerts', 3]])
+
+    useSyncStore()
+    await receiveMercure({ alertType: 'market-price', data: { typeId: 36, typeName: 'Mexallon', currentPrice: 87.25 }, timestamp: '2026-10-27T13:20:00+00:00' })
+
+    expect(apiCallsTo('/market/alerts')).toBe(2)
+    expect(todo.items.value).toEqual([
+      { labelKey: 'unknownPriceAlerts', count: null, characterNames: [], level: null, link: '/market?tab=alerts' },
+    ])
+    expect(todo.isAllCaughtUp.value).toBe(false)
+  })
+
+  it.each([
+    ['started', 0],
+    ['in_progress', 45],
+  ] as const)('does not reload the planetary stats while the planetary sync is %s', async (status, progress) => {
+    const todo = await useTodoItemsWith({ planetaryStats: [planetaryStats({ expiringExtractors: 5 }), planetaryStats()] })
+
+    const syncStore = useSyncStore()
+    await receiveMercure({ syncType: 'planetary', status, progress, message: null, data: null, timestamp: '2026-10-27T14:05:00+00:00' })
+
+    expect(syncStore.planetaryProgress?.status).toBe(status)
+    expect(apiCallsTo('/planetary/stats')).toBe(1)
+    expect(todo.items.value).toEqual([
+      { labelKey: 'expiringExtractors', count: 5, characterNames: [], level: 'warning', link: '/planetary' },
+    ])
   })
 
   it('reloads the price alerts on a market price alert message and lists the triggered alert', async () => {
