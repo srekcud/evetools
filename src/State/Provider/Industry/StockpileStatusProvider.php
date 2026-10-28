@@ -40,6 +40,7 @@ class StockpileStatusProvider implements ProviderInterface
         $resource->shoppingList = $status['shoppingList'];
         $resource->importsWithoutPlan = $status['importsWithoutPlan'];
         $resource->failedProducts = $status['failedProducts'];
+        $resource->missingPriceTypeIds = $status['missingPriceTypeIds'];
 
         return $resource;
     }

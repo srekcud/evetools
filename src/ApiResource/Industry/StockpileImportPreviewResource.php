@@ -30,7 +30,7 @@ class StockpileImportPreviewResource
 
     public int $totalItems = 0;
 
-    public float $estimatedCost = 0.0;
+    public ?float $estimatedCost = null;
 
     /** @var list<int> */
     public array $missingPriceTypeIds = [];

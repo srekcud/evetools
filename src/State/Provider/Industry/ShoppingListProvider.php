@@ -123,11 +123,11 @@ class ShoppingListProvider implements ProviderInterface
         $enrichedMaterials = [];
         $totals = new ShoppingListTotalsResource();
         $importTotal = 0.0;
-        $jitaWithImportTotal = 0.0;
         $savingsVsJitaWithImport = 0.0;
         $savingsVsStructure = 0.0;
         $volumeTotal = 0.0;
         $missingVolumeTypeIds = [];
+        $missingPriceTypeIds = [];
 
         foreach ($materials as $mat) {
             $typeId = $mat['typeId'];
@@ -144,6 +144,10 @@ class ShoppingListProvider implements ProviderInterface
 
             $jitaPrice = $priceData !== null ? ($priceData['jita'][$typeId] ?? null) : null;
             $structurePrice = $priceData !== null ? ($priceData['structure'][$typeId] ?? null) : null;
+
+            if ($jitaPrice === null && $structurePrice === null) {
+                $missingPriceTypeIds[$typeId] = $typeId;
+            }
 
             $jitaTotal = $jitaPrice !== null ? $jitaPrice * $quantity : null;
             $structureTotal = $structurePrice !== null ? $structurePrice * $quantity : null;
@@ -174,18 +178,11 @@ class ShoppingListProvider implements ProviderInterface
                 $bestPrice = $structureTotal;
             }
 
-            if ($jitaTotal !== null) {
-                $totals->jita += $jitaTotal;
-            }
-            if ($importCost !== null && $jitaWithImport !== null) {
+            $totals->jita = $jitaTotal === null || $totals->jita === null ? null : $totals->jita + $jitaTotal;
+            $totals->structure = $structureTotal === null || $totals->structure === null ? null : $totals->structure + $structureTotal;
+            $totals->best = $bestPrice === null || $totals->best === null ? null : $totals->best + $bestPrice;
+            if ($importCost !== null) {
                 $importTotal += $importCost;
-                $jitaWithImportTotal += $jitaWithImport;
-            }
-            if ($structureTotal !== null) {
-                $totals->structure += $structureTotal;
-            }
-            if ($bestPrice !== null) {
-                $totals->best += $bestPrice;
             }
             if ($totalItemVolume !== null) {
                 $volumeTotal += $totalItemVolume;
@@ -224,10 +221,10 @@ class ShoppingListProvider implements ProviderInterface
 
         $everyVolumeIsKnown = $missingVolumeTypeIds === [];
         $totals->import = $everyVolumeIsKnown ? $importTotal : null;
-        $totals->jitaWithImport = $everyVolumeIsKnown ? $jitaWithImportTotal : null;
+        $totals->jitaWithImport = $totals->jita === null || $totals->import === null ? null : $totals->jita + $totals->import;
         $totals->volume = $everyVolumeIsKnown ? $volumeTotal : null;
-        $totals->savingsVsJitaWithImport = $everyVolumeIsKnown ? $savingsVsJitaWithImport : null;
-        $totals->savingsVsStructure = $savingsVsStructure;
+        $totals->savingsVsJitaWithImport = $everyVolumeIsKnown && $priceError === null ? $savingsVsJitaWithImport : null;
+        $totals->savingsVsStructure = $priceError === null ? $savingsVsStructure : null;
 
         $structureLastSync = null;
         if ($priceData !== null && $priceData['structureLastSync'] !== null) {
@@ -247,6 +244,8 @@ class ShoppingListProvider implements ProviderInterface
         $resource->priceError = $priceError;
         ksort($missingVolumeTypeIds);
         $resource->missingVolumeTypeIds = array_values($missingVolumeTypeIds);
+        ksort($missingPriceTypeIds);
+        $resource->missingPriceTypeIds = array_values($missingPriceTypeIds);
         $resource->failedProducts = $shoppingList['failedProducts'];
 
         return $resource;
