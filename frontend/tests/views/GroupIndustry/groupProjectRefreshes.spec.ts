@@ -16,8 +16,8 @@ describe('groupProjectRefreshes', () => {
     expect(sortedRefreshesFor(action)).toEqual(['members', 'projectDetail'])
   })
 
-  it('refreshes the sales and the distribution on sale_recorded', () => {
-    expect(sortedRefreshesFor('sale_recorded')).toEqual(['distribution', 'sales'])
+  it.each(['sale_recorded', 'sale_updated', 'sale_deleted'])('refreshes the sales and the distribution on %s', (action) => {
+    expect(sortedRefreshesFor(action)).toEqual(['distribution', 'sales'])
   })
 
   it('refreshes the project detail and the BOM on status_changed', () => {

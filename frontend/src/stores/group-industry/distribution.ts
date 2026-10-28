@@ -7,6 +7,7 @@ import type {
   GroupMember,
   LineRentalRates,
   RecordSaleInput,
+  UpdateSaleInput,
 } from './types'
 
 export const useGroupDistributionStore = defineStore('group-distribution', () => {
@@ -15,6 +16,9 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
   const members = ref<GroupMember[]>([])
   const lineRentalRates = ref<LineRentalRates | null>(null)
   const loading = ref(false)
+  const loadingDistribution = ref(false)
+  const loadingSales = ref(false)
+  const loadingMembers = ref(false)
   const error = ref<string | null>(null)
 
   async function fetchDistribution(projectId: string): Promise<void> {
@@ -61,6 +65,14 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
       error.value = e instanceof Error ? e.message : 'Failed to record sale'
       throw e
     }
+  }
+
+  async function updateSale(_projectId: string, _saleId: string, _input: UpdateSaleInput): Promise<GroupSale> {
+    throw new Error('not implemented')
+  }
+
+  async function deleteSale(_projectId: string, _saleId: string): Promise<void> {
+    throw new Error('not implemented')
   }
 
   async function fetchMembers(projectId: string): Promise<void> {
@@ -163,10 +175,15 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     members,
     lineRentalRates,
     loading,
+    loadingDistribution,
+    loadingSales,
+    loadingMembers,
     error,
     fetchDistribution,
     fetchSales,
     recordSale,
+    updateSale,
+    deleteSale,
     fetchMembers,
     updateMember,
     kickMember,

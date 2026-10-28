@@ -17,6 +17,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
@@ -96,6 +97,51 @@ class RecordSaleProcessorTest extends TestCase
         self::assertSame(1, $this->persistedSales);
     }
 
+    #[Group('issue-164')]
+    public function testAdminRecordsAnIshtarSaleAtItsAtomSaleDate(): void
+    {
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_ADMIN));
+
+        $resource = $this->recordIshtarSale(['soldAt' => '2026-10-25T14:30:00+00:00']);
+
+        self::assertSame(
+            [0, 'Ishtar', 5, 1200000.0, 6000000.0, '2026-10-25T14:30:00+00:00'],
+            [$resource->typeId, $resource->typeName, $resource->quantity, $resource->unitPrice, $resource->totalPrice, $resource->soldAt],
+        );
+    }
+
+    #[Group('issue-164')]
+    public function testSaleDateWrittenZIsRecordedAsUtc(): void
+    {
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_ADMIN));
+
+        $resource = $this->recordIshtarSale(['soldAt' => '2026-10-25T14:30:00Z']);
+
+        self::assertSame('2026-10-25T14:30:00+00:00', $resource->soldAt);
+    }
+
+    #[Group('issue-164')]
+    public function testSaleWithoutSaleDateIsDatedAtItsRecording(): void
+    {
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_ADMIN));
+        $recordingStart = new \DateTimeImmutable('-1 second');
+
+        $resource = $this->recordIshtarSale([]);
+
+        $soldAt = new \DateTimeImmutable($resource->soldAt);
+        self::assertTrue($soldAt >= $recordingStart && $soldAt <= new \DateTimeImmutable('+1 second'), $resource->soldAt);
+    }
+
+    #[Group('issue-164')]
+    public function testFreeIshtarSaleIsRecordedWithAZeroTotal(): void
+    {
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_ADMIN));
+
+        $resource = $this->recordIshtarSale(['unitPrice' => 0.0]);
+
+        self::assertSame([0.0, 0.0, 1], [$resource->unitPrice, $resource->totalPrice, $this->persistedSales]);
+    }
+
     public static function recordSaleMatrix(): iterable
     {
         yield 'A1 owner' => [self::OWNER, self::GRANTED];
@@ -134,6 +180,21 @@ class RecordSaleProcessorTest extends TestCase
         $this->security->method('getUser')->willReturn(null);
 
         self::assertSame([self::UNAUTHORIZED, 0], [$this->outcomeOf(fn () => $this->recordOrcaSale($this->sabreBatch->getId())), $this->persistedSales]);
+    }
+
+    private function recordIshtarSale(array $changes): GroupIndustrySaleResource
+    {
+        $this->sabreBatch->setStatus(GroupProjectStatus::Selling);
+
+        $input = new RecordSaleInput();
+        $fields = array_merge(['typeId' => 0, 'typeName' => 'Ishtar', 'quantity' => 5, 'unitPrice' => 1200000.0], $changes);
+        foreach ($fields as $field => $value) {
+            $input->{$field} = $value;
+        }
+
+        return $this->processor->process($input, new Post(), [
+            'projectId' => $this->sabreBatch->getId()->toRfc4122(),
+        ]);
     }
 
     private function recordOrcaSale(Uuid $projectId): GroupIndustrySaleResource

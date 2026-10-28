@@ -195,3 +195,12 @@ export type RecordSaleInput = {
   venue?: string
   soldAt?: string
 }
+
+export type UpdateSaleInput = {
+  typeId?: number
+  typeName?: string
+  quantity?: number
+  unitPrice?: number
+  venue?: string
+  soldAt?: string
+}
