@@ -7,6 +7,7 @@ namespace App\Service\Industry;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Enum\IndustryActivityType;
 use App\Exception\BlueprintProductMissingFromSdeException;
+use App\Exception\ProducerMissingFromSdeException;
 use App\Repository\Sde\IndustryActivityProductRepository;
 
 final class SplitGroupMaterials
@@ -25,11 +26,17 @@ final class SplitGroupMaterials
 
     public static function outputPerRunOf(IndustryActivityProductRepository $productRepository, int $blueprintTypeId, string $activityType): int
     {
-        $product = $productRepository->findOneBy([
-            'typeId' => $blueprintTypeId,
-            'activityId' => self::activityIdOf($activityType),
-        ]);
+        return self::outputPerRunOfProduct(
+            $productRepository->findOneBy([
+                'typeId' => $blueprintTypeId,
+                'activityId' => self::activityIdOf($activityType),
+            ]),
+            $blueprintTypeId,
+        );
+    }
 
+    public static function outputPerRunOfProduct(?IndustryActivityProduct $product, int $blueprintTypeId): int
+    {
         if ($product === null) {
             throw new BlueprintProductMissingFromSdeException($blueprintTypeId);
         }
@@ -37,14 +44,11 @@ final class SplitGroupMaterials
         return $product->getQuantity();
     }
 
-    public static function outputPerRunOfProduct(?IndustryActivityProduct $product, int $blueprintTypeId): int
-    {
-        return 1;
-    }
-
     public static function producerOf(IndustryActivityProductRepository $productRepository, int $productTypeId): IndustryActivityProduct
     {
-        return (new IndustryActivityProduct())->setQuantity(1);
+        return $productRepository->findBlueprintForProduct($productTypeId, IndustryActivityType::Manufacturing->value)
+            ?? $productRepository->findBlueprintForProduct($productTypeId, IndustryActivityType::Reaction->value)
+            ?? throw new ProducerMissingFromSdeException($productTypeId);
     }
 
     public static function activityIdOf(string $activityType): int

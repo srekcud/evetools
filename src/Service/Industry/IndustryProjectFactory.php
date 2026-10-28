@@ -313,7 +313,7 @@ class IndustryProjectFactory
 
         $activityType = $node['activityType'];
         $key = self::stepKey($node['blueprintTypeId'], $activityType);
-        $outputPerRun = $node['outputPerRun'] ?? 1;
+        $outputPerRun = $node['outputPerRun'];
 
         // Determine ME/TE for this step based on depth and activity type
         $depth = $node['depth'];

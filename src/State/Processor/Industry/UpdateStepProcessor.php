@@ -11,11 +11,13 @@ use App\ApiResource\Input\Industry\UpdateStepInput;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\User;
+use App\Exception\BlueprintProductMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryStepCalculator;
+use App\Service\Industry\SplitGroupMaterials;
 use App\Service\Industry\SplitGroupQuantities;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
@@ -65,6 +67,16 @@ class UpdateStepProcessor implements ProcessorInterface
 
         assert($data instanceof UpdateStepInput);
 
+        try {
+            return $this->update($project, $step, $data);
+        } catch (BlueprintProductMissingFromSdeException $missingProduct) {
+            throw new BadRequestHttpException($missingProduct->getMessage(), $missingProduct);
+        }
+    }
+
+    /** @return ProjectStepResource|list<ProjectStepResource> */
+    private function update(IndustryProject $project, IndustryProjectStep $step, UpdateStepInput $data): ProjectStepResource|array
+    {
         $needsCascade = false;
 
         if ($data->purchased !== null) {
@@ -103,7 +115,7 @@ class UpdateStepProcessor implements ProcessorInterface
         }
 
         if ($data->runs !== null && $data->runs >= 1) {
-            $quantityPerRun = $this->getQuantityPerRun($step->getBlueprintTypeId(), $step->getActivityType());
+            $quantityPerRun = SplitGroupMaterials::outputPerRunOf($this->activityProductRepository, $step->getBlueprintTypeId(), $step->getActivityType());
             $needRuns = $this->stepCalculator->needRunsOf($project, $step);
             $runs = $needRuns === null ? $data->runs : $this->fixRunsEnteredOnTheJob($project, $step, $data->runs, $needRuns, $data->overproduce === true);
             $step->setRuns($runs);
@@ -116,20 +128,18 @@ class UpdateStepProcessor implements ProcessorInterface
             $needsCascade = true;
         }
 
+        $cascadedSteps = $needsCascade ? $this->stepCalculator->recalculateStepQuantities($project) : [];
+
         $this->entityManager->flush();
 
-        if ($needsCascade) {
-            $cascadedSteps = $this->stepCalculator->recalculateStepQuantities($project);
-
-            if (!empty($cascadedSteps)) {
-                $updatedStepResources = [$this->mapper->stepToResource($step)];
-                foreach ($cascadedSteps as $updatedStep) {
-                    if ($updatedStep !== $step) {
-                        $updatedStepResources[] = $this->mapper->stepToResource($updatedStep);
-                    }
+        if (!empty($cascadedSteps)) {
+            $updatedStepResources = [$this->mapper->stepToResource($step)];
+            foreach ($cascadedSteps as $updatedStep) {
+                if ($updatedStep !== $step) {
+                    $updatedStepResources[] = $this->mapper->stepToResource($updatedStep);
                 }
-                return $updatedStepResources;
             }
+            return $updatedStepResources;
         }
 
         return $this->mapper->stepToResource($step);
@@ -190,21 +200,5 @@ class UpdateStepProcessor implements ProcessorInterface
         usort($jobs, static fn (IndustryProjectStep $a, IndustryProjectStep $b): int => $a->getSplitIndex() <=> $b->getSplitIndex());
 
         return $jobs;
-    }
-
-    private function getQuantityPerRun(int $blueprintTypeId, string $activityType): int
-    {
-        $activityId = match ($activityType) {
-            'manufacturing' => 1,
-            'reaction' => 11,
-            default => 1,
-        };
-
-        $product = $this->activityProductRepository->findOneBy([
-            'typeId' => $blueprintTypeId,
-            'activityId' => $activityId,
-        ]);
-
-        return $product?->getQuantity() ?? 1;
     }
 }

@@ -186,13 +186,8 @@ class ProductionCostService
      */
     private function calculateTotalOutputQuantity(IndustryProject $project): int
     {
-        $product = $this->productRepository->findBlueprintForProduct(
-            $project->getProductTypeId(),
-            IndustryActivityType::Manufacturing->value,
-        );
+        $producer = SplitGroupMaterials::producerOf($this->productRepository, $project->getProductTypeId());
 
-        $outputPerRun = $product?->getQuantity() ?? 1;
-
-        return $project->getRuns() * $outputPerRun;
+        return $project->getRuns() * $producer->getQuantity();
     }
 }

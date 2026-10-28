@@ -101,8 +101,9 @@ class IndustryStepCalculator
      */
     private function outputPerRunOf(IndustryProjectStep $step, array $productsByKey): int
     {
-        $product = $productsByKey[ProductionStepGraph::blueprintKeyOf($step)] ?? null;
-
-        return $product?->getQuantity() ?? 1;
+        return SplitGroupMaterials::outputPerRunOfProduct(
+            $productsByKey[ProductionStepGraph::blueprintKeyOf($step)] ?? null,
+            $step->getBlueprintTypeId(),
+        );
     }
 }

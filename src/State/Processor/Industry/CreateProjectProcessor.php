@@ -15,6 +15,7 @@ use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryProjectFactory;
 use App\Service\Industry\ProductionCostService;
+use App\Service\Industry\SplitGroupMaterials;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\State\Provider\Industry\IndustryResourceMapper;
@@ -114,9 +115,8 @@ class CreateProjectProcessor implements ProcessorInterface
             }
 
             if ($bestPrice !== null) {
-                $product = $this->activityProductRepository->findBlueprintForProduct($productTypeId, 1);
-                $outputPerRun = $product?->getQuantity() ?? 1;
-                $estimatedSellTotal = $bestPrice * $project->getRuns() * $outputPerRun;
+                $producer = SplitGroupMaterials::producerOf($this->activityProductRepository, $productTypeId);
+                $estimatedSellTotal = $bestPrice * $project->getRuns() * $producer->getQuantity();
                 $project->setEstimatedSellPrice($estimatedSellTotal);
                 $project->setEstimatedSellPriceSource($source);
                 $project->setEstimatedTaxAmount($estimatedSellTotal * $this->sellTaxRate($user));
