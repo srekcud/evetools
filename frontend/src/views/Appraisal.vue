@@ -363,19 +363,6 @@ async function shareAppraisal(): Promise<void> {
     isSharing.value = false
   }
 }
-
-function formatRelativeTime(isoDate: string | null): string {
-  if (!isoDate) return ''
-  const date = new Date(isoDate)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMins / 60)
-  if (diffMins < 1) return t('common.time.justNow')
-  if (diffMins < 60) return t('common.time.minutesAgo', { minutes: diffMins })
-  if (diffHours < 24) return t('common.time.hoursAgo', { hours: diffHours })
-  return formatTimeSince(isoDate)
-}
 </script>
 
 <template>
@@ -566,7 +553,7 @@ function formatRelativeTime(isoDate: string | null): string {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <span class="text-[11px] text-slate-500">
-                {{ shortStructureName }} {{ t('appraisal.pricesUpdated') }} {{ formatRelativeTime(shoppingResult.structureLastSync) }}
+                {{ shortStructureName }} {{ t('appraisal.pricesUpdated') }} {{ formatTimeSince(shoppingResult.structureLastSync) }}
               </span>
             </div>
 

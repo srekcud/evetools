@@ -40,6 +40,7 @@
       "justNow": "just now",
       "minutesAgo": "{minutes}min ago",
       "hoursAgo": "{hours}h ago",
+      "daysAgo": "{days}d ago",
       "day": "day | day | days",
       "hour": "hour | hour | hours",
       "minute": "minute | minute | minutes",
@@ -48,6 +49,15 @@
       "perDay": "/ day",
       "perHour": "/ hour",
       "perCycle": "/cycle"
+    },
+    "dataFreshness": {
+      "sources": {
+        "market-jita": "Jita prices",
+        "cost-indices": "Cost indices",
+        "adjusted-prices": "Adjusted prices"
+      },
+      "unknownDate": "unknown date",
+      "lastSyncFailed": "last sync failed"
     },
     "units": {
       "colony": "colony | colony | colonies",

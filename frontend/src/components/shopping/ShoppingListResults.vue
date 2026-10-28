@@ -62,7 +62,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const { formatIsk, formatNumber, formatDateTime } = useFormatters()
+const { formatIsk, formatNumber, formatTimeSince } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
 
 const missingVolumeTypeNamesText = computed(() => missingVolumeTypeNames(props.items, props.missingVolumeTypeIds))
@@ -106,20 +106,6 @@ const structureMultibuyFormat = computed(() => {
 const shortStructureName = computed(() => {
   return props.structureName?.split(' - ')[0] || 'Structure'
 })
-
-function formatRelativeTime(isoDate: string | null): string {
-  if (!isoDate) return ''
-  const date = new Date(isoDate)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMins / 60)
-
-  if (diffMins < 1) return t('common.time.justNow')
-  if (diffMins < 60) return t('common.time.minutesAgo', { minutes: diffMins })
-  if (diffHours < 24) return t('common.time.hoursAgo', { hours: diffHours })
-  return formatDateTime(isoDate)
-}
 
 function copyToClipboard(text: string, type: 'jita' | 'structure') {
   if (!text) return
@@ -194,7 +180,7 @@ function copyToClipboard(text: string, type: 'jita' | 'structure') {
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
-      Prix {{ shortStructureName }} mis a jour {{ formatRelativeTime(structureLastSync) }}
+      Prix {{ shortStructureName }} mis a jour {{ formatTimeSince(structureLastSync) }}
     </div>
 
     <!-- Summary -->

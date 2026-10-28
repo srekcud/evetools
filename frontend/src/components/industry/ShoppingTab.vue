@@ -52,7 +52,7 @@ const { t } = useI18n()
 const store = useIndustryStore()
 const syncStore = useSyncStore()
 const purchasesStore = usePurchasesStore()
-const { formatDateTime } = useFormatters()
+const { formatTimeSince } = useFormatters()
 const { typeNameLabel } = useTypeNames()
 
 // Shopping list state
@@ -355,20 +355,6 @@ async function applyAsMaterialCost() {
   await store.updateProject(props.projectId, { materialCost: roundedCost })
 }
 
-function formatRelativeTime(isoDate: string | null): string {
-  if (!isoDate) return ''
-  const date = new Date(isoDate)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMins / 60)
-
-  if (diffMins < 1) return t('common.time.justNow')
-  if (diffMins < 60) return t('common.time.minutesAgo', { minutes: diffMins })
-  if (diffHours < 24) return t('common.time.hoursAgo', { hours: diffHours })
-  return formatDateTime(isoDate)
-}
-
 // Called by parent when tab is activated
 async function activate() {
   if (store.currentProject?.status === 'completed') return
@@ -609,7 +595,7 @@ defineExpose({
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            {{ formatRelativeTime(shoppingStructureLastSync) }}
+            {{ formatTimeSince(shoppingStructureLastSync) }}
           </div>
         </div>
         <button
