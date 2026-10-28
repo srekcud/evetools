@@ -27,6 +27,67 @@ class IndustryBonusServiceTest extends TestCase
     private const int REACTION_FORMULA_TYPE_ID = 46166;
     private const int REACTION_FORMULA_GROUP_ID = 1888;
 
+    private const array MANUFACTURING_CATEGORIES = [
+        'basic_small_ship',
+        'basic_medium_ship',
+        'basic_large_ship',
+        'advanced_small_ship',
+        'advanced_medium_ship',
+        'advanced_large_ship',
+        'capital_ship',
+        'basic_capital_component',
+        'advanced_component',
+        'equipment',
+        'ammunition',
+        'drone',
+        'fighter',
+        'structure',
+        'structure_component',
+    ];
+
+    private const array M_SET_RIG_CATEGORIES = [
+        'Basic Small Ship' => ['basic_small_ship'],
+        'Basic Medium Ship' => ['basic_medium_ship'],
+        'Basic Large Ship' => ['basic_large_ship'],
+        'Advanced Small Ship' => ['advanced_small_ship'],
+        'Advanced Medium Ship' => ['advanced_medium_ship'],
+        'Advanced Large Ship' => ['advanced_large_ship'],
+        'Basic Capital Component' => ['basic_capital_component'],
+        'Advanced Component' => ['advanced_component'],
+        'Equipment' => ['equipment'],
+        'Ammunition' => ['ammunition'],
+        'Drone and Fighter' => ['drone', 'fighter'],
+        'Structure' => ['structure', 'structure_component'],
+    ];
+
+    private const array L_SET_RIG_CATEGORIES = [
+        'Basic Small Ship' => ['basic_small_ship'],
+        'Basic Medium Ship' => ['basic_medium_ship'],
+        'Basic Large Ship' => ['basic_large_ship'],
+        'Advanced Small Ship' => ['advanced_small_ship'],
+        'Advanced Medium Ship' => ['advanced_medium_ship'],
+        'Advanced Large Ship' => ['advanced_large_ship'],
+        'Capital Ship' => ['capital_ship'],
+        'Basic Capital Component' => ['basic_capital_component'],
+        'Advanced Component' => ['advanced_component'],
+        'Equipment' => ['equipment'],
+        'Ammunition' => ['ammunition'],
+        'Drone and Fighter' => ['drone', 'fighter'],
+        'Structure' => ['structure', 'structure_component'],
+    ];
+
+    private const array XL_SET_RIG_CATEGORIES = [
+        'Ship' => ['basic_small_ship', 'basic_medium_ship', 'basic_large_ship', 'advanced_small_ship', 'advanced_medium_ship', 'advanced_large_ship', 'capital_ship'],
+        'Equipment and Consumable' => ['equipment', 'ammunition', 'drone', 'fighter'],
+        'Structure and Component' => ['structure', 'structure_component', 'basic_capital_component', 'advanced_component'],
+    ];
+
+    private const array REACTOR_RIG_CATEGORIES = [
+        'Composite' => 'composite_reaction',
+        'Biochemical' => 'biochemical_reaction',
+        'Hybrid' => 'hybrid_reaction',
+    ];
+
     private IndustryBonusService $bonusService;
 
     protected function setUp(): void
@@ -497,6 +558,8 @@ class IndustryBonusServiceTest extends TestCase
         yield 'XL-Set on structure component, highsec: 2.0 x 0.1' => [$xlSet, 'highsec', 'structure_component', 0.2, 1.2];
         yield 'XL-Set on structure component, lowsec: 2.0 x 1.9' => [$xlSet, 'lowsec', 'structure_component', 3.8, 4.76];
         yield 'XL-Set on structure component, nullsec: 2.0 x 0.1' => [$xlSet, 'nullsec', 'structure_component', 0.2, 1.2];
+        yield 'XL-Set on structure, lowsec: 2.0 x 1.9' => [$xlSet, 'lowsec', 'structure', 3.8, 4.76];
+        yield 'XL-Set on advanced component, lowsec: 2.0 x 1.9, not 3.7' => [$xlSet, 'lowsec', 'advanced_component', 3.8, 4.76];
         yield 'M-Set advanced component, highsec: 2.0 x 0.1' => [$mSetAdvanced, 'highsec', 'advanced_component', 0.2, 1.2];
         yield 'M-Set advanced component, lowsec: 2.0 x 1.9' => [$mSetAdvanced, 'lowsec', 'advanced_component', 3.8, 4.76];
         yield 'L-Set advanced component, nullsec: 2.0 x 0.1' => [$lSetAdvanced, 'nullsec', 'advanced_component', 0.2, 1.2];
@@ -539,6 +602,40 @@ class IndustryBonusServiceTest extends TestCase
         );
 
         $this->assertSame($expectedTimeBonus, $this->bonusService->calculateStructureTimeBonusForCategory($sotiyo, 'structure_component'));
+    }
+
+    public static function thukkerXlSetRigTimeBonusCategoryProvider(): iterable
+    {
+        yield 'structure: 1 - 0.70 x (1 - 0.38)' => ['structure', 56.6];
+        yield 'basic capital component: 1 - 0.70 x (1 - 0.38)' => ['basic_capital_component', 56.6];
+        yield 'advanced component: 1 - 0.70 x (1 - 0.38)' => ['advanced_component', 56.6];
+    }
+
+    #[DataProvider('thukkerXlSetRigTimeBonusCategoryProvider')]
+    public function testThukkerXlSetRigTimeBonusOnALowsecSotiyoAppliesToEachTargetedCategory(string $category, float $expectedTimeBonus): void
+    {
+        $sotiyo = $this->createStructure(
+            'Test Sotiyo',
+            'sotiyo',
+            'lowsec',
+            ['Standup XL-Set Thukker Structure and Component Manufacturing Efficiency'],
+        );
+
+        $this->assertSame($expectedTimeBonus, $this->bonusService->calculateStructureTimeBonusForCategory($sotiyo, $category));
+    }
+
+    public static function thukkerLSetRigProvider(): iterable
+    {
+        yield 'basic capital component rig: 1 - 0.80 x (1 - 0.38)' => ['Standup L-Set Thukker Basic Capital Component Manufacturing Efficiency', 'basic_capital_component', 50.4];
+        yield 'advanced component rig: 1 - 0.80 x (1 - 0.38)' => ['Standup L-Set Thukker Advanced Component Manufacturing Efficiency', 'advanced_component', 50.4];
+    }
+
+    #[DataProvider('thukkerLSetRigProvider')]
+    public function testThukkerLSetRigTimeBonusOnAnAzbel(string $thukkerRig, string $category, float $expectedTimeBonus): void
+    {
+        $azbel = $this->createStructure('Test Azbel', 'azbel', 'lowsec', [$thukkerRig]);
+
+        $this->assertSame($expectedTimeBonus, $this->bonusService->calculateStructureTimeBonusForCategory($azbel, $category));
     }
 
     public function testThukkerMSetMaterialEfficiencyRigHasNoTimeBonus(): void
@@ -857,6 +954,218 @@ class IndustryBonusServiceTest extends TestCase
             ['total' => 2.4, 'base' => 0.0, 'rig' => 2.4],
             $this->bonusService->calculateStructureBonusForCategory($athanor, 'composite_reaction'),
         );
+    }
+
+    public static function mSetRigBonusProvider(): iterable
+    {
+        foreach (self::M_SET_RIG_CATEGORIES as $family => $categories) {
+            foreach ($categories as $category) {
+                yield "$family material efficiency I on $category: 2.0 % materials, no time" => ["Standup M-Set $family Manufacturing Material Efficiency I", $category, 2.0, 15.0];
+                yield "$family material efficiency II on $category: 2.4 % materials, no time" => ["Standup M-Set $family Manufacturing Material Efficiency II", $category, 2.4, 15.0];
+                yield "$family time efficiency I on $category: no materials, 20 % time" => ["Standup M-Set $family Manufacturing Time Efficiency I", $category, 0.0, 32.0];
+                yield "$family time efficiency II on $category: no materials, 24 % time" => ["Standup M-Set $family Manufacturing Time Efficiency II", $category, 0.0, 35.4];
+            }
+        }
+    }
+
+    #[DataProvider('mSetRigBonusProvider')]
+    public function testMSetRigOfARaitaruInHighsecGivesItsMaterialOrTimeBonusToEachTargetedCategory(
+        string $rig,
+        string $category,
+        float $expectedRigMaterialBonus,
+        float $expectedTimeBonusWithTheRaitaruBase,
+    ): void {
+        $raitaru = $this->createStructure('Test Raitaru', 'raitaru', 'highsec', [$rig]);
+
+        $this->assertSame($expectedRigMaterialBonus, $this->bonusService->calculateStructureBonusForCategory($raitaru, $category)['rig']);
+        $this->assertSame($expectedTimeBonusWithTheRaitaruBase, $this->bonusService->calculateStructureTimeBonusForCategory($raitaru, $category));
+    }
+
+    public static function lSetRigBonusProvider(): iterable
+    {
+        foreach (self::L_SET_RIG_CATEGORIES as $family => $categories) {
+            foreach ($categories as $category) {
+                yield "$family efficiency I on $category: 2.0 % materials, 20 % time" => ["Standup L-Set $family Manufacturing Efficiency I", $category, 2.0, 36.0];
+                yield "$family efficiency II on $category: 2.4 % materials, 24 % time" => ["Standup L-Set $family Manufacturing Efficiency II", $category, 2.4, 39.2];
+            }
+        }
+    }
+
+    #[DataProvider('lSetRigBonusProvider')]
+    public function testLSetRigOfAnAzbelInHighsecGivesBothItsMaterialAndTimeBonusToEachTargetedCategory(
+        string $rig,
+        string $category,
+        float $expectedRigMaterialBonus,
+        float $expectedTimeBonusWithTheAzbelBase,
+    ): void {
+        $azbel = $this->createStructure('Test Azbel', 'azbel', 'highsec', [$rig]);
+
+        $this->assertSame($expectedRigMaterialBonus, $this->bonusService->calculateStructureBonusForCategory($azbel, $category)['rig']);
+        $this->assertSame($expectedTimeBonusWithTheAzbelBase, $this->bonusService->calculateStructureTimeBonusForCategory($azbel, $category));
+    }
+
+    public static function xlSetRigBonusProvider(): iterable
+    {
+        foreach (self::XL_SET_RIG_CATEGORIES as $family => $categories) {
+            foreach ($categories as $category) {
+                yield "$family efficiency I on $category: 2.0 % materials, 20 % time" => ["Standup XL-Set $family Manufacturing Efficiency I", $category, 2.0, 44.0];
+                yield "$family efficiency II on $category: 2.4 % materials, 24 % time" => ["Standup XL-Set $family Manufacturing Efficiency II", $category, 2.4, 46.8];
+            }
+        }
+    }
+
+    #[DataProvider('xlSetRigBonusProvider')]
+    public function testXlSetRigOfASotiyoInHighsecGivesBothItsMaterialAndTimeBonusToEachTargetedCategory(
+        string $rig,
+        string $category,
+        float $expectedRigMaterialBonus,
+        float $expectedTimeBonusWithTheSotiyoBase,
+    ): void {
+        $sotiyo = $this->createStructure('Test Sotiyo', 'sotiyo', 'highsec', [$rig]);
+
+        $this->assertSame($expectedRigMaterialBonus, $this->bonusService->calculateStructureBonusForCategory($sotiyo, $category)['rig']);
+        $this->assertSame($expectedTimeBonusWithTheSotiyoBase, $this->bonusService->calculateStructureTimeBonusForCategory($sotiyo, $category));
+    }
+
+    public static function mSetReactorRigBonusProvider(): iterable
+    {
+        foreach (self::REACTOR_RIG_CATEGORIES as $family => $category) {
+            yield "$family reactor material efficiency I: 2.0 % materials, no time" => ["Standup M-Set $family Reactor Material Efficiency I", $category, 2.0];
+            yield "$family reactor material efficiency II: 2.4 % materials, no time" => ["Standup M-Set $family Reactor Material Efficiency II", $category, 2.4];
+        }
+    }
+
+    #[DataProvider('mSetReactorRigBonusProvider')]
+    public function testMSetReactorRigOfAnAthanorInLowsecGivesOnlyItsMaterialBonusToItsReactionCategory(
+        string $rig,
+        string $category,
+        float $expectedRigMaterialBonus,
+    ): void {
+        $athanor = $this->createStructure('Test Athanor', 'athanor', 'lowsec', [$rig]);
+
+        $this->assertSame(
+            ['total' => $expectedRigMaterialBonus, 'base' => 0.0, 'rig' => $expectedRigMaterialBonus],
+            $this->bonusService->calculateStructureBonusForCategory($athanor, $category),
+        );
+        $this->assertSame(0.0, $this->bonusService->calculateStructureTimeBonusForCategory($athanor, $category));
+    }
+
+    public static function lSetReactorRigBonusProvider(): iterable
+    {
+        foreach (self::REACTOR_RIG_CATEGORIES as $category) {
+            yield "reactor efficiency I on $category: 2.0 % materials, 20 % time" => ['Standup L-Set Reactor Efficiency I', $category, 2.0, 40.0];
+            yield "reactor efficiency II on $category: 2.4 % materials, 24 % time" => ['Standup L-Set Reactor Efficiency II', $category, 2.4, 43.0];
+        }
+    }
+
+    #[DataProvider('lSetReactorRigBonusProvider')]
+    public function testLSetReactorRigOfATataraInLowsecGivesBothItsMaterialAndTimeBonusToEachReactionCategory(
+        string $rig,
+        string $category,
+        float $expectedRigMaterialBonus,
+        float $expectedTimeBonusWithTheTataraBase,
+    ): void {
+        $tatara = $this->createStructure('Test Tatara', 'tatara', 'lowsec', [$rig]);
+
+        $this->assertSame(
+            ['total' => $expectedRigMaterialBonus, 'base' => 0.0, 'rig' => $expectedRigMaterialBonus],
+            $this->bonusService->calculateStructureBonusForCategory($tatara, $category),
+        );
+        $this->assertSame($expectedTimeBonusWithTheTataraBase, $this->bonusService->calculateStructureTimeBonusForCategory($tatara, $category));
+    }
+
+    public static function rigAndCategoryItDoesNotTargetProvider(): iterable
+    {
+        $manufacturingRigs = [
+            'Standup M-Set Thukker Basic Capital Component Manufacturing Material Efficiency' => ['basic_capital_component'],
+            'Standup M-Set Thukker Advanced Component Manufacturing Material Efficiency' => ['advanced_component'],
+            'Standup L-Set Thukker Basic Capital Component Manufacturing Efficiency' => ['basic_capital_component'],
+            'Standup L-Set Thukker Advanced Component Manufacturing Efficiency' => ['advanced_component'],
+            'Standup XL-Set Thukker Structure and Component Manufacturing Efficiency' => ['structure', 'structure_component', 'basic_capital_component', 'advanced_component'],
+        ];
+        foreach (self::M_SET_RIG_CATEGORIES as $family => $categories) {
+            $manufacturingRigs["Standup M-Set $family Manufacturing Material Efficiency I"] = $categories;
+            $manufacturingRigs["Standup M-Set $family Manufacturing Time Efficiency I"] = $categories;
+        }
+        foreach (self::L_SET_RIG_CATEGORIES as $family => $categories) {
+            $manufacturingRigs["Standup L-Set $family Manufacturing Efficiency I"] = $categories;
+        }
+        foreach (self::XL_SET_RIG_CATEGORIES as $family => $categories) {
+            $manufacturingRigs["Standup XL-Set $family Manufacturing Efficiency I"] = $categories;
+        }
+
+        foreach ($manufacturingRigs as $rig => $targetedCategories) {
+            foreach (array_diff(self::MANUFACTURING_CATEGORIES, $targetedCategories) as $category) {
+                yield "$rig on $category" => [$rig, 'raitaru', 'highsec', $category, 15.0];
+            }
+            foreach (self::REACTOR_RIG_CATEGORIES as $category) {
+                yield "$rig on $category" => [$rig, 'raitaru', 'highsec', $category, 0.0];
+            }
+        }
+
+        foreach (self::REACTOR_RIG_CATEGORIES as $family => $targetedCategory) {
+            $rig = "Standup M-Set $family Reactor Material Efficiency I";
+            foreach (array_diff(self::REACTOR_RIG_CATEGORIES, [$targetedCategory]) as $category) {
+                yield "$rig on $category" => [$rig, 'athanor', 'lowsec', $category, 0.0];
+            }
+            foreach (self::MANUFACTURING_CATEGORIES as $category) {
+                yield "$rig on $category" => [$rig, 'athanor', 'lowsec', $category, 0.0];
+            }
+        }
+
+        foreach (self::MANUFACTURING_CATEGORIES as $category) {
+            yield "Standup L-Set Reactor Efficiency I on $category" => ['Standup L-Set Reactor Efficiency I', 'tatara', 'lowsec', $category, 0.0];
+        }
+    }
+
+    #[DataProvider('rigAndCategoryItDoesNotTargetProvider')]
+    public function testRigDoesNotApplyToACategoryItDoesNotTarget(
+        string $rig,
+        string $structureType,
+        string $securityType,
+        string $category,
+        float $expectedBaseTimeBonusOnly,
+    ): void {
+        $structure = $this->createStructure('Test structure', $structureType, $securityType, [$rig]);
+
+        $this->assertSame(0.0, $this->bonusService->calculateStructureBonusForCategory($structure, $category)['rig']);
+        $this->assertSame($expectedBaseTimeBonusOnly, $this->bonusService->calculateStructureTimeBonusForCategory($structure, $category));
+    }
+
+    public static function nullsecRigProvider(): iterable
+    {
+        yield 'M-Set equipment ME II on a Raitaru: 2.4 x 2.1 = 5.04, 1 - 0.99 x 0.9496' => [
+            'Standup M-Set Equipment Manufacturing Material Efficiency II', 'raitaru', 'equipment', ['total' => 5.99, 'base' => 1.0, 'rig' => 5.04], 15.0,
+        ];
+        yield 'M-Set equipment TE II on a Raitaru: 24 x 2.1 = 50.4, 1 - 0.85 x 0.496' => [
+            'Standup M-Set Equipment Manufacturing Time Efficiency II', 'raitaru', 'equipment', ['total' => 1.0, 'base' => 1.0, 'rig' => 0.0], 57.84,
+        ];
+        yield 'L-Set ammunition I on an Azbel: 2.0 x 2.1 = 4.2 and 20 x 2.1 = 42, 1 - 0.80 x 0.58' => [
+            'Standup L-Set Ammunition Manufacturing Efficiency I', 'azbel', 'ammunition', ['total' => 5.16, 'base' => 1.0, 'rig' => 4.2], 53.6,
+        ];
+        yield 'XL-Set ship II on a Sotiyo: 2.4 x 2.1 = 5.04 and 24 x 2.1 = 50.4, 1 - 0.70 x 0.496' => [
+            'Standup XL-Set Ship Manufacturing Efficiency II', 'sotiyo', 'capital_ship', ['total' => 5.99, 'base' => 1.0, 'rig' => 5.04], 65.28,
+        ];
+        yield 'M-Set biochemical reactor ME I on an Athanor: 2.0 x 1.1 = 2.2' => [
+            'Standup M-Set Biochemical Reactor Material Efficiency I', 'athanor', 'biochemical_reaction', ['total' => 2.2, 'base' => 0.0, 'rig' => 2.2], 0.0,
+        ];
+        yield 'L-Set reactor II on a Tatara: 2.4 x 1.1 = 2.64 and 24 x 1.1 = 26.4, 1 - 0.75 x 0.736' => [
+            'Standup L-Set Reactor Efficiency II', 'tatara', 'hybrid_reaction', ['total' => 2.64, 'base' => 0.0, 'rig' => 2.64], 44.8,
+        ];
+    }
+
+    #[DataProvider('nullsecRigProvider')]
+    public function testRigInNullsecIsScaledByTheSecurityModifierOfItsActivity(
+        string $rig,
+        string $structureType,
+        string $category,
+        array $expectedMaterialBonus,
+        float $expectedTimeBonus,
+    ): void {
+        $structure = $this->createStructure('Test structure', $structureType, 'nullsec', [$rig]);
+
+        $this->assertSame($expectedMaterialBonus, $this->bonusService->calculateStructureBonusForCategory($structure, $category));
+        $this->assertSame($expectedTimeBonus, $this->bonusService->calculateStructureTimeBonusForCategory($structure, $category));
     }
 
     private function bonusServiceKnowingAReactionProduct(): IndustryBonusService
