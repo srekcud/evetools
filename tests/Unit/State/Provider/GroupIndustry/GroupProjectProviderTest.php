@@ -5,16 +5,14 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
 use ApiPlatform\Metadata\Get;
-use App\Entity\GroupIndustryProject;
-use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\GroupIndustryProjectRepository;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
+use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use App\State\Provider\GroupIndustry\GroupProjectProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -24,155 +22,133 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(GroupProjectProvider::class)]
 class GroupProjectProviderTest extends TestCase
 {
-    private const OWNER_CORPORATION_ID = 98000001;
-    private const OTHER_CORPORATION_ID = 98000002;
+    use GroupProjectAccessProfiles;
 
     private Security&Stub $security;
-    private GroupIndustryProject $project;
-
-    /** @var GroupIndustryProjectMember[] */
-    private array $memberships = [];
-
     private GroupProjectProvider $provider;
 
     protected function setUp(): void
     {
-        $owner = $this->createStub(User::class);
-        $owner->method('getCorporationId')->willReturn(self::OWNER_CORPORATION_ID);
-
-        $this->project = new GroupIndustryProject();
-        $this->project->setOwner($owner);
-        $this->project->setName('Sabre batch');
-        (new \ReflectionProperty(GroupIndustryProject::class, 'id'))->setValue($this->project, Uuid::v4());
-
+        $this->createSabreBatch();
         $this->security = $this->createStub(Security::class);
-
-        $projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
-        $projectRepository->method('find')->willReturn($this->project);
-
-        // In-memory repository: findOneBy matches every criterion against the stored rows
-        $memberRepository = $this->createStub(GroupIndustryProjectMemberRepository::class);
-        $memberRepository->method('findOneBy')->willReturnCallback(
-            function (array $criteria): ?GroupIndustryProjectMember {
-                foreach ($this->memberships as $membership) {
-                    if ($this->membershipMatches($membership, $criteria)) {
-                        return $membership;
-                    }
-                }
-
-                return null;
-            },
-        );
+        $memberRepository = $this->sabreBatchMemberRepository();
 
         $this->provider = new GroupProjectProvider(
             $this->security,
-            $projectRepository,
+            $this->sabreBatchProjectRepository(),
             $memberRepository,
+            new GroupProjectAccessChecker($memberRepository),
             new GroupIndustryResourceMapper(),
         );
     }
 
     public function testAcceptedMemberFromAnotherCorporationSeesProjectWithHisRole(): void
     {
-        $user = $this->userOfCorporation(self::OTHER_CORPORATION_ID);
-        $this->addMembership($user, GroupMemberRole::Admin, GroupMemberStatus::Accepted);
+        $this->actAs($this->sabreBatchMember(self::FOREIGN_CORPORATION_ID, GroupMemberRole::Admin, GroupMemberStatus::Accepted));
 
-        $resource = $this->provider->provide(new Get(), ['id' => $this->project->getId()->toRfc4122()]);
+        $resource = $this->provider->provide(new Get(), ['id' => $this->sabreBatch->getId()->toRfc4122()]);
 
         self::assertSame('Sabre batch', $resource->name);
         self::assertSame('admin', $resource->myRole);
     }
 
-    // --- Issue #10: a removed (kicked) member is treated like a non-member ---
-
     public function testRemovedMemberFromAnotherCorporationIsDenied(): void
     {
-        $user = $this->userOfCorporation(self::OTHER_CORPORATION_ID);
-        $this->addMembership($user, GroupMemberRole::Member, GroupMemberStatus::Removed);
+        $this->actAs($this->sabreBatchMember(self::FOREIGN_CORPORATION_ID, GroupMemberRole::Member, GroupMemberStatus::Removed));
 
         $this->expectException(AccessDeniedHttpException::class);
         $this->expectExceptionMessage('You do not have access to this project');
 
-        $this->provider->provide(new Get(), ['id' => $this->project->getId()->toRfc4122()]);
+        $this->provider->provide(new Get(), ['id' => $this->sabreBatch->getId()->toRfc4122()]);
     }
 
     public function testRemovedMemberFromOwnerCorporationSeesProjectWithoutRole(): void
     {
-        $user = $this->userOfCorporation(self::OWNER_CORPORATION_ID);
-        $this->addMembership($user, GroupMemberRole::Admin, GroupMemberStatus::Removed);
+        $this->actAs($this->sabreBatchMember(self::OWNER_CORPORATION_ID, GroupMemberRole::Admin, GroupMemberStatus::Removed));
 
-        $resource = $this->provider->provide(new Get(), ['id' => $this->project->getId()->toRfc4122()]);
+        $resource = $this->provider->provide(new Get(), ['id' => $this->sabreBatch->getId()->toRfc4122()]);
 
         self::assertSame('Sabre batch', $resource->name);
         self::assertNull($resource->myRole);
     }
 
-    // --- myStatus: lets the front tell an accepted membership from a pending one ---
-
     public function testAcceptedMemberSeesAcceptedStatus(): void
     {
-        $user = $this->userOfCorporation(self::OTHER_CORPORATION_ID);
-        $this->addMembership($user, GroupMemberRole::Member, GroupMemberStatus::Accepted);
+        $this->actAs($this->sabreBatchMember(self::FOREIGN_CORPORATION_ID, GroupMemberRole::Member, GroupMemberStatus::Accepted));
 
-        $resource = $this->provider->provide(new Get(), ['id' => $this->project->getId()->toRfc4122()]);
+        $resource = $this->provider->provide(new Get(), ['id' => $this->sabreBatch->getId()->toRfc4122()]);
 
-        self::assertTrue(property_exists($resource, 'myStatus'), 'GroupIndustryProjectResource::$myStatus is missing');
         self::assertSame('accepted', $resource->myStatus);
     }
 
     public function testSameCorporationNonMemberHasNoStatus(): void
     {
-        $this->userOfCorporation(self::OWNER_CORPORATION_ID);
+        $this->actAs($this->userOfCorporation(self::OWNER_CORPORATION_ID));
 
-        $resource = $this->provider->provide(new Get(), ['id' => $this->project->getId()->toRfc4122()]);
+        $resource = $this->provider->provide(new Get(), ['id' => $this->sabreBatch->getId()->toRfc4122()]);
 
-        self::assertTrue(property_exists($resource, 'myStatus'), 'GroupIndustryProjectResource::$myStatus is missing');
         self::assertNull($resource->myStatus);
         self::assertNull($resource->myRole);
     }
 
-    private function userOfCorporation(int $corporationId): User&Stub
+    public static function projectReadMatrix(): iterable
     {
-        $user = $this->createStub(User::class);
-        $user->method('getCorporationId')->willReturn($corporationId);
+        yield 'A1 owner' => [self::OWNER, 'Sabre batch owner/accepted'];
+        yield 'A2 accepted admin' => [self::ACCEPTED_ADMIN, 'Sabre batch admin/accepted'];
+        yield 'A3 accepted member' => [self::ACCEPTED_MEMBER, 'Sabre batch member/accepted'];
+        yield 'A4 pending member' => [self::PENDING_MEMBER, self::NO_ACCESS];
+        yield 'A5 owner corporation without membership' => [self::OWNER_CORPORATION_NON_MEMBER, 'Sabre batch -/-'];
+        yield 'A6 owner corporation pending member' => [self::OWNER_CORPORATION_PENDING_MEMBER, 'Sabre batch -/-'];
+        yield 'A7 owner corporation removed former admin' => [self::OWNER_CORPORATION_REMOVED_FORMER_ADMIN, 'Sabre batch -/-'];
+        yield 'A8 removed member' => [self::REMOVED_MEMBER, self::NO_ACCESS];
+        yield 'A9 stranger' => [self::STRANGER, self::NO_ACCESS];
+        yield 'A10 user without corporation' => [self::USER_WITHOUT_CORPORATION, self::NO_ACCESS];
+        yield 'A12 accepted admin of a completed project' => [self::ACCEPTED_ADMIN_OF_COMPLETED_PROJECT, 'Sabre batch admin/accepted'];
+        yield 'A13 stranger to a completed project' => [self::STRANGER_TO_COMPLETED_PROJECT, self::NO_ACCESS];
+    }
+
+    #[DataProvider('projectReadMatrix')]
+    public function testProjectIsReadWithTheRoleAndStatusOfTheAcceptedMembershipOnly(string $profile, string $expectedOutcome): void
+    {
+        $this->actAs($this->userWithProfile($profile));
+
+        self::assertSame($expectedOutcome, $this->readSabreBatch($this->sabreBatch->getId()));
+    }
+
+    public function testUnknownProjectIsNotFoundBeforeAnyAccessCheck(): void
+    {
+        $this->actAs($this->userOfCorporation(self::FOREIGN_CORPORATION_ID));
+
+        self::assertSame(self::PROJECT_NOT_FOUND, $this->readSabreBatch(Uuid::v4()));
+    }
+
+    public function testMissingUserIsUnauthorized(): void
+    {
+        $this->security->method('getUser')->willReturn(null);
+
+        self::assertSame(self::UNAUTHORIZED, $this->readSabreBatch($this->sabreBatch->getId()));
+    }
+
+    public function testOwnerWithoutCorporationNorMembershipReadsHisProjectByIdentity(): void
+    {
+        $this->sabreBatchMemberships = [];
+        $this->createSabreBatch(ownerCorporationId: null, withOwnerMembership: false);
+        $this->actAs($this->sabreBatchOwner);
+
+        self::assertSame('Sabre batch -/-', $this->readSabreBatch($this->sabreBatch->getId()));
+    }
+
+    private function actAs(User $user): void
+    {
         $this->security->method('getUser')->willReturn($user);
-
-        return $user;
     }
 
-    private function addMembership(User $user, GroupMemberRole $role, GroupMemberStatus $status): void
+    private function readSabreBatch(Uuid $projectId): string
     {
-        $membership = new GroupIndustryProjectMember();
-        $membership->setUser($user);
-        $membership->setRole($role);
-        $membership->setStatus($status);
-        $this->project->addMember($membership);
+        return $this->outcomeOf(function () use ($projectId): string {
+            $resource = $this->provider->provide(new Get(), ['id' => $projectId->toRfc4122()]);
 
-        $this->memberships[] = $membership;
-    }
-
-    /**
-     * @param array<string, mixed> $criteria
-     */
-    private function membershipMatches(GroupIndustryProjectMember $membership, array $criteria): bool
-    {
-        $values = [
-            'project' => $membership->getProject(),
-            'user' => $membership->getUser(),
-            'role' => $membership->getRole(),
-            'status' => $membership->getStatus(),
-        ];
-
-        foreach ($criteria as $field => $expected) {
-            if (!array_key_exists($field, $values)) {
-                self::fail("Unexpected criterion '{$field}'");
-            }
-            $accepted = is_array($expected) ? $expected : [$expected];
-            if (!in_array($values[$field], $accepted, true)) {
-                return false;
-            }
-        }
-
-        return true;
+            return sprintf('%s %s/%s', $resource->name, $resource->myRole ?? '-', $resource->myStatus ?? '-');
+        });
     }
 }

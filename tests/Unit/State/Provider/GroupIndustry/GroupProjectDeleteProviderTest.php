@@ -24,6 +24,8 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(GroupProjectDeleteProvider::class)]
@@ -118,6 +120,33 @@ class GroupProjectDeleteProviderTest extends TestCase
         $this->expectExceptionMessage('Only the project owner can delete this project');
 
         $this->provideFor($admin);
+    }
+
+    public function testDeletionWithoutUserIsUnauthorized(): void
+    {
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn(null);
+        $projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
+        $projectRepository->method('find')->willReturn($this->project);
+
+        $this->expectException(UnauthorizedHttpException::class);
+
+        (new GroupProjectDeleteProvider($security, $projectRepository))
+            ->provide(new Delete(), ['id' => $this->project->getId()->toRfc4122()]);
+    }
+
+    public function testDeletionOfAnUnknownProjectIsNotFound(): void
+    {
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn($this->owner);
+        $projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
+        $projectRepository->method('find')->willReturn(null);
+
+        $this->expectException(NotFoundHttpException::class);
+        $this->expectExceptionMessage('Project not found');
+
+        (new GroupProjectDeleteProvider($security, $projectRepository))
+            ->provide(new Delete(), ['id' => Uuid::v4()->toRfc4122()]);
     }
 
     private function addContribution(ContributionStatus $status, int $quantity): void

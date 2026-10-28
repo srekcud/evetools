@@ -10,6 +10,7 @@ use App\Industry\Domain\Recipe;
 use App\Industry\Infrastructure\Sde\SdeBlueprintCatalog;
 use App\Tests\Integration\IntegrationTestCase;
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Adapter of the BlueprintCatalog port over the SDE tables (ADR-0009, spec R1-R3):
@@ -226,6 +227,26 @@ final class SdeBlueprintCatalogTest extends IntegrationTestCase
         $this->expectExceptionMessageMatches('/'.self::SYNTHETIC_BLUEPRINT_WITHOUT_LIMIT.'/');
 
         $catalog->recipeFor(self::SYNTHETIC_PRODUCT);
+    }
+
+    #[Group('issue-160')]
+    public function testBlueprintImportedWithAMaxProductionLimitOfZeroIsAnExplicitErrorNamingIt(): void
+    {
+        $this->insertProducer(self::SYNTHETIC_BLUEPRINT_WITHOUT_LIMIT, self::ACTIVITY_MANUFACTURING, self::SYNTHETIC_PRODUCT, 10, 600, 0, [
+            self::SYNTHETIC_MATERIAL => 7,
+        ]);
+        $catalog = $this->catalog();
+
+        $failure = null;
+        try {
+            $catalog->recipeFor(self::SYNTHETIC_PRODUCT);
+        } catch (\Throwable $throwable) {
+            $failure = $throwable;
+        }
+
+        $this->assertInstanceOf(\UnexpectedValueException::class, $failure);
+        $this->assertStringContainsString('Blueprint '.self::SYNTHETIC_BLUEPRINT_WITHOUT_LIMIT, $failure->getMessage());
+        $this->assertMatchesRegularExpression('/(?<![\w-])0(?!\w)/', str_replace((string) self::SYNTHETIC_BLUEPRINT_WITHOUT_LIMIT, '', $failure->getMessage()));
     }
 
     private function catalog(): SdeBlueprintCatalog

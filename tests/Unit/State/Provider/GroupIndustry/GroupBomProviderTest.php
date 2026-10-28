@@ -16,7 +16,9 @@ use App\Repository\GroupIndustryBomItemRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
 use App\State\Provider\GroupIndustry\GroupBomProvider;
+use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -28,6 +30,8 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(GroupBomProvider::class)]
 class GroupBomProviderTest extends TestCase
 {
+    use GroupProjectAccessProfiles;
+
     private Security&Stub $security;
     private GroupIndustryProjectRepository&Stub $projectRepository;
     private GroupIndustryBomItemRepository&Stub $bomItemRepository;
@@ -45,7 +49,7 @@ class GroupBomProviderTest extends TestCase
             $this->security,
             $this->projectRepository,
             $this->bomItemRepository,
-            $this->memberRepository,
+            new GroupProjectAccessChecker($this->memberRepository),
         );
     }
 
@@ -228,6 +232,39 @@ class GroupBomProviderTest extends TestCase
         $result = $this->provider->provide(new GetCollection(), ['projectId' => Uuid::v4()->toString()]);
 
         $this->assertNull($result[0]->estimatedTotal);
+    }
+
+    #[DataProvider('readAccessMatrix')]
+    public function testBomIsReadByTheOwnerAcceptedMembersAndTheOwnerCorporation(string $profile, string $expectedOutcome): void
+    {
+        $this->createSabreBatch();
+        $this->security->method('getUser')->willReturn($this->userWithProfile($profile));
+
+        self::assertSame($expectedOutcome, $this->readSabreBatchBom($this->sabreBatch->getId()));
+    }
+
+    public function testBomOfAnUnknownProjectIsNotFound(): void
+    {
+        $this->createSabreBatch();
+        $this->security->method('getUser')->willReturn($this->userOfCorporation(self::FOREIGN_CORPORATION_ID));
+
+        self::assertSame(self::PROJECT_NOT_FOUND, $this->readSabreBatchBom(Uuid::v4()));
+    }
+
+    private function readSabreBatchBom(Uuid $projectId): string
+    {
+        $bomItemRepository = $this->createStub(GroupIndustryBomItemRepository::class);
+        $bomItemRepository->method('findBy')->willReturn([
+            $this->createBomItem(11399, 'Ferox', 7, 2, null, true, 'final', 'manufacturing', null, 10, 20, 7),
+        ]);
+        $provider = new GroupBomProvider(
+            $this->security,
+            $this->sabreBatchProjectRepository(),
+            $bomItemRepository,
+            new GroupProjectAccessChecker($this->sabreBatchMemberRepository()),
+        );
+
+        return $this->outcomeOf(fn () => $provider->provide(new GetCollection(), ['projectId' => $projectId->toRfc4122()]));
     }
 
     // ===========================================

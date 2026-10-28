@@ -44,7 +44,6 @@ use App\Message\SyncCharacterAssets;
 use App\MessageHandler\SyncCharacterAssetsHandler;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CorpAssetVisibilityRepository;
-use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
 use App\Repository\GroupIndustrySaleRepository;
 use App\Service\Account\AccountDeletionService;
@@ -56,6 +55,7 @@ use App\Service\GroupIndustry\DistributionResult;
 use App\Service\GroupIndustry\GroupIndustryDistributionService;
 use App\Service\Sync\AssetsSyncService;
 use App\State\Provider\Assets\CorpAssetVisibilityProvider;
+use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use App\State\Provider\GroupIndustry\GroupSaleCollectionProvider;
 use App\Tests\Integration\IntegrationTestCase;
 use Doctrine\DBAL\ArrayParameterType;
@@ -820,7 +820,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         $provider = new GroupSaleCollectionProvider(
             $security,
             self::getContainer()->get(GroupIndustryProjectRepository::class),
-            self::getContainer()->get(GroupIndustryProjectMemberRepository::class),
+            self::getContainer()->get(GroupProjectAccessChecker::class),
             self::getContainer()->get(GroupIndustrySaleRepository::class),
         );
 

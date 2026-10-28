@@ -129,7 +129,7 @@ final class GroupMemberCollectionProviderTest extends IntegrationTestCase
         self::assertSame('owner', $members['Aria Solberg']->role);
         self::assertSame(0.0, $members['Aria Solberg']->totalContributionValue);
         self::assertSame(0, $members['Aria Solberg']->contributionCount);
-        self::assertSame(0, $members['Unknown']->characterId);
+        self::assertNull($members['Unknown']->characterId);
         self::assertNull($members['Unknown']->corporationId);
         self::assertNull($members['Unknown']->corporationName);
         self::assertSame('accepted', $members['Unknown']->status);

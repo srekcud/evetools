@@ -13,6 +13,8 @@ use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Repository\Sde\IndustryBlueprintRepository;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(SdeBlueprintCatalog::class)]
@@ -57,6 +59,44 @@ final class SdeBlueprintCatalogOutputPerRunTest extends TestCase
         $this->expectExceptionMessage('A recipe yields at least 1 unit per run, got 0.');
 
         $catalog->recipeFor(self::SYNTHETIC_PRODUCT);
+    }
+
+    public static function maxProductionLimitBelowOneProvider(): iterable
+    {
+        yield 'blueprint imported with a limit of 0' => [self::ACTIVITY_MANUFACTURING, 25, 0, self::SYNTHETIC_BLUEPRINT_BASE_TIME_SECONDS, '/(?<![\w-])0(?!\w)/'];
+        yield 'blueprint with a negative limit' => [self::ACTIVITY_MANUFACTURING, 25, -1, self::SYNTHETIC_BLUEPRINT_BASE_TIME_SECONDS, '/(?<!\w)-1(?!\w)/'];
+        yield 'reaction formula imported with a limit of 0' => [self::ACTIVITY_REACTION, 200, 0, self::SYNTHETIC_REACTION_FORMULA_BASE_TIME_SECONDS, '/(?<![\w-])0(?!\w)/'];
+        yield 'reaction formula with a limit of -7' => [self::ACTIVITY_REACTION, 200, -7, self::SYNTHETIC_REACTION_FORMULA_BASE_TIME_SECONDS, '/(?<!\w)-7(?!\w)/'];
+    }
+
+    #[DataProvider('maxProductionLimitBelowOneProvider')]
+    #[Group('issue-160')]
+    public function testMaxProductionLimitBelowOneIsAnExplicitErrorNamingTheBlueprintAndTheLimitRead(int $activityId, int $outputPerRun, int $maxProductionLimit, int $baseTimeSeconds, string $limitReadPattern): void
+    {
+        $catalog = $this->catalogWithOneProducer($activityId, $outputPerRun, $maxProductionLimit, $baseTimeSeconds);
+
+        $failure = null;
+        try {
+            $catalog->recipeFor(self::SYNTHETIC_PRODUCT);
+        } catch (\Throwable $throwable) {
+            $failure = $throwable;
+        }
+
+        $this->assertInstanceOf(\UnexpectedValueException::class, $failure);
+        $this->assertStringContainsString('Blueprint '.self::SYNTHETIC_BLUEPRINT, $failure->getMessage());
+        $this->assertMatchesRegularExpression($limitReadPattern, str_replace((string) self::SYNTHETIC_BLUEPRINT, '', $failure->getMessage()));
+    }
+
+    #[Group('issue-160')]
+    public function testMaxProductionLimitOfOneIsKeptOnTheRecipe(): void
+    {
+        $catalog = $this->catalogWithOneProducer(self::ACTIVITY_MANUFACTURING, 25, 1, self::SYNTHETIC_BLUEPRINT_BASE_TIME_SECONDS);
+
+        $recipe = $catalog->recipeFor(self::SYNTHETIC_PRODUCT);
+
+        $this->assertNotNull($recipe);
+        $this->assertSame(1, $recipe->maxProductionLimit->value);
+        $this->assertSame(25, $recipe->outputPerRun->value);
     }
 
     private function catalogWithOneProducer(int $activityId, int $outputPerRun, int $maxProductionLimit, int $baseTimeSeconds): SdeBlueprintCatalog

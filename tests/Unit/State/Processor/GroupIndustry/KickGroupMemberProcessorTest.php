@@ -317,6 +317,72 @@ class KickGroupMemberProcessorTest extends TestCase
         self::assertSame('removed', $member->getStatus()->value);
     }
 
+    public function testAdminCannotKickAnotherAdmin(): void
+    {
+        $this->actAsAdmin();
+
+        $adminId = Uuid::v4();
+        $otherAdmin = $this->acceptedMember($adminId, 'Other Admin Pilot', GroupMemberRole::Admin);
+        $this->memberRepository->method('find')->willReturn($otherAdmin);
+
+        $this->hub->expects($this->never())->method('publish');
+        $this->entityManager->expects($this->never())->method('flush');
+
+        try {
+            $this->kick($adminId);
+            self::fail('An admin kicked another admin');
+        } catch (AccessDeniedHttpException $exception) {
+            self::assertSame('Only the project owner can manage an admin', $exception->getMessage());
+        }
+
+        self::assertSame(['accepted', 'admin'], [$otherAdmin->getStatus()->value, $otherAdmin->getRole()->value]);
+    }
+
+    public function testAdminCannotKickARemovedAdmin(): void
+    {
+        $this->actAsAdmin();
+
+        $adminId = Uuid::v4();
+        $removedAdmin = $this->acceptedMember($adminId, 'Removed Admin Pilot', GroupMemberRole::Admin);
+        $removedAdmin->setStatus(GroupMemberStatus::Removed);
+        $this->memberRepository->method('find')->willReturn($removedAdmin);
+
+        $this->hub->expects($this->never())->method('publish');
+        $this->entityManager->expects($this->never())->method('flush');
+
+        $this->expectException(AccessDeniedHttpException::class);
+        $this->expectExceptionMessage('Only the project owner can manage an admin');
+
+        $this->kick($adminId);
+    }
+
+    public function testOwnerSoftRemovesAnAdmin(): void
+    {
+        $this->security->method('getUser')->willReturn($this->owner);
+        $this->projectRepository->method('find')->willReturn($this->project);
+
+        $adminId = Uuid::v4();
+        $admin = $this->acceptedMember($adminId, 'Kicked Admin Pilot', GroupMemberRole::Admin);
+        $this->memberRepository->method('find')->willReturn($admin);
+
+        $this->hub
+            ->expects($this->once())
+            ->method('publish')
+            ->with($this->callback(function (Update $update) use ($adminId): bool {
+                $payload = json_decode($update->getData(), true);
+
+                return $payload['action'] === 'member_left'
+                    && $payload['data']['memberId'] === $adminId->toRfc4122()
+                    && $payload['data']['characterName'] === 'Kicked Admin Pilot';
+            }));
+        $this->entityManager->expects($this->never())->method('remove');
+        $this->entityManager->expects($this->once())->method('flush');
+
+        $this->kick($adminId);
+
+        self::assertSame('removed', $admin->getStatus()->value);
+    }
+
     private function actAsAdmin(): void
     {
         $adminUser = $this->createStub(User::class);
@@ -326,7 +392,7 @@ class KickGroupMemberProcessorTest extends TestCase
         $this->memberRepository->method('findOneBy')->willReturn($this->createStub(GroupIndustryProjectMember::class));
     }
 
-    private function acceptedMember(Uuid $memberId, string $characterName): GroupIndustryProjectMember
+    private function acceptedMember(Uuid $memberId, string $characterName, GroupMemberRole $role = GroupMemberRole::Member): GroupIndustryProjectMember
     {
         $character = $this->createStub(Character::class);
         $character->method('getName')->willReturn($characterName);
@@ -337,7 +403,7 @@ class KickGroupMemberProcessorTest extends TestCase
         $member = new GroupIndustryProjectMember();
         $member->setProject($this->project);
         $member->setUser($memberUser);
-        $member->setRole(GroupMemberRole::Member);
+        $member->setRole($role);
         $member->setStatus(GroupMemberStatus::Accepted);
         (new \ReflectionProperty(GroupIndustryProjectMember::class, 'id'))->setValue($member, $memberId);
 

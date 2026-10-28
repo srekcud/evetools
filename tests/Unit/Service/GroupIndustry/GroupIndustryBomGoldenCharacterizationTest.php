@@ -1162,6 +1162,50 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         self::assertCount(0, $project->getBomItems());
     }
 
+    public static function maxProductionLimitBelowOneProvider(): iterable
+    {
+        yield 'max production limit of 0, as imported for a blueprint without limit' => [0, '/(?<![\w-])0(?!\w)/'];
+        yield 'negative max production limit' => [-1, '/(?<!\w)-1(?!\w)/'];
+    }
+
+    #[Group('issue-160')]
+    #[DataProvider('maxProductionLimitBelowOneProvider')]
+    public function testBlueprintWithAMaxProductionLimitBelowOneThrowsNamingItAndTheLimitReadAndLeavesTheBomEmpty(int $maxProductionLimit, string $limitReadPattern): void
+    {
+        $this->maxProductionLimitOverrides = [self::NITROGEN_FUEL_BLOCK => $maxProductionLimit];
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 10, 20]]);
+
+        $failure = null;
+        try {
+            $this->service->buildBom($project, $this->owner);
+        } catch (\Throwable $throwable) {
+            $failure = $throwable;
+        }
+
+        self::assertInstanceOf(\UnexpectedValueException::class, $failure);
+        self::assertMatchesRegularExpression('/\bBlueprint '.(self::NITROGEN_FUEL_BLOCK + self::BLUEPRINT_TYPE_ID_OFFSET).'\b/', $failure->getMessage());
+        self::assertMatchesRegularExpression($limitReadPattern, str_replace((string) (self::NITROGEN_FUEL_BLOCK + self::BLUEPRINT_TYPE_ID_OFFSET), '', $failure->getMessage()));
+        self::assertCount(0, $project->getBomItems());
+    }
+
+    #[Group('issue-160')]
+    public function testBlueprintWithAMaxProductionLimitOfOneBuildsTheBomOfOneRun(): void
+    {
+        $this->maxProductionLimitOverrides = [self::NITROGEN_FUEL_BLOCK => 1];
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 10, 20]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [
+                [self::NITROGEN_FUEL_BLOCK, 'copy', 'blueprint', 1, 0, 0, 1, null],
+                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 10, 20, 40, null],
+            ],
+            $this->jobs($project),
+        );
+        self::assertSame(self::NITROGEN_FUEL_BLOCK_ONE_RUN_ME_TEN, $this->materials($project));
+    }
+
     #[Group('issue-141')]
     public function testProductWithoutBlueprintNorReactionThrowsARuntimeExceptionNamingItAndLeavesTheBomEmpty(): void
     {

@@ -64,7 +64,7 @@ class GroupIndustryResourceMapperTest extends TestCase
         $this->assertSame(5, $resource->contributionCount);
     }
 
-    public function testMemberToResourceHandlesNullMainCharacter(): void
+    public function testMemberWithoutMainCharacterHasNoCharacterIdAndAnUnknownName(): void
     {
         $user = $this->createStub(User::class);
         $user->method('getMainCharacter')->willReturn(null);
@@ -81,7 +81,7 @@ class GroupIndustryResourceMapperTest extends TestCase
         $resource = $this->mapper->memberToResource($member);
 
         $this->assertSame('Unknown', $resource->characterName);
-        $this->assertSame(0, $resource->characterId);
+        $this->assertNull($resource->characterId);
         $this->assertSame(0.0, $resource->totalContributionValue);
         $this->assertSame(0, $resource->contributionCount);
     }

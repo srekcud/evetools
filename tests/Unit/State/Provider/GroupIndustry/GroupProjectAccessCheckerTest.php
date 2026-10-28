@@ -4,138 +4,197 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
-use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\MockObject\Stub;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 #[CoversClass(GroupProjectAccessChecker::class)]
 class GroupProjectAccessCheckerTest extends TestCase
 {
-    private GroupIndustryProject $project;
-    private User&Stub $owner;
+    use GroupProjectAccessProfiles;
 
-    /** @var GroupIndustryProjectMember[] membership rows stored for the project */
-    private array $memberships = [];
+    private const string ONLY_THE_OWNER_MANAGES_AN_ADMIN = '403 Only the project owner can manage an admin';
 
     private GroupProjectAccessChecker $accessChecker;
 
     protected function setUp(): void
     {
-        $this->owner = $this->createStub(User::class);
-        $this->project = new GroupIndustryProject();
-        $this->project->setOwner($this->owner);
-
-        // In-memory repository: findOneBy matches every criterion against the stored rows
-        $memberRepository = $this->createStub(GroupIndustryProjectMemberRepository::class);
-        $memberRepository->method('findOneBy')->willReturnCallback(
-            function (array $criteria): ?GroupIndustryProjectMember {
-                foreach ($this->memberships as $membership) {
-                    if ($this->membershipMatches($membership, $criteria)) {
-                        return $membership;
-                    }
-                }
-
-                return null;
-            },
-        );
-
-        $this->accessChecker = new GroupProjectAccessChecker($memberRepository);
+        $this->createSabreBatch();
+        $this->accessChecker = new GroupProjectAccessChecker($this->sabreBatchMemberRepository());
     }
 
     public function testOwnerHasAccess(): void
     {
         $this->expectNotToPerformAssertions();
 
-        $this->accessChecker->assertAcceptedMember($this->owner, $this->project);
-        $this->accessChecker->assertAdminOrOwner($this->owner, $this->project);
+        $this->accessChecker->assertAcceptedMember($this->sabreBatchOwner, $this->sabreBatch);
+        $this->accessChecker->assertAdminOrOwner($this->sabreBatchOwner, $this->sabreBatch);
     }
 
     public function testAcceptedMemberHasAccess(): void
     {
-        $user = $this->createStub(User::class);
-        $this->addMembership($user, GroupMemberRole::Member, GroupMemberStatus::Accepted);
+        $user = $this->sabreBatchMember(self::FOREIGN_CORPORATION_ID, GroupMemberRole::Member, GroupMemberStatus::Accepted);
 
         $this->expectNotToPerformAssertions();
 
-        $this->accessChecker->assertAcceptedMember($user, $this->project);
+        $this->accessChecker->assertAcceptedMember($user, $this->sabreBatch);
     }
 
     public function testPendingMemberHasNoAccess(): void
     {
-        $user = $this->createStub(User::class);
-        $this->addMembership($user, GroupMemberRole::Member, GroupMemberStatus::Pending);
+        $user = $this->sabreBatchMember(self::FOREIGN_CORPORATION_ID, GroupMemberRole::Member, GroupMemberStatus::Pending);
 
         $this->expectException(AccessDeniedHttpException::class);
         $this->expectExceptionMessage('You do not have access to this project');
 
-        $this->accessChecker->assertAcceptedMember($user, $this->project);
+        $this->accessChecker->assertAcceptedMember($user, $this->sabreBatch);
     }
-
-    // --- Issue #10: a removed (kicked) member is treated like a non-member ---
 
     public function testRemovedMemberHasNoAccess(): void
     {
-        $user = $this->createStub(User::class);
-        $this->addMembership($user, GroupMemberRole::Member, GroupMemberStatus::Removed);
+        $user = $this->sabreBatchMember(self::FOREIGN_CORPORATION_ID, GroupMemberRole::Member, GroupMemberStatus::Removed);
 
         $this->expectException(AccessDeniedHttpException::class);
         $this->expectExceptionMessage('You do not have access to this project');
 
-        $this->accessChecker->assertAcceptedMember($user, $this->project);
+        $this->accessChecker->assertAcceptedMember($user, $this->sabreBatch);
     }
 
     public function testRemovedAdminCanNoLongerAdministrate(): void
     {
-        $user = $this->createStub(User::class);
-        $this->addMembership($user, GroupMemberRole::Admin, GroupMemberStatus::Removed);
+        $user = $this->sabreBatchMember(self::FOREIGN_CORPORATION_ID, GroupMemberRole::Admin, GroupMemberStatus::Removed);
 
         $this->expectException(AccessDeniedHttpException::class);
         $this->expectExceptionMessage('Only project owner or admin can perform this action');
 
-        $this->accessChecker->assertAdminOrOwner($user, $this->project);
+        $this->accessChecker->assertAdminOrOwner($user, $this->sabreBatch);
     }
 
-    private function addMembership(User $user, GroupMemberRole $role, GroupMemberStatus $status): void
+    #[DataProvider('readAccessMatrix')]
+    public function testReadAccessIsOpenToTheOwnerAcceptedMembersAndTheOwnerCorporation(string $profile, string $expectedOutcome): void
     {
-        $membership = new GroupIndustryProjectMember();
-        $membership->setUser($user);
-        $membership->setRole($role);
-        $membership->setStatus($status);
-        $this->project->addMember($membership);
+        $user = $this->userWithProfile($profile);
 
-        $this->memberships[] = $membership;
+        self::assertSame($expectedOutcome, $this->outcomeOf(fn () => $this->accessChecker->assertCanRead($user, $this->sabreBatch)));
     }
 
-    /**
-     * @param array<string, mixed> $criteria
-     */
-    private function membershipMatches(GroupIndustryProjectMember $membership, array $criteria): bool
+    #[DataProvider('participationAccessMatrix')]
+    public function testParticipationIsOpenToTheOwnerAndAcceptedMembersOnly(string $profile, string $expectedOutcome): void
     {
-        $values = [
-            'project' => $membership->getProject(),
-            'user' => $membership->getUser(),
-            'role' => $membership->getRole(),
-            'status' => $membership->getStatus(),
-        ];
+        $user = $this->userWithProfile($profile);
 
-        foreach ($criteria as $field => $expected) {
-            if (!array_key_exists($field, $values)) {
-                self::fail("Unexpected criterion '{$field}'");
-            }
-            $accepted = is_array($expected) ? $expected : [$expected];
-            if (!in_array($values[$field], $accepted, true)) {
-                return false;
-            }
-        }
+        self::assertSame($expectedOutcome, $this->outcomeOf(fn () => $this->accessChecker->assertAcceptedMember($user, $this->sabreBatch)));
+    }
 
-        return true;
+    #[DataProvider('administrationAccessMatrix')]
+    public function testAdministrationIsOpenToTheOwnerAndAcceptedAdminsOnly(string $profile, string $expectedOutcome): void
+    {
+        $user = $this->userWithProfile($profile);
+
+        self::assertSame($expectedOutcome, $this->outcomeOf(fn () => $this->accessChecker->assertAdminOrOwner($user, $this->sabreBatch)));
+    }
+
+    public function testOwnerWithoutCorporationNorMembershipKeepsEveryAccessLevelByIdentity(): void
+    {
+        $this->sabreBatchMemberships = [];
+        $this->createSabreBatch(ownerCorporationId: null, withOwnerMembership: false);
+        $owner = $this->sabreBatchOwner;
+
+        self::assertSame(
+            [self::GRANTED, self::GRANTED, self::GRANTED],
+            [
+                $this->outcomeOf(fn () => $this->accessChecker->assertCanRead($owner, $this->sabreBatch)),
+                $this->outcomeOf(fn () => $this->accessChecker->assertAcceptedMember($owner, $this->sabreBatch)),
+                $this->outcomeOf(fn () => $this->accessChecker->assertAdminOrOwner($owner, $this->sabreBatch)),
+            ],
+        );
+    }
+
+    public function testUserWithoutCorporationCannotReadTheProjectOfAnOwnerWithoutCorporation(): void
+    {
+        $this->sabreBatchMemberships = [];
+        $this->createSabreBatch(ownerCorporationId: null);
+        $user = $this->userOfCorporation(null);
+
+        self::assertSame(self::NO_ACCESS, $this->outcomeOf(fn () => $this->accessChecker->assertCanRead($user, $this->sabreBatch)));
+    }
+
+    public function testAcceptedMemberWithoutCorporationReadsTheProjectOfAnOwnerWithoutCorporation(): void
+    {
+        $this->sabreBatchMemberships = [];
+        $this->createSabreBatch(ownerCorporationId: null);
+        $user = $this->sabreBatchMember(null, GroupMemberRole::Member, GroupMemberStatus::Accepted);
+
+        self::assertSame(self::GRANTED, $this->outcomeOf(fn () => $this->accessChecker->assertCanRead($user, $this->sabreBatch)));
+    }
+
+    public function testOwnerManagesAnAcceptedAdmin(): void
+    {
+        $admin = $this->membershipOf(GroupMemberRole::Admin, GroupMemberStatus::Accepted);
+
+        self::assertSame(self::GRANTED, $this->manageOutcome($this->sabreBatchOwner, $admin));
+    }
+
+    public function testOwnerManagesAnAcceptedMember(): void
+    {
+        $member = $this->membershipOf(GroupMemberRole::Member, GroupMemberStatus::Accepted);
+
+        self::assertSame(self::GRANTED, $this->manageOutcome($this->sabreBatchOwner, $member));
+    }
+
+    public function testAdminCannotManageAnotherAcceptedAdmin(): void
+    {
+        $actingAdmin = $this->sabreBatchMember(self::FOREIGN_CORPORATION_ID, GroupMemberRole::Admin, GroupMemberStatus::Accepted);
+        $otherAdmin = $this->membershipOf(GroupMemberRole::Admin, GroupMemberStatus::Accepted);
+
+        self::assertSame(self::ONLY_THE_OWNER_MANAGES_AN_ADMIN, $this->manageOutcome($actingAdmin, $otherAdmin));
+    }
+
+    public function testAdminCannotManageHimself(): void
+    {
+        $actingAdmin = $this->sabreBatchMember(self::FOREIGN_CORPORATION_ID, GroupMemberRole::Admin, GroupMemberStatus::Accepted);
+        $ownMembership = $this->sabreBatchMemberships[array_key_last($this->sabreBatchMemberships)];
+
+        self::assertSame(self::ONLY_THE_OWNER_MANAGES_AN_ADMIN, $this->manageOutcome($actingAdmin, $ownMembership));
+    }
+
+    public function testAdminCannotManageARemovedAdmin(): void
+    {
+        $actingAdmin = $this->sabreBatchMember(self::FOREIGN_CORPORATION_ID, GroupMemberRole::Admin, GroupMemberStatus::Accepted);
+        $removedAdmin = $this->membershipOf(GroupMemberRole::Admin, GroupMemberStatus::Removed);
+
+        self::assertSame(self::ONLY_THE_OWNER_MANAGES_AN_ADMIN, $this->manageOutcome($actingAdmin, $removedAdmin));
+    }
+
+    public function testAdminManagesAnAcceptedMember(): void
+    {
+        $actingAdmin = $this->sabreBatchMember(self::FOREIGN_CORPORATION_ID, GroupMemberRole::Admin, GroupMemberStatus::Accepted);
+        $member = $this->membershipOf(GroupMemberRole::Member, GroupMemberStatus::Accepted);
+
+        self::assertSame(self::GRANTED, $this->manageOutcome($actingAdmin, $member));
+    }
+
+    public function testAdminManagesAPendingMember(): void
+    {
+        $actingAdmin = $this->sabreBatchMember(self::FOREIGN_CORPORATION_ID, GroupMemberRole::Admin, GroupMemberStatus::Accepted);
+        $pendingMember = $this->membershipOf(GroupMemberRole::Member, GroupMemberStatus::Pending);
+
+        self::assertSame(self::GRANTED, $this->manageOutcome($actingAdmin, $pendingMember));
+    }
+
+    private function membershipOf(GroupMemberRole $role, GroupMemberStatus $status): GroupIndustryProjectMember
+    {
+        return $this->addSabreBatchMembership($this->userOfCorporation(self::FOREIGN_CORPORATION_ID), $role, $status);
+    }
+
+    private function manageOutcome(User $user, GroupIndustryProjectMember $target): string
+    {
+        return $this->outcomeOf(fn () => $this->accessChecker->assertCanManageMember($user, $this->sabreBatch, $target));
     }
 }

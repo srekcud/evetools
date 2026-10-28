@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\State\Provider\GroupIndustry;
 
 use App\Entity\GroupIndustryProject;
+use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
@@ -16,6 +17,16 @@ class GroupProjectAccessChecker
     public function __construct(
         private readonly GroupIndustryProjectMemberRepository $memberRepository,
     ) {
+    }
+
+    public function assertCanRead(User $user, GroupIndustryProject $project): void
+    {
+        throw new \LogicException('not implemented');
+    }
+
+    public function assertCanManageMember(User $user, GroupIndustryProject $project, GroupIndustryProjectMember $member): void
+    {
+        throw new \LogicException('not implemented');
     }
 
     /**
