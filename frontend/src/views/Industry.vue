@@ -77,9 +77,11 @@ function cleanTypeName(name: string): string {
   return name.replace(/\s*\(BPC\)\s*$/i, '').trim()
 }
 
+const PROJECT_ID_PATTERN = /^[\w-]+$/
+
 function projectIdFromQuery(): string | null {
   const queryProject = route.query.project
-  return typeof queryProject === 'string' && queryProject !== '' ? queryProject : null
+  return typeof queryProject === 'string' && PROJECT_ID_PATTERN.test(queryProject) ? queryProject : null
 }
 
 function typeIdFromQuery(): number | undefined {

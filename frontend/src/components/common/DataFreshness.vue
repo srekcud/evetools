@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import {
   dataFreshnessLevel,
+  readableLastSuccessAt,
   type DataFreshnessLevel,
   type DataFreshnessSource,
   type DataFreshnessState,
@@ -42,7 +43,7 @@ onBeforeUnmount(() => {
 
 const level = computed(() => dataFreshnessLevel(props.freshness, now.value))
 
-const lastSuccessAt = computed(() => props.freshness?.lastSuccessAt ?? null)
+const lastSuccessAt = computed(() => readableLastSuccessAt(props.freshness))
 
 const label = computed(() => {
   const parts = [t(`common.dataFreshness.sources.${props.source}`)]
