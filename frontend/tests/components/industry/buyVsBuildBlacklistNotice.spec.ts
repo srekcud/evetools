@@ -24,6 +24,7 @@ const ANALYSIS_WITHOUT_COMPONENT: BuyVsBuildResult = {
   buildTypeIds: [],
   buyTypeIds: [],
   missingData: [],
+  warnings: [],
   sellStructureId: 1_035_466_617_946,
 }
 

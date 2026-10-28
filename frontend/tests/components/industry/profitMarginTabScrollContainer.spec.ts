@@ -61,6 +61,7 @@ const HAIL_L_MARGIN_RESULT: ProfitMarginResult = {
   },
   dailyVolume: 410_000,
   missingData: [],
+  warnings: [],
 }
 
 function mountProfitMargin() {

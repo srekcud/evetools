@@ -27,6 +27,7 @@ const FERNITE_CARBIDE_WITH_AN_UNKNOWN_INSTALL_COST: BuyVsBuildComponent = {
   buildJobInstallCost: null,
   buyCostJita: 188_160,
   buyCostStructure: null,
+  buyCostJitaCoveragePercent: null,
   verdict: 'buy',
   savings: null,
   savingsPercent: null,
@@ -36,6 +37,7 @@ const FERNITE_CARBIDE_WITH_AN_UNKNOWN_INSTALL_COST: BuyVsBuildComponent = {
     { reason: 'adjusted_price', typeId: CERAMIC_POWDER_TYPE_ID },
     { reason: 'cost_index', typeId: null },
   ],
+  warnings: [],
 }
 
 const RAM_WITH_A_KNOWN_INSTALL_COST: BuyVsBuildComponent = {
@@ -51,12 +53,14 @@ const RAM_WITH_A_KNOWN_INSTALL_COST: BuyVsBuildComponent = {
   buildJobInstallCost: 2361.8,
   buyCostJita: 60_000,
   buyCostStructure: null,
+  buyCostJitaCoveragePercent: null,
   verdict: 'build',
   savings: 6493.2,
   savingsPercent: 10.82,
   meUsed: 10,
   runs: 1,
   missingData: [],
+  warnings: [],
 }
 
 const ANALYSIS_WITH_AN_UNKNOWN_INSTALL_COST: BuyVsBuildResult = {
@@ -77,6 +81,7 @@ const ANALYSIS_WITH_AN_UNKNOWN_INSTALL_COST: BuyVsBuildResult = {
     { reason: 'adjusted_price', typeId: CERAMIC_POWDER_TYPE_ID },
     { reason: 'cost_index', typeId: null },
   ],
+  warnings: [],
   sellStructureId: null,
 }
 

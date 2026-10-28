@@ -332,6 +332,12 @@ export interface MissingData {
   typeId: number | null
 }
 
+export interface PartialPriceWarning {
+  reason: 'partial_market_depth'
+  typeId: number
+  coveragePercent: number
+}
+
 export interface ProfitMarginMaterial {
   typeId: number
   typeName: string
@@ -410,6 +416,7 @@ export interface ProfitMarginResult {
   margins: Record<string, MarginEntry | null>
   dailyVolume: number | null
   missingData: MissingData[]
+  warnings: PartialPriceWarning[]
 }
 
 export interface AvailableJob {
@@ -602,12 +609,14 @@ export type BuyVsBuildComponent = {
   buildJobInstallCost: number | null
   buyCostJita: number | null
   buyCostStructure: number | null
+  buyCostJitaCoveragePercent: number | null
   verdict: 'build' | 'buy' | 'loss' | 'unknown'
   savings: number | null
   savingsPercent: number | null
   meUsed: number
   runs: number
   missingData: MissingData[]
+  warnings: PartialPriceWarning[]
 }
 
 export type BuyVsBuildResult = {
@@ -625,6 +634,7 @@ export type BuyVsBuildResult = {
   buildTypeIds: number[]
   buyTypeIds: number[]
   missingData: MissingData[]
+  warnings: PartialPriceWarning[]
   sellStructureId: number | null
 }
 
