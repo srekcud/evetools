@@ -94,6 +94,6 @@ final readonly class UpdateSaleProcessor implements ProcessorInterface
             $sale->setSoldAt(new \DateTimeImmutable($correction->soldAt));
         }
 
-        $sale->setTotalPrice($sale->getQuantity() * $sale->getUnitPrice());
+        $sale->recalculateTotalPrice();
     }
 }

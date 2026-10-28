@@ -70,7 +70,7 @@ class RecordSaleProcessor implements ProcessorInterface
         $sale->setTypeName($data->typeName);
         $sale->setQuantity($data->quantity);
         $sale->setUnitPrice($data->unitPrice);
-        $sale->setTotalPrice($data->quantity * $data->unitPrice);
+        $sale->recalculateTotalPrice();
         $sale->setVenue($data->venue);
         $sale->setSoldAt($soldAt);
         $sale->setRecordedBy($user);

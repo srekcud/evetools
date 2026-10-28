@@ -19,7 +19,7 @@ trait ResolvesSaleOfProject
     private function projectOf(GroupIndustryProjectRepository $projectRepository, array $uriVariables): GroupIndustryProject
     {
         $projectId = $uriVariables['projectId'] ?? null;
-        if ($projectId === null) {
+        if ($projectId === null || !Uuid::isValid($projectId)) {
             throw new NotFoundHttpException('Project not found');
         }
 
@@ -37,7 +37,7 @@ trait ResolvesSaleOfProject
     private function saleOf(GroupIndustrySaleRepository $saleRepository, GroupIndustryProject $project, array $uriVariables): GroupIndustrySale
     {
         $saleId = $uriVariables['id'] ?? null;
-        if ($saleId === null) {
+        if ($saleId === null || !Uuid::isValid($saleId)) {
             throw new NotFoundHttpException('Sale not found');
         }
 

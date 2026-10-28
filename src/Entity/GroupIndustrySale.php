@@ -117,6 +117,12 @@ class GroupIndustrySale
         return $this;
     }
 
+    public function recalculateTotalPrice(): static
+    {
+        $this->totalPrice = $this->quantity * $this->unitPrice;
+        return $this;
+    }
+
     public function getTotalPrice(): float
     {
         return $this->totalPrice;
