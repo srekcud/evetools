@@ -6,9 +6,12 @@ namespace App\Service\Industry;
 
 use App\Entity\IndustryStockpileImport;
 use App\Entity\IndustryStockpileTarget;
+use App\Entity\Sde\InvType;
 use App\Entity\User;
+use App\Exception\TypeMissingFromSdeException;
 use App\Industry\Application\ProductionPlanning;
 use App\Industry\Application\UserProductionStructures;
+use App\Industry\Domain\Job;
 use App\Repository\CachedAssetRepository;
 use App\Repository\IndustryStockpileImportRepository;
 use App\Repository\IndustryStockpileTargetRepository;
@@ -18,6 +21,8 @@ use Doctrine\ORM\EntityManagerInterface;
 
 class StockpileService
 {
+    use PlansStockpileImports;
+
     private const int FULL_PERMILLE = 1000;
     private const float PERMILLE_PER_PERCENT = 10.0;
 
@@ -353,73 +358,49 @@ class StockpileService
      */
     private function stockpileTargetsOf(User $user, int $typeId, int $runs, int $me): array
     {
-        return [];
-    }
+        $producer = $this->producerOf($typeId);
+        $plan = $this->planOfImport($user, $producer, $runs, $me);
+        $needs = self::needsOf($plan);
+        ksort($needs);
+        $typeNames = $this->sdeTypeNames([$typeId, ...array_keys($needs)]);
+        $typeIdsConsumedByTheProduct = array_merge(...array_map(
+            static fn (Job $job): array => array_keys($job->materials),
+            $plan->jobsFor($typeId),
+        ));
 
-    /**
-     * Flatten a production tree into a map of typeId => {typeName, quantity, stage}.
-     * Merges duplicate typeIds by summing quantities.
-     *
-     * @param array<string, mixed> $tree
-     * @return array<int, array{typeName: string, quantity: int, stage: string}>
-     */
-    public function flattenTree(array $tree, int $rootTypeId): array
-    {
-        $targets = [];
-
-        // Add the root product as final_product
-        $rootTypeName = (string) $tree['productTypeName'];
-        $rootQuantity = (int) $tree['runs'] * (int) $tree['outputPerRun'];
-        $targets[$rootTypeId] = [
-            'typeName' => $rootTypeName,
-            'quantity' => $rootQuantity,
-            'stage' => 'final_product',
-        ];
-
-        // Walk the materials tree
-        $this->collectMaterials($tree['materials'], $targets, 0);
+        $targets = [$typeId => ['typeName' => $typeNames[$typeId], 'quantity' => $runs * $producer->getQuantity(), 'stage' => 'final_product']];
+        foreach ($needs as $needTypeId => $quantity) {
+            $targets[$needTypeId] = [
+                'typeName' => $typeNames[$needTypeId],
+                'quantity' => $quantity,
+                'stage' => match (true) {
+                    isset($plan->leaves[$needTypeId]) => 'raw_material',
+                    \in_array($needTypeId, $typeIdsConsumedByTheProduct, true) => 'component',
+                    default => 'intermediate',
+                },
+            ];
+        }
 
         return $targets;
     }
 
     /**
-     * Recursively collect materials from the tree, classifying by stage.
-     *
-     * @param list<array<string, mixed>> $materials
-     * @param array<int, array{typeName: string, quantity: int, stage: string}> $targets
+     * @param list<int> $typeIds
+     * @return array<int, string>
      */
-    private function collectMaterials(array $materials, array &$targets, int $parentDepth): void
+    private function sdeTypeNames(array $typeIds): array
     {
-        foreach ($materials as $material) {
-            $matTypeId = (int) $material['typeId'];
-            $matTypeName = (string) $material['typeName'];
-            $quantity = (int) $material['quantity'];
-            $isBuildable = (bool) ($material['isBuildable'] ?? false);
-
-            if (!$isBuildable) {
-                $stage = 'raw_material';
-            } elseif ($parentDepth === 0) {
-                $stage = 'component';
-            } else {
-                $stage = 'intermediate';
-            }
-
-            if (isset($targets[$matTypeId])) {
-                $targets[$matTypeId]['quantity'] += $quantity;
-            } else {
-                $targets[$matTypeId] = [
-                    'typeName' => $matTypeName,
-                    'quantity' => $quantity,
-                    'stage' => $stage,
-                ];
-            }
-
-            // Recurse into buildable sub-materials
-            if ($isBuildable && isset($material['blueprint']['materials'])) {
-                $childDepth = (int) ($material['blueprint']['depth'] ?? $parentDepth + 1);
-                $this->collectMaterials($material['blueprint']['materials'], $targets, $childDepth);
-            }
+        $typeNames = [];
+        foreach ($this->entityManager->getRepository(InvType::class)->findBy(['typeId' => $typeIds]) as $type) {
+            $typeNames[$type->getTypeId()] = $type->getTypeName();
         }
+
+        $missingTypeIds = array_values(array_diff($typeIds, array_keys($typeNames)));
+        if ($missingTypeIds !== []) {
+            throw new TypeMissingFromSdeException($missingTypeIds);
+        }
+
+        return $typeNames;
     }
 
     /**
