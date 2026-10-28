@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Service\Industry;
 use App\Entity\IndustryProjectStep;
 use App\Service\Industry\SplitGroupQuantities;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
@@ -112,6 +113,23 @@ final class SplitGroupQuantitiesTest extends TestCase
         $changedSteps = SplitGroupQuantities::applyNeedToSteps([$fixedStep], 36 * self::NITROGEN_FUEL_BLOCK_OUTPUT_PER_RUN, self::NITROGEN_FUEL_BLOCK_OUTPUT_PER_RUN);
 
         self::assertSame([[], 15, 675, true], [$changedSteps, $fixedStep->getRuns(), $fixedStep->getQuantity(), $fixedStep->isRunsFixed()]);
+    }
+
+    #[Group('issue-171')]
+    #[DataProvider('needsAndTheirRuns')]
+    public function testRunsOfANeedAreTheWholeRunsThatProduceIt(int $need, int $outputPerRun, int $expectedRuns): void
+    {
+        self::assertSame($expectedRuns, SplitGroupQuantities::runsOfNeed($need, $outputPerRun));
+    }
+
+    public static function needsAndTheirRuns(): iterable
+    {
+        yield 'need of exactly 152 runs of 200 units' => [30400, 200, 152];
+        yield 'need of 142.82 runs of 200 units rounds up' => [28564, 200, 143];
+        yield 'need of 11.095 runs of 200 units rounds up' => [2219, 200, 12];
+        yield 'need of exactly 57 runs of 3 units' => [171, 3, 57];
+        yield 'need of one unit more than 40 runs of 40 units' => [1601, 40, 41];
+        yield 'need of one unit' => [1, 45, 1];
     }
 
     /**

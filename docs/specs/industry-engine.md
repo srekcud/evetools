@@ -208,7 +208,7 @@ Quand un job est découpé (plafond BPC en R3, durée maximale ou découpage man
 
 ## 4. Exemples chiffrés (tests rouges)
 
-Les goldens fixent la formule, pas la sélection de structure : les tests passent les modificateurs **explicitement**. Fichiers d'origine : `.claude/tasks/industry-core/golden/` (non versionnés, à déplacer dans `tests/` lors de la phase rouge).
+Les goldens fixent la formule, pas la sélection de structure : les tests passent les modificateurs **explicitement**. Fichiers : `tests/Fixtures/Golden/`, seul exemplaire versionné, lu par tous les tests.
 
 | Cas | Statut (D12) |
 |---|---|

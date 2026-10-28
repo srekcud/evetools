@@ -130,9 +130,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     // createProject() on the goldens
     // ===========================================
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #2 (B1) : les 25 runs du projet sont passés à
-    // l'arbre comme une quantité. L'étape écrite fait 1 run de 25 unités au lieu de 25 runs de 1000 unités
-    // (golden nitrogen-fuel-block-25runs-me10-npc).
+    #[Group('issue-2')]
     public function testStepsOfTwentyFiveRunsOfNitrogenFuelBlockCurrentlyPlanOneRunOfTwentyFiveUnitsIssue2(): void
     {
         $project = $this->createProject(self::NITROGEN_FUEL_BLOCK, runs: 25, meLevel: 10, teLevel: 20);
@@ -153,16 +151,21 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         self::assertSame([10, 20], $this->meAndTeOfTheOnlyStep($atMax));
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issues #2 et #16. Fernite Carbide, 1 run, Tatara
-    // nullsec (L-Set Reactor Efficiency II) et Raitaru sans rig :
-    // - #2 : le run de la racine est lu comme une unité (quantité 1 au lieu de 10000) ; les réactions de profondeur 1
-    //   suivent leur consommateur (100 × 0,9736 = 97,36 → 98) ;
-    // - #16 : les trois Hydrogen Fuel Block (5 + 5 + 5, consommés par la racine et par les deux réactions de
-    //   profondeur 1) sont fusionnés en une étape à la profondeur du premier nœud rencontré (1). À profondeur égale,
-    //   les réactions passent avant la fabrication : l'ordre des étapes place le fuel block après les deux réactions
-    //   qui le consomment.
-    // Conformes : ME 0 / TE 0 sur les réactions, ME 10 / TE 20 sur le fuel block intermédiaire.
-    public function testStepsOfOneRunOfFerniteCarbideInATataraCurrentlyMergeTheFuelBlocksAtTheFirstDepthIssues2And16(): void
+    #[Group('issue-2')]
+    public function testStepsOfOneRunOfFerniteCarbideInATataraCurrentlyPlanTheRootReactionForOneUnitIssue2(): void
+    {
+        $this->pilotOwnsTataraAndRaitaru = true;
+
+        $project = $this->createProject(self::FERNITE_CARBIDE, runs: 1, meLevel: 10, teLevel: 20);
+
+        self::assertSame(
+            [['product' => 'Fernite Carbide', 'productTypeId' => self::FERNITE_CARBIDE, 'blueprintTypeId' => 1_016_673, 'activityType' => 'reaction', 'depth' => 0, 'runs' => 1, 'quantity' => 1, 'meLevel' => 0, 'teLevel' => 0, 'splitGroup' => null, 'splitIndex' => 0, 'totalGroupRuns' => null]],
+            array_values(array_filter($this->canonicalStepsOf($project), static fn (array $step): bool => $step['depth'] === 0)),
+        );
+        self::assertSame(['Ceramic Powder', 'Fernite Alloy', 'Hydrogen Fuel Block', 'Fernite Carbide'], array_column($this->stepsOf($project), 'product'));
+    }
+
+    public function testStepsOfOneRunOfFerniteCarbideInATataraMergeTheFuelBlocksOfTheRootAndOfBothReactionsInOneStep(): void
     {
         $this->pilotOwnsTataraAndRaitaru = true;
 
@@ -173,14 +176,16 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
                 ['Ceramic Powder', 'reaction', 1, 1, 98, 0, 0],
                 ['Fernite Alloy', 'reaction', 1, 1, 98, 0, 0],
                 ['Hydrogen Fuel Block', 'manufacturing', 1, 1, 15, 10, 20],
-                ['Fernite Carbide', 'reaction', 0, 1, 1, 0, 0],
             ],
             array_map(
                 static fn (array $step): array => [$step['product'], $step['activityType'], $step['depth'], $step['runs'], $step['quantity'], $step['meLevel'], $step['teLevel']],
-                $this->stepsOf($project),
+                array_values(array_filter($this->stepsOf($project), static fn (array $step): bool => $step['depth'] > 0)),
             ),
         );
-        $this->assertMatchesSnapshot('fernite-carbide-1run-tatara-nullsec', $this->canonicalStepsOf($project));
+        $this->assertMatchesSnapshot(
+            'fernite-carbide-1run-tatara-nullsec',
+            array_values(array_filter($this->canonicalStepsOf($project), static fn (array $step): bool => $step['depth'] > 0)),
+        );
     }
 
     #[Group('issue-69')]
@@ -873,12 +878,8 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         self::assertSame([[1, 491, 1, 0, 20, 0, null]], $this->jobsOf($this->stepsOf($threeJobs), self::TITANIUM_CARBIDE));
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, sans issue. Un groupe découpé reçoit le nouveau total de
-    // runs réparti au prorata de ses anciens runs, le dernier job prenant le reste, mais chaque job garde au moins
-    // 1 run : 100 Fernite Alloy à 200 unités par run demandent 1 run, réparti sur 2 jobs de 3 et 2 runs en
-    // round(1 × 3 / 5) = 1 puis max(1, 1 − 1) = 1. Le groupe finit à 2 runs pour un besoin de 1.
-    #[Group('issue-112')]
-    public function testSplitChildGroupCurrentlyKeepsTwoRunsForANeedOfOne(): void
+    #[Group('issue-131')]
+    public function testSplitChildGroupCurrentlyKeepsTwoRunsForANeedOfOneIssue131(): void
     {
         $project = $this->projectOfStepsWithoutStructure([
             $this->step(self::FERNITE_CARBIDE, 'reaction', runs: 1, quantity: 10_000, depth: 0, meLevel: 0),
@@ -895,12 +896,6 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         self::assertSame([[self::FERNITE_ALLOY, 0], [self::FERNITE_ALLOY, 1]], $this->productAndSplitIndexOf($changedSteps));
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, sans issue. Seuls les jobs dont les runs ou la quantité
-    // changent reçoivent le nouveau totalGroupRuns : un job inchangé garde l'ancien. 11 runs de Fernite Carbide
-    // demandent 1100 Fernite Alloy, soit 6 runs répartis sur 2 + 2 + 1 anciens runs : round(6 × 2 / 5) = 2,
-    // round(6 × 2 / 5) = 2, puis 6 − 4 = 2. Le job 0 (2 runs, 400) est inchangé et garde totalGroupRuns 5 ; le job 1
-    // ne change que de quantité (350 → 400) ; le job 2 passe de 1 à 2 runs.
-    #[Group('issue-112')]
     public function testUnchangedJobOfARecalculatedSplitGroupCurrentlyKeepsTheOldTotalGroupRuns(): void
     {
         $project = $this->projectOfStepsWithoutStructure([
@@ -919,9 +914,6 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         self::assertSame([[self::FERNITE_ALLOY, 1], [self::FERNITE_ALLOY, 2]], $this->productAndSplitIndexOf($changedSteps));
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, sans issue. Quand le produit de l'étape enfant est absent
-    // du SDE (blueprint inconnu), le recalcul suppose 1 unité par run au lieu de signaler la donnée manquante :
-    // les 490 Titanium Carbide de 32 Quantum Microprocessors deviennent 490 runs (1 run de 10000 unités en réalité).
     #[Group('issue-112')]
     public function testRecalculatedSplitGroupSharesTheNeedBySplitIndexWhateverTheOrderOfTheSteps(): void
     {
@@ -942,7 +934,8 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         );
     }
 
-    public function testChildWithoutProductInTheSdeIsCurrentlyRecalculatedAtOneUnitPerRun(): void
+    #[Group('issue-137')]
+    public function testChildWithoutProductInTheSdeIsCurrentlyRecalculatedAtOneUnitPerRunIssue137(): void
     {
         $project = $this->projectOfStepsWithoutStructure([
             $this->step(self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32, depth: 0, meLevel: 10),

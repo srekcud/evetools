@@ -340,10 +340,10 @@ class StockpileServiceTest extends TestCase
 
         $status = $this->service->getStockpileStatus($this->user);
 
-        $this->assertNotNull($status['kpis']['bottleneck']);
-        $this->assertSame(3, $status['kpis']['bottleneck']['typeId']);
-        $this->assertSame('Worst Item', $status['kpis']['bottleneck']['typeName']);
-        $this->assertSame(5.0, $status['kpis']['bottleneck']['percent']);
+        $this->assertSame(
+            ['typeId' => 3, 'typeName' => 'Worst Item', 'percent' => 5.0, 'blocksProducts' => 0],
+            $status['kpis']['bottleneck'],
+        );
     }
 
     public function testEstOutputCountsBuildableAndInStockFinalProducts(): void
@@ -396,19 +396,21 @@ class StockpileServiceTest extends TestCase
         $result = $this->service->previewImport($this->user, 100, 1, 0);
 
         // Verify structure
-        $this->assertArrayHasKey('stages', $result);
-        $this->assertArrayHasKey('totalItems', $result);
-        $this->assertArrayHasKey('estimatedCost', $result);
+        $this->assertSame(['stages', 'totalItems', 'estimatedCost'], array_keys($result));
 
         // 5 unique type IDs: 100 (final), 1 (raw, merged), 2 (component), 3 (intermediate), 4 (raw)
         $this->assertSame(5, $result['totalItems']);
 
         // Check stage classification
-        $stageNames = array_keys(array_filter($result['stages'], fn (array $items) => !empty($items)));
-        $this->assertContains('final_product', $stageNames);
-        $this->assertContains('raw_material', $stageNames);
-        $this->assertContains('component', $stageNames);
-        $this->assertContains('intermediate', $stageNames);
+        $this->assertSame([
+            'raw_material' => [
+                ['typeId' => 1, 'typeName' => 'Raw Ore', 'quantity' => 700, 'unitPrice' => 10.0],
+                ['typeId' => 4, 'typeName' => 'Raw Metal', 'quantity' => 100, 'unitPrice' => 50.0],
+            ],
+            'intermediate' => [['typeId' => 3, 'typeName' => 'Sub-Component', 'quantity' => 20, 'unitPrice' => 200.0]],
+            'component' => [['typeId' => 2, 'typeName' => 'Component Frame', 'quantity' => 10, 'unitPrice' => 500.0]],
+            'final_product' => [['typeId' => 100, 'typeName' => 'Widget', 'quantity' => 1, 'unitPrice' => 5000000.0]],
+        ], $result['stages']);
 
         // Final product: Widget (typeId 100), quantity = 1 * 1 = 1
         $this->assertCount(1, $result['stages']['final_product']);
@@ -416,9 +418,7 @@ class StockpileServiceTest extends TestCase
         $this->assertSame(1, $result['stages']['final_product'][0]['quantity']);
 
         // Raw materials: typeId 1 (merged 500+200=700) and typeId 4 (100)
-        $rawTypeIds = array_column($result['stages']['raw_material'], 'typeId');
-        $this->assertContains(1, $rawTypeIds);
-        $this->assertContains(4, $rawTypeIds);
+        $this->assertSame([1 => 700, 4 => 100], array_column($result['stages']['raw_material'], 'quantity', 'typeId'));
 
         // Estimated cost = sum of (quantity * unitPrice) for all items
         // Widget: 1 * 5000000 = 5000000
@@ -493,8 +493,14 @@ class StockpileServiceTest extends TestCase
         $this->assertSame(100.0, $status['stages']['component']['healthPercent']);
 
         // Stages with targets should have items
-        $this->assertCount(1, $status['stages']['raw_material']['items']);
-        $this->assertCount(1, $status['stages']['final_product']['items']);
+        $this->assertSame(
+            [[1, 50, 50.0, 'partial', 500.0]],
+            array_map(static fn (array $item): array => [$item['typeId'], $item['stock'], $item['percent'], $item['status'], $item['stockValue']], $status['stages']['raw_material']['items']),
+        );
+        $this->assertSame(
+            [[100, 10, 100.0, 'met', 50000.0]],
+            array_map(static fn (array $item): array => [$item['typeId'], $item['stock'], $item['percent'], $item['status'], $item['stockValue']], $status['stages']['final_product']['items']),
+        );
     }
 
     public function testZeroQuantityTargetIsTreatedAsMet(): void
@@ -593,6 +599,69 @@ class StockpileServiceTest extends TestCase
                 $stockpileImport->getMe(),
             ],
             $recordedImports->getArrayCopy(),
+        );
+    }
+
+    public function testEstOutputCountsOnlyTheFinalProductsInStockOrWhoseUpstreamTargetsAreAllMet(): void
+    {
+        $this->targetRepository->method('findByUser')->willReturn([
+            $this->createTarget(587, 'Rifter', 4, 'final_product', 587, 1),
+            $this->createTarget(34, 'Tritanium', 3_000, 'raw_material', 587, 2),
+            $this->createTarget(638, 'Raven', 2, 'final_product', 638, 3),
+            $this->createTarget(36, 'Mexallon', 900, 'raw_material', 638, 4),
+            $this->createTarget(16, 'Nocxium', 75, 'raw_material', 638, 5),
+        ]);
+        $this->assetRepository->method('getQuantitiesByUserWithLocations')->willReturn([
+            34 => ['total' => 3_000, 'locations' => []],
+            638 => ['total' => 1, 'locations' => []],
+            36 => ['total' => 900, 'locations' => []],
+            16 => ['total' => 40, 'locations' => []],
+        ]);
+        $this->jitaMarketService->method('getPrices')->willReturn([587 => 512_000.0, 34 => 4.75, 638 => 141_000_000.0, 36 => 68.0, 16 => 815.0]);
+
+        $status = $this->service->getStockpileStatus($this->user);
+
+        $this->assertSame(['ready' => 1, 'total' => 2, 'readyNames' => ['Rifter']], $status['kpis']['estOutput']);
+    }
+
+    public function testPipelineHealthIsTheShareOfMetTargetsRoundedToOneDecimal(): void
+    {
+        $this->targetRepository->method('findByUser')->willReturn([
+            $this->createTarget(34, 'Tritanium', 900, 'raw_material', 587, 1),
+            $this->createTarget(35, 'Pyerite', 400, 'raw_material', 587, 2),
+            $this->createTarget(36, 'Mexallon', 250, 'raw_material', 587, 3),
+        ]);
+        $this->assetRepository->method('getQuantitiesByUserWithLocations')->willReturn([
+            34 => ['total' => 900, 'locations' => []],
+            35 => ['total' => 120, 'locations' => []],
+        ]);
+        $this->jitaMarketService->method('getPrices')->willReturn([34 => 4.75, 35 => 11.2, 36 => 68.0]);
+
+        $status = $this->service->getStockpileStatus($this->user);
+
+        $this->assertSame(33.3, $status['kpis']['pipelineHealth']);
+        $this->assertSame(33.3, $status['stages']['raw_material']['healthPercent']);
+    }
+
+    public function testBottleneckBlocksOnlyTheFinalProductOfItsSourceNotTheOtherTargetsOfThatSource(): void
+    {
+        $this->targetRepository->method('findByUser')->willReturn([
+            $this->createTarget(587, 'Rifter', 3, 'final_product', 587, 1),
+            $this->createTarget(34, 'Tritanium', 1_000, 'raw_material', 587, 2),
+            $this->createTarget(3828, 'Construction Blocks', 20, 'component', 587, 3),
+        ]);
+        $this->assetRepository->method('getQuantitiesByUserWithLocations')->willReturn([
+            587 => ['total' => 3, 'locations' => []],
+            34 => ['total' => 50, 'locations' => []],
+            3828 => ['total' => 15, 'locations' => []],
+        ]);
+        $this->jitaMarketService->method('getPrices')->willReturn([587 => 512_000.0, 34 => 4.75, 3828 => 1_430.0]);
+
+        $status = $this->service->getStockpileStatus($this->user);
+
+        $this->assertSame(
+            ['typeId' => 34, 'typeName' => 'Tritanium', 'percent' => 5.0, 'blocksProducts' => 1],
+            $status['kpis']['bottleneck'],
         );
     }
 

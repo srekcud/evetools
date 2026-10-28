@@ -211,6 +211,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     // 1 run is neutral to B1 (issue #2): 1 run read as 1 unit is still ceil(1 / 40) = 1 run.
     // ===========================================
 
+    #[Group('issue-2')]
     public function testNitrogenFuelBlockPricesTwentyFiveRunsOfMaterialsIssue2(): void
     {
         $result = $this->analyze(self::NITROGEN_FUEL_BLOCK, runs: 25, me: 10, solarSystemId: self::MANUFACTURING_SYSTEM_ID);
@@ -487,6 +488,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     // 1 run is neutral to B1: ceil(1 / 5000) = 1 run.
     // ===========================================
 
+    #[Group('issue-2')]
     public function testHailLBuildsTenRootRunsIssue2(): void
     {
         $result = $this->analyzeHailL(runs: 10);
@@ -828,6 +830,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     // Fernite Carbide: reaction, 10000 units per run, 10 runs, Tatara + reactor rig II nullsec
     // ===========================================
 
+    #[Group('issue-2')]
     public function testFerniteCarbideRunsTenReactionsAndAggregatesFuelBlockDemandIssue2Issue16(): void
     {
         $result = $this->analyzeFerniteCarbide();

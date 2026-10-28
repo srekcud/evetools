@@ -161,9 +161,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         $this->owner = $this->createMock(User::class);
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #2 (R3, B1) : les 25 runs saisis sont lus comme
-    // une quantité, ceil(25 / 40) = 1 run. Le golden nitrogen-fuel-block-25runs-me10-npc attend 25 runs et
-    // Nitrogen Isotopes 10125 ; la BOM persistée demande 1 run et 405.
+    #[Group('issue-2')]
     public function testTwentyFiveRunsOfNitrogenFuelBlockCurrentlyBecomeABomOfOneRunIssue2(): void
     {
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 25, 10, 20]]);
@@ -342,13 +340,23 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         );
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issues #2, #16 et #69 : 10 runs de Fernite Carbide
-    // deviennent 1 run ; le Hydrogen Fuel Block, consommé par la réaction racine et ses deux réactions
-    // intermédiaires (5 unités chacune), donne 3 runs (un par branche) au lieu de ceil(15 / 40) = 1, et ses
-    // matériaux sont triplés. Les réactions sont en ME 0 / TE 0, les intermédiaires fabriqués en ME 10 / TE 20.
-    public function testTenRunsOfFerniteCarbideCurrentlyBecomeOneRunAndCountTheFuelBlockOncePerBranchIssues2And16And69(): void
+    #[Group('issue-2')]
+    public function testTenRunsOfFerniteCarbideCurrentlyBecomeOneReactionRunIssue2(): void
     {
         $project = $this->projectOf([[self::FERNITE_CARBIDE, 10, 10, 20]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [[self::FERNITE_CARBIDE, 'reaction', 'final', 1, 0, 0, 10_000, null]],
+            array_values(array_filter($this->jobs($project), static fn (array $job): bool => $job[2] === 'final')),
+        );
+    }
+
+    #[Group('issue-69')]
+    public function testOneRunOfFerniteCarbideCurrentlyCountsTheFuelBlockOncePerBranchIssue69(): void
+    {
+        $project = $this->projectOf([[self::FERNITE_CARBIDE, 1, 10, 20]]);
 
         $this->service->buildBom($project, $this->owner);
 
@@ -371,12 +379,10 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         );
     }
 
-    #[Group('issue-2')]
-    #[Group('issue-23')]
-    #[Group('issue-105')]
-    public function testTenRunsOfHailLCurrentlyBecomeOneRunInventedFromACopyOfTheT1BlueprintIssue2(): void
+    #[Group('issue-69')]
+    public function testOneRunOfHailLCurrentlyCountsEachFuelBlockOncePerBranchIssue69(): void
     {
-        $project = $this->projectOf([[self::HAIL_L, 10, 2, 4]]);
+        $project = $this->projectOf([[self::HAIL_L, 1, 2, 4]]);
 
         $this->service->buildBom($project, $this->owner);
 
@@ -469,7 +475,6 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     }
 
     #[Group('issue-2')]
-    #[Group('issue-105')]
     public function testTenRunsOfHailLCurrentlyInventForTheOneManufacturingRunOfTheBomIssue2(): void
     {
         $project = $this->projectOf([[self::HAIL_L, 10, 2, 4]]);
@@ -487,7 +492,6 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     }
 
     #[Group('issue-2')]
-    #[Group('issue-105')]
     public function testThirtyFiveThousandRunsOfHailLCurrentlyBecomeSevenManufacturingRunsNeedingThreeInventionAttemptsAndThreeCopiesOfTheT1BlueprintIssue2(): void
     {
         $project = $this->projectOf([[self::HAIL_L, 35_000, 2, 4]]);
@@ -586,7 +590,6 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     }
 
     #[Group('issue-2')]
-    #[Group('issue-105')]
     public function testTwoHailLItemsCurrentlyBecomingOneAndSevenManufacturingRunsShareOneInventionAndOneT1CopySizedOnTheirSumIssue2(): void
     {
         $project = $this->projectOf([[self::HAIL_L, 1, 2, 4], [self::HAIL_L, 35_000, 0, 0]]);
@@ -608,7 +611,6 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     }
 
     #[Group('issue-2')]
-    #[Group('issue-105')]
     public function testTwoHailLItemsCurrentlyBecomingSevenAndSevenManufacturingRunsNeedFiveAttemptsOnTheirSumIssue2(): void
     {
         $project = $this->projectOf([[self::HAIL_L, 35_000, 2, 4], [self::HAIL_L, 35_000, 0, 0]]);
@@ -781,7 +783,6 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         self::assertCount(0, $project->getBomItems());
     }
 
-    #[Group('issue-106')]
     #[Group('issue-69')]
     public function testProjectItemAlsoNeededAsAnIntermediateKeepsItsFinalJobNextToTheIntermediateJobAndCurrentlyFlattensBothTreesIssue69(): void
     {
@@ -891,9 +892,8 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         self::assertSame([], $this->jobsOf($project, self::NITROGEN_FUEL_BLOCK, 'manufacturing'));
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #8 (R10) : un matériau sans prix Jita garde un
-    // prix estimé null, les lignes de job n'ont jamais de prix.
-    public function testMaterialsCurrentlyTakeTheirEstimatedPriceFromJitaAndKeepNullWithoutAPriceIssue8(): void
+    #[Group('issue-8')]
+    public function testMaterialsTakeTheirEstimatedPriceFromJitaAndKeepNullWithoutAPrice(): void
     {
         $this->jitaPrices = [17888 => 512.5, 9848 => 76_000.0];
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 10, 20]]);
@@ -901,17 +901,31 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         $this->service->buildBom($project, $this->owner);
 
         $estimatedPrices = [];
-        foreach ($project->getBomItems() as $bomItem) {
-            $estimatedPrices[$bomItem->getTypeId().($bomItem->isJob() ? ':'.$bomItem->getActivityType() : '')] = $bomItem->getEstimatedPrice();
+        foreach ($this->materialBomItems($project) as $bomItem) {
+            $estimatedPrices[$bomItem->getTypeId()] = $bomItem->getEstimatedPrice();
         }
         self::assertSame(
-            [
-                '44' => null, '3683' => null, '3689' => null, '9832' => null, '9848' => 76_000.0, '16272' => null,
-                '16273' => null, '16275' => null, '17888' => 512.5, '4051:manufacturing' => null, '4051:copy' => null,
-            ],
+            [44 => null, 3683 => null, 3689 => null, 9832 => null, 9848 => 76_000.0, 16272 => null, 16273 => null, 16275 => null, 17888 => 512.5],
             $estimatedPrices,
         );
         self::assertSame([[44, 3683, 3689, 9832, 9848, 16272, 16273, 16275, 17888]], $this->pricedTypeIds);
+    }
+
+    #[Group('issue-156')]
+    public function testJobLinesCurrentlyHaveNoEstimatedPriceIssue156(): void
+    {
+        $this->jitaPrices = [17888 => 512.5, 9848 => 76_000.0, self::NITROGEN_FUEL_BLOCK => 18_250.0];
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 10, 20]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame(
+            [[self::NITROGEN_FUEL_BLOCK, 'manufacturing', null], [self::NITROGEN_FUEL_BLOCK, 'copy', null]],
+            array_map(
+                static fn (GroupIndustryBomItem $bomItem): array => [$bomItem->getTypeId(), (string) $bomItem->getActivityType(), $bomItem->getEstimatedPrice()],
+                $this->jobBomItems($project),
+            ),
+        );
     }
 
     public function testJobAboveTheMaxProductionLimitOfItsBlueprintIsSplitButNotItsCopy(): void
@@ -947,7 +961,8 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         );
     }
 
-    public function testManufacturingJobMissingFromTheSdeLimitsIsSplitAt10000Runs(): void
+    #[Group('issue-160')]
+    public function testManufacturingJobMissingFromTheSdeLimitsIsCurrentlySplitAtAnInvented10000RunsIssue160(): void
     {
         $project = $this->projectOf([[self::WIDOW, 1, 0, 0]]);
 
@@ -963,10 +978,9 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         );
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #2 : aucune recette golden n'atteint 501 runs de
-    // réaction à partir d'un run ; les 501 runs de Fernite Alloy viennent ici des runs saisis lus comme une quantité,
-    // ceil(100001 / 200) = 501. Le découpage à 500 runs par défaut, lui, n'est pas suspecté.
-    public function testReactionMissingFromTheSdeLimitsIsSplitAt500RunsIssue2(): void
+    #[Group('issue-160')]
+    #[Group('issue-2')]
+    public function testReactionMissingFromTheSdeLimitsIsCurrentlySplitAtAnInvented500RunsIssue160(): void
     {
         $project = $this->projectOf([[self::FERNITE_ALLOY, 100_001, 0, 0]]);
 
@@ -1091,9 +1105,6 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         ));
     }
 
-    // CARACTÉRISATION : comportement actuel, suspecté faux (aucune issue connue) : buildBom() n'efface rien. Rappelé
-    // sur un projet déjà doté d'une BOM, il ajoute une seconde BOM complète à côté de la première ; les lignes
-    // existantes, leur quantité fournie et les contributions approuvées ou en attente qui les visent ne bougent pas.
     public function testRebuildingTheBomCurrentlyAppendsASecondFullBomNextToTheContributedLines(): void
     {
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 0, 0]]);

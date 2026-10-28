@@ -4,202 +4,210 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Industry;
 
+use App\Entity\CachedCharacterSkill;
+use App\Entity\Character;
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectStep;
+use App\Entity\User;
+use App\Repository\CachedCharacterSkillRepository;
+use App\Repository\IndustryRigCategoryRepository;
+use App\Repository\IndustryStructureConfigRepository;
+use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Repository\Sde\InvTypeRepository;
+use App\Service\Industry\IndustryProjectFactory;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
-/**
- * Tests for job splitting calculation logic.
- *
- * Jobs are split when: totalDuration > maxDurationDays
- * Where totalDuration = timePerRun × runs / SECONDS_PER_DAY
- */
-class JobSplitCalculationTest extends TestCase
+#[CoversClass(IndustryProjectFactory::class)]
+#[Group('issue-171')]
+final class JobSplitCalculationTest extends TestCase
 {
-    private const SECONDS_PER_DAY = 86400;
+    use BuildsProjectOnGoldenSde;
 
-    /**
-     * Calculate how jobs should be split.
-     *
-     * @return array{jobs: int, runsPerJob: int, lastJobRuns: int}
-     */
-    private function calculateSplit(int $timePerRun, int $totalRuns, float $maxDurationDays): array
+    private const int CAPITAL_JUMP_DRIVE = 21025;
+    private const int CAPITAL_JUMP_DRIVE_RUNS = 27;
+    private const int CAPITAL_JUMP_DRIVE_ME = 10;
+    private const int REINFORCED_CARBON_FIBER = 57457;
+    private const float DEFAULT_MAX_JOB_DURATION_DAYS = 2.0;
+    private const float ONE_DAY = 1.0;
+    private const float THREE_QUARTERS_OF_A_DAY = 0.75;
+    private const float DURATION_OF_TWENTY_SEVEN_RUNS_AT_TWELVE_THOUSAND_EIGHT_HUNDRED_SECONDS_IN_DAYS = 4.0;
+    private const float MAX_JOB_DURATION_SHORTER_THAN_ONE_RUN_DAYS = 0.1;
+    private const array NO_SKILL = [];
+    private const array INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE = [
+        CachedCharacterSkill::SKILL_INDUSTRY => 5,
+        CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5,
+    ];
+    private const array REACTIONS_FOUR = [CachedCharacterSkill::SKILL_REACTIONS => 4];
+
+    private User $pilot;
+
+    private array $skillLevelsOfThePilot = self::NO_SKILL;
+
+    private bool $pilotOwnsTataraAndRaitaru = false;
+
+    private IndustryProjectFactory $factory;
+
+    protected function setUp(): void
     {
-        $maxDurationSeconds = $maxDurationDays * self::SECONDS_PER_DAY;
-        $totalDuration = $timePerRun * $totalRuns;
+        $this->pilot = (new User())->addCharacter((new Character())->setName('Industrialist'));
 
-        // No split needed
-        if ($totalDuration <= $maxDurationSeconds) {
-            return [
-                'jobs' => 1,
-                'runsPerJob' => $totalRuns,
-                'lastJobRuns' => $totalRuns,
-            ];
-        }
-
-        // Calculate max runs per job
-        $maxRunsPerJob = max(1, (int) floor($maxDurationSeconds / $timePerRun));
-        $numberOfJobs = (int) ceil($totalRuns / $maxRunsPerJob);
-        $lastJobRuns = $totalRuns - ($maxRunsPerJob * ($numberOfJobs - 1));
-
-        return [
-            'jobs' => $numberOfJobs,
-            'runsPerJob' => $maxRunsPerJob,
-            'lastJobRuns' => $lastJobRuns,
-        ];
+        $bonusService = new TataraAndRaitaruBonusService(
+            fn (): bool => $this->pilotOwnsTataraAndRaitaru,
+            static fn (int $typeId): bool => (self::goldenRecipes()[$typeId]['activity'] ?? null) === 'reaction',
+            $this->createStub(IndustryRigCategoryRepository::class),
+            $this->createStub(IndustryStructureConfigRepository::class),
+            $this->createStub(InvTypeRepository::class),
+            $this->createStub(IndustryActivityProductRepository::class),
+        );
+        $calculationService = $this->calculationServiceOnGoldenSde($bonusService, $this->createStub(IndustryStructureConfigRepository::class));
+        $this->factory = $this->projectFactoryOnGoldenSde($bonusService, $calculationService, skillRepository: $this->skillRepositoryOfThePilot());
     }
 
-    /**
-     * Calculate adjusted time with TE and structure bonuses.
-     */
-    private function calculateAdjustedTime(int $baseTime, int $te = 0, float $structureTimeBonus = 0.0): int
+    public function testCapitalJumpDriveOfAPilotWithIndustryFiveAndAdvancedIndustryFiveIsSplitIntoFourteenAndThirteenRuns(): void
     {
-        $teMultiplier = 1 - $te / 100;
-        $structureMultiplier = 1 - $structureTimeBonus / 100;
+        $this->skillLevelsOfThePilot = self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE;
 
-        return (int) ceil($baseTime * $teMultiplier * $structureMultiplier);
+        $project = $this->createCapitalJumpDriveProject(teLevel: 20, maxJobDurationDays: self::DEFAULT_MAX_JOB_DURATION_DAYS);
+
+        self::assertSame([[14, 14, 0, 27], [13, 13, 1, 27]], $this->jobsOf($project, self::CAPITAL_JUMP_DRIVE));
+        self::assertCount(1, array_unique(array_map(
+            static fn (IndustryProjectStep $job): ?string => $job->getSplitGroupId(),
+            $this->stepsOfProduct($project, self::CAPITAL_JUMP_DRIVE),
+        )));
+        self::assertNotNull($this->stepsOfProduct($project, self::CAPITAL_JUMP_DRIVE)[0]->getSplitGroupId());
     }
 
-    // ===========================================
-    // No Split Needed Tests
-    // ===========================================
-
-    public function testNoSplitWhenUnderMax(): void
+    public function testCapitalJumpDriveAtTeTwentyWithoutSkillsIsSplitIntoThreeJobsOfNineRuns(): void
     {
-        // 10 runs × 3600s (1h each) = 10h < 48h (2 days)
-        $result = $this->calculateSplit(3600, 10, 2.0);
+        $project = $this->createCapitalJumpDriveProject(teLevel: 20, maxJobDurationDays: self::DEFAULT_MAX_JOB_DURATION_DAYS);
 
-        $this->assertSame(1, $result['jobs']);
-        $this->assertSame(10, $result['runsPerJob']);
-        $this->assertSame(10, $result['lastJobRuns']);
+        self::assertSame([[9, 9, 0, 27], [9, 9, 1, 27], [9, 9, 2, 27]], $this->jobsOf($project, self::CAPITAL_JUMP_DRIVE));
     }
 
-    public function testNoSplitAtExactMax(): void
+    #[Group('issue-165')]
+    #[DataProvider('capitalJumpDriveSplitsAtOneDayByTeAndSkills')]
+    public function testTeAndSkillsOfThePilotSetTheTimePerRunThatSplitsACapitalJumpDriveInJobsOfOneDay(int $teLevel, array $skillLevels, array $expectedRunsOfEachJob): void
     {
-        // 48 runs × 3600s = 48h = exactly 2 days
-        $result = $this->calculateSplit(3600, 48, 2.0);
+        $this->skillLevelsOfThePilot = $skillLevels;
 
-        $this->assertSame(1, $result['jobs']);
-        $this->assertSame(48, $result['runsPerJob']);
-        $this->assertSame(48, $result['lastJobRuns']);
+        $project = $this->createCapitalJumpDriveProject(teLevel: $teLevel, maxJobDurationDays: self::ONE_DAY);
+
+        self::assertSame($expectedRunsOfEachJob, $this->runsOfEachJobOf($project, self::CAPITAL_JUMP_DRIVE));
     }
 
-    // ===========================================
-    // Split Required Tests
-    // ===========================================
-
-    public function testSplitJustOverMax(): void
+    public static function capitalJumpDriveSplitsAtOneDayByTeAndSkills(): iterable
     {
-        // 49 runs × 3600s = 49h > 48h (2 days)
-        // maxRunsPerJob = floor(172800 / 3600) = 48
-        // jobs = ceil(49 / 48) = 2
-        $result = $this->calculateSplit(3600, 49, 2.0);
-
-        $this->assertSame(2, $result['jobs']);
-        $this->assertSame(48, $result['runsPerJob']);
-        $this->assertSame(1, $result['lastJobRuns']); // 49 - 48 = 1
+        yield 'TE 0 without skills: 16000 s per run, 5 runs per job' => [0, self::NO_SKILL, [5, 5, 5, 4, 4, 4]];
+        yield 'TE 20 without skills: 12800 s per run, 6 runs per job' => [20, self::NO_SKILL, [6, 6, 5, 5, 5]];
+        yield 'TE 0 with Industry V and Advanced Industry V: 10880 s per run, 7 runs per job' => [0, self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE, [7, 7, 7, 6]];
+        yield 'TE 20 with Industry V and Advanced Industry V: 8704 s per run, 9 runs per job' => [20, self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE, [9, 9, 9]];
+        yield 'TE 20 with Reactions IV only: 12800 s per run, 6 runs per job' => [20, self::REACTIONS_FOUR, [6, 6, 5, 5, 5]];
     }
 
-    public function testSplitMultipleJobs(): void
+    public function testCapitalJumpDriveExactlyAsLongAsTheMaximumDurationIsNotSplit(): void
     {
-        // 148 runs × 10800s (3h each) = 444h
-        // maxDuration = 2 days = 172800s
-        // maxRunsPerJob = floor(172800 / 10800) = 16
-        // jobs = ceil(148 / 16) = 10
-        $result = $this->calculateSplit(10800, 148, 2.0);
+        $project = $this->createCapitalJumpDriveProject(
+            teLevel: 20,
+            maxJobDurationDays: self::DURATION_OF_TWENTY_SEVEN_RUNS_AT_TWELVE_THOUSAND_EIGHT_HUNDRED_SECONDS_IN_DAYS,
+        );
 
-        $this->assertSame(10, $result['jobs']);
-        $this->assertSame(16, $result['runsPerJob']);
-        $this->assertSame(4, $result['lastJobRuns']); // 148 - (16 × 9) = 4
+        self::assertSame([[27, 27, 0, null]], $this->jobsOf($project, self::CAPITAL_JUMP_DRIVE));
+        self::assertNull($this->stepsOfProduct($project, self::CAPITAL_JUMP_DRIVE)[0]->getSplitGroupId());
     }
 
-    public function testSplitWithVeryLongJob(): void
+    public function testOneRunMoreThanTheMaximumDurationSplitsTheCapitalJumpDriveIntoTwoJobs(): void
     {
-        // 27 runs × 259200s (3 days each) - Capital Clone Vat Bay
-        // maxDuration = 2 days = 172800s
-        // maxRunsPerJob = floor(172800 / 259200) = 0 → 1 (minimum)
-        // jobs = ceil(27 / 1) = 27
-        $result = $this->calculateSplit(259200, 27, 2.0);
+        $project = $this->createCapitalJumpDriveProject(
+            teLevel: 20,
+            maxJobDurationDays: self::DURATION_OF_TWENTY_SEVEN_RUNS_AT_TWELVE_THOUSAND_EIGHT_HUNDRED_SECONDS_IN_DAYS,
+            runs: 28,
+        );
 
-        $this->assertSame(27, $result['jobs']);
-        $this->assertSame(1, $result['runsPerJob']);
-        $this->assertSame(1, $result['lastJobRuns']);
+        self::assertSame([[14, 14, 0, 28], [14, 14, 1, 28]], $this->jobsOf($project, self::CAPITAL_JUMP_DRIVE));
     }
 
-    public function testSplitWithDifferentMaxDuration(): void
+    public function testMaximumDurationShorterThanOneRunGivesOneJobPerRun(): void
     {
-        // 100 runs × 3600s = 100h
-        // maxDuration = 1 day = 86400s
-        // maxRunsPerJob = floor(86400 / 3600) = 24
-        // jobs = ceil(100 / 24) = 5
-        $result = $this->calculateSplit(3600, 100, 1.0);
+        $project = $this->createCapitalJumpDriveProject(teLevel: 20, maxJobDurationDays: self::MAX_JOB_DURATION_SHORTER_THAN_ONE_RUN_DAYS, runs: 3);
 
-        $this->assertSame(5, $result['jobs']);
-        $this->assertSame(24, $result['runsPerJob']);
-        $this->assertSame(4, $result['lastJobRuns']); // 100 - (24 × 4) = 4
+        self::assertSame([[1, 1, 0, 3], [1, 1, 1, 3], [1, 1, 2, 3]], $this->jobsOf($project, self::CAPITAL_JUMP_DRIVE));
     }
 
-    // ===========================================
-    // Adjusted Time Tests
-    // ===========================================
-
-    public function testAdjustedTimeWithTE20(): void
+    public function testOneRunLongerThanTheMaximumDurationStaysOneUnsplitJob(): void
     {
-        // 10800s × (1 - 20/100) = 10800 × 0.8 = 8640s
-        $result = $this->calculateAdjustedTime(10800, 20, 0.0);
-        $this->assertSame(8640, $result);
+        $project = $this->createCapitalJumpDriveProject(teLevel: 20, maxJobDurationDays: self::MAX_JOB_DURATION_SHORTER_THAN_ONE_RUN_DAYS, runs: 1);
+
+        self::assertSame([[1, 1, 0, null]], $this->jobsOf($project, self::CAPITAL_JUMP_DRIVE));
+        self::assertNull($this->stepsOfProduct($project, self::CAPITAL_JUMP_DRIVE)[0]->getSplitGroupId());
     }
 
-    public function testAdjustedTimeWithStructureBonus(): void
+    #[Group('issue-165')]
+    #[DataProvider('reinforcedCarbonFiberOfACapitalJumpDriveSplitsBySkills')]
+    public function testReactionsSkillOfThePilotSetsTheTimePerRunThatSplitsTheReinforcedCarbonFiberOfACapitalJumpDrive(array $skillLevels, array $expectedJobs): void
     {
-        // 10800s × (1 - 20/100) = 10800 × 0.8 = 8640s
-        $result = $this->calculateAdjustedTime(10800, 0, 20.0);
-        $this->assertSame(8640, $result);
+        $this->skillLevelsOfThePilot = $skillLevels;
+
+        $project = $this->createCapitalJumpDriveProject(teLevel: 20, maxJobDurationDays: self::THREE_QUARTERS_OF_A_DAY);
+
+        self::assertSame($expectedJobs, $this->jobsOf($project, self::REINFORCED_CARBON_FIBER));
     }
 
-    public function testAdjustedTimeWithBothBonuses(): void
+    public static function reinforcedCarbonFiberOfACapitalJumpDriveSplitsBySkills(): iterable
     {
-        // 10800s × 0.8 (TE 20) × 0.76 (24% structure) = 6566.4 → ceil = 6567
-        $result = $this->calculateAdjustedTime(10800, 20, 24.0);
-        $this->assertSame(6567, $result);
+        yield 'without skills: 10800 s per run, 6 runs per job' => [self::NO_SKILL, [[5, 1000, 0, 13], [4, 800, 1, 13], [4, 630, 2, 13]]];
+        yield 'with Reactions IV: 9072 s per run, 7 runs per job' => [self::REACTIONS_FOUR, [[7, 1400, 0, 13], [6, 1030, 1, 13]]];
+        yield 'with Industry V and Advanced Industry V only: 10800 s per run, 6 runs per job' => [self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE, [[5, 1000, 0, 13], [4, 800, 1, 13], [4, 630, 2, 13]]];
     }
 
-    public function testSplitWithAdjustedTime(): void
+    public function testTimeBonusOfATataraShortensTheReactionJobsOfTheSplit(): void
     {
-        // Real-world example: Carbon Fiber reaction
-        // Base time: 10800s (3h), TE: 20, Structure: 25%
-        // Adjusted: 10800 × 0.8 × 0.75 = 6480s
-        // 148 runs × 6480s = 958560s = ~11 days
-        // maxDuration = 2 days = 172800s
-        // maxRunsPerJob = floor(172800 / 6480) = 26
-        // jobs = ceil(148 / 26) = 6
-        $adjustedTime = $this->calculateAdjustedTime(10800, 20, 25.0);
-        $this->assertSame(6480, $adjustedTime);
+        $this->pilotOwnsTataraAndRaitaru = true;
 
-        $result = $this->calculateSplit($adjustedTime, 148, 2.0);
-        $this->assertSame(6, $result['jobs']);
-        $this->assertSame(26, $result['runsPerJob']);
-        $this->assertSame(18, $result['lastJobRuns']); // 148 - (26 × 5) = 18
+        $project = $this->createCapitalJumpDriveProject(teLevel: 20, maxJobDurationDays: self::THREE_QUARTERS_OF_A_DAY);
+
+        self::assertSame([7, 6], $this->runsOfEachJobOf($project, self::REINFORCED_CARBON_FIBER));
     }
 
-    // ===========================================
-    // Edge Cases
-    // ===========================================
-
-    public function testSingleRunAlwaysOneJob(): void
+    private function createCapitalJumpDriveProject(int $teLevel, float $maxJobDurationDays, int $runs = self::CAPITAL_JUMP_DRIVE_RUNS): IndustryProject
     {
-        // Even if one run takes longer than max, it's still 1 job
-        $result = $this->calculateSplit(500000, 1, 2.0);
-
-        $this->assertSame(1, $result['jobs']);
-        $this->assertSame(1, $result['runsPerJob']);
-        $this->assertSame(1, $result['lastJobRuns']);
+        return $this->factory->createProject($this->pilot, self::CAPITAL_JUMP_DRIVE, $runs, self::CAPITAL_JUMP_DRIVE_ME, $maxJobDurationDays, $teLevel);
     }
 
-    public function testZeroTimePerRunNoSplit(): void
+    private function skillRepositoryOfThePilot(): CachedCharacterSkillRepository
     {
-        // Edge case: if time is 0 (shouldn't happen but test safety)
-        // Division by zero protection would be in the actual implementation
-        $result = $this->calculateSplit(1, 1000, 2.0);
+        $skillRepository = $this->createStub(CachedCharacterSkillRepository::class);
+        $skillRepository->method('findAllSkillsForCharacter')->willReturnCallback(
+            fn (): array => array_map(
+                static fn (int $skillId, int $level): CachedCharacterSkill => (new CachedCharacterSkill())->setSkillId($skillId)->setLevel($level),
+                array_keys($this->skillLevelsOfThePilot),
+                array_values($this->skillLevelsOfThePilot),
+            ),
+        );
 
-        $this->assertSame(1, $result['jobs']);
+        return $skillRepository;
+    }
+
+    private function stepsOfProduct(IndustryProject $project, int $productTypeId): array
+    {
+        return array_values(array_filter(
+            $project->getSteps()->toArray(),
+            static fn (IndustryProjectStep $step): bool => $step->getProductTypeId() === $productTypeId && $step->getActivityType() !== 'copy',
+        ));
+    }
+
+    private function jobsOf(IndustryProject $project, int $productTypeId): array
+    {
+        return array_map(
+            static fn (IndustryProjectStep $job): array => [$job->getRuns(), $job->getQuantity(), $job->getSplitIndex(), $job->getTotalGroupRuns()],
+            $this->stepsOfProduct($project, $productTypeId),
+        );
+    }
+
+    private function runsOfEachJobOf(IndustryProject $project, int $productTypeId): array
+    {
+        return array_map(static fn (IndustryProjectStep $job): int => $job->getRuns(), $this->stepsOfProduct($project, $productTypeId));
     }
 }

@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\IndustryStructureConfig;
+use App\Entity\Sde\IndustryActivityProduct;
+use App\Entity\Sde\InvGroup;
+use App\Entity\Sde\InvType;
 use App\Entity\User;
+use App\Enum\IndustryActivityType;
 use App\Service\Industry\IndustryBonusService;
 use App\Repository\IndustryRigCategoryRepository;
 use App\Repository\IndustryStructureConfigRepository;
@@ -18,6 +22,11 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(IndustryBonusService::class)]
 class IndustryBonusServiceTest extends TestCase
 {
+    private const int REACTION_PRODUCT_TYPE_ID = 16673;
+    private const int REACTION_PRODUCT_GROUP_ID = 429;
+    private const int REACTION_FORMULA_TYPE_ID = 46166;
+    private const int REACTION_FORMULA_GROUP_ID = 1888;
+
     private IndustryBonusService $bonusService;
 
     protected function setUp(): void
@@ -760,6 +769,124 @@ class IndustryBonusServiceTest extends TestCase
     {
         // 3603 x 0.80 = 2882.4 -> 2883
         $this->assertSame(2883, $this->bonusService->calculateAdjustedTimePerRun(3603, 20, 0.0));
+    }
+
+    public function testBaseMaterialBonusIsOnePercentForAnEngineeringComplexInManufacturingOnly(): void
+    {
+        $raitaru = $this->createStructure('Test Raitaru', 'raitaru', 'nullsec', []);
+        $azbel = $this->createStructure('Test Azbel', 'azbel', 'lowsec', []);
+        $tatara = $this->createStructure('Test Tatara', 'tatara', 'nullsec', []);
+        $station = $this->createStructure('Test Station', 'station', 'highsec', []);
+
+        $this->assertSame(1.0, $this->bonusService->getBaseMaterialBonus($raitaru, false));
+        $this->assertSame(0.0, $this->bonusService->getBaseMaterialBonus($raitaru, true));
+        $this->assertSame(1.0, $this->bonusService->getBaseMaterialBonus($azbel, false));
+        $this->assertSame(0.0, $this->bonusService->getBaseMaterialBonus($tatara, false));
+        $this->assertSame(0.0, $this->bonusService->getBaseMaterialBonus($station, false));
+    }
+
+    public function testOnlyARefineryIsSuitableForReactionsAndEveryOtherStructureForManufacturing(): void
+    {
+        $athanor = $this->createStructure('Test Athanor', 'athanor', 'nullsec', []);
+        $sotiyo = $this->createStructure('Test Sotiyo', 'sotiyo', 'nullsec', []);
+
+        $this->assertTrue($this->bonusService->isSuitableForActivity($athanor, true));
+        $this->assertFalse($this->bonusService->isSuitableForActivity($athanor, false));
+        $this->assertTrue($this->bonusService->isSuitableForActivity($sotiyo, false));
+        $this->assertFalse($this->bonusService->isSuitableForActivity($sotiyo, true));
+    }
+
+    public function testCategoryTimeBonusTakesTheBaseOfTheStructureOnlyForItsOwnActivity(): void
+    {
+        $tatara = $this->createStructure('Test Tatara', 'tatara', 'nullsec', []);
+        $raitaru = $this->createStructure('Test Raitaru', 'raitaru', 'nullsec', []);
+
+        $this->assertSame(0.0, $this->bonusService->calculateStructureTimeBonusForCategory($tatara, 'basic_capital_component'));
+        $this->assertSame(0.0, $this->bonusService->calculateStructureTimeBonusForCategory($raitaru, 'composite_reaction'));
+    }
+
+    public function testTimeBonusSkipsANonMatchingRigAndStillCountsTheNextOne(): void
+    {
+        $raitaru = $this->createStructure('Test Raitaru', 'raitaru', 'highsec', [
+            'Standup M-Set Basic Large Ship Manufacturing Time Efficiency II',
+            'Standup M-Set Basic Capital Component Manufacturing Time Efficiency I',
+        ]);
+
+        $this->assertSame(32.0, $this->bonusService->calculateStructureTimeBonusForCategory($raitaru, 'basic_capital_component'));
+    }
+
+    public function testCategoryOfAReactionProductComesFromTheGroupOfItsFormula(): void
+    {
+        $this->assertSame('composite_reaction', $this->bonusServiceKnowingAReactionProduct()->getCategoryForProduct(self::REACTION_PRODUCT_TYPE_ID, true));
+    }
+
+    public function testCategoryOfAProductComesFromItsOwnGroupUnlessAReactionIsAsked(): void
+    {
+        $bonusService = $this->bonusServiceKnowingAReactionProduct();
+
+        $this->assertSame('composite', $bonusService->getCategoryForProduct(self::REACTION_PRODUCT_TYPE_ID));
+        $this->assertSame('composite', $bonusService->findBestStructureForProduct(new User(), self::REACTION_PRODUCT_TYPE_ID)['category']);
+    }
+
+    public function testStructureOfUnknownTypeCurrentlyGetsNoBaseBonusAndIsNeverRetained(): void
+    {
+        $fortizar = $this->createStructure('Test Fortizar', 'fortizar', 'nullsec', []);
+
+        $this->assertSame(0.0, $this->bonusService->getBaseMaterialBonus($fortizar, false));
+        $this->assertSame(0.0, $this->bonusService->getBaseTimeBonus($fortizar, false));
+        $this->assertSame(
+            ['total' => 0.0, 'base' => 0.0, 'rig' => 0.0],
+            $this->bonusService->calculateStructureBonusForCategory($fortizar, 'basic_capital_component'),
+        );
+        $this->assertSame(
+            ['structure' => null, 'bonus' => ['total' => 0.0, 'base' => 0.0, 'rig' => 0.0], 'category' => null],
+            $this->bonusServiceForStructures([$fortizar])->findBestStructureForProduct(new User(), 16670, false),
+        );
+    }
+
+    public function testRigOfAStructureOfUnknownSecurityIsCurrentlyTreatedAsHighsec(): void
+    {
+        $raitaru = $this->createStructure('Test Raitaru', 'raitaru', 'wormhole', ['Standup M-Set Basic Capital Component Manufacturing Material Efficiency II']);
+        $athanor = $this->createStructure('Test Athanor', 'athanor', 'wormhole', ['Standup L-Set Reactor Efficiency II']);
+
+        $this->assertSame(
+            ['total' => 3.38, 'base' => 1.0, 'rig' => 2.4],
+            $this->bonusService->calculateStructureBonusForCategory($raitaru, 'basic_capital_component'),
+        );
+        $this->assertSame(
+            ['total' => 2.4, 'base' => 0.0, 'rig' => 2.4],
+            $this->bonusService->calculateStructureBonusForCategory($athanor, 'composite_reaction'),
+        );
+    }
+
+    private function bonusServiceKnowingAReactionProduct(): IndustryBonusService
+    {
+        $productGroup = (new InvGroup())->setGroupId(self::REACTION_PRODUCT_GROUP_ID);
+        $formulaGroup = (new InvGroup())->setGroupId(self::REACTION_FORMULA_GROUP_ID);
+        $types = [
+            self::REACTION_PRODUCT_TYPE_ID => (new InvType())->setTypeId(self::REACTION_PRODUCT_TYPE_ID)->setGroup($productGroup),
+            self::REACTION_FORMULA_TYPE_ID => (new InvType())->setTypeId(self::REACTION_FORMULA_TYPE_ID)->setGroup($formulaGroup),
+        ];
+        $invTypeRepository = $this->createStub(InvTypeRepository::class);
+        $invTypeRepository->method('find')->willReturnCallback(static fn (int $typeId): ?InvType => $types[$typeId] ?? null);
+        $activityProductRepository = $this->createStub(IndustryActivityProductRepository::class);
+        $activityProductRepository->method('findBlueprintForProduct')->willReturnCallback(
+            static fn (int $productTypeId, int $activityId): ?IndustryActivityProduct => $productTypeId === self::REACTION_PRODUCT_TYPE_ID && $activityId === IndustryActivityType::Reaction->value
+                ? (new IndustryActivityProduct())->setTypeId(self::REACTION_FORMULA_TYPE_ID)
+                : null,
+        );
+        $categoryRepository = $this->createStub(IndustryRigCategoryRepository::class);
+        $categoryRepository->method('buildGroupCategoryMap')->willReturn([
+            self::REACTION_PRODUCT_GROUP_ID => 'composite',
+            self::REACTION_FORMULA_GROUP_ID => 'composite_reaction',
+        ]);
+
+        return new IndustryBonusService(
+            $categoryRepository,
+            $this->createStub(IndustryStructureConfigRepository::class),
+            $invTypeRepository,
+            $activityProductRepository,
+        );
     }
 
     /** @param IndustryStructureConfig[] $structures */
