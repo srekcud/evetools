@@ -41,6 +41,8 @@ use Doctrine\ORM\EntityManagerInterface;
  */
 class GroupIndustryProjectService
 {
+    public const int MAX_BOM_LINES = 1000;
+
     public function __construct(
         private readonly ProductionPlanning $productionPlanning,
         private readonly UserProductionStructures $userStructures,
@@ -111,6 +113,11 @@ class GroupIndustryProjectService
         $jobAggregation = $this->jobLinesOf($plan, $producers, $typeNames);
 
         $this->replaceT2BlueprintCopiesByInventions($materialAggregation, $jobAggregation);
+
+        $bomLineCount = count($materialAggregation) + count($jobAggregation);
+        if ($bomLineCount > self::MAX_BOM_LINES) {
+            throw new \RuntimeException(sprintf('The production plan has %d BOM lines, above the limit of %d BOM lines per project.', $bomLineCount, self::MAX_BOM_LINES));
+        }
 
         $materialTypeIds = array_keys($materialAggregation);
         $prices = !empty($materialTypeIds)

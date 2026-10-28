@@ -1968,7 +1968,11 @@
       "notesPlaceholder": "Note optionnelle sur cette contribution...",
       "optional": "optionnel",
       "submit": "Soumettre la contribution",
-      "pendingNote": "Votre contribution sera examinee par un admin du projet."
+      "pendingNote": "Votre contribution sera examinee par un admin du projet.",
+      "bomPriceLabel": "Prix BOM, figé à la création du projet",
+      "bomPriceFrozenOn": "Figé le {date}",
+      "bomPriceSource": "Jita, 5 % des ordres de vente les moins chers",
+      "methodBomPrice": "Méthode : prix BOM × quantité"
     },
     "contributions": {
       "title": "Contributions",

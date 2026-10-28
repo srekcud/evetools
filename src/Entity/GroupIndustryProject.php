@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Constant\EveConstants;
 use App\Enum\ContributionStatus;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupProjectStatus;
@@ -55,10 +56,10 @@ class GroupIndustryProject
     private array $blacklistTypeIds = [];
 
     #[ORM\Column(type: 'float')]
-    private float $brokerFeePercent = 3.6;
+    private float $brokerFeePercent = EveConstants::DEFAULT_BROKER_FEE_PERCENT;
 
     #[ORM\Column(type: 'float')]
-    private float $salesTaxPercent = 3.6;
+    private float $salesTaxPercent = EveConstants::DEFAULT_SALES_TAX_PERCENT;
 
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;

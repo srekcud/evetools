@@ -16,6 +16,7 @@ use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\EmptyInput;
 use App\ApiResource\Input\GroupIndustry\CreateGroupProjectInput;
 use App\ApiResource\Input\GroupIndustry\UpdateGroupProjectInput;
+use App\Constant\EveConstants;
 use App\State\Processor\GroupIndustry\CreateGroupProjectProcessor;
 use App\State\Processor\GroupIndustry\DeleteGroupProjectProcessor;
 use App\State\Processor\GroupIndustry\JoinGroupProjectProcessor;
@@ -135,9 +136,9 @@ class GroupIndustryProjectResource
 
     public float $approvedContributionValue = 0.0;
 
-    public float $brokerFeePercent = 3.6;
+    public float $brokerFeePercent = EveConstants::DEFAULT_BROKER_FEE_PERCENT;
 
-    public float $salesTaxPercent = 3.6;
+    public float $salesTaxPercent = EveConstants::DEFAULT_SALES_TAX_PERCENT;
 
     /** @var array<string, int>|null */
     public ?array $lineRentalRatesOverride = null;

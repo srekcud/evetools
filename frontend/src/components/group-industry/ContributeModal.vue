@@ -16,7 +16,7 @@ const noteFieldId = useId()
 const projectStore = useGroupProjectStore()
 const contributionStore = useGroupContributionStore()
 const { getTypeIconUrl, onImageError } = useEveImages()
-const { formatIsk, formatNumber, formatIskFull } = useFormatters()
+const { formatIsk, formatNumber, formatIskFull, formatDate } = useFormatters()
 
 const props = defineProps<{
   show: boolean
@@ -81,6 +81,13 @@ const materialPriceIsUnknown = computed(() =>
   && selectedBomItem.value !== null
   && selectedBomItem.value.estimatedPrice == null
 )
+
+const bomPriceSourceLine = computed(() => {
+  const source = t('groupIndustry.contribute.bomPriceSource')
+  const project = projectStore.currentProject
+  if (!project) return source
+  return `${t('groupIndustry.contribute.bomPriceFrozenOn', { date: formatDate(project.createdAt) })} · ${source}`
+})
 
 const requiresEnteredValue = computed(() =>
   selectedType.value === 'job_install' || selectedType.value === 'bpc' || selectedType.value === 'line_rental' || materialPriceIsUnknown.value
@@ -150,8 +157,6 @@ async function submit(): Promise<void> {
 
   if (requiresEnteredValue.value) {
     input.estimatedValue = estimatedValue.value
-  } else if (autoEstimatedValue.value != null) {
-    input.estimatedValue = autoEstimatedValue.value
   }
 
   if (note.value.trim()) {
@@ -295,9 +300,10 @@ async function submit(): Promise<void> {
         <!-- Auto-calculated price for materials -->
         <div v-if="selectedType === 'material' && selectedBomItem && autoEstimatedValue != null" class="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-sm text-slate-400">Jita Weighted Sell Price</span>
+            <span class="text-sm text-slate-400">{{ t('groupIndustry.contribute.bomPriceLabel') }}</span>
             <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Auto-calculated</span>
           </div>
+          <p class="text-xs text-slate-500 mb-2">{{ bomPriceSourceLine }}</p>
           <div class="flex items-center justify-between">
             <span class="text-sm text-slate-500">Unit price:</span>
             <span class="font-mono text-sm text-slate-300" style="font-variant-numeric: tabular-nums;">
@@ -333,7 +339,7 @@ async function submit(): Promise<void> {
           <p class="text-3xl font-mono font-bold text-emerald-400" style="font-variant-numeric: tabular-nums;">
             {{ formatIskFull(displayedValue) }}
           </p>
-          <p v-if="autoEstimatedValue != null" class="text-xs text-slate-500 mt-2">Method: Jita weighted sell price</p>
+          <p v-if="autoEstimatedValue != null" class="text-xs text-slate-500 mt-2">{{ t('groupIndustry.contribute.methodBomPrice') }}</p>
         </div>
 
         <!-- Notes -->

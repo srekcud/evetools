@@ -11,14 +11,12 @@ use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Repository\GroupIndustryContributionRepository;
-use App\Service\JitaMarketService;
 use Doctrine\ORM\EntityManagerInterface;
 
 class GroupIndustryContributionService
 {
     public function __construct(
         private readonly GroupIndustryContributionRepository $contributionRepository,
-        private readonly JitaMarketService $jitaMarketService,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }
@@ -39,7 +37,7 @@ class GroupIndustryContributionService
         $this->validateAntiDuplicate($member, $bomItem, $type);
 
         $estimatedValue = match ($type) {
-            ContributionType::Material => $this->resolveMaterialValue($bomItem->getTypeId(), $quantity, $estimatedValue),
+            ContributionType::Material => $this->resolveMaterialValue($bomItem, $quantity, $estimatedValue),
             ContributionType::JobInstall, ContributionType::Bpc => $this->requirePositiveEnteredValue($type, $estimatedValue),
             ContributionType::LineRental => $this->requireEnteredValue($type, $estimatedValue),
         };
@@ -161,30 +159,23 @@ class GroupIndustryContributionService
         }
     }
 
-    /**
-     * Calculate the Ravworks-style value for a material contribution.
-     * Uses the cheapest 5% percentile of Jita sell orders.
-     */
-    public function calculateMaterialValue(int $typeId, int $quantity): ?float
+    private function resolveMaterialValue(GroupIndustryBomItem $bomItem, int $quantity, ?float $enteredValue): float
     {
-        $prices = $this->jitaMarketService->getCheapestPercentilePrices([$typeId]);
-        $price = $prices[$typeId] ?? null;
+        $bomPrice = $bomItem->getEstimatedPrice();
 
-        if ($price === null) {
-            return null;
+        if ($bomPrice !== null) {
+            if ($enteredValue !== null) {
+                throw new \DomainException(sprintf('Type %d has a BOM price: a material contribution is valued from it.', $bomItem->getTypeId()));
+            }
+
+            return $bomPrice * $quantity;
         }
 
-        return $price * $quantity;
-    }
-
-    private function resolveMaterialValue(int $typeId, int $quantity, ?float $enteredValue): float
-    {
-        if ($enteredValue !== null && $enteredValue > 0) {
-            return $enteredValue;
+        if ($enteredValue === null || $enteredValue <= 0) {
+            throw new \DomainException(sprintf('No market price for type %d: enter an estimated value.', $bomItem->getTypeId()));
         }
 
-        return $this->calculateMaterialValue($typeId, $quantity)
-            ?? throw new \DomainException(sprintf('No market price for type %d: enter an estimated value.', $typeId));
+        return $enteredValue;
     }
 
     private function requireEnteredValue(ContributionType $type, ?float $enteredValue): float

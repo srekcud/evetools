@@ -8,9 +8,11 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\ApiResource\Input\GroupIndustry\CreateGroupProjectInput;
+use App\Constant\EveConstants;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\GroupIndustry\CreateProjectData;
@@ -26,6 +28,8 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
  */
 class CreateGroupProjectProcessor implements ProcessorInterface
 {
+    private const int PERCENT_DECIMALS = 4;
+
     public function __construct(
         private readonly Security $security,
         private readonly GroupIndustryProjectService $projectService,
@@ -33,6 +37,7 @@ class CreateGroupProjectProcessor implements ProcessorInterface
         private readonly GroupIndustryResourceMapper $mapper,
         private readonly InvTypeRepository $invTypeRepository,
         private readonly IndustryActivityProductRepository $activityProductRepository,
+        private readonly IndustryUserSettingsRepository $settingsRepository,
     ) {
     }
 
@@ -62,6 +67,8 @@ class CreateGroupProjectProcessor implements ProcessorInterface
         }
         $resolvedGroupIds = array_values(array_unique($resolvedGroupIds));
 
+        $settings = $this->settingsRepository->findOneBy(['user' => $user]);
+
         try {
             $projectData = new CreateProjectData(
                 name: $data->name ?? '',
@@ -70,8 +77,8 @@ class CreateGroupProjectProcessor implements ProcessorInterface
                 blacklistTypeIds: $data->blacklistTypeIds,
                 containerName: $data->containerName,
                 lineRentalRatesOverride: $data->lineRentalRatesOverride,
-                brokerFeePercent: $data->brokerFeePercent ?? 3.6,
-                salesTaxPercent: $data->salesTaxPercent ?? 3.6,
+                brokerFeePercent: $data->brokerFeePercent ?? self::ratePercent($settings?->getBrokerFeeRate() ?? EveConstants::DEFAULT_BROKER_FEE_RATE),
+                salesTaxPercent: $data->salesTaxPercent ?? self::ratePercent($settings?->getSalesTaxRate() ?? EveConstants::DEFAULT_SALES_TAX_RATE),
             );
 
             $project = $this->projectService->createProject($user, $projectData);
@@ -87,6 +94,11 @@ class CreateGroupProjectProcessor implements ProcessorInterface
         ]);
 
         return $this->mapper->projectToResource($project, $ownerMembership);
+    }
+
+    private static function ratePercent(float $rate): float
+    {
+        return round($rate * 100, self::PERCENT_DECIMALS);
     }
 
     /**
