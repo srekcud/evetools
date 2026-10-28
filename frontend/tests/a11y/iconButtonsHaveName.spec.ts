@@ -213,6 +213,7 @@ const GROUP_PROJECT: GroupProject = {
   items: [],
   totalBomValue: 0,
   fulfillmentPercent: 0,
+  approvedContributionValue: 0,
   brokerFeePercent: 3,
   salesTaxPercent: 3,
   lineRentalRatesOverride: null,

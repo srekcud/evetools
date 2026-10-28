@@ -7,17 +7,22 @@ namespace App\Tests\Integration\State\Provider\GroupIndustry;
 use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\Entity\GroupIndustryBomItem;
+use App\Entity\GroupIndustryContribution;
 use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustryProjectItem;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
+use App\Enum\ContributionStatus;
+use App\Enum\ContributionType;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
+use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
 use App\State\Provider\GroupIndustry\GroupProjectCollectionProvider;
 use App\Tests\Integration\IntegrationTestCase;
 use App\Tests\Integration\RecordsSqlQueries;
+use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\SecurityBundle\Security;
 
 /**
@@ -31,7 +36,7 @@ final class GroupProjectCollectionProviderTest extends IntegrationTestCase
     use RecordsSqlQueries;
 
     /** whole collection, whatever the number of projects and members */
-    private const int MAX_QUERIES = 4;
+    private const int MAX_QUERIES = 5;
 
     /** Group industry tables + owners and their characters (SDE tables are prefixed `sde_` and excluded). */
     private const string GROUP_INDUSTRY_TABLES_PATTERN = '/\b(group_industry_[a-z_]+|users|characters)\b/';
@@ -127,6 +132,7 @@ final class GroupProjectCollectionProviderTest extends IntegrationTestCase
             self::assertSame(50_000.0, $project->totalBomValue);
             // 10 x 250 fulfilled / 10 x 1 000 required
             self::assertSame(25.0, $project->fulfillmentPercent);
+            self::assertSame(345_000.0, $project->approvedContributionValue);
             self::assertSame('member', $project->myRole);
             self::assertStringStartsWith('Owner of Orin Vahl ', $project->ownerCharacterName);
         }
@@ -144,6 +150,7 @@ final class GroupProjectCollectionProviderTest extends IntegrationTestCase
         self::assertArrayNotHasKey($this->otherPilotProjectId, $projects);
     }
 
+    #[Group('issue-156')]
     public function testSabreProjectCountsAcceptedMembersAndCapsFulfilledQuantityPerBomItem(): void
     {
         $sabre = $this->listedProjectsById()[$this->sabreProjectId];
@@ -158,13 +165,13 @@ final class GroupProjectCollectionProviderTest extends IntegrationTestCase
             ['typeId' => self::PURIFIER_TYPE_ID, 'typeName' => 'Purifier', 'meLevel' => 8, 'teLevel' => 16, 'runs' => 5],
             ['typeId' => self::SABRE_TYPE_ID, 'typeName' => 'Sabre', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 10],
         ], $this->sortedByTypeId($sabre->items));
-        // Tritanium 1 000 000 x 4.0 + Pyerite 200 000 x 10.0, the job line is ignored
         self::assertSame(6_000_000.0, $sabre->totalBomValue);
-        // (400 000 + min(250 000, 200 000)) / 1 200 000
-        self::assertSame(50.0, $sabre->fulfillmentPercent);
+        self::assertSame(70.0, $sabre->fulfillmentPercent);
+        self::assertSame(1_250_000.0, $sabre->approvedContributionValue);
     }
 
-    public function testJackdawProjectFallsBackToUnknownOwnerAndIgnoresMissingPrices(): void
+    #[Group('issue-156')]
+    public function testJackdawProjectFallsBackToUnknownOwnerAndHasAnUnknownBomValueWhenAMaterialHasNoPrice(): void
     {
         $jackdaw = $this->listedProjectsById()[$this->jackdawProjectId];
 
@@ -175,10 +182,9 @@ final class GroupProjectCollectionProviderTest extends IntegrationTestCase
         self::assertSame([
             ['typeId' => self::JACKDAW_TYPE_ID, 'typeName' => 'Jackdaw', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 20],
         ], $jackdaw->items);
-        // Mexallon 300 000 x 50.0, Isogen has no estimated price
-        self::assertSame(15_000_000.0, $jackdaw->totalBomValue);
-        // 100 000 / (300 000 + 100 000)
-        self::assertSame(25.0, $jackdaw->fulfillmentPercent);
+        self::assertNull($jackdaw->totalBomValue);
+        self::assertSame(16.67, $jackdaw->fulfillmentPercent);
+        self::assertSame(0.0, $jackdaw->approvedContributionValue);
     }
 
     public function testIshtarProjectOwnedByTheUserWithoutBom(): void
@@ -206,6 +212,7 @@ final class GroupProjectCollectionProviderTest extends IntegrationTestCase
             $security,
             self::getContainer()->get(GroupIndustryProjectMemberRepository::class),
             self::getContainer()->get(GroupIndustryResourceMapper::class),
+            self::getContainer()->get(GroupIndustryContributionRepository::class),
         );
 
         return $provider->provide(new GetCollection());
@@ -246,8 +253,11 @@ final class GroupProjectCollectionProviderTest extends IntegrationTestCase
         for ($projectIndex = 1; $projectIndex <= $projectsCount; ++$projectIndex) {
             $owner = $this->createUserWithMainCharacter(sprintf('Owner of %s %d', $pilotName, $projectIndex));
             $project = $this->createProject($owner, sprintf('%s project %d', $pilotName, $projectIndex));
-            $this->addMember($project, $owner, GroupMemberRole::Owner, GroupMemberStatus::Accepted);
-            $this->addMember($project, $pilot, GroupMemberRole::Member, GroupMemberStatus::Accepted);
+            $ownerMembership = $this->addMember($project, $owner, GroupMemberRole::Owner, GroupMemberStatus::Accepted);
+            $pilotMembership = $this->addMember($project, $pilot, GroupMemberRole::Member, GroupMemberStatus::Accepted);
+            $this->addContribution($ownerMembership, ContributionType::Material, 300_000.0, ContributionStatus::Approved);
+            $this->addContribution($pilotMembership, ContributionType::LineRental, 45_000.0, ContributionStatus::Approved);
+            $this->addContribution($pilotMembership, ContributionType::Material, 70_000.0, ContributionStatus::Pending);
             for ($memberIndex = 3; $memberIndex <= $membersPerProject; ++$memberIndex) {
                 $this->addMember(
                     $project,
@@ -283,10 +293,14 @@ final class GroupProjectCollectionProviderTest extends IntegrationTestCase
     {
         $owner = $this->createUserWithMainCharacter('Aria Solberg');
         $project = $this->createProject($owner, 'Sabre doctrine');
-        $this->addMember($project, $owner, GroupMemberRole::Owner, GroupMemberStatus::Accepted);
+        $ownerMembership = $this->addMember($project, $owner, GroupMemberRole::Owner, GroupMemberStatus::Accepted);
         $this->addMember($project, $pilot, GroupMemberRole::Member, GroupMemberStatus::Accepted);
-        $this->addMember($project, $this->createUserWithMainCharacter('Brann Holt'), GroupMemberRole::Admin, GroupMemberStatus::Accepted);
+        $adminMembership = $this->addMember($project, $this->createUserWithMainCharacter('Brann Holt'), GroupMemberRole::Admin, GroupMemberStatus::Accepted);
         $this->addMember($project, $this->createUser(), GroupMemberRole::Member, GroupMemberStatus::Pending);
+        $this->addContribution($ownerMembership, ContributionType::Material, 1_000_000.0, ContributionStatus::Approved);
+        $this->addContribution($adminMembership, ContributionType::LineRental, 250_000.0, ContributionStatus::Approved);
+        $this->addContribution($adminMembership, ContributionType::Material, 500_000.0, ContributionStatus::Pending);
+        $this->addContribution($ownerMembership, ContributionType::JobInstall, 100_000.0, ContributionStatus::Rejected);
 
         $this->addItem($project, self::SABRE_TYPE_ID, 'Sabre', meLevel: 10, teLevel: 20, runs: 10);
         $this->addItem($project, self::PURIFIER_TYPE_ID, 'Purifier', meLevel: 8, teLevel: 16, runs: 5);
@@ -308,8 +322,9 @@ final class GroupProjectCollectionProviderTest extends IntegrationTestCase
         $project = $this->createProject($owner, 'Jackdaw batch');
         $this->addMember($project, $owner, GroupMemberRole::Owner, GroupMemberStatus::Accepted);
         $this->addMember($project, $pilot, GroupMemberRole::Admin, GroupMemberStatus::Accepted);
-        $this->addMember($project, $this->createUserWithMainCharacter('Cyra Lune'), GroupMemberRole::Member, GroupMemberStatus::Accepted);
+        $cyraMembership = $this->addMember($project, $this->createUserWithMainCharacter('Cyra Lune'), GroupMemberRole::Member, GroupMemberStatus::Accepted);
         $this->addMember($project, $this->createUserWithMainCharacter('Dorn Kessel'), GroupMemberRole::Member, GroupMemberStatus::Accepted);
+        $this->addContribution($cyraMembership, ContributionType::Material, 500_000.0, ContributionStatus::Pending);
 
         $this->addItem($project, self::JACKDAW_TYPE_ID, 'Jackdaw', meLevel: 10, teLevel: 20, runs: 20);
 
@@ -362,12 +377,25 @@ final class GroupProjectCollectionProviderTest extends IntegrationTestCase
         return $project;
     }
 
-    private function addMember(GroupIndustryProject $project, User $user, GroupMemberRole $role, GroupMemberStatus $status): void
+    private function addMember(GroupIndustryProject $project, User $user, GroupMemberRole $role, GroupMemberStatus $status): GroupIndustryProjectMember
     {
-        $project->addMember(
-            (new GroupIndustryProjectMember())
-                ->setUser($user)
-                ->setRole($role)
+        $member = (new GroupIndustryProjectMember())
+            ->setUser($user)
+            ->setRole($role)
+            ->setStatus($status);
+        $project->addMember($member);
+
+        return $member;
+    }
+
+    private function addContribution(GroupIndustryProjectMember $member, ContributionType $type, float $estimatedValue, ContributionStatus $status): void
+    {
+        $member->getProject()->addContribution(
+            (new GroupIndustryContribution())
+                ->setMember($member)
+                ->setType($type)
+                ->setQuantity(1)
+                ->setEstimatedValue($estimatedValue)
                 ->setStatus($status),
         );
     }

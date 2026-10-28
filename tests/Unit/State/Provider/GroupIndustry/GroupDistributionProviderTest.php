@@ -6,6 +6,14 @@ namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
 use ApiPlatform\Metadata\Get;
 use App\ApiResource\GroupIndustry\GroupIndustryDistributionResource;
+use App\Entity\GroupIndustryContribution;
+use App\Entity\GroupIndustrySale;
+use App\Enum\ContributionStatus;
+use App\Enum\ContributionType;
+use App\Enum\GroupMemberRole;
+use App\Enum\GroupMemberStatus;
+use App\Repository\GroupIndustryContributionRepository;
+use App\Repository\GroupIndustrySaleRepository;
 use App\Service\GroupIndustry\DistributionResult;
 use App\Service\GroupIndustry\GroupIndustryDistributionService;
 use App\Service\GroupIndustry\MemberDistribution;
@@ -13,6 +21,7 @@ use App\State\Provider\GroupIndustry\GroupDistributionProvider;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -136,6 +145,54 @@ class GroupDistributionProviderTest extends TestCase
                     'sharePercent' => 17.73,
                     'profitPart' => 1_346_500.0,
                     'payoutTotal' => 8_071_500.0,
+                ],
+            ],
+            $resource->members,
+        );
+    }
+
+    #[Group('issue-146')]
+    public function testUndistributableDistributionReachesTheApiWithAnUnknownMarginShareProfitPartAndPayout(): void
+    {
+        $viewer = $this->userWithProfile(self::ACCEPTED_MEMBER);
+        $this->security->method('getUser')->willReturn($viewer);
+        $lineRenter = $this->addSabreBatchMembership($this->userOfCorporation(self::FOREIGN_CORPORATION_ID), GroupMemberRole::Member, GroupMemberStatus::Accepted);
+        $freeLineRental = (new GroupIndustryContribution())
+            ->setMember($lineRenter)
+            ->setType(ContributionType::LineRental)
+            ->setQuantity(1)
+            ->setEstimatedValue(0.0)
+            ->setStatus(ContributionStatus::Approved);
+        $contributionRepository = $this->createStub(GroupIndustryContributionRepository::class);
+        $contributionRepository->method('findApprovedByProject')->willReturn([$freeLineRental]);
+        $saleRepository = $this->createStub(GroupIndustrySaleRepository::class);
+        $saleRepository->method('findBy')->willReturn([(new GroupIndustrySale())->setTotalPrice(1_000_000.0)]);
+        $provider = new GroupDistributionProvider(
+            $this->security,
+            $this->sabreBatchProjectRepository(),
+            new GroupProjectAccessChecker($this->sabreBatchMemberRepository()),
+            new GroupIndustryDistributionService($contributionRepository, $saleRepository),
+        );
+
+        $resource = $provider->provide(new Get(), ['projectId' => $this->sabreBatch->getId()->toRfc4122()]);
+
+        self::assertSame(
+            [1_000_000.0, 36_000.0, 36_000.0, 928_000.0, 0.0, null],
+            [$resource->totalRevenue, $resource->brokerFee, $resource->salesTax, $resource->netRevenue, $resource->totalProjectCost, $resource->marginPercent],
+        );
+        self::assertSame(
+            [
+                [
+                    'memberId' => $lineRenter->getId()->toRfc4122(),
+                    'characterName' => 'Unknown',
+                    'totalCostsEngaged' => 0.0,
+                    'materialCosts' => 0.0,
+                    'jobInstallCosts' => 0.0,
+                    'bpcCosts' => 0.0,
+                    'lineRentalCosts' => 0.0,
+                    'sharePercent' => null,
+                    'profitPart' => null,
+                    'payoutTotal' => null,
                 ],
             ],
             $resource->members,

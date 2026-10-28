@@ -37,8 +37,9 @@ export type GroupProject = {
   ownerCorporationId: number | null
   membersCount: number
   items: GroupProjectItem[]
-  totalBomValue: number
+  totalBomValue: number | null
   fulfillmentPercent: number
+  approvedContributionValue: number
   brokerFeePercent: number
   salesTaxPercent: number
   lineRentalRatesOverride: Record<string, number> | null
@@ -131,9 +132,9 @@ export type MemberDistribution = {
   jobInstallCosts: number
   bpcCosts: number
   lineRentalCosts: number
-  sharePercent: number
-  profitPart: number
-  payoutTotal: number
+  sharePercent: number | null
+  profitPart: number | null
+  payoutTotal: number | null
 }
 
 export type Distribution = {
@@ -143,7 +144,7 @@ export type Distribution = {
   salesTax: number
   netRevenue: number
   totalProjectCost: number
-  marginPercent: number
+  marginPercent: number | null
   members: MemberDistribution[]
 }
 

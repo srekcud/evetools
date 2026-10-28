@@ -7,19 +7,24 @@ namespace App\Tests\Integration\State\Provider\GroupIndustry;
 use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\Entity\GroupIndustryBomItem;
+use App\Entity\GroupIndustryContribution;
 use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustryProjectItem;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
+use App\Enum\ContributionStatus;
+use App\Enum\ContributionType;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
+use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
 use App\State\Provider\GroupIndustry\AvailableGroupProjectsProvider;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
 use App\Tests\Integration\IntegrationTestCase;
 use App\Tests\Integration\RecordsSqlQueries;
+use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\SecurityBundle\Security;
 
 /**
@@ -56,15 +61,20 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
         $nyx = $this->createUserWithMainCharacter('Nyx Arden', self::OTHER_CORPORATION_ID);
 
         $sabre = $this->createProject($aria, 'Sabre doctrine', GroupProjectStatus::Published);
-        $this->addMember($sabre, $aria, GroupMemberRole::Owner, GroupMemberStatus::Accepted);
-        $this->addMember($sabre, $brann, GroupMemberRole::Admin, GroupMemberStatus::Accepted);
+        $ariaInSabre = $this->addMember($sabre, $aria, GroupMemberRole::Owner, GroupMemberStatus::Accepted);
+        $brannInSabre = $this->addMember($sabre, $brann, GroupMemberRole::Admin, GroupMemberStatus::Accepted);
         $this->addMember($sabre, $cyra, GroupMemberRole::Member, GroupMemberStatus::Pending);
+        $this->addContribution($ariaInSabre, ContributionType::Material, 1_000_000.0, ContributionStatus::Approved);
+        $this->addContribution($brannInSabre, ContributionType::LineRental, 250_000.0, ContributionStatus::Approved);
+        $this->addContribution($brannInSabre, ContributionType::Material, 500_000.0, ContributionStatus::Pending);
+        $this->addContribution($ariaInSabre, ContributionType::JobInstall, 100_000.0, ContributionStatus::Rejected);
         $this->addItem($sabre, self::SABRE_TYPE_ID, 'Sabre', runs: 10);
         $this->addBomItem($sabre, self::TRITANIUM_TYPE_ID, 'Tritanium', requiredQuantity: 1_000_000, fulfilledQuantity: 400_000, estimatedPrice: 4.0);
         $this->addBomItem($sabre, self::PYERITE_TYPE_ID, 'Pyerite', requiredQuantity: 200_000, fulfilledQuantity: 250_000, estimatedPrice: 10.0);
 
         $jackdaw = $this->createProject($brann, 'Jackdaw batch', GroupProjectStatus::InProgress);
-        $this->addMember($jackdaw, $brann, GroupMemberRole::Owner, GroupMemberStatus::Accepted);
+        $brannInJackdaw = $this->addMember($jackdaw, $brann, GroupMemberRole::Owner, GroupMemberStatus::Accepted);
+        $this->addContribution($brannInJackdaw, ContributionType::Material, 640_000.0, ContributionStatus::Pending);
         $this->addItem($jackdaw, self::JACKDAW_TYPE_ID, 'Jackdaw', runs: 20);
 
         $draft = $this->createProject($aria, 'Draft project', GroupProjectStatus::Draft);
@@ -124,6 +134,7 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
             self::assertSame(50_000.0, $project->totalBomValue);
             // 10 x 250 fulfilled / 10 x 1 000 required
             self::assertSame(25.0, $project->fulfillmentPercent);
+            self::assertSame(415_000.0, $project->approvedContributionValue);
             self::assertSame(98_100_010, $project->ownerCorporationId);
             self::assertStringStartsWith('Owner 98100010 ', $project->ownerCharacterName);
         }
@@ -143,6 +154,7 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
         self::assertArrayNotHasKey($this->leftProjectId, $projects);
     }
 
+    #[Group('issue-156')]
     public function testPublishedProjectCountsAcceptedMembersAndCapsFulfilledQuantity(): void
     {
         $sabre = $this->availableProjectsById()[$this->sabreProjectId];
@@ -158,10 +170,9 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
         self::assertSame([
             ['typeId' => self::SABRE_TYPE_ID, 'typeName' => 'Sabre', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 10],
         ], $sabre->items);
-        // Tritanium 1 000 000 x 4.0 + Pyerite 200 000 x 10.0
         self::assertSame(6_000_000.0, $sabre->totalBomValue);
-        // (400 000 + min(250 000, 200 000)) / 1 200 000
-        self::assertSame(50.0, $sabre->fulfillmentPercent);
+        self::assertSame(70.0, $sabre->fulfillmentPercent);
+        self::assertSame(1_250_000.0, $sabre->approvedContributionValue);
     }
 
     public function testInProgressProjectWithoutBom(): void
@@ -176,6 +187,7 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
         ], $jackdaw->items);
         self::assertSame(0.0, $jackdaw->totalBomValue);
         self::assertSame(0.0, $jackdaw->fulfillmentPercent);
+        self::assertSame(0.0, $jackdaw->approvedContributionValue);
     }
 
     private function user(string $userId): User
@@ -217,6 +229,7 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
             self::getContainer()->get(GroupIndustryProjectRepository::class),
             self::getContainer()->get(GroupIndustryProjectMemberRepository::class),
             self::getContainer()->get(GroupIndustryResourceMapper::class),
+            self::getContainer()->get(GroupIndustryContributionRepository::class),
         );
 
         return $provider->provide(new GetCollection());
@@ -235,14 +248,19 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
         for ($projectIndex = 1; $projectIndex <= $projectsCount; ++$projectIndex) {
             $owner = $this->createUserWithMainCharacter(sprintf('Owner %d %d', $corporationId, $projectIndex), $corporationId);
             $project = $this->createProject($owner, sprintf('Project %d %d', $corporationId, $projectIndex), GroupProjectStatus::Published);
-            $this->addMember($project, $owner, GroupMemberRole::Owner, GroupMemberStatus::Accepted);
+            $ownerMembership = $this->addMember($project, $owner, GroupMemberRole::Owner, GroupMemberStatus::Accepted);
+            $this->addContribution($ownerMembership, ContributionType::Material, 380_000.0, ContributionStatus::Approved);
             for ($memberIndex = 2; $memberIndex <= $membersPerProject; ++$memberIndex) {
-                $this->addMember(
+                $membership = $this->addMember(
                     $project,
                     $this->createUserWithMainCharacter(sprintf('Member %d of %d %d', $memberIndex, $corporationId, $projectIndex), $corporationId),
                     GroupMemberRole::Member,
                     GroupMemberStatus::Accepted,
                 );
+                if ($memberIndex === 2) {
+                    $this->addContribution($membership, ContributionType::JobInstall, 35_000.0, ContributionStatus::Approved);
+                    $this->addContribution($membership, ContributionType::Material, 90_000.0, ContributionStatus::Rejected);
+                }
             }
             for ($bomIndex = 0; $bomIndex < $bomItemsPerProject; ++$bomIndex) {
                 $this->addItem($project, self::SABRE_TYPE_ID + $bomIndex, sprintf('Product %d', $bomIndex), runs: 1);
@@ -274,12 +292,25 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
         return $project;
     }
 
-    private function addMember(GroupIndustryProject $project, User $user, GroupMemberRole $role, GroupMemberStatus $status): void
+    private function addMember(GroupIndustryProject $project, User $user, GroupMemberRole $role, GroupMemberStatus $status): GroupIndustryProjectMember
     {
-        $project->addMember(
-            (new GroupIndustryProjectMember())
-                ->setUser($user)
-                ->setRole($role)
+        $member = (new GroupIndustryProjectMember())
+            ->setUser($user)
+            ->setRole($role)
+            ->setStatus($status);
+        $project->addMember($member);
+
+        return $member;
+    }
+
+    private function addContribution(GroupIndustryProjectMember $member, ContributionType $type, float $estimatedValue, ContributionStatus $status): void
+    {
+        $member->getProject()->addContribution(
+            (new GroupIndustryContribution())
+                ->setMember($member)
+                ->setType($type)
+                ->setQuantity(1)
+                ->setEstimatedValue($estimatedValue)
                 ->setStatus($status),
         );
     }

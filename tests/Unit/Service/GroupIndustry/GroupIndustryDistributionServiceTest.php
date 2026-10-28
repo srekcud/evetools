@@ -18,6 +18,7 @@ use App\Service\GroupIndustry\DistributionResult;
 use App\Service\GroupIndustry\GroupIndustryDistributionService;
 use App\Service\GroupIndustry\MemberDistribution;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
@@ -299,7 +300,8 @@ class GroupIndustryDistributionServiceTest extends TestCase
         self::assertEqualsWithDelta(960_000.0, $aliceDist->payoutTotal, 1.0);
     }
 
-    public function testZeroCostsNoContributions(): void
+    #[Group('issue-146')]
+    public function testMarginIsUnknownWhenNoContributionIsApproved(): void
     {
         $project = $this->stubProject(3.0, 3.0);
 
@@ -309,10 +311,10 @@ class GroupIndustryDistributionServiceTest extends TestCase
 
         $result = $this->service->calculateDistribution($project);
 
-        self::assertSame(500_000.0, $result->totalRevenue);
-        self::assertSame(0.0, $result->totalProjectCost);
-        self::assertEqualsWithDelta(0.0, $result->marginPercent, 0.001);
-        self::assertCount(0, $result->members);
+        self::assertSame(
+            [500_000.0, 15_000.0, 15_000.0, 470_000.0, 0.0, null, []],
+            [$result->totalRevenue, $result->brokerFee, $result->salesTax, $result->netRevenue, $result->totalProjectCost, $result->marginPercent, $result->members],
+        );
     }
 
     public function testZeroRevenueNoSales(): void

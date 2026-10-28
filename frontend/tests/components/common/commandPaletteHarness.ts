@@ -92,6 +92,7 @@ export function groupIndustryProject(id: string, name: string | null, status: Gr
     items,
     totalBomValue: 1250000000,
     fulfillmentPercent: 40,
+    approvedContributionValue: 480000000,
     brokerFeePercent: 3,
     salesTaxPercent: 4.5,
     lineRentalRatesOverride: null,

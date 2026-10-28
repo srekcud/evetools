@@ -133,6 +133,8 @@ class GroupIndustryProjectResource
 
     public float $fulfillmentPercent = 0.0;
 
+    public float $approvedContributionValue = 0.0;
+
     public float $brokerFeePercent = 3.6;
 
     public float $salesTaxPercent = 3.6;

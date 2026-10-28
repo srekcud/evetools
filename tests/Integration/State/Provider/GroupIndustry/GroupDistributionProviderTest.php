@@ -102,6 +102,51 @@ final class GroupDistributionProviderTest extends IntegrationTestCase
         self::assertSame(4_400_000.0, $distribution->totalRevenue);
     }
 
+    #[Group('issue-146')]
+    public function testSaleWhoseOnlyApprovedContributionIsAFreeLineRentalIsUndistributable(): void
+    {
+        $owner = $this->createUserWithMainCharacter('Aria Solberg');
+        $project = (new GroupIndustryProject())->setOwner($owner)->setName('Sabre doctrine');
+        $this->em->persist($project);
+        $ownerMember = $this->addMember($project, $owner, GroupMemberRole::Owner);
+        $project->addContribution(
+            (new GroupIndustryContribution())
+                ->setMember($ownerMember)
+                ->setType(ContributionType::LineRental)
+                ->setQuantity(1)
+                ->setEstimatedValue(0.0)
+                ->setStatus(ContributionStatus::Approved),
+        );
+        $this->addSale($project, $owner, quantity: 1, unitPrice: 1_000_000.0);
+        $this->em->flush();
+        $ownerId = (string) $owner->getId();
+        $projectId = (string) $project->getId();
+        $ownerMemberId = (string) $ownerMember->getId();
+        $this->em->clear();
+
+        $distribution = $this->distributionOf($projectId, $this->user($ownerId));
+
+        self::assertSame(
+            [1_000_000.0, 36_000.0, 36_000.0, 928_000.0, 0.0, null],
+            [$distribution->totalRevenue, $distribution->brokerFee, $distribution->salesTax, $distribution->netRevenue, $distribution->totalProjectCost, $distribution->marginPercent],
+        );
+        self::assertSame(
+            [[
+                'memberId' => $ownerMemberId,
+                'characterName' => 'Aria Solberg',
+                'totalCostsEngaged' => 0.0,
+                'materialCosts' => 0.0,
+                'jobInstallCosts' => 0.0,
+                'bpcCosts' => 0.0,
+                'lineRentalCosts' => 0.0,
+                'sharePercent' => null,
+                'profitPart' => null,
+                'payoutTotal' => null,
+            ]],
+            $distribution->members,
+        );
+    }
+
     private function queriesReadingTheDistribution(string $viewerId, string $projectId): array
     {
         $this->em->clear();

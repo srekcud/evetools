@@ -42,6 +42,16 @@ class GroupIndustryContributionRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * @param list<GroupIndustryProject> $projects
+     *
+     * @return array<string, float>
+     */
+    public function sumApprovedValueByProject(array $projects): array
+    {
+        throw new \LogicException('not implemented');
+    }
+
     public function countByMember(GroupIndustryProjectMember $member): int
     {
         return (int) $this->createQueryBuilder('c')

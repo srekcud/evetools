@@ -5,7 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
 use ApiPlatform\Metadata\Get;
+use App\Entity\GroupIndustryBomItem;
+use App\Entity\GroupIndustryContribution;
+use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
+use App\Enum\ContributionStatus;
+use App\Enum\ContributionType;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
@@ -13,6 +18,7 @@ use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use App\State\Provider\GroupIndustry\GroupProjectProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -143,6 +149,51 @@ class GroupProjectProviderTest extends TestCase
         $this->actAs($this->sabreBatchOwner);
 
         self::assertSame('Sabre batch -/-', $this->readSabreBatch($this->sabreBatch->getId()));
+    }
+
+    #[Group('issue-156')]
+    public function testProjectIsReadWithTheValueOfItsApprovedContributionsAndItsBomValueAndProgress(): void
+    {
+        $viewer = $this->userWithProfile(self::ACCEPTED_MEMBER);
+        $this->actAs($viewer);
+        $admin = $this->addSabreBatchMembership($this->userOfCorporation(self::FOREIGN_CORPORATION_ID), GroupMemberRole::Admin, GroupMemberStatus::Accepted);
+        $this->addSabreBatchContribution($admin, ContributionType::Material, 1_000_000.0, ContributionStatus::Approved);
+        $this->addSabreBatchContribution($admin, ContributionType::LineRental, 250_000.0, ContributionStatus::Approved);
+        $this->addSabreBatchContribution($admin, ContributionType::Material, 500_000.0, ContributionStatus::Pending);
+        $this->addSabreBatchContribution($admin, ContributionType::JobInstall, 100_000.0, ContributionStatus::Rejected);
+        $this->addSabreBatchMaterial(34, estimatedPrice: 4.0, requiredQuantity: 1_000_000, fulfilledQuantity: 400_000);
+        $this->addSabreBatchMaterial(35, estimatedPrice: 10.0, requiredQuantity: 200_000, fulfilledQuantity: 250_000);
+
+        $resource = $this->provider->provide(new Get(), ['id' => $this->sabreBatch->getId()->toRfc4122()]);
+
+        self::assertSame(
+            [1_250_000.0, 6_000_000.0, 70.0],
+            [$resource->approvedContributionValue, $resource->totalBomValue, $resource->fulfillmentPercent],
+        );
+    }
+
+    private function addSabreBatchContribution(GroupIndustryProjectMember $member, ContributionType $type, float $estimatedValue, ContributionStatus $status): void
+    {
+        $this->sabreBatch->addContribution(
+            (new GroupIndustryContribution())
+                ->setMember($member)
+                ->setType($type)
+                ->setQuantity(1)
+                ->setEstimatedValue($estimatedValue)
+                ->setStatus($status),
+        );
+    }
+
+    private function addSabreBatchMaterial(int $typeId, float $estimatedPrice, int $requiredQuantity, int $fulfilledQuantity): void
+    {
+        $this->sabreBatch->addBomItem(
+            (new GroupIndustryBomItem())
+                ->setTypeId($typeId)
+                ->setTypeName(sprintf('Material %d', $typeId))
+                ->setRequiredQuantity($requiredQuantity)
+                ->setFulfilledQuantity($fulfilledQuantity)
+                ->setEstimatedPrice($estimatedPrice),
+        );
     }
 
     private function actAs(User $user): void
