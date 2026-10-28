@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
+import fr from '@/i18n/locales/fr.json'
 import StockpileDashboard from '@/components/industry/StockpileDashboard.vue'
 import { apiRequest } from '@/services/api'
 import type { StockpileFailedProduct, StockpileItemStatus, StockpileStageStatus, StockpileStatus } from '@/stores/industry/types'
@@ -14,9 +15,11 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 const WIDGET_TYPE_ID = 3001
 const WIDGET_TARGET_QUANTITY = 1
 const WIDGET_STOCK = 0
-const WIDGET_FAILURE_REASON = `No blueprint or reaction found for product type ID ${WIDGET_TYPE_ID}`
 const GADGET_TYPE_ID = 3004
-const GADGET_FAILURE_REASON = `No blueprint or reaction found for product type ID ${GADGET_TYPE_ID}`
+const NO_BLUEPRINT_LABEL_EN = 'No blueprint or reaction'
+const PLAN_FAILED_LABEL_EN = 'The production plan could not be built'
+const NO_BLUEPRINT_LABEL_FR = 'Aucun blueprint ni réaction'
+const PLAN_FAILED_LABEL_FR = 'Le plan de production n\'a pas pu être construit'
 const UNKNOWN_GADGET_TEXT = `Unknown product #${GADGET_TYPE_ID}`
 const IMPORT_WARNINGS_SELECTOR = '[data-testid="stockpile-import-warnings"]'
 
@@ -60,9 +63,9 @@ function stockpileStatus(importsWithoutPlan: number[], failedProducts: Stockpile
   }
 }
 
-async function mountDashboard(importsWithoutPlan: number[], failedProducts: StockpileFailedProduct[]) {
+async function mountDashboard(importsWithoutPlan: number[], failedProducts: StockpileFailedProduct[], locale: 'en' | 'fr' = 'en') {
   vi.mocked(apiRequest).mockResolvedValue(stockpileStatus(importsWithoutPlan, failedProducts))
-  const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
+  const i18n = createI18n({ legacy: false, locale, messages: { en, fr } })
   const wrapper = mount(StockpileDashboard, {
     global: {
       plugins: [i18n],
@@ -71,6 +74,16 @@ async function mountDashboard(importsWithoutPlan: number[], failedProducts: Stoc
   })
   await flushPromises()
   return wrapper
+}
+
+function failedProductLines(wrapper: Awaited<ReturnType<typeof mountDashboard>>): string[] {
+  return wrapper.find(IMPORT_WARNINGS_SELECTOR).findAll('li').map(line => line.text())
+}
+
+function failureReasonCodesOf(messages: object): string[] {
+  const importWarnings = (messages as { industry: { stockpile: { importWarnings: Record<string, unknown> } } }).industry.stockpile.importWarnings
+  const reasonLabels = importWarnings.reason
+  return typeof reasonLabels === 'object' && reasonLabels !== null ? Object.keys(reasonLabels).sort() : []
 }
 
 beforeEach(() => {
@@ -86,12 +99,29 @@ describe('StockpileDashboard import warnings', () => {
     expect(warnings.text()).toContain('Widget')
   })
 
-  it('names the products whose tree cannot be rebuilt, with their reason', async () => {
-    const warnings = (await mountDashboard([], [{ typeId: WIDGET_TYPE_ID, reason: WIDGET_FAILURE_REASON }])).find(IMPORT_WARNINGS_SELECTOR)
+  it.each([
+    ['en', 'no_blueprint', NO_BLUEPRINT_LABEL_EN],
+    ['en', 'plan_failed', PLAN_FAILED_LABEL_EN],
+    ['fr', 'no_blueprint', NO_BLUEPRINT_LABEL_FR],
+    ['fr', 'plan_failed', PLAN_FAILED_LABEL_FR],
+  ] as const)('names the product that cannot be rebuilt with the %s label of its %s reason instead of the code', async (locale, reason, label) => {
+    const wrapper = await mountDashboard([], [{ typeId: WIDGET_TYPE_ID, reason }], locale)
 
-    expect(warnings.exists()).toBe(true)
-    expect(warnings.text()).toContain('Widget')
-    expect(warnings.text()).toContain(WIDGET_FAILURE_REASON)
+    expect(failedProductLines(wrapper)).toEqual([`Widget: ${label}`])
+  })
+
+  it.each([
+    ['en', PLAN_FAILED_LABEL_EN],
+    ['fr', PLAN_FAILED_LABEL_FR],
+  ] as const)('shows the plan failed label for an unknown reason code (%s)', async (locale, planFailedLabel) => {
+    const wrapper = await mountDashboard([], [{ typeId: WIDGET_TYPE_ID, reason: 'x' }], locale)
+
+    expect(failedProductLines(wrapper)).toEqual([`Widget: ${planFailedLabel}`])
+  })
+
+  it('defines a label for every reason code in English and French', () => {
+    expect(failureReasonCodesOf(en)).toEqual(['no_blueprint', 'plan_failed'])
+    expect(failureReasonCodesOf(fr)).toEqual(['no_blueprint', 'plan_failed'])
   })
 
   it('shows no import warning when every import was recorded and rebuilt', async () => {
@@ -105,12 +135,12 @@ describe('StockpileDashboard import warnings', () => {
   })
 
   it('shows the products without plan and the products that cannot be rebuilt together', async () => {
-    const warnings = (await mountDashboard([WIDGET_TYPE_ID], [{ typeId: GADGET_TYPE_ID, reason: GADGET_FAILURE_REASON }])).find(IMPORT_WARNINGS_SELECTOR)
+    const warnings = (await mountDashboard([WIDGET_TYPE_ID], [{ typeId: GADGET_TYPE_ID, reason: 'plan_failed' }])).find(IMPORT_WARNINGS_SELECTOR)
     const text = warnings.text()
 
     expect(text).toContain(en.industry.stockpile.importWarnings.withoutPlan)
     expect(text).toContain('Widget')
     expect(text).toContain(en.industry.stockpile.importWarnings.failedProducts)
-    expect(text).toContain(`${UNKNOWN_GADGET_TEXT}: ${GADGET_FAILURE_REASON}`)
+    expect(text).toContain(`${UNKNOWN_GADGET_TEXT}: ${PLAN_FAILED_LABEL_EN}`)
   })
 })

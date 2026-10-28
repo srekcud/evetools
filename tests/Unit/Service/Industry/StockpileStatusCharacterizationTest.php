@@ -23,6 +23,7 @@ use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -86,7 +87,7 @@ final class StockpileStatusCharacterizationTest extends TestCase
             $productRepository,
             $this->createMock(EntityManagerInterface::class),
             $this->createMock(IndustryStockpileImportRepository::class),
-            new StockpileStartingStockReducer($productionPlanning, $userStructures, $productRepository),
+            new StockpileStartingStockReducer($productionPlanning, $userStructures, $productRepository, new NullLogger()),
         );
         $this->pilot = $this->createMock(User::class);
     }

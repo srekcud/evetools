@@ -15,6 +15,7 @@ use App\Service\Industry\StockpileStartingStockReducer;
 use App\Service\JitaMarketService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(StockpileService::class)]
@@ -38,8 +39,6 @@ final class StockpileStatusIntermediateStockTest extends TestCase
         self::ORE => 2.0,
         self::GADGET => 1500.0,
     ];
-
-    private const string WIDGET_FAILURE_REASON = 'No blueprint or reaction found for product type ID 3001';
 
     private array $targets = [];
     private array $imports = [];
@@ -295,7 +294,8 @@ final class StockpileStatusIntermediateStockTest extends TestCase
         self::assertSame(['importsWithoutPlan' => [], 'failedProducts' => []], self::importWarningsOf($status));
     }
 
-    public function testImportWhoseTreeCannotBeRebuiltKeepsItsTargetsAndIsReportedWithItsReason(): void
+    #[Group('issue-258')]
+    public function testImportOfAProductWithoutBlueprintNorReactionKeepsItsTargetsAndIsReportedForNoBlueprint(): void
     {
         $this->removeTheRecipeOf(self::WIDGET);
         $this->importOneRunOfWidget();
@@ -307,11 +307,12 @@ final class StockpileStatusIntermediateStockTest extends TestCase
         self::assertSame(['remainingTargetQuantity' => 10], $this->fieldsOf($status, self::FRAME, ['remainingTargetQuantity']));
         self::assertSame(['remainingTargetQuantity' => 1], $this->fieldsOf($status, self::WIDGET, ['remainingTargetQuantity']));
         self::assertSame(
-            ['importsWithoutPlan' => [], 'failedProducts' => [['typeId' => self::WIDGET, 'reason' => self::WIDGET_FAILURE_REASON]]],
+            ['importsWithoutPlan' => [], 'failedProducts' => [['typeId' => self::WIDGET, 'reason' => 'no_blueprint']]],
             self::importWarningsOf($status),
         );
     }
 
+    #[Group('issue-258')]
     public function testFailedProductsAreListedOncePerProductInTypeIdOrder(): void
     {
         $this->removeTheRecipeOf(self::WIDGET);
@@ -330,8 +331,8 @@ final class StockpileStatusIntermediateStockTest extends TestCase
             [
                 'importsWithoutPlan' => [],
                 'failedProducts' => [
-                    ['typeId' => self::WIDGET, 'reason' => self::WIDGET_FAILURE_REASON],
-                    ['typeId' => self::GADGET, 'reason' => 'No blueprint or reaction found for product type ID 3004'],
+                    ['typeId' => self::WIDGET, 'reason' => 'no_blueprint'],
+                    ['typeId' => self::GADGET, 'reason' => 'no_blueprint'],
                 ],
             ],
             self::importWarningsOf($status),

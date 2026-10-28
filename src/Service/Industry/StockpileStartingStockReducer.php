@@ -6,10 +6,12 @@ namespace App\Service\Industry;
 
 use App\Entity\IndustryStockpileImport;
 use App\Entity\User;
+use App\Exception\StockpileProductNotPlannableException;
 use App\Industry\Application\ProductionPlanning;
 use App\Industry\Application\UserProductionStructures;
 use App\Industry\Domain\Quantity;
 use App\Repository\Sde\IndustryActivityProductRepository;
+use Psr\Log\LoggerInterface;
 
 class StockpileStartingStockReducer
 {
@@ -19,6 +21,7 @@ class StockpileStartingStockReducer
         private readonly ProductionPlanning $productionPlanning,
         private readonly UserProductionStructures $userStructures,
         private readonly IndustryActivityProductRepository $activityProductRepository,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -37,8 +40,9 @@ class StockpileStartingStockReducer
             $stockLeftByImport = $stockByTypeId;
             try {
                 $reductionOfImport = $this->reductionOf($stockpileImport, $stockLeftByImport, $user);
-            } catch (\RuntimeException $exception) {
-                $failedProducts[$productTypeId] = ['typeId' => $productTypeId, 'reason' => $exception->getMessage()];
+            } catch (StockpileProductNotPlannableException $exception) {
+                $this->logger->warning($exception->getMessage(), ['typeId' => $productTypeId, 'exception' => $exception]);
+                $failedProducts[$productTypeId] = ['typeId' => $productTypeId, 'reason' => $exception->getReason()];
                 continue;
             }
 

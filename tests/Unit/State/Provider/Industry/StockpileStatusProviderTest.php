@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Provider\Industry;
 
 use ApiPlatform\Metadata\Get;
+use App\Entity\IndustryStockpileImport;
 use App\Entity\IndustryStockpileTarget;
 use App\Entity\User;
 use App\Industry\Application\ProductionPlanning;
@@ -25,6 +26,7 @@ use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
@@ -38,6 +40,7 @@ final class StockpileStatusProviderTest extends TestCase
     private Security $security;
     private StockpileStatusProvider $provider;
     private array $targets = [];
+    private array $imports = [];
     private array $jitaPrices = [34 => 4.0, 35 => 9.5];
 
     protected function setUp(): void
@@ -62,6 +65,8 @@ final class StockpileStatusProviderTest extends TestCase
         $productionPlanning = new ProductionPlanning(new InMemoryBlueprintCatalog(), InMemorySystemCostIndices::none(), new InMemoryRigCategories());
         $userStructures = new InMemoryUserProductionStructures();
         $productRepository = $this->createStub(IndustryActivityProductRepository::class);
+        $importRepository = $this->createMock(IndustryStockpileImportRepository::class);
+        $importRepository->method('findByUserInCreationOrder')->willReturnCallback(fn (): array => $this->imports);
 
         $this->security = $this->createStub(Security::class);
         $this->provider = new StockpileStatusProvider($this->security, new StockpileService(
@@ -72,8 +77,8 @@ final class StockpileStatusProviderTest extends TestCase
             $userStructures,
             $productRepository,
             $this->createMock(EntityManagerInterface::class),
-            $this->createMock(IndustryStockpileImportRepository::class),
-            new StockpileStartingStockReducer($productionPlanning, $userStructures, $productRepository),
+            $importRepository,
+            new StockpileStartingStockReducer($productionPlanning, $userStructures, $productRepository, new NullLogger()),
         ));
     }
 
@@ -165,6 +170,19 @@ final class StockpileStatusProviderTest extends TestCase
         self::assertSame([35 => 600], array_column($resource->shoppingList, 'remainingTargetQuantity', 'typeId'));
         self::assertSame([], $resource->importsWithoutPlan);
         self::assertSame([], $resource->failedProducts);
+    }
+
+    #[Group('issue-258')]
+    public function testExposesTheReasonCodeOfAnImportedProductWithoutBlueprintNorReaction(): void
+    {
+        $pilot = $this->createMock(User::class);
+        $this->imports = [new IndustryStockpileImport($pilot, 4051, 3, 10)];
+        $this->security->method('getUser')->willReturn($pilot);
+
+        $resource = $this->provider->provide(new Get());
+
+        self::assertSame([], $resource->importsWithoutPlan);
+        self::assertSame([['typeId' => 4051, 'reason' => 'no_blueprint']], $resource->failedProducts);
     }
 
     public function testRejectsAnAnonymousRequest(): void

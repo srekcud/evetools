@@ -11,7 +11,7 @@ class StockpileImportInput
     #[Assert\Positive]
     public int $typeId;
 
-    #[Assert\Positive]
+    #[Assert\Range(min: 1, max: 10000)]
     public int $runs = 1;
 
     #[Assert\Range(min: 0, max: 10)]

@@ -6,12 +6,16 @@ namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
+use App\Industry\Application\UserProductionStructures;
 use App\Industry\Domain\SecurityClass;
 use App\Service\Industry\StockpileStartingStockReducer;
 use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LogLevel;
+use Psr\Log\NullLogger;
+use Symfony\Component\ErrorHandler\BufferingLogger;
 
 #[CoversClass(StockpileStartingStockReducer::class)]
 final class StockpileStartingStockReducerTest extends TestCase
@@ -28,14 +32,23 @@ final class StockpileStartingStockReducerTest extends TestCase
     private const int HULLS_PER_WIDGET_RUN = 1;
     private const int FRAMES_PER_HULL_RUN = 4;
 
+    private const string CYCLE_FAILURE = 'Product 3002 is needed to build itself: the production graph has a cycle.';
+
     private StockpileStartingStockReducer $reducer;
+    private BufferingLogger $logger;
     private User $pilot;
 
     protected function setUp(): void
     {
         $this->useWidgetRecipes();
         $this->pilot = $this->pilotWithId();
-        $this->reducer = $this->startingStockReducerOnWidgetSde();
+        $this->logger = new BufferingLogger();
+        $this->reducer = $this->startingStockReducerOnWidgetSde($this->logger);
+    }
+
+    protected function tearDown(): void
+    {
+        $this->logger->cleanLogs();
     }
 
     public function testPartialStockOfAnIntermediateReducesTheMaterialsBelowItByTheCoveredPart(): void
@@ -137,7 +150,8 @@ final class StockpileStartingStockReducerTest extends TestCase
         self::assertSame([self::ORE => 1050], self::nonZeroReductions($reduction));
     }
 
-    public function testImportWhoseTreeCannotBeRebuiltReducesNothingConsumesNoStockAndIsReportedWithItsReason(): void
+    #[Group('issue-258')]
+    public function testImportOfAProductWithoutBlueprintNorReactionReducesNothingConsumesNoStockAndIsReportedForNoBlueprint(): void
     {
         $this->removeTheRecipeOf(self::WIDGET);
         $frameStock = 10;
@@ -152,9 +166,26 @@ final class StockpileStartingStockReducerTest extends TestCase
         );
 
         self::assertSame([self::ORE => 700], self::nonZeroReductions($reduction));
+        self::assertSame([['typeId' => self::WIDGET, 'reason' => 'no_blueprint']], $reduction['failedProducts']);
+    }
+
+    #[Group('issue-258')]
+    public function testImportOfAProductWithoutBlueprintNorReactionLogsAWarningWithItsTypeAndTheDetail(): void
+    {
+        $this->removeTheRecipeOf(self::WIDGET);
+
+        $this->reducer->reduce(
+            [
+                $this->stockpileImport($this->pilot, self::WIDGET, self::ONE_RUN, self::ME_ZERO),
+                $this->stockpileImport($this->pilot, self::GADGET, self::ONE_RUN, self::ME_ZERO),
+            ],
+            [],
+            $this->pilot,
+        );
+
         self::assertSame(
-            [['typeId' => self::WIDGET, 'reason' => 'No blueprint or reaction found for product type ID 3001']],
-            $reduction['failedProducts'],
+            [[LogLevel::WARNING, self::WIDGET, 'Type 3001 has no blueprint nor reaction', null]],
+            $this->loggedFailures(),
         );
     }
 
@@ -271,7 +302,8 @@ final class StockpileStartingStockReducerTest extends TestCase
     }
 
     #[Group('issue-69')]
-    public function testImportWhoseRecipesHaveACycleReducesNothingAndIsReportedWithTheProductNeededToBuildItself(): void
+    #[Group('issue-258')]
+    public function testImportWhoseRecipesHaveACycleReducesNothingAndIsReportedForPlanFailed(): void
     {
         $hullsPerFrameRun = 2;
         $this->recipes[self::FRAME] = ['activity' => IndustryActivityType::Reaction, 'outputPerRun' => 1, 'materials' => [self::HULL => $hullsPerFrameRun]];
@@ -285,9 +317,63 @@ final class StockpileStartingStockReducerTest extends TestCase
         );
 
         self::assertSame([], self::nonZeroReductions($reduction));
+        self::assertSame([['typeId' => self::WIDGET, 'reason' => 'plan_failed']], $reduction['failedProducts']);
+    }
+
+    #[Group('issue-258')]
+    public function testImportWhoseRecipesHaveACycleLogsAWarningWithItsTypeAndTheProductNeededToBuildItself(): void
+    {
+        $hullsPerFrameRun = 2;
+        $this->recipes[self::FRAME] = ['activity' => IndustryActivityType::Reaction, 'outputPerRun' => 1, 'materials' => [self::HULL => $hullsPerFrameRun]];
+        $this->recipes[self::HULL] = ['activity' => IndustryActivityType::Reaction, 'outputPerRun' => 1, 'materials' => [self::FRAME => self::FRAMES_PER_HULL_RUN]];
+
+        $this->reducer->reduce(
+            [$this->stockpileImport($this->pilot, self::WIDGET, self::ONE_RUN, self::ME_ZERO)],
+            [],
+            $this->pilot,
+        );
+
         self::assertSame(
-            [['typeId' => self::WIDGET, 'reason' => 'Product 3002 is needed to build itself: the production graph has a cycle.']],
-            $reduction['failedProducts'],
+            [[LogLevel::WARNING, self::WIDGET, 'Type 3001 cannot be planned', self::CYCLE_FAILURE]],
+            $this->loggedFailures(),
+        );
+    }
+
+    #[Group('issue-258')]
+    public function testFailureToReadTheStructuresOfThePilotPropagatesInsteadOfBeingReportedAsAFailedProduct(): void
+    {
+        $structureFailure = new \UnexpectedValueException('Structure 0190f3c2-7e4b-7d10-9a3c-5f2e8b1d4a96 has the unsupported type "Keepstar".');
+        $reducer = new StockpileStartingStockReducer(
+            $this->productionPlanningOnWidgetSde(),
+            new class($structureFailure) implements UserProductionStructures {
+                public function __construct(private readonly \UnexpectedValueException $structureFailure)
+                {
+                }
+
+                public function configuredBy(string $userId): array
+                {
+                    throw $this->structureFailure;
+                }
+            },
+            $this->productRepositoryOnWidgetSde(),
+            new NullLogger(),
+        );
+
+        $this->expectExceptionObject($structureFailure);
+
+        $reducer->reduce([$this->stockpileImport($this->pilot, self::WIDGET, self::ONE_RUN, self::ME_ZERO)], [], $this->pilot);
+    }
+
+    private function loggedFailures(): array
+    {
+        return array_map(
+            static fn (array $log): array => [
+                $log[0],
+                $log[2]['typeId'] ?? null,
+                isset($log[2]['exception']) ? $log[2]['exception']->getMessage() : null,
+                isset($log[2]['exception']) ? $log[2]['exception']->getPrevious()?->getMessage() : null,
+            ],
+            $this->logger->cleanLogs(),
         );
     }
 

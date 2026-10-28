@@ -24,6 +24,8 @@ use App\Service\Industry\StockpileStartingStockReducer;
 use App\Tests\Unit\Industry\Application\Double\InMemoryRigCategories;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\Uid\Uuid;
 
 trait BuildsStockpileOnWidgetSde
@@ -116,12 +118,13 @@ trait BuildsStockpileOnWidgetSde
         return $this->userStructures ??= new InMemoryUserProductionStructures([self::PILOT_ID => []]);
     }
 
-    private function startingStockReducerOnWidgetSde(): StockpileStartingStockReducer
+    private function startingStockReducerOnWidgetSde(LoggerInterface $logger = new NullLogger()): StockpileStartingStockReducer
     {
         return new StockpileStartingStockReducer(
             $this->productionPlanningOnWidgetSde(),
             $this->userStructuresOfThePilot(),
             $this->productRepositoryOnWidgetSde(),
+            $logger,
         );
     }
 

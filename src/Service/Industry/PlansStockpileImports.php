@@ -7,6 +7,7 @@ namespace App\Service\Industry;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
+use App\Exception\StockpileProductNotPlannableException;
 use App\Industry\Application\FavoriteSystems;
 use App\Industry\Application\ProductionPlanRequest;
 use App\Industry\Domain\BlueprintEfficiency;
@@ -27,7 +28,7 @@ trait PlansStockpileImports
     {
         return $this->activityProductRepository->findBlueprintForProduct($productTypeId, IndustryActivityType::Manufacturing->value)
             ?? $this->activityProductRepository->findBlueprintForProduct($productTypeId, IndustryActivityType::Reaction->value)
-            ?? throw new \RuntimeException("No blueprint or reaction found for product type ID {$productTypeId}");
+            ?? throw StockpileProductNotPlannableException::noBlueprint($productTypeId);
     }
 
     /**
@@ -54,7 +55,7 @@ trait PlansStockpileImports
                 startingStock: $startingStock,
             ));
         } catch (\DomainException $e) {
-            throw new \RuntimeException($e->getMessage(), 0, $e);
+            throw StockpileProductNotPlannableException::planFailed($producer->getProductTypeId(), $e);
         }
     }
 
