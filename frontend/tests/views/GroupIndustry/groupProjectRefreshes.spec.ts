@@ -6,9 +6,9 @@ function sortedRefreshesFor(action: string): string[] {
 
 describe('groupProjectRefreshes', () => {
   it.each(['contribution_submitted', 'contribution_approved', 'contribution_rejected'])(
-    'refreshes the BOM and the contributions on %s',
+    'refreshes the BOM, the contributions and the project detail on %s',
     (action) => {
-      expect(sortedRefreshesFor(action)).toEqual(['bom', 'contributions'])
+      expect(sortedRefreshesFor(action)).toEqual(['bom', 'contributions', 'projectDetail'])
     },
   )
 
