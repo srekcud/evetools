@@ -110,6 +110,15 @@
     "closeMenu": "Fermer le menu de navigation",
     "menu": "Menu de navigation"
   },
+  "commandPalette": {
+    "open": "Ouvrir la palette de commandes (Ctrl+K)",
+    "title": "Palette de commandes",
+    "placeholder": "Rechercher un écran...",
+    "noResults": "Aucun résultat pour « {query} »",
+    "groups": {
+      "navigation": "Navigation"
+    }
+  },
   "settings": {
     "title": "Parametres",
     "visibleModules": "Modules visibles",

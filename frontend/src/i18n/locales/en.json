@@ -110,6 +110,15 @@
     "closeMenu": "Close navigation menu",
     "menu": "Navigation menu"
   },
+  "commandPalette": {
+    "open": "Open command palette (Ctrl+K)",
+    "title": "Command palette",
+    "placeholder": "Search a screen...",
+    "noResults": "No results for \"{query}\"",
+    "groups": {
+      "navigation": "Navigation"
+    }
+  },
   "settings": {
     "title": "Settings",
     "visibleModules": "Visible modules",
