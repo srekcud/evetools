@@ -3,6 +3,11 @@ import globals from 'globals'
 import pluginVue from 'eslint-plugin-vue'
 import tseslint from 'typescript-eslint'
 import eslintConfigPrettier from 'eslint-config-prettier'
+import pluginVueA11y from 'eslint-plugin-vuejs-accessibility'
+
+const a11yRulesAsWarnings = Object.fromEntries(
+  Object.keys(pluginVueA11y.configs['flat/recommended'].at(-1).rules).map((ruleName) => [ruleName, 'warn']),
+)
 
 export default tseslint.config(
   {
@@ -14,6 +19,8 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
 
   ...pluginVue.configs['flat/essential'],
+
+  ...pluginVueA11y.configs['flat/recommended'],
 
   // Browser globals for all source files
   {
@@ -50,6 +57,8 @@ export default tseslint.config(
   // Project-specific rule overrides
   {
     rules: {
+      ...a11yRulesAsWarnings,
+      'vuejs-accessibility/label-has-for': ['warn', { required: { some: ['nesting', 'id'] } }],
       // Relax rules that would require mass refactoring of existing code
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': [
