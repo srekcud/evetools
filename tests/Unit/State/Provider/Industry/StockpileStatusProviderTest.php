@@ -7,14 +7,19 @@ namespace App\Tests\Unit\State\Provider\Industry;
 use ApiPlatform\Metadata\Get;
 use App\Entity\IndustryStockpileTarget;
 use App\Entity\User;
+use App\Industry\Application\ProductionPlanning;
 use App\Repository\CachedAssetRepository;
 use App\Repository\IndustryStockpileImportRepository;
 use App\Repository\IndustryStockpileTargetRepository;
-use App\Service\Industry\IndustryTreeService;
+use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\StockpileService;
 use App\Service\Industry\StockpileStartingStockReducer;
 use App\Service\JitaMarketService;
 use App\State\Provider\Industry\StockpileStatusProvider;
+use App\Tests\Unit\Industry\Application\Double\InMemoryRigCategories;
+use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
+use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
+use App\Tests\Unit\Industry\Domain\Double\InMemoryBlueprintCatalog;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -54,17 +59,21 @@ final class StockpileStatusProviderTest extends TestCase
         $jitaMarketService->method('getPricesWithFallback')->willReturnCallback(
             fn (array $typeIds): array => array_intersect_key($this->jitaPrices, array_flip($typeIds)),
         );
-        $treeService = $this->createMock(IndustryTreeService::class);
+        $productionPlanning = new ProductionPlanning(new InMemoryBlueprintCatalog(), InMemorySystemCostIndices::none(), new InMemoryRigCategories());
+        $userStructures = new InMemoryUserProductionStructures();
+        $productRepository = $this->createStub(IndustryActivityProductRepository::class);
 
         $this->security = $this->createStub(Security::class);
         $this->provider = new StockpileStatusProvider($this->security, new StockpileService(
             $targetRepository,
             $assetRepository,
             $jitaMarketService,
-            $treeService,
+            $productionPlanning,
+            $userStructures,
+            $productRepository,
             $this->createMock(EntityManagerInterface::class),
             $this->createMock(IndustryStockpileImportRepository::class),
-            new StockpileStartingStockReducer($treeService),
+            new StockpileStartingStockReducer($productionPlanning, $userStructures, $productRepository),
         ));
     }
 

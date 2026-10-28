@@ -35,6 +35,7 @@ use App\Tests\Unit\Industry\Domain\Double\InMemoryBlueprintCatalog;
 use App\Tests\Unit\Industry\Domain\Double\RecipeReadCountingCatalog;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(ProductionPlanning::class)]
@@ -180,6 +181,47 @@ final class ProductionPlanningTest extends TestCase
         );
         $this->assertSame(
             [44 => 4, 3683 => 20, 3689 => 4, 9832 => 9, 9848 => 1, 16272 => 153, 16273 => 315, 16275 => 18, 16635 => 100, 16636 => 100, 16639 => 100, 16642 => 100, 17889 => 405],
+            self::leaves($plan),
+        );
+    }
+
+    #[Group('issue-69')]
+    public function testPartialStockOfAnIntermediateIsConsumedBeforeItsRunsAndOnlyTheRestIsSplitUnderItsMaxProductionLimit(): void
+    {
+        $plan = self::planningOn(self::handwrittenCatalog())->planOf(self::requestFor(
+            [self::target(self::TARGET, 12, 10, 20)],
+            startingStock: [self::MANUFACTURED_INTERMEDIATE => new Quantity(20)],
+        ));
+
+        $manufacturedIntermediate = $plan->intermediates[self::MANUFACTURED_INTERMEDIATE];
+        $this->assertSame([65, 20], [$manufacturedIntermediate->demand->value, $manufacturedIntermediate->consumedStock->value]);
+        $this->assertSame(
+            [
+                [ActivityKind::Manufacturing, 5, 10, 20, [self::SECOND_LEAF => 185, self::THIRD_LEAF => 59]],
+                [ActivityKind::Manufacturing, 5, 10, 20, [self::SECOND_LEAF => 185, self::THIRD_LEAF => 59]],
+                [ActivityKind::Manufacturing, 5, 10, 20, [self::SECOND_LEAF => 185, self::THIRD_LEAF => 59]],
+            ],
+            self::jobs($plan, self::MANUFACTURED_INTERMEDIATE),
+        );
+        $this->assertSame(
+            [self::FIRST_LEAF => 3564, self::SECOND_LEAF => 555, self::THIRD_LEAF => 303, self::FOURTH_LEAF => 238],
+            self::leaves($plan),
+        );
+    }
+
+    #[Group('issue-69')]
+    public function testStockAboveTheDemandOfAnIntermediateCoversItWithoutAnyJobNorMaterialBelowIt(): void
+    {
+        $plan = self::planningOn(self::handwrittenCatalog())->planOf(self::requestFor(
+            [self::target(self::TARGET, 12, 10, 20)],
+            startingStock: [self::MANUFACTURED_INTERMEDIATE => new Quantity(80)],
+        ));
+
+        $manufacturedIntermediate = $plan->intermediates[self::MANUFACTURED_INTERMEDIATE];
+        $this->assertSame([65, 65, 0], [$manufacturedIntermediate->demand->value, $manufacturedIntermediate->consumedStock->value, $manufacturedIntermediate->surplus->value]);
+        $this->assertSame([], self::jobs($plan, self::MANUFACTURED_INTERMEDIATE));
+        $this->assertSame(
+            [self::FIRST_LEAF => 3564, self::THIRD_LEAF => 126, self::FOURTH_LEAF => 238],
             self::leaves($plan),
         );
     }
@@ -337,9 +379,9 @@ final class ProductionPlanningTest extends TestCase
         return new ProductionPlanning($catalog, InMemorySystemCostIndices::none(), new InMemoryRigCategories());
     }
 
-    private static function requestFor(array $targets, array $blacklist = []): ProductionPlanRequest
+    private static function requestFor(array $targets, array $blacklist = [], array $startingStock = []): ProductionPlanRequest
     {
-        return new ProductionPlanRequest($targets, [], FavoriteSystems::none(), $blacklist);
+        return new ProductionPlanRequest($targets, [], FavoriteSystems::none(), $blacklist, $startingStock);
     }
 
     private static function target(int $productTypeId, int $runs, int $materialEfficiency, int $timeEfficiency): PlanTarget

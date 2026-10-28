@@ -7,9 +7,12 @@ namespace App\Service\Industry;
 use App\Entity\IndustryStockpileImport;
 use App\Entity\IndustryStockpileTarget;
 use App\Entity\User;
+use App\Industry\Application\ProductionPlanning;
+use App\Industry\Application\UserProductionStructures;
 use App\Repository\CachedAssetRepository;
 use App\Repository\IndustryStockpileImportRepository;
 use App\Repository\IndustryStockpileTargetRepository;
+use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\JitaMarketService;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -29,7 +32,9 @@ class StockpileService
         private readonly IndustryStockpileTargetRepository $targetRepository,
         private readonly CachedAssetRepository $assetRepository,
         private readonly JitaMarketService $jitaMarketService,
-        private readonly IndustryTreeService $treeService,
+        private readonly ProductionPlanning $productionPlanning,
+        private readonly UserProductionStructures $userStructures,
+        private readonly IndustryActivityProductRepository $activityProductRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly IndustryStockpileImportRepository $importRepository,
         private readonly StockpileStartingStockReducer $startingStockReducer,
@@ -43,9 +48,7 @@ class StockpileService
      */
     public function previewImport(User $user, int $typeId, int $runs, int $me): array
     {
-        $tree = $this->treeService->buildProductionTree($typeId, $runs, $me, [], $user);
-
-        $flatTargets = $this->flattenTree($tree, $typeId);
+        $flatTargets = $this->stockpileTargetsOf($user, $typeId, $runs, $me);
 
         $allTypeIds = array_keys($flatTargets);
         $prices = $this->jitaMarketService->getPricesWithFallback($allTypeIds);
@@ -92,8 +95,7 @@ class StockpileService
      */
     public function importFromBlueprint(User $user, int $typeId, int $runs, int $me, string $mode): void
     {
-        $tree = $this->treeService->buildProductionTree($typeId, $runs, $me, [], $user);
-        $flatTargets = $this->flattenTree($tree, $typeId);
+        $flatTargets = $this->stockpileTargetsOf($user, $typeId, $runs, $me);
 
         if ($mode === 'replace') {
             $this->targetRepository->deleteAllForUser($user);
@@ -344,6 +346,14 @@ class StockpileService
             'importsWithoutPlan' => array_values($importsWithoutPlan),
             'failedProducts' => $reduction['failedProducts'],
         ];
+    }
+
+    /**
+     * @return array<int, array{typeName: string, quantity: int, stage: string}>
+     */
+    private function stockpileTargetsOf(User $user, int $typeId, int $runs, int $me): array
+    {
+        return [];
     }
 
     /**

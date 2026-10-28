@@ -10,7 +10,6 @@ use App\Repository\CachedAssetRepository;
 use App\Repository\IndustryStockpileImportRepository;
 use App\Repository\IndustryStockpileTargetRepository;
 use App\Service\Industry\StockpileService;
-use App\Service\Industry\StockpileStartingStockReducer;
 use App\Service\JitaMarketService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -47,7 +46,7 @@ final class StockpileStatusDeficitTest extends TestCase
     protected function setUp(): void
     {
         $this->useWidgetRecipes();
-        $this->pilot = $this->createStub(User::class);
+        $this->pilot = $this->pilotWithId();
 
         $targetRepository = $this->createStub(IndustryStockpileTargetRepository::class);
         $targetRepository->method('findByUser')->willReturnCallback(fn (): array => $this->targets);
@@ -61,16 +60,16 @@ final class StockpileStatusDeficitTest extends TestCase
         $jitaMarketService->method('getPricesWithFallback')->willReturnCallback(
             static fn (array $typeIds): array => array_intersect_key(self::JITA_PRICES, array_flip($typeIds)),
         );
-        $treeService = $this->treeServiceOnWidgetSde();
-
         $this->service = new StockpileService(
             $targetRepository,
             $assetRepository,
             $jitaMarketService,
-            $treeService,
+            $this->productionPlanningOnWidgetSde(),
+            $this->userStructuresOfThePilot(),
+            $this->productRepositoryOnWidgetSde(),
             $this->createStub(EntityManagerInterface::class),
             $importRepository,
-            new StockpileStartingStockReducer($treeService),
+            $this->startingStockReducerOnWidgetSde(),
         );
     }
 
