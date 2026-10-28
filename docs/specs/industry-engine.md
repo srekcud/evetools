@@ -185,6 +185,7 @@ tentatives      = runs T2 voulus / (P × runs par BPC)
 - Tout montant est un **Coût inconnu** ou un montant connu. Une somme qui contient un inconnu est inconnue.
 - Le résultat garde le détail calculable (quantités, montants connus) et liste les typeId sans prix, avec la raison.
 - Les quantités ne dépendent d'aucun prix : elles restent toujours calculées.
+- Un **prix partiel** n'est pas une donnée manquante : le carnet ne couvre qu'une partie de la quantité (**couverture du carnet** < 1, sans seuil), mais le montant reste connu (`quantité × prix pondéré`). Le coût porte en plus un avertissement `partial_market_depth` (typeId, couverture), qui coexiste avec l'inconnu : une somme inconnue garde les avertissements de ses termes connus, et un avertissement ne rend jamais un coût inconnu. Une couverture absente ou nulle n'est pas un prix partiel : le typeId n'a pas de prix, il est inconnu (`market_price`). Spec #147.
 - Côté scanner, exclure l'item et le signaler reste une présentation possible ([#22](https://github.com/srekcud/evetools/issues/22)).
 
 ### R11 — ISK (D1)

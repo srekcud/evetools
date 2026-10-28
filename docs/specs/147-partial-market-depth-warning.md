@@ -1,6 +1,6 @@
 # Spec #147 : carnet Jita trop court, prix partiel signalé
 
-- **Statut** : validée par Sylvain le 2026-10-28 (Q1 à Q7 : recommandations retenues, Q3 verdict calculé et marqué, Q7 issue séparée).
+- **Statut** : livré (2026-10-28). Validée par Sylvain le 2026-10-28 (Q1 à Q7 : recommandations retenues, Q3 verdict calculé et marqué, Q7 issue séparée). Lots : A noyau (`2e22d99`, `9ca1c35`), B services et API (`951b391`, `473a95b`), C front et i18n (`48c43b1`, `1a58774`).
 - **Décisions** : Sylvain, 2026-10-28 (rappelées en R1 à R3, non rediscutées).
 - **Circuit conseillé** : `l` (voir la fin).
 
@@ -131,7 +131,7 @@ Front (`frontend/src/`) :
 - `components/industry/BuyVsBuildTab.vue:534-542` (matériaux de fabrication), `:557-567` (colonne achat et ligne Jita), `:669`, `:680` (totaux), avis près de `:415-419`.
 - `i18n/locales/fr.json:587-596` et `en.json:587-596` (bloc `industry.inventionUnknown`) : nouveau bloc `industry.partialPrice` dans les deux langues.
 
-À mettre à jour à l'implémentation : `docs/modules/industry.md` (port `MarketPrices`, ligne « Prix Jita »), R10 de `docs/specs/industry-engine.md` (prix partiel).
+Documentation mise à jour à la livraison : `docs/modules/industry.md`, R10 de `docs/specs/industry-engine.md`, glossaire.
 
 ## Hors périmètre
 
@@ -141,6 +141,24 @@ Front (`frontend/src/`) :
 - Profondeur du prix structure (Buy vs Build, `BuyVsBuildService.php:132-133`).
 - Agrégation des quantités entre appels de prix (Buy vs Build prix chaque composant depuis le haut du carnet).
 - Options de decryptor (Q6), seuil de couverture (exclu par la décision R2), changement de la règle de prix pondéré.
+
+## Décisions de câblage (2026-10-28)
+
+Tranchées par Sylvain avant l'implémentation, sur les ambiguïtés de la note de câblage. Elles précisent les règles ci-dessus ; en cas d'écart, le code fait foi.
+
+| # | Décision |
+|---|---|
+| A1 | L'adaptateur écarte une couverture ≤ 0 : typeId absent, donc prix inconnu (Q1). |
+| A2 | Le phpdoc de `JitaMarketService::getWeightedSellPricesWithFallback` est élargi (`coverage?: float`). |
+| A3 | Mise à jour mécanique des 27 tests à forme exacte ; `warnings` après `missingData`, `buyCostJitaCoveragePercent` après `buyCostStructure`. |
+| A4 | `warnings` ne reprend que les coûts retenus du verdict (asymétrie avec `missingData`, voulue). |
+| A5 | L'avis de Buy vs Build se base sur `warnings` du résultat ; pas de marqueur sur `buildAllCost` ni `buyAllCost`. |
+| A6 | Pas de `typeName` dans le noyau : le front résout le nom depuis le typeId. |
+| A7 | Dédoublonnage : première position, couverture minimale. |
+| A8 | Exemple plan contre coût marginal reproduit avec M en réaction (ME 0). |
+| A9 | Noms `WeightedPrice`, `PartialPrice`, `Cost::$partialPrices`, champ API `warnings`. |
+
+Conséquences visibles : Profit Margins marque le total de chaque matériau et liste les types dans l'avis, sans marqueur sur le résumé du coût ni sur le total des matériaux ; un datacore ou un decryptor partiel, absent de `materials`, apparaît dans l'avis sous le libellé de nom inconnu (A6).
 
 ## Tests attendus
 
