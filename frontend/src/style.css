@@ -272,3 +272,12 @@
     background: rgba(6,182,212,.5);
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse,
+  .animate-pulse-slow,
+  .animate-pulse-slower,
+  .animate-glow {
+    animation: none !important;
+  }
+}

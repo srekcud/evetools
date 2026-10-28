@@ -173,8 +173,9 @@ onMounted(async () => {
         <button
           @click="emit('close')"
           class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-200"
+          :aria-label="t('common.actions.close')"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg aria-hidden="true" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
         </button>
@@ -224,8 +225,9 @@ onMounted(async () => {
                 @click="startEditProjectName"
                 class="p-1 text-slate-500 hover:text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity"
                 :title="t('industry.projectDetail.editName')"
+                :aria-label="t('industry.projectDetail.editName')"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
               </button>
@@ -572,8 +574,9 @@ onMounted(async () => {
           <button
             @click="shoppingTabRef!.showClearStockModal = false"
             class="p-1 hover:bg-slate-800 rounded-sm text-slate-400 hover:text-slate-200"
+            :aria-label="t('common.actions.close')"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg aria-hidden="true" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>

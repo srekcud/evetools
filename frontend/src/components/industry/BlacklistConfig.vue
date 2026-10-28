@@ -169,8 +169,9 @@ function hideDropdownDelayed() {
             <button
               @click="removeItem(item.typeId)"
               class="p-0.5 hover:bg-slate-700 rounded-sm text-slate-500 hover:text-red-400"
+              :aria-label="t('a11y.remove')"
             >
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>

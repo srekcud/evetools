@@ -556,8 +556,8 @@ defineExpose({
             </ul>
             <p class="mt-1 text-xs text-amber-400/60">{{ t('industry.shoppingTab.duplicateHint') }}</p>
           </div>
-          <button @click="stock.stockPurchaseWarnings.value = []" class="text-amber-400 hover:text-amber-300 shrink-0 p-0.5">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button @click="stock.stockPurchaseWarnings.value = []" class="text-amber-400 hover:text-amber-300 shrink-0 p-0.5" :aria-label="t('common.actions.close')">
+            <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>

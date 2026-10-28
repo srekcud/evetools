@@ -484,8 +484,9 @@ defineExpose({ activate, loadCostEstimation })
               @click="goToInvention"
               class="p-1.5 hover:bg-slate-800 rounded-sm text-slate-500 hover:text-cyan-400 transition-colors"
               :title="t('industry.costEstimation.goToInvention')"
+              :aria-label="t('industry.costEstimation.goToInvention')"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
             </button>

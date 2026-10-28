@@ -60,8 +60,8 @@ const addIconClass = props.accentColor === 'amber' ? 'text-amber-500' : 'text-cy
     <template #title="{ titleId }">
       <div class="flex items-center justify-between mb-4">
         <h3 :id="titleId" class="text-lg font-semibold">{{ title }}</h3>
-        <button @click="emit('close')" class="text-slate-400 hover:text-slate-300">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button @click="emit('close')" class="text-slate-400 hover:text-slate-300" :aria-label="t('common.actions.close')">
+          <svg aria-hidden="true" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
           </svg>
         </button>
@@ -124,8 +124,9 @@ const addIconClass = props.accentColor === 'amber' ? 'text-amber-500' : 'text-cy
         <button
           @click="emit('remove', item.typeId)"
           class="p-1 hover:bg-red-500/20 rounded-sm text-slate-400 hover:text-red-400 transition-colors"
+          :aria-label="t('a11y.remove')"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
           </svg>
         </button>

@@ -845,6 +845,7 @@ function mergeGroup(stepId: string) {
                   <button
                     @click.stop="cancelSplit"
                     class="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 rounded-sm text-xs text-slate-300"
+                    :aria-label="t('common.actions.cancel')"
                   >
                     ✗
                   </button>
@@ -870,8 +871,9 @@ function mergeGroup(stepId: string) {
                 @click.stop="deleteStep(step.id, typeNameLabel(step.productTypeName, step.productTypeId))"
                 class="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-700 rounded-sm"
                 :title="t('industry.stepTree.deleteStep')"
+                :aria-label="t('industry.stepTree.deleteStep')"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>

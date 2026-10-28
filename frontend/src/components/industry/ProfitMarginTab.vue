@@ -373,8 +373,8 @@ store.fetchUserSettings()
               v-if="selectedProduct.isT2"
               class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-sm"
             >T2</span>
-            <button class="ml-1 text-slate-500 hover:text-slate-300" @click="clearProduct">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button class="ml-1 text-slate-500 hover:text-slate-300" @click="clearProduct" :aria-label="t('common.actions.clear')">
+              <svg aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>

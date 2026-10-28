@@ -39,8 +39,8 @@ const { getTypeIconUrl, onImageError } = useEveImages()
               {{ t('pve.lootScanSummary', { transactions: scanResults.scannedTransactions, contracts: scanResults.scannedContracts || 0, projects: scanResults.scannedProjects || 0, detected: scanResults.detectedSales.length }) }}
             </p>
           </div>
-          <button @click="emit('close')" class="text-slate-400 hover:text-slate-300">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button @click="emit('close')" class="text-slate-400 hover:text-slate-300" :aria-label="t('common.actions.close')">
+            <svg aria-hidden="true" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
             </svg>
           </button>

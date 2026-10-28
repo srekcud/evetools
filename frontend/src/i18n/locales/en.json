@@ -80,6 +80,15 @@
     },
     "deletedPilot": "Deleted pilot"
   },
+  "a11y": {
+    "remove": "Remove",
+    "pagination": {
+      "first": "First page",
+      "previous": "Previous page",
+      "next": "Next page",
+      "last": "Last page"
+    }
+  },
   "nav": {
     "dashboard": "Dashboard",
     "characters": "Characters",

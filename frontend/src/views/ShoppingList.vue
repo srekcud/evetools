@@ -447,9 +447,10 @@ Megacyte 100
                     v-else-if="selectedStructure.id || structureSearchQuery"
                     @mousedown.prevent="clearStructure"
                     class="text-slate-400 hover:text-slate-200"
-                    title="Revenir au defaut"
+                    :title="t('industry.shoppingTab.resetToDefault')"
+                    :aria-label="t('industry.shoppingTab.resetToDefault')"
                   >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>

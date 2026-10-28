@@ -80,6 +80,15 @@
     },
     "deletedPilot": "Pilote supprimé"
   },
+  "a11y": {
+    "remove": "Retirer",
+    "pagination": {
+      "first": "Première page",
+      "previous": "Page précédente",
+      "next": "Page suivante",
+      "last": "Dernière page"
+    }
+  },
   "nav": {
     "dashboard": "Tableau de bord",
     "characters": "Personnages",

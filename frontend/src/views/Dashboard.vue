@@ -271,8 +271,9 @@ onMounted(() => {
                   <button
                     @click="removeNotification(notif.id)"
                     class="opacity-0 group-hover/notif:opacity-100 text-slate-600 hover:text-slate-400 transition-all shrink-0"
+                    :aria-label="t('common.actions.delete')"
                   >
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>

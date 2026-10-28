@@ -331,8 +331,8 @@ function resetForm(): void {
             <p class="text-xs text-slate-500">{{ isEditMode ? t('escalations.modal.editSubtitle', { system: editingEscalation!.solarSystemName, character: editingEscalation!.characterName }) : t('escalations.modal.addSubtitle') }}</p>
           </div>
         </div>
-        <button @click="closeModal" class="p-1.5 hover:bg-slate-800 rounded-lg transition-colors">
-          <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+        <button @click="closeModal" class="p-1.5 hover:bg-slate-800 rounded-lg transition-colors" :aria-label="t('common.actions.close')">
+          <svg aria-hidden="true" class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
           </svg>
         </button>
@@ -453,8 +453,8 @@ function resetForm(): void {
             </span>
             <span class="text-sm text-slate-200">{{ formSystemName }}</span>
             <span class="text-xs text-slate-500">{{ formSystemRegion }}</span>
-            <button class="ml-1 text-slate-500 hover:text-red-400 transition-colors" @click="clearFormSystem">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            <button class="ml-1 text-slate-500 hover:text-red-400 transition-colors" @click="clearFormSystem" :aria-label="t('common.actions.clear')">
+              <svg aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </div>
         </div>

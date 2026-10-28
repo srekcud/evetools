@@ -88,8 +88,9 @@ function handleDelete(): void {
               @click.stop="handleDelete"
               :title="t('notificationHub.deleteOne')"
               class="hidden group-hover/item:flex items-center justify-center w-5 h-5 rounded hover:bg-red-500/20 transition-colors"
+              :aria-label="t('notificationHub.deleteOne')"
             >
-              <svg class="w-3.5 h-3.5 text-slate-500 hover:text-red-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg aria-hidden="true" class="w-3.5 h-3.5 text-slate-500 hover:text-red-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
