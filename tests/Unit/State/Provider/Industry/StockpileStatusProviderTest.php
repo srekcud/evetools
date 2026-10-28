@@ -18,6 +18,7 @@ use App\State\Provider\Industry\StockpileStatusProvider;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -32,6 +33,7 @@ final class StockpileStatusProviderTest extends TestCase
     private Security $security;
     private StockpileStatusProvider $provider;
     private array $targets = [];
+    private array $jitaPrices = [34 => 4.0, 35 => 9.5];
 
     protected function setUp(): void
     {
@@ -49,7 +51,9 @@ final class StockpileStatusProviderTest extends TestCase
             35 => ['total' => 150, 'locations' => []],
         ]);
         $jitaMarketService = $this->createMock(JitaMarketService::class);
-        $jitaMarketService->method('getPrices')->willReturn([34 => 4.0, 35 => 9.5]);
+        $jitaMarketService->method('getPricesWithFallback')->willReturnCallback(
+            fn (array $typeIds): array => array_intersect_key($this->jitaPrices, array_flip($typeIds)),
+        );
         $treeService = $this->createMock(IndustryTreeService::class);
 
         $this->security = $this->createStub(Security::class);
@@ -109,6 +113,29 @@ final class StockpileStatusProviderTest extends TestCase
         self::assertSame([$tritanium], $resource->shoppingList);
         self::assertSame([4051], $resource->importsWithoutPlan);
         self::assertSame([], $resource->failedProducts);
+        self::assertSame([], $resource->missingPriceTypeIds);
+    }
+
+    #[Group('issue-8')]
+    public function testExposesTheTypesWithoutJitaPriceAndTheUnknownAmountsOfTheConnectedPilot(): void
+    {
+        $this->targets[] = (new IndustryStockpileTarget())
+            ->setTypeId(35)
+            ->setTypeName('Pyerite')
+            ->setTargetQuantity(self::PYERITE_TARGET)
+            ->setStage('raw_material');
+        $this->jitaPrices = [34 => 4.0];
+        $this->security->method('getUser')->willReturn($this->createMock(User::class));
+
+        $resource = $this->provider->provide(new Get());
+
+        self::assertSame([35], $resource->missingPriceTypeIds);
+        self::assertSame(
+            [34 => 1600.0, 35 => null],
+            array_column($resource->stages['raw_material']['items'], 'stockValue', 'typeId'),
+        );
+        self::assertNull($resource->stages['raw_material']['totalValue']);
+        self::assertNull($resource->kpis['totalInvested']);
     }
 
     public function testExposesTheRemainingTargetEqualToTheTargetQuantityAndNoImportWarningWithoutReduction(): void

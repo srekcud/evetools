@@ -40,4 +40,7 @@ class StockpileStatusResource
 
     /** @var list<array{typeId: int, reason: string}> */
     public array $failedProducts = [];
+
+    /** @var list<int> */
+    public array $missingPriceTypeIds = [];
 }

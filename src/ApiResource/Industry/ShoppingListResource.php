@@ -33,6 +33,9 @@ class ShoppingListResource
     /** @var list<int> */
     public array $missingVolumeTypeIds = [];
 
+    /** @var list<int> */
+    public array $missingPriceTypeIds = [];
+
     /** @var list<array{typeId: int, reason: string}> */
     public array $failedProducts = [];
 }

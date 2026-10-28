@@ -213,7 +213,7 @@ class StockpileServiceTest extends TestCase
     {
         $tree = $this->buildMockTree();
         $this->treeService->method('buildProductionTree')->willReturn($tree);
-        $this->jitaMarketService->method('getPrices')->willReturn([]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([]);
 
         // Expect deleteAllForUser to be called in replace mode
         $this->targetRepository->expects($this->once())
@@ -230,7 +230,7 @@ class StockpileServiceTest extends TestCase
     {
         $tree = $this->buildMockTree();
         $this->treeService->method('buildProductionTree')->willReturn($tree);
-        $this->jitaMarketService->method('getPrices')->willReturn([]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([]);
 
         // Simulate existing target for "Raw Ore" (typeId 1) with quantity 300
         $existingTarget = $this->createMock(IndustryStockpileTarget::class);
@@ -305,7 +305,7 @@ class StockpileServiceTest extends TestCase
             3 => ['total' => 200, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 200]]],
             4 => ['total' => 2, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 2]]],
         ]);
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             1 => 10.0,
             2 => 20.0,
             3 => 100.0,
@@ -332,7 +332,7 @@ class StockpileServiceTest extends TestCase
             2 => ['total' => 60, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 60]]],
             3 => ['total' => 5, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 5]]],
         ]);
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             1 => 10.0,
             2 => 20.0,
             3 => 100.0,
@@ -364,7 +364,7 @@ class StockpileServiceTest extends TestCase
             200 => ['total' => 5, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 5]]],
             3 => ['total' => 30, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 30]]],
         ]);
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             100 => 1000.0,
             1 => 10.0,
             2 => 50.0,
@@ -385,7 +385,7 @@ class StockpileServiceTest extends TestCase
         $this->treeService->method('buildProductionTree')->willReturn($tree);
 
         // Prices for all type IDs in the tree
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             100 => 5000000.0,  // Widget (final product)
             1 => 10.0,         // Raw Ore
             2 => 500.0,        // Component Frame
@@ -396,7 +396,8 @@ class StockpileServiceTest extends TestCase
         $result = $this->service->previewImport($this->user, 100, 1, 0);
 
         // Verify structure
-        $this->assertSame(['stages', 'totalItems', 'estimatedCost'], array_keys($result));
+        $this->assertSame(['stages', 'totalItems', 'estimatedCost', 'missingPriceTypeIds'], array_keys($result));
+        $this->assertSame([], $result['missingPriceTypeIds']);
 
         // 5 unique type IDs: 100 (final), 1 (raw, merged), 2 (component), 3 (intermediate), 4 (raw)
         $this->assertSame(5, $result['totalItems']);
@@ -467,7 +468,7 @@ class StockpileServiceTest extends TestCase
             1 => ['total' => 50, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 50]]],
             100 => ['total' => 10, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 10]]],
         ]);
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             1 => 10.0,
             100 => 5000.0,
         ]);
@@ -516,7 +517,7 @@ class StockpileServiceTest extends TestCase
             1 => ['total' => 0, 'locations' => []],
             2 => ['total' => 50, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 50]]],
         ]);
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             1 => 10.0,
             2 => 20.0,
         ]);
@@ -544,7 +545,7 @@ class StockpileServiceTest extends TestCase
             2 => ['total' => 30, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 30]]],
             3 => ['total' => 200, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 200]]],
         ]);
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             100 => 5000000.0,
             1 => 10.0,
             2 => 500.0,
@@ -617,7 +618,7 @@ class StockpileServiceTest extends TestCase
             36 => ['total' => 900, 'locations' => []],
             16 => ['total' => 40, 'locations' => []],
         ]);
-        $this->jitaMarketService->method('getPrices')->willReturn([587 => 512_000.0, 34 => 4.75, 638 => 141_000_000.0, 36 => 68.0, 16 => 815.0]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([587 => 512_000.0, 34 => 4.75, 638 => 141_000_000.0, 36 => 68.0, 16 => 815.0]);
 
         $status = $this->service->getStockpileStatus($this->user);
 
@@ -635,7 +636,7 @@ class StockpileServiceTest extends TestCase
             34 => ['total' => 900, 'locations' => []],
             35 => ['total' => 120, 'locations' => []],
         ]);
-        $this->jitaMarketService->method('getPrices')->willReturn([34 => 4.75, 35 => 11.2, 36 => 68.0]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 4.75, 35 => 11.2, 36 => 68.0]);
 
         $status = $this->service->getStockpileStatus($this->user);
 
@@ -655,7 +656,7 @@ class StockpileServiceTest extends TestCase
             34 => ['total' => 50, 'locations' => []],
             3828 => ['total' => 15, 'locations' => []],
         ]);
-        $this->jitaMarketService->method('getPrices')->willReturn([587 => 512_000.0, 34 => 4.75, 3828 => 1_430.0]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([587 => 512_000.0, 34 => 4.75, 3828 => 1_430.0]);
 
         $status = $this->service->getStockpileStatus($this->user);
 

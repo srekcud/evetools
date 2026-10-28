@@ -50,6 +50,12 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
     private const int ROBOTICS = 9848;
     private const int COOLANT = 9832;
     private const int OXYGEN = 3683;
+    private const int ENRICHED_URANIUM = 44;
+    private const int MECHANICAL_PARTS = 3689;
+    private const int HEAVY_WATER = 16272;
+    private const int LIQUID_OZONE = 16273;
+    private const int STRONTIUM_CLATHRATES = 16275;
+    private const float TWO_ISK = 2.0;
     private const int FERNITE_CARBIDE = 16673;
     private const int HYDROGEN_FUEL_BLOCK = 4246;
     private const int NOMAD = 28846;
@@ -59,6 +65,10 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
 
     /** @var array<int, float> */
     private array $jitaPrices = [];
+
+    private array $esiFallbackPrices = [];
+
+    private array $jitaPriceRequests = [];
 
     private array $typeIdsWithoutSdeName = [];
 
@@ -80,9 +90,16 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         $this->entityManager->method('getConnection')->willReturn($connection);
 
         $jitaMarketService = $this->createMock(JitaMarketService::class);
-        $jitaMarketService->method('getPrices')->willReturnCallback(
-            fn (array $typeIds): array => array_intersect_key($this->jitaPrices, array_flip($typeIds)),
-        );
+        $jitaMarketService->method('getPrices')->willReturnCallback(function (array $typeIds): array {
+            $this->jitaPriceRequests[] = ['cache', $typeIds];
+
+            return $this->pricesOf($typeIds, $this->jitaPrices);
+        });
+        $jitaMarketService->method('getPricesWithFallback')->willReturnCallback(function (array $typeIds): array {
+            $this->jitaPriceRequests[] = ['fallback', $typeIds];
+
+            return $this->pricesOf($typeIds, $this->jitaPrices + $this->esiFallbackPrices);
+        });
 
         $treeService = $this->treeServiceOnGoldenSde();
         $this->service = new StockpileService(
@@ -140,7 +157,7 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
     }
 
     #[Group('issue-8')]
-    public function testPreviewEstimatedCostCurrentlyLeavesOutTheItemsWithoutJitaPriceIssue8(): void
+    public function testPreviewEstimatedCostIsUnknownWhenSomeItemsHaveNoJitaPrice(): void
     {
         $this->jitaPrices = [
             self::NITROGEN_FUEL_BLOCK => 600.5,
@@ -151,21 +168,86 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         $preview = $this->service->previewImport($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 10);
 
         self::assertSame(600.5, $preview['stages']['final_product'][0]['unitPrice']);
-        $robotics = $this->entryOf($preview['stages']['raw_material'], self::ROBOTICS);
-        self::assertSame(['typeId' => self::ROBOTICS, 'typeName' => 'Robotics', 'quantity' => 1, 'unitPrice' => null], $robotics);
+        self::assertSame(0.25, $this->entryOf($preview['stages']['raw_material'], self::NITROGEN_ISOTOPES)['unitPrice']);
+        self::assertSame(150.0, $this->entryOf($preview['stages']['raw_material'], self::COOLANT)['unitPrice']);
+        self::assertSame(['typeId' => self::ROBOTICS, 'typeName' => 'Robotics', 'quantity' => 1, 'unitPrice' => null], $this->entryOf($preview['stages']['raw_material'], self::ROBOTICS));
         self::assertSame(['typeId' => self::OXYGEN, 'typeName' => 'Oxygen', 'quantity' => 20, 'unitPrice' => null], $this->entryOf($preview['stages']['raw_material'], self::OXYGEN));
-        // 40 × 600.5 + 405 × 0.25 + 9 × 150 = 24020 + 101.25 + 1350
-        self::assertSame(25471.25, $preview['estimatedCost']);
+        self::assertNull($preview['estimatedCost']);
+        self::assertSame(
+            [self::ENRICHED_URANIUM, self::OXYGEN, self::MECHANICAL_PARTS, self::ROBOTICS, self::HEAVY_WATER, self::LIQUID_OZONE, self::STRONTIUM_CLATHRATES],
+            $preview['missingPriceTypeIds'],
+        );
     }
 
-    public function testPreviewRoundsTheEstimatedCostToTwoDecimals(): void
+    #[Group('issue-8')]
+    public function testPreviewEstimatedCostSumsEveryItemWhenEveryItemHasAJitaPrice(): void
     {
-        $this->jitaPrices = [self::NITROGEN_ISOTOPES => 0.333];
+        $this->jitaPrices = $this->everyNitrogenFuelBlockItemPriced();
 
         $preview = $this->service->previewImport($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 10);
 
-        // 405 × 0.333 = 134.865
+        self::assertSame(26501.25, $preview['estimatedCost']);
+        self::assertSame([], $preview['missingPriceTypeIds']);
+    }
+
+    #[Group('issue-8')]
+    public function testPreviewRoundsTheEstimatedCostToTwoDecimalsCountingAZeroPriceAsKnown(): void
+    {
+        $this->jitaPrices = array_replace(
+            array_fill_keys([self::NITROGEN_FUEL_BLOCK, self::ENRICHED_URANIUM, self::OXYGEN, self::MECHANICAL_PARTS, self::COOLANT, self::ROBOTICS, self::HEAVY_WATER, self::LIQUID_OZONE, self::STRONTIUM_CLATHRATES], 0.0),
+            [self::NITROGEN_ISOTOPES => 0.333],
+        );
+
+        $preview = $this->service->previewImport($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 10);
+
         self::assertSame(134.87, $preview['estimatedCost']);
+        self::assertSame([], $preview['missingPriceTypeIds']);
+    }
+
+    #[Group('issue-8')]
+    public function testPreviewEstimatedCostIsUnknownWhenASingleMaterialHasNoJitaPrice(): void
+    {
+        $this->jitaPrices = $this->everyNitrogenFuelBlockItemPriced();
+        unset($this->jitaPrices[self::ROBOTICS]);
+
+        $preview = $this->service->previewImport($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 10);
+
+        self::assertNull($this->entryOf($preview['stages']['raw_material'], self::ROBOTICS)['unitPrice']);
+        self::assertSame(self::TWO_ISK, $this->entryOf($preview['stages']['raw_material'], self::HEAVY_WATER)['unitPrice']);
+        self::assertNull($preview['estimatedCost']);
+        self::assertSame([self::ROBOTICS], $preview['missingPriceTypeIds']);
+    }
+
+    #[Group('issue-8')]
+    public function testPreviewPricesAnItemMissingFromTheJitaCacheWithTheEsiFallbackInASingleRequest(): void
+    {
+        $this->jitaPrices = $this->everyNitrogenFuelBlockItemPriced();
+        unset($this->jitaPrices[self::ROBOTICS]);
+        $this->esiFallbackPrices = [self::ROBOTICS => 5000.0];
+
+        $preview = $this->service->previewImport($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 10);
+
+        self::assertSame(5000.0, $this->entryOf($preview['stages']['raw_material'], self::ROBOTICS)['unitPrice']);
+        self::assertSame(31499.25, $preview['estimatedCost']);
+        self::assertSame([], $preview['missingPriceTypeIds']);
+        self::assertCount(1, $this->jitaPriceRequests);
+        self::assertSame('fallback', $this->jitaPriceRequests[0][0]);
+        self::assertEqualsCanonicalizing(
+            [self::NITROGEN_FUEL_BLOCK, self::ENRICHED_URANIUM, self::OXYGEN, self::MECHANICAL_PARTS, self::COOLANT, self::ROBOTICS, self::HEAVY_WATER, self::LIQUID_OZONE, self::STRONTIUM_CLATHRATES, self::NITROGEN_ISOTOPES],
+            $this->jitaPriceRequests[0][1],
+        );
+    }
+
+    #[Group('issue-8')]
+    public function testPreviewWithoutAnyJitaPriceListsEveryItemOnceInAscendingTypeIdOrder(): void
+    {
+        $preview = $this->service->previewImport($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 10);
+
+        self::assertNull($preview['estimatedCost']);
+        self::assertSame(
+            [self::ENRICHED_URANIUM, self::OXYGEN, self::MECHANICAL_PARTS, self::NITROGEN_FUEL_BLOCK, self::COOLANT, self::ROBOTICS, self::HEAVY_WATER, self::LIQUID_OZONE, self::STRONTIUM_CLATHRATES, self::NITROGEN_ISOTOPES],
+            $preview['missingPriceTypeIds'],
+        );
     }
 
     public function testPreviewOfATreeWithTypesMissingFromTheSdeTypesThrows(): void
@@ -384,6 +466,32 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
             }
         }
         self::fail("No entry for type {$typeId}");
+    }
+
+    private function everyNitrogenFuelBlockItemPriced(): array
+    {
+        return [
+            self::NITROGEN_FUEL_BLOCK => 600.5,
+            self::NITROGEN_ISOTOPES => 0.25,
+            self::COOLANT => 150.0,
+            self::ENRICHED_URANIUM => self::TWO_ISK,
+            self::OXYGEN => self::TWO_ISK,
+            self::MECHANICAL_PARTS => self::TWO_ISK,
+            self::ROBOTICS => self::TWO_ISK,
+            self::HEAVY_WATER => self::TWO_ISK,
+            self::LIQUID_OZONE => self::TWO_ISK,
+            self::STRONTIUM_CLATHRATES => self::TWO_ISK,
+        ];
+    }
+
+    private function pricesOf(array $typeIds, array $knownPrices): array
+    {
+        $prices = [];
+        foreach ($typeIds as $typeId) {
+            $prices[$typeId] = $knownPrices[$typeId] ?? null;
+        }
+
+        return $prices;
     }
 
     private static function persistedOfClass(array $persisted, string $className): array

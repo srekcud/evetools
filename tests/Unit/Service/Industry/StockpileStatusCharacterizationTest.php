@@ -30,6 +30,9 @@ use Symfony\Component\Uid\Uuid;
 final class StockpileStatusCharacterizationTest extends TestCase
 {
     private const int WIDGET_SOURCE = 100;
+    private const int MEXALLON = 36;
+    private const int UNPRICED_INTERMEDIATE = 57400;
+    private const int UNPRICED_COMPONENT = 57486;
     private const string JITA_LOCATION_NAME = 'Jita IV - Moon 4 - Caldari Navy Assembly Plant';
 
     /** @var list<IndustryStockpileTarget> */
@@ -41,7 +44,9 @@ final class StockpileStatusCharacterizationTest extends TestCase
     /** @var array<int, float> */
     private array $jitaPrices = [];
 
-    private int $jitaPriceRequests = 0;
+    private array $esiFallbackPrices = [];
+
+    private array $jitaPriceRequests = [];
 
     private StockpileService $service;
     private User $pilot;
@@ -53,13 +58,16 @@ final class StockpileStatusCharacterizationTest extends TestCase
         $assetRepository = $this->createMock(CachedAssetRepository::class);
         $assetRepository->method('getQuantitiesByUserWithLocations')->willReturnCallback(fn (): array => $this->stockByTypeId);
         $jitaMarketService = $this->createMock(JitaMarketService::class);
-        $jitaMarketService->method('getPrices')->willReturnCallback(
-            function (array $typeIds): array {
-                ++$this->jitaPriceRequests;
+        $jitaMarketService->method('getPrices')->willReturnCallback(function (array $typeIds): array {
+            $this->jitaPriceRequests[] = ['cache', $typeIds];
 
-                return array_intersect_key($this->jitaPrices, array_flip($typeIds));
-            },
-        );
+            return $this->pricesOf($typeIds, $this->jitaPrices);
+        });
+        $jitaMarketService->method('getPricesWithFallback')->willReturnCallback(function (array $typeIds): array {
+            $this->jitaPriceRequests[] = ['fallback', $typeIds];
+
+            return $this->pricesOf($typeIds, $this->jitaPrices + $this->esiFallbackPrices);
+        });
 
         $treeService = $this->createMock(IndustryTreeService::class);
         $this->service = new StockpileService(
@@ -175,10 +183,11 @@ final class StockpileStatusCharacterizationTest extends TestCase
                 'shoppingList' => [],
                 'importsWithoutPlan' => [],
                 'failedProducts' => [],
+                'missingPriceTypeIds' => [],
             ],
             $this->service->getStockpileStatus($this->pilot),
         );
-        self::assertSame(0, $this->jitaPriceRequests);
+        self::assertSame([], $this->jitaPriceRequests);
     }
 
     public function testItemCarriesTheStockValueAndTheDeficitCostAtTheJitaPriceRoundedToTwoDecimals(): void
@@ -235,20 +244,128 @@ final class StockpileStatusCharacterizationTest extends TestCase
         self::assertSame(0.0, $status['stages']['raw_material']['totalValue']);
         // 5.625 + 16.875 + 0.1875 = 22.6875, whereas the rounded stock values add up to 22.70
         self::assertSame(22.69, $status['kpis']['totalInvested']);
+        self::assertSame([], $status['missingPriceTypeIds']);
     }
 
     #[Group('issue-8')]
-    public function testTargetWithoutJitaPriceIsCurrentlyValuedAtZeroIssue8(): void
+    public function testTargetWithoutJitaPriceHasAnUnknownStockValueDeficitCostStageValueAndTotalInvested(): void
     {
-        $this->addTarget(57486, 'Unpriced Component', 100, 'component', stock: 40);
-        $this->addTarget(36, 'Mexallon', 10, 'raw_material', stock: 4, unitPrice: 50.0);
+        $this->addTarget(self::UNPRICED_COMPONENT, 'Unpriced Component', 100, 'component', stock: 40);
+        $this->addTarget(self::MEXALLON, 'Mexallon', 10, 'raw_material', stock: 4, unitPrice: 50.0);
 
         $status = $this->service->getStockpileStatus($this->pilot);
 
         $unpriced = $status['stages']['component']['items'][0];
-        self::assertSame([0.0, 0.0, 0.0], [$unpriced['unitPrice'], $unpriced['stockValue'], $unpriced['deficitCost']]);
+        self::assertSame(
+            ['unitPrice' => null, 'stockValue' => null, 'deficit' => 60, 'deficitCost' => null],
+            self::moneyFieldsOf($unpriced),
+        );
+        $mexallon = $status['stages']['raw_material']['items'][0];
+        self::assertSame(
+            ['unitPrice' => 50.0, 'stockValue' => 200.0, 'deficit' => 6, 'deficitCost' => 300.0],
+            self::moneyFieldsOf($mexallon),
+        );
+        self::assertNull($status['stages']['component']['totalValue']);
+        self::assertSame(200.0, $status['stages']['raw_material']['totalValue']);
+        self::assertSame(0.0, $status['stages']['intermediate']['totalValue']);
+        self::assertNull($status['kpis']['totalInvested']);
+        self::assertSame([self::UNPRICED_COMPONENT], $status['missingPriceTypeIds']);
+    }
+
+    #[Group('issue-8')]
+    public function testTargetWithoutJitaPriceAndWithoutStockHasAKnownZeroStockValueAndAnUnknownDeficitCost(): void
+    {
+        $this->addTarget(self::UNPRICED_COMPONENT, 'Unpriced Component', 100, 'component', stock: 0);
+
+        $status = $this->service->getStockpileStatus($this->pilot);
+
+        self::assertSame(
+            ['unitPrice' => null, 'stockValue' => 0.0, 'deficit' => 100, 'deficitCost' => null],
+            self::moneyFieldsOf($status['stages']['component']['items'][0]),
+        );
         self::assertSame(0.0, $status['stages']['component']['totalValue']);
-        self::assertSame(200.0, $status['kpis']['totalInvested']);
+        self::assertSame(0.0, $status['kpis']['totalInvested']);
+        self::assertSame([self::UNPRICED_COMPONENT], $status['missingPriceTypeIds']);
+    }
+
+    #[Group('issue-8')]
+    public function testOverstockedTargetWithoutJitaPriceHasAnUnknownStockValueAndAKnownZeroDeficitCost(): void
+    {
+        $this->addTarget(self::UNPRICED_COMPONENT, 'Unpriced Component', 100, 'component', stock: 150);
+
+        $status = $this->service->getStockpileStatus($this->pilot);
+
+        self::assertSame(
+            ['unitPrice' => null, 'stockValue' => null, 'deficit' => 0, 'deficitCost' => 0.0],
+            self::moneyFieldsOf($status['stages']['component']['items'][0]),
+        );
+        self::assertNull($status['stages']['component']['totalValue']);
+        self::assertNull($status['kpis']['totalInvested']);
+        self::assertSame([self::UNPRICED_COMPONENT], $status['missingPriceTypeIds']);
+    }
+
+    #[Group('issue-8')]
+    public function testTargetAtAZeroJitaPriceHasAKnownZeroStockValue(): void
+    {
+        $this->addTarget(self::MEXALLON, 'Mexallon', 20, 'raw_material', stock: 10, unitPrice: 0.0);
+
+        $status = $this->service->getStockpileStatus($this->pilot);
+
+        self::assertSame(
+            ['unitPrice' => 0.0, 'stockValue' => 0.0, 'deficit' => 10, 'deficitCost' => 0.0],
+            self::moneyFieldsOf($status['stages']['raw_material']['items'][0]),
+        );
+        self::assertSame(0.0, $status['stages']['raw_material']['totalValue']);
+        self::assertSame(0.0, $status['kpis']['totalInvested']);
+        self::assertSame([], $status['missingPriceTypeIds']);
+    }
+
+    #[Group('issue-8')]
+    public function testShoppingListCarriesTheSameUnknownAmountsAsTheStagesForATargetWithoutJitaPrice(): void
+    {
+        $this->addTarget(self::UNPRICED_COMPONENT, 'Unpriced Component', 100, 'component', stock: 40);
+        $this->addTarget(self::MEXALLON, 'Mexallon', 10, 'raw_material', stock: 4, unitPrice: 50.0);
+
+        $status = $this->service->getStockpileStatus($this->pilot);
+
+        self::assertSame([self::UNPRICED_COMPONENT, self::MEXALLON], array_column($status['shoppingList'], 'typeId'));
+        self::assertSame(
+            ['unitPrice' => null, 'stockValue' => null, 'deficit' => 60, 'deficitCost' => null],
+            self::moneyFieldsOf($status['shoppingList'][0]),
+        );
+        self::assertSame($status['stages']['component']['items'][0], $status['shoppingList'][0]);
+        self::assertSame($status['stages']['raw_material']['items'][0], $status['shoppingList'][1]);
+    }
+
+    #[Group('issue-8')]
+    public function testStatusListsEveryTargetWithoutJitaPriceOnceInAscendingTypeIdOrder(): void
+    {
+        $this->addTarget(self::UNPRICED_COMPONENT, 'Unpriced Component', 100, 'component', stock: 40);
+        $this->addTarget(self::MEXALLON, 'Mexallon', 10, 'raw_material', stock: 4, unitPrice: 50.0);
+        $this->addTarget(self::UNPRICED_INTERMEDIATE, 'Unpriced Intermediate', 30, 'intermediate', stock: 12);
+
+        $status = $this->service->getStockpileStatus($this->pilot);
+
+        self::assertSame([self::UNPRICED_INTERMEDIATE, self::UNPRICED_COMPONENT], $status['missingPriceTypeIds']);
+        self::assertNull($status['stages']['intermediate']['totalValue']);
+    }
+
+    #[Group('issue-8')]
+    public function testStatusPricesATargetMissingFromTheJitaCacheWithTheEsiFallbackInASingleRequest(): void
+    {
+        $this->addTarget(self::UNPRICED_COMPONENT, 'Component Priced By Esi', 100, 'component', stock: 40);
+        $this->addTarget(self::MEXALLON, 'Mexallon', 10, 'raw_material', stock: 4, unitPrice: 50.0);
+        $this->esiFallbackPrices = [self::UNPRICED_COMPONENT => 1250.0];
+
+        $status = $this->service->getStockpileStatus($this->pilot);
+
+        self::assertSame(
+            ['unitPrice' => 1250.0, 'stockValue' => 50000.0, 'deficit' => 60, 'deficitCost' => 75000.0],
+            self::moneyFieldsOf($status['stages']['component']['items'][0]),
+        );
+        self::assertSame(50200.0, $status['kpis']['totalInvested']);
+        self::assertSame([], $status['missingPriceTypeIds']);
+        self::assertSame([['fallback', [self::UNPRICED_COMPONENT, self::MEXALLON]]], $this->jitaPriceRequests);
     }
 
     public function testTargetWithoutAssetsHasNoStockNoLocationAndTheWholeTargetAsDeficit(): void
@@ -427,6 +544,21 @@ final class StockpileStatusCharacterizationTest extends TestCase
         if ($unitPrice !== null) {
             $this->jitaPrices[$typeId] = $unitPrice;
         }
+    }
+
+    private static function moneyFieldsOf(array $item): array
+    {
+        return array_intersect_key($item, array_flip(['unitPrice', 'stockValue', 'deficit', 'deficitCost']));
+    }
+
+    private function pricesOf(array $typeIds, array $knownPrices): array
+    {
+        $prices = [];
+        foreach ($typeIds as $typeId) {
+            $prices[$typeId] = $knownPrices[$typeId] ?? null;
+        }
+
+        return $prices;
     }
 
     private function target(int $typeId, string $typeName, int $targetQuantity, string $stage, ?int $source): IndustryStockpileTarget
