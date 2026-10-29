@@ -198,6 +198,20 @@ class BatchScanProviderTest extends TestCase
         $this->assertSame([EveConstants::JITA_SOLAR_SYSTEM_ID, EveConstants::JITA_SOLAR_SYSTEM_ID], $this->solarSystemsReceivedByTheScanner(new Request(), null));
     }
 
+    #[Group('issue-194')]
+    public function testScannerReceivesTheTransportCostPerM3OfTheIndustrySettings(): void
+    {
+        $settings = (new IndustryUserSettings())->setExportCostPerM3(800.0);
+
+        $this->assertSame(800.0, $this->argumentsReceivedByTheScanner(new Request(), $settings)[8]);
+    }
+
+    #[Group('issue-194')]
+    public function testScannerReceivesTheDefaultTransportCostPerM3WithoutIndustrySettings(): void
+    {
+        $this->assertSame(EveConstants::DEFAULT_EXPORT_COST_PER_M3, $this->argumentsReceivedByTheScanner(new Request(), null)[8]);
+    }
+
     private function settings(?int $favoriteManufacturingSystemId, ?int $favoriteReactionSystemId): IndustryUserSettings
     {
         return (new IndustryUserSettings())
@@ -209,6 +223,13 @@ class BatchScanProviderTest extends TestCase
      * @return array{int, int|null}
      */
     private function solarSystemsReceivedByTheScanner(Request $request, ?IndustryUserSettings $settings): array
+    {
+        $receivedArguments = $this->argumentsReceivedByTheScanner($request, $settings);
+
+        return [$receivedArguments[5], $receivedArguments[10] ?? null];
+    }
+
+    private function argumentsReceivedByTheScanner(Request $request, ?IndustryUserSettings $settings): array
     {
         $receivedArguments = [];
         $scanner = $this->createStub(BatchProfitScannerService::class);
@@ -222,7 +243,7 @@ class BatchScanProviderTest extends TestCase
 
         $this->providerFor($scanner, $request, $settings)->provide(new GetCollection());
 
-        return [$receivedArguments[5], $receivedArguments[10] ?? null];
+        return $receivedArguments;
     }
 
     private function providerFor(BatchProfitScannerService $scanner, Request $request, ?IndustryUserSettings $settings): BatchScanProvider

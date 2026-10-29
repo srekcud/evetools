@@ -15,7 +15,8 @@ interface StructureSearchResult {
 
 defineProps<{
   selectedStructure: { id: number | null; name: string }
-  defaultStructureName: string
+  defaultStructureName?: string
+  effectiveStructureName?: string | null
   transportCostPerM3: number
   pastedStock: string
   parsedStockCount: number

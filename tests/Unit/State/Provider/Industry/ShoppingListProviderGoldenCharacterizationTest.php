@@ -7,13 +7,16 @@ namespace App\Tests\Unit\State\Provider\Industry;
 use ApiPlatform\Metadata\Get;
 use App\ApiResource\Industry\ShoppingListMaterialResource;
 use App\ApiResource\Industry\ShoppingListResource;
+use App\Constant\EveConstants;
 use App\Entity\Character;
 use App\Entity\EveToken;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryStepPurchase;
+use App\Entity\IndustryUserSettings;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
+use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\MarketService;
 use App\Service\Industry\IndustryShoppingListBuilder;
@@ -56,9 +59,10 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
     private const int PRICED_MARKET_STRUCTURE_ID = 1_000_000_000_001;
     private const int PREFERRED_MARKET_STRUCTURE_ID = 1_000_000_000_002;
     private const int REQUESTED_MARKET_STRUCTURE_ID = 1_000_000_000_003;
+    private const string PREFERRED_MARKET_STRUCTURE_NAME = 'Preferred Market';
     /** Types of one run of Nitrogen Fuel Block at ME 10, in the order of the shopping list (by type name). */
     private const array LISTED_TYPE_IDS = [9832, 44, 16272, 16273, 3689, 17888, 3683, 9848, 16275];
-    private const float TRANSPORT_COST_PER_M3 = 1200.0;
+    private const float TRANSPORT_COST_PER_M3 = EveConstants::DEFAULT_EXPORT_COST_PER_M3;
     private const int ISOTOPES_QUANTITY = 405;
     private const int COOLANT_QUANTITY = 9;
     private const float ISOTOPES_VOLUME = 0.5;
@@ -101,6 +105,10 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
 
     /** @var list<array<int, int>> */
     private array $weightedPriceQuantities = [];
+
+    private ?IndustryUserSettings $settings = null;
+
+    private array $settingsCriteria = [];
 
     protected function setUp(): void
     {
@@ -848,6 +856,183 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
         self::assertSame([self::NITROGEN_ISOTOPES], $shoppingList->missingVolumeTypeIds);
     }
 
+    #[Group('issue-194')]
+    public function testShoppingListWithoutRequestParametersUsesThePreferredMarketStructureAndTheTransportCostPerM3OfTheIndustrySettings(): void
+    {
+        $this->pilotPrefersTheMarketStructure();
+        $this->settings = $this->industrySettingsWithTransportCostPerM3(800.0);
+        $this->jitaPrices = [self::NITROGEN_ISOTOPES => 500.0];
+        $this->structurePrices = [self::NITROGEN_ISOTOPES => 1200.0];
+
+        $shoppingList = $this->provideShoppingList();
+
+        self::assertSame(self::PREFERRED_MARKET_STRUCTURE_ID, $this->comparePricesCalls[0]['structureId']);
+        self::assertSame(800.0, $shoppingList->transportCostPerM3);
+        $isotopes = $this->materialOf($shoppingList, self::NITROGEN_ISOTOPES);
+        self::assertSame(162000.0, $isotopes->importCost);
+        self::assertSame(364500.0, $isotopes->jitaWithImport);
+        self::assertSame('jita', $isotopes->bestLocation);
+        self::assertSame(121500.0, $isotopes->savings);
+        self::assertSame(331700.0, $shoppingList->totals->import);
+        self::assertSame([['user' => $this->pilot]], $this->settingsCriteria);
+    }
+
+    #[Group('issue-194')]
+    public function testShoppingListWithoutPreferredMarketStructureUsesTheDefaultMarketStructureAndTheTransportCostPerM3OfTheIndustrySettings(): void
+    {
+        $this->settings = $this->industrySettingsWithTransportCostPerM3(950.0);
+        $this->jitaPrices = [self::NITROGEN_ISOTOPES => 500.0];
+
+        $shoppingList = $this->provideShoppingList();
+
+        self::assertSame(self::DEFAULT_MARKET_STRUCTURE_ID, $this->comparePricesCalls[0]['structureId']);
+        self::assertSame(950.0, $shoppingList->transportCostPerM3);
+        self::assertSame(192375.0, $this->materialOf($shoppingList, self::NITROGEN_ISOTOPES)->importCost);
+        self::assertSame(393893.75, $shoppingList->totals->import);
+    }
+
+    #[Group('issue-194')]
+    public function testShoppingListWithoutIndustrySettingsUsesTheDefaultTransportCostPerM3(): void
+    {
+        $this->pilotPrefersTheMarketStructure();
+        $this->jitaPrices = [self::NITROGEN_ISOTOPES => 500.0];
+
+        $shoppingList = $this->provideShoppingList();
+
+        self::assertSame(self::PREFERRED_MARKET_STRUCTURE_ID, $this->comparePricesCalls[0]['structureId']);
+        self::assertSame(EveConstants::DEFAULT_EXPORT_COST_PER_M3, $shoppingList->transportCostPerM3);
+        self::assertSame(243000.0, $this->materialOf($shoppingList, self::NITROGEN_ISOTOPES)->importCost);
+        self::assertSame(self::IMPORT_COST_OF_EVERY_LISTED_TYPE, $shoppingList->totals->import);
+    }
+
+    #[Group('issue-194')]
+    public function testRequestedMarketStructureAndTransportCostOverrideTheUserSettingsWithoutReadingTheIndustrySettings(): void
+    {
+        $this->pilotPrefersTheMarketStructure();
+        $this->settings = $this->industrySettingsWithTransportCostPerM3(800.0);
+        $this->request = new Request(['structureId' => (string) self::REQUESTED_MARKET_STRUCTURE_ID, 'transportCost' => '650']);
+        $this->jitaPrices = [self::NITROGEN_ISOTOPES => 500.0];
+
+        $shoppingList = $this->provideShoppingList();
+
+        self::assertSame(self::REQUESTED_MARKET_STRUCTURE_ID, $this->comparePricesCalls[0]['structureId']);
+        self::assertSame(650.0, $shoppingList->transportCostPerM3);
+        self::assertSame(131625.0, $this->materialOf($shoppingList, self::NITROGEN_ISOTOPES)->importCost);
+        self::assertSame(269506.25, $shoppingList->totals->import);
+        self::assertSame([], $this->settingsCriteria);
+    }
+
+    #[Group('issue-194')]
+    public function testRequestedTransportCostOverridesTheIndustrySettingsWithoutReadingThemAndKeepsThePreferredMarketStructure(): void
+    {
+        $this->pilotPrefersTheMarketStructure();
+        $this->settings = $this->industrySettingsWithTransportCostPerM3(800.0);
+        $this->request = new Request(['transportCost' => '450']);
+        $this->jitaPrices = [self::NITROGEN_ISOTOPES => 500.0];
+
+        $shoppingList = $this->provideShoppingList();
+
+        self::assertSame(self::PREFERRED_MARKET_STRUCTURE_ID, $this->comparePricesCalls[0]['structureId']);
+        self::assertSame(450.0, $shoppingList->transportCostPerM3);
+        self::assertSame(91125.0, $this->materialOf($shoppingList, self::NITROGEN_ISOTOPES)->importCost);
+        self::assertSame(186581.25, $shoppingList->totals->import);
+        self::assertSame([], $this->settingsCriteria);
+    }
+
+    #[Group('issue-194')]
+    public function testRequestedMarketStructureKeepsTheTransportCostPerM3OfTheIndustrySettings(): void
+    {
+        $this->pilotPrefersTheMarketStructure();
+        $this->settings = $this->industrySettingsWithTransportCostPerM3(800.0);
+        $this->request = new Request(['structureId' => (string) self::REQUESTED_MARKET_STRUCTURE_ID]);
+        $this->jitaPrices = [self::NITROGEN_ISOTOPES => 500.0];
+
+        $shoppingList = $this->provideShoppingList();
+
+        self::assertSame(self::REQUESTED_MARKET_STRUCTURE_ID, $this->comparePricesCalls[0]['structureId']);
+        self::assertSame(800.0, $shoppingList->transportCostPerM3);
+        self::assertSame(162000.0, $this->materialOf($shoppingList, self::NITROGEN_ISOTOPES)->importCost);
+    }
+
+    #[Group('issue-194')]
+    public function testZeroTransportCostPerM3OfTheIndustrySettingsMakesAKnownZeroImportCost(): void
+    {
+        $this->pilotPrefersTheMarketStructure();
+        $this->settings = $this->industrySettingsWithTransportCostPerM3(0.0);
+        $this->jitaPrices = [self::NITROGEN_ISOTOPES => 500.0];
+
+        $shoppingList = $this->provideShoppingList();
+
+        self::assertSame(0.0, $shoppingList->transportCostPerM3);
+        $isotopes = $this->materialOf($shoppingList, self::NITROGEN_ISOTOPES);
+        self::assertSame(0.0, $isotopes->importCost);
+        self::assertSame(202500.0, $isotopes->jitaWithImport);
+        self::assertSame(0.0, $shoppingList->totals->import);
+    }
+
+    #[Group('issue-194')]
+    public function testRequestedZeroTransportCostOverridesTheIndustrySettingsWithoutReadingThem(): void
+    {
+        $this->settings = $this->industrySettingsWithTransportCostPerM3(800.0);
+        $this->request = new Request(['transportCost' => '0']);
+        $this->jitaPrices = [self::NITROGEN_ISOTOPES => 500.0];
+
+        $shoppingList = $this->provideShoppingList();
+
+        self::assertSame(0.0, $shoppingList->transportCostPerM3);
+        self::assertSame(0.0, $this->materialOf($shoppingList, self::NITROGEN_ISOTOPES)->importCost);
+        self::assertSame([], $this->settingsCriteria);
+    }
+
+    #[Group('issue-194')]
+    public function testShoppingListWithoutMarketKeepsThePreferredMarketStructureAndItsName(): void
+    {
+        $this->pilotPrefersTheMarketStructure();
+        $this->marketUnavailable = true;
+
+        $shoppingList = $this->provideShoppingList();
+
+        self::assertSame(self::PREFERRED_MARKET_STRUCTURE_ID, $shoppingList->structureId);
+        self::assertSame(self::PREFERRED_MARKET_STRUCTURE_NAME, $shoppingList->structureName);
+        self::assertSame('Impossible de récupérer les prix du marché. Réessayez plus tard.', $shoppingList->priceError);
+    }
+
+    #[Group('issue-194')]
+    public function testShoppingListWithoutMarketNorPreferredMarketStructureKeepsTheDefaultMarketStructureAndItsName(): void
+    {
+        $this->marketUnavailable = true;
+
+        $shoppingList = $this->provideShoppingList();
+
+        self::assertSame(self::DEFAULT_MARKET_STRUCTURE_ID, $shoppingList->structureId);
+        self::assertSame('Default market', $shoppingList->structureName);
+    }
+
+    #[Group('issue-194')]
+    public function testShoppingListWithoutMarketKeepsTheRequestedMarketStructureWithoutName(): void
+    {
+        $this->pilotPrefersTheMarketStructure();
+        $this->request = new Request(['structureId' => (string) self::REQUESTED_MARKET_STRUCTURE_ID]);
+        $this->marketUnavailable = true;
+
+        $shoppingList = $this->provideShoppingList();
+
+        self::assertSame(self::REQUESTED_MARKET_STRUCTURE_ID, $shoppingList->structureId);
+        self::assertNull($shoppingList->structureName);
+    }
+
+    private function pilotPrefersTheMarketStructure(): void
+    {
+        $this->pilot
+            ->setPreferredMarketStructureId(self::PREFERRED_MARKET_STRUCTURE_ID)
+            ->setPreferredMarketStructureName(self::PREFERRED_MARKET_STRUCTURE_NAME);
+    }
+
+    private function industrySettingsWithTransportCostPerM3(float $transportCostPerM3): IndustryUserSettings
+    {
+        return (new IndustryUserSettings())->setUser($this->pilot)->setExportCostPerM3($transportCostPerM3);
+    }
+
     private function everyListedTypePricedInJita(): array
     {
         return array_replace(array_fill_keys(self::LISTED_TYPE_IDS, 100.0), [self::NITROGEN_ISOTOPES => 500.0]);
@@ -901,6 +1086,13 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
             return [self::NITROGEN_ISOTOPES => ['weightedPrice' => 510.0, 'coverage' => 0.75, 'ordersUsed' => 2]];
         });
 
+        $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
+        $settingsRepository->method('findOneBy')->willReturnCallback(function (array $criteria): ?IndustryUserSettings {
+            $this->settingsCriteria[] = $criteria;
+
+            return $this->settings;
+        });
+
         $requestStack = new RequestStack();
         if ($this->request !== null) {
             $requestStack->push($this->request);
@@ -913,6 +1105,7 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
             $invTypeRepository,
             $marketService,
             $jitaMarketService,
+            $settingsRepository,
             $requestStack,
             new NullLogger(),
         );

@@ -11,6 +11,7 @@ use App\ApiResource\Industry\ShoppingListResource;
 use App\ApiResource\Industry\ShoppingListTotalsResource;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
+use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\MarketService;
 use App\Service\Industry\IndustryShoppingListBuilder;
@@ -34,6 +35,7 @@ class ShoppingListProvider implements ProviderInterface
         private readonly InvTypeRepository $invTypeRepository,
         private readonly MarketService $marketService,
         private readonly JitaMarketService $jitaMarketService,
+        private readonly IndustryUserSettingsRepository $settingsRepository,
         private readonly RequestStack $requestStack,
         private readonly LoggerInterface $logger,
     ) {
