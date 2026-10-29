@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import DataTable from '@/components/common/DataTable.vue'
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useIndustryStore } from '@/stores/industry'
 import { useFormatters } from '@/composables/useFormatters'
@@ -20,7 +20,10 @@ const { formatIsk, formatIskFull } = useFormatters()
 const { typeNameLabel } = useTypeNames()
 
 const loading = ref(false)
-const desiredBpcCount = ref(1)
+const uid = useId()
+const desiredBpcCount = ref<number | null>(null)
+const desiredBpcCountEditedByUser = ref(false)
+const requestedBpcCount = ref(1)
 const selectedDecryptorTypeId = ref<number | null | undefined>(undefined)
 const applying = ref(false)
 const editingCost = ref(false)
@@ -44,6 +47,13 @@ const selectedDecryptorOption = computed((): BpcKitDecryptorOption | null => {
     return options.find(o => o.decryptorTypeId === (bestId ?? null)) ?? null
   }
   return options.find(o => o.decryptorTypeId === selectedDecryptorTypeId.value) ?? null
+})
+
+const defaultDesiredBpcCount = computed((): number | null => {
+  const projectRuns = store.currentProject?.runs
+  const runsPerBpc = selectedDecryptorOption.value?.runs
+  if (projectRuns == null || runsPerBpc == null || runsPerBpc < 1) return null
+  return Math.ceil(projectRuns / runsPerBpc)
 })
 
 const summaryInventionLabel = computed(() => {
@@ -135,9 +145,8 @@ function selectOption(option: BpcKitDecryptorOption) {
 async function loadBpcKit() {
   loading.value = true
   try {
-    await store.fetchBpcKit(props.projectId, desiredBpcCount.value)
-    // Reset selection to best when reloading
-    selectedDecryptorTypeId.value = undefined
+    requestedBpcCount.value = desiredBpcCount.value ?? 1
+    await store.fetchBpcKit(props.projectId, requestedBpcCount.value)
   } finally {
     loading.value = false
   }
@@ -216,8 +225,20 @@ function clearCostOverride() {
 
 // Re-fetch when desired BPC count changes (debounced)
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
+function onDesiredBpcCountInput(event: Event) {
+  const { valueAsNumber } = event.target as HTMLInputElement
+  desiredBpcCountEditedByUser.value = true
+  desiredBpcCount.value = Number.isNaN(valueAsNumber) ? null : valueAsNumber
+}
+
+watch(defaultDesiredBpcCount, (defaultCount) => {
+  if (desiredBpcCountEditedByUser.value || defaultCount == null) return
+  desiredBpcCount.value = defaultCount
+}, { immediate: true })
+
 watch(desiredBpcCount, (newVal) => {
-  if (newVal < 1) return
+  if (newVal == null || newVal < 1) return
+  if (newVal === requestedBpcCount.value) return
   if (debounceTimer) clearTimeout(debounceTimer)
   debounceTimer = setTimeout(() => {
     loadBpcKit()
@@ -230,7 +251,19 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="space-y-4">
+<div class="space-y-4">
+    <div v-if="bpcKit?.isT2 !== false" class="w-40">
+      <label :for="`${uid}-desired-bpcs`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5" :title="t('industry.bpcKitTab.desiredBpcsHelp')">{{ t('industry.bpcKitTab.desiredBpcs') }}</label>
+      <input
+        :id="`${uid}-desired-bpcs`"
+        :value="desiredBpcCount"
+        type="number"
+        min="1"
+        class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500 transition-colors"
+        @input="onDesiredBpcCountInput"
+      />
+      </div>
+
     <!-- Loading state -->
     <div v-if="loading && !bpcKit" class="text-center py-12">
       <svg class="w-8 h-8 animate-spin text-cyan-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
