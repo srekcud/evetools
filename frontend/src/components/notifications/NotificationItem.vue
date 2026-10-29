@@ -82,14 +82,14 @@ function handleDelete(): void {
             {{ notification.title }}
           </button>
           <div class="flex items-center gap-1.5 shrink-0">
-            <span class="text-xs text-slate-600 whitespace-nowrap group-hover/item:hidden">
+            <span class="text-xs text-slate-600 whitespace-nowrap group-hover/item:hidden group-focus-within/item:hidden">
               {{ timeAgo }}
             </span>
             <button
               type="button"
               @click="handleDelete"
               :title="t('notificationHub.deleteOne')"
-              class="relative hidden group-hover/item:flex items-center justify-center w-5 h-5 rounded hover:bg-red-500/20 transition-colors"
+              class="relative flex items-center justify-center w-5 h-5 rounded opacity-0 group-hover/item:opacity-100 group-focus-within/item:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 hover:bg-red-500/20 transition-colors"
               :aria-label="t('notificationHub.deleteOne')"
             >
               <svg aria-hidden="true" class="w-3.5 h-3.5 text-slate-500 hover:text-red-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
